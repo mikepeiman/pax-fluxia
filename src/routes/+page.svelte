@@ -156,7 +156,7 @@
 
 	function canvasInit() {
 		canvas = document.getElementById('canvas');
-		w = canvas.width = window.innerWidth * 0.8;
+		w = canvas.width = window.innerWidth * .8;
 		h = canvas.height = window.innerHeight;
 		canvas.style.backgroundColor = '#222';
 		canvas.style.cursor = 'pointer';
@@ -943,4 +943,8 @@
 	.controls {
 		grid-area: controls;
 	}
+
+    button {
+        color: white;
+    }
 </style>
