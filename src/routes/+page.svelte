@@ -160,6 +160,7 @@
         drawOnHexCoords(
             stars,
             data.drawStars,
+            hexCenterCoords,
             data.drawShips,
             data.drawCenters,
             data.drawHexes,
@@ -463,6 +464,7 @@
                 drawOnHexCoords(
                     stars,
                     data.drawStars,
+                    hexCenterCoords,
                     data.drawShips,
                     data.drawCenters,
                     data.drawHexes,

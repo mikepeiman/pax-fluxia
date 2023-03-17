@@ -1,10 +1,11 @@
 import { drawStars } from "./drawStars.js";
 // import hexCenterCoords from stores
 import { store_hexCenterCoords, store_ctx } from "$stores/stores";
-let hexCenterCoords = [];
+let hexCenterCoords = store_hexCenterCoords || [];
 let ctx = null;
 store_hexCenterCoords.subscribe((val) => {
     hexCenterCoords = val;
+    console.log(`🚀 ~ file: HexGridFunctions.js:10 ~ hexCenterCoords:`, hexCenterCoords)
 });
 store_ctx.subscribe((val) => {
     ctx = val;

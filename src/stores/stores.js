@@ -1,4 +1,4 @@
-import { writable } from "svelte/store"
+import { writable, get } from "svelte/store"
 
 const settingsChange = writable({})
 
@@ -8,6 +8,10 @@ export const storedSettingsChange = {
         console.log(`🚀 ~ file: stores.js ~ line 8 ~ val`, val)
         settingsChange.set(val);
         localStorage.setItem("settingsChange", JSON.stringify(val));
+    },
+    get: val => {
+        console.log(`🚀 ~ file: stores.js:16 ~ val:`, val)
+        return val;
     }
 };
 
