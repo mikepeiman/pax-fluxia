@@ -5,7 +5,7 @@
     import Checkbox from "$components/Checkbox-import.svelte";
     import OptionSelect from "$components/OptionSelect.svelte";
     import { onMount } from "svelte";
-    import { storedSettingsChange, store_ctx } from "$stores/stores.js";
+    import { storedSettingsChange, store_ctx, store_stars } from "$stores/stores.js";
     import {
         canvas_arrow,
         getPositionAlongTheLine,
@@ -17,12 +17,13 @@
     import removeDuplicates from "$lib/removeDuplicates";
     import {
         generateHexGrid,
-        drawOnHexCoords,
+        drawStarsOnHexCoords,
         drawHex,
         getVertexCoords,
     } from "$lib/hexGridFunctions";
     import { drawStars } from "$lib/drawStars";
     import data from "$lib/Settings";
+    import { get } from "svelte/store";
 
     $: console.log(
         `🚀 ~ file: index.svelte ~ line 15 ~ $storedSettingsChange`,
@@ -35,7 +36,7 @@
         ctx,
         cx,
         cy,
-        stars = [],
+        stars = get(store_stars),
         theta = 0,
         alpha = 0,
         modAlpha = 1,
@@ -157,7 +158,7 @@
     function canvasRedraw() {
         ctx.fillStyle = "#222";
         ctx.fillRect(0, 0, w, h);
-        drawOnHexCoords(
+        drawStarsOnHexCoords(
             stars,
             data.drawStars,
             hexCenterCoords,
@@ -177,13 +178,14 @@
         drawVertices
     ) {
         window.localStorage.removeItem(`${data.TITLE}`);
+        stars = get(store_stars);
         console.log(`🚀 ~ file: +page.svelte:196 ~ hexCenterCoords:`, hexCenterCoords, typeof hexCenterCoords)
         hexCenterCoords = await generateHexGrid(w, h, data.gridRadius, data.gridOffset);
         if (buildVertices) {
             hexVertexCoords = await getVertexCoords(hexCenterCoords);
             uniqueVertexCoords = removeDuplicates(hexVertexCoords);
         }
-        drawOnHexCoords(
+        drawStarsOnHexCoords(
             stars,
             data,
             hexCenterCoords,
@@ -444,6 +446,7 @@
                 ctx.fillRect(0, 0, w, h);
                 ctx.save();
 
+                console.log(`🚀 ~ file: +page.svelte:460 ~ stars.forEach ~ stars:`, stars)
                 stars.forEach((star) => {
                     data.drawStars
                         ? star.draw(
@@ -461,7 +464,7 @@
                 // });
                 ctx.restore();
                 ctx.save();
-                drawOnHexCoords(
+                drawStarsOnHexCoords(
                     stars,
                     data.drawStars,
                     hexCenterCoords,

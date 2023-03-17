@@ -5,7 +5,6 @@ let hexCenterCoords = store_hexCenterCoords || [];
 let ctx = null;
 store_hexCenterCoords.subscribe((val) => {
     hexCenterCoords = val;
-    console.log(`🚀 ~ file: HexGridFunctions.js:10 ~ hexCenterCoords:`, hexCenterCoords)
 });
 store_ctx.subscribe((val) => {
     ctx = val;
@@ -37,7 +36,8 @@ function generateHexGrid(width, height, r, offset = 0) {
     return hexCenterCoords;
 }
 
-function drawOnHexCoords(stars, data, hexCenterCoords, starsToggle, shipsToggle, center, outline, vertices) {
+function drawStarsOnHexCoords(stars, data, hexCenterCoords, starsToggle, shipsToggle, center, outline, vertices) {
+    console.log(`🚀 ~ file: HexGridFunctions.js:41 ~ drawStarsOnHexCoords ~ stars:`, stars)
     let i = 0;
     drawStars(stars, ctx, data, starsToggle, shipsToggle);
     hexCenterCoords.forEach((hex) => {
@@ -94,4 +94,4 @@ function roundNum(num, places) {
     return Math.round(num * x) / x;
 }
 
-export { generateHexGrid, drawOnHexCoords, drawHex, getVertexCoords}
+export { generateHexGrid, drawStarsOnHexCoords, drawHex, getVertexCoords }

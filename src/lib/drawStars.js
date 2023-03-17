@@ -15,7 +15,10 @@ import Ship from "./Ship";
 import getStarById from "./getStarById";
 import { drawHex } from "./HexGridFunctions";
 import { canvas_arrow } from "./canvas-arrow";
-
+import { store_stars } from "$stores/stores";
+store_stars.subscribe((val) => {
+    stars = val;
+});
 // write a function that generates stars using random coordinates from hexCenterCoords
 function generateStars(data, num) {
     const flag = {};
@@ -39,15 +42,20 @@ function generateStars(data, num) {
             );
             star.ships = generateShips(star);
             stars = [...stars, star];
-        } else {
+                    } else {
             i--;
         }
     }
+    store_stars.set(stars);
     return stars;
 }
 
 function drawStars(stars, ctx, data, starsToggle = true, shipsToggle = true) {
     console.log(`🚀 ~ file: DrawStars.js:3 ~ drawStars ~ stars:`, stars)
+    if(!stars.length){
+        stars = generateStars(data, data.numStars);
+    }
+
     stars.length < data.numStars
         ? (stars = generateStars(data, data.numStars - stars.length))
         : null;

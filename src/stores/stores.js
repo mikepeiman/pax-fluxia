@@ -16,5 +16,5 @@ export const storedSettingsChange = {
 };
 
 export const store_hexCenterCoords = writable([]);
-
 export const store_ctx = writable(null);
+export const store_stars = writable([]);
