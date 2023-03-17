@@ -1,3 +1,5 @@
+// import getStarById from "$lib/getStarById";
+
 class Star {
     constructor(id, x, y, radius, type, hue, numShips) {
         this.id = id;
@@ -22,7 +24,7 @@ class Star {
         // addEventListener('mouseover', this.handleEvent);
     }
 
-    draw(ctx, data) {
+    draw(ctx, data, drawHex, getStarById, canvas_arrow) {
         let star = new Path2D();
         ctx.beginPath();
         star.arc(this.x, this.y, this.radius, 0, 2 * Math.PI);
@@ -33,7 +35,7 @@ class Star {
             this.highlight(ctx);
         }
         if (this.active) {
-            this.activeHighlight(ctx);
+            this.activeHighlight(ctx, drawHex);
         }
         if (data.drawLabels) {
             ctx.font = `bold ${fontSize}px sans-serif`;
@@ -51,7 +53,7 @@ class Star {
         }
     }
 
-    update() {
+    update(tick) {
         this.type === 1 ? this.numShips++ : null;
         this.type === 2 && tick % 2 == 0 ? this.numShips++ : null;
         this.type === 3 && tick % 3 == 0 ? this.numShips++ : null;
@@ -70,7 +72,7 @@ class Star {
         ctx.fill();
         // ctx.restore();
     }
-    activeHighlight(ctx) {
+    activeHighlight(ctx, drawHex) {
         // ctx.save();
         this.highlighted = true;
         let lineWidth = 3;
