@@ -11,6 +11,7 @@
 		getPositionAlongTheLine,
 		getPointOnVectorByDistance
 	} from '$lib/canvas-arrow';
+    import Star from '$lib/Star';
 
 	$: console.log(
 		`🚀 ~ file: index.svelte ~ line 15 ~ $storedSettingsChange`,
@@ -103,29 +104,18 @@
 			return false;
 		}
 	})();
-	$: console.log(
-		`🚀 ~ file: index.svelte ~ line 71 ~ localStorageSupported ~ localStorageSupported`,
-		localStorageSupported
-	);
 
 	$: data.stars = stars;
-	// $: console.log(`🚀 ~ file: index.svelte ~ line 80 ~ data.stars`, data.stars);
-	// $: console.log(`🚀 ~ file: index.svelte ~ line 78 ~ stars`, stars);
 
 	function readData(data) {
 		if (localStorageSupported) {
 			try {
 				const prev = window.localStorage.getItem(`${data.TITLE}`);
 				if (!prev) return;
-				// const newData = JSON.parse(prev);
-				// Object.assign(data, newData);
 				data = prev;
-				// console.log(`🚀 ~ file: index.svelte ~ line 93 ~ readData ~ data`, data)
-				// stars = data.stars;
 				data['stars']?.length > 1
 					? ((previousData = true), (stars = data.stars))
 					: (previousData = false);
-				// console.log(`🚀 ~ file: index.svelte ~ line 85 ~ readData ~ stars`, stars);
 				return true;
 			} catch (err) {
 				console.warn(err);
@@ -137,8 +127,8 @@
 	onMount(async () => {
 		mounted = true;
 		timestamp = performance.now();
-		w = canvas.width = window.innerWidth * 0.8;
-		h = canvas.height = window.innerHeight;
+		// w = canvas.width = window.innerWidth * 0.8;
+		// h = canvas.height = window.innerHeight;
 		canvasInit();
 		let dataFound = readData(data);
 		console.log(`🚀 ~ file: index.svelte ~ line 114 ~ onMount ~ dataFound`, dataFound);
@@ -151,13 +141,12 @@
 			data.buildVertices,
 			data.drawVertices
 		);
-		// console.log(`🚀 ~ file: index.svelte ~ line 52 ~ onMount ~ stars`, stars);
 	});
 
 	function canvasInit() {
 		canvas = document.getElementById('canvas');
 		w = canvas.width = window.innerWidth * .8;
-		h = canvas.height = window.innerHeight;
+		h = canvas.height = window.innerHeight - 16;
 		canvas.style.backgroundColor = '#222';
 		canvas.style.cursor = 'pointer';
 		ctx = canvas.getContext('2d');
@@ -184,56 +173,26 @@
 	}
 
 	async function mapInit(starsToggle, shipsToggle, center, outline, buildVertices, drawVertices) {
-		console.log(
-			`🚀 ~ file: index.svelte ~ line 96 ~ mapInit ~ starsToggle, shipsToggle, center, outline, buildVertices, drawVertices`,
-			starsToggle,
-			shipsToggle,
-			center,
-			outline,
-			buildVertices,
-			drawVertices
-		);
-
 		window.localStorage.removeItem(`${data.TITLE}`);
-
-		// hexCenterCoords = [];
 		generateHexGrid(w, h, data.gridRadius, data.gridOffset);
 		if (buildVertices) {
-			console.log(`🚀 ~ file: index.svelte ~ line 90 ~ mapInit ~ buildVertices`, buildVertices);
-			// hexVertexCoords = [];
-			// data.buildVertices = false;
 			getVertexCoords();
 			uniqueVertexCoords = removeDuplicates(hexVertexCoords);
 		}
-		// drawOnHexCoords(true, true, true);
-		// drawOnHexCoords(true, false, true);
 		drawOnHexCoords(starsToggle, shipsToggle, center, outline, drawVertices);
 		drawStars(starsToggle, shipsToggle);
 	}
 
 	function drawLayers(starsToggle, shipsToggle, center, outline, buildVertices, drawVertices) {
-		console.log(
-			`🚀 ~ file: index.svelte ~ line 174 ~ drawLayers ~ starsToggle, shipsToggle, center, outline, buildVertices, drawVertices`,
-			starsToggle,
-			shipsToggle,
-			center,
-			outline,
-			buildVertices,
-			drawVertices
-		);
-
 		drawOnHexCoords(starsToggle, shipsToggle, center, outline, drawVertices);
 		drawStars(starsToggle, shipsToggle);
 	}
 
 	function drawStars(starsToggle = true, shipsToggle = true) {
-		// console.log(`🚀 ~ file: index.svelte ~ line 119 ~ drawStars ~ stars.length`, stars.length)
-		// console.log(`🚀 ~ file: index.svelte ~ line 122 ~ drawStars ~ data.numStars`, data.numStars)
-		// console.log(`🚀 ~ file: index.svelte ~ line 120 ~ drawStars ~ stars`, stars);
 		stars.length < data.numStars ? (stars = generateStars(data.numStars - stars.length)) : null;
 		stars.length > data.numStars ? stars.splice(data.numStars, stars.length) : null;
 		stars.forEach((star) => {
-			starsToggle ? star.draw(ctx) : null;
+			starsToggle ? star.draw(ctx, data) : null;
 			shipsToggle ? drawShips(star) : null;
 		});
 	}
@@ -255,7 +214,6 @@
 		ctx.beginPath();
 		ctx.strokeStyle = color;
 		ctx.lineWidth = lineWidth;
-		// let hex = new Shape().addTo().s("ff0").ss(4).mt(cx, cy).lt(cx + r, cy);
 		for (let i = 0; i <= 6; i++) {
 			const x = roundNum(cx + r * Math.cos(a * i), 3);
 			const y = roundNum(cy + r * Math.sin(a * i), 3);
@@ -265,8 +223,6 @@
 		ctx.restore();
 	}
 
-	// let hex = new Path2D();
-	// i < 6 ? ctx.lineTo(x, y) : ctx.closePath()
 	const removeDuplicates = (objArray) => {
 		const flag = {};
 		const unique = [];
@@ -367,7 +323,7 @@
 					} else {
 						star.highlight(ctx);
 					}
-					star.draw(ctx);
+					star.draw(ctx, data);
 				}
 			}
 			if (hit && e.type === 'mouseup' && e.button !== 2) {
@@ -409,7 +365,7 @@
 			e.preventDefault();
 			if (activeStar) {
 				activeStar.active = false;
-				activeStar.draw(ctx);
+				activestar.draw(ctx, data);
 			}
 			activeStar = null;
 			originStarId = null;
@@ -633,7 +589,7 @@
 				ctx.save();
 
 				stars.forEach((star) => {
-					data.drawStars ? star.draw(ctx) : null;
+					data.drawStars ? star.draw(ctx, data) : null;
 					data.drawShips ? drawShips(star) : null;
 					star.destinationStarId ? transferShips(star) : null;
 				});
@@ -676,118 +632,7 @@
 		canvasRedraw();
 	}
 
-	class Star {
-		constructor(id, x, y, radius, type, hue, numShips) {
-			this.id = id;
-			this.x = x;
-			this.y = y;
-			this.radius = radius;
-			this.type = type;
-			this.hue = hue;
-			this.numShips = numShips;
-			this.xMin = x - radius;
-			this.xMax = x + radius;
-			this.yMin = y - radius;
-			this.yMax = y + radius;
-			this.ships = [];
-			this.highlighted = false;
-			this.active = false;
-			this.destinationStarId = null;
-			this.shipsPerTickPercentage = 0.05;
-			this.shipsPerTick = 2;
-			this.shipsToTransfer = [];
-			// addEventListener('click', this.handleEvent);
-			// addEventListener('mouseover', this.handleEvent);
-		}
 
-		draw(ctx) {
-			let star = new Path2D();
-			ctx.beginPath();
-			star.arc(this.x, this.y, this.radius, 0, 2 * Math.PI);
-			ctx.fillStyle = `hsla(${this.hue}, 50%, 50%, 1)`;
-			ctx.fill(star);
-			let fontSize = 18;
-			if (this.highlighted) {
-				this.highlight(ctx);
-			}
-			if (this.active) {
-				this.activeHighlight(ctx);
-			}
-			if (data.drawLabels) {
-				ctx.font = `bold ${fontSize}px sans-serif`;
-				ctx.textAlign = 'center';
-				// ctx.fillText(this.ships.length, this.x - this.radius / 3, this.y + fontSize / 3);
-				ctx.fillStyle = '#fff';
-				ctx.fillText(this.id, this.x, this.y - fontSize / 2);
-				ctx.fillStyle = '#000';
-				ctx.fillText(this.ships.length, this.x, this.y + fontSize / 3);
-			}
-			if (this.destinationStarId) {
-				let destination = getStarById(this.destinationStarId);
-				let origin = getStarById(this.id);
-				canvas_arrow(ctx, destination, origin);
-			}
-		}
-
-		update() {
-			this.type === 1 ? this.numShips++ : null;
-			this.type === 2 && tick % 2 == 0 ? this.numShips++ : null;
-			this.type === 3 && tick % 3 == 0 ? this.numShips++ : null;
-			this.type === 4 && tick % 4 == 0 ? this.numShips++ : null;
-			this.type === 5 && tick % 5 == 0 ? this.numShips++ : null;
-		}
-
-		highlight(ctx) {
-			// ctx.save();
-			this.highlighted = true;
-			ctx.beginPath();
-
-			// ctx.lineWidth = 1;
-			ctx.arc(this.x, this.y, this.radius * 1.2, 0, 2 * Math.PI);
-			ctx.fillStyle = `hsla(${this.hue + 20}, 100%, 50%, 1)`;
-			ctx.fill();
-			// ctx.restore();
-		}
-		activeHighlight(ctx) {
-			// ctx.save();
-			this.highlighted = true;
-			let lineWidth = 3;
-			let color = `hsla(${this.hue}, 100%, 50%, 1)`;
-			drawHex(this.x, this.y, this.radius * 2, lineWidth, color);
-			// ctx.lineWidth = 1;
-			// ctx.arc(this.x, this.y, this.radius * 2.2, 0, 2 * Math.PI);
-			// ctx.fillStyle = `hsla(${this.hue + 20}, 100%, 50%, 1)`;
-			// ctx.fill();
-			// ctx.restore();
-		}
-
-		unhighlight(ctx) {
-			this.highlighted = false;
-			// ctx.save();
-
-			ctx.beginPath();
-			// ctx.lineWidth = 1;
-			ctx.arc(this.x, this.y, this.radius * 2, 0, 2 * Math.PI);
-			ctx.fillStyle = '#222';
-			ctx.fill();
-			ctx.beginPath();
-			ctx.arc(this.x, this.y, this.radius, 0, 2 * Math.PI);
-			ctx.fillStyle = `hsla(${this.hue + 20}, 50%, 50%, 1)`;
-			ctx.fill();
-			// ctx.restore();
-		}
-
-		handleEvent(e) {
-			console.log(`🚀 ~ file: index.svelte ~ line 334 ~ Star ~ onEvent ~ e.type: `, e.type);
-			console.log(`🚀 ~ file: index.svelte ~ line 334 ~ Star ~ onEvent ~ e`, e);
-			console.log(`🚀 ~ file: index.svelte ~ line 214 ~ onEvent ~ this`, this.x);
-			console.log(`🚀 ~ file: index.svelte ~ line 214 ~ onEvent ~ this`, this.y);
-			if (e.type === 'mouseover') {
-				console.log(` e.type: mouseover `);
-				this.hue = 0;
-			}
-		}
-	}
 
 	class Handler extends Star {
 		constructor(currentTarget) {
