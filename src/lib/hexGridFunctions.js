@@ -1,4 +1,4 @@
-import { drawStars } from "./drawStars.js";
+import { drawStars } from "./StarsAndShips.js";
 // import hexCenterCoords from stores
 import { store_hexCenterCoords, store_ctx } from "$stores/stores";
 let hexCenterCoords = store_hexCenterCoords || [];

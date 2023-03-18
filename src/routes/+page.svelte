@@ -21,7 +21,7 @@
         drawHex,
         getVertexCoords,
     } from "$lib/hexGridFunctions";
-    import { drawStars } from "$lib/drawStars";
+    import { drawStars, drawShips, generateShips } from "$lib/StarsAndShips";
     import data from "$lib/Settings";
     import { get } from "svelte/store";
 
@@ -158,6 +158,7 @@
     function canvasRedraw() {
         ctx.fillStyle = "#222";
         ctx.fillRect(0, 0, w, h);
+        stars = get(store_stars);
         drawStarsOnHexCoords(
             stars,
             data.drawStars,
@@ -179,12 +180,13 @@
     ) {
         window.localStorage.removeItem(`${data.TITLE}`);
         stars = get(store_stars);
-        console.log(`🚀 ~ file: +page.svelte:196 ~ hexCenterCoords:`, hexCenterCoords, typeof hexCenterCoords)
+        console.log(`🚀 ~ file: +page.svelte:182 ~ stars:`, stars)
         hexCenterCoords = await generateHexGrid(w, h, data.gridRadius, data.gridOffset);
         if (buildVertices) {
             hexVertexCoords = await getVertexCoords(hexCenterCoords);
             uniqueVertexCoords = removeDuplicates(hexVertexCoords);
         }
+        stars = get(store_stars);
         drawStarsOnHexCoords(
             stars,
             data,
@@ -464,6 +466,7 @@
                 // });
                 ctx.restore();
                 ctx.save();
+                stars = get(store_stars);
                 drawStarsOnHexCoords(
                     stars,
                     data.drawStars,

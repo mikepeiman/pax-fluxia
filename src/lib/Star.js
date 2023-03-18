@@ -1,5 +1,3 @@
-// import getStarById from "$lib/getStarById";
-
 class Star {
     constructor(id, x, y, radius, type, hue, numShips) {
         this.id = id;
