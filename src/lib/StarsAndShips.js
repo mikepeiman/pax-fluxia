@@ -50,8 +50,9 @@ function generateStars(data, num) {
     return stars;
 }
 
-function drawStars(stars, ctx, data, starsToggle = true, shipsToggle = true) {
-    console.log(`🚀 ~ file: DrawStars.js:3 ~ drawStars ~ stars:`, stars)
+function drawStars(stars, ctx, data) {
+    let starsToggle = data.drawShips;
+    let shipsToggle = data.drawStars;
     if(!stars.length){
         stars = generateStars(data, data.numStars);
     }

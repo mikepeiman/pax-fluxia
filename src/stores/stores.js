@@ -16,6 +16,7 @@ export const storedSettingsChange = {
 };
 export const store_stars = writable([])
 export const store_hexCenterCoords = writable([]);
+export const store_uniqueVertexCoords = writable([]);
 export const store_ctx = writable(null);
 export const store_stars_2 = {
     subscribe: store_stars.subscribe,

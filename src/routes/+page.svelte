@@ -5,7 +5,12 @@
     import Checkbox from "$components/Checkbox-import.svelte";
     import OptionSelect from "$components/OptionSelect.svelte";
     import { onMount } from "svelte";
-    import { storedSettingsChange, store_ctx, store_stars } from "$stores/stores.js";
+    import {
+        storedSettingsChange,
+        store_ctx,
+        store_stars,
+        store_uniqueVertexCoords,
+    } from "$stores/stores.js";
     import {
         canvas_arrow,
         getPositionAlongTheLine,
@@ -47,7 +52,6 @@
         destinationStarId,
         mousedownStarId,
         mouseupStarId;
-
 
     // $: console.log(
     //     `🚀 ~ file: index.svelte ~ line 30 ~ \n\nmousedownStarId`,
@@ -129,15 +133,8 @@
         //     readData(data)
         // );
         canvasInitialized.then(() => {
-            mapInit(
-                data.drawStars,
-                data.drawShips,
-                data.drawCenters,
-                data.drawHexes,
-                data.buildVertices,
-                data.drawVertices
-            );
-        })
+            mapInit(data);
+        });
     });
 
     function canvasInit() {
@@ -159,48 +156,28 @@
         ctx.fillStyle = "#222";
         ctx.fillRect(0, 0, w, h);
         stars = get(store_stars);
-        drawStarsOnHexCoords(
-            stars,
-            data.drawStars,
-            hexCenterCoords,
-            data.drawStars,
-            data.drawShips,
-            data.drawCenters,
-            data.drawHexes,
-            data.drawVertices
-        );
+        drawStarsOnHexCoords(stars, data, hexCenterCoords);
     }
 
-    async function mapInit(
-        starsToggle,
-        shipsToggle,
-        center,
-        outline,
-        buildVertices,
-        drawVertices
-    ) {
+    async function mapInit(data) {
         window.localStorage.removeItem(`${data.TITLE}`);
         stars = get(store_stars);
-        console.log(`🚀 ~ file: +page.svelte:182 ~ stars:`, stars)
-        hexCenterCoords = await generateHexGrid(w, h, data.gridRadius, data.gridOffset);
-        if (buildVertices) {
+        console.log(`🚀 ~ file: +page.svelte:182 ~ stars:`, stars);
+        hexCenterCoords = await generateHexGrid(
+            w,
+            h,
+            data.gridRadius,
+            data.gridOffset
+        );
+        if (data.buildVertices) {
             hexVertexCoords = await getVertexCoords(hexCenterCoords);
             uniqueVertexCoords = removeDuplicates(hexVertexCoords);
+            store_uniqueVertexCoords.set(uniqueVertexCoords);
         }
         stars = get(store_stars);
-        drawStarsOnHexCoords(
-            stars,
-            data,
-            hexCenterCoords,
-            starsToggle,
-            shipsToggle,
-            center,
-            outline,
-            drawVertices
-        );
-        drawStars(stars, ctx, data, starsToggle, shipsToggle);
+        drawStarsOnHexCoords(stars, data, hexCenterCoords);
+        drawStars(stars, ctx, data);
     }
-
 
     function onClick(e) {
         let activeStar = null;
@@ -318,7 +295,6 @@
         }
     }
 
-
     function toggleAnimate() {
         animating ? (animating = false) : (animating = true);
         animating ? animate() : null;
@@ -338,8 +314,6 @@
         canvasRedraw();
     }
 
-
-
     function shuffle(o) {
         //try this shuffle function
         for (
@@ -349,7 +323,6 @@
         );
         return o;
     }
-
 
     function adjustShipNumber(star) {
         let currentNumberOfShips = star.ships.length;
@@ -379,9 +352,6 @@
         star.ships = ships;
         return ships;
     }
-
-
-
 
     function transferShips(star) {
         if (star.destinationStarId) {
@@ -448,8 +418,6 @@
                 ctx.fillStyle = "#222";
                 ctx.fillRect(0, 0, w, h);
                 ctx.save();
-
-                console.log(`🚀 ~ file: +page.svelte:460 ~ stars.forEach ~ stars:`, stars)
                 stars.forEach((star) => {
                     data.drawStars
                         ? star.draw(
@@ -468,16 +436,7 @@
                 ctx.restore();
                 ctx.save();
                 stars = get(store_stars);
-                drawStarsOnHexCoords(
-                    stars,
-                    data,
-                    hexCenterCoords,
-                    data.drawStars,
-                    data.drawShips,
-                    data.drawCenters,
-                    data.drawHexes,
-                    data.drawVertices
-                );
+                drawStarsOnHexCoords(stars, data, hexCenterCoords);
                 ctx.restore();
                 ++frame;
             }, 1000 / data.fps);

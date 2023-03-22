@@ -1,17 +1,21 @@
 import { drawStars } from "./StarsAndShips.js";
 // import hexCenterCoords from stores
-import { store_hexCenterCoords, store_ctx } from "$stores/stores";
+import { get } from "svelte/store";
+import { store_hexCenterCoords, store_uniqueVertexCoords, store_ctx } from "$stores/stores";
 let hexCenterCoords = store_hexCenterCoords || [];
 let ctx = null;
+let uniqueVertexCoords = get(store_uniqueVertexCoords);
+let hexVertexCoords = [];
 store_hexCenterCoords.subscribe((val) => {
     hexCenterCoords = val;
+});
+store_uniqueVertexCoords.subscribe((val) => {
+    uniqueVertexCoords = val;
 });
 store_ctx.subscribe((val) => {
     ctx = val;
 });
 
-let uniqueVertexCoords = [];
-let hexVertexCoords = [];
 
 function generateHexGrid(width, height, r, offset = 0) {
     const a = (2 * Math.PI) / 6;
@@ -36,24 +40,25 @@ function generateHexGrid(width, height, r, offset = 0) {
     return hexCenterCoords;
 }
 
-function drawStarsOnHexCoords(stars, data, hexCenterCoords, starsToggle, shipsToggle, center, outline, vertices) {
-    console.log(`🚀 ~ file: HexGridFunctions.js:41 ~ drawStarsOnHexCoords ~ stars:`, stars)
+function drawStarsOnHexCoords(stars, data, hexCenterCoords) { 
     let i = 0;
-    drawStars(stars, ctx, data, starsToggle, shipsToggle);
+    drawStars(stars, ctx, data);
     hexCenterCoords.forEach((hex) => {
         let color = `hsla(${i++}, 100%, 50%, 1)`;
-        if (center) {
+        if (data.drawCenters) {
             ctx.beginPath();
             ctx.fillStyle = color;
             ctx.arc(hex.x, hex.y, 5, 0, 2 * Math.PI);
             ctx.fill();
         }
-        if (outline) {
+        if (data.drawHexes) {
             let lineWidth = 1;
             drawHex(hex.x, hex.y, hex.r, lineWidth, color);
         }
     });
-    if (vertices) {
+    if (data.drawVertices) {
+        console.log(`🚀 ~ file: HexGridFunctions.js:56 ~ drawStarsOnHexCoords ~ data.drawVertices:`, data.drawVertices)
+        console.log(`🚀 ~ file: HexGridFunctions.js:58 ~ uniqueVertexCoords.forEach ~ uniqueVertexCoords:`, uniqueVertexCoords)
         uniqueVertexCoords.forEach((vertex, i) => {
             let color = `hsla(${i}, 50%, 50%, 1)`;
             let lineWidth = 1;
