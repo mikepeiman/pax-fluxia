@@ -156,7 +156,6 @@
         ctx.fillStyle = "#222";
         ctx.fillRect(0, 0, w, h);
         stars = get(store_stars);
-        console.log(`🚀 ~ file: +page.svelte:159 ~ canvasRedraw ~ stars:`, stars)
         drawStarsOnHexCoords(stars, data, hexCenterCoords);
     }
 
@@ -181,11 +180,11 @@
 
     function onClick(e) {
         let activeStar = null;
-        console.log(
-            `🚀 ~ file: index.svelte ~ line 305 ~ onClick ~ e ✅✅✅🔥🔥🔥  `,
-            e.type
-        ),
-            `  ✅✅✅🔥🔥🔥`;
+        // console.log(
+        //     `🚀 ~ file: index.svelte ~ line 305 ~ onClick ~ e ✅✅✅🔥🔥🔥  `,
+        //     e.type
+        // ),
+        //     `  ✅✅✅🔥🔥🔥`;
         console.log("click", e.x, ":", e.y);
         let hit = false;
         stars.forEach((star) => {
@@ -208,10 +207,10 @@
                     : null;
 
                 if (e.type === "mouseup" && e.button !== 2) {
-                    console.log(
-                        `🚀 ~ file: index.svelte ~ line 422 ~ stars.forEach ~ star`,
-                        star
-                    );
+                    // console.log(
+                    //     `🚀 ~ file: index.svelte ~ line 422 ~ stars.forEach ~ star`,
+                    //     star
+                    // );
                     activeStar ? (activeStar.active = false) : null;
                     activeStar = star;
                     star.active = true;

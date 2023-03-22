@@ -1,24 +1,23 @@
 import data from "$lib/Settings";
-// import hexCenterCoords from stores
-import { store_hexCenterCoords, store_ctx } from "$stores/stores";
-let hexCenterCoords = [];
-store_hexCenterCoords.subscribe((val) => {
-    hexCenterCoords = val;
-});
-let ctx = null;
-let stars = [];
-store_ctx.subscribe((val) => {
-    ctx = val;
-});
+import { store_hexCenterCoords, store_ctx, store_stars } from "$stores/stores";
 import Star from "./Star";
 import Ship from "./Ship";
 import getStarById from "./getStarById";
 import { drawHex } from "./HexGridFunctions";
 import { canvas_arrow } from "./canvas-arrow";
-import { store_stars } from "$stores/stores";
-// store_stars.subscribe((val) => {
-//     stars = val;
-// });
+import { get } from "svelte/store";
+let hexCenterCoords = [];
+store_hexCenterCoords.subscribe((val) => {
+    hexCenterCoords = val;
+});
+let ctx = null;
+let stars = get(store_stars);
+store_ctx.subscribe((val) => {
+    ctx = val;
+});
+store_stars.subscribe((val) => {
+    stars = val;
+});
 // write a function that generates stars using random coordinates from hexCenterCoords
 function generateStars(data, num) {
     const flag = {};
@@ -51,8 +50,9 @@ function generateStars(data, num) {
 }
 
 function drawStars(stars, ctx, data) {
-    let starsToggle = data.drawShips;
-    let shipsToggle = data.drawStars;
+    // stars = get(store_stars)
+    let starsToggle = data.drawStars;
+    let shipsToggle = data.drawShips;
     if(!stars.length){
         stars = generateStars(data, data.numStars);
     }
