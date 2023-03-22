@@ -1,3 +1,6 @@
+import { store_stars } from "$stores/stores";
+import { get } from "svelte/store";
+
 class Star {
     constructor(id, x, y, radius, type, hue, numShips) {
         this.id = id;
@@ -18,8 +21,6 @@ class Star {
         this.shipsPerTickPercentage = 0.05;
         this.shipsPerTick = 2;
         this.shipsToTransfer = [];
-        // addEventListener('click', this.handleEvent);
-        // addEventListener('mouseover', this.handleEvent);
     }
 
     draw(ctx, data, drawHex, getStarById, canvas_arrow) {
@@ -45,8 +46,9 @@ class Star {
             ctx.fillText(this.ships.length, this.x, this.y + fontSize / 3);
         }
         if (this.destinationStarId) {
-            let destination = getStarById(this.destinationStarId);
-            let origin = getStarById(this.id);
+            stars = get(store_stars)
+            let destination = getStarById(stars, this.destinationStarId);
+            let origin = getStarById(stars, this.id);
             canvas_arrow(ctx, destination, origin);
         }
     }

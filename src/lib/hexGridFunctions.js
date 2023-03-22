@@ -57,8 +57,6 @@ function drawStarsOnHexCoords(stars, data, hexCenterCoords) {
         }
     });
     if (data.drawVertices) {
-        console.log(`🚀 ~ file: HexGridFunctions.js:56 ~ drawStarsOnHexCoords ~ data.drawVertices:`, data.drawVertices)
-        console.log(`🚀 ~ file: HexGridFunctions.js:58 ~ uniqueVertexCoords.forEach ~ uniqueVertexCoords:`, uniqueVertexCoords)
         uniqueVertexCoords.forEach((vertex, i) => {
             let color = `hsla(${i}, 50%, 50%, 1)`;
             let lineWidth = 1;

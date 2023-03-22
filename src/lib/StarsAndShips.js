@@ -16,9 +16,9 @@ import getStarById from "./getStarById";
 import { drawHex } from "./HexGridFunctions";
 import { canvas_arrow } from "./canvas-arrow";
 import { store_stars } from "$stores/stores";
-store_stars.subscribe((val) => {
-    stars = val;
-});
+// store_stars.subscribe((val) => {
+//     stars = val;
+// });
 // write a function that generates stars using random coordinates from hexCenterCoords
 function generateStars(data, num) {
     const flag = {};

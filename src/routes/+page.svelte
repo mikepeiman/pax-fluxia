@@ -156,6 +156,7 @@
         ctx.fillStyle = "#222";
         ctx.fillRect(0, 0, w, h);
         stars = get(store_stars);
+        console.log(`🚀 ~ file: +page.svelte:159 ~ canvasRedraw ~ stars:`, stars)
         drawStarsOnHexCoords(stars, data, hexCenterCoords);
     }
 
@@ -174,7 +175,6 @@
             uniqueVertexCoords = removeDuplicates(hexVertexCoords);
             store_uniqueVertexCoords.set(uniqueVertexCoords);
         }
-        stars = get(store_stars);
         drawStarsOnHexCoords(stars, data, hexCenterCoords);
         drawStars(stars, ctx, data);
     }
@@ -204,7 +204,7 @@
                 e.type === "mousedown" ? (mousedownStarId = star.id) : null;
                 e.type === "mouseup" ? (mouseupStarId = star.id) : null;
                 e.type === "mousedown"
-                    ? console.log(`getStarById: `, getStarById(star.id))
+                    ? console.log(`getStarById: `, getStarById(stars, star.id))
                     : null;
 
                 if (e.type === "mouseup" && e.button !== 2) {
@@ -227,8 +227,8 @@
                 if (mousedownStarId !== mouseupStarId) {
                     originStarId = mousedownStarId;
                     destinationStarId = previousOriginStarId = mouseupStarId;
-                    // activeStar = getStarById(mouseupStarId)
-                    let origin = getStarById(originStarId);
+                    // activeStar = getStarById(stars, mouseupStarId)
+                    let origin = getStarById(stars, originStarId);
                     origin.destinationStarId = destinationStarId;
                 }
 
@@ -244,7 +244,7 @@
                                 previousOriginStarId
                         );
                         destinationStarId = originStarId;
-                        let origin = getStarById(previousOriginStarId);
+                        let origin = getStarById(stars, previousOriginStarId);
                         origin.destinationStarId = mouseupStarId;
                     }
                     previousOriginStarId = originStarId;
@@ -260,8 +260,8 @@
                     star.destinationStarId &&
                     star.destinationStarId !== star.id
                 ) {
-                    let origin = getStarById(star.id);
-                    let destination = getStarById(star.destinationStarId);
+                    let origin = getStarById(stars, star.id);
+                    let destination = getStarById(stars, star.destinationStarId);
                     canvas_arrow(ctx, destination, origin);
                 }
             });
@@ -355,7 +355,7 @@
 
     function transferShips(star) {
         if (star.destinationStarId) {
-            let dest = getStarById(star.destinationStarId);
+            let dest = getStarById(stars, star.destinationStarId);
             let j = 0;
             star.shipsToTransfer.forEach((ship, i) => {
                 // ship.distance++;
