@@ -163,7 +163,6 @@
             stars,
             data.drawStars,
             hexCenterCoords,
-            data.drawStars,
             data.drawShips,
             data.drawCenters,
             data.drawHexes,
@@ -470,9 +469,8 @@
                 stars = get(store_stars);
                 drawStarsOnHexCoords(
                     stars,
-                    data,
-                    hexCenterCoords,
                     data.drawStars,
+                    hexCenterCoords,
                     data.drawShips,
                     data.drawCenters,
                     data.drawHexes,
