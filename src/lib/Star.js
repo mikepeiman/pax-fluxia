@@ -47,7 +47,6 @@ class Star {
         }
         if (this.destinationStarId) {
             stars = get(store_stars)
-            console.log(`🚀 ~ file: Star.js:50 ~ Star ~ draw ~ stars:`, stars)
             let destination = getStarById(stars, this.destinationStarId);
             let origin = getStarById(stars, this.id);
             canvas_arrow(ctx, destination, origin);

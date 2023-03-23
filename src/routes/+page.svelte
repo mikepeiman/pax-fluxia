@@ -214,11 +214,11 @@
                     activeStar ? (activeStar.active = false) : null;
                     activeStar = star;
                     star.active = true;
-                    if (star.highlighted) {
-                        star.unhighlight(ctx);
-                    } else {
-                        star.highlight(ctx);
-                    }
+                    // if (star.highlighted) {
+                    //     star.unhighlight(ctx);
+                    // } else {
+                    //     star.highlight(ctx);
+                    // }
                     star.draw(ctx, data, drawHex, getStarById, canvas_arrow);
                 }
             }
@@ -267,25 +267,25 @@
         }
         if (e.type === "contextmenu" || e.button === 2) {
             e.preventDefault();
-            console.log(
-                `🚀 ~ file: +page.svelte:368 ~ onClick ~ activeStar:`,
-                activeStar
-            );
-            if (activeStar) {
-                console.log(
-                    `🚀 ~ file: +page.svelte:369 ~ onClick ~ activeStar:`,
-                    activeStar
-                );
-                activeStar.active = false;
-                activestar.draw(ctx, data, drawHex, getStarById, canvas_arrow);
-                console.log(
-                    `🚀 ~ file: +page.svelte:372 ~ onClick ~ activeStar:`,
-                    activeStar
-                );
-            }
-            setTimeout(() => {
-                activeStar = null;
-            }, 500);
+            // console.log(
+            //     `🚀 ~ file: +page.svelte:368 ~ onClick ~ activeStar:`,
+            //     activeStar
+            // );
+            // if (activeStar) {
+            //     console.log(
+            //         `🚀 ~ file: +page.svelte:369 ~ onClick ~ activeStar:`,
+            //         activeStar
+            //     );
+            //     activeStar.active = false;
+            //     activestar.draw(ctx, data, drawHex, getStarById, canvas_arrow);
+            //     console.log(
+            //         `🚀 ~ file: +page.svelte:372 ~ onClick ~ activeStar:`,
+            //         activeStar
+            //     );
+            // }
+            // setTimeout(() => {
+            //     activeStar = null;
+            // }, 500);
             // activeStar = null;
             originStarId = null;
             destinationStarId = null;
