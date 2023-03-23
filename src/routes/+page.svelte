@@ -12,13 +12,14 @@
         store_uniqueVertexCoords,
     } from "$stores/stores.js";
     import {
-        canvas_arrow,
+        canvasArrow,
         getPositionAlongTheLine,
         getPointOnVectorByDistance,
-    } from "$lib/canvas-arrow";
+    } from "$lib/canvasArrow";
     import Star from "$lib/Star";
     import Ship from "$lib/Ship";
     import getStarById from "$lib/getStarById";
+    import { clearStarActiveStates } from "$lib/clearStarActiveStates";
     import removeDuplicates from "$lib/removeDuplicates";
     import {
         generateHexGrid,
@@ -26,8 +27,9 @@
         drawHex,
         getVertexCoords,
     } from "$lib/hexGridFunctions";
+    import {onClick, onKeyDown} from "$lib/onClick";
     import { drawStars, drawShips, generateShips } from "$lib/StarsAndShips";
-    import data from "$lib/Settings";
+    import { data } from "$lib/Data";
     import { get } from "svelte/store";
 
     $: console.log(
@@ -46,12 +48,7 @@
         alpha = 0,
         modAlpha = 1,
         timestamp = 0,
-        lastRender = 0,
-        originStarId,
-        previousOriginStarId,
-        destinationStarId,
-        mousedownStarId,
-        mouseupStarId;
+        lastRender = 0;
 
     // $: console.log(
     //     `🚀 ~ file: index.svelte ~ line 30 ~ \n\nmousedownStarId`,
@@ -150,6 +147,7 @@
         canvas.addEventListener("mousedown", onClick);
         canvas.addEventListener("mouseup", onClick);
         canvas.addEventListener("contextmenu", onClick);
+        window.addEventListener("keydown", onKeyDown);
     }
 
     function canvasRedraw() {
@@ -178,121 +176,13 @@
         drawStars(stars, ctx, data);
     }
 
-    function onClick(e) {
-        let activeStar = null;
-        // console.log(
-        //     `🚀 ~ file: index.svelte ~ line 305 ~ onClick ~ e ✅✅✅🔥🔥🔥  `,
-        //     e.type
-        // ),
-        //     `  ✅✅✅🔥🔥🔥`;
-        console.log("click", e.x, ":", e.y);
-        let hit = false;
+    function clearAllStarsActiveStates() {
         stars.forEach((star) => {
-            // if we get a pixel hit
-            if (
-                e.x >= star.xMin &&
-                e.x <= star.xMax &&
-                e.y >= star.yMin &&
-                e.y <= star.yMax
-            ) {
-                hit = true;
-                if (e.type === "contextmenu" || e.button === 2) {
-                    e.preventDefault();
-                    star.destinationStarId = null;
-                }
-                e.type === "mousedown" ? (mousedownStarId = star.id) : null;
-                e.type === "mouseup" ? (mouseupStarId = star.id) : null;
-                e.type === "mousedown"
-                    ? console.log(`getStarById: `, getStarById(stars, star.id))
-                    : null;
-
-                if (e.type === "mouseup" && e.button !== 2) {
-                    // console.log(
-                    //     `🚀 ~ file: index.svelte ~ line 422 ~ stars.forEach ~ star`,
-                    //     star
-                    // );
-                    activeStar ? (activeStar.active = false) : null;
-                    activeStar = star;
-                    star.active = true;
-                    // if (star.highlighted) {
-                    //     star.unhighlight(ctx);
-                    // } else {
-                    //     star.highlight(ctx);
-                    // }
-                    star.draw(ctx, data, drawHex, getStarById, canvas_arrow);
-                }
-            }
-            if (hit && e.type === "mouseup" && e.button !== 2) {
-                if (mousedownStarId !== mouseupStarId) {
-                    originStarId = mousedownStarId;
-                    destinationStarId = previousOriginStarId = mouseupStarId;
-                    // activeStar = getStarById(stars, mouseupStarId)
-                    let origin = getStarById(stars, originStarId);
-                    origin.destinationStarId = destinationStarId;
-                }
-
-                if (mousedownStarId === mouseupStarId) {
-                    originStarId = mousedownStarId;
-                    if (
-                        previousOriginStarId !== originStarId &&
-                        previousOriginStarId
-                    ) {
-                        console.log(
-                            `🚀 ~ file: index.svelte ~ line 442 ~ stars.forEach ~ previousOriginStarId !== originStarId && previousOriginStarId`,
-                            previousOriginStarId !== originStarId &&
-                                previousOriginStarId
-                        );
-                        destinationStarId = originStarId;
-                        let origin = getStarById(stars, previousOriginStarId);
-                        origin.destinationStarId = mouseupStarId;
-                    }
-                    previousOriginStarId = originStarId;
-                }
-            }
+            clearStarActiveStates(star);
         });
-
-        if (e.type === "mouseup" && e.type !== "contextmenu") {
-            canvasRedraw();
-            stars.forEach((star) => {
-                if (
-                    star.id &&
-                    star.destinationStarId &&
-                    star.destinationStarId !== star.id
-                ) {
-                    let origin = getStarById(stars, star.id);
-                    let destination = getStarById(stars, star.destinationStarId);
-                    canvas_arrow(ctx, destination, origin);
-                }
-            });
-        }
-        if (e.type === "contextmenu" || e.button === 2) {
-            e.preventDefault();
-            // console.log(
-            //     `🚀 ~ file: +page.svelte:368 ~ onClick ~ activeStar:`,
-            //     activeStar
-            // );
-            // if (activeStar) {
-            //     console.log(
-            //         `🚀 ~ file: +page.svelte:369 ~ onClick ~ activeStar:`,
-            //         activeStar
-            //     );
-            //     activeStar.active = false;
-            //     activestar.draw(ctx, data, drawHex, getStarById, canvas_arrow);
-            //     console.log(
-            //         `🚀 ~ file: +page.svelte:372 ~ onClick ~ activeStar:`,
-            //         activeStar
-            //     );
-            // }
-            // setTimeout(() => {
-            //     activeStar = null;
-            // }, 500);
-            // activeStar = null;
-            originStarId = null;
-            destinationStarId = null;
-            previousOriginStarId = null;
-            return false;
-        }
     }
+
+
 
     function toggleAnimate() {
         animating ? (animating = false) : (animating = true);
@@ -424,7 +314,7 @@
                               data,
                               drawHex,
                               getStarById,
-                              canvas_arrow
+                              canvasArrow
                           )
                         : null;
                     data.drawShips ? drawShips(star) : null;

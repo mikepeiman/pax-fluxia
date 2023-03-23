@@ -23,7 +23,7 @@ class Star {
         this.shipsToTransfer = [];
     }
 
-    draw(ctx, data, drawHex, getStarById, canvas_arrow) {
+    draw(ctx, data, drawHex, getStarById, canvasArrow) {
         let star = new Path2D();
         ctx.beginPath();
         star.arc(this.x, this.y, this.radius, 0, 2 * Math.PI);
@@ -34,7 +34,7 @@ class Star {
             this.highlight(ctx);
         }
         if (this.active) {
-            this.activeHighlight(ctx, drawHex);
+            this.activeStarHexBorderHighlight(ctx, drawHex);
         }
         if (data.drawLabels) {
             ctx.font = `bold ${fontSize}px sans-serif`;
@@ -49,7 +49,7 @@ class Star {
             stars = get(store_stars)
             let destination = getStarById(stars, this.destinationStarId);
             let origin = getStarById(stars, this.id);
-            canvas_arrow(ctx, destination, origin);
+            canvasArrow(ctx, destination, origin);
         }
     }
 
@@ -65,14 +65,12 @@ class Star {
         // ctx.save();
         this.highlighted = true;
         ctx.beginPath();
-
-        // ctx.lineWidth = 1;
         ctx.arc(this.x, this.y, this.radius * 1.2, 0, 2 * Math.PI);
         ctx.fillStyle = `hsla(${this.hue + 20}, 100%, 50%, 1)`;
         ctx.fill();
         // ctx.restore();
     }
-    activeHighlight(ctx, drawHex) {
+    activeStarHexBorderHighlight(ctx, drawHex) {
         // ctx.save();
         this.highlighted = true;
         let lineWidth = 3;

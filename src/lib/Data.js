@@ -24,4 +24,4 @@ const data = {
     stars: [],
 };
 
-export default data;
+export { data };

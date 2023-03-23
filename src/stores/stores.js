@@ -18,15 +18,3 @@ export const store_stars = writable([])
 export const store_hexCenterCoords = writable([]);
 export const store_uniqueVertexCoords = writable([]);
 export const store_ctx = writable(null);
-export const store_stars_2 = {
-    subscribe: store_stars.subscribe,
-    set: val => {
-        console.log(`🚀 ~ file: stores.js ~ store_stars ~ val`, val)
-        settingsChange.set(val);
-        localStorage.setItem("store_store_stars", JSON.stringify(val));
-    },
-    get: store_stars => {
-        console.log(`🚀 ~ file: stores.js:16 ~ store_stars:`, store_stars)
-        return store_stars;
-    }
-}

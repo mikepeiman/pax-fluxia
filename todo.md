@@ -1,11 +1,14 @@
 # TODO
 
-
 2023-03-23
 
 * refactor pixel hitTest to separate function
+* disable ability to have bidreictional ship transfers (with selfsame player)
 * fix phantom ships without stars artifact on reload
+* add a control button to nullify all transfer orders (a ctrl-right click would be a good command)
+* add a keystroke watcher so  I can use keyboard commands
 * add naming and labeling of hex sectors (for debugging, also for future gameplay enhancements)
+* figure out how to make custom console.logs with styling that work across files
 
 ### Carried over from first project paxgalaxia
 
@@ -26,3 +29,9 @@
 - option for player to save multiple tactical maps (set of vector assignments for a given map), name them, and switch between them at a click
 - when two stars are attacking each other, draw arrows to meet in middle
 - when two stars are attacking each other, draw arrows at a distance in proportion to star power (num ships)
+
+FlowCode.dev "Decrease demands on working memory, transfer to computer memory. Increase visual intelligence: form, color, space, size - RELATIONSHIPS & CONTEXT."
+
+## General TODO
+
+* create a small utility for custom console.logs

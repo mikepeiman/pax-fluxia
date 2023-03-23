@@ -1,10 +1,10 @@
-import data from "$lib/Settings";
+import { data } from "$lib/Data";
 import { store_hexCenterCoords, store_ctx, store_stars } from "$stores/stores";
 import Star from "./Star";
 import Ship from "./Ship";
 import getStarById from "./getStarById";
 import { drawHex } from "./HexGridFunctions";
-import { canvas_arrow } from "./canvas-arrow";
+import { canvasArrow } from "./canvasArrow";
 import { get } from "svelte/store";
 let hexCenterCoords = [];
 store_hexCenterCoords.subscribe((val) => {
@@ -65,7 +65,7 @@ function drawStars(stars, ctx, data) {
         : null;
     stars.forEach((star) => {
         starsToggle
-            ? star.draw(ctx, data, drawHex, getStarById, canvas_arrow)
+            ? star.draw(ctx, data, drawHex, getStarById, canvasArrow)
             : null;
         shipsToggle ? drawShips(star) : null;
     });

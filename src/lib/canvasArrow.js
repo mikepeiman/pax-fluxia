@@ -1,4 +1,4 @@
-function canvas_arrow(ctx, destination, origin) {
+function canvasArrow(ctx, destination, origin) {
     const dx = destination.x - origin.x;
     const dy = destination.y - origin.y;
     // const headlen = Math.sqrt( dx * dx + dy * dy ) * 0.3; // length of head in pixels, scaled by length of line
@@ -69,4 +69,4 @@ function getPointOnVectorByDistance(x1, y1, x2, y2, distance) {
 }
 
 
-export  {canvas_arrow, getPositionAlongTheLine, getPointOnVectorByDistance};
+export  {canvasArrow, getPositionAlongTheLine, getPointOnVectorByDistance};
