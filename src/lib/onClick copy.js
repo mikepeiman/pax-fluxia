@@ -5,6 +5,7 @@ import { drawHex } from "$lib/hexGridFunctions";
 import { canvasArrow } from "$lib/canvasArrow.js";
 import { hitTest } from "$lib/hitTest.js";
 import { data } from "$lib/data.js";
+import { canvasRedraw } from "./canvasRedraw";
 
 let stars = get(store_stars);
 let ctx = get(store_ctx);
@@ -21,7 +22,6 @@ function onClick(e) {
     let activeStar = null;
     stars.forEach((star) => {
         let hit = hitTest(e.x, e.y, star);
-        console.log(`🚀 ~ file: onClick.js:16 ~ stars.forEach ~ hit:`, hit)
         if (hit) {
             star.active = true;
             star.activeStarHexBorderHighlight(ctx, drawHex)
@@ -29,53 +29,15 @@ function onClick(e) {
             star.active = false;
             star.unhighlight(ctx)
         }
-
-        // if we get a pixel hit
-        if (hit) {
-            console.log(
-                `🚀 ~ file: +page.svelte:199 ~ stars.forEach ${star.id} ~ %chit: %c${hit}`,
-                "color: #00aa00; font-size: 1rem;",
-                "color: #ff0055; font-size: 1rem;",
-                star
-            );
-        }
-        if (star.active) {
-            console.log(
-                `🚀 ~ file: +page.svelte:201 ~ stars.forEach ~ star.active:%c ${star.id} ${star.active}`,
-                "color: #00aa00; font-size: 1rem;"
-            );
-        }
-        if (star.highlighted) {
-            console.log(
-                `🚀 ~ file: +page.svelte:201 ~ stars.forEach ~ star.highlighted:%c ${star.id} ${star.highlighted}`,
-                "color: #aa0000; font-size: 1rem;"
-            );
-        }
-        if (star.destinationStarId) {
-            console.log(
-                `🚀 ~ file: +page.svelte:201 ~ stars.forEach ~ star:%c ${star.id} destination %c${star.destinationStarId}`,
-                'color: #0000aa; font-size: 1rem;',
-                'color: #00bbaa; font-size: 1rem;'
-            );
-        }
-
-
-        // hit === true ? ((activeStar = star), star.highlight(ctx)) : null;
+        // this may need to be inside of positive hittest
         if (e.type === "contextmenu" || e.button === 2) {
             e.preventDefault();
             star.destinationStarId = null;
         }
         e.type === "mousedown" ? (mousedownStarId = star.id) : null;
         e.type === "mouseup" ? (mouseupStarId = star.id) : null;
-        // e.type === "mousedown"
-        //     ? console.log(`getStarById: `, getStarById(stars, star.id))
-        //     : null;
 
-        if (e.type === "mouseup" && e.button !== 2) {
-            // console.log(
-            //     `🚀 ~ file: index.svelte ~ line 422 ~ stars.forEach ~ star`,
-            //     star
-            // );
+        if (hit && e.type === "mouseup" && e.button !== 2) {
             activeStar ? (activeStar.active = false) : null;
             activeStar = star;
             star.active = true;
@@ -88,25 +50,15 @@ function onClick(e) {
         }
 
         if (hit && e.type === "mouseup" && e.button !== 2) {
+            originStarId = mousedownStarId;
             if (mousedownStarId !== mouseupStarId) {
-                originStarId = mousedownStarId;
                 destinationStarId = previousOriginStarId = mouseupStarId;
-                // activeStar = getStarById(stars, mouseupStarId)
                 let origin = getStarById(stars, originStarId);
                 origin.destinationStarId = destinationStarId;
             }
 
             if (mousedownStarId === mouseupStarId) {
-                originStarId = mousedownStarId;
-                if (
-                    previousOriginStarId !== originStarId &&
-                    previousOriginStarId
-                ) {
-                    console.log(
-                        `🚀 ~ file: index.svelte ~ line 442 ~ stars.forEach ~ previousOriginStarId !== originStarId && previousOriginStarId`,
-                        previousOriginStarId !== originStarId &&
-                        previousOriginStarId
-                    );
+                if (previousOriginStarId !== originStarId && previousOriginStarId) {
                     destinationStarId = originStarId;
                     let origin = getStarById(stars, previousOriginStarId);
                     origin.destinationStarId = mouseupStarId;
@@ -117,6 +69,7 @@ function onClick(e) {
     });
 
     if (e.type === "mouseup" && e.type !== "contextmenu") {
+        canvasRedraw(ctx)
         stars.forEach((star) => {
             if (
                 star.id &&
@@ -135,26 +88,14 @@ function onClick(e) {
 
     if (e.type === "contextmenu" || e.button === 2) {
         e.preventDefault();
-        // console.log(
-        //     `🚀 ~ file: +page.svelte:368 ~ onClick ~ activeStar:`,
-        //     activeStar
-        // );
-        // if (activeStar) {
-        //     console.log(
-        //         `🚀 ~ file: +page.svelte:369 ~ onClick ~ activeStar:`,
-        //         activeStar
-        //     );
-        //     activeStar.active = false;
-        //     activestar.draw(ctx, data, drawHex, getStarById, canvasArrow);
-        //     console.log(
-        //         `🚀 ~ file: +page.svelte:372 ~ onClick ~ activeStar:`,
-        //         activeStar
-        //     );
-        // }
+        if (activeStar) {
+            activeStar.active = false;
+            activestar.draw(ctx, data, drawHex, getStarById, canvasArrow);
+        }
         // setTimeout(() => {
         //     activeStar = null;
         // }, 500);
-        // activeStar = null;
+        activeStar = null;
         // clearStarActiveStates();
         originStarId = null;
         destinationStarId = null;
