@@ -10,6 +10,11 @@
 * add naming and labeling of hex sectors (for debugging, also for future gameplay enhancements)
 * figure out how to make custom console.logs with styling that work across files
 
+--- 
+### Longer term possibilities
+
+* allow single star to attack/transfer to multiple stars. Equal distribution makes the most sense, is easiest; allowing varied distribution would provide a very interesting UI challenge and strategy nuance
+
 ### Carried over from first project paxgalaxia
 
 - generate a hex-grid coordinate system

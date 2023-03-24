@@ -6,7 +6,7 @@ import { canvasArrow } from "$lib/canvasArrow.js";
 import { hitTest } from "$lib/hitTest.js";
 import { data } from "$lib/data.js";
 import { clearStarActiveStates } from "$lib/clearStarActiveStates";
-import { logStarDetails } from "$lib/logStarDetails";
+import { logStar } from "$lib/logStarDetails";
 
 
 let stars = get(store_stars);
@@ -148,7 +148,7 @@ function onKeyDown(e) {
     }
     if (e.key === 'l' || e.keyCode === 76 || e.key === 'L' || e.keyCode === 108) {
         stars.forEach((star) => {
-            logStarDetails(star)
+            logStar(star)
         });
     }
 }
