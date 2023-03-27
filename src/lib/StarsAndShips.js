@@ -50,12 +50,12 @@ function generateStars(data, num) {
 }
 
 function drawStars(stars, ctx, data) {
-    // stars = get(store_stars)
+    stars = get(store_stars)
     let starsToggle = data.drawStars;
     let shipsToggle = data.drawShips;
-    if(!stars.length){
-        stars = generateStars(data, data.numStars);
-    }
+    // if(!stars.length){
+    //     stars = generateStars(data, data.numStars);
+    // }
 
     stars.length < data.numStars
         ? (stars = generateStars(data, data.numStars - stars.length))
