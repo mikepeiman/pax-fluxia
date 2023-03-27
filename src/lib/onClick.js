@@ -49,6 +49,7 @@ function onClick(e) {
         // if we get a pixel hit
         let hit = hitTest(e.x, e.y, star);
         if (hit) {
+            activeStar = star;
             // deal with left clicks that are action clicks
             if(e.type === 'mousedown' && e.button === 1){
 
@@ -71,7 +72,10 @@ function onClick(e) {
                 } else {
                     star.activeStarHexBorderHighlight(ctx, drawHex);
                 }
-                destination.destinationStarId === star.id ? (destination.destinationStarId = null) : null;
+                if(star.destination){
+                    let destination = getStarById(stars, star.destination);
+                    destination.destinationStarId === star.id ? (destination.destinationStarId = null) : null;
+                }
                 star.draw(ctx, data, drawHex, getStarById, canvasArrow);
             }
         } else {
@@ -132,6 +136,27 @@ function onClick(e) {
         return false;
     }
 }
+
+function onMouseMove(e){
+    stars = get(store_stars);
+    ctx = get(store_ctx);
+    stars.forEach((star) => {
+        // if we get a pixel hit
+        let hit = hitTest(e.x, e.y, star);
+        if (hit && activeStar !== star) {
+            activeStar = star;
+            console.log(`🚀 ~ file: onClick.js:143 ~ stars.forEach ~ hit on star ${star.id}:`, hit)
+            if (e.type === 'mousemove') {
+                star.highlight(ctx);
+            }
+        } else {
+            if (e.type === 'mousemove') {
+                star.unhighlight(ctx);
+            }
+        }
+    });
+}
+
 
 function onKeyDown(e) {
     stars = get(store_stars);
