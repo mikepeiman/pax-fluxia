@@ -87,7 +87,7 @@ function drawShips(star) {
     let x, y;
     star["ships"].forEach((ship, i) => {
         ship.angle += data.speed;
-        x = star.x + Math.cos(ship.angle) * ship.orbit * data.orbitYmod;
+        x = star.x + Math.cos(ship.angle) * ship.orbit * data.orbitXmod;
         y = star.y + Math.sin(ship.angle) * ship.orbit * data.orbitYmod;
         ship.pos = { x, y };
         ctx.beginPath();
