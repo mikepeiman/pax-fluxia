@@ -353,13 +353,6 @@
         });
         canvasRedraw();
     }
-
-    class Handler extends Star {
-        constructor(currentTarget) {
-            super();
-            currentTarget.addEventListener("click", this);
-        }
-    }
 </script>
 
 <svelte:head>

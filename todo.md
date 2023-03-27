@@ -4,7 +4,11 @@
 
 - [x] refactor pixel hitTest to separate function
 - [x]  solve the ghost-ships bug,
-- [ ]  make the x/y orbit adjustment work again
+- [x]  make the x/y orbit adjustment work again
+- [ ]  fix right click redrawing arrows which stack when not animated
+- [ ]  fix right click not removing arrow when not animated
+- [ ]  fix multiple active star states drawn when static
+- [ ]  add a ctrl-click function (and button) to remove all star directives
 - [ ] disable ability to have bidreictional ship transfers (with selfsame player)
 - [ ]  make localStorage work
 - [ ]  set up and explore a flow in node-red
@@ -14,6 +18,7 @@
 - [ ] add a keystroke watcher so  I can use keyboard commands
 - [ ] add naming and labeling of hex sectors (for debugging, also for future gameplay enhancements)
 - [ ] figure out how to make custom console.logs with styling that work across files
+- [ ] player should be able to click and drag through multiple stars to set a longer attack/movement path
 
 --- 
 ### Longer term possibilities

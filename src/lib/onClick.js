@@ -11,6 +11,7 @@ import { canvasRedraw } from "$lib/canvasRedraw";
 
 let stars = get(store_stars);
 let ctx = get(store_ctx);
+let canvas;
 let activeStar = null,
     originStarId,
     previousOriginStarId,
@@ -18,17 +19,42 @@ let activeStar = null,
     mousedownStarId,
     mouseupStarId;
 
+// I will need to refactor this entire function to be a mousedown event handler, so I can act on any stars the player drags the cursor over, whether left or right click
+// When there is a mousedown, activate a mousemove event handler that will check for mouseover events on stars
+// When there is a mouseup, deactivate the mousemove event handler
+// When there is a mouseup, if the mouseup is a left click, then activate the star
+// When there is a mouseup, if the mouseup is a right click, then deactivate the star
+ 
+
 function onClick(e) {
-    console.log(`🚀 ~ file: index.svelte ~ line 305 ~ onClick ~ e ✅✅✅🔥🔥🔥  `, e.type),
-        `  ✅✅✅🔥🔥🔥`;
-    console.log('click', e.x, ':', e.y);
+    // console.log(`🚀 ~ file: index.svelte ~ line 305 ~ onClick ~ e ✅✅✅🔥🔥🔥  `, e.type),
+    //     `  ✅✅✅🔥🔥🔥`;
+    // console.log('click', e.x, ':', e.y);
+    canvas = document.getElementById("canvas");
+
+    if(e.type === 'mousedown'){
+        // activate a mousemove event handler that will check for mouseover events on stars
+        canvas.addEventListener('mousemove', onMouseMove);
+
+    }
+    if(e.type === 'mouseup'){
+        // deactivate the mousemove event handler
+        canvas.removeEventListener('mousemove', onMouseMove);
+    }
+
+
     stars = get(store_stars);
     ctx = get(store_ctx);
-    let hit = false;
     stars.forEach((star) => {
         // if we get a pixel hit
-        if (e.x >= star.xMin && e.x <= star.xMax && e.y >= star.yMin && e.y <= star.yMax) {
-            hit = true;
+        let hit = hitTest(e.x, e.y, star);
+        if (hit) {
+            // deal with left clicks that are action clicks
+            if(e.type === 'mousedown' && e.button === 1){
+
+            }
+
+
             if (e.type === 'contextmenu' || e.button === 2) {
                 e.preventDefault();
                 star.destinationStarId = null;
@@ -37,7 +63,6 @@ function onClick(e) {
             e.type === 'mouseup' ? (mouseupStarId = star.id) : null;
 
             if (e.type === 'mouseup' && e.button !== 2) {
-                console.log(`🚀 ~ file: index.svelte ~ line 422 ~ stars.forEach ~ star`, star);
                 activeStar ? (activeStar.active = false) : null;
                 activeStar = star;
                 star.active = true;
@@ -46,9 +71,18 @@ function onClick(e) {
                 } else {
                     star.activeStarHexBorderHighlight(ctx, drawHex);
                 }
+                destination.destinationStarId === star.id ? (destination.destinationStarId = null) : null;
                 star.draw(ctx, data, drawHex, getStarById, canvasArrow);
             }
+        } else {
+            if (e.type === 'mouseup' && (e.type === 'contextmenu' || e.button === 2)) {
+                activeStar ? (activeStar.active = false) : null;
+                activeStar = null;
+            }
         }
+
+
+
         if (hit && e.type === 'mouseup' && e.button !== 2) {
             if (mousedownStarId !== mouseupStarId) {
                 originStarId = mousedownStarId;
@@ -80,6 +114,7 @@ function onClick(e) {
             if (star.id && star.destinationStarId && star.destinationStarId !== star.id) {
                 let origin = getStarById(stars, star.id);
                 let destination = getStarById(stars, star.destinationStarId);
+                // destination.destinationStarId === star.id ? (destination.destinationStarId = null) : null;
                 canvasArrow(ctx, destination, origin);
             }
         });
