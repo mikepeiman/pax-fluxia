@@ -1,7 +1,7 @@
-function clearStarActiveStates(star, ctx) {
+function clearStarActiveStates(star, ctx, data, drawHex, getStarById, canvasArrow) {
     star.active = false;
         star.highlighted = false;
-        star.unhighlight(ctx)
+        star.draw(ctx, data, drawHex, getStarById, canvasArrow)
 }
 
 export { clearStarActiveStates}

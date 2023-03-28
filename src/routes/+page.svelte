@@ -10,7 +10,8 @@
         store_ctx,
         store_stars,
         store_uniqueVertexCoords,
-        store_activeStars
+        store_activeStars,
+        store_activeKey
     } from "$stores/stores.js";
     import {
         canvasArrow,
@@ -28,7 +29,7 @@
         drawHex,
         getVertexCoords,
     } from "$lib/hexGridFunctions";
-    import { onClick, onKeyDown } from "$lib/onClick";
+    import { combinedInputFunction } from "$lib/onClick";
     import { drawStars, drawShips, generateShips } from "$lib/StarsAndShips";
     import { data } from "$lib/Data";
     import { get } from "svelte/store";
@@ -146,10 +147,15 @@
         ctx.fillStyle = "#222";
         ctx.fillRect(0, 0, w, h);
         store_ctx.set(ctx);
-        canvas.addEventListener("mousedown", onClick);
-        canvas.addEventListener("mouseup", onClick);
-        canvas.addEventListener("contextmenu", onClick);
-        window.addEventListener("keydown", onKeyDown);
+        canvas.addEventListener("mousedown", combinedInputFunction);
+        canvas.addEventListener("mouseup", combinedInputFunction);
+        canvas.addEventListener("contextmenu", combinedInputFunction);
+        window.addEventListener("keydown", combinedInputFunction);
+        window.addEventListener("keyup", combinedInputFunction);
+        // canvas.addEventListener("mousedown", onClick);
+        // canvas.addEventListener("mouseup", onClick);
+        // canvas.addEventListener("contextmenu", onClick);
+        // window.addEventListener("keydown", onKeyDown);
     }
 
     function canvasRedraw() {
@@ -180,7 +186,7 @@
 
     function clearAllStarsActiveStates() {
         stars.forEach((star) => {
-            clearStarActiveStates(star);
+            clearStarActiveStates(star, ctx, data, drawHex, getStarById, canvasArrow);
         });
     }
 
@@ -468,8 +474,15 @@
             <OptionSelect
                 items={data.colorFunctions}
                 bind:selected={data.colorFunctionsIndex} />
-                <TextParam label="Last Star ID" bind:value={$store_activeStars.lastActiveStarId} />
-            <TextParam label="Active Star ID" bind:value={$store_activeStars.activeStarId} />
+            <TextParam
+                label="Active Star ID"
+                bind:value={$store_activeStars.activeStarId} />
+            <TextParam
+                label="Last Star ID"
+                bind:value={$store_activeStars.lastActiveStarId} />
+            <TextParam
+                label="Active Key"
+                bind:value={$store_activeKey.key} />
         </CanvasManager>
     </div>
 </div>

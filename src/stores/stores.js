@@ -19,6 +19,10 @@ export const store_activeStars = writable({
     activeStarId: null,
     lastActiveStarId: null,
 })
+export const store_activeKey = writable({
+    key: null,
+    keyCode: null,
+});
 export const store_hexCenterCoords = writable([]);
 export const store_uniqueVertexCoords = writable([]);
 export const store_ctx = writable(null);

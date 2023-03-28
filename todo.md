@@ -58,3 +58,6 @@ FlowCode.dev "Decrease demands on working memory, transfer to computer memory. I
 ### Gameplay questions
 * On a click-and-drag operation, do I want each star to enact the attack-move instructions as soon as next star is activated, or wait until final mouseup and execute all at once?
 * if player click is NOT a hit, BUT they do drag over a star and yield a hit, will the previous active star remain (and create an attack-move) OR will the new star become the origin active star?
+
+### Architecture Questions & Ideas
+* Within the event watchers I can set properties to store, and leave execution of action functions to store subscription watcher

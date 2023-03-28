@@ -26,15 +26,16 @@ class Star {
     }
 
     draw(ctx, data, drawHex, getStarById, canvasArrow) {
+        let highlightMod = 1;
+        if (this.highlighted) {
+            highlightMod = 1.2;
+        }
         let star = new Path2D();
         ctx.beginPath();
-        star.arc(this.x, this.y, this.radius, 0, 2 * Math.PI);
+        star.arc(this.x, this.y, this.radius * highlightMod, 0, 2 * Math.PI);
         ctx.fillStyle = `hsla(${this.hue}, 50%, 50%, 1)`;
         ctx.fill(star);
         let fontSize = 18;
-        if (this.highlighted) {
-            this.highlight(ctx);
-        }
         if (this.active) {
             this.activeStarHexBorderHighlight(ctx, drawHex);
         }
@@ -64,15 +65,6 @@ class Star {
         this.type === 5 && tick % 5 == 0 ? this.numShips++ : null;
     }
 
-    highlight(ctx) {
-        // ctx.save();
-        this.highlighted = true;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius * 1.2, 0, 2 * Math.PI);
-        ctx.fillStyle = `hsla(${this.hue + 20}, 100%, 50%, 1)`;
-        ctx.fill();
-        // ctx.restore();
-    }
     activeStarHexBorderHighlight(ctx, drawHex) {
         // ctx.save();
         this.highlighted = true;
@@ -83,22 +75,6 @@ class Star {
         // ctx.arc(this.x, this.y, this.radius * 2.2, 0, 2 * Math.PI);
         // ctx.fillStyle = `hsla(${this.hue + 20}, 100%, 50%, 1)`;
         // ctx.fill();
-        // ctx.restore();
-    }
-
-    unhighlight(ctx) {
-        this.highlighted = false;
-        // ctx.save();
-
-        ctx.beginPath();
-        // ctx.lineWidth = 1;
-        ctx.arc(this.x, this.y, this.radius * 2, 0, 2 * Math.PI);
-        ctx.fillStyle = '#222';
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius, 0, 2 * Math.PI);
-        ctx.fillStyle = `hsla(${this.hue + 20}, 50%, 50%, 1)`;
-        ctx.fill();
         // ctx.restore();
     }
 
