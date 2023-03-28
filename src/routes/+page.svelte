@@ -10,6 +10,7 @@
         store_ctx,
         store_stars,
         store_uniqueVertexCoords,
+        store_activeStars
     } from "$stores/stores.js";
     import {
         canvasArrow,
@@ -27,10 +28,11 @@
         drawHex,
         getVertexCoords,
     } from "$lib/hexGridFunctions";
-    import {onClick, onKeyDown} from "$lib/onClick";
+    import { onClick, onKeyDown } from "$lib/onClick";
     import { drawStars, drawShips, generateShips } from "$lib/StarsAndShips";
     import { data } from "$lib/Data";
     import { get } from "svelte/store";
+    import TextParam from "$components/TextParam.svelte";
 
     $: console.log(
         `🚀 ~ file: index.svelte ~ line 15 ~ $storedSettingsChange`,
@@ -181,8 +183,6 @@
             clearStarActiveStates(star);
         });
     }
-
-
 
     function toggleAnimate() {
         animating ? (animating = false) : (animating = true);
@@ -468,6 +468,8 @@
             <OptionSelect
                 items={data.colorFunctions}
                 bind:selected={data.colorFunctionsIndex} />
+                <TextParam label="Last Star ID" bind:value={$store_activeStars.lastActiveStarId} />
+            <TextParam label="Active Star ID" bind:value={$store_activeStars.activeStarId} />
         </CanvasManager>
     </div>
 </div>

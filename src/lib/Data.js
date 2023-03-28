@@ -7,6 +7,7 @@ const data = {
     shipsMin: 10,
     shipsMax: 30,
     starRadius: 20,
+    starSize: 99,
     shipRadius: 5,
     gridRadius: 55,
     gridOffset: 0,

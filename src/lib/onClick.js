@@ -1,6 +1,6 @@
 import getStarById from "$lib/getStarById.js";
 import { get } from "svelte/store";
-import { store_stars, store_ctx } from "$stores/stores.js";
+import { store_stars, store_ctx, store_activeStars } from "$stores/stores.js";
 import { drawHex } from "$lib/hexGridFunctions";
 import { canvasArrow } from "$lib/canvasArrow.js";
 import { hitTest } from "$lib/hitTest.js";
@@ -8,7 +8,7 @@ import { data } from "$lib/data.js";
 import { clearStarActiveStates } from "$lib/clearStarActiveStates";
 import { logStar } from "$lib/logStarDetails";
 import { canvasRedraw } from "$lib/canvasRedraw";
-
+let activeStars = get(store_activeStars);
 let stars = get(store_stars);
 let ctx = get(store_ctx);
 let canvas;
@@ -31,18 +31,20 @@ let activeStar = null,
 function onMouseMove(e) {
     stars = get(store_stars);
     ctx = get(store_ctx);
-    checkStarsForHit(e, stars)
-    stars.forEach((star) => {
-        // if we get a pixel hit
-        let hit = hitTest(e.x, e.y, star);
-        if (hit && activeStar !== star) {
-            setActiveStar(star)
-            setAttackMoveTarget(lastActiveStar, star)
-            executeAttackMoveOperations(star, ctx);
-        } else {
+    let hit = checkStarsForHit(e, stars)
+    if (hit) {
+        setAttackMoveTarget(lastActiveStar, activeStar)
+        executeAttackMoveOperations(activeStar, ctx);
+    }
+    // stars.forEach((star) => {
+    //     // if we get a pixel hit
+    //     let hit = hitTest(e.x, e.y, star);
+    //     if (hit && activeStar !== star) {
+    //         setActiveStar(star)
+    //     } else {
 
-        }
-    });
+    //     }
+    // });
 }
 
 function checkStarsForHit(e, stars) {
@@ -52,8 +54,9 @@ function checkStarsForHit(e, stars) {
         if (hit && activeStar !== star) {
             console.log(`🚀 ~ file: onClick.js:57 ~ HIT ${hit} stars.forEach ~ star:`, star)
             setActiveStar(star)
+            return true
         } else {
-            return
+            return false
         }
     });
 }
@@ -63,6 +66,11 @@ function setActiveStar(star) {
     lastActiveStarId = activeStarId;
     activeStar = star;
     activeStarId = star.id;
+    activeStars["activeStarId"] = activeStarId;
+    activeStars["activeStar"] = activeStar;
+    activeStars["lastActiveStarId"] = lastActiveStarId;
+    activeStars["lastActiveStar"] = lastActiveStar;
+    store_activeStars.set(activeStars);
 }
 
 
@@ -74,7 +82,12 @@ function onClick(e) {
 
     if (e.type === 'mousedown') {
         // activate a mousemove event handler that will check for mouseover events on stars
-        checkStarsForHit(e, stars)
+        let hit = checkStarsForHit(e, stars)
+        if (hit) {
+
+            setAttackMoveTarget(lastActiveStar, activeStar)
+            executeAttackMoveOperations(activeStar, ctx);
+        }
         canvas.addEventListener('mousemove', onMouseMove);
 
     }
