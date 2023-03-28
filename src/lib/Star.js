@@ -17,8 +17,9 @@ class Star {
         this.ships = [];
         this.highlighted = false;
         this.active = false;
-        this.destinationStarId = null;
-        this.isDestinationOfStars = [];
+        this.attackMoveTarget = null;
+        this.attackMoveTargetId = null;
+        this.starsThatTargetThisStar = [];
         this.shipsPerTickPercentage = 0.05;
         this.shipsPerTick = 2;
         this.shipsToTransfer = [];
@@ -46,11 +47,11 @@ class Star {
             ctx.fillStyle = '#000';
             ctx.fillText(this.ships.length, this.x, this.y + fontSize / 3);
         }
-        if (this.destinationStarId ) {
+        if (this.attackMoveTargetId ) {
             stars = get(store_stars)
-            let destination = getStarById(stars, this.destinationStarId);
+            let destination = getStarById(stars, this.attackMoveTargetId);
             let origin = getStarById(stars, this.id);
-            destination.destinationStarId === star.id ? (destination.destinationStarId = null) : null;
+            destination.attackMoveTargetId === star.id ? (destination.attackMoveTargetId = null) : null;
             canvasArrow(ctx, destination, origin);
         }
     }

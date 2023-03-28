@@ -58,12 +58,12 @@
     // );
 
     // $: console.log(
-    //     `🚀 ~ file: index.svelte ~ line 28 ~ \n\noriginStarId`,
-    //     originStarId,
-    //     `\ndestinationStarId`,
-    //     destinationStarId,
-    //     `\npreviousOriginStarId`,
-    //     previousOriginStarId
+    //     `🚀 ~ file: index.svelte ~ line 28 ~ \n\nactiveStarId`,
+    //     activeStarId,
+    //     `\nattackMoveTargetId`,
+    //     attackMoveTargetId,
+    //     `\nlastActiveStarId`,
+    //     lastActiveStarId
     // );
 
     $: console.log(w, h);
@@ -243,8 +243,8 @@
     }
 
     function transferShips(star) {
-        if (star.destinationStarId) {
-            let dest = getStarById(stars, star.destinationStarId);
+        if (star.attackMoveTargetId) {
+            let dest = getStarById(stars, star.attackMoveTargetId);
             let j = 0;
             star.shipsToTransfer.forEach((ship, i) => {
                 // ship.distance++;
@@ -318,7 +318,7 @@
                           )
                         : null;
                     data.drawShips ? drawShips(star) : null;
-                    star.destinationStarId ? transferShips(star) : null;
+                    star.attackMoveTargetId ? transferShips(star) : null;
                 });
                 // stars.forEach((star) => {
                 // });
@@ -349,7 +349,7 @@
 
     function clearVectors() {
         stars.forEach((star) => {
-            star.destinationStarId = null;
+            star.attackMoveTargetId = null;
         });
         canvasRedraw();
     }

@@ -13,9 +13,9 @@ let stars = get(store_stars);
 let ctx = get(store_ctx);
 let canvas;
 let activeStar = null,
-    originStarId,
-    previousOriginStarId,
-    destinationStarId,
+    activeStarId,
+    lastActiveStarId,
+    attackMoveTargetId,
     mousedownStarId,
     mouseupStarId;
 
@@ -66,7 +66,7 @@ function onClick(e) {
 
             if (e.type === 'contextmenu' || e.button === 2) {
                 e.preventDefault();
-                star.destinationStarId = null;
+                star.attackMoveTargetId = null;
             }
             e.type === 'mousedown' ? (mousedownStarId = star.id) : null;
             e.type === 'mouseup' ? (mouseupStarId = star.id) : null;
@@ -82,7 +82,7 @@ function onClick(e) {
                 }
                 if (star.destination) {
                     let destination = getStarById(stars, star.destination);
-                    destination.destinationStarId === star.id ? (destination.destinationStarId = null) : null;
+                    destination.attackMoveTargetId === star.id ? (destination.attackMoveTargetId = null) : null;
                 }
                 star.draw(ctx, data, drawHex, getStarById, canvasArrow);
             }
@@ -97,25 +97,25 @@ function onClick(e) {
 
         if (hit && e.type === 'mouseup' && e.button !== 2) {
             if (mousedownStarId !== mouseupStarId) {
-                originStarId = mousedownStarId;
-                destinationStarId = previousOriginStarId = mouseupStarId;
+                activeStarId = mousedownStarId;
+                attackMoveTargetId = lastActiveStarId = mouseupStarId;
                 activeStar = getStarById(stars, mouseupStarId)
-                let origin = getStarById(stars, originStarId);
-                origin.destinationStarId = destinationStarId;
+                let origin = getStarById(stars, activeStarId);
+                origin.attackMoveTargetId = attackMoveTargetId;
             }
 
             if (mousedownStarId === mouseupStarId) {
-                originStarId = mousedownStarId;
-                if (previousOriginStarId !== originStarId && previousOriginStarId) {
+                activeStarId = mousedownStarId;
+                if (lastActiveStarId !== activeStarId && lastActiveStarId) {
                     console.log(
-                        `🚀 ~ file: index.svelte ~ line 442 ~ stars.forEach ~ previousOriginStarId !== originStarId && previousOriginStarId`,
-                        previousOriginStarId !== originStarId && previousOriginStarId
+                        `🚀 ~ file: index.svelte ~ line 442 ~ stars.forEach ~ lastActiveStarId !== activeStarId && lastActiveStarId`,
+                        lastActiveStarId !== activeStarId && lastActiveStarId
                     );
-                    destinationStarId = originStarId;
-                    let origin = getStarById(stars, previousOriginStarId);
-                    origin.destinationStarId = mouseupStarId;
+                    attackMoveTargetId = activeStarId;
+                    let origin = getStarById(stars, lastActiveStarId);
+                    origin.attackMoveTargetId = mouseupStarId;
                 }
-                previousOriginStarId = originStarId;
+                lastActiveStarId = activeStarId;
             }
         }
     });
@@ -123,10 +123,10 @@ function onClick(e) {
     if (e.type === 'mouseup' && e.type !== 'contextmenu') {
         // canvasRedraw(ctx);
         stars.forEach((star) => {
-            if (star.id && star.destinationStarId && star.destinationStarId !== star.id) {
+            if (star.id && star.attackMoveTargetId && star.attackMoveTargetId !== star.id) {
                 let origin = getStarById(stars, star.id);
-                let destination = getStarById(stars, star.destinationStarId);
-                // destination.destinationStarId === star.id ? (destination.destinationStarId = null) : null;
+                let destination = getStarById(stars, star.attackMoveTargetId);
+                // destination.attackMoveTargetId === star.id ? (destination.attackMoveTargetId = null) : null;
                 canvasArrow(ctx, destination, origin);
             }
         });
@@ -138,9 +138,9 @@ function onClick(e) {
             activeStar.draw(ctx, data, drawHex, getStarById, canvasArrow);
         }
         activeStar = null;
-        originStarId = null;
-        destinationStarId = null;
-        previousOriginStarId = null;
+        activeStarId = null;
+        attackMoveTargetId = null;
+        lastActiveStarId = null;
         return false;
     }
 }
@@ -153,10 +153,43 @@ function onMouseMove(e) {
         let hit = hitTest(e.x, e.y, star);
         if (hit && activeStar !== star) {
             activeStar = star;
+            setAttackMoveProperties(star, target)
+            executeAttackMoveOperations(star, ctx);
         } else {
 
         }
     });
+}
+
+function clearStarDirectives(star, ctx) {
+    star.attackMoveTargetId = null;
+    star.destination = null;
+    star.attackMove = false;
+    star.attackMoveTarget = null;
+}
+
+function setAttackMoveProperties(star, target) {
+    star.attackMoveTarget = target;
+    star.attackMoveTargetId = target.id;
+    target.starsThatTargetThisStar.push(star);
+}
+
+
+// This function is used to execute the attack move when a star is clicked on.
+// It will check if the star is currently in attack move mode. If it is, it will
+// draw the canvas arrow to the active star, and set the attack move target id
+// and attack move target to the active star.
+
+function executeAttackMoveOperations(star, ctx) {
+        if (star.attackMoveTarget) {
+            let target = getStarById(stars, star.attackMoveTargetId);
+            target.attackMoveTargetId = null;
+            target.attackMoveTarget = null;
+            target.draw(ctx, data, drawHex, getStarById, canvasArrow);
+        }
+        star.attackMoveTarget = activeStar;
+        star.attackMoveTargetId = activeStar.id;
+        star.draw(ctx, data, drawHex, getStarById, canvasArrow);
 }
 
 
@@ -172,6 +205,13 @@ function onKeyDown(e) {
     if (e.key === 'l' || e.keyCode === 76 || e.key === 'L' || e.keyCode === 108) {
         stars.forEach((star) => {
             logStar(star)
+        });
+    }
+    // create a ctrl-click combo to deactive all attackMove operations
+    if (e.key === 'Control' || e.keyCode === 17) {
+        stars.forEach((star) => {
+            clearStarActiveStates(star, ctx);
+            clearStarDirectives(star, ctx);
         });
     }
 }

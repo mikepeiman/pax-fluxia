@@ -10,7 +10,7 @@ function logStarId(msg, highlight, obj) {
     console.log(`%c${msg} %c${highlight}`, "color: #33bb00; font-size: 1rem;", "color: #00cc00; font-size: 1rem; font-weight:bold", obj );
 }
 function logStarDetails(obj) {
-    obj.destinationStarId ? console.log(`star.destinationStarId`, `${obj.destinationStarId}`, obj) : null;
+    obj.attackMoveTargetId ? console.log(`star.attackMoveTargetId`, `${obj.attackMoveTargetId}`, obj) : null;
 }
 function logstar2(msg, highlight) {
     console.log(`---   %c${msg} %c${highlight}`, "color: #aa0000; font-size: 1rem;", "color: #aa3300; font-size: 1rem; font-weight:bold" );

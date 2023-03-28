@@ -24,6 +24,8 @@
 ### Longer term possibilities
 
 - [ ] allow single star to attack/transfer to multiple stars. Equal distribution makes the most sense, is easiest; allowing varied distribution would provide a very interesting UI challenge and strategy nuance
+- [ ] allow player to create and save (and name and preview) multiple attackMove patterns to select and activate at one click
+- [ ] allow player to develop attackMove algorithms with conditional logic 
 
 ### Carried over from first project paxgalaxia
 
@@ -50,3 +52,8 @@ FlowCode.dev "Decrease demands on working memory, transfer to computer memory. I
 ## General TODO
 
 - [ ] create a small utility for custom console.logs
+- [ ] determine correct keybindings/key names for MacOS keyboards
+
+### Gameplay questions
+* On a click-and-drag operation, do I want each star to enact the attack-move instructions as soon as next star is activated, or wait until final mouseup and execute all at once?
+* if player click is NOT a hit, BUT they do drag over a star and yield a hit, will the previous active star remain (and create an attack-move) OR will the new star become the origin active star?
