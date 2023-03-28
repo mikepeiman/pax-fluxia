@@ -19,11 +19,12 @@
 - [ ] add naming and labeling of hex sectors (for debugging, also for future gameplay enhancements)
 - [ ] figure out how to make custom console.logs with styling that work across files
 - [ ] player should be able to click and drag through multiple stars to set a longer attack/movement path
+- [ ] provide ctrl-z "undo" function and store a history of commands (attackMove commands) along with the previous state
 
 --- 
 ### Longer term possibilities
 
-- [ ] allow single star to attack/transfer to multiple stars. Equal distribution makes the most sense, is easiest; allowing varied distribution would provide a very interesting UI challenge and strategy nuance
+- [ ] allow single star to attack/transfer to multiple stars. Equal distribution makes the most sense, is easiest; allowing varied distribution would provide a very interesting UI challenge and strategy nuance (see other notes on algorithmic attack-move patterns)
 - [ ] allow player to create and save (and name and preview) multiple attackMove patterns to select and activate at one click
 - [ ] allow player to develop attackMove algorithms with conditional logic 
 

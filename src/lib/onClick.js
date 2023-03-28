@@ -14,6 +14,7 @@ let ctx = get(store_ctx);
 let canvas;
 let activeStar = null,
     activeStarId,
+    lastActiveStar,
     lastActiveStarId,
     attackMoveTargetId,
     mousedownStarId,
@@ -24,17 +25,56 @@ let activeStar = null,
 // When there is a mouseup, deactivate the mousemove event handler
 // When there is a mouseup, if the mouseup is a left click, then activate the star
 // When there is a mouseup, if the mouseup is a right click, then deactivate the star
+// if mouseUp is not on a star, do we need to do anything special?
+// we may need to check if BOTH mouse buttons were pressed - one button held while the other was clicked
+
+function onMouseMove(e) {
+    stars = get(store_stars);
+    ctx = get(store_ctx);
+    checkStarsForHit(e, stars)
+    stars.forEach((star) => {
+        // if we get a pixel hit
+        let hit = hitTest(e.x, e.y, star);
+        if (hit && activeStar !== star) {
+            setActiveStar(star)
+            setAttackMoveTarget(lastActiveStar, star)
+            executeAttackMoveOperations(star, ctx);
+        } else {
+
+        }
+    });
+}
+
+function checkStarsForHit(e, stars) {
+    stars.forEach((star) => {
+        // if we get a pixel hit
+        let hit = hitTest(e.x, e.y, star);
+        if (hit && activeStar !== star) {
+            console.log(`🚀 ~ file: onClick.js:57 ~ HIT ${hit} stars.forEach ~ star:`, star)
+            setActiveStar(star)
+        } else {
+            return
+        }
+    });
+}
+
+function setActiveStar(star) {
+    lastActiveStar = activeStar;
+    lastActiveStarId = activeStarId;
+    activeStar = star;
+    activeStarId = star.id;
+}
 
 
 function onClick(e) {
-    // console.log(`🚀 ~ file: index.svelte ~ line 305 ~ onClick ~ e ✅✅✅🔥🔥🔥  `, e.type),
-    //     `  ✅✅✅🔥🔥🔥`;
-    // console.log('click', e.x, ':', e.y);
     let hit = false;
+    stars = get(store_stars);
+    ctx = get(store_ctx);
     canvas = document.getElementById("canvas");
 
     if (e.type === 'mousedown') {
         // activate a mousemove event handler that will check for mouseover events on stars
+        checkStarsForHit(e, stars)
         canvas.addEventListener('mousemove', onMouseMove);
 
     }
@@ -46,132 +86,116 @@ function onClick(e) {
             if (hit) {
 
             } else {
+
             }
         })
     }
 
 
-    stars = get(store_stars);
-    ctx = get(store_ctx);
-    stars.forEach((star) => {
-        // if we get a pixel hit
-        let hit = hitTest(e.x, e.y, star);
-        if (hit) {
-            activeStar = star;
-            // deal with left clicks that are action clicks
-            if (e.type === 'mousedown' && e.button === 1) {
 
-            }
+    // stars.forEach((star) => {
+    //     // if we get a pixel hit
+    //     let hit = hitTest(e.x, e.y, star);
+    //     if (hit) {
+    //         activeStar = star;
+    //         // deal with left clicks that are action clicks
+    //         if (e.type === 'mousedown' && e.button === 1) {
 
-
-            if (e.type === 'contextmenu' || e.button === 2) {
-                e.preventDefault();
-                star.attackMoveTargetId = null;
-            }
-            e.type === 'mousedown' ? (mousedownStarId = star.id) : null;
-            e.type === 'mouseup' ? (mouseupStarId = star.id) : null;
-
-            if (e.type === 'mouseup' && e.button !== 2) {
-                activeStar ? (activeStar.active = false) : null;
-                activeStar = star;
-                star.active = true;
-                if (star.highlighted) {
-                    star.unhighlight(ctx);
-                } else {
-                    star.activeStarHexBorderHighlight(ctx, drawHex);
-                }
-                if (star.destination) {
-                    let destination = getStarById(stars, star.destination);
-                    destination.attackMoveTargetId === star.id ? (destination.attackMoveTargetId = null) : null;
-                }
-                star.draw(ctx, data, drawHex, getStarById, canvasArrow);
-            }
-        } else {
-            if (e.type === 'mouseup' && (e.type === 'contextmenu' || e.button === 2)) {
-                activeStar ? (activeStar.active = false) : null;
-                activeStar = null;
-            }
-        }
+    //         }
 
 
+    //         if (e.type === 'contextmenu' || e.button === 2) {
+    //             e.preventDefault();
+    //             star.attackMoveTargetId = null;
+    //         }
+    //         e.type === 'mousedown' ? (mousedownStarId = star.id) : null;
+    //         e.type === 'mouseup' ? (mouseupStarId = star.id) : null;
 
-        if (hit && e.type === 'mouseup' && e.button !== 2) {
-            if (mousedownStarId !== mouseupStarId) {
-                activeStarId = mousedownStarId;
-                attackMoveTargetId = lastActiveStarId = mouseupStarId;
-                activeStar = getStarById(stars, mouseupStarId)
-                let origin = getStarById(stars, activeStarId);
-                origin.attackMoveTargetId = attackMoveTargetId;
-            }
+    //         if (e.type === 'mouseup' && e.button !== 2) {
+    //             activeStar ? (activeStar.active = false) : null;
+    //             activeStar = star;
+    //             star.active = true;
+    //             if (star.highlighted) {
+    //                 star.unhighlight(ctx);
+    //             } else {
+    //                 star.activeStarHexBorderHighlight(ctx, drawHex);
+    //             }
+    //             if (star.destination) {
+    //                 let destination = getStarById(stars, star.destination);
+    //                 destination.attackMoveTargetId === star.id ? (destination.attackMoveTargetId = null) : null;
+    //             }
+    //             star.draw(ctx, data, drawHex, getStarById, canvasArrow);
+    //         }
+    //     } else {
+    //         if (e.type === 'mouseup' && (e.type === 'contextmenu' || e.button === 2)) {
+    //             activeStar ? (activeStar.active = false) : null;
+    //             activeStar = null;
+    //         }
+    //     }
 
-            if (mousedownStarId === mouseupStarId) {
-                activeStarId = mousedownStarId;
-                if (lastActiveStarId !== activeStarId && lastActiveStarId) {
-                    console.log(
-                        `🚀 ~ file: index.svelte ~ line 442 ~ stars.forEach ~ lastActiveStarId !== activeStarId && lastActiveStarId`,
-                        lastActiveStarId !== activeStarId && lastActiveStarId
-                    );
-                    attackMoveTargetId = activeStarId;
-                    let origin = getStarById(stars, lastActiveStarId);
-                    origin.attackMoveTargetId = mouseupStarId;
-                }
-                lastActiveStarId = activeStarId;
-            }
-        }
-    });
 
-    if (e.type === 'mouseup' && e.type !== 'contextmenu') {
-        // canvasRedraw(ctx);
-        stars.forEach((star) => {
-            if (star.id && star.attackMoveTargetId && star.attackMoveTargetId !== star.id) {
-                let origin = getStarById(stars, star.id);
-                let destination = getStarById(stars, star.attackMoveTargetId);
-                // destination.attackMoveTargetId === star.id ? (destination.attackMoveTargetId = null) : null;
-                canvasArrow(ctx, destination, origin);
-            }
-        });
-    }
-    if (e.type === 'contextmenu' || e.button === 2) {
-        e.preventDefault();
-        if (activeStar) {
-            activeStar.active = false;
-            activeStar.draw(ctx, data, drawHex, getStarById, canvasArrow);
-        }
-        activeStar = null;
-        activeStarId = null;
-        attackMoveTargetId = null;
-        lastActiveStarId = null;
-        return false;
-    }
+
+    //     if (hit && e.type === 'mouseup' && e.button !== 2) {
+    //         if (mousedownStarId !== mouseupStarId) {
+    //             activeStarId = mousedownStarId;
+    //             attackMoveTargetId = lastActiveStarId = mouseupStarId;
+    //             activeStar = getStarById(stars, mouseupStarId)
+    //             let origin = getStarById(stars, activeStarId);
+    //             origin.attackMoveTargetId = attackMoveTargetId;
+    //         }
+
+    //         if (mousedownStarId === mouseupStarId) {
+    //             activeStarId = mousedownStarId;
+    //             if (lastActiveStarId !== activeStarId && lastActiveStarId) {
+    //                 console.log(
+    //                     `🚀 ~ file: index.svelte ~ line 442 ~ stars.forEach ~ lastActiveStarId !== activeStarId && lastActiveStarId`,
+    //                     lastActiveStarId !== activeStarId && lastActiveStarId
+    //                 );
+    //                 attackMoveTargetId = activeStarId;
+    //                 let origin = getStarById(stars, lastActiveStarId);
+    //                 origin.attackMoveTargetId = mouseupStarId;
+    //             }
+    //             lastActiveStarId = activeStarId;
+    //         }
+    //     }
+    // });
+
+    // if (e.type === 'mouseup' && e.type !== 'contextmenu') {
+    //     // canvasRedraw(ctx);
+    //     stars.forEach((star) => {
+    //         if (star.id && star.attackMoveTargetId && star.attackMoveTargetId !== star.id) {
+    //             let origin = getStarById(stars, star.id);
+    //             let destination = getStarById(stars, star.attackMoveTargetId);
+    //             // destination.attackMoveTargetId === star.id ? (destination.attackMoveTargetId = null) : null;
+    //             canvasArrow(ctx, destination, origin);
+    //         }
+    //     });
+    // }
+    // if (e.type === 'contextmenu' || e.button === 2) {
+    //     e.preventDefault();
+    //     if (activeStar) {
+    //         activeStar.active = false;
+    //         activeStar.draw(ctx, data, drawHex, getStarById, canvasArrow);
+    //     }
+    //     activeStar = null;
+    //     activeStarId = null;
+    //     attackMoveTargetId = null;
+    //     lastActiveStarId = null;
+    //     return false;
+    // }
 }
 
-function onMouseMove(e) {
-    stars = get(store_stars);
-    ctx = get(store_ctx);
-    stars.forEach((star) => {
-        // if we get a pixel hit
-        let hit = hitTest(e.x, e.y, star);
-        if (hit && activeStar !== star) {
-            activeStar = star;
-            setAttackMoveProperties(star, target)
-            executeAttackMoveOperations(star, ctx);
-        } else {
 
-        }
-    });
-}
-
-function clearStarDirectives(star, ctx) {
-    star.attackMoveTargetId = null;
-    star.destination = null;
-    star.attackMove = false;
+function clearStarDirectives(star) {
     star.attackMoveTarget = null;
+    star.attackMoveTargetId = null;
 }
 
-function setAttackMoveProperties(star, target) {
+function setAttackMoveTarget(star, target) {
+    console.log(`🚀 ~ file: onClick.js:175 ~ setAttackMoveTarget ~ star ${star.id}, target ${target.id}:`, star, target)
     star.attackMoveTarget = target;
     star.attackMoveTargetId = target.id;
-    target.starsThatTargetThisStar.push(star);
+    target.starsThatTargetThisStar.push(star.id);
 }
 
 
@@ -181,15 +205,18 @@ function setAttackMoveProperties(star, target) {
 // and attack move target to the active star.
 
 function executeAttackMoveOperations(star, ctx) {
-        if (star.attackMoveTarget) {
-            let target = getStarById(stars, star.attackMoveTargetId);
-            target.attackMoveTargetId = null;
-            target.attackMoveTarget = null;
-            target.draw(ctx, data, drawHex, getStarById, canvasArrow);
-        }
-        star.attackMoveTarget = activeStar;
-        star.attackMoveTargetId = activeStar.id;
-        star.draw(ctx, data, drawHex, getStarById, canvasArrow);
+    console.log(`🚀 ~ file: onClick.js:188 ~ executeAttackMoveOperations ~ star:`, star)
+    if (star.attackMoveTargetId) {
+        let target = getStarById(stars, star.attackMoveTargetId);
+        target.attackMoveTargetId = null;
+        target.attackMoveTarget = null;
+        target.draw(ctx, data, drawHex, getStarById, canvasArrow);
+    } else {
+        console.log(`🚀 ~ file: onClick.js:197 ~ executeAttackMoveOperations ~ "no attackMove target":`, "no attackMove target")
+    }
+    star.attackMoveTarget = activeStar;
+    star.attackMoveTargetId = activeStar.id;
+    star.draw(ctx, data, drawHex, getStarById, canvasArrow);
 }
 
 
