@@ -24,22 +24,30 @@ let activeStar = null,
 // When there is a mouseup, deactivate the mousemove event handler
 // When there is a mouseup, if the mouseup is a left click, then activate the star
 // When there is a mouseup, if the mouseup is a right click, then deactivate the star
- 
+
 
 function onClick(e) {
     // console.log(`🚀 ~ file: index.svelte ~ line 305 ~ onClick ~ e ✅✅✅🔥🔥🔥  `, e.type),
     //     `  ✅✅✅🔥🔥🔥`;
     // console.log('click', e.x, ':', e.y);
+    let hit = false;
     canvas = document.getElementById("canvas");
 
-    if(e.type === 'mousedown'){
+    if (e.type === 'mousedown') {
         // activate a mousemove event handler that will check for mouseover events on stars
         canvas.addEventListener('mousemove', onMouseMove);
 
     }
-    if(e.type === 'mouseup'){
+    if (e.type === 'mouseup') {
         // deactivate the mousemove event handler
         canvas.removeEventListener('mousemove', onMouseMove);
+        stars.forEach((star) => {
+            hit = hitTest(e.x, e.y, star);
+            if (hit) {
+
+            } else {
+            }
+        })
     }
 
 
@@ -51,7 +59,7 @@ function onClick(e) {
         if (hit) {
             activeStar = star;
             // deal with left clicks that are action clicks
-            if(e.type === 'mousedown' && e.button === 1){
+            if (e.type === 'mousedown' && e.button === 1) {
 
             }
 
@@ -72,7 +80,7 @@ function onClick(e) {
                 } else {
                     star.activeStarHexBorderHighlight(ctx, drawHex);
                 }
-                if(star.destination){
+                if (star.destination) {
                     let destination = getStarById(stars, star.destination);
                     destination.destinationStarId === star.id ? (destination.destinationStarId = null) : null;
                 }
@@ -137,7 +145,7 @@ function onClick(e) {
     }
 }
 
-function onMouseMove(e){
+function onMouseMove(e) {
     stars = get(store_stars);
     ctx = get(store_ctx);
     stars.forEach((star) => {
@@ -145,14 +153,8 @@ function onMouseMove(e){
         let hit = hitTest(e.x, e.y, star);
         if (hit && activeStar !== star) {
             activeStar = star;
-            console.log(`🚀 ~ file: onClick.js:143 ~ stars.forEach ~ hit on star ${star.id}:`, hit)
-            if (e.type === 'mousemove') {
-                star.highlight(ctx);
-            }
         } else {
-            if (e.type === 'mousemove') {
-                star.unhighlight(ctx);
-            }
+
         }
     });
 }
