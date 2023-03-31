@@ -117,12 +117,10 @@
         }
     }
 
-    onMount(async () => {
+    onMount(() => {
         mounted = true;
         timestamp = performance.now();
-        let canvasInitialized = new Promise((resolve, reject) => {
-            resolve(canvasInit());
-        });
+
         // let dataFound = readData(data);
         // console.log(
         //     `🚀 ~ file: index.svelte ~ line 114 ~ onMount ~ dataFound`,
@@ -132,9 +130,14 @@
         //     `🚀 ~ file: index.svelte ~ line 114 ~ onMount ~ readData(data)		`,
         //     readData(data)
         // );
-        canvasInitialized.then(() => {
-            mapInit(data);
-        });
+        // let canvasInitialized = new Promise((resolve, reject) => {
+        //     resolve(canvasInit());
+        // });
+        // canvasInitialized.then(() => {
+        //     mapInit(data);
+        // });
+        canvasInit()
+        mapInit(data);
     });
 
     function canvasInit() {

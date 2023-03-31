@@ -12,9 +12,9 @@ let activeStars = get(store_activeStars);
 let stars = get(store_stars);
 let ctx = get(store_ctx);
 let canvas;
-let activeStar = null,
+let activeStar = stars[0] || null,
     activeStarId,
-    lastActiveStar,
+    lastActiveStar = stars[1] || null,
     lastActiveStarId,
     attackMoveTargetId,
     mousedownStarId,
@@ -22,12 +22,19 @@ let activeStar = null,
 
 let activeKey = null;
 $: activeKey = get(store_activeKey);
-$: console.log(`🚀 ~ file: onClick.js:25 ~ activeKey:`, activeKey)
+// $: console.log(`🚀 ~ file: onClick.js:25 ~ activeKey:`, activeKey)
 store_activeStars.subscribe((val) => {
     activeStars = val;
-    console.log(`🚀 ~ file: onClick.js:26 ~ activeStars.subscribe ~ activeStars:`, activeStars)
+    // console.log(`🚀 ~ file: onClick.js:26 ~ activeStars.subscribe ~ activeStars:`, activeStars)
     activeStarId = val.activeStarId;
     lastActiveStarId = val.lastActiveStarId;
+    activeStar = val.activeStar;
+    lastActiveStar = val.lastActiveStar;
+    if(lastActiveStar){
+
+        setAttackMoveTarget(lastActiveStar, activeStar)
+        executeAttackMoveOperations(lastActiveStar, ctx);
+    }
 });
 // I will need to refactor this entire function to be a mousedown event handler, so I can act on any stars the player drags the cursor over, whether left or right click
 // When there is a mousedown, activate a mousemove event handler that will check for mouseover events on stars
@@ -37,13 +44,15 @@ store_activeStars.subscribe((val) => {
 // if mouseUp is not on a star, do we need to do anything special?
 // we may need to check if BOTH mouse buttons were pressed - one button held while the other was clicked
 
-function onMouseMove(e) {
+async function onMouseMove(e) {
     stars = get(store_stars);
     ctx = get(store_ctx);
-    let hit = checkStarsForHit(e, stars)
+    let hit = await checkStarsForHit(e, stars)
+    console.log(`🚀 ~ file: onClick.js:44 ~ onMouseMove ~ hit:`, hit)
     if (hit) {
+        console.log(`🚀 ~ file: onClick.js:45 ~ onMouseMove ~ hit:`, hit)
         setAttackMoveTarget(lastActiveStar, activeStar)
-        executeAttackMoveOperations(activeStar, ctx);
+        executeAttackMoveOperations(lastActiveStar, ctx);
     }
     // stars.forEach((star) => {
     //     // if we get a pixel hit
@@ -56,18 +65,18 @@ function onMouseMove(e) {
     // });
 }
 
-function checkStarsForHit(e, stars) {
+ function checkStarsForHit(e, stars) {
+    // let hit
     stars.forEach((star) => {
         // if we get a pixel hit
         let hit = hitTest(e.x, e.y, star);
         if (hit && activeStar !== star) {
             console.log(`🚀 ~ file: onClick.js:57 ~ HIT ${hit} stars.forEach ~ star:`, star)
             setActiveStar(star)
-            return true
-        } else {
-            return false
+            return "It is TRUE!"
         }
     });
+    // return hit
 }
 
 function setActiveStar(star) {
@@ -129,6 +138,8 @@ function onMouseUp(e) {
     stars.forEach((star) => {
         let hit = hitTest(e.x, e.y, star);
         if (hit) {
+            e.type
+            console.log(`🚀 ~ file: onClick.js:146 ~ stars.forEach ~ e.type:`, e.type)
 
         } else {
 
