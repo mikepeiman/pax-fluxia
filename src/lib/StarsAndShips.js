@@ -1,4 +1,4 @@
-import { data } from "$lib/Data";
+import { data } from "$stores/Data";
 import { store_hexCenterCoords, store_ctx, store_stars } from "$stores/stores";
 import Star from "./Star";
 import Ship from "./Ship";
@@ -22,10 +22,11 @@ store_stars.subscribe((val) => {
 function generateStars(data, num) {
     const flag = {};
     for (let i = 0; i < num; i++) {
+        hexCenterCoords = get(store_hexCenterCoords);
         let coords =
-            hexCenterCoords[
+        hexCenterCoords[
             Math.floor(Math.random() * hexCenterCoords.length)
-            ];
+        ];
         if (!flag[coords.x + ":" + coords.y]) {
             flag[coords.x + ":" + coords.y] = true;
             let starType = Math.floor(Math.random() * data.numTypes);

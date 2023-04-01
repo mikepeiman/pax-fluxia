@@ -31,7 +31,7 @@
     } from "$lib/hexGridFunctions";
     import { combinedInputFunction } from "$lib/onClick";
     import { drawStars, drawShips, generateShips } from "$lib/StarsAndShips";
-    import { data } from "$lib/Data";
+    import { data } from "$stores/Data";
     import { get } from "svelte/store";
     import TextParam from "$components/TextParam.svelte";
 
@@ -142,8 +142,8 @@
 
     function canvasInit() {
         canvas = document.getElementById("canvas");
-        w = canvas.width = window.innerWidth * 0.8;
-        h = canvas.height = window.innerHeight - 16;
+        w = canvas.width = window.innerWidth * .78;
+        h = canvas.height = window.innerHeight - 17;
         canvas.style.backgroundColor = "#222";
         canvas.style.cursor = "pointer";
         ctx = canvas.getContext("2d");

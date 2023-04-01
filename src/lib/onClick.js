@@ -4,10 +4,11 @@ import { store_stars, store_ctx, store_activeStars, store_activeKey } from "$sto
 import { drawHex } from "$lib/hexGridFunctions";
 import { canvasArrow } from "$lib/canvasArrow.js";
 import { hitTest } from "$lib/hitTest.js";
-import { data } from "$lib/data.js";
+import { data } from "$stores/Data.js";
 import { clearStarActiveStates } from "$lib/clearStarActiveStates";
 import { logStar } from "$lib/logStarDetails";
 import { canvasRedraw } from "$lib/canvasRedraw";
+import { drawStars } from "$lib/StarsAndShips.js";
 let activeStars = get(store_activeStars);
 let stars = get(store_stars);
 let ctx = get(store_ctx);
@@ -37,6 +38,11 @@ store_activeStars.subscribe((val) => {
         setAttackMoveTarget(lastActiveStar, activeStar)
         executeAttackMoveOperations(lastActiveStar, ctx);
     }
+    stars.forEach((star) => {   
+        console.log(`🚀 ~ file: onClick.js:44 ~ stars.forEach ~ star ${star.id} active : ${star.active}`, star)
+        star.draw(ctx, data, drawHex, getStarById, canvasArrow);
+    });
+    // drawStars(stars, ctx, data);
 });
 // I will need to refactor this entire function to be a mousedown event handler, so I can act on any stars the player drags the cursor over, whether left or right click
 // When there is a mousedown, activate a mousemove event handler that will check for mouseover events on stars
@@ -301,6 +307,7 @@ function combinedInputFunction(e) {
             onMouseUp(e)
         }
     }
+    canvasRedraw();
 }
 
 function onKeyDown(e) {

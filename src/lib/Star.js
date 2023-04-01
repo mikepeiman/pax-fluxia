@@ -1,5 +1,6 @@
 import { store_stars } from "$stores/stores";
 import { get } from "svelte/store";
+import { data } from "$stores/data";
 let stars = get(store_stars);
 class Star {
     constructor(id, x, y, radius, type, hue, numShips) {
