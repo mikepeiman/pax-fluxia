@@ -74,6 +74,7 @@ function checkStarsForHit(e, stars) {
         if (hit && activeStar !== star) {
             console.log(`🚀 ~ file: onClick.js:57 ~ HIT ${hit} stars.forEach ~ star:`, star)
             setActiveStar(star)
+
             return "It is TRUE!"
         }
     });
@@ -81,11 +82,13 @@ function checkStarsForHit(e, stars) {
 }
 
 function setActiveStar(star) {
+    let ctx = get(store_ctx);
+    star.activeStarHexBorderHighlight(ctx, drawHex)
     lastActiveStar = activeStar;
     lastActiveStarId = activeStarId;
     activeStar = star;
     star.active = true;
-    if(lastActiveStar){
+    if (lastActiveStar) {
         console.log(`🚀 ~ file: onClick.js:84 ~ setActiveStar ~ lastActiveStar:`, lastActiveStar)
         lastActiveStar.active = false;
     }
@@ -128,13 +131,13 @@ function onClick(e) {
 function onMouseDown(e) {
     // activate a mousemove event handler that will check for mouseover events on stars
     canvas = document.getElementById("canvas");
-    let hit = checkStarsForHit(e, stars)
-    if (hit) {
-
-        setAttackMoveTarget(lastActiveStar, activeStar)
-        executeAttackMoveOperations(activeStar, ctx);
-    }
     canvas.addEventListener('mousemove', onMouseMove);
+    // let hit = checkStarsForHit(e, stars)
+    // if (hit) {
+
+    //     setAttackMoveTarget(lastActiveStar, activeStar)
+    //     executeAttackMoveOperations(activeStar, ctx);
+    // }
 
 }
 
@@ -142,16 +145,14 @@ function onMouseUp(e) {
     // deactivate the mousemove event handler
     canvas = document.getElementById("canvas");
     canvas.removeEventListener('mousemove', onMouseMove);
-    stars.forEach((star) => {
-        let hit = hitTest(e.x, e.y, star);
-        if (hit) {
-            e.type
-            console.log(`🚀 ~ file: onClick.js:146 ~ stars.forEach ~ e.type:`, e.type)
+    let hit = checkStarsForHit(e, stars)
+    if (hit) {
+        e.type
+        console.log(`🚀 ~ file: onClick.js:146 ~ stars.forEach ~ e.type:`, e.type)
 
-        } else {
+    } else {
 
-        }
-    })
+    }
 }
 
 
