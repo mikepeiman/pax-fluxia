@@ -30,8 +30,10 @@ store_activeStars.subscribe((val) => {
     lastActiveStarId = val.lastActiveStarId;
     activeStar = val.activeStar;
     lastActiveStar = val.lastActiveStar;
-    if(lastActiveStar){
-
+    if (lastActiveStar) {
+        lastActiveStar.active = false;
+        lastActiveStar.draw(ctx, data, drawHex, getStarById, canvasArrow);
+        console.log(`🚀 ~ file: onClick.js:34 ~ store_activeStars.subscribe ~ lastActiveStar ${lastActiveStar.id} activeStar ${activeStar.id}:`,)
         setAttackMoveTarget(lastActiveStar, activeStar)
         executeAttackMoveOperations(lastActiveStar, ctx);
     }
@@ -48,11 +50,10 @@ async function onMouseMove(e) {
     stars = get(store_stars);
     ctx = get(store_ctx);
     let hit = await checkStarsForHit(e, stars)
-    console.log(`🚀 ~ file: onClick.js:44 ~ onMouseMove ~ hit:`, hit)
     if (hit) {
         console.log(`🚀 ~ file: onClick.js:45 ~ onMouseMove ~ hit:`, hit)
         setAttackMoveTarget(lastActiveStar, activeStar)
-        executeAttackMoveOperations(lastActiveStar, ctx);
+        // executeAttackMoveOperations(lastActiveStar, ctx);
     }
     // stars.forEach((star) => {
     //     // if we get a pixel hit
@@ -65,7 +66,7 @@ async function onMouseMove(e) {
     // });
 }
 
- function checkStarsForHit(e, stars) {
+function checkStarsForHit(e, stars) {
     // let hit
     stars.forEach((star) => {
         // if we get a pixel hit
@@ -83,12 +84,18 @@ function setActiveStar(star) {
     lastActiveStar = activeStar;
     lastActiveStarId = activeStarId;
     activeStar = star;
+    star.active = true;
+    if(lastActiveStar){
+        console.log(`🚀 ~ file: onClick.js:84 ~ setActiveStar ~ lastActiveStar:`, lastActiveStar)
+        lastActiveStar.active = false;
+    }
     activeStarId = star.id;
     activeStars["activeStarId"] = activeStarId;
     activeStars["activeStar"] = activeStar;
     activeStars["lastActiveStarId"] = lastActiveStarId;
     activeStars["lastActiveStar"] = lastActiveStar;
     store_activeStars.set(activeStars);
+    store_stars.set(stars);
 }
 
 function onClick(e) {
@@ -261,15 +268,18 @@ function setAttackMoveTarget(star, target) {
 // and attack move target to the active star.
 
 function executeAttackMoveOperations(star, ctx) {
-    console.log(`🚀 ~ file: onClick.js:188 ~ executeAttackMoveOperations ~ star:`, star)
+    let target = "none"
     if (star.attackMoveTargetId) {
-        let target = getStarById(stars, star.attackMoveTargetId);
+        target = getStarById(stars, star.attackMoveTargetId);
         target.attackMoveTargetId = null;
         target.attackMoveTarget = null;
         target.draw(ctx, data, drawHex, getStarById, canvasArrow);
     } else {
         console.log(`🚀 ~ file: onClick.js:197 ~ executeAttackMoveOperations ~ "no attackMove target":`, "no attackMove target")
     }
+    console.log(`🚀 ~ file: onClick.js:188 ~ executeAttackMoveOperations ~ star ${star.id} target ${target.id}:`, star, target)
+    star.active = false;
+    target ? target.active = true : null;
     star.attackMoveTarget = activeStar;
     star.attackMoveTargetId = activeStar.id;
     star.draw(ctx, data, drawHex, getStarById, canvasArrow);
