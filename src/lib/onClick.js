@@ -38,7 +38,7 @@ store_activeStars.subscribe((val) => {
         setAttackMoveTarget(lastActiveStar, activeStar)
         executeAttackMoveOperations(lastActiveStar, ctx);
     }
-    stars.forEach((star) => {   
+    stars.forEach((star) => {
         console.log(`🚀 ~ file: onClick.js:44 ~ stars.forEach ~ star ${star.id} active : ${star.active}`, star)
         star.draw(ctx, data, drawHex, getStarById, canvasArrow);
     });
@@ -77,10 +77,15 @@ function checkStarsForHit(e, stars) {
     stars.forEach((star) => {
         // if we get a pixel hit
         let hit = hitTest(e.x, e.y, star);
+        if (hit) {
+            if (e.type === 'contextmenu' || e.button === 2) {
+                e.preventDefault();
+                star.attackMoveTargetId = null;
+            }
+        }
         if (hit && activeStar !== star) {
             console.log(`🚀 ~ file: onClick.js:57 ~ HIT ${hit} stars.forEach ~ star:`, star)
             setActiveStar(star)
-
             return "It is TRUE!"
         }
     });

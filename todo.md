@@ -5,6 +5,8 @@
 - [x] refactor pixel hitTest to separate function
 - [x]  solve the ghost-ships bug,
 - [x]  make the x/y orbit adjustment work again
+- [ ]  need to fix flashing caused by unecessary redrawing
+- [ ]  fix right click changes active and doesn't cancel target
 - [ ]  fix right click redrawing arrows which stack when not animated
 - [ ]  fix right click not removing arrow when not animated
 - [ ]  fix multiple active star states drawn when static
