@@ -53,43 +53,25 @@ store_activeStars.subscribe((val) => {
 // if mouseUp is not on a star, do we need to do anything special?
 // we may need to check if BOTH mouse buttons were pressed - one button held while the other was clicked
 
-async function onMouseMove(e) {
-    stars = get(store_stars);
-    ctx = get(store_ctx);
-    let hit = await checkStarsForHit(e, stars)
-    if (hit) {
-        console.log(`🚀 ~ file: onClick.js:45 ~ onMouseMove ~ hit:`, hit)
-        console.log(`🚀 ~ file: onClick.js:65 ~ onMouseMove ~ lastActiveStar, activeStar:`, lastActiveStar, activeStar)
-        if (lastActiveStar) {
-
-            setAttackMoveTarget(lastActiveStar, activeStar)
-            executeAttackMoveOperations(lastActiveStar, ctx);
-        }
-    }
-    // stars.forEach((star) => {
-    //     // if we get a pixel hit
-    //     let hit = hitTest(e.x, e.y, star);
-    //     if (hit && activeStar !== star) {
-    //         setActiveStar(star)
-    //     } else {
-
-    //     }
-    // });
-}
 
 function checkStarsForHit(e, stars) {
+    console.log(`🚀 ~ file: onClick.js:58 ~ checkStarsForHit ~ ${e.type} ${e.button}:`, e)
     let hitStar
     stars.forEach((star) => {
         // if we get a pixel hit
         let hit = hitTest(e.x, e.y, star);
         if (hit) {
             if (e.type === 'contextmenu' || e.button === 2) {
-                e.preventDefault();
                 star.attackMoveTargetId = null;
-            } else if (activeStar !== star) {
-
+            } 
+            if ((e.type !== 'contextmenu' || e.button !== 2) && activeStar !== star) {
+                console.log(`🚀 ~ file: onClick.js:67 ~ stars.forEach ~ !(e.type === 'contextmenu' || e.button === 2) && activeStar !== star:`, !(e.type === 'contextmenu' || e.button === 2) && activeStar !== star)
                 setActiveStar(star)
                 hitStar = star.id
+                if (lastActiveStar) {
+                    setAttackMoveTarget(lastActiveStar, activeStar)
+                    executeAttackMoveOperations(lastActiveStar, ctx);
+                }
             }
         }
     });
@@ -132,6 +114,7 @@ function onMouseDown(e) {
 }
 
 function onMouseUp(e) {
+    e.preventDefault();
     console.log(`🚀 ~ file: onClick.js:130 ~ onMouseUp ~ e:`, e)
     // deactivate the mousemove event handler
     canvas = document.getElementById("canvas");
@@ -139,112 +122,35 @@ function onMouseUp(e) {
     stars = get(store_stars);
     let hit = checkStarsForHit(e, stars)
     console.log(`🚀 ~ file: onClick.js:138 ~ onMouseUp ~ hit:`, hit)
-    if (hit) {
-        console.log(`🚀 ~ file: onClick.js:136 ~ onMouseUp ~ hit:`, hit)
-        if (e.type === 'contextmenu' || e.button === 2) {
+    // if (hit) {
+    //     console.log(`🚀 ~ file: onClick.js:136 ~ onMouseUp ~ hit:`, hit)
+    //     if (e.type === 'contextmenu' || e.button === 2) {
 
-        }
-        e.type
-        console.log(`🚀 ~ file: onClick.js:146 ~ stars.forEach ~ e.type:`, e.type)
+    //     }
+    //     e.type
+    //     console.log(`🚀 ~ file: onClick.js:146 ~ stars.forEach ~ e.type:`, e.type)
 
-    } else {
+    // } else {
 
-    }
+    // }
 }
 
-
-
-// stars.forEach((star) => {
-//     // if we get a pixel hit
-//     let hit = hitTest(e.x, e.y, star);
-//     if (hit) {
-//         activeStar = star;
-//         // deal with left clicks that are action clicks
-//         if (e.type === 'mousedown' && e.button === 1) {
-
-//         }
-
-
-//         if (e.type === 'contextmenu' || e.button === 2) {
-//             e.preventDefault();
-//             star.attackMoveTargetId = null;
-//         }
-//         e.type === 'mousedown' ? (mousedownStarId = star.id) : null;
-//         e.type === 'mouseup' ? (mouseupStarId = star.id) : null;
-
-//         if (e.type === 'mouseup' && e.button !== 2) {
-//             activeStar ? (activeStar.active = false) : null;
-//             activeStar = star;
-//             star.active = true;
-//             if (star.highlighted) {
-//                 star.draw(ctx);
-//             } else {
-//                 star.activeStarHexBorderHighlight(ctx, drawHex);
-//             }
-//             if (star.destination) {
-//                 let destination = getStarById(stars, star.destination);
-//                 destination.attackMoveTargetId === star.id ? (destination.attackMoveTargetId = null) : null;
-//             }
-//             star.draw(ctx, data, drawHex, getStarById, canvasArrow);
-//         }
-//     } else {
-//         if (e.type === 'mouseup' && (e.type === 'contextmenu' || e.button === 2)) {
-//             activeStar ? (activeStar.active = false) : null;
-//             activeStar = null;
-//         }
-//     }
-
-
-
-//     if (hit && e.type === 'mouseup' && e.button !== 2) {
-//         if (mousedownStarId !== mouseupStarId) {
-//             activeStarId = mousedownStarId;
-//             attackMoveTargetId = lastActiveStarId = mouseupStarId;
-//             activeStar = getStarById(stars, mouseupStarId)
-//             let origin = getStarById(stars, activeStarId);
-//             origin.attackMoveTargetId = attackMoveTargetId;
-//         }
-
-//         if (mousedownStarId === mouseupStarId) {
-//             activeStarId = mousedownStarId;
-//             if (lastActiveStarId !== activeStarId && lastActiveStarId) {
-//                 console.log(
-//                     `🚀 ~ file: index.svelte ~ line 442 ~ stars.forEach ~ lastActiveStarId !== activeStarId && lastActiveStarId`,
-//                     lastActiveStarId !== activeStarId && lastActiveStarId
-//                 );
-//                 attackMoveTargetId = activeStarId;
-//                 let origin = getStarById(stars, lastActiveStarId);
-//                 origin.attackMoveTargetId = mouseupStarId;
-//             }
-//             lastActiveStarId = activeStarId;
-//         }
-//     }
-// });
-
-// if (e.type === 'mouseup' && e.type !== 'contextmenu') {
-//     // canvasRedraw(ctx);
-//     stars.forEach((star) => {
-//         if (star.id && star.attackMoveTargetId && star.attackMoveTargetId !== star.id) {
-//             let origin = getStarById(stars, star.id);
-//             let destination = getStarById(stars, star.attackMoveTargetId);
-//             // destination.attackMoveTargetId === star.id ? (destination.attackMoveTargetId = null) : null;
-//             canvasArrow(ctx, destination, origin);
-//         }
-//     });
-// }
-// if (e.type === 'contextmenu' || e.button === 2) {
-//     e.preventDefault();
-//     if (activeStar) {
-//         activeStar.active = false;
-//         activeStar.draw(ctx, data, drawHex, getStarById, canvasArrow);
-//     }
-//     activeStar = null;
-//     activeStarId = null;
-//     attackMoveTargetId = null;
-//     lastActiveStarId = null;
-//     return false;
-// }
-// }
+async function onMouseMove(e) {
+    stars = get(store_stars);
+    ctx = get(store_ctx);
+    let hit = await checkStarsForHit(e, stars)
+    if (e.type === 'contextmenu' || e.button === 2) {
+        console.log(`🚀 ~ file: onClick.js:61 ~ onMouseMove ~ e.type === 'contextmenu' || e.button === 2:`, e.type === 'contextmenu' || e.button === 2)
+        star.attackMoveTargetId = null;
+    } else if (hit) {
+        console.log(`🚀 ~ file: onClick.js:45 ~ onMouseMove ~ hit:`, hit)
+        console.log(`🚀 ~ file: onClick.js:65 ~ onMouseMove ~ lastActiveStar, activeStar:`, lastActiveStar, activeStar)
+        // if (lastActiveStar) {
+        //     setAttackMoveTarget(lastActiveStar, activeStar)
+        //     executeAttackMoveOperations(lastActiveStar, ctx);
+        // }
+    }
+}
 
 function setAttackMoveTarget(star, target) {
     if (target) {
@@ -254,7 +160,6 @@ function setAttackMoveTarget(star, target) {
         target.starsThatTargetThisStar.push(star.id);
     }
 }
-
 
 // This function is used to execute the attack move when a star is clicked on.
 // It will check if the star is currently in attack move mode. If it is, it will
