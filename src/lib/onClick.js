@@ -31,8 +31,8 @@ store_activeStars.subscribe((val) => {
     // console.log(`🚀 ~ file: onClick.js:26 ~ activeStars.subscribe ~ activeStars:`, activeStars)
     activeStarId = val.activeStarId;
     lastActiveStarId = val.lastActiveStarId;
-    activeStar = val.activeStar;
-    lastActiveStar = val.lastActiveStar;
+    activeStar = getStarById(stars, val.activeStarId);
+    lastActiveStar = getStarById(stars, val.lastActiveStarId);
     if (lastActiveStar) {
         lastActiveStar.active = false;
         lastActiveStar.draw(ctx, data, drawHex, getStarById, canvasArrow);
@@ -59,8 +59,12 @@ async function onMouseMove(e) {
     let hit = await checkStarsForHit(e, stars)
     if (hit) {
         console.log(`🚀 ~ file: onClick.js:45 ~ onMouseMove ~ hit:`, hit)
-        setAttackMoveTarget(lastActiveStar, activeStar)
-        // executeAttackMoveOperations(lastActiveStar, ctx);
+        console.log(`🚀 ~ file: onClick.js:65 ~ onMouseMove ~ lastActiveStar, activeStar:`, lastActiveStar, activeStar)
+        if (lastActiveStar) {
+
+            setAttackMoveTarget(lastActiveStar, activeStar)
+            executeAttackMoveOperations(lastActiveStar, ctx);
+        }
     }
     // stars.forEach((star) => {
     //     // if we get a pixel hit
@@ -74,7 +78,7 @@ async function onMouseMove(e) {
 }
 
 function checkStarsForHit(e, stars) {
-    // let hit
+    let hitStar
     stars.forEach((star) => {
         // if we get a pixel hit
         let hit = hitTest(e.x, e.y, star);
@@ -82,15 +86,15 @@ function checkStarsForHit(e, stars) {
             if (e.type === 'contextmenu' || e.button === 2) {
                 e.preventDefault();
                 star.attackMoveTargetId = null;
+            } else if (activeStar !== star) {
+
+                setActiveStar(star)
+                hitStar = star.id
             }
         }
-        if (hit && activeStar !== star) {
-            // console.log(`🚀 ~ file: onClick.js:57 ~ HIT ${hit} stars.forEach ~ star:`, star)
-            setActiveStar(star)
-            return "It is TRUE!"
-        }
     });
-    // return hit
+    console.log(`🚀 ~ file: onClick.js:95 ~ checkStarsForHit ~ hitStar:`, hitStar)
+    return hitStar
 }
 
 function setActiveStar(star) {
@@ -112,54 +116,34 @@ function setActiveStar(star) {
     store_stars.set(stars);
 }
 
-function onClick(e) {
-    let hit = false;
-    stars = get(store_stars);
-    ctx = get(store_ctx);
-    canvas = document.getElementById("canvas");
-
-    if (e.type === 'mousedown') {
-        // activate a mousemove event handler that will check for mouseover events on stars
-        let hit = checkStarsForHit(e, stars)
-        if (hit) {
-            setAttackMoveTarget(lastActiveStar, activeStar)
-            executeAttackMoveOperations(activeStar, ctx);
-        }
-        canvas.addEventListener('mousemove', onMouseMove);
-
-    }
-    if (e.type === 'mouseup') {
-        // deactivate the mousemove event handler
-        let hit = checkStarsForHit(e, stars)
-        if (hit) {
-            setAttackMoveTarget(lastActiveStar, activeStar)
-            executeAttackMoveOperations(activeStar, ctx);
-        }
-        canvas.removeEventListener('mousemove', onMouseMove);
-    }
-}
 
 function onMouseDown(e) {
     // activate a mousemove event handler that will check for mouseover events on stars
     canvas = document.getElementById("canvas");
-    stars = get(store_stars);
-    let hit = checkStarsForHit(e, stars)
-    if (hit) {
-
-        setAttackMoveTarget(lastActiveStar, activeStar)
-        executeAttackMoveOperations(activeStar, ctx);
-    }
+    // stars = get(store_stars);
+    // let hit = checkStarsForHit(e, stars)
+    // console.log(`🚀 ~ file: onClick.js:122 ~ onMouseDown ~ hit:`, hit)
+    // if (hit) {
+    //     setAttackMoveTarget(lastActiveStar, activeStar)
+    //     executeAttackMoveOperations(activeStar, ctx);
+    // }
     canvas.addEventListener('mousemove', onMouseMove);
 
 }
 
 function onMouseUp(e) {
+    console.log(`🚀 ~ file: onClick.js:130 ~ onMouseUp ~ e:`, e)
     // deactivate the mousemove event handler
     canvas = document.getElementById("canvas");
     canvas.removeEventListener('mousemove', onMouseMove);
     stars = get(store_stars);
     let hit = checkStarsForHit(e, stars)
+    console.log(`🚀 ~ file: onClick.js:138 ~ onMouseUp ~ hit:`, hit)
     if (hit) {
+        console.log(`🚀 ~ file: onClick.js:136 ~ onMouseUp ~ hit:`, hit)
+        if (e.type === 'contextmenu' || e.button === 2) {
+
+        }
         e.type
         console.log(`🚀 ~ file: onClick.js:146 ~ stars.forEach ~ e.type:`, e.type)
 
@@ -262,17 +246,13 @@ function onMouseUp(e) {
 // }
 // }
 
-
-function clearStarDirectives(star) {
-    star.attackMoveTarget = null;
-    star.attackMoveTargetId = null;
-}
-
 function setAttackMoveTarget(star, target) {
-    console.log(`🚀 ~ file: onClick.js:175 ~ setAttackMoveTarget ~ ${star.id}, target ${target.id}:`)
-    star.attackMoveTarget = target;
-    star.attackMoveTargetId = target.id;
-    target.starsThatTargetThisStar.push(star.id);
+    if (target) {
+
+        console.log(`🚀 ~ file: onClick.js:175 ~ setAttackMoveTarget ~ ${star.id}, target ${target.id}:`)
+        star.attackMoveTargetId = target.id;
+        target.starsThatTargetThisStar.push(star.id);
+    }
 }
 
 
