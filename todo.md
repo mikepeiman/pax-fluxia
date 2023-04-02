@@ -9,7 +9,9 @@
 - [ ]  fix right click changes active and doesn't cancel target
 - [ ]  fix right click redrawing arrows which stack when not animated
 - [ ]  fix right click not removing arrow when not animated
-- [ ]  fix multiple active star states drawn when static
+- [x]  fix multiple active star states drawn when static
+- [ ]  add multiple players
+- [ ]  add visual to represent each player
 - [ ]  add a ctrl-click function (and button) to remove all star directives
 - [ ] disable ability to have bidreictional ship transfers (with selfsame player)
 - [ ]  make localStorage work
