@@ -145,7 +145,7 @@ function onMouseDown(e) {
     stars = get(store_stars);
     let hit = checkStarsForHit(e, stars)
     if (hit) {
-        
+
         setAttackMoveTarget(lastActiveStar, activeStar)
         executeAttackMoveOperations(activeStar, ctx);
     }
@@ -269,7 +269,7 @@ function clearStarDirectives(star) {
 }
 
 function setAttackMoveTarget(star, target) {
-    console.log(`🚀 ~ file: onClick.js:175 ~ setAttackMoveTarget ~ star ${star.id}, target ${target.id}:`, star, target)
+    console.log(`🚀 ~ file: onClick.js:175 ~ setAttackMoveTarget ~ ${star.id}, target ${target.id}:`)
     star.attackMoveTarget = target;
     star.attackMoveTargetId = target.id;
     target.starsThatTargetThisStar.push(star.id);
@@ -284,14 +284,17 @@ function setAttackMoveTarget(star, target) {
 function executeAttackMoveOperations(star, ctx) {
     let target = "none"
     if (star.attackMoveTargetId) {
+        console.log(`🚀 ~ file: onClick.js:287 ~ executeAttackMoveOperations ~ ${star.id}.attackMoveTargetId:`, star.attackMoveTargetId)
         target = getStarById(stars, star.attackMoveTargetId);
-        target.attackMoveTargetId = null;
-        target.attackMoveTarget = null;
+        if (target.attackMoveTargetId === star.id) {
+            target.attackMoveTargetId = null;
+            target.attackMoveTarget = null;
+        }
         target.draw(ctx, data, drawHex, getStarById, canvasArrow);
     } else {
         console.log(`🚀 ~ file: onClick.js:197 ~ executeAttackMoveOperations ~ "no attackMove target":`, "no attackMove target")
     }
-    console.log(`🚀 ~ file: onClick.js:188 ~ executeAttackMoveOperations ~ star ${star.id} target ${target.id}:`, star, target)
+    console.log(`🚀 ~ file: onClick.js:188 ~ executeAttackMoveOperations ~ ${star.id} target ${target.id}:`)
     star.active = false;
     target ? target.active = true : null;
     star.attackMoveTarget = activeStar;
@@ -300,9 +303,7 @@ function executeAttackMoveOperations(star, ctx) {
 }
 
 function combinedInputFunction(e) {
-    console.log(`🚀 ~ file: onClick.js:299 ~ combinedInputFunction ~ e:`, e)
     if (e.key) {
-        console.log(`🚀 ~ file: onClick.js:269 ~ combinedInputFunction ~ e:`, e)
         if (e.type === "keydown") {
             onKeyDown(e)
         } else {
