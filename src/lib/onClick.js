@@ -25,6 +25,8 @@ let activeKey = null;
 $: activeKey = get(store_activeKey);
 // $: console.log(`🚀 ~ file: onClick.js:25 ~ activeKey:`, activeKey)
 store_activeStars.subscribe((val) => {
+    stars = get(store_stars);
+    ctx = get(store_ctx);
     activeStars = val;
     // console.log(`🚀 ~ file: onClick.js:26 ~ activeStars.subscribe ~ activeStars:`, activeStars)
     activeStarId = val.activeStarId;
@@ -39,7 +41,6 @@ store_activeStars.subscribe((val) => {
         executeAttackMoveOperations(lastActiveStar, ctx);
     }
     stars.forEach((star) => {
-        console.log(`🚀 ~ file: onClick.js:44 ~ stars.forEach ~ star ${star.id} active : ${star.active}`, star)
         star.draw(ctx, data, drawHex, getStarById, canvasArrow);
     });
     // drawStars(stars, ctx, data);
@@ -84,7 +85,7 @@ function checkStarsForHit(e, stars) {
             }
         }
         if (hit && activeStar !== star) {
-            console.log(`🚀 ~ file: onClick.js:57 ~ HIT ${hit} stars.forEach ~ star:`, star)
+            // console.log(`🚀 ~ file: onClick.js:57 ~ HIT ${hit} stars.forEach ~ star:`, star)
             setActiveStar(star)
             return "It is TRUE!"
         }
@@ -100,7 +101,6 @@ function setActiveStar(star) {
     activeStar = star;
     star.active = true;
     if (lastActiveStar) {
-        console.log(`🚀 ~ file: onClick.js:84 ~ setActiveStar ~ lastActiveStar:`, lastActiveStar)
         lastActiveStar.active = false;
     }
     activeStarId = star.id;
@@ -142,13 +142,14 @@ function onClick(e) {
 function onMouseDown(e) {
     // activate a mousemove event handler that will check for mouseover events on stars
     canvas = document.getElementById("canvas");
+    stars = get(store_stars);
+    let hit = checkStarsForHit(e, stars)
+    if (hit) {
+        
+        setAttackMoveTarget(lastActiveStar, activeStar)
+        executeAttackMoveOperations(activeStar, ctx);
+    }
     canvas.addEventListener('mousemove', onMouseMove);
-    // let hit = checkStarsForHit(e, stars)
-    // if (hit) {
-
-    //     setAttackMoveTarget(lastActiveStar, activeStar)
-    //     executeAttackMoveOperations(activeStar, ctx);
-    // }
 
 }
 
@@ -156,6 +157,7 @@ function onMouseUp(e) {
     // deactivate the mousemove event handler
     canvas = document.getElementById("canvas");
     canvas.removeEventListener('mousemove', onMouseMove);
+    stars = get(store_stars);
     let hit = checkStarsForHit(e, stars)
     if (hit) {
         e.type
@@ -298,6 +300,7 @@ function executeAttackMoveOperations(star, ctx) {
 }
 
 function combinedInputFunction(e) {
+    console.log(`🚀 ~ file: onClick.js:299 ~ combinedInputFunction ~ e:`, e)
     if (e.key) {
         console.log(`🚀 ~ file: onClick.js:269 ~ combinedInputFunction ~ e:`, e)
         if (e.type === "keydown") {
