@@ -93,11 +93,11 @@ function drawShips(star) {
         ship.pos = { x, y };
         ctx.beginPath();
         ctx.arc(x, y, 4, 0, 2 * Math.PI);
-        // ctx.fillStyle = ship.color;
-        ctx.lineWidth = 1;
+        ctx.fillStyle = ship.color;
+        ctx.lineWidth = 3;
         ctx.strokeStyle = ship.color;
         ctx.stroke();
-        // ctx.fill();
+        ctx.fill();
     });
 }
 
