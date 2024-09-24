@@ -60,10 +60,16 @@ function checkStarsForHit(e, stars) {
     stars.forEach((star) => {
         // if we get a pixel hit
         let hit = hitTest(e.x, e.y, star);
+        if (e.type === 'contextmenu' || e.button === 2) {
+            hit ? star.attackMoveTargetId = null : null
+            if (activeStar) {
+                activeStar.active = false;
+            }
+            activeStar = null;
+            activeStarId = null;
+            // store_activeStars.update(stars => ({ ...stars, activeStarId: null, activeStar: null }));
+        }
         if (hit) {
-            if (e.type === 'contextmenu' || e.button === 2) {
-                star.attackMoveTargetId = null;
-            } 
             if ((e.type !== 'contextmenu' || e.button !== 2) && activeStar !== star) {
                 console.log(`🚀 ~ file: onClick.js:67 ~ stars.forEach ~ !(e.type === 'contextmenu' || e.button === 2) && activeStar !== star:`, !(e.type === 'contextmenu' || e.button === 2) && activeStar !== star)
                 setActiveStar(star)
@@ -100,6 +106,7 @@ function setActiveStar(star) {
 
 
 function onMouseDown(e) {
+    console.log(`🚀 ~ file: onClick.js:103 ~ onMouseDown ~ onMouseDown:`, e.target)
     // activate a mousemove event handler that will check for mouseover events on stars
     canvas = document.getElementById("canvas");
     // stars = get(store_stars);
@@ -136,6 +143,7 @@ function onMouseUp(e) {
 }
 
 async function onMouseMove(e) {
+    console.log(`🚀 ~ file: onClick.js:139 ~ onMouseMove ~ onMouseMove:`, e.targett)
     stars = get(store_stars);
     ctx = get(store_ctx);
     let hit = await checkStarsForHit(e, stars)
@@ -154,7 +162,6 @@ async function onMouseMove(e) {
 
 function setAttackMoveTarget(star, target) {
     if (target) {
-
         console.log(`🚀 ~ file: onClick.js:175 ~ setAttackMoveTarget ~ ${star.id}, target ${target.id}:`)
         star.attackMoveTargetId = target.id;
         target.starsThatTargetThisStar.push(star.id);
@@ -169,7 +176,7 @@ function setAttackMoveTarget(star, target) {
 function executeAttackMoveOperations(star, ctx) {
     let target = "none"
     if (star.attackMoveTargetId) {
-        console.log(`🚀 ~ file: onClick.js:287 ~ executeAttackMoveOperations ~ ${star.id}.attackMoveTargetId:`, star.attackMoveTargetId)
+        console.log(`🚀 ~ file: onClick.js:174 ~ executeAttackMoveOperations ~ ${star.id} ===> attackMoveTargetId:`, star.attackMoveTargetId)
         target = getStarById(stars, star.attackMoveTargetId);
         if (target.attackMoveTargetId === star.id) {
             target.attackMoveTargetId = null;
@@ -179,7 +186,7 @@ function executeAttackMoveOperations(star, ctx) {
     } else {
         console.log(`🚀 ~ file: onClick.js:197 ~ executeAttackMoveOperations ~ "no attackMove target":`, "no attackMove target")
     }
-    console.log(`🚀 ~ file: onClick.js:188 ~ executeAttackMoveOperations ~ ${star.id} target ${target.id}:`)
+    console.log(`🚀 ~ file: onClick.js:184 CONFIRMING TARGEET ~ executeAttackMoveOperations ~ ${star.id} ===> target ${target.id}:`)
     star.active = false;
     target ? target.active = true : null;
     star.attackMoveTarget = activeStar;
