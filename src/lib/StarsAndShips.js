@@ -3,7 +3,7 @@ import { store_hexCenterCoords, store_ctx, store_stars } from "$stores/stores";
 import Star from "./Star";
 import Ship from "./Ship";
 import getStarById from "./getStarById";
-import { drawHex } from "./HexGridFunctions";
+import { drawHex } from "./hexGridFunctions";
 import { canvasArrow } from "./canvasArrow";
 import { get } from "svelte/store";
 let hexCenterCoords = [];
@@ -24,9 +24,9 @@ function generateStars(data, num) {
     for (let i = 0; i < num; i++) {
         hexCenterCoords = get(store_hexCenterCoords);
         let coords =
-        hexCenterCoords[
+            hexCenterCoords[
             Math.floor(Math.random() * hexCenterCoords.length)
-        ];
+            ];
         if (!flag[coords.x + ":" + coords.y]) {
             flag[coords.x + ":" + coords.y] = true;
             let starType = Math.floor(Math.random() * data.numTypes);
@@ -42,7 +42,7 @@ function generateStars(data, num) {
             );
             star.ships = generateShips(star);
             stars = [...stars, star];
-                    } else {
+        } else {
             i--;
         }
     }
@@ -50,7 +50,7 @@ function generateStars(data, num) {
     return stars;
 }
 
-function drawStars(stars, ctx, data) {
+function drawStars(stars, ctx, data, animationEngine = null) {
     stars = get(store_stars)
     let starsToggle = data.drawStars;
     let shipsToggle = data.drawShips;
@@ -66,7 +66,7 @@ function drawStars(stars, ctx, data) {
         : null;
     stars.forEach((star) => {
         starsToggle
-            ? star.draw(ctx, data, drawHex, getStarById, canvasArrow)
+            ? star.draw(ctx, data, drawHex, getStarById, canvasArrow, animationEngine)
             : null;
         shipsToggle ? drawShips(star) : null;
     });
@@ -102,21 +102,14 @@ function drawShips(star) {
 }
 
 function addShipToStar(star, i) {
-    // let color = `hsla(${star.hue + Math.random() * i}, ${
-    // 	Math.random > 0.5 ? 50 + Math.random() * i * 5 : 50 - Math.random() * i
-    // }%, ${Math.random > 0.5 ? 75 + Math.random() * i * 5 : 50 - Math.random() * i}%, ${
-    // 	Math.random > 0.5 ? Math.random() + 0.25 : Math.random() - 0.25
-    // })`;
-    let color = `hsla(${star.hue}, 50%, 80%, 0.25)`;
+    // Enhanced ship creation with type variety
+    let shipType = Math.floor(Math.random() * 4) + 1; // Random ship type 1-4
     let radius = data.shipRadius;
-    let orbit = star.radius + data.shipRadius * 3;
+    let orbit = star.radius + data.shipRadius * 3 + (i * 2); // Vary orbit by index
     let angle = (2 * Math.PI * i) / star.numShips;
-    // let orbit = star.radius + data.shipRadius + 3;
-    // let orbit = star.radius + i ;
-    // let orbit = star.radius + i % 2
-    // let orbit = star.radius + i % (data.shipRadius + 3);
-    // let orbit = star.radius + i % 2 * (data.shipRadius + 3);
-    let ship = new Ship(radius, color, orbit, angle);
+
+    // Create ship with enhanced properties
+    let ship = new Ship(radius, null, orbit, angle, shipType);
     return ship;
 }
 

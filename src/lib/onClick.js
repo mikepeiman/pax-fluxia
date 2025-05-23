@@ -60,18 +60,20 @@ function checkStarsForHit(e, stars) {
     stars.forEach((star) => {
         // if we get a pixel hit
         let hit = hitTest(e.x, e.y, star);
-        if (e.type === 'contextmenu' || e.button === 2) {
-            hit ? star.attackMoveTargetId = null : null
-            if (activeStar) {
-                activeStar.active = false;
-            }
-            activeStar = null;
-            activeStarId = null;
-            // store_activeStars.update(stars => ({ ...stars, activeStarId: null, activeStar: null }));
-        }
         if (hit) {
-            if ((e.type !== 'contextmenu' || e.button !== 2) && activeStar !== star) {
-                console.log(`🚀 ~ file: onClick.js:67 ~ stars.forEach ~ !(e.type === 'contextmenu' || e.button === 2) && activeStar !== star:`, !(e.type === 'contextmenu' || e.button === 2) && activeStar !== star)
+            if (e.type === 'contextmenu' || e.button === 2) {
+                // Right-click cancels the outgoing move command from this star
+                star.attackMoveTargetId = null;
+                //if (activeStar === star) {
+                    activeStar.active = false;
+                    activeStar = null;
+                    activeStarId = null;
+                //}
+                return;
+            }
+            
+            // Left-click handling
+            if (activeStar !== star) {
                 setActiveStar(star)
                 hitStar = star.id
                 if (lastActiveStar) {
