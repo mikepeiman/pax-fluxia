@@ -5,29 +5,45 @@ class PixiStar {
         this.id = id;
         this.x = x;
         this.y = y;
-        this.radius = Math.max(50, Math.min(100, radius)); // Clamp to 50-100px as specified
+        this.radius = Math.max(20, Math.min(35, radius)); // Smaller: 20-35px
         this.baseRadius = this.radius;
         this.type = type; // 1-6 corresponding to the 6 colors
         this.animationEngine = animationEngine;
 
-        // Game state
+        // Game state (from original Star.js)
         this.ships = [];
         this.numShips = 0;
         this.active = false;
         this.highlighted = false;
         this.attackMoveTarget = null;
         this.attackMoveTargetId = null;
+        this.starsThatTargetThisStar = [];
+        this.attackVectorGraphics = [];
 
-        // Ship distribution properties
+        // Ship transfer properties (from original)
+        this.shipsPerTickPercentage = 0.05;
+        this.shipsPerTick = 2;
+        this.shipsToTransfer = [];
+
+        // Ship distribution properties (concentration algorithm)
         this.maxLayers = 5;
         this.shipsPerLayer = 8; // Base number of ships per layer
-        this.layerSpacing = 25; // Distance between layers
+        this.layerSpacing = 15; // Smaller spacing for smaller stars
         this.shipRotationSpeed = 0.02; // Base rotation speed
 
-        // Animation properties
+        // Ship concentration scaling
+        this.shipConcentration = 1; // How many actual ships each dot represents
+        this.maxDotsPerLayer = 12; // Maximum visible dots per layer
+
+        // Animation properties (from original enhanced visuals)
         this.animationPhase = Math.random() * Math.PI * 2;
         this.pulseIntensity = 1;
+        this.coronaRotation = 0;
         this.energyLevel = 0.5;
+        this.lastParticleEmission = 0;
+        this.glowRadius = radius * 3;
+        this.starFlares = [];
+        this.energyRings = [];
 
         // PIXI graphics objects
         this.container = new PIXI.Container();
@@ -37,11 +53,38 @@ class PixiStar {
         // Star visual components
         this.starGraphics = new PIXI.Graphics();
         this.glowFilter = null;
-        this.energyRings = [];
 
-        // Initialize visuals
+        // Text labels for star ID and ship count
+        this.idText = new PIXI.Text({
+            text: `${this.id}`,
+            style: {
+                fontFamily: 'Arial',
+                fontSize: 12,
+                fill: 0xffffff,
+                fontWeight: 'bold'
+            }
+        });
+        this.idText.anchor.set(0.5, 0.5);
+        this.idText.y = -this.radius - 20; // Above the star
+
+        this.shipCountText = new PIXI.Text({
+            text: `${this.numShips}`,
+            style: {
+                fontFamily: 'Arial',
+                fontSize: 10,
+                fill: 0xffffff,
+                fontWeight: 'normal'
+            }
+        });
+        this.shipCountText.anchor.set(0.5, 0.5);
+        this.shipCountText.y = this.radius + 15; // Below the star
+
+        // Initialize enhanced visuals (from original)
+        this.initializeStarFlares();
         this.createStarVisuals();
         this.container.addChild(this.starGraphics);
+        this.container.addChild(this.idText);
+        this.container.addChild(this.shipCountText);
 
         // Add to star layer
         if (animationEngine && animationEngine.starLayer) {
@@ -52,40 +95,85 @@ class PixiStar {
         this.setupInteraction();
     }
 
+    initializeStarFlares() {
+        // Create random flares around the star (from original)
+        const flareCount = 4 + Math.floor(Math.random() * 4);
+        for (let i = 0; i < flareCount; i++) {
+            this.starFlares.push({
+                angle: (Math.PI * 2 * i) / flareCount + Math.random() * 0.5,
+                length: this.radius * (1.5 + Math.random() * 1.5),
+                width: this.radius * (0.1 + Math.random() * 0.2),
+                speed: 0.02 + Math.random() * 0.03,
+                phase: Math.random() * Math.PI * 2
+            });
+        }
+    }
+
+    createEnergyRing() {
+        // Create energy ring for enhanced visual effects
+        this.energyRings.push({
+            radius: this.radius,
+            maxRadius: this.radius * 4,
+            alpha: 1,
+            rotation: Math.random() * Math.PI * 2,
+            speed: 0.1 + Math.random() * 0.05
+        });
+    }
+
     createStarVisuals() {
         const colorData = this.animationEngine.starColors[this.type - 1] || this.animationEngine.starColors[0];
 
         // Clear previous graphics
         this.starGraphics.clear();
 
-        // Draw star core using basic PIXI syntax
-        this.starGraphics.beginFill(colorData.primary);
-        this.starGraphics.drawCircle(0, 0, this.radius);
-        this.starGraphics.endFill();
+        // Enhanced star rendering with multiple layers (from original)
 
-        // Inner bright core
-        this.starGraphics.beginFill(0xffffff, 0.8);
-        this.starGraphics.drawCircle(0, 0, this.radius * 0.4);
-        this.starGraphics.endFill();
+        // Outer glow layer
+        this.starGraphics
+            .circle(0, 0, this.radius * 1.5)
+            .fill({ color: colorData.primary, alpha: 0.2 });
 
-        // Add subtle border
-        this.starGraphics.lineStyle(2, colorData.secondary, 0.6);
-        this.starGraphics.drawCircle(0, 0, this.radius);
+        // Main star body with gradient effect
+        this.starGraphics
+            .circle(0, 0, this.radius)
+            .fill({ color: colorData.primary, alpha: 0.9 });
 
-        // Energy rings for active stars
+        // Secondary layer
+        this.starGraphics
+            .circle(0, 0, this.radius * 0.7)
+            .fill({ color: colorData.secondary, alpha: 0.8 });
+
+        // Bright center core
+        this.starGraphics
+            .circle(0, 0, this.radius * 0.4)
+            .fill({ color: 0xffffff, alpha: 0.9 });
+
+        // Energy core
+        this.starGraphics
+            .circle(0, 0, this.radius * 0.2)
+            .fill({ color: 0xffffff, alpha: 1.0 });
+
+        // Subtle border for definition
+        this.starGraphics
+            .circle(0, 0, this.radius)
+            .stroke({ color: colorData.secondary, width: 1, alpha: 0.6 });
+
+        // Active star gets enhanced border
         if (this.active) {
-            this.createEnergyRing();
+            this.starGraphics
+                .circle(0, 0, this.radius * 1.3)
+                .stroke({ color: colorData.primary, width: 3, alpha: 0.8 });
         }
 
-        // Add glow filter for performance-friendly glow effect (only if available)
+        // Add glow filter for enhanced visuals
         if (this.animationEngine.enableGlow && !this.glowFilter && PIXI.filters && PIXI.filters.GlowFilter) {
             try {
                 this.glowFilter = new PIXI.filters.GlowFilter({
-                    distance: 15,
-                    outerStrength: 2,
-                    innerStrength: 1,
+                    distance: 8,
+                    outerStrength: 1.5,
+                    innerStrength: 0.5,
                     color: colorData.primary,
-                    quality: 0.3 // Lower quality for performance
+                    quality: 0.3
                 });
                 this.container.filters = [this.glowFilter];
             } catch (e) {
@@ -94,34 +182,16 @@ class PixiStar {
         }
     }
 
-    createEnergyRing() {
-        const colorData = this.animationEngine.starColors[this.type - 1] || this.animationEngine.starColors[0];
-
-        const ring = new PIXI.Graphics();
-        ring.lineStyle(3, colorData.secondary, 0.6);
-        ring.drawCircle(0, 0, this.radius * 2);
-
-        // Animated dashed effect
-        ring.alpha = 0.8;
-        this.container.addChild(ring);
-
-        // Animate the ring
-        const ringData = {
-            graphics: ring,
-            radius: this.radius * 2,
-            rotation: 0,
-            life: 180 // frames
-        };
-
-        this.energyRings.push(ringData);
-    }
-
     setupInteraction() {
         this.container.interactive = true;
         this.container.cursor = 'pointer';
 
         this.container.on('pointerdown', (event) => {
             this.onStarClick(event);
+        });
+
+        this.container.on('rightclick', (event) => {
+            this.onStarRightClick(event);
         });
 
         this.container.on('pointerover', () => {
@@ -139,14 +209,19 @@ class PixiStar {
         // Handle star selection and attack move orders
         console.log(`Star ${this.id} clicked`);
 
-        // Create click effect
+        // Create click effect particles
         if (this.animationEngine) {
             const colorData = this.animationEngine.starColors[this.type - 1] || this.animationEngine.starColors[0];
-            this.animationEngine.createParticleExplosion(this.x, this.y, colorData.primary, 0.5);
+            this.animationEngine.createParticleExplosion(this.x, this.y, colorData.primary, 0.3);
         }
 
-        // Toggle active state
-        this.setActive(!this.active);
+        // Let the game manager handle the click logic
+        // (This will be handled by the game manager's pointer events)
+    }
+
+    onStarRightClick(event) {
+        console.log(`Star ${this.id} right-clicked`);
+        // Right-click handling will be managed by the game manager
     }
 
     setActive(active) {
@@ -155,33 +230,47 @@ class PixiStar {
 
         if (active && this.animationEngine) {
             this.createEnergyRing();
+
+            // Create energy pulse effect
+            this.animationEngine.createParticleExplosion(this.x, this.y,
+                this.getTypeColor().primary, 0.2);
         }
     }
 
     updateVisuals() {
-        // Update star appearance based on state
+        // Enhanced visual updates based on state
         const colorData = this.animationEngine.starColors[this.type - 1] || this.animationEngine.starColors[0];
 
-        // Pulse effect for active stars
-        if (this.active) {
-            const pulse = 1 + Math.sin(this.animationPhase) * 0.1;
-            this.container.scale.set(pulse);
+        // Keep scale constant - no bouncing effect
+        this.container.scale.set(1);
+
+        // Update tint based on state
+        if (this.highlighted && !this.active) {
+            this.starGraphics.tint = 0xffffff; // Slightly brighter
         } else {
-            this.container.scale.set(1);
+            this.starGraphics.tint = 0xffffff; // Normal color
         }
 
-        // Highlight effect
-        if (this.highlighted) {
-            this.starGraphics.tint = 0xffffff;
-        } else {
-            this.starGraphics.tint = 0xffffff; // Keep original colors
+        // Update visuals for active state
+        if (this.active) {
+            this.createStarVisuals(); // Recreate with active styling
         }
     }
 
-    // Ship distribution around star circumference
+    // Update ship count text display
+    updateShipCountText() {
+        if (this.shipCountText) {
+            this.shipCountText.text = `${this.numShips}`;
+        }
+    }
+
+    // Ship distribution around star circumference with concentration scaling
     distributeShips() {
         const totalShips = this.ships.length;
-        let shipsPlaced = 0;
+        this.updateShipConcentration(totalShips);
+
+        const dotsToShow = Math.ceil(totalShips / this.shipConcentration);
+        let dotsPlaced = 0;
 
         // Clear existing ship positions
         this.ships.forEach(ship => {
@@ -190,41 +279,94 @@ class PixiStar {
             }
         });
 
-        // Distribute ships in layers (maximum 5 layers)
-        for (let layer = 0; layer < this.maxLayers && shipsPlaced < totalShips; layer++) {
+        // Hide ships that won't be displayed as dots
+        this.ships.forEach((ship, index) => {
+            if (index >= dotsToShow) {
+                ship.pixiSprite.visible = false;
+            }
+        });
+
+        // Distribute visible ship dots in layers (maximum 5 layers)
+        for (let layer = 0; layer < this.maxLayers && dotsPlaced < dotsToShow; layer++) {
             const orbitRadius = this.radius + (layer + 1) * this.layerSpacing;
-            const shipsInThisLayer = Math.min(
-                this.shipsPerLayer + layer * 2, // More ships in outer layers
-                totalShips - shipsPlaced
+            const dotsInThisLayer = Math.min(
+                this.maxDotsPerLayer + layer * 2, // More dots in outer layers
+                dotsToShow - dotsPlaced
             );
 
-            const angleStep = (Math.PI * 2) / shipsInThisLayer;
+            const angleStep = (Math.PI * 2) / dotsInThisLayer;
             const angleOffset = Math.random() * Math.PI * 2; // Random rotation per layer
 
-            for (let i = 0; i < shipsInThisLayer && shipsPlaced < totalShips; i++) {
-                const ship = this.ships[shipsPlaced];
+            for (let i = 0; i < dotsInThisLayer && dotsPlaced < dotsToShow; i++) {
+                const ship = this.ships[dotsPlaced];
                 const angle = angleOffset + i * angleStep;
 
-                if (ship.setOrbitPosition) {
+                if (ship && ship.setOrbitPosition) {
                     ship.setOrbitPosition(this, orbitRadius, angle, layer);
+                    ship.setConcentration(this.shipConcentration); // Tell ship how many it represents
                 }
-                shipsPlaced++;
+                dotsPlaced++;
             }
+        }
+
+        // Trigger reshuffling animation
+        this.triggerShipReshuffleAnimation();
+    }
+
+    updateShipConcentration(totalShips) {
+        // Calculate how many ships each dot should represent (the key algorithm!)
+        const maxVisibleDots = this.maxLayers * this.maxDotsPerLayer;
+
+        if (totalShips <= maxVisibleDots) {
+            this.shipConcentration = 1;
+        } else if (totalShips <= maxVisibleDots * 2) {
+            this.shipConcentration = 2;
+        } else if (totalShips <= maxVisibleDots * 5) {
+            this.shipConcentration = 5;
+        } else if (totalShips <= maxVisibleDots * 10) {
+            this.shipConcentration = 10;
+        } else if (totalShips <= maxVisibleDots * 25) {
+            this.shipConcentration = 25;
+        } else if (totalShips <= maxVisibleDots * 50) {
+            this.shipConcentration = 50;
+        } else {
+            this.shipConcentration = Math.ceil(totalShips / maxVisibleDots);
+        }
+    }
+
+    triggerShipReshuffleAnimation() {
+        // Create reshuffling animation when ship numbers change
+        if (this.animationEngine) {
+            // Particle burst to show reorganization
+            for (let i = 0; i < 3; i++) {
+                setTimeout(() => {
+                    this.animationEngine.createParticleExplosion(
+                        this.x + Math.random() * 40 - 20,
+                        this.y + Math.random() * 40 - 20,
+                        this.getTypeColor().secondary,
+                        0.1
+                    );
+                }, i * 100);
+            }
+
+            // Brief energy ring
+            this.createEnergyRing();
         }
     }
 
     addShip(ship) {
         this.ships.push(ship);
         this.numShips = this.ships.length;
+        this.updateShipCountText(); // Update text display
         this.distributeShips(); // Redistribute all ships
 
-        // Create warp-in effect
+        // Create warp-in effect for new ship
         if (this.animationEngine) {
             this.animationEngine.createParticleExplosion(
-                this.x + Math.random() * 50 - 25,
-                this.y + Math.random() * 50 - 25,
+                this.x + Math.random() * 30 - 15,
+                this.y + Math.random() * 30 - 15,
                 0x00ffff,
-                0.3
+                0.2
             );
         }
     }
@@ -234,6 +376,7 @@ class PixiStar {
         if (index > -1) {
             this.ships.splice(index, 1);
             this.numShips = this.ships.length;
+            this.updateShipCountText(); // Update text display
             this.distributeShips(); // Redistribute remaining ships
 
             // Create destruction effect
@@ -242,13 +385,13 @@ class PixiStar {
                     ship.pixiSprite.x,
                     ship.pixiSprite.y,
                     ship.color,
-                    0.5
+                    0.3
                 );
             }
         }
     }
 
-    // Ship transfer with exact specifications
+    // Ship transfer with exact specifications (30% + 3 minimum)
     transferShipsTo(targetStar, percentage = 0.3, minimumShips = 3) {
         if (!targetStar || this.ships.length === 0) return;
 
@@ -258,47 +401,88 @@ class PixiStar {
             Math.floor(this.ships.length * percentage)
         );
 
-        const transferShips = this.ships.splice(0, shipsToTransfer);
+        const actualTransferCount = Math.min(shipsToTransfer, this.ships.length);
+        const transferShips = this.ships.splice(0, actualTransferCount);
 
-        // Start ship movement animation
+        console.log(`Transferring ${actualTransferCount} ships from star ${this.id} to star ${targetStar.id}`);
+
+        // Start ship movement animation with staggered departures
         transferShips.forEach((ship, index) => {
             if (ship.startTransfer) {
-                ship.startTransfer(this, targetStar, index * 0.1); // Stagger the departures
+                ship.startTransfer(this, targetStar, index * 0.1); // 100ms stagger
             }
         });
+
+        // Add ships to game manager's transferring ships list
+        if (this.animationEngine && this.animationEngine.gameManager) {
+            this.animationEngine.gameManager.transferringShips.push(...transferShips);
+        }
 
         // Redistribute remaining ships
         this.distributeShips();
         this.numShips = this.ships.length;
+        this.updateShipCountText(); // Update text display
 
         // Set attack move target
         this.attackMoveTarget = targetStar;
         this.attackMoveTargetId = targetStar.id;
+
+        // Create transfer initiation effect
+        if (this.animationEngine) {
+            this.animationEngine.createParticleExplosion(this.x, this.y,
+                this.getTypeColor().primary, 0.4);
+        }
+    }
+
+    // Handle arriving ships
+    receiveShip(ship) {
+        // Add arriving ship to this star
+        this.addShip(ship);
+
+        // Create arrival effect
+        if (this.animationEngine) {
+            this.animationEngine.createParticleExplosion(this.x, this.y,
+                ship.color, 0.3);
+        }
+
+        console.log(`Ship arrived at star ${this.id}. Total ships: ${this.ships.length}`);
     }
 
     update(tick, animationEngine) {
         // Update animation phase
         this.animationPhase += 0.03;
+        this.coronaRotation += 0.01;
+
+        // Update surge animation
+        const surgeMultiplier = animationEngine ?
+            (1 + animationEngine.getSurgeProgress() * 0.3) :
+            (1 + Math.sin(this.animationPhase) * 0.1);
+
+        this.radius = this.baseRadius * surgeMultiplier;
 
         // Update energy rings
-        this.energyRings = this.energyRings.filter(ringData => {
-            ringData.life--;
-            ringData.rotation += 0.02;
+        this.energyRings = this.energyRings.filter(ring => {
+            ring.life = ring.life || 180;
+            ring.life--;
+            ring.rotation += 0.02;
 
-            // Animate ring properties
-            const alpha = ringData.life / 180;
-            ringData.graphics.alpha = alpha * 0.6;
-            ringData.graphics.rotation = ringData.rotation;
+            // Update ring visuals if we have a graphics representation
+            const alpha = ring.life / 180;
 
-            if (ringData.life <= 0) {
-                this.container.removeChild(ringData.graphics);
-                ringData.graphics.destroy();
+            if (ring.life <= 0) {
                 return false;
             }
             return true;
         });
 
-        // Ship production based on star type (as in original)
+        // Emit particles for active stars
+        const currentTime = performance.now();
+        if (this.active && animationEngine && currentTime - this.lastParticleEmission > 500) {
+            animationEngine.createParticleExplosion(this.x, this.y, this.getTypeColor().primary, 0.1);
+            this.lastParticleEmission = currentTime;
+        }
+
+        // Ship production based on star type (as specified in the original design)
         this.updateShipProduction(tick);
 
         // Update visual effects
@@ -327,8 +511,7 @@ class PixiStar {
     }
 
     produceShip() {
-        // Create new ship - this will be handled by the game manager
-        // to avoid circular dependencies
+        // Create new ship - handled by the game manager to avoid circular dependencies
         if (this.animationEngine && this.animationEngine.gameManager) {
             const ship = this.animationEngine.gameManager.createShip(this);
             this.addShip(ship);
@@ -347,6 +530,21 @@ class PixiStar {
                 ship.updateOrbitRotation(rotationSpeed);
             }
         });
+    }
+
+    // Type color helper
+    getTypeColor() {
+        return this.animationEngine.starColors[this.type - 1] || this.animationEngine.starColors[0];
+    }
+
+    // Enhanced border highlight for active stars (from original)
+    activeStarHexBorderHighlight() {
+        // This is now handled in the createStarVisuals method
+        this.highlighted = true;
+        const pulseIntensity = 0.7 + Math.sin(this.animationPhase * 3) * 0.3;
+
+        // Add pulsing effect to the container
+        this.container.alpha = 0.8 + pulseIntensity * 0.2;
     }
 
     // Cleanup
@@ -369,14 +567,20 @@ class PixiStar {
         });
         this.energyRings = [];
 
+        // Clean up attack vector graphics
+        if (this.attackVectorGraphics) {
+            this.attackVectorGraphics.forEach(graphics => {
+                if (graphics.parent) {
+                    graphics.parent.removeChild(graphics);
+                }
+                graphics.destroy();
+            });
+            this.attackVectorGraphics = [];
+        }
+
         if (this.container) {
             this.container.destroy({ children: true });
         }
-    }
-
-    // Getters for compatibility
-    getTypeColor() {
-        return this.animationEngine.starColors[this.type - 1] || this.animationEngine.starColors[0];
     }
 }
 

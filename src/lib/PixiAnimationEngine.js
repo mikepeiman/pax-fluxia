@@ -9,13 +9,22 @@ class TickBasedAnimationEngine {
         // Initialize the app asynchronously
         this.initializeApp();
 
-        // Tick-based timing system
-        this.tickDuration = 2000; // 2 seconds per tick (adjustable)
+        // Unified tick system (1 tick = 1 second by default)
+        this.tickDuration = 1000; // 1 second per tick
+        this.tickSpeed = 1.0; // Speed multiplier (1x = normal, 2x = double speed, etc.)
         this.currentTick = 0;
-        this.tickProgress = 0;
-        this.lastTime = performance.now();
+        this.lastTickTime = 0;
+        this.tickProgress = 0; // 0 to 1 progress through current tick
+
+        // Animation state
         this.isRunning = false;
-        this.tickSpeed = 1.0; // Multiplier for tick rate
+        this.isPaused = false;
+        this.lastFrameTime = 0;
+
+        // FPS control
+        this.targetFPS = 60; // Default to 60 FPS
+        this.frameInterval = 1000 / this.targetFPS;
+        this.lastFrameUpdate = 0;
 
         // Object pools for performance
         this.particlePool = [];
@@ -61,6 +70,9 @@ class TickBasedAnimationEngine {
                 hello: false // Disable PIXI banner
             });
 
+            // Set ticker FPS
+            this.app.ticker.maxFPS = this.targetFPS;
+
             // Create rendering layers for performance
             this.backgroundLayer = new PIXI.Container();
             this.starLayer = new PIXI.Container();
@@ -93,8 +105,8 @@ class TickBasedAnimationEngine {
         // Create optimized graphics for reuse
         this.graphics = new PIXI.Graphics();
 
-        // Pre-create ship textures for different types
-        this.shipTextures = this.createShipTextures();
+        // Pre-create simple ship texture (tiny white dot)
+        this.shipTexture = this.createShipTexture();
 
         // Pre-create particle textures
         this.particleTextures = this.createParticleTextures();
@@ -103,43 +115,22 @@ class TickBasedAnimationEngine {
         this.createStarfield();
     }
 
-    createShipTextures() {
-        if (!this.app) return {};
+    createShipTexture() {
+        if (!this.app) return null;
 
-        const textures = {};
-        const shipTypes = ['fighter', 'cruiser', 'destroyer', 'battleship'];
-        const sizes = [8, 12, 16, 20];
+        // Create a simple white dot for all ships
+        const graphics = new PIXI.Graphics();
+        graphics.fill(0xffffff);
+        graphics.circle(0, 0, 2); // 2 pixel radius dot
 
-        shipTypes.forEach((type, index) => {
-            const graphics = new PIXI.Graphics();
-            const size = sizes[index];
-
-            // Create ship shape based on type
-            graphics.fill(0xffffff);
-            switch (type) {
-                case 'fighter':
-                    graphics.poly([0, -size, -size * 0.7, size * 0.5, size * 0.7, size * 0.5]);
-                    break;
-                case 'cruiser':
-                    graphics.poly([0, -size, -size * 0.5, 0, 0, size, size * 0.5, 0]);
-                    break;
-                case 'destroyer':
-                    graphics.rect(-size * 0.75, -size * 0.5, size * 1.5, size);
-                    break;
-                case 'battleship':
-                    graphics.roundRect(-size, -size * 0.6, size * 2, size * 1.2, 4);
-                    break;
-            }
-
-            try {
-                textures[type] = this.app.renderer.generateTexture(graphics);
-            } catch (e) {
-                console.warn(`Failed to generate texture for ${type}:`, e);
-            }
+        try {
+            return this.app.renderer.generateTexture(graphics);
+        } catch (e) {
+            console.warn('Failed to generate ship texture:', e);
+            return null;
+        } finally {
             graphics.destroy();
-        });
-
-        return textures;
+        }
     }
 
     createParticleTextures() {
@@ -184,35 +175,75 @@ class TickBasedAnimationEngine {
         this.backgroundLayer.addChild(starfieldContainer);
     }
 
-    // Tick-based timing with surge animation
+    // Tick-based timing with proper pause support
     start() {
         if (!this.app) return;
 
         this.isRunning = true;
-        this.lastTime = performance.now();
+        this.isPaused = false;
+        this.lastFrameTime = performance.now();
+        this.lastTickTime = this.lastFrameTime;
         this.app.ticker.add(this.update);
+
+        console.log('Animation engine started');
     }
 
     stop() {
         if (!this.app) return;
 
         this.isRunning = false;
+        this.isPaused = false;
         this.app.ticker.remove(this.update);
+
+        console.log('Animation engine stopped');
+    }
+
+    pause() {
+        this.isPaused = true;
+        console.log('Animation engine paused');
+    }
+
+    resume() {
+        if (this.isRunning) {
+            this.isPaused = false;
+            this.lastFrameTime = performance.now();
+            this.lastTickTime = this.lastFrameTime;
+            console.log('Animation engine resumed');
+        }
+    }
+
+    togglePause() {
+        if (this.isPaused) {
+            this.resume();
+        } else {
+            this.pause();
+        }
     }
 
     update(deltaTime) {
-        if (!this.isRunning) return;
+        if (!this.isRunning || this.isPaused) return;
 
         const currentTime = performance.now();
-        const realDelta = currentTime - this.lastTime;
-        this.lastTime = currentTime;
 
-        // Update tick progress
-        this.tickProgress += (realDelta * this.tickSpeed) / this.tickDuration;
+        // FPS limiting
+        if (currentTime - this.lastFrameUpdate < this.frameInterval) {
+            return;
+        }
+        this.lastFrameUpdate = currentTime;
 
+        const realDelta = currentTime - this.lastFrameTime;
+        this.lastFrameTime = currentTime;
+
+        // Update tick progress based on unified timing
+        const effectiveTickDuration = this.tickDuration / this.tickSpeed;
+        const timeSinceLastTick = currentTime - this.lastTickTime;
+        this.tickProgress = Math.min(timeSinceLastTick / effectiveTickDuration, 1);
+
+        // Check if tick is complete
         if (this.tickProgress >= 1) {
             this.currentTick++;
             this.tickProgress = 0;
+            this.lastTickTime = currentTime;
             this.onTick();
         }
 
@@ -333,6 +364,11 @@ class TickBasedAnimationEngine {
         this.activeParticles.push(particle);
     }
 
+    createWarpEffect(x, y) {
+        // Create a warp effect for ship transfers
+        this.createParticleExplosion(x, y, 0x00ffff, 0.5);
+    }
+
     getParticleFromPool() {
         if (this.particlePool.length > 0) {
             return this.particlePool.pop();
@@ -364,28 +400,50 @@ class TickBasedAnimationEngine {
                 this.enableGlow = false;
                 this.enableTrails = false;
                 this.maxTrailLength = 3;
+                this.setTargetFPS(30);
                 break;
             case 'medium':
                 this.particleLimit = 1000;
                 this.enableGlow = true;
                 this.enableTrails = true;
                 this.maxTrailLength = 5;
+                this.setTargetFPS(60);
                 break;
             case 'high':
                 this.particleLimit = 2000;
                 this.enableGlow = true;
                 this.enableTrails = true;
                 this.maxTrailLength = 8;
+                this.setTargetFPS(60);
                 break;
         }
     }
 
+    // Unified tick speed control (replaces separate tick duration and speed)
     setTickSpeed(speed) {
         this.tickSpeed = Math.max(0.1, Math.min(5.0, speed));
+        console.log(`Tick speed set to: ${this.tickSpeed}x (${this.tickDuration / this.tickSpeed}ms per tick)`);
     }
 
+    // FPS control
+    setTargetFPS(fps) {
+        const validFPS = [30, 60, 120];
+        this.targetFPS = validFPS.includes(fps) ? fps : 60;
+        this.frameInterval = 1000 / this.targetFPS;
+
+        if (this.app && this.app.ticker) {
+            this.app.ticker.maxFPS = this.targetFPS;
+        }
+
+        console.log(`Target FPS set to: ${this.targetFPS}`);
+    }
+
+    // Legacy method support (for backward compatibility)
     setTickDuration(duration) {
-        this.tickDuration = Math.max(500, Math.min(10000, duration));
+        // Convert duration to speed multiplier
+        const baseTickDuration = 1000; // 1 second
+        this.tickSpeed = baseTickDuration / Math.max(100, Math.min(10000, duration));
+        console.log(`Tick duration set to: ${duration}ms (speed: ${this.tickSpeed}x)`);
     }
 
     // Cleanup

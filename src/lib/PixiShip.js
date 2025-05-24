@@ -2,32 +2,41 @@ import * as PIXI from 'pixi.js';
 
 class PixiShip {
     constructor(type, animationEngine) {
-        this.type = type; // 1-4 for different ship types (fighter, cruiser, destroyer, battleship)
+        this.type = type;
         this.animationEngine = animationEngine;
 
-        // Ship state
-        this.currentStar = null;
-        this.targetStar = null;
-        this.isTransferring = false;
-        this.orbitRadius = 0;
-        this.orbitAngle = 0;
-        this.orbitLayer = 0;
-        this.color = 0xffffff;
+        // Ship properties - all ships are tiny white dots
+        this.radius = 2; // Tiny dot size
+        this.baseRadius = 2;
+        this.color = 0xffffff; // All ships are white
+        this.orbit = 0; // Distance from star center
+        this.baseOrbit = 0;
+        this.angle = 0; // Orbital angle
+        this.baseAngle = 0;
+        this.layer = 0; // Which orbital layer (0-4)
 
-        // Movement properties for surge animation
-        this.startPos = { x: 0, y: 0 };
-        this.endPos = { x: 0, y: 0 };
-        this.transferStartTick = 0;
-        this.transferDelay = 0; // Stagger departures
+        // Position tracking
+        this.pos = { x: 0, y: 0 };
+        this.hostStar = null;
 
         // Animation properties
-        this.rotationSpeed = 0.02;
-        this.trailHistory = [];
-        this.maxTrailLength = 8;
+        this.animationPhase = Math.random() * Math.PI * 2;
 
-        // PIXI sprite
-        this.pixiSprite = null;
-        this.createSprite();
+        // Ship concentration scaling (how many ships this dot represents)
+        this.concentration = 1;
+        this.maxConcentration = 100;
+
+        // Transfer state
+        this.isTransferring = false;
+        this.transferProgress = 0;
+        this.transferStartPos = { x: 0, y: 0 };
+        this.transferEndPos = { x: 0, y: 0 };
+        this.transferStartTime = 0;
+        this.transferDuration = 1000; // 1 second for transfer (matches tick duration)
+        this.transferDelay = 0; // Stagger ship departures
+
+        // Create PIXI sprite
+        this.createPixiSprite();
 
         // Add to ship layer
         if (animationEngine && animationEngine.shipLayer) {
@@ -35,252 +44,284 @@ class PixiShip {
         }
     }
 
-    createSprite() {
-        // Get ship texture based on type
-        const textureKey = this.getTextureKey();
+    createPixiSprite() {
+        // Create simple white dot
+        this.graphics = new PIXI.Graphics();
+        this.updateShipGraphics();
 
-        if (this.animationEngine.shipTextures && this.animationEngine.shipTextures[textureKey]) {
-            this.pixiSprite = new PIXI.Sprite(this.animationEngine.shipTextures[textureKey]);
-            // Set anchor only for sprites
-            if (this.pixiSprite.anchor) {
-                this.pixiSprite.anchor.set(0.5);
-            }
-        } else {
-            // Fallback: create a simple graphics shape
-            const graphics = new PIXI.Graphics();
-            const size = this.getShipSize();
+        // Create container for ship
+        this.pixiSprite = new PIXI.Container();
+        this.pixiSprite.addChild(this.graphics);
 
-            // Create ship shape based on type (centered around 0,0)
-            graphics.fill(0xffffff);
-            switch (this.type) {
-                case 1: // Fighter
-                    graphics.poly([0, -size, -size * 0.7, size * 0.5, size * 0.7, size * 0.5]);
-                    break;
-                case 2: // Cruiser
-                    graphics.poly([0, -size, -size * 0.5, 0, 0, size, size * 0.5, 0]);
-                    break;
-                case 3: // Destroyer
-                    graphics.rect(-size * 0.75, -size * 0.5, size * 1.5, size);
-                    break;
-                case 4: // Battleship
-                    graphics.roundRect(-size, -size * 0.6, size * 2, size * 1.2, 4);
-                    break;
-            }
+        // Set initial properties
+        this.pixiSprite.alpha = 1;
+        this.pixiSprite.visible = true;
+    }
 
-            this.pixiSprite = graphics;
+    updateShipGraphics() {
+        if (!this.graphics) return;
+
+        this.graphics.clear();
+
+        // Calculate size based on concentration (slightly larger for higher concentration)
+        const concentrationScale = Math.min(1 + Math.log(this.concentration) * 0.1, 2);
+        const currentRadius = this.baseRadius * concentrationScale;
+
+        // Draw simple white dot (correct PIXI API order)
+        this.graphics
+            .circle(0, 0, currentRadius)
+            .fill(0xffffff);
+
+        // Add subtle concentration indicator for high concentration
+        if (this.concentration > 10) {
+            this.graphics
+                .circle(0, 0, currentRadius + 1)
+                .stroke({ color: 0xffffff, width: 1, alpha: 0.5 });
         }
-
-        // Set common properties
-        this.pixiSprite.scale.set(0.8);
-        this.color = this.getShipColor();
-        this.pixiSprite.tint = this.color;
-
-        // Initially hide until positioned
-        this.pixiSprite.visible = false;
     }
 
-    getTextureKey() {
-        const types = ['fighter', 'cruiser', 'destroyer', 'battleship'];
-        return types[this.type - 1] || 'fighter';
+    // Ship concentration scaling (the key algorithm from your request)
+    setConcentration(concentration) {
+        this.concentration = Math.max(1, Math.min(concentration, this.maxConcentration));
+        this.updateShipGraphics();
+
+        // Trigger reshuffling animation when concentration changes
+        this.triggerConcentrationAnimation();
     }
 
-    getShipSize() {
-        const sizes = [8, 12, 16, 20];
-        return sizes[this.type - 1] || 8;
-    }
+    triggerConcentrationAnimation() {
+        // Create a brief "reshuffling" effect when ship concentration changes
+        if (this.animationEngine && this.hostStar) {
+            // Particle burst to show reorganization
+            this.animationEngine.createParticleExplosion(
+                this.hostStar.x + Math.random() * 20 - 10,
+                this.hostStar.y + Math.random() * 20 - 10,
+                0xffffff,
+                0.1
+            );
 
-    getShipColor() {
-        // Ships take on a variation of their current star's color
-        if (this.currentStar) {
-            const starColor = this.currentStar.getTypeColor();
-            return starColor.primary;
+            // Brief scale animation
+            this.pixiSprite.scale.set(1.3);
+
+            // Animate back to normal scale
+            if (this.animationEngine.app) {
+                const ticker = this.animationEngine.app.ticker;
+                let scaleDown = 0;
+                const scaleDownHandler = () => {
+                    scaleDown += 0.1;
+                    const scale = 1.3 - scaleDown * 0.3;
+                    this.pixiSprite.scale.set(Math.max(scale, 1));
+
+                    if (scale <= 1) {
+                        this.pixiSprite.scale.set(1);
+                        ticker.remove(scaleDownHandler);
+                    }
+                };
+                ticker.add(scaleDownHandler);
+            }
         }
-        return 0x00aaff; // Default blue
     }
 
-    // Set ship to orbit around a star
-    setOrbitPosition(star, radius, angle, layer) {
-        this.currentStar = star;
-        this.orbitRadius = radius;
-        this.orbitAngle = angle;
-        this.orbitLayer = layer;
-        this.isTransferring = false;
+    // Set orbital position around a star (concentration distribution algorithm)
+    setOrbitPosition(hostStar, orbitRadius, angle, layer) {
+        this.hostStar = hostStar;
+        this.orbit = orbitRadius;
+        this.baseOrbit = orbitRadius;
+        this.angle = angle;
+        this.baseAngle = angle;
+        this.layer = layer;
 
-        // Update color to match star
-        this.color = this.getShipColor();
-        this.pixiSprite.tint = this.color;
-
-        // Calculate position
+        // Update position
         this.updateOrbitPosition();
 
-        // Show sprite
+        // Make sprite visible if it was hidden
         this.pixiSprite.visible = true;
     }
 
     updateOrbitPosition() {
-        if (!this.currentStar || this.isTransferring) return;
+        if (!this.hostStar) return;
 
-        const x = this.currentStar.x + Math.cos(this.orbitAngle) * this.orbitRadius;
-        const y = this.currentStar.y + Math.sin(this.orbitAngle) * this.orbitRadius;
+        // Calculate orbital position with subtle wobble
+        const orbitVariation = Math.sin(this.animationPhase * 0.5) * 0.05;
+        const effectiveOrbit = this.orbit * (1 + orbitVariation);
 
-        this.pixiSprite.x = x;
-        this.pixiSprite.y = y;
+        this.pos = {
+            x: this.hostStar.x + Math.cos(this.angle) * effectiveOrbit,
+            y: this.hostStar.y + Math.sin(this.angle) * effectiveOrbit
+        };
 
-        // Point ship in direction of movement (tangent to orbit)
-        this.pixiSprite.rotation = this.orbitAngle + Math.PI / 2;
+        // Update sprite position
+        this.pixiSprite.x = this.pos.x;
+        this.pixiSprite.y = this.pos.y;
     }
 
     updateOrbitRotation(rotationSpeed) {
-        if (this.isTransferring) return;
+        if (this.isTransferring || !this.hostStar) return;
 
-        this.orbitAngle += rotationSpeed;
+        // Apply layer-specific rotation speed variations
+        const layerSpeedMultiplier = 1 + this.layer * 0.1; // Outer layers rotate slightly faster
+        this.angle += rotationSpeed * layerSpeedMultiplier;
+
         this.updateOrbitPosition();
-
-        // Add trail effect
-        if (this.animationEngine.enableTrails && this.trailHistory.length < this.maxTrailLength) {
-            this.addTrailPoint();
-        }
     }
 
-    addTrailPoint() {
-        this.trailHistory.push({
-            x: this.pixiSprite.x,
-            y: this.pixiSprite.y,
-            time: performance.now()
-        });
-
-        // Remove old trail points
-        const maxAge = 1000; // 1 second
-        const now = performance.now();
-        this.trailHistory = this.trailHistory.filter(point => now - point.time < maxAge);
-
-        // Create trail particles
-        if (this.trailHistory.length > 2) {
-            const lastPoint = this.trailHistory[this.trailHistory.length - 1];
-            this.animationEngine.createShipTrail(lastPoint.x, lastPoint.y, this.color);
-        }
-    }
-
-    // Start transfer between stars with surge animation
+    // Ship transfer animations (the travel animations between stars)
     startTransfer(sourceStar, targetStar, delay = 0) {
-        if (!sourceStar || !targetStar) return;
-
-        this.currentStar = sourceStar;
-        this.targetStar = targetStar;
         this.isTransferring = true;
         this.transferDelay = delay;
-        this.transferStartTick = this.animationEngine.currentTick;
+        this.transferStartTime = performance.now() + delay * 1000;
 
-        // Set start and end positions
-        this.startPos = {
-            x: this.pixiSprite.x,
-            y: this.pixiSprite.y
-        };
+        // Set transfer positions
+        this.transferStartPos = { x: sourceStar.x, y: sourceStar.y };
+        this.transferEndPos = { x: targetStar.x, y: targetStar.y };
 
-        this.endPos = {
-            x: targetStar.x,
-            y: targetStar.y
-        };
+        // Clear orbital position
+        this.hostStar = null;
 
-        // Point ship toward destination
-        const dx = this.endPos.x - this.startPos.x;
-        const dy = this.endPos.y - this.startPos.y;
-        this.pixiSprite.rotation = Math.atan2(dy, dx);
+        // Create warp-out effect
+        this.createWarpOut();
 
-        // Create departure effect
-        this.animationEngine.createParticleExplosion(
-            this.startPos.x,
-            this.startPos.y,
-            this.color,
-            0.3
-        );
-
-        console.log(`Ship starting transfer from star ${sourceStar.id} to star ${targetStar.id}`);
+        console.log(`Ship starting transfer from ${sourceStar.id} to ${targetStar.id} with ${delay}s delay`);
     }
 
-    update() {
-        if (!this.isTransferring) {
-            return true; // Ship is still alive and orbiting
+    updateTransfer() {
+        if (!this.isTransferring) return true;
+
+        const currentTime = performance.now();
+
+        // Check if delay period has passed
+        if (currentTime < this.transferStartTime) {
+            return true; // Still waiting for delay
         }
 
-        // Handle transfer animation with surge pattern
-        const currentTick = this.animationEngine.currentTick;
-        const ticksSinceStart = currentTick - this.transferStartTick;
+        // Calculate transfer progress
+        const elapsed = currentTime - this.transferStartTime;
+        this.transferProgress = Math.min(elapsed / this.transferDuration, 1);
 
-        // Apply delay before starting movement
-        if (ticksSinceStart < this.transferDelay) {
-            return true;
-        }
+        // Surge and stillness animation pattern (9/10ths movement, 1/10th stillness)
+        const surgeProgress = this.animationEngine ? this.animationEngine.getSurgeProgress() :
+            this.calculateSurgeProgress(this.transferProgress);
 
-        // Use surge animation progress (acceleration -> deceleration -> stillness)
-        const surgeProgress = this.animationEngine.getSurgeProgress();
+        // Apply surge-based movement
+        this.updateTransferPosition(surgeProgress);
 
-        // Interpolate position along path
-        const t = surgeProgress;
-        const newX = this.startPos.x + (this.endPos.x - this.startPos.x) * t;
-        const newY = this.startPos.y + (this.endPos.y - this.startPos.y) * t;
-
-        this.pixiSprite.x = newX;
-        this.pixiSprite.y = newY;
-
-        // Add movement trail
-        if (this.animationEngine.enableTrails && surgeProgress > 0.1 && surgeProgress < 0.9) {
-            this.animationEngine.createShipTrail(newX, newY, this.color);
-        }
-
-        // Check if transfer is complete (reached destination)
-        if (surgeProgress >= 1.0 && !this.animationEngine.isInStillness()) {
+        // Check if transfer is complete
+        if (this.transferProgress >= 1) {
             this.completeTransfer();
-            return false; // Ship transfer complete, remove from transferring list
+            return false; // Transfer complete, remove from transferring ships
         }
 
-        return true; // Ship is still transferring
+        return true; // Continue transfer
+    }
+
+    calculateSurgeProgress(progress) {
+        // Implement the surge and stillness pattern
+        const surgePortion = 0.9; // 9/10ths for movement
+        const stillnessPortion = 0.1; // 1/10th for stillness
+
+        if (progress <= surgePortion) {
+            // During surge phase - ease in, linear, ease out
+            const surgePhase = progress / surgePortion;
+
+            if (surgePhase < 0.25) {
+                // Ease in (first 25%)
+                return Math.sin(surgePhase * 2 * Math.PI) * 0.5;
+            } else if (surgePhase < 0.75) {
+                // Linear (middle 50%)
+                return 0.5 + (surgePhase - 0.25) * 2 * 0.5;
+            } else {
+                // Ease out (last 25%)
+                return 0.5 + Math.sin((surgePhase - 0.5) * 2 * Math.PI) * 0.5;
+            }
+        } else {
+            // During stillness phase - no movement
+            return 1;
+        }
+    }
+
+    updateTransferPosition(surgeProgress) {
+        // Calculate position with surge animation
+        const dx = this.transferEndPos.x - this.transferStartPos.x;
+        const dy = this.transferEndPos.y - this.transferStartPos.y;
+
+        this.pos = {
+            x: this.transferStartPos.x + dx * surgeProgress,
+            y: this.transferStartPos.y + dy * surgeProgress
+        };
+
+        // Update sprite position
+        this.pixiSprite.x = this.pos.x;
+        this.pixiSprite.y = this.pos.y;
+
+        // Create trail effect during high-speed movement
+        if (this.animationEngine && surgeProgress > 0.1 && surgeProgress < 0.9) {
+            this.animationEngine.createShipTrail(this.pos.x, this.pos.y, 0xffffff);
+        }
     }
 
     completeTransfer() {
-        if (!this.targetStar) return;
-
-        console.log(`Ship completed transfer to star ${this.targetStar.id}`);
-
-        // Add ship to target star
-        this.targetStar.addShip(this);
-
-        // Create arrival effect
-        this.animationEngine.createParticleExplosion(
-            this.endPos.x,
-            this.endPos.y,
-            this.color,
-            0.5
-        );
-
-        // Reset transfer state
         this.isTransferring = false;
-        this.targetStar = null;
+        this.transferProgress = 1;
+
+        // Create warp-in effect
+        this.createWarpIn();
+
+        console.log('Ship transfer completed');
+    }
+
+    // Visual effects
+    createWarpOut() {
+        if (this.animationEngine) {
+            this.animationEngine.createWarpEffect(this.pos.x, this.pos.y);
+            this.animationEngine.createParticleExplosion(this.pos.x, this.pos.y, 0xffffff, 0.3);
+        }
+    }
+
+    createWarpIn() {
+        if (this.animationEngine) {
+            this.animationEngine.createWarpEffect(this.pos.x, this.pos.y);
+            this.animationEngine.createParticleExplosion(this.pos.x, this.pos.y, 0xffffff, 0.2);
+        }
+    }
+
+    // Update method called every frame
+    update() {
+        // Update animation properties
+        this.animationPhase += 0.05;
+
+        if (this.isTransferring) {
+            // Update transfer animation
+            return this.updateTransfer();
+        } else if (this.hostStar) {
+            // Update orbital animation
+            const surgeProgress = this.animationEngine ? this.animationEngine.getSurgeProgress() : 0.5;
+
+            // Apply subtle surge to orbit distance
+            this.orbit = this.baseOrbit * (1 + surgeProgress * 0.1);
+
+            // Update orbital position
+            this.updateOrbitPosition();
+        }
+
+        return true; // Continue existing
     }
 
     clearFromStar() {
-        // Remove ship from current star's orbit
-        this.currentStar = null;
+        // Remove ship from star's orbit
+        this.hostStar = null;
         this.pixiSprite.visible = false;
     }
 
     // Cleanup
     destroy() {
-        if (this.animationEngine && this.animationEngine.shipLayer && this.pixiSprite) {
+        if (this.animationEngine && this.animationEngine.shipLayer) {
             this.animationEngine.shipLayer.removeChild(this.pixiSprite);
         }
 
         if (this.pixiSprite) {
-            this.pixiSprite.destroy();
-            this.pixiSprite = null;
+            this.pixiSprite.destroy({ children: true });
         }
-
-        this.trailHistory = [];
     }
-
-    // Getters for compatibility
-    get x() { return this.pixiSprite ? this.pixiSprite.x : 0; }
-    get y() { return this.pixiSprite ? this.pixiSprite.y : 0; }
 }
 
 export { PixiShip };
