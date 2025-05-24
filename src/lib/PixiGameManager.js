@@ -1,3 +1,4 @@
+import * as PIXI from 'pixi.js';
 import { TickBasedAnimationEngine } from './PixiAnimationEngine.js';
 import { PixiStar } from './PixiStar.js';
 import { PixiShip } from './PixiShip.js';
@@ -34,11 +35,26 @@ class PixiGameManager {
         // Update animation engine with game manager reference
         this.animationEngine.gameManager = this;
 
-        // Initialize the game
-        this.initializeGame();
+        // Wait for animation engine to initialize before setting up the game
+        this.initializeGameWhenReady();
 
         // Setup input handling
         this.setupInputHandling();
+    }
+
+    async initializeGameWhenReady() {
+        // Wait for the animation engine to be ready
+        while (!this.animationEngine.app) {
+            await new Promise(resolve => setTimeout(resolve, 50));
+        }
+
+        // Initialize the game
+        this.initializeGame();
+
+        // Auto-start the animation
+        setTimeout(() => {
+            this.start();
+        }, 500);
     }
 
     initializeGame() {
@@ -114,11 +130,17 @@ class PixiGameManager {
             this.handleKeyDown(event);
         });
 
+        // Handle star clicks for selection and commands - will be set up after stars are created
+    }
+
+    setupStarClickHandling() {
         // Handle star clicks for selection and commands
         this.stars.forEach(star => {
-            star.container.on('pointerdown', (event) => {
-                this.handleStarClick(star, event);
-            });
+            if (star.container) {
+                star.container.on('pointerdown', (event) => {
+                    this.handleStarClick(star, event);
+                });
+            }
         });
     }
 
@@ -176,9 +198,11 @@ class PixiGameManager {
     }
 
     createAttackVector(sourceStar, targetStar) {
+        if (!this.animationEngine.uiLayer) return;
+
         // Create a visual line showing the attack route
         const graphics = new PIXI.Graphics();
-        graphics.lineStyle(3, 0x00ff00, 0.8);
+        graphics.stroke({ color: 0x00ff00, width: 3, alpha: 0.8 });
         graphics.moveTo(sourceStar.x, sourceStar.y);
         graphics.lineTo(targetStar.x, targetStar.y);
 
@@ -188,7 +212,7 @@ class PixiGameManager {
         const angle = Math.atan2(dy, dx);
         const arrowSize = 20;
 
-        graphics.lineStyle(3, 0x00ff00, 0.8);
+        graphics.stroke({ color: 0x00ff00, width: 3, alpha: 0.8 });
         graphics.moveTo(targetStar.x, targetStar.y);
         graphics.lineTo(
             targetStar.x - arrowSize * Math.cos(angle - Math.PI / 6),
@@ -204,8 +228,10 @@ class PixiGameManager {
 
         // Remove after a short time
         setTimeout(() => {
-            this.animationEngine.uiLayer.removeChild(graphics);
-            graphics.destroy();
+            if (this.animationEngine.uiLayer && graphics.parent) {
+                this.animationEngine.uiLayer.removeChild(graphics);
+                graphics.destroy();
+            }
         }, 2000);
     }
 
@@ -299,6 +325,11 @@ class PixiGameManager {
 
     // Animation control
     start() {
+        if (!this.animationEngine.app) {
+            console.warn('Animation engine not ready yet');
+            return;
+        }
+
         this.animationEngine.start();
 
         // Start game update loop
@@ -325,23 +356,37 @@ class PixiGameManager {
     resetGame() {
         this.stop();
         this.initializeGame();
+        // Auto-restart after reset
+        setTimeout(() => {
+            this.start();
+        }, 500);
         console.log('Game reset');
     }
 
     clearGame() {
         // Clean up existing stars
-        this.stars.forEach(star => star.destroy());
+        this.stars.forEach(star => {
+            if (star.destroy) {
+                star.destroy();
+            }
+        });
         this.stars = [];
 
         // Clear transferring ships
-        this.transferringShips.forEach(ship => ship.destroy());
+        this.transferringShips.forEach(ship => {
+            if (ship.destroy) {
+                ship.destroy();
+            }
+        });
         this.transferringShips = [];
 
         // Clear selections
         this.clearSelection();
 
-        // Clear UI elements
-        this.animationEngine.uiLayer.removeChildren();
+        // Clear UI elements (only if uiLayer exists)
+        if (this.animationEngine.uiLayer && this.animationEngine.uiLayer.removeChildren) {
+            this.animationEngine.uiLayer.removeChildren();
+        }
     }
 
     // Getters for UI integration
@@ -367,8 +412,9 @@ class PixiGameManager {
 
     // Statistics for UI
     getGameStats() {
-        const totalShips = this.stars.reduce((sum, star) => sum + star.ships.length, 0);
-        const activeParticles = this.animationEngine.activeParticles.length;
+        const totalShips = this.stars.reduce((sum, star) => sum + (star.ships ? star.ships.length : 0), 0);
+        const activeParticles = this.animationEngine.activeParticles ? this.animationEngine.activeParticles.length : 0;
+        const fps = this.animationEngine.app?.ticker ? this.animationEngine.app.ticker.FPS.toFixed(1) : '0';
 
         return {
             stars: this.stars.length,
@@ -378,7 +424,7 @@ class PixiGameManager {
             currentTick: this.currentTick,
             tickProgress: this.tickProgress,
             performanceMode: this.performanceSettings.mode,
-            fps: this.animationEngine.app.ticker.FPS.toFixed(1)
+            fps: fps
         };
     }
 

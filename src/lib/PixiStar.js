@@ -44,7 +44,7 @@ class PixiStar {
         this.container.addChild(this.starGraphics);
 
         // Add to star layer
-        if (animationEngine) {
+        if (animationEngine && animationEngine.starLayer) {
             animationEngine.starLayer.addChild(this.container);
         }
 
@@ -58,8 +58,8 @@ class PixiStar {
         // Clear previous graphics
         this.starGraphics.clear();
 
-        // Star core with gradient effect
-        this.starGraphics.beginFill(colorData.primary, 1);
+        // Draw star core using basic PIXI syntax
+        this.starGraphics.beginFill(colorData.primary);
         this.starGraphics.drawCircle(0, 0, this.radius);
         this.starGraphics.endFill();
 
@@ -68,21 +68,29 @@ class PixiStar {
         this.starGraphics.drawCircle(0, 0, this.radius * 0.4);
         this.starGraphics.endFill();
 
+        // Add subtle border
+        this.starGraphics.lineStyle(2, colorData.secondary, 0.6);
+        this.starGraphics.drawCircle(0, 0, this.radius);
+
         // Energy rings for active stars
         if (this.active) {
             this.createEnergyRing();
         }
 
-        // Add glow filter for performance-friendly glow effect
-        if (this.animationEngine.enableGlow && !this.glowFilter) {
-            this.glowFilter = new PIXI.filters.GlowFilter({
-                distance: 15,
-                outerStrength: 2,
-                innerStrength: 1,
-                color: colorData.primary,
-                quality: 0.3 // Lower quality for performance
-            });
-            this.container.filters = [this.glowFilter];
+        // Add glow filter for performance-friendly glow effect (only if available)
+        if (this.animationEngine.enableGlow && !this.glowFilter && PIXI.filters && PIXI.filters.GlowFilter) {
+            try {
+                this.glowFilter = new PIXI.filters.GlowFilter({
+                    distance: 15,
+                    outerStrength: 2,
+                    innerStrength: 1,
+                    color: colorData.primary,
+                    quality: 0.3 // Lower quality for performance
+                });
+                this.container.filters = [this.glowFilter];
+            } catch (e) {
+                console.warn('GlowFilter not available, skipping glow effect');
+            }
         }
     }
 
@@ -110,7 +118,7 @@ class PixiStar {
 
     setupInteraction() {
         this.container.interactive = true;
-        this.container.buttonMode = true;
+        this.container.cursor = 'pointer';
 
         this.container.on('pointerdown', (event) => {
             this.onStarClick(event);
@@ -166,7 +174,7 @@ class PixiStar {
         if (this.highlighted) {
             this.starGraphics.tint = 0xffffff;
         } else {
-            this.starGraphics.tint = colorData.primary;
+            this.starGraphics.tint = 0xffffff; // Keep original colors
         }
     }
 
@@ -176,7 +184,11 @@ class PixiStar {
         let shipsPlaced = 0;
 
         // Clear existing ship positions
-        this.ships.forEach(ship => ship.clearFromStar());
+        this.ships.forEach(ship => {
+            if (ship.clearFromStar) {
+                ship.clearFromStar();
+            }
+        });
 
         // Distribute ships in layers (maximum 5 layers)
         for (let layer = 0; layer < this.maxLayers && shipsPlaced < totalShips; layer++) {
@@ -193,7 +205,9 @@ class PixiStar {
                 const ship = this.ships[shipsPlaced];
                 const angle = angleOffset + i * angleStep;
 
-                ship.setOrbitPosition(this, orbitRadius, angle, layer);
+                if (ship.setOrbitPosition) {
+                    ship.setOrbitPosition(this, orbitRadius, angle, layer);
+                }
                 shipsPlaced++;
             }
         }
@@ -248,7 +262,9 @@ class PixiStar {
 
         // Start ship movement animation
         transferShips.forEach((ship, index) => {
-            ship.startTransfer(this, targetStar, index * 0.1); // Stagger the departures
+            if (ship.startTransfer) {
+                ship.startTransfer(this, targetStar, index * 0.1); // Stagger the departures
+            }
         });
 
         // Redistribute remaining ships
@@ -327,7 +343,7 @@ class PixiStar {
         const rotationSpeed = this.shipRotationSpeed * (0.5 + surge * 1.5);
 
         this.ships.forEach(ship => {
-            if (!ship.isTransferring) {
+            if (!ship.isTransferring && ship.updateOrbitRotation) {
                 ship.updateOrbitRotation(rotationSpeed);
             }
         });
@@ -335,19 +351,27 @@ class PixiStar {
 
     // Cleanup
     destroy() {
-        if (this.animationEngine) {
+        if (this.animationEngine && this.animationEngine.starLayer) {
             this.animationEngine.starLayer.removeChild(this.container);
         }
 
-        this.ships.forEach(ship => ship.destroy());
+        this.ships.forEach(ship => {
+            if (ship.destroy) {
+                ship.destroy();
+            }
+        });
         this.ships = [];
 
         this.energyRings.forEach(ringData => {
-            ringData.graphics.destroy();
+            if (ringData.graphics) {
+                ringData.graphics.destroy();
+            }
         });
         this.energyRings = [];
 
-        this.container.destroy({ children: true });
+        if (this.container) {
+            this.container.destroy({ children: true });
+        }
     }
 
     // Getters for compatibility

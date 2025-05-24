@@ -2,22 +2,12 @@ import * as PIXI from 'pixi.js';
 
 class TickBasedAnimationEngine {
     constructor(container, width, height) {
-        // Core PIXI setup for maximum performance
-        this.app = new PIXI.Application({
-            width: width,
-            height: height,
-            backgroundColor: 0x0a0a0f,
-            resolution: window.devicePixelRatio || 1,
-            autoDensity: true,
-            antialias: false, // Disable for performance - we'll use our own smoothing
-            powerPreference: 'high-performance',
-            hello: false // Disable PIXI banner
-        });
+        this.width = width;
+        this.height = height;
+        this.container = container;
 
-        // Performance optimizations
-        PIXI.settings.SPRITE_MAX_TEXTURES = Math.min(PIXI.settings.SPRITE_MAX_TEXTURES, 16);
-        PIXI.settings.PRECISION_FRAGMENT = PIXI.PRECISION.MEDIUM;
-        PIXI.settings.ROUND_PIXELS = true;
+        // Initialize the app asynchronously
+        this.initializeApp();
 
         // Tick-based timing system
         this.tickDuration = 2000; // 2 seconds per tick (adjustable)
@@ -26,19 +16,6 @@ class TickBasedAnimationEngine {
         this.lastTime = performance.now();
         this.isRunning = false;
         this.tickSpeed = 1.0; // Multiplier for tick rate
-
-        // Rendering layers for performance
-        this.backgroundLayer = new PIXI.Container();
-        this.starLayer = new PIXI.Container();
-        this.shipLayer = new PIXI.Container();
-        this.effectsLayer = new PIXI.Container();
-        this.uiLayer = new PIXI.Container();
-
-        this.app.stage.addChild(this.backgroundLayer);
-        this.app.stage.addChild(this.starLayer);
-        this.app.stage.addChild(this.shipLayer);
-        this.app.stage.addChild(this.effectsLayer);
-        this.app.stage.addChild(this.uiLayer);
 
         // Object pools for performance
         this.particlePool = [];
@@ -64,20 +41,55 @@ class TickBasedAnimationEngine {
             { primary: 0xff7675, secondary: 0xfd79a8, name: 'Pink Star' }
         ];
 
-        // Initialize graphics and textures
-        this.initializeGraphics();
-
-        // Append to container
-        if (container) {
-            container.appendChild(this.app.view);
-        }
-
         // Bind methods
-        this.tick = this.tick.bind(this);
         this.update = this.update.bind(this);
     }
 
+    async initializeApp() {
+        try {
+            // Use the modern PIXI v8 initialization
+            this.app = new PIXI.Application();
+
+            await this.app.init({
+                width: this.width,
+                height: this.height,
+                backgroundColor: 0x0a0a0f,
+                resolution: window.devicePixelRatio || 1,
+                autoDensity: true,
+                antialias: this.enableAntialiasing,
+                powerPreference: 'high-performance',
+                hello: false // Disable PIXI banner
+            });
+
+            // Create rendering layers for performance
+            this.backgroundLayer = new PIXI.Container();
+            this.starLayer = new PIXI.Container();
+            this.shipLayer = new PIXI.Container();
+            this.effectsLayer = new PIXI.Container();
+            this.uiLayer = new PIXI.Container();
+
+            this.app.stage.addChild(this.backgroundLayer);
+            this.app.stage.addChild(this.starLayer);
+            this.app.stage.addChild(this.shipLayer);
+            this.app.stage.addChild(this.effectsLayer);
+            this.app.stage.addChild(this.uiLayer);
+
+            // Initialize graphics and textures
+            this.initializeGraphics();
+
+            // Append to container
+            if (this.container) {
+                this.container.appendChild(this.app.canvas);
+            }
+
+        } catch (error) {
+            console.error('Failed to initialize PIXI application:', error);
+        }
+    }
+
     initializeGraphics() {
+        if (!this.app) return;
+
         // Create optimized graphics for reuse
         this.graphics = new PIXI.Graphics();
 
@@ -92,6 +104,8 @@ class TickBasedAnimationEngine {
     }
 
     createShipTextures() {
+        if (!this.app) return {};
+
         const textures = {};
         const shipTypes = ['fighter', 'cruiser', 'destroyer', 'battleship'];
         const sizes = [8, 12, 16, 20];
@@ -101,24 +115,27 @@ class TickBasedAnimationEngine {
             const size = sizes[index];
 
             // Create ship shape based on type
-            graphics.beginFill(0xffffff);
+            graphics.fill(0xffffff);
             switch (type) {
                 case 'fighter':
-                    graphics.drawPolygon([0, -size, -size * 0.7, size * 0.5, size * 0.7, size * 0.5]);
+                    graphics.poly([0, -size, -size * 0.7, size * 0.5, size * 0.7, size * 0.5]);
                     break;
                 case 'cruiser':
-                    graphics.drawPolygon([0, -size, -size * 0.5, 0, 0, size, size * 0.5, 0]);
+                    graphics.poly([0, -size, -size * 0.5, 0, 0, size, size * 0.5, 0]);
                     break;
                 case 'destroyer':
-                    graphics.drawRect(-size * 0.75, -size * 0.5, size * 1.5, size);
+                    graphics.rect(-size * 0.75, -size * 0.5, size * 1.5, size);
                     break;
                 case 'battleship':
-                    graphics.drawRoundedRect(-size, -size * 0.6, size * 2, size * 1.2, 4);
+                    graphics.roundRect(-size, -size * 0.6, size * 2, size * 1.2, 4);
                     break;
             }
-            graphics.endFill();
 
-            textures[type] = this.app.renderer.generateTexture(graphics);
+            try {
+                textures[type] = this.app.renderer.generateTexture(graphics);
+            } catch (e) {
+                console.warn(`Failed to generate texture for ${type}:`, e);
+            }
             graphics.destroy();
         });
 
@@ -126,16 +143,21 @@ class TickBasedAnimationEngine {
     }
 
     createParticleTextures() {
+        if (!this.app) return {};
+
         const textures = {};
         const sizes = [2, 4, 6, 8];
 
         sizes.forEach(size => {
             const graphics = new PIXI.Graphics();
-            graphics.beginFill(0xffffff);
-            graphics.drawCircle(0, 0, size);
-            graphics.endFill();
+            graphics.fill(0xffffff);
+            graphics.circle(0, 0, size);
 
-            textures[`particle_${size}`] = this.app.renderer.generateTexture(graphics);
+            try {
+                textures[`particle_${size}`] = this.app.renderer.generateTexture(graphics);
+            } catch (e) {
+                console.warn(`Failed to generate particle texture:`, e);
+            }
             graphics.destroy();
         });
 
@@ -143,17 +165,18 @@ class TickBasedAnimationEngine {
     }
 
     createStarfield() {
+        if (!this.backgroundLayer) return;
+
         const starfieldContainer = new PIXI.Container();
         const starCount = this.performanceMode === 'high' ? 200 : 100;
 
         for (let i = 0; i < starCount; i++) {
             const star = new PIXI.Graphics();
-            star.beginFill(0xffffff, Math.random() * 0.3);
-            star.drawCircle(0, 0, Math.random() * 1.5);
-            star.endFill();
+            star.fill({ color: 0xffffff, alpha: Math.random() * 0.3 });
+            star.circle(0, 0, Math.random() * 1.5);
 
-            star.x = Math.random() * this.app.screen.width;
-            star.y = Math.random() * this.app.screen.height;
+            star.x = Math.random() * this.width;
+            star.y = Math.random() * this.height;
 
             starfieldContainer.addChild(star);
         }
@@ -163,12 +186,16 @@ class TickBasedAnimationEngine {
 
     // Tick-based timing with surge animation
     start() {
+        if (!this.app) return;
+
         this.isRunning = true;
         this.lastTime = performance.now();
         this.app.ticker.add(this.update);
     }
 
     stop() {
+        if (!this.app) return;
+
         this.isRunning = false;
         this.app.ticker.remove(this.update);
     }
@@ -215,6 +242,8 @@ class TickBasedAnimationEngine {
     }
 
     updateParticles(deltaTime) {
+        if (!this.effectsLayer) return;
+
         this.activeParticles = this.activeParticles.filter(particle => {
             particle.life -= deltaTime;
 
@@ -248,12 +277,13 @@ class TickBasedAnimationEngine {
 
     // Particle system for effects
     createParticleExplosion(x, y, color = 0xffffff, intensity = 1) {
-        if (this.activeParticles.length >= this.particleLimit) return;
+        if (!this.effectsLayer || this.activeParticles.length >= this.particleLimit) return;
 
         const particleCount = Math.floor(20 * intensity);
 
         for (let i = 0; i < particleCount; i++) {
             const particle = this.getParticleFromPool();
+            if (!particle) continue;
 
             const angle = (Math.PI * 2 * i) / particleCount + (Math.random() - 0.5) * 0.5;
             const speed = (2 + Math.random() * 3) * intensity;
@@ -279,9 +309,10 @@ class TickBasedAnimationEngine {
     }
 
     createShipTrail(x, y, color = 0x00ffff) {
-        if (!this.enableTrails || this.activeParticles.length >= this.particleLimit) return;
+        if (!this.enableTrails || !this.effectsLayer || this.activeParticles.length >= this.particleLimit) return;
 
         const particle = this.getParticleFromPool();
+        if (!particle) return;
 
         particle.x = x;
         particle.y = y;
@@ -308,6 +339,10 @@ class TickBasedAnimationEngine {
         }
 
         // Create new particle
+        if (!this.particleTextures || !this.particleTextures.particle_4) {
+            return null;
+        }
+
         const sprite = new PIXI.Sprite(this.particleTextures.particle_4);
         sprite.anchor.set(0.5);
 
@@ -356,14 +391,14 @@ class TickBasedAnimationEngine {
     // Cleanup
     destroy() {
         this.stop();
-        this.app.destroy(true, true);
+        if (this.app) {
+            this.app.destroy(true, true);
+        }
     }
 
     // Getters for external access
-    get width() { return this.app.screen.width; }
-    get height() { return this.app.screen.height; }
-    get renderer() { return this.app.renderer; }
-    get stage() { return this.app.stage; }
+    get renderer() { return this.app?.renderer; }
+    get stage() { return this.app?.stage; }
 }
 
 export { TickBasedAnimationEngine };
