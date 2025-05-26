@@ -1,15 +1,15 @@
 <script>
-  import PixiControls from "$components/PixiControls.svelte";
+  import GameInterface from "$components/GameInterface.svelte";
 </script>
 
 <svelte:head>
-  <title>PAX FLUXIA - High-Performance Space Strategy</title>
+  <title>PAX FLUXIA - Phase 1 Implementation</title>
   <meta
     name="description"
-    content="Experience buttery-smooth space strategy with advanced PixiJS rendering and tick-based animation." />
+    content="Pax Fluxia Phase 1: Core game mechanics with ship production and basic UI." />
 </svelte:head>
 
-<PixiControls width={1400} height={900} />
+<GameInterface />
 
 <style>
   :global(body) {

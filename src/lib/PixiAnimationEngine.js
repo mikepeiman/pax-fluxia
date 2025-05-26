@@ -159,7 +159,7 @@ class TickBasedAnimationEngine {
         if (!this.backgroundLayer) return;
 
         const starfieldContainer = new PIXI.Container();
-        const starCount = this.performanceMode === 'high' ? 200 : 100;
+        const starCount = this.performanceMode === 'high' ? 20 : 10;
 
         for (let i = 0; i < starCount; i++) {
             const star = new PIXI.Graphics();
@@ -221,8 +221,10 @@ class TickBasedAnimationEngine {
     }
 
     update(deltaTime) {
-        if (!this.isRunning || this.isPaused) return;
-
+        if (!this.isRunning || this.isPaused) {
+            console.log(`game paused or not running`)
+            return;
+        }
         const currentTime = performance.now();
 
         // FPS limiting

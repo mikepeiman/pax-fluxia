@@ -1,0 +1,16 @@
+{
+  "name": "pax-fluxia-nakama-server",
+  "version": "1.0.0",
+  "description": "Nakama server modules for Pax Fluxia",
+  "main": "build/main.js",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch"
+  },
+  "dependencies": {
+    "typescript": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0"
+  }
+}

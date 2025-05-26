@@ -1,0 +1,7 @@
+{
+  "baseTickDurationMs": 1000,
+  "baseProductionTicksPerShip": 8,
+  "baseRepairRateFactor": 0.05,
+  "baseMovementShipPercentage": 0.10,
+  "capturePercentageDamagedShips": 0.5
+}

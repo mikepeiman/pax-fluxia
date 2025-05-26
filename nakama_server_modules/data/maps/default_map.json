@@ -1,0 +1,55 @@
+{
+  "stars": [
+    {
+      "id": "s1",
+      "x": 100,
+      "y": 200,
+      "starType": "STANDARD",
+      "initialOwnerPlayerId": "p1",
+      "initialActiveShips": 10,
+      "initialDamagedShips": 0
+    },
+    {
+      "id": "s2",
+      "x": 400,
+      "y": 200,
+      "starType": "YELLOW",
+      "initialOwnerPlayerId": "p2",
+      "initialActiveShips": 10,
+      "initialDamagedShips": 0
+    },
+    {
+      "id": "s3",
+      "x": 250,
+      "y": 400,
+      "starType": "STANDARD",
+      "initialOwnerPlayerId": null,
+      "initialActiveShips": 5,
+      "initialDamagedShips": 0
+    }
+  ],
+  "paths": [
+    {
+      "id": "p1_3",
+      "starA_id": "s1",
+      "starB_id": "s3"
+    },
+    {
+      "id": "p2_3",
+      "starA_id": "s2",
+      "starB_id": "s3"
+    }
+  ],
+  "players": [
+    {
+      "id": "p1",
+      "name": "Player 1",
+      "color": "#FF0000"
+    },
+    {
+      "id": "p2",
+      "name": "Player 2",
+      "color": "#0000FF"
+    }
+  ]
+}
