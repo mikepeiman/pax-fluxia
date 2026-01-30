@@ -293,8 +293,13 @@
             graphics.circle(star.x, star.y, radius * 0.4);
             graphics.fill({ color: 0xffffff, alpha: coreAlpha });
 
-            // Update label
-            label.text = String(star.activeShips);
+            // Update label - show total with damaged indicator
+            const totalShips = star.activeShips + star.damagedShips;
+            if (star.damagedShips > 0) {
+                label.text = `${star.activeShips}+${star.damagedShips}`;
+            } else {
+                label.text = String(star.activeShips);
+            }
             label.x = star.x;
             label.y = star.y;
         });
@@ -347,21 +352,22 @@
 
         stars.forEach((star) => {
             const color = getPlayerColor(star.ownerId);
-            const totalShips = star.activeShips;
+            const activeShips = star.activeShips;
+            const damagedShips = star.damagedShips;
+            const totalShips = activeShips + damagedShips;
 
-            // Calculate how many ships are "in surge" vs "orbiting"
+            // Calculate how many active ships are "in surge" vs "orbiting"
             let surgeCount = 0;
-            let orbitCount = totalShips;
+            let activeOrbitCount = activeShips;
 
-            if (star.targetId && totalShips > 0) {
+            if (star.targetId && activeShips > 0) {
                 // During attack, some ships are in transit
-                // Range: 0 → half of ships surge out, then repeat
                 const surgePhase = Math.sin(tickProgress * Math.PI);
                 surgeCount = Math.min(
-                    Math.floor(totalShips * 0.3 * surgePhase),
-                    totalShips,
+                    Math.floor(activeShips * 0.3 * surgePhase),
+                    activeShips,
                 );
-                orbitCount = totalShips - surgeCount;
+                activeOrbitCount = activeShips - surgeCount;
 
                 // Render surge ships
                 const target = stars.find((s) => s.id === star.targetId);
@@ -382,34 +388,57 @@
                         drawShip(
                             ship.x,
                             ship.y,
-                            ship.rotation,
                             color,
                             ship.scale,
                             ship.alpha,
+                            false, // not damaged
                         );
                     });
                 }
             }
 
-            // Render orbiting ships (always show exact remaining count)
-            if (orbitCount > 0) {
+            // Render orbiting ACTIVE ships
+            if (activeOrbitCount > 0) {
                 const orbitShips = getOrbitPositions(
                     star.x,
                     star.y,
                     star.radius,
-                    orbitCount,
+                    activeOrbitCount,
                     animationTime,
-                    0.3, // Orbit speed
+                    0.3,
                 );
 
                 orbitShips.forEach((ship) => {
                     drawShip(
                         ship.x,
                         ship.y,
-                        ship.rotation,
                         color,
                         ship.scale,
                         ship.alpha,
+                        false,
+                    );
+                });
+            }
+
+            // Render orbiting DAMAGED ships (in outer ring with dark border)
+            if (damagedShips > 0) {
+                const damagedOrbitShips = getOrbitPositions(
+                    star.x,
+                    star.y,
+                    star.radius + 15, // Outer ring for damaged
+                    damagedShips,
+                    animationTime,
+                    0.2, // Slower orbit for damaged
+                );
+
+                damagedOrbitShips.forEach((ship) => {
+                    drawShip(
+                        ship.x,
+                        ship.y,
+                        color,
+                        ship.scale * 0.8,
+                        ship.alpha * 0.7,
+                        true,
                     );
                 });
             }
@@ -419,28 +448,24 @@
     function drawShip(
         x: number,
         y: number,
-        rotation: number,
         color: number,
         scale: number,
         alpha: number,
+        isDamaged: boolean,
     ) {
         if (!shipGraphics) return;
 
-        const size = 4 * scale;
+        const size = 3 * scale;
 
-        // Draw simple triangle ship
-        const tipX = x + Math.cos(rotation) * size;
-        const tipY = y + Math.sin(rotation) * size;
-        const leftX = x + Math.cos(rotation + 2.5) * size * 0.7;
-        const leftY = y + Math.sin(rotation + 2.5) * size * 0.7;
-        const rightX = x + Math.cos(rotation - 2.5) * size * 0.7;
-        const rightY = y + Math.sin(rotation - 2.5) * size * 0.7;
+        // Draw filled circle for ship
+        shipGraphics.circle(x, y, size);
+        shipGraphics.fill({ color, alpha });
 
-        shipGraphics!.moveTo(tipX, tipY);
-        shipGraphics!.lineTo(leftX, leftY);
-        shipGraphics!.lineTo(rightX, rightY);
-        shipGraphics!.lineTo(tipX, tipY);
-        shipGraphics!.fill({ color, alpha });
+        // Damaged ships get a dark border indicator
+        if (isDamaged) {
+            shipGraphics.circle(x, y, size + 1);
+            shipGraphics.stroke({ color: 0x222222, width: 1.5, alpha: 0.8 });
+        }
     }
 
     // Draw hexagonal border around a point

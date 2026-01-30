@@ -3,10 +3,55 @@
 // ============================================================================
 
 /**
- * All tunable game variables in one place.
- * These will be exposed via Tweakpane for real-time balancing.
+ * Game configuration interface for type safety
  */
-export const GAME_CONFIG = {
+interface GameConfigType {
+    // Timing
+    BASE_TICK_MS: number;
+    MIN_TICK_MS: number;
+
+    // Flow
+    FLOW_PERCENTAGE: number;
+    MIN_FLOW_SHIPS: number;
+    MAX_FLOW_SHIPS: number;
+
+    // Combat
+    DEFENSE_MULTIPLIER: number;
+    DAMAGE_RATE: number;
+    MIN_DAMAGE: number;
+    CONQUEST_THRESHOLD: number;
+
+    // Production
+    BASE_PRODUCTION: number;
+    TICKS_PER_SHIP: number;
+
+    // Repair
+    REPAIR_RATE: number;
+    MIN_REPAIR: number;
+
+    // Conquest
+    CONQUEST_TRANSFER_PERCENTAGE: number;
+    CLEAR_ORDER_ON_CAPTURE: boolean;
+
+    // Visual
+    MAX_RENDERED_SHIPS: number;
+    SHIPS_PER_RING: number;
+    SHIP_BASE_SIZE: number;
+    TRANSFER_ANIMATION_MS: number;
+
+    // Hex Grid
+    HEX_RADIUS: number;
+    HEX_PADDING: number;
+    CONNECTION_MAX_DISTANCE: number;
+    SHOW_CONNECTIONS: boolean;
+    SHOW_HEX_GRID: boolean;
+}
+
+/**
+ * All tunable game variables in one place.
+ * These are exposed via Tweakpane for real-time balancing.
+ */
+export const GAME_CONFIG: GameConfigType = {
     // ========================================================================
     // TIMING
     // ========================================================================
@@ -42,6 +87,9 @@ export const GAME_CONFIG = {
 
     /** Minimum ships destroyed per combat exchange */
     MIN_DAMAGE: 1,
+
+    /** Conquest threshold - attackers need N times defender count to capture */
+    CONQUEST_THRESHOLD: 3,
 
     // ========================================================================
     // PRODUCTION
@@ -90,11 +138,17 @@ export const GAME_CONFIG = {
     TRANSFER_ANIMATION_MS: 600,
 
     // ========================================================================
-    // CONNECTIONS
+    // HEX GRID
     // ========================================================================
 
+    /** Hex cell radius for star positioning */
+    HEX_RADIUS: 50,
+
+    /** Edge padding for hex grid */
+    HEX_PADDING: 30,
+
     /** Maximum distance for star connections */
-    CONNECTION_MAX_DISTANCE: 200,
+    CONNECTION_MAX_DISTANCE: 150,
 
     /** Show connection lines */
     SHOW_CONNECTIONS: true,
@@ -108,10 +162,7 @@ export const GAME_CONFIG = {
  */
 export function getTickInterval(speed: number): number {
     if (speed === 0) return Infinity;
-    return Math.max(
-        GAME_CONFIG.MIN_TICK_MS,
-        GAME_CONFIG.BASE_TICK_MS / speed
-    );
+    return Math.max(GAME_CONFIG.MIN_TICK_MS, GAME_CONFIG.BASE_TICK_MS / speed);
 }
 
 /**

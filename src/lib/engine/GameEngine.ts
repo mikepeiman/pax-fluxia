@@ -149,9 +149,14 @@ export class GameEngine {
     }
 
     private initializeMap(): void {
+        // Use configurable hex grid parameters
+        const hexRadius = Number(GAME_CONFIG.HEX_RADIUS) || 60;
+        const hexPadding = Number(GAME_CONFIG.HEX_PADDING) || 40;
+        const connectionDist = Number(GAME_CONFIG.CONNECTION_MAX_DISTANCE) || 180;
+
         // Generate hex grid for random star positioning
-        const hexGrid = generateHexGrid(1000, 800, 80, 60);
-        log.sys('GameEngine', `Generated hex grid with ${hexGrid.length} positions`);
+        const hexGrid = generateHexGrid(1000, 800, hexRadius, hexPadding);
+        log.sys('GameEngine', `Generated hex grid with ${hexGrid.length} positions (radius: ${hexRadius}, padding: ${hexPadding})`);
 
         // Calculate how many stars we need
         const playerIds = Array.from(this.players.keys());
@@ -159,8 +164,9 @@ export class GameEngine {
         const neutralStars = Math.max(3, playerIds.length * 2);
         const totalStars = playerIds.length * starsPerPlayer + neutralStars;
 
-        // Select random hex positions for stars
-        const starPositions = selectRandomHexPositions(hexGrid, totalStars, 100);
+        // Select random hex positions for stars with reduced minimum spacing
+        const minSpacing = hexRadius * 1.2; // Allow stars closer together
+        const starPositions = selectRandomHexPositions(hexGrid, totalStars, minSpacing);
         log.sys('GameEngine', `Selected ${starPositions.length} positions for stars`);
 
         // Assign home stars to each player (first starsPerPlayer for each)
@@ -168,9 +174,12 @@ export class GameEngine {
         playerIds.forEach((playerId) => {
             for (let i = 0; i < starsPerPlayer && posIndex < starPositions.length; i++) {
                 const pos = starPositions[posIndex++];
+                // Add random offset for less uniform distribution
+                const offsetX = (Math.random() - 0.5) * 20;
+                const offsetY = (Math.random() - 0.5) * 20;
                 const star = createStar({
-                    x: pos.x,
-                    y: pos.y,
+                    x: pos.x + offsetX,
+                    y: pos.y + offsetY,
                     radius: 25 + Math.random() * 15,
                     productionRate: 1,
                     ownerId: playerId
@@ -182,9 +191,12 @@ export class GameEngine {
         // Remaining positions are neutral stars
         while (posIndex < starPositions.length) {
             const pos = starPositions[posIndex++];
+            // Add random offset for less uniform distribution
+            const offsetX = (Math.random() - 0.5) * 20;
+            const offsetY = (Math.random() - 0.5) * 20;
             const star = createStar({
-                x: pos.x,
-                y: pos.y,
+                x: pos.x + offsetX,
+                y: pos.y + offsetY,
                 radius: 20 + Math.random() * 10,
                 productionRate: 1,
                 ownerId: 'neutral'
@@ -192,13 +204,13 @@ export class GameEngine {
             this.stars.set(star.id, star);
         }
 
-        // Generate connections between stars (200px max distance)
+        // Generate connections between stars using configurable distance
         const starArray = Array.from(this.stars.values()).map(s => ({
             id: s.id,
             x: s.getState().x,
             y: s.getState().y
         }));
-        this.connections = generateStarConnections(starArray, 200);
+        this.connections = generateStarConnections(starArray, connectionDist);
 
         log.success('GameEngine', `Map initialized with ${this.stars.size} stars and ${this.connections.length} connections`);
     }
