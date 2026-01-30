@@ -315,11 +315,25 @@
 
         stars.forEach((star) => {
             const color = getPlayerColor(star.ownerId);
+            const totalShips = star.activeShips;
 
-            if (star.targetId) {
-                // SURGE: Ships are attacking, show them moving
+            // Calculate how many ships are "in surge" vs "orbiting"
+            let surgeCount = 0;
+            let orbitCount = totalShips;
+
+            if (star.targetId && totalShips > 0) {
+                // During attack, some ships are in transit
+                // Range: 0 → half of ships surge out, then repeat
+                const surgePhase = Math.sin(tickProgress * Math.PI);
+                surgeCount = Math.min(
+                    Math.floor(totalShips * 0.3 * surgePhase),
+                    totalShips,
+                );
+                orbitCount = totalShips - surgeCount;
+
+                // Render surge ships
                 const target = stars.find((s) => s.id === star.targetId);
-                if (target) {
+                if (target && surgeCount > 0) {
                     const surgeShips = getSurgePositions(
                         star.x,
                         star.y,
@@ -327,13 +341,12 @@
                         target.y,
                         star.radius,
                         target.radius,
-                        Math.ceil(star.activeShips * 0.3), // Show 30% as "in transit"
+                        surgeCount,
                         tickProgress,
                         animationTime,
                     );
 
                     surgeShips.forEach((ship) => {
-                        // Draw ship as triangle
                         drawShip(
                             ship.x,
                             ship.y,
@@ -346,23 +359,28 @@
                 }
             }
 
-            // ORBIT: Remaining ships orbit the star
-            const orbitCount = star.targetId
-                ? Math.ceil(star.activeShips * 0.5) // Half orbit when attacking
-                : star.activeShips; // All orbit when idle
+            // Render orbiting ships (always show exact remaining count)
+            if (orbitCount > 0) {
+                const orbitShips = getOrbitPositions(
+                    star.x,
+                    star.y,
+                    star.radius,
+                    orbitCount,
+                    animationTime,
+                    0.3, // Orbit speed
+                );
 
-            const orbitShips = getOrbitPositions(
-                star.x,
-                star.y,
-                star.radius,
-                orbitCount,
-                animationTime,
-                0.3, // Orbit speed
-            );
-
-            orbitShips.forEach((ship) => {
-                drawShip(ship.x, ship.y, ship.rotation, color, 0.8, 0.8);
-            });
+                orbitShips.forEach((ship) => {
+                    drawShip(
+                        ship.x,
+                        ship.y,
+                        ship.rotation,
+                        color,
+                        ship.scale,
+                        ship.alpha,
+                    );
+                });
+            }
         });
     }
 

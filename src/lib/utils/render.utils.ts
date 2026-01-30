@@ -15,7 +15,8 @@ export interface ShipVisual {
 
 /**
  * Calculate orbit positions for ships around a star
- * Ships orbit in a ring, evenly distributed
+ * Ships orbit in concentric rings to show exact count
+ * Uses multiple rings for large fleets
  */
 export function getOrbitPositions(
     starX: number,
@@ -26,20 +27,34 @@ export function getOrbitPositions(
     orbitSpeed: number = 0.5
 ): ShipVisual[] {
     const ships: ShipVisual[] = [];
-    const orbitRadius = starRadius + 12; // Ships orbit just outside star
 
-    for (let i = 0; i < Math.min(shipCount, 20); i++) { // Cap at 20 visible ships
+    // Config for rings
+    const SHIPS_PER_RING = 8;  // Ships per orbital ring
+    const RING_SPACING = 8;   // Pixels between rings
+    const BASE_ORBIT = starRadius + 10;
+    const MAX_VISIBLE = 64;   // Max ships to render per star (performance)
+
+    const visibleCount = Math.min(shipCount, MAX_VISIBLE);
+
+    for (let i = 0; i < visibleCount; i++) {
+        const ring = Math.floor(i / SHIPS_PER_RING);
+        const slot = i % SHIPS_PER_RING;
+        const shipsInThisRing = Math.min(SHIPS_PER_RING, visibleCount - ring * SHIPS_PER_RING);
+
+        const orbitRadius = BASE_ORBIT + (ring * RING_SPACING);
+
         // Base angle for this ship slot
-        const baseAngle = (i / Math.min(shipCount, 20)) * Math.PI * 2;
-        // Add rotation over time
-        const angle = baseAngle + time * orbitSpeed;
+        const baseAngle = (slot / shipsInThisRing) * Math.PI * 2;
+        // Add rotation over time (outer rings rotate slower)
+        const ringSpeedMod = 1 / (1 + ring * 0.3);
+        const angle = baseAngle + time * orbitSpeed * ringSpeedMod;
 
         ships.push({
             x: starX + Math.cos(angle) * orbitRadius,
             y: starY + Math.sin(angle) * orbitRadius,
             rotation: angle + Math.PI / 2, // Point tangent to orbit
-            scale: 1,
-            alpha: 1
+            scale: 1 - ring * 0.1, // Outer rings slightly smaller
+            alpha: 1 - ring * 0.1  // Outer rings slightly faded
         });
     }
 
@@ -67,10 +82,13 @@ export function getSurgePositions(
     const dist = Math.sqrt(dx * dx + dy * dy);
     const angle = Math.atan2(dy, dx);
 
+    const MAX_SURGE_VISIBLE = 20;
+    const visibleCount = Math.min(shipCount, MAX_SURGE_VISIBLE);
+
     // Ships are spread along the path, moving towards target
-    for (let i = 0; i < Math.min(shipCount, 15); i++) { // Cap visible
+    for (let i = 0; i < visibleCount; i++) {
         // Each ship is offset along the path
-        const spacing = 0.1;
+        const spacing = 0.08;
         const baseT = (i * spacing + progress * spacing) % 1;
 
         // Clamp to valid range (not inside stars)
@@ -79,7 +97,7 @@ export function getSurgePositions(
         const t = minT + baseT * (maxT - minT);
 
         // Add a wave motion perpendicular to travel
-        const perpOffset = Math.sin(t * Math.PI * 3 + waveOffset + i * 0.5) * 6;
+        const perpOffset = Math.sin(t * Math.PI * 3 + waveOffset + i * 0.5) * 5;
         const perpAngle = angle + Math.PI / 2;
 
         ships.push({
