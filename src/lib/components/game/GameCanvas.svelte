@@ -7,6 +7,7 @@
         getOrbitPositions,
         getSurgePositions,
     } from "$lib/utils/render.utils";
+    import { distance } from "$lib/utils/math.utils";
     import type { StarState } from "$lib/types/game.types";
 
     // ============================================================================
@@ -18,6 +19,7 @@
 
     // Graphics layers
     let linkGraphics: PIXI.Graphics | null = null;
+    let dragPreviewGraphics: PIXI.Graphics | null = null;
     let starsContainer: PIXI.Container | null = null;
     let shipsContainer: PIXI.Container | null = null;
     let labelsContainer: PIXI.Container | null = null;
@@ -30,6 +32,14 @@
     // Animation state
     let animationTime = 0;
     let animationFrameId: number | null = null;
+
+    // Input state
+    let isDragging = false;
+    let dragSourceId: string | null = null;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let dragCurrentX = 0;
+    let dragCurrentY = 0;
 
     // Player colors (must match engine)
     const PLAYER_COLORS: Record<string, number> = {
@@ -61,7 +71,7 @@
         // Append canvas to container
         canvasContainer.appendChild(app.canvas);
 
-        // Create graphics layers (order matters: links → stars → ships → labels)
+        // Create graphics layers (order matters: links → stars → ships → labels → drag)
         linkGraphics = new PIXI.Graphics();
         app.stage.addChild(linkGraphics);
 
@@ -76,6 +86,9 @@
 
         labelsContainer = new PIXI.Container();
         app.stage.addChild(labelsContainer);
+
+        dragPreviewGraphics = new PIXI.Graphics();
+        app.stage.addChild(dragPreviewGraphics);
 
         log.success(
             "GameCanvas",
@@ -363,13 +376,160 @@
     }
 
     // ============================================================================
+    // Input Handling
+    // ============================================================================
+
+    function hitTestStar(x: number, y: number): StarState | null {
+        const snapshot = gameStore.snapshot;
+        if (!snapshot) return null;
+
+        for (const star of snapshot.stars) {
+            const dist = distance(x, y, star.x, star.y);
+            if (dist <= star.radius + 10) {
+                // 10px tolerance
+                return star;
+            }
+        }
+        return null;
+    }
+
+    function handlePointerDown(event: PointerEvent) {
+        if (!app) return;
+
+        const rect = canvasContainer.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+
+        const star = hitTestStar(x, y);
+
+        // Only allow dragging from own stars
+        if (star && star.ownerId === "human-player") {
+            isDragging = true;
+            dragSourceId = star.id;
+            dragStartX = star.x;
+            dragStartY = star.y;
+            dragCurrentX = x;
+            dragCurrentY = y;
+
+            log.state("GameCanvas", `Drag started from star ${star.id}`);
+        }
+    }
+
+    function handlePointerMove(event: PointerEvent) {
+        if (!isDragging) return;
+
+        const rect = canvasContainer.getBoundingClientRect();
+        dragCurrentX = event.clientX - rect.left;
+        dragCurrentY = event.clientY - rect.top;
+
+        // Render drag preview
+        renderDragPreview();
+    }
+
+    function handlePointerUp(event: PointerEvent) {
+        if (!isDragging || !dragSourceId) {
+            cancelDrag();
+            return;
+        }
+
+        const rect = canvasContainer.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+
+        const targetStar = hitTestStar(x, y);
+
+        if (targetStar && targetStar.id !== dragSourceId) {
+            // Issue order
+            gameStore.issueOrder(dragSourceId, targetStar.id);
+            log.success(
+                "GameCanvas",
+                `Order issued: ${dragSourceId} → ${targetStar.id}`,
+            );
+        }
+
+        cancelDrag();
+    }
+
+    function handleRightClick(event: MouseEvent) {
+        event.preventDefault();
+
+        const rect = canvasContainer.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+
+        const star = hitTestStar(x, y);
+
+        if (star && star.ownerId === "human-player" && star.targetId) {
+            // Cancel order
+            gameStore.cancelOrder(star.id);
+            log.state("GameCanvas", `Order cancelled for star ${star.id}`);
+        }
+
+        cancelDrag();
+    }
+
+    function cancelDrag() {
+        isDragging = false;
+        dragSourceId = null;
+
+        // Clear preview
+        if (dragPreviewGraphics) {
+            dragPreviewGraphics.clear();
+        }
+    }
+
+    function renderDragPreview() {
+        if (!dragPreviewGraphics || !isDragging) return;
+
+        dragPreviewGraphics.clear();
+
+        // Draw line from source to cursor
+        dragPreviewGraphics.moveTo(dragStartX, dragStartY);
+        dragPreviewGraphics.lineTo(dragCurrentX, dragCurrentY);
+        dragPreviewGraphics.stroke({
+            color: 0x00ffff,
+            width: 3,
+            alpha: 0.7,
+        });
+
+        // Draw circle at cursor
+        dragPreviewGraphics.circle(dragCurrentX, dragCurrentY, 8);
+        dragPreviewGraphics.stroke({
+            color: 0x00ffff,
+            width: 2,
+            alpha: 0.9,
+        });
+
+        // Highlight target star if hovering
+        const target = hitTestStar(dragCurrentX, dragCurrentY);
+        if (target && target.id !== dragSourceId) {
+            dragPreviewGraphics.circle(target.x, target.y, target.radius + 15);
+            dragPreviewGraphics.stroke({
+                color: target.ownerId === "human-player" ? 0x00ff00 : 0xff4466,
+                width: 3,
+                alpha: 0.8,
+            });
+        }
+    }
+
+    // ============================================================================
     // Reactive Updates
     // ============================================================================
 
     // The animation loop handles rendering, no need for $effect
 </script>
 
-<div class="game-canvas" bind:this={canvasContainer}></div>
+<div
+    class="game-canvas"
+    role="application"
+    aria-label="Game canvas - drag from your stars to attack"
+    bind:this={canvasContainer}
+    onpointerdown={handlePointerDown}
+    onpointermove={handlePointerMove}
+    onpointerup={handlePointerUp}
+    onpointerleave={() => cancelDrag()}
+    oncontextmenu={handleRightClick}
+></div>
 
 <style>
     .game-canvas {
@@ -378,11 +538,14 @@
         width: 100%;
         height: 100%;
         overflow: hidden;
+        cursor: crosshair;
+        touch-action: none;
     }
 
     .game-canvas :global(canvas) {
         display: block;
         width: 100% !important;
         height: 100% !important;
+        pointer-events: none;
     }
 </style>

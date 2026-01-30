@@ -15,6 +15,7 @@ import type {
 import { Star, createStar } from './Star';
 import { FlowLink, createFlowLink } from './FlowLink';
 import { resolveCombat } from './Combat';
+import { AI, createAI } from './AI';
 import { log } from '$lib/utils/logger';
 
 // ============================================================================
@@ -76,6 +77,7 @@ export class GameEngine {
     private stars: Map<StarId, Star> = new Map();
     private links: Map<string, FlowLink> = new Map();
     private players: Map<PlayerId, Player> = new Map();
+    private aiPlayers: Map<PlayerId, AI> = new Map();
 
     // Timing
     private tick: number = 0;
@@ -103,8 +105,9 @@ export class GameEngine {
 
         this.initializePlayers();
         this.initializeMap();
+        this.initializeAI();
 
-        log.sys('GameEngine', `Initialized with ${this.players.size} players, ${this.stars.size} stars`);
+        log.sys('GameEngine', `Initialized with ${this.players.size} players, ${this.stars.size} stars, ${this.aiPlayers.size} AIs`);
     }
 
     // ============================================================================
@@ -392,11 +395,36 @@ export class GameEngine {
     }
 
     /**
-     * Execute AI moves (placeholder for now)
+     * Initialize AI for each AI player
+     */
+    private initializeAI(): void {
+        this.players.forEach(player => {
+            if (player.isAI) {
+                const ai = createAI(player.id, this.settings.difficulty);
+                this.aiPlayers.set(player.id, ai);
+            }
+        });
+    }
+
+    /**
+     * Execute AI moves
      */
     private executeAI(): void {
-        // TODO: Implement AI in Phase 5
-        // For now, AI players are passive
+        const starsArray = Array.from(this.stars.values()).map(s => s.getState());
+
+        this.aiPlayers.forEach((ai, playerId) => {
+            const player = this.players.get(playerId);
+            if (!player || player.isEliminated) return;
+
+            const decisions = ai.evaluate(starsArray);
+
+            decisions.forEach(decision => {
+                const source = this.stars.get(decision.sourceId);
+                if (source && source.ownerId === playerId) {
+                    source.setTarget(decision.targetId);
+                }
+            });
+        });
     }
 
     // ============================================================================
