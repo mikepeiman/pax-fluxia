@@ -9,7 +9,8 @@ import type {
     StarId,
     PlayerId,
     PlayerState,
-    EngineConfig
+    EngineConfig,
+    StarConnection
 } from '$lib/types/game.types';
 
 import { Star, createStar } from './Star';
@@ -17,6 +18,12 @@ import { FlowLink, createFlowLink } from './FlowLink';
 import { resolveCombat } from './Combat';
 import { AI, createAI } from './AI';
 import { log } from '$lib/utils/logger';
+import {
+    generateHexGrid,
+    selectRandomHexPositions,
+    generateStarConnections,
+    areConnected
+} from '$lib/utils/hex.utils';
 
 // ============================================================================
 // Constants
@@ -75,6 +82,7 @@ export class GameEngine {
 
     // State
     private stars: Map<StarId, Star> = new Map();
+    private connections: StarConnection[] = [];
     private links: Map<string, FlowLink> = new Map();
     private players: Map<PlayerId, Player> = new Map();
     private aiPlayers: Map<PlayerId, AI> = new Map();
@@ -140,14 +148,58 @@ export class GameEngine {
     }
 
     private initializeMap(): void {
-        // Generate "Empire" map - symmetric layout
-        const playerIds = Array.from(this.players.keys());
-        const starConfigs = this.generateEmpireMap(playerIds);
+        // Generate hex grid for random star positioning
+        const hexGrid = generateHexGrid(1000, 800, 80, 60);
+        log.sys('GameEngine', `Generated hex grid with ${hexGrid.length} positions`);
 
-        starConfigs.forEach((config, index) => {
-            const star = createStar(config, index);
-            this.stars.set(star.id, star);
+        // Calculate how many stars we need
+        const playerIds = Array.from(this.players.keys());
+        const starsPerPlayer = 3;
+        const neutralStars = Math.max(3, playerIds.length * 2);
+        const totalStars = playerIds.length * starsPerPlayer + neutralStars;
+
+        // Select random hex positions for stars
+        const starPositions = selectRandomHexPositions(hexGrid, totalStars, 100);
+        log.sys('GameEngine', `Selected ${starPositions.length} positions for stars`);
+
+        // Assign home stars to each player (first starsPerPlayer for each)
+        let posIndex = 0;
+        playerIds.forEach((playerId) => {
+            for (let i = 0; i < starsPerPlayer && posIndex < starPositions.length; i++) {
+                const pos = starPositions[posIndex++];
+                const star = createStar({
+                    x: pos.x,
+                    y: pos.y,
+                    radius: 25 + Math.random() * 15,
+                    productionRate: 1,
+                    ownerId: playerId
+                }, this.stars.size);
+                this.stars.set(star.id, star);
+            }
         });
+
+        // Remaining positions are neutral stars
+        while (posIndex < starPositions.length) {
+            const pos = starPositions[posIndex++];
+            const star = createStar({
+                x: pos.x,
+                y: pos.y,
+                radius: 20 + Math.random() * 10,
+                productionRate: 1,
+                ownerId: 'neutral'
+            }, this.stars.size);
+            this.stars.set(star.id, star);
+        }
+
+        // Generate connections between stars (200px max distance)
+        const starArray = Array.from(this.stars.values()).map(s => ({
+            id: s.id,
+            x: s.getState().x,
+            y: s.getState().y
+        }));
+        this.connections = generateStarConnections(starArray, 200);
+
+        log.success('GameEngine', `Map initialized with ${this.stars.size} stars and ${this.connections.length} connections`);
     }
 
     /**
@@ -444,6 +496,12 @@ export class GameEngine {
         // Validate target exists and is different
         if (!this.stars.has(targetId) || sourceId === targetId) return false;
 
+        // Validate stars are connected
+        if (!areConnected(sourceId, targetId, this.connections)) {
+            log.state('GameEngine', `Link rejected: ${sourceId} → ${targetId} (not connected)`);
+            return false;
+        }
+
         // Set the target (overwrites any existing)
         source.setTarget(targetId);
         return true;
@@ -526,6 +584,7 @@ export class GameEngine {
             speed: this.speed,
             isPaused: this.speed === 0,
             stars: Array.from(this.stars.values()).map(s => s.getState()),
+            connections: this.connections,
             links: [], // Links are derived from star targets
             players: playerStates,
             winner: this.getWinner(),

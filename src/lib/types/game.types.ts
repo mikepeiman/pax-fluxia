@@ -81,6 +81,13 @@ export interface CombatResult {
     newOwnerId?: PlayerId;
 }
 
+/** Star connection (valid path between stars) */
+export interface StarConnection {
+    sourceId: StarId;
+    targetId: StarId;
+    distance: number;
+}
+
 /** Complete game state snapshot for UI */
 export interface GameState {
     tick: number;
@@ -88,6 +95,7 @@ export interface GameState {
     speed: GameSpeed;
     isPaused: boolean;
     stars: StarState[];
+    connections: StarConnection[];  // Valid paths between stars
     links: FlowLinkState[];
     players: PlayerState[];
     winner: PlayerState | null;

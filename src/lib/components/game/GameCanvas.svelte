@@ -8,7 +8,7 @@
         getSurgePositions,
     } from "$lib/utils/render.utils";
     import { distance } from "$lib/utils/math.utils";
-    import type { StarState } from "$lib/types/game.types";
+    import type { StarState, StarConnection } from "$lib/types/game.types";
 
     // ============================================================================
     // PixiJS Application
@@ -18,6 +18,7 @@
     let app: PIXI.Application | null = null;
 
     // Graphics layers
+    let connectionGraphics: PIXI.Graphics | null = null;
     let linkGraphics: PIXI.Graphics | null = null;
     let dragPreviewGraphics: PIXI.Graphics | null = null;
     let starsContainer: PIXI.Container | null = null;
@@ -74,7 +75,10 @@
         // Append canvas to container
         canvasContainer.appendChild(app.canvas);
 
-        // Create graphics layers (order matters: links → stars → ships → labels → drag)
+        // Create graphics layers (order matters: connections → links → stars → ships → labels → drag)
+        connectionGraphics = new PIXI.Graphics();
+        app.stage.addChild(connectionGraphics);
+
         linkGraphics = new PIXI.Graphics();
         app.stage.addChild(linkGraphics);
 
@@ -191,11 +195,39 @@
         // Render stars (static elements)
         renderStars(stars);
 
+        // Render connections (star network)
+        const snapshot = gameStore.snapshot;
+        if (snapshot?.connections) {
+            renderConnections(stars, snapshot.connections);
+        }
+
         // Render flow links
         renderFlowLinks(stars);
 
         // Render animated ships
         renderShips(stars, tickProgress);
+    }
+
+    function renderConnections(
+        stars: StarState[],
+        connections: StarConnection[],
+    ) {
+        if (!connectionGraphics) return;
+
+        connectionGraphics.clear();
+
+        // Draw subtle lines for each connection
+        connections.forEach((conn) => {
+            const source = stars.find((s) => s.id === conn.sourceId);
+            const target = stars.find((s) => s.id === conn.targetId);
+            if (!source || !target) return;
+
+            connectionGraphics!.moveTo(source.x, source.y);
+            connectionGraphics!.lineTo(target.x, target.y);
+        });
+
+        // Draw all connection lines in one stroke (subtle gray)
+        connectionGraphics.stroke({ color: 0x444466, width: 1, alpha: 0.4 });
     }
 
     function renderStars(stars: StarState[]) {
