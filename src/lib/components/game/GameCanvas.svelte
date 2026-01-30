@@ -3,6 +3,10 @@
     import * as PIXI from "pixi.js";
     import { gameStore } from "$lib/stores/gameStore.svelte";
     import { log } from "$lib/utils/logger";
+    import {
+        getOrbitPositions,
+        getSurgePositions,
+    } from "$lib/utils/render.utils";
     import type { StarState } from "$lib/types/game.types";
 
     // ============================================================================
@@ -11,11 +15,21 @@
 
     let canvasContainer: HTMLDivElement;
     let app: PIXI.Application | null = null;
-    let starGraphics: Map<string, PIXI.Graphics> = new Map();
-    let starLabels: Map<string, PIXI.Text> = new Map();
+
+    // Graphics layers
     let linkGraphics: PIXI.Graphics | null = null;
     let starsContainer: PIXI.Container | null = null;
+    let shipsContainer: PIXI.Container | null = null;
     let labelsContainer: PIXI.Container | null = null;
+
+    // Graphics cache
+    let starGraphics: Map<string, PIXI.Graphics> = new Map();
+    let starLabels: Map<string, PIXI.Text> = new Map();
+    let shipGraphics: PIXI.Graphics | null = null;
+
+    // Animation state
+    let animationTime = 0;
+    let animationFrameId: number | null = null;
 
     // Player colors (must match engine)
     const PLAYER_COLORS: Record<string, number> = {
@@ -47,12 +61,18 @@
         // Append canvas to container
         canvasContainer.appendChild(app.canvas);
 
-        // Create graphics layers (order matters: links below stars)
+        // Create graphics layers (order matters: links → stars → ships → labels)
         linkGraphics = new PIXI.Graphics();
         app.stage.addChild(linkGraphics);
 
         starsContainer = new PIXI.Container();
         app.stage.addChild(starsContainer);
+
+        shipsContainer = new PIXI.Container();
+        app.stage.addChild(shipsContainer);
+
+        shipGraphics = new PIXI.Graphics();
+        shipsContainer.addChild(shipGraphics);
 
         labelsContainer = new PIXI.Container();
         app.stage.addChild(labelsContainer);
@@ -62,10 +82,8 @@
             `PixiJS initialized (${app.screen.width}x${app.screen.height})`,
         );
 
-        // Initial render
-        if (gameStore.snapshot) {
-            renderStars(gameStore.snapshot.stars);
-        }
+        // Start animation loop
+        startAnimationLoop();
 
         // Handle window resize
         window.addEventListener("resize", handleResize);
@@ -76,6 +94,11 @@
 
         window.removeEventListener("resize", handleResize);
 
+        if (animationFrameId) {
+            cancelAnimationFrame(animationFrameId);
+            animationFrameId = null;
+        }
+
         if (app) {
             app.destroy(true, { children: true });
             app = null;
@@ -85,8 +108,34 @@
         starLabels.clear();
         linkGraphics = null;
         starsContainer = null;
+        shipsContainer = null;
+        shipGraphics = null;
         labelsContainer = null;
     });
+
+    // ============================================================================
+    // Animation Loop
+    // ============================================================================
+
+    function startAnimationLoop() {
+        let lastTime = performance.now();
+
+        const loop = (currentTime: number) => {
+            const deltaTime = (currentTime - lastTime) / 1000; // in seconds
+            lastTime = currentTime;
+            animationTime += deltaTime;
+
+            // Render the current frame
+            const snapshot = gameStore.snapshot;
+            if (snapshot && app) {
+                renderFrame(snapshot.stars, gameStore.tickProgress);
+            }
+
+            animationFrameId = requestAnimationFrame(loop);
+        };
+
+        animationFrameId = requestAnimationFrame(loop);
+    }
 
     // ============================================================================
     // Rendering
@@ -95,10 +144,6 @@
     function handleResize() {
         if (app) {
             app.resize();
-            log.data(
-                "GameCanvas",
-                `Resized to ${app.screen.width}x${app.screen.height}`,
-            );
         }
     }
 
@@ -106,8 +151,9 @@
         return PLAYER_COLORS[ownerId] ?? 0x888888;
     }
 
-    function renderStars(stars: StarState[]) {
-        if (!app || !starsContainer || !labelsContainer) return;
+    function renderFrame(stars: StarState[], tickProgress: number) {
+        if (!app || !starsContainer || !labelsContainer || !shipGraphics)
+            return;
 
         // Clear old star graphics that no longer exist
         const currentIds = new Set(stars.map((s) => s.id));
@@ -126,7 +172,17 @@
             }
         });
 
-        // Update or create star graphics
+        // Render stars (static elements)
+        renderStars(stars);
+
+        // Render flow links
+        renderFlowLinks(stars);
+
+        // Render animated ships
+        renderShips(stars, tickProgress);
+    }
+
+    function renderStars(stars: StarState[]) {
         stars.forEach((star) => {
             let graphics = starGraphics.get(star.id);
             let label = starLabels.get(star.id);
@@ -159,27 +215,26 @@
             const color = getPlayerColor(star.ownerId);
             const radius = star.radius;
 
-            // Outer glow ring
-            graphics.circle(star.x, star.y, radius + 8);
-            graphics.fill({ color, alpha: 0.15 });
+            // Outer glow ring (pulses slightly)
+            const glowPulse = 1 + Math.sin(animationTime * 2) * 0.1;
+            graphics.circle(star.x, star.y, (radius + 8) * glowPulse);
+            graphics.fill({ color, alpha: 0.12 });
 
             // Main star body
             graphics.circle(star.x, star.y, radius);
-            graphics.fill({ color, alpha: 0.6 });
+            graphics.fill({ color, alpha: 0.5 });
             graphics.stroke({ color, width: 2, alpha: 1 });
 
-            // Inner core
+            // Inner core (brighter when producing)
+            const coreAlpha = 0.3 + Math.sin(animationTime * 3) * 0.1;
             graphics.circle(star.x, star.y, radius * 0.4);
-            graphics.fill({ color: 0xffffff, alpha: 0.3 });
+            graphics.fill({ color: 0xffffff, alpha: coreAlpha });
 
             // Update label
             label.text = String(star.activeShips);
             label.x = star.x;
             label.y = star.y;
         });
-
-        // Render flow links
-        renderFlowLinks(stars);
     }
 
     function renderFlowLinks(stars: StarState[]) {
@@ -196,10 +251,11 @@
 
             const color = getPlayerColor(source.ownerId);
 
-            // Draw flow line
+            // Draw flow line (dashed effect via alpha)
+            const dashPhase = animationTime * 2;
             linkGraphics!.moveTo(source.x, source.y);
             linkGraphics!.lineTo(target.x, target.y);
-            linkGraphics!.stroke({ color, width: 2, alpha: 0.5 });
+            linkGraphics!.stroke({ color, width: 2, alpha: 0.3 });
 
             // Draw arrowhead at target
             const angle = Math.atan2(target.y - source.y, target.x - source.x);
@@ -221,17 +277,96 @@
         });
     }
 
+    function renderShips(stars: StarState[], tickProgress: number) {
+        if (!shipGraphics) return;
+
+        shipGraphics.clear();
+
+        stars.forEach((star) => {
+            const color = getPlayerColor(star.ownerId);
+
+            if (star.targetId) {
+                // SURGE: Ships are attacking, show them moving
+                const target = stars.find((s) => s.id === star.targetId);
+                if (target) {
+                    const surgeShips = getSurgePositions(
+                        star.x,
+                        star.y,
+                        target.x,
+                        target.y,
+                        star.radius,
+                        target.radius,
+                        Math.ceil(star.activeShips * 0.3), // Show 30% as "in transit"
+                        tickProgress,
+                        animationTime,
+                    );
+
+                    surgeShips.forEach((ship) => {
+                        // Draw ship as triangle
+                        drawShip(
+                            ship.x,
+                            ship.y,
+                            ship.rotation,
+                            color,
+                            ship.scale,
+                            ship.alpha,
+                        );
+                    });
+                }
+            }
+
+            // ORBIT: Remaining ships orbit the star
+            const orbitCount = star.targetId
+                ? Math.ceil(star.activeShips * 0.5) // Half orbit when attacking
+                : star.activeShips; // All orbit when idle
+
+            const orbitShips = getOrbitPositions(
+                star.x,
+                star.y,
+                star.radius,
+                orbitCount,
+                animationTime,
+                0.3, // Orbit speed
+            );
+
+            orbitShips.forEach((ship) => {
+                drawShip(ship.x, ship.y, ship.rotation, color, 0.8, 0.8);
+            });
+        });
+    }
+
+    function drawShip(
+        x: number,
+        y: number,
+        rotation: number,
+        color: number,
+        scale: number,
+        alpha: number,
+    ) {
+        if (!shipGraphics) return;
+
+        const size = 4 * scale;
+
+        // Draw simple triangle ship
+        const tipX = x + Math.cos(rotation) * size;
+        const tipY = y + Math.sin(rotation) * size;
+        const leftX = x + Math.cos(rotation + 2.5) * size * 0.7;
+        const leftY = y + Math.sin(rotation + 2.5) * size * 0.7;
+        const rightX = x + Math.cos(rotation - 2.5) * size * 0.7;
+        const rightY = y + Math.sin(rotation - 2.5) * size * 0.7;
+
+        shipGraphics!.moveTo(tipX, tipY);
+        shipGraphics!.lineTo(leftX, leftY);
+        shipGraphics!.lineTo(rightX, rightY);
+        shipGraphics!.lineTo(tipX, tipY);
+        shipGraphics!.fill({ color, alpha });
+    }
+
     // ============================================================================
     // Reactive Updates
     // ============================================================================
 
-    // Watch for snapshot changes
-    $effect(() => {
-        const snapshot = gameStore.snapshot;
-        if (snapshot && app) {
-            renderStars(snapshot.stars);
-        }
-    });
+    // The animation loop handles rendering, no need for $effect
 </script>
 
 <div class="game-canvas" bind:this={canvasContainer}></div>
