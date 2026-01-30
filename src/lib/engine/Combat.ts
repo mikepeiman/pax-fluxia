@@ -3,20 +3,15 @@
 // ============================================================================
 
 import type { CombatResult, PlayerId } from '$lib/types/game.types';
-
-/**
- * Combat exchange ratio
- * 1:1 means both sides lose equal ships
- */
-export const COMBAT_RATIO = 1;
+import { GAME_CONFIG } from '$lib/config/game.config';
 
 /**
  * Resolve combat between attackers and defenders
  * 
- * Uses simultaneous 1:1 exchange:
- * - Both sides take losses equal to the smaller force
- * - If attackers > defenders, attackers win and capture
- * - If defenders >= attackers, defenders win
+ * Defense advantage model:
+ * - Defenders deal DEFENSE_MULTIPLIER times more damage
+ * - Combat takes multiple ticks (DAMAGE_RATE controls pace)
+ * - Capture requires eliminating ALL defenders
  * 
  * @param attackerCount - Number of attacking ships
  * @param defenderCount - Number of defending ships (active only)
@@ -28,18 +23,32 @@ export function resolveCombat(
     defenderCount: number,
     attackerOwner: PlayerId
 ): CombatResult {
-    // Both sides take losses equal to the smaller force
-    const losses = Math.min(attackerCount, defenderCount) * COMBAT_RATIO;
+    // Both sides deal damage based on DAMAGE_RATE
+    // Defenders deal more damage due to DEFENSE_MULTIPLIER
 
-    const attackerSurvivors = attackerCount - losses;
-    const defenderSurvivors = defenderCount - losses;
+    const rawExchange = Math.min(attackerCount, defenderCount);
+
+    // Attacker losses (defenders hit harder)
+    const attackerLoss = Math.max(
+        GAME_CONFIG.MIN_DAMAGE,
+        Math.floor(rawExchange * GAME_CONFIG.DAMAGE_RATE * GAME_CONFIG.DEFENSE_MULTIPLIER)
+    );
+
+    // Defender losses (attackers at base rate)
+    const defenderLoss = Math.max(
+        GAME_CONFIG.MIN_DAMAGE,
+        Math.floor(rawExchange * GAME_CONFIG.DAMAGE_RATE)
+    );
+
+    const attackerSurvivors = attackerCount - attackerLoss;
+    const defenderSurvivors = defenderCount - defenderLoss;
 
     // Capture occurs when all defenders are destroyed AND attackers remain
     const captured = defenderSurvivors <= 0 && attackerSurvivors > 0;
 
     return {
-        attackerLoss: Math.floor(losses),
-        defenderLoss: Math.floor(losses),
+        attackerLoss: Math.min(attackerLoss, attackerCount),  // Can't lose more than you have
+        defenderLoss: Math.min(defenderLoss, defenderCount),
         captured,
         newOwnerId: captured ? attackerOwner : undefined
     };
@@ -63,7 +72,7 @@ export function calculateAttrition(
 export function canOverwhelm(
     attackerCount: number,
     defenderCount: number,
-    threshold: number = 1.5
+    threshold: number = 2.0  // Raised from 1.5 to account for defense bonus
 ): boolean {
-    return attackerCount >= defenderCount * threshold;
+    return attackerCount >= defenderCount * threshold * GAME_CONFIG.DEFENSE_MULTIPLIER;
 }

@@ -11,6 +11,7 @@ const styles = {
     net: 'background: #f59e0b; color: #fff; padding: 2px 4px; border-radius: 2px; font-weight: bold;',
     err: 'background: #ef4444; color: #fff; padding: 2px 4px; border-radius: 2px; font-weight: bold;',
     ok: 'background: #22c55e; color: #fff; padding: 2px 4px; border-radius: 2px; font-weight: bold;',
+    combat: 'background: #ff6b35; color: #fff; padding: 2px 4px; border-radius: 2px; font-weight: bold;',
     reset: 'color: inherit;'
 };
 
@@ -48,7 +49,11 @@ export const log = {
 
     /** ✅ SUCCESS - Verification and success */
     success: (context: string, msg: string, data?: unknown) =>
-        console.log(`%cSUCCESS%c [${context}] ${msg}`, styles.ok, styles.reset, data ?? '')
+        console.log(`%cSUCCESS%c [${context}] ${msg}`, styles.ok, styles.reset, data ?? ''),
+
+    /** ⚔️ COMBAT - Battle and conflict events */
+    combat: (context: string, msg: string, data?: unknown) =>
+        console.log(`%cCOMBAT%c [${context}] ${msg}`, styles.combat, styles.reset, data ?? '')
 };
 
 // Default export for convenience

@@ -143,11 +143,12 @@ function setSpeed(newSpeed: GameSpeed): void {
     }
 }
 
-/** Issue attack order (create flow link) */
-function issueOrder(sourceId: StarId, targetId: StarId): void {
+/** Issue attack order (create flow link) - returns true if successful */
+function issueOrder(sourceId: StarId, targetId: StarId): boolean {
     if (engine) {
-        engine.createLink(sourceId, targetId);
+        return engine.createLink(sourceId, targetId);
     }
+    return false;
 }
 
 /** Cancel attack order */

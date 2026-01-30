@@ -5,7 +5,21 @@
   import GameHUD from "$lib/components/ui/GameHUD.svelte";
   import ResultsModal from "$lib/components/ui/ResultsModal.svelte";
   import GameCanvas from "$lib/components/game/GameCanvas.svelte";
+  import DebugPanel from "$lib/components/ui/DebugPanel.svelte";
+
+  // Debug panel toggle state
+  let showDebug = $state(false);
+
+  function handleKeyDown(event: KeyboardEvent) {
+    // Backtick key toggles debug panel
+    if (event.key === "`" || event.key === "~") {
+      event.preventDefault();
+      showDebug = !showDebug;
+    }
+  }
 </script>
+
+<svelte:window onkeydown={handleKeyDown} />
 
 <svelte:head>
   <!-- Google Fonts -->
@@ -27,6 +41,7 @@
   {:else if gameStore.currentView === "game"}
     <GameCanvas />
     <GameHUD />
+    <DebugPanel visible={showDebug} />
   {:else if gameStore.currentView === "results"}
     <ResultsModal />
   {/if}

@@ -560,14 +560,26 @@
 
                 if (activeStarSnapshot?.ownerId === "human-player") {
                     // Issue order from active to target
-                    gameStore.issueOrder(activeStarId, targetStar.id);
-                    log.success(
-                        "GameCanvas",
-                        `Click order: ${activeStarId} → ${targetStar.id}`,
+                    const success = gameStore.issueOrder(
+                        activeStarId,
+                        targetStar.id,
                     );
 
-                    // Keep active star selected for chaining
-                    // (user can keep clicking targets)
+                    if (success) {
+                        log.success(
+                            "GameCanvas",
+                            `Chain order: ${activeStarId} → ${targetStar.id}`,
+                        );
+
+                        // CHAIN: Move active to target for seamless chaining
+                        // This enables A→B→C→A circular orders
+                        activeStarId = targetStar.id;
+                    } else {
+                        log.state(
+                            "GameCanvas",
+                            `Order rejected: ${activeStarId} → ${targetStar.id} (not connected?)`,
+                        );
+                    }
                 }
             } else if (targetStar.ownerId === "human-player") {
                 // Clicked our own star - make it active

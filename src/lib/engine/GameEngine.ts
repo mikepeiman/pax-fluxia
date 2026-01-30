@@ -24,16 +24,17 @@ import {
     generateStarConnections,
     areConnected
 } from '$lib/utils/hex.utils';
+import { GAME_CONFIG, getTickInterval, calculateFlowAmount } from '$lib/config/game.config';
 
 // ============================================================================
 // Constants
 // ============================================================================
 
-/** Base tick interval at 1x speed (80 BPM = 750ms) */
-export const BASE_TICK_MS = 750;
+/** Base tick interval at 1x speed - USE GAME_CONFIG.BASE_TICK_MS */
+export const BASE_TICK_MS = GAME_CONFIG.BASE_TICK_MS;
 
-/** Minimum tick interval at max speed (10x) */
-export const MIN_TICK_MS = 75;
+/** Minimum tick interval at max speed */
+export const MIN_TICK_MS = GAME_CONFIG.MIN_TICK_MS;
 
 /** Player colors palette */
 const PLAYER_COLORS = [
@@ -389,9 +390,9 @@ export class GameEngine {
             const target = this.stars.get(source.targetId);
             if (!target) return;
 
-            // Calculate flow amount (half of active ships, min 1)
-            const flowAmount = Math.max(1, Math.floor(source.activeShips * 0.5));
-            if (flowAmount === 0) return;
+            // Calculate flow amount using config (10% instead of 50%)
+            const flowAmount = calculateFlowAmount(source.activeShips);
+            if (flowAmount === 0 || source.activeShips === 0) return;
 
             // Remove ships from source
             const shipped = source.removeActiveShips(flowAmount);
@@ -401,6 +402,7 @@ export class GameEngine {
             if (target.ownerId === source.ownerId) {
                 // Friendly transfer
                 target.addActiveShips(shipped);
+                log.state('GameEngine', `Transferred ${shipped} ships from ${source.id} to ${target.id}`);
             } else {
                 // Combat!
                 const result = resolveCombat(shipped, target.activeShips, source.ownerId);
@@ -409,15 +411,28 @@ export class GameEngine {
                 target.takeDamage(result.defenderLoss);
 
                 if (result.captured && result.newOwnerId) {
-                    // Capture the star
+                    // CAPTURE SUCCESSFUL
                     target.setOwner(result.newOwnerId);
-                    target.addActiveShips(shipped - result.attackerLoss);
+
+                    // Surviving attackers move to captured star
+                    const attackerSurvivors = shipped - result.attackerLoss;
+                    target.addActiveShips(attackerSurvivors);
+
+                    // CRITICAL FIX: Clear the flow order!
+                    if (GAME_CONFIG.CLEAR_ORDER_ON_CAPTURE) {
+                        source.setTarget(null);
+                        log.success('GameEngine',
+                            `★ CAPTURED ${target.id}! ${attackerSurvivors} survivors occupy. Order cleared.`);
+                    }
+
                     this.starsCaptured++;
                 } else {
                     // Attack failed, survivors return as damaged
                     const survivors = shipped - result.attackerLoss;
                     if (survivors > 0) {
                         source.addDamagedShips(survivors);
+                        log.combat('GameEngine',
+                            `Attack on ${target.id} repelled. ${survivors} survivors retreating.`);
                     }
                 }
             }
