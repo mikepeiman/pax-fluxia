@@ -41,6 +41,9 @@
     let dragCurrentX = 0;
     let dragCurrentY = 0;
 
+    // Active star state (for click+click selection)
+    let activeStarId: string | null = null;
+
     // Player colors (must match engine)
     const PLAYER_COLORS: Record<string, number> = {
         "human-player": 0x4488ff,
@@ -227,16 +230,31 @@
 
             const color = getPlayerColor(star.ownerId);
             const radius = star.radius;
+            const isActive =
+                star.id === activeStarId || star.id === dragSourceId;
 
-            // Outer glow ring (pulses slightly)
+            // Active star selection highlight (hex border)
+            if (isActive) {
+                drawHexBorder(
+                    graphics,
+                    star.x,
+                    star.y,
+                    radius + 20,
+                    0x00ffff,
+                    3,
+                );
+            }
+
+            // Outer glow ring (pulses slightly, stronger when active)
             const glowPulse = 1 + Math.sin(animationTime * 2) * 0.1;
+            const glowAlpha = isActive ? 0.25 : 0.12;
             graphics.circle(star.x, star.y, (radius + 8) * glowPulse);
-            graphics.fill({ color, alpha: 0.12 });
+            graphics.fill({ color, alpha: glowAlpha });
 
             // Main star body
             graphics.circle(star.x, star.y, radius);
             graphics.fill({ color, alpha: 0.5 });
-            graphics.stroke({ color, width: 2, alpha: 1 });
+            graphics.stroke({ color, width: isActive ? 3 : 2, alpha: 1 });
 
             // Inner core (brighter when producing)
             const coreAlpha = 0.3 + Math.sin(animationTime * 3) * 0.1;
@@ -375,6 +393,31 @@
         shipGraphics!.fill({ color, alpha });
     }
 
+    // Draw hexagonal border around a point
+    function drawHexBorder(
+        graphics: PIXI.Graphics,
+        cx: number,
+        cy: number,
+        radius: number,
+        color: number,
+        lineWidth: number,
+    ) {
+        const a = (2 * Math.PI) / 6;
+        const pulseRadius = radius + Math.sin(animationTime * 4) * 3; // Pulse effect
+
+        graphics.moveTo(
+            cx + pulseRadius * Math.cos(0),
+            cy + pulseRadius * Math.sin(0),
+        );
+        for (let i = 1; i <= 6; i++) {
+            graphics.lineTo(
+                cx + pulseRadius * Math.cos(a * i),
+                cy + pulseRadius * Math.sin(a * i),
+            );
+        }
+        graphics.stroke({ color, width: lineWidth, alpha: 0.9 });
+    }
+
     // ============================================================================
     // Input Handling
     // ============================================================================
@@ -402,8 +445,8 @@
 
         const star = hitTestStar(x, y);
 
-        // Only allow dragging from own stars
         if (star && star.ownerId === "human-player") {
+            // Start drag from this star
             isDragging = true;
             dragSourceId = star.id;
             dragStartX = star.x;
@@ -411,7 +454,13 @@
             dragCurrentX = x;
             dragCurrentY = y;
 
-            log.state("GameCanvas", `Drag started from star ${star.id}`);
+            // Also set as active for visual feedback
+            activeStarId = star.id;
+
+            log.state("GameCanvas", `Star ${star.id} selected`);
+        } else if (!star) {
+            // Clicked empty space - clear selection
+            clearSelection();
         }
     }
 
@@ -427,27 +476,62 @@
     }
 
     function handlePointerUp(event: PointerEvent) {
-        if (!isDragging || !dragSourceId) {
-            cancelDrag();
-            return;
-        }
-
         const rect = canvasContainer.getBoundingClientRect();
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
 
         const targetStar = hitTestStar(x, y);
+        const movedSignificantly =
+            isDragging &&
+            (Math.abs(x - dragStartX) > 10 || Math.abs(y - dragStartY) > 10);
 
-        if (targetStar && targetStar.id !== dragSourceId) {
-            // Issue order
-            gameStore.issueOrder(dragSourceId, targetStar.id);
-            log.success(
-                "GameCanvas",
-                `Order issued: ${dragSourceId} → ${targetStar.id}`,
-            );
+        // DRAG MODE: If we dragged significantly
+        if (movedSignificantly && dragSourceId) {
+            if (targetStar && targetStar.id !== dragSourceId) {
+                // Issue order from drag
+                gameStore.issueOrder(dragSourceId, targetStar.id);
+                log.success(
+                    "GameCanvas",
+                    `Drag order: ${dragSourceId} → ${targetStar.id}`,
+                );
+            }
+            // Clear after drag
+            cancelDrag();
+            return;
         }
 
-        cancelDrag();
+        // CLICK+CLICK MODE: Minimal movement = click
+        if (targetStar) {
+            if (activeStarId && activeStarId !== targetStar.id) {
+                // We have an active star, and clicked a different star
+                const activeStarSnapshot = gameStore.snapshot?.stars.find(
+                    (s) => s.id === activeStarId,
+                );
+
+                if (activeStarSnapshot?.ownerId === "human-player") {
+                    // Issue order from active to target
+                    gameStore.issueOrder(activeStarId, targetStar.id);
+                    log.success(
+                        "GameCanvas",
+                        `Click order: ${activeStarId} → ${targetStar.id}`,
+                    );
+
+                    // Keep active star selected for chaining
+                    // (user can keep clicking targets)
+                }
+            } else if (targetStar.ownerId === "human-player") {
+                // Clicked our own star - make it active
+                activeStarId = targetStar.id;
+                log.state("GameCanvas", `Star ${targetStar.id} now active`);
+            }
+        }
+
+        // Always clear drag state after pointer up
+        isDragging = false;
+        dragSourceId = null;
+        if (dragPreviewGraphics) {
+            dragPreviewGraphics.clear();
+        }
     }
 
     function handleRightClick(event: MouseEvent) {
@@ -460,12 +544,19 @@
         const star = hitTestStar(x, y);
 
         if (star && star.ownerId === "human-player" && star.targetId) {
-            // Cancel order
+            // Cancel order for this star
             gameStore.cancelOrder(star.id);
             log.state("GameCanvas", `Order cancelled for star ${star.id}`);
         }
 
+        // Right-click always clears selection
+        clearSelection();
+    }
+
+    function clearSelection() {
+        activeStarId = null;
         cancelDrag();
+        log.state("GameCanvas", "Selection cleared");
     }
 
     function cancelDrag() {
@@ -517,12 +608,20 @@
     // ============================================================================
 
     // The animation loop handles rendering, no need for $effect
+
+    function handleKeyDown(event: KeyboardEvent) {
+        if (event.key === "Escape") {
+            clearSelection();
+        }
+    }
 </script>
+
+<svelte:window onkeydown={handleKeyDown} />
 
 <div
     class="game-canvas"
     role="application"
-    aria-label="Game canvas - drag from your stars to attack"
+    aria-label="Game canvas - click or drag from your stars to attack"
     bind:this={canvasContainer}
     onpointerdown={handlePointerDown}
     onpointermove={handlePointerMove}
