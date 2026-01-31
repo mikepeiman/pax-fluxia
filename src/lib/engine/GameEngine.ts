@@ -151,10 +151,7 @@ export class GameEngine {
     private initializeAI(): void {
         this.players.forEach(player => {
             if (player.isAI) {
-                const ai = createAI({
-                    playerId: player.id,
-                    level: this.settings.difficulty as any
-                });
+                const ai = createAI(player.id, this.settings.difficulty as any);
                 this.aiPlayers.set(player.id, ai);
             }
         });
@@ -438,7 +435,18 @@ export class GameEngine {
             this.starsCaptured++;
 
             // Log capture
-            logCombat('CONQUEST', targetId, winnerId, target.ownerId, maxForce, target.activeShips);
+            logCombat({
+                tick: this.tick,
+                starId: targetId,
+                attackers: maxForce,
+                defenders: target.activeShips, // This will be the previous value before reset? No, it's current.
+                // Actually `target.activeShips` is reset below.
+                // Wait, `target.activeShips` at line 417 was snapshots.
+                // But passed here it is current state.
+                damage: 0,
+                result: 'CONQUEST',
+                formula: `Winner ${winnerId} with ${maxForce}`
+            });
         }
 
         // Update ships (Simplified - winner keeps all? No, should be some attrition)
