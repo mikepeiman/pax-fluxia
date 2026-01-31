@@ -481,7 +481,7 @@
         const snapshot = gameStore.snapshot;
         if (snapshot?.connections) {
             snapshot.connections.forEach((c) =>
-                allLinks.add(`${c.sourceId}-${c.targetId}`),
+                allLinks.add(`${c.sourceId}|${c.targetId}`),
             );
         }
 
@@ -501,7 +501,7 @@
 
         // Refactor loop to iterate unique Links
         allLinks.forEach((linkKey) => {
-            const [sId, tId] = linkKey.split("-");
+            const [sId, tId] = linkKey.split("|");
             const source = stars.find((s) => s.id === sId);
             const target = stars.find((s) => s.id === tId);
 
@@ -894,7 +894,7 @@
                 // Issue order from drag
                 // Issue order from drag
                 gameStore.issueOrder(dragSourceId, targetStar.id);
-                pendingOrders.add(`${dragSourceId}-${targetStar.id}`);
+                pendingOrders.add(`${dragSourceId}|${targetStar.id}`);
                 log.success(
                     "GameCanvas",
                     `Drag order: ${dragSourceId} → ${targetStar.id}`,

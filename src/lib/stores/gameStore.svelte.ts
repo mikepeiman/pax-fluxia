@@ -135,21 +135,7 @@ function resumeGame(): void {
     }
 }
 
-/** Restart the game with current config */
-function restart(): void {
-    if (engine) {
-        engine.destroy();
-        engine = null;
-    }
 
-    snapshot = null;
-    tickProgress = 0;
-    currentView = 'game';
-
-    // Engine will be re-initialized by GameCanvas onMount if view reloads?
-    // Since we switch view to 'game', GameCanvas mounts.
-    // GameCanvas onMount calls `gameStore.init(canvas)`.
-}
 
 /** Set game speed */
 function setSpeed(newSpeed: GameSpeed): void {
