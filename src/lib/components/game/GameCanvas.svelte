@@ -203,9 +203,11 @@
         return 0xffffff;
     }
     function renderDebugGrid() {
+        if (!starsContainer?.parent) return;
+
         if (!debugGraphics) {
             debugGraphics = new PIXI.Graphics();
-            starsContainer?.parent.addChildAt(debugGraphics, 0); // Background layer
+            starsContainer.parent.addChildAt(debugGraphics, 0); // Background layer
         }
 
         debugGraphics.clear();
