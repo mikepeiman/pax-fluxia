@@ -3,6 +3,7 @@
     import { Pane } from "tweakpane";
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { log } from "$lib/utils/logger";
+    import { gameStore } from "$lib/stores/gameStore.svelte";
 
     // Props
     interface Props {
@@ -15,9 +16,14 @@
     let container: HTMLDivElement | null = $state(null);
 
     // Mirror of GAME_CONFIG for Tweakpane binding
-    const params = $state({
+    // Load from localStorage if available
+    const SAVED_CONFIG_KEY = "pax_fluxia_config_v1";
+    let initialParams = {
         // Timing
         tickRate: GAME_CONFIG.BASE_TICK_MS,
+
+        // Map
+        starsPerPlayer: GAME_CONFIG.STARS_PER_PLAYER,
 
         // Flow
         flowPercentage: GAME_CONFIG.FLOW_PERCENTAGE * 100,
@@ -44,11 +50,33 @@
         hexRadius: GAME_CONFIG.HEX_RADIUS,
         hexPadding: GAME_CONFIG.HEX_PADDING,
         connectionMaxDist: GAME_CONFIG.CONNECTION_MAX_DISTANCE,
-    });
+        connectionColor: GAME_CONFIG.CONNECTION_COLOR,
+        connectionWidth: GAME_CONFIG.CONNECTION_WIDTH,
+        connectionAlpha: GAME_CONFIG.CONNECTION_ALPHA,
+
+        // Fleet
+        pulseFreq: GAME_CONFIG.FLOW_PULSE_FREQUENCY,
+        fleetSpeed: GAME_CONFIG.FLEET_SPEED,
+    };
+
+    // Try load
+    try {
+        const saved = localStorage.getItem(SAVED_CONFIG_KEY);
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            initialParams = { ...initialParams, ...parsed };
+            log.sys("DebugPanel", "Loaded config from localStorage");
+        }
+    } catch (e) {
+        console.warn("Failed to load config", e);
+    }
+
+    const params = $state(initialParams);
 
     // Sync changes back to GAME_CONFIG
     $effect(() => {
         GAME_CONFIG.BASE_TICK_MS = params.tickRate;
+        GAME_CONFIG.STARS_PER_PLAYER = params.starsPerPlayer;
         GAME_CONFIG.FLOW_PERCENTAGE = params.flowPercentage / 100;
         GAME_CONFIG.MIN_FLOW_SHIPS = params.minFlowShips;
         GAME_CONFIG.DEFENSE_MULTIPLIER = params.defenseMultiplier;
@@ -64,6 +92,26 @@
         GAME_CONFIG.HEX_RADIUS = params.hexRadius;
         GAME_CONFIG.HEX_PADDING = params.hexPadding;
         GAME_CONFIG.CONNECTION_MAX_DISTANCE = params.connectionMaxDist;
+        GAME_CONFIG.CONNECTION_MAX_DISTANCE = params.connectionMaxDist;
+        GAME_CONFIG.CONNECTION_COLOR = params.connectionColor;
+        GAME_CONFIG.CONNECTION_WIDTH = params.connectionWidth;
+        GAME_CONFIG.CONNECTION_ALPHA = params.connectionAlpha;
+        GAME_CONFIG.FLOW_PULSE_FREQUENCY = params.pulseFreq;
+        GAME_CONFIG.FLEET_SPEED = params.fleetSpeed;
+
+        // Notify engine to pick up changes (especially tick rate)
+        if (typeof gameStore.updateConfig === "function") {
+            gameStore.updateConfig();
+        }
+
+        // Save to localStorage
+        try {
+            // Need to unwrap proxy for storage? Svelte 5 state is proxy.
+            // Using JSON.stringify directly often works with proxies, but safer to copy.
+            localStorage.setItem(SAVED_CONFIG_KEY, JSON.stringify(params));
+        } catch (e) {
+            console.warn("Failed to save config", e);
+        }
     });
 
     // Initialize Tweakpane when container becomes available
@@ -103,6 +151,27 @@
         });
         flowFolder.addBinding(params, "minFlowShips", {
             label: "Min Ships",
+            min: 1,
+            max: 10,
+            step: 1,
+        });
+        flowFolder.addBinding(params, "pulseFreq", {
+            label: "Pulse Freq",
+            min: 1,
+            max: 60,
+            step: 1,
+        });
+        flowFolder.addBinding(params, "fleetSpeed", {
+            label: "Fleet Speed",
+            min: 10,
+            max: 500,
+            step: 10,
+        });
+
+        // Map Folder
+        const mapFolder = pane.addFolder({ title: "🗺️ Map" });
+        mapFolder.addBinding(params, "starsPerPlayer", {
+            label: "Stars/Player",
             min: 1,
             max: 10,
             step: 1,
@@ -154,6 +223,21 @@
         const visualFolder = pane.addFolder({ title: "👁️ Visual" });
         visualFolder.addBinding(params, "showConnections", {
             label: "Connections",
+        });
+        visualFolder.addBinding(params, "connectionColor", {
+            label: "Line Color",
+        });
+        visualFolder.addBinding(params, "connectionWidth", {
+            label: "Line Width",
+            min: 1,
+            max: 10,
+            step: 1,
+        });
+        visualFolder.addBinding(params, "connectionAlpha", {
+            label: "Line Alpha",
+            min: 0.1,
+            max: 1.0,
+            step: 0.1,
         });
         visualFolder.addBinding(params, "showHexGrid", {
             label: "Hex Grid",

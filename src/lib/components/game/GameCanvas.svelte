@@ -4,11 +4,16 @@
     import { gameStore } from "$lib/stores/gameStore.svelte";
     import { log } from "$lib/utils/logger";
     import {
-        getOrbitPositions,
-        getSurgePositions,
+        getPackedPositions,
+        getFleetPositions,
     } from "$lib/utils/render.utils";
     import { distance } from "$lib/utils/math.utils";
-    import type { StarState, StarConnection } from "$lib/types/game.types";
+    import type {
+        StarState,
+        StarConnection,
+        FleetState,
+    } from "$lib/types/game.types";
+    import { GAME_CONFIG } from "$lib/config/game.config";
 
     // ============================================================================
     // PixiJS Application
@@ -27,7 +32,7 @@
 
     // Graphics cache
     let starGraphics: Map<string, PIXI.Graphics> = new Map();
-    let starLabels: Map<string, PIXI.Text> = new Map();
+    let starLabels: Map<string, PIXI.Container> = new Map();
     let shipGraphics: PIXI.Graphics | null = null;
 
     // Animation state
@@ -171,6 +176,24 @@
         return PLAYER_COLORS[ownerId] ?? 0x888888;
     }
 
+    // Helper to safely parse color from config (string/number/object)
+    function parseColor(input: any): number {
+        if (typeof input === "number") return input;
+        if (typeof input === "string") {
+            if (input.startsWith("#")) return parseInt(input.slice(1), 16);
+            if (input.startsWith("0x")) return parseInt(input, 16);
+            return parseInt(input);
+        }
+        if (typeof input === "object" && input !== null) {
+            // Tweakpane object {r, g, b} (0-255 or 0-1?) usually 0-255 for 'pico'
+            // Assuming r,g,b are 0-255
+            if ("r" in input && "g" in input && "b" in input) {
+                return (input.r << 16) + (input.g << 8) + input.b;
+            }
+        }
+        return 0xffffff;
+    }
+
     function renderFrame(stars: StarState[], tickProgress: number) {
         if (!app || !starsContainer || !labelsContainer || !shipGraphics)
             return;
@@ -204,7 +227,15 @@
         // Render flow links
         renderFlowLinks(stars);
 
-        // Render animated ships
+        // Render traveling fleets (authoritative)
+        if (snapshot?.fleets) {
+            shipGraphics?.clear(); // Clear once before drawing any ships (fleets + orbiting)
+            renderFleets(stars, snapshot.fleets);
+        } else {
+            shipGraphics?.clear();
+        }
+
+        // Render animated ships (orbiting)
         renderShips(stars, tickProgress);
     }
 
@@ -216,7 +247,7 @@
 
         connectionGraphics.clear();
 
-        // Draw subtle lines for each connection
+        // Draw connections (static graph) - BOLD BRIGHT WHITE
         connections.forEach((conn) => {
             const source = stars.find((s) => s.id === conn.sourceId);
             const target = stars.find((s) => s.id === conn.targetId);
@@ -226,8 +257,13 @@
             connectionGraphics!.lineTo(target.x, target.y);
         });
 
-        // Draw all connection lines in one stroke (subtle gray)
-        connectionGraphics.stroke({ color: 0x444466, width: 1, alpha: 0.4 });
+        // Draw all connection lines in one stroke
+        connectionGraphics.stroke({
+            color: parseColor(GAME_CONFIG.CONNECTION_COLOR),
+            width: GAME_CONFIG.CONNECTION_WIDTH,
+            alpha: GAME_CONFIG.CONNECTION_ALPHA,
+            cap: "round",
+        });
     }
 
     function renderStars(stars: StarState[]) {
@@ -242,17 +278,55 @@
             }
 
             if (!label) {
-                label = new PIXI.Text({
-                    text: "",
+                // Create container for stacked labels
+                label = new PIXI.Container();
+
+                // Active count (Top, Bright)
+                const activeText = new PIXI.Text({
+                    text: "0",
                     style: {
                         fontFamily: "JetBrains Mono, monospace",
-                        fontSize: 14,
+                        fontSize: 16,
                         fontWeight: "bold",
                         fill: 0xffffff,
                         align: "center",
+                        stroke: { color: 0x000000, width: 2 },
                     },
                 });
-                label.anchor.set(0.5, 0.5);
+                activeText.anchor.set(0.5, 0.5);
+                activeText.label = "active"; // Tag for retrieval
+                label.addChild(activeText);
+
+                // Damaged count (Bottom, Dimmer)
+                const damagedText = new PIXI.Text({
+                    text: "0",
+                    style: {
+                        fontFamily: "JetBrains Mono, monospace",
+                        fontSize: 12,
+                        fontWeight: "bold",
+                        fill: 0xff8888, // Reddish tint
+                        align: "center",
+                        stroke: { color: 0x000000, width: 2 },
+                    },
+                });
+                damagedText.anchor.set(0.5, 0.5);
+                damagedText.y = 16; // Offset downwards
+                damagedText.label = "damaged";
+                label.addChild(damagedText);
+
+                // Icon (Top, above active count)
+                const iconText = new PIXI.Text({
+                    text: "",
+                    style: {
+                        fontSize: 24,
+                        align: "center",
+                    },
+                });
+                iconText.anchor.set(0.5, 0.5);
+                iconText.position.y = -35;
+                iconText.label = "icon";
+                label.addChild(iconText);
+
                 labelsContainer!.addChild(label);
                 starLabels.set(star.id, label);
             }
@@ -293,24 +367,36 @@
             graphics.circle(star.x, star.y, radius * 0.4);
             graphics.fill({ color: 0xffffff, alpha: coreAlpha });
 
-            // Update label - show total with damaged indicator
-            const totalShips = star.activeShips + star.damagedShips;
-            if (star.damagedShips > 0) {
-                label.text = `${star.activeShips}+${star.damagedShips}`;
-            } else {
-                label.text = String(star.activeShips);
+            // Update labels
+            const activeText = label.getChildByLabel("active") as PIXI.Text;
+            const damagedText = label.getChildByLabel("damaged") as PIXI.Text;
+            const iconText = label.getChildByLabel("icon") as PIXI.Text;
+
+            if (activeText) activeText.text = String(star.activeShips);
+
+            if (damagedText) {
+                if (star.damagedShips > 0) {
+                    damagedText.text = String(star.damagedShips);
+                    damagedText.visible = true;
+                } else {
+                    damagedText.visible = false;
+                }
             }
+
+            if (iconText && star.icon) {
+                iconText.text = star.icon;
+            }
+
             label.x = star.x;
             label.y = star.y;
         });
     }
-
     function renderFlowLinks(stars: StarState[]) {
         if (!linkGraphics) return;
 
         linkGraphics.clear();
 
-        // Draw lines from stars with targets
+        // Draw active flow indicators (arrows/chevrons)
         stars.forEach((source) => {
             if (!source.targetId) return;
 
@@ -319,93 +405,53 @@
 
             const color = getPlayerColor(source.ownerId);
 
-            // Draw flow line (dashed effect via alpha)
-            const dashPhase = animationTime * 2;
-            linkGraphics!.moveTo(source.x, source.y);
-            linkGraphics!.lineTo(target.x, target.y);
-            linkGraphics!.stroke({ color, width: 2, alpha: 0.3 });
-
-            // Draw arrowhead at target
+            // Draw flow direction arrow (NOT the full line)
             const angle = Math.atan2(target.y - source.y, target.x - source.x);
-            const arrowSize = 10;
-            const arrowX = target.x - Math.cos(angle) * (target.radius + 15);
-            const arrowY = target.y - Math.sin(angle) * (target.radius + 15);
+            const arrowSize = 25;
+
+            // Position arrow dynamically along the path to simulate flow?
+            // For now, let's just put it near the source to indicate "pushing"
+            const arrowX = source.x + Math.cos(angle) * (source.radius + 40);
+            const arrowY = source.y + Math.sin(angle) * (source.radius + 40);
 
             linkGraphics!.moveTo(arrowX, arrowY);
             linkGraphics!.lineTo(
-                arrowX - Math.cos(angle - 0.4) * arrowSize,
-                arrowY - Math.sin(angle - 0.4) * arrowSize,
+                arrowX - Math.cos(angle - 0.5) * arrowSize,
+                arrowY - Math.sin(angle - 0.5) * arrowSize,
             );
             linkGraphics!.moveTo(arrowX, arrowY);
             linkGraphics!.lineTo(
-                arrowX - Math.cos(angle + 0.4) * arrowSize,
-                arrowY - Math.sin(angle + 0.4) * arrowSize,
+                arrowX - Math.cos(angle + 0.5) * arrowSize,
+                arrowY - Math.sin(angle + 0.5) * arrowSize,
             );
-            linkGraphics!.stroke({ color, width: 2, alpha: 0.8 });
+            linkGraphics!.stroke({
+                color,
+                width: 6,
+                alpha: 1.0,
+                cap: "round",
+                join: "round",
+            });
         });
     }
 
     function renderShips(stars: StarState[], tickProgress: number) {
         if (!shipGraphics) return;
 
-        shipGraphics.clear();
+        // shipGraphics.clear(); // Moved to renderFrame to prevent erasing fleets
 
         stars.forEach((star) => {
             const color = getPlayerColor(star.ownerId);
             const activeShips = star.activeShips;
             const damagedShips = star.damagedShips;
-            const totalShips = activeShips + damagedShips;
-
-            // Calculate how many active ships are "in surge" vs "orbiting"
-            let surgeCount = 0;
-            let activeOrbitCount = activeShips;
-
-            if (star.targetId && activeShips > 0) {
-                // During attack, some ships are in transit
-                const surgePhase = Math.sin(tickProgress * Math.PI);
-                surgeCount = Math.min(
-                    Math.floor(activeShips * 0.3 * surgePhase),
-                    activeShips,
-                );
-                activeOrbitCount = activeShips - surgeCount;
-
-                // Render surge ships
-                const target = stars.find((s) => s.id === star.targetId);
-                if (target && surgeCount > 0) {
-                    const surgeShips = getSurgePositions(
-                        star.x,
-                        star.y,
-                        target.x,
-                        target.y,
-                        star.radius,
-                        target.radius,
-                        surgeCount,
-                        tickProgress,
-                        animationTime,
-                    );
-
-                    surgeShips.forEach((ship) => {
-                        drawShip(
-                            ship.x,
-                            ship.y,
-                            color,
-                            ship.scale,
-                            ship.alpha,
-                            false, // not damaged
-                        );
-                    });
-                }
-            }
 
             // Render orbiting ACTIVE ships
-            if (activeOrbitCount > 0) {
-                const orbitShips = getOrbitPositions(
+            if (activeShips > 0) {
+                const orbitShips = getPackedPositions(
                     star.x,
                     star.y,
                     star.radius,
-                    activeOrbitCount,
+                    activeShips,
                     animationTime,
-                    0.3,
                 );
 
                 orbitShips.forEach((ship) => {
@@ -422,13 +468,13 @@
 
             // Render orbiting DAMAGED ships (in outer ring with dark border)
             if (damagedShips > 0) {
-                const damagedOrbitShips = getOrbitPositions(
+                // Outer shell for damaged ships
+                const damagedOrbitShips = getPackedPositions(
                     star.x,
                     star.y,
-                    star.radius + 15, // Outer ring for damaged
+                    star.radius + 30, // Much further out
                     damagedShips,
                     animationTime,
-                    0.2, // Slower orbit for damaged
                 );
 
                 damagedOrbitShips.forEach((ship) => {
@@ -442,6 +488,44 @@
                     );
                 });
             }
+        });
+    }
+
+    function renderFleets(stars: StarState[], fleets: FleetState[]) {
+        if (!shipGraphics) return;
+
+        fleets.forEach((fleet) => {
+            const source = stars.find((s) => s.id === fleet.sourceId);
+            const target = stars.find((s) => s.id === fleet.targetId);
+
+            // If stars are missing (e.g. filtered out?), imply positions?
+            // Better to rely on source/target state.
+            // Wait, fleet doesn't store coordinates, only IDs.
+            // So we MUST find the stars.
+            if (!source || !target) return;
+
+            const color = getPlayerColor(fleet.ownerId);
+
+            const fleetShips = getFleetPositions(
+                source.x,
+                source.y,
+                target.x,
+                target.y,
+                fleet.shipCount,
+                gameStore.tickProgress, // Use global tick progress for instant transfers
+                animationTime,
+            );
+
+            fleetShips.forEach((ship) => {
+                drawShip(
+                    ship.x,
+                    ship.y,
+                    color,
+                    ship.scale,
+                    ship.alpha,
+                    false, // Traveling ships are "active"
+                );
+            });
         });
     }
 
@@ -529,22 +613,55 @@
             dragCurrentX = x;
             dragCurrentY = y;
 
-            // Also set as active for visual feedback
-            activeStarId = star.id;
-
-            log.state("GameCanvas", `Star ${star.id} selected`);
-        } else if (!star) {
-            // Clicked empty space - clear selection
-            clearSelection();
+            // DO NOT set activeStarId here - wait for Click logic regarding selection.
+            // But we can highlight drag source.
         }
     }
 
     function handlePointerMove(event: PointerEvent) {
-        if (!isDragging) return;
+        if (!isDragging || !dragSourceId) return;
 
         const rect = canvasContainer.getBoundingClientRect();
         dragCurrentX = event.clientX - rect.left;
         dragCurrentY = event.clientY - rect.top;
+
+        // DRAG-THROUGH LOGIC:
+        // If we hover a DIFFERENT star while dragging, issue order and continue drag from THERE
+        const targetStar = hitTestStar(dragCurrentX, dragCurrentY);
+
+        if (targetStar && targetStar.id !== dragSourceId) {
+            // Validate connection first
+            const snapshot = gameStore.snapshot;
+            const isConnected = snapshot?.connections.some(
+                (c) =>
+                    (c.sourceId === dragSourceId &&
+                        c.targetId === targetStar.id) ||
+                    (c.sourceId === targetStar.id &&
+                        c.targetId === dragSourceId),
+            );
+
+            if (isConnected) {
+                // Issue instant order
+                const success = gameStore.issueOrder(
+                    dragSourceId,
+                    targetStar.id,
+                );
+                if (success) {
+                    log.success(
+                        "GameCanvas",
+                        `Drag-through: ${dragSourceId} -> ${targetStar.id}`,
+                    );
+
+                    // Chain reaction: Drag continues FROM this new star
+                    dragSourceId = targetStar.id;
+                    dragStartX = targetStar.x;
+                    dragStartY = targetStar.y;
+
+                    // Optional: Set active too?
+                    activeStarId = targetStar.id;
+                }
+            }
+        }
 
         // Render drag preview
         renderDragPreview();
@@ -575,42 +692,52 @@
             return;
         }
 
-        // CLICK+CLICK MODE: Minimal movement = click
-        if (targetStar) {
+        // CLICK LOGIC (Not valid drag)
+        if (!movedSignificantly && targetStar) {
+            // Case 1: We have an active star selected, and clicked a DIFFERENT star
             if (activeStarId && activeStarId !== targetStar.id) {
-                // We have an active star, and clicked a different star
                 const activeStarSnapshot = gameStore.snapshot?.stars.find(
                     (s) => s.id === activeStarId,
                 );
 
+                // Only if we own the active star
                 if (activeStarSnapshot?.ownerId === "human-player") {
-                    // Issue order from active to target
                     const success = gameStore.issueOrder(
                         activeStarId,
                         targetStar.id,
                     );
-
                     if (success) {
                         log.success(
                             "GameCanvas",
-                            `Chain order: ${activeStarId} → ${targetStar.id}`,
+                            `Click order: ${activeStarId} -> ${targetStar.id}`,
                         );
-
-                        // CHAIN: Move active to target for seamless chaining
-                        // This enables A→B→C→A circular orders
+                        // Chain selection
                         activeStarId = targetStar.id;
                     } else {
-                        log.state(
-                            "GameCanvas",
-                            `Order rejected: ${activeStarId} → ${targetStar.id} (not connected?)`,
-                        );
+                        // Invalid link? Maybe we just wanted to select the new star?
+                        // If I click a non-connected star, I probably meant to select it (if mine).
+                        if (targetStar.ownerId === "human-player") {
+                            activeStarId = targetStar.id;
+                            log.state(
+                                "GameCanvas",
+                                `Selection changed to ${targetStar.id}`,
+                            );
+                        }
                     }
+                } else {
+                    // Active star not ours (shouldn't happen?), select new one
+                    if (targetStar.ownerId === "human-player")
+                        activeStarId = targetStar.id;
                 }
-            } else if (targetStar.ownerId === "human-player") {
-                // Clicked our own star - make it active
-                activeStarId = targetStar.id;
-                log.state("GameCanvas", `Star ${targetStar.id} now active`);
             }
+            // Case 2: No active star, or clicked same star
+            else if (targetStar.ownerId === "human-player") {
+                activeStarId = targetStar.id;
+                log.state("GameCanvas", `Star ${targetStar.id} selected`);
+            }
+        } else if (!movedSignificantly && !targetStar) {
+            // Clicked space
+            clearSelection();
         }
 
         // Always clear drag state after pointer up
@@ -657,7 +784,7 @@
     }
 
     function renderDragPreview() {
-        if (!dragPreviewGraphics || !isDragging) return;
+        if (!dragPreviewGraphics || !isDragging || !dragSourceId) return;
 
         dragPreviewGraphics.clear();
 
@@ -678,15 +805,30 @@
             alpha: 0.9,
         });
 
-        // Highlight target star if hovering
+        // Highlight target star if hovering AND valid connection exists
         const target = hitTestStar(dragCurrentX, dragCurrentY);
         if (target && target.id !== dragSourceId) {
-            dragPreviewGraphics.circle(target.x, target.y, target.radius + 15);
-            dragPreviewGraphics.stroke({
-                color: target.ownerId === "human-player" ? 0x00ff00 : 0xff4466,
-                width: 3,
-                alpha: 0.8,
-            });
+            // Check connectivity
+            const snapshot = gameStore.snapshot;
+            const isConnected = snapshot?.connections.some(
+                (c) =>
+                    (c.sourceId === dragSourceId && c.targetId === target.id) ||
+                    (c.sourceId === target.id && c.targetId === dragSourceId),
+            );
+
+            if (isConnected) {
+                dragPreviewGraphics.circle(
+                    target.x,
+                    target.y,
+                    target.radius + 15,
+                );
+                dragPreviewGraphics.stroke({
+                    color:
+                        target.ownerId === "human-player" ? 0x00ff00 : 0xff4466,
+                    width: 3,
+                    alpha: 0.8,
+                });
+            }
         }
     }
 

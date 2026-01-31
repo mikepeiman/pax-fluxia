@@ -20,69 +20,104 @@ export interface ShipVisual {
  * Ships orbit in concentric rings to show exact count
  * Uses multiple rings for large fleets, with scaling
  */
-export function getOrbitPositions(
-    starX: number,
-    starY: number,
+/**
+ * Calculate packed ship positions in concentric rings
+ * Ships pack densely around the star. After 10 layers, they visually enlarge.
+ */
+export function getPackedPositions(
+    cx: number,
+    cy: number,
     starRadius: number,
-    shipCount: number,
-    time: number,
-    orbitSpeed: number = 0.5
+    count: number,
+    time: number
 ): ShipVisual[] {
-    const ships: ShipVisual[] = [];
+    const positions: ShipVisual[] = [];
 
-    // Config for rings - use game config values
-    const SHIPS_PER_RING = GAME_CONFIG.SHIPS_PER_RING;
-    const RING_SPACING = 7;
-    const BASE_ORBIT = starRadius + 8;
-    const MAX_VISIBLE = GAME_CONFIG.MAX_RENDERED_SHIPS;
+    const BASE_SIZE = GAME_CONFIG.SHIP_BASE_SIZE; // e.g. 4
+    const PADDING = 2; // Space between star and first ring
+    const RING_SPACING = BASE_SIZE * 1.4; // Space between rings
+    const SHIP_SPACING = BASE_SIZE * 1.4; // Space between ships in a ring
 
-    const visibleCount = Math.min(shipCount, MAX_VISIBLE);
+    let currentRadius = starRadius + PADDING + BASE_SIZE;
+    let remaining = count;
+    let layer = 0;
 
-    // Scale ships smaller as count increases for readability
-    const baseScale = shipCount <= 20 ? 1.0 :
-        shipCount <= 50 ? 0.8 :
-            shipCount <= 100 ? 0.6 :
-                shipCount <= 150 ? 0.5 : 0.4;
+    // Pulse animation factor shared by all
+    const pulse = Math.sin(time * 2) * 2;
 
-    for (let i = 0; i < visibleCount; i++) {
-        const ring = Math.floor(i / SHIPS_PER_RING);
-        const slot = i % SHIPS_PER_RING;
-        const shipsInThisRing = Math.min(SHIPS_PER_RING, visibleCount - ring * SHIPS_PER_RING);
+    while (remaining > 0) {
+        // Enlarge ships after layer 10 to represent aggregation
+        // Actual limit: we STOP adding layers after MAX_LAYERS
+        const MAX_LAYERS = 10;
 
-        const orbitRadius = BASE_ORBIT + (ring * RING_SPACING);
+        // If we are past the max layers, we simply stop rendering distinct ships
+        // and assume the outer layer represents the "rest" via scaling or density.
+        // HOWEVER, the requirement is "Aggregation: At high counts, outer ships scale up (2x)".
+        // And "dispersed rings... should not exist".
 
-        // Base angle for this ship slot
-        const baseAngle = (slot / shipsInThisRing) * Math.PI * 2;
-        // Add rotation over time (outer rings rotate slower)
-        const ringSpeedMod = 1 / (1 + ring * 0.25);
-        const angle = baseAngle + time * orbitSpeed * ringSpeedMod;
+        // Let's implement a hard cap on visual layers to prevent the "explosion"
+        if (layer >= MAX_LAYERS) {
+            // We have too many ships. 
+            // We want to make the OUTERMOST rendered layer look "heavy".
+            // But if we just stop, the user won't know there are 1000 ships vs 100.
 
-        ships.push({
-            x: starX + Math.cos(angle) * orbitRadius,
-            y: starY + Math.sin(angle) * orbitRadius,
-            rotation: angle + Math.PI / 2, // Point tangent to orbit
-            scale: baseScale * (1 - ring * 0.05), // Outer rings slightly smaller
-            alpha: 1 - ring * 0.08  // Outer rings slightly faded
-        });
+            // Alternative strategy:
+            // If count is huge, we increase the SCALE of the ships in the outer layers,
+            // effectively fitting MORE value into the same visual space? 
+            // Or just make them bigger.
+
+            // For now, adhering to: "max 10 concentric rings".
+            break;
+        }
+
+        const isDense = layer >= 8; // Start scaling a bit earlier to transition?
+        const scale = isDense ? 2 : 1;
+
+        const effectiveSpacing = SHIP_SPACING * scale;
+        const circumference = 2 * Math.PI * currentRadius;
+
+        // Calculate capacity of this ring
+        let capacity = Math.floor(circumference / effectiveSpacing);
+        capacity = Math.max(1, capacity); // At least 1 ship
+
+        const countInRing = Math.min(remaining, capacity);
+        const angleStep = (2 * Math.PI) / countInRing;
+
+        // Rotate rings slowly in alternating directions
+        const ringRotation = time * (0.2 / (layer + 1)) * (layer % 2 === 0 ? 1 : -1);
+
+        for (let i = 0; i < countInRing; i++) {
+            const angle = i * angleStep + ringRotation;
+
+            positions.push({
+                x: cx + Math.cos(angle) * (currentRadius + pulse * 0.1),
+                y: cy + Math.sin(angle) * (currentRadius + pulse * 0.1),
+                rotation: angle + Math.PI / 2,
+                scale: 0.8 * scale,
+                alpha: 1.0
+            });
+        }
+
+        remaining -= countInRing;
+        currentRadius += RING_SPACING * scale;
+        layer++;
     }
 
-    return ships;
+    return positions;
 }
 
 /**
- * Calculate surge positions for ships traveling between stars
- * Ships move in a wave pattern along the flow line
+ * Calculate positions for ships in a traveling fleet
+ * Ships are clustered around the fleet's current progress position
  */
-export function getSurgePositions(
+export function getFleetPositions(
     sourceX: number,
     sourceY: number,
     targetX: number,
     targetY: number,
-    sourceRadius: number,
-    targetRadius: number,
     shipCount: number,
-    progress: number, // 0-1 tick progress
-    waveOffset: number = 0
+    progress: number, // 0-1 fleet progress
+    time: number // for animation
 ): ShipVisual[] {
     const ships: ShipVisual[] = [];
     const dx = targetX - sourceX;
@@ -90,30 +125,36 @@ export function getSurgePositions(
     const dist = Math.sqrt(dx * dx + dy * dy);
     const angle = Math.atan2(dy, dx);
 
-    const MAX_SURGE_VISIBLE = 30;
-    const visibleCount = Math.min(shipCount, MAX_SURGE_VISIBLE);
+    const MAX_FLEET_VISIBLE = 50;
+    const visibleCount = Math.min(shipCount, MAX_FLEET_VISIBLE);
 
-    // Ships are spread along the path, moving towards target
+    // Scale cloud size based on ship count, but cap it so it doesn't look like a swarm of bees unless massive
+    const cloudRadius = Math.min(20, 5 + Math.sqrt(visibleCount) * 2);
+
     for (let i = 0; i < visibleCount; i++) {
-        // Each ship is offset along the path
-        const spacing = 0.06;
-        const baseT = (i * spacing + progress * spacing) % 1;
+        // Deterministic pseudo-random offsets based on index
+        // This ensures ships stay in relative position as they travel
+        const seed = i * 1337;
+        const rndX = Math.sin(seed) * cloudRadius;
+        const rndY = Math.cos(seed * 0.7) * cloudRadius;
 
-        // Clamp to valid range (not inside stars)
-        const minT = (sourceRadius + 5) / dist;
-        const maxT = 1 - ((targetRadius + 5) / dist);
-        const t = minT + baseT * (maxT - minT);
+        // Add some breathing animation
+        const breath = Math.sin(time * 3 + i) * 2;
 
-        // Add a wave motion perpendicular to travel
-        const perpOffset = Math.sin(t * Math.PI * 3 + waveOffset + i * 0.4) * 4;
-        const perpAngle = angle + Math.PI / 2;
+        // Calculate center position based on progress
+        const centerX = sourceX + dx * progress;
+        const centerY = sourceY + dy * progress;
+
+        // Rotate offsets to align with travel direction? 
+        // No, a cloud is usually amorphous. But maybe slightly elongated?
+        // Let's keep it simple: cloud around center.
 
         ships.push({
-            x: sourceX + dx * t + Math.cos(perpAngle) * perpOffset,
-            y: sourceY + dy * t + Math.sin(perpAngle) * perpOffset,
-            rotation: angle,
-            scale: 0.7 + Math.sin(t * Math.PI) * 0.2,
-            alpha: 0.9
+            x: centerX + rndX + breath * 0.5,
+            y: centerY + rndY + breath * 0.5,
+            rotation: angle, // Face forward
+            scale: 0.8 + Math.sin(seed) * 0.2, // Random sizes
+            alpha: 1.0
         });
     }
 

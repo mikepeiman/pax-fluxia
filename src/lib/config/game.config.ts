@@ -14,6 +14,8 @@ interface GameConfigType {
     FLOW_PERCENTAGE: number;
     MIN_FLOW_SHIPS: number;
     MAX_FLOW_SHIPS: number;
+    FLOW_PULSE_FREQUENCY: number;
+    FLEET_SPEED: number;
 
     // Combat
     DEFENSE_MULTIPLIER: number;
@@ -28,9 +30,11 @@ interface GameConfigType {
     // Repair
     REPAIR_RATE: number;
     MIN_REPAIR: number;
+    REPAIR_COMBAT_PENALTY: number;
 
     // Conquest
     CONQUEST_TRANSFER_PERCENTAGE: number;
+    OVERWHELM_THRESHOLD: number;
     CLEAR_ORDER_ON_CAPTURE: boolean;
 
     // Visual
@@ -43,8 +47,12 @@ interface GameConfigType {
     HEX_RADIUS: number;
     HEX_PADDING: number;
     CONNECTION_MAX_DISTANCE: number;
+    CONNECTION_COLOR: string;
+    CONNECTION_WIDTH: number;
+    CONNECTION_ALPHA: number;
     SHOW_CONNECTIONS: boolean;
     SHOW_HEX_GRID: boolean;
+    STARS_PER_PLAYER: number;
 }
 
 /**
@@ -74,6 +82,12 @@ export const GAME_CONFIG: GameConfigType = {
 
     /** Maximum ships to flow per tick (0 = unlimited) */
     MAX_FLOW_SHIPS: 0,
+
+    /** Pulse frequency (ticks between flow batches, 1 = every tick) */
+    FLOW_PULSE_FREQUENCY: 1,
+
+    /** Fleet travel speed (pixels per tick) */
+    FLEET_SPEED: 25,
 
     // ========================================================================
     // COMBAT
@@ -106,10 +120,13 @@ export const GAME_CONFIG: GameConfigType = {
     // ========================================================================
 
     /** Percentage of damaged ships repaired per tick */
-    REPAIR_RATE: 0.10,
+    REPAIR_RATE: 0.20,
 
     /** Minimum ships repaired per tick */
     MIN_REPAIR: 1,
+
+    /** Repair multiplier when under attack (0.0 - 1.0) */
+    REPAIR_COMBAT_PENALTY: 0.1,
 
     // ========================================================================
     // CONQUEST
@@ -117,6 +134,9 @@ export const GAME_CONFIG: GameConfigType = {
 
     /** Percentage of remaining ships that transfer on capture */
     CONQUEST_TRANSFER_PERCENTAGE: 0.5,
+
+    /** Defender strength ratio below which they instantly surrender (e.g. 0.1 = 10% of attackers) */
+    OVERWHELM_THRESHOLD: 0.1,
 
     /** Whether to clear flow order after capture */
     CLEAR_ORDER_ON_CAPTURE: true,
@@ -145,16 +165,28 @@ export const GAME_CONFIG: GameConfigType = {
     HEX_RADIUS: 50,
 
     /** Edge padding for hex grid */
-    HEX_PADDING: 30,
+    HEX_PADDING: 50,
 
     /** Maximum distance for star connections */
-    CONNECTION_MAX_DISTANCE: 150,
+    CONNECTION_MAX_DISTANCE: 150, // Ignored by Delaunay but kept for Types
+
+    /** Connection line color (hex) */
+    CONNECTION_COLOR: '0xffffff',
+
+    /** Connection line width */
+    CONNECTION_WIDTH: 1,
+
+    /** Connection line alpha */
+    CONNECTION_ALPHA: 0.2,
 
     /** Show connection lines */
     SHOW_CONNECTIONS: true,
 
     /** Show hex grid (debug) */
     SHOW_HEX_GRID: false,
+
+    /** Stars per player (Map Size) */
+    STARS_PER_PLAYER: 2,
 };
 
 /**

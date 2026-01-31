@@ -149,60 +149,51 @@ export interface StarConnection {
  * @param maxDistance - Maximum distance for auto-connection
  * @returns Array of bi-directional connections
  */
+import { Delaunay } from 'd3-delaunay';
+
+/**
+ * Generate connections between stars using Delaunay Triangulation
+ * This ensures a planar graph (no crossing lines) and natural proximity connections.
+ * 
+ * @param stars - Array of stars with id, x, y
+ * @param maxDistance - Optional maximum distance to prune extremely long edges
+ * @returns Array of bi-directional connections
+ */
 export function generateStarConnections<T extends { id: string; x: number; y: number }>(
     stars: T[],
-    maxDistance: number
+    maxDistance: number = Infinity
 ): StarConnection[] {
     const connections: StarConnection[] = [];
-    const connected = new Set<string>();
 
-    // First pass: connect all stars within max distance
+    // Create Delaunay triangulation
+    // Format: [x, y]
+    const points = stars.map(s => [s.x, s.y] as [number, number]);
+    const delaunay = Delaunay.from(points);
+
+    // Iterate over the triangulation neighbors
+    // neighbors(i) returns an iterator over the indices of the neighbors of point i
     for (let i = 0; i < stars.length; i++) {
-        for (let j = i + 1; j < stars.length; j++) {
-            const a = stars[i];
-            const b = stars[j];
-            const dx = b.x - a.x;
-            const dy = b.y - a.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
+        const neighbors = delaunay.neighbors(i);
+        for (const neighborIndex of neighbors) {
+            // Only add connection if i < neighborIndex to avoid duplicates
+            if (i < neighborIndex) {
+                const a = stars[i];
+                const b = stars[neighborIndex];
 
-            if (dist <= maxDistance) {
-                connections.push({
-                    sourceId: a.id,
-                    targetId: b.id,
-                    distance: dist
-                });
-                connected.add(a.id);
-                connected.add(b.id);
-            }
-        }
-    }
-
-    // Second pass: ensure no isolated stars
-    for (const star of stars) {
-        if (!connected.has(star.id)) {
-            // Find closest star to connect
-            let closest: T | null = null;
-            let closestDist = Infinity;
-
-            for (const other of stars) {
-                if (other.id === star.id) continue;
-                const dx = other.x - star.x;
-                const dy = other.y - star.y;
+                const dx = b.x - a.x;
+                const dy = b.y - a.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
 
-                if (dist < closestDist) {
-                    closest = other;
-                    closestDist = dist;
+                // Optional: Prune if connection is absurdly long (e.g. across the whole map)
+                // usage of modest maxDistance can create islands, so be careful. 
+                // Given the user wants "no stars in between", Delaunay is perfect.
+                if (dist <= maxDistance) {
+                    connections.push({
+                        sourceId: a.id,
+                        targetId: b.id,
+                        distance: dist
+                    });
                 }
-            }
-
-            if (closest) {
-                connections.push({
-                    sourceId: star.id,
-                    targetId: closest.id,
-                    distance: closestDist
-                });
-                connected.add(star.id);
             }
         }
     }

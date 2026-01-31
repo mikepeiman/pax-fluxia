@@ -6,7 +6,7 @@
 export type GameView = 'menu' | 'game' | 'results';
 
 /** Speed multiplier (0 = paused) */
-export type GameSpeed = 0 | 1 | 2 | 4 | 10;
+export type GameSpeed = 0 | 1 | 2 | 4 | 10 | 50;
 
 /** AI difficulty level */
 export type AILevel = 'easy' | 'normal' | 'hard' | 'expert';
@@ -63,6 +63,7 @@ export interface StarState {
     damagedShips: number;
     ownerId: PlayerId;
     targetId: StarId | null;
+    icon: string;
 }
 
 /** Flow link state */
@@ -71,6 +72,16 @@ export interface FlowLinkState {
     sourceId: StarId;
     targetId: StarId;
     ownerId: PlayerId;
+}
+
+/** Fleet state (ships in transit) */
+export interface FleetState {
+    id: string;
+    sourceId: StarId;
+    targetId: StarId;
+    ownerId: PlayerId;
+    shipCount: number;
+    progress: number; // 0.0 to 1.0
 }
 
 /** Combat resolution result */
@@ -95,11 +106,22 @@ export interface GameState {
     speed: GameSpeed;
     isPaused: boolean;
     stars: StarState[];
+    fleets: FleetState[];
     connections: StarConnection[];  // Valid paths between stars
     links: FlowLinkState[];
     players: PlayerState[];
     winner: PlayerState | null;
     elapsedMs: number;
+    history: GameHistoryEntry[];
+}
+
+export interface GameHistoryEntry {
+    tick: number;
+    players: {
+        id: PlayerId;
+        totalShips: number;
+        starCount: number;
+    }[];
 }
 
 /** Player/AI command */

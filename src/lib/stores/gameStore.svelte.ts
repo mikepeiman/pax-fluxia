@@ -197,6 +197,13 @@ function getStats() {
     };
 }
 
+/** Force update config (e.g. from DebugPanel) */
+function updateConfig(): void {
+    if (engine) {
+        engine.updateConfig();
+    }
+}
+
 // ============================================================================
 // Export Store
 // ============================================================================
@@ -225,5 +232,6 @@ export const gameStore = {
     surrender,
     playAgain,
     returnToMenu,
-    getStats
+    getStats,
+    updateConfig
 };

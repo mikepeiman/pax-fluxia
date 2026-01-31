@@ -25,16 +25,16 @@ import {
     areConnected
 } from '$lib/utils/hex.utils';
 import { GAME_CONFIG, getTickInterval, calculateFlowAmount } from '$lib/config/game.config';
+import { createFleet, type Fleet } from './Fleet';
+import { logCombat } from '$lib/utils/CombatLogger';
+import { resolveMultiwayCombat } from './CombatRules';
 
 // ============================================================================
 // Constants
 // ============================================================================
 
-/** Base tick interval at 1x speed - USE GAME_CONFIG.BASE_TICK_MS */
-export const BASE_TICK_MS = GAME_CONFIG.BASE_TICK_MS;
-
-/** Minimum tick interval at max speed */
-export const MIN_TICK_MS = GAME_CONFIG.MIN_TICK_MS;
+// Removed local constants to ensure we read latest config
+// const BASE_TICK_MS = ...
 
 /** Player colors palette */
 const PLAYER_COLORS = [
@@ -65,9 +65,11 @@ type TickProgressCallback = (progress: number) => void;
 // GameEngine Class
 // ============================================================================
 
+import { Delaunay } from 'd3-delaunay';
+
 /**
- * GameEngine - The authoritative source of game state
- * 
+ * GameEngine - Core game logic
+ * Handles game loop, state updates, and rule enforcement
  * Responsibilities:
  * - Manage tick loop (production → flow → combat → repair → win check)
  * - Maintain star and link state
@@ -85,6 +87,7 @@ export class GameEngine {
     private stars: Map<StarId, Star> = new Map();
     private connections: StarConnection[] = [];
     private links: Map<string, FlowLink> = new Map();
+    private fleets: Map<string, Fleet> = new Map();
     private players: Map<PlayerId, Player> = new Map();
     private aiPlayers: Map<PlayerId, AI> = new Map();
 
@@ -99,6 +102,10 @@ export class GameEngine {
     private startTime: number = 0;
     private peakFleetSize: number = 0;
     private starsCaptured: number = 0;
+
+    // History
+    private statsHistory: import('$lib/types/game.types').GameHistoryEntry[] = [];
+    private lastHistoryTick: number = 0;
 
     // Callbacks
     private onTick: TickCallback | null = null;
@@ -149,68 +156,62 @@ export class GameEngine {
     }
 
     private initializeMap(): void {
-        // Use configurable hex grid parameters
-        const hexRadius = Number(GAME_CONFIG.HEX_RADIUS) || 60;
-        const hexPadding = Number(GAME_CONFIG.HEX_PADDING) || 40;
-        const connectionDist = Number(GAME_CONFIG.CONNECTION_MAX_DISTANCE) || 180;
+        // Standard 16:9 viewport size
+        const width = 1600;
+        const height = 900;
 
-        // Generate hex grid for random star positioning
-        const hexGrid = generateHexGrid(1000, 800, hexRadius, hexPadding);
+        // Use configured hex settings (larger padding per user request)
+        // HEX_PADDING should be at least 50 if radius is 25 (diameter 50) + spacing 50
+        const hexRadius = GAME_CONFIG.HEX_RADIUS || 60;
+        const hexPadding = Math.max(GAME_CONFIG.HEX_PADDING, 60);
+
+        const hexGrid = generateHexGrid(width, height, hexRadius, hexPadding);
         log.sys('GameEngine', `Generated hex grid with ${hexGrid.length} positions (radius: ${hexRadius}, padding: ${hexPadding})`);
 
-        // Calculate how many stars we need
+        // Calculate how many stars we need (all owned by players)
         const playerIds = Array.from(this.players.keys());
-        const starsPerPlayer = 3;
-        const neutralStars = Math.max(3, playerIds.length * 2);
-        const totalStars = playerIds.length * starsPerPlayer + neutralStars;
+        const starsPerPlayer = GAME_CONFIG.STARS_PER_PLAYER;
+        const totalStars = playerIds.length * starsPerPlayer;
 
-        // Select random hex positions for stars with reduced minimum spacing
-        const minSpacing = hexRadius * 1.2; // Allow stars closer together
+        // Select random hex positions with strict spacing
+        // Minimum spacing = 2x diameter = 4 * radius = 100
+        const minSpacing = 100;
         const starPositions = selectRandomHexPositions(hexGrid, totalStars, minSpacing);
         log.sys('GameEngine', `Selected ${starPositions.length} positions for stars`);
 
-        // Assign home stars to each player (first starsPerPlayer for each)
-        let posIndex = 0;
-        playerIds.forEach((playerId) => {
-            for (let i = 0; i < starsPerPlayer && posIndex < starPositions.length; i++) {
-                const pos = starPositions[posIndex++];
-                // Add random offset for less uniform distribution
-                const offsetX = (Math.random() - 0.5) * 20;
-                const offsetY = (Math.random() - 0.5) * 20;
-                const star = createStar({
-                    x: pos.x + offsetX,
-                    y: pos.y + offsetY,
-                    radius: 25 + Math.random() * 15,
-                    productionRate: 1,
-                    ownerId: playerId
-                }, this.stars.size);
-                this.stars.set(star.id, star);
-            }
-        });
+        // Correctly assign all available positions to players round-robin
+        // to ensure even distribution and no neutrals.
+        let starIndex = 0;
+        starPositions.forEach((pos) => {
+            const ownerId = playerIds[starIndex % playerIds.length];
+            starIndex++;
 
-        // Remaining positions are neutral stars
-        while (posIndex < starPositions.length) {
-            const pos = starPositions[posIndex++];
             // Add random offset for less uniform distribution
             const offsetX = (Math.random() - 0.5) * 20;
             const offsetY = (Math.random() - 0.5) * 20;
+
             const star = createStar({
                 x: pos.x + offsetX,
                 y: pos.y + offsetY,
-                radius: 20 + Math.random() * 10,
+                radius: 25, // Fixed radius as requested ("eliminate size differences")
                 productionRate: 1,
-                ownerId: 'neutral'
+                ownerId: ownerId
             }, this.stars.size);
             this.stars.set(star.id, star);
-        }
+        });
 
-        // Generate connections between stars using configurable distance
+        // Generate territory map (Voronoi)
+        this.updateTerritories(width, height);
+
+        // Generate connections between stars using Delaunay Triangulation
+        // Pass Infinity to ensure we keep ALL Delaunay edges (guaranteed planar connected graph)
         const starArray = Array.from(this.stars.values()).map(s => ({
             id: s.id,
-            x: s.getState().x,
-            y: s.getState().y
+            x: s.x,
+            y: s.y,
+            ownerId: s.ownerId
         }));
-        this.connections = generateStarConnections(starArray, connectionDist);
+        this.connections = generateStarConnections(starArray, Infinity);
 
         log.success('GameEngine', `Map initialized with ${this.stars.size} stars and ${this.connections.length} connections`);
     }
@@ -261,6 +262,53 @@ export class GameEngine {
         return configs;
     }
 
+    /**
+     * Update territory ownership based on star control
+     */
+    private updateTerritories(width: number, height: number): void {
+        const points: [number, number][] = [];
+        const starIds: string[] = [];
+
+        this.stars.forEach(star => {
+            points.push([star.x, star.y]);
+            starIds.push(star.id);
+        });
+
+        if (points.length === 0) return;
+
+        // Calculate Voronoi diagram
+        const delaunay = Delaunay.from(points);
+        const voronoi = delaunay.voronoi([0, 0, width, height]);
+
+        // Store polygon data in state (simplified)
+        // ideally we just send the polygons to the frontend?
+        // Actually, we can just send the cell polygons + owner.
+        // For efficiency, let's store it on the stars?
+        // Or add a new 'territories' field to GameState.
+        // For now, let's just make sure star ownership is updated. Only need to recalc if stars move (they don't).
+        // BUT ownership changes. The polygons don't change, only their color.
+
+        // We will store the polygons in a map: StarId -> Polygon points string/array
+        // This only needs to happen ONCE at init.
+
+        // Wait, 'updateTerritories' implies recalc. But if stars are static, polygons are static.
+        // So we can calculate once.
+
+        const polygons: Record<string, number[][]> = {};
+
+        starIds.forEach((id, i) => {
+            const cell = voronoi.cellPolygon(i);
+            if (cell) {
+                polygons[id] = cell; // Array of [x, y]
+            }
+        });
+
+        this.territoryPolygons = polygons;
+    }
+
+    // Store static polygons
+    private territoryPolygons: Record<string, number[][]> = {};
+
     // ============================================================================
     // Tick Loop
     // ============================================================================
@@ -300,14 +348,27 @@ export class GameEngine {
     /**
      * Set game speed
      */
+    /**
+     * Set game speed
+     */
     setSpeed(newSpeed: GameSpeed): void {
         const wasPaused = this.speed === 0;
         this.speed = newSpeed;
 
         if (newSpeed === 0) {
             this.clearTickInterval();
-        } else if (wasPaused || this.tickIntervalId) {
-            // Reschedule at new speed
+        } else {
+            // Always reschedule to pick up any config changes (tickRate)
+            this.clearTickInterval();
+            this.scheduleTick();
+        }
+    }
+
+    /**
+     * Force update config (e.g. from DebugPanel)
+     */
+    updateConfig(): void {
+        if (this.speed > 0) {
             this.clearTickInterval();
             this.scheduleTick();
         }
@@ -319,7 +380,7 @@ export class GameEngine {
     private scheduleTick(): void {
         if (this.speed === 0) return;
 
-        const interval = Math.max(BASE_TICK_MS / this.speed, MIN_TICK_MS);
+        const interval = Math.max(GAME_CONFIG.BASE_TICK_MS / this.speed, GAME_CONFIG.MIN_TICK_MS);
         this.tickStartTime = performance.now();
 
         this.tickIntervalId = setInterval(() => {
@@ -346,7 +407,7 @@ export class GameEngine {
         const loop = () => {
             if (this.speed > 0 && this.onTickProgress) {
                 const elapsed = performance.now() - this.tickStartTime;
-                const interval = Math.max(BASE_TICK_MS / this.speed, MIN_TICK_MS);
+                const interval = Math.max(GAME_CONFIG.BASE_TICK_MS / this.speed, GAME_CONFIG.MIN_TICK_MS);
                 const progress = Math.min(elapsed / interval, 1);
                 this.onTickProgress(progress);
             }
@@ -366,11 +427,14 @@ export class GameEngine {
         // 1. PRODUCTION - All stars produce ships
         this.stars.forEach(star => star.produce());
 
-        // 2. FLOW - Process all active flow links
+        // 2. FLOW - Process flow links (launch fleets)
         this.processFlowLinks();
 
-        // 3. REPAIR - All stars repair damaged ships
-        this.stars.forEach(star => star.repair());
+        // 3. FLEETS - Update fleet positions and handle arrivals
+        this.updateFleets();
+
+        // 4. REPAIR - All stars repair damaged ships
+        this.stars.forEach(star => star.repair(this.tick));
 
         // 4. STATS - Track peak fleet size
         const humanPlayer = this.players.get(this.humanPlayerId);
@@ -382,27 +446,35 @@ export class GameEngine {
         // 5. WIN CHECK - Check for eliminated players
         this.checkWinCondition();
 
-        // 6. AI - Execute AI moves (placeholder)
+        // 6. HISTORY - Record stats every 60 ticks (~1 sec at 1x)
+        if (this.tick - this.lastHistoryTick >= 60) {
+            this.recordHistory();
+        }
+
+        // 7. AI - Execute AI moves (placeholder)
         this.executeAI();
 
-        // 7. CALLBACK - Notify listeners
+        // 8. CALLBACK - Notify listeners
         if (this.onTick) {
             this.onTick(this.getState());
         }
     }
 
     /**
-     * Process all flow links - transfer ships and resolve combat
+     * Process flow links - launch fleets (every tick)
+     * INSTANT TRAVEL: Ships move and arrive in the same tick.
      */
     private processFlowLinks(): void {
-        // Get active links from stars
+        this.transfers = []; // Clear previous frame's visual transfers
+        const arrivals: Fleet[] = [];
+
         this.stars.forEach(source => {
             if (!source.targetId) return;
 
             const target = this.stars.get(source.targetId);
             if (!target) return;
 
-            // Calculate flow amount using config (10% instead of 50%)
+            // Calculate flow amount
             const flowAmount = calculateFlowAmount(source.activeShips);
             if (flowAmount === 0 || source.activeShips === 0) return;
 
@@ -410,45 +482,191 @@ export class GameEngine {
             const shipped = source.removeActiveShips(flowAmount);
             if (shipped === 0) return;
 
-            // Check if friendly or hostile
-            if (target.ownerId === source.ownerId) {
-                // Friendly transfer
-                target.addActiveShips(shipped);
-                log.state('GameEngine', `Transferred ${shipped} ships from ${source.id} to ${target.id}`);
-            } else {
-                // Combat!
-                const result = resolveCombat(shipped, target.activeShips, source.ownerId);
+            // Create Fleet object (now just a distinct transfer packet)
+            // Distance is used for visual speed calc only? Or irrelevant?
+            // User says "Visuals optimized to the tick".
+            const connection = this.connections.find(c =>
+                (c.sourceId === source.id && c.targetId === target.id) ||
+                (c.sourceId === target.id && c.targetId === source.id)
+            );
+            const dist = connection ? connection.distance : 100;
 
-                // Apply defender losses
-                target.takeDamage(result.defenderLoss);
+            const fleetId = `transfer-${this.tick}-${source.id}-${target.id}`;
+            const transferPacket = createFleet({
+                id: fleetId,
+                sourceId: source.id,
+                targetId: target.id,
+                ownerId: source.ownerId,
+                shipCount: shipped,
+                totalDistance: dist,
+                speed: 0 // Speed is irrelevant for instant logic
+            });
 
-                if (result.captured && result.newOwnerId) {
-                    // CAPTURE SUCCESSFUL
-                    target.setOwner(result.newOwnerId);
+            // Add to visual list
+            this.transfers.push(transferPacket);
 
-                    // Surviving attackers move to captured star
-                    const attackerSurvivors = shipped - result.attackerLoss;
-                    target.addActiveShips(attackerSurvivors);
+            // Add to logical arrivals
+            arrivals.push(transferPacket);
+        });
 
-                    // CRITICAL FIX: Clear the flow order!
-                    if (GAME_CONFIG.CLEAR_ORDER_ON_CAPTURE) {
-                        source.setTarget(null);
-                        log.success('GameEngine',
-                            `★ CAPTURED ${target.id}! ${attackerSurvivors} survivors occupy. Order cleared.`);
-                    }
+        // Resolve arrivals immediately
+        if (arrivals.length > 0) {
+            this.handleFleetArrivals(arrivals);
+        }
+    }
 
-                    this.starsCaptured++;
-                } else {
-                    // Attack failed, survivors return as damaged
-                    const survivors = shipped - result.attackerLoss;
-                    if (survivors > 0) {
-                        source.addDamagedShips(survivors);
-                        log.combat('GameEngine',
-                            `Attack on ${target.id} repelled. ${survivors} survivors retreating.`);
-                    }
-                }
+    /**
+     * Update all active fleets
+     * NO-OP: Fleets are now instant. Kept for signature compatibility if needed, 
+     * but logic is moved to processFlowLinks.
+     */
+    private updateFleets(): void {
+        // Instant travel means no "updating" of positions.
+    }
+
+    /**
+     * Handle fleet arrivals - grouping by target for multi-way combat
+     */
+    private handleFleetArrivals(arrivedFleets: Fleet[]): void {
+        // Group fleets by target
+        const arrivalsByTarget = new Map<StarId, Fleet[]>();
+
+        arrivedFleets.forEach(fleet => {
+            if (!arrivalsByTarget.has(fleet.targetId)) {
+                arrivalsByTarget.set(fleet.targetId, []);
+            }
+            arrivalsByTarget.get(fleet.targetId)!.push(fleet);
+        });
+
+        // Resolve combat for each target
+        arrivalsByTarget.forEach((fleets, targetId) => {
+            this.resolveMultiwayCombat(targetId, fleets);
+        });
+    }
+
+    /**
+     * Resolve combat where multiple fleets arrive at a star simultaneously
+     * Rule: Largest total attacking force wins
+     */
+    private resolveMultiwayCombat(targetId: StarId, fleets: Fleet[]): void {
+        const target = this.stars.get(targetId);
+        if (!target) return;
+
+        // Group ships by owner (Defender + All Attackers)
+        const forces = new Map<PlayerId, number>();
+
+        // 1. Add Defender
+        forces.set(target.ownerId, (forces.get(target.ownerId) || 0) + target.activeShips);
+
+        // 2. Add all Arriving Fleets
+        fleets.forEach(fleet => {
+            // Ensure ownerId matches exactly (strings)
+            const fid = String(fleet.ownerId);
+            forces.set(fid, (forces.get(fid) || 0) + fleet.shipCount);
+        });
+
+        // 3. Find Largest Force (Winner)
+        let winnerId: PlayerId = target.ownerId; // Default to current owner
+        let maxForce = -1;
+
+        forces.forEach((count, playerId) => {
+            if (count > maxForce) {
+                maxForce = count;
+                winnerId = playerId;
             }
         });
+
+        // 4. Calculate Resolution
+        if (winnerId === target.ownerId) {
+            // DEFENDERS HOLD (or Friendly Reinforcement wins)
+
+            // Apply reinforcements
+            fleets.forEach(fleet => {
+                if (fleet.ownerId === target.ownerId) {
+                    target.addActiveShips(fleet.shipCount);
+                } else {
+                    // Attackers damage the defenders
+                    // Simple model: Attackers deal damage, then die.
+                    // But we must respect "Largest Force Wins". 
+                    // If defenders are largest, they survive. 
+                    // How much damage?
+                    // logic: damage = Min(Attacker, Defender) * Rate
+                    const damage = this.calculateCombatDamage(fleet.shipCount, target.activeShips, true);
+                    target.takeDamage(damage);
+
+                    // Attackers failed, return damaged?
+                    const survivors = fleet.shipCount - this.calculateCombatDamage(target.activeShips, fleet.shipCount, false);
+                    if (survivors > 0) {
+                        const source = this.stars.get(fleet.sourceId);
+                        if (source) source.addDamagedShips(survivors);
+                        // log.combat('GameEngine', `Attack on ${target.id} repelled. ${survivors} returned damaged.`);
+
+                        logCombat({
+                            tick: this.tick,
+                            starId: targetId,
+                            attackers: fleet.shipCount,
+                            defenders: target.activeShips,
+                            damage: damage,
+                            result: 'DEFENSE HOLD',
+                            formula: `Dmg = Min(${fleet.shipCount}, ${target.activeShips}) * ${GAME_CONFIG.DAMAGE_RATE.toFixed(2)} * ${GAME_CONFIG.DEFENSE_MULTIPLIER} = ${damage}`
+                        });
+                    }
+                }
+            });
+        } else {
+            // CONQUEST - A new owner takes over
+            const oldOwner = target.ownerId;
+            target.setOwner(winnerId);
+            this.starsCaptured++;
+
+            // Clear order on source if relevant
+            if (GAME_CONFIG.CLEAR_ORDER_ON_CAPTURE) {
+                fleets.filter(f => f.ownerId === winnerId).forEach(f => {
+                    const source = this.stars.get(f.sourceId);
+                    if (source && source.targetId === targetId) {
+                        source.setTarget(null);
+                    }
+                });
+                log.success('GameEngine', `★ CAPTURED ${target.id} by ${winnerId}!`);
+            }
+
+            // Occupy with HALF the attacking force (User Requirement)
+            let totalWinnerShips = forces.get(winnerId) || 0;
+
+            // Subtract damage from other forces
+            forces.forEach((count, pid) => {
+                if (pid !== winnerId) {
+                    const damage = Math.floor(count * GAME_CONFIG.DAMAGE_RATE);
+                    totalWinnerShips = Math.max(0, totalWinnerShips - damage);
+                }
+            });
+
+            // Occupy with HALF
+            const occupiers = Math.floor(totalWinnerShips * 0.5);
+
+            // Use method instead of assignment
+            // We need to set active ships directly. But it's readonly (getter).
+            // Star class should have a method to set population?
+            // Checking Star.ts... likely 'addActiveShips' or similar but we need to overwrite.
+            // If no setter, we can takeDamage until 0 then add.
+            target.takeDamage(target.activeShips + target.damagedShips); // Clear all
+            target.addActiveShips(occupiers);
+
+            // Calculate total attackers for log
+            const totalAttackers = Array.from(forces.entries())
+                .filter(([pid]) => pid !== target.ownerId)
+                .reduce((sum, [_, count]) => sum + count, 0);
+
+            logCombat({
+                tick: this.tick,
+                starId: targetId,
+                attackers: totalAttackers,
+                defenders: forces.get(target.ownerId) || 0,
+                damage: 0,
+                result: `CAPTURED by ${winnerId}`,
+                formula: `Attack(${maxForce}) > Defense -> Occupy(${occupiers})`
+            });
+        }
     }
 
     /**
@@ -461,6 +679,13 @@ export class GameEngine {
             const starCount = this.getPlayerStarCount(player.id);
             if (starCount === 0) {
                 player.isEliminated = true;
+                log.state('GameEngine', `Player ${player.id} ELIMINATED`);
+
+                // Fast-forward if human died
+                if (player.id === this.humanPlayerId) {
+                    log.sys('GameEngine', 'Human player eliminated. Fast-forwarding (50x)...');
+                    this.setSpeed(50);
+                }
             }
         });
 
@@ -468,9 +693,39 @@ export class GameEngine {
         const activePlayers = Array.from(this.players.values()).filter(p => !p.isEliminated);
         if (activePlayers.length === 1) {
             // Game over - we have a winner
-            log.success('GameEngine', `${activePlayers[0].name} wins!`);
+            const winner = activePlayers[0];
+            log.success('GameEngine', `${winner.name} wins!`);
+            this.pause();
+        } else if (activePlayers.length === 0) {
+            // Should not happen, but safe to handle
+            log.state('GameEngine', 'Draw - all eliminated');
             this.pause();
         }
+    }
+
+    private recordHistory(): void {
+        this.lastHistoryTick = this.tick;
+        this.statsHistory.push({
+            tick: this.tick,
+            players: Array.from(this.players.values()).map(p => ({
+                id: p.id,
+                totalShips: this.getPlayerShipCount(p.id),
+                starCount: this.getPlayerStarCount(p.id)
+            }))
+        });
+    }
+
+    // ============================================================================
+    // Helpers
+    // ============================================================================
+
+    /**
+     * Calculate damage with defense multiplier
+     */
+    private calculateCombatDamage(attack: number, defense: number, isDefending: boolean): number {
+        const baseMultiplier = isDefending ? GAME_CONFIG.DEFENSE_MULTIPLIER : 1;
+        const effectiveDamage = Math.min(attack, defense) * GAME_CONFIG.DAMAGE_RATE;
+        return Math.max(GAME_CONFIG.MIN_DAMAGE, Math.floor(effectiveDamage * baseMultiplier));
     }
 
     /**
@@ -517,9 +772,6 @@ export class GameEngine {
         const source = this.stars.get(sourceId);
         if (!source) return false;
 
-        // Validate ownership
-        if (source.ownerId !== this.humanPlayerId) return false;
-
         // Validate target exists and is different
         if (!this.stars.has(targetId) || sourceId === targetId) return false;
 
@@ -529,8 +781,29 @@ export class GameEngine {
             return false;
         }
 
-        // Set the target (overwrites any existing)
-        source.setTarget(targetId);
+        // Logic split:
+        // 1. We own the source: Immediate Order
+        // 2. We don't own source (Enemy): Queued Order (for drag-through)
+
+        if (source.ownerId === this.humanPlayerId) {
+            // Immediate
+            source.setTarget(targetId);
+
+            // Allow queuing on NEW target too if we keep dragging? No, simple logic.
+        } else {
+            // Queued: "When I capture Source, attack Target"
+            // This enables dragging A (Mine) -> B (Enemy) -> C (Enemy)
+            // A->B starts attack.
+            // B->C queues order on B.
+            source.setQueuedOrder(this.humanPlayerId, targetId);
+            log.state('GameEngine', `Order Queued: ${sourceId} → ${targetId} (pending capture)`);
+        }
+
+        // Immediate feedback: broadcast state update
+        if (this.onTick) {
+            this.onTick(this.getState());
+        }
+
         return true;
     }
 
@@ -545,6 +818,12 @@ export class GameEngine {
         if (star.ownerId !== this.humanPlayerId) return false;
 
         star.setTarget(null);
+
+        // Immediate feedback: broadcast state update
+        if (this.onTick) {
+            this.onTick(this.getState());
+        }
+
         return true;
     }
 
@@ -605,19 +884,30 @@ export class GameEngine {
             starCount: this.getPlayerStarCount(player.id)
         }));
 
+        const winner = this.getWinner();
+
         return {
             tick: this.tick,
-            tickProgress: 0, // Set by progress loop
+            tickProgress: 0, // Calculated by loop
             speed: this.speed,
             isPaused: this.speed === 0,
             stars: Array.from(this.stars.values()).map(s => s.getState()),
+            fleets: Array.from(this.fleets.values()).map(f => f.getState()),
             connections: this.connections,
-            links: [], // Links are derived from star targets
+            links: Array.from(this.stars.values()).filter(s => s.targetId).map(s => ({
+                id: `link-${s.id}-${s.targetId}`,
+                sourceId: s.id,
+                targetId: s.targetId!,
+                ownerId: s.ownerId
+            })),
             players: playerStates,
-            winner: this.getWinner(),
-            elapsedMs: performance.now() - this.startTime
+            winner: winner,
+            elapsedMs: performance.now() - this.startTime,
+            history: this.statsHistory
         };
     }
+
+
 
     /**
      * Get game statistics
@@ -666,6 +956,7 @@ export class GameEngine {
         this.onTickProgress = null;
         this.stars.clear();
         this.links.clear();
+        this.fleets.clear();
         this.players.clear();
 
         log.sys('GameEngine', 'Engine destroyed, resources cleaned up');

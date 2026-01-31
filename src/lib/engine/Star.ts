@@ -3,6 +3,7 @@
 // ============================================================================
 
 import type { StarId, PlayerId, StarState, StarConfig } from '$lib/types/game.types';
+import { GAME_CONFIG } from '$lib/config/game.config';
 
 /** Constants */
 export const PRODUCTION_PER_TICK = 1;
@@ -21,11 +22,16 @@ export class Star {
     readonly y: number;
     readonly radius: number;
     readonly productionRate: number;
+    readonly icon: string;
 
     private _activeShips: number;
     private _damagedShips: number;
     private _ownerId: PlayerId;
     private _targetId: StarId | null;
+    private _lastCombatTick: number = -1; // Track when combat last occurred for generic pinning
+
+    // Queued order to execute when this star is captured by a specific player
+    private _queuedOrder: { ownerId: PlayerId, targetId: StarId } | null = null;
 
     constructor(config: StarConfig & { id: StarId }) {
         this.id = config.id;
@@ -37,6 +43,11 @@ export class Star {
         this._activeShips = 10; // Starting ships
         this._damagedShips = 0;
         this._targetId = null;
+
+        // Random icon based on ID hash
+        const icons = ['🌟', '⭐', '☀️', '☄️', '🌎', '🪐', '🌑', '🌕', '🌌', '🌋', '🏔️', '🏝️'];
+        const seed = this.id.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0);
+        this.icon = icons[seed % icons.length];
     }
 
     // ============================================================================
@@ -87,12 +98,27 @@ export class Star {
      * Repair damaged ships each tick
      * Converts damaged ships back to active
      */
-    repair(): void {
+    repair(currentTick: number): void {
         if (this._damagedShips > 0) {
-            const repaired = Math.min(this._damagedShips, REPAIR_RATE);
+            let rate = REPAIR_RATE;
+
+            // Apply Pinning Penalty
+            // If combat happened this tick (or very recently), slash repair
+            if (this._lastCombatTick >= currentTick - 1) {
+                rate *= GAME_CONFIG.REPAIR_COMBAT_PENALTY;
+            }
+
+            const repaired = Math.min(this._damagedShips, rate);
             this._damagedShips -= repaired;
             this._activeShips += repaired;
         }
+    }
+
+    /**
+     * Mark star as engaged in combat (prevents repair)
+     */
+    markCombat(tick: number): void {
+        this._lastCombatTick = tick;
     }
 
     /**
@@ -127,13 +153,29 @@ export class Star {
     }
 
     /**
-     * Take damage - converts active ships to destroyed
-     * Returns the number of ships destroyed
+     * Take damage
+     * Logic:
+     * 1. Damage hits Active Ships first -> Converts them to Damaged.
+     * 2. Overflow damage hits Damaged Ships -> Destroys them.
+     * 3. Returns { converted: number, destroyed: number }
      */
-    takeDamage(damage: number): number {
-        const destroyed = Math.min(this._activeShips, damage);
-        this._activeShips -= destroyed;
-        return destroyed;
+    takeDamage(damage: number): { converted: number, destroyed: number } {
+        // 1. Convert Active -> Damaged
+        const converted = Math.min(this._activeShips, damage);
+        this._activeShips -= converted;
+        this._damagedShips += converted;
+
+        let remainingDamage = damage - converted;
+        let destroyed = 0;
+
+        // 2. Destroy Damaged (Only if active are wiped out or overflow?)
+        // Standard Attrition: If damage exceeds active capacity, it starts killing the wounded.
+        if (remainingDamage > 0 && this._damagedShips > 0) {
+            destroyed = Math.min(this._damagedShips, remainingDamage);
+            this._damagedShips -= destroyed;
+        }
+
+        return { converted, destroyed };
     }
 
     /**
@@ -143,6 +185,21 @@ export class Star {
         this._ownerId = newOwnerId;
         // Clear any outgoing attack when captured
         this._targetId = null;
+
+        // Check for queued order
+        if (this._queuedOrder && this._queuedOrder.ownerId === newOwnerId) {
+            this._targetId = this._queuedOrder.targetId;
+            this._queuedOrder = null; // Clear queue
+        } else {
+            this._queuedOrder = null; // Clear invalid queue
+        }
+    }
+
+    /**
+     * Set a queued order to execute upon capture
+     */
+    setQueuedOrder(ownerId: PlayerId, targetId: StarId): void {
+        this._queuedOrder = { ownerId, targetId };
     }
 
     /**
@@ -158,7 +215,8 @@ export class Star {
             activeShips: Math.floor(this._activeShips),
             damagedShips: Math.floor(this._damagedShips),
             ownerId: this._ownerId,
-            targetId: this._targetId
+            targetId: this._targetId,
+            icon: this.icon
         };
     }
 }
