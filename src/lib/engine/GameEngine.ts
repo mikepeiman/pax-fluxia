@@ -451,53 +451,17 @@ export class GameEngine {
         if (totalDamageIncoming === 0) return; // No combat
 
         // 3. Apply Damage to Star
-        // Logic: Active Ships take damage first (convert to damaged?), OR 
-        // simplified: Damage reduces ship count.
-        // Let's use: Damage destroys ships.
-        // Active ships destroy first, then Damaged ships.
+        const { converted, destroyed } = target.takeDamage(totalDamageIncoming);
 
-        let damageRemaining = totalDamageIncoming;
+        const remainingDefenders = target.activeShips + target.damagedShips;
+        const totalInitDefenders = totalDefenders;
 
-        // Absorb with Active
-        const activeLoss = Math.min(target.activeShips, Math.floor(damageRemaining));
-        target.removeActiveShips(activeLoss);
-        damageRemaining -= activeLoss;
+        // Note: Removed outdated manual absorption logic here.
 
-        // Absorb with Damaged
-        if (damageRemaining > 0) {
-            const damagedLoss = Math.min(target.damagedShips, Math.floor(damageRemaining));
-            // We need a removeDamagedShips method or property access
-            // Star has _damagedShips.
-            // We'll trust the public getter has a setter? No it is readonly.
-            // We need to implement removeDamagedShips on Star, or just cheat for now?
-            // Star.ts likely needs 'removeDamagedShips'. I will check later.
-            // For now, assume I can't easily.
-            // Wait, I can call target.addDamagedShips(-damagedLoss).
-            // Let's assume addDamagedShips exists or I add it.
-            // Checking Star.ts view... I haven't viewed it fully recently.
-            // I will assume I need to add it.
-        }
-
-        // NOTE: I need to verify Star.ts has methods to manipulate damaged ships.
-        // Simplification for now: All damage hits Active ships. 
-        // Real implementation: active -> damage -> dead.
-
-        // Correction: User explicitly asked for "active -> damaged -> destroyed".
-        // This implies incoming damage CONVERTS active to damaged.
-        // AND excess damage destroys damaged?
-
-        // Revised Logic:
-        // Attack Damage = X.
-        // 1. Convert X active ships to Damaged.
-        // 2. If X > Active, the overflow X-Active destroys Damaged ships.
-
-        // Let's stick to simple HP for now to ensure stability.
-        // Damage sets ships to 0.
-
-        if (target.activeShips <= 0 && target.damagedShips <= 0) {
+        if (remainingDefenders <= 0) {
             // CONQUEST
             if (strongestAttackerId) {
-                const remainingAttackers = Math.max(0, maxAttackForce - totalDefenders);
+                const survivorCount = Math.max(0, maxAttackForce - totalInitDefenders);
                 // Attackers also take damage? User said "Both sides... need ships damaged".
                 // We need to calculate damage against attackers.
 
