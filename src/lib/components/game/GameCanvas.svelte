@@ -477,13 +477,12 @@
         // Draw active flow indicators using Vector Arrow style
         const allLinks = new Set<string>();
 
-        // 1. Snapshot Connections
-        const snapshot = gameStore.snapshot;
-        if (snapshot?.connections) {
-            snapshot.connections.forEach((c) =>
-                allLinks.add(`${c.sourceId}|${c.targetId}`),
-            );
-        }
+        // 1. Snapshot Flows (from star data)
+        stars.forEach((s) => {
+            if (s.targetId) {
+                allLinks.add(`${s.id}|${s.targetId}`);
+            }
+        });
 
         // 2. Pending Orders (Optimistic)
         pendingOrders.forEach((key) => allLinks.add(key));
