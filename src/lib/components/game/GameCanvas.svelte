@@ -661,7 +661,6 @@
                         y: star.y + (Math.random() - 0.5) * 20,
                         vx: 0,
                         vy: 0,
-                        vy: 0,
                         targetIndex: i,
                         scale: 0.1,
                         alpha: 0,
