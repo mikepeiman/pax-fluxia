@@ -1,3 +1,4 @@
+<script lang="ts">
     import { onMount, onDestroy } from "svelte";
     import * as PIXI from "pixi.js";
     import { gameStore } from "$lib/stores/gameStore.svelte";
