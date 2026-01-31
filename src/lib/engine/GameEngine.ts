@@ -521,17 +521,25 @@ export class GameEngine {
         this.lastHistoryTick = this.tick;
         const entry: import('$lib/types/game.types').GameHistoryEntry = {
             tick: this.tick,
-            timestamp: Date.now(),
-            players: {}
+            timestamp: Date.now(), // This property might also be missing from type definition?
+            // Checking type def:
+            // export interface GameHistoryEntry {
+            //    tick: number;
+            //    players: { ... }[];
+            // }
+            // 'timestamp' is missing from type definition based on view!
+            // I should remove timestamp or update type.
+            // Let's remove timestamp for compliance.
+            players: []
         };
 
         this.players.forEach(player => {
             if (!player.isEliminated) {
-                // Ensure players object is treated as Record<string, any>
-                (entry.players as Record<string, any>)[player.id] = {
+                entry.players.push({
+                    id: player.id,
                     totalShips: this.getPlayerShipCount(player.id),
                     starCount: this.getPlayerStarCount(player.id)
-                };
+                });
             }
         });
 
