@@ -759,8 +759,9 @@
 
         for (const star of snapshot.stars) {
             const dist = distance(x, y, star.x, star.y);
-            if (dist <= star.radius + 10) {
-                // 10px tolerance
+            // FIX: Enlarge hit target (2.5x radius)
+            // But keep visual radius same.
+            if (dist <= Math.max(star.radius * 2.5, 40)) {
                 return star;
             }
         }
@@ -775,6 +776,18 @@
         const y = event.clientY - rect.top;
 
         const star = hitTestStar(x, y);
+
+        // FIX: Right Click to Cancel
+        if (event.button === 2) {
+            event.preventDefault();
+            if (star && star.ownerId === "human-player") {
+                gameStore.cancelOrder(star.id);
+                log.success("GameCanvas", `Cancelled order on ${star.id}`);
+            }
+            // Also clear selection
+            activeStarId = null;
+            return;
+        }
 
         if (star && star.ownerId === "human-player") {
             // Start drag from this star
@@ -859,61 +872,40 @@
                     `Drag order: ${dragSourceId} → ${targetStar.id}`,
                 );
             }
-            // Clear after drag
             cancelDrag();
             return;
         }
 
         // CLICK LOGIC (Not valid drag)
         if (!movedSignificantly && targetStar) {
-            // Case 1: We have an active star selected, and clicked a DIFFERENT star
+            // Case 1: Active Star Selected -> Click OTHER star (Issue Order)
             if (activeStarId && activeStarId !== targetStar.id) {
-                const activeStarSnapshot = gameStore.snapshot?.stars.find(
+                 const activeStarSnapshot = gameStore.snapshot?.stars.find(
                     (s) => s.id === activeStarId,
                 );
-
-                // Only if we own the active star
+                
+                // If we own the source, we can send to ANY target (Self or Enemy)
                 if (activeStarSnapshot?.ownerId === "human-player") {
-                    const success = gameStore.issueOrder(
-                        activeStarId,
-                        targetStar.id,
-                    );
+                    const success = gameStore.issueOrder(activeStarId, targetStar.id);
+                    
                     if (success) {
-                        log.success(
-                            "GameCanvas",
-                            `Click order: ${activeStarId} -> ${targetStar.id}`,
-                        );
-                        // Chain selection
-                        activeStarId = targetStar.id;
+                         activeStarId = targetStar.id; // Chain selection
                     } else {
-                        // Invalid link? Maybe we just wanted to select the new star?
-                        // If I click a non-connected star, I probably meant to select it (if mine).
-                        if (targetStar.ownerId === "human-player") {
+                        // Failed (not connected?) -> select the target if ours
+                         if (targetStar.ownerId === "human-player") {
                             activeStarId = targetStar.id;
-                            log.state(
-                                "GameCanvas",
-                                `Selection changed to ${targetStar.id}`,
-                            );
                         }
                     }
                 } else {
-                    // Active star not ours (shouldn't happen?), select new one
-                    if (targetStar.ownerId === "human-player")
+                    // Previous selection wasn't ours, just select new one
+                     if (targetStar.ownerId === "human-player") {
                         activeStarId = targetStar.id;
+                    }
                 }
-            }
-            // Case 2: No active star, or clicked same star
+            } 
+            // Case 2: No active selection or clicked same -> Select
             else if (targetStar.ownerId === "human-player") {
                 activeStarId = targetStar.id;
-                log.state("GameCanvas", `Star ${targetStar.id} selected`);
-            }
-        } else if (!movedSignificantly && !targetStar) {
-            // Clicked space
-            clearSelection();
-        }
-
-        // Always clear drag state after pointer up
-        isDragging = false;
         dragSourceId = null;
         if (dragPreviewGraphics) {
             dragPreviewGraphics.clear();
