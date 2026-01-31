@@ -425,7 +425,7 @@ export class GameEngine {
 
         const ownerId = target.ownerId;
         const totalDefenders = target.activeShips + target.damagedShips;
-        const DAMAGE_RATE = GAME_CONFIG.DAMAGE_RATE || 0.5; // Configurable
+        const DAMAGE_RATE = GAME_CONFIG.DAMAGE_RATE ?? 0.5; // Configurable
 
         // 2. Calculate Damage
         let totalDamageIncoming = 0;
