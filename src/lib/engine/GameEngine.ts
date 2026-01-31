@@ -518,7 +518,8 @@ export class GameEngine {
 
         this.players.forEach(player => {
             if (!player.isEliminated) {
-                entry.players[player.id] = {
+                // Ensure players object is treated as Record<string, any>
+                (entry.players as Record<string, any>)[player.id] = {
                     totalShips: this.getPlayerShipCount(player.id),
                     starCount: this.getPlayerStarCount(player.id)
                 };
