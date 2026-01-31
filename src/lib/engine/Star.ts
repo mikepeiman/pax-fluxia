@@ -91,7 +91,7 @@ export class Star {
     produce(): void {
         if (this._ownerId) {
             // Use live config for production rate
-            const baseRate = GAME_CONFIG.BASE_PRODUCTION || 0.5;
+            const baseRate = GAME_CONFIG.BASE_PRODUCTION ?? 0.5;
             // Star's local multiplier (productionRate) * Global Base * Constant
             this._activeShips += this.productionRate * baseRate;
         }
@@ -106,8 +106,8 @@ export class Star {
             // Use live config for repair rate (percent of damaged)
             // Or config might mean "percent of MAX"? 
             // Config says "REPAIR_RATE: 0.20" -> 20% of damaged ships per tick?
-            const configRate = GAME_CONFIG.REPAIR_RATE || 0.20;
-            const minRepair = GAME_CONFIG.MIN_REPAIR || 1;
+            const configRate = GAME_CONFIG.REPAIR_RATE ?? 0.20;
+            const minRepair = GAME_CONFIG.MIN_REPAIR ?? 1;
 
             let amount = Math.max(minRepair, this._damagedShips * configRate);
 
