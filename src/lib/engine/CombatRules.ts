@@ -59,13 +59,12 @@ export function resolveMultiwayCombat(target: Star, fleets: Fleet[], stars: Map<
         if (source) source.markCombat(tick);
     });
 
-
     // 3. Check Overwhelm (Pre-Combat surrender)
     const overwhelmThreshold = totalAttackers * GAME_CONFIG.OVERWHELM_THRESHOLD;
 
     if (initialDefenderCount < overwhelmThreshold && initialDefenderCount > 0) {
         // Instant Capture
-        executeCapture(target, forces, tick, initialDefenderCount, 0, stars, "OVERWHELM");
+        executeCapture(target, forces, tick, initialDefenderCount, 0, stars, "OVERWHELM", fleets);
         return;
     }
 
@@ -81,9 +80,6 @@ export function resolveMultiwayCombat(target: Star, fleets: Fleet[], stars: Map<
     // defResult = { converted, destroyed }
 
     // Apply Damage to Sources (Attackers)
-    // We must distribute this damage among the attacking stars.
-    // Simplification: Proportional to their contribution?
-    // Or just iterate?
     let atkConvertedTotal = 0;
     let atkDestroyedTotal = 0;
 
@@ -110,10 +106,9 @@ export function resolveMultiwayCombat(target: Star, fleets: Fleet[], stars: Map<
     if (target.activeShips <= 0) {
         // Capture (via Attrition)
         // Pass the damage stats for logging
-        executeCapture(target, forces, tick, initialDefenderCount, damageToDefenders, stars, "CONQUEST");
+        executeCapture(target, forces, tick, initialDefenderCount, damageToDefenders, stars, "CONQUEST", fleets);
     } else {
         // Defense Holds
-        // Log the exchange with full stats
         combatLog.add({
             tick,
             starId: target.id,
@@ -123,6 +118,8 @@ export function resolveMultiwayCombat(target: Star, fleets: Fleet[], stars: Map<
             attackers: totalAttackers,
             defenders: initialDefenderCount,
             damage: damageToDefenders, // Damage DEALT to defenders
+            shipsDamaged: defResult.converted,
+            shipsDestroyed: defResult.destroyed,
             message: `Defense Holds.
             - Defense: ${defResult.converted.toFixed(0)} Damaged, ${defResult.destroyed.toFixed(0)} Destroyed.
             - Attackers: ${atkConvertedTotal.toFixed(0)} Damaged, ${atkDestroyedTotal.toFixed(0)} Destroyed (Remote Return Fire).`
@@ -140,7 +137,8 @@ function executeCapture(
     originalDef: number,
     damageDealt: number,
     stars: Map<string, Star>,
-    reason: string
+    reason: string,
+    fleets: Fleet[]
 ) {
     // Find Largest Attacker
     let winnerId: string = "";
@@ -156,6 +154,11 @@ function executeCapture(
     });
 
     const winnerTotal = forces.get(winnerId) || 0;
+    const survivors = winnerTotal; // Simplification for transfer calc
+
+    // Split: 50% Occupy, 50% Return
+    const occupyCount = Math.floor(survivors * GAME_CONFIG.CONQUEST_TRANSFER_PERCENTAGE);
+    const returnCount = survivors - occupyCount;
 
     // Log
     combatLog.add({
@@ -167,29 +170,30 @@ function executeCapture(
         attackers: winnerTotal,
         defenders: originalDef,
         damage: damageDealt,
+        shipsDamaged: 0,
+        shipsDestroyed: originalDef,
         message: `${reason}! ${winnerId} conquers.
         - Attacker: ${winnerTotal.toFixed(0)} (Engaged)
-        - Defender: ${originalDef.toFixed(0)} active ships neutralized.`
+        - Defender: ${originalDef.toFixed(0)} active ships neutralized.
+        - Occupying: ${occupyCount}
+        - Returning: ${returnCount}`
     });
 
     // Apply Ownership
     target.setOwner(winnerId);
-
-    // Clear ALL ships on target (they are gone/captured/converted)
-    // Actually, "50% of attacking ships occupy".
-    // "active active attackers"?
-    // We need to move ships from Source to Target using the 50% rule.
-    // We iterate over the *Winner's* engaging fleets (sources).
-
-    // Clear target first
     target.takeDamage(1000000); // Wipe clean.
 
-    const transferPercentage = GAME_CONFIG.CONQUEST_TRANSFER_PERCENTAGE; // 0.5
-
-    // Move 50% of Source to Target
-    // We need to find the specific source stars for the winner.
-    // We passed `fleets` but we need to know which belong to `winnerId`.
-    // Wait, executeCapture doesn't have `fleets`.
-    // We need to pass `fleets` or find them. 
-    // REFACTOR: Pass `fleets` to `executeCapture`.
+    // Move 50% of Winning Sources to Target
+    fleets.forEach(f => {
+        if (f.ownerId === winnerId) {
+            const source = stars.get(f.sourceId);
+            if (source) {
+                const transferAmount = Math.floor(source.activeShips * GAME_CONFIG.CONQUEST_TRANSFER_PERCENTAGE);
+                if (transferAmount > 0) {
+                    source.removeActiveShips(transferAmount);
+                    target.addActiveShips(transferAmount);
+                }
+            }
+        }
+    });
 }

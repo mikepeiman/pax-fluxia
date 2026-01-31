@@ -137,6 +137,14 @@
         color: #ff6666;
     }
 
+    .hit {
+        color: #ffaa44;
+    }
+
+    .kill {
+        color: #ff4444;
+    }
+
     .empty {
         padding: 20px;
         text-align: center;
