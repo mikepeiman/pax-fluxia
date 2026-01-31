@@ -692,18 +692,7 @@
                  drawShip(lx + jitterX, ly + jitterY, color, 1.0, 1.0, false);
             }
         });
-    }                    ship.alpha = lerp(ship.alpha, 1.0, 0.1);
 
-                    drawShip(
-                        ship.x,
-                        ship.y,
-                        color,
-                        ship.scale,
-                        ship.alpha,
-                        false,
-                    );
-                });
-            }
 
             // 3. Manage Damaged Ships
             let damaged = visualDamagedShips.get(star.id) || [];
