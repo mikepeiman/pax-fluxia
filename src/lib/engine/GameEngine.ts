@@ -165,29 +165,32 @@ export class GameEngine {
         const height = 900;
 
         const hexRadius = GAME_CONFIG.HEX_RADIUS || 60;
-        // Padding must be large enough to keep stars off edge
-        const padding = 100; // Increased padding
+
+        // VIEWPORT SAFE ZONES
+        // HUD elements (Telemetry/Leaderboard) take up significant space on Left/Right
+        // We increase horizontal padding to ensure stars don't spawn behind UI.
+        const paddingX = 250; // Increased from 100 to clear HUD columns
+        const paddingY = 120; // Slight increase for top/bottom margins
 
         const grid = new HexGrid({
-            width: width - (padding * 2), // Usable area
-            height: height - (padding * 2),
+            width: width - (paddingX * 2), // Usable area width
+            height: height - (paddingY * 2), // Usable area height
             radius: hexRadius,
-            offset: padding // Start offset
+            offset: 0 // handled by centering logic below if needed, or grid offset
         });
 
+        // Centering offset to shift grid back to center of screen
+        // HexGrid generates from (0,0) of its own bounds. We need to add padding.
+        const offsetX = paddingX;
+        const offsetY = paddingY;
+
         // Generate valid hex coordinates
-        // We map the HexGrid output (which uses its own offset logic) to screen coords centered
         const rawHexes = grid.generate();
 
-        // Convert to compatible HexCoord shape for util if needed, 
-        // but HexGrid.ts HexCoord matches {x,y,r}. 
-        // hex.utils HexCoord has {q,r,x,y}. 
-        // We need to map or just use the x,y.
         const hexes = rawHexes.map(h => ({
-            x: h.x,
-            y: h.y,
-            q: 0, r: 0 // Mock axial if util needs it, or update util. 
-            // selectRandomHexPositions only uses .x, .y for distance check.
+            x: h.x + offsetX, // Shift to centered position
+            y: h.y + offsetY,
+            q: 0, r: 0
         }));
 
         log.sys('GameEngine', `Generated hex grid with ${hexes.length} positions`);
