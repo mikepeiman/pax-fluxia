@@ -8,7 +8,18 @@ import { GAME_CONFIG } from '$lib/config/game.config';
  * Ship visual state for rendering
  */
 /**
- * Persistent visual state for a single ship
+ * Ship visual state for rendering (Legacy/Stateless)
+ */
+export interface ShipVisual {
+    x: number;
+    y: number;
+    rotation: number;
+    scale: number;
+    alpha: number;
+}
+
+/**
+ * Persistent visual state for a single ship (Orbit/Physics)
  */
 export interface VisualShipState {
     id: number; // Unique ID for tracking
