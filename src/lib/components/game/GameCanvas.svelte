@@ -13,11 +13,15 @@
         StarConnection,
         FleetState,
     } from "$lib/types/game.types";
-    import { GAME_CONFIG } from "$lib/config/game.config";
+    function renderDebugGrid() {
+        if (!starsContainer?.parent) return;
 
-    // ============================================================================
-    // PixiJS Application
-    // ============================================================================
+        if (!debugGraphics) {
+            debugGraphics = new PIXI.Graphics();
+            starsContainer.parent.addChildAt(debugGraphics, 0); // Background layer
+        }
+
+        debugGraphics.clear();
 
     let canvasContainer: HTMLDivElement;
     let app: PIXI.Application | null = null;
@@ -31,7 +35,6 @@
 
     // Game logic imports
     import { HexGrid } from "$lib/engine/HexGrid";
-    import { GAME_CONFIG } from "$lib/config/game.config";
 
     // Graphics cache
     let starGraphics: Map<string, PIXI.Graphics> = new Map();
