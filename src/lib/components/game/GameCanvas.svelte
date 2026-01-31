@@ -1,8 +1,8 @@
-<script lang="ts">
     import { onMount, onDestroy } from "svelte";
     import * as PIXI from "pixi.js";
     import { gameStore } from "$lib/stores/gameStore.svelte";
     import { log } from "$lib/utils/logger";
+    import { GAME_CONFIG } from "$lib/config/game.config";
     import {
         getPackedPositions,
         getFleetPositions,
@@ -13,15 +13,10 @@
         StarConnection,
         FleetState,
     } from "$lib/types/game.types";
-    function renderDebugGrid() {
-        if (!starsContainer?.parent) return;
 
-        if (!debugGraphics) {
-            debugGraphics = new PIXI.Graphics();
-            starsContainer.parent.addChildAt(debugGraphics, 0); // Background layer
-        }
-
-        debugGraphics.clear();
+    // ============================================================================
+    // PixiJS Application
+    // ============================================================================
 
     let canvasContainer: HTMLDivElement;
     let app: PIXI.Application | null = null;
