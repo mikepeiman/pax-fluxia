@@ -90,7 +90,10 @@ export class Star {
      */
     produce(): void {
         if (this._ownerId) {
-            this._activeShips += this.productionRate * PRODUCTION_PER_TICK;
+            // Use live config for production rate
+            const baseRate = GAME_CONFIG.BASE_PRODUCTION || 0.5;
+            // Star's local multiplier (productionRate) * Global Base * Constant
+            this._activeShips += this.productionRate * baseRate;
         }
     }
 
@@ -100,15 +103,21 @@ export class Star {
      */
     repair(currentTick: number): void {
         if (this._damagedShips > 0) {
-            let rate = REPAIR_RATE;
+            // Use live config for repair rate (percent of damaged)
+            // Or config might mean "percent of MAX"? 
+            // Config says "REPAIR_RATE: 0.20" -> 20% of damaged ships per tick?
+            const configRate = GAME_CONFIG.REPAIR_RATE || 0.20;
+            const minRepair = GAME_CONFIG.MIN_REPAIR || 1;
+
+            let amount = Math.max(minRepair, this._damagedShips * configRate);
 
             // Apply Pinning Penalty
             // If combat happened this tick (or very recently), slash repair
             if (this._lastCombatTick >= currentTick - 1) {
-                rate *= GAME_CONFIG.REPAIR_COMBAT_PENALTY;
+                amount *= GAME_CONFIG.REPAIR_COMBAT_PENALTY;
             }
 
-            const repaired = Math.min(this._damagedShips, rate);
+            const repaired = Math.min(this._damagedShips, amount);
             this._damagedShips -= repaired;
             this._activeShips += repaired;
         }

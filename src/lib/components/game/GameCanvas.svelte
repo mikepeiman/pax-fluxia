@@ -239,7 +239,7 @@
 
             const hexes = grid.generate();
 
-            debugGraphics.stroke({ width: 1, color: 0x333333, alpha: 0.3 });
+            debugGraphics.stroke({ width: 2, color: 0x00ff00, alpha: 0.5 });
 
             hexes.forEach((h) => {
                 const cx = h.x + offsetX;
