@@ -35,6 +35,11 @@
     let starLabels: Map<string, PIXI.Container> = new Map();
     let shipGraphics: PIXI.Graphics | null = null;
 
+    // Ship Spawn Animation Tracking
+    // Key: `${starId}-${shipIndex}`, Value: spawnTimestamp
+    let shipSpawnTimers: Map<string, number> = new Map();
+    let starShipCounts: Map<string, number> = new Map(); // Track previous counts
+
     // Animation state
     let animationTime = 0;
     let animationFrameId: number | null = null;
@@ -472,12 +477,21 @@
     function renderShips(stars: StarState[], tickProgress: number) {
         if (!shipGraphics) return;
 
-        // shipGraphics.clear(); // Moved to renderFrame to prevent erasing fleets
-
         stars.forEach((star) => {
             const color = getPlayerColor(star.ownerId);
             const activeShips = star.activeShips;
             const damagedShips = star.damagedShips;
+
+            // Check for newly spawned active ships
+            const prevCount = starShipCounts.get(star.id) || 0;
+            if (activeShips > prevCount) {
+                // Register new ships for animation
+                const now = performance.now();
+                for (let i = prevCount; i < activeShips; i++) {
+                    shipSpawnTimers.set(`${star.id}-${i}`, now);
+                }
+            }
+            starShipCounts.set(star.id, activeShips);
 
             // Render orbiting ACTIVE ships
             if (activeShips > 0) {
@@ -489,12 +503,33 @@
                     animationTime,
                 );
 
-                orbitShips.forEach((ship) => {
+                const now = performance.now();
+                const SPAWN_DURATION = 400; // ms
+
+                orbitShips.forEach((ship, index) => {
+                    // Calculate Spawn Scale
+                    let spawnScale = 1.0;
+                    const spawnKey = `${star.id}-${index}`;
+                    const spawnTime = shipSpawnTimers.get(spawnKey);
+
+                    if (spawnTime) {
+                        const elapsed = now - spawnTime;
+                        if (elapsed < SPAWN_DURATION) {
+                            // Ease out back/elastic or simple ease out
+                            const t = elapsed / SPAWN_DURATION;
+                            // Overshoot effect: goes to 1.2 then back to 1
+                            spawnScale =
+                                t < 0.8 ? t * 1.25 : 1.25 - (t - 0.8) * 1.25;
+                        } else {
+                            shipSpawnTimers.delete(spawnKey); // Cleanup
+                        }
+                    }
+
                     drawShip(
                         ship.x,
                         ship.y,
                         color,
-                        ship.scale,
+                        ship.scale * spawnScale, // Combine normal scale with spawn effect
                         ship.alpha,
                         false,
                     );
