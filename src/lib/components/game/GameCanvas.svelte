@@ -542,83 +542,120 @@
     function renderShips(stars: StarState[], tickProgress: number) {
         if (!shipGraphics) return;
 
+        // Configuration for Physics
+        const LERP_FACTOR = 0.1; // Smoothness (0.1 = smooth, 0.5 = snappy)
+
         stars.forEach((star) => {
             const color = getPlayerColor(star.ownerId);
-            const activeShips = star.activeShips;
-            const damagedShips = star.damagedShips;
 
-            // Check for newly spawned active ships
-            const prevCount = starShipCounts.get(star.id) || 0;
-            if (activeShips > prevCount) {
-                // Register new ships for animation
-                const now = performance.now();
-                for (let i = prevCount; i < activeShips; i++) {
-                    shipSpawnTimers.set(`${star.id}-${i}`, now);
+            // 1. Manage Active Ships State
+            let ships = visualShips.get(star.id) || [];
+            const targetCount = star.activeShips;
+
+            // SPWAN: If we need more ships, add them
+            if (ships.length < targetCount) {
+                const diff = targetCount - ships.length;
+                for (let i = 0; i < diff; i++) {
+                    const spawnIndex = ships.length; // Will be valid index
+                    // Start at center of star
+                    ships.push({
+                        id: nextShipId++,
+                        x: star.x,
+                        y: star.y,
+                        vx: 0,
+                        vy: 0,
+                        targetIndex: spawnIndex,
+                        scale: 0.1, // Start tiny
+                        alpha: 0,
+                        spawnTime: performance.now(),
+                    });
                 }
             }
-            starShipCounts.set(star.id, activeShips);
+            // DESPAWN: If we have too many, truncate
+            else if (ships.length > targetCount) {
+                ships.length = targetCount;
+            }
 
-            // Render orbiting ACTIVE ships
-            if (activeShips > 0) {
-                const orbitShips = getPackedPositions(
-                    star.x,
-                    star.y,
-                    star.radius,
-                    activeShips,
-                    animationTime,
-                );
+            visualShips.set(star.id, ships);
 
-                const now = performance.now();
-                const SPAWN_DURATION = 400; // ms
+            // 2. Physics & Render Loop for Active Ships
+            if (ships.length > 0) {
+                ships.forEach((ship, i) => {
+                    // Update target index to explicitly match current array position (organic shuffle)
+                    ship.targetIndex = i;
 
-                orbitShips.forEach((ship, index) => {
-                    // Calculate Spawn Scale
-                    let spawnScale = 1.0;
-                    const spawnKey = `${star.id}-${index}`;
-                    const spawnTime = shipSpawnTimers.get(spawnKey);
+                    const slot = getOrbitSlot(
+                        ship.targetIndex,
+                        star.x,
+                        star.y,
+                        star.radius,
+                        animationTime,
+                    );
 
-                    if (spawnTime) {
-                        const elapsed = now - spawnTime;
-                        if (elapsed < SPAWN_DURATION) {
-                            // Ease out back/elastic or simple ease out
-                            const t = elapsed / SPAWN_DURATION;
-                            // Overshoot effect: goes to 1.2 then back to 1
-                            spawnScale =
-                                t < 0.8 ? t * 1.25 : 1.25 - (t - 0.8) * 1.25;
-                        } else {
-                            shipSpawnTimers.delete(spawnKey); // Cleanup
-                        }
-                    }
+                    // Simple Lerp to target
+                    ship.x = lerp(ship.x, slot.x, LERP_FACTOR);
+                    ship.y = lerp(ship.y, slot.y, LERP_FACTOR);
+
+                    const TARGET_SCALE = 0.8;
+                    ship.scale = lerp(ship.scale, TARGET_SCALE, 0.1);
+                    ship.alpha = lerp(ship.alpha, 1.0, 0.1);
 
                     drawShip(
                         ship.x,
                         ship.y,
                         color,
-                        ship.scale * spawnScale, // Combine normal scale with spawn effect
+                        ship.scale,
                         ship.alpha,
                         false,
                     );
                 });
             }
 
-            // Render orbiting DAMAGED ships (in outer ring with dark border)
-            if (damagedShips > 0) {
-                // Outer shell for damaged ships
-                const damagedOrbitShips = getPackedPositions(
-                    star.x,
-                    star.y,
-                    star.radius + 30, // Much further out
-                    damagedShips,
-                    animationTime,
-                );
+            // 3. Manage Damaged Ships
+            let damaged = visualDamagedShips.get(star.id) || [];
+            const targetDamaged = star.damagedShips;
 
-                damagedOrbitShips.forEach((ship) => {
+            if (damaged.length < targetDamaged) {
+                const diff = targetDamaged - damaged.length;
+                for (let i = 0; i < diff; i++) {
+                    damaged.push({
+                        id: nextShipId++,
+                        x: star.x,
+                        y: star.y,
+                        vx: 0,
+                        vy: 0,
+                        targetIndex: damaged.length,
+                        scale: 0.1,
+                        alpha: 0,
+                        spawnTime: performance.now(),
+                    });
+                }
+            } else if (damaged.length > targetDamaged) {
+                damaged.length = targetDamaged;
+            }
+            visualDamagedShips.set(star.id, damaged);
+
+            if (damaged.length > 0) {
+                damaged.forEach((ship, i) => {
+                    const slot = getOrbitSlot(
+                        i,
+                        star.x,
+                        star.y,
+                        star.radius + 30, // Offset for damaged ring
+                        animationTime,
+                    );
+
+                    ship.x = lerp(ship.x, slot.x, LERP_FACTOR);
+                    ship.y = lerp(ship.y, slot.y, LERP_FACTOR);
+                    ship.scale = lerp(ship.scale, 0.7, 0.1);
+                    ship.alpha = lerp(ship.alpha, 0.7, 0.1);
+
                     drawShip(
                         ship.x,
                         ship.y,
                         color,
-                        ship.scale * 0.8,
-                        ship.alpha * 0.7,
+                        ship.scale,
+                        ship.alpha,
                         true,
                     );
                 });
