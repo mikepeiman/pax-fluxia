@@ -19,7 +19,6 @@ import { resolveCombat } from './Combat';
 import { AI, createAI } from './AI';
 import { log } from '$lib/utils/logger';
 import {
-    generateHexGrid,
     selectRandomHexPositions,
     generateStarConnections,
     areConnected
@@ -28,6 +27,7 @@ import { GAME_CONFIG, getTickInterval, calculateFlowAmount } from '$lib/config/g
 import { createFleet, type Fleet } from './Fleet';
 import { logCombat } from '$lib/utils/CombatLogger';
 import { resolveMultiwayCombat } from './CombatRules';
+import { HexGrid, type HexCoord } from './HexGrid';
 
 // ============================================================================
 // Constants
@@ -90,6 +90,7 @@ export class GameEngine {
     private fleets: Map<string, Fleet> = new Map();
     private players: Map<PlayerId, Player> = new Map();
     private aiPlayers: Map<PlayerId, AI> = new Map();
+    private transfers: any[] = []; // Tracking active transfers
 
     // Timing
     private tick: number = 0;
@@ -155,62 +156,79 @@ export class GameEngine {
         }
     }
 
+
+    // ...
+
+
     private initializeMap(): void {
-        // Standard 16:9 viewport size
         const width = 1600;
         const height = 900;
 
-        // Use configured hex settings (larger padding per user request)
-        // HEX_PADDING should be at least 50 if radius is 25 (diameter 50) + spacing 50
         const hexRadius = GAME_CONFIG.HEX_RADIUS || 60;
-        const hexPadding = Math.max(GAME_CONFIG.HEX_PADDING, 60);
+        // Padding must be large enough to keep stars off edge
+        const padding = 100; // Increased padding
 
-        const hexGrid = generateHexGrid(width, height, hexRadius, hexPadding);
-        log.sys('GameEngine', `Generated hex grid with ${hexGrid.length} positions (radius: ${hexRadius}, padding: ${hexPadding})`);
+        const grid = new HexGrid({
+            width: width - (padding * 2), // Usable area
+            height: height - (padding * 2),
+            radius: hexRadius,
+            offset: padding // Start offset
+        });
 
-        // Calculate how many stars we need (all owned by players)
+        // Generate valid hex coordinates
+        // We map the HexGrid output (which uses its own offset logic) to screen coords centered
+        const rawHexes = grid.generate();
+
+        // Convert to compatible HexCoord shape for util if needed, 
+        // but HexGrid.ts HexCoord matches {x,y,r}. 
+        // hex.utils HexCoord has {q,r,x,y}. 
+        // We need to map or just use the x,y.
+        const hexes = rawHexes.map(h => ({
+            x: h.x,
+            y: h.y,
+            q: 0, r: 0 // Mock axial if util needs it, or update util. 
+            // selectRandomHexPositions only uses .x, .y for distance check.
+        }));
+
+        log.sys('GameEngine', `Generated hex grid with ${hexes.length} positions`);
+
         const playerIds = Array.from(this.players.keys());
         const starsPerPlayer = GAME_CONFIG.STARS_PER_PLAYER;
         const totalStars = playerIds.length * starsPerPlayer;
 
-        // Select random hex positions with strict spacing
-        // Minimum spacing = 2x diameter = 4 * radius = 100
-        const minSpacing = 100;
-        const starPositions = selectRandomHexPositions(hexGrid, totalStars, minSpacing);
+        // Use util to select random positions
+        const minSpacing = hexRadius * 3; // Ensure at least 1 empty hex between stars
+        const starPositions = selectRandomHexPositions(hexes, totalStars, minSpacing);
+
         log.sys('GameEngine', `Selected ${starPositions.length} positions for stars`);
 
-        // Correctly assign all available positions to players round-robin
-        // to ensure even distribution and no neutrals.
         let starIndex = 0;
         starPositions.forEach((pos) => {
             const ownerId = playerIds[starIndex % playerIds.length];
             starIndex++;
 
-            // Add random offset for less uniform distribution
-            const offsetX = (Math.random() - 0.5) * 20;
-            const offsetY = (Math.random() - 0.5) * 20;
-
+            // Create Star (No random offset -> Strict Hex Grid)
             const star = createStar({
-                x: pos.x + offsetX,
-                y: pos.y + offsetY,
-                radius: 25, // Fixed radius as requested ("eliminate size differences")
+                x: pos.x,
+                y: pos.y,
+                radius: 25,
                 productionRate: 1,
                 ownerId: ownerId
             }, this.stars.size);
             this.stars.set(star.id, star);
         });
 
-        // Generate territory map (Voronoi)
         this.updateTerritories(width, height);
 
-        // Generate connections between stars using Delaunay Triangulation
-        // Pass Infinity to ensure we keep ALL Delaunay edges (guaranteed planar connected graph)
+        // Connections: Use Delaunay for now as it makes sense for a planar graph
         const starArray = Array.from(this.stars.values()).map(s => ({
             id: s.id,
             x: s.x,
             y: s.y,
             ownerId: s.ownerId
         }));
+
+        // Use a clean threshold for connections to allow cross-hex links
         this.connections = generateStarConnections(starArray, Infinity);
 
         log.success('GameEngine', `Map initialized with ${this.stars.size} stars and ${this.connections.length} connections`);
@@ -670,6 +688,22 @@ export class GameEngine {
     }
 
     /**
+     * Stop the game loop cleanup
+     */
+    public stop(): void {
+        this.speed = 0;
+        if (this.tickIntervalId) {
+            clearInterval(this.tickIntervalId);
+            this.tickIntervalId = null;
+        }
+        if (this.progressLoopId) {
+            cancelAnimationFrame(this.progressLoopId);
+            this.progressLoopId = null;
+        }
+        log.sys('GameEngine', 'Game loop stopped');
+    }
+
+    /**
      * Check for eliminated players and game end
      */
     private checkWinCondition(): void {
@@ -695,11 +729,11 @@ export class GameEngine {
             // Game over - we have a winner
             const winner = activePlayers[0];
             log.success('GameEngine', `${winner.name} wins!`);
-            this.pause();
+            this.stop(); // Use stop() instead of just pause()
         } else if (activePlayers.length === 0) {
             // Should not happen, but safe to handle
             log.state('GameEngine', 'Draw - all eliminated');
-            this.pause();
+            this.stop();
         }
     }
 
