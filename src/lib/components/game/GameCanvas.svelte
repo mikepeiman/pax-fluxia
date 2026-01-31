@@ -5,8 +5,10 @@
     import { log } from "$lib/utils/logger";
     import { GAME_CONFIG } from "$lib/config/game.config";
     import {
-        getPackedPositions,
+        getOrbitSlot,
         getFleetPositions,
+        lerp,
+        type VisualShipState,
     } from "$lib/utils/render.utils";
     import { distance } from "$lib/utils/math.utils";
     import type {
@@ -43,6 +45,12 @@
     // Key: `${starId}-${shipIndex}`, Value: spawnTimestamp
     let shipSpawnTimers: Map<string, number> = new Map();
     let starShipCounts: Map<string, number> = new Map(); // Track previous counts
+
+    // Physics State
+    // Map<StarId, VisualShipState[]>
+    let visualShips: Map<string, VisualShipState[]> = new Map();
+    let visualDamagedShips: Map<string, VisualShipState[]> = new Map();
+    let nextShipId = 0; // Unique counter
 
     // Animation state
     let animationTime = 0;
