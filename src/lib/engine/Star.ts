@@ -170,19 +170,17 @@ export class Star {
      */
     takeDamage(damage: number): { converted: number, destroyed: number } {
         // 1. Convert Active -> Damaged
+        // User Request: Damaged ships are NEVER destroyed in combat.
+        // They are safe until the star is conquered.
+
         const converted = Math.min(this._activeShips, damage);
         this._activeShips -= converted;
         this._damagedShips += converted;
 
-        let remainingDamage = damage - converted;
-        let destroyed = 0;
-
-        // 2. Destroy Damaged (Only if active are wiped out or overflow?)
-        // Standard Attrition: If damage exceeds active capacity, it starts killing the wounded.
-        if (remainingDamage > 0 && this._damagedShips > 0) {
-            destroyed = Math.min(this._damagedShips, remainingDamage);
-            this._damagedShips -= destroyed;
-        }
+        // No rollover damage to damaged ships. 
+        // Any excess damage is effectively wasted/absorbed by the "shield" of combat chaos?
+        // Or simply ignored as they are already out of the fight.
+        const destroyed = 0;
 
         return { converted, destroyed };
     }

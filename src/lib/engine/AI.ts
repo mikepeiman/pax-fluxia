@@ -81,18 +81,47 @@ export class AI {
 
         if (enemyStars.length === 0) return []; // We won
 
+        // 1. Calculate Attacks per Target (Global Awareness)
+        // Map<TargetId, TotalAttackForce>
+        const attacksOnTarget = new Map<StarId, number>();
+        stars.forEach(s => {
+            if (s.targetId && s.ownerId === this.playerId) {
+                const current = attacksOnTarget.get(s.targetId) || 0;
+                attacksOnTarget.set(s.targetId, current + s.activeShips);
+            }
+        });
+
         myStars.forEach(star => {
-            // Skip if already attacking
-            if (star.targetId) return;
+            // RETREAT CHECK: If already attacking, check ratio
+            if (star.targetId) {
+                const target = stars.find(s => s.id === star.targetId);
+                if (target) {
+                    const myForce = attacksOnTarget.get(target.id) || 0;
+                    const targetForce = target.totalShips; // Active + Damaged counts for defense
+
+                    // User Request: "cease attacking when they go below 1:1"
+                    const ratio = myForce / Math.max(targetForce, 1);
+
+                    // Hysteresis: Retreat if below 1.0 (or slightly lower to avoid flickering?)
+                    // Let's use 1.0 strictly as requested.
+                    if (ratio < 1.0) {
+                        decisions.push({
+                            sourceId: star.id,
+                            targetId: null as any // Hack: signal to cancel
+                        });
+                    }
+                }
+                return; // Don't re-target until free
+            }
 
             // Skip if not enough ships to attack
             if (star.activeShips < 5) return;
 
-            const target = this.findBestTarget(star, stars);
-            if (target) {
+            const targetId = this.findBestTarget(star, stars);
+            if (targetId) {
                 decisions.push({
                     sourceId: star.id,
-                    targetId: target
+                    targetId
                 });
             }
         });

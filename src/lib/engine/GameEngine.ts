@@ -504,6 +504,15 @@ export class GameEngine {
                 // Issue orders
                 // We need an internal issueOrder that doesn't check 'humanPlayerId'
                 const source = this.stars.get(decision.sourceId);
+                // Handle Retreat (targetId null)
+                if (decision.targetId === null) {
+                    if (source && source.ownerId === playerId) {
+                        source.setTarget(null);
+                        // log.sys('AI', `Player ${playerId} retreating from ${source.id}`);
+                    }
+                    return;
+                }
+
                 const target = this.stars.get(decision.targetId);
                 if (source && target && source.ownerId === playerId) {
                     source.setTarget(target.id);
