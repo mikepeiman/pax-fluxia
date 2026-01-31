@@ -135,7 +135,10 @@ function resumeGame(): void {
     }
 }
 
-
+/** Restart the game */
+function restart(): void {
+    startGame();
+}
 
 /** Set game speed */
 function setSpeed(newSpeed: GameSpeed): void {
