@@ -97,7 +97,7 @@ export class AI {
                 const target = stars.find(s => s.id === star.targetId);
                 if (target) {
                     const myForce = attacksOnTarget.get(target.id) || 0;
-                    const targetForce = target.totalShips; // Active + Damaged counts for defense
+                    const targetForce = target.activeShips + target.damagedShips; // Active + Damaged counts for defense
 
                     // User Request: "cease attacking when they go below 1:1"
                     const ratio = myForce / Math.max(targetForce, 1);
