@@ -176,17 +176,7 @@ function playAgain(): void {
     startGame();
 }
 
-/** Restart the game with current config */
-function restart(): void {
-    if (engine) {
-        engine.destroy();
-        engine = null;
-    }
 
-    snapshot = null;
-    tickProgress = 0;
-    currentView = 'game';
-}
 
 /** Return to main menu */
 function returnToMenu(): void {
