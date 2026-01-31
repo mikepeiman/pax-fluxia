@@ -466,7 +466,7 @@ export class GameEngine {
                 // We need to calculate damage against attackers.
 
                 target.setOwner(strongestAttackerId);
-                target.addActiveShips(remainingAttackers);
+                target.addActiveShips(survivorCount);
                 this.starsCaptured++;
 
                 logCombat({
