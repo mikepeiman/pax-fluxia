@@ -919,7 +919,7 @@
                         targetStar.id,
                     );
                     if (success)
-                        pendingOrders.add(`${activeStarId}-${targetStar.id}`);
+                        pendingOrders.add(`${activeStarId}|${targetStar.id}`);
 
                     if (success) {
                         activeStarId = targetStar.id; // Chain selection
