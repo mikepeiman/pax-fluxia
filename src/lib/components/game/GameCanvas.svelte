@@ -24,16 +24,21 @@
 
     // Graphics layers
     let connectionGraphics: PIXI.Graphics | null = null;
-    let linkGraphics: PIXI.Graphics | null = null;
     let dragPreviewGraphics: PIXI.Graphics | null = null;
     let starsContainer: PIXI.Container | null = null;
     let shipsContainer: PIXI.Container | null = null;
     let labelsContainer: PIXI.Container | null = null;
 
+    // Game logic imports
+    import { HexGrid } from "$lib/engine/HexGrid";
+    import { GAME_CONFIG } from "$lib/config/game.config";
+
     // Graphics cache
     let starGraphics: Map<string, PIXI.Graphics> = new Map();
     let starLabels: Map<string, PIXI.Container> = new Map();
     let shipGraphics: PIXI.Graphics | null = null;
+    let linkGraphics: PIXI.Graphics | null = null;
+    let debugGraphics: PIXI.Graphics | null = null; // New debug layer
 
     // Ship Spawn Animation Tracking
     // Key: `${starId}-${shipIndex}`, Value: spawnTimestamp
@@ -198,10 +203,61 @@
         }
         return 0xffffff;
     }
+    function renderDebugGrid() {
+        if (!debugGraphics) {
+            debugGraphics = new PIXI.Graphics();
+            starsContainer?.parent.addChildAt(debugGraphics, 0); // Background layer
+        }
 
+        debugGraphics.clear();
+
+        if (GAME_CONFIG.SHOW_HEX_GRID) {
+            // Replicate Engine Grid Config
+            const width = 1600;
+            const height = 900;
+            const hexRadius = GAME_CONFIG.HEX_RADIUS || 60;
+            const paddingX = 250;
+            const paddingY = 120;
+            const offsetX = paddingX;
+            const offsetY = paddingY;
+
+            const grid = new HexGrid({
+                width: width - paddingX * 2,
+                height: height - paddingY * 2,
+                radius: hexRadius,
+                offset: 0,
+            });
+
+            const hexes = grid.generate();
+
+            debugGraphics.stroke({ width: 1, color: 0x333333, alpha: 0.3 });
+
+            hexes.forEach((h) => {
+                const cx = h.x + offsetX;
+                const cy = h.y + offsetY;
+                drawHex(debugGraphics!, cx, cy, hexRadius * 0.95); // Slightly smaller to see gaps
+            });
+        }
+    }
+
+    function drawHex(g: PIXI.Graphics, x: number, y: number, r: number) {
+        g.moveTo(x + r * Math.cos(0), y + r * Math.sin(0));
+        for (let i = 1; i <= 6; i++) {
+            g.lineTo(
+                x + r * Math.cos((i * Math.PI) / 3),
+                y + r * Math.sin((i * Math.PI) / 3),
+            );
+        }
+    }
+
+    // Main render loop
     function renderFrame(stars: StarState[], tickProgress: number) {
         if (!app || !starsContainer || !labelsContainer || !shipGraphics)
             return;
+
+        // Render Debug Grid (check every frame if config changes)
+        // Optimization: Could check specific flag change, but lightweight enough
+        renderDebugGrid();
 
         // Clear old star graphics that no longer exist
         const currentIds = new Set(stars.map((s) => s.id));
