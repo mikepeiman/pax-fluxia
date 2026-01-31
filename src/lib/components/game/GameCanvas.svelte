@@ -610,140 +610,87 @@
                     );
                 });
             }
-             
+
             // 3. Render Damaged Ships? (Similar loop, maybe static offset)
-             let damagedShips = visualDamagedShips.get(star.id) || [];
-             const damageCount = star.damagedShips;
-             
-             // Sync count
-             if (damagedShips.length < damageCount) {
-                  const diff = damageCount - damagedShips.length;
-                  for (let i = 0; i < diff; i++) {
-                       damagedShips.push({
-                           id: nextShipId++,
-                           x: star.x + (Math.random() - 0.5) * 20,
-                           y: star.y + (Math.random() - 0.5) * 20,
-                           vx: 0,Vy: 0, // Typo check: vy
-                           vy: 0,
-                           targetIndex: i,
-                           scale: 0.1,
-                           alpha: 0,
-                           spawnTime: performance.now()
-                       });
-                  }
-             } else if (damagedShips.length > damageCount) {
-                  damagedShips.length = damageCount;
-             }
-             visualDamagedShips.set(star.id, damagedShips);
-             
-             damagedShips.forEach((ship, i) => {
-                 // Damaged ships float randomly near center
-                  const angle = animationTime * 0.5 + (i * Math.PI * 2) / Math.max(damagedShips.length, 1);
-                  const radius = 15;
-                  const tx = star.x + Math.cos(angle) * radius;
-                  const ty = star.y + Math.sin(angle) * radius;
-                  
-                  ship.x = lerp(ship.x, tx, 0.05);
-                  ship.y = lerp(ship.y, ty, 0.05);
-                  ship.scale = lerp(ship.scale, 0.7, 0.1);
-                  ship.alpha = lerp(ship.alpha, 0.8, 0.1);
-                  
-                  drawShip(ship.x, ship.y, color, ship.scale, ship.alpha, true);
-             });
+            let damagedShips = visualDamagedShips.get(star.id) || [];
+            const damageCount = star.damagedShips;
+
+            // Sync count
+            if (damagedShips.length < damageCount) {
+                const diff = damageCount - damagedShips.length;
+                for (let i = 0; i < diff; i++) {
+                    damagedShips.push({
+                        id: nextShipId++,
+                        x: star.x + (Math.random() - 0.5) * 20,
+                        y: star.y + (Math.random() - 0.5) * 20,
+                        vx: 0,
+                        Vy: 0, // Typo check: vy
+                        vy: 0,
+                        targetIndex: i,
+                        scale: 0.1,
+                        alpha: 0,
+                        spawnTime: performance.now(),
+                    });
+                }
+            } else if (damagedShips.length > damageCount) {
+                damagedShips.length = damageCount;
+            }
+            visualDamagedShips.set(star.id, damagedShips);
+
+            damagedShips.forEach((ship, i) => {
+                // Damaged ships float randomly near center
+                const angle =
+                    animationTime * 0.5 +
+                    (i * Math.PI * 2) / Math.max(damagedShips.length, 1);
+                const radius = 15;
+                const tx = star.x + Math.cos(angle) * radius;
+                const ty = star.y + Math.sin(angle) * radius;
+
+                ship.x = lerp(ship.x, tx, 0.05);
+                ship.y = lerp(ship.y, ty, 0.05);
+                ship.scale = lerp(ship.scale, 0.7, 0.1);
+                ship.alpha = lerp(ship.alpha, 0.8, 0.1);
+
+                drawShip(ship.x, ship.y, color, ship.scale, ship.alpha, true);
+            });
         });
     }
 
-                  drawShip(ship.x, ship.y, color, ship.scale, ship.alpha, false);
-             });
-        }
+    function renderFleets(stars: StarState[], fleets: FleetState[]) {
+        if (!shipGraphics) return;
 
-        // 3. Manage Damaged Ships
-        let damaged = visualDamagedShips.get(star.id) || [];
-        const targetDamaged = star.damagedShips;
+        // Progress is globally driven by game tick progress (0 -> 1)
+        const progress = gameStore.tickProgress;
 
-        if (damaged.length < targetDamaged) {
-            const diff = targetDamaged - damaged.length;
-            for (let i = 0; i < diff; i++) {
-                damaged.push({
-                    id: nextShipId++,
-                    x: star.x,
-                    y: star.y,
-                    vx: 0,
-                    vy: 0,
-                    targetIndex: damaged.length,
-                    scale: 0.1,
-                    alpha: 0,
-                    spawnTime: performance.now(),
-                });
+        fleets.forEach((fleet) => {
+            const source = stars.find((s) => s.id === fleet.sourceId);
+            const target = stars.find((s) => s.id === fleet.targetId);
+
+            if (!source || !target) return;
+
+            const color = getPlayerColor(fleet.ownerId);
+
+            // Interpolate position
+            // Draw cluster of ships
+            const count = fleet.shipCount;
+            const visualCount = Math.min(count, 5);
+
+            for (let i = 0; i < visualCount; i++) {
+                // Add slight spread/trail
+                const lag = i * 0.02;
+                const localProgress = Math.max(0, Math.min(1, progress - lag));
+
+                const lx = lerp(source.x, target.x, localProgress);
+                const ly = lerp(source.y, target.y, localProgress);
+
+                // Add organic jitter
+                const jitterX = Math.sin(animationTime * 10 + i) * 5;
+                const jitterY = Math.cos(animationTime * 10 + i) * 5;
+
+                drawShip(lx + jitterX, ly + jitterY, color, 1.0, 1.0, false);
             }
-        } else if (damaged.length > targetDamaged) {
-            damaged.length = targetDamaged;
-        }
-        visualDamagedShips.set(star.id, damaged);
-
-        if (damaged.length > 0) {
-            damaged.forEach((ship, i) => {
-                const slot = getOrbitSlot(
-                    i,
-                    star.x,
-                    star.y,
-                    star.radius + 30, // Offset for damaged ring
-                    animationTime,
-                );
-
-                ship.x = lerp(ship.x, slot.x, 0.1);
-                ship.y = lerp(ship.y, slot.y, 0.1);
-                ship.scale = lerp(ship.scale, 0.7, 0.1);
-                ship.alpha = lerp(ship.alpha, 0.7, 0.1);
-
-                drawShip(
-                    ship.x,
-                    ship.y,
-                    color,
-                    ship.scale,
-                    ship.alpha,
-                    true,
-                );
-            });
-        }
-    }); // End stars.forEach
-} // End renderShips
-
-function renderFleets(stars: StarState[], fleets: FleetState[]) {
-    if (!shipGraphics) return;
-    
-    // Progress is globally driven by game tick progress (0 -> 1)
-    const progress = gameStore.tickProgress;
-
-    fleets.forEach((fleet) => {
-        const source = stars.find((s) => s.id === fleet.sourceId);
-        const target = stars.find((s) => s.id === fleet.targetId);
-
-        if (!source || !target) return;
-
-        const color = getPlayerColor(fleet.ownerId);
-        
-        // Interpolate position
-        // Draw cluster of ships
-        const count = fleet.shipCount;
-        const visualCount = Math.min(count, 5);
-        
-        for(let i=0; i<visualCount; i++) {
-             // Add slight spread/trail
-             const lag = i * 0.02; 
-             const localProgress = Math.max(0, Math.min(1, progress - lag));
-             
-             const lx = lerp(source.x, target.x, localProgress);
-             const ly = lerp(source.y, target.y, localProgress);
-             
-             // Add organic jitter
-             const jitterX = Math.sin(animationTime * 10 + i) * 5;
-             const jitterY = Math.cos(animationTime * 10 + i) * 5;
-
-             drawShip(lx + jitterX, ly + jitterY, color, 1.0, 1.0, false);
-        }
-    });
-}
+        });
+    }
 
     function drawShip(
         x: number,
