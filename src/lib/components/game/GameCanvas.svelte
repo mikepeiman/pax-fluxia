@@ -65,7 +65,9 @@
     let dragCurrentY = 0;
 
     // Active star state (for click+click selection)
+    // Active star state (for click+click selection)
     let activeStarId: string | null = null;
+    let pendingOrders: Set<string> = new Set(); // OPTIMISTIC UI: Track ordered links immediately
 
     // Player colors (must match engine)
     const PLAYER_COLORS: Record<string, number> = {
@@ -297,6 +299,13 @@
         // Render flow links
         renderFlowLinks(stars);
 
+        // OPTIMISTIC UI: Clear pending orders that are now confirmed in snapshot
+        if (snapshot?.connections) {
+            snapshot.connections.forEach((c) =>
+                pendingOrders.delete(`${c.sourceId}-${c.targetId}`),
+            );
+        }
+
         // Render traveling fleets (authoritative)
         if (snapshot?.fleets) {
             shipGraphics?.clear(); // Clear once before drawing any ships (fleets + orbiting)
@@ -465,11 +474,38 @@
         linkGraphics.clear();
 
         // Draw active flow indicators using Vector Arrow style
-        stars.forEach((source) => {
-            if (!source.targetId) return;
+        // Draw active flow indicators using Vector Arrow style
+        const allLinks = new Set<string>();
 
-            const target = stars.find((s) => s.id === source.targetId);
-            if (!target) return;
+        // 1. Snapshot Connections
+        const snapshot = gameStore.snapshot;
+        if (snapshot?.connections) {
+            snapshot.connections.forEach((c) =>
+                allLinks.add(`${c.sourceId}-${c.targetId}`),
+            );
+        }
+
+        // 2. Pending Orders (Optimistic)
+        pendingOrders.forEach((key) => allLinks.add(key));
+
+        stars.forEach((source) => {
+            // Find targets based on Links (not just property)
+            // We need to iterate LINKS, not source.targetId property (which is just one).
+            // Wait, the ENGINE supports multi-target? No, Star.ts has `_targetId`. Single target.
+            // But UI should follow the single target property from star?
+            // Actually, `snapshot.connections` is the list of active links.
+            // `source.targetId` should match.
+            // BUT, for optimistic UI, we might have a pending order that isn't in `source.targetId` yet.
+            // So we iterate `allLinks`.
+        });
+
+        // Refactor loop to iterate unique Links
+        allLinks.forEach((linkKey) => {
+            const [sId, tId] = linkKey.split("-");
+            const source = stars.find((s) => s.id === sId);
+            const target = stars.find((s) => s.id === tId);
+
+            if (!source || !target) return;
 
             // Porting canvasArrow logic to PixiJS
             // Logic: Line from (TargetRadius + HeadLen) to (SourceRadius)
@@ -624,7 +660,7 @@
                         x: star.x + (Math.random() - 0.5) * 20,
                         y: star.y + (Math.random() - 0.5) * 20,
                         vx: 0,
-                        Vy: 0, // Typo check: vy
+                        vy: 0,
                         vy: 0,
                         targetIndex: i,
                         scale: 0.1,
@@ -750,9 +786,9 @@
 
         for (const star of snapshot.stars) {
             const dist = distance(x, y, star.x, star.y);
-            // FIX: Enlarge hit target (2.5x radius)
-            // But keep visual radius same.
-            if (dist <= Math.max(star.radius * 2.5, 40)) {
+            // FIX: Enlarge hit target (4x radius or 80px min)
+            // Make it excessively clickable
+            if (dist <= Math.max(star.radius * 4, 80)) {
                 return star;
             }
         }
@@ -857,7 +893,9 @@
         if (movedSignificantly && dragSourceId) {
             if (targetStar && targetStar.id !== dragSourceId) {
                 // Issue order from drag
+                // Issue order from drag
                 gameStore.issueOrder(dragSourceId, targetStar.id);
+                pendingOrders.add(`${dragSourceId}-${targetStar.id}`);
                 log.success(
                     "GameCanvas",
                     `Drag order: ${dragSourceId} → ${targetStar.id}`,
@@ -881,6 +919,8 @@
                         activeStarId,
                         targetStar.id,
                     );
+                    if (success)
+                        pendingOrders.add(`${activeStarId}-${targetStar.id}`);
 
                     if (success) {
                         activeStarId = targetStar.id; // Chain selection
