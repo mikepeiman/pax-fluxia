@@ -880,36 +880,42 @@
         if (!movedSignificantly && targetStar) {
             // Case 1: Active Star Selected -> Click OTHER star (Issue Order)
             if (activeStarId && activeStarId !== targetStar.id) {
-                 const activeStarSnapshot = gameStore.snapshot?.stars.find(
+                const activeStarSnapshot = gameStore.snapshot?.stars.find(
                     (s) => s.id === activeStarId,
                 );
-                
+
                 // If we own the source, we can send to ANY target (Self or Enemy)
                 if (activeStarSnapshot?.ownerId === "human-player") {
-                    const success = gameStore.issueOrder(activeStarId, targetStar.id);
-                    
+                    const success = gameStore.issueOrder(
+                        activeStarId,
+                        targetStar.id,
+                    );
+
                     if (success) {
-                         activeStarId = targetStar.id; // Chain selection
+                        activeStarId = targetStar.id; // Chain selection
                     } else {
                         // Failed (not connected?) -> select the target if ours
-                         if (targetStar.ownerId === "human-player") {
+                        if (targetStar.ownerId === "human-player") {
                             activeStarId = targetStar.id;
                         }
                     }
                 } else {
                     // Previous selection wasn't ours, just select new one
-                     if (targetStar.ownerId === "human-player") {
+                    if (targetStar.ownerId === "human-player") {
                         activeStarId = targetStar.id;
                     }
                 }
-            } 
+            }
             // Case 2: No active selection or clicked same -> Select
             else if (targetStar.ownerId === "human-player") {
                 activeStarId = targetStar.id;
-        dragSourceId = null;
-        if (dragPreviewGraphics) {
-            dragPreviewGraphics.clear();
+                log.state("GameCanvas", `Star ${targetStar.id} selected`);
+            }
+        } else if (!movedSignificantly && !targetStar) {
+            clearSelection();
         }
+
+        cancelDrag();
     }
 
     function handleRightClick(event: MouseEvent) {
