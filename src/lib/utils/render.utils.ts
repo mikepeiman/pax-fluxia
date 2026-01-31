@@ -7,103 +7,88 @@ import { GAME_CONFIG } from '$lib/config/game.config';
 /**
  * Ship visual state for rendering
  */
-export interface ShipVisual {
+/**
+ * Persistent visual state for a single ship
+ */
+export interface VisualShipState {
+    id: number; // Unique ID for tracking
     x: number;
     y: number;
-    rotation: number;
+    vx: number; // Velocity X
+    vy: number; // Velocity Y
+    targetIndex: number; // Which slot it's trying to reach
     scale: number;
     alpha: number;
+    spawnTime: number;
 }
 
 /**
- * Calculate orbit positions for ships around a star
- * Ships orbit in concentric rings to show exact count
- * Uses multiple rings for large fleets, with scaling
+ * Calculate stable target slot for a ship in orbit
+ * 
+ * Performance Note: This is pure math (trig), no allocations if called individually.
+ * To optimize large fleets, we calculate the specific slot needed for a ship index,
+ * rather than regenerating the whole array every frame.
  */
-/**
- * Calculate packed ship positions in concentric rings
- * Ships pack densely around the star. After 10 layers, they visually enlarge.
- */
-export function getPackedPositions(
+export function getOrbitSlot(
+    index: number,
     cx: number,
     cy: number,
     starRadius: number,
-    count: number,
     time: number
-): ShipVisual[] {
-    const positions: ShipVisual[] = [];
+): { x: number, y: number } {
+    const BASE_SIZE = GAME_CONFIG.SHIP_BASE_SIZE || 4;
+    const PADDING = 2;
+    const RING_SPACING = BASE_SIZE * 1.4;
 
-    const BASE_SIZE = GAME_CONFIG.SHIP_BASE_SIZE; // e.g. 4
-    const PADDING = 2; // Space between star and first ring
-    const RING_SPACING = BASE_SIZE * 1.4; // Space between rings
-    const SHIP_SPACING = BASE_SIZE * 1.4; // Space between ships in a ring
+    // Determine which layer (ring) this index belongs to
+    // We solve for layer by filling inner rings first
 
-    let currentRadius = starRadius + PADDING + BASE_SIZE;
-    let remaining = count;
+    // Ring 0 capacity: ~ (2 * PI * r) / size
+    // This is iterative, but for < 500 ships it's fast enough.
+    // For O(1), we'd need an approximation or lookup table.
+
     let layer = 0;
+    let currentRadius = starRadius + PADDING + BASE_SIZE;
+    let countInInnerLayers = 0;
 
-    // Pulse animation factor shared by all
-    const pulse = Math.sin(time * 2) * 2;
+    // Fast-forward to correct layer
+    // Optimization: Hardcode first few layer capacities? 
+    // Ring 0 (~60px circumference / 6px) ~= 10 ships
+    // Ring 1 (~80px / 6px) ~= 13 ships
+    // etc.
 
-    while (remaining > 0) {
-        // Enlarge ships after layer 10 to represent aggregation
-        // Actual limit: we STOP adding layers after MAX_LAYERS
-        const MAX_LAYERS = 10;
-
-        // If we are past the max layers, we simply stop rendering distinct ships
-        // and assume the outer layer represents the "rest" via scaling or density.
-        // HOWEVER, the requirement is "Aggregation: At high counts, outer ships scale up (2x)".
-        // And "dispersed rings... should not exist".
-
-        // Let's implement a hard cap on visual layers to prevent the "explosion"
-        if (layer >= MAX_LAYERS) {
-            // We have too many ships. 
-            // We want to make the OUTERMOST rendered layer look "heavy".
-            // But if we just stop, the user won't know there are 1000 ships vs 100.
-
-            // Alternative strategy:
-            // If count is huge, we increase the SCALE of the ships in the outer layers,
-            // effectively fitting MORE value into the same visual space? 
-            // Or just make them bigger.
-
-            // For now, adhering to: "max 10 concentric rings".
-            break;
-        }
-
-        const isDense = layer >= 8; // Start scaling a bit earlier to transition?
-        const scale = isDense ? 2 : 1;
-
-        const effectiveSpacing = SHIP_SPACING * scale;
+    while (true) {
         const circumference = 2 * Math.PI * currentRadius;
+        const capacity = Math.max(1, Math.floor(circumference / (BASE_SIZE * 1.5)));
 
-        // Calculate capacity of this ring
-        let capacity = Math.floor(circumference / effectiveSpacing);
-        capacity = Math.max(1, capacity); // At least 1 ship
+        if (index < countInInnerLayers + capacity) {
+            // It's in this layer
+            const indexInRing = index - countInInnerLayers;
+            const angleStep = (2 * Math.PI) / capacity;
 
-        const countInRing = Math.min(remaining, capacity);
-        const angleStep = (2 * Math.PI) / countInRing;
+            // Rotate rings slowly
+            const ringRotation = time * (0.2 / (layer + 1)) * (layer % 2 === 0 ? 1 : -1);
+            const angle = indexInRing * angleStep + ringRotation;
 
-        // Rotate rings slowly in alternating directions
-        const ringRotation = time * (0.2 / (layer + 1)) * (layer % 2 === 0 ? 1 : -1);
-
-        for (let i = 0; i < countInRing; i++) {
-            const angle = i * angleStep + ringRotation;
-
-            positions.push({
-                x: cx + Math.cos(angle) * (currentRadius + pulse * 0.1),
-                y: cy + Math.sin(angle) * (currentRadius + pulse * 0.1),
-                rotation: angle + Math.PI / 2,
-                scale: 0.8 * scale,
-                alpha: 1.0
-            });
+            return {
+                x: cx + Math.cos(angle) * currentRadius,
+                y: cy + Math.sin(angle) * currentRadius
+            };
         }
 
-        remaining -= countInRing;
-        currentRadius += RING_SPACING * scale;
+        countInInnerLayers += capacity;
+        currentRadius += RING_SPACING;
         layer++;
-    }
 
-    return positions;
+        // Safety break for extreme counts
+        if (layer > 20) {
+            // Fallback for overcrowding
+            return {
+                x: cx + Math.cos(index) * (currentRadius + 20),
+                y: cy + Math.sin(index) * (currentRadius + 20)
+            };
+        }
+    }
 }
 
 /**
