@@ -302,7 +302,7 @@
         // OPTIMISTIC UI: Clear pending orders that are now confirmed in snapshot
         if (snapshot?.connections) {
             snapshot.connections.forEach((c) =>
-                pendingOrders.delete(`${c.sourceId}-${c.targetId}`),
+                pendingOrders.delete(`${c.sourceId}|${c.targetId}`),
             );
         }
 

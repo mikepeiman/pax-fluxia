@@ -246,6 +246,7 @@ export const gameStore = {
     surrender,
     playAgain,
     returnToMenu,
+    restart,
     getStats,
     updateConfig
 };
