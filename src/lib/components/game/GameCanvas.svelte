@@ -281,7 +281,7 @@
                 // Create container for stacked labels
                 label = new PIXI.Container();
 
-                // Active count (Top, Bright)
+                // Active count (Top, Bright) - ALWAYS VISIBLE
                 const activeText = new PIXI.Text({
                     text: "0",
                     style: {
@@ -297,7 +297,7 @@
                 activeText.label = "active"; // Tag for retrieval
                 label.addChild(activeText);
 
-                // Damaged count (Bottom, Dimmer)
+                // Damaged count (Bottom, Dimmer) - ALWAYS VISIBLE
                 const damagedText = new PIXI.Text({
                     text: "0",
                     style: {
@@ -375,12 +375,9 @@
             if (activeText) activeText.text = String(star.activeShips);
 
             if (damagedText) {
-                if (star.damagedShips > 0) {
-                    damagedText.text = String(star.damagedShips);
-                    damagedText.visible = true;
-                } else {
-                    damagedText.visible = false;
-                }
+                // ALWAYS show damaged count, even if 0, per request
+                damagedText.text = String(star.damagedShips);
+                damagedText.visible = true;
             }
 
             if (iconText && star.icon) {
@@ -391,46 +388,84 @@
             label.y = star.y;
         });
     }
+
     function renderFlowLinks(stars: StarState[]) {
         if (!linkGraphics) return;
 
         linkGraphics.clear();
 
-        // Draw active flow indicators (arrows/chevrons)
+        // Draw active flow indicators using Vector Arrow style
         stars.forEach((source) => {
             if (!source.targetId) return;
 
             const target = stars.find((s) => s.id === source.targetId);
             if (!target) return;
 
+            // Porting canvasArrow logic to PixiJS
+            // Logic: Line from (TargetRadius + HeadLen) to (SourceRadius)
+
+            const dx = target.x - source.x;
+            const dy = target.y - source.y;
+            const angle = Math.atan2(dy, dx);
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            const padding = 10;
+            const headLen = 25; // Length of arrowhead
+            const lineWidth = 6;
+
+            // Start: Source Edge
+            const startDist = source.radius + padding;
+            // End: Target Edge (minus head length to place head correctly)
+            const endDist = dist - (target.radius + padding);
+
+            // Calculate points
+            const startX = source.x + Math.cos(angle) * startDist;
+            const startY = source.y + Math.sin(angle) * startDist;
+
+            const endX = source.x + Math.cos(angle) * endDist;
+            const endY = source.y + Math.sin(angle) * endDist;
+
+            const arrowBaseX = source.x + Math.cos(angle) * (endDist - headLen);
+            const arrowBaseY = source.y + Math.sin(angle) * (endDist - headLen);
+
             const color = getPlayerColor(source.ownerId);
 
-            // Draw flow direction arrow (NOT the full line)
-            const angle = Math.atan2(target.y - source.y, target.x - source.x);
-            const arrowSize = 25;
-
-            // Position arrow dynamically along the path to simulate flow?
-            // For now, let's just put it near the source to indicate "pushing"
-            const arrowX = source.x + Math.cos(angle) * (source.radius + 40);
-            const arrowY = source.y + Math.sin(angle) * (source.radius + 40);
-
-            linkGraphics!.moveTo(arrowX, arrowY);
-            linkGraphics!.lineTo(
-                arrowX - Math.cos(angle - 0.5) * arrowSize,
-                arrowY - Math.sin(angle - 0.5) * arrowSize,
-            );
-            linkGraphics!.moveTo(arrowX, arrowY);
-            linkGraphics!.lineTo(
-                arrowX - Math.cos(angle + 0.5) * arrowSize,
-                arrowY - Math.sin(angle + 0.5) * arrowSize,
-            );
+            // 1. Draw Shaft (Solid for now, gradient simulation hard in basic Graphics stroke)
+            // Ideally we'd fade it out near the target, but a solid bold line is clear.
+            linkGraphics!.moveTo(startX, startY);
+            linkGraphics!.lineTo(arrowBaseX, arrowBaseY);
             linkGraphics!.stroke({
                 color,
-                width: 6,
-                alpha: 1.0,
+                width: lineWidth,
+                alpha: 0.6, // Slightly transparent shaft
                 cap: "round",
-                join: "round",
             });
+
+            // 2. Draw Arrowhead (Filled Triangle) at End
+            // Vertices relative to arrow tip (endX, endY)
+            // We want the tip at 'endX', base at 'arrowBaseX' roughly?
+            // Actually, let's use the explicit geometry from reference:
+            // "headlen * Math.cos(angle - Math.PI / 6)"
+
+            // Tip
+            const tipX = endX;
+            const tipY = endY;
+
+            // Wings
+            const wing1X = tipX - headLen * Math.cos(angle - Math.PI / 6);
+            const wing1Y = tipY - headLen * Math.sin(angle - Math.PI / 6);
+
+            const wing2X = tipX - headLen * Math.cos(angle + Math.PI / 6);
+            const wing2Y = tipY - headLen * Math.sin(angle + Math.PI / 6);
+
+            // Draw Head
+            linkGraphics!.beginPath(); // Pixi Graphics doesn't need beginPath usually for shapes but poly does
+            linkGraphics!.moveTo(tipX, tipY);
+            linkGraphics!.lineTo(wing1X, wing1Y);
+            linkGraphics!.lineTo(wing2X, wing2Y);
+            linkGraphics!.closePath();
+
+            linkGraphics!.fill({ color, alpha: 1.0 }); // Solid bold head
         });
     }
 
