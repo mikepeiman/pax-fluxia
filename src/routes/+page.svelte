@@ -40,7 +40,9 @@
   {#if gameStore.currentView === "menu"}
     <MainMenu />
   {:else if gameStore.currentView === "game"}
-    <GameCanvas />
+    {#key gameStore.sessionId}
+      <GameCanvas />
+    {/key}
     <GameHUD />
     <DebugPanel visible={showDebug} />
     <CombatLogPanel />

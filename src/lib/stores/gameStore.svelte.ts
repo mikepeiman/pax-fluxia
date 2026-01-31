@@ -43,6 +43,9 @@ let tickProgress = $state<number>(0);
 /** The game engine instance */
 let engine: GameEngine | null = null;
 
+/** Session ID to force component remounts */
+let sessionId = $state(0);
+
 // ============================================================================
 // Derived State
 // ============================================================================
@@ -90,6 +93,7 @@ function startGame(): void {
     }
 
     // Create new engine
+    sessionId++;
     engine = createEngine({
         settings,
         humanPlayerId: HUMAN_PLAYER_ID
@@ -226,6 +230,7 @@ export const gameStore = {
     get winner() { return winner; },
     get humanPlayer() { return humanPlayer; },
     get leaderboard() { return leaderboard; },
+    get sessionId() { return sessionId; },
 
     // Actions
     setView,
