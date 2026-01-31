@@ -452,7 +452,8 @@ export class GameEngine {
         // Update ships (Simplified - winner keeps all? No, should be some attrition)
         // For now: Winner keeps maxForce (very generous)
         // Ideally: maxForce - secondMaxForce?
-        target.activeShips = 0; // Reset
+        // Ideally: maxForce - secondMaxForce?
+        target.removeActiveShips(target.activeShips); // Reset
 
         // Add winners ships back
         // The fleets are "arriving", so we need to add them to the star.
