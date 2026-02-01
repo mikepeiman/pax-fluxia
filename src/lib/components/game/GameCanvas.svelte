@@ -438,12 +438,8 @@
             graphics.fill({ color, alpha: glowAlpha });
 
             // Main star body
-            // Base color from StarType? Or Owner?
-            // User requested "Stars: yellow" etc.
-            // Let's use the Type color for the core/fill, but Owner color for stroke/halo?
-            // Actually, owner color is critical for gameplay.
-            // Let's make the CORE/FILL the StarType color.
-            const typeStats = Star.TYPE_STATS[star.starType];
+            // Base color from StarColor
+            const typeStats = Star.TYPE_STATS[star.colorType];
             const typeColor = typeStats ? typeStats.color : 0xffffff;
 
             graphics.circle(star.x, star.y, radius);
