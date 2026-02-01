@@ -16,8 +16,8 @@ export type StarId = string;
 export type PlayerId = string;
 export type LinkId = string;
 
-/** Star Colors (Types) */
-export type StarColor = 'grey' | 'yellow' | 'green' | 'red' | 'blue' | 'purple';
+/** Star Types (Colors) */
+export type StarType = 'grey' | 'yellow' | 'green' | 'red' | 'blue' | 'purple';
 
 /** Game settings from menu */
 export interface GameSettings {
@@ -53,7 +53,7 @@ export interface StarConfig {
     radius: number;
     productionRate: number;
     ownerId: PlayerId;
-    colorType?: StarColor;
+    starType?: StarType;
 }
 
 /** Star runtime state */
@@ -68,7 +68,7 @@ export interface StarState {
     ownerId: PlayerId;
     targetId: StarId | null;
     icon: string;
-    colorType: StarColor;
+    starType: StarType;
 }
 
 /** Flow link state */
