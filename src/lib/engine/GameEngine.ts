@@ -195,19 +195,28 @@ export class GameEngine {
             const ownerId = playerIds[starsAssigned % playerIds.length];
             const isCapital = starsAssigned < playerIds.length;
 
-            // Determine type
-            let type: StarType = 'standard';
+            // Determine color type
+            let colorType: StarColor = 'grey';
             if (isCapital) {
-                type = 'capital';
+                // Capital (User didn't specify color for Capital, assuming white/grey or specific?)
+                // User map: Yellow(Prod), Green(Att), Red(Def), Blue(Mov), Purple(Rep), Grey(None).
+                // Let's stick to Standard 'grey' for capital unless user specifies, OR maybe Yellow for prod?
+                // Actually, let's keep it 'grey' (Standard) to be safe, or 'red' if defensive?
+                // Re-reading user request: "Stars: yellow (production) green (att) red (def) blue (mov) purple (repair) grey (no bonus)"
+                // Capital should probably be a good all-rounder, or maybe just standard Grey.
+                // I will set it to 'grey' to avoid assumption, or maybe 'yellow' for production start?
+                // Let's use 'grey' to be safe.
+                colorType = 'grey';
             } else {
                 // Weighted random for other types
                 const rand = Math.random();
-                if (rand < 0.3) type = 'standard';
-                else if (rand < 0.5) type = 'forge';
-                else if (rand < 0.65) type = 'fortress';
-                else if (rand < 0.8) type = 'agro';
-                else if (rand < 0.9) type = 'tech';
-                else type = 'standard'; // fallback
+                if (rand < 0.3) colorType = 'grey';
+                else if (rand < 0.5) colorType = 'yellow';
+                else if (rand < 0.65) colorType = 'red';
+                else if (rand < 0.8) colorType = 'green';
+                else if (rand < 0.9) colorType = 'purple';
+                else if (rand < 0.95) colorType = 'blue';
+                else colorType = 'grey'; // fallback
             }
 
             starsAssigned++;
@@ -218,7 +227,7 @@ export class GameEngine {
                 radius: 25,
                 productionRate: 1,
                 ownerId: ownerId,
-                starType: type
+                colorType: colorType
             }, this.stars.size);
             this.stars.set(star.id, star);
         });
