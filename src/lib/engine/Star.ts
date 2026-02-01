@@ -2,7 +2,7 @@
 // Star Entity - Represents a star/planet in the game
 // ============================================================================
 
-import type { StarId, PlayerId, StarState, StarConfig } from '$lib/types/game.types';
+import type { StarId, PlayerId, StarState, StarConfig, StarType } from '$lib/types/game.types';
 import { GAME_CONFIG } from '$lib/config/game.config';
 
 /** Constants */
