@@ -27,12 +27,12 @@ export class Star {
 
     // Type Configs
     static readonly TYPE_STATS: Record<StarType, { defense: number, prod: number, speed: number, repair: number, color: number }> = {
-        'standard': { defense: 1.0, prod: 1.0, speed: 1.0, repair: 1.0, color: 0x8899aa }, // Grey
-        'capital': { defense: 1.5, prod: 1.2, speed: 1.0, repair: 1.2, color: 0xffffff }, // White
-        'forge': { defense: 0.8, prod: 2.0, speed: 1.0, repair: 0.8, color: 0xffcc00 }, // Yellow (Prod)
-        'fortress': { defense: 2.5, prod: 0.5, speed: 1.0, repair: 1.5, color: 0xff4444 }, // Red (Def)
-        'agro': { defense: 1.0, prod: 1.0, speed: 1.5, repair: 0.5, color: 0x44ff88 }, // Green (Atk/Speed?? User said Green=Att)
-        'tech': { defense: 1.2, prod: 0.8, speed: 1.2, repair: 2.0, color: 0xaa44ff }, // Purple (Repair)
+        'standard': { defense: 1, prod: 1, speed: 1, repair: 1, color: 0x8899aa }, // Grey
+        'blue': { defense: 1, prod: 1.2, speed: 2, repair: 1, color: 0xffffff }, // White
+        'yellow': { defense: 1, prod: 2, speed: 1, repair: 1, color: 0xffcc00 }, // Yellow (Prod)
+        'red': { defense: 2, prod: 1, speed: 1, repair: 1, color: 0xff4444 }, // Red (Def)
+        'green': { defense: 1, prod: 1, speed: 1, repair: 1, color: 0x44ff88 }, // Green (Atk/Speed?? User said Green=Att)
+        'purple': { defense: 1, prod: 1, speed: 1, repair: 2, color: 0xaa44ff }, // Purple (Repair)
         // User map: Yellow(Prod), Green(Att), Red(Def), Blue(Mov/Relay??), Purple(Repair), Grey(None)
         // I will map 'agro' -> Green, 'relay' -> Blue.
     };
