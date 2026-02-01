@@ -64,6 +64,7 @@ export interface StarState {
     ownerId: PlayerId;
     targetId: StarId | null;
     icon: string;
+    starType: StarType;
 }
 
 /** Flow link state */
