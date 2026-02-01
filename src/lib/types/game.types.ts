@@ -16,8 +16,8 @@ export type StarId = string;
 export type PlayerId = string;
 export type LinkId = string;
 
-/** Star Types for variety */
-export type StarType = 'standard' | 'capital' | 'forge' | 'fortress' | 'agro' | 'tech';
+/** Star Colors (Types) */
+export type StarColor = 'grey' | 'yellow' | 'green' | 'red' | 'blue' | 'purple';
 
 /** Game settings from menu */
 export interface GameSettings {
@@ -53,7 +53,7 @@ export interface StarConfig {
     radius: number;
     productionRate: number;
     ownerId: PlayerId;
-    starType?: StarType;
+    colorType?: StarColor;
 }
 
 /** Star runtime state */
@@ -68,7 +68,7 @@ export interface StarState {
     ownerId: PlayerId;
     targetId: StarId | null;
     icon: string;
-    starType: StarType;
+    colorType: StarColor;
 }
 
 /** Flow link state */
