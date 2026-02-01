@@ -75,7 +75,7 @@ export const GAME_CONFIG: GameConfigType = {
     // ========================================================================
 
     /** Percentage of ships that flow per tick (0.0 - 1.0) */
-    FLOW_PERCENTAGE: 0.10,
+    FLOW_PERCENTAGE: 0.25,
 
     /** Minimum ships to flow per tick */
     MIN_FLOW_SHIPS: 1,
@@ -94,7 +94,7 @@ export const GAME_CONFIG: GameConfigType = {
     // ========================================================================
 
     /** Defense multiplier - defenders hit this many times harder */
-    DEFENSE_MULTIPLIER: 2.0,
+    DEFENSE_MULTIPLIER: 1.2,
 
     /** Damage reduction factor per tick (0.0 - 1.0) - lower = less attrition */
     DAMAGE_RATE: 0.3,
@@ -103,7 +103,7 @@ export const GAME_CONFIG: GameConfigType = {
     MIN_DAMAGE: 1,
 
     /** Conquest threshold - attackers need N times defender count to capture */
-    CONQUEST_THRESHOLD: 3,
+    CONQUEST_THRESHOLD: 7,
 
     // ========================================================================
     // PRODUCTION
@@ -133,9 +133,9 @@ export const GAME_CONFIG: GameConfigType = {
     // ========================================================================
 
     /** Percentage of remaining ships that transfer on capture */
-    CONQUEST_TRANSFER_PERCENTAGE: 0.5,
+    CONQUEST_TRANSFER_PERCENTAGE: 50,
 
-    /** Defender strength ratio below which they instantly surrender (e.g. 0.1 = 10% of attackers) */
+    /** Defender strength ratio below which they are instantly overwhelmed (e.g. 0.1 = 10% of attackers) */
     OVERWHELM_THRESHOLD: 0.1,
 
     /** Whether to clear flow order after capture */

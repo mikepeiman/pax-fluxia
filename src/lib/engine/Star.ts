@@ -23,14 +23,25 @@ export class Star {
     readonly radius: number;
     readonly productionRate: number;
     readonly icon: string;
+    readonly starType: StarType;
+
+    // Type Configs
+    static readonly TYPE_STATS: Record<StarType, { defense: number, prod: number, speed: number, repair: number, color: number }> = {
+        'standard': { defense: 1.0, prod: 1.0, speed: 1.0, repair: 1.0, color: 0x8899aa }, // Grey
+        'capital': { defense: 1.5, prod: 1.2, speed: 1.0, repair: 1.2, color: 0xffffff }, // White
+        'forge': { defense: 0.8, prod: 2.0, speed: 1.0, repair: 0.8, color: 0xffcc00 }, // Yellow (Prod)
+        'fortress': { defense: 2.5, prod: 0.5, speed: 1.0, repair: 1.5, color: 0xff4444 }, // Red (Def)
+        'agro': { defense: 1.0, prod: 1.0, speed: 1.5, repair: 0.5, color: 0x44ff88 }, // Green (Atk/Speed?? User said Green=Att)
+        'tech': { defense: 1.2, prod: 0.8, speed: 1.2, repair: 2.0, color: 0xaa44ff }, // Purple (Repair)
+        // User map: Yellow(Prod), Green(Att), Red(Def), Blue(Mov/Relay??), Purple(Repair), Grey(None)
+        // I will map 'agro' -> Green, 'relay' -> Blue.
+    };
 
     private _activeShips: number;
     private _damagedShips: number;
     private _ownerId: PlayerId;
     private _targetId: StarId | null;
-    private _lastCombatTick: number = -1; // Track when combat last occurred for generic pinning
-
-    // Queued order to execute when this star is captured by a specific player
+    private _lastCombatTick: number = -1;
     private _queuedOrder: { ownerId: PlayerId, targetId: StarId } | null = null;
 
     constructor(config: StarConfig & { id: StarId }) {
@@ -38,16 +49,32 @@ export class Star {
         this.x = config.x;
         this.y = config.y;
         this.radius = config.radius;
-        this.productionRate = config.productionRate;
+        this.productionRate = config.productionRate; // Base rate from map gen, modified by type?
         this._ownerId = config.ownerId;
-        this._activeShips = 10; // Starting ships
+        this.starType = config.starType || 'standard';
+
+        this._activeShips = this.starType === 'capital' ? 25 : 10;
         this._damagedShips = 0;
         this._targetId = null;
 
-        // Random icon based on ID hash
-        const icons = ['🌟', '⭐', '☀️', '☄️', '🌎', '🪐', '🌑', '🌕', '🌌', '🌋', '🏔️', '🏝️'];
-        const seed = this.id.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0);
-        this.icon = icons[seed % icons.length];
+        // Icons based on functionality? Or random?
+        // User requested distinct types. Let's force icons for types.
+        const typeIcons: Record<StarType, string> = {
+            'standard': '🌑',
+            'capital': '👑',
+            'forge': '🌋',
+            'fortress': '🛡️',
+            'agro': '⚔️', // Green
+            'tech': '🔮', // Purple
+        };
+        // Override with random if standard?
+        if (this.starType === 'standard') {
+            const icons = ['🌑', '🌕', '🪐', '🌎', '🌫️'];
+            const seed = this.id.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+            this.icon = icons[seed % icons.length];
+        } else {
+            this.icon = typeIcons[this.starType] || '⭐';
+        }
     }
 
     // ============================================================================
@@ -90,29 +117,21 @@ export class Star {
      */
     produce(): void {
         if (this._ownerId) {
-            // Use live config for production rate
             const baseRate = GAME_CONFIG.BASE_PRODUCTION ?? 0.5;
-            // Star's local multiplier (productionRate) * Global Base * Constant
-            this._activeShips += this.productionRate * baseRate;
+            const typeMult = Star.TYPE_STATS[this.starType]?.prod ?? 1.0;
+            this._activeShips += this.productionRate * baseRate * typeMult;
         }
     }
 
-    /**
-     * Repair damaged ships each tick
-     * Converts damaged ships back to active
-     */
     repair(currentTick: number): void {
         if (this._damagedShips > 0) {
-            // Use live config for repair rate (percent of damaged)
-            // Or config might mean "percent of MAX"? 
-            // Config says "REPAIR_RATE: 0.20" -> 20% of damaged ships per tick?
             const configRate = GAME_CONFIG.REPAIR_RATE ?? 0.20;
             const minRepair = GAME_CONFIG.MIN_REPAIR ?? 1;
+            const typeMult = Star.TYPE_STATS[this.starType]?.repair ?? 1.0;
 
-            let amount = Math.max(minRepair, this._damagedShips * configRate);
+            let amount = Math.max(minRepair, this._damagedShips * configRate * typeMult);
 
             // Apply Pinning Penalty
-            // If combat happened this tick (or very recently), slash repair
             if (this._lastCombatTick >= currentTick - 1) {
                 amount *= GAME_CONFIG.REPAIR_COMBAT_PENALTY;
             }
