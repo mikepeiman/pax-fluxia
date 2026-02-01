@@ -53,6 +53,7 @@ export interface StarConfig {
     radius: number;
     productionRate: number;
     ownerId: PlayerId;
+    starType?: StarType;
 }
 
 /** Star runtime state */
