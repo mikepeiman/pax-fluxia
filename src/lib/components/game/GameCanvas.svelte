@@ -438,8 +438,8 @@
             graphics.fill({ color, alpha: glowAlpha });
 
             // Main star body
-            // Base color from StarColor
-            const typeStats = Star.TYPE_STATS[star.colorType];
+            // Base color from StarType
+            const typeStats = Star.TYPE_STATS[star.starType];
             const typeColor = typeStats ? typeStats.color : 0xffffff;
 
             graphics.circle(star.x, star.y, radius);
