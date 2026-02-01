@@ -242,7 +242,8 @@ export class Star {
             damagedShips: Math.floor(this._damagedShips),
             ownerId: this._ownerId,
             targetId: this._targetId,
-            icon: this.icon
+            icon: this.icon,
+            starType: this.starType
         };
     }
 }
