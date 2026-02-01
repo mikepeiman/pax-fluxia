@@ -2,7 +2,7 @@
 // Star Entity - Represents a star/planet in the game
 // ============================================================================
 
-import type { StarId, PlayerId, StarState, StarConfig, StarColor } from '$lib/types/game.types';
+import type { StarId, PlayerId, StarState, StarConfig, StarType } from '$lib/types/game.types';
 import { GAME_CONFIG } from '$lib/config/game.config';
 
 /** Constants */
@@ -118,7 +118,7 @@ export class Star {
     produce(): void {
         if (this._ownerId) {
             const baseRate = GAME_CONFIG.BASE_PRODUCTION ?? 0.5;
-            const typeMult = Star.TYPE_STATS[this.colorType]?.prod ?? 1.0;
+            const typeMult = Star.TYPE_STATS[this.starType]?.prod ?? 1.0;
             this._activeShips += this.productionRate * baseRate * typeMult;
         }
     }
@@ -127,7 +127,7 @@ export class Star {
         if (this._damagedShips > 0) {
             const configRate = GAME_CONFIG.REPAIR_RATE ?? 0.20;
             const minRepair = GAME_CONFIG.MIN_REPAIR ?? 1;
-            const typeMult = Star.TYPE_STATS[this.colorType]?.repair ?? 1.0;
+            const typeMult = Star.TYPE_STATS[this.starType]?.repair ?? 1.0;
 
             let amount = Math.max(minRepair, this._damagedShips * configRate * typeMult);
 
@@ -243,7 +243,7 @@ export class Star {
             ownerId: this._ownerId,
             targetId: this._targetId,
             icon: this.icon,
-            colorType: this.colorType
+            starType: this.starType
         };
     }
 }
