@@ -190,17 +190,35 @@ export class GameEngine {
 
         log.sys('GameEngine', `Selected ${starPositions.length} positions for stars`);
 
-        let starIndex = 0;
+        let starsAssigned = 0;
         starPositions.forEach((pos) => {
-            const ownerId = playerIds[starIndex % playerIds.length];
-            starIndex++;
+            const ownerId = playerIds[starsAssigned % playerIds.length];
+            const isCapital = starsAssigned < playerIds.length;
+
+            // Determine type
+            let type: StarType = 'standard';
+            if (isCapital) {
+                type = 'capital';
+            } else {
+                // Weighted random for other types
+                const rand = Math.random();
+                if (rand < 0.3) type = 'standard';
+                else if (rand < 0.5) type = 'forge';
+                else if (rand < 0.65) type = 'fortress';
+                else if (rand < 0.8) type = 'agro';
+                else if (rand < 0.9) type = 'tech';
+                else type = 'standard'; // fallback
+            }
+
+            starsAssigned++;
 
             const star = createStar({
                 x: pos.x,
                 y: pos.y,
                 radius: 25,
                 productionRate: 1,
-                ownerId: ownerId
+                ownerId: ownerId,
+                starType: type
             }, this.stars.size);
             this.stars.set(star.id, star);
         });

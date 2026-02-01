@@ -16,6 +16,7 @@
         StarConnection,
         FleetState,
     } from "$lib/types/game.types";
+    import { Star } from "$lib/engine/Star";
 
     // ============================================================================
     // PixiJS Application
@@ -437,9 +438,17 @@
             graphics.fill({ color, alpha: glowAlpha });
 
             // Main star body
+            // Base color from StarType? Or Owner?
+            // User requested "Stars: yellow" etc.
+            // Let's use the Type color for the core/fill, but Owner color for stroke/halo?
+            // Actually, owner color is critical for gameplay.
+            // Let's make the CORE/FILL the StarType color.
+            const typeStats = Star.TYPE_STATS[star.starType];
+            const typeColor = typeStats ? typeStats.color : 0xffffff;
+
             graphics.circle(star.x, star.y, radius);
-            graphics.fill({ color, alpha: 0.5 });
-            graphics.stroke({ color, width: isActive ? 3 : 2, alpha: 1 });
+            graphics.fill({ color: typeColor, alpha: 0.3 }); // Inner type color
+            graphics.stroke({ color, width: isActive ? 4 : 2, alpha: 1 }); // Owner border
 
             // Inner core (brighter when producing)
             const coreAlpha = 0.3 + Math.sin(animationTime * 3) * 0.1;

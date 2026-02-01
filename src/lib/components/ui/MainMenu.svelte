@@ -18,6 +18,7 @@
     function startGame() {
         // Apply Config
         GAME_CONFIG.STARS_PER_PLAYER = starsPerPlayer;
+        gameStore.updateSettings({ playerCount });
 
         // Restart Engine
         gameStore.restart();
