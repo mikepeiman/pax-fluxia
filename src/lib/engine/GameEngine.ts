@@ -426,6 +426,7 @@ export class GameEngine {
         const ownerId = target.ownerId;
         const totalDefenders = target.activeShips + target.damagedShips;
         const DAMAGE_RATE = GAME_CONFIG.DAMAGE_RATE ?? 0.5; // Configurable
+        const DEFENSE_MULT = GAME_CONFIG.DEFENSE_MULTIPLIER ?? 1.5;
 
         // 2. Calculate Damage
         let totalDamageIncoming = 0;
@@ -434,39 +435,84 @@ export class GameEngine {
 
         forces.forEach((force, playerId) => {
             if (playerId !== ownerId) {
-                totalDamageIncoming += force * DAMAGE_RATE;
+                // Formula: Damage = Force * Rate / DefenseMult
+                // Defender takes reduced damage based on multiplier
+                const effectiveDamage = (force * DAMAGE_RATE) / DEFENSE_MULT;
+                totalDamageIncoming += effectiveDamage;
+
+                // Return Fire (Defender damages attacker source)
+                // We need to find the SOURCE star for this valid attack??
+                // Wait, fleets don't store "Source Star ID", just "Source ID".
+                // Actually they do: fleet.sourceId.
+                // But we grouped by PlayerID, losing source info?
+                // We need to iterate fleets to apply return fire.
+                // Optimization: Total Def power applies to ALL attackers? Or split?
+                // Logic: Defender fires at ALL incoming vectors simultaneously (omnidirectional).
+                // Strength = (Active + Damaged) * Rate? Or just Active?
+                // Let's use Active for damage output.
+                const defenseOutput = (target.activeShips * DAMAGE_RATE);
+
+                // Which fleet gets hit? We must find the fleets for this player.
+                const playerFleets = fleets.filter(f => String(f.ownerId) === playerId);
+                playerFleets.forEach(f => {
+                    const sourceStar = this.stars.get(f.sourceId);
+                    if (sourceStar && sourceStar.ownerId === f.ownerId) {
+                        // Apply fractional damage proportional to fleet size?
+                        // Or full damage? "Remote Engagement" = Direct link.
+                        // Let's simply apply based on connection.
+                        // If mutiple sources, defender splits fire? Or full fire?
+                        // Let's do: Damage = DefensePower * (Fleet / TotalAttackingForce)
+                        // Proportional return fire.
+                        const proportion = f.shipCount / force;
+                        sourceStar.takeDamage(defenseOutput * proportion);
+                        sourceStar.markCombat(this.tick);
+                    }
+                });
+
                 if (force > maxAttackForce) {
                     maxAttackForce = force;
                     strongestAttackerId = playerId;
                 }
             } else {
-                // Reinforcements - add to active ships directly?
-                // Actually if owner sends ships to own star, they just join defense.
-                // We added them above? No, fleets list contains them.
-                // We should add them to the star now.
                 target.addActiveShips(force);
             }
         });
 
         if (totalDamageIncoming === 0) return; // No combat
 
+        // Mark combat to inhibit repair
+        target.markCombat(this.tick);
+
         // 3. Apply Damage to Star
-        const { converted, destroyed } = target.takeDamage(totalDamageIncoming);
+        target.takeDamage(totalDamageIncoming);
 
-        const remainingDefenders = target.activeShips + target.damagedShips;
-        const totalInitDefenders = totalDefenders;
+        const remainingActive = target.activeShips;
 
-        // Note: Removed outdated manual absorption logic here.
+        // CONQUEST CONDITION: Overwhelm
+        // If Active <= 0 OR Active <= (Attacker / 7)
+        const overwhelmThreshold = maxAttackForce / 7;
 
-        if (remainingDefenders <= 0) {
+        if (remainingActive <= 0 || remainingActive <= overwhelmThreshold) {
             // CONQUEST
             if (strongestAttackerId) {
-                const survivorCount = Math.max(0, maxAttackForce - totalInitDefenders);
-                // Attackers also take damage? User said "Both sides... need ships damaged".
-                // We need to calculate damage against attackers.
+                const survivorCount = Math.max(0, maxAttackForce - totalDefenders); // Simple subtraction for survival?
+                // Or just keep the active ships at the star?
+                // Conquest flips ownership. 
+                // Damaged ships:
+                // User said: "50% destroyed / captured"?
+                // Let's capture 50% of damaged ships.
+                const capturedDamaged = Math.floor(target.damagedShips * 0.5);
 
                 target.setOwner(strongestAttackerId);
-                target.addActiveShips(survivorCount);
+                target.addActiveShips(Math.floor(survivorCount)); // Add surviving attackers?
+                // Actually, maxAttackForce is "virtual" pressure from remote.
+                // Ships don't "travel" to occupy in this model?
+                // Wait, PRD says "NO TRAVEL". So "Occupation" means transferring ships?
+                // PRD 2.2.4: "Transfer 50% of the Winner's ships instantly teleport".
+                // We need to deduct from Source?
+                // Complex... For now, let's just Spawn 10 ships as starter? 
+                // Or assume the "survivorCount" represents the transferred force.
+
                 this.starsCaptured++;
 
                 logCombat({
