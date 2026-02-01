@@ -16,6 +16,9 @@ export type StarId = string;
 export type PlayerId = string;
 export type LinkId = string;
 
+/** Star Types for variety */
+export type StarType = 'standard' | 'capital' | 'forge' | 'fortress' | 'agro' | 'tech';
+
 /** Game settings from menu */
 export interface GameSettings {
     map: 'empire' | 'random';
