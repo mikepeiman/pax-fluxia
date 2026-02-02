@@ -16,8 +16,12 @@ export type StarId = string;
 export type PlayerId = string;
 export type LinkId = string;
 
-/** Star Types (Colors) */
-export type StarType = 'grey' | 'yellow' | 'green' | 'red' | 'blue' | 'purple';
+/** 
+ * Star Types - Canonical Spec
+ * GREY=basic (no bonus), YELLOW=production, BLUE=movement, PURPLE=repair, RED=defense, GREEN=attack
+ * Each type has 2x bonus on its specialty stat, all other stats @ 1.0
+ */
+export type StarType = 'grey' | 'yellow' | 'blue' | 'purple' | 'red' | 'green';
 
 /** Game settings from menu */
 export interface GameSettings {
@@ -54,6 +58,14 @@ export interface StarConfig {
     productionRate: number;
     ownerId: PlayerId;
     starType?: StarType;
+    activeShips?: number;
+    damagedShips?: number;
+    // Combat V2 Properties
+    activationRate?: number;    // 0-1
+    defensivePosture?: number;  // 0-1
+    defenseStrength?: number;   // Multiplier
+    repairRate?: number;        // Flat/Pct
+    transferRate?: number;      // Pct
 }
 
 /** Star runtime state */
@@ -69,6 +81,12 @@ export interface StarState {
     targetId: StarId | null;
     icon: string;
     starType: StarType;
+    // Combat V2 Props (Runtime)
+    activationRate: number;
+    defensivePosture: number;
+    defenseStrength: number;
+    repairRate: number;
+    transferRate: number;
 }
 
 /** Flow link state */

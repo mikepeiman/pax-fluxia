@@ -1,18 +1,22 @@
 // ============================================================================
 // Combat Resolution - Pure functions for battle calculations
 // ============================================================================
+// 
+// COMBAT V4: Symmetric Damage Model
+// Both sides take damage from the same base formula. See game.config.ts for
+// the authoritative calculateCombatV4 function.
+// 
+// This file provides backwards-compatible wrappers for legacy code.
+// ============================================================================
 
 import type { CombatResult, PlayerId } from '$lib/types/game.types';
-import { GAME_CONFIG } from '$lib/config/game.config';
+import { GAME_CONFIG, calculateCombatV4 } from '$lib/config/game.config';
 
 /**
- * Resolve combat between attackers and defenders
+ * Resolve combat between attackers and defenders (Legacy wrapper)
  * 
- * RULES:
- * 1. Larger force always wins
- * 2. Defenders have DEFENSE_MULTIPLIER advantage
- * 3. Capture occurs when attackers > defenders * CONQUEST_THRESHOLD
- *    OR when defenders reach 0
+ * NOTE: This is a backwards-compatible wrapper around calculateCombatV4.
+ * New code should use calculateCombatV4 directly from game.config.ts.
  * 
  * @param attackerCount - Number of attacking ships
  * @param defenderCount - Number of defending ships (active only)
@@ -24,32 +28,16 @@ export function resolveCombat(
     defenderCount: number,
     attackerOwner: PlayerId
 ): CombatResult {
-    const defenseMultiplier = GAME_CONFIG.DEFENSE_MULTIPLIER as number;
-    const damageRate = GAME_CONFIG.DAMAGE_RATE as number;
-    const minDamage = GAME_CONFIG.MIN_DAMAGE as number;
-    const conquestThreshold = GAME_CONFIG.CONQUEST_THRESHOLD as number;
-
-    // Effective defender strength (with defense bonus)
-    const effectiveDefense = defenderCount * defenseMultiplier;
-
-    // Calculate raw exchange
-    const rawExchange = Math.min(attackerCount, defenderCount);
-
-    // Attacker losses (defenders hit harder due to multiplier)
-    const attackerLoss = Math.max(
-        minDamage,
-        Math.floor(rawExchange * damageRate * defenseMultiplier)
+    // Use V4 symmetric formula
+    const { killsOnA, disabledOnA, killsOnB, disabledOnB } = calculateCombatV4(
+        defenderCount,      // Side A = Defender
+        attackerCount,      // Side B = Attacker
+        false,              // Defender not counter-attacking (legacy assumption)
+        true                // Attacker is attacking
     );
 
-    // Defender losses (attackers at base rate)
-    const defenderLoss = Math.max(
-        minDamage,
-        Math.floor(rawExchange * damageRate)
-    );
-
-    // Clamp losses to not exceed counts
-    const actualAttackerLoss = Math.min(attackerLoss, attackerCount);
-    const actualDefenderLoss = Math.min(defenderLoss, defenderCount);
+    const actualDefenderLoss = Math.min(killsOnA + disabledOnA, defenderCount);
+    const actualAttackerLoss = Math.min(killsOnB + disabledOnB, attackerCount);
 
     const attackerSurvivors = attackerCount - actualAttackerLoss;
     const defenderSurvivors = defenderCount - actualDefenderLoss;
@@ -57,6 +45,7 @@ export function resolveCombat(
     // Capture occurs when:
     // 1. All defenders eliminated AND attackers remain, OR
     // 2. Attackers outnumber defenders by CONQUEST_THRESHOLD ratio
+    const conquestThreshold = GAME_CONFIG.CONQUEST_THRESHOLD;
     const captured = (
         (defenderSurvivors <= 0 && attackerSurvivors > 0) ||
         (attackerCount >= defenderCount * conquestThreshold && attackerSurvivors > 0)
@@ -89,6 +78,6 @@ export function canOverwhelm(
     attackerCount: number,
     defenderCount: number
 ): boolean {
-    const threshold = GAME_CONFIG.CONQUEST_THRESHOLD as number;
+    const threshold = GAME_CONFIG.CONQUEST_THRESHOLD;
     return attackerCount >= defenderCount * threshold;
 }

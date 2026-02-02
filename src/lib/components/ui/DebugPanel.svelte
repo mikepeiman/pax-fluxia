@@ -29,9 +29,8 @@
         flowPercentage: GAME_CONFIG.FLOW_PERCENTAGE * 100,
         minFlowShips: GAME_CONFIG.MIN_FLOW_SHIPS,
 
-        // Combat
-        defenseMultiplier: GAME_CONFIG.DEFENSE_MULTIPLIER,
-        damageRate: GAME_CONFIG.DAMAGE_RATE * 100,
+        // NOTE: Combat variables moved to CombatPanel.svelte
+        // conquestThreshold still here for backward compat
         conquestThreshold: GAME_CONFIG.CONQUEST_THRESHOLD,
 
         // Production
@@ -79,8 +78,7 @@
         GAME_CONFIG.STARS_PER_PLAYER = params.starsPerPlayer;
         GAME_CONFIG.FLOW_PERCENTAGE = params.flowPercentage / 100;
         GAME_CONFIG.MIN_FLOW_SHIPS = params.minFlowShips;
-        GAME_CONFIG.DEFENSE_MULTIPLIER = params.defenseMultiplier;
-        GAME_CONFIG.DAMAGE_RATE = params.damageRate / 100;
+        // NOTE: Combat variables moved to CombatPanel.svelte
         GAME_CONFIG.CONQUEST_THRESHOLD = params.conquestThreshold;
         GAME_CONFIG.BASE_PRODUCTION = params.baseProduction;
         GAME_CONFIG.CONQUEST_TRANSFER_PERCENTAGE =
@@ -177,26 +175,8 @@
             step: 1,
         });
 
-        // Combat folder
-        const combatFolder = pane.addFolder({ title: "⚔️ Combat" });
-        combatFolder.addBinding(params, "defenseMultiplier", {
-            label: "Defense Mult",
-            min: 1.0,
-            max: 5.0,
-            step: 0.1,
-        });
-        combatFolder.addBinding(params, "damageRate", {
-            label: "Damage %",
-            min: 5,
-            max: 100,
-            step: 5,
-        });
-        combatFolder.addBinding(params, "conquestThreshold", {
-            label: "Conquer Ratio",
-            min: 1,
-            max: 10,
-            step: 1,
-        });
+        // NOTE: Combat folder moved to CombatPanel.svelte
+        // Only conquest threshold remains here for legacy compat
 
         // Conquest folder
         const conquestFolder = pane.addFolder({ title: "🏴 Conquest" });

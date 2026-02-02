@@ -1,57 +1,116 @@
 <script lang="ts">
-    import { combatLog } from "$lib/stores/combatLogStore";
+    import { combatLog, STAR_TYPE_COLORS } from "$lib/stores/combatLogStore";
+    import { GAME_CONFIG } from "$lib/config/game.config";
     import { fade } from "svelte/transition";
 
     let visible = $state(true);
+    let showSettings = $state(false);
 
     function toggle() {
         visible = !visible;
     }
+
+    function getTypeColor(starType: string): string {
+        return STAR_TYPE_COLORS[starType] || STAR_TYPE_COLORS.grey;
+    }
 </script>
 
 <div class="combat-panel" class:collapsed={!visible}>
-    <div class="header" onclick={toggle}>
+    <button class="header" onclick={toggle}>
         <h3>⚔️ Combat Log</h3>
         <span class="toggle">{visible ? "▼" : "▲"}</span>
-    </div>
+    </button>
 
     {#if visible}
-        <div class="logs" transition:fade>
-            {#if $combatLog.length === 0}
-                <div class="empty">No combat recorded yet.</div>
-            {/if}
-            {#each $combatLog as log (log.id)}
-                <div
-                    class="log-entry"
-                    style="border-left: 4px solid {log.color}"
-                >
-                    <div class="log-header">
-                        <span class="tick">T{log.tick}</span>
-                        <span class="star">★ {log.starName || log.starId}</span>
-                        <span class="result">{log.result}</span>
-                    </div>
-                    <div class="log-message">
-                        {log.message}
-                    </div>
-                    <div class="log-stats">
-                        <span class="stat"
-                            >⚔️ Att: {log.attackers.toFixed(1)}</span
-                        >
-                        <span class="stat"
-                            >🛡️ Def: {log.defenders.toFixed(1)}</span
-                        >
-                        <span class="stat dmg" title="Total Damage Value"
-                            >💥 {log.damage.toFixed(0)}</span
-                        >
-                        {#if log.shipsDamaged > 0}<span class="stat hit"
-                                >🤕 {log.shipsDamaged.toFixed(0)}</span
-                            >{/if}
-                        {#if log.shipsDestroyed > 0}<span class="stat kill"
-                                >☠️ {log.shipsDestroyed.toFixed(0)}</span
-                            >{/if}
-                    </div>
+        <div class="panel-content" transition:fade>
+            <!-- Settings Toggle -->
+            <button
+                class="settings-toggle"
+                onclick={() => (showSettings = !showSettings)}
+            >
+                ⚙️ Settings {showSettings ? "▲" : "▼"}
+            </button>
+
+            {#if showSettings}
+                <div class="settings-row" transition:fade>
+                    <span class="setting"
+                        >Aggressor: <b
+                            >{GAME_CONFIG.AGGRESSOR_ADVANTAGE.toFixed(2)}</b
+                        ></span
+                    >
+                    <span class="setting"
+                        >Dmg: <b>{GAME_CONFIG.DAMAGE_PER_SHIP.toFixed(2)}</b
+                        ></span
+                    >
+                    <span class="setting"
+                        >Lethality: <b>{GAME_CONFIG.LETHALITY.toFixed(2)}</b
+                        ></span
+                    >
+                    <span class="setting"
+                        >Force: <b
+                            >{GAME_CONFIG.FORCE_RATIO_EFFECT.toFixed(2)}</b
+                        ></span
+                    >
+                    <span class="setting"
+                        >RR: <b>{GAME_CONFIG.REPAIR_RATE.toFixed(2)}</b></span
+                    >
                 </div>
-            {/each}
+            {/if}
+
+            <div class="logs">
+                {#if $combatLog.length === 0}
+                    <div class="empty">No combat recorded yet.</div>
+                {/if}
+                {#each $combatLog as log (log.id)}
+                    <div class="log-entry">
+                        <div class="log-header">
+                            <span class="tick">T{log.tick}</span>
+                            <span
+                                class="result"
+                                class:defense={log.result === "DEFENSE"}
+                                class:falling={log.result === "FALLING"}
+                                class:conquered={log.result === "CONQUERED"}
+                            >
+                                {log.result}
+                            </span>
+                        </div>
+
+                        <!-- Attacker row -->
+                        <div class="combatant attacker">
+                            <span
+                                class="star-type"
+                                style="background: {getTypeColor(
+                                    log.attacker.starType,
+                                )}">{log.attacker.starType.toUpperCase()}</span
+                            >
+                            <span class="star-id">{log.attacker.id}</span>
+                            <span class="ships">({log.attacker.ships})</span>
+                            <span class="role att">ATT</span>
+                            <span class="losses"
+                                >-{log.attacker.kills}☠️ -{log.attacker
+                                    .disabled}🤕</span
+                            >
+                        </div>
+
+                        <!-- Defender row -->
+                        <div class="combatant defender">
+                            <span
+                                class="star-type"
+                                style="background: {getTypeColor(
+                                    log.defender.starType,
+                                )}">{log.defender.starType.toUpperCase()}</span
+                            >
+                            <span class="star-id">{log.defender.id}</span>
+                            <span class="ships">({log.defender.ships})</span>
+                            <span class="role def">DEF</span>
+                            <span class="losses"
+                                >-{log.defender.kills}☠️ -{log.defender
+                                    .disabled}🤕</span
+                            >
+                        </div>
+                    </div>
+                {/each}
+            </div>
         </div>
     {/if}
 </div>
@@ -59,36 +118,35 @@
 <style>
     .combat-panel {
         position: fixed;
-        bottom: 20px;
-        right: 20px;
-        width: 350px;
-        max-height: 400px;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: 320px;
         background: rgba(10, 10, 15, 0.95);
-        border: 1px solid #334;
-        border-radius: 8px;
+        border-right: 1px solid #334;
         color: #eee;
         font-family: "Consolas", "Monaco", monospace;
-        font-size: 12px;
+        font-size: 11px;
         z-index: 900;
         display: flex;
         flex-direction: column;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        box-shadow: 4px 0 12px rgba(0, 0, 0, 0.5);
     }
 
     .combat-panel.collapsed {
-        width: 150px;
-        max-height: 40px;
+        width: 40px;
     }
 
     .header {
         padding: 10px;
         background: #1a1a25;
+        border: none;
         border-bottom: 1px solid #334;
         cursor: pointer;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        border-radius: 8px 8px 0 0;
+        color: #eee;
     }
 
     .header h3 {
@@ -97,52 +155,129 @@
         font-weight: bold;
     }
 
+    .panel-content {
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .settings-toggle {
+        padding: 6px 10px;
+        background: #222;
+        border: none;
+        border-bottom: 1px solid #334;
+        color: #888;
+        cursor: pointer;
+        font-size: 10px;
+        text-align: left;
+    }
+
+    .settings-row {
+        padding: 8px;
+        background: #1a1a20;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        border-bottom: 1px solid #334;
+    }
+
+    .setting {
+        color: #888;
+        font-size: 10px;
+    }
+    .setting b {
+        color: #22c55e;
+    }
+
     .logs {
         overflow-y: auto;
         flex: 1;
         padding: 5px;
         display: flex;
         flex-direction: column;
-        gap: 5px;
+        gap: 6px;
     }
 
     .log-entry {
-        background: rgba(255, 255, 255, 0.05);
+        background: rgba(255, 255, 255, 0.03);
         padding: 8px;
         border-radius: 4px;
+        border-left: 3px solid #ff6b35;
     }
 
     .log-header {
         display: flex;
         justify-content: space-between;
-        margin-bottom: 4px;
+        margin-bottom: 6px;
+    }
+
+    .tick {
+        color: #ff6b35;
+        font-weight: bold;
+    }
+
+    .result {
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-weight: bold;
+        font-size: 10px;
+    }
+    .result.defense {
+        background: #22c55e;
+        color: #000;
+    }
+    .result.falling {
+        background: #fbbf24;
+        color: #000;
+    }
+    .result.conquered {
+        background: #ef4444;
+        color: #fff;
+    }
+
+    .combatant {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 0;
+    }
+
+    .star-type {
+        padding: 1px 4px;
+        border-radius: 2px;
+        color: #000;
+        font-weight: bold;
+        font-size: 9px;
+    }
+
+    .star-id {
         color: #88aaff;
         font-weight: bold;
     }
 
-    .log-message {
-        margin-bottom: 6px;
-        color: #ccc;
-        line-height: 1.4;
+    .ships {
+        color: #aaa;
     }
 
-    .log-stats {
-        display: flex;
-        gap: 10px;
-        color: #888;
-        font-size: 11px;
+    .role {
+        padding: 1px 4px;
+        border-radius: 2px;
+        font-weight: bold;
+        font-size: 9px;
+    }
+    .role.att {
+        background: #4488ff;
+        color: #fff;
+    }
+    .role.def {
+        background: #ff4466;
+        color: #fff;
     }
 
-    .dmg {
-        color: #ff6666;
-    }
-
-    .hit {
-        color: #ffaa44;
-    }
-
-    .kill {
-        color: #ff4444;
+    .losses {
+        color: #ff6b6b;
+        font-size: 10px;
+        margin-left: auto;
     }
 
     .empty {

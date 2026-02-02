@@ -25,17 +25,54 @@ export class Star {
     readonly icon: string;
     readonly starType: StarType;
 
-    // Type Configs
-    static readonly TYPE_STATS: Record<StarType, { defense: number, prod: number, speed: number, repair: number, color: number }> = {
-        'standard': { defense: 1, prod: 1, speed: 1, repair: 1, color: 0x8899aa }, // Grey
-        'blue': { defense: 1, prod: 1.2, speed: 2, repair: 1, color: 0xffffff }, // White
-        'yellow': { defense: 1, prod: 2, speed: 1, repair: 1, color: 0xffcc00 }, // Yellow (Prod)
-        'red': { defense: 2, prod: 1, speed: 1, repair: 1, color: 0xff4444 }, // Red (Def)
-        'green': { defense: 1, prod: 1, speed: 1, repair: 1, color: 0x44ff88 }, // Green (Atk/Speed?? User said Green=Att)
-        'purple': { defense: 1, prod: 1, speed: 1, repair: 2, color: 0xaa44ff }, // Purple (Repair)
-        // User map: Yellow(Prod), Green(Att), Red(Def), Blue(Mov/Relay??), Purple(Repair), Grey(None)
-        // I will map 'agro' -> Green, 'relay' -> Blue.
-    };
+    // Combat V2 Properties
+    readonly activationRate: number;
+    readonly defensivePosture: number;
+    readonly defenseStrength: number;
+    readonly repairRate: number;
+    readonly transferRate: number;
+
+    // Type Configs - Canonical Star Type Spec
+    // Each type has 2x bonus on its specialty, all other stats @ 1.0
+    static readonly TYPE_STATS: Record<StarType, {
+        defense: number,      // Combat defense multiplier (RED = 2x)
+        prod: number,         // Production rate (YELLOW = 2x)
+        speed: number,        // Movement/transfer speed (BLUE = 2x)
+        repair: number,       // Repair rate (PURPLE = 2x)
+        attack: number,       // Attack power (GREEN = 2x)
+        color: number,
+        // V2 Stats (consistent across types for now)
+        activationRate: number,
+        defensivePosture: number,
+        defenseStrength: number,
+        repairRate: number,
+        transferRate: number
+    }> = {
+            'grey': { // BASIC - No bonuses, all stats @ 1.0
+                defense: 1, prod: 1, speed: 1, repair: 1, attack: 1, color: 0x8899aa,
+                activationRate: 0.5, defensivePosture: 0.5, defenseStrength: 1.0, repairRate: 0.2, transferRate: 0.1
+            },
+            'yellow': { // PRODUCTION - 2x production rate
+                defense: 1, prod: 2, speed: 1, repair: 1, attack: 1, color: 0xfbbf24,
+                activationRate: 0.5, defensivePosture: 0.5, defenseStrength: 1.0, repairRate: 0.2, transferRate: 0.1
+            },
+            'blue': { // MOVEMENT - 2x transfer/movement speed
+                defense: 1, prod: 1, speed: 2, repair: 1, attack: 1, color: 0x3b82f6,
+                activationRate: 0.5, defensivePosture: 0.5, defenseStrength: 1.0, repairRate: 0.2, transferRate: 0.2
+            },
+            'purple': { // REPAIR - 2x repair rate
+                defense: 1, prod: 1, speed: 1, repair: 2, attack: 1, color: 0xa855f7,
+                activationRate: 0.5, defensivePosture: 0.5, defenseStrength: 1.0, repairRate: 0.4, transferRate: 0.1
+            },
+            'red': { // DEFENSE - 2x defense strength
+                defense: 2, prod: 1, speed: 1, repair: 1, attack: 1, color: 0xef4444,
+                activationRate: 0.5, defensivePosture: 0.7, defenseStrength: 2.0, repairRate: 0.2, transferRate: 0.1
+            },
+            'green': { // ATTACK - 2x attack power
+                defense: 1, prod: 1, speed: 1, repair: 1, attack: 2, color: 0x22c55e,
+                activationRate: 0.5, defensivePosture: 0.3, defenseStrength: 1.0, repairRate: 0.2, transferRate: 0.1
+            },
+        };
 
     private _activeShips: number;
     private _damagedShips: number;
@@ -49,32 +86,28 @@ export class Star {
         this.x = config.x;
         this.y = config.y;
         this.radius = config.radius;
-        this.productionRate = config.productionRate; // Base rate from map gen, modified by type?
+        this.productionRate = config.productionRate;
         this._ownerId = config.ownerId;
-        this.starType = config.starType || 'standard';
+        this.starType = config.starType || 'grey';
 
-        this._activeShips = this.starType === 'capital' ? 25 : 10;
-        this._damagedShips = 0;
+        this._activeShips = config.activeShips ?? (this.starType === 'grey' ? 25 : 10);
+        this._damagedShips = config.damagedShips ?? 0;
         this._targetId = null;
 
-        // Icons based on functionality? Or random?
-        // User requested distinct types. Let's force icons for types.
-        const typeIcons: Record<StarType, string> = {
-            'standard': '🌑',
-            'capital': '👑',
-            'forge': '🌋',
-            'fortress': '🛡️',
-            'agro': '⚔️', // Green
-            'tech': '🔮', // Purple
-        };
-        // Override with random if standard?
-        if (this.starType === 'standard') {
-            const icons = ['🌑', '🌕', '🪐', '🌎', '🌫️'];
-            const seed = this.id.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
-            this.icon = icons[seed % icons.length];
-        } else {
-            this.icon = typeIcons[this.starType] || '⭐';
-        }
+        // Initialize V2 Stats from CONFIG or Defaults
+        // Fallback to 'grey' if type not found (though types enforces it)
+        const stats = Star.TYPE_STATS[this.starType] || Star.TYPE_STATS['grey'];
+
+        this.activationRate = config.activationRate ?? stats.activationRate;
+        this.defensivePosture = config.defensivePosture ?? stats.defensivePosture;
+        this.defenseStrength = config.defenseStrength ?? stats.defenseStrength;
+        this.repairRate = config.repairRate ?? stats.repairRate;
+        this.transferRate = config.transferRate ?? stats.transferRate;
+
+        // Random identity icon (as per PRD)
+        const icons = ['�', '⭐', '☀️', '☄️', '🌎', '🪐', '🌑', '�', '�', '🌋', '�️', '�️'];
+        const seed = this.id.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+        this.icon = icons[seed % icons.length];
     }
 
     // ============================================================================
@@ -105,6 +138,14 @@ export class Star {
     /** Is this star currently sending ships somewhere? */
     get isAttacking(): boolean {
         return this._targetId !== null;
+    }
+
+    /**
+     * Clear the attack target (stops sending ships)
+     * Called when source runs out of ships or attack is cancelled
+     */
+    clearTarget(): void {
+        this._targetId = null;
     }
 
     // ============================================================================
@@ -181,6 +222,14 @@ export class Star {
     }
 
     /**
+     * Clear all ships (used on conquest to reset population)
+     */
+    clearShips(): void {
+        this._activeShips = 0;
+        this._damagedShips = 0;
+    }
+
+    /**
      * Take damage
      * Logic:
      * 1. Damage hits Active Ships first -> Converts them to Damaged.
@@ -243,7 +292,13 @@ export class Star {
             ownerId: this._ownerId,
             targetId: this._targetId,
             icon: this.icon,
-            starType: this.starType
+            starType: this.starType,
+            // V2 Logic
+            activationRate: this.activationRate,
+            defensivePosture: this.defensivePosture,
+            defenseStrength: this.defenseStrength,
+            repairRate: this.repairRate,
+            transferRate: this.transferRate
         };
     }
 }

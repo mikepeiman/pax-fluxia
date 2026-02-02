@@ -17,11 +17,12 @@ interface GameConfigType {
     FLOW_PULSE_FREQUENCY: number;
     FLEET_SPEED: number;
 
-    // Combat
-    DEFENSE_MULTIPLIER: number;
-    DAMAGE_RATE: number;
-    MIN_DAMAGE: number;
-    CONQUEST_THRESHOLD: number;
+    // Combat V4 - Symmetric Model
+    AGGRESSOR_ADVANTAGE: number;    // Tilts damage toward attacker (>1) or defender (<1)
+    DAMAGE_PER_SHIP: number;        // Base damage output per engaged ship
+    LETHALITY: number;              // % of damage that destroys (rest disables)
+    FORCE_RATIO_EFFECT: number;     // How much numerical superiority matters
+    CONQUEST_THRESHOLD: number;     // Overwhelm ratio for instant capture
 
     // Production
     BASE_PRODUCTION: number;
@@ -42,6 +43,10 @@ interface GameConfigType {
     SHIPS_PER_RING: number;
     SHIP_BASE_SIZE: number;
     TRANSFER_ANIMATION_MS: number;
+
+    // Combat Legacy (kept for compatibility)
+    COMBAT_MODIFIER: number;            // DEPRECATED - use DAMAGE_PER_SHIP
+    CONQUEST_TRANSFER_MODIFIER: number; // Post-conquest ship transfer modifier
 
     // Hex Grid
     HEX_RADIUS: number;
@@ -90,19 +95,39 @@ export const GAME_CONFIG: GameConfigType = {
     FLEET_SPEED: 25,
 
     // ========================================================================
-    // COMBAT
+    // COMBAT V4 - SYMMETRIC DAMAGE MODEL
+    // ========================================================================
+    // Both sides take damage from the same base formula. These 5 variables
+    // control the core combat experience:
+    //
+    // 1. AGGRESSOR_ADVANTAGE: Tilts damage ratio. >1 = attacker deals more.
+    //    Both sides attacking = both get bonus (explosive battles).
+    //
+    // 2. DAMAGE_PER_SHIP: Base damage output per engaged ship per tick.
+    //    Higher = faster kills, shorter battles.
+    //
+    // 3. LETHALITY: % of damage that destroys ships (rest disables).
+    //    High = decisive battles. Low = attrition + repair matters.
+    //
+    // 4. FORCE_RATIO_EFFECT: Non-linear bonus for numerical superiority.
+    //    Uses log2(ratio) so 8:1 only gives 3x bonus of 2:1.
+    //
+    // 5. CONQUEST_THRESHOLD: Attackers need Nx defender ships to overwhelm.
     // ========================================================================
 
-    /** Defense multiplier - defenders hit this many times harder */
-    DEFENSE_MULTIPLIER: 1.2,
+    /** Tilts damage toward attacker (>1) or defender (<1). 1.0 = symmetric. */
+    AGGRESSOR_ADVANTAGE: 1.0,
 
-    /** Damage reduction factor per tick (0.0 - 1.0) - lower = less attrition */
-    DAMAGE_RATE: 0.3,
+    /** Base damage per engaged ship per tick. Range: 0.05-2.0 */
+    DAMAGE_PER_SHIP: 0.2,
 
-    /** Minimum ships destroyed per combat exchange */
-    MIN_DAMAGE: 1,
+    /** Fraction of damage that destroys ships (rest disables). Range: 0-1 */
+    LETHALITY: 0.25,
 
-    /** Conquest threshold - attackers need N times defender count to capture */
+    /** How much numerical superiority matters. 0 = none, 1 = dominant */
+    FORCE_RATIO_EFFECT: 0.3,
+
+    /** Overwhelm ratio for instant conquest (need Nx enemy ships) */
     CONQUEST_THRESHOLD: 7,
 
     // ========================================================================
@@ -156,6 +181,16 @@ export const GAME_CONFIG: GameConfigType = {
 
     /** Ship transfer animation duration (ms) */
     TRANSFER_ANIMATION_MS: 600,
+
+    // ========================================================================
+    // COMBAT V2
+    // ========================================================================
+
+    /** Global combat lethality modifier (scales damage formula) */
+    COMBAT_MODIFIER: 0.1,
+
+    /** Modifier for post-conquest ship transfer */
+    CONQUEST_TRANSFER_MODIFIER: 1.0,
 
     // ========================================================================
     // HEX GRID
@@ -212,14 +247,83 @@ export function calculateFlowAmount(activeShips: number): number {
 }
 
 /**
- * Calculate damage in combat (with defense multiplier)
+ * COMBAT V4 - Symmetric Damage Calculation (FIXED)
+ * 
+ * CORRECT LOGIC:
+ * - Side A and Side B exchange fire simultaneously
+ * - Each side's DAMAGE OUTPUT = their ships * DAMAGE_PER_SHIP
+ * - Aggressor bonus: Attacker deals more damage (not receives less)
+ * - Force ratio: Larger force deals MORE damage proportionally
+ * 
+ * @param sideAShips - Ships on side A (typically defender)
+ * @param sideBShips - Ships on side B (typically attacker)
+ * @param sideAIsAttacking - Whether side A has an active attack order
+ * @param sideBIsAttacking - Whether side B has an active attack order
+ * @returns Object with damage to each side, split into kills and disabled
  */
-export function calculateDamage(
-    attackerCount: number,
-    defenderCount: number,
-    isDefending: boolean
-): number {
-    const baseMultiplier = isDefending ? GAME_CONFIG.DEFENSE_MULTIPLIER : 1;
-    const effectiveDamage = Math.min(attackerCount, defenderCount) * GAME_CONFIG.DAMAGE_RATE;
-    return Math.max(GAME_CONFIG.MIN_DAMAGE, Math.floor(effectiveDamage * baseMultiplier));
+export function calculateCombatV4(
+    sideAShips: number,
+    sideBShips: number,
+    sideAIsAttacking: boolean,
+    sideBIsAttacking: boolean
+): {
+    damageToA: number;
+    damageToB: number;
+    killsOnA: number;
+    killsOnB: number;
+    disabledOnA: number;
+    disabledOnB: number;
+} {
+    if (sideAShips <= 0 || sideBShips <= 0) {
+        return { damageToA: 0, damageToB: 0, killsOnA: 0, killsOnB: 0, disabledOnA: 0, disabledOnB: 0 };
+    }
+
+    // ========================================================================
+    // DAMAGE OUTPUT CALCULATION
+    // Each side's damage output = their ship count * damage per ship
+    // ========================================================================
+    const baseOutputA = sideAShips * GAME_CONFIG.DAMAGE_PER_SHIP;
+    const baseOutputB = sideBShips * GAME_CONFIG.DAMAGE_PER_SHIP;
+
+    // ========================================================================
+    // AGGRESSOR ADVANTAGE
+    // Attacking side deals MORE damage (bonus to output, not reduction to input)
+    // ========================================================================
+    const aggressorA = sideAIsAttacking ? GAME_CONFIG.AGGRESSOR_ADVANTAGE : 1.0;
+    const aggressorB = sideBIsAttacking ? GAME_CONFIG.AGGRESSOR_ADVANTAGE : 1.0;
+
+    const outputA = baseOutputA * aggressorA;  // A's damage output
+    const outputB = baseOutputB * aggressorB;  // B's damage output
+
+    // ========================================================================
+    // FORCE RATIO MODIFIER (non-linear via log2)
+    // Larger force has advantage: deals more damage, takes less
+    // ========================================================================
+    const ratio = Math.max(sideAShips, sideBShips) / Math.min(sideAShips, sideBShips);
+    const forceBonus = 1 + (Math.log2(ratio) * GAME_CONFIG.FORCE_RATIO_EFFECT);
+
+    const aIsLarger = sideAShips > sideBShips;
+
+    // Larger force: output multiplied by bonus, input divided by bonus
+    // Smaller force: output divided by bonus, input multiplied by bonus
+    const outputModA = aIsLarger ? forceBonus : (1 / forceBonus);
+    const outputModB = aIsLarger ? (1 / forceBonus) : forceBonus;
+
+    // ========================================================================
+    // FINAL DAMAGE CALCULATION
+    // A's output affects B (damageToB), B's output affects A (damageToA)
+    // ========================================================================
+    const damageToA = Math.max(1, outputB * outputModB);  // B attacks A
+    const damageToB = Math.max(1, outputA * outputModA);  // A attacks B
+
+    // ========================================================================
+    // SPLIT INTO KILLS VS DISABLED
+    // Lethality determines percentage destroyed vs. converted to damaged
+    // ========================================================================
+    const killsOnA = Math.floor(damageToA * GAME_CONFIG.LETHALITY);
+    const disabledOnA = Math.floor(damageToA * (1 - GAME_CONFIG.LETHALITY));
+    const killsOnB = Math.floor(damageToB * GAME_CONFIG.LETHALITY);
+    const disabledOnB = Math.floor(damageToB * (1 - GAME_CONFIG.LETHALITY));
+
+    return { damageToA, damageToB, killsOnA, killsOnB, disabledOnA, disabledOnB };
 }

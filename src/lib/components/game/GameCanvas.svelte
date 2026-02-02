@@ -70,6 +70,20 @@
     let activeStarId: string | null = null;
     let pendingOrders: Set<string> = new Set(); // OPTIMISTIC UI: Track ordered links immediately
 
+    // Helper: Add pending order and clean up conflicting orders
+    function addPendingOrder(sourceId: string, targetId: string) {
+        // Remove any old order from source (source can only have one target)
+        pendingOrders.forEach((key) => {
+            if (key.startsWith(`${sourceId}|`)) {
+                pendingOrders.delete(key);
+            }
+        });
+        // Remove opposite flow for same-owner stars (A→B cancels B→A)
+        pendingOrders.delete(`${targetId}|${sourceId}`);
+        // Add new order
+        pendingOrders.add(`${sourceId}|${targetId}`);
+    }
+
     // Player colors (must match engine)
     const PLAYER_COLORS: Record<string, number> = {
         "human-player": 0x4488ff,
@@ -394,18 +408,22 @@
                 damagedText.label = "damaged";
                 label.addChild(damagedText);
 
-                // Icon (Top, above active count)
-                const iconText = new PIXI.Text({
-                    text: "",
+                // Star ID label (Top, above active count) - for log correlation
+                const idText = new PIXI.Text({
+                    text: star.id.replace("star-", ""),
                     style: {
-                        fontSize: 24,
+                        fontFamily: "JetBrains Mono, monospace",
+                        fontSize: 10,
+                        fontWeight: "bold",
+                        fill: 0x88aaff,
                         align: "center",
+                        stroke: { color: 0x000000, width: 2 },
                     },
                 });
-                iconText.anchor.set(0.5, 0.5);
-                iconText.position.y = -35;
-                iconText.label = "icon";
-                label.addChild(iconText);
+                idText.anchor.set(0.5, 0.5);
+                idText.position.y = -20;
+                idText.label = "starId";
+                label.addChild(idText);
 
                 labelsContainer!.addChild(label);
                 starLabels.set(star.id, label);
@@ -464,9 +482,10 @@
                 damagedText.visible = true;
             }
 
-            if (iconText && star.icon) {
-                iconText.text = star.icon;
-            }
+            // DISABLED: Star icons
+            // if (iconText && star.icon) {
+            //     iconText.text = star.icon;
+            // }
 
             label.x = star.x;
             label.y = star.y;
@@ -620,10 +639,47 @@
 
             // 2. Physics & Render Loop for Active Ships
             if (ships.length > 0) {
+                // Determine behavior mode
+                const hasTarget = star.targetId !== null;
+                const targetStar = hasTarget
+                    ? stars.find((s) => s.id === star.targetId)
+                    : null;
+                const isTransfer =
+                    hasTarget &&
+                    targetStar &&
+                    targetStar.ownerId === star.ownerId;
+                const isAttack =
+                    hasTarget &&
+                    targetStar &&
+                    targetStar.ownerId !== star.ownerId;
+
+                // Calculate direction to target (for facing edge / transfer flow)
+                let dirX = 0,
+                    dirY = 0;
+                let dist = 1;
+                if (targetStar) {
+                    dirX = targetStar.x - star.x;
+                    dirY = targetStar.y - star.y;
+                    dist = Math.sqrt(dirX * dirX + dirY * dirY) || 1;
+                    dirX /= dist;
+                    dirY /= dist;
+                }
+
+                // Perpendicular for path variation
+                const perpX = -dirY;
+                const perpY = dirX;
+
                 ships.forEach((ship, i) => {
-                    // Update target index to explicitly match current array position (organic shuffle)
                     ship.targetIndex = i;
 
+                    // Per-ship phase offset for organic variation
+                    const shipPhase = (ship.id % 17) / 17; // 0-1 unique per ship
+                    const shipWiggle =
+                        Math.sin(ship.id * 0.73 + animationTime * 2) * 5;
+
+                    let targetX: number, targetY: number;
+
+                    // === All ships stay in ORBIT, with optional surge offset ===
                     const slot = getOrbitSlot(
                         ship.targetIndex,
                         star.x,
@@ -631,10 +687,29 @@
                         star.radius,
                         animationTime,
                     );
+                    targetX = slot.x;
+                    targetY = slot.y;
 
-                    // Simple Lerp to target
-                    ship.x = lerp(ship.x, slot.x, LERP_FACTOR);
-                    ship.y = lerp(ship.y, slot.y, LERP_FACTOR);
+                    // ATTACK MODE: Add subtle surge toward target (ships pulse, don't leave)
+                    if (isAttack && targetStar) {
+                        // Per-ship phase offset for staggered surge
+                        const phaseOffsetTime = tickProgress + shipPhase * 0.15;
+                        const surgePulse = Math.sin(
+                            Math.min(phaseOffsetTime, 1) * Math.PI,
+                        );
+
+                        // Subtle surge: max 20% of star radius toward target
+                        const surgeMax = star.radius * 0.5;
+                        targetX += dirX * surgePulse * surgeMax;
+                        targetY += dirY * surgePulse * surgeMax;
+                    }
+
+                    // TRANSFER MODE: For now, same as idle (ships stay until fleet system)
+                    // Future: Separate fleet visuals will show traveling ships
+
+                    // Smooth interpolation to target
+                    ship.x = lerp(ship.x, targetX, LERP_FACTOR);
+                    ship.y = lerp(ship.y, targetY, LERP_FACTOR);
 
                     const TARGET_SCALE = 0.8;
                     ship.scale = lerp(ship.scale, TARGET_SCALE, 0.1);
@@ -764,16 +839,13 @@
         lineWidth: number,
     ) {
         const a = (2 * Math.PI) / 6;
-        const pulseRadius = radius + Math.sin(animationTime * 4) * 3; // Pulse effect
+        // FIXED: Static border instead of distracting pulse (was out of sync with tick rate)
 
-        graphics.moveTo(
-            cx + pulseRadius * Math.cos(0),
-            cy + pulseRadius * Math.sin(0),
-        );
+        graphics.moveTo(cx + radius * Math.cos(0), cy + radius * Math.sin(0));
         for (let i = 1; i <= 6; i++) {
             graphics.lineTo(
-                cx + pulseRadius * Math.cos(a * i),
-                cy + pulseRadius * Math.sin(a * i),
+                cx + radius * Math.cos(a * i),
+                cy + radius * Math.sin(a * i),
             );
         }
         graphics.stroke({ color, width: lineWidth, alpha: 0.9 });
@@ -812,6 +884,12 @@
             event.preventDefault();
             if (star && star.ownerId === "human-player") {
                 gameStore.cancelOrder(star.id);
+                // OPTIMISTIC UI: Remove from pending immediately
+                pendingOrders.forEach((key) => {
+                    if (key.startsWith(`${star.id}|`)) {
+                        pendingOrders.delete(key);
+                    }
+                });
                 log.success("GameCanvas", `Cancelled order on ${star.id}`);
             }
             // Also clear selection
@@ -862,6 +940,8 @@
                     targetStar.id,
                 );
                 if (success) {
+                    // OPTIMISTIC UI: Add immediately for instant arrow display
+                    addPendingOrder(dragSourceId, targetStar.id);
                     log.success(
                         "GameCanvas",
                         `Drag-through: ${dragSourceId} -> ${targetStar.id}`,
@@ -896,13 +976,18 @@
         if (movedSignificantly && dragSourceId) {
             if (targetStar && targetStar.id !== dragSourceId) {
                 // Issue order from drag
-                // Issue order from drag
-                gameStore.issueOrder(dragSourceId, targetStar.id);
-                pendingOrders.add(`${dragSourceId}|${targetStar.id}`);
-                log.success(
-                    "GameCanvas",
-                    `Drag order: ${dragSourceId} → ${targetStar.id}`,
+                const success = gameStore.issueOrder(
+                    dragSourceId,
+                    targetStar.id,
                 );
+                if (success) {
+                    // OPTIMISTIC UI: Add immediately for instant arrow display
+                    addPendingOrder(dragSourceId, targetStar.id);
+                    log.success(
+                        "GameCanvas",
+                        `Drag order: ${dragSourceId} → ${targetStar.id}`,
+                    );
+                }
             }
             cancelDrag();
             return;
@@ -922,8 +1007,7 @@
                         activeStarId,
                         targetStar.id,
                     );
-                    if (success)
-                        pendingOrders.add(`${activeStarId}|${targetStar.id}`);
+                    if (success) addPendingOrder(activeStarId, targetStar.id);
 
                     if (success) {
                         activeStarId = targetStar.id; // Chain selection

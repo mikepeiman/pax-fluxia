@@ -155,7 +155,12 @@ function setSpeed(newSpeed: GameSpeed): void {
 /** Issue attack order (create flow link) - returns true if successful */
 function issueOrder(sourceId: StarId, targetId: StarId): boolean {
     if (engine) {
-        return engine.createLink(sourceId, targetId);
+        const result = engine.createLink(sourceId, targetId);
+        // INSTANT UI: Refresh snapshot immediately (don't wait for tick)
+        if (result) {
+            snapshot = engine.getState();
+        }
+        return result;
     }
     return false;
 }
@@ -164,6 +169,8 @@ function issueOrder(sourceId: StarId, targetId: StarId): boolean {
 function cancelOrder(starId: StarId): void {
     if (engine) {
         engine.cancelLink(starId);
+        // INSTANT UI: Refresh snapshot immediately (don't wait for tick)
+        snapshot = engine.getState();
     }
 }
 

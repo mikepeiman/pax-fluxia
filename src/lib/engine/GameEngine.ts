@@ -24,10 +24,11 @@ import {
     generateStarConnections,
     areConnected
 } from '$lib/utils/hex.utils';
-import { GAME_CONFIG } from '$lib/config/game.config';
+import { GAME_CONFIG, calculateCombatV4 } from '$lib/config/game.config';
 import { createFleet, type Fleet } from './Fleet';
 import { logCombat } from '$lib/utils/CombatLogger';
-import { resolveMultiwayCombat } from './CombatRules';
+import { combatLog } from '$lib/stores/combatLogStore';
+// NOTE: CombatRules.ts import removed - was dead code, combat handled by calculateCombatV4
 import { HexGrid } from './HexGrid';
 import { Delaunay } from 'd3-delaunay';
 
@@ -386,7 +387,12 @@ export class GameEngine {
             const flowPercentage = GAME_CONFIG.FLOW_PERCENTAGE || 0.25;
             const flowAmount = Math.max(GAME_CONFIG.MIN_FLOW_SHIPS, Math.floor(source.activeShips * flowPercentage));
 
-            if (flowAmount === 0 || source.activeShips === 0) return;
+            // FIX: Clear attack order if source has no ships to send
+            // This prevents stale attack arrows from persisting on the map
+            if (flowAmount === 0 || source.activeShips === 0) {
+                source.clearTarget(); // Clear the arrow
+                return;
+            }
 
             const shipped = source.removeActiveShips(flowAmount);
             if (shipped === 0) return;
@@ -445,93 +451,222 @@ export class GameEngine {
 
         const ownerId = target.ownerId;
         const totalDefenders = target.activeShips + target.damagedShips;
-        const DAMAGE_RATE = GAME_CONFIG.DAMAGE_RATE ?? 0.5; // Configurable
-        const DEFENSE_MULT = GAME_CONFIG.DEFENSE_MULTIPLIER ?? 1.5;
 
-        // 2. Calculate Damage
-        let totalDamageIncoming = 0;
+        // ====================================================================
+        // COMBAT V4: Symmetric Damage Model
+        // Both sides take damage using the same base formula, modified by:
+        // - Aggressor advantage (if attacking)
+        // - Force ratio (larger force takes less damage)
+        // - Lethality (splits damage into kills vs. disabled)
+        // ====================================================================
+
+        // 2. Calculate total attacking force and find strongest attacker
+        let totalAttackForce = 0;
         let strongestAttackerId: PlayerId | null = null;
         let maxAttackForce = 0;
 
         forces.forEach((force, playerId) => {
             if (playerId !== ownerId) {
-                // Formula: Damage = Force * Rate / DefenseMult
-                // Defender takes reduced damage based on multiplier
-                const effectiveDamage = (force * DAMAGE_RATE) / DEFENSE_MULT;
-                totalDamageIncoming += effectiveDamage;
-
-                // Return Fire (Defender damages attacker source)
-                // We need to find the SOURCE star for this valid attack??
-                // Wait, fleets don't store "Source Star ID", just "Source ID".
-                // Actually they do: fleet.sourceId.
-                // But we grouped by PlayerID, losing source info?
-                // We need to iterate fleets to apply return fire.
-                // Optimization: Total Def power applies to ALL attackers? Or split?
-                // Logic: Defender fires at ALL incoming vectors simultaneously (omnidirectional).
-                // Strength = (Active + Damaged) * Rate? Or just Active?
-                // Let's use Active for damage output.
-                const defenseOutput = (target.activeShips * DAMAGE_RATE);
-
-                // Which fleet gets hit? We must find the fleets for this player.
-                const playerFleets = fleets.filter(f => String(f.ownerId) === playerId);
-                playerFleets.forEach(f => {
-                    const sourceStar = this.stars.get(f.sourceId);
-                    if (sourceStar && sourceStar.ownerId === f.ownerId) {
-                        // Apply fractional damage proportional to fleet size?
-                        // Or full damage? "Remote Engagement" = Direct link.
-                        // Let's simply apply based on connection.
-                        // If mutiple sources, defender splits fire? Or full fire?
-                        // Let's do: Damage = DefensePower * (Fleet / TotalAttackingForce)
-                        // Proportional return fire.
-                        const proportion = f.shipCount / force;
-                        sourceStar.takeDamage(defenseOutput * proportion);
-                        sourceStar.markCombat(this.tick);
-                    }
-                });
-
+                totalAttackForce += force;
                 if (force > maxAttackForce) {
                     maxAttackForce = force;
                     strongestAttackerId = playerId;
                 }
             } else {
+                // Reinforce - own ships arriving
                 target.addActiveShips(force);
             }
         });
 
-        if (totalDamageIncoming === 0) return; // No combat
+        if (totalAttackForce === 0) return; // No combat
 
-        // Mark combat to inhibit repair
+        // 3. Determine if defender is counter-attacking
+        const defenderIsAttacking = target.targetId !== null;
+        const attackerIsAttacking = true; // By definition, attacking fleets are attacking
+
+        // 4. Use V4 symmetric damage formula
+        const {
+            killsOnA: killsOnDefender,
+            disabledOnA: disabledOnDefender,
+            killsOnB: killsOnAttacker,
+            disabledOnB: disabledOnAttacker
+        } = calculateCombatV4(
+            totalDefenders,          // Side A = Defender
+            totalAttackForce,        // Side B = Attacker
+            defenderIsAttacking,     // Defender may be counter-attacking
+            attackerIsAttacking      // Attacker is always attacking
+        );
+
+        // 5. Apply damage to defender
+        // KILLS: Permanently remove ships
+        // DISABLED: Convert active → damaged (can repair later)
+        target.removeActiveShips(killsOnDefender);
+        target.takeDamage(disabledOnDefender);
         target.markCombat(this.tick);
 
-        // 3. Apply Damage to Star
-        target.takeDamage(totalDamageIncoming);
+        // 6. Apply return fire to attacking sources (proportional)
+        fleets.forEach(fleet => {
+            const sourceStar = this.stars.get(fleet.sourceId);
+            if (sourceStar && sourceStar.ownerId === fleet.ownerId) {
+                // Proportional damage based on fleet contribution
+                const proportion = fleet.shipCount / totalAttackForce;
+                const kills = Math.floor(killsOnAttacker * proportion);
+                const disabled = Math.floor(disabledOnAttacker * proportion);
+
+                sourceStar.removeActiveShips(kills);
+                sourceStar.takeDamage(disabled);
+                sourceStar.markCombat(this.tick);
+            }
+        });
+
+        // ====================================================================
+        // COMBAT TELEMETRY - Per visual-telemetry skill
+        // Format: ATTACKER(ships) [type] → DEFENDER(ships) [type], each side's losses, settings
+        // ====================================================================
+        const attackerSourceId = fleets.length > 0 ? fleets[0].sourceId : 'unknown';
+        const attackerStar = fleets.length > 0 ? this.stars.get(fleets[0].sourceId) : null;
+        log.combatBattle(
+            this.tick,
+            { id: attackerSourceId, ships: totalAttackForce, starType: attackerStar?.starType },
+            { id: targetId, ships: totalDefenders, starType: target.starType },
+            { kills: killsOnDefender, disabled: disabledOnDefender },
+            { kills: killsOnAttacker, disabled: disabledOnAttacker },
+            {
+                aggressor: GAME_CONFIG.AGGRESSOR_ADVANTAGE,
+                damage: GAME_CONFIG.DAMAGE_PER_SHIP,
+                lethality: GAME_CONFIG.LETHALITY,
+                forceRatio: GAME_CONFIG.FORCE_RATIO_EFFECT,
+                repairRate: GAME_CONFIG.REPAIR_RATE
+            }
+        );
+
+        // Push to UI Combat Log Panel
+        combatLog.add({
+            tick: this.tick,
+            attacker: {
+                id: attackerSourceId,
+                ships: Math.floor(totalAttackForce),
+                starType: attackerStar?.starType || 'grey',
+                kills: killsOnAttacker,
+                disabled: disabledOnAttacker
+            },
+            defender: {
+                id: targetId,
+                ships: Math.floor(totalDefenders),
+                starType: target.starType,
+                kills: killsOnDefender,
+                disabled: disabledOnDefender
+            },
+            settings: {
+                aggressor: GAME_CONFIG.AGGRESSOR_ADVANTAGE,
+                damage: GAME_CONFIG.DAMAGE_PER_SHIP,
+                lethality: GAME_CONFIG.LETHALITY,
+                forceRatio: GAME_CONFIG.FORCE_RATIO_EFFECT,
+                repairRate: GAME_CONFIG.REPAIR_RATE
+            },
+            result: target.activeShips > 0 ? 'DEFENSE' : 'FALLING'
+        });
 
         const remainingActive = target.activeShips;
 
-        // CONQUEST CONDITION: Overwhelm
-        // If Active <= 0 OR Active <= (Attacker / 7)
-        const overwhelmThreshold = maxAttackForce / 7;
+        // CONQUEST CONDITION: Overwhelm (use configurable threshold)
+        const overwhelmThreshold = maxAttackForce / GAME_CONFIG.CONQUEST_THRESHOLD;
 
         if (remainingActive <= 0 || remainingActive <= overwhelmThreshold) {
-            // CONQUEST
+            // CONQUEST with Scatter/Escape Logic (V3)
             if (strongestAttackerId) {
-                const survivorCount = Math.max(0, maxAttackForce - totalDefenders); // Simple subtraction for survival?
-                // Or just keep the active ships at the star?
-                // Conquest flips ownership. 
-                // Damaged ships:
-                // User said: "50% destroyed / captured"?
-                // Let's capture 50% of damaged ships.
-                const capturedDamaged = Math.floor(target.damagedShips * 0.5);
+                const defenderTotal = target.totalShips;
+                const defenderId = ownerId;
 
+                // 1. Check for Directed Retreat (defender has active order to friendly star)
+                let isRetreating = false;
+                let retreatTargetId: string | null = null;
+                if (target.targetId) {
+                    const retreatDest = this.stars.get(target.targetId);
+                    if (retreatDest && retreatDest.ownerId === defenderId) {
+                        isRetreating = true;
+                        retreatTargetId = target.targetId;
+                    }
+                }
+
+                // 2. Find Escape Routes (connected friendly stars)
+                const escapeRoutes: typeof target[] = [];
+                if (!isRetreating) {
+                    this.connections.forEach(conn => {
+                        const connectedId = conn.sourceId === targetId ? conn.targetId :
+                            conn.targetId === targetId ? conn.sourceId : null;
+                        if (connectedId) {
+                            const neighbor = this.stars.get(connectedId);
+                            if (neighbor && neighbor.ownerId === defenderId) {
+                                escapeRoutes.push(neighbor);
+                            }
+                        }
+                    });
+                }
+
+                // 3. Capture Rates (V3 spec)
+                let captureRate: number;
+                if (isRetreating) {
+                    captureRate = 0.35; // 35% captured, 65% escapes
+                } else if (escapeRoutes.length > 0) {
+                    captureRate = 0.50; // 50% captured, 25% destroyed, 25% scatter
+                } else {
+                    captureRate = 1.0; // 100% captured
+                }
+
+                // 4. Process Defender Ships
+                const shipsCaptured = Math.floor(defenderTotal * captureRate);
+                let shipsEscaping = 0;
+
+                if (isRetreating) {
+                    shipsEscaping = defenderTotal - shipsCaptured;
+                } else if (escapeRoutes.length > 0) {
+                    const remaining = defenderTotal - shipsCaptured;
+                    const shipsDestroyed = Math.floor(remaining * 0.5);
+                    shipsEscaping = remaining - shipsDestroyed;
+                }
+
+                // 5. Execute Escape
+                if (isRetreating && retreatTargetId && shipsEscaping > 0) {
+                    const dest = this.stars.get(retreatTargetId);
+                    if (dest) {
+                        dest.addActiveShips(shipsEscaping);
+                        log.success('Combat', `${shipsEscaping} ships retreat from ${targetId} to ${retreatTargetId}`);
+                    }
+                } else if (escapeRoutes.length > 0 && shipsEscaping > 0) {
+                    const perRoute = Math.floor(shipsEscaping / escapeRoutes.length);
+                    let remainder = shipsEscaping % escapeRoutes.length;
+                    escapeRoutes.forEach(route => {
+                        const toAdd = perRoute + (remainder > 0 ? 1 : 0);
+                        remainder = Math.max(0, remainder - 1);
+                        route.addActiveShips(toAdd);
+                    });
+                    log.success('Combat', `${shipsEscaping} ships scatter from ${targetId} to ${escapeRoutes.length} neighbors`);
+                }
+
+                // 6. Execute Conquest
+                target.clearShips();
                 target.setOwner(strongestAttackerId);
-                target.addActiveShips(Math.floor(survivorCount)); // Add surviving attackers?
-                // Actually, maxAttackForce is "virtual" pressure from remote.
-                // Ships don't "travel" to occupy in this model?
-                // Wait, PRD says "NO TRAVEL". So "Occupation" means transferring ships?
-                // PRD 2.2.4: "Transfer 50% of the Winner's ships instantly teleport".
-                // We need to deduct from Source?
-                // Complex... For now, let's just Spawn 10 ships as starter? 
-                // Or assume the "survivorCount" represents the transferred force.
+                target.addActiveShips(shipsCaptured); // Captured ships go to new owner
+
+                // 7. Transfer 50% of attacking ships from source stars (V3 occupation)
+                let totalTransferred = 0;
+                fleets.forEach(f => {
+                    if (f.ownerId === strongestAttackerId) {
+                        const source = this.stars.get(f.sourceId);
+                        if (source && source.ownerId === strongestAttackerId) {
+                            const toTransfer = Math.floor(source.activeShips * 0.5);
+                            if (toTransfer > 0) {
+                                source.removeActiveShips(toTransfer);
+                                target.addActiveShips(toTransfer);
+                                totalTransferred += toTransfer;
+                            }
+                        }
+                    }
+                });
+                if (totalTransferred > 0) {
+                    log.success('Combat', `${totalTransferred} ships transferred to occupy ${targetId}`);
+                }
 
                 this.starsCaptured++;
 
@@ -540,9 +675,9 @@ export class GameEngine {
                     starId: targetId,
                     attackers: maxAttackForce,
                     defenders: totalDefenders,
-                    damage: totalDamageIncoming,
+                    damage: killsOnDefender + disabledOnDefender,
                     result: 'CONQUEST',
-                    formula: `Atk ${maxAttackForce} vs Def ${totalDefenders}`
+                    formula: `Captured: ${shipsCaptured}, Escaped: ${shipsEscaping}`
                 });
             }
         } else {
@@ -552,7 +687,7 @@ export class GameEngine {
                 starId: targetId,
                 attackers: maxAttackForce,
                 defenders: totalDefenders,
-                damage: totalDamageIncoming,
+                damage: killsOnDefender + disabledOnDefender,
                 result: 'DEFENSE',
                 formula: `Remaining: ${target.activeShips} Active`
             });
@@ -564,7 +699,7 @@ export class GameEngine {
             // Get all stars
             const allStars = this.getState().stars;
             // Decide
-            const decisions = ai.evaluate(allStars);
+            const decisions = ai.evaluate(allStars, this.connections);
 
             decisions.forEach(decision => {
                 // Issue orders
@@ -574,14 +709,22 @@ export class GameEngine {
                 if (decision.targetId === null) {
                     if (source && source.ownerId === playerId) {
                         source.setTarget(null);
-                        // log.sys('AI', `Player ${playerId} retreating from ${source.id}`);
                     }
                     return;
                 }
 
                 const target = this.stars.get(decision.targetId);
-                if (source && target && source.ownerId === playerId) {
+
+                // VALIDATION: Check connection before executing (Security Layer)
+                const isConnected = this.connections.some(c =>
+                    (c.sourceId === decision.sourceId && c.targetId === decision.targetId) ||
+                    (c.sourceId === decision.targetId && c.targetId === decision.sourceId)
+                );
+
+                if (source && target && source.ownerId === playerId && isConnected) {
                     source.setTarget(target.id);
+                } else if (!isConnected) {
+                    log.error('GameEngine', `AI ${playerId} attempted illegal attack from ${decision.sourceId} to ${decision.targetId} (Not Connected)`);
                 }
             });
         });
@@ -605,13 +748,14 @@ export class GameEngine {
         );
         if (!isConnected) return false;
 
-        // FIX: Prevent Opposite Flow (A->B and B->A loop)
-        // If target was sending to source, CANCEL target's link.
-        if (target.targetId === sourceId) {
+        // FIX: Prevent Opposite Flow (A->B and B->A loop) for same-owner stars
+        // If target is owned by same player and was sending to source, CANCEL target's link.
+        if (target.ownerId === source.ownerId && target.targetId === sourceId) {
             target.setTarget(null);
             log.sys('GameEngine', `Cancelled opposite link from ${targetId} to ${sourceId}`);
         }
 
+        // New order replaces old order (source can only target one star)
         source.setTarget(targetId);
         return true;
     }

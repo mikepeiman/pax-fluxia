@@ -1,3 +1,5 @@
+import { log } from './logger';
+
 export interface CombatLogEntry {
     tick: number;
     starId: string;
@@ -13,5 +15,10 @@ export const combatLog: CombatLogEntry[] = [];
 export function logCombat(entry: CombatLogEntry) {
     combatLog.unshift(entry);
     if (combatLog.length > 50) combatLog.pop();
-    console.log(`[Combat] ${entry.starId}: ${entry.result} | Formula: ${entry.formula}`);
+    // Using semantic logger per visual-telemetry skill
+    log.combat(`T${entry.tick}`, `${entry.starId}: ${entry.result}`, {
+        attackers: entry.attackers,
+        defenders: entry.defenders,
+        damage: entry.damage
+    });
 }

@@ -2,7 +2,7 @@
 // AI - Greedy strategy AI opponent
 // ============================================================================
 
-import type { StarState, PlayerId, StarId, AILevel } from '$lib/types/game.types';
+import type { StarState, PlayerId, StarId, AILevel, StarConnection } from '$lib/types/game.types';
 import { distance } from '$lib/utils/math.utils';
 import { log } from '$lib/utils/logger';
 
@@ -68,61 +68,73 @@ export class AI {
 
     /**
      * Evaluate the game state and return decisions
+     * 
+     * SIMPLIFIED RULES (V3):
+     * - Attack when connected enemy star has <= 75% of our strength
+     * - Continue attack until: (1) conquest, or (2) our strength drops below target
+     * - No random decision skipping - always evaluate
      */
-    evaluate(stars: StarState[]): AIDecision[] {
-        // Random chance based on difficulty
-        if (Math.random() > this.evaluationChance) {
-            return [];
-        }
-
+    evaluate(stars: StarState[], connections: StarConnection[]): AIDecision[] {
         const decisions: AIDecision[] = [];
         const myStars = stars.filter(s => s.ownerId === this.playerId);
-        const enemyStars = stars.filter(s => s.ownerId !== this.playerId);
 
-        if (enemyStars.length === 0) return []; // We won
-
-        // 1. Calculate Attacks per Target (Global Awareness)
-        // Map<TargetId, TotalAttackForce>
-        const attacksOnTarget = new Map<StarId, number>();
-        stars.forEach(s => {
-            if (s.targetId && s.ownerId === this.playerId) {
-                const current = attacksOnTarget.get(s.targetId) || 0;
-                attacksOnTarget.set(s.targetId, current + s.activeShips);
-            }
-        });
+        if (myStars.length === 0) return []; // We're eliminated
 
         myStars.forEach(star => {
-            // RETREAT CHECK: If already attacking, check ratio
+            // ALREADY ATTACKING: Check if we should continue
             if (star.targetId) {
                 const target = stars.find(s => s.id === star.targetId);
-                if (target) {
-                    const myForce = attacksOnTarget.get(target.id) || 0;
-                    const targetForce = target.activeShips + target.damagedShips; // Active + Damaged counts for defense
+                if (target && target.ownerId !== this.playerId) {
+                    // Still enemy - check if we should retreat
+                    const myStrength = star.activeShips;
+                    const targetStrength = target.activeShips + target.damagedShips;
 
-                    // User Request: "cease attacking when they go below 1:1"
-                    const ratio = myForce / Math.max(targetForce, 1);
-
-                    // Hysteresis: Retreat if below 1.0 (or slightly lower to avoid flickering?)
-                    // Let's use 1.0 strictly as requested.
-                    if (ratio < 1.0) {
+                    // CEASE ATTACK: When our strength drops below target strength (1:1 ratio)
+                    if (myStrength < targetStrength) {
                         decisions.push({
                             sourceId: star.id,
-                            targetId: null as any // Hack: signal to cancel
+                            targetId: null as any // Cancel order
                         });
+                        log.sys('AI', `${this.playerId}: Retreating ${star.id}, strength ${myStrength} < target ${targetStrength}`);
                     }
+                    // Otherwise: Continue attack (don't add new decision)
                 }
-                return; // Don't re-target until free
+                // If target is now friendly (conquered), star.targetId will be cleared naturally
+                return; // Don't re-target while attacking
             }
 
-            // Skip if not enough ships to attack
-            if (star.activeShips < 5) return;
+            // NOT ATTACKING: Find a target
+            if (star.activeShips < 5) return; // Skip weak stars
 
-            const targetId = this.findBestTarget(star, stars);
-            if (targetId) {
+            // Find connected enemy stars
+            const connectedEnemies = stars.filter(s =>
+                s.ownerId !== this.playerId &&
+                connections.some(c =>
+                    (c.sourceId === star.id && c.targetId === s.id) ||
+                    (c.sourceId === s.id && c.targetId === star.id)
+                )
+            );
+
+            // Attack if ANY connected enemy has <= 75% of our strength
+            // (our strength >= 133% of enemy, ratio >= 1.33)
+            const attackThreshold = 0.75;
+            const validTargets = connectedEnemies.filter(enemy => {
+                const enemyStrength = enemy.activeShips + enemy.damagedShips;
+                const ratio = enemyStrength / Math.max(star.activeShips, 1);
+                return ratio <= attackThreshold; // Enemy is weak enough
+            });
+
+            if (validTargets.length > 0) {
+                // Pick weakest target
+                validTargets.sort((a, b) =>
+                    (a.activeShips + a.damagedShips) - (b.activeShips + b.damagedShips)
+                );
+                const target = validTargets[0];
                 decisions.push({
                     sourceId: star.id,
-                    targetId
+                    targetId: target.id
                 });
+                log.sys('AI', `${this.playerId}: Attacking ${target.id} from ${star.id}`);
             }
         });
 
@@ -132,10 +144,15 @@ export class AI {
     /**
      * Find the best target for a given star
      */
-    private findBestTarget(source: StarState, allStars: StarState[]): StarId | null {
+    private findBestTarget(source: StarState, allStars: StarState[], connections: StarConnection[]): StarId | null {
         const candidates = allStars.filter(s =>
             s.id !== source.id &&
-            s.ownerId !== this.playerId
+            s.ownerId !== this.playerId &&
+            // MUST BE CONNECTED
+            connections.some(c =>
+                (c.sourceId === source.id && c.targetId === s.id) ||
+                (c.sourceId === s.id && c.targetId === source.id)
+            )
         );
 
         if (candidates.length === 0) return null;
@@ -177,11 +194,11 @@ export class AI {
     /**
      * Get target for a specific star (for external use)
      */
-    getTargetForStar(starId: StarId, stars: StarState[]): StarId | null {
+    getTargetForStar(starId: StarId, stars: StarState[], connections: StarConnection[]): StarId | null {
         const source = stars.find(s => s.id === starId);
         if (!source || source.ownerId !== this.playerId) return null;
 
-        return this.findBestTarget(source, stars);
+        return this.findBestTarget(source, stars, connections);
     }
 }
 

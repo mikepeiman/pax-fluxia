@@ -6,6 +6,7 @@
   import ResultsModal from "$lib/components/ui/ResultsModal.svelte";
   import GameCanvas from "$lib/components/game/GameCanvas.svelte";
   import DebugPanel from "$lib/components/ui/DebugPanel.svelte";
+  import CombatPanel from "$lib/components/ui/CombatPanel.svelte";
   import CombatLogPanel from "$lib/components/ui/CombatLogPanel.svelte";
 
   // Debug panel toggle state
@@ -44,6 +45,7 @@
       <GameCanvas />
     {/key}
     <GameHUD />
+    <CombatPanel visible={showDebug} />
     <DebugPanel visible={showDebug} />
     <CombatLogPanel />
   {:else if gameStore.currentView === "results"}

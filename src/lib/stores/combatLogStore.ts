@@ -4,22 +4,46 @@ export interface CombatLogEntry {
     id: string;
     timestamp: number;
     tick: number;
-    starId: string;
-    starName?: string; // Enhanced identity
-    result: string;
-    color: string; // Visual cue
 
-    // Details
-    attackers: number;
-    defenders: number;
-    damage: number;
-    // Detailed Attrition
-    shipsDamaged: number;   // Active -> Damaged
-    shipsDestroyed: number; // Damaged -> Dead
+    // V4: Clear attacker/defender structure
+    attacker: {
+        id: string;
+        ships: number;
+        starType: string;
+        kills: number;
+        disabled: number;
+    };
+    defender: {
+        id: string;
+        ships: number;
+        starType: string;
+        kills: number;
+        disabled: number;
+    };
 
-    // Natural Language Explanation
-    message: string;
+    // Settings snapshot for debugging
+    settings: {
+        aggressor: number;
+        damage: number;
+        lethality: number;
+        forceRatio: number;
+        repairRate: number;
+    };
+
+    // Result
+    result: 'DEFENSE' | 'FALLING' | 'CONQUERED';
 }
+
+// Star type color map - Canonical Spec
+// GREY=basic, YELLOW=production, BLUE=movement, PURPLE=repair, RED=defense, GREEN=attack
+export const STAR_TYPE_COLORS: Record<string, string> = {
+    grey: '#8899aa',   // BASIC - no bonuses
+    yellow: '#fbbf24', // PRODUCTION - 2x ship generation
+    blue: '#3b82f6',   // MOVEMENT - 2x transfer speed
+    purple: '#a855f7', // REPAIR - 2x repair rate
+    red: '#ef4444',    // DEFENSE - 2x defense strength
+    green: '#22c55e'   // ATTACK - 2x attack power
+};
 
 function createCombatLogStore() {
     const { subscribe, update, set } = writable<CombatLogEntry[]>([]);

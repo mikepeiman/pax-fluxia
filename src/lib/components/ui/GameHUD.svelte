@@ -10,13 +10,14 @@
 </script>
 
 <div class="hud-overlay no-select">
-  <!-- Top Left: Telemetry -->
+  <!-- Top Left: Telemetry - HIDDEN: not useful currently
   <div class="hud-top-left">
     <div class="telemetry glass-panel">
       <TickOrb progress={gameStore.tickProgress} />
       <div class="fps font-data">60 FPS</div>
     </div>
   </div>
+  -->
 
   <!-- Top Right: Leaderboard -->
   <div class="hud-top-right">
