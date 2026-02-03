@@ -16,44 +16,44 @@
         green: "⚔️",
     };
 
-    // Player colors (must match GameCanvas)
-    const PLAYER_COLORS: Record<string, string> = {
-        "human-player": "#0088ff",
-        "ai-1": "#ff4444",
-        "ai-2": "#44ff44",
-        "ai-3": "#ffff44",
-        "ai-4": "#aa66ff",
-        "ai-5": "#ff8844",
-    };
+    // Derived: Group stars for display
+    const groups = $derived.by(() => {
+        const snapshot = gameStore.snapshot;
+        if (!snapshot?.stars) return { underAttack: [], mine: [], others: [] };
 
-    // Local state
-    let expandedPlayers: Set<string> = $state(new Set(["human-player"]));
-    let expandedStars: Set<string> = $state(new Set());
+        const underAttack: any[] = [];
+        const mine: any[] = [];
+        const others: any[] = [];
+        const humanId = "human-player"; // Or derive dynamically if needed
+
+        const stars = [...snapshot.stars];
+
+        // Sort by ID to keep consistent order
+        stars.sort(
+            (a, b) =>
+                parseInt(a.id.split("-")[1]) - parseInt(b.id.split("-")[1]),
+        );
+
+        for (const star of stars) {
+            const engaged = isEngaged(star.id);
+            // "Under Attack" if I own it and it's engaged
+            if (engaged && star.ownerId === humanId) {
+                underAttack.push(star);
+            } else if (star.ownerId === humanId) {
+                mine.push(star);
+            } else {
+                others.push(star);
+            }
+        }
+
+        return { underAttack, mine, others };
+    });
+
     let logs: CombatLogEntry[] = $state([]);
-    let showEngagedOnly: boolean = $state(false);
-    let sortNewestFirst: boolean = $state(true);
 
     // Subscribe to combat logs
     combatLog.subscribe((value) => {
         logs = value;
-    });
-
-    // Derived: Group stars by owner
-    const starsByPlayer = $derived(() => {
-        const snapshot = gameStore.snapshot;
-        if (!snapshot?.stars) return new Map<string, any[]>();
-
-        const grouped = new Map<string, any[]>();
-
-        for (const star of snapshot.stars) {
-            const ownerId = star.ownerId;
-            if (!grouped.has(ownerId)) {
-                grouped.set(ownerId, []);
-            }
-            grouped.get(ownerId)!.push(star);
-        }
-
-        return grouped;
     });
 
     // Check if a star is currently engaged (has recent combat logs)
@@ -66,547 +66,341 @@
         );
     }
 
-    // Check if star has ANY combat history (for persistent logs)
-    function hasHistory(starId: string): boolean {
-        return logs.some(
-            (log) => log.defender.id === starId || log.attacker.id === starId,
-        );
-    }
-
-    // Get combat logs for a specific star (sorted by timestamp)
-    function getLogsForStar(starId: string): CombatLogEntry[] {
-        const starLogs = logs.filter(
-            (log) => log.defender.id === starId || log.attacker.id === starId,
-        );
-        const sorted = sortNewestFirst
-            ? starLogs.sort((a, b) => b.timestamp - a.timestamp)
-            : starLogs.sort((a, b) => a.timestamp - b.timestamp);
-        return sorted.slice(0, 20);
-    }
-
-    // Get player display info with engaged count
-    function getPlayerInfo(playerId: string) {
-        const player = gameStore.snapshot?.players.find(
-            (p) => p.id === playerId,
-        );
-        const playerStars = starsByPlayer()?.get(playerId) || [];
-        const engagedCount = playerStars.filter((s: any) =>
-            isEngaged(s.id),
-        ).length;
-
-        return {
-            name: player?.isAI ? `AI-${playerId.replace("ai-", "")}` : "You",
-            color: PLAYER_COLORS[playerId] || "#888888",
-            starCount: playerStars.length,
-            totalShips: player?.totalShips || 0,
-            engagedCount,
-        };
-    }
-
-    // Filter stars based on showEngagedOnly
-    function filterStars(stars: any[]): any[] {
-        if (!showEngagedOnly) return stars;
-        return stars.filter(
-            (star) => isEngaged(star.id) || hasHistory(star.id),
-        );
-    }
-
-    function togglePlayer(playerId: string) {
-        if (expandedPlayers.has(playerId)) {
-            expandedPlayers.delete(playerId);
-        } else {
-            expandedPlayers.add(playerId);
-        }
-        expandedPlayers = new Set(expandedPlayers);
-    }
-
-    function toggleStar(starId: string) {
-        if (expandedStars.has(starId)) {
-            expandedStars.delete(starId);
-        } else {
-            expandedStars.add(starId);
-        }
-        expandedStars = new Set(expandedStars);
-    }
-
     function getStarNumericId(starId: string): string {
         return starId.replace("star-", "");
-    }
-
-    function formatTime(timestamp: number): string {
-        const date = new Date(timestamp);
-        return date.toLocaleTimeString("en-US", {
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
-            hour12: false,
-        });
     }
 </script>
 
 <div class="stars-panel">
     <div class="header">
-        <h3>⭐ STARS</h3>
-        <div class="header-controls">
-            <button
-                class="filter-btn"
-                class:active={showEngagedOnly}
-                onclick={() => (showEngagedOnly = !showEngagedOnly)}
-            >
-                {showEngagedOnly ? "⚔️ Engaged" : "🌐 All"}
-            </button>
-            <span class="count">{gameStore.snapshot?.stars.length || 0}</span>
+        <div class="title-row">
+            <h3>STARS</h3>
+            <span class="badgew">{gameStore.snapshot?.stars.length || 0}</span>
         </div>
     </div>
 
     <div class="panel-content">
-        {#each Array.from(starsByPlayer()?.entries() || []) as [playerId, stars]}
-            {@const info = getPlayerInfo(playerId)}
-            <div class="player-group">
-                <button
-                    class="player-header"
-                    onclick={() => togglePlayer(playerId)}
-                    style="border-left-color: {info.color}"
-                >
-                    <span class="expand-icon"
-                        >{expandedPlayers.has(playerId) ? "▼" : "►"}</span
-                    >
-                    <span class="player-name" style="color: {info.color}"
-                        >{info.name}</span
-                    >
-                    <span class="player-stats">
-                        {info.starCount}⭐ {info.totalShips}🚀
-                        {#if info.engagedCount > 0}
-                            <span class="engaged-count"
-                                >⚔️{info.engagedCount}</span
+        <!-- 1. UNDER ATTACK / ENGAGED -->
+        {#if groups.underAttack.length > 0}
+            <div class="section-label alert">⚠️ COMBAT ZONE</div>
+            <div class="star-grid">
+                {#each groups.underAttack as star}
+                    <div class="star-card alert">
+                        <div class="card-header">
+                            <span class="star-id"
+                                >#{getStarNumericId(star.id)}</span
                             >
-                        {/if}
-                    </span>
-                </button>
-
-                {#if expandedPlayers.has(playerId)}
-                    <div class="star-list">
-                        {#each filterStars(stars).sort((a, b) => b.activeShips - a.activeShips) as star}
-                            {@const engaged = isEngaged(star.id)}
-                            {@const hasLogs = hasHistory(star.id)}
-                            {@const starLogs = getLogsForStar(star.id)}
-                            <div
-                                class="star-row"
-                                class:engaged
-                                class:has-history={hasLogs && !engaged}
+                            <span class="type-icon"
+                                >{STAR_TYPE_ICONS[star.starType] || "⚪"}</span
                             >
-                                <button
-                                    class="star-info"
-                                    onclick={() =>
-                                        hasLogs && toggleStar(star.id)}
-                                    disabled={!hasLogs}
+                            <span class="status-icon">⚔️</span>
+                        </div>
+                        <div class="card-stats">
+                            <div class="stat-row">
+                                <span class="label">SHIPS</span>
+                                <span class="value"
+                                    >{Math.floor(star.activeShips)}</span
                                 >
-                                    <!-- Star Type Icon (favicon style) -->
-                                    <span
-                                        class="type-icon"
-                                        style="background: {STAR_TYPE_COLORS[
-                                            star.starType
-                                        ] || '#888'}"
-                                    >
-                                        {STAR_TYPE_ICONS[star.starType] || "⚪"}
-                                    </span>
-
-                                    <!-- Star ID -->
-                                    <span class="star-id"
-                                        >#{getStarNumericId(star.id)}</span
-                                    >
-
-                                    <!-- Ship counts -->
-                                    <span class="ships">
-                                        <span class="active"
-                                            >{star.activeShips}</span
-                                        >
-                                        {#if star.damagedShips > 0}
-                                            <span class="damaged"
-                                                >+{star.damagedShips}🤕</span
-                                            >
-                                        {/if}
-                                    </span>
-
-                                    <!-- Status badges -->
-                                    {#if engaged}
-                                        <span class="engaged-badge">⚔️</span>
-                                    {:else if hasLogs}
-                                        <span class="history-badge">📜</span>
-                                    {/if}
-                                </button>
-
-                                <!-- Expanded battle logs (show for any star with history) -->
-                                {#if hasLogs && expandedStars.has(star.id)}
-                                    <div
-                                        class="battle-logs"
-                                        class:active={engaged}
-                                    >
-                                        <div class="logs-header">
-                                            <span>Battle History</span>
-                                            <button
-                                                class="sort-btn"
-                                                onclick={() =>
-                                                    (sortNewestFirst =
-                                                        !sortNewestFirst)}
-                                            >
-                                                {sortNewestFirst
-                                                    ? "↓ Newest"
-                                                    : "↑ Oldest"}
-                                            </button>
-                                        </div>
-                                        {#each starLogs as log}
-                                            <div class="log-entry">
-                                                <span class="tick"
-                                                    >T{log.tick}</span
-                                                >
-                                                <span
-                                                    class="type-icon mini"
-                                                    style="background: {STAR_TYPE_COLORS[
-                                                        log.attacker.starType
-                                                    ]}"
-                                                    >{STAR_TYPE_ICONS[
-                                                        log.attacker.starType
-                                                    ]}</span
-                                                >
-                                                <span class="attacker"
-                                                    >#{log.attacker.id.replace(
-                                                        "star-",
-                                                        "",
-                                                    )} ({log.attacker
-                                                        .ships})</span
-                                                >
-                                                <span class="arrow">→</span>
-                                                <span
-                                                    class="type-icon mini"
-                                                    style="background: {STAR_TYPE_COLORS[
-                                                        log.defender.starType
-                                                    ]}"
-                                                    >{STAR_TYPE_ICONS[
-                                                        log.defender.starType
-                                                    ]}</span
-                                                >
-                                                <span class="defender"
-                                                    >#{log.defender.id.replace(
-                                                        "star-",
-                                                        "",
-                                                    )} ({log.defender
-                                                        .ships})</span
-                                                >
-                                                <span
-                                                    class="result {log.result.toLowerCase()}"
-                                                    >{log.result}</span
-                                                >
-                                            </div>
-                                        {/each}
-                                    </div>
-                                {/if}
                             </div>
-                        {/each}
+                            <!-- Simple health bar heuristic -->
+                            <div class="stat-bar-container">
+                                <div
+                                    class="stat-bar"
+                                    style="width: {Math.min(
+                                        100,
+                                        (star.activeShips / 100) * 100,
+                                    )}%; background: #ef4444;"
+                                ></div>
+                            </div>
+                        </div>
                     </div>
-                {/if}
+                {/each}
             </div>
-        {/each}
+        {/if}
+
+        <!-- 2. MY EMPIRE -->
+        {#if groups.mine.length > 0}
+            <div class="section-label">MY EMPIRE</div>
+            <div class="star-grid">
+                {#each groups.mine as star}
+                    <div
+                        class="star-card mine"
+                        style="border-left-color: {STAR_TYPE_COLORS[
+                            star.starType
+                        ] || '#888'}"
+                    >
+                        <div class="card-header">
+                            <span class="star-id"
+                                >#{getStarNumericId(star.id)}</span
+                            >
+                            <span class="type-icon"
+                                >{STAR_TYPE_ICONS[star.starType] || "⚪"}</span
+                            >
+                        </div>
+                        <div class="card-body">
+                            <div class="metric">
+                                <span class="icon">🚀</span>
+                                <span class="val"
+                                    >{Math.floor(star.activeShips)}</span
+                                >
+                            </div>
+                            {#if star.productionRate > 0}
+                                <div class="metric">
+                                    <span class="icon">⚡</span>
+                                    <span class="val"
+                                        >+{star.productionRate}</span
+                                    >
+                                </div>
+                            {/if}
+                        </div>
+                    </div>
+                {/each}
+            </div>
+        {/if}
+
+        <!-- 3. KNOWN SPACE -->
+        {#if groups.others.length > 0}
+            <div class="section-label muted">KNOWN SPACE</div>
+            <div class="star-grid compact">
+                {#each groups.others as star}
+                    <div class="star-card other">
+                        <div class="card-header-compact">
+                            <span class="star-id-small"
+                                >#{getStarNumericId(star.id)}</span
+                            >
+                            <span
+                                class="owner-dot"
+                                style="background: {star.ownerId.includes('ai')
+                                    ? '#f44'
+                                    : '#888'}"
+                            ></span>
+                            <span class="ship-count-small"
+                                >{Math.floor(star.activeShips)}</span
+                            >
+                        </div>
+                    </div>
+                {/each}
+            </div>
+        {/if}
     </div>
 </div>
 
 <style>
     .stars-panel {
         height: 100%;
-        background: rgba(10, 10, 15, 0.95);
-        border-right: 1px solid #334;
-        color: #eee;
-        font-family: "Consolas", "Monaco", monospace;
-        font-size: 11px;
+        background: #0d0d12;
         display: flex;
         flex-direction: column;
-        overflow: hidden;
+        font-family: "JetBrains Mono", monospace;
+        user-select: none;
+        overflow: hidden; /* Prevent spill */
     }
 
     .header {
-        padding: 12px;
-        background: #1a1a25;
-        border-bottom: 1px solid #334;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
+        padding: 16px;
+        background: #15151e;
+        border-bottom: 1px solid #2a2a35;
+        flex-shrink: 0;
     }
 
-    .header h3 {
+    .title-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    h3 {
         margin: 0;
-        font-size: 14px;
-        font-weight: bold;
-    }
-
-    .header-controls {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .filter-btn {
-        padding: 4px 8px;
-        background: #334;
-        border: none;
-        border-radius: 4px;
-        color: #aaa;
-        font-size: 10px;
-        cursor: pointer;
-        font-family: inherit;
-    }
-
-    .filter-btn:hover {
-        background: #445;
-    }
-
-    .filter-btn.active {
-        background: #ff6b35;
+        font-size: 16px;
         color: #fff;
+        font-weight: 800;
+        letter-spacing: 1px;
     }
 
-    .engaged-count {
-        color: #ff6b35;
-        margin-left: 4px;
-    }
-
-    .history-badge {
-        margin-left: auto;
-        opacity: 0.6;
-    }
-
-    .star-row.has-history {
-        background: rgba(100, 100, 255, 0.08);
-        border-radius: 4px;
-    }
-
-    .logs-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 6px;
-        padding-bottom: 4px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        font-size: 9px;
-        color: #888;
-    }
-
-    .sort-btn {
-        padding: 2px 6px;
-        background: #334;
-        border: none;
-        border-radius: 3px;
-        color: #aaa;
-        font-size: 9px;
-        cursor: pointer;
-        font-family: inherit;
-    }
-
-    .sort-btn:hover {
-        background: #445;
-    }
-
-    .timestamp {
-        color: #666;
-        font-size: 9px;
-        margin-right: 4px;
-    }
-
-    .count {
-        background: #334;
-        padding: 2px 8px;
-        border-radius: 10px;
+    .badgew {
+        background: #2a2a35;
+        color: #889;
         font-size: 10px;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-weight: bold;
     }
 
     .panel-content {
         flex: 1;
         overflow-y: auto;
-        padding: 4px;
+        padding: 16px;
     }
 
-    .player-group {
-        margin-bottom: 4px;
-    }
-
-    .player-header {
-        width: 100%;
-        padding: 8px 10px;
-        background: #1a1a25;
-        border: none;
-        border-left: 3px solid;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        color: #eee;
-        font-family: inherit;
-        font-size: 11px;
-    }
-
-    .player-header:hover {
-        background: #252530;
-    }
-
-    .expand-icon {
-        font-size: 8px;
-        width: 10px;
-    }
-
-    .player-name {
+    .section-label {
+        font-size: 10px;
         font-weight: bold;
+        color: #667;
+        margin-bottom: 8px;
+        margin-top: 16px;
+        letter-spacing: 1px;
     }
 
-    .player-stats {
-        margin-left: auto;
-        color: #888;
-        font-size: 10px;
+    .section-label:first-child {
+        margin-top: 0;
     }
 
-    .star-list {
-        padding-left: 8px;
-        border-left: 1px solid #334;
-        margin-left: 4px;
+    .section-label.alert {
+        color: #ef4444;
+        animation: pulseText 2s infinite;
     }
 
-    .star-row {
-        margin: 2px 0;
+    .star-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        gap: 8px;
     }
 
-    .star-row.engaged {
-        background: rgba(255, 100, 50, 0.1);
-        border-radius: 4px;
+    .star-grid.compact {
+        grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
     }
 
-    .star-info {
-        width: 100%;
-        padding: 6px 8px;
-        background: transparent;
-        border: none;
-        cursor: default;
+    /* CARD STYLES */
+    .star-card {
+        background: #1a1a25;
+        border: 1px solid #2a2a35;
+        border-radius: 6px;
+        padding: 8px;
         display: flex;
-        align-items: center;
+        flex-direction: column;
         gap: 6px;
-        color: #eee;
-        font-family: inherit;
-        font-size: 11px;
+        transition:
+            transform 0.1s,
+            background 0.1s;
     }
 
-    .star-info:not(:disabled) {
-        cursor: pointer;
+    .star-card:hover {
+        background: #20202e;
+        transform: translateY(-1px);
+        border-color: #445;
     }
 
-    .star-info:not(:disabled):hover {
-        background: rgba(255, 255, 255, 0.05);
+    .star-card.alert {
+        border-color: #ef4444;
+        background: rgba(239, 68, 68, 0.05);
+        box-shadow: 0 0 10px rgba(239, 68, 68, 0.1);
     }
 
-    .type-icon {
-        width: 16px;
-        height: 16px;
+    .star-card.mine {
+        border-left-width: 3px;
+    }
+
+    .card-header {
         display: flex;
         align-items: center;
-        justify-content: center;
-        border-radius: 3px;
-        font-size: 10px;
-    }
-
-    .type-icon.mini {
-        width: 12px;
-        height: 12px;
-        font-size: 8px;
+        justify-content: space-between;
     }
 
     .star-id {
+        font-size: 14px;
         font-weight: bold;
-        width: 28px;
+        color: #fff;
     }
 
-    .ships {
+    .card-body {
         display: flex;
+        gap: 8px;
+    }
+
+    .metric {
+        display: flex;
+        align-items: center;
         gap: 4px;
+        font-size: 11px;
+        color: #ccc;
     }
 
-    .ships .active {
-        color: #4ade80;
+    .metric .icon {
+        opacity: 0.7;
     }
 
-    .ships .damaged {
-        color: #f97316;
+    .card-stats {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .stat-row {
+        display: flex;
+        justify-content: space-between;
         font-size: 9px;
+        color: #889;
     }
 
-    .engaged-badge {
-        margin-left: auto;
-        animation: pulse 1s ease-in-out infinite;
+    .stat-bar-container {
+        height: 3px;
+        background: #2a2a35;
+        border-radius: 2px;
+        overflow: hidden;
+        margin-top: 4px;
     }
 
-    @keyframes pulse {
+    .stat-bar {
+        height: 100%;
+        transition: width 0.3s ease;
+    }
+
+    /* COMPACT CARD */
+    .star-card.other {
+        padding: 6px;
+        background: #111116;
+        border-color: #1a1a20;
+    }
+
+    .star-card.other:hover {
+        background: #1a1a25;
+        border-color: #334;
+    }
+
+    .card-header-compact {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .star-id-small {
+        font-size: 10px;
+        color: #667;
+        font-weight: bold;
+    }
+
+    .ship-count-small {
+        font-size: 10px;
+        color: #889;
+    }
+
+    .owner-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+    }
+
+    @keyframes pulseText {
         0%,
         100% {
             opacity: 1;
         }
         50% {
-            opacity: 0.5;
+            opacity: 0.7;
         }
     }
 
-    .battle-logs {
-        padding: 6px 8px;
-        margin-left: 22px;
-        background: rgba(0, 0, 0, 0.3);
-        border-radius: 4px;
-        border-left: 2px solid #ff6b35;
+    /* Custom Scrollbar for panel content */
+    .panel-content::-webkit-scrollbar {
+        width: 4px;
     }
 
-    .log-entry {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        padding: 3px 0;
-        font-size: 10px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    .panel-content::-webkit-scrollbar-track {
+        background: #0d0d12;
     }
 
-    .log-entry:last-child {
-        border-bottom: none;
-    }
-
-    .tick {
-        color: #888;
-        width: 30px;
-    }
-
-    .arrow {
-        color: #666;
-    }
-
-    .attacker {
-        color: #f97316;
-    }
-
-    .defender {
-        color: #60a5fa;
-    }
-
-    .result {
-        margin-left: auto;
-        padding: 1px 4px;
+    .panel-content::-webkit-scrollbar-thumb {
+        background: #334;
         border-radius: 2px;
-        font-size: 9px;
-        font-weight: bold;
-    }
-
-    .result.defense {
-        background: #22c55e;
-        color: #000;
-    }
-
-    .result.falling {
-        background: #f97316;
-        color: #000;
-    }
-
-    .result.conquered {
-        background: #ef4444;
-        color: #fff;
     }
 </style>

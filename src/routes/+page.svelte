@@ -181,7 +181,8 @@
     position: relative;
     background: rgba(10, 10, 15, 0.95);
     border-left: 1px solid #334;
-    overflow: hidden;
+    overflow: visible; /* Allow button to stick out */
+    z-index: 20;
     width: 0;
     transition: width 0.3s ease;
   }

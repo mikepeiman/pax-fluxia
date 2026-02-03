@@ -34,7 +34,7 @@
         onclick={isPaused ? onResume : onPause}
         title={isPaused ? "Resume" : "Pause"}
     >
-        {isPaused ? "▶" : "⏸"}
+        ⏸
     </button>
 
     <!-- Speed Buttons -->

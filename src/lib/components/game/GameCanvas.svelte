@@ -219,29 +219,31 @@
         // Resize PIXI renderer to match container
         app.renderer.resize(containerWidth, containerHeight);
 
-        // Calculate scale based on visual viewport (handles browser zoom)
-        const visualWidth = window.visualViewport?.width ?? window.innerWidth;
-        const visualHeight =
-            window.visualViewport?.height ?? window.innerHeight;
+        // FIT-TO-SCREEN LOGIC
+        // Establish a virtual resolution that the game is designed for
+        const VIRTUAL_WIDTH = 1600;
+        const VIRTUAL_HEIGHT = 900;
 
-        // If visual viewport is smaller than layout viewport, we're zoomed in
-        const zoomScale = Math.min(
-            visualWidth / window.innerWidth,
-            visualHeight / window.innerHeight,
-        );
+        // Calculate scale to fit container while maintaining aspect ratio
+        const scaleX = containerWidth / VIRTUAL_WIDTH;
+        const scaleY = containerHeight / VIRTUAL_HEIGHT;
+        const scale = Math.min(scaleX, scaleY);
 
-        // Apply inverse scale to stage so content fits in zoomed viewport
-        // Only apply when zoom is > 1 (zoomed in)
-        if (zoomScale < 1) {
-            const inverseScale = 1 / zoomScale;
-            app.stage.scale.set(Math.min(inverseScale, 2)); // Cap at 2x
-        } else {
-            app.stage.scale.set(1);
+        // Set stage scale
+        if (app.stage) {
+            app.stage.scale.set(scale);
+
+            // Center the stage content
+            const occupiedWidth = VIRTUAL_WIDTH * scale;
+            const occupiedHeight = VIRTUAL_HEIGHT * scale;
+
+            app.stage.x = (containerWidth - occupiedWidth) / 2;
+            app.stage.y = (containerHeight - occupiedHeight) / 2;
         }
 
         log.sys(
             "GameCanvas",
-            `Resize: ${containerWidth}x${containerHeight}, zoom: ${zoomScale.toFixed(2)}`,
+            `Resize: ${containerWidth}x${containerHeight}, scale: ${scale.toFixed(3)}`,
         );
     }
 
