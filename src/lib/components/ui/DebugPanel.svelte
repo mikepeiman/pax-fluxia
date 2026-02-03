@@ -8,6 +8,7 @@
     // Props
     interface Props {
         visible?: boolean;
+        onClose?: () => void;
     }
     let { visible = false }: Props = $props();
 

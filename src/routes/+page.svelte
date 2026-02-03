@@ -2,27 +2,22 @@
   import "../app.css";
   import { gameStore } from "$lib/stores/gameStore.svelte";
   import MainMenu from "$lib/components/ui/MainMenu.svelte";
-  import GameHUD from "$lib/components/ui/GameHUD.svelte";
   import ResultsModal from "$lib/components/ui/ResultsModal.svelte";
   import GameCanvas from "$lib/components/game/GameCanvas.svelte";
   import DebugPanel from "$lib/components/ui/DebugPanel.svelte";
   import CombatDebugPanel from "$lib/components/ui/CombatDebugPanel.svelte";
   import StarsPanel from "$lib/components/ui/StarsPanel.svelte";
+  import Leaderboard from "$lib/components/ui/Leaderboard.svelte";
+  import SpeedControls from "$lib/components/ui/SpeedControls.svelte";
+  import CombatLogPanel from "$lib/components/ui/CombatLogPanel.svelte";
 
   // Panel visibility states
   let showDebug = $state(false);
-  let showStarsDrawer = $state(true);
 
   function handleKeyDown(event: KeyboardEvent) {
-    // Backtick key toggles debug panel
     if (event.key === "`" || event.key === "~") {
       event.preventDefault();
       showDebug = !showDebug;
-    }
-    // Tab key toggles stars drawer
-    if (event.key === "Tab" && gameStore.currentView === "game") {
-      event.preventDefault();
-      showStarsDrawer = !showStarsDrawer;
     }
   }
 </script>
@@ -38,7 +33,7 @@
     crossorigin="anonymous"
   />
   <link
-    href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Exo:wght@400;700;900&family=Montserrat:wght@400;500;600;700&display=swap"
     rel="stylesheet"
   />
 </svelte:head>
@@ -47,184 +42,226 @@
   {#if gameStore.currentView === "menu"}
     <MainMenu />
   {:else if gameStore.currentView === "game"}
-    <div class="game-layout" class:drawer-open={showStarsDrawer}>
-      <!-- Left Column: Controls + Logs -->
-      <div class="area-left">
-        <div class="area-controls">
-          <CombatDebugPanel />
-        </div>
-        <div class="area-logs">
-          <div class="logs-header">📋 Combat Logs</div>
-          <div class="logs-content">
-            <!-- Combat execution logs will go here -->
-            <div class="log-placeholder">
-              Execute an attack to see formula breakdown
+    <div class="game-layout">
+      <!-- MAIN CANVAS AREA -->
+      <div class="area-canvas">
+        <GameCanvas />
+
+        <!-- Overlays -->
+        {#if showDebug}
+          <DebugPanel onClose={() => (showDebug = false)} />
+        {/if}
+
+        {#if gameStore.winner}
+          <div class="modal-overlay">
+            <ResultsModal />
+          </div>
+        {/if}
+
+        <!-- BOTTOM LEFT OVERLAY: Logs + Controls -->
+        <!-- "Move combat log above gamecontrols bottom left" -->
+        <div class="overlay-bottom-left">
+          <div class="logs-wrapper">
+            <CombatLogPanel />
+          </div>
+
+          <div class="controls-wrapper glass-panel">
+            <SpeedControls
+              speed={gameStore.speed}
+              isPaused={gameStore.isPaused}
+              onSpeedChange={gameStore.setSpeed}
+              onPause={gameStore.pauseGame}
+              onResume={gameStore.resumeGame}
+            />
+            <div class="action-buttons">
+              <button
+                class="btn btn--ghost btn--sm"
+                onclick={() => gameStore.playAgain()}
+              >
+                Restart
+              </button>
+              <button
+                class="btn btn--danger btn--sm"
+                onclick={() => gameStore.surrender()}
+              >
+                Surrender
+              </button>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Center: Game Canvas -->
-      <div class="area-canvas">
-        {#key gameStore.sessionId}
-          <GameCanvas />
-        {/key}
-      </div>
+      <!-- RIGHT SIDEBAR -->
+      <div class="area-right">
+        <!-- 1. Commanders -->
+        <div class="panel-section section-commanders">
+          <Leaderboard players={gameStore.leaderboard} />
+        </div>
 
-      <!-- Right Drawer: Stars Panel -->
-      <div class="area-drawer" class:open={showStarsDrawer}>
-        <button
-          class="drawer-toggle"
-          onclick={() => (showStarsDrawer = !showStarsDrawer)}
-        >
-          {showStarsDrawer ? "◀" : "▶"}
-        </button>
-        <div class="drawer-content">
+        <!-- 2. Stars Panel (Empire Info & Lists) -->
+        <div class="panel-section section-stars">
           <StarsPanel />
         </div>
-      </div>
 
-      <!-- Footer -->
-      <div class="area-footer">
-        <GameHUD />
+        <!-- 3. Combat Tuning (Moved from Overlay to fill empty space) -->
+        <div class="panel-section section-tuning">
+          <CombatDebugPanel />
+        </div>
       </div>
     </div>
-
-    <!-- System Debug Panel (bottom right) -->
-    <DebugPanel visible={showDebug} />
-  {:else if gameStore.currentView === "results"}
-    <ResultsModal />
   {/if}
 </main>
 
 <style>
+  :global(body) {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: #000;
+    color: #fff;
+    font-family: "Montserrat", sans-serif;
+  }
+
+  :global(h1, h2, h3, h4, .ship-count, .value, .tick, .star-id) {
+    font-family: "Exo", sans-serif;
+  }
+
   .app-container {
     width: 100vw;
     height: 100vh;
-    overflow: hidden;
-    position: relative;
   }
 
+  /* GRID LAYOUT V3 - CORRECTED */
   .game-layout {
     display: grid;
-    grid-template-columns: 320px 1fr 0px;
-    grid-template-rows: 1fr auto;
-    grid-template-areas:
-      "left canvas drawer"
-      "footer footer footer";
+    grid-template-columns: 1fr 320px; /* Canvas | Right Sidebar */
+    grid-template-areas: "canvas right";
     height: 100vh;
     width: 100vw;
-    transition: grid-template-columns 0.3s ease;
   }
 
-  .game-layout.drawer-open {
-    grid-template-columns: 320px 1fr 280px;
-  }
-
-  .area-left {
-    grid-area: left;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    background: rgba(10, 10, 15, 0.95);
-    border-right: 1px solid #334;
-  }
-
-  .area-controls {
-    flex: 0 0 auto;
-    max-height: 50%;
-    overflow-y: auto;
-    border-bottom: 1px solid #334;
-  }
-
-  .area-logs {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  .logs-header {
-    padding: 10px 12px;
-    background: #1a1a25;
-    border-bottom: 1px solid #334;
-    font-family: "JetBrains Mono", monospace;
-    font-size: 12px;
-    font-weight: bold;
-    color: #fff;
-  }
-
-  .logs-content {
-    flex: 1;
-    overflow-y: auto;
-    padding: 8px;
-    font-family: "JetBrains Mono", monospace;
-    font-size: 10px;
-    color: #888;
-  }
-
-  .log-placeholder {
-    color: #556;
-    font-style: italic;
-    text-align: center;
-    padding: 20px;
-  }
-
+  /* AREA: Canvas */
   .area-canvas {
     grid-area: canvas;
-    position: relative;
+    position: relative; /* Anchor for absolute overlays */
+    background: #050510;
     overflow: hidden;
   }
 
-  .area-drawer {
-    grid-area: drawer;
-    position: relative;
+  /* AREA: Right Sidebar */
+  .area-right {
+    grid-area: right;
     background: rgba(10, 10, 15, 0.95);
     border-left: 1px solid #334;
-    overflow: visible; /* Allow button to stick out */
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+    gap: 15px;
     z-index: 20;
-    width: 0;
-    transition: width 0.3s ease;
+    box-shadow: -5px 0 20px rgba(0, 0, 0, 0.5);
+    overflow-y: auto;
   }
 
-  .area-drawer.open {
-    width: 280px;
+  .panel-section {
+    flex-shrink: 0; /* Prevent sections from collapsing weirdly */
   }
 
-  .drawer-toggle {
+  .section-stars {
+    flex: 1; /* Allow stars panel to take remaining space if needed */
+    min-height: 200px; /* But ensure it has space */
+  }
+
+  /* OVERLAYS (Floating above Canvas) */
+  .modal-overlay {
     position: absolute;
-    left: -24px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 24px;
-    height: 48px;
-    background: #1a1a25;
-    border: 1px solid #334;
-    border-right: none;
-    border-radius: 4px 0 0 4px;
-    color: #888;
-    cursor: pointer;
-    font-size: 12px;
-    z-index: 10;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    pointer-events: auto;
   }
 
-  .drawer-toggle:hover {
-    background: #252535;
+  .overlay-bottom-left {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 320px;
+    z-index: 50;
+    pointer-events: none; /* Let clicks pass through gaps */
+  }
+  .overlay-bottom-left > * {
+    pointer-events: auto;
+  }
+
+  .logs-wrapper {
+    max-height: 70vh; /* Expanded height */
+    overflow-y: auto;
+    background: rgba(10, 10, 15, 0.9);
+    border-radius: 8px;
+    border: 1px solid #334;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .controls-wrapper {
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .action-buttons {
+    display: flex;
+    gap: 8px;
+  }
+
+  /* Utilities */
+  .glass-panel {
+    background: rgba(20, 20, 30, 0.8);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  }
+
+  .btn {
+    flex: 1;
+    padding: 8px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 11px;
+    transition: all 0.2s;
+  }
+
+  .btn--ghost {
+    background: transparent;
+    border: 1px solid #556;
+    color: #889;
+  }
+  .btn--ghost:hover {
+    border-color: #fff;
     color: #fff;
   }
 
-  .drawer-content {
-    height: 100%;
-    overflow: hidden;
+  .btn--danger {
+    background: rgba(239, 68, 68, 0.2);
+    border: 1px solid rgba(239, 68, 68, 0.5);
+    color: #fca5a5;
   }
-
-  .area-footer {
-    grid-area: footer;
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    padding: var(--space-4);
-    background: rgba(10, 10, 15, 0.8);
-    border-top: 1px solid #334;
+  .btn--danger:hover {
+    background: rgba(239, 68, 68, 0.4);
+    color: #fff;
   }
 </style>

@@ -123,237 +123,154 @@
     let collapsed = $state(false);
 </script>
 
-<div class="combat-debug-panel" class:collapsed>
-    <button class="header" onclick={() => (collapsed = !collapsed)}>
-        <span class="icon">{collapsed ? "▶" : "▼"}</span>
-        <span class="title">⚙️ Combat Debug</span>
-    </button>
+<div class="combat-tuning-list">
+    <!-- Header -->
+    <div class="sidebar-header">
+        <h3>⚔️ Combat Tuning</h3>
+        <button
+            class="reset-btn"
+            onclick={() => {
+                variables.forEach((v) => {
+                    const key = v.key as VarKey;
+                    enabled[key] = true;
+                    values[key] = savedValues[key];
+                    (GAME_CONFIG as any)[key] = savedValues[key];
+                });
+            }}>Reset</button
+        >
+    </div>
 
-    {#if !collapsed}
-        <div class="content">
-            {#each variables as v}
-                <div
-                    class="variable-row"
-                    class:disabled={!enabled[v.key as keyof typeof enabled]}
-                >
-                    <div class="row-header">
-                        <label class="toggle-label">
-                            <input
-                                type="checkbox"
-                                checked={enabled[v.key as keyof typeof enabled]}
-                                onchange={() =>
-                                    toggle(v.key as keyof typeof enabled)}
-                            />
-                            <span class="var-name">{v.label}</span>
-                        </label>
-                    </div>
-                    <div class="row-controls">
+    <div class="content-list">
+        {#each variables as v}
+            <div
+                class="variable-row"
+                class:disabled={!enabled[v.key as keyof typeof enabled]}
+            >
+                <div class="row-top">
+                    <label class="toggle-label">
                         <input
-                            type="range"
-                            min={v.min}
-                            max={v.max}
-                            step={v.step}
-                            value={values[v.key as VarKey]}
-                            oninput={(e) =>
-                                updateValue(
-                                    v.key as VarKey,
-                                    parseFloat(
-                                        (e.target as HTMLInputElement).value,
-                                    ),
-                                )}
-                            disabled={!enabled[v.key as keyof typeof enabled]}
+                            type="checkbox"
+                            checked={enabled[v.key as keyof typeof enabled]}
+                            onchange={() =>
+                                toggle(v.key as keyof typeof enabled)}
                         />
-                        <input
-                            type="number"
-                            min={v.min}
-                            max={v.max}
-                            step={v.step}
-                            value={values[v.key as VarKey]}
-                            oninput={(e) =>
-                                updateValue(
-                                    v.key as VarKey,
-                                    parseFloat(
-                                        (e.target as HTMLInputElement).value,
-                                    ),
-                                )}
-                            disabled={!enabled[v.key as keyof typeof enabled]}
-                        />
-                    </div>
-                    <div class="description">{v.desc}</div>
+                        <span class="var-name">{v.label}</span>
+                    </label>
+                    <span class="current-val"
+                        >{values[v.key as VarKey].toFixed(2)}</span
+                    >
                 </div>
-            {/each}
 
-            <div class="presets">
-                <button
-                    onclick={() => {
-                        variables.forEach((v) => {
-                            const key = v.key as VarKey;
-                            enabled[key] = true;
-                            values[key] = savedValues[key];
-                            (GAME_CONFIG as any)[key] = savedValues[key];
-                        });
-                    }}>Reset All</button
-                >
-                <button
-                    onclick={() => {
-                        variables.forEach((v) => {
-                            const key = v.key as VarKey;
-                            savedValues[key] = values[key];
-                            enabled[key] = false;
-                            values[key] = neutralValues[key];
-                            (GAME_CONFIG as any)[key] = neutralValues[key];
-                        });
-                    }}>Disable All</button
-                >
+                <div class="row-controls">
+                    <input
+                        type="range"
+                        min={v.min}
+                        max={v.max}
+                        step={v.step}
+                        value={values[v.key as VarKey]}
+                        oninput={(e) =>
+                            updateValue(
+                                v.key as VarKey,
+                                parseFloat(
+                                    (e.target as HTMLInputElement).value,
+                                ),
+                            )}
+                        disabled={!enabled[v.key as keyof typeof enabled]}
+                    />
+                </div>
             </div>
-        </div>
-    {/if}
+        {/each}
+    </div>
 </div>
 
 <style>
-    .combat-debug-panel {
-        background: rgba(10, 10, 20, 0.95);
-        border: 1px solid #334;
-        border-radius: 8px;
-        font-family: "JetBrains Mono", monospace;
-        font-size: 11px;
-        color: #ccc;
-        overflow: hidden;
-    }
-
-    .header {
-        width: 100%;
-        padding: 10px 12px;
-        background: #1a1a25;
-        border: none;
-        border-bottom: 1px solid #334;
-        color: #fff;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-family: inherit;
-        font-size: 12px;
-        text-align: left;
-    }
-
-    .header:hover {
-        background: #252535;
-    }
-
-    .icon {
-        font-size: 10px;
-        color: #888;
-    }
-
-    .title {
-        font-weight: bold;
-    }
-
-    .content {
-        padding: 12px;
+    .combat-tuning-list {
         display: flex;
         flex-direction: column;
-        gap: 12px;
-        max-height: 400px;
-        overflow-y: auto;
+        gap: 10px;
+        color: #ccc;
+        font-family: inherit;
+    }
+
+    .sidebar-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-bottom: 5px;
+        border-bottom: 1px solid #334;
+    }
+
+    .sidebar-header h3 {
+        margin: 0;
+        font-size: 12px;
+        font-weight: bold;
+        color: #88aaff;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .reset-btn {
+        background: transparent;
+        border: 1px solid #445;
+        color: #888;
+        font-size: 9px;
+        padding: 2px 6px;
+        border-radius: 3px;
+        cursor: pointer;
+    }
+    .reset-btn:hover {
+        color: #fff;
+        border-color: #667;
+    }
+
+    .content-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
     }
 
     .variable-row {
-        padding: 8px;
-        background: rgba(255, 255, 255, 0.02);
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.05); /* Subtle border */
         border-radius: 4px;
-        border: 1px solid #223;
+        padding: 6px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
     }
 
     .variable-row.disabled {
         opacity: 0.5;
-        background: rgba(255, 0, 0, 0.05);
-        border-color: #422;
     }
 
-    .row-header {
+    .row-top {
         display: flex;
+        justify-content: space-between;
         align-items: center;
-        margin-bottom: 6px;
     }
 
     .toggle-label {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 6px;
         cursor: pointer;
+        font-size: 11px;
+        font-weight: 600;
+        color: #eee;
     }
 
-    .toggle-label input[type="checkbox"] {
-        accent-color: #00ffcc;
-    }
-
-    .var-name {
-        font-weight: bold;
-        color: #fff;
-    }
-
-    .row-controls {
-        display: flex;
-        align-items: center;
-        gap: 8px;
+    .current-val {
+        font-family: "Exo", sans-serif;
+        font-size: 11px;
+        color: #00e0ff;
     }
 
     .row-controls input[type="range"] {
-        flex: 1;
-        accent-color: #00ccff;
+        width: 100%;
+        accent-color: #00e0ff;
         height: 4px;
-    }
-
-    .row-controls input[type="number"] {
-        width: 60px;
-        padding: 4px 6px;
-        background: #223;
-        border: 1px solid #445;
-        border-radius: 3px;
-        color: #0ff;
-        font-family: inherit;
-        font-size: 11px;
-        text-align: right;
-    }
-
-    .row-controls input[type="number"]:disabled {
-        color: #666;
-        background: #1a1a22;
-    }
-
-    .description {
-        margin-top: 4px;
-        font-size: 9px;
-        color: #666;
-    }
-
-    .presets {
-        display: flex;
-        gap: 8px;
-        padding-top: 8px;
-        border-top: 1px solid #334;
-    }
-
-    .presets button {
-        flex: 1;
-        padding: 6px 10px;
         background: #334;
-        border: none;
-        border-radius: 4px;
-        color: #aaa;
-        font-family: inherit;
-        font-size: 10px;
+        border-radius: 2px;
         cursor: pointer;
-    }
-
-    .presets button:hover {
-        background: #445;
-        color: #fff;
-    }
-
-    .collapsed .content {
-        display: none;
     }
 </style>
