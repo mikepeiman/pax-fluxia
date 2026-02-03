@@ -1,0 +1,55 @@
+[
+    {
+        "category": "FILESYSTEM_OPS",
+        "target_atlas": "00_PHYSICAL_MAP.md",
+        "triggers": [
+            "Creating a new file",
+            "Renaming a file or folder",
+            "Moving a file",
+            "Deleting a file",
+            "Creating a new directory"
+        ]
+    },
+    {
+        "category": "CODE_STRUCTURE",
+        "target_atlas": "01_ASSET_INVENTORY.md",
+        "triggers": [
+            "Exporting a new function",
+            "Exporting a new class or interface",
+            "Changing parameters of an exported function",
+            "Changing the return type of an exported function",
+            "Importing a new dependency (internal or external)"
+        ]
+    },
+    {
+        "category": "DATA_IO",
+        "target_atlas": "02_IO_REGISTRY.md",
+        "triggers": [
+            "Defining a new Zod/Valibot schema",
+            "Writing a fetch() or axios call",
+            "Defining a database query (SQL/Prisma/SurrealDB)",
+            "Reading/Writing to LocalStorage or Cookies",
+            "Creating or modifying a Global Store"
+        ]
+    },
+    {
+        "category": "REACTIVITY",
+        "target_atlas": "03_EVENT_MATRIX.md",
+        "triggers": [
+            "Adding an Event Listener (window, document, element)",
+            "Using a Lifecycle Hook (onMount, useEffect, onDestroy)",
+            "Defining a Custom Event dispatcher",
+            "Creating a Timer (setTimeout, setInterval)",
+            "Subscribing to a Stream or Observable"
+        ]
+    },
+    {
+        "category": "INTENT",
+        "target_atlas": "04_FUNCTIONAL_STORY.md",
+        "triggers": [
+            "Starting a new Feature request",
+            "Refactoring a user-facing flow",
+            "Marking a story as 'Verified' or 'Complete'"
+        ]
+    }
+]
