@@ -1319,6 +1319,42 @@ export class GameEngine {
         }
     }
 
+    /**
+     * Set a deferred order on an enemy star (to be executed when captured)
+     * This allows players to chain orders through enemy territory
+     */
+    setDeferredOrder(enemyStarId: StarId, nextTargetId: StarId): boolean {
+        const enemyStar = this.stars.get(enemyStarId);
+        const nextTarget = this.stars.get(nextTargetId);
+
+        if (!enemyStar || !nextTarget) return false;
+        // Must be enemy star (not owned by human)
+        if (enemyStar.ownerId === this.humanPlayerId) return false;
+
+        // Check if enemyStar -> nextTarget is connected
+        const isConnected = this.connections.some(
+            c => (c.sourceId === enemyStarId && c.targetId === nextTargetId) ||
+                (c.sourceId === nextTargetId && c.targetId === enemyStarId)
+        );
+        if (!isConnected) return false;
+
+        // Set queued order (will execute when human captures this star)
+        enemyStar.setQueuedOrder(this.humanPlayerId, nextTargetId);
+        log.sys('GameEngine', `Deferred order set: ${enemyStarId} -> ${nextTargetId} (on capture)`);
+        return true;
+    }
+
+    /**
+     * Get deferred order for a star (if any)
+     */
+    getDeferredOrder(starId: StarId): StarId | null {
+        const star = this.stars.get(starId);
+        if (!star) return null;
+        // Access the internal queued order if it's for the human player
+        const state = star.getState();
+        return state.queuedOrderTargetId ?? null;
+    }
+
     private checkWinCondition(): void {
         const activePlayers = Array.from(this.players.values()).filter(p => !p.isEliminated);
 

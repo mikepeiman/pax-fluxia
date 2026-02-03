@@ -15,6 +15,7 @@
         StarState,
         StarConnection,
         FleetState,
+        StarId,
     } from "$lib/types/game.types";
     import { Star } from "$lib/engine/Star";
 
@@ -56,6 +57,7 @@
     // Animation state
     let animationTime = 0;
     let animationFrameId: number | null = null;
+    let resizeObserver: ResizeObserver | null = null;
 
     // Input state
     let isDragging = false;
@@ -70,10 +72,11 @@
     // Active star state (for click+click selection)
     let activeStarId: string | null = null;
     let pendingOrders: Set<string> = new Set(); // OPTIMISTIC UI: Track ordered links immediately
+    let deferredOrders: Set<string> = new Set(); // Track deferred orders (through enemy stars)
     let lastSessionId: number = -1; // Track game session to reset state on new game
 
     // Helper: Add pending order and clean up conflicting orders
-    function addPendingOrder(sourceId: string, targetId: string) {
+    function addPendingOrder(sourceId: string, targetId: string, isDeferred: boolean = false) {
         // Validate both stars exist in current snapshot
         const snapshot = gameStore.snapshot;
         if (!snapshot) return;
@@ -82,16 +85,28 @@
         const targetExists = snapshot.stars.some(s => s.id === targetId);
         if (!sourceExists || !targetExists) return;
         
-        // Remove any old order from source (source can only have one target)
-        pendingOrders.forEach((key) => {
-            if (key.startsWith(`${sourceId}|`)) {
-                pendingOrders.delete(key);
-            }
-        });
-        // Remove opposite flow for same-owner stars (A→B cancels B→A)
-        pendingOrders.delete(`${targetId}|${sourceId}`);
-        // Add new order
-        pendingOrders.add(`${sourceId}|${targetId}`);
+        const key = `${sourceId}|${targetId}`;
+        
+        if (isDeferred) {
+            // For deferred orders, allow one per enemy star
+            deferredOrders.forEach((k) => {
+                if (k.startsWith(`${sourceId}|`)) {
+                    deferredOrders.delete(k);
+                }
+            });
+            deferredOrders.add(key);
+        } else {
+            // Remove any old order from source (source can only have one target)
+            pendingOrders.forEach((k) => {
+                if (k.startsWith(`${sourceId}|`)) {
+                    pendingOrders.delete(k);
+                }
+            });
+            // Remove opposite flow for same-owner stars (A→B cancels B→A)
+            pendingOrders.delete(`${targetId}|${sourceId}`);
+            // Add new order
+            pendingOrders.add(key);
+        }
     }
 
     // Player colors (must match engine)
@@ -151,17 +166,31 @@
             `PixiJS initialized (${app.screen.width}x${app.screen.height})`,
         );
 
+        // Apply initial scale transformation
+        handleResize();
+
         // Start animation loop
         startAnimationLoop();
 
         // Handle window resize
         window.addEventListener("resize", handleResize);
+        
+        // Use ResizeObserver for more accurate container resize detection
+        resizeObserver = new ResizeObserver(() => {
+            handleResize();
+        });
+        resizeObserver.observe(canvasContainer);
     });
 
     onDestroy(() => {
         log.sys("GameCanvas", "Destroying PixiJS application");
 
         window.removeEventListener("resize", handleResize);
+        
+        if (resizeObserver) {
+            resizeObserver.disconnect();
+            resizeObserver = null;
+        }
 
         if (animationFrameId) {
             cancelAnimationFrame(animationFrameId);
@@ -210,10 +239,31 @@
     // Rendering
     // ============================================================================
 
+    // Game world dimensions (fixed, map is generated at this size)
+    const GAME_WIDTH = 1600;
+    const GAME_HEIGHT = 900;
+
     function handleResize() {
-        if (app) {
-            app.resize();
-        }
+        if (!app) return;
+        
+        app.resize();
+        
+        // Calculate scale to fit game world in container while maintaining aspect ratio
+        const containerWidth = app.screen.width;
+        const containerHeight = app.screen.height;
+        
+        const scaleX = containerWidth / GAME_WIDTH;
+        const scaleY = containerHeight / GAME_HEIGHT;
+        const scale = Math.min(scaleX, scaleY); // Fit (not fill)
+        
+        // Apply scale to stage
+        app.stage.scale.set(scale, scale);
+        
+        // Center the scaled content
+        const scaledWidth = GAME_WIDTH * scale;
+        const scaledHeight = GAME_HEIGHT * scale;
+        app.stage.x = (containerWidth - scaledWidth) / 2;
+        app.stage.y = (containerHeight - scaledHeight) / 2;
     }
 
     function getPlayerColor(ownerId: string): number {
@@ -296,6 +346,8 @@
         if (currentSessionId !== lastSessionId) {
             lastSessionId = currentSessionId;
             pendingOrders.clear();
+            deferredOrders.clear();
+            lastEnemyPassthrough = null;
             activeStarId = null;
             visualShips.clear();
             visualDamagedShips.clear();
@@ -624,6 +676,100 @@
 
             linkGraphics!.fill({ color, alpha: 1.0 }); // Solid bold head
         });
+
+        // ============================================================================
+        // Render Deferred Orders (dashed lines, transparent)
+        // ============================================================================
+        
+        // Clean up deferred orders for stars that have been captured by human
+        deferredOrders.forEach((key) => {
+            const [sourceId] = key.split('|');
+            const source = starsById.get(sourceId);
+            // If the star is now owned by human, the queued order has executed - remove it
+            if (source && source.ownerId === 'human-player') {
+                deferredOrders.delete(key);
+            }
+        });
+
+        // Also sync with actual queuedOrderTargetId from snapshot
+        const snapshotStars = gameStore.snapshot?.stars || [];
+        deferredOrders.forEach((key) => {
+            const [sourceId, targetId] = key.split('|');
+            const star = snapshotStars.find(s => s.id === sourceId);
+            // Remove if star doesn't have this queued order anymore
+            if (star && star.queuedOrderTargetId !== targetId) {
+                deferredOrders.delete(key);
+            }
+        });
+
+        // Render deferred orders with dashed appearance
+        deferredOrders.forEach((linkKey) => {
+            const [sId, tId] = linkKey.split("|");
+            const source = stars.find((s) => s.id === sId);
+            const target = stars.find((s) => s.id === tId);
+
+            if (!source || !target) return;
+
+            const dx = target.x - source.x;
+            const dy = target.y - source.y;
+            const angle = Math.atan2(dy, dx);
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            const padding = 10;
+            const headLen = 20;
+            const lineWidth = 4;
+
+            const startDist = source.radius + padding;
+            const endDist = dist - (target.radius + padding);
+
+            const startX = source.x + Math.cos(angle) * startDist;
+            const startY = source.y + Math.sin(angle) * startDist;
+            const endX = source.x + Math.cos(angle) * endDist;
+            const endY = source.y + Math.sin(angle) * endDist;
+
+            // Draw dashed line (simulate with short segments)
+            const dashLen = 15;
+            const gapLen = 10;
+            const totalLen = endDist - startDist;
+            let currentDist = 0;
+
+            const humanColor = 0x4488ff; // Human player color
+
+            while (currentDist < totalLen - headLen) {
+                const segStart = startDist + currentDist;
+                const segEnd = Math.min(segStart + dashLen, startDist + totalLen - headLen);
+                
+                const x1 = source.x + Math.cos(angle) * segStart;
+                const y1 = source.y + Math.sin(angle) * segStart;
+                const x2 = source.x + Math.cos(angle) * segEnd;
+                const y2 = source.y + Math.sin(angle) * segEnd;
+
+                linkGraphics!.moveTo(x1, y1);
+                linkGraphics!.lineTo(x2, y2);
+                linkGraphics!.stroke({
+                    color: humanColor,
+                    width: lineWidth,
+                    alpha: 0.4,
+                    cap: "round",
+                });
+
+                currentDist += dashLen + gapLen;
+            }
+
+            // Draw small arrowhead
+            const tipX = endX;
+            const tipY = endY;
+            const wing1X = tipX - headLen * Math.cos(angle - Math.PI / 6);
+            const wing1Y = tipY - headLen * Math.sin(angle - Math.PI / 6);
+            const wing2X = tipX - headLen * Math.cos(angle + Math.PI / 6);
+            const wing2Y = tipY - headLen * Math.sin(angle + Math.PI / 6);
+
+            linkGraphics!.moveTo(tipX, tipY);
+            linkGraphics!.lineTo(wing1X, wing1Y);
+            linkGraphics!.lineTo(wing2X, wing2Y);
+            linkGraphics!.closePath();
+            linkGraphics!.fill({ color: humanColor, alpha: 0.5 });
+        });
     }
 
     function renderShips(stars: StarState[], tickProgress: number) {
@@ -900,9 +1046,26 @@
     // Input Handling
     // ============================================================================
 
-    function hitTestStar(x: number, y: number): StarState | null {
+    // Convert screen coordinates to game world coordinates (accounting for scale and offset)
+    function screenToWorld(screenX: number, screenY: number): { x: number, y: number } {
+        if (!app) return { x: screenX, y: screenY };
+        
+        const scale = app.stage.scale.x; // Uniform scale
+        const offsetX = app.stage.x;
+        const offsetY = app.stage.y;
+        
+        return {
+            x: (screenX - offsetX) / scale,
+            y: (screenY - offsetY) / scale
+        };
+    }
+
+    function hitTestStar(screenX: number, screenY: number): StarState | null {
         const snapshot = gameStore.snapshot;
         if (!snapshot) return null;
+
+        // Convert screen coordinates to world coordinates
+        const { x, y } = screenToWorld(screenX, screenY);
 
         for (const star of snapshot.stars) {
             const dist = distance(x, y, star.x, star.y);
@@ -960,6 +1123,9 @@
         }
     }
 
+    // Track the last enemy star we passed through for deferred orders
+    let lastEnemyPassthrough: StarId | null = null;
+
     function handlePointerMove(event: PointerEvent) {
         if (!isDragging || !dragSourceId) return;
 
@@ -983,28 +1149,67 @@
             );
 
             if (isConnected) {
-                // Issue instant order
-                const success = gameStore.issueOrder(
-                    dragSourceId,
-                    targetStar.id,
-                );
-                if (success) {
-                    // OPTIMISTIC UI: Add immediately for instant arrow display
-                    addPendingOrder(dragSourceId, targetStar.id);
-                    log.success(
-                        "GameCanvas",
-                        `Drag-through: ${dragSourceId} -> ${targetStar.id}`,
+                const sourceStar = snapshot?.stars.find((s) => s.id === dragSourceId);
+                const humanPlayerId = snapshot?.players.find((p) => !p.isAI)?.id;
+                const isSourceMine = sourceStar?.ownerId === humanPlayerId;
+                const isTargetMine = targetStar.ownerId === humanPlayerId;
+                const isTargetEnemy = !isTargetMine && targetStar.ownerId !== 'neutral';
+
+                if (isSourceMine) {
+                    // Dragging from my star - issue normal order
+                    const success = gameStore.issueOrder(
+                        dragSourceId,
+                        targetStar.id,
                     );
+                    if (success) {
+                        addPendingOrder(dragSourceId, targetStar.id);
+                        log.success(
+                            "GameCanvas",
+                            `Drag-through: ${dragSourceId} -> ${targetStar.id}`,
+                        );
 
-                    // Chain reaction: Drag continues FROM this new star
-                    dragSourceId = targetStar.id;
-                    dragStartX = dragCurrentX;  // Current mouse pos becomes new start
-                    dragStartY = dragCurrentY;
-                    dragSourceCenterX = targetStar.x;  // Star center for visual
-                    dragSourceCenterY = targetStar.y;
+                        // If target is enemy, track it for potential deferred order
+                        if (isTargetEnemy) {
+                            lastEnemyPassthrough = targetStar.id;
+                        } else {
+                            lastEnemyPassthrough = null;
+                        }
 
-                    // Optional: Set active too?
-                    activeStarId = targetStar.id;
+                        // Chain continues from target
+                        dragSourceId = targetStar.id;
+                        dragStartX = dragCurrentX;
+                        dragStartY = dragCurrentY;
+                        dragSourceCenterX = targetStar.x;
+                        dragSourceCenterY = targetStar.y;
+                        activeStarId = targetStar.id;
+                    }
+                } else if (lastEnemyPassthrough === dragSourceId) {
+                    // Dragging FROM an enemy star we're attacking - set deferred order!
+                    const success = gameStore.setDeferredOrder(
+                        dragSourceId,
+                        targetStar.id,
+                    );
+                    if (success) {
+                        // Add visual indicator for deferred order (dashed line)
+                        addPendingOrder(dragSourceId, targetStar.id, true); // true = deferred
+                        log.success(
+                            "GameCanvas",
+                            `Deferred order set: ${dragSourceId} -> ${targetStar.id} (on capture)`,
+                        );
+
+                        // Continue chain
+                        if (isTargetEnemy) {
+                            lastEnemyPassthrough = targetStar.id;
+                        } else {
+                            lastEnemyPassthrough = null;
+                        }
+
+                        dragSourceId = targetStar.id;
+                        dragStartX = dragCurrentX;
+                        dragStartY = dragCurrentY;
+                        dragSourceCenterX = targetStar.x;
+                        dragSourceCenterY = targetStar.y;
+                    }
                 }
             }
         }
@@ -1127,9 +1332,12 @@
 
         dragPreviewGraphics.clear();
 
+        // Convert current mouse position to world coordinates for drawing
+        const cursorWorld = screenToWorld(dragCurrentX, dragCurrentY);
+
         // Draw line from star CENTER to cursor (not click position)
         dragPreviewGraphics.moveTo(dragSourceCenterX, dragSourceCenterY);
-        dragPreviewGraphics.lineTo(dragCurrentX, dragCurrentY);
+        dragPreviewGraphics.lineTo(cursorWorld.x, cursorWorld.y);
         dragPreviewGraphics.stroke({
             color: 0x00ffff,
             width: 3,
@@ -1137,7 +1345,7 @@
         });
 
         // Draw circle at cursor
-        dragPreviewGraphics.circle(dragCurrentX, dragCurrentY, 8);
+        dragPreviewGraphics.circle(cursorWorld.x, cursorWorld.y, 8);
         dragPreviewGraphics.stroke({
             color: 0x00ffff,
             width: 2,

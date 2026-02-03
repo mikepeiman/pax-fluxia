@@ -291,6 +291,7 @@ export class Star {
             damagedShips: Math.floor(this._damagedShips),
             ownerId: this._ownerId,
             targetId: this._targetId,
+            queuedOrderTargetId: this._queuedOrder?.targetId ?? null,
             icon: this.icon,
             starType: this.starType,
             // V2 Logic

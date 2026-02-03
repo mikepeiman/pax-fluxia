@@ -11,6 +11,16 @@
 
     let { speed, isPaused, onSpeedChange, onPause, onResume }: Props = $props();
 
+    // Local state to track current speed for UI highlighting
+    let currentSpeed = $state<GameSpeed>(speed || 1);
+
+    // Sync with prop changes
+    $effect(() => {
+        if (speed > 0) {
+            currentSpeed = speed;
+        }
+    });
+
     const speeds: { value: GameSpeed; label: string }[] = [
         { value: 1, label: "▶" },
         { value: 2, label: "▶▶" },
@@ -19,6 +29,7 @@
     ];
 
     function handleSpeedClick(newSpeed: GameSpeed) {
+        currentSpeed = newSpeed;
         if (isPaused) {
             onResume();
         }
@@ -41,7 +52,7 @@
     {#each speeds as { value, label }}
         <button
             class="speed-btn"
-            class:speed-btn--active={!isPaused && speed === value}
+            class:speed-btn--active={!isPaused && currentSpeed === value}
             onclick={() => handleSpeedClick(value)}
             title="{value}x Speed"
         >

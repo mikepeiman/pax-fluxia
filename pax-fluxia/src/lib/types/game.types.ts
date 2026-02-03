@@ -83,6 +83,7 @@ export interface StarState {
     damagedShips: number;
     ownerId: PlayerId;
     targetId: StarId | null;
+    queuedOrderTargetId: StarId | null;  // Deferred order to execute on capture
     icon: string;
     starType: StarType;
     // Combat V2 Props (Runtime)

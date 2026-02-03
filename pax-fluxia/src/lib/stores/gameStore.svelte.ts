@@ -181,6 +181,18 @@ function cancelOrder(starId: StarId): void {
     }
 }
 
+/** Set deferred order on enemy star (executes when captured) */
+function setDeferredOrder(enemyStarId: StarId, nextTargetId: StarId): boolean {
+    if (engine) {
+        const result = engine.setDeferredOrder(enemyStarId, nextTargetId);
+        if (result) {
+            snapshot = engine.getState();
+        }
+        return result;
+    }
+    return false;
+}
+
 /** Surrender the game */
 function surrender(): void {
     if (engine) {
@@ -269,6 +281,7 @@ export const gameStore = {
     setSpeed,
     issueOrder,
     cancelOrder,
+    setDeferredOrder,
     surrender,
     playAgain,
     returnToMenu,
