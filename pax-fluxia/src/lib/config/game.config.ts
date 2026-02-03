@@ -44,6 +44,12 @@ interface GameConfigType {
     SCATTER_DESTROY_RATE: number;      // % of remaining destroyed on scatter (default 0.50)
     STARTING_SHIPS: number;            // Ships per star at game start
 
+    // AI Behavior
+    AI_ATTACK_THRESHOLD: number;       // Min ship ratio to initiate attack (e.g., 1.33 = need 33% advantage)
+    AI_DESIST_THRESHOLD: number;       // Ratio at which AI stops attacking (e.g., 1.0 = retreat at parity)
+    AI_RANDOM_AGGRESSION: number;      // Chance per tick to make a random attack (0-1)
+    AI_TACTICAL_AGGRESSION: number;    // Chance to attack weaker target to bait others (0-1)
+
     // Visual
     MAX_RENDERED_SHIPS: number;
     SHIPS_PER_RING: number;
@@ -191,6 +197,22 @@ export const GAME_CONFIG: GameConfigType = {
 
     /** Starting ships per star at game start */
     STARTING_SHIPS: 40,
+
+    // ========================================================================
+    // AI BEHAVIOR
+    // ========================================================================
+
+    /** Min ship ratio to initiate attack (1.33 = need 33% more ships than enemy) */
+    AI_ATTACK_THRESHOLD: 1.33,
+
+    /** Ship ratio at which AI stops attacking and retreats (1.0 = retreat at parity) */
+    AI_DESIST_THRESHOLD: 1.0,
+
+    /** Chance per tick to make a random attack even without advantage (0-1) */
+    AI_RANDOM_AGGRESSION: 0.05,
+
+    /** Chance to attack weaker target to bait other players (0-1) */
+    AI_TACTICAL_AGGRESSION: 0.1,
 
     // ========================================================================
     // VISUAL

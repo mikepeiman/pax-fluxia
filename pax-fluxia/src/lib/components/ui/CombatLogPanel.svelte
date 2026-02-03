@@ -201,23 +201,22 @@
                                                         <span class="stat-label">ATK</span>
                                                         <span class="stat-ships">{entry.attacker.ships.toFixed(0)} ships</span>
                                                         <span class="stat-losses">
-                                                            {#if entry.attacker.kills > 0}
-                                                                <span class="kills">☠️{entry.attacker.kills}</span>
-                                                            {/if}
-                                                            {#if entry.attacker.disabled > 0}
-                                                                <span class="disabled">🤕{entry.attacker.disabled}</span>
-                                                            {/if}
+                                                            <span class="kills" class:zero={entry.attacker.kills === 0}>☠️{Math.floor(entry.attacker.kills)}</span>
+                                                            <span class="disabled" class:zero={entry.attacker.disabled === 0}>🔧{Math.floor(entry.attacker.disabled)}</span>
                                                         </span>
                                                     </div>
                                                     <div class="stat-row defender">
                                                         <span class="stat-label">DEF</span>
                                                         <span class="stat-ships">{entry.defender.ships.toFixed(0)} ships</span>
                                                         <span class="stat-losses">
-                                                            {#if entry.defender.kills > 0}
-                                                                <span class="kills">☠️{entry.defender.kills}</span>
-                                                            {/if}
-                                                            {#if entry.defender.disabled > 0}
-                                                                <span class="disabled">🤕{entry.defender.disabled}</span>
+                                                            {#if entry.result === 'CONQUERED'}
+                                                                <span class="captured">🏴{Math.floor(entry.defender.ships)}</span>
+                                                                {#if entry.defender.disabled > 0}
+                                                                    <span class="escaped">🏃{Math.floor(entry.defender.disabled)}</span>
+                                                                {/if}
+                                                            {:else}
+                                                                <span class="kills" class:zero={entry.defender.kills === 0}>☠️{Math.floor(entry.defender.kills)}</span>
+                                                                <span class="disabled" class:zero={entry.defender.disabled === 0}>🔧{Math.floor(entry.defender.disabled)}</span>
                                                             {/if}
                                                         </span>
                                                     </div>
@@ -596,5 +595,30 @@
         font-weight: bold;
         font-size: 10px;
         text-transform: uppercase;
+    }
+
+    /* Combat stat values */
+    .stat-losses .kills {
+        color: #ff6666;
+        margin-right: 4px;
+    }
+
+    .stat-losses .disabled {
+        color: #ffaa44;
+        margin-right: 4px;
+    }
+
+    .stat-losses .captured {
+        color: #ff4466;
+        margin-right: 4px;
+    }
+
+    .stat-losses .escaped {
+        color: #66ff88;
+        margin-right: 4px;
+    }
+
+    .stat-losses .zero {
+        opacity: 0.4;
     }
 </style>

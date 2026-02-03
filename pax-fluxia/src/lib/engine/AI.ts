@@ -5,6 +5,7 @@
 import type { StarState, PlayerId, StarId, AILevel, StarConnection } from '$lib/types/game.types';
 import { distance } from '$lib/utils/math.utils';
 import { log } from '$lib/utils/logger';
+import { GAME_CONFIG } from '$lib/config/game.config';
 
 // ============================================================================
 // Types
@@ -69,16 +70,23 @@ export class AI {
     /**
      * Evaluate the game state and return decisions
      * 
-     * SIMPLIFIED RULES (V3):
-     * - Attack when connected enemy star has <= 75% of our strength
-     * - Continue attack until: (1) conquest, or (2) our strength drops below target
-     * - No random decision skipping - always evaluate
+     * Uses GAME_CONFIG for tunable AI behavior:
+     * - AI_ATTACK_THRESHOLD: Min ratio to initiate attack (e.g., 1.33 = need 33% advantage)
+     * - AI_DESIST_THRESHOLD: Ratio to stop attacking (e.g., 1.0 = retreat at parity)
+     * - AI_RANDOM_AGGRESSION: Chance per tick to attack without advantage
+     * - AI_TACTICAL_AGGRESSION: Chance to attack weak targets to bait others
      */
     evaluate(stars: StarState[], connections: StarConnection[]): AIDecision[] {
         const decisions: AIDecision[] = [];
         const myStars = stars.filter(s => s.ownerId === this.playerId);
 
         if (myStars.length === 0) return []; // We're eliminated
+
+        // Get config values (can change during gameplay)
+        const attackThreshold = GAME_CONFIG.AI_ATTACK_THRESHOLD;
+        const desistThreshold = GAME_CONFIG.AI_DESIST_THRESHOLD;
+        const randomAggression = GAME_CONFIG.AI_RANDOM_AGGRESSION;
+        const tacticalAggression = GAME_CONFIG.AI_TACTICAL_AGGRESSION;
 
         myStars.forEach(star => {
             // ALREADY ATTACKING: Check if we should continue
@@ -88,14 +96,15 @@ export class AI {
                     // Still enemy - check if we should retreat
                     const myStrength = star.activeShips;
                     const targetStrength = target.activeShips + target.damagedShips;
+                    const ratio = myStrength / Math.max(targetStrength, 1);
 
-                    // CEASE ATTACK: When our strength drops below target strength (1:1 ratio)
-                    if (myStrength < targetStrength) {
+                    // CEASE ATTACK: When our ratio drops below desist threshold
+                    if (ratio < desistThreshold) {
                         decisions.push({
                             sourceId: star.id,
                             targetId: null as any // Cancel order
                         });
-                        log.sys('AI', `${this.playerId}: Retreating ${star.id}, strength ${myStrength} < target ${targetStrength}`);
+                        log.sys('AI', `${this.playerId}: Retreating ${star.id}, ratio ${ratio.toFixed(2)} < desist ${desistThreshold}`);
                     }
                     // Otherwise: Continue attack (don't add new decision)
                 }
@@ -115,13 +124,39 @@ export class AI {
                 )
             );
 
-            // Attack if ANY connected enemy has <= 75% of our strength
-            // (our strength >= 133% of enemy, ratio >= 1.33)
-            const attackThreshold = 0.75;
+            if (connectedEnemies.length === 0) return;
+
+            // Check for tactical aggression opportunity (attack weak target to bait)
+            if (Math.random() < tacticalAggression) {
+                const weakestEnemy = [...connectedEnemies].sort((a, b) =>
+                    (a.activeShips + a.damagedShips) - (b.activeShips + b.damagedShips)
+                )[0];
+                if (weakestEnemy) {
+                    decisions.push({
+                        sourceId: star.id,
+                        targetId: weakestEnemy.id
+                    });
+                    log.sys('AI', `${this.playerId}: Tactical attack on ${weakestEnemy.id} from ${star.id}`);
+                    return;
+                }
+            }
+
+            // Check for random aggression (attack randomly without advantage)
+            if (Math.random() < randomAggression && connectedEnemies.length > 0) {
+                const randomTarget = connectedEnemies[Math.floor(Math.random() * connectedEnemies.length)];
+                decisions.push({
+                    sourceId: star.id,
+                    targetId: randomTarget.id
+                });
+                log.sys('AI', `${this.playerId}: Random attack on ${randomTarget.id} from ${star.id}`);
+                return;
+            }
+
+            // Standard attack: only when we have sufficient advantage
             const validTargets = connectedEnemies.filter(enemy => {
                 const enemyStrength = enemy.activeShips + enemy.damagedShips;
-                const ratio = enemyStrength / Math.max(star.activeShips, 1);
-                return ratio <= attackThreshold; // Enemy is weak enough
+                const ratio = star.activeShips / Math.max(enemyStrength, 1);
+                return ratio >= attackThreshold; // We have enough advantage
             });
 
             if (validTargets.length > 0) {
@@ -134,7 +169,7 @@ export class AI {
                     sourceId: star.id,
                     targetId: target.id
                 });
-                log.sys('AI', `${this.playerId}: Attacking ${target.id} from ${star.id}`);
+                log.sys('AI', `${this.playerId}: Attacking ${target.id} from ${star.id} (ratio ${(star.activeShips / (target.activeShips + target.damagedShips)).toFixed(2)})`);
             }
         });
 

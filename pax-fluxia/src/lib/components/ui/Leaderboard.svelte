@@ -6,13 +6,18 @@
     }
 
     let { players = [] }: Props = $props();
+
+    // Derived to ensure reactivity with updated player data
+    const sortedPlayers = $derived(
+        [...players].sort((a, b) => b.totalShips - a.totalShips)
+    );
 </script>
 
 <div class="leaderboard glass-panel">
     <h3 class="leaderboard__title font-display">Commanders</h3>
 
     <ul class="leaderboard__list">
-        {#each players as player, index}
+        {#each sortedPlayers as player, index}
             <li class="leaderboard__item">
                 <span
                     class="player-dot"

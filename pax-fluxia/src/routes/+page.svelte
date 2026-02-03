@@ -9,10 +9,19 @@
   import Leaderboard from "$lib/components/ui/Leaderboard.svelte";
   import SpeedControls from "$lib/components/ui/SpeedControls.svelte";
   import CombatLogPanel from "$lib/components/ui/CombatLogPanel.svelte";
+  import type { PlayerState } from "$lib/types/game.types";
 
   // Panel visibility states
   let showDebug = $state(false);
   let combatLogOpen = $state(true);
+
+  // Derived leaderboard from snapshot for proper reactivity
+  const leaderboardPlayers = $derived.by(() => {
+    const players = gameStore.snapshot?.players ?? [];
+    return [...players]
+      .filter((p: PlayerState) => !p.isEliminated)
+      .sort((a: PlayerState, b: PlayerState) => b.totalShips - a.totalShips);
+  });
 
   function handleKeyDown(event: KeyboardEvent) {
     if (event.key === "`" || event.key === "~") {
@@ -98,7 +107,7 @@
       <div class="area-right">
         <!-- 1. Commanders -->
         <div class="panel-section section-commanders">
-          <Leaderboard players={gameStore.leaderboard} />
+          <Leaderboard players={leaderboardPlayers} />
         </div>
 
         <!-- 2. Combat Tuning (fills remaining space) -->
