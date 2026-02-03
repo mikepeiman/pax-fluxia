@@ -121,6 +121,7 @@ function startGame(): void {
 
     // Start the engine
     engine.start();
+    snapshot = engine.getState();
 }
 
 /** Pause the game */

@@ -842,7 +842,8 @@ export class GameEngine {
         const remainingActive = target.activeShips;
 
         // CONQUEST CONDITION: Overwhelm (use configurable threshold)
-        const overwhelmThreshold = maxAttackForce / GAME_CONFIG.CONQUEST_THRESHOLD;
+        // FIX: Use totalAttackForce to account for multiple sources
+        const overwhelmThreshold = totalAttackForce / GAME_CONFIG.CONQUEST_THRESHOLD;
 
         if (remainingActive <= 0 || remainingActive <= overwhelmThreshold) {
             // CONQUEST with Scatter/Escape Logic (V3)
@@ -927,7 +928,8 @@ export class GameEngine {
                     if (f.ownerId === strongestAttackerId) {
                         const source = this.stars.get(f.sourceId);
                         if (source && source.ownerId === strongestAttackerId) {
-                            const toTransfer = Math.floor(source.activeShips * 0.5);
+                            const transferPct = GAME_CONFIG.CONQUEST_TRANSFER_PERCENTAGE / 100;
+                            const toTransfer = Math.floor(source.activeShips * transferPct);
                             if (toTransfer > 0) {
                                 source.removeActiveShips(toTransfer);
                                 target.addActiveShips(toTransfer);

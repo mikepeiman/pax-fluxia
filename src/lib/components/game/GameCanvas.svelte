@@ -41,6 +41,7 @@
     let shipGraphics: PIXI.Graphics | null = null;
     let linkGraphics: PIXI.Graphics | null = null;
     let debugGraphics: PIXI.Graphics | null = null; // New debug layer
+    let resizeObserver: ResizeObserver | null = null;
 
     // Ship Spawn Animation Tracking
     // Key: `${starId}-${shipIndex}`, Value: spawnTimestamp
@@ -144,21 +145,21 @@
         // Start animation loop
         startAnimationLoop();
 
-        // Handle window resize
-        window.addEventListener("resize", handleResize);
-
-        // Handle browser zoom (Ctrl+/Ctrl-)
-        if (window.visualViewport) {
-            window.visualViewport.addEventListener("resize", handleResize);
+        // Handle resizing via ResizeObserver (robust for grid layout changes)
+        resizeObserver = new ResizeObserver(() => {
+            handleResize();
+        });
+        if (canvasContainer) {
+            resizeObserver.observe(canvasContainer);
         }
     });
 
     onDestroy(() => {
         log.sys("GameCanvas", "Destroying PixiJS application");
 
-        window.removeEventListener("resize", handleResize);
-        if (window.visualViewport) {
-            window.visualViewport.removeEventListener("resize", handleResize);
+        if (resizeObserver) {
+            resizeObserver.disconnect();
+            resizeObserver = null;
         }
 
         if (animationFrameId) {
