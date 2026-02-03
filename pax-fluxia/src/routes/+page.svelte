@@ -13,6 +13,7 @@
 
   // Panel visibility states
   let showDebug = $state(false);
+  let combatLogOpen = $state(true);
 
   function handleKeyDown(event: KeyboardEvent) {
     if (event.key === "`" || event.key === "~") {
@@ -41,8 +42,16 @@
 <main class="app-container">
   {#if gameStore.currentView === "menu"}
     <MainMenu />
+  {:else if gameStore.currentView === "results"}
+    <!-- GAME OVER SCREEN -->
+    <div class="results-view">
+      <ResultsModal />
+    </div>
   {:else if gameStore.currentView === "game"}
-    <div class="game-layout">
+    <!-- Combat Log Drawer (fixed position, outside grid) -->
+    <CombatLogPanel bind:isOpen={combatLogOpen} />
+
+    <div class="game-layout" class:combat-log-open={combatLogOpen}>
       <!-- MAIN CANVAS AREA -->
       <div class="area-canvas">
         <GameCanvas />
@@ -58,13 +67,8 @@
           </div>
         {/if}
 
-        <!-- BOTTOM LEFT OVERLAY: Logs + Controls -->
-        <!-- "Move combat log above gamecontrols bottom left" -->
+        <!-- BOTTOM LEFT OVERLAY: Game Controls -->
         <div class="overlay-bottom-left">
-          <div class="logs-wrapper">
-            <CombatLogPanel />
-          </div>
-
           <div class="controls-wrapper glass-panel">
             <SpeedControls
               speed={gameStore.speed}
@@ -131,13 +135,66 @@
     height: 100vh;
   }
 
-  /* GRID LAYOUT V3 - CORRECTED */
+  /* RESULTS VIEW - Full screen centered results */
+  .results-view {
+    width: 100vw;
+    height: 100vh;
+    background: linear-gradient(180deg, #050510 0%, #0a0a1a 50%, #050510 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* GRID LAYOUT V6 - Fully Responsive */
   .game-layout {
     display: grid;
-    grid-template-columns: 1fr 320px; /* Canvas | Right Sidebar */
+    grid-template-columns: 1fr minmax(250px, 320px); /* Canvas | Right Sidebar */
     grid-template-areas: "canvas right";
     height: 100vh;
     width: 100vw;
+    transition: margin-left 0.2s ease, width 0.2s ease;
+  }
+
+  /* When combat log drawer is open, shift content right */
+  .game-layout.combat-log-open {
+    margin-left: 320px;
+    width: calc(100vw - 320px);
+  }
+
+  /* Responsive: narrower sidebar on smaller viewports */
+  @media (max-width: 1400px) {
+    .game-layout {
+      grid-template-columns: 1fr 280px;
+    }
+    .game-layout.combat-log-open {
+      margin-left: 280px;
+      width: calc(100vw - 280px);
+    }
+  }
+
+  @media (max-width: 1100px) {
+    .game-layout {
+      grid-template-columns: 1fr 240px;
+    }
+    .game-layout.combat-log-open {
+      margin-left: 240px;
+      width: calc(100vw - 240px);
+    }
+  }
+
+  /* Very narrow: hide sidebar, full canvas */
+  @media (max-width: 800px) {
+    .game-layout {
+      grid-template-columns: 1fr;
+      grid-template-areas: "canvas";
+    }
+    .area-right {
+      display: none;
+    }
+    .game-layout.combat-log-open {
+      margin-left: 280px;
+      width: calc(100vw - 280px);
+    }
   }
 
   /* AREA: Canvas */
@@ -146,6 +203,9 @@
     position: relative; /* Anchor for absolute overlays */
     background: #050510;
     overflow: hidden;
+    /* Ensure canvas fills available space */
+    min-width: 0;
+    min-height: 0;
   }
 
   /* AREA: Right Sidebar */
@@ -156,10 +216,12 @@
     display: flex;
     flex-direction: column;
     padding: 10px;
-    gap: 15px;
+    gap: 10px;
     z-index: 20;
     box-shadow: -5px 0 20px rgba(0, 0, 0, 0.5);
     overflow-y: auto;
+    /* Prevent sidebar from growing too wide */
+    max-width: 320px;
   }
 
   .panel-section {
@@ -168,7 +230,13 @@
 
   .section-stars {
     flex: 1; /* Allow stars panel to take remaining space if needed */
-    min-height: 200px; /* But ensure it has space */
+    min-height: 150px; /* But ensure it has space */
+    overflow-y: auto;
+  }
+
+  .section-tuning {
+    max-height: 300px;
+    overflow-y: auto;
   }
 
   /* OVERLAYS (Floating above Canvas) */
@@ -193,22 +261,12 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
-    width: 320px;
+    width: 280px;
     z-index: 50;
     pointer-events: none; /* Let clicks pass through gaps */
   }
   .overlay-bottom-left > * {
     pointer-events: auto;
-  }
-
-  .logs-wrapper {
-    max-height: 70vh; /* Expanded height */
-    overflow-y: auto;
-    background: rgba(10, 10, 15, 0.9);
-    border-radius: 8px;
-    border: 1px solid #334;
-    display: flex;
-    flex-direction: column;
   }
 
   .controls-wrapper {

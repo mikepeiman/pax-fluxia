@@ -1,180 +1,561 @@
 <script lang="ts">
-    import { combatLog } from "$lib/stores/combatLogStore";
-    import { fade } from "svelte/transition";
+    import { combatLog, STAR_TYPE_COLORS } from "$lib/stores/combatLogStore";
+    import { fade, slide } from "svelte/transition";
     import type { CombatLogEntry } from "$lib/stores/combatLogStore";
 
-    let visible = $state(true);
+    // Drawer state - exposed for parent to control layout (bindable)
+    let { isOpen = $bindable(true) } = $props();
 
-    function toggle() {
-        visible = !visible;
+    // Track which battle cards are expanded
+    let expandedBattles = $state<Set<string>>(new Set());
+
+    function toggleDrawer() {
+        isOpen = !isOpen;
     }
 
-    // Helper to map result to color
+    function toggleBattle(battleId: string) {
+        if (expandedBattles.has(battleId)) {
+            expandedBattles.delete(battleId);
+            expandedBattles = new Set(expandedBattles); // Trigger reactivity
+        } else {
+            expandedBattles.add(battleId);
+            expandedBattles = new Set(expandedBattles);
+        }
+    }
+
+    // Group logs into "battles" - continuous combat against the same target
+    // A battle ends when there's a CONQUERED result or a gap of more than 10 ticks
+    interface Battle {
+        id: string;
+        targetId: string;
+        targetOwnerId: string;
+        attackerId: string;
+        startTick: number;
+        endTick: number;
+        result: 'ONGOING' | 'CONQUERED' | 'DEFENSE';
+        entries: CombatLogEntry[];
+        totalDamageDealt: number;
+        totalDamageTaken: number;
+    }
+
+    const battles = $derived.by(() => {
+        const logs = $combatLog;
+        const battleMap = new Map<string, Battle>();
+        
+        // Process logs in reverse (oldest first) to build battles chronologically
+        const sortedLogs = [...logs].reverse();
+        
+        for (const log of sortedLogs) {
+            // Battle key: attacker -> defender
+            const battleKey = `${log.attacker.ownerId}->${log.defender.id}`;
+            
+            const existing = battleMap.get(battleKey);
+            
+            // Check if this is a continuation of existing battle (within 10 ticks)
+            if (existing && log.tick - existing.endTick <= 10 && existing.result === 'ONGOING') {
+                existing.entries.push(log);
+                existing.endTick = log.tick;
+                existing.totalDamageDealt += log.defender.kills + log.defender.disabled;
+                existing.totalDamageTaken += log.attacker.kills + log.attacker.disabled;
+                if (log.result === 'CONQUERED') {
+                    existing.result = 'CONQUERED';
+                }
+            } else {
+                // Start new battle
+                const battle: Battle = {
+                    id: `battle-${log.tick}-${log.defender.id}`,
+                    targetId: log.defender.id,
+                    targetOwnerId: log.defender.ownerId,
+                    attackerId: log.attacker.ownerId,
+                    startTick: log.tick,
+                    endTick: log.tick,
+                    result: log.result === 'CONQUERED' ? 'CONQUERED' : 'ONGOING',
+                    entries: [log],
+                    totalDamageDealt: log.defender.kills + log.defender.disabled,
+                    totalDamageTaken: log.attacker.kills + log.attacker.disabled
+                };
+                battleMap.set(battleKey, battle);
+            }
+        }
+        
+        // Convert to array and sort by most recent
+        return Array.from(battleMap.values())
+            .sort((a, b) => b.endTick - a.endTick);
+    });
+
+    // Helper functions
     function getResultColor(result: string) {
         switch (result) {
-            case "CONQUERED":
-                return "#ef4444"; // Red
-            case "DEFENSE":
-                return "#3b82f6"; // Blue
-            case "FALLING":
-                return "#eab308"; // Yellow
-            default:
-                return "#888888";
+            case "CONQUERED": return "#ef4444";
+            case "DEFENSE": return "#3b82f6";
+            case "ONGOING": return "#fbbf24";
+            case "FALLING": return "#ff8844";
+            default: return "#888888";
         }
     }
 
-    // Helper to generate legacy-style message from structured data
-    function getMessage(log: CombatLogEntry) {
-        const attId = log.attacker.ownerId === "human-player" ? "You" : "Enemy";
-        const defId = log.defender.ownerId === "human-player" ? "You" : "Enemy";
-        const target = log.defender.id.replace("star-", "");
-
-        if (log.result === "CONQUERED") {
-            return `${attId} CONQUERED Star ${target} from ${defId} using ${log.attacker.ships.toFixed(0)} ships.`;
+    function getResultIcon(result: string) {
+        switch (result) {
+            case "CONQUERED": return "💀";
+            case "DEFENSE": return "🛡️";
+            case "ONGOING": return "⚔️";
+            case "FALLING": return "📉";
+            default: return "•";
         }
+    }
 
-        return `${attId} attacked Star ${target}. Defense held with ${log.defender.ships.toFixed(0)} ships remaining.`;
+    function formatPlayerId(id: string): string {
+        if (id === "human-player") return "You";
+        if (id.startsWith("ai-")) return `AI ${id.split("-")[1]}`;
+        return id;
+    }
+
+    function formatStarId(id: string): string {
+        return id.replace("star-", "★");
     }
 </script>
 
-<div class="combat-panel" class:collapsed={!visible}>
-    <div class="header" onclick={toggle}>
-        <h3>⚔️ Combat Log</h3>
-        <span class="toggle">{visible ? "▼" : "▲"}</span>
-    </div>
+<div class="combat-drawer" class:open={isOpen}>
+    <!-- Toggle Tab -->
+    <button class="drawer-tab" onclick={toggleDrawer} title={isOpen ? "Close Combat Log" : "Open Combat Log"}>
+        <span class="tab-icon">⚔️</span>
+        <span class="tab-label">{isOpen ? "◀" : "▶"}</span>
+    </button>
 
-    {#if visible}
-        <div class="logs" transition:fade>
-            {#if $combatLog.length === 0}
-                <div class="empty">No combat recorded yet.</div>
-            {/if}
-            {#each $combatLog as log (log.id)}
-                <div
-                    class="log-entry"
-                    style="border-left: 4px solid {getResultColor(log.result)}"
-                >
-                    <div class="log-header">
-                        <span class="tick">T{log.tick}</span>
-                        <span class="star"
-                            >★ {log.defender.id.replace("star-", "")}</span
-                        >
-                        <span class="result">{log.result}</span>
+    <!-- Drawer Content -->
+    {#if isOpen}
+        <div class="drawer-content" transition:slide={{ axis: 'x', duration: 200 }}>
+            <div class="drawer-header">
+                <h3>⚔️ Combat Log</h3>
+                <span class="battle-count">{$combatLog.length} logs / {battles.length} battles</span>
+            </div>
+
+            <div class="battles-list">
+                {#if battles.length === 0}
+                    <div class="empty-state">
+                        <span class="empty-icon">🌌</span>
+                        <p>No battles recorded yet.</p>
+                        <p class="hint">Attack an enemy star to begin combat.</p>
                     </div>
-                    <div class="log-message">
-                        {getMessage(log)}
-                    </div>
-                    <div class="log-stats">
-                        <span class="stat"
-                            >⚔️ Att: {log.attacker.ships.toFixed(1)}</span
+                {:else}
+                    {#each battles as battle (battle.id)}
+                        <div 
+                            class="battle-card"
+                            class:expanded={expandedBattles.has(battle.id)}
+                            style="--result-color: {getResultColor(battle.result)}"
                         >
-                        <span class="stat"
-                            >🛡️ Def: {log.defender.ships.toFixed(1)}</span
-                        >
-                        {#if log.attacker.kills > 0}
-                            <span class="stat kill"
-                                >☠️ {log.attacker.kills.toFixed(0)}</span
+                            <!-- Battle Summary (always visible) -->
+                            <button 
+                                class="battle-summary"
+                                onclick={() => toggleBattle(battle.id)}
                             >
-                        {/if}
-                        {#if log.attacker.disabled > 0}
-                            <span class="stat hit"
-                                >🤕 {log.attacker.disabled.toFixed(0)}</span
-                            >
-                        {/if}
-                    </div>
-                </div>
-            {/each}
+                                <div class="summary-left">
+                                    <span class="result-icon">{getResultIcon(battle.result)}</span>
+                                    <div class="battle-info">
+                                        <span class="battle-target">
+                                            {formatPlayerId(battle.attackerId)} → {formatStarId(battle.targetId)}
+                                        </span>
+                                        <span class="battle-meta">
+                                            T{battle.startTick}{battle.startTick !== battle.endTick ? `-${battle.endTick}` : ''} 
+                                            • {battle.entries.length} tick{battle.entries.length > 1 ? 's' : ''}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="summary-right">
+                                    <span class="damage-dealt" title="Damage dealt">
+                                        ⚔️ {battle.totalDamageDealt}
+                                    </span>
+                                    <span class="damage-taken" title="Damage taken">
+                                        💔 {battle.totalDamageTaken}
+                                    </span>
+                                    <span class="expand-icon">{expandedBattles.has(battle.id) ? '▼' : '▶'}</span>
+                                </div>
+                            </button>
+
+                            <!-- Expanded Battle Details -->
+                            {#if expandedBattles.has(battle.id)}
+                                <div class="battle-details" transition:slide={{ duration: 150 }}>
+                                    <div class="tick-entries">
+                                        {#each battle.entries as entry (entry.id)}
+                                            <div 
+                                                class="tick-entry"
+                                                style="border-left-color: {getResultColor(entry.result)}"
+                                            >
+                                                <div class="entry-header">
+                                                    <span class="tick">T{entry.tick}</span>
+                                                    <span class="result-badge" style="background: {getResultColor(entry.result)}20; color: {getResultColor(entry.result)}">
+                                                        {entry.result}
+                                                    </span>
+                                                </div>
+                                                <div class="entry-stats">
+                                                    <div class="stat-row attacker">
+                                                        <span class="stat-label">ATK</span>
+                                                        <span class="stat-ships">{entry.attacker.ships.toFixed(0)} ships</span>
+                                                        <span class="stat-losses">
+                                                            {#if entry.attacker.kills > 0}
+                                                                <span class="kills">☠️{entry.attacker.kills}</span>
+                                                            {/if}
+                                                            {#if entry.attacker.disabled > 0}
+                                                                <span class="disabled">🤕{entry.attacker.disabled}</span>
+                                                            {/if}
+                                                        </span>
+                                                    </div>
+                                                    <div class="stat-row defender">
+                                                        <span class="stat-label">DEF</span>
+                                                        <span class="stat-ships">{entry.defender.ships.toFixed(0)} ships</span>
+                                                        <span class="stat-losses">
+                                                            {#if entry.defender.kills > 0}
+                                                                <span class="kills">☠️{entry.defender.kills}</span>
+                                                            {/if}
+                                                            {#if entry.defender.disabled > 0}
+                                                                <span class="disabled">🤕{entry.defender.disabled}</span>
+                                                            {/if}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        {/each}
+                                    </div>
+                                </div>
+                            {/if}
+                        </div>
+                    {/each}
+                {/if}
+            </div>
         </div>
     {/if}
 </div>
 
 <style>
-    .combat-panel {
+    .combat-drawer {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100vh;
         display: flex;
-        flex-direction: column;
+        z-index: 100;
+        pointer-events: none;
+    }
+
+    .combat-drawer > * {
+        pointer-events: auto;
+    }
+
+    /* Toggle Tab */
+    .drawer-tab {
+        position: absolute;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 32px;
+        height: 80px;
         background: rgba(10, 10, 18, 0.95);
         border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 8px;
-        margin: 10px;
-        max-height: 300px;
-        font-family: "Exo", sans-serif;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-    }
-
-    .collapsed {
-        height: auto;
-        min-height: 0;
-    }
-
-    .header {
-        padding: 10px 15px;
-        background: rgba(255, 255, 255, 0.05);
+        border-left: none;
+        border-radius: 0 8px 8px 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
         cursor: pointer;
+        transition: all 0.2s;
+        color: #888;
+    }
+
+    .combat-drawer.open .drawer-tab {
+        left: 320px;
+    }
+
+    .drawer-tab:hover {
+        background: rgba(20, 20, 30, 0.95);
+        color: #fff;
+        border-color: #00ffff44;
+    }
+
+    .tab-icon {
+        font-size: 16px;
+    }
+
+    .tab-label {
+        font-size: 10px;
+        font-family: monospace;
+    }
+
+    /* Drawer Content */
+    .drawer-content {
+        width: 320px;
+        height: 100%;
+        background: rgba(10, 10, 18, 0.98);
+        border-right: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        flex-direction: column;
+        box-shadow: 4px 0 20px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Responsive drawer width */
+    @media (max-width: 1400px) {
+        .drawer-content {
+            width: 280px;
+        }
+        .combat-drawer.open .drawer-tab {
+            left: 280px;
+        }
+    }
+
+    @media (max-width: 1100px) {
+        .drawer-content {
+            width: 240px;
+        }
+        .combat-drawer.open .drawer-tab {
+            left: 240px;
+        }
+    }
+
+    .drawer-header {
+        padding: 16px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         display: flex;
         justify-content: space-between;
         align-items: center;
-        border-radius: 8px 8px 0 0;
+        flex-shrink: 0;
     }
 
-    .header h3 {
+    .drawer-header h3 {
         margin: 0;
         font-size: 14px;
         font-weight: bold;
         color: #eee;
         text-transform: uppercase;
         letter-spacing: 1px;
+        font-family: "Exo", sans-serif;
     }
 
-    .logs {
-        overflow-y: auto;
+    .battle-count {
+        font-size: 11px;
+        color: #666;
+        font-family: monospace;
+    }
+
+    /* Battles List */
+    .battles-list {
         flex: 1;
-        padding: 5px;
+        overflow-y: auto;
+        padding: 8px;
         display: flex;
         flex-direction: column;
-        gap: 5px;
+        gap: 8px;
     }
 
-    .log-entry {
+    .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 200px;
+        color: #555;
+        text-align: center;
+    }
+
+    .empty-icon {
+        font-size: 48px;
+        margin-bottom: 16px;
+        opacity: 0.5;
+    }
+
+    .empty-state p {
+        margin: 4px 0;
+    }
+
+    .hint {
+        font-size: 11px;
+        color: #444;
+    }
+
+    /* Battle Card */
+    .battle-card {
         background: rgba(255, 255, 255, 0.03);
-        padding: 8px;
-        border-radius: 4px;
-        font-size: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-left: 3px solid var(--result-color);
+        border-radius: 6px;
+        overflow: hidden;
+        transition: all 0.15s;
     }
 
-    .log-header {
+    .battle-card:hover {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .battle-card.expanded {
+        background: rgba(255, 255, 255, 0.04);
+    }
+
+    /* Battle Summary */
+    .battle-summary {
+        width: 100%;
+        padding: 10px 12px;
+        background: none;
+        border: none;
+        cursor: pointer;
         display: flex;
         justify-content: space-between;
-        margin-bottom: 4px;
-        color: #88aaff;
-        font-weight: bold;
+        align-items: center;
+        color: #ddd;
+        font-family: inherit;
+        text-align: left;
     }
 
-    .log-message {
-        margin-bottom: 6px;
-        color: #ccc;
-        line-height: 1.4;
-    }
-
-    .log-stats {
+    .summary-left {
         display: flex;
+        align-items: center;
         gap: 10px;
+    }
+
+    .result-icon {
+        font-size: 18px;
+    }
+
+    .battle-info {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .battle-target {
+        font-size: 12px;
+        font-weight: 600;
+        color: #eee;
+    }
+
+    .battle-meta {
+        font-size: 10px;
+        color: #666;
+        font-family: monospace;
+    }
+
+    .summary-right {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 11px;
+        font-family: monospace;
+    }
+
+    .damage-dealt {
+        color: #ef4444;
+    }
+
+    .damage-taken {
         color: #888;
+    }
+
+    .expand-icon {
+        color: #555;
+        font-size: 10px;
+        width: 12px;
+    }
+
+    /* Battle Details (expanded) */
+    .battle-details {
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+        background: rgba(0, 0, 0, 0.2);
+    }
+
+    .tick-entries {
+        max-height: 300px;
+        overflow-y: auto;
+        padding: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .tick-entry {
+        padding: 8px 10px;
+        background: rgba(255, 255, 255, 0.02);
+        border-radius: 4px;
+        border-left: 2px solid #888;
         font-size: 11px;
     }
 
-    .dmg {
-        color: #ff6666;
-    }
-    .kill {
-        color: #ff4444;
-        font-weight: bold;
-    }
-    .hit {
-        color: #aaaaaa;
+    .entry-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 6px;
     }
 
-    .empty {
-        padding: 20px;
-        text-align: center;
-        color: #555;
+    .tick {
+        font-family: "Exo", monospace;
+        font-weight: bold;
+        color: #88aaff;
+    }
+
+    .result-badge {
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 9px;
+        font-weight: bold;
+        text-transform: uppercase;
+    }
+
+    .entry-stats {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .stat-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .stat-label {
+        width: 28px;
+        font-size: 9px;
+        font-weight: bold;
+        color: #666;
+    }
+
+    .stat-ships {
+        flex: 1;
+        color: #aaa;
+    }
+
+    .stat-losses {
+        display: flex;
+        gap: 6px;
+    }
+
+    .kills {
+        color: #ef4444;
+    }
+
+    .disabled {
+        color: #888;
+    }
+
+    /* Scrollbar styling */
+    .battles-list::-webkit-scrollbar,
+    .tick-entries::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .battles-list::-webkit-scrollbar-track,
+    .tick-entries::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.2);
+    }
+
+    .battles-list::-webkit-scrollbar-thumb,
+    .tick-entries::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 3px;
+    }
+
+    .battles-list::-webkit-scrollbar-thumb:hover,
+    .tick-entries::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.2);
     }
 </style>

@@ -11,6 +11,16 @@
         CONQUEST_TRANSFER_PERCENTAGE: true,
     });
 
+    // Default values for reset button (canonical game balance settings)
+    const defaultValues = {
+        AGGRESSOR_ADVANTAGE: 0.8,
+        DAMAGE_PER_SHIP: 0.1,
+        LETHALITY: 0.25,
+        FORCE_RATIO_EFFECT: 0,
+        CONQUEST_THRESHOLD: 8,
+        CONQUEST_TRANSFER_PERCENTAGE: 50,
+    };
+
     // REACTIVE values state - this drives the UI and syncs TO GAME_CONFIG
     let values = $state({
         AGGRESSOR_ADVANTAGE: GAME_CONFIG.AGGRESSOR_ADVANTAGE,
@@ -133,8 +143,9 @@
                 variables.forEach((v) => {
                     const key = v.key as VarKey;
                     enabled[key] = true;
-                    values[key] = savedValues[key];
-                    (GAME_CONFIG as any)[key] = savedValues[key];
+                    values[key] = defaultValues[key];
+                    savedValues[key] = defaultValues[key];
+                    (GAME_CONFIG as any)[key] = defaultValues[key];
                 });
             }}>Reset</button
         >

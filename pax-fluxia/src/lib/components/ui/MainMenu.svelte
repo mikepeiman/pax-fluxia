@@ -93,7 +93,7 @@
                             <input
                                 type="range"
                                 min="1"
-                                max="10"
+                                max="50"
                                 bind:value={starsPerPlayer}
                             />
                             <span class="value">{starsPerPlayer}</span>

@@ -145,7 +145,12 @@ export interface GameHistoryEntry {
         id: PlayerId;
         totalShips: number;
         starCount: number;
+        activeAttacks: number;   // Number of outgoing attack orders
+        underAttack: number;     // Number of stars being attacked
     }[];
+    // Global metrics for this tick
+    totalCombatEvents: number;   // Combat engagements this tick
+    conquestsThisTick: number;   // Stars captured this tick
 }
 
 /** Player/AI command */

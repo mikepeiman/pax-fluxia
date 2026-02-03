@@ -99,6 +99,10 @@ export class GameEngine {
     private statsHistory: import('$lib/types/game.types').GameHistoryEntry[] = [];
     private lastHistoryTick: number = 0;
 
+    // Per-tick combat metrics (reset each tick)
+    private tickCombatEvents: number = 0;
+    private tickConquests: number = 0;
+
     // Callbacks
     private onTick: TickCallback | null = null;
     private onTickProgress: TickProgressCallback | null = null;
@@ -170,8 +174,17 @@ export class GameEngine {
         const width = 1600;
         const height = 900;
         const hexRadius = GAME_CONFIG.HEX_RADIUS || 60;
-        const paddingX = 250;
-        const paddingY = 120;
+        
+        // Calculate total stars first to determine optimal padding
+        const playerIds = Array.from(this.players.keys());
+        const starsPerPlayer = GAME_CONFIG.STARS_PER_PLAYER;
+        const totalStars = playerIds.length * starsPerPlayer;
+        
+        // Dynamic padding: reduce for large star counts
+        const basePaddingX = totalStars > 50 ? 80 : totalStars > 20 ? 120 : 150;
+        const basePaddingY = totalStars > 50 ? 60 : totalStars > 20 ? 80 : 100;
+        const paddingX = basePaddingX;
+        const paddingY = basePaddingY;
 
         const grid = new HexGrid({
             width: width - (paddingX * 2),
@@ -189,12 +202,20 @@ export class GameEngine {
             q: 0, r: 0
         }));
 
-        log.sys('GameEngine', `Generated hex grid with ${hexes.length} positions`);
+        log.sys('GameEngine', `Generated hex grid with ${hexes.length} positions for ${totalStars} requested stars`);
 
-        const playerIds = Array.from(this.players.keys());
-        const starsPerPlayer = GAME_CONFIG.STARS_PER_PLAYER;
-        const totalStars = playerIds.length * starsPerPlayer;
-        const minSpacing = hexRadius * 3;
+        // Dynamic spacing calculation based on available area and star count
+        const effectiveWidth = width - (paddingX * 2);
+        const effectiveHeight = height - (paddingY * 2);
+        const effectiveArea = effectiveWidth * effectiveHeight;
+        const areaPerStar = effectiveArea / totalStars;
+        // Calculate spacing that would allow all stars to fit, with minimum of 50px
+        const dynamicSpacing = Math.max(50, Math.sqrt(areaPerStar) * 0.6);
+        // Use the smaller of dynamic spacing or default (hexRadius * 2)
+        const minSpacing = Math.min(hexRadius * 2, dynamicSpacing);
+        
+        log.sys('GameEngine', `Star spacing: ${minSpacing.toFixed(0)}px (dynamic: ${dynamicSpacing.toFixed(0)}, default: ${hexRadius * 2})`);
+        
         const starPositions = selectRandomHexPositions(hexes, totalStars, minSpacing);
 
         log.sys('GameEngine', `Selected ${starPositions.length} positions for stars`);
@@ -431,10 +452,14 @@ export class GameEngine {
         this.tick++;
         this.tickStartTime = performance.now();
 
+        // Reset per-tick combat metrics
+        this.tickCombatEvents = 0;
+        this.tickConquests = 0;
+
         // 1. PRODUCTION
         this.stars.forEach(star => star.produce());
 
-        // 2. FLOW
+        // 2. FLOW (includes combat)
         this.processFlowLinks();
 
         // 3. REPAIR
@@ -450,10 +475,8 @@ export class GameEngine {
         // 5. WIN CHECK
         this.checkWinCondition();
 
-        // 6. HISTORY (Record every 60 ticks)
-        if (this.tick - this.lastHistoryTick >= 60) {
-            this.recordHistory();
-        }
+        // 6. HISTORY (Record EVERY tick for detailed charts)
+        this.recordHistory();
 
         // 7. AI
         this.executeAI();
@@ -521,10 +544,158 @@ export class GameEngine {
             target.addActiveShips(shipped);
         });
 
-        // Process ATTACKS: Remote engagement combat
+        // ================================================================
+        // MULTI-STAR ATTACK AGGREGATION
+        // Group all attacks by target, then process each target once
+        // This ensures conquest is evaluated against TOTAL attacking force
+        // ================================================================
+        const attacksByTarget = new Map<StarId, Star[]>();
         attackOrders.forEach(({ source, target }) => {
-            this.resolveRemoteCombat(source, target);
+            const targetId = target.id;
+            if (!attacksByTarget.has(targetId)) {
+                attacksByTarget.set(targetId, []);
+            }
+            attacksByTarget.get(targetId)!.push(source);
         });
+
+        // Process each target with all its attackers
+        attacksByTarget.forEach((attackers, targetId) => {
+            const target = this.stars.get(targetId);
+            if (target) {
+                this.resolveMultiSourceCombat(attackers, target);
+            }
+        });
+    }
+
+    /**
+     * Multi-Source Remote Engagement Combat
+     * Multiple stars attacking the same target - aggregates all attacking forces
+     * Both sides take damage simultaneously, conquest evaluated against TOTAL attacking force
+     */
+    private resolveMultiSourceCombat(attackers: Star[], defender: Star): void {
+        // Filter out attackers with no ships
+        const validAttackers = attackers.filter(a => a.activeShips > 0);
+        if (validAttackers.length === 0) {
+            // Clear targets for attackers with no ships
+            attackers.forEach(a => {
+                if (a.activeShips <= 0) a.clearTarget();
+            });
+            return;
+        }
+
+        // Calculate TOTAL attacking force from all sources
+        let totalAttackForce = 0;
+        const attackerContributions: { attacker: Star, force: number }[] = [];
+        
+        validAttackers.forEach(attacker => {
+            const force = attacker.activeShips;
+            totalAttackForce += force;
+            attackerContributions.push({ attacker, force });
+        });
+
+        // Damaged ships count at 1/7th effectiveness for defense
+        const defenderForce = defender.activeShips + Math.floor(defender.damagedShips / 7);
+
+        if (defenderForce <= 0) {
+            // Instant conquest - no defenders
+            // Find strongest attacker to be the victor
+            const strongestAttacker = validAttackers.reduce((a, b) => 
+                a.activeShips > b.activeShips ? a : b
+            );
+            this.executeConquest(strongestAttacker, defender);
+            return;
+        }
+
+        // Calculate symmetric damage using TOTAL forces
+        const attackerIsAttacking = true;
+        const defenderIsAttacking = defender.targetId !== null;
+
+        const {
+            killsOnA: killsOnDefender,
+            disabledOnA: disabledOnDefender,
+            killsOnB: killsOnAttacker,
+            disabledOnB: disabledOnAttacker
+        } = calculateCombatV4(
+            defenderForce,
+            totalAttackForce,  // Use TOTAL attacking force
+            defenderIsAttacking,
+            attackerIsAttacking
+        );
+
+        // Apply damage to DEFENDER
+        defender.removeActiveShips(killsOnDefender);
+        defender.takeDamage(disabledOnDefender);
+        defender.markCombat(this.tick);
+
+        // Apply damage to ATTACKERS (proportional return fire)
+        attackerContributions.forEach(({ attacker, force }) => {
+            const proportion = force / totalAttackForce;
+            const kills = Math.floor(killsOnAttacker * proportion);
+            const disabled = Math.floor(disabledOnAttacker * proportion);
+            
+            attacker.removeActiveShips(kills);
+            attacker.takeDamage(disabled);
+            attacker.markCombat(this.tick);
+        });
+
+        // Increment combat event counter for stats
+        this.tickCombatEvents++;
+
+        // Combat telemetry - log the combined attack
+        const primaryAttacker = validAttackers[0];
+        log.combatBattle(
+            this.tick,
+            { id: `${validAttackers.length} stars`, ships: totalAttackForce, starType: primaryAttacker.starType },
+            { id: defender.id, ships: defenderForce, starType: defender.starType },
+            { kills: killsOnDefender, disabled: disabledOnDefender },
+            { kills: killsOnAttacker, disabled: disabledOnAttacker },
+            {
+                aggressor: GAME_CONFIG.AGGRESSOR_ADVANTAGE,
+                damage: GAME_CONFIG.DAMAGE_PER_SHIP,
+                lethality: GAME_CONFIG.LETHALITY,
+                forceRatio: GAME_CONFIG.FORCE_RATIO_EFFECT,
+                repairRate: GAME_CONFIG.REPAIR_RATE
+            }
+        );
+
+        // Push to UI Combat Log
+        combatLog.add({
+            tick: this.tick,
+            attacker: {
+                id: validAttackers.length > 1 ? `${validAttackers.length} stars` : primaryAttacker.id,
+                ships: totalAttackForce,
+                starType: primaryAttacker.starType,
+                ownerId: primaryAttacker.ownerId,
+                kills: killsOnAttacker,
+                disabled: disabledOnAttacker
+            },
+            defender: {
+                id: defender.id,
+                ships: defenderForce,
+                starType: defender.starType,
+                ownerId: defender.ownerId,
+                kills: killsOnDefender,
+                disabled: disabledOnDefender
+            },
+            settings: {
+                aggressor: GAME_CONFIG.AGGRESSOR_ADVANTAGE,
+                damage: GAME_CONFIG.DAMAGE_PER_SHIP,
+                lethality: GAME_CONFIG.LETHALITY,
+                forceRatio: GAME_CONFIG.FORCE_RATIO_EFFECT,
+                repairRate: GAME_CONFIG.REPAIR_RATE
+            },
+            result: defender.activeShips > 0 ? 'DEFENSE' : 'FALLING'
+        });
+
+        // Check CONQUEST condition using TOTAL attacking force
+        const conquestThreshold = totalAttackForce / GAME_CONFIG.CONQUEST_THRESHOLD;
+        if (defender.activeShips <= conquestThreshold) {
+            // Find the attacker with the LARGEST contribution to be the victor
+            const victor = attackerContributions.reduce((a, b) => 
+                a.force > b.force ? a : b
+            ).attacker;
+            this.executeConquest(victor, defender);
+        }
     }
 
     /**
@@ -655,6 +826,10 @@ export class GameEngine {
 
         // Log conquest
         log.success('Conquest', `${attacker.id} conquered ${defender.id}`);
+
+        // Increment conquest counter for stats
+        this.tickConquests++;
+        this.starsCaptured++;
 
         // Update combat log result
         combatLog.add({
@@ -1055,9 +1230,34 @@ export class GameEngine {
 
     private recordHistory(): void {
         this.lastHistoryTick = this.tick;
+        
+        // Pre-calculate attack metrics
+        const playerAttacks = new Map<PlayerId, number>();
+        const playerUnderAttack = new Map<PlayerId, number>();
+        
+        // Initialize counters
+        this.players.forEach(p => {
+            playerAttacks.set(p.id, 0);
+            playerUnderAttack.set(p.id, 0);
+        });
+        
+        // Count active attacks and stars under attack
+        this.stars.forEach(star => {
+            if (star.targetId) {
+                const target = this.stars.get(star.targetId);
+                if (target && target.ownerId !== star.ownerId) {
+                    // This is an attack (not reinforcement)
+                    playerAttacks.set(star.ownerId, (playerAttacks.get(star.ownerId) || 0) + 1);
+                    playerUnderAttack.set(target.ownerId, (playerUnderAttack.get(target.ownerId) || 0) + 1);
+                }
+            }
+        });
+        
         const entry: import('$lib/types/game.types').GameHistoryEntry = {
             tick: this.tick,
-            players: []
+            players: [],
+            totalCombatEvents: this.tickCombatEvents,
+            conquestsThisTick: this.tickConquests
         };
 
         this.players.forEach(player => {
@@ -1065,7 +1265,9 @@ export class GameEngine {
                 entry.players.push({
                     id: player.id,
                     totalShips: this.getPlayerShipCount(player.id),
-                    starCount: this.getPlayerStarCount(player.id)
+                    starCount: this.getPlayerStarCount(player.id),
+                    activeAttacks: playerAttacks.get(player.id) || 0,
+                    underAttack: playerUnderAttack.get(player.id) || 0
                 });
             }
         });

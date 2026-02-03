@@ -116,19 +116,19 @@ export const GAME_CONFIG: GameConfigType = {
     // ========================================================================
 
     /** Tilts damage toward attacker (>1) or defender (<1). 1.0 = symmetric. */
-    AGGRESSOR_ADVANTAGE: 1.0,
+    AGGRESSOR_ADVANTAGE: 0.8,
 
     /** Base damage per engaged ship per tick. Range: 0.05-2.0 */
-    DAMAGE_PER_SHIP: 0.2,
+    DAMAGE_PER_SHIP: 0.1,
 
     /** Fraction of damage that destroys ships (rest disables). Range: 0-1 */
     LETHALITY: 0.25,
 
     /** How much numerical superiority matters. 0 = none, 1 = dominant */
-    FORCE_RATIO_EFFECT: 0.3,
+    FORCE_RATIO_EFFECT: 0,
 
     /** Overwhelm ratio for instant conquest (need Nx enemy ships) */
-    CONQUEST_THRESHOLD: 7,
+    CONQUEST_THRESHOLD: 8,
 
     // ========================================================================
     // PRODUCTION

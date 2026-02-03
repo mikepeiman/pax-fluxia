@@ -13,6 +13,7 @@ import type {
 } from '$lib/types/game.types';
 
 import { GameEngine, createEngine } from '$lib/engine/GameEngine';
+import { combatLog } from '$lib/stores/combatLogStore';
 
 // Default settings
 const DEFAULT_SETTINGS: GameSettings = {
@@ -91,6 +92,9 @@ function startGame(): void {
     if (engine) {
         engine.destroy();
     }
+
+    // Clear combat log from previous game
+    combatLog.clear();
 
     // Create new engine
     sessionId++;
@@ -216,6 +220,14 @@ function getStats() {
     };
 }
 
+/** Get stats history for endgame charts */
+function getHistory() {
+    if (engine) {
+        return engine.getStatsHistory();
+    }
+    return [];
+}
+
 /** Force update config (e.g. from DebugPanel) */
 function updateConfig(): void {
     if (engine) {
@@ -254,5 +266,6 @@ export const gameStore = {
     returnToMenu,
     restart,
     getStats,
+    getHistory,
     updateConfig
 };
