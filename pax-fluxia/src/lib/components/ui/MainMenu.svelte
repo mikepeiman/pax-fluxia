@@ -6,13 +6,33 @@
 
     let visible = $state(true);
 
-    // Config State
-    let mapType = $state("Standard");
-    let playerCount = $state<GameSettings["playerCount"]>(2);
-    let difficulty = $state("Normal");
-    let starsPerPlayer = $state(GAME_CONFIG.STARS_PER_PLAYER);
-    let minLinks = $state(GAME_CONFIG.MIN_LINKS_PER_STAR);
-    let maxLinks = $state(GAME_CONFIG.MAX_LINKS_PER_STAR);
+    // Load from localStorage or use defaults
+    function loadSetting<T>(key: string, defaultValue: T): T {
+        if (typeof window === 'undefined') return defaultValue;
+        const stored = localStorage.getItem(`pax-fluxia-${key}`);
+        if (stored) {
+            try {
+                return JSON.parse(stored) as T;
+            } catch {
+                return defaultValue;
+            }
+        }
+        return defaultValue;
+    }
+
+    function saveSetting(key: string, value: any) {
+        if (typeof window === 'undefined') return;
+        localStorage.setItem(`pax-fluxia-${key}`, JSON.stringify(value));
+    }
+
+    // Config State (loaded from localStorage)
+    let mapType = $state(loadSetting("mapType", "Standard"));
+    let playerCount = $state<GameSettings["playerCount"]>(loadSetting("playerCount", 6));
+    let difficulty = $state(loadSetting("difficulty", "Normal"));
+    let starsPerPlayer = $state(loadSetting("starsPerPlayer", 5));
+    let shipsPerStar = $state(loadSetting("shipsPerStar", 40));
+    let minLinks = $state(loadSetting("minLinks", 1));
+    let maxLinks = $state(loadSetting("maxLinks", 6));
 
     // Constants
     const MAP_TYPES = ["Standard", "DEBUG MAP"];
@@ -20,8 +40,18 @@
     const DIFFICULTIES = ["Easy", "Normal", "Hard", "Expert"];
 
     function startGame() {
+        // Save settings to localStorage
+        saveSetting("mapType", mapType);
+        saveSetting("playerCount", playerCount);
+        saveSetting("difficulty", difficulty);
+        saveSetting("starsPerPlayer", starsPerPlayer);
+        saveSetting("shipsPerStar", shipsPerStar);
+        saveSetting("minLinks", minLinks);
+        saveSetting("maxLinks", maxLinks);
+
         // Apply Config
         GAME_CONFIG.STARS_PER_PLAYER = starsPerPlayer;
+        GAME_CONFIG.STARTING_SHIPS = shipsPerStar;
         GAME_CONFIG.MIN_LINKS_PER_STAR = minLinks;
         GAME_CONFIG.MAX_LINKS_PER_STAR = maxLinks;
         
@@ -94,16 +124,31 @@
 
                 <!-- Game Config (New Features) -->
                 <div class="control-group config-row">
-                    <div class="config-item">
-                        <label>STARS / PLAYER</label>
-                        <div class="slider-container">
-                            <input
-                                type="range"
-                                min="1"
-                                max="20"
-                                bind:value={starsPerPlayer}
-                            />
-                            <span class="value">{starsPerPlayer}</span>
+                    <div class="config-dual-row">
+                        <div class="config-item">
+                            <label>STARS / PLAYER</label>
+                            <div class="slider-container">
+                                <input
+                                    type="range"
+                                    min="1"
+                                    max="20"
+                                    bind:value={starsPerPlayer}
+                                />
+                                <span class="value">{starsPerPlayer}</span>
+                            </div>
+                        </div>
+                        <div class="config-item">
+                            <label>SHIPS / STAR</label>
+                            <div class="slider-container">
+                                <input
+                                    type="range"
+                                    min="10"
+                                    max="200"
+                                    step="10"
+                                    bind:value={shipsPerStar}
+                                />
+                                <span class="value">{shipsPerStar}</span>
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -131,12 +131,21 @@
             </div>
 
             <div class="battles-list">
-                {#if battles.length === 0}
+                {#if $combatLog.length === 0}
                     <div class="empty-state">
                         <span class="empty-icon">🌌</span>
                         <p>No battles recorded yet.</p>
                         <p class="hint">Attack an enemy star to begin combat.</p>
                     </div>
+                {:else if battles.length === 0}
+                    <!-- Fallback: show raw logs if battle grouping fails -->
+                    {#each $combatLog as entry (entry.id)}
+                        <div class="raw-log-entry">
+                            <span class="tick">T{entry.tick}</span>
+                            <span class="actors">{formatPlayerId(entry.attacker.ownerId)} → {formatStarId(entry.defender.id)}</span>
+                            <span class="result" style="color: {getResultColor(entry.result)}">{entry.result}</span>
+                        </div>
+                    {/each}
                 {:else}
                     {#each battles as battle (battle.id)}
                         <div 
@@ -557,5 +566,35 @@
     .battles-list::-webkit-scrollbar-thumb:hover,
     .tick-entries::-webkit-scrollbar-thumb:hover {
         background: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Raw log entries (fallback) */
+    .raw-log-entry {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 10px;
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 4px;
+        font-size: 11px;
+        border-left: 2px solid #666;
+    }
+
+    .raw-log-entry .tick {
+        color: #88aaff;
+        font-family: monospace;
+        font-weight: bold;
+        min-width: 40px;
+    }
+
+    .raw-log-entry .actors {
+        flex: 1;
+        color: #ccc;
+    }
+
+    .raw-log-entry .result {
+        font-weight: bold;
+        font-size: 10px;
+        text-transform: uppercase;
     }
 </style>

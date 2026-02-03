@@ -18,7 +18,7 @@ import { combatLog } from '$lib/stores/combatLogStore';
 // Default settings
 const DEFAULT_SETTINGS: GameSettings = {
     map: 'empire',
-    playerCount: 2,
+    playerCount: 6,
     difficulty: 'normal',
     minLinksPerStar: 1,
     maxLinksPerStar: 6

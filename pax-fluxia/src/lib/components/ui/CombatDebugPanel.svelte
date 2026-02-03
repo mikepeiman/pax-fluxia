@@ -9,6 +9,9 @@
         FORCE_RATIO_EFFECT: true,
         CONQUEST_THRESHOLD: true,
         CONQUEST_TRANSFER_PERCENTAGE: true,
+        RETREAT_CAPTURE_RATE: true,
+        SCATTER_CAPTURE_RATE: true,
+        SCATTER_DESTROY_RATE: true,
     });
 
     // Default values for reset button (canonical game balance settings)
@@ -19,6 +22,9 @@
         FORCE_RATIO_EFFECT: 0,
         CONQUEST_THRESHOLD: 8,
         CONQUEST_TRANSFER_PERCENTAGE: 50,
+        RETREAT_CAPTURE_RATE: 0.35,
+        SCATTER_CAPTURE_RATE: 0.50,
+        SCATTER_DESTROY_RATE: 0.50,
     };
 
     // REACTIVE values state - this drives the UI and syncs TO GAME_CONFIG
@@ -29,6 +35,9 @@
         FORCE_RATIO_EFFECT: GAME_CONFIG.FORCE_RATIO_EFFECT,
         CONQUEST_THRESHOLD: GAME_CONFIG.CONQUEST_THRESHOLD,
         CONQUEST_TRANSFER_PERCENTAGE: GAME_CONFIG.CONQUEST_TRANSFER_PERCENTAGE,
+        RETREAT_CAPTURE_RATE: GAME_CONFIG.RETREAT_CAPTURE_RATE,
+        SCATTER_CAPTURE_RATE: GAME_CONFIG.SCATTER_CAPTURE_RATE,
+        SCATTER_DESTROY_RATE: GAME_CONFIG.SCATTER_DESTROY_RATE,
     });
 
     // Store original values for when re-enabled
@@ -39,6 +48,9 @@
         FORCE_RATIO_EFFECT: GAME_CONFIG.FORCE_RATIO_EFFECT,
         CONQUEST_THRESHOLD: GAME_CONFIG.CONQUEST_THRESHOLD,
         CONQUEST_TRANSFER_PERCENTAGE: GAME_CONFIG.CONQUEST_TRANSFER_PERCENTAGE,
+        RETREAT_CAPTURE_RATE: GAME_CONFIG.RETREAT_CAPTURE_RATE,
+        SCATTER_CAPTURE_RATE: GAME_CONFIG.SCATTER_CAPTURE_RATE,
+        SCATTER_DESTROY_RATE: GAME_CONFIG.SCATTER_DESTROY_RATE,
     });
 
     // Neutral values when disabled
@@ -49,6 +61,9 @@
         FORCE_RATIO_EFFECT: 0, // No force ratio bonus
         CONQUEST_THRESHOLD: 9999, // Impossible to conquer
         CONQUEST_TRANSFER_PERCENTAGE: 0, // No transfer
+        RETREAT_CAPTURE_RATE: 1.0, // Capture all on retreat
+        SCATTER_CAPTURE_RATE: 1.0, // Capture all on scatter
+        SCATTER_DESTROY_RATE: 0, // No destruction
     };
 
     // Timing variables
@@ -109,6 +124,30 @@
             min: 0,
             max: 100,
             step: 10,
+        },
+        {
+            key: "RETREAT_CAPTURE_RATE",
+            label: "Retreat Capture",
+            desc: "% captured when defender retreats",
+            min: 0,
+            max: 1,
+            step: 0.05,
+        },
+        {
+            key: "SCATTER_CAPTURE_RATE",
+            label: "Scatter Capture",
+            desc: "% captured when defender scatters",
+            min: 0,
+            max: 1,
+            step: 0.05,
+        },
+        {
+            key: "SCATTER_DESTROY_RATE",
+            label: "Scatter Destroy",
+            desc: "% of escapees destroyed",
+            min: 0,
+            max: 1,
+            step: 0.05,
         },
     ] as const;
 

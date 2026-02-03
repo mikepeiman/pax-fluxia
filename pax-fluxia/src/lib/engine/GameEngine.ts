@@ -252,6 +252,8 @@ export class GameEngine {
                 ownerId: ownerId,
                 starType: starType
             }, this.stars.size);
+            // Add starting ships
+            star.addActiveShips(GAME_CONFIG.STARTING_SHIPS);
             this.stars.set(star.id, star);
         });
 
@@ -804,38 +806,134 @@ export class GameEngine {
     }
 
     /**
-     * Execute star conquest - change ownership and transfer ships
+     * Execute star conquest - includes scatter/retreat logic
+     * 
+     * Capture rates:
+     * - Retreating (order to friendly): RETREAT_CAPTURE_RATE captured, rest escape to target
+     * - Escape routes exist: SCATTER_CAPTURE_RATE captured, SCATTER_DESTROY_RATE of rest destroyed, remainder scatter
+     * - No escape: 100% captured
      */
     private executeConquest(attacker: Star, defender: Star): void {
         const previousOwner = defender.ownerId;
-
-        // Transfer ownership using setter method
+        const defenderTotal = defender.totalShips;
+        
+        // ====================================================================
+        // SCATTER/RETREAT LOGIC
+        // ====================================================================
+        
+        // Check if defender is retreating (has order to friendly star)
+        let isRetreating = false;
+        let retreatTarget: Star | null = null;
+        if (defender.targetId) {
+            const targetStar = this.stars.get(defender.targetId);
+            if (targetStar && targetStar.ownerId === previousOwner) {
+                isRetreating = true;
+                retreatTarget = targetStar;
+            }
+        }
+        
+        // Find escape routes (friendly neighbors via connections)
+        const escapeRoutes: Star[] = [];
+        if (!isRetreating) {
+            this.connections.forEach(conn => {
+                const connectedId = conn.sourceId === defender.id ? conn.targetId :
+                    conn.targetId === defender.id ? conn.sourceId : null;
+                if (connectedId) {
+                    const neighbor = this.stars.get(connectedId);
+                    if (neighbor && neighbor.ownerId === previousOwner) {
+                        escapeRoutes.push(neighbor);
+                    }
+                }
+            });
+        }
+        
+        // Calculate capture rate based on situation
+        let captureRate: number;
+        let shipsDestroyed = 0;
+        let shipsEscaping = 0;
+        
+        if (isRetreating && retreatTarget) {
+            // Retreating: lower capture rate, rest escape to target
+            captureRate = GAME_CONFIG.RETREAT_CAPTURE_RATE;
+            const shipsCaptured = Math.floor(defenderTotal * captureRate);
+            shipsEscaping = defenderTotal - shipsCaptured;
+            
+            // Transfer escaping ships to retreat target
+            retreatTarget.addActiveShips(shipsEscaping);
+            log.success('Retreat', `${shipsEscaping} ships retreat from ${defender.id} to ${retreatTarget.id}`);
+            
+        } else if (escapeRoutes.length > 0) {
+            // Scatter: some captured, some destroyed, some escape
+            captureRate = GAME_CONFIG.SCATTER_CAPTURE_RATE;
+            const shipsCaptured = Math.floor(defenderTotal * captureRate);
+            const remaining = defenderTotal - shipsCaptured;
+            shipsDestroyed = Math.floor(remaining * GAME_CONFIG.SCATTER_DESTROY_RATE);
+            shipsEscaping = remaining - shipsDestroyed;
+            
+            // Distribute escaping ships to friendly neighbors
+            if (shipsEscaping > 0 && escapeRoutes.length > 0) {
+                const perRoute = Math.floor(shipsEscaping / escapeRoutes.length);
+                let remainder = shipsEscaping % escapeRoutes.length;
+                
+                escapeRoutes.forEach(route => {
+                    const toAdd = perRoute + (remainder > 0 ? 1 : 0);
+                    remainder = Math.max(0, remainder - 1);
+                    route.addActiveShips(toAdd);
+                });
+                log.success('Scatter', `${shipsEscaping} ships scatter from ${defender.id} to ${escapeRoutes.length} neighbors`);
+            }
+            
+            if (shipsDestroyed > 0) {
+                log.data('Scatter', `${shipsDestroyed} ships destroyed during scatter`);
+            }
+            
+        } else {
+            // No escape: 100% captured
+            captureRate = 1.0;
+        }
+        
+        // Calculate captured ships
+        const shipsCaptured = Math.floor(defenderTotal * captureRate);
+        
+        // ====================================================================
+        // EXECUTE CONQUEST
+        // ====================================================================
+        
+        // Clear defender ships first
+        defender.clearShips();
+        
+        // Transfer ownership
         defender.setOwner(attacker.ownerId);
-
-        // CRITICAL: Transfer ships from attacker to newly conquered star
-        // This prevents the star from being immediately re-conquered
+        
+        // Add captured ships to defender (now owned by attacker)
+        defender.addActiveShips(shipsCaptured);
+        
+        // Transfer attacker ships to newly conquered star
         const transferPercentage = GAME_CONFIG.CONQUEST_TRANSFER_PERCENTAGE / 100;
         const shipsToTransfer = Math.floor(attacker.activeShips * transferPercentage);
-
+        
         if (shipsToTransfer > 0) {
             attacker.removeActiveShips(shipsToTransfer);
             defender.addActiveShips(shipsToTransfer);
             log.data('Conquest', `Transferred ${shipsToTransfer} ships from ${attacker.id} to ${defender.id}`);
         }
-
+        
         // Clear orders
         if (GAME_CONFIG.CLEAR_ORDER_ON_CAPTURE) {
             attacker.clearTarget();
             defender.clearTarget();
         }
-
+        
         // Log conquest
-        log.success('Conquest', `${attacker.id} conquered ${defender.id}`);
-
+        const captureInfo = isRetreating ? `(retreat: ${shipsEscaping} escaped)` :
+            escapeRoutes.length > 0 ? `(scatter: ${shipsEscaping} escaped, ${shipsDestroyed} destroyed)` :
+            '(no escape)';
+        log.success('Conquest', `${attacker.id} conquered ${defender.id} - captured ${shipsCaptured}/${defenderTotal} ${captureInfo}`);
+        
         // Increment conquest counter for stats
         this.tickConquests++;
         this.starsCaptured++;
-
+        
         // Update combat log result
         combatLog.add({
             tick: this.tick,
@@ -844,16 +942,16 @@ export class GameEngine {
                 ships: attacker.activeShips,
                 starType: attacker.starType,
                 ownerId: attacker.ownerId,
-                kills: 0,
+                kills: shipsDestroyed,
                 disabled: 0
             },
             defender: {
                 id: defender.id,
-                ships: defender.activeShips,
+                ships: shipsCaptured,
                 starType: defender.starType,
                 ownerId: previousOwner,
                 kills: 0,
-                disabled: 0
+                disabled: shipsEscaping
             },
             settings: {
                 aggressor: GAME_CONFIG.AGGRESSOR_ADVANTAGE,

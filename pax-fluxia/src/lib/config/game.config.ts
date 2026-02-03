@@ -38,6 +38,12 @@ interface GameConfigType {
     OVERWHELM_THRESHOLD: number;
     CLEAR_ORDER_ON_CAPTURE: boolean;
 
+    // Scatter/Retreat (on conquest)
+    RETREAT_CAPTURE_RATE: number;      // % captured when defender is retreating (default 0.35)
+    SCATTER_CAPTURE_RATE: number;      // % captured when escape routes exist (default 0.50)
+    SCATTER_DESTROY_RATE: number;      // % of remaining destroyed on scatter (default 0.50)
+    STARTING_SHIPS: number;            // Ships per star at game start
+
     // Visual
     MAX_RENDERED_SHIPS: number;
     SHIPS_PER_RING: number;
@@ -171,6 +177,22 @@ export const GAME_CONFIG: GameConfigType = {
     CLEAR_ORDER_ON_CAPTURE: true,
 
     // ========================================================================
+    // SCATTER / RETREAT
+    // ========================================================================
+
+    /** % of ships captured when defender is actively retreating to friendly star */
+    RETREAT_CAPTURE_RATE: 0.35,
+
+    /** % of ships captured when defender has escape routes but not retreating */
+    SCATTER_CAPTURE_RATE: 0.50,
+
+    /** % of non-captured ships destroyed during scatter (rest escape) */
+    SCATTER_DESTROY_RATE: 0.50,
+
+    /** Starting ships per star at game start */
+    STARTING_SHIPS: 40,
+
+    // ========================================================================
     // VISUAL
     // ========================================================================
 
@@ -225,7 +247,7 @@ export const GAME_CONFIG: GameConfigType = {
     SHOW_HEX_GRID: false,
 
     /** Stars per player (Map Size) */
-    STARS_PER_PLAYER: 2,
+    STARS_PER_PLAYER: 5,
 
     // ========================================================================
     // LINK CONNECTIVITY
