@@ -1,7 +1,5 @@
 <script lang="ts">
   import { gameStore } from "$lib/stores/gameStore.svelte";
-  import TickOrb from "./TickOrb.svelte";
-  import TickMetronome from "./TickMetronome.svelte";
   import SpeedControls from "./SpeedControls.svelte";
   import Leaderboard from "./Leaderboard.svelte";
   import ResultsModal from "./ResultsModal.svelte";
@@ -9,23 +7,14 @@
   const winner = $derived(gameStore.winner);
 </script>
 
-<div class="hud-overlay no-select">
-  <!-- Top Left: Telemetry - HIDDEN: not useful currently
-  <div class="hud-top-left">
-    <div class="telemetry glass-panel">
-      <TickOrb progress={gameStore.tickProgress} />
-      <div class="fps font-data">60 FPS</div>
-    </div>
-  </div>
-  -->
-
-  <!-- Top Right: Leaderboard -->
-  <div class="hud-top-right">
+<div class="hud-footer no-select">
+  <!-- Left: Leaderboard -->
+  <div class="footer-left">
     <Leaderboard players={gameStore.leaderboard} />
   </div>
 
-  <!-- Bottom Left: Command Deck -->
-  <div class="hud-bottom-left">
+  <!-- Right: Controls -->
+  <div class="footer-right">
     <div class="command-deck glass-panel">
       <SpeedControls
         speed={gameStore.speed}
@@ -52,7 +41,7 @@
     </div>
   </div>
 
-  <!-- Results Modal -->
+  <!-- Results Modal (overlay) -->
   {#if winner}
     <div class="modal-overlay">
       <ResultsModal />
@@ -61,17 +50,20 @@
 </div>
 
 <style>
-  .telemetry {
-    padding: var(--space-3) var(--space-4);
+  .hud-footer {
     display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
-    min-width: 180px;
+    justify-content: space-between;
+    align-items: flex-start;
+    width: 100%;
+    gap: var(--space-4);
   }
 
-  .fps {
-    font-size: var(--text-xs);
-    color: var(--color-text-dim);
+  .footer-left {
+    flex-shrink: 0;
+  }
+
+  .footer-right {
+    flex-shrink: 0;
   }
 
   .command-deck {
@@ -84,5 +76,15 @@
   .system-controls {
     display: flex;
     gap: var(--space-2);
+  }
+
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.8);
   }
 </style>

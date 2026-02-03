@@ -2,17 +2,18 @@
     import { gameStore } from "$lib/stores/gameStore.svelte";
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { fade, fly } from "svelte/transition";
+    import type { GameSettings } from "$lib/types/game.types";
 
     let visible = $state(true);
 
     // Config State
     let mapType = $state("Empire (Standard)");
-    let playerCount = $state(2);
+    let playerCount = $state<GameSettings["playerCount"]>(2);
     let difficulty = $state("Normal");
     let starsPerPlayer = $state(GAME_CONFIG.STARS_PER_PLAYER);
 
     // Constants
-    const PLAYERS = [2, 3, 4, 5, 6];
+    const PLAYERS: GameSettings["playerCount"][] = [2, 3, 4, 5, 6];
     const DIFFICULTIES = ["Easy", "Normal", "Hard", "Expert"];
 
     function startGame() {

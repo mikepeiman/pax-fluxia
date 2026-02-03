@@ -117,17 +117,12 @@
 
 <style>
     .combat-panel {
-        position: fixed;
-        top: 0;
-        left: 0;
-        bottom: 0;
-        width: 320px;
+        height: 100%;
         background: rgba(10, 10, 15, 0.95);
         border-right: 1px solid #334;
         color: #eee;
         font-family: "Consolas", "Monaco", monospace;
         font-size: 11px;
-        z-index: 900;
         display: flex;
         flex-direction: column;
         box-shadow: 4px 0 12px rgba(0, 0, 0, 0.5);

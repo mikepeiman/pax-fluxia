@@ -7,7 +7,7 @@
   import GameCanvas from "$lib/components/game/GameCanvas.svelte";
   import DebugPanel from "$lib/components/ui/DebugPanel.svelte";
   import CombatPanel from "$lib/components/ui/CombatPanel.svelte";
-  import CombatLogPanel from "$lib/components/ui/CombatLogPanel.svelte";
+  import StarsPanel from "$lib/components/ui/StarsPanel.svelte";
 
   // Debug panel toggle state
   let showDebug = $state(false);
@@ -41,13 +41,21 @@
   {#if gameStore.currentView === "menu"}
     <MainMenu />
   {:else if gameStore.currentView === "game"}
-    {#key gameStore.sessionId}
-      <GameCanvas />
-    {/key}
-    <GameHUD />
+    <div class="game-layout">
+      <div class="area-log">
+        <StarsPanel />
+      </div>
+      <div class="area-canvas">
+        {#key gameStore.sessionId}
+          <GameCanvas />
+        {/key}
+      </div>
+      <div class="area-footer">
+        <GameHUD />
+      </div>
+    </div>
     <CombatPanel visible={showDebug} />
     <DebugPanel visible={showDebug} />
-    <CombatLogPanel />
   {:else if gameStore.currentView === "results"}
     <ResultsModal />
   {/if}
@@ -59,5 +67,37 @@
     height: 100vh;
     overflow: hidden;
     position: relative;
+  }
+
+  .game-layout {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    grid-template-rows: 1fr auto;
+    grid-template-areas:
+      "log canvas"
+      "log footer";
+    height: 100vh;
+    width: 100vw;
+  }
+
+  .area-log {
+    grid-area: log;
+    overflow: hidden;
+  }
+
+  .area-canvas {
+    grid-area: canvas;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .area-footer {
+    grid-area: footer;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding: var(--space-4);
+    background: rgba(10, 10, 15, 0.8);
+    border-top: 1px solid #334;
   }
 </style>

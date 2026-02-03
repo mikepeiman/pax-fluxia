@@ -5,11 +5,12 @@ export interface CombatLogEntry {
     timestamp: number;
     tick: number;
 
-    // V4: Clear attacker/defender structure
+    // V4: Clear attacker/defender structure with player ownership
     attacker: {
         id: string;
         ships: number;
         starType: string;
+        ownerId: string;  // Player who owns the attacking star
         kills: number;
         disabled: number;
     };
@@ -17,6 +18,7 @@ export interface CombatLogEntry {
         id: string;
         ships: number;
         starType: string;
+        ownerId: string;  // Player who owns the defending star
         kills: number;
         disabled: number;
     };

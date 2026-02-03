@@ -11,7 +11,8 @@ import type {
     PlayerState,
     EngineConfig,
     StarConnection,
-    CombatResult
+    CombatResult,
+    StarType
 } from '$lib/types/game.types';
 
 import { Star, createStar } from './Star';
@@ -547,6 +548,7 @@ export class GameEngine {
                 id: attackerSourceId,
                 ships: Math.floor(totalAttackForce),
                 starType: attackerStar?.starType || 'grey',
+                ownerId: attackerStar?.ownerId || strongestAttackerId || 'unknown',
                 kills: killsOnAttacker,
                 disabled: disabledOnAttacker
             },
@@ -554,6 +556,7 @@ export class GameEngine {
                 id: targetId,
                 ships: Math.floor(totalDefenders),
                 starType: target.starType,
+                ownerId: ownerId,
                 kills: killsOnDefender,
                 disabled: disabledOnDefender
             },
