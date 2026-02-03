@@ -376,7 +376,8 @@ export class GameEngine {
 
     private processFlowLinks(): void {
         this.transfers = [];
-        const arrivals: Fleet[] = [];
+        const attackOrders: { source: Star, target: Star }[] = [];
+        const reinforcements: { source: Star, target: Star, shipped: number }[] = [];
 
         this.stars.forEach(source => {
             if (!source.targetId) return;
@@ -384,39 +385,217 @@ export class GameEngine {
             const target = this.stars.get(source.targetId);
             if (!target) return;
 
-            // Calculate Flow Amount (Uses Config)
-            const flowPercentage = GAME_CONFIG.FLOW_PERCENTAGE || 0.25;
-            const flowAmount = Math.max(GAME_CONFIG.MIN_FLOW_SHIPS, Math.floor(source.activeShips * flowPercentage));
+            // ================================================================
+            // KEY DISTINCTION: ATTACKS vs REINFORCEMENTS
+            // ================================================================
+            const isAttack = source.ownerId !== target.ownerId;
 
-            // FIX: Clear attack order if source has no ships to send
-            // This prevents stale attack arrows from persisting on the map
-            if (flowAmount === 0 || source.activeShips === 0) {
-                source.clearTarget(); // Clear the arrow
-                return;
+            if (isAttack) {
+                // ATTACK: Remote engagement - ships DON'T leave source
+                // Combat will use source.activeShips directly
+                attackOrders.push({ source, target });
+            } else {
+                // REINFORCEMENT: Ships physically transfer to friendly star
+                const flowPercentage = GAME_CONFIG.FLOW_PERCENTAGE || 0.25;
+                const flowAmount = Math.max(
+                    GAME_CONFIG.MIN_FLOW_SHIPS,
+                    Math.floor(source.activeShips * flowPercentage)
+                );
+
+                if (flowAmount === 0 || source.activeShips === 0) {
+                    source.clearTarget();
+                    return;
+                }
+
+                const shipped = source.removeActiveShips(flowAmount);
+                if (shipped > 0) {
+                    reinforcements.push({ source, target, shipped });
+
+                    // Create transfer packet for visual
+                    const transferPacket = createFleet({
+                        id: `transfer-${this.tick}-${source.id}-${target.id}`,
+                        sourceId: source.id,
+                        targetId: target.id,
+                        ownerId: source.ownerId,
+                        shipCount: shipped,
+                        totalDistance: 100,
+                        speed: 0
+                    });
+                    this.transfers.push(transferPacket);
+                }
             }
-
-            const shipped = source.removeActiveShips(flowAmount);
-            if (shipped === 0) return;
-
-            const fleetId = `transfer-${this.tick}-${source.id}-${target.id}`;
-            const transferPacket = createFleet({
-                id: fleetId,
-                sourceId: source.id,
-                targetId: target.id,
-                ownerId: source.ownerId,
-                shipCount: shipped,
-                totalDistance: 100, // Dummy
-                speed: 0
-            });
-
-            this.transfers.push(transferPacket);
-            arrivals.push(transferPacket);
         });
 
-        if (arrivals.length > 0) {
-            this.handleFleetArrivals(arrivals);
+        // Process REINFORCEMENTS: Add ships to friendly destination
+        reinforcements.forEach(({ target, shipped }) => {
+            target.addActiveShips(shipped);
+        });
+
+        // Process ATTACKS: Remote engagement combat
+        attackOrders.forEach(({ source, target }) => {
+            this.resolveRemoteCombat(source, target);
+        });
+    }
+
+    /**
+     * Remote Engagement Combat
+     * Ships stay at their stars - combat uses current ship counts
+     * Both sides take damage simultaneously
+     */
+    private resolveRemoteCombat(attacker: Star, defender: Star): void {
+        if (attacker.activeShips <= 0) {
+            attacker.clearTarget();
+            return;
+        }
+
+        // Combat uses CURRENT ship counts - ships don't leave
+        const attackerForce = attacker.activeShips;
+        // Damaged ships count at 1/7th effectiveness for defense
+        const defenderForce = defender.activeShips + Math.floor(defender.damagedShips / 7);
+
+        if (defenderForce <= 0) {
+            // Instant conquest - no defenders
+            this.executeConquest(attacker, defender);
+            return;
+        }
+
+        // Calculate symmetric damage
+        const attackerIsAttacking = true;
+        const defenderIsAttacking = defender.targetId !== null;
+
+        const {
+            killsOnA: killsOnDefender,
+            disabledOnA: disabledOnDefender,
+            killsOnB: killsOnAttacker,
+            disabledOnB: disabledOnAttacker
+        } = calculateCombatV4(
+            defenderForce,
+            attackerForce,
+            defenderIsAttacking,
+            attackerIsAttacking
+        );
+
+        // Apply damage to DEFENDER
+        defender.removeActiveShips(killsOnDefender);
+        defender.takeDamage(disabledOnDefender);
+        defender.markCombat(this.tick);
+
+        // Apply damage to ATTACKER (return fire)
+        attacker.removeActiveShips(killsOnAttacker);
+        attacker.takeDamage(disabledOnAttacker);
+        attacker.markCombat(this.tick);
+
+        // Combat telemetry
+        log.combatBattle(
+            this.tick,
+            { id: attacker.id, ships: attackerForce, starType: attacker.starType },
+            { id: defender.id, ships: defenderForce, starType: defender.starType },
+            { kills: killsOnDefender, disabled: disabledOnDefender },
+            { kills: killsOnAttacker, disabled: disabledOnAttacker },
+            {
+                aggressor: GAME_CONFIG.AGGRESSOR_ADVANTAGE,
+                damage: GAME_CONFIG.DAMAGE_PER_SHIP,
+                lethality: GAME_CONFIG.LETHALITY,
+                forceRatio: GAME_CONFIG.FORCE_RATIO_EFFECT,
+                repairRate: GAME_CONFIG.REPAIR_RATE
+            }
+        );
+
+        // Push to UI Combat Log
+        combatLog.add({
+            tick: this.tick,
+            attacker: {
+                id: attacker.id,
+                ships: attackerForce,
+                starType: attacker.starType,
+                ownerId: attacker.ownerId,
+                kills: killsOnAttacker,
+                disabled: disabledOnAttacker
+            },
+            defender: {
+                id: defender.id,
+                ships: defenderForce,
+                starType: defender.starType,
+                ownerId: defender.ownerId,
+                kills: killsOnDefender,
+                disabled: disabledOnDefender
+            },
+            settings: {
+                aggressor: GAME_CONFIG.AGGRESSOR_ADVANTAGE,
+                damage: GAME_CONFIG.DAMAGE_PER_SHIP,
+                lethality: GAME_CONFIG.LETHALITY,
+                forceRatio: GAME_CONFIG.FORCE_RATIO_EFFECT,
+                repairRate: GAME_CONFIG.REPAIR_RATE
+            },
+            result: defender.activeShips > 0 ? 'DEFENSE' : 'FALLING'
+        });
+
+        // Check CONQUEST condition: defender ships <= 1/7th of attacker
+        const conquestThreshold = attackerForce / GAME_CONFIG.CONQUEST_THRESHOLD;
+        if (defender.activeShips <= conquestThreshold) {
+            this.executeConquest(attacker, defender);
         }
     }
+
+    /**
+     * Execute star conquest - change ownership and transfer ships
+     */
+    private executeConquest(attacker: Star, defender: Star): void {
+        const previousOwner = defender.ownerId;
+
+        // Transfer ownership using setter method
+        defender.setOwner(attacker.ownerId);
+
+        // CRITICAL: Transfer ships from attacker to newly conquered star
+        // This prevents the star from being immediately re-conquered
+        const transferPercentage = GAME_CONFIG.CONQUEST_TRANSFER_PERCENTAGE / 100;
+        const shipsToTransfer = Math.floor(attacker.activeShips * transferPercentage);
+
+        if (shipsToTransfer > 0) {
+            attacker.removeActiveShips(shipsToTransfer);
+            defender.addActiveShips(shipsToTransfer);
+            log.data('Conquest', `Transferred ${shipsToTransfer} ships from ${attacker.id} to ${defender.id}`);
+        }
+
+        // Clear orders
+        if (GAME_CONFIG.CLEAR_ORDER_ON_CAPTURE) {
+            attacker.clearTarget();
+            defender.clearTarget();
+        }
+
+        // Log conquest
+        log.success('Conquest', `${attacker.id} conquered ${defender.id}`);
+
+        // Update combat log result
+        combatLog.add({
+            tick: this.tick,
+            attacker: {
+                id: attacker.id,
+                ships: attacker.activeShips,
+                starType: attacker.starType,
+                ownerId: attacker.ownerId,
+                kills: 0,
+                disabled: 0
+            },
+            defender: {
+                id: defender.id,
+                ships: defender.activeShips,
+                starType: defender.starType,
+                ownerId: previousOwner,
+                kills: 0,
+                disabled: 0
+            },
+            settings: {
+                aggressor: GAME_CONFIG.AGGRESSOR_ADVANTAGE,
+                damage: GAME_CONFIG.DAMAGE_PER_SHIP,
+                lethality: GAME_CONFIG.LETHALITY,
+                forceRatio: GAME_CONFIG.FORCE_RATIO_EFFECT,
+                repairRate: GAME_CONFIG.REPAIR_RATE
+            },
+            result: 'CONQUERED'
+        });
+    }
+
 
     private handleFleetArrivals(arrivedFleets: Fleet[]): void {
         const arrivalsByTarget = new Map<StarId, Fleet[]>();

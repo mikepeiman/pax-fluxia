@@ -7,6 +7,7 @@
   import GameCanvas from "$lib/components/game/GameCanvas.svelte";
   import DebugPanel from "$lib/components/ui/DebugPanel.svelte";
   import CombatPanel from "$lib/components/ui/CombatPanel.svelte";
+  import CombatDebugPanel from "$lib/components/ui/CombatDebugPanel.svelte";
   import StarsPanel from "$lib/components/ui/StarsPanel.svelte";
 
   // Debug panel toggle state
@@ -54,6 +55,10 @@
         <GameHUD />
       </div>
     </div>
+    <!-- Debug panels - visible with ` key -->
+    <div class="debug-overlay" class:visible={showDebug}>
+      <CombatDebugPanel />
+    </div>
     <CombatPanel visible={showDebug} />
     <DebugPanel visible={showDebug} />
   {:else if gameStore.currentView === "results"}
@@ -99,5 +104,21 @@
     padding: var(--space-4);
     background: rgba(10, 10, 15, 0.8);
     border-top: 1px solid #334;
+  }
+
+  .debug-overlay {
+    position: fixed;
+    top: 10px;
+    right: 340px;
+    z-index: 1000;
+    width: 300px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  .debug-overlay.visible {
+    opacity: 1;
+    pointer-events: auto;
   }
 </style>

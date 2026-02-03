@@ -146,12 +146,20 @@
 
         // Handle window resize
         window.addEventListener("resize", handleResize);
+
+        // Handle browser zoom (Ctrl+/Ctrl-)
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener("resize", handleResize);
+        }
     });
 
     onDestroy(() => {
         log.sys("GameCanvas", "Destroying PixiJS application");
 
         window.removeEventListener("resize", handleResize);
+        if (window.visualViewport) {
+            window.visualViewport.removeEventListener("resize", handleResize);
+        }
 
         if (animationFrameId) {
             cancelAnimationFrame(animationFrameId);
@@ -201,9 +209,39 @@
     // ============================================================================
 
     function handleResize() {
-        if (app) {
-            app.resize();
+        if (!app || !canvasContainer) return;
+
+        // Get the container dimensions
+        const containerWidth = canvasContainer.clientWidth;
+        const containerHeight = canvasContainer.clientHeight;
+
+        // Resize PIXI renderer to match container
+        app.renderer.resize(containerWidth, containerHeight);
+
+        // Calculate scale based on visual viewport (handles browser zoom)
+        const visualWidth = window.visualViewport?.width ?? window.innerWidth;
+        const visualHeight =
+            window.visualViewport?.height ?? window.innerHeight;
+
+        // If visual viewport is smaller than layout viewport, we're zoomed in
+        const zoomScale = Math.min(
+            visualWidth / window.innerWidth,
+            visualHeight / window.innerHeight,
+        );
+
+        // Apply inverse scale to stage so content fits in zoomed viewport
+        // Only apply when zoom is > 1 (zoomed in)
+        if (zoomScale < 1) {
+            const inverseScale = 1 / zoomScale;
+            app.stage.scale.set(Math.min(inverseScale, 2)); // Cap at 2x
+        } else {
+            app.stage.scale.set(1);
         }
+
+        log.sys(
+            "GameCanvas",
+            `Resize: ${containerWidth}x${containerHeight}, zoom: ${zoomScale.toFixed(2)}`,
+        );
     }
 
     function getPlayerColor(ownerId: string): number {
