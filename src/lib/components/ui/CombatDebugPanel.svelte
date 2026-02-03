@@ -11,8 +11,18 @@
         CONQUEST_TRANSFER_PERCENTAGE: true,
     });
 
+    // REACTIVE values state - this drives the UI and syncs TO GAME_CONFIG
+    let values = $state({
+        AGGRESSOR_ADVANTAGE: GAME_CONFIG.AGGRESSOR_ADVANTAGE,
+        DAMAGE_PER_SHIP: GAME_CONFIG.DAMAGE_PER_SHIP,
+        LETHALITY: GAME_CONFIG.LETHALITY,
+        FORCE_RATIO_EFFECT: GAME_CONFIG.FORCE_RATIO_EFFECT,
+        CONQUEST_THRESHOLD: GAME_CONFIG.CONQUEST_THRESHOLD,
+        CONQUEST_TRANSFER_PERCENTAGE: GAME_CONFIG.CONQUEST_TRANSFER_PERCENTAGE,
+    });
+
     // Store original values for when re-enabled
-    let originalValues = $state({
+    let savedValues = $state({
         AGGRESSOR_ADVANTAGE: GAME_CONFIG.AGGRESSOR_ADVANTAGE,
         DAMAGE_PER_SHIP: GAME_CONFIG.DAMAGE_PER_SHIP,
         LETHALITY: GAME_CONFIG.LETHALITY,
@@ -83,24 +93,30 @@
         },
     ] as const;
 
+    type VarKey = keyof typeof values;
+
     // Toggle a variable on/off
-    function toggle(key: keyof typeof enabled) {
+    function toggle(key: VarKey) {
         enabled[key] = !enabled[key];
 
         if (enabled[key]) {
-            // Re-enable: restore original value
-            (GAME_CONFIG as any)[key] = originalValues[key];
+            // Re-enable: restore saved value
+            values[key] = savedValues[key];
+            (GAME_CONFIG as any)[key] = savedValues[key];
         } else {
             // Disable: save current value, apply neutral
-            originalValues[key] = (GAME_CONFIG as any)[key];
+            savedValues[key] = values[key];
+            values[key] = neutralValues[key];
             (GAME_CONFIG as any)[key] = neutralValues[key];
         }
     }
 
-    // Update a value in real-time
-    function updateValue(key: string, value: number) {
-        (GAME_CONFIG as any)[key] = value;
-        (originalValues as any)[key] = value;
+    // Update a value in real-time (called from slider or number input)
+    function updateValue(key: VarKey, newValue: number) {
+        if (isNaN(newValue)) return;
+        values[key] = newValue;
+        (GAME_CONFIG as any)[key] = newValue;
+        savedValues[key] = newValue;
     }
 
     // Collapsed state
@@ -137,10 +153,10 @@
                             min={v.min}
                             max={v.max}
                             step={v.step}
-                            value={(GAME_CONFIG as any)[v.key]}
+                            value={values[v.key as VarKey]}
                             oninput={(e) =>
                                 updateValue(
-                                    v.key,
+                                    v.key as VarKey,
                                     parseFloat(
                                         (e.target as HTMLInputElement).value,
                                     ),
@@ -152,10 +168,10 @@
                             min={v.min}
                             max={v.max}
                             step={v.step}
-                            value={(GAME_CONFIG as any)[v.key]}
+                            value={values[v.key as VarKey]}
                             oninput={(e) =>
                                 updateValue(
-                                    v.key,
+                                    v.key as VarKey,
                                     parseFloat(
                                         (e.target as HTMLInputElement).value,
                                     ),
@@ -171,19 +187,21 @@
                 <button
                     onclick={() => {
                         variables.forEach((v) => {
-                            enabled[v.key as keyof typeof enabled] = true;
-                            (GAME_CONFIG as any)[v.key] =
-                                originalValues[
-                                    v.key as keyof typeof originalValues
-                                ];
+                            const key = v.key as VarKey;
+                            enabled[key] = true;
+                            values[key] = savedValues[key];
+                            (GAME_CONFIG as any)[key] = savedValues[key];
                         });
                     }}>Reset All</button
                 >
                 <button
                     onclick={() => {
                         variables.forEach((v) => {
-                            enabled[v.key as keyof typeof enabled] = false;
-                            (GAME_CONFIG as any)[v.key] = neutralValues[v.key];
+                            const key = v.key as VarKey;
+                            savedValues[key] = values[key];
+                            enabled[key] = false;
+                            values[key] = neutralValues[key];
+                            (GAME_CONFIG as any)[key] = neutralValues[key];
                         });
                     }}>Disable All</button
                 >
