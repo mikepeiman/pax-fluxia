@@ -7,19 +7,23 @@
     let visible = $state(true);
 
     // Config State
-    let mapType = $state("Empire (Standard)");
+    let mapType = $state("Standard");
     let playerCount = $state<GameSettings["playerCount"]>(2);
     let difficulty = $state("Normal");
     let starsPerPlayer = $state(GAME_CONFIG.STARS_PER_PLAYER);
 
     // Constants
+    const MAP_TYPES = ["Standard", "DEBUG MAP"];
     const PLAYERS: GameSettings["playerCount"][] = [2, 3, 4, 5, 6];
     const DIFFICULTIES = ["Easy", "Normal", "Hard", "Expert"];
 
     function startGame() {
         // Apply Config
         GAME_CONFIG.STARS_PER_PLAYER = starsPerPlayer;
-        gameStore.updateSettings({ playerCount });
+        gameStore.updateSettings({
+            playerCount,
+            mapType: mapType === "DEBUG MAP" ? "debug" : "standard",
+        });
 
         // Restart Engine
         gameStore.restart();
@@ -44,8 +48,14 @@
                 <!-- Map Selection -->
                 <div class="control-group">
                     <label>MAP</label>
-                    <div class="select-box">
-                        {mapType}
+                    <div class="button-row">
+                        {#each MAP_TYPES as m}
+                            <button
+                                class:active={mapType === m}
+                                class:debug={m === "DEBUG MAP"}
+                                onclick={() => (mapType = m)}>{m}</button
+                            >
+                        {/each}
                     </div>
                 </div>
 

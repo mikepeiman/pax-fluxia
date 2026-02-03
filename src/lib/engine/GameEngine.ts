@@ -115,7 +115,14 @@ export class GameEngine {
         this.humanPlayerId = config.humanPlayerId;
 
         this.initializePlayers();
-        this.initializeMap();
+
+        // Check mapType for debug vs standard map
+        if (this.settings.mapType === 'debug') {
+            this.initDebugMap();
+        } else {
+            this.initializeMap();
+        }
+
         this.initializeAI();
 
         log.sys('GameEngine', `Initialized with ${this.players.size} players, ${this.stars.size} stars, ${this.aiPlayers.size} AIs`);
@@ -238,6 +245,89 @@ export class GameEngine {
 
         this.connections = generateStarConnections(starArray, Infinity);
         log.success('GameEngine', `Map initialized with ${this.stars.size} stars and ${this.connections.length} connections`);
+    }
+
+    /**
+     * Initialize DEBUG MAP - 4 stars in a fixed configuration for testing combat
+     * Layout: Triangle (A↔B↔C↔A) + dead-end (D→A only)
+     * All stars start with 100 ships, owned by neutral except A (human) and B (AI)
+     */
+    private initDebugMap(): void {
+        // Fixed positions for debug map
+        const centerX = 800;
+        const centerY = 450;
+        const spread = 250;
+
+        // Star A: Human homeworld (top)
+        const starA = createStar({
+            x: centerX,
+            y: centerY - spread,
+            radius: 25,
+            productionRate: 1,
+            ownerId: this.humanPlayerId,
+            starType: 'green',
+        }, 1);
+        starA.addActiveShips(100);
+        this.stars.set(starA.id, starA);
+
+        // Star B: AI homeworld (bottom-left)
+        const aiPlayer = Array.from(this.players.values()).find(p => p.isAI);
+        const aiId = aiPlayer ? aiPlayer.id as PlayerId : 'ai-1' as PlayerId;
+        const starB = createStar({
+            x: centerX - spread,
+            y: centerY + spread * 0.6,
+            radius: 25,
+            productionRate: 1,
+            ownerId: aiId,
+            starType: 'red',
+        }, 2);
+        starB.addActiveShips(100);
+        this.stars.set(starB.id, starB);
+
+        // Star C: Neutral (bottom-right)
+        const starC = createStar({
+            x: centerX + spread,
+            y: centerY + spread * 0.6,
+            radius: 25,
+            productionRate: 1,
+            ownerId: 'neutral' as PlayerId,
+            starType: 'yellow',
+        }, 3);
+        starC.addActiveShips(100);
+        this.stars.set(starC.id, starC);
+
+        // Star D: Dead-end connected only to A (far top-right)
+        const starD = createStar({
+            x: centerX + spread * 1.2,
+            y: centerY - spread * 0.8,
+            radius: 25,
+            productionRate: 1,
+            ownerId: 'neutral' as PlayerId,
+            starType: 'blue',
+        }, 4);
+        starD.addActiveShips(100);
+        this.stars.set(starD.id, starD);
+
+        // Define connections: Triangle A↔B↔C↔A + dead-end D↔A
+        // Calculate distances for each connection
+        const dist = (id1: string, id2: string) => {
+            const s1 = this.stars.get(id1 as StarId)!;
+            const s2 = this.stars.get(id2 as StarId)!;
+            return Math.sqrt((s1.x - s2.x) ** 2 + (s1.y - s2.y) ** 2);
+        };
+
+        this.connections = [
+            { sourceId: starA.id, targetId: starB.id, distance: dist(starA.id, starB.id) },
+            { sourceId: starB.id, targetId: starA.id, distance: dist(starB.id, starA.id) },
+            { sourceId: starB.id, targetId: starC.id, distance: dist(starB.id, starC.id) },
+            { sourceId: starC.id, targetId: starB.id, distance: dist(starC.id, starB.id) },
+            { sourceId: starC.id, targetId: starA.id, distance: dist(starC.id, starA.id) },
+            { sourceId: starA.id, targetId: starC.id, distance: dist(starA.id, starC.id) },
+            { sourceId: starA.id, targetId: starD.id, distance: dist(starA.id, starD.id) },
+            { sourceId: starD.id, targetId: starA.id, distance: dist(starD.id, starA.id) },
+        ];
+
+        log.success('GameEngine', `DEBUG MAP initialized: 4 stars (A=Human, B=AI, C=Neutral, D=Dead-end)`);
     }
 
     private updateTerritories(width: number, height: number): void {

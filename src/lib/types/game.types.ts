@@ -26,6 +26,7 @@ export type StarType = 'grey' | 'yellow' | 'blue' | 'purple' | 'red' | 'green';
 /** Game settings from menu */
 export interface GameSettings {
     map: 'empire' | 'random';
+    mapType?: 'standard' | 'debug';
     playerCount: 2 | 3 | 4 | 5 | 6;
     difficulty: AILevel;
 }
