@@ -29,6 +29,9 @@ export interface GameSettings {
     mapType?: 'standard' | 'debug';
     playerCount: 2 | 3 | 4 | 5 | 6;
     difficulty: AILevel;
+    // Link connectivity settings
+    minLinksPerStar?: number;  // Minimum connections per star (default 1)
+    maxLinksPerStar?: number;  // Maximum connections per star (default 6)
 }
 
 /** Player configuration */

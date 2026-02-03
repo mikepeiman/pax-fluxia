@@ -264,8 +264,13 @@ export class GameEngine {
             ownerId: s.ownerId
         }));
 
-        this.connections = generateStarConnections(starArray, Infinity);
-        log.success('GameEngine', `Map initialized with ${this.stars.size} stars and ${this.connections.length} connections`);
+        this.connections = generateStarConnections(
+            starArray, 
+            Infinity,
+            GAME_CONFIG.MIN_LINKS_PER_STAR,
+            GAME_CONFIG.MAX_LINKS_PER_STAR
+        );
+        log.success('GameEngine', `Map initialized with ${this.stars.size} stars and ${this.connections.length} connections (links: ${GAME_CONFIG.MIN_LINKS_PER_STAR}-${GAME_CONFIG.MAX_LINKS_PER_STAR}/star)`);
     }
 
     /**
@@ -1325,6 +1330,39 @@ export class GameEngine {
             };
         }
         return null;
+    }
+
+    /** Surrender: Eliminate human player and determine winner */
+    surrender(): PlayerState | null {
+        // Eliminate human player
+        const humanPlayer = this.players.get(this.humanPlayerId);
+        if (humanPlayer) {
+            humanPlayer.isEliminated = true;
+            log.state('GameEngine', `${humanPlayer.name} has surrendered!`);
+        }
+
+        // Find winner (AI with most stars, then most ships)
+        const activePlayers = Array.from(this.players.values()).filter(p => !p.isEliminated);
+        if (activePlayers.length === 0) return null;
+
+        // Sort by star count, then ship count
+        activePlayers.sort((a, b) => {
+            const starsA = this.getPlayerStarCount(a.id);
+            const starsB = this.getPlayerStarCount(b.id);
+            if (starsA !== starsB) return starsB - starsA;
+            return this.getPlayerShipCount(b.id) - this.getPlayerShipCount(a.id);
+        });
+
+        const winner = activePlayers[0];
+        return {
+            id: winner.id,
+            name: winner.name,
+            color: winner.color,
+            isAI: winner.isAI,
+            isEliminated: false,
+            totalShips: this.getPlayerShipCount(winner.id),
+            starCount: this.getPlayerStarCount(winner.id)
+        };
     }
 
     getState(): GameState {

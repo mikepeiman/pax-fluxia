@@ -19,7 +19,9 @@ import { combatLog } from '$lib/stores/combatLogStore';
 const DEFAULT_SETTINGS: GameSettings = {
     map: 'empire',
     playerCount: 2,
-    difficulty: 'normal'
+    difficulty: 'normal',
+    minLinksPerStar: 1,
+    maxLinksPerStar: 6
 };
 
 // Human player ID (constant)
@@ -182,8 +184,14 @@ function cancelOrder(starId: StarId): void {
 /** Surrender the game */
 function surrender(): void {
     if (engine) {
+        // Stop the game
         engine.pause();
+        // Trigger surrender logic - eliminates human and picks winner
+        engine.surrender();
+        // Update snapshot to reflect the surrender state
+        snapshot = engine.getState();
     }
+    // Navigate to results screen
     currentView = 'results';
 }
 

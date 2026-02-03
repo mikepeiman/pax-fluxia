@@ -51,6 +51,15 @@
         CONQUEST_TRANSFER_PERCENTAGE: 0, // No transfer
     };
 
+    // Timing variables
+    let tickLength = $state(GAME_CONFIG.BASE_TICK_MS);
+    const defaultTickLength = 1200;
+
+    function updateTickLength(value: number) {
+        tickLength = value;
+        GAME_CONFIG.BASE_TICK_MS = value;
+    }
+
     // Variable metadata for UI display
     const variables = [
         {
@@ -134,12 +143,39 @@
 </script>
 
 <div class="combat-tuning-list">
-    <!-- Header -->
+    <!-- Timing Section -->
+    <div class="timing-section">
+        <div class="section-header">
+            <span class="section-title">⏱️ Timing</span>
+        </div>
+        <div class="variable-row">
+            <div class="row-top">
+                <span class="var-name">Tick Length</span>
+                <span class="current-val">{tickLength}ms</span>
+            </div>
+            <div class="row-controls">
+                <input
+                    type="range"
+                    min="200"
+                    max="3000"
+                    step="100"
+                    value={tickLength}
+                    oninput={(e) => updateTickLength(parseInt((e.target as HTMLInputElement).value))}
+                />
+            </div>
+        </div>
+    </div>
+
+    <!-- Combat Header -->
     <div class="sidebar-header">
         <h3>⚔️ Combat Tuning</h3>
         <button
             class="reset-btn"
             onclick={() => {
+                // Reset timing
+                tickLength = defaultTickLength;
+                GAME_CONFIG.BASE_TICK_MS = defaultTickLength;
+                // Reset combat vars
                 variables.forEach((v) => {
                     const key = v.key as VarKey;
                     enabled[key] = true;
@@ -201,6 +237,33 @@
         gap: 10px;
         color: #ccc;
         font-family: inherit;
+    }
+
+    .timing-section {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #223;
+    }
+
+    .section-header {
+        display: flex;
+        align-items: center;
+    }
+
+    .section-title {
+        font-size: 11px;
+        font-weight: bold;
+        color: #88aaff;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .var-name {
+        font-size: 11px;
+        font-weight: 600;
+        color: #eee;
     }
 
     .sidebar-header {

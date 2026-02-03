@@ -157,25 +157,30 @@ import { Delaunay } from 'd3-delaunay';
  * 
  * @param stars - Array of stars with id, x, y
  * @param maxDistance - Optional maximum distance to prune extremely long edges
+ * @param minLinksPerStar - Minimum links each star should have (default 1)
+ * @param maxLinksPerStar - Maximum links each star should have (default 6)
  * @returns Array of bi-directional connections
  */
 export function generateStarConnections<T extends { id: string; x: number; y: number }>(
     stars: T[],
-    maxDistance: number = Infinity
+    maxDistance: number = Infinity,
+    minLinksPerStar: number = 1,
+    maxLinksPerStar: number = 6
 ): StarConnection[] {
-    const connections: StarConnection[] = [];
+    if (stars.length < 2) return [];
 
     // Create Delaunay triangulation
-    // Format: [x, y]
     const points = stars.map(s => [s.x, s.y] as [number, number]);
     const delaunay = Delaunay.from(points);
 
-    // Iterate over the triangulation neighbors
-    // neighbors(i) returns an iterator over the indices of the neighbors of point i
+    // Build adjacency with distances for each star
+    const starEdges = new Map<string, { targetId: string; distance: number }[]>();
+    stars.forEach(s => starEdges.set(s.id, []));
+
+    // Collect all potential edges from Delaunay
     for (let i = 0; i < stars.length; i++) {
         const neighbors = delaunay.neighbors(i);
         for (const neighborIndex of neighbors) {
-            // Only add connection if i < neighborIndex to avoid duplicates
             if (i < neighborIndex) {
                 const a = stars[i];
                 const b = stars[neighborIndex];
@@ -184,19 +189,73 @@ export function generateStarConnections<T extends { id: string; x: number; y: nu
                 const dy = b.y - a.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
 
-                // Optional: Prune if connection is absurdly long (e.g. across the whole map)
-                // usage of modest maxDistance can create islands, so be careful. 
-                // Given the user wants "no stars in between", Delaunay is perfect.
                 if (dist <= maxDistance) {
-                    connections.push({
-                        sourceId: a.id,
-                        targetId: b.id,
-                        distance: dist
-                    });
+                    starEdges.get(a.id)!.push({ targetId: b.id, distance: dist });
+                    starEdges.get(b.id)!.push({ targetId: a.id, distance: dist });
                 }
             }
         }
     }
+
+    // Sort each star's edges by distance (shortest first)
+    starEdges.forEach(edges => edges.sort((a, b) => a.distance - b.distance));
+
+    // Build final connection set, respecting min/max constraints
+    const finalConnections = new Set<string>();
+    const linkCount = new Map<string, number>();
+    stars.forEach(s => linkCount.set(s.id, 0));
+
+    // Helper to make canonical edge key
+    const edgeKey = (a: string, b: string) => a < b ? `${a}|${b}` : `${b}|${a}`;
+
+    // Phase 1: Ensure minimum links for each star
+    stars.forEach(star => {
+        const edges = starEdges.get(star.id)!;
+        for (const edge of edges) {
+            const currentCount = linkCount.get(star.id)!;
+            if (currentCount >= minLinksPerStar) break;
+
+            const targetCount = linkCount.get(edge.targetId)!;
+            if (targetCount >= maxLinksPerStar) continue; // Target already at max
+
+            const key = edgeKey(star.id, edge.targetId);
+            if (!finalConnections.has(key)) {
+                finalConnections.add(key);
+                linkCount.set(star.id, currentCount + 1);
+                linkCount.set(edge.targetId, targetCount + 1);
+            }
+        }
+    });
+
+    // Phase 2: Add more connections where both stars are below max
+    stars.forEach(star => {
+        const edges = starEdges.get(star.id)!;
+        for (const edge of edges) {
+            const currentCount = linkCount.get(star.id)!;
+            const targetCount = linkCount.get(edge.targetId)!;
+
+            if (currentCount >= maxLinksPerStar || targetCount >= maxLinksPerStar) continue;
+
+            const key = edgeKey(star.id, edge.targetId);
+            if (!finalConnections.has(key)) {
+                finalConnections.add(key);
+                linkCount.set(star.id, currentCount + 1);
+                linkCount.set(edge.targetId, targetCount + 1);
+            }
+        }
+    });
+
+    // Convert to connection array
+    const connections: StarConnection[] = [];
+    finalConnections.forEach(key => {
+        const [sourceId, targetId] = key.split('|');
+        const source = stars.find(s => s.id === sourceId)!;
+        const target = stars.find(s => s.id === targetId)!;
+        const dx = target.x - source.x;
+        const dy = target.y - source.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        connections.push({ sourceId, targetId, distance: dist });
+    });
 
     return connections;
 }

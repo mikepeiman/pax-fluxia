@@ -11,6 +11,8 @@
     let playerCount = $state<GameSettings["playerCount"]>(2);
     let difficulty = $state("Normal");
     let starsPerPlayer = $state(GAME_CONFIG.STARS_PER_PLAYER);
+    let minLinks = $state(GAME_CONFIG.MIN_LINKS_PER_STAR);
+    let maxLinks = $state(GAME_CONFIG.MAX_LINKS_PER_STAR);
 
     // Constants
     const MAP_TYPES = ["Standard", "DEBUG MAP"];
@@ -20,9 +22,14 @@
     function startGame() {
         // Apply Config
         GAME_CONFIG.STARS_PER_PLAYER = starsPerPlayer;
+        GAME_CONFIG.MIN_LINKS_PER_STAR = minLinks;
+        GAME_CONFIG.MAX_LINKS_PER_STAR = maxLinks;
+        
         gameStore.updateSettings({
             playerCount,
             mapType: mapType === "DEBUG MAP" ? "debug" : "standard",
+            minLinksPerStar: minLinks,
+            maxLinksPerStar: maxLinks,
         });
 
         // Restart Engine
@@ -93,13 +100,43 @@
                             <input
                                 type="range"
                                 min="1"
-                                max="50"
+                                max="20"
                                 bind:value={starsPerPlayer}
                             />
                             <span class="value">{starsPerPlayer}</span>
                         </div>
                     </div>
-                    <!-- Future: Ships per Star -->
+                </div>
+
+                <!-- Link Connectivity Settings -->
+                <div class="control-group">
+                    <label>LINK CONNECTIVITY</label>
+                    <div class="config-dual-row">
+                        <div class="config-item">
+                            <span class="mini-label">MIN</span>
+                            <div class="slider-container">
+                                <input
+                                    type="range"
+                                    min="1"
+                                    max="4"
+                                    bind:value={minLinks}
+                                />
+                                <span class="value">{minLinks}</span>
+                            </div>
+                        </div>
+                        <div class="config-item">
+                            <span class="mini-label">MAX</span>
+                            <div class="slider-container">
+                                <input
+                                    type="range"
+                                    min="2"
+                                    max="8"
+                                    bind:value={maxLinks}
+                                />
+                                <span class="value">{maxLinks}</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="action-area">
@@ -261,6 +298,24 @@
         margin-top: 10px;
         padding-top: 20px;
         border-top: 1px solid #1a2a40;
+    }
+
+    .config-dual-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+
+    .config-item {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .mini-label {
+        font-size: 0.6rem;
+        color: #667;
+        letter-spacing: 1px;
     }
 
     .slider-container {

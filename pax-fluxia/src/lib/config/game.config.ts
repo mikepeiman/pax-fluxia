@@ -58,6 +58,10 @@ interface GameConfigType {
     SHOW_CONNECTIONS: boolean;
     SHOW_HEX_GRID: boolean;
     STARS_PER_PLAYER: number;
+
+    // Link Connectivity
+    MIN_LINKS_PER_STAR: number;
+    MAX_LINKS_PER_STAR: number;
 }
 
 /**
@@ -222,6 +226,16 @@ export const GAME_CONFIG: GameConfigType = {
 
     /** Stars per player (Map Size) */
     STARS_PER_PLAYER: 2,
+
+    // ========================================================================
+    // LINK CONNECTIVITY
+    // ========================================================================
+
+    /** Minimum connections per star (1-3 typical) */
+    MIN_LINKS_PER_STAR: 1,
+
+    /** Maximum connections per star (4-8 typical) */
+    MAX_LINKS_PER_STAR: 6,
 };
 
 /**

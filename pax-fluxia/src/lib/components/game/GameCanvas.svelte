@@ -66,12 +66,20 @@
     let dragCurrentY = 0;
 
     // Active star state (for click+click selection)
-    // Active star state (for click+click selection)
     let activeStarId: string | null = null;
     let pendingOrders: Set<string> = new Set(); // OPTIMISTIC UI: Track ordered links immediately
+    let lastSessionId: number = -1; // Track game session to reset state on new game
 
     // Helper: Add pending order and clean up conflicting orders
     function addPendingOrder(sourceId: string, targetId: string) {
+        // Validate both stars exist in current snapshot
+        const snapshot = gameStore.snapshot;
+        if (!snapshot) return;
+        
+        const sourceExists = snapshot.stars.some(s => s.id === sourceId);
+        const targetExists = snapshot.stars.some(s => s.id === targetId);
+        if (!sourceExists || !targetExists) return;
+        
         // Remove any old order from source (source can only have one target)
         pendingOrders.forEach((key) => {
             if (key.startsWith(`${sourceId}|`)) {
@@ -281,6 +289,17 @@
         if (!app || !starsContainer || !labelsContainer || !shipGraphics)
             return;
 
+        // Reset state on new game session
+        const currentSessionId = gameStore.sessionId;
+        if (currentSessionId !== lastSessionId) {
+            lastSessionId = currentSessionId;
+            pendingOrders.clear();
+            activeStarId = null;
+            visualShips.clear();
+            visualDamagedShips.clear();
+            log.sys('GameCanvas', `Session changed to ${currentSessionId}, state reset`);
+        }
+
         // Render Debug Grid (check every frame if config changes)
         // Optimization: Could check specific flag change, but lightweight enough
         renderDebugGrid();
@@ -314,12 +333,7 @@
         // Render flow links
         renderFlowLinks(stars);
 
-        // OPTIMISTIC UI: Clear pending orders that are now confirmed in snapshot
-        if (snapshot?.connections) {
-            snapshot.connections.forEach((c) =>
-                pendingOrders.delete(`${c.sourceId}|${c.targetId}`),
-            );
-        }
+        // NOTE: Pending orders cleanup is now handled in renderFlowLinks()
 
         // Render traveling fleets (authoritative)
         if (snapshot?.fleets) {
@@ -497,32 +511,44 @@
 
         linkGraphics.clear();
 
-        // Draw active flow indicators using Vector Arrow style
-        // Draw active flow indicators using Vector Arrow style
-        const allLinks = new Set<string>();
-
-        // 1. Snapshot Flows (from star data)
+        // Build set of confirmed orders from star snapshot
+        const confirmedOrders = new Map<string, string>(); // sourceId -> targetId
         stars.forEach((s) => {
             if (s.targetId) {
-                allLinks.add(`${s.id}|${s.targetId}`);
+                confirmedOrders.set(s.id, s.targetId);
             }
         });
 
-        // 2. Pending Orders (Optimistic)
-        pendingOrders.forEach((key) => allLinks.add(key));
-
-        stars.forEach((source) => {
-            // Find targets based on Links (not just property)
-            // We need to iterate LINKS, not source.targetId property (which is just one).
-            // Wait, the ENGINE supports multi-target? No, Star.ts has `_targetId`. Single target.
-            // But UI should follow the single target property from star?
-            // Actually, `snapshot.connections` is the list of active links.
-            // `source.targetId` should match.
-            // BUT, for optimistic UI, we might have a pending order that isn't in `source.targetId` yet.
-            // So we iterate `allLinks`.
+        // Clean up stale pending orders:
+        // 1. Remove if source now has a confirmed target (snapshot overrides pending)
+        // 2. Remove if source no longer exists
+        const starsById = new Map(stars.map(s => [s.id, s]));
+        pendingOrders.forEach((key) => {
+            const [sourceId, targetId] = key.split('|');
+            const source = starsById.get(sourceId);
+            
+            // Remove if source doesn't exist or no longer owned by human
+            if (!source || source.ownerId !== 'human-player') {
+                pendingOrders.delete(key);
+                return;
+            }
+            
+            // Remove if source now has a confirmed target (any target)
+            if (confirmedOrders.has(sourceId)) {
+                pendingOrders.delete(key);
+            }
         });
 
-        // Refactor loop to iterate unique Links
+        // Draw all confirmed orders (authoritative)
+        const allLinks = new Set<string>();
+        confirmedOrders.forEach((targetId, sourceId) => {
+            allLinks.add(`${sourceId}|${targetId}`);
+        });
+
+        // Add remaining pending orders (optimistic, not yet confirmed)
+        pendingOrders.forEach((key) => allLinks.add(key));
+
+        // Render unique arrows
         allLinks.forEach((linkKey) => {
             const [sId, tId] = linkKey.split("|");
             const source = stars.find((s) => s.id === sId);
@@ -674,8 +700,6 @@
 
                     // Per-ship phase offset for organic variation
                     const shipPhase = (ship.id % 17) / 17; // 0-1 unique per ship
-                    const shipWiggle =
-                        Math.sin(ship.id * 0.73 + animationTime * 2) * 5;
 
                     let targetX: number, targetY: number;
 
@@ -690,18 +714,37 @@
                     targetX = slot.x;
                     targetY = slot.y;
 
-                    // ATTACK MODE: Add subtle surge toward target (ships pulse, don't leave)
+                    // ATTACK MODE: Egg-shaped pulse - ships facing target surge forward
+                    // Ships at back stay at orbit radius (don't cross planetary valence)
                     if (isAttack && targetStar) {
+                        // Calculate ship's position relative to star center
+                        const shipDx = slot.x - star.x;
+                        const shipDy = slot.y - star.y;
+                        const shipDist = Math.sqrt(shipDx * shipDx + shipDy * shipDy) || 1;
+                        
+                        // Normalize ship position vector
+                        const shipNormX = shipDx / shipDist;
+                        const shipNormY = shipDy / shipDist;
+                        
+                        // Dot product with target direction = how much ship faces target
+                        // +1 = facing target, -1 = facing away, 0 = perpendicular
+                        const facingFactor = shipNormX * dirX + shipNormY * dirY;
+                        
+                        // Only surge ships facing target (facingFactor > 0)
+                        // Use smooth transition: max(0, facingFactor)^2 for softer falloff
+                        const surgeFactor = Math.max(0, facingFactor) ** 1.5;
+                        
                         // Per-ship phase offset for staggered surge
-                        const phaseOffsetTime = tickProgress + shipPhase * 0.15;
+                        const phaseOffsetTime = tickProgress + shipPhase * 0.12;
                         const surgePulse = Math.sin(
                             Math.min(phaseOffsetTime, 1) * Math.PI,
                         );
 
-                        // Subtle surge: max 20% of star radius toward target
-                        const surgeMax = star.radius * 0.5;
-                        targetX += dirX * surgePulse * surgeMax;
-                        targetY += dirY * surgePulse * surgeMax;
+                        // Subtle surge: max displacement toward target
+                        // Front ships get full surge, back ships get none
+                        const surgeMax = star.radius * 0.4;
+                        targetX += dirX * surgePulse * surgeMax * surgeFactor;
+                        targetY += dirY * surgePulse * surgeMax * surgeFactor;
                     }
 
                     // TRANSFER MODE: For now, same as idle (ships stay until fleet system)
