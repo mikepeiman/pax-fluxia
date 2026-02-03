@@ -60,8 +60,10 @@
     // Input state
     let isDragging = false;
     let dragSourceId: string | null = null;
-    let dragStartX = 0;
+    let dragStartX = 0;      // Click position (for movement detection)
     let dragStartY = 0;
+    let dragSourceCenterX = 0; // Star center (for visual preview)
+    let dragSourceCenterY = 0;
     let dragCurrentX = 0;
     let dragCurrentY = 0;
 
@@ -944,8 +946,12 @@
             // Start drag from this star
             isDragging = true;
             dragSourceId = star.id;
-            dragStartX = star.x;
-            dragStartY = star.y;
+            // FIX: Use actual click position for movement detection
+            dragStartX = x;
+            dragStartY = y;
+            // But use star center for visual drag preview line
+            dragSourceCenterX = star.x;
+            dragSourceCenterY = star.y;
             dragCurrentX = x;
             dragCurrentY = y;
 
@@ -992,8 +998,10 @@
 
                     // Chain reaction: Drag continues FROM this new star
                     dragSourceId = targetStar.id;
-                    dragStartX = targetStar.x;
-                    dragStartY = targetStar.y;
+                    dragStartX = dragCurrentX;  // Current mouse pos becomes new start
+                    dragStartY = dragCurrentY;
+                    dragSourceCenterX = targetStar.x;  // Star center for visual
+                    dragSourceCenterY = targetStar.y;
 
                     // Optional: Set active too?
                     activeStarId = targetStar.id;
@@ -1119,8 +1127,8 @@
 
         dragPreviewGraphics.clear();
 
-        // Draw line from source to cursor
-        dragPreviewGraphics.moveTo(dragStartX, dragStartY);
+        // Draw line from star CENTER to cursor (not click position)
+        dragPreviewGraphics.moveTo(dragSourceCenterX, dragSourceCenterY);
         dragPreviewGraphics.lineTo(dragCurrentX, dragCurrentY);
         dragPreviewGraphics.stroke({
             color: 0x00ffff,

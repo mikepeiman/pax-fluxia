@@ -6,7 +6,6 @@
   import GameCanvas from "$lib/components/game/GameCanvas.svelte";
   import DebugPanel from "$lib/components/ui/DebugPanel.svelte";
   import CombatDebugPanel from "$lib/components/ui/CombatDebugPanel.svelte";
-  import StarsPanel from "$lib/components/ui/StarsPanel.svelte";
   import Leaderboard from "$lib/components/ui/Leaderboard.svelte";
   import SpeedControls from "$lib/components/ui/SpeedControls.svelte";
   import CombatLogPanel from "$lib/components/ui/CombatLogPanel.svelte";
@@ -102,12 +101,7 @@
           <Leaderboard players={gameStore.leaderboard} />
         </div>
 
-        <!-- 2. Stars Panel (Empire Info & Lists) -->
-        <div class="panel-section section-stars">
-          <StarsPanel />
-        </div>
-
-        <!-- 3. Combat Tuning (Moved from Overlay to fill empty space) -->
+        <!-- 2. Combat Tuning (fills remaining space) -->
         <div class="panel-section section-tuning">
           <CombatDebugPanel />
         </div>
@@ -228,15 +222,10 @@
     flex-shrink: 0; /* Prevent sections from collapsing weirdly */
   }
 
-  .section-stars {
-    flex: 1; /* Allow stars panel to take remaining space if needed */
-    min-height: 150px; /* But ensure it has space */
-    overflow-y: auto;
-  }
-
   .section-tuning {
-    max-height: 300px;
+    flex: 1; /* Fill remaining space */
     overflow-y: auto;
+    min-height: 200px;
   }
 
   /* OVERLAYS (Floating above Canvas) */
