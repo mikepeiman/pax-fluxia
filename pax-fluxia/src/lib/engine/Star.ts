@@ -280,18 +280,13 @@ export class Star {
         const oldOwnerId = this._ownerId;
         this._ownerId = newOwnerId;
 
-        // Handle current order based on persistence setting
-        if (this._targetId !== null) {
-            // If order should persist AND new owner is same as old, keep it
-            // (This handles the case where orders persist through conquest)
-            if (!this._orderPersistsAfterConquest) {
-                // Ctrl-click order: always clear on conquest
-                this._targetId = null;
-            }
-            // Otherwise, keep the order (it will be used by new owner)
-        }
+        // ALWAYS clear the conquered star's existing orders
+        // These belonged to the old owner and should not transfer to new owner
+        // (The attacker's order retention is handled separately in GameEngine)
+        this._targetId = null;
+        this._orderPersistsAfterConquest = true; // Reset to default
 
-        // Check for queued order from the new owner
+        // Check for queued order from the new owner (deferred orders)
         if (this._queuedOrder && this._queuedOrder.ownerId === newOwnerId) {
             this._targetId = this._queuedOrder.targetId;
             this._orderPersistsAfterConquest = this._queuedOrder.persistAfterConquest;
