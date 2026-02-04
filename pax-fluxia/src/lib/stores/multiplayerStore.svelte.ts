@@ -72,20 +72,33 @@ async function createRoom(options: { playerCount?: number; mapType?: string } = 
     connectionError = null;
 
     try {
-        // Use $state.snapshot to avoid passing Svelte 5 Proxies to Colyseus
+        // Use JSON.parse/stringify to avoid passing Svelte 5 Proxies to Colyseus
         const plainOptions = JSON.parse(JSON.stringify(options));
-        console.log('🏠 Creating room with options:', plainOptions);
+        console.log('🏠 [Client] Creating room with options:', plainOptions);
+        console.log('🏠 [Client] Calling client.create("game_room", ...)');
+
         room = await client.create('game_room', plainOptions);
+
+        console.log('🏠 [Client] client.create() returned!');
+        console.log('   Room ID:', room?.roomId);
+        console.log('   Session ID:', room?.sessionId);
+        console.log('   Room name:', room?.name);
+        console.log('   Room state:', room?.state);
+
         roomId = room.roomId;
         localSessionId = room.sessionId;
         isConnected = true;
 
-        console.log(`✅ Room created: ${roomId}, sessionId: ${localSessionId}`);
+        console.log(`✅ [Client] Room joined successfully: ${roomId}`);
         setupRoomListeners();
         return roomId;
-    } catch (err) {
+    } catch (err: any) {
         connectionError = `Failed to create room: ${err}`;
-        console.error('❌ Room creation failed:', err);
+        console.error('❌ [Client] Room creation failed:', err);
+        console.error('   Error name:', err?.name);
+        console.error('   Error message:', err?.message);
+        console.error('   Error code:', err?.code);
+        console.error('   Full error:', JSON.stringify(err, null, 2));
         return null;
     } finally {
         isConnecting = false;
