@@ -2,24 +2,24 @@
 // Colyseus Server Entry Point
 // ============================================================================
 
-import { Server } from "colyseus";
+import { Server, matchMaker } from "colyseus";
 import { WebSocketTransport } from "@colyseus/ws-transport";
 import express from "express";
 import cors from "cors";
 import { createServer } from "http";
 import { GameRoom } from "./rooms/GameRoom";
 
-const BASE_PORT = Number(process.env.PORT) || 2567;
-const MAX_PORT_ATTEMPTS = 10;
+const PORT = Number(process.env.PORT) || 2567;
 
-// Create Express app for health checks
+// Create Express app
 const app = express();
 app.use(cors({
-    origin: ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:1420", "http://127.0.0.1:1420"],
+    origin: true, // Allow all origins in dev
     credentials: true
 }));
+app.use(express.json());
 
-// Health endpoint - simple status check
+// Health endpoint
 app.get("/health", (_req, res) => {
     res.json({
         status: "ok",
@@ -40,34 +40,15 @@ const gameServer = new Server({
 // Register game room
 gameServer.define("game_room", GameRoom);
 
-// Try to find an available port
-async function startServer(port: number, attempt: number = 1): Promise<void> {
-    return new Promise((resolve, reject) => {
-        httpServer.once("error", (err: NodeJS.ErrnoException) => {
-            if (err.code === "EADDRINUSE" && attempt < MAX_PORT_ATTEMPTS) {
-                console.log(`⚠️  Port ${port} in use, trying ${port + 1}...`);
-                httpServer.removeAllListeners("error");
-                startServer(port + 1, attempt + 1).then(resolve).catch(reject);
-            } else if (err.code === "EADDRINUSE") {
-                console.error(`\n❌ Could not find available port after ${MAX_PORT_ATTEMPTS} attempts`);
-                reject(err);
-            } else {
-                reject(err);
-            }
-        });
-
-        httpServer.listen(port, () => {
-            console.log(`\n🚀 Pax Fluxia Server running on port ${port}`);
-            console.log(`   Health: http://localhost:${port}/health`);
-            console.log(`   WebSocket: ws://localhost:${port}`);
-            console.log(`   Started: ${new Date().toLocaleTimeString()}\n`);
-            resolve();
-        });
-    });
-}
+// IMPORTANT: Register matchmaking routes for Colyseus 0.17+
+// This enables the /matchmake/* HTTP endpoints
+app.use("/matchmake", matchMaker.controller);
 
 // Start the server
-startServer(BASE_PORT).catch((err) => {
-    console.error("Failed to start server:", err);
-    process.exit(1);
+httpServer.listen(PORT, () => {
+    console.log(`\n🚀 Pax Fluxia Server running on port ${PORT}`);
+    console.log(`   Health: http://localhost:${PORT}/health`);
+    console.log(`   Matchmake: http://localhost:${PORT}/matchmake`);
+    console.log(`   WebSocket: ws://localhost:${PORT}`);
+    console.log(`   Started: ${new Date().toLocaleTimeString()}\n`);
 });
