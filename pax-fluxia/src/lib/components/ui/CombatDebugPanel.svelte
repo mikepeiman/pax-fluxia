@@ -80,7 +80,12 @@
     // Apply loaded values to GAME_CONFIG on mount
     onMount(() => {
         Object.entries(values).forEach(([key, val]) => {
-            (GAME_CONFIG as any)[key] = val;
+            if (key === "TRANSFER_RATE") {
+                // TRANSFER_RATE is stored as % in UI/storage, but needs to be decimal in GAME_CONFIG
+                GAME_CONFIG.TRANSFER_RATE = (val as number) / 100;
+            } else {
+                (GAME_CONFIG as any)[key] = val;
+            }
         });
     });
 
@@ -112,7 +117,8 @@
     }
 
     // Transfer Rate control (% in UI, decimal in GAME_CONFIG)
-    let transferRate = $state(Math.round(GAME_CONFIG.TRANSFER_RATE * 100));
+    // Stored as % (25) in localStorage, converted to decimal (0.25) for GAME_CONFIG in onMount
+    let transferRate = $state(initialValues.TRANSFER_RATE ?? 25);
 
     function updateTransferRate(value: number) {
         transferRate = value;
