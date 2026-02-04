@@ -496,9 +496,7 @@ export class GameEngine {
 
     private processFlowLinks(): void {
         this.transfers = [];
-        // FIX: Capture originalOwnerId at collection time to prevent chain conquest bug
-        // If an attacking star is conquered mid-tick, its pending attack should be invalidated
-        const attackOrders: { source: Star, target: Star, originalOwnerId: PlayerId }[] = [];
+        const attackOrders: { source: Star, target: Star }[] = [];
         const reinforcements: { source: Star, target: Star, shipped: number }[] = [];
 
         this.stars.forEach(source => {
@@ -515,8 +513,7 @@ export class GameEngine {
             if (isAttack) {
                 // ATTACK: Remote engagement - ships DON'T leave source
                 // Combat will use source.activeShips directly
-                // FIX: Capture owner at time of order collection
-                attackOrders.push({ source, target, originalOwnerId: source.ownerId });
+                attackOrders.push({ source, target });
             } else {
                 // REINFORCEMENT: Ships physically transfer to friendly star
                 const flowPercentage = GAME_CONFIG.FLOW_PERCENTAGE || 0.25;
@@ -558,65 +555,64 @@ export class GameEngine {
         // MULTI-STAR ATTACK AGGREGATION
         // Group all attacks by target, then process each target once
         // This ensures conquest is evaluated against TOTAL attacking force
-        // FIX: Include originalOwnerId to detect mid-tick ownership changes
         // ================================================================
-        const attacksByTarget = new Map<StarId, { source: Star, originalOwnerId: PlayerId }[]>();
-        attackOrders.forEach(({ source, target, originalOwnerId }) => {
+        const attacksByTarget = new Map<StarId, Star[]>();
+        attackOrders.forEach(({ source, target }) => {
             const targetId = target.id;
             if (!attacksByTarget.has(targetId)) {
                 attacksByTarget.set(targetId, []);
             }
-            attacksByTarget.get(targetId)!.push({ source, originalOwnerId });
+            attacksByTarget.get(targetId)!.push(source);
         });
 
         // Process each target with all its attackers
-        attacksByTarget.forEach((attackerData, targetId) => {
+        attacksByTarget.forEach((attackers, targetId) => {
             const target = this.stars.get(targetId);
             if (target) {
-                this.resolveMultiSourceCombatWithOwnership(attackerData, target);
+                this.resolveMultiSourceCombat(attackers, target);
             }
         });
     }
 
     /**
-     * Multi-Source Remote Engagement Combat (with ownership tracking)
+     * Multi-Source Remote Engagement Combat
      * Multiple stars attacking the same target - aggregates all attacking forces
-     * FIX: Skips attackers whose ownership changed mid-tick (they were conquered)
+     * Both sides take damage simultaneously, conquest evaluated against TOTAL attacking force
+     * 
+     * FIX: Skips attackers whose target changed mid-tick (e.g., star was conquered
+     * and old owner's order was cancelled). If new owner had a chain-through order
+     * to this same target, it will still be set and attack proceeds.
      */
-    private resolveMultiSourceCombatWithOwnership(
-        attackerData: { source: Star, originalOwnerId: PlayerId }[],
-        defender: Star
-    ): void {
-        // FIX: Filter out attackers whose owner changed mid-tick (they were conquered)
-        // Also filter out attackers with no ships
-        const validAttackerData = attackerData.filter(({ source, originalOwnerId }) => {
-            if (source.activeShips <= 0) {
-                source.clearTarget();
+    private resolveMultiSourceCombat(attackers: Star[], defender: Star): void {
+        // Filter out attackers with no ships OR whose target was cancelled mid-tick
+        // When a star is conquered, setOwner() clears old target and may set new one from queued order
+        const validAttackers = attackers.filter(attacker => {
+            if (attacker.activeShips <= 0) {
+                attacker.clearTarget();
                 return false;
             }
-            // Skip if ownership changed - this star was conquered by someone else mid-tick
-            if (source.ownerId !== originalOwnerId) {
-                log.sys('Combat', `Skipping attack from ${source.id}: owner changed mid-tick (${originalOwnerId} -> ${source.ownerId})`);
-                source.clearTarget(); // Clear the stale order
+            // FIX: Check if this attacker still has this target set
+            // If ownership changed and old order was cancelled, targetId will be different or null
+            // If new owner had a chain-through order to same target, it will still match
+            if (attacker.targetId !== defender.id) {
+                log.sys('Combat', `Skipping attack from ${attacker.id}: target changed mid-tick (was ${defender.id}, now ${attacker.targetId || 'none'})`);
                 return false;
             }
             return true;
         });
 
-        if (validAttackerData.length === 0) {
+        if (validAttackers.length === 0) {
             return;
         }
 
-        const validAttackers = validAttackerData.map(d => d.source);
-
         // Calculate TOTAL attacking force from all sources
         let totalAttackForce = 0;
-        const attackerContributions: { attacker: Star, force: number, originalOwnerId: PlayerId }[] = [];
+        const attackerContributions: { attacker: Star, force: number }[] = [];
         
-        validAttackerData.forEach(({ source, originalOwnerId }) => {
-            const force = source.activeShips;
+        validAttackers.forEach(attacker => {
+            const force = attacker.activeShips;
             totalAttackForce += force;
-            attackerContributions.push({ attacker: source, force, originalOwnerId });
+            attackerContributions.push({ attacker, force });
         });
 
         // Damaged ships count at 1/7th effectiveness for defense
@@ -669,11 +665,9 @@ export class GameEngine {
 
         // Combat telemetry - log the combined attack with OWNER info
         const primaryAttacker = validAttackers[0];
-        // Use originalOwnerId for logging to show who ISSUED the attack
-        const primaryOriginalOwner = validAttackerData[0].originalOwnerId;
         log.combatBattle(
             this.tick,
-            { id: `${validAttackers.length} stars`, ships: totalAttackForce, starType: primaryAttacker.starType, ownerId: primaryOriginalOwner },
+            { id: `${validAttackers.length} stars`, ships: totalAttackForce, starType: primaryAttacker.starType, ownerId: primaryAttacker.ownerId },
             { id: defender.id, ships: defenderForce, starType: defender.starType, ownerId: defender.ownerId },
             { kills: killsOnDefender, disabled: disabledOnDefender },
             { kills: killsOnAttacker, disabled: disabledOnAttacker },
@@ -693,7 +687,7 @@ export class GameEngine {
                 id: validAttackers.length > 1 ? `${validAttackers.length} stars` : primaryAttacker.id,
                 ships: totalAttackForce,
                 starType: primaryAttacker.starType,
-                ownerId: primaryOriginalOwner,
+                ownerId: primaryAttacker.ownerId,
                 kills: killsOnAttacker,
                 disabled: disabledOnAttacker
             },
