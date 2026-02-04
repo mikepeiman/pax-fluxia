@@ -47,6 +47,9 @@ export class GameRoom extends Room<GameRoomState> {
     private tickStartTime = 0;
     private roomOptions: RoomOptions = {};
 
+    // State - initialized as class property (Colyseus 0.17 pattern)
+    state = new GameRoomState();
+
     // ========================================================================
     // Room Lifecycle
     // ========================================================================
@@ -56,8 +59,7 @@ export class GameRoom extends Room<GameRoomState> {
         this.roomOptions = options;
         this.maxClients = options.playerCount || 4;
 
-        // Initialize state
-        this.setState(new GameRoomState());
+        // Initialize state values
         this.state.maxPlayers = this.maxClients;
         this.state.phase = "lobby";
 
