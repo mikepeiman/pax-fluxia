@@ -2,7 +2,7 @@
 // Colyseus Server Entry Point
 // ============================================================================
 
-import { Server } from "@colyseus/core";
+import { Server } from "colyseus";
 import { WebSocketTransport } from "@colyseus/ws-transport";
 import express from "express";
 import cors from "cors";
@@ -15,7 +15,7 @@ const MAX_PORT_ATTEMPTS = 10;
 // Create Express app for health checks
 const app = express();
 app.use(cors({
-    origin: ["http://localhost:5173", "http://127.0.0.1:5173"],
+    origin: ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:1420", "http://127.0.0.1:1420"],
     credentials: true
 }));
 
