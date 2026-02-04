@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Colyseus 0.17 Demo Client</title>
+    <script type="module">
+        // Import from CDN for simplicity
+        import { Client, Callbacks } from 'https://unpkg.com/@colyseus/sdk@0.17.25/dist/colyseus.esm.js';
+
+        const log = (msg) => {
+            console.log(msg);
+            const div = document.getElementById('log');
+            div.innerHTML += `<p>${new Date().toLocaleTimeString()}: ${msg}</p>`;
+        };
+
+        const client = new Client('http://localhost:3000');
+        log('Client created');
+
+        document.getElementById('joinBtn').addEventListener('click', async () => {
+            try {
+                log('Creating room...');
+                const room = await client.create('demo_room', { name: 'TestPlayer' });
+                log(`Joined room: ${room.roomId}, sessionId: ${room.sessionId}`);
+
+                // Set up state callbacks (Colyseus 0.17 pattern)
+                const callbacks = Callbacks.get(room);
+
+                callbacks.onAdd("players", (player, sessionId) => {
+                    log(`Player added: ${sessionId} - ${player.name}`);
+                });
+
+                callbacks.onRemove("players", (player, sessionId) => {
+                    log(`Player removed: ${sessionId}`);
+                });
+
+                room.onStateChange((state) => {
+                    log(`State change: phase=${state.phase}, playerCount=${state.playerCount}`);
+                    document.getElementById('state').innerHTML = `
+                        <p>Phase: ${state.phase}</p>
+                        <p>Players: ${state.playerCount}</p>
+                    `;
+                });
+
+                room.onError((code, message) => {
+                    log(`Error [${code}]: ${message}`);
+                });
+
+                room.onLeave((code) => {
+                    log(`Left room with code: ${code}`);
+                });
+
+            } catch (e) {
+                log(`Error: ${e.message}`);
+                console.error(e);
+            }
+        });
+    </script>
+</head>
+
+<body style="font-family: system-ui; padding: 20px;">
+    <h1>Colyseus 0.17 Demo</h1>
+    <button id="joinBtn">Create & Join Room</button>
+    <h2>State</h2>
+    <div id="state" style="background: #f0f0f0; padding: 10px;">Not connected</div>
+    <h2>Log</h2>
+    <div id="log" style="background: #f0f0f0; padding: 10px; max-height: 400px; overflow-y: auto;"></div>
+</body>
+
+</html>
