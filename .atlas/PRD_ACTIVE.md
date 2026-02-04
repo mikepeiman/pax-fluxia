@@ -75,6 +75,20 @@ When Star A (Source) attacks Star B (Target):
     *   Star Labels: Icon + Active Count (Bright) + Damaged Count (Dim).
     *   Combat Logs: Detailed breakdown of "Ships Damaged" vs "Ships Destroyed".
 
+### 3.3. Star Type Functional Effects
+Each star type has a 2x bonus in one specialty (all other stats @ 1.0):
+
+| Type | Color | 2x Bonus | Gameplay Effect |
+|------|-------|----------|-----------------|
+| **Grey** | `#8899aa` | None | Baseline - no bonuses |
+| **Yellow** | `#fbbf24` | Production | 2x ship generation rate |
+| **Blue** | `#3b82f6` | Speed | 2x transfer/movement rate |
+| **Purple** | `#a855f7` | Repair | 2x repair rate (0.4 vs 0.2 base) |
+| **Red** | `#ef4444` | Defense | 2x defenseStrength, 0.7 defensivePosture |
+| **Green** | `#22c55e` | Attack | 2x attack power, 0.3 defensivePosture |
+
+*See `Star.ts:TYPE_STATS` for canonical values.*
+
 ---
 
 ## 4. Technical Architecture (Atlas Compliant)
@@ -83,6 +97,7 @@ When Star A (Source) attacks Star B (Target):
 *   **Frontend**: Svelte 5 (Runes)
 *   **Renderer**: PixiJS 8 (WebGL)
 *   **Backend**: Tauri 2.0 (Rust context)
+*   **Package Manager**: Bun
 *   **State**: `gameStore.svelte.ts` (Reactive Bridge)
 
 ### 4.2. File Registry Key
