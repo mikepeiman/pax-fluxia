@@ -1,4 +1,5 @@
 import { writable } from 'svelte/store';
+import { audio } from '$lib/audio/AudioManager';
 
 export interface CombatLogEntry {
     id: string;
@@ -59,6 +60,17 @@ function createCombatLogStore() {
                     id: crypto.randomUUID(),
                     timestamp: Date.now()
                 };
+
+                // Play combat audio scaled to battle intensity
+                const totalShips = entry.attacker.ships + entry.defender.ships;
+                const intensity = Math.min(1, totalShips / 500); // Scale: 500 ships = max intensity
+                audio.combat(intensity);
+
+                // Play conquest sound for conquests
+                if (entry.result === 'CONQUERED') {
+                    audio.conquest();
+                }
+
                 // Keep last 50 logs
                 return [newLog, ...logs].slice(0, 50);
             });

@@ -72,6 +72,19 @@ Update this file after each development session.
 
 ~~1. **Command Input Lag** — UI interactions not instant. Must fix.~~ ✅ FIXED
 ~~2. **Vector Arrow Delay** — May be same root cause as #1.~~ ✅ FIXED
+3. **Passthrough Orders** — Deferred orders through enemy stars not working. Need to fix drag-through logic.
+
+---
+
+## Planned Features (Backlog)
+
+| Feature | Priority | Notes |
+|---------|----------|-------|
+| **Audio System** | High | Subtle sounds: tick metronome, ambient drone, order issued (per star dragged), combat (scaled to size). Use Tone.js for synthesis. |
+| **Star Distance Slider** | Medium | Pre-game setting to adjust average spacing between stars. Affects map density/feel. |
+| **Passthrough Orders** | High | Queue orders from/through enemy stars. Arrow colors differ for queued vs active orders. Enables strategic pre-planning. |
+| **Combat Log Improvements** | Low | Already improved - shows owner names now. |
+| **Chain Conquest Fix** | Done | Fixed - attacks invalidated when star ownership changes mid-tick. |
 
 ---
 

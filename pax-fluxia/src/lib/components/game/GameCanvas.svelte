@@ -18,6 +18,7 @@
         StarId,
     } from "$lib/types/game.types";
     import { Star } from "$lib/engine/Star";
+    import { audio } from "$lib/audio/AudioManager";
 
     // ============================================================================
     // PixiJS Application
@@ -75,6 +76,9 @@
     let deferredOrders: Set<string> = new Set(); // Track deferred orders (through enemy stars)
     let lastSessionId: number = -1; // Track game session to reset state on new game
 
+    // Track order chain depth for audio
+    let orderChainDepth = 0;
+
     // Helper: Add pending order and clean up conflicting orders
     function addPendingOrder(sourceId: string, targetId: string, isDeferred: boolean = false) {
         // Validate both stars exist in current snapshot
@@ -107,6 +111,10 @@
             // Add new order
             pendingOrders.add(key);
         }
+
+        // Play order sound (ascending notes for chains)
+        audio.order(orderChainDepth);
+        orderChainDepth++;
     }
 
     // Player colors (must match engine)
@@ -1338,6 +1346,9 @@
     function cancelDrag() {
         isDragging = false;
         dragSourceId = null;
+
+        // Reset order chain depth for audio
+        orderChainDepth = 0;
 
         // Clear preview
         if (dragPreviewGraphics) {

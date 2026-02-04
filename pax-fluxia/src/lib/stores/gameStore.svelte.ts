@@ -14,6 +14,7 @@ import type {
 
 import { GameEngine, createEngine } from '$lib/engine/GameEngine';
 import { combatLog } from '$lib/stores/combatLogStore';
+import { audio } from '$lib/audio/AudioManager';
 
 // Default settings
 const DEFAULT_SETTINGS: GameSettings = {
@@ -89,11 +90,14 @@ function updateSettings(partial: Partial<GameSettings>): void {
 }
 
 /** Start a new game */
-function startGame(): void {
+async function startGame(): Promise<void> {
     // Destroy existing engine if any
     if (engine) {
         engine.destroy();
     }
+
+    // Initialize audio (requires user gesture - game start counts)
+    await audio.init();
 
     // Clear combat log from previous game
     combatLog.clear();
@@ -108,6 +112,9 @@ function startGame(): void {
     // Set up callbacks
     engine.setOnTick((state: GameState) => {
         snapshot = state;
+
+        // Play tick sound
+        audio.tick();
 
         // Check for game over
         if (state.winner) {
