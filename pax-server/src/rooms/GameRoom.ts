@@ -2,7 +2,7 @@
 // Pax Fluxia - Game Room (Colyseus)
 // ============================================================================
 
-import { Room, Client } from "@colyseus/core";
+import { Room, Client } from "colyseus";
 import {
     GameRoomState,
     PlayerSchema,
@@ -20,8 +20,6 @@ const PLAYER_COLORS = [
     '#ff8844'  // Orange
 ];
 
-// Star emojis for random assignment
-const STAR_ICONS = ['🌟', '⭐', '🔵', '🟡', '🟣', '🔴', '🟢', '💫', '✨', '🌙'];
 
 // Room options passed from client
 interface RoomOptions {
@@ -79,7 +77,8 @@ export class GameRoom extends Room {
 
     onJoin(client: Client, options: any) {
         console.log(`👤 Player joined: ${client.sessionId}`);
-
+        client.send("playerJoined", { sessionId: client.sessionId });
+        client.send("welcome", "Default welcome message from server!")
         // First player is host
         if (this.state.players.size === 0) {
             this.state.hostSessionId = client.sessionId;
@@ -349,7 +348,6 @@ export class GameRoom extends Room {
         star.productionRate = 1;
         star.repairRate = 0.2;
         star.radius = 25;
-        star.icon = STAR_ICONS[Math.floor(Math.random() * STAR_ICONS.length)];
         this.state.stars.set(id, star);
     }
 

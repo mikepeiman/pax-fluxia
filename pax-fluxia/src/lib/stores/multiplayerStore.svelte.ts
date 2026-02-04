@@ -5,8 +5,8 @@
 import { Client, Room } from '@colyseus/sdk';
 import type { PlayerState, StarState, StarConnection, StarId } from '$lib/types/game.types';
 
-// Server URL (dev default)
-const SERVER_URL = 'http://localhost:2567';
+// Server URL (dev default) - use 127.0.0.1 to avoid IPv6/IPv4 mismatch
+const SERVER_URL = 'http://127.0.0.1:2567';
 
 // ============================================================================
 // State (Svelte 5 Runes)
@@ -72,8 +72,10 @@ async function createRoom(options: { playerCount?: number; mapType?: string } = 
     connectionError = null;
 
     try {
-        console.log('🏠 Creating room with options:', options);
-        room = await client.create('game_room', options);
+        // Use $state.snapshot to avoid passing Svelte 5 Proxies to Colyseus
+        const plainOptions = JSON.parse(JSON.stringify(options));
+        console.log('🏠 Creating room with options:', plainOptions);
+        room = await client.create('game_room', plainOptions);
         roomId = room.roomId;
         localSessionId = room.sessionId;
         isConnected = true;
