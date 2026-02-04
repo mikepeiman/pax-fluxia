@@ -139,6 +139,94 @@ function disconnect(): void {
 }
 
 // ============================================================================
+// State Sync
+// ============================================================================
+
+function syncStateFromRoom(state: any): void {
+    console.log('🔄 Syncing state:', {
+        phase: state.phase,
+        playerCount: state.playerCount,
+        hostSessionId: state.hostSessionId,
+        playersSize: state.players?.size ?? 0
+    });
+
+    // Update local state from server
+    phase = state.phase ?? 'lobby';
+    tick = state.tick ?? 0;
+    tickProgress = state.tickProgress ?? 0;
+    isPaused = state.isPaused ?? true;
+    speed = state.speed ?? 1;
+    playerCount = state.playerCount ?? 0;
+    maxPlayers = state.maxPlayers ?? 4;
+    hostSessionId = state.hostSessionId ?? null;
+    winnerId = state.winnerId ?? null;
+
+    // Convert players map to array
+    const playerArray: PlayerState[] = [];
+    if (state.players) {
+        state.players.forEach((player: any, key: string) => {
+            console.log(`  👤 Player: ${key} = ${player.name} (${player.color})`);
+            playerArray.push({
+                id: player.id,
+                name: player.name,
+                color: player.color,
+                isAI: player.isAI,
+                isEliminated: player.isEliminated,
+                starCount: player.starCount,
+                totalShips: player.totalShips,
+                activeShips: player.activeShips,
+                damagedShips: player.damagedShips,
+                production: player.production,
+                sessionId: player.sessionId
+            } as PlayerState & { sessionId: string });
+        });
+    }
+    players = playerArray;
+
+    // Convert stars map to array
+    const starArray: StarState[] = [];
+    if (state.stars) {
+        state.stars.forEach((star: any) => {
+            starArray.push({
+                id: star.id,
+                x: star.x,
+                y: star.y,
+                radius: star.radius,
+                productionRate: star.productionRate,
+                activeShips: star.activeShips,
+                damagedShips: star.damagedShips,
+                ownerId: star.ownerId,
+                targetId: star.targetId || null,
+                queuedOrderTargetId: star.queuedOrderTargetId || null,
+                icon: star.icon,
+                starType: star.starType as any,
+                activationRate: star.activationRate,
+                defensivePosture: star.defensivePosture,
+                defenseStrength: star.defenseStrength,
+                repairRate: star.repairRate,
+                transferRate: star.transferRate
+            });
+        });
+    }
+    stars = starArray;
+
+    // Convert connections array
+    const connArray: StarConnection[] = [];
+    if (state.connections) {
+        state.connections.forEach((conn: any) => {
+            connArray.push({
+                sourceId: conn.sourceId,
+                targetId: conn.targetId,
+                distance: conn.distance
+            });
+        });
+    }
+    connections = connArray;
+
+    console.log(`  📊 Synced: ${players.length} players, isHost=${getIsHost()}`);
+}
+
+// ============================================================================
 // Room Listeners
 // ============================================================================
 
@@ -147,100 +235,36 @@ function setupRoomListeners(): void {
 
     console.log('📡 Setting up room listeners...');
 
-    // State change listener - fires on every state update from server
+    // Sync initial state immediately if available
+    if (room.state) {
+        console.log('📥 Initial state available, syncing...');
+        syncStateFromRoom(room.state);
+    }
+
+    // Listen for future state changes
     room.onStateChange((state: any) => {
-        console.log('🔄 State change received:', {
-            phase: state.phase,
-            playerCount: state.playerCount,
-            hostSessionId: state.hostSessionId,
-            playersSize: state.players?.size ?? 0
-        });
+        syncStateFromRoom(state);
+    });
 
-        // Update local state from server
-        phase = state.phase ?? 'lobby';
-        tick = state.tick ?? 0;
-        tickProgress = state.tickProgress ?? 0;
-        isPaused = state.isPaused ?? true;
-        speed = state.speed ?? 1;
-        playerCount = state.playerCount ?? 0;
-        maxPlayers = state.maxPlayers ?? 4;
-        hostSessionId = state.hostSessionId ?? null;
-        winnerId = state.winnerId ?? null;
+    // Also listen for player additions/removals specifically
+    room.state?.players?.onAdd?.((player: any, key: string) => {
+        console.log(`➕ Player added: ${key} = ${player.name}`);
+        syncStateFromRoom(room!.state);
+    });
 
-        // Convert players map to array
-        const playerArray: PlayerState[] = [];
-        if (state.players) {
-            state.players.forEach((player: any, key: string) => {
-                console.log(`  👤 Player: ${key} = ${player.name} (${player.color})`);
-                playerArray.push({
-                    id: player.id,
-                    name: player.name,
-                    color: player.color,
-                    isAI: player.isAI,
-                    isEliminated: player.isEliminated,
-                    starCount: player.starCount,
-                    totalShips: player.totalShips,
-                    activeShips: player.activeShips,
-                    damagedShips: player.damagedShips,
-                    production: player.production,
-                    // Include sessionId for local player lookup
-                    sessionId: player.sessionId
-                } as PlayerState & { sessionId: string });
-            });
-        }
-        players = playerArray;
-
-        // Convert stars map to array
-        const starArray: StarState[] = [];
-        if (state.stars) {
-            state.stars.forEach((star: any) => {
-                starArray.push({
-                    id: star.id,
-                    x: star.x,
-                    y: star.y,
-                    radius: star.radius,
-                    productionRate: star.productionRate,
-                    activeShips: star.activeShips,
-                    damagedShips: star.damagedShips,
-                    ownerId: star.ownerId,
-                    targetId: star.targetId || null,
-                    queuedOrderTargetId: star.queuedOrderTargetId || null,
-                    icon: star.icon,
-                    starType: star.starType as any,
-                    activationRate: star.activationRate,
-                    defensivePosture: star.defensivePosture,
-                    defenseStrength: star.defenseStrength,
-                    repairRate: star.repairRate,
-                    transferRate: star.transferRate
-                });
-            });
-        }
-        stars = starArray;
-
-        // Convert connections array
-        const connArray: StarConnection[] = [];
-        if (state.connections) {
-            state.connections.forEach((conn: any) => {
-                connArray.push({
-                    sourceId: conn.sourceId,
-                    targetId: conn.targetId,
-                    distance: conn.distance
-                });
-            });
-        }
-        connections = connArray;
-
-        console.log(`  📊 Updated: ${players.length} players, isHost=${getIsHost()}`);
+    room.state?.players?.onRemove?.((player: any, key: string) => {
+        console.log(`➖ Player removed: ${key}`);
+        syncStateFromRoom(room!.state);
     });
 
     // Error handler
-    room.onError((code, message) => {
+    room.onError((code: number, message: string) => {
         console.error(`❌ Room error [${code}]:`, message);
         connectionError = message ?? 'Unknown error';
     });
 
     // Leave handler
-    room.onLeave((code) => {
+    room.onLeave((code: number) => {
         console.log(`👋 Left room with code: ${code}`);
         isConnected = false;
     });
