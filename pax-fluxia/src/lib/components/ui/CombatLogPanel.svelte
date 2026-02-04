@@ -75,18 +75,9 @@
                     totalDamageDealt: log.defender.kills + log.defender.disabled,
                     totalDamageTaken: log.attacker.kills + log.attacker.disabled
                 };
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/c67d8c30-eb3c-4370-973d-f2d85d59519b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CombatLogPanel.svelte:66',message:'New battle created',data:{battleId:battle.id,battleKey,tick:log.tick,defenderId:log.defender.id,attackerId:log.attacker.ownerId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
-                // #endregion
                 battleMap.set(battleKey, battle);
             }
         }
-        
-        // #region agent log
-        const allBattleIds = Array.from(battleMap.values()).map(b => b.id);
-        const duplicates = allBattleIds.filter((id, idx) => allBattleIds.indexOf(id) !== idx);
-        fetch('http://127.0.0.1:7242/ingest/c67d8c30-eb3c-4370-973d-f2d85d59519b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CombatLogPanel.svelte:82',message:'Battle array result',data:{totalBattles:allBattleIds.length,allIds:allBattleIds,duplicateIds:duplicates},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
-        // #endregion
         
         // Convert to array and sort by most recent
         return Array.from(battleMap.values())
