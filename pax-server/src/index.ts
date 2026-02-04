@@ -2,7 +2,7 @@
 // Colyseus Server Entry Point
 // ============================================================================
 
-import { Server, matchMaker } from "colyseus";
+import { Server } from "colyseus";
 import { WebSocketTransport } from "@colyseus/ws-transport";
 import express from "express";
 import cors from "cors";
@@ -30,7 +30,7 @@ app.get("/health", (_req, res) => {
 // Create HTTP server
 const httpServer = createServer(app);
 
-// Create Colyseus server
+// Create Colyseus server with the HTTP server
 const gameServer = new Server({
     transport: new WebSocketTransport({
         server: httpServer
@@ -40,15 +40,13 @@ const gameServer = new Server({
 // Register game room
 gameServer.define("game_room", GameRoom);
 
-// IMPORTANT: Register matchmaking routes for Colyseus 0.17+
-// This enables the /matchmake/* HTTP endpoints
-app.use("/matchmake", matchMaker.controller);
+// Attach Colyseus to Express app (registers /matchmake routes)
+gameServer.attach({ server: httpServer });
 
 // Start the server
 httpServer.listen(PORT, () => {
     console.log(`\n🚀 Pax Fluxia Server running on port ${PORT}`);
     console.log(`   Health: http://localhost:${PORT}/health`);
-    console.log(`   Matchmake: http://localhost:${PORT}/matchmake`);
     console.log(`   WebSocket: ws://localhost:${PORT}`);
     console.log(`   Started: ${new Date().toLocaleTimeString()}\n`);
 });
