@@ -440,58 +440,64 @@
             }
 
             if (!label) {
-                // Create container for stacked labels
+                // Create container for stacked labels - OFFSET from star with leash
                 label = new PIXI.Container();
 
-                // Active count (Top, Bright) - ALWAYS VISIBLE
+                // Leash line graphics (drawn first, behind text)
+                const leashGraphics = new PIXI.Graphics();
+                leashGraphics.label = "leash";
+                label.addChild(leashGraphics);
+
+                // Star ID label (Top) - LARGER for readability
+                const idText = new PIXI.Text({
+                    text: star.id.replace("star-", "#"),
+                    style: {
+                        fontFamily: "JetBrains Mono, monospace",
+                        fontSize: 14,
+                        fontWeight: "bold",
+                        fill: 0x88aaff,
+                        align: "center",
+                        stroke: { color: 0x000000, width: 3 },
+                    },
+                });
+                idText.anchor.set(0.5, 0.5);
+                idText.position.y = 0;
+                idText.label = "starId";
+                label.addChild(idText);
+
+                // Active count (Middle, Bright) - LARGER for readability
                 const activeText = new PIXI.Text({
+                    text: "0",
+                    style: {
+                        fontFamily: "JetBrains Mono, monospace",
+                        fontSize: 22,
+                        fontWeight: "bold",
+                        fill: 0xffffff,
+                        align: "center",
+                        stroke: { color: 0x000000, width: 3 },
+                    },
+                });
+                activeText.anchor.set(0.5, 0.5);
+                activeText.position.y = 18;
+                activeText.label = "active";
+                label.addChild(activeText);
+
+                // Damaged count (Bottom, Dimmer) - LARGER for readability
+                const damagedText = new PIXI.Text({
                     text: "0",
                     style: {
                         fontFamily: "JetBrains Mono, monospace",
                         fontSize: 16,
                         fontWeight: "bold",
-                        fill: 0xffffff,
-                        align: "center",
-                        stroke: { color: 0x000000, width: 2 },
-                    },
-                });
-                activeText.anchor.set(0.5, 0.5);
-                activeText.label = "active"; // Tag for retrieval
-                label.addChild(activeText);
-
-                // Damaged count (Bottom, Dimmer) - ALWAYS VISIBLE
-                const damagedText = new PIXI.Text({
-                    text: "0",
-                    style: {
-                        fontFamily: "JetBrains Mono, monospace",
-                        fontSize: 12,
-                        fontWeight: "bold",
-                        fill: 0xff8888, // Reddish tint
+                        fill: 0xff8888,
                         align: "center",
                         stroke: { color: 0x000000, width: 2 },
                     },
                 });
                 damagedText.anchor.set(0.5, 0.5);
-                damagedText.y = 16; // Offset downwards
+                damagedText.position.y = 38;
                 damagedText.label = "damaged";
                 label.addChild(damagedText);
-
-                // Star ID label (Top, above active count) - for log correlation
-                const idText = new PIXI.Text({
-                    text: star.id.replace("star-", ""),
-                    style: {
-                        fontFamily: "JetBrains Mono, monospace",
-                        fontSize: 10,
-                        fontWeight: "bold",
-                        fill: 0x88aaff,
-                        align: "center",
-                        stroke: { color: 0x000000, width: 2 },
-                    },
-                });
-                idText.anchor.set(0.5, 0.5);
-                idText.position.y = -20;
-                idText.label = "starId";
-                label.addChild(idText);
 
                 labelsContainer!.addChild(label);
                 starLabels.set(star.id, label);
@@ -540,7 +546,7 @@
             // Update labels
             const activeText = label.getChildByLabel("active") as PIXI.Text;
             const damagedText = label.getChildByLabel("damaged") as PIXI.Text;
-            const iconText = label.getChildByLabel("icon") as PIXI.Text;
+            const leashGraphics = label.getChildByLabel("leash") as PIXI.Graphics;
 
             if (activeText) activeText.text = String(star.activeShips);
 
@@ -550,13 +556,25 @@
                 damagedText.visible = true;
             }
 
-            // DISABLED: Star icons
-            // if (iconText && star.icon) {
-            //     iconText.text = star.icon;
-            // }
+            // Label offset from star center (bottom-right diagonal)
+            const labelOffsetX = 45;
+            const labelOffsetY = 35;
 
-            label.x = star.x;
-            label.y = star.y;
+            // Position label offset from star
+            label.x = star.x + labelOffsetX;
+            label.y = star.y + labelOffsetY;
+
+            // Draw leash line from star edge to label
+            if (leashGraphics) {
+                leashGraphics.clear();
+                // Line goes from star edge (at angle) to label origin
+                // Since label is positioned at offset, the line start is relative to label
+                const starEdgeX = -labelOffsetX + radius * 0.7; // From label's perspective
+                const starEdgeY = -labelOffsetY + radius * 0.7;
+                leashGraphics.moveTo(starEdgeX, starEdgeY);
+                leashGraphics.lineTo(-5, -5); // To just before label center
+                leashGraphics.stroke({ color: 0x666688, width: 1, alpha: 0.6 });
+            }
         });
     }
 
