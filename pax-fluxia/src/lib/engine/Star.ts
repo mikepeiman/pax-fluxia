@@ -143,12 +143,25 @@ export class Star {
         return this._targetId !== null;
     }
 
+    /** Get the queued order target (for human player deferred orders) */
+    get queuedOrderTargetId(): StarId | null {
+        return this._queuedOrder?.targetId ?? null;
+    }
+
     /**
      * Clear the attack target (stops sending ships)
      * Called when source runs out of ships or attack is cancelled
      */
     clearTarget(): void {
         this._targetId = null;
+    }
+
+    /**
+     * Clear any queued order (deferred order)
+     * Called to prevent bidirectional order loops
+     */
+    clearQueuedOrder(): void {
+        this._queuedOrder = null;
     }
 
     // ============================================================================

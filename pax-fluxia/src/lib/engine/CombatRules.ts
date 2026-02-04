@@ -28,17 +28,18 @@ export function resolveMultiwayCombat(target: Star, fleets: Fleet[], stars: Map<
         forces.set(fid, (forces.get(fid) || 0) + fleet.shipCount);
     });
 
-    // 2. Identify Attacker Force
+    // 2. Identify Attacker Force - Sum by PLAYER (not by fleet)
     let attackingForce = 0;
     let strongestAttackerId: string | null = null;
     let maxAttackForce = 0;
 
-    // Sum of all generic enemies (simple model: Everyone vs Owner)
-    forces.forEach((count, playerId) => {
+    // Sum all enemy forces and find strongest player by TOTAL force (not individual fleet)
+    forces.forEach((totalPlayerForce, playerId) => {
         if (playerId !== target.ownerId) {
-            attackingForce += count;
-            if (count > maxAttackForce) {
-                maxAttackForce = count;
+            attackingForce += totalPlayerForce;
+            // Compare player's TOTAL force, not individual fleet size
+            if (totalPlayerForce > maxAttackForce) {
+                maxAttackForce = totalPlayerForce;
                 strongestAttackerId = playerId;
             }
         }

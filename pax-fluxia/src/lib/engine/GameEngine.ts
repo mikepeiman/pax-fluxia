@@ -1053,6 +1053,14 @@ export class GameEngine {
             log.sys('GameEngine', `Cancelled opposite link from ${targetId} to ${sourceId}`);
         }
 
+        // FIX: Also cancel any queued deferred order from target→source
+        // This prevents loops when: A→B deferred, then B→A active order created
+        const targetQueuedOrder = target.queuedOrderTargetId;
+        if (targetQueuedOrder === sourceId) {
+            target.clearQueuedOrder();
+            log.sys('GameEngine', `Cancelled queued order ${targetId} → ${sourceId} (would create loop with new order)`);
+        }
+
         // New order replaces old order (source can only target one star)
         // persistAfterConquest defaults to global config if not specified
         source.setTarget(targetId, persistAfterConquest);
@@ -1087,6 +1095,19 @@ export class GameEngine {
                 (c.sourceId === nextTargetId && c.targetId === enemyStarId)
         );
         if (!isConnected) return false;
+
+        // FIX: Prevent bidirectional loops - cancel any active order from nextTarget→enemyStar
+        // This happens when player owns nextTarget and has active order pointing to enemyStar
+        if (nextTarget.ownerId === this.humanPlayerId && nextTarget.targetId === enemyStarId) {
+            nextTarget.setTarget(null);
+            log.sys('GameEngine', `Cancelled active order ${nextTargetId} → ${enemyStarId} (would create loop with deferred order)`);
+        }
+
+        // FIX: Also check and cancel any queued order from nextTarget→enemyStar
+        if (nextTarget.queuedOrderTargetId === enemyStarId) {
+            nextTarget.clearQueuedOrder();
+            log.sys('GameEngine', `Cancelled queued order ${nextTargetId} → ${enemyStarId} (would create loop with deferred order)`);
+        }
 
         // Set queued order (will execute when human captures this star)
         enemyStar.setQueuedOrder(this.humanPlayerId, nextTargetId, persistAfterConquest);
