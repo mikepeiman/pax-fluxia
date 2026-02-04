@@ -701,12 +701,24 @@
                     ctx.stroke();
                 }
 
-                // Ship count label
-                ctx.fillStyle = '#ffffff';
-                ctx.font = 'bold 18px sans-serif';
+                // Ship count label (enhanced visibility)
+                ctx.font = 'bold 22px sans-serif';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
+                // Black outline for contrast
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = 3;
+                ctx.strokeText(star.ships.toString(), star.x, star.y);
+                // White fill
+                ctx.fillStyle = '#ffffff';
                 ctx.fillText(star.ships.toString(), star.x, star.y);
+                // Star ID label below (for identification)
+                ctx.font = 'bold 12px sans-serif';
+                ctx.fillStyle = star.color;
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = 2;
+                ctx.strokeText(star.id.replace('star', '★'), star.x, star.y + star.radius + 15);
+                ctx.fillText(star.id.replace('star', '★'), star.x, star.y + star.radius + 15);
             });
 
             // Draw ships
