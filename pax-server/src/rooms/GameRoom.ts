@@ -42,7 +42,7 @@ type MessageType =
 
 export class GameRoom extends Room<GameRoomState> {
     // Config
-    private maxClients = 4;
+    maxClients = 4;
     private tickIntervalId: ReturnType<typeof setInterval> | null = null;
     private tickStartTime = 0;
     private roomOptions: RoomOptions = {};
@@ -93,8 +93,8 @@ export class GameRoom extends Room<GameRoomState> {
         console.log(`   → Player ${player.id} (${player.name}) joined as ${player.color}`);
     }
 
-    onLeave(client: Client, consented: boolean) {
-        console.log(`👤 Player left: ${client.sessionId} (consented: ${consented})`);
+    onLeave(client: Client, code?: number) {
+        console.log(`👤 Player left: ${client.sessionId} (code: ${code})`);
 
         const player = this.state.players.get(client.sessionId);
         if (player) {

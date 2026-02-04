@@ -1,23 +1,22 @@
 // ============================================================================
 // Colyseus Server Entry Point - Pax Fluxia
+// Following official Colyseus 0.17 docs exactly
 // ============================================================================
 
-import { Server } from "@colyseus/core";
-import { BunWebSockets } from "@colyseus/bun-websockets";
+import { defineServer, defineRoom } from "colyseus";
 import { GameRoom } from "./rooms/GameRoom";
 
 const PORT = Number(process.env.PORT) || 2567;
 
-// Create the Colyseus server using Bun WebSockets transport
-const gameServer = new Server({
-    transport: new BunWebSockets(),
+// Define the server using Colyseus 0.17 pattern
+const server = defineServer({
+    rooms: {
+        game_room: defineRoom(GameRoom),
+    },
 });
 
-// Register game room
-gameServer.define("game_room", GameRoom);
-
 // Start the server
-gameServer.listen(PORT).then(() => {
+server.listen(PORT).then(() => {
     console.log(`\n🚀 Pax Fluxia Server running on port ${PORT}`);
     console.log(`   WebSocket: ws://localhost:${PORT}`);
     console.log(`   Started: ${new Date().toLocaleTimeString()}\n`);

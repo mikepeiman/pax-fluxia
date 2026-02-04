@@ -2,11 +2,11 @@
 // Multiplayer Store - Colyseus Client Connection
 // ============================================================================
 
-import { Client, Room } from 'colyseus.js';
+import { Client, Room } from '@colyseus/sdk';
 import type { PlayerState, StarState, StarConnection, StarId } from '$lib/types/game.types';
 
 // Server URL (dev default)
-const SERVER_URL = 'ws://localhost:2567';
+const SERVER_URL = 'http://localhost:2567';
 
 // ============================================================================
 // State (Svelte 5 Runes)
