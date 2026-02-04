@@ -55,18 +55,26 @@ export class GameRoom extends Room<GameRoomState> {
     // ========================================================================
 
     onCreate(options: RoomOptions) {
-        console.log(`🎮 GameRoom created with options:`, options);
-        this.roomOptions = options;
-        this.maxClients = options.playerCount || 4;
+        try {
+            console.log(`📍 onCreate starting...`);
+            console.log(`🎮 GameRoom created with options:`, options);
+            this.roomOptions = options;
+            this.maxClients = options.playerCount || 4;
 
-        // Initialize state values
-        this.state.maxPlayers = this.maxClients;
-        this.state.phase = "lobby";
+            console.log(`📍 Setting state values...`);
+            // Initialize state values
+            this.state.maxPlayers = this.maxClients;
+            this.state.phase = "lobby";
 
-        // Register message handlers
-        this.registerMessageHandlers();
+            console.log(`📍 Registering message handlers...`);
+            // Register message handlers
+            this.registerMessageHandlers();
 
-        console.log(`   Max players: ${this.maxClients}`);
+            console.log(`✅ onCreate complete. Max players: ${this.maxClients}`);
+        } catch (err) {
+            console.error(`❌ Error in onCreate:`, err);
+            throw err;
+        }
     }
 
     onJoin(client: Client, options: any) {
