@@ -99,7 +99,8 @@
             var(--color-accent-cyan),
             var(--color-player-human)
         );
-        color: var(--color-void-deep);
+        color: #ffffff;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
         border: none;
         border-radius: var(--radius-md);
         cursor: pointer;

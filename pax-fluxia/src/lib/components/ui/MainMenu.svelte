@@ -8,7 +8,7 @@
 
     // Load from localStorage or use defaults
     function loadSetting<T>(key: string, defaultValue: T): T {
-        if (typeof window === 'undefined') return defaultValue;
+        if (typeof window === "undefined") return defaultValue;
         const stored = localStorage.getItem(`pax-fluxia-${key}`);
         if (stored) {
             try {
@@ -21,19 +21,24 @@
     }
 
     function saveSetting(key: string, value: any) {
-        if (typeof window === 'undefined') return;
+        if (typeof window === "undefined") return;
         localStorage.setItem(`pax-fluxia-${key}`, JSON.stringify(value));
     }
 
     // Config State (loaded from localStorage)
     let mapType = $state(loadSetting("mapType", "Standard"));
-    let playerCount = $state<GameSettings["playerCount"]>(loadSetting("playerCount", 6));
+    let playerCount = $state<GameSettings["playerCount"]>(
+        loadSetting("playerCount", 6),
+    );
     let difficulty = $state(loadSetting("difficulty", "Normal"));
     let starsPerPlayer = $state(loadSetting("starsPerPlayer", 5));
     let shipsPerStar = $state(loadSetting("shipsPerStar", 40));
     let minLinks = $state(loadSetting("minLinks", 1));
     let maxLinks = $state(loadSetting("maxLinks", 6));
     let starSpacing = $state(loadSetting("starSpacing", 1.0));
+    let retainOrderOnConquest = $state(
+        loadSetting("retainOrderOnConquest", true),
+    );
 
     // Constants
     const MAP_TYPES = ["Standard", "DEBUG MAP"];
@@ -50,13 +55,15 @@
         saveSetting("minLinks", minLinks);
         saveSetting("maxLinks", maxLinks);
         saveSetting("starSpacing", starSpacing);
+        saveSetting("retainOrderOnConquest", retainOrderOnConquest);
 
         // Apply Config
         GAME_CONFIG.STARS_PER_PLAYER = starsPerPlayer;
         GAME_CONFIG.STARTING_SHIPS = shipsPerStar;
         GAME_CONFIG.MIN_LINKS_PER_STAR = minLinks;
         GAME_CONFIG.MAX_LINKS_PER_STAR = maxLinks;
-        
+        GAME_CONFIG.RETAIN_ORDER_ON_CONQUEST = retainOrderOnConquest;
+
         gameStore.updateSettings({
             playerCount,
             mapType: mapType === "DEBUG MAP" ? "debug" : "standard",
@@ -202,6 +209,21 @@
                         <span class="mini-label">SPARSE</span>
                         <span class="value">{starSpacing.toFixed(1)}x</span>
                     </div>
+                </div>
+
+                <!-- Order Behavior -->
+                <div class="control-group">
+                    <label class="checkbox-label">
+                        <input
+                            type="checkbox"
+                            bind:checked={retainOrderOnConquest}
+                        />
+                        <span>Retain order after conquest</span>
+                        <span class="tooltip"
+                            >Attack orders become movement orders when target is
+                            captured</span
+                        >
+                    </label>
                 </div>
 
                 <div class="action-area">
@@ -481,5 +503,41 @@
         color: #666;
         cursor: pointer;
         border-radius: 4px;
+    }
+
+    .checkbox-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        color: #ccd;
+        position: relative;
+    }
+
+    .checkbox-label input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        accent-color: #00ffff;
+        cursor: pointer;
+    }
+
+    .checkbox-label .tooltip {
+        display: none;
+        position: absolute;
+        bottom: 100%;
+        left: 0;
+        background: rgba(0, 20, 40, 0.95);
+        color: #8899aa;
+        padding: 6px 10px;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        white-space: nowrap;
+        border: 1px solid #334466;
+        margin-bottom: 4px;
+    }
+
+    .checkbox-label:hover .tooltip {
+        display: block;
     }
 </style>

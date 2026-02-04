@@ -41,6 +41,9 @@ interface GameConfigType {
     // Order Persistence
     ORDERS_PERSIST_AFTER_CONQUEST: boolean;
 
+    /** When attacker conquers defender, retain attack order as movement order */
+    RETAIN_ORDER_ON_CONQUEST: boolean;
+
     // Scatter/Retreat (on conquest)
     RETREAT_CAPTURE_RATE: number;      // % captured when defender is retreating (default 0.35)
     SCATTER_CAPTURE_RATE: number;      // % captured when escape routes exist (default 0.50)
@@ -187,6 +190,9 @@ export const GAME_CONFIG: GameConfigType = {
 
     /** Default behavior: orders persist through star conquest (Ctrl-click inverts this per-order) */
     ORDERS_PERSIST_AFTER_CONQUEST: true,
+
+    /** When attacker conquers defender, retain attack order as movement order (default: true) */
+    RETAIN_ORDER_ON_CONQUEST: true,
 
     // ========================================================================
     // SCATTER / RETREAT

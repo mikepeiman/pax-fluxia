@@ -936,12 +936,17 @@ export class GameEngine {
             log.data('Conquest', `Transferred ${shipsToTransfer} ships from ${attacker.id} to ${defender.id}`);
         }
 
-        // Clear orders - but NOT if defender has a queued order from new owner
+        // Clear orders based on config
+        // OLD: CLEAR_ORDER_ON_CAPTURE clears attacker order (deprecated)
+        // NEW: RETAIN_ORDER_ON_CONQUEST keeps attacker order (now a movement order)
         // The defender's target was already set from queued order in setOwner()
-        if (GAME_CONFIG.CLEAR_ORDER_ON_CAPTURE) {
+        if (GAME_CONFIG.RETAIN_ORDER_ON_CONQUEST) {
+            // Keep attacker's order - now it's a movement order to the conquered star
+            // This allows continuous reinforcement after conquest
+            log.data('Conquest', `Retained attack order ${attacker.id} → ${defender.id} (now movement)`);
+        } else {
+            // Clear attacker order (old behavior)
             attacker.clearTarget();
-            // Don't clear defender target - it may have been set from a queued/deferred order
-            // The queued order system allows chain-through orders to execute on capture
         }
 
         // Log conquest

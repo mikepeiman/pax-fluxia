@@ -15,6 +15,7 @@ import type {
 import { GameEngine, createEngine } from '$lib/engine/GameEngine';
 import { combatLog } from '$lib/stores/combatLogStore';
 import { audio } from '$lib/audio/AudioManager';
+import { GAME_CONFIG } from '$lib/config/game.config';
 
 // Default settings
 const DEFAULT_SETTINGS: GameSettings = {
@@ -293,6 +294,11 @@ function updateConfig(): void {
 // Export Store
 // ============================================================================
 
+/** Toggle RETAIN_ORDER_ON_CONQUEST setting */
+function toggleRetainOrderOnConquest(): void {
+    GAME_CONFIG.RETAIN_ORDER_ON_CONQUEST = !GAME_CONFIG.RETAIN_ORDER_ON_CONQUEST;
+}
+
 export const gameStore = {
     // Reactive getters (use these in components with gameStore.xxx)
     get currentView() { return currentView; },
@@ -306,6 +312,7 @@ export const gameStore = {
     get leaderboard() { return leaderboard; },
     get sessionId() { return sessionId; },
     get hasStarted() { return hasStarted; },
+    get retainOrderOnConquest() { return GAME_CONFIG.RETAIN_ORDER_ON_CONQUEST; },
 
     // Actions
     setView,
@@ -324,5 +331,6 @@ export const gameStore = {
     getStats,
     getHistory,
     updateConfig,
-    beginGame
+    beginGame,
+    toggleRetainOrderOnConquest
 };
