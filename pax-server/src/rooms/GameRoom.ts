@@ -40,7 +40,7 @@ type MessageType =
     | { type: 'resume' }
     | { type: 'startGame' };
 
-export class GameRoom extends Room<GameRoomState> {
+export class GameRoom extends Room {
     // Config
     maxClients = 4;
     private tickIntervalId: ReturnType<typeof setInterval> | null = null;
