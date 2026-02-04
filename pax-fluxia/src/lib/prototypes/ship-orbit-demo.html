@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pax Fluxia - Ship Orbit Demo</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            background: #0a0a1a; 
+            overflow: hidden; 
+            font-family: 'Segoe UI', sans-serif;
+        }
+        canvas { display: block; }
+        .controls {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            color: #fff;
+            font-size: 14px;
+            z-index: 100;
+        }
+        .controls label {
+            display: block;
+            margin: 8px 0;
+            cursor: pointer;
+        }
+        .controls input[type="range"] {
+            width: 150px;
+            vertical-align: middle;
+        }
+        .controls button {
+            margin: 5px 5px 5px 0;
+            padding: 8px 16px;
+            background: #3b82f6;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            cursor: pointer;
+        }
+        .controls button:hover { background: #2563eb; }
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <h3 style="margin-bottom: 12px;">Ship Orbit Demo</h3>
+        <label>
+            Ships per star: <span id="shipCountLabel">12</span>
+            <input type="range" id="shipCount" min="1" max="50" value="12">
+        </label>
+        <label>
+            Orbit speed: <span id="orbitSpeedLabel">1.0</span>
+            <input type="range" id="orbitSpeed" min="0.1" max="3" step="0.1" value="1">
+        </label>
+        <label>
+            Orbit radius: <span id="orbitRadiusLabel">40</span>
+            <input type="range" id="orbitRadius" min="20" max="100" value="40">
+        </label>
+        <label>
+            Ship size: <span id="shipSizeLabel">4</span>
+            <input type="range" id="shipSize" min="1" max="10" value="4">
+        </label>
+        <button id="transferBtn">Transfer Ships →</button>
+        <button id="resetBtn">Reset</button>
+        <p style="margin-top: 15px; opacity: 0.7; font-size: 12px;">
+            Click stars to select. Transfer moves ships from left to right star.
+        </p>
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // Resize canvas to window
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resize();
+        window.addEventListener('resize', resize);
+
+        // Config
+        let config = {
+            shipCount: 12,
+            orbitSpeed: 1.0,
+            orbitRadius: 40,
+            shipSize: 4
+        };
+
+        // Star class
+        class Star {
+            constructor(x, y, color, name) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.name = name;
+                this.radius = 25;
+                this.ships = [];
+                this.selected = false;
+            }
+
+            addShip(isDamaged = false) {
+                const angle = Math.random() * Math.PI * 2;
+                const orbitOffset = (Math.random() - 0.5) * 10; // Slight radius variance
+                this.ships.push({
+                    angle,
+                    orbitOffset,
+                    speed: 0.8 + Math.random() * 0.4, // Individual speed variance
+                    isDamaged,
+                    // Animation state for transfers
+                    transferring: false,
+                    transferProgress: 0,
+                    transferTarget: null,
+                    startX: 0,
+                    startY: 0
+                });
+            }
+
+            getShipPosition(ship) {
+                const r = config.orbitRadius + ship.orbitOffset;
+                return {
+                    x: this.x + Math.cos(ship.angle) * r,
+                    y: this.y + Math.sin(ship.angle) * r
+                };
+            }
+
+            update(dt) {
+                this.ships.forEach(ship => {
+                    if (!ship.transferring) {
+                        // Orbit around star
+                        ship.angle += config.orbitSpeed * ship.speed * dt * 0.02;
+                    } else {
+                        // Transfer animation
+                        ship.transferProgress += dt * 0.002;
+                        if (ship.transferProgress >= 1) {
+                            // Transfer complete - add to target star
+                            ship.transferTarget.addShip(ship.isDamaged);
+                            ship.toRemove = true;
+                        }
+                    }
+                });
+                // Remove transferred ships
+                this.ships = this.ships.filter(s => !s.toRemove);
+            }
+
+            draw() {
+                // Draw star glow
+                const gradient = ctx.createRadialGradient(
+                    this.x, this.y, 0,
+                    this.x, this.y, this.radius * 2
+                );
+                gradient.addColorStop(0, this.color + '80');
+                gradient.addColorStop(0.5, this.color + '20');
+                gradient.addColorStop(1, 'transparent');
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius * 2, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Draw star core
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Selection ring
+                if (this.selected) {
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([5, 5]);
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius + 8, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+
+                // Draw ships
+                this.ships.forEach(ship => {
+                    let pos;
+                    if (ship.transferring) {
+                        // Hourglass transfer path
+                        pos = this.getTransferPosition(ship);
+                    } else {
+                        pos = this.getShipPosition(ship);
+                    }
+
+                    // Ship visual
+                    ctx.fillStyle = ship.isDamaged ? 'transparent' : this.color;
+                    ctx.strokeStyle = this.color;
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.arc(pos.x, pos.y, config.shipSize, 0, Math.PI * 2);
+                    if (ship.isDamaged) {
+                        ctx.stroke(); // Hollow for damaged
+                    } else {
+                        ctx.fill(); // Solid for active
+                    }
+                });
+
+                // Ship count label
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 16px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(this.ships.filter(s => !s.transferring).length, this.x, this.y + 5);
+            }
+
+            getTransferPosition(ship) {
+                const t = ship.transferProgress;
+                const target = ship.transferTarget;
+                
+                // Hourglass effect: ships converge to midpoint, then diverge to destination
+                const midX = (ship.startX + target.x) / 2;
+                const midY = (ship.startY + target.y) / 2;
+                
+                // Bezier-like path with pinch at middle
+                const pinch = Math.sin(t * Math.PI); // 0 -> 1 -> 0
+                const spread = 1 - pinch * 0.8; // Converge at middle
+                
+                // Base position along line
+                const baseX = ship.startX + (target.x - ship.startX) * t;
+                const baseY = ship.startY + (target.y - ship.startY) * t;
+                
+                // Add perpendicular offset based on ship's original angle
+                const perpX = Math.cos(ship.angle + Math.PI/2) * ship.orbitOffset * spread * 2;
+                const perpY = Math.sin(ship.angle + Math.PI/2) * ship.orbitOffset * spread * 2;
+                
+                return {
+                    x: baseX + perpX,
+                    y: baseY + perpY
+                };
+            }
+
+            transferShipsTo(target, count) {
+                const toTransfer = this.ships.slice(0, count);
+                toTransfer.forEach(ship => {
+                    const pos = this.getShipPosition(ship);
+                    ship.transferring = true;
+                    ship.transferProgress = 0;
+                    ship.transferTarget = target;
+                    ship.startX = pos.x;
+                    ship.startY = pos.y;
+                });
+            }
+        }
+
+        // Create two stars
+        const starA = new Star(canvas.width * 0.35, canvas.height * 0.5, '#22c55e', 'Alpha');
+        const starB = new Star(canvas.width * 0.65, canvas.height * 0.5, '#ef4444', 'Beta');
+
+        // Initialize ships
+        function initShips() {
+            starA.ships = [];
+            starB.ships = [];
+            for (let i = 0; i < config.shipCount; i++) {
+                starA.addShip(i % 5 === 0); // Every 5th ship is damaged
+                starB.addShip(i % 4 === 0);
+            }
+        }
+        initShips();
+
+        // Draw connection line between stars
+        function drawConnection() {
+            ctx.strokeStyle = '#ffffff30';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(starA.x, starA.y);
+            ctx.lineTo(starB.x, starB.y);
+            ctx.stroke();
+        }
+
+        // Animation loop
+        let lastTime = performance.now();
+        function animate() {
+            const now = performance.now();
+            const dt = now - lastTime;
+            lastTime = now;
+
+            // Clear
+            ctx.fillStyle = '#0a0a1a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw starfield background
+            ctx.fillStyle = '#ffffff';
+            for (let i = 0; i < 100; i++) {
+                const x = (i * 73 + 17) % canvas.width;
+                const y = (i * 31 + 41) % canvas.height;
+                const size = (i % 3) * 0.5 + 0.5;
+                ctx.globalAlpha = 0.3 + (i % 5) * 0.1;
+                ctx.beginPath();
+                ctx.arc(x, y, size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+
+            // Update and draw
+            drawConnection();
+            starA.update(dt);
+            starB.update(dt);
+            starA.draw();
+            starB.draw();
+
+            requestAnimationFrame(animate);
+        }
+        animate();
+
+        // Controls
+        document.getElementById('shipCount').addEventListener('input', (e) => {
+            config.shipCount = parseInt(e.target.value);
+            document.getElementById('shipCountLabel').textContent = config.shipCount;
+        });
+        document.getElementById('orbitSpeed').addEventListener('input', (e) => {
+            config.orbitSpeed = parseFloat(e.target.value);
+            document.getElementById('orbitSpeedLabel').textContent = config.orbitSpeed.toFixed(1);
+        });
+        document.getElementById('orbitRadius').addEventListener('input', (e) => {
+            config.orbitRadius = parseInt(e.target.value);
+            document.getElementById('orbitRadiusLabel').textContent = config.orbitRadius;
+        });
+        document.getElementById('shipSize').addEventListener('input', (e) => {
+            config.shipSize = parseInt(e.target.value);
+            document.getElementById('shipSizeLabel').textContent = config.shipSize;
+        });
+
+        document.getElementById('transferBtn').addEventListener('click', () => {
+            const count = Math.ceil(starA.ships.filter(s => !s.transferring).length * 0.25);
+            starA.transferShipsTo(starB, count);
+        });
+
+        document.getElementById('resetBtn').addEventListener('click', initShips);
+
+        // Click to select stars
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            [starA, starB].forEach(star => {
+                const dist = Math.hypot(x - star.x, y - star.y);
+                star.selected = dist < star.radius + 20;
+            });
+        });
+
+        // Handle window resize - reposition stars
+        window.addEventListener('resize', () => {
+            starA.x = canvas.width * 0.35;
+            starA.y = canvas.height * 0.5;
+            starB.x = canvas.width * 0.65;
+            starB.y = canvas.height * 0.5;
+        });
+    </script>
+</body>
+</html>

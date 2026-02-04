@@ -166,10 +166,15 @@ function setSpeed(newSpeed: GameSpeed): void {
     }
 }
 
-/** Issue attack order (create flow link) - returns true if successful */
-function issueOrder(sourceId: StarId, targetId: StarId): boolean {
+/** Issue attack order (create flow link)
+ * @param sourceId - Source star ID
+ * @param targetId - Target star ID
+ * @param persistAfterConquest - If false (ctrl-click), order clears when star is captured
+ * @returns true if successful
+ */
+function issueOrder(sourceId: StarId, targetId: StarId, persistAfterConquest?: boolean): boolean {
     if (engine) {
-        const result = engine.createLink(sourceId, targetId);
+        const result = engine.createLink(sourceId, targetId, persistAfterConquest);
         // INSTANT UI: Refresh snapshot immediately (don't wait for tick)
         if (result) {
             snapshot = engine.getState();
@@ -188,10 +193,14 @@ function cancelOrder(starId: StarId): void {
     }
 }
 
-/** Set deferred order on enemy star (executes when captured) */
-function setDeferredOrder(enemyStarId: StarId, nextTargetId: StarId): boolean {
+/** Set deferred order on enemy star (executes when captured)
+ * @param enemyStarId - Enemy star to set order on
+ * @param nextTargetId - Where to attack after capturing
+ * @param persistAfterConquest - If false (ctrl-click), order clears if star is captured again
+ */
+function setDeferredOrder(enemyStarId: StarId, nextTargetId: StarId, persistAfterConquest?: boolean): boolean {
     if (engine) {
-        const result = engine.setDeferredOrder(enemyStarId, nextTargetId);
+        const result = engine.setDeferredOrder(enemyStarId, nextTargetId, persistAfterConquest);
         if (result) {
             snapshot = engine.getState();
         }

@@ -38,6 +38,9 @@ interface GameConfigType {
     OVERWHELM_THRESHOLD: number;
     CLEAR_ORDER_ON_CAPTURE: boolean;
 
+    // Order Persistence
+    ORDERS_PERSIST_AFTER_CONQUEST: boolean;
+
     // Scatter/Retreat (on conquest)
     RETREAT_CAPTURE_RATE: number;      // % captured when defender is retreating (default 0.35)
     SCATTER_CAPTURE_RATE: number;      // % captured when escape routes exist (default 0.50)
@@ -179,8 +182,11 @@ export const GAME_CONFIG: GameConfigType = {
     /** Defender strength ratio below which they are instantly overwhelmed (e.g. 0.1 = 10% of attackers) */
     OVERWHELM_THRESHOLD: 0.1,
 
-    /** Whether to clear flow order after capture */
+    /** Whether to clear flow order after capture - DEPRECATED, use ORDERS_PERSIST_AFTER_CONQUEST */
     CLEAR_ORDER_ON_CAPTURE: true,
+
+    /** Default behavior: orders persist through star conquest (Ctrl-click inverts this per-order) */
+    ORDERS_PERSIST_AFTER_CONQUEST: true,
 
     // ========================================================================
     // SCATTER / RETREAT

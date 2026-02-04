@@ -1027,7 +1027,7 @@ export class GameEngine {
     // Game Logic Helpers
     // ============================================================================
 
-    createLink(sourceId: StarId, targetId: StarId): boolean {
+    createLink(sourceId: StarId, targetId: StarId, persistAfterConquest?: boolean): boolean {
         const source = this.stars.get(sourceId);
         const target = this.stars.get(targetId);
 
@@ -1049,7 +1049,8 @@ export class GameEngine {
         }
 
         // New order replaces old order (source can only target one star)
-        source.setTarget(targetId);
+        // persistAfterConquest defaults to global config if not specified
+        source.setTarget(targetId, persistAfterConquest);
         return true;
     }
 
@@ -1063,8 +1064,11 @@ export class GameEngine {
     /**
      * Set a deferred order on an enemy star (to be executed when captured)
      * This allows players to chain orders through enemy territory
+     * @param enemyStarId - The enemy star to set the order on
+     * @param nextTargetId - Where to attack after capturing
+     * @param persistAfterConquest - If false, order clears if star is captured again
      */
-    setDeferredOrder(enemyStarId: StarId, nextTargetId: StarId): boolean {
+    setDeferredOrder(enemyStarId: StarId, nextTargetId: StarId, persistAfterConquest?: boolean): boolean {
         const enemyStar = this.stars.get(enemyStarId);
         const nextTarget = this.stars.get(nextTargetId);
 
@@ -1080,8 +1084,8 @@ export class GameEngine {
         if (!isConnected) return false;
 
         // Set queued order (will execute when human captures this star)
-        enemyStar.setQueuedOrder(this.humanPlayerId, nextTargetId);
-        log.sys('GameEngine', `Deferred order set: ${enemyStarId} -> ${nextTargetId} (on capture)`);
+        enemyStar.setQueuedOrder(this.humanPlayerId, nextTargetId, persistAfterConquest);
+        log.sys('GameEngine', `Deferred order set: ${enemyStarId} -> ${nextTargetId} (on capture, persist=${persistAfterConquest ?? 'default'})`);
         return true;
     }
 

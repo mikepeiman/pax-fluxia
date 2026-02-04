@@ -63,7 +63,7 @@
     // Input state
     let isDragging = false;
     let dragSourceId: string | null = null;
-    let dragStartX = 0;      // Click position (for movement detection)
+    let dragStartX = 0; // Click position (for movement detection)
     let dragStartY = 0;
     let dragSourceCenterX = 0; // Star center (for visual preview)
     let dragSourceCenterY = 0;
@@ -80,17 +80,21 @@
     let orderChainDepth = 0;
 
     // Helper: Add pending order and clean up conflicting orders
-    function addPendingOrder(sourceId: string, targetId: string, isDeferred: boolean = false) {
+    function addPendingOrder(
+        sourceId: string,
+        targetId: string,
+        isDeferred: boolean = false,
+    ) {
         // Validate both stars exist in current snapshot
         const snapshot = gameStore.snapshot;
         if (!snapshot) return;
-        
-        const sourceExists = snapshot.stars.some(s => s.id === sourceId);
-        const targetExists = snapshot.stars.some(s => s.id === targetId);
+
+        const sourceExists = snapshot.stars.some((s) => s.id === sourceId);
+        const targetExists = snapshot.stars.some((s) => s.id === targetId);
         if (!sourceExists || !targetExists) return;
-        
+
         const key = `${sourceId}|${targetId}`;
-        
+
         if (isDeferred) {
             // For deferred orders, allow one per enemy star
             deferredOrders.forEach((k) => {
@@ -182,7 +186,7 @@
 
         // Handle window resize
         window.addEventListener("resize", handleResize);
-        
+
         // Use ResizeObserver for more accurate container resize detection
         resizeObserver = new ResizeObserver(() => {
             handleResize();
@@ -194,7 +198,7 @@
         log.sys("GameCanvas", "Destroying PixiJS application");
 
         window.removeEventListener("resize", handleResize);
-        
+
         if (resizeObserver) {
             resizeObserver.disconnect();
             resizeObserver = null;
@@ -253,20 +257,20 @@
 
     function handleResize() {
         if (!app) return;
-        
+
         app.resize();
-        
+
         // Calculate scale to fit game world in container while maintaining aspect ratio
         const containerWidth = app.screen.width;
         const containerHeight = app.screen.height;
-        
+
         const scaleX = containerWidth / GAME_WIDTH;
         const scaleY = containerHeight / GAME_HEIGHT;
         const scale = Math.min(scaleX, scaleY); // Fit (not fill)
-        
+
         // Apply scale to stage
         app.stage.scale.set(scale, scale);
-        
+
         // Center the scaled content
         const scaledWidth = GAME_WIDTH * scale;
         const scaledHeight = GAME_HEIGHT * scale;
@@ -359,7 +363,10 @@
             activeStarId = null;
             visualShips.clear();
             visualDamagedShips.clear();
-            log.sys('GameCanvas', `Session changed to ${currentSessionId}, state reset`);
+            log.sys(
+                "GameCanvas",
+                `Session changed to ${currentSessionId}, state reset`,
+            );
         }
 
         // Render Debug Grid (check every frame if config changes)
@@ -554,7 +561,9 @@
             // Update labels
             const activeText = label.getChildByLabel("active") as PIXI.Text;
             const damagedText = label.getChildByLabel("damaged") as PIXI.Text;
-            const leashGraphics = label.getChildByLabel("leash") as PIXI.Graphics;
+            const leashGraphics = label.getChildByLabel(
+                "leash",
+            ) as PIXI.Graphics;
 
             if (activeText) activeText.text = String(star.activeShips);
 
@@ -602,17 +611,17 @@
         // Clean up stale pending orders:
         // 1. Remove if source now has a confirmed target (snapshot overrides pending)
         // 2. Remove if source no longer exists
-        const starsById = new Map(stars.map(s => [s.id, s]));
+        const starsById = new Map(stars.map((s) => [s.id, s]));
         pendingOrders.forEach((key) => {
-            const [sourceId, targetId] = key.split('|');
+            const [sourceId, targetId] = key.split("|");
             const source = starsById.get(sourceId);
-            
+
             // Remove if source doesn't exist or no longer owned by human
-            if (!source || source.ownerId !== 'human-player') {
+            if (!source || source.ownerId !== "human-player") {
                 pendingOrders.delete(key);
                 return;
             }
-            
+
             // Remove if source now has a confirmed target (any target)
             if (confirmedOrders.has(sourceId)) {
                 pendingOrders.delete(key);
@@ -706,13 +715,13 @@
         // ============================================================================
         // Render Deferred Orders (dashed lines, transparent)
         // ============================================================================
-        
+
         // Clean up deferred orders for stars that have been captured by human
         deferredOrders.forEach((key) => {
-            const [sourceId] = key.split('|');
+            const [sourceId] = key.split("|");
             const source = starsById.get(sourceId);
             // If the star is now owned by human, the queued order has executed - remove it
-            if (source && source.ownerId === 'human-player') {
+            if (source && source.ownerId === "human-player") {
                 deferredOrders.delete(key);
             }
         });
@@ -720,8 +729,8 @@
         // Also sync with actual queuedOrderTargetId from snapshot
         const snapshotStars = gameStore.snapshot?.stars || [];
         deferredOrders.forEach((key) => {
-            const [sourceId, targetId] = key.split('|');
-            const star = snapshotStars.find(s => s.id === sourceId);
+            const [sourceId, targetId] = key.split("|");
+            const star = snapshotStars.find((s) => s.id === sourceId);
             // Remove if star doesn't have this queued order anymore
             if (star && star.queuedOrderTargetId !== targetId) {
                 deferredOrders.delete(key);
@@ -763,8 +772,11 @@
 
             while (currentDist < totalLen - headLen) {
                 const segStart = startDist + currentDist;
-                const segEnd = Math.min(segStart + dashLen, startDist + totalLen - headLen);
-                
+                const segEnd = Math.min(
+                    segStart + dashLen,
+                    startDist + totalLen - headLen,
+                );
+
                 const x1 = source.x + Math.cos(angle) * segStart;
                 const y1 = source.y + Math.sin(angle) * segStart;
                 const x2 = source.x + Math.cos(angle) * segEnd;
@@ -894,20 +906,22 @@
                         // Calculate ship's position relative to star center
                         const shipDx = slot.x - star.x;
                         const shipDy = slot.y - star.y;
-                        const shipDist = Math.sqrt(shipDx * shipDx + shipDy * shipDy) || 1;
-                        
+                        const shipDist =
+                            Math.sqrt(shipDx * shipDx + shipDy * shipDy) || 1;
+
                         // Normalize ship position vector
                         const shipNormX = shipDx / shipDist;
                         const shipNormY = shipDy / shipDist;
-                        
+
                         // Dot product with target direction = how much ship faces target
                         // +1 = facing target, -1 = facing away, 0 = perpendicular
-                        const facingFactor = shipNormX * dirX + shipNormY * dirY;
-                        
+                        const facingFactor =
+                            shipNormX * dirX + shipNormY * dirY;
+
                         // Only surge ships facing target (facingFactor > 0)
                         // Use smooth transition: max(0, facingFactor)^2 for softer falloff
                         const surgeFactor = Math.max(0, facingFactor) ** 1.5;
-                        
+
                         // Per-ship phase offset for staggered surge
                         const phaseOffsetTime = tickProgress + shipPhase * 0.12;
                         const surgePulse = Math.sin(
@@ -1073,16 +1087,19 @@
     // ============================================================================
 
     // Convert screen coordinates to game world coordinates (accounting for scale and offset)
-    function screenToWorld(screenX: number, screenY: number): { x: number, y: number } {
+    function screenToWorld(
+        screenX: number,
+        screenY: number,
+    ): { x: number; y: number } {
         if (!app) return { x: screenX, y: screenY };
-        
+
         const scale = app.stage.scale.x; // Uniform scale
         const offsetX = app.stage.x;
         const offsetY = app.stage.y;
-        
+
         return {
             x: (screenX - offsetX) / scale,
-            y: (screenY - offsetY) / scale
+            y: (screenY - offsetY) / scale,
         };
     }
 
@@ -1175,17 +1192,27 @@
             );
 
             if (isConnected) {
-                const sourceStar = snapshot?.stars.find((s) => s.id === dragSourceId);
-                const humanPlayerId = snapshot?.players.find((p) => !p.isAI)?.id;
+                const sourceStar = snapshot?.stars.find(
+                    (s) => s.id === dragSourceId,
+                );
+                const humanPlayerId = snapshot?.players.find(
+                    (p) => !p.isAI,
+                )?.id;
                 const isSourceMine = sourceStar?.ownerId === humanPlayerId;
                 const isTargetMine = targetStar.ownerId === humanPlayerId;
-                const isTargetEnemy = !isTargetMine && targetStar.ownerId !== 'neutral';
+                const isTargetEnemy =
+                    !isTargetMine && targetStar.ownerId !== "neutral";
 
                 if (isSourceMine) {
                     // Dragging from my star - issue normal order
+                    // Ctrl-click inverts default persistence behavior
+                    const persist = event.ctrlKey
+                        ? !GAME_CONFIG.ORDERS_PERSIST_AFTER_CONQUEST
+                        : undefined;
                     const success = gameStore.issueOrder(
                         dragSourceId,
                         targetStar.id,
+                        persist,
                     );
                     if (success) {
                         addPendingOrder(dragSourceId, targetStar.id);
@@ -1211,9 +1238,14 @@
                     }
                 } else if (lastEnemyPassthrough === dragSourceId) {
                     // Dragging FROM an enemy star we're attacking - set deferred order!
+                    // Ctrl-click inverts default persistence behavior
+                    const persist = event.ctrlKey
+                        ? !GAME_CONFIG.ORDERS_PERSIST_AFTER_CONQUEST
+                        : undefined;
                     const success = gameStore.setDeferredOrder(
                         dragSourceId,
                         targetStar.id,
+                        persist,
                     );
                     if (success) {
                         // Add visual indicator for deferred order (dashed line)
@@ -1258,9 +1290,14 @@
         if (movedSignificantly && dragSourceId) {
             if (targetStar && targetStar.id !== dragSourceId) {
                 // Issue order from drag
+                // Ctrl-click inverts default persistence behavior
+                const persist = event.ctrlKey
+                    ? !GAME_CONFIG.ORDERS_PERSIST_AFTER_CONQUEST
+                    : undefined;
                 const success = gameStore.issueOrder(
                     dragSourceId,
                     targetStar.id,
+                    persist,
                 );
                 if (success) {
                     // OPTIMISTIC UI: Add immediately for instant arrow display
@@ -1285,9 +1322,14 @@
 
                 // If we own the source, we can send to ANY target (Self or Enemy)
                 if (activeStarSnapshot?.ownerId === "human-player") {
+                    // Ctrl-click inverts default persistence behavior
+                    const persist = event.ctrlKey
+                        ? !GAME_CONFIG.ORDERS_PERSIST_AFTER_CONQUEST
+                        : undefined;
                     const success = gameStore.issueOrder(
                         activeStarId,
                         targetStar.id,
+                        persist,
                     );
                     if (success) addPendingOrder(activeStarId, targetStar.id);
 

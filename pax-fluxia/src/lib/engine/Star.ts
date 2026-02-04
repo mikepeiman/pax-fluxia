@@ -79,7 +79,10 @@ export class Star {
     private _ownerId: PlayerId;
     private _targetId: StarId | null;
     private _lastCombatTick: number = -1;
-    private _queuedOrder: { ownerId: PlayerId, targetId: StarId } | null = null;
+    private _queuedOrder: { ownerId: PlayerId, targetId: StarId, persistAfterConquest: boolean } | null = null;
+
+    // Current order's persistence flag (inverted by ctrl-click)
+    private _orderPersistsAfterConquest: boolean = true;
 
     constructor(config: StarConfig & { id: StarId }) {
         this.id = config.id;
@@ -192,9 +195,12 @@ export class Star {
 
     /**
      * Set attack target (creates flow link intention)
+     * @param targetId - Target star ID or null to clear
+     * @param persistAfterConquest - If false, order clears when star is captured
      */
-    setTarget(targetId: StarId | null): void {
+    setTarget(targetId: StarId | null, persistAfterConquest: boolean = GAME_CONFIG.ORDERS_PERSIST_AFTER_CONQUEST): void {
         this._targetId = targetId;
+        this._orderPersistsAfterConquest = persistAfterConquest;
     }
 
     /**
@@ -255,16 +261,28 @@ export class Star {
 
     /**
      * Change ownership of this star
+     * Handles order persistence based on global config and per-order flags
      */
     setOwner(newOwnerId: PlayerId): void {
+        const oldOwnerId = this._ownerId;
         this._ownerId = newOwnerId;
-        // Clear any outgoing attack when captured
-        this._targetId = null;
 
-        // Check for queued order
+        // Handle current order based on persistence setting
+        if (this._targetId !== null) {
+            // If order should persist AND new owner is same as old, keep it
+            // (This handles the case where orders persist through conquest)
+            if (!this._orderPersistsAfterConquest) {
+                // Ctrl-click order: always clear on conquest
+                this._targetId = null;
+            }
+            // Otherwise, keep the order (it will be used by new owner)
+        }
+
+        // Check for queued order from the new owner
         if (this._queuedOrder && this._queuedOrder.ownerId === newOwnerId) {
             this._targetId = this._queuedOrder.targetId;
-            this._queuedOrder = null; // Clear queue
+            this._orderPersistsAfterConquest = this._queuedOrder.persistAfterConquest;
+            this._queuedOrder = null;
         } else {
             this._queuedOrder = null; // Clear invalid queue
         }
@@ -272,9 +290,12 @@ export class Star {
 
     /**
      * Set a queued order to execute upon capture
+     * @param ownerId - Player who will own the star after capture
+     * @param targetId - Target star for the order
+     * @param persistAfterConquest - If false, order clears if star is captured again
      */
-    setQueuedOrder(ownerId: PlayerId, targetId: StarId): void {
-        this._queuedOrder = { ownerId, targetId };
+    setQueuedOrder(ownerId: PlayerId, targetId: StarId, persistAfterConquest: boolean = GAME_CONFIG.ORDERS_PERSIST_AFTER_CONQUEST): void {
+        this._queuedOrder = { ownerId, targetId, persistAfterConquest };
     }
 
     /**
