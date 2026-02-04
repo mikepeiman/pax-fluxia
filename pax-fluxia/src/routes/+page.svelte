@@ -9,11 +9,13 @@
   import Leaderboard from "$lib/components/ui/Leaderboard.svelte";
   import SpeedControls from "$lib/components/ui/SpeedControls.svelte";
   import CombatLogPanel from "$lib/components/ui/CombatLogPanel.svelte";
+  import AudioSettings from "$lib/components/ui/AudioSettings.svelte";
   import type { PlayerState } from "$lib/types/game.types";
 
   // Panel visibility states
   let showDebug = $state(false);
   let combatLogOpen = $state(true);
+  let showAudioSettings = $state(false);
 
   // Derived leaderboard from snapshot for proper reactivity
   const leaderboardPlayers = $derived.by(() => {
@@ -56,6 +58,9 @@
       <ResultsModal />
     </div>
   {:else if gameStore.currentView === "game"}
+    <!-- Audio Settings Modal -->
+    <AudioSettings visible={showAudioSettings} onClose={() => (showAudioSettings = false)} />
+
     <!-- Combat Log Drawer (fixed position, outside grid) -->
     <CombatLogPanel bind:isOpen={combatLogOpen} />
 
@@ -91,6 +96,13 @@
                 onclick={() => gameStore.playAgain()}
               >
                 Restart
+              </button>
+              <button
+                class="btn btn--ghost btn--sm"
+                onclick={() => (showAudioSettings = true)}
+                title="Audio Settings"
+              >
+                🔊
               </button>
               <button
                 class="btn btn--danger btn--sm"

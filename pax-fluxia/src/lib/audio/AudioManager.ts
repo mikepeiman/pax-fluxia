@@ -3,9 +3,9 @@
  * 
  * Sounds:
  * - Tick: Soft metronome pulse each game tick
- * - Ambient: Very low harmonic drone (beautiful, not dissonant)
  * - Order: Soft chime when issuing commands (per star dragged through)
  * - Combat: Subtle percussive sounds, scaled to battle size
+ * - Conquest: Triumphant arpeggio on star capture
  */
 
 import * as Tone from 'tone';
@@ -14,18 +14,23 @@ import * as Tone from 'tone';
 let initialized = false;
 let enabled = true;
 let masterVolume = 0.3;
+let tickVolume = 0.5;
+let orderVolume = 0.7;
+let combatVolume = 0.5;
 
 // Synths and effects
 let tickSynth: Tone.MembraneSynth | null = null;
 let orderSynth: Tone.PolySynth | null = null;
-let combatSynth: Tone.NoiseSynth | null = null;
-let ambientSynth: Tone.PolySynth | null = null;
-let ambientLoop: Tone.Loop | null = null;
+let combatSynth: Tone.MetalSynth | null = null; // Changed from NoiseSynth to avoid timing issues
 
 // Effects chain
 let reverb: Tone.Reverb | null = null;
 let filter: Tone.Filter | null = null;
 let masterGain: Tone.Gain | null = null;
+
+// Combat sound cooldown to prevent timing errors
+let lastCombatTime = 0;
+const COMBAT_COOLDOWN = 50; // ms between combat sounds
 
 /**
  * Initialize the audio system (must be called after user interaction)
@@ -42,14 +47,14 @@ export async function initAudio(): Promise<void> {
 
         // Reverb for spacey feel
         reverb = new Tone.Reverb({
-            decay: 4,
-            wet: 0.3
+            decay: 3,
+            wet: 0.25
         }).connect(masterGain);
         await reverb.ready;
 
         // Low-pass filter for warmth
         filter = new Tone.Filter({
-            frequency: 2000,
+            frequency: 2500,
             type: 'lowpass'
         }).connect(reverb);
 
@@ -60,51 +65,39 @@ export async function initAudio(): Promise<void> {
             oscillator: { type: 'sine' },
             envelope: {
                 attack: 0.001,
-                decay: 0.2,
+                decay: 0.15,
                 sustain: 0,
                 release: 0.1
             }
         }).connect(filter);
-        tickSynth.volume.value = -20;
+        tickSynth.volume.value = -22;
 
         // Order synth - soft chimes/bells
         orderSynth = new Tone.PolySynth(Tone.Synth, {
-            oscillator: { type: 'sine' },
+            oscillator: { type: 'triangle' },
             envelope: {
                 attack: 0.01,
-                decay: 0.3,
+                decay: 0.25,
                 sustain: 0.1,
-                release: 0.8
+                release: 0.6
             }
         }).connect(filter);
-        orderSynth.volume.value = -18;
+        orderSynth.volume.value = -16;
 
-        // Combat synth - filtered noise bursts
-        combatSynth = new Tone.NoiseSynth({
-            noise: { type: 'pink' },
+        // Combat synth - metallic percussion (no timing issues like NoiseSynth)
+        combatSynth = new Tone.MetalSynth({
+            frequency: 80,
             envelope: {
-                attack: 0.005,
+                attack: 0.001,
                 decay: 0.1,
-                sustain: 0,
                 release: 0.05
-            }
+            },
+            harmonicity: 3.1,
+            modulationIndex: 16,
+            resonance: 2000,
+            octaves: 1
         }).connect(filter);
-        combatSynth.volume.value = -25;
-
-        // Ambient synth - warm pad drone
-        ambientSynth = new Tone.PolySynth(Tone.Synth, {
-            oscillator: { type: 'sine' },
-            envelope: {
-                attack: 2,
-                decay: 1,
-                sustain: 0.8,
-                release: 3
-            }
-        }).connect(reverb);
-        ambientSynth.volume.value = -30;
-
-        // Start ambient drone (very subtle)
-        startAmbient();
+        combatSynth.volume.value = -28;
 
         initialized = true;
         console.log('[Audio] Initialized');
@@ -114,59 +107,26 @@ export async function initAudio(): Promise<void> {
 }
 
 /**
- * Start the ambient harmonic drone
- */
-function startAmbient(): void {
-    if (!ambientSynth) return;
-
-    // Harmonic, beautiful chord - Cmaj7 voicing
-    const chordNotes = ['C2', 'G2', 'E3', 'B3'];
-    
-    // Play initial chord
-    ambientSynth.triggerAttack(chordNotes, Tone.now());
-
-    // Slowly evolve the chord
-    ambientLoop = new Tone.Loop((time) => {
-        if (!ambientSynth || !enabled) return;
-        
-        // Subtle harmonic shifts
-        const variations = [
-            ['C2', 'G2', 'E3', 'B3'],  // Cmaj7
-            ['D2', 'A2', 'F3', 'C4'],  // Dm7
-            ['E2', 'B2', 'G3', 'D4'],  // Em7
-            ['F2', 'C3', 'A3', 'E4'],  // Fmaj7
-        ];
-        const chord = variations[Math.floor(Math.random() * variations.length)];
-        
-        ambientSynth.releaseAll(time);
-        ambientSynth.triggerAttack(chord, time + 0.1);
-    }, 16); // Every 16 seconds
-    
-    ambientLoop.start(0);
-    Tone.Transport.start();
-}
-
-/**
  * Play tick sound (each game tick)
  */
 export function playTick(): void {
-    if (!initialized || !enabled || !tickSynth) return;
+    if (!initialized || !enabled || !tickSynth || tickVolume === 0) return;
     
     // Very subtle low thump
-    tickSynth.triggerAttackRelease('C1', '32n', Tone.now(), 0.3);
+    tickSynth.triggerAttackRelease('C1', '32n', Tone.now(), 0.3 * tickVolume);
 }
 
 /**
  * Play order issued sound (when dragging through a star)
  */
 export function playOrderIssued(starIndex: number = 0): void {
-    if (!initialized || !enabled || !orderSynth) return;
+    if (!initialized || !enabled || !orderSynth || orderVolume === 0) return;
     
     // Ascending notes based on star index in chain
     const notes = ['C4', 'E4', 'G4', 'B4', 'C5', 'E5'];
     const note = notes[Math.min(starIndex, notes.length - 1)];
     
-    orderSynth.triggerAttackRelease(note, '16n', Tone.now(), 0.4);
+    orderSynth.triggerAttackRelease(note, '16n', Tone.now(), 0.4 * orderVolume);
 }
 
 /**
@@ -174,14 +134,22 @@ export function playOrderIssued(starIndex: number = 0): void {
  * @param intensity 0-1 scale of how intense the battle is
  */
 export function playCombat(intensity: number = 0.5): void {
-    if (!initialized || !enabled || !combatSynth) return;
+    if (!initialized || !enabled || !combatSynth || combatVolume === 0) return;
     
-    // Scale duration and volume by intensity
-    const duration = 0.05 + intensity * 0.15;
-    const volume = -30 + intensity * 10;
+    // Cooldown to prevent "Start time must be greater" errors
+    const now = Date.now();
+    if (now - lastCombatTime < COMBAT_COOLDOWN) return;
+    lastCombatTime = now;
     
-    combatSynth.volume.value = volume;
-    combatSynth.triggerAttackRelease(duration, Tone.now());
+    // MetalSynth uses triggerAttackRelease with duration
+    const duration = 0.03 + intensity * 0.08;
+    const velocity = (0.2 + intensity * 0.5) * combatVolume;
+    
+    try {
+        combatSynth.triggerAttackRelease(duration, Tone.now(), velocity);
+    } catch (e) {
+        // Silently ignore timing errors
+    }
 }
 
 /**
@@ -214,12 +182,34 @@ export function setVolume(volume: number): void {
  */
 export function setEnabled(value: boolean): void {
     enabled = value;
-    if (!enabled && ambientSynth) {
-        ambientSynth.releaseAll();
-    } else if (enabled && initialized && ambientSynth) {
-        const chordNotes = ['C2', 'G2', 'E3', 'B3'];
-        ambientSynth.triggerAttack(chordNotes, Tone.now());
-    }
+}
+
+/**
+ * Set individual volume levels (0-1)
+ */
+export function setTickVolume(vol: number): void {
+    tickVolume = Math.max(0, Math.min(1, vol));
+}
+
+export function setOrderVolume(vol: number): void {
+    orderVolume = Math.max(0, Math.min(1, vol));
+}
+
+export function setCombatVolume(vol: number): void {
+    combatVolume = Math.max(0, Math.min(1, vol));
+}
+
+/**
+ * Get current volume settings
+ */
+export function getSettings() {
+    return {
+        enabled,
+        masterVolume,
+        tickVolume,
+        orderVolume,
+        combatVolume
+    };
 }
 
 /**
@@ -233,19 +223,12 @@ export function isInitialized(): boolean {
  * Cleanup audio resources
  */
 export function dispose(): void {
-    if (ambientLoop) {
-        ambientLoop.stop();
-        ambientLoop.dispose();
-    }
     if (tickSynth) tickSynth.dispose();
     if (orderSynth) orderSynth.dispose();
     if (combatSynth) combatSynth.dispose();
-    if (ambientSynth) ambientSynth.dispose();
     if (reverb) reverb.dispose();
     if (filter) filter.dispose();
     if (masterGain) masterGain.dispose();
-    
-    Tone.Transport.stop();
     
     initialized = false;
 }
@@ -259,6 +242,10 @@ export const audio = {
     conquest: playConquest,
     setVolume,
     setEnabled,
+    setTickVolume,
+    setOrderVolume,
+    setCombatVolume,
+    getSettings,
     isInitialized,
     dispose
 };
