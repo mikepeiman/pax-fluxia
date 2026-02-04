@@ -1052,12 +1052,11 @@
 
         const size = 3 * scale;
 
-        // Apply white tinting based on multiplier (1 = normal, 2 = slightly white, 4 = whiter, etc.)
+        // Apply white tinting based on multiplier (1 = normal, 2 = slightly white, etc.)
+        // Blend rate: 0.30 per log2 power, max blend: 1.0 (full white for very high stacks)
         let finalColor = color;
         if (multiplier > 1) {
-            // Blend towards white based on log2(multiplier)
-            // multiplier 2 -> blend 0.25, multiplier 4 -> blend 0.5, multiplier 8 -> blend 0.75
-            const blendAmount = Math.min(0.8, Math.log2(multiplier) * 0.25);
+            const blendAmount = Math.min(1.0, Math.log2(multiplier) * 0.3);
             const r = (color >> 16) & 0xff;
             const g = (color >> 8) & 0xff;
             const b = color & 0xff;
@@ -1067,15 +1066,46 @@
             finalColor = (newR << 16) | (newG << 8) | newB;
         }
 
-        // Draw filled circle for ship
-        shipGraphics.circle(x, y, size);
-        shipGraphics.fill({ color: finalColor, alpha });
+        // Use shapes for high-multiplier ships (better visual distinction)
+        if (multiplier > 1) {
+            // Draw polygon: sides increase with multiplier (triangle -> square -> pentagon -> hex...)
+            const sides = Math.min(8, 3 + Math.floor(Math.log2(multiplier)));
+            drawPolygon(shipGraphics, x, y, size, sides, animationTime);
+            shipGraphics.fill({ color: finalColor, alpha });
+        } else {
+            // Regular circle for single ships
+            shipGraphics.circle(x, y, size);
+            shipGraphics.fill({ color: finalColor, alpha });
+        }
 
         // Damaged ships get a dark border indicator
         if (isDamaged) {
             shipGraphics.circle(x, y, size + 1);
             shipGraphics.stroke({ color: 0x222222, width: 1.5, alpha: 0.8 });
         }
+    }
+
+    // Helper: Draw a polygon shape for stacked ships
+    function drawPolygon(
+        g: PIXI.Graphics,
+        x: number,
+        y: number,
+        radius: number,
+        sides: number,
+        rotation: number,
+    ) {
+        g.moveTo(
+            x + Math.cos(rotation - Math.PI / 2) * radius,
+            y + Math.sin(rotation - Math.PI / 2) * radius,
+        );
+        for (let i = 1; i <= sides; i++) {
+            const angle = rotation + (i / sides) * Math.PI * 2 - Math.PI / 2;
+            g.lineTo(
+                x + Math.cos(angle) * radius,
+                y + Math.sin(angle) * radius,
+            );
+        }
+        g.closePath();
     }
 
     // Draw hexagonal border around a point

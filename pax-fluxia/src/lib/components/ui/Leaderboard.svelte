@@ -1,11 +1,25 @@
 <script lang="ts">
     import type { PlayerState } from "$lib/types/game.types";
+    import { browser } from "$app/environment";
 
     interface Props {
         players: PlayerState[];
     }
 
     let { players = [] }: Props = $props();
+
+    // Collapsible state with localStorage persistence
+    const LS_KEY = "pax-leaderboard-collapsed";
+    let isCollapsed = $state(
+        browser ? localStorage.getItem(LS_KEY) === "true" : false,
+    );
+
+    function toggleCollapsed() {
+        isCollapsed = !isCollapsed;
+        if (browser) {
+            localStorage.setItem(LS_KEY, String(isCollapsed));
+        }
+    }
 
     // Derived to ensure reactivity with updated player data
     const sortedPlayers = $derived(
@@ -14,34 +28,39 @@
 </script>
 
 <div class="leaderboard glass-panel">
-    <h3 class="leaderboard__title font-display">Commanders</h3>
+    <button class="leaderboard__header" onclick={toggleCollapsed}>
+        <h3 class="leaderboard__title font-display">Commanders</h3>
+        <span class="collapse-icon">{isCollapsed ? "▶" : "▼"}</span>
+    </button>
 
-    <ul class="leaderboard__list">
-        {#each sortedPlayers as player, index}
-            <li class="leaderboard__item">
-                <span
-                    class="player-dot"
-                    style="background-color: {player.color}"
-                ></span>
-                <span class="player-name">{player.name}</span>
-                <span class="player-stats font-data">
-                    <span class="stat-ships" title="Active / Damaged Ships">
-                        {player.activeShips ?? 0}<span class="stat-dim"
-                            >/{player.damagedShips ?? 0}</span
+    {#if !isCollapsed}
+        <ul class="leaderboard__list">
+            {#each sortedPlayers as player, index}
+                <li class="leaderboard__item">
+                    <span
+                        class="player-dot"
+                        style="background-color: {player.color}"
+                    ></span>
+                    <span class="player-name">{player.name}</span>
+                    <span class="player-stats font-data">
+                        <span class="stat-ships" title="Active / Damaged Ships">
+                            {player.activeShips ?? 0}<span class="stat-dim"
+                                >/{player.damagedShips ?? 0}</span
+                            >
+                        </span>
+                        <span class="stat-stars" title="Stars Owned"
+                            >⭐{player.starCount ?? 0}</span
+                        >
+                        <span class="stat-prod" title="Production/sec"
+                            >+{player.production ?? 0}</span
                         >
                     </span>
-                    <span class="stat-stars" title="Stars Owned"
-                        >⭐{player.starCount ?? 0}</span
-                    >
-                    <span class="stat-prod" title="Production/sec"
-                        >+{player.production ?? 0}</span
-                    >
-                </span>
-            </li>
-        {:else}
-            <li class="leaderboard__empty">No players</li>
-        {/each}
-    </ul>
+                </li>
+            {:else}
+                <li class="leaderboard__empty">No players</li>
+            {/each}
+        </ul>
+    {/if}
 </div>
 
 <style>
@@ -53,8 +72,31 @@
     .leaderboard__title {
         font-size: var(--text-xs);
         color: var(--color-text-muted);
-        margin-bottom: var(--space-3);
+        margin: 0;
         letter-spacing: 0.15em;
+    }
+
+    .leaderboard__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        background: none;
+        border: none;
+        padding: 0;
+        margin-bottom: var(--space-3);
+        cursor: pointer;
+        color: inherit;
+    }
+
+    .leaderboard__header:hover .collapse-icon {
+        color: var(--color-accent-cyan);
+    }
+
+    .collapse-icon {
+        font-size: var(--text-xs);
+        color: var(--color-text-dim);
+        transition: color var(--transition-fast);
     }
 
     .leaderboard__list {
