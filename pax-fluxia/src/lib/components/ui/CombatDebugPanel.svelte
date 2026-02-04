@@ -2,10 +2,13 @@
     import { onMount } from "svelte";
     import { GAME_CONFIG } from "$lib/config/game.config";
 
-    const STORAGE_KEY = 'pax-fluxia-combat-tuning';
+    const STORAGE_KEY = "pax-fluxia-combat-tuning";
 
     // Default values for reset button (canonical game balance settings)
     const defaultValues = {
+        // Transfer
+        TRANSFER_RATE: 25, // Stored as % in UI, converted to decimal when applied
+        // Combat
         AGGRESSOR_ADVANTAGE: 0.8,
         DAMAGE_PER_SHIP: 0.1,
         LETHALITY: 0.25,
@@ -13,8 +16,8 @@
         CONQUEST_THRESHOLD: 8,
         CONQUEST_TRANSFER_PERCENTAGE: 50,
         RETREAT_CAPTURE_RATE: 0.35,
-        SCATTER_CAPTURE_RATE: 0.50,
-        SCATTER_DESTROY_RATE: 0.50,
+        SCATTER_CAPTURE_RATE: 0.5,
+        SCATTER_DESTROY_RATE: 0.5,
         // AI Behavior
         AI_ATTACK_THRESHOLD: 1.33,
         AI_DESIST_THRESHOLD: 1.0,
@@ -24,7 +27,7 @@
 
     // Load from localStorage or use defaults
     function loadFromStorage(): typeof defaultValues {
-        if (typeof window === 'undefined') return { ...defaultValues };
+        if (typeof window === "undefined") return { ...defaultValues };
         try {
             const stored = localStorage.getItem(STORAGE_KEY);
             if (stored) {
@@ -33,22 +36,23 @@
                 return { ...defaultValues, ...parsed };
             }
         } catch (e) {
-            console.warn('Failed to load combat tuning from localStorage', e);
+            console.warn("Failed to load combat tuning from localStorage", e);
         }
         return { ...defaultValues };
     }
 
     function saveToStorage(vals: typeof defaultValues) {
-        if (typeof window === 'undefined') return;
+        if (typeof window === "undefined") return;
         try {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(vals));
         } catch (e) {
-            console.warn('Failed to save combat tuning to localStorage', e);
+            console.warn("Failed to save combat tuning to localStorage", e);
         }
     }
 
     // Track which variables are enabled (true = active, false = use neutral value)
     let enabled = $state({
+        TRANSFER_RATE: true,
         AGGRESSOR_ADVANTAGE: true,
         DAMAGE_PER_SHIP: true,
         LETHALITY: true,
@@ -82,6 +86,7 @@
 
     // Neutral values when disabled
     const neutralValues: Record<string, number> = {
+        TRANSFER_RATE: 25, // Default 25%
         AGGRESSOR_ADVANTAGE: 1.0, // No bonus
         DAMAGE_PER_SHIP: 0, // No damage
         LETHALITY: 0, // All damage converts to disabled
@@ -104,6 +109,16 @@
     function updateTickLength(value: number) {
         tickLength = value;
         GAME_CONFIG.BASE_TICK_MS = value;
+    }
+
+    // Transfer Rate control (% in UI, decimal in GAME_CONFIG)
+    let transferRate = $state(Math.round(GAME_CONFIG.TRANSFER_RATE * 100));
+
+    function updateTransferRate(value: number) {
+        transferRate = value;
+        values = { ...values, TRANSFER_RATE: value };
+        GAME_CONFIG.TRANSFER_RATE = value / 100; // Convert % to decimal
+        saveToStorage(values as typeof defaultValues);
     }
 
     // Variable metadata for UI display
@@ -270,7 +285,36 @@
                     max="3000"
                     step="100"
                     value={tickLength}
-                    oninput={(e) => updateTickLength(parseInt((e.target as HTMLInputElement).value))}
+                    oninput={(e) =>
+                        updateTickLength(
+                            parseInt((e.target as HTMLInputElement).value),
+                        )}
+                />
+            </div>
+        </div>
+    </div>
+
+    <!-- Transfer Section -->
+    <div class="transfer-section">
+        <div class="section-header">
+            <span class="section-title">🚀 Transfer</span>
+        </div>
+        <div class="variable-row">
+            <div class="row-top">
+                <span class="var-name">Transfer Rate</span>
+                <span class="current-val">{transferRate}%</span>
+            </div>
+            <div class="row-controls">
+                <input
+                    type="range"
+                    min="5"
+                    max="100"
+                    step="5"
+                    value={transferRate}
+                    oninput={(e) =>
+                        updateTransferRate(
+                            parseInt((e.target as HTMLInputElement).value),
+                        )}
                 />
             </div>
         </div>
@@ -412,6 +456,18 @@
         gap: 6px;
         padding-bottom: 8px;
         border-bottom: 1px solid #223;
+    }
+
+    .transfer-section {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #223;
+    }
+
+    .transfer-section .section-title {
+        color: #00e0ff;
     }
 
     .section-header {
