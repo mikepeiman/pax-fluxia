@@ -1205,14 +1205,11 @@
 
                 if (isSourceMine) {
                     // Dragging from my star - issue normal order
-                    // Ctrl-click inverts default persistence behavior
-                    const persist = event.ctrlKey
-                        ? !GAME_CONFIG.ORDERS_PERSIST_AFTER_CONQUEST
-                        : undefined;
+                    // Ctrl-click = order clears on conquest (inverts default persist=true)
                     const success = gameStore.issueOrder(
                         dragSourceId,
                         targetStar.id,
-                        persist,
+                        !event.ctrlKey, // persist unless ctrl-click
                     );
                     if (success) {
                         addPendingOrder(dragSourceId, targetStar.id);
@@ -1238,14 +1235,11 @@
                     }
                 } else if (lastEnemyPassthrough === dragSourceId) {
                     // Dragging FROM an enemy star we're attacking - set deferred order!
-                    // Ctrl-click inverts default persistence behavior
-                    const persist = event.ctrlKey
-                        ? !GAME_CONFIG.ORDERS_PERSIST_AFTER_CONQUEST
-                        : undefined;
+                    // Ctrl-click = order clears on conquest
                     const success = gameStore.setDeferredOrder(
                         dragSourceId,
                         targetStar.id,
-                        persist,
+                        !event.ctrlKey, // persist unless ctrl-click
                     );
                     if (success) {
                         // Add visual indicator for deferred order (dashed line)
@@ -1290,14 +1284,11 @@
         if (movedSignificantly && dragSourceId) {
             if (targetStar && targetStar.id !== dragSourceId) {
                 // Issue order from drag
-                // Ctrl-click inverts default persistence behavior
-                const persist = event.ctrlKey
-                    ? !GAME_CONFIG.ORDERS_PERSIST_AFTER_CONQUEST
-                    : undefined;
+                // Ctrl-click = order clears on conquest
                 const success = gameStore.issueOrder(
                     dragSourceId,
                     targetStar.id,
-                    persist,
+                    !event.ctrlKey, // persist unless ctrl-click
                 );
                 if (success) {
                     // OPTIMISTIC UI: Add immediately for instant arrow display
@@ -1322,14 +1313,11 @@
 
                 // If we own the source, we can send to ANY target (Self or Enemy)
                 if (activeStarSnapshot?.ownerId === "human-player") {
-                    // Ctrl-click inverts default persistence behavior
-                    const persist = event.ctrlKey
-                        ? !GAME_CONFIG.ORDERS_PERSIST_AFTER_CONQUEST
-                        : undefined;
+                    // Ctrl-click = order clears on conquest
                     const success = gameStore.issueOrder(
                         activeStarId,
                         targetStar.id,
-                        persist,
+                        !event.ctrlKey, // persist unless ctrl-click
                     );
                     if (success) addPendingOrder(activeStarId, targetStar.id);
 
