@@ -41,3 +41,14 @@ httpServer.listen(PORT, () => {
     console.log(`   Health: http://localhost:${PORT}/health`);
     console.log(`   WebSocket: ws://localhost:${PORT}\n`);
 });
+
+// Handle port already in use
+httpServer.on("error", (err: NodeJS.ErrnoException) => {
+    if (err.code === "EADDRINUSE") {
+        console.error(`\n❌ Port ${PORT} is already in use!`);
+        console.error(`   Kill existing process or use different port: PORT=2568 bun run dev\n`);
+    } else {
+        console.error("Server error:", err);
+    }
+    process.exit(1);
+});
