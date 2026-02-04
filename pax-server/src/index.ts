@@ -1,23 +1,32 @@
 // ============================================================================
 // Colyseus Server Entry Point - Pax Fluxia
-// Following official Colyseus 0.17 docs exactly
+// Using Server class approach for better debugging
 // ============================================================================
 
-import { defineServer, defineRoom } from "colyseus";
+import { Server } from "colyseus";
 import { GameRoom } from "./rooms/GameRoom";
 
 const PORT = Number(process.env.PORT) || 2567;
 
-// Define the server using Colyseus 0.17 pattern
-const server = defineServer({
-    rooms: {
-        game_room: defineRoom(GameRoom),
-    },
+// Create server using Server class
+const gameServer = new Server({
+    // Using default transport (uWebSockets.js)
+});
+
+// Define the room
+gameServer.define("game_room", GameRoom);
+
+// Add verbose logging for matchmaking events
+gameServer.onShutdown(() => {
+    console.log("🔴 Server shutting down...");
 });
 
 // Start the server
-server.listen(PORT).then(() => {
+gameServer.listen(PORT).then(() => {
     console.log(`\n🚀 Pax Fluxia Server running on port ${PORT}`);
     console.log(`   WebSocket: ws://localhost:${PORT}`);
+    console.log(`   HTTP: http://localhost:${PORT}`);
     console.log(`   Started: ${new Date().toLocaleTimeString()}\n`);
+}).catch((err) => {
+    console.error("❌ Server failed to start:", err);
 });
