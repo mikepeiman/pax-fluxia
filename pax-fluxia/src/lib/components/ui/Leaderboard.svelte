@@ -9,7 +9,7 @@
 
     // Derived to ensure reactivity with updated player data
     const sortedPlayers = $derived(
-        [...players].sort((a, b) => b.totalShips - a.totalShips)
+        [...players].sort((a, b) => (b.totalShips ?? 0) - (a.totalShips ?? 0)),
     );
 </script>
 
@@ -25,7 +25,17 @@
                 ></span>
                 <span class="player-name">{player.name}</span>
                 <span class="player-stats font-data">
-                    {player.totalShips} / {player.starCount}⭐
+                    <span class="stat-ships" title="Active / Damaged Ships">
+                        {player.activeShips ?? 0}<span class="stat-dim"
+                            >/{player.damagedShips ?? 0}</span
+                        >
+                    </span>
+                    <span class="stat-stars" title="Stars Owned"
+                        >⭐{player.starCount ?? 0}</span
+                    >
+                    <span class="stat-prod" title="Production/sec"
+                        >+{player.production ?? 0}</span
+                    >
                 </span>
             </li>
         {:else}
@@ -94,5 +104,22 @@
         color: var(--color-text-dim);
         text-align: center;
         padding: var(--space-4);
+    }
+
+    .stat-ships {
+        min-width: 3.5em;
+    }
+
+    .stat-dim {
+        opacity: 0.5;
+    }
+
+    .stat-stars {
+        min-width: 2.5em;
+    }
+
+    .stat-prod {
+        color: #8f8;
+        min-width: 2.5em;
     }
 </style>

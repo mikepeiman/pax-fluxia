@@ -1195,6 +1195,36 @@ export class GameEngine {
         return Math.floor(count);
     }
 
+    private getPlayerActiveShips(playerId: PlayerId): number {
+        let count = 0;
+        this.stars.forEach(star => {
+            if (star.ownerId === playerId) {
+                count += star.activeShips;
+            }
+        });
+        return Math.floor(count);
+    }
+
+    private getPlayerDamagedShips(playerId: PlayerId): number {
+        let count = 0;
+        this.stars.forEach(star => {
+            if (star.ownerId === playerId) {
+                count += star.damagedShips;
+            }
+        });
+        return Math.floor(count);
+    }
+
+    private getPlayerProduction(playerId: PlayerId): number {
+        let total = 0;
+        this.stars.forEach(star => {
+            if (star.ownerId === playerId) {
+                total += star.productionRate;
+            }
+        });
+        return Math.round(total * 10) / 10; // Round to 1 decimal
+    }
+
     private getPlayerStarCount(playerId: PlayerId): number {
         let count = 0;
         this.stars.forEach(star => {
@@ -1231,6 +1261,9 @@ export class GameEngine {
                 isAI: winner.isAI,
                 isEliminated: false,
                 totalShips: this.getPlayerShipCount(winner.id),
+                activeShips: this.getPlayerActiveShips(winner.id),
+                damagedShips: this.getPlayerDamagedShips(winner.id),
+                production: this.getPlayerProduction(winner.id),
                 starCount: this.getPlayerStarCount(winner.id)
             };
         }
@@ -1266,6 +1299,9 @@ export class GameEngine {
             isAI: winner.isAI,
             isEliminated: false,
             totalShips: this.getPlayerShipCount(winner.id),
+            activeShips: this.getPlayerActiveShips(winner.id),
+            damagedShips: this.getPlayerDamagedShips(winner.id),
+            production: this.getPlayerProduction(winner.id),
             starCount: this.getPlayerStarCount(winner.id)
         };
     }
@@ -1278,6 +1314,9 @@ export class GameEngine {
             isAI: player.isAI,
             isEliminated: player.isEliminated,
             totalShips: this.getPlayerShipCount(player.id),
+            activeShips: this.getPlayerActiveShips(player.id),
+            damagedShips: this.getPlayerDamagedShips(player.id),
+            production: this.getPlayerProduction(player.id),
             starCount: this.getPlayerStarCount(player.id)
         }));
 

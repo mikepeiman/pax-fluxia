@@ -3,8 +3,19 @@
   import SpeedControls from "./SpeedControls.svelte";
   import Leaderboard from "./Leaderboard.svelte";
   import ResultsModal from "./ResultsModal.svelte";
+  import { GAME_CONFIG } from "$lib/config/game.config";
 
   const winner = $derived(gameStore.winner);
+
+  // Flow percentage control (10-100%)
+  let flowPercent = $state(GAME_CONFIG.FLOW_PERCENTAGE);
+
+  function handleFlowChange(e: Event) {
+    const target = e.target as HTMLInputElement;
+    const value = parseInt(target.value);
+    flowPercent = value;
+    GAME_CONFIG.FLOW_PERCENTAGE = value;
+  }
 </script>
 
 <div class="hud-footer no-select">
@@ -25,6 +36,22 @@
         onResume={gameStore.resumeGame}
         onStart={gameStore.beginGame}
       />
+
+      <!-- Flow Percentage Slider -->
+      <div class="flow-control">
+        <label class="flow-label">
+          Flow: <span class="flow-value">{flowPercent}%</span>
+        </label>
+        <input
+          type="range"
+          min="10"
+          max="100"
+          step="5"
+          value={flowPercent}
+          oninput={handleFlowChange}
+          class="flow-slider"
+        />
+      </div>
 
       <div class="system-controls">
         <button
@@ -78,6 +105,30 @@
   .system-controls {
     display: flex;
     gap: var(--space-2);
+  }
+
+  .flow-control {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .flow-label {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .flow-value {
+    color: var(--color-accent-cyan);
+    font-weight: bold;
+  }
+
+  .flow-slider {
+    width: 100%;
+    height: 6px;
+    accent-color: var(--color-accent-cyan);
   }
 
   .modal-overlay {

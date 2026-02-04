@@ -20,6 +20,12 @@ export interface PlayerState {
   color: string;
   isAI: boolean;
   isEliminated: boolean;
+  // Extended stats (computed by GameEngine)
+  starCount?: number;
+  totalShips?: number;
+  activeShips?: number;
+  damagedShips?: number;
+  production?: number; // Total production rate across all owned stars
 }
 
 export interface StarState {

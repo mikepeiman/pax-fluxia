@@ -130,6 +130,50 @@
         .stats span {
             opacity: 0.7;
         }
+
+        .density-controls {
+            background: rgba(0, 255, 229, 0.05);
+            border: 1px solid rgba(0, 255, 229, 0.2);
+            border-radius: 6px;
+            padding: 10px;
+            margin: 12px 0;
+        }
+
+        .density-controls strong {
+            color: #00ffe5;
+            font-size: 11px;
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        .checkbox-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 6px;
+        }
+
+        .checkbox-row label {
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+        }
+
+        .slider-row {
+            margin-top: 8px;
+        }
+
+        .slider-row label {
+            font-size: 10px;
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2px;
+        }
+
+        .slider-row input[type="range"] {
+            width: 100%;
+        }
     </style>
 </head>
 
@@ -154,6 +198,27 @@
         <div class="control-group">
             <label>Ships per Star: <span id="shipCountLabel">40</span></label>
             <input type="range" id="shipCount" min="1" max="5000" value="40">
+        </div>
+
+        <!-- Density Effect Controls -->
+        <div class="density-controls">
+            <strong>Density Effects:</strong>
+            <div class="checkbox-row">
+                <label><input type="checkbox" id="useHueShift"> Hue Shift</label>
+                <label><input type="checkbox" id="useOutline"> Outlines</label>
+            </div>
+            <div class="checkbox-row">
+                <label><input type="checkbox" id="useCenterDot"> Center Dots</label>
+                <label><input type="checkbox" id="useShapes"> Shapes</label>
+            </div>
+            <div class="slider-row">
+                <label>White Blend: <span id="blendRateLabel">25</span>%</label>
+                <input type="range" id="blendRate" min="5" max="50" value="25">
+            </div>
+            <div class="slider-row">
+                <label>Max Blend: <span id="maxBlendLabel">80</span>%</label>
+                <input type="range" id="maxBlend" min="40" max="100" value="80">
+            </div>
         </div>
 
         <div class="instructions">
@@ -230,6 +295,38 @@
 
         // Production config
         const PRODUCTION_RATE = 1; // Ships per second at 1x speed
+
+        // Density effect settings (controllable via UI)
+        let densitySettings = {
+            useHueShift: false,
+            useOutline: false,
+            useCenterDot: false,
+            useShapes: false,
+            blendRate: 0.25,     // Log2 multiplier for white blend
+            maxBlend: 0.80      // Max white blend amount
+        };
+
+        // Wire up density controls
+        document.getElementById('useHueShift').addEventListener('change', e => {
+            densitySettings.useHueShift = e.target.checked;
+        });
+        document.getElementById('useOutline').addEventListener('change', e => {
+            densitySettings.useOutline = e.target.checked;
+        });
+        document.getElementById('useCenterDot').addEventListener('change', e => {
+            densitySettings.useCenterDot = e.target.checked;
+        });
+        document.getElementById('useShapes').addEventListener('change', e => {
+            densitySettings.useShapes = e.target.checked;
+        });
+        document.getElementById('blendRate').addEventListener('input', e => {
+            densitySettings.blendRate = parseInt(e.target.value) / 100;
+            document.getElementById('blendRateLabel').textContent = e.target.value;
+        });
+        document.getElementById('maxBlend').addEventListener('input', e => {
+            densitySettings.maxBlend = parseInt(e.target.value) / 100;
+            document.getElementById('maxBlendLabel').textContent = e.target.value;
+        });
 
         // ============================================================================
         // Canvas Setup
@@ -314,15 +411,32 @@
         }
 
         // ============================================================================
-        // Color blending for stacked ships
+        // Color blending for stacked ships (enhanced with density effects)
         // ============================================================================
         function blendColorToWhite(hexColor, multiplier) {
             if (multiplier <= 1) return hexColor;
 
-            const blendAmount = Math.min(0.8, Math.log2(multiplier) * 0.25);
-            const r = ((hexColor >> 16) & 0xff);
-            const g = ((hexColor >> 8) & 0xff);
-            const b = (hexColor & 0xff);
+            let r = ((hexColor >> 16) & 0xff);
+            let g = ((hexColor >> 8) & 0xff);
+            let b = (hexColor & 0xff);
+
+            // Apply hue shift if enabled (shifts toward cyan/yellow based on multiplier)
+            if (densitySettings.useHueShift) {
+                const hueShiftAmount = Math.min(0.5, Math.log2(multiplier) * 0.15);
+                // Shift green up, blue up (toward cyan for green player) or red down (toward yellow for red player)
+                if (g > r) {
+                    // Green player: shift toward cyan
+                    g = Math.min(255, g + (255 - g) * hueShiftAmount * 0.5);
+                    b = Math.min(255, b + (255 - b) * hueShiftAmount);
+                } else {
+                    // Red player: shift toward orange/yellow
+                    r = Math.min(255, r + (255 - r) * hueShiftAmount * 0.3);
+                    g = Math.min(255, g + (255 - g) * hueShiftAmount * 0.8);
+                }
+            }
+
+            // Apply white blend using configurable rates
+            const blendAmount = Math.min(densitySettings.maxBlend, Math.log2(multiplier) * densitySettings.blendRate);
             const newR = Math.round(r + (255 - r) * blendAmount);
             const newG = Math.round(g + (255 - g) * blendAmount);
             const newB = Math.round(b + (255 - b) * blendAmount);
@@ -331,6 +445,20 @@
 
         function hexToRgb(hex) {
             return `rgb(${(hex >> 16) & 0xff}, ${(hex >> 8) & 0xff}, ${hex & 0xff})`;
+        }
+
+        // Draw a polygon shape for high-multiplier ships
+        function drawPolygon(ctx, x, y, radius, sides, rotation) {
+            ctx.beginPath();
+            for (let i = 0; i < sides; i++) {
+                const angle = rotation + (i / sides) * Math.PI * 2 - Math.PI / 2;
+                const px = x + Math.cos(angle) * radius;
+                const py = y + Math.sin(angle) * radius;
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.fill();
         }
 
         // ============================================================================
@@ -602,9 +730,36 @@
                     const size = 3 * ship.scale;
                     ctx.globalAlpha = ship.alpha;
                     ctx.fillStyle = hexToRgb(tintedColor);
-                    ctx.beginPath();
-                    ctx.arc(ship.x, ship.y, size, 0, Math.PI * 2);
-                    ctx.fill();
+
+                    // Draw based on density settings
+                    if (densitySettings.useShapes && slot.multiplier > 1) {
+                        // Draw shapes based on multiplier level
+                        const sides = Math.min(8, 3 + Math.floor(Math.log2(slot.multiplier)));
+                        drawPolygon(ctx, ship.x, ship.y, size, sides, animationTime + i * 0.1);
+                    } else {
+                        ctx.beginPath();
+                        ctx.arc(ship.x, ship.y, size, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+
+                    // Draw outline if enabled
+                    if (densitySettings.useOutline && slot.multiplier > 1) {
+                        ctx.strokeStyle = '#ffffff';
+                        ctx.lineWidth = 0.5 + Math.log2(slot.multiplier) * 0.3;
+                        ctx.globalAlpha = ship.alpha * 0.6;
+                        ctx.beginPath();
+                        ctx.arc(ship.x, ship.y, size + 1, 0, Math.PI * 2);
+                        ctx.stroke();
+                    }
+
+                    // Draw center dot if enabled
+                    if (densitySettings.useCenterDot && slot.multiplier > 1) {
+                        ctx.fillStyle = '#ffffff';
+                        ctx.globalAlpha = ship.alpha * Math.min(1, Math.log2(slot.multiplier) * 0.4);
+                        ctx.beginPath();
+                        ctx.arc(ship.x, ship.y, size * 0.3, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
                 });
             });
             ctx.globalAlpha = 1;

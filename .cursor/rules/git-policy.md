@@ -7,7 +7,7 @@ There is a global alias you can use `git ac "message"` which combines `git add .
 
 After committing, always push to origin:
 ```
-git push origin master
+`git push origin master`
 ```
 
 Remote origin: `https://github.com/mikepeiman/pax-galaxia-redux.git`
