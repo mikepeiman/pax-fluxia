@@ -50,27 +50,27 @@ export class Star {
     }> = {
             'grey': { // BASIC - No bonuses, all stats @ 1.0
                 defense: 1, prod: 1, speed: 1, repair: 1, attack: 1, color: 0x8899aa,
-                activationRate: 0.5, defensivePosture: 0.5, defenseStrength: 1.0, repairRate: 0.2, transferRate: 0.1
+                activationRate: 0.5, defensivePosture: 1.0, defenseStrength: 1.0, repairRate: 0.2, transferRate: 0.1
             },
             'yellow': { // PRODUCTION - 2x production rate
                 defense: 1, prod: 2, speed: 1, repair: 1, attack: 1, color: 0xfbbf24,
-                activationRate: 0.5, defensivePosture: 0.5, defenseStrength: 1.0, repairRate: 0.2, transferRate: 0.1
+                activationRate: 0.5, defensivePosture: 1.0, defenseStrength: 1.0, repairRate: 0.2, transferRate: 0.1
             },
             'blue': { // MOVEMENT - 2x transfer/movement speed
                 defense: 1, prod: 1, speed: 2, repair: 1, attack: 1, color: 0x3b82f6,
-                activationRate: 0.5, defensivePosture: 0.5, defenseStrength: 1.0, repairRate: 0.2, transferRate: 0.2
+                activationRate: 0.5, defensivePosture: 1.0, defenseStrength: 1.0, repairRate: 0.2, transferRate: 0.2
             },
             'purple': { // REPAIR - 2x repair rate
                 defense: 1, prod: 1, speed: 1, repair: 2, attack: 1, color: 0xa855f7,
-                activationRate: 0.5, defensivePosture: 0.5, defenseStrength: 1.0, repairRate: 0.4, transferRate: 0.1
+                activationRate: 0.5, defensivePosture: 1.0, defenseStrength: 1.0, repairRate: 0.4, transferRate: 0.1
             },
             'red': { // DEFENSE - 2x defense strength
                 defense: 2, prod: 1, speed: 1, repair: 1, attack: 1, color: 0xef4444,
-                activationRate: 0.5, defensivePosture: 0.7, defenseStrength: 2.0, repairRate: 0.2, transferRate: 0.1
+                activationRate: 0.5, defensivePosture: 1.0, defenseStrength: 2.0, repairRate: 0.2, transferRate: 0.1
             },
             'green': { // ATTACK - 2x attack power
                 defense: 1, prod: 1, speed: 1, repair: 1, attack: 2, color: 0x22c55e,
-                activationRate: 0.5, defensivePosture: 0.3, defenseStrength: 1.0, repairRate: 0.2, transferRate: 0.1
+                activationRate: 0.5, defensivePosture: 1.0, defenseStrength: 1.0, repairRate: 0.2, transferRate: 0.1
             },
         };
 

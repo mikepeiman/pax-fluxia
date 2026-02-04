@@ -102,7 +102,7 @@ export function resolveMultiwayCombat(target: Star, fleets: Fleet[], stars: Map<
     // TUNING: Attackers take 90% LESS damage than defenders.
     // Rationale: Attacking should not be overly punishing. Defenders have
     // terrain/fortification advantage which is reflected in their posture.
-    // Attackers project power remotely and take proportionally less return fire.
+    // Attackers take proportionally less return fire.
     // ===========================================================================
     const ATTACKER_DAMAGE_MODIFIER = 0.1; // Attackers take only 10% of calculated damage
 

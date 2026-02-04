@@ -174,12 +174,12 @@ export class GameEngine {
         const width = 1600;
         const height = 900;
         const hexRadius = GAME_CONFIG.HEX_RADIUS || 60;
-        
+
         // Calculate total stars first to determine optimal padding
         const playerIds = Array.from(this.players.keys());
         const starsPerPlayer = GAME_CONFIG.STARS_PER_PLAYER;
         const totalStars = playerIds.length * starsPerPlayer;
-        
+
         // Dynamic padding: reduce for large star counts
         const basePaddingX = totalStars > 50 ? 80 : totalStars > 20 ? 120 : 150;
         const basePaddingY = totalStars > 50 ? 60 : totalStars > 20 ? 80 : 100;
@@ -216,9 +216,9 @@ export class GameEngine {
         // Use the smaller of dynamic spacing or default (hexRadius * 2), then apply multiplier
         const baseSpacing = Math.min(hexRadius * 2, dynamicSpacing);
         const minSpacing = baseSpacing * spacingMultiplier;
-        
+
         log.sys('GameEngine', `Star spacing: ${minSpacing.toFixed(0)}px (dynamic: ${dynamicSpacing.toFixed(0)}, default: ${hexRadius * 2})`);
-        
+
         const starPositions = selectRandomHexPositions(hexes, totalStars, minSpacing);
 
         log.sys('GameEngine', `Selected ${starPositions.length} positions for stars`);
@@ -270,7 +270,7 @@ export class GameEngine {
         }));
 
         this.connections = generateStarConnections(
-            starArray, 
+            starArray,
             Infinity,
             GAME_CONFIG.MIN_LINKS_PER_STAR,
             GAME_CONFIG.MAX_LINKS_PER_STAR
@@ -514,7 +514,7 @@ export class GameEngine {
             const isAttack = source.ownerId !== target.ownerId;
 
             if (isAttack) {
-                // ATTACK: Remote engagement - ships DON'T leave source
+                // ATTACK: Combat initiated - ships remain at source during combat
                 // Combat will use source.activeShips directly
                 attackOrders.push({ source, target });
             } else {
@@ -578,7 +578,7 @@ export class GameEngine {
     }
 
     /**
-     * Multi-Source Remote Engagement Combat
+     * Multi-Source Combat Resolution
      * Multiple stars attacking the same target - aggregates all attacking forces
      * Both sides take damage simultaneously, conquest evaluated against TOTAL attacking force
      * 
@@ -611,7 +611,7 @@ export class GameEngine {
         // Calculate TOTAL attacking force from all sources
         let totalAttackForce = 0;
         const attackerContributions: { attacker: Star, force: number }[] = [];
-        
+
         validAttackers.forEach(attacker => {
             const force = attacker.activeShips;
             totalAttackForce += force;
@@ -624,7 +624,7 @@ export class GameEngine {
         if (defenderForce <= 0) {
             // Instant conquest - no defenders
             // Find strongest attacker to be the victor
-            const strongestAttacker = validAttackers.reduce((a, b) => 
+            const strongestAttacker = validAttackers.reduce((a, b) =>
                 a.activeShips > b.activeShips ? a : b
             );
             this.executeConquest(strongestAttacker, defender);
@@ -657,7 +657,7 @@ export class GameEngine {
             const proportion = force / totalAttackForce;
             const kills = Math.floor(killsOnAttacker * proportion);
             const disabled = Math.floor(disabledOnAttacker * proportion);
-            
+
             attacker.removeActiveShips(kills);
             attacker.takeDamage(disabled);
             attacker.markCombat(this.tick);
@@ -716,7 +716,7 @@ export class GameEngine {
         const conquestThreshold = totalAttackForce / GAME_CONFIG.CONQUEST_THRESHOLD;
         if (defender.activeShips <= conquestThreshold) {
             // Find the attacker with the LARGEST contribution to be the victor
-            const victor = attackerContributions.reduce((a, b) => 
+            const victor = attackerContributions.reduce((a, b) =>
                 a.force > b.force ? a : b
             ).attacker;
             this.executeConquest(victor, defender);
@@ -724,11 +724,11 @@ export class GameEngine {
     }
 
     /**
-     * Remote Engagement Combat
-     * Ships stay at their stars - combat uses current ship counts
+     * Single-Source Combat Resolution
+     * Ships stay at their stars during combat - damage is dealt each tick until conquest
      * Both sides take damage simultaneously
      */
-    private resolveRemoteCombat(attacker: Star, defender: Star): void {
+    private resolveCombat(attacker: Star, defender: Star): void {
         if (attacker.activeShips <= 0) {
             attacker.clearTarget();
             return;
@@ -834,11 +834,11 @@ export class GameEngine {
     private executeConquest(attacker: Star, defender: Star): void {
         const previousOwner = defender.ownerId;
         const defenderTotal = defender.totalShips;
-        
+
         // ====================================================================
         // SCATTER/RETREAT LOGIC
         // ====================================================================
-        
+
         // Check if defender is retreating (has order to friendly star)
         let isRetreating = false;
         let retreatTarget: Star | null = null;
@@ -849,7 +849,7 @@ export class GameEngine {
                 retreatTarget = targetStar;
             }
         }
-        
+
         // Find escape routes (friendly neighbors via connections)
         const escapeRoutes: Star[] = [];
         if (!isRetreating) {
@@ -864,22 +864,22 @@ export class GameEngine {
                 }
             });
         }
-        
+
         // Calculate capture rate based on situation
         let captureRate: number;
         let shipsDestroyed = 0;
         let shipsEscaping = 0;
-        
+
         if (isRetreating && retreatTarget) {
             // Retreating: lower capture rate, rest escape to target
             captureRate = GAME_CONFIG.RETREAT_CAPTURE_RATE;
             const shipsCaptured = Math.floor(defenderTotal * captureRate);
             shipsEscaping = defenderTotal - shipsCaptured;
-            
+
             // Transfer escaping ships to retreat target
             retreatTarget.addActiveShips(shipsEscaping);
             log.success('Retreat', `${shipsEscaping} ships retreat from ${defender.id} to ${retreatTarget.id}`);
-            
+
         } else if (escapeRoutes.length > 0) {
             // Scatter: some captured, some destroyed, some escape
             captureRate = GAME_CONFIG.SCATTER_CAPTURE_RATE;
@@ -887,12 +887,12 @@ export class GameEngine {
             const remaining = defenderTotal - shipsCaptured;
             shipsDestroyed = Math.floor(remaining * GAME_CONFIG.SCATTER_DESTROY_RATE);
             shipsEscaping = remaining - shipsDestroyed;
-            
+
             // Distribute escaping ships to friendly neighbors
             if (shipsEscaping > 0 && escapeRoutes.length > 0) {
                 const perRoute = Math.floor(shipsEscaping / escapeRoutes.length);
                 let remainder = shipsEscaping % escapeRoutes.length;
-                
+
                 escapeRoutes.forEach(route => {
                     const toAdd = perRoute + (remainder > 0 ? 1 : 0);
                     remainder = Math.max(0, remainder - 1);
@@ -900,42 +900,42 @@ export class GameEngine {
                 });
                 log.success('Scatter', `${shipsEscaping} ships scatter from ${defender.id} to ${escapeRoutes.length} neighbors`);
             }
-            
+
             if (shipsDestroyed > 0) {
                 log.data('Scatter', `${shipsDestroyed} ships destroyed during scatter`);
             }
-            
+
         } else {
             // No escape: 100% captured
             captureRate = 1.0;
         }
-        
+
         // Calculate captured ships
         const shipsCaptured = Math.floor(defenderTotal * captureRate);
-        
+
         // ====================================================================
         // EXECUTE CONQUEST
         // ====================================================================
-        
+
         // Clear defender ships first
         defender.clearShips();
-        
+
         // Transfer ownership
         defender.setOwner(attacker.ownerId);
-        
+
         // Add captured ships to defender (now owned by attacker)
         defender.addActiveShips(shipsCaptured);
-        
+
         // Transfer attacker ships to newly conquered star
         const transferPercentage = GAME_CONFIG.CONQUEST_TRANSFER_PERCENTAGE / 100;
         const shipsToTransfer = Math.floor(attacker.activeShips * transferPercentage);
-        
+
         if (shipsToTransfer > 0) {
             attacker.removeActiveShips(shipsToTransfer);
             defender.addActiveShips(shipsToTransfer);
             log.data('Conquest', `Transferred ${shipsToTransfer} ships from ${attacker.id} to ${defender.id}`);
         }
-        
+
         // Clear orders - but NOT if defender has a queued order from new owner
         // The defender's target was already set from queued order in setOwner()
         if (GAME_CONFIG.CLEAR_ORDER_ON_CAPTURE) {
@@ -943,17 +943,17 @@ export class GameEngine {
             // Don't clear defender target - it may have been set from a queued/deferred order
             // The queued order system allows chain-through orders to execute on capture
         }
-        
+
         // Log conquest
         const captureInfo = isRetreating ? `(retreat: ${shipsEscaping} escaped)` :
             escapeRoutes.length > 0 ? `(scatter: ${shipsEscaping} escaped, ${shipsDestroyed} destroyed)` :
-            '(no escape)';
+                '(no escape)';
         log.success('Conquest', `${attacker.id} conquered ${defender.id} - captured ${shipsCaptured}/${defenderTotal} ${captureInfo}`);
-        
+
         // Increment conquest counter for stats
         this.tickConquests++;
         this.starsCaptured++;
-        
+
         // Update combat log result
         combatLog.add({
             tick: this.tick,
@@ -1110,17 +1110,17 @@ export class GameEngine {
 
     private recordHistory(): void {
         this.lastHistoryTick = this.tick;
-        
+
         // Pre-calculate attack metrics
         const playerAttacks = new Map<PlayerId, number>();
         const playerUnderAttack = new Map<PlayerId, number>();
-        
+
         // Initialize counters
         this.players.forEach(p => {
             playerAttacks.set(p.id, 0);
             playerUnderAttack.set(p.id, 0);
         });
-        
+
         // Count active attacks and stars under attack
         this.stars.forEach(star => {
             if (star.targetId) {
@@ -1132,7 +1132,7 @@ export class GameEngine {
                 }
             }
         });
-        
+
         const entry: import('$lib/types/game.types').GameHistoryEntry = {
             tick: this.tick,
             players: [],
