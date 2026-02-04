@@ -153,7 +153,7 @@
 
         <div class="control-group">
             <label>Ships per Star: <span id="shipCountLabel">40</span></label>
-            <input type="range" id="shipCount" min="1" max="300" value="40">
+            <input type="range" id="shipCount" min="1" max="5000" value="40">
         </div>
 
         <div class="instructions">
@@ -165,7 +165,11 @@
             • Spacebar to pause/resume<br>
             <br>
             <strong>10-Layer Stacking:</strong><br>
-            Ships past layer 10 are stacked with white tint (2x, 4x, 8x...)
+            Ships past layer 10 are stacked with white tint (2x, 4x, 8x...)<br>
+            <br>
+            <strong>Features:</strong><br>
+            • Star production (1 ship/sec at 1x)<br>
+            • Ships animate during attack
         </div>
     </div>
 
@@ -220,6 +224,12 @@
         ];
 
         let nextShipId = 0;
+
+        // Traveling ships (for attack animation)
+        let travelingShips = [];
+
+        // Production config
+        const PRODUCTION_RATE = 1; // Ships per second at 1x speed
 
         // ============================================================================
         // Canvas Setup
@@ -359,22 +369,26 @@
                         const transferAmount = 1;
                         star.ships -= transferAmount;
 
-                        if (targetStar.ownerId === star.ownerId) {
-                            // Friendly transfer
-                            targetStar.ships += transferAmount;
-                        } else {
-                            // Attack
-                            if (targetStar.ships > transferAmount) {
-                                targetStar.ships -= transferAmount;
-                            } else {
-                                // Capture!
-                                targetStar.ships = transferAmount - targetStar.ships;
-                                targetStar.ownerId = star.ownerId;
-                                targetStar.color = star.color;
-                                targetStar.colorHex = star.colorHex;
-                                targetStar.visualShips = []; // Reset visuals
-                            }
-                        }
+                        // Spawn traveling ship for attack animation
+                        const dx = targetStar.x - star.x;
+                        const dy = targetStar.y - star.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+
+                        travelingShips.push({
+                            id: nextShipId++,
+                            x: star.x,
+                            y: star.y,
+                            targetX: targetStar.x,
+                            targetY: targetStar.y,
+                            targetStarId: targetStar.id,
+                            sourceStarId: star.id,
+                            color: star.color,
+                            colorHex: star.colorHex,
+                            ownerId: star.ownerId,
+                            progress: 0,
+                            travelTime: dist / 150, // Pixels per second -> travel time
+                            isAttack: targetStar.ownerId !== star.ownerId
+                        });
                     }
                 }
             });
@@ -384,8 +398,58 @@
             document.getElementById('redShips').textContent = stars.find(s => s.ownerId === 'red')?.ships || 0;
         }
 
+        // ============================================================================
+        // Update traveling ships
+        // ============================================================================
+        function updateTravelingShips(deltaTime) {
+            const toRemove = [];
+
+            travelingShips.forEach((ship, index) => {
+                // Move ship based on game speed
+                ship.progress += (deltaTime / 1000) * gameSpeed / ship.travelTime;
+
+                // Calculate current position (linear interpolation)
+                const startX = stars.find(s => s.id === ship.sourceStarId)?.x || ship.x;
+                const startY = stars.find(s => s.id === ship.sourceStarId)?.y || ship.y;
+                ship.x = startX + (ship.targetX - startX) * ship.progress;
+                ship.y = startY + (ship.targetY - startY) * ship.progress;
+
+                // Check if arrived
+                if (ship.progress >= 1) {
+                    const targetStar = stars.find(s => s.id === ship.targetStarId);
+                    if (targetStar) {
+                        if (ship.isAttack && targetStar.ownerId !== ship.ownerId) {
+                            // Attack: damage target
+                            if (targetStar.ships > 1) {
+                                targetStar.ships -= 1;
+                            } else {
+                                // Capture!
+                                targetStar.ships = 1;
+                                targetStar.ownerId = ship.ownerId;
+                                targetStar.color = ship.color;
+                                targetStar.colorHex = ship.colorHex;
+                                targetStar.visualShips = [];
+                            }
+                        } else {
+                            // Friendly: add to target
+                            targetStar.ships += 1;
+                        }
+                    }
+                    toRemove.push(index);
+                }
+            });
+
+            // Remove arrived ships (reverse order to avoid index issues)
+            toRemove.sort((a, b) => b - a).forEach(i => {
+                travelingShips.splice(i, 1);
+            });
+        }
+
         let tickAccumulator = 0;
         const TICK_RATE = 500; // ms per tick at 1x
+
+        let productionAccumulator = 0;
+        const PRODUCTION_TICK = 1000; // 1 production per second at 1x
 
         // ============================================================================
         // Render
@@ -398,11 +462,23 @@
             if (hasStarted && !isPaused) {
                 animationTime += deltaTime / 1000;
                 tickAccumulator += deltaTime * gameSpeed;
+                productionAccumulator += deltaTime * gameSpeed;
 
                 while (tickAccumulator >= TICK_RATE) {
                     gameTick();
                     tickAccumulator -= TICK_RATE;
                 }
+
+                // Star production
+                while (productionAccumulator >= PRODUCTION_TICK) {
+                    stars.forEach(star => {
+                        star.ships += PRODUCTION_RATE;
+                    });
+                    productionAccumulator -= PRODUCTION_TICK;
+                }
+
+                // Update traveling ships
+                updateTravelingShips(deltaTime);
             }
 
             // Clear
@@ -532,6 +608,22 @@
                 });
             });
             ctx.globalAlpha = 1;
+
+            // Draw traveling ships (attack animation)
+            travelingShips.forEach(ship => {
+                ctx.fillStyle = ship.color;
+                ctx.beginPath();
+                ctx.arc(ship.x, ship.y, 4, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Add glow effect
+                ctx.shadowColor = ship.color;
+                ctx.shadowBlur = 8;
+                ctx.beginPath();
+                ctx.arc(ship.x, ship.y, 3, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            });
 
             // Drag preview
             if (isDragging && selectedStarId) {
