@@ -3,7 +3,7 @@
 // ============================================================================
 
 import { Client, Room } from 'colyseus.js';
-import type { GameState, PlayerState, StarState, StarConnection, PlayerId, StarId } from '$lib/types/game.types';
+import type { PlayerState, StarState, StarConnection, StarId } from '$lib/types/game.types';
 
 // Server URL (dev default)
 const SERVER_URL = 'ws://localhost:2567';
@@ -38,9 +38,10 @@ let players = $state<PlayerState[]>([]);
 let stars = $state<StarState[]>([]);
 let connections = $state<StarConnection[]>([]);
 
-// Derived
-const isHost = $derived(localSessionId === hostSessionId);
-const localPlayer = $derived(players.find(p => p.id === getLocalPlayerId()));
+// Derived - use function to ensure reactivity
+function getIsHost(): boolean {
+    return localSessionId !== null && hostSessionId !== null && localSessionId === hostSessionId;
+}
 
 // ============================================================================
 // Connection Management
@@ -54,7 +55,7 @@ async function connect(): Promise<void> {
 
     try {
         client = new Client(SERVER_URL);
-        console.log('🔌 Connected to Colyseus server');
+        console.log('🔌 Colyseus client created');
     } catch (err) {
         connectionError = `Failed to connect: ${err}`;
         console.error('❌ Connection failed:', err);
@@ -71,13 +72,14 @@ async function createRoom(options: { playerCount?: number; mapType?: string } = 
     connectionError = null;
 
     try {
+        console.log('🏠 Creating room with options:', options);
         room = await client.create('game_room', options);
         roomId = room.roomId;
         localSessionId = room.sessionId;
         isConnected = true;
 
+        console.log(`✅ Room created: ${roomId}, sessionId: ${localSessionId}`);
         setupRoomListeners();
-        console.log(`🏠 Created room: ${roomId}`);
         return roomId;
     } catch (err) {
         connectionError = `Failed to create room: ${err}`;
@@ -96,13 +98,14 @@ async function joinRoom(targetRoomId: string): Promise<boolean> {
     connectionError = null;
 
     try {
+        console.log('🚪 Joining room:', targetRoomId);
         room = await client.joinById(targetRoomId);
         roomId = room.roomId;
         localSessionId = room.sessionId;
         isConnected = true;
 
+        console.log(`✅ Joined room: ${roomId}, sessionId: ${localSessionId}`);
         setupRoomListeners();
-        console.log(`🚪 Joined room: ${roomId}`);
         return true;
     } catch (err) {
         connectionError = `Failed to join room: ${err}`;
@@ -122,7 +125,9 @@ function leaveRoom(): void {
     isConnected = false;
     roomId = null;
     localSessionId = null;
+    hostSessionId = null;
     phase = 'lobby';
+    playerCount = 0;
     players = [];
     stars = [];
     connections = [];
@@ -140,78 +145,98 @@ function disconnect(): void {
 function setupRoomListeners(): void {
     if (!room) return;
 
-    // State change listener
+    console.log('📡 Setting up room listeners...');
+
+    // State change listener - fires on every state update from server
     room.onStateChange((state: any) => {
+        console.log('🔄 State change received:', {
+            phase: state.phase,
+            playerCount: state.playerCount,
+            hostSessionId: state.hostSessionId,
+            playersSize: state.players?.size ?? 0
+        });
+
         // Update local state from server
-        phase = state.phase;
-        tick = state.tick;
-        tickProgress = state.tickProgress;
-        isPaused = state.isPaused;
-        speed = state.speed;
-        playerCount = state.playerCount;
-        maxPlayers = state.maxPlayers;
-        hostSessionId = state.hostSessionId;
-        winnerId = state.winnerId;
+        phase = state.phase ?? 'lobby';
+        tick = state.tick ?? 0;
+        tickProgress = state.tickProgress ?? 0;
+        isPaused = state.isPaused ?? true;
+        speed = state.speed ?? 1;
+        playerCount = state.playerCount ?? 0;
+        maxPlayers = state.maxPlayers ?? 4;
+        hostSessionId = state.hostSessionId ?? null;
+        winnerId = state.winnerId ?? null;
 
         // Convert players map to array
         const playerArray: PlayerState[] = [];
-        state.players.forEach((player: any) => {
-            playerArray.push({
-                id: player.id,
-                name: player.name,
-                color: player.color,
-                isAI: player.isAI,
-                isEliminated: player.isEliminated,
-                starCount: player.starCount,
-                totalShips: player.totalShips,
-                activeShips: player.activeShips,
-                damagedShips: player.damagedShips,
-                production: player.production
+        if (state.players) {
+            state.players.forEach((player: any, key: string) => {
+                console.log(`  👤 Player: ${key} = ${player.name} (${player.color})`);
+                playerArray.push({
+                    id: player.id,
+                    name: player.name,
+                    color: player.color,
+                    isAI: player.isAI,
+                    isEliminated: player.isEliminated,
+                    starCount: player.starCount,
+                    totalShips: player.totalShips,
+                    activeShips: player.activeShips,
+                    damagedShips: player.damagedShips,
+                    production: player.production,
+                    // Include sessionId for local player lookup
+                    sessionId: player.sessionId
+                } as PlayerState & { sessionId: string });
             });
-        });
+        }
         players = playerArray;
 
         // Convert stars map to array
         const starArray: StarState[] = [];
-        state.stars.forEach((star: any) => {
-            starArray.push({
-                id: star.id,
-                x: star.x,
-                y: star.y,
-                radius: star.radius,
-                productionRate: star.productionRate,
-                activeShips: star.activeShips,
-                damagedShips: star.damagedShips,
-                ownerId: star.ownerId,
-                targetId: star.targetId || null,
-                queuedOrderTargetId: star.queuedOrderTargetId || null,
-                icon: star.icon,
-                starType: star.starType as any,
-                activationRate: star.activationRate,
-                defensivePosture: star.defensivePosture,
-                defenseStrength: star.defenseStrength,
-                repairRate: star.repairRate,
-                transferRate: star.transferRate
+        if (state.stars) {
+            state.stars.forEach((star: any) => {
+                starArray.push({
+                    id: star.id,
+                    x: star.x,
+                    y: star.y,
+                    radius: star.radius,
+                    productionRate: star.productionRate,
+                    activeShips: star.activeShips,
+                    damagedShips: star.damagedShips,
+                    ownerId: star.ownerId,
+                    targetId: star.targetId || null,
+                    queuedOrderTargetId: star.queuedOrderTargetId || null,
+                    icon: star.icon,
+                    starType: star.starType as any,
+                    activationRate: star.activationRate,
+                    defensivePosture: star.defensivePosture,
+                    defenseStrength: star.defenseStrength,
+                    repairRate: star.repairRate,
+                    transferRate: star.transferRate
+                });
             });
-        });
+        }
         stars = starArray;
 
         // Convert connections array
         const connArray: StarConnection[] = [];
-        state.connections.forEach((conn: any) => {
-            connArray.push({
-                sourceId: conn.sourceId,
-                targetId: conn.targetId,
-                distance: conn.distance
+        if (state.connections) {
+            state.connections.forEach((conn: any) => {
+                connArray.push({
+                    sourceId: conn.sourceId,
+                    targetId: conn.targetId,
+                    distance: conn.distance
+                });
             });
-        });
+        }
         connections = connArray;
+
+        console.log(`  📊 Updated: ${players.length} players, isHost=${getIsHost()}`);
     });
 
     // Error handler
     room.onError((code, message) => {
         console.error(`❌ Room error [${code}]:`, message);
-        connectionError = message;
+        connectionError = message ?? 'Unknown error';
     });
 
     // Leave handler
@@ -226,6 +251,7 @@ function setupRoomListeners(): void {
 // ============================================================================
 
 function startGame(): void {
+    console.log('🚀 Sending startGame message');
     room?.send('startGame');
 }
 
@@ -296,14 +322,14 @@ export const multiplayerStore = {
     get speed() { return speed; },
     get playerCount() { return playerCount; },
     get maxPlayers() { return maxPlayers; },
-    get isHost() { return isHost; },
+    get isHost() { return getIsHost(); },
     get winnerId() { return winnerId; },
 
     // Game state
     get players() { return players; },
     get stars() { return stars; },
     get connections() { return connections; },
-    get localPlayer() { return localPlayer; },
+    get localPlayer() { return players.find(p => (p as any).sessionId === localSessionId); },
 
     // Connection actions
     connect,

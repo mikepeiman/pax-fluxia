@@ -124,7 +124,10 @@
 
             <!-- Players List -->
             <section class="players-list">
-                <h3>Players</h3>
+                <h3>Players ({multiplayerStore.players.length})</h3>
+                {#if multiplayerStore.players.length === 0}
+                    <p class="waiting-text">No players yet...</p>
+                {/if}
                 <ul>
                     {#each multiplayerStore.players as player}
                         <li
@@ -157,6 +160,12 @@
                     </button>
                 {:else}
                     <p class="waiting-text">Waiting for host to start...</p>
+                    <p class="debug-text">
+                        isHost: {multiplayerStore.isHost}, sessionId: {multiplayerStore.localSessionId?.substring(
+                            0,
+                            8,
+                        )}
+                    </p>
                 {/if}
                 <button class="btn-secondary" onclick={handleLeaveRoom}>
                     Leave Room
@@ -420,6 +429,14 @@
         color: rgba(255, 255, 255, 0.6);
         font-style: italic;
         margin: 0.5rem 0;
+    }
+
+    .debug-text {
+        text-align: center;
+        font-size: 0.75rem;
+        color: rgba(255, 255, 100, 0.6);
+        font-family: monospace;
+        margin: 0.25rem 0;
     }
 
     .loading {
