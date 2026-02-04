@@ -8,8 +8,8 @@
 
   const winner = $derived(gameStore.winner);
 
-  // Flow percentage control (10-100%)
-  let flowPercent = $state(GAME_CONFIG.FLOW_PERCENTAGE);
+  // Transfer rate control (display as %, store as decimal)
+  let transferPercent = $state(Math.round(GAME_CONFIG.TRANSFER_RATE * 100));
 
   // Collapsible state with localStorage persistence
   const LS_KEY = "pax-controls-collapsed";
@@ -24,11 +24,11 @@
     }
   }
 
-  function handleFlowChange(e: Event) {
+  function handleTransferChange(e: Event) {
     const target = e.target as HTMLInputElement;
     const value = parseInt(target.value);
-    flowPercent = value;
-    GAME_CONFIG.FLOW_PERCENTAGE = value;
+    transferPercent = value;
+    GAME_CONFIG.TRANSFER_RATE = value / 100; // Convert % to decimal
   }
 </script>
 
@@ -57,19 +57,19 @@
           onStart={gameStore.beginGame}
         />
 
-        <!-- Flow Percentage Slider -->
+        <!-- Transfer Rate Slider -->
         <div class="flow-control">
-          <label class="flow-label" for="flow-slider">
-            Flow: <span class="flow-value">{flowPercent}%</span>
+          <label class="flow-label" for="transfer-slider">
+            Transfer: <span class="flow-value">{transferPercent}%</span>
           </label>
           <input
             type="range"
-            id="flow-slider"
+            id="transfer-slider"
             min="10"
             max="100"
             step="5"
-            value={flowPercent}
-            oninput={handleFlowChange}
+            value={transferPercent}
+            oninput={handleTransferChange}
             class="flow-slider"
           />
         </div>

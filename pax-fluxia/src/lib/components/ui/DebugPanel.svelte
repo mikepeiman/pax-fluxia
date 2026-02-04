@@ -27,8 +27,8 @@
         starsPerPlayer: GAME_CONFIG.STARS_PER_PLAYER,
 
         // Flow
-        flowPercentage: GAME_CONFIG.FLOW_PERCENTAGE * 100,
-        minFlowShips: GAME_CONFIG.MIN_FLOW_SHIPS,
+        transferRate: GAME_CONFIG.TRANSFER_RATE * 100,
+        minShipsPerTransfer: GAME_CONFIG.MIN_SHIPS_PER_TRANSFER,
 
         // NOTE: Combat variables moved to CombatPanel.svelte
         // conquestThreshold still here for backward compat
@@ -55,7 +55,7 @@
         connectionAlpha: GAME_CONFIG.CONNECTION_ALPHA,
 
         // Fleet
-        pulseFreq: GAME_CONFIG.FLOW_PULSE_FREQUENCY,
+        pulseInterval: GAME_CONFIG.TRANSFER_PULSE_INTERVAL,
         fleetSpeed: GAME_CONFIG.FLEET_SPEED,
     };
 
@@ -77,8 +77,8 @@
     $effect(() => {
         GAME_CONFIG.BASE_TICK_MS = params.tickRate;
         GAME_CONFIG.STARS_PER_PLAYER = params.starsPerPlayer;
-        GAME_CONFIG.FLOW_PERCENTAGE = params.flowPercentage / 100;
-        GAME_CONFIG.MIN_FLOW_SHIPS = params.minFlowShips;
+        GAME_CONFIG.TRANSFER_RATE = params.transferRate / 100;
+        GAME_CONFIG.MIN_SHIPS_PER_TRANSFER = params.minShipsPerTransfer;
         // NOTE: Combat variables moved to CombatPanel.svelte
         GAME_CONFIG.CONQUEST_THRESHOLD = params.conquestThreshold;
         GAME_CONFIG.BASE_PRODUCTION = params.baseProduction;
@@ -95,7 +95,7 @@
         GAME_CONFIG.CONNECTION_COLOR = params.connectionColor;
         GAME_CONFIG.CONNECTION_WIDTH = params.connectionWidth;
         GAME_CONFIG.CONNECTION_ALPHA = params.connectionAlpha;
-        GAME_CONFIG.FLOW_PULSE_FREQUENCY = params.pulseFreq;
+        GAME_CONFIG.TRANSFER_PULSE_INTERVAL = params.pulseInterval;
         GAME_CONFIG.FLEET_SPEED = params.fleetSpeed;
 
         // Notify engine to pick up changes (especially tick rate)
@@ -140,27 +140,27 @@
             step: 100,
         });
 
-        // Flow folder
-        const flowFolder = pane.addFolder({ title: "🌊 Flow" });
-        flowFolder.addBinding(params, "flowPercentage", {
-            label: "Flow %",
+        // Transfer folder
+        const transferFolder = pane.addFolder({ title: "🚀 Transfer" });
+        transferFolder.addBinding(params, "transferRate", {
+            label: "Transfer %",
             min: 1,
             max: 50,
             step: 1,
         });
-        flowFolder.addBinding(params, "minFlowShips", {
+        transferFolder.addBinding(params, "minShipsPerTransfer", {
             label: "Min Ships",
             min: 1,
             max: 10,
             step: 1,
         });
-        flowFolder.addBinding(params, "pulseFreq", {
-            label: "Pulse Freq",
+        transferFolder.addBinding(params, "pulseInterval", {
+            label: "Pulse Interval",
             min: 1,
             max: 60,
             step: 1,
         });
-        flowFolder.addBinding(params, "fleetSpeed", {
+        transferFolder.addBinding(params, "fleetSpeed", {
             label: "Fleet Speed",
             min: 10,
             max: 500,

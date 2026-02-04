@@ -10,23 +10,12 @@
   import SpeedControls from "$lib/components/ui/SpeedControls.svelte";
   import CombatLogPanel from "$lib/components/ui/CombatLogPanel.svelte";
   import AudioSettings from "$lib/components/ui/AudioSettings.svelte";
-  import { GAME_CONFIG } from "$lib/config/game.config";
   import type { PlayerState } from "$lib/types/game.types";
 
   // Panel visibility states
   let showDebug = $state(false);
   let combatLogOpen = $state(true);
   let showAudioSettings = $state(false);
-
-  // Flow percentage control
-  let flowPercent = $state(GAME_CONFIG.FLOW_PERCENTAGE);
-
-  function handleFlowChange(e: Event) {
-    const target = e.target as HTMLInputElement;
-    const value = parseInt(target.value);
-    flowPercent = value;
-    GAME_CONFIG.FLOW_PERCENTAGE = value;
-  }
 
   // Derived leaderboard from snapshot for proper reactivity
   const leaderboardPlayers = $derived.by(() => {
@@ -109,23 +98,6 @@
               onResume={gameStore.resumeGame}
               onStart={gameStore.beginGame}
             />
-
-            <!-- Flow Percentage Slider -->
-            <div class="flow-control">
-              <label class="flow-label" for="flow-slider">
-                Flow: <span class="flow-value">{flowPercent}%</span>
-              </label>
-              <input
-                type="range"
-                id="flow-slider"
-                min="10"
-                max="100"
-                step="5"
-                value={flowPercent}
-                oninput={handleFlowChange}
-                class="flow-slider"
-              />
-            </div>
 
             <div class="action-buttons">
               <button
@@ -328,33 +300,6 @@
   .action-buttons {
     display: flex;
     gap: 8px;
-  }
-
-  .flow-control {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding: 8px 0;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-    margin-top: 4px;
-  }
-
-  .flow-label {
-    font-size: 11px;
-    color: #889;
-    display: flex;
-    justify-content: space-between;
-  }
-
-  .flow-value {
-    color: #0ff;
-    font-weight: bold;
-  }
-
-  .flow-slider {
-    width: 100%;
-    height: 6px;
-    accent-color: #0ff;
   }
 
   /* Utilities */

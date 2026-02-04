@@ -519,18 +519,18 @@ export class GameEngine {
                 attackOrders.push({ source, target });
             } else {
                 // REINFORCEMENT: Ships physically transfer to friendly star
-                const flowPercentage = GAME_CONFIG.FLOW_PERCENTAGE || 0.25;
-                const flowAmount = Math.max(
-                    GAME_CONFIG.MIN_FLOW_SHIPS,
-                    Math.floor(source.activeShips * flowPercentage)
+                const transferRate = GAME_CONFIG.TRANSFER_RATE || 0.25;
+                const transferAmount = Math.max(
+                    GAME_CONFIG.MIN_SHIPS_PER_TRANSFER,
+                    Math.floor(source.activeShips * transferRate)
                 );
 
-                if (flowAmount === 0 || source.activeShips === 0) {
+                if (transferAmount === 0 || source.activeShips === 0) {
                     source.clearTarget();
                     return;
                 }
 
-                const shipped = source.removeActiveShips(flowAmount);
+                const shipped = source.removeActiveShips(transferAmount);
                 if (shipped > 0) {
                     reinforcements.push({ source, target, shipped });
 

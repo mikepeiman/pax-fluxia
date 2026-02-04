@@ -10,11 +10,11 @@ interface GameConfigType {
     BASE_TICK_MS: number;
     MIN_TICK_MS: number;
 
-    // Flow
-    FLOW_PERCENTAGE: number;
-    MIN_FLOW_SHIPS: number;
-    MAX_FLOW_SHIPS: number;
-    FLOW_PULSE_FREQUENCY: number;
+    // Transfer
+    TRANSFER_RATE: number;
+    MIN_SHIPS_PER_TRANSFER: number;
+    MAX_SHIPS_PER_TRANSFER: number;
+    TRANSFER_PULSE_INTERVAL: number;
     FLEET_SPEED: number;
 
     // Combat V4 - Symmetric Model
@@ -98,20 +98,20 @@ export const GAME_CONFIG: GameConfigType = {
     MIN_TICK_MS: 100,
 
     // ========================================================================
-    // FLOW MECHANICS
+    // TRANSFER MECHANICS
     // ========================================================================
 
-    /** Percentage of ships that flow per tick (0.0 - 1.0) */
-    FLOW_PERCENTAGE: 0.25,
+    /** Percentage of ships that transfer per tick (0.0 - 1.0) */
+    TRANSFER_RATE: 0.25,
 
-    /** Minimum ships to flow per tick */
-    MIN_FLOW_SHIPS: 1,
+    /** Minimum ships to transfer per tick */
+    MIN_SHIPS_PER_TRANSFER: 1,
 
-    /** Maximum ships to flow per tick (0 = unlimited) */
-    MAX_FLOW_SHIPS: 0,
+    /** Maximum ships to transfer per tick (0 = unlimited) */
+    MAX_SHIPS_PER_TRANSFER: 0,
 
-    /** Pulse frequency (ticks between flow batches, 1 = every tick) */
-    FLOW_PULSE_FREQUENCY: 1,
+    /** Pulse interval (ticks between transfer batches, 1 = every tick) */
+    TRANSFER_PULSE_INTERVAL: 1,
 
     /** Fleet travel speed (pixels per tick) */
     FLEET_SPEED: 25,
@@ -303,14 +303,14 @@ export function getTickInterval(speed: number): number {
 }
 
 /**
- * Calculate flow amount for a star
+ * Calculate transfer amount for a star
  */
-export function calculateFlowAmount(activeShips: number): number {
-    const flowAmount = Math.floor(activeShips * GAME_CONFIG.FLOW_PERCENTAGE);
-    const clamped = Math.max(GAME_CONFIG.MIN_FLOW_SHIPS, flowAmount);
+export function calculateTransferAmount(activeShips: number): number {
+    const transferAmount = Math.floor(activeShips * GAME_CONFIG.TRANSFER_RATE);
+    const clamped = Math.max(GAME_CONFIG.MIN_SHIPS_PER_TRANSFER, transferAmount);
 
-    if (GAME_CONFIG.MAX_FLOW_SHIPS > 0) {
-        return Math.min(clamped, GAME_CONFIG.MAX_FLOW_SHIPS);
+    if (GAME_CONFIG.MAX_SHIPS_PER_TRANSFER > 0) {
+        return Math.min(clamped, GAME_CONFIG.MAX_SHIPS_PER_TRANSFER);
     }
 
     return clamped;
