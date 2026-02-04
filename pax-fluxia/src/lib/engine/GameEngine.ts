@@ -933,10 +933,12 @@ export class GameEngine {
             log.data('Conquest', `Transferred ${shipsToTransfer} ships from ${attacker.id} to ${defender.id}`);
         }
         
-        // Clear orders
+        // Clear orders - but NOT if defender has a queued order from new owner
+        // The defender's target was already set from queued order in setOwner()
         if (GAME_CONFIG.CLEAR_ORDER_ON_CAPTURE) {
             attacker.clearTarget();
-            defender.clearTarget();
+            // Don't clear defender target - it may have been set from a queued/deferred order
+            // The queued order system allows chain-through orders to execute on capture
         }
         
         // Log conquest
