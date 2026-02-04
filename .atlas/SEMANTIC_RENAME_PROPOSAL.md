@@ -22,13 +22,9 @@
   - **What it does:** Processes all active ship movement orders, distinguishes attacks (enemy targets) from reinforcements (friendly targets), aggregates multi-source attacks, triggers combat
   - **Why rename:** "Flow" is abstract jargon; "transfer orders" matches game terminology
 
-- [ ] `resolveMultiSourceCombat` → `resolveBattle`
-  - **What it does:** Resolves combat when multiple stars attack the same target - aggregates forces, calculates damage, applies return fire, checks conquest
-  - **Why rename:** Clearer and shorter; "battle" matches UI terminology
-
-- [ ] `resolveRemoteCombat` → `resolveSingleAttackerBattle`
-  - **What it does:** Handles single attacker vs defender combat (appears unused - handled by resolveBattle)
-  - **Why rename:** Clarifies the single-attacker case; "remote" is misleading
+- [x] CONSOLIDATE: `resolveMultiSourceCombat` + `resolveRemoteCombat` → `resolveBattle` (single function)
+  - **What it does:** Resolves combat for any number of attackers (1-n) - aggregates forces, calculates damage, applies return fire, checks conquest
+  - **Why consolidate:** One unified battle resolution function regardless of attacker count; eliminates redundancy and unclear separation
 
 - [ ] `executeConquest` → `captureStarWithScatter`
   - **What it does:** Captures star, handles scatter/retreat (ships escape to friendly neighbors), transfers captured ships, moves attacker ships
@@ -58,13 +54,17 @@
   - **What it does:** Checks if players should be eliminated (no stars and no ships)
   - **Why rename:** The function eliminates players, not just checks - name should reflect side effect
 
-- [ ] `recordHistory` → `recordTickStatistics`
+- [x] `recordHistory` → `recordGameplayData`
   - **What it does:** Records game state statistics for each tick
-  - **Why rename:** "History" is vague; "tick statistics" is precise
+  - **Why rename:** "Gameplay data" is more specific than "history"; prepares for chart generation
 
-- [ ] `getStatsHistory` → `getGameHistoryForCharts`
+- [x] `getStatsHistory` → `getGameplayData`
   - **What it does:** Returns the recorded game history array for endgame charts
-  - **Why rename:** Clarifies the purpose (charting)
+  - **Why rename:** Consistent with "recordGameplayData"; clearer purpose
+
+- [x] ADD: `generateGameplayCharts`
+  - **What it does:** Generates chart data from gameplay data
+  - **Why add:** Completes the data pipeline: record → get → generate
 
 ### Initialization
 
