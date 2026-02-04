@@ -648,12 +648,12 @@ export class GameEngine {
         // Increment combat event counter for stats
         this.tickCombatEvents++;
 
-        // Combat telemetry - log the combined attack
+        // Combat telemetry - log the combined attack with OWNER info
         const primaryAttacker = validAttackers[0];
         log.combatBattle(
             this.tick,
-            { id: `${validAttackers.length} stars`, ships: totalAttackForce, starType: primaryAttacker.starType },
-            { id: defender.id, ships: defenderForce, starType: defender.starType },
+            { id: `${validAttackers.length} stars`, ships: totalAttackForce, starType: primaryAttacker.starType, ownerId: primaryAttacker.ownerId },
+            { id: defender.id, ships: defenderForce, starType: defender.starType, ownerId: defender.ownerId },
             { kills: killsOnDefender, disabled: disabledOnDefender },
             { kills: killsOnAttacker, disabled: disabledOnAttacker },
             {
@@ -753,11 +753,11 @@ export class GameEngine {
         attacker.takeDamage(disabledOnAttacker);
         attacker.markCombat(this.tick);
 
-        // Combat telemetry
+        // Combat telemetry with OWNER info
         log.combatBattle(
             this.tick,
-            { id: attacker.id, ships: attackerForce, starType: attacker.starType },
-            { id: defender.id, ships: defenderForce, starType: defender.starType },
+            { id: attacker.id, ships: attackerForce, starType: attacker.starType, ownerId: attacker.ownerId },
+            { id: defender.id, ships: defenderForce, starType: defender.starType, ownerId: defender.ownerId },
             { kills: killsOnDefender, disabled: disabledOnDefender },
             { kills: killsOnAttacker, disabled: disabledOnAttacker },
             {
@@ -1068,15 +1068,14 @@ export class GameEngine {
         });
 
         // ====================================================================
-        // COMBAT TELEMETRY - Per visual-telemetry skill
-        // Format: ATTACKER(ships) [type] → DEFENDER(ships) [type], each side's losses, settings
+        // COMBAT TELEMETRY with OWNER info
         // ====================================================================
         const attackerSourceId = fleets.length > 0 ? fleets[0].sourceId : 'unknown';
         const attackerStar = fleets.length > 0 ? this.stars.get(fleets[0].sourceId) : null;
         log.combatBattle(
             this.tick,
-            { id: attackerSourceId, ships: totalAttackForce, starType: attackerStar?.starType },
-            { id: targetId, ships: totalDefenders, starType: target.starType },
+            { id: attackerSourceId, ships: totalAttackForce, starType: attackerStar?.starType, ownerId: attackerStar?.ownerId || strongestAttackerId || 'unknown' },
+            { id: targetId, ships: totalDefenders, starType: target.starType, ownerId: ownerId },
             { kills: killsOnDefender, disabled: disabledOnDefender },
             { kills: killsOnAttacker, disabled: disabledOnAttacker },
             {
