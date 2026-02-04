@@ -93,7 +93,8 @@ export class Star {
         this._ownerId = config.ownerId;
         this.starType = config.starType || 'grey';
 
-        this._activeShips = config.activeShips ?? (this.starType === 'grey' ? 25 : 10);
+        // Ships should be 0 by default - addActiveShips() is called separately with STARTING_SHIPS
+        this._activeShips = config.activeShips ?? 0;
         this._damagedShips = config.damagedShips ?? 0;
         this._targetId = null;
 

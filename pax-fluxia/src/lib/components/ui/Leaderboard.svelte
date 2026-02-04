@@ -21,6 +21,11 @@
         }
     }
 
+    // Check if player is the human player
+    function isHuman(player: PlayerState): boolean {
+        return player.id === "human-player";
+    }
+
     // Derived to ensure reactivity with updated player data
     const sortedPlayers = $derived(
         [...players].sort((a, b) => (b.totalShips ?? 0) - (a.totalShips ?? 0)),
@@ -36,12 +41,18 @@
     {#if !isCollapsed}
         <ul class="leaderboard__list">
             {#each sortedPlayers as player, index}
-                <li class="leaderboard__item">
+                <li class="leaderboard__item" class:is-self={isHuman(player)}>
                     <span
                         class="player-dot"
+                        class:player-dot--self={isHuman(player)}
                         style="background-color: {player.color}"
                     ></span>
-                    <span class="player-name">{player.name}</span>
+                    <span
+                        class="player-name"
+                        class:player-name--self={isHuman(player)}
+                    >
+                        {isHuman(player) ? "★ " : ""}{player.name}
+                    </span>
                     <span class="player-stats font-data">
                         <span class="stat-ships" title="Active / Damaged Ships">
                             {player.activeShips ?? 0}<span class="stat-dim"
@@ -125,6 +136,25 @@
         height: 10px;
         border-radius: 50%;
         flex-shrink: 0;
+        transition: all 0.2s ease;
+    }
+
+    /* Self (human player) visual flair */
+    .is-self {
+        background: rgba(68, 136, 255, 0.15);
+        border: 1px solid rgba(68, 136, 255, 0.4);
+        box-shadow: 0 0 8px rgba(68, 136, 255, 0.2);
+    }
+
+    .player-dot--self {
+        width: 14px;
+        height: 14px;
+        box-shadow: 0 0 6px currentColor;
+    }
+
+    .player-name--self {
+        font-weight: 600;
+        color: #6af;
     }
 
     .player-name {

@@ -298,7 +298,7 @@ export class GameEngine {
             ownerId: this.humanPlayerId,
             starType: 'green',
         }, 1);
-        starA.addActiveShips(100);
+        starA.addActiveShips(GAME_CONFIG.STARTING_SHIPS);
         this.stars.set(starA.id, starA);
 
         // Star B: AI homeworld (bottom-left)
@@ -312,7 +312,7 @@ export class GameEngine {
             ownerId: aiId,
             starType: 'red',
         }, 2);
-        starB.addActiveShips(100);
+        starB.addActiveShips(GAME_CONFIG.STARTING_SHIPS);
         this.stars.set(starB.id, starB);
 
         // Star C: Neutral (bottom-right)
@@ -324,7 +324,7 @@ export class GameEngine {
             ownerId: 'neutral' as PlayerId,
             starType: 'yellow',
         }, 3);
-        starC.addActiveShips(100);
+        starC.addActiveShips(GAME_CONFIG.STARTING_SHIPS);
         this.stars.set(starC.id, starC);
 
         // Star D: Dead-end connected only to A (far top-right)
@@ -336,7 +336,7 @@ export class GameEngine {
             ownerId: 'neutral' as PlayerId,
             starType: 'blue',
         }, 4);
-        starD.addActiveShips(100);
+        starD.addActiveShips(GAME_CONFIG.STARTING_SHIPS);
         this.stars.set(starD.id, starD);
 
         // Define connections: Triangle A↔B↔C↔A + dead-end D↔A
