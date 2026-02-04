@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pax Fluxia - Ship Orbit Demo (Concentric Rings)</title>
+    <title>Pax Fluxia - Complete Ship Demo</title>
     <style>
         * {
             margin: 0;
@@ -16,6 +16,7 @@
             background: #0a0a1a;
             overflow: hidden;
             font-family: 'Segoe UI', sans-serif;
+            color: #fff;
         }
 
         canvas {
@@ -26,37 +27,146 @@
             position: fixed;
             top: 20px;
             left: 20px;
-            color: #fff;
-            font-size: 14px;
             z-index: 100;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 15px;
-            border-radius: 8px;
+            background: rgba(10, 10, 26, 0.9);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            min-width: 260px;
         }
 
-        .controls label {
+        .controls h3 {
+            margin-bottom: 16px;
+            color: #22c55e;
+            font-size: 16px;
+        }
+
+        .control-group {
+            margin-bottom: 16px;
+        }
+
+        .control-group label {
             display: block;
-            margin: 8px 0;
+            margin-bottom: 6px;
+            font-size: 13px;
+            opacity: 0.8;
         }
 
-        .controls input[type="range"] {
-            width: 150px;
-            vertical-align: middle;
+        .control-group input[type="range"] {
+            width: 100%;
+        }
+
+        .start-btn {
+            width: 100%;
+            padding: 12px;
+            font-size: 18px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #00ffe5, #22c55e);
+            color: #0a0a1a;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            box-shadow: 0 4px 20px rgba(0, 255, 229, 0.3);
+            margin-bottom: 12px;
+        }
+
+        .start-btn:hover {
+            transform: scale(1.02);
+            box-shadow: 0 6px 30px rgba(0, 255, 229, 0.5);
+        }
+
+        .start-btn.hidden {
+            display: none;
+        }
+
+        .speed-controls {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+
+        .speed-btn {
+            flex: 1;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #888;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .speed-btn:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .speed-btn.active {
+            background: #00ffe5;
+            color: #0a0a1a;
+        }
+
+        .instructions {
+            font-size: 11px;
+            opacity: 0.6;
+            line-height: 1.6;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 12px;
+            margin-top: 8px;
+        }
+
+        .stats {
+            font-size: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin-bottom: 12px;
+        }
+
+        .stats span {
+            opacity: 0.7;
         }
     </style>
 </head>
 
 <body>
     <div class="controls">
-        <h3 style="margin-bottom: 12px;">Concentric Ring Orbit Demo</h3>
-        <label>
-            Ships: <span id="shipCountLabel">40</span>
-            <input type="range" id="shipCount" min="1" max="200" value="40">
-        </label>
-        <p style="margin-top: 15px; opacity: 0.7; font-size: 12px;">
-            Ships orbit in concentric rings, tightly packed.<br>
-            Uses the same getOrbitSlot logic as the game.
-        </p>
+        <h3>🚀 Pax Fluxia Ship Demo</h3>
+
+        <button id="startBtn" class="start-btn">▶ START</button>
+
+        <div class="speed-controls">
+            <button class="speed-btn active" data-speed="0" title="Pause">⏸</button>
+            <button class="speed-btn" data-speed="1" title="1x">▶</button>
+            <button class="speed-btn" data-speed="2" title="2x">▶▶</button>
+            <button class="speed-btn" data-speed="4" title="4x">▶▶▶</button>
+        </div>
+
+        <div class="stats">
+            <div>Green Ships: <span id="greenShips">40</span></div>
+            <div>Red Ships: <span id="redShips">40</span></div>
+        </div>
+
+        <div class="control-group">
+            <label>Ships per Star: <span id="shipCountLabel">40</span></label>
+            <input type="range" id="shipCount" min="1" max="300" value="40">
+        </div>
+
+        <div class="instructions">
+            <strong>Controls:</strong><br>
+            • Click star to select<br>
+            • Click another to set order<br>
+            • Drag between stars for order<br>
+            • Right-click to cancel<br>
+            • Spacebar to pause/resume<br>
+            <br>
+            <strong>10-Layer Stacking:</strong><br>
+            Ships past layer 10 are stacked with white tint (2x, 4x, 8x...)
+        </div>
     </div>
 
     <canvas id="canvas"></canvas>
@@ -65,70 +175,60 @@
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
 
-        function resize() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        }
-        resize();
-        window.addEventListener('resize', resize);
-
+        // ============================================================================
         // Config - matches GAME_CONFIG
+        // ============================================================================
         const SHIP_BASE_SIZE = 4;
         const PADDING = 2;
         const RING_SPACING = SHIP_BASE_SIZE * 1.4;
+        const MAX_ORBIT_LAYERS = 10;
+        const LERP_FACTOR = 0.08;
 
-        let shipCount = 40;
+        // Colors
+        const PLAYER_GREEN = '#22c55e';
+        const PLAYER_RED = '#ef4444';
+        const PLAYER_GREEN_HEX = 0x22c55e;
+        const PLAYER_RED_HEX = 0xef4444;
 
         // ============================================================================
-        // getOrbitSlot - EXACT COPY from render.utils.ts
+        // State
         // ============================================================================
-        function getOrbitSlot(index, cx, cy, starRadius, time) {
-            const BASE_SIZE = SHIP_BASE_SIZE;
+        let hasStarted = false;
+        let isPaused = true;
+        let gameSpeed = 1;
+        let animationTime = 0;
+        let lastFrameTime = 0;
+        let selectedStarId = null;
+        let isDragging = false;
+        let dragStartX = 0, dragStartY = 0;
+        let dragCurrentX = 0, dragCurrentY = 0;
 
-            // Determine which layer (ring) this index belongs to
-            // Fill inner rings first
-            let layer = 0;
-            let currentRadius = starRadius + PADDING + BASE_SIZE;
-            let countInInnerLayers = 0;
-
-            while (true) {
-                const circumference = 2 * Math.PI * currentRadius;
-                const capacity = Math.max(1, Math.floor(circumference / (BASE_SIZE * 1.5)));
-
-                if (index < countInInnerLayers + capacity) {
-                    // It's in this layer
-                    const indexInRing = index - countInInnerLayers;
-                    const angleStep = (2 * Math.PI) / capacity;
-
-                    // Rotate rings slowly, alternating direction
-                    const ringRotation = time * (0.2 / (layer + 1)) * (layer % 2 === 0 ? 1 : -1);
-                    const angle = indexInRing * angleStep + ringRotation;
-
-                    return {
-                        x: cx + Math.cos(angle) * currentRadius,
-                        y: cy + Math.sin(angle) * currentRadius
-                    };
-                }
-
-                countInInnerLayers += capacity;
-                currentRadius += RING_SPACING;
-                layer++;
-
-                // Safety break
-                if (layer > 20) {
-                    return {
-                        x: cx + Math.cos(index) * (currentRadius + 20),
-                        y: cy + Math.sin(index) * (currentRadius + 20)
-                    };
-                }
-            }
-        }
-
-        // Star data
+        // Stars
         const stars = [
-            { x: 0, y: 0, radius: 30, color: '#22c55e', ships: 40 },
-            { x: 0, y: 0, radius: 30, color: '#ef4444', ships: 40 }
+            {
+                id: 'star1', x: 0, y: 0, radius: 35,
+                color: PLAYER_GREEN, colorHex: PLAYER_GREEN_HEX,
+                ownerId: 'green', ships: 40, targetId: null,
+                visualShips: []
+            },
+            {
+                id: 'star2', x: 0, y: 0, radius: 35,
+                color: PLAYER_RED, colorHex: PLAYER_RED_HEX,
+                ownerId: 'red', ships: 40, targetId: null,
+                visualShips: []
+            }
         ];
+
+        let nextShipId = 0;
+
+        // ============================================================================
+        // Canvas Setup
+        // ============================================================================
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            updateStarPositions();
+        }
 
         function updateStarPositions() {
             stars[0].x = canvas.width * 0.35;
@@ -136,14 +236,174 @@
             stars[1].x = canvas.width * 0.65;
             stars[1].y = canvas.height * 0.5;
         }
-        updateStarPositions();
-        window.addEventListener('resize', updateStarPositions);
 
-        let animationTime = 0;
+        resize();
+        window.addEventListener('resize', resize);
 
-        function render() {
-            const now = performance.now() / 1000; // seconds
-            animationTime = now;
+        // ============================================================================
+        // getOrbitSlot - EXACT algorithm from render.utils.ts with stacking
+        // ============================================================================
+        function calculateTotalCapacity(starRadius) {
+            const layerCapacities = [];
+            let totalCapacity = 0;
+            let currentRadius = starRadius + PADDING + SHIP_BASE_SIZE;
+
+            for (let layer = 0; layer < MAX_ORBIT_LAYERS; layer++) {
+                const circumference = 2 * Math.PI * currentRadius;
+                const capacity = Math.max(1, Math.floor(circumference / (SHIP_BASE_SIZE * 1.5)));
+                layerCapacities.push(capacity);
+                totalCapacity += capacity;
+                currentRadius += RING_SPACING;
+            }
+
+            return { layerCapacities, totalCapacity };
+        }
+
+        function getOrbitSlot(index, cx, cy, starRadius, time) {
+            const { layerCapacities, totalCapacity } = calculateTotalCapacity(starRadius);
+
+            // Calculate wrap cycle and multiplier
+            const wrapCycle = Math.floor(index / totalCapacity);
+            const effectiveIndex = index % totalCapacity;
+            const multiplier = Math.pow(2, wrapCycle); // 1, 2, 4, 8, ...
+
+            // Find layer
+            let countInInnerLayers = 0;
+            let currentRadius = starRadius + PADDING + SHIP_BASE_SIZE;
+
+            for (let layer = 0; layer < MAX_ORBIT_LAYERS; layer++) {
+                const capacity = layerCapacities[layer];
+
+                if (effectiveIndex < countInInnerLayers + capacity) {
+                    const indexInRing = effectiveIndex - countInInnerLayers;
+                    const angleStep = (2 * Math.PI) / capacity;
+                    const ringRotation = time * (0.2 / (layer + 1)) * (layer % 2 === 0 ? 1 : -1);
+                    const angle = indexInRing * angleStep + ringRotation;
+
+                    return {
+                        x: cx + Math.cos(angle) * currentRadius,
+                        y: cy + Math.sin(angle) * currentRadius,
+                        multiplier
+                    };
+                }
+
+                countInInnerLayers += capacity;
+                currentRadius += RING_SPACING;
+            }
+
+            // Fallback
+            return {
+                x: cx + Math.cos(effectiveIndex) * currentRadius,
+                y: cy + Math.sin(effectiveIndex) * currentRadius,
+                multiplier
+            };
+        }
+
+        function lerp(a, b, t) {
+            return a + (b - a) * t;
+        }
+
+        // ============================================================================
+        // Color blending for stacked ships
+        // ============================================================================
+        function blendColorToWhite(hexColor, multiplier) {
+            if (multiplier <= 1) return hexColor;
+
+            const blendAmount = Math.min(0.8, Math.log2(multiplier) * 0.25);
+            const r = ((hexColor >> 16) & 0xff);
+            const g = ((hexColor >> 8) & 0xff);
+            const b = (hexColor & 0xff);
+            const newR = Math.round(r + (255 - r) * blendAmount);
+            const newG = Math.round(g + (255 - g) * blendAmount);
+            const newB = Math.round(b + (255 - b) * blendAmount);
+            return (newR << 16) | (newG << 8) | newB;
+        }
+
+        function hexToRgb(hex) {
+            return `rgb(${(hex >> 16) & 0xff}, ${(hex >> 8) & 0xff}, ${hex & 0xff})`;
+        }
+
+        // ============================================================================
+        // Ship state management
+        // ============================================================================
+        function syncShipState(star) {
+            const targetCount = star.ships;
+
+            // Spawn new ships
+            while (star.visualShips.length < targetCount) {
+                star.visualShips.push({
+                    id: nextShipId++,
+                    x: star.x,
+                    y: star.y,
+                    targetIndex: star.visualShips.length,
+                    scale: 0.1,
+                    alpha: 0
+                });
+            }
+
+            // Despawn extra ships
+            if (star.visualShips.length > targetCount) {
+                star.visualShips.length = targetCount;
+            }
+        }
+
+        // ============================================================================
+        // Game tick (ship transfer)
+        // ============================================================================
+        function gameTick() {
+            stars.forEach(star => {
+                if (star.targetId && star.ships > 1) {
+                    const targetStar = stars.find(s => s.id === star.targetId);
+                    if (targetStar) {
+                        // Transfer ships
+                        const transferAmount = 1;
+                        star.ships -= transferAmount;
+
+                        if (targetStar.ownerId === star.ownerId) {
+                            // Friendly transfer
+                            targetStar.ships += transferAmount;
+                        } else {
+                            // Attack
+                            if (targetStar.ships > transferAmount) {
+                                targetStar.ships -= transferAmount;
+                            } else {
+                                // Capture!
+                                targetStar.ships = transferAmount - targetStar.ships;
+                                targetStar.ownerId = star.ownerId;
+                                targetStar.color = star.color;
+                                targetStar.colorHex = star.colorHex;
+                                targetStar.visualShips = []; // Reset visuals
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Update UI
+            document.getElementById('greenShips').textContent = stars.find(s => s.ownerId === 'green')?.ships || 0;
+            document.getElementById('redShips').textContent = stars.find(s => s.ownerId === 'red')?.ships || 0;
+        }
+
+        let tickAccumulator = 0;
+        const TICK_RATE = 500; // ms per tick at 1x
+
+        // ============================================================================
+        // Render
+        // ============================================================================
+        function render(timestamp) {
+            const deltaTime = timestamp - lastFrameTime;
+            lastFrameTime = timestamp;
+
+            // Update game time
+            if (hasStarted && !isPaused) {
+                animationTime += deltaTime / 1000;
+                tickAccumulator += deltaTime * gameSpeed;
+
+                while (tickAccumulator >= TICK_RATE) {
+                    gameTick();
+                    tickAccumulator -= TICK_RATE;
+                }
+            }
 
             // Clear
             ctx.fillStyle = '#0a0a1a';
@@ -151,75 +411,285 @@
 
             // Starfield
             ctx.fillStyle = '#ffffff';
-            for (let i = 0; i < 80; i++) {
+            for (let i = 0; i < 100; i++) {
                 const x = (i * 73 + 17) % canvas.width;
                 const y = (i * 31 + 41) % canvas.height;
                 const size = (i % 3) * 0.5 + 0.5;
-                ctx.globalAlpha = 0.2 + (i % 5) * 0.08;
+                ctx.globalAlpha = 0.15 + (i % 5) * 0.05;
                 ctx.beginPath();
                 ctx.arc(x, y, size, 0, Math.PI * 2);
                 ctx.fill();
             }
             ctx.globalAlpha = 1;
 
-            // Draw connection line
-            ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+            // Draw connections
+            ctx.strokeStyle = 'rgba(255,255,255,0.15)';
             ctx.lineWidth = 2;
             ctx.beginPath();
             ctx.moveTo(stars[0].x, stars[0].y);
             ctx.lineTo(stars[1].x, stars[1].y);
             ctx.stroke();
 
-            // Draw each star
-            stars.forEach((star, starIndex) => {
-                // Star glow
+            // Draw order arrows
+            stars.forEach(star => {
+                if (star.targetId) {
+                    const target = stars.find(s => s.id === star.targetId);
+                    if (target) {
+                        const dx = target.x - star.x;
+                        const dy = target.y - star.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        const nx = dx / dist;
+                        const ny = dy / dist;
+
+                        const startX = star.x + nx * star.radius;
+                        const startY = star.y + ny * star.radius;
+                        const endX = target.x - nx * target.radius;
+                        const endY = target.y - ny * target.radius;
+
+                        ctx.strokeStyle = star.color;
+                        ctx.lineWidth = 3;
+                        ctx.beginPath();
+                        ctx.moveTo(startX, startY);
+                        ctx.lineTo(endX, endY);
+                        ctx.stroke();
+
+                        // Arrow head
+                        const arrowSize = 12;
+                        const angle = Math.atan2(dy, dx);
+                        ctx.fillStyle = star.color;
+                        ctx.beginPath();
+                        ctx.moveTo(endX, endY);
+                        ctx.lineTo(endX - arrowSize * Math.cos(angle - 0.4), endY - arrowSize * Math.sin(angle - 0.4));
+                        ctx.lineTo(endX - arrowSize * Math.cos(angle + 0.4), endY - arrowSize * Math.sin(angle + 0.4));
+                        ctx.closePath();
+                        ctx.fill();
+                    }
+                }
+            });
+
+            // Draw stars
+            stars.forEach(star => {
+                // Glow
                 const gradient = ctx.createRadialGradient(
                     star.x, star.y, 0,
-                    star.x, star.y, star.radius * 2
+                    star.x, star.y, star.radius * 2.5
                 );
-                gradient.addColorStop(0, star.color + '60');
-                gradient.addColorStop(0.5, star.color + '20');
+                gradient.addColorStop(0, star.color + '40');
+                gradient.addColorStop(0.5, star.color + '15');
                 gradient.addColorStop(1, 'transparent');
                 ctx.fillStyle = gradient;
                 ctx.beginPath();
-                ctx.arc(star.x, star.y, star.radius * 2, 0, Math.PI * 2);
+                ctx.arc(star.x, star.y, star.radius * 2.5, 0, Math.PI * 2);
                 ctx.fill();
 
-                // Star core
+                // Core
                 ctx.fillStyle = star.color;
                 ctx.beginPath();
                 ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
                 ctx.fill();
 
-                // Ships in concentric rings
-                for (let i = 0; i < star.ships; i++) {
-                    const pos = getOrbitSlot(i, star.x, star.y, star.radius, animationTime);
-
-                    ctx.fillStyle = star.color;
+                // Selection ring
+                if (selectedStarId === star.id) {
+                    ctx.strokeStyle = '#00ffe5';
+                    ctx.lineWidth = 3;
                     ctx.beginPath();
-                    ctx.arc(pos.x, pos.y, SHIP_BASE_SIZE * 0.8, 0, Math.PI * 2);
-                    ctx.fill();
+                    ctx.arc(star.x, star.y, star.radius + 8, 0, Math.PI * 2);
+                    ctx.stroke();
                 }
 
                 // Ship count label
                 ctx.fillStyle = '#ffffff';
-                ctx.font = 'bold 16px sans-serif';
+                ctx.font = 'bold 18px sans-serif';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.fillText(star.ships.toString(), star.x, star.y);
             });
 
+            // Draw ships
+            stars.forEach(star => {
+                syncShipState(star);
+
+                star.visualShips.forEach((ship, i) => {
+                    ship.targetIndex = i;
+
+                    const slot = getOrbitSlot(i, star.x, star.y, star.radius, animationTime);
+
+                    // Smooth interpolation
+                    ship.x = lerp(ship.x, slot.x, LERP_FACTOR);
+                    ship.y = lerp(ship.y, slot.y, LERP_FACTOR);
+                    ship.scale = lerp(ship.scale, 0.8, 0.1);
+                    ship.alpha = lerp(ship.alpha, 1, 0.1);
+
+                    // Apply multiplier tinting
+                    const tintedColor = blendColorToWhite(star.colorHex, slot.multiplier);
+
+                    const size = 3 * ship.scale;
+                    ctx.globalAlpha = ship.alpha;
+                    ctx.fillStyle = hexToRgb(tintedColor);
+                    ctx.beginPath();
+                    ctx.arc(ship.x, ship.y, size, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+            });
+            ctx.globalAlpha = 1;
+
+            // Drag preview
+            if (isDragging && selectedStarId) {
+                const sourceStar = stars.find(s => s.id === selectedStarId);
+                if (sourceStar) {
+                    ctx.strokeStyle = 'rgba(0, 255, 229, 0.5)';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([8, 4]);
+                    ctx.beginPath();
+                    ctx.moveTo(sourceStar.x, sourceStar.y);
+                    ctx.lineTo(dragCurrentX, dragCurrentY);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+            }
+
             requestAnimationFrame(render);
         }
-        render();
 
-        // Controls
-        document.getElementById('shipCount').addEventListener('input', (e) => {
-            shipCount = parseInt(e.target.value);
-            document.getElementById('shipCountLabel').textContent = shipCount;
-            stars[0].ships = shipCount;
-            stars[1].ships = shipCount;
+        // ============================================================================
+        // Input handling
+        // ============================================================================
+        function hitTestStar(x, y) {
+            for (const star of stars) {
+                const dx = x - star.x;
+                const dy = y - star.y;
+                if (dx * dx + dy * dy < (star.radius + 20) ** 2) {
+                    return star;
+                }
+            }
+            return null;
+        }
+
+        canvas.addEventListener('pointerdown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            dragStartX = x;
+            dragStartY = y;
+            dragCurrentX = x;
+            dragCurrentY = y;
+            isDragging = true;
+
+            const star = hitTestStar(x, y);
+            if (star) {
+                if (selectedStarId && selectedStarId !== star.id) {
+                    // Issue order
+                    const sourceStar = stars.find(s => s.id === selectedStarId);
+                    if (sourceStar) {
+                        sourceStar.targetId = star.id;
+                    }
+                }
+                selectedStarId = star.id;
+            }
         });
+
+        canvas.addEventListener('pointermove', (e) => {
+            if (!isDragging) return;
+            const rect = canvas.getBoundingClientRect();
+            dragCurrentX = e.clientX - rect.left;
+            dragCurrentY = e.clientY - rect.top;
+        });
+
+        canvas.addEventListener('pointerup', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            const movedSignificantly = Math.abs(x - dragStartX) > 10 || Math.abs(y - dragStartY) > 10;
+
+            if (movedSignificantly && selectedStarId) {
+                const targetStar = hitTestStar(x, y);
+                if (targetStar && targetStar.id !== selectedStarId) {
+                    const sourceStar = stars.find(s => s.id === selectedStarId);
+                    if (sourceStar) {
+                        sourceStar.targetId = targetStar.id;
+                    }
+                    selectedStarId = targetStar.id;
+                }
+            }
+
+            isDragging = false;
+        });
+
+        canvas.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            const star = hitTestStar(x, y);
+            if (star && star.targetId) {
+                star.targetId = null;
+            }
+            selectedStarId = null;
+        });
+
+        // Keyboard
+        document.addEventListener('keydown', (e) => {
+            if (e.key === ' ' || e.code === 'Space') {
+                e.preventDefault();
+                if (!hasStarted) {
+                    startGame();
+                } else {
+                    isPaused = !isPaused;
+                    updateSpeedButtons();
+                }
+            } else if (e.key === 'Escape') {
+                selectedStarId = null;
+            }
+        });
+
+        // ============================================================================
+        // UI Controls
+        // ============================================================================
+        function startGame() {
+            hasStarted = true;
+            isPaused = false;
+            gameSpeed = 1;
+            document.getElementById('startBtn').classList.add('hidden');
+            updateSpeedButtons();
+        }
+
+        function updateSpeedButtons() {
+            document.querySelectorAll('.speed-btn').forEach(btn => {
+                const speed = parseInt(btn.dataset.speed);
+                btn.classList.toggle('active',
+                    (speed === 0 && isPaused) ||
+                    (speed === gameSpeed && !isPaused)
+                );
+            });
+        }
+
+        document.getElementById('startBtn').addEventListener('click', startGame);
+
+        document.querySelectorAll('.speed-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const speed = parseInt(btn.dataset.speed);
+                if (speed === 0) {
+                    isPaused = true;
+                } else {
+                    if (!hasStarted) startGame();
+                    isPaused = false;
+                    gameSpeed = speed;
+                }
+                updateSpeedButtons();
+            });
+        });
+
+        document.getElementById('shipCount').addEventListener('input', (e) => {
+            const count = parseInt(e.target.value);
+            document.getElementById('shipCountLabel').textContent = count;
+            stars.forEach(s => s.ships = count);
+        });
+
+        // Start render loop
+        requestAnimationFrame(render);
     </script>
 </body>
 
