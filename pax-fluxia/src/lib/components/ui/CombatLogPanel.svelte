@@ -32,7 +32,7 @@
         attackerId: string;
         startTick: number;
         endTick: number;
-        result: 'ONGOING' | 'CONQUERED' | 'DEFENSE';
+        result: "ONGOING" | "CONQUERED" | "DEFENSE";
         entries: CombatLogEntry[];
         totalDamageDealt: number;
         totalDamageTaken: number;
@@ -41,24 +41,32 @@
     const battles = $derived.by(() => {
         const logs = $combatLog;
         const battleMap = new Map<string, Battle>();
-        
+
         // Process logs in reverse (oldest first) to build battles chronologically
         const sortedLogs = [...logs].reverse();
-        
+
         for (const log of sortedLogs) {
             // Battle key: attacker -> defender
             const battleKey = `${log.attacker.ownerId}->${log.defender.id}`;
-            
+
             const existing = battleMap.get(battleKey);
-            
+
             // Check if this is a continuation of existing battle (within 10 ticks)
-            if (existing && log.tick - existing.endTick <= 10 && existing.result === 'ONGOING') {
+            if (
+                existing &&
+                log.tick - existing.endTick <= 10 &&
+                existing.result === "ONGOING"
+            ) {
                 existing.entries.push(log);
                 existing.endTick = log.tick;
-                existing.totalDamageDealt += log.defender.kills + log.defender.disabled;
-                existing.totalDamageTaken += log.attacker.kills + log.attacker.disabled;
-                if (log.result === 'CONQUERED') {
-                    existing.result = 'CONQUERED';
+                existing.totalDamageDealt += Math.floor(
+                    log.defender.kills + log.defender.disabled,
+                );
+                existing.totalDamageTaken += Math.floor(
+                    log.attacker.kills + log.attacker.disabled,
+                );
+                if (log.result === "CONQUERED") {
+                    existing.result = "CONQUERED";
                 }
             } else {
                 // Start new battle
@@ -70,38 +78,54 @@
                     attackerId: log.attacker.ownerId,
                     startTick: log.tick,
                     endTick: log.tick,
-                    result: log.result === 'CONQUERED' ? 'CONQUERED' : 'ONGOING',
+                    result:
+                        log.result === "CONQUERED" ? "CONQUERED" : "ONGOING",
                     entries: [log],
-                    totalDamageDealt: log.defender.kills + log.defender.disabled,
-                    totalDamageTaken: log.attacker.kills + log.attacker.disabled
+                    totalDamageDealt: Math.floor(
+                        log.defender.kills + log.defender.disabled,
+                    ),
+                    totalDamageTaken: Math.floor(
+                        log.attacker.kills + log.attacker.disabled,
+                    ),
                 };
                 battleMap.set(battleKey, battle);
             }
         }
-        
+
         // Convert to array and sort by most recent
-        return Array.from(battleMap.values())
-            .sort((a, b) => b.endTick - a.endTick);
+        return Array.from(battleMap.values()).sort(
+            (a, b) => b.endTick - a.endTick,
+        );
     });
 
     // Helper functions
     function getResultColor(result: string) {
         switch (result) {
-            case "CONQUERED": return "#ef4444";
-            case "DEFENSE": return "#3b82f6";
-            case "ONGOING": return "#fbbf24";
-            case "FALLING": return "#ff8844";
-            default: return "#888888";
+            case "CONQUERED":
+                return "#ef4444";
+            case "DEFENSE":
+                return "#3b82f6";
+            case "ONGOING":
+                return "#fbbf24";
+            case "FALLING":
+                return "#ff8844";
+            default:
+                return "#888888";
         }
     }
 
     function getResultIcon(result: string) {
         switch (result) {
-            case "CONQUERED": return "💀";
-            case "DEFENSE": return "🛡️";
-            case "ONGOING": return "⚔️";
-            case "FALLING": return "📉";
-            default: return "•";
+            case "CONQUERED":
+                return "💀";
+            case "DEFENSE":
+                return "🛡️";
+            case "ONGOING":
+                return "⚔️";
+            case "FALLING":
+                return "📉";
+            default:
+                return "•";
         }
     }
 
@@ -118,17 +142,26 @@
 
 <div class="combat-drawer" class:open={isOpen}>
     <!-- Toggle Tab -->
-    <button class="drawer-tab" onclick={toggleDrawer} title={isOpen ? "Close Combat Log" : "Open Combat Log"}>
+    <button
+        class="drawer-tab"
+        onclick={toggleDrawer}
+        title={isOpen ? "Close Combat Log" : "Open Combat Log"}
+    >
         <span class="tab-icon">⚔️</span>
         <span class="tab-label">{isOpen ? "◀" : "▶"}</span>
     </button>
 
     <!-- Drawer Content -->
     {#if isOpen}
-        <div class="drawer-content" transition:slide={{ axis: 'x', duration: 200 }}>
+        <div
+            class="drawer-content"
+            transition:slide={{ axis: "x", duration: 200 }}
+        >
             <div class="drawer-header">
                 <h3>⚔️ Combat Log</h3>
-                <span class="battle-count">{$combatLog.length} logs / {battles.length} battles</span>
+                <span class="battle-count"
+                    >{$combatLog.length} logs / {battles.length} battles</span
+                >
             </div>
 
             <div class="battles-list">
@@ -136,88 +169,211 @@
                     <div class="empty-state">
                         <span class="empty-icon">🌌</span>
                         <p>No battles recorded yet.</p>
-                        <p class="hint">Attack an enemy star to begin combat.</p>
+                        <p class="hint">
+                            Attack an enemy star to begin combat.
+                        </p>
                     </div>
                 {:else if battles.length === 0}
                     <!-- Fallback: show raw logs if battle grouping fails -->
                     {#each $combatLog as entry (entry.id)}
                         <div class="raw-log-entry">
                             <span class="tick">T{entry.tick}</span>
-                            <span class="actors">{formatPlayerId(entry.attacker.ownerId)} → {formatStarId(entry.defender.id)}</span>
-                            <span class="result" style="color: {getResultColor(entry.result)}">{entry.result}</span>
+                            <span class="actors"
+                                >{formatPlayerId(entry.attacker.ownerId)} → {formatStarId(
+                                    entry.defender.id,
+                                )}</span
+                            >
+                            <span
+                                class="result"
+                                style="color: {getResultColor(entry.result)}"
+                                >{entry.result}</span
+                            >
                         </div>
                     {/each}
                 {:else}
                     {#each battles as battle (battle.id)}
-                        <div 
+                        <div
                             class="battle-card"
                             class:expanded={expandedBattles.has(battle.id)}
-                            style="--result-color: {getResultColor(battle.result)}"
+                            style="--result-color: {getResultColor(
+                                battle.result,
+                            )}"
                         >
                             <!-- Battle Summary (always visible) -->
-                            <button 
+                            <button
                                 class="battle-summary"
                                 onclick={() => toggleBattle(battle.id)}
                             >
                                 <div class="summary-left">
-                                    <span class="result-icon">{getResultIcon(battle.result)}</span>
+                                    <span class="result-icon"
+                                        >{getResultIcon(battle.result)}</span
+                                    >
                                     <div class="battle-info">
                                         <span class="battle-target">
-                                            {formatPlayerId(battle.attackerId)} → {formatStarId(battle.targetId)}
+                                            {formatPlayerId(battle.attackerId)} →
+                                            {formatStarId(battle.targetId)}
                                         </span>
                                         <span class="battle-meta">
-                                            T{battle.startTick}{battle.startTick !== battle.endTick ? `-${battle.endTick}` : ''} 
-                                            • {battle.entries.length} tick{battle.entries.length > 1 ? 's' : ''}
+                                            T{battle.startTick}{battle.startTick !==
+                                            battle.endTick
+                                                ? `-${battle.endTick}`
+                                                : ""}
+                                            • {battle.entries.length} tick{battle
+                                                .entries.length > 1
+                                                ? "s"
+                                                : ""}
                                         </span>
                                     </div>
                                 </div>
                                 <div class="summary-right">
-                                    <span class="damage-dealt" title="Damage dealt">
-                                        ⚔️ {battle.totalDamageDealt}
+                                    <span
+                                        class="damage-dealt"
+                                        title="Damage dealt"
+                                    >
+                                        ⚔️ {Math.floor(battle.totalDamageDealt)}
                                     </span>
-                                    <span class="damage-taken" title="Damage taken">
-                                        💔 {battle.totalDamageTaken}
+                                    <span
+                                        class="damage-taken"
+                                        title="Damage taken"
+                                    >
+                                        💔 {Math.floor(battle.totalDamageTaken)}
                                     </span>
-                                    <span class="expand-icon">{expandedBattles.has(battle.id) ? '▼' : '▶'}</span>
+                                    <span class="expand-icon"
+                                        >{expandedBattles.has(battle.id)
+                                            ? "▼"
+                                            : "▶"}</span
+                                    >
                                 </div>
                             </button>
 
                             <!-- Expanded Battle Details -->
                             {#if expandedBattles.has(battle.id)}
-                                <div class="battle-details" transition:slide={{ duration: 150 }}>
+                                <div
+                                    class="battle-details"
+                                    transition:slide={{ duration: 150 }}
+                                >
                                     <div class="tick-entries">
                                         {#each battle.entries as entry (entry.id)}
-                                            <div 
+                                            <div
                                                 class="tick-entry"
-                                                style="border-left-color: {getResultColor(entry.result)}"
+                                                style="border-left-color: {getResultColor(
+                                                    entry.result,
+                                                )}"
                                             >
                                                 <div class="entry-header">
-                                                    <span class="tick">T{entry.tick}</span>
-                                                    <span class="result-badge" style="background: {getResultColor(entry.result)}20; color: {getResultColor(entry.result)}">
+                                                    <span class="tick"
+                                                        >T{entry.tick}</span
+                                                    >
+                                                    <span
+                                                        class="result-badge"
+                                                        style="background: {getResultColor(
+                                                            entry.result,
+                                                        )}20; color: {getResultColor(
+                                                            entry.result,
+                                                        )}"
+                                                    >
                                                         {entry.result}
                                                     </span>
                                                 </div>
                                                 <div class="entry-stats">
-                                                    <div class="stat-row attacker">
-                                                        <span class="stat-label">ATK</span>
-                                                        <span class="stat-ships">{entry.attacker.ships.toFixed(0)} ships</span>
-                                                        <span class="stat-losses">
-                                                            <span class="kills" class:zero={entry.attacker.kills === 0}>☠️{Math.floor(entry.attacker.kills)}</span>
-                                                            <span class="disabled" class:zero={entry.attacker.disabled === 0}>🔧{Math.floor(entry.attacker.disabled)}</span>
+                                                    <div
+                                                        class="stat-row attacker"
+                                                    >
+                                                        <span class="stat-label"
+                                                            >ATK</span
+                                                        >
+                                                        <span class="stat-ships"
+                                                            >{entry.attacker.ships.toFixed(
+                                                                0,
+                                                            )} ships</span
+                                                        >
+                                                        <span
+                                                            class="stat-losses"
+                                                        >
+                                                            <span
+                                                                class="kills"
+                                                                class:zero={entry
+                                                                    .attacker
+                                                                    .kills ===
+                                                                    0}
+                                                                >☠️{Math.floor(
+                                                                    entry
+                                                                        .attacker
+                                                                        .kills,
+                                                                )}</span
+                                                            >
+                                                            <span
+                                                                class="disabled"
+                                                                class:zero={entry
+                                                                    .attacker
+                                                                    .disabled ===
+                                                                    0}
+                                                                >🔧{Math.floor(
+                                                                    entry
+                                                                        .attacker
+                                                                        .disabled,
+                                                                )}</span
+                                                            >
                                                         </span>
                                                     </div>
-                                                    <div class="stat-row defender">
-                                                        <span class="stat-label">DEF</span>
-                                                        <span class="stat-ships">{entry.defender.ships.toFixed(0)} ships</span>
-                                                        <span class="stat-losses">
-                                                            {#if entry.result === 'CONQUERED'}
-                                                                <span class="captured">🏴{Math.floor(entry.defender.ships)}</span>
+                                                    <div
+                                                        class="stat-row defender"
+                                                    >
+                                                        <span class="stat-label"
+                                                            >DEF</span
+                                                        >
+                                                        <span class="stat-ships"
+                                                            >{entry.defender.ships.toFixed(
+                                                                0,
+                                                            )} ships</span
+                                                        >
+                                                        <span
+                                                            class="stat-losses"
+                                                        >
+                                                            {#if entry.result === "CONQUERED"}
+                                                                <span
+                                                                    class="captured"
+                                                                    >🏴{Math.floor(
+                                                                        entry
+                                                                            .defender
+                                                                            .ships,
+                                                                    )}</span
+                                                                >
                                                                 {#if entry.defender.disabled > 0}
-                                                                    <span class="escaped">🏃{Math.floor(entry.defender.disabled)}</span>
+                                                                    <span
+                                                                        class="escaped"
+                                                                        >🏃{Math.floor(
+                                                                            entry
+                                                                                .defender
+                                                                                .disabled,
+                                                                        )}</span
+                                                                    >
                                                                 {/if}
                                                             {:else}
-                                                                <span class="kills" class:zero={entry.defender.kills === 0}>☠️{Math.floor(entry.defender.kills)}</span>
-                                                                <span class="disabled" class:zero={entry.defender.disabled === 0}>🔧{Math.floor(entry.defender.disabled)}</span>
+                                                                <span
+                                                                    class="kills"
+                                                                    class:zero={entry
+                                                                        .defender
+                                                                        .kills ===
+                                                                        0}
+                                                                    >☠️{Math.floor(
+                                                                        entry
+                                                                            .defender
+                                                                            .kills,
+                                                                    )}</span
+                                                                >
+                                                                <span
+                                                                    class="disabled"
+                                                                    class:zero={entry
+                                                                        .defender
+                                                                        .disabled ===
+                                                                        0}
+                                                                    >🔧{Math.floor(
+                                                                        entry
+                                                                            .defender
+                                                                            .disabled,
+                                                                    )}</span
+                                                                >
                                                             {/if}
                                                         </span>
                                                     </div>
