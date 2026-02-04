@@ -1,0 +1,327 @@
+// ============================================================================
+// Multiplayer Store - Colyseus Client Connection
+// ============================================================================
+
+import { Client, Room } from 'colyseus.js';
+import type { GameState, PlayerState, StarState, StarConnection, PlayerId, StarId } from '$lib/types/game.types';
+
+// Server URL (dev default)
+const SERVER_URL = 'ws://localhost:2567';
+
+// ============================================================================
+// State (Svelte 5 Runes)
+// ============================================================================
+
+let client: Client | null = null;
+let room: Room | null = null;
+
+// Connection state
+let isConnected = $state(false);
+let isConnecting = $state(false);
+let connectionError = $state<string | null>(null);
+let roomId = $state<string | null>(null);
+
+// Room state (synced from server)
+let phase = $state<'lobby' | 'playing' | 'ended'>('lobby');
+let tick = $state(0);
+let tickProgress = $state(0);
+let isPaused = $state(true);
+let speed = $state(1);
+let playerCount = $state(0);
+let maxPlayers = $state(4);
+let hostSessionId = $state<string | null>(null);
+let winnerId = $state<string | null>(null);
+let localSessionId = $state<string | null>(null);
+
+// Game state (converted from Colyseus schema)
+let players = $state<PlayerState[]>([]);
+let stars = $state<StarState[]>([]);
+let connections = $state<StarConnection[]>([]);
+
+// Derived
+const isHost = $derived(localSessionId === hostSessionId);
+const localPlayer = $derived(players.find(p => p.id === getLocalPlayerId()));
+
+// ============================================================================
+// Connection Management
+// ============================================================================
+
+async function connect(): Promise<void> {
+    if (client) return;
+
+    isConnecting = true;
+    connectionError = null;
+
+    try {
+        client = new Client(SERVER_URL);
+        console.log('🔌 Connected to Colyseus server');
+    } catch (err) {
+        connectionError = `Failed to connect: ${err}`;
+        console.error('❌ Connection failed:', err);
+    } finally {
+        isConnecting = false;
+    }
+}
+
+async function createRoom(options: { playerCount?: number; mapType?: string } = {}): Promise<string | null> {
+    if (!client) await connect();
+    if (!client) return null;
+
+    isConnecting = true;
+    connectionError = null;
+
+    try {
+        room = await client.create('game_room', options);
+        roomId = room.roomId;
+        localSessionId = room.sessionId;
+        isConnected = true;
+
+        setupRoomListeners();
+        console.log(`🏠 Created room: ${roomId}`);
+        return roomId;
+    } catch (err) {
+        connectionError = `Failed to create room: ${err}`;
+        console.error('❌ Room creation failed:', err);
+        return null;
+    } finally {
+        isConnecting = false;
+    }
+}
+
+async function joinRoom(targetRoomId: string): Promise<boolean> {
+    if (!client) await connect();
+    if (!client) return false;
+
+    isConnecting = true;
+    connectionError = null;
+
+    try {
+        room = await client.joinById(targetRoomId);
+        roomId = room.roomId;
+        localSessionId = room.sessionId;
+        isConnected = true;
+
+        setupRoomListeners();
+        console.log(`🚪 Joined room: ${roomId}`);
+        return true;
+    } catch (err) {
+        connectionError = `Failed to join room: ${err}`;
+        console.error('❌ Room join failed:', err);
+        return false;
+    } finally {
+        isConnecting = false;
+    }
+}
+
+function leaveRoom(): void {
+    if (room) {
+        room.leave();
+        room = null;
+    }
+
+    isConnected = false;
+    roomId = null;
+    localSessionId = null;
+    phase = 'lobby';
+    players = [];
+    stars = [];
+    connections = [];
+}
+
+function disconnect(): void {
+    leaveRoom();
+    client = null;
+}
+
+// ============================================================================
+// Room Listeners
+// ============================================================================
+
+function setupRoomListeners(): void {
+    if (!room) return;
+
+    // State change listener
+    room.onStateChange((state: any) => {
+        // Update local state from server
+        phase = state.phase;
+        tick = state.tick;
+        tickProgress = state.tickProgress;
+        isPaused = state.isPaused;
+        speed = state.speed;
+        playerCount = state.playerCount;
+        maxPlayers = state.maxPlayers;
+        hostSessionId = state.hostSessionId;
+        winnerId = state.winnerId;
+
+        // Convert players map to array
+        const playerArray: PlayerState[] = [];
+        state.players.forEach((player: any) => {
+            playerArray.push({
+                id: player.id,
+                name: player.name,
+                color: player.color,
+                isAI: player.isAI,
+                isEliminated: player.isEliminated,
+                starCount: player.starCount,
+                totalShips: player.totalShips,
+                activeShips: player.activeShips,
+                damagedShips: player.damagedShips,
+                production: player.production
+            });
+        });
+        players = playerArray;
+
+        // Convert stars map to array
+        const starArray: StarState[] = [];
+        state.stars.forEach((star: any) => {
+            starArray.push({
+                id: star.id,
+                x: star.x,
+                y: star.y,
+                radius: star.radius,
+                productionRate: star.productionRate,
+                activeShips: star.activeShips,
+                damagedShips: star.damagedShips,
+                ownerId: star.ownerId,
+                targetId: star.targetId || null,
+                queuedOrderTargetId: star.queuedOrderTargetId || null,
+                icon: star.icon,
+                starType: star.starType as any,
+                activationRate: star.activationRate,
+                defensivePosture: star.defensivePosture,
+                defenseStrength: star.defenseStrength,
+                repairRate: star.repairRate,
+                transferRate: star.transferRate
+            });
+        });
+        stars = starArray;
+
+        // Convert connections array
+        const connArray: StarConnection[] = [];
+        state.connections.forEach((conn: any) => {
+            connArray.push({
+                sourceId: conn.sourceId,
+                targetId: conn.targetId,
+                distance: conn.distance
+            });
+        });
+        connections = connArray;
+    });
+
+    // Error handler
+    room.onError((code, message) => {
+        console.error(`❌ Room error [${code}]:`, message);
+        connectionError = message;
+    });
+
+    // Leave handler
+    room.onLeave((code) => {
+        console.log(`👋 Left room with code: ${code}`);
+        isConnected = false;
+    });
+}
+
+// ============================================================================
+// Game Actions (send to server)
+// ============================================================================
+
+function startGame(): void {
+    room?.send('startGame');
+}
+
+function resumeGame(): void {
+    room?.send('resume');
+}
+
+function pauseGame(): void {
+    room?.send('pause');
+}
+
+function setSpeed(newSpeed: number): void {
+    room?.send('setSpeed', { speed: newSpeed });
+}
+
+function issueOrder(sourceId: StarId, targetId: StarId, persistAfterConquest = true): boolean {
+    if (!room) return false;
+
+    room.send('issueOrder', { sourceId, targetId, persist: persistAfterConquest });
+    return true;
+}
+
+function cancelOrder(starId: StarId): void {
+    room?.send('cancelOrder', { starId });
+}
+
+function setDeferredOrder(enemyStarId: StarId, nextTargetId: StarId, persistAfterConquest = true): boolean {
+    if (!room) return false;
+
+    room.send('setDeferredOrder', { enemyStarId, nextTargetId, persist: persistAfterConquest });
+    return true;
+}
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
+function getLocalPlayerId(): string | null {
+    if (!localSessionId) return null;
+    const player = players.find(p => (p as any).sessionId === localSessionId);
+    return player?.id ?? null;
+}
+
+function isOwnStar(starId: StarId): boolean {
+    const localId = getLocalPlayerId();
+    if (!localId) return false;
+    const star = stars.find(s => s.id === starId);
+    return star?.ownerId === localId;
+}
+
+// ============================================================================
+// Export Store
+// ============================================================================
+
+export const multiplayerStore = {
+    // Connection state
+    get isConnected() { return isConnected; },
+    get isConnecting() { return isConnecting; },
+    get connectionError() { return connectionError; },
+    get roomId() { return roomId; },
+    get localSessionId() { return localSessionId; },
+
+    // Room state
+    get phase() { return phase; },
+    get tick() { return tick; },
+    get tickProgress() { return tickProgress; },
+    get isPaused() { return isPaused; },
+    get speed() { return speed; },
+    get playerCount() { return playerCount; },
+    get maxPlayers() { return maxPlayers; },
+    get isHost() { return isHost; },
+    get winnerId() { return winnerId; },
+
+    // Game state
+    get players() { return players; },
+    get stars() { return stars; },
+    get connections() { return connections; },
+    get localPlayer() { return localPlayer; },
+
+    // Connection actions
+    connect,
+    createRoom,
+    joinRoom,
+    leaveRoom,
+    disconnect,
+
+    // Game actions
+    startGame,
+    resumeGame,
+    pauseGame,
+    setSpeed,
+    issueOrder,
+    cancelOrder,
+    setDeferredOrder,
+
+    // Helpers
+    getLocalPlayerId,
+    isOwnStar
+};

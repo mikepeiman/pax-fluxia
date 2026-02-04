@@ -3,8 +3,11 @@
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { fade, fly } from "svelte/transition";
     import type { GameSettings } from "$lib/types/game.types";
+    import MultiplayerLobby from "./MultiplayerLobby.svelte";
+    import { multiplayerStore } from "$lib/stores/multiplayerStore.svelte";
 
     let visible = $state(true);
+    let showMultiplayer = $state(false);
 
     // Load from localStorage or use defaults
     function loadSetting<T>(key: string, defaultValue: T): T {
@@ -79,167 +82,190 @@
 </script>
 
 {#if visible}
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="main-menu-overlay" transition:fade>
-        <div class="menu-chrome" transition:fly={{ y: 20, duration: 400 }}>
-            <div class="glow-border"></div>
+    <!-- Multiplayer Lobby Modal -->
+    {#if showMultiplayer}
+        <div class="main-menu-overlay multiplayer-overlay" transition:fade>
+            <div
+                class="lobby-wrapper"
+                transition:fly={{ y: 20, duration: 400 }}
+            >
+                <button
+                    class="back-btn"
+                    onclick={() => (showMultiplayer = false)}
+                >
+                    ← Back to Menu
+                </button>
+                <MultiplayerLobby />
+            </div>
+        </div>
+    {:else}
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div class="main-menu-overlay" transition:fade>
+            <div class="menu-chrome" transition:fly={{ y: 20, duration: 400 }}>
+                <div class="glow-border"></div>
 
-            <h1 class="title">
-                <span class="pax">PAX</span>
-                <span class="fluxia">FLUXIA</span>
-            </h1>
-            <div class="subtitle">TERRITORY CONTROL STRATEGY</div>
+                <h1 class="title">
+                    <span class="pax">PAX</span>
+                    <span class="fluxia">FLUXIA</span>
+                </h1>
+                <div class="subtitle">TERRITORY CONTROL STRATEGY</div>
 
-            <div class="controls-grid">
-                <!-- Map Selection -->
-                <div class="control-group">
-                    <label>MAP</label>
-                    <div class="button-row">
-                        {#each MAP_TYPES as m}
-                            <button
-                                class:active={mapType === m}
-                                class:debug={m === "DEBUG MAP"}
-                                onclick={() => (mapType = m)}>{m}</button
+                <div class="controls-grid">
+                    <!-- Map Selection -->
+                    <div class="control-group">
+                        <label>MAP</label>
+                        <div class="button-row">
+                            {#each MAP_TYPES as m}
+                                <button
+                                    class:active={mapType === m}
+                                    class:debug={m === "DEBUG MAP"}
+                                    onclick={() => (mapType = m)}>{m}</button
+                                >
+                            {/each}
+                        </div>
+                    </div>
+
+                    <!-- Player Count -->
+                    <div class="control-group">
+                        <label>PLAYERS</label>
+                        <div class="button-row">
+                            {#each PLAYERS as p}
+                                <button
+                                    class:active={playerCount === p}
+                                    onclick={() => (playerCount = p)}
+                                    >{p}</button
+                                >
+                            {/each}
+                        </div>
+                    </div>
+
+                    <!-- AI Difficulty -->
+                    <div class="control-group">
+                        <label>AI DIFFICULTY</label>
+                        <div class="button-row">
+                            {#each DIFFICULTIES as d}
+                                <button
+                                    class:active={difficulty === d}
+                                    onclick={() => (difficulty = d)}>{d}</button
+                                >
+                            {/each}
+                        </div>
+                    </div>
+
+                    <!-- Game Config (New Features) -->
+                    <div class="control-group config-row">
+                        <div class="config-dual-row">
+                            <div class="config-item">
+                                <label>STARS / PLAYER</label>
+                                <div class="slider-container">
+                                    <input
+                                        type="range"
+                                        min="1"
+                                        max="20"
+                                        bind:value={starsPerPlayer}
+                                    />
+                                    <span class="value">{starsPerPlayer}</span>
+                                </div>
+                            </div>
+                            <div class="config-item">
+                                <label>SHIPS / STAR</label>
+                                <div class="slider-container">
+                                    <input
+                                        type="range"
+                                        min="10"
+                                        max="200"
+                                        step="10"
+                                        bind:value={shipsPerStar}
+                                    />
+                                    <span class="value">{shipsPerStar}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Link Connectivity Settings -->
+                    <div class="control-group">
+                        <label>LINK CONNECTIVITY</label>
+                        <div class="config-dual-row">
+                            <div class="config-item">
+                                <span class="mini-label">MIN</span>
+                                <div class="slider-container">
+                                    <input
+                                        type="range"
+                                        min="1"
+                                        max="4"
+                                        bind:value={minLinks}
+                                    />
+                                    <span class="value">{minLinks}</span>
+                                </div>
+                            </div>
+                            <div class="config-item">
+                                <span class="mini-label">MAX</span>
+                                <div class="slider-container">
+                                    <input
+                                        type="range"
+                                        min="2"
+                                        max="8"
+                                        bind:value={maxLinks}
+                                    />
+                                    <span class="value">{maxLinks}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Star Spacing -->
+                    <div class="control-group">
+                        <label>STAR SPACING</label>
+                        <div class="slider-container">
+                            <span class="mini-label">DENSE</span>
+                            <input
+                                type="range"
+                                min="0.5"
+                                max="2.0"
+                                step="0.1"
+                                bind:value={starSpacing}
+                            />
+                            <span class="mini-label">SPARSE</span>
+                            <span class="value">{starSpacing.toFixed(1)}x</span>
+                        </div>
+                    </div>
+
+                    <!-- Order Behavior -->
+                    <div class="control-group">
+                        <label class="checkbox-label">
+                            <input
+                                type="checkbox"
+                                bind:checked={retainOrderOnConquest}
+                            />
+                            <span>Retain order after conquest</span>
+                            <span class="tooltip"
+                                >Attack orders become movement orders when
+                                target is captured</span
                             >
-                        {/each}
+                        </label>
                     </div>
-                </div>
 
-                <!-- Player Count -->
-                <div class="control-group">
-                    <label>PLAYERS</label>
-                    <div class="button-row">
-                        {#each PLAYERS as p}
+                    <div class="action-area">
+                        <button class="start-btn" onclick={startGame}>
+                            START GAME
+                        </button>
+
+                        <div class="bottom-row">
                             <button
-                                class:active={playerCount === p}
-                                onclick={() => (playerCount = p)}>{p}</button
+                                class="secondary-btn"
+                                onclick={() => (showMultiplayer = true)}
+                                >MULTIPLAYER</button
                             >
-                        {/each}
-                    </div>
-                </div>
-
-                <!-- AI Difficulty -->
-                <div class="control-group">
-                    <label>AI DIFFICULTY</label>
-                    <div class="button-row">
-                        {#each DIFFICULTIES as d}
-                            <button
-                                class:active={difficulty === d}
-                                onclick={() => (difficulty = d)}>{d}</button
-                            >
-                        {/each}
-                    </div>
-                </div>
-
-                <!-- Game Config (New Features) -->
-                <div class="control-group config-row">
-                    <div class="config-dual-row">
-                        <div class="config-item">
-                            <label>STARS / PLAYER</label>
-                            <div class="slider-container">
-                                <input
-                                    type="range"
-                                    min="1"
-                                    max="20"
-                                    bind:value={starsPerPlayer}
-                                />
-                                <span class="value">{starsPerPlayer}</span>
-                            </div>
+                            <button class="secondary-btn">MAP EDITOR</button>
+                            <button class="icon-btn">⚙️</button>
                         </div>
-                        <div class="config-item">
-                            <label>SHIPS / STAR</label>
-                            <div class="slider-container">
-                                <input
-                                    type="range"
-                                    min="10"
-                                    max="200"
-                                    step="10"
-                                    bind:value={shipsPerStar}
-                                />
-                                <span class="value">{shipsPerStar}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Link Connectivity Settings -->
-                <div class="control-group">
-                    <label>LINK CONNECTIVITY</label>
-                    <div class="config-dual-row">
-                        <div class="config-item">
-                            <span class="mini-label">MIN</span>
-                            <div class="slider-container">
-                                <input
-                                    type="range"
-                                    min="1"
-                                    max="4"
-                                    bind:value={minLinks}
-                                />
-                                <span class="value">{minLinks}</span>
-                            </div>
-                        </div>
-                        <div class="config-item">
-                            <span class="mini-label">MAX</span>
-                            <div class="slider-container">
-                                <input
-                                    type="range"
-                                    min="2"
-                                    max="8"
-                                    bind:value={maxLinks}
-                                />
-                                <span class="value">{maxLinks}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Star Spacing -->
-                <div class="control-group">
-                    <label>STAR SPACING</label>
-                    <div class="slider-container">
-                        <span class="mini-label">DENSE</span>
-                        <input
-                            type="range"
-                            min="0.5"
-                            max="2.0"
-                            step="0.1"
-                            bind:value={starSpacing}
-                        />
-                        <span class="mini-label">SPARSE</span>
-                        <span class="value">{starSpacing.toFixed(1)}x</span>
-                    </div>
-                </div>
-
-                <!-- Order Behavior -->
-                <div class="control-group">
-                    <label class="checkbox-label">
-                        <input
-                            type="checkbox"
-                            bind:checked={retainOrderOnConquest}
-                        />
-                        <span>Retain order after conquest</span>
-                        <span class="tooltip"
-                            >Attack orders become movement orders when target is
-                            captured</span
-                        >
-                    </label>
-                </div>
-
-                <div class="action-area">
-                    <button class="start-btn" onclick={startGame}>
-                        START GAME
-                    </button>
-
-                    <div class="bottom-row">
-                        <button class="secondary-btn">MULTIPLAYER</button>
-                        <button class="secondary-btn">MAP EDITOR</button>
-                        <button class="icon-btn">⚙️</button>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
+    {/if}
 {/if}
 
 <style>
@@ -539,5 +565,36 @@
 
     .checkbox-label:hover .tooltip {
         display: block;
+    }
+
+    /* Multiplayer Lobby Modal */
+    .multiplayer-overlay {
+        z-index: 10000;
+    }
+
+    .lobby-wrapper {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        width: 100%;
+        max-width: 450px;
+    }
+
+    .back-btn {
+        background: transparent;
+        border: 1px solid #556;
+        color: #889;
+        padding: 8px 16px;
+        cursor: pointer;
+        border-radius: 4px;
+        font-family: inherit;
+        font-size: 0.9rem;
+        transition: all 0.2s;
+        align-self: flex-start;
+    }
+
+    .back-btn:hover {
+        border-color: #fff;
+        color: #fff;
     }
 </style>
