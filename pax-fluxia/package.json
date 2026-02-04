@@ -15,7 +15,7 @@
   "dependencies": {
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-opener": "^2",
-    "colyseus.js": "^0.16.22",
+    "colyseus.js": "0.15.25",
     "d3-delaunay": "^6.0.4",
     "pixi.js": "^8.15.0",
     "tone": "^15.1.22",
