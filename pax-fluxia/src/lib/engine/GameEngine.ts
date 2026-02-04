@@ -211,8 +211,11 @@ export class GameEngine {
         const areaPerStar = effectiveArea / totalStars;
         // Calculate spacing that would allow all stars to fit, with minimum of 50px
         const dynamicSpacing = Math.max(50, Math.sqrt(areaPerStar) * 0.6);
-        // Use the smaller of dynamic spacing or default (hexRadius * 2)
-        const minSpacing = Math.min(hexRadius * 2, dynamicSpacing);
+        // Apply user spacing multiplier (default 1.0)
+        const spacingMultiplier = this.settings.starSpacing ?? 1.0;
+        // Use the smaller of dynamic spacing or default (hexRadius * 2), then apply multiplier
+        const baseSpacing = Math.min(hexRadius * 2, dynamicSpacing);
+        const minSpacing = baseSpacing * spacingMultiplier;
         
         log.sys('GameEngine', `Star spacing: ${minSpacing.toFixed(0)}px (dynamic: ${dynamicSpacing.toFixed(0)}, default: ${hexRadius * 2})`);
         

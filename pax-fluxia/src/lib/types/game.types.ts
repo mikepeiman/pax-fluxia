@@ -32,6 +32,8 @@ export interface GameSettings {
     // Link connectivity settings
     minLinksPerStar?: number;  // Minimum connections per star (default 1)
     maxLinksPerStar?: number;  // Maximum connections per star (default 6)
+    // Star spacing multiplier (0.5 = dense, 1.0 = normal, 2.0 = sparse)
+    starSpacing?: number;
 }
 
 /** Player configuration */

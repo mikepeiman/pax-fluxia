@@ -33,6 +33,7 @@
     let shipsPerStar = $state(loadSetting("shipsPerStar", 40));
     let minLinks = $state(loadSetting("minLinks", 1));
     let maxLinks = $state(loadSetting("maxLinks", 6));
+    let starSpacing = $state(loadSetting("starSpacing", 1.0));
 
     // Constants
     const MAP_TYPES = ["Standard", "DEBUG MAP"];
@@ -48,6 +49,7 @@
         saveSetting("shipsPerStar", shipsPerStar);
         saveSetting("minLinks", minLinks);
         saveSetting("maxLinks", maxLinks);
+        saveSetting("starSpacing", starSpacing);
 
         // Apply Config
         GAME_CONFIG.STARS_PER_PLAYER = starsPerPlayer;
@@ -60,6 +62,7 @@
             mapType: mapType === "DEBUG MAP" ? "debug" : "standard",
             minLinksPerStar: minLinks,
             maxLinksPerStar: maxLinks,
+            starSpacing: starSpacing,
         });
 
         // Restart Engine
@@ -181,6 +184,23 @@
                                 <span class="value">{maxLinks}</span>
                             </div>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Star Spacing -->
+                <div class="control-group">
+                    <label>STAR SPACING</label>
+                    <div class="slider-container">
+                        <span class="mini-label">DENSE</span>
+                        <input
+                            type="range"
+                            min="0.5"
+                            max="2.0"
+                            step="0.1"
+                            bind:value={starSpacing}
+                        />
+                        <span class="mini-label">SPARSE</span>
+                        <span class="value">{starSpacing.toFixed(1)}x</span>
                     </div>
                 </div>
 
