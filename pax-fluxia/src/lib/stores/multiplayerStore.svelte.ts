@@ -235,30 +235,14 @@ function setupRoomListeners(): void {
 
     console.log('📡 Setting up room listeners...');
 
-    // Sync initial state immediately if available
-    if (room.state) {
-        console.log('📥 Initial state available, syncing...');
-        syncStateFromRoom(room.state);
-    }
-
-    // Listen for future state changes
+    // Listen for state changes - this fires AFTER handshake completes with actual data
     room.onStateChange((state: any) => {
+        console.log('📥 onStateChange fired');
         syncStateFromRoom(state);
     });
 
-    // Also listen for player additions/removals specifically
-    room.state?.players?.onAdd?.((player: any, key: string) => {
-        console.log(`➕ Player added: ${key} = ${player.name}`);
-        syncStateFromRoom(room!.state);
-    });
-
-    room.state?.players?.onRemove?.((player: any, key: string) => {
-        console.log(`➖ Player removed: ${key}`);
-        syncStateFromRoom(room!.state);
-    });
-
     // Error handler
-    room.onError((code: number, message: string) => {
+    room.onError((code: number, message?: string) => {
         console.error(`❌ Room error [${code}]:`, message);
         connectionError = message ?? 'Unknown error';
     });
