@@ -263,66 +263,113 @@
         saveToStorage(values as typeof defaultValues);
     }
 
-    // Collapsed state
-    let collapsed = $state(false);
+    // Collapsible sections state with localStorage persistence
+    const COLLAPSE_KEYS = {
+        timing: "pax-fluxia-collapse-timing",
+        transfer: "pax-fluxia-collapse-transfer",
+        combat: "pax-fluxia-collapse-combat",
+        ai: "pax-fluxia-collapse-ai",
+    };
+
+    function getCollapsedState(key: string): boolean {
+        if (typeof window === "undefined") return false;
+        return localStorage.getItem(key) === "true";
+    }
+
+    function setCollapsedState(key: string, value: boolean) {
+        if (typeof window === "undefined") return;
+        localStorage.setItem(key, String(value));
+    }
+
+    let timingCollapsed = $state(getCollapsedState(COLLAPSE_KEYS.timing));
+    let transferCollapsed = $state(getCollapsedState(COLLAPSE_KEYS.transfer));
+    let combatCollapsed = $state(getCollapsedState(COLLAPSE_KEYS.combat));
+    let aiCollapsed = $state(getCollapsedState(COLLAPSE_KEYS.ai));
 </script>
 
 <div class="combat-tuning-list">
     <!-- Timing Section -->
     <div class="timing-section">
-        <div class="section-header">
+        <button
+            class="section-header"
+            onclick={() => {
+                timingCollapsed = !timingCollapsed;
+                setCollapsedState(COLLAPSE_KEYS.timing, timingCollapsed);
+            }}
+        >
             <span class="section-title">⏱️ Timing</span>
-        </div>
-        <div class="variable-row">
-            <div class="row-top">
-                <span class="var-name">Tick Length</span>
-                <span class="current-val">{tickLength}ms</span>
+            <span class="collapse-icon">{timingCollapsed ? "▶" : "▼"}</span>
+        </button>
+        {#if !timingCollapsed}
+            <div class="variable-row">
+                <div class="row-top">
+                    <span class="var-name">Tick Length</span>
+                    <span class="current-val">{tickLength}ms</span>
+                </div>
+                <div class="row-controls">
+                    <input
+                        type="range"
+                        min="200"
+                        max="3000"
+                        step="100"
+                        value={tickLength}
+                        oninput={(e) =>
+                            updateTickLength(
+                                parseInt((e.target as HTMLInputElement).value),
+                            )}
+                    />
+                </div>
             </div>
-            <div class="row-controls">
-                <input
-                    type="range"
-                    min="200"
-                    max="3000"
-                    step="100"
-                    value={tickLength}
-                    oninput={(e) =>
-                        updateTickLength(
-                            parseInt((e.target as HTMLInputElement).value),
-                        )}
-                />
-            </div>
-        </div>
+        {/if}
     </div>
 
     <!-- Transfer Section -->
     <div class="transfer-section">
-        <div class="section-header">
+        <button
+            class="section-header"
+            onclick={() => {
+                transferCollapsed = !transferCollapsed;
+                setCollapsedState(COLLAPSE_KEYS.transfer, transferCollapsed);
+            }}
+        >
             <span class="section-title">🚀 Transfer</span>
-        </div>
-        <div class="variable-row">
-            <div class="row-top">
-                <span class="var-name">Transfer Rate</span>
-                <span class="current-val">{transferRate}%</span>
+            <span class="collapse-icon">{transferCollapsed ? "▶" : "▼"}</span>
+        </button>
+        {#if !transferCollapsed}
+            <div class="variable-row">
+                <div class="row-top">
+                    <span class="var-name">Transfer Rate</span>
+                    <span class="current-val">{transferRate}%</span>
+                </div>
+                <div class="row-controls">
+                    <input
+                        type="range"
+                        min="5"
+                        max="100"
+                        step="5"
+                        value={transferRate}
+                        oninput={(e) =>
+                            updateTransferRate(
+                                parseInt((e.target as HTMLInputElement).value),
+                            )}
+                    />
+                </div>
             </div>
-            <div class="row-controls">
-                <input
-                    type="range"
-                    min="5"
-                    max="100"
-                    step="5"
-                    value={transferRate}
-                    oninput={(e) =>
-                        updateTransferRate(
-                            parseInt((e.target as HTMLInputElement).value),
-                        )}
-                />
-            </div>
-        </div>
+        {/if}
     </div>
 
-    <!-- Combat Header -->
+    <!-- Combat Tuning Section -->
     <div class="sidebar-header">
-        <h3>⚔️ Combat Tuning</h3>
+        <h3
+            onclick={() => {
+                combatCollapsed = !combatCollapsed;
+                setCollapsedState(COLLAPSE_KEYS.combat, combatCollapsed);
+            }}
+            style="cursor: pointer; display: flex; align-items: center; gap: 8px; flex: 1;"
+        >
+            ⚔️ Combat Tuning
+            <span class="collapse-icon">{combatCollapsed ? "▶" : "▼"}</span>
+        </h3>
         <button
             class="reset-btn"
             onclick={() => {
@@ -334,7 +381,10 @@
                     const key = v.key as VarKey;
                     enabled = { ...enabled, [key]: true };
                     values = { ...values, [key]: defaultValues[key] };
-                    savedValues = { ...savedValues, [key]: defaultValues[key] };
+                    savedValues = {
+                        ...savedValues,
+                        [key]: defaultValues[key],
+                    };
                     (GAME_CONFIG as any)[key] = defaultValues[key];
                 });
                 // Reset AI vars
@@ -342,7 +392,10 @@
                     const key = v.key as VarKey;
                     enabled = { ...enabled, [key]: true };
                     values = { ...values, [key]: defaultValues[key] };
-                    savedValues = { ...savedValues, [key]: defaultValues[key] };
+                    savedValues = {
+                        ...savedValues,
+                        [key]: defaultValues[key],
+                    };
                     (GAME_CONFIG as any)[key] = defaultValues[key];
                 });
                 // Save to localStorage
@@ -351,94 +404,105 @@
         >
     </div>
 
-    <div class="content-list">
-        {#each variables as v}
-            <div
-                class="variable-row"
-                class:disabled={!enabled[v.key as keyof typeof enabled]}
-            >
-                <div class="row-top">
-                    <label class="toggle-label">
-                        <input
-                            type="checkbox"
-                            checked={enabled[v.key as keyof typeof enabled]}
-                            onchange={() =>
-                                toggle(v.key as keyof typeof enabled)}
-                        />
-                        <span class="var-name">{v.label}</span>
-                    </label>
-                    <span class="current-val"
-                        >{values[v.key as VarKey].toFixed(2)}</span
-                    >
-                </div>
+    {#if !combatCollapsed}
+        <div class="content-list">
+            {#each variables as v}
+                <div
+                    class="variable-row"
+                    class:disabled={!enabled[v.key as keyof typeof enabled]}
+                >
+                    <div class="row-top">
+                        <label class="toggle-label">
+                            <input
+                                type="checkbox"
+                                checked={enabled[v.key as keyof typeof enabled]}
+                                onchange={() =>
+                                    toggle(v.key as keyof typeof enabled)}
+                            />
+                            <span class="var-name">{v.label}</span>
+                        </label>
+                        <span class="current-val"
+                            >{values[v.key as VarKey].toFixed(2)}</span
+                        >
+                    </div>
 
-                <div class="row-controls">
-                    <input
-                        type="range"
-                        min={v.min}
-                        max={v.max}
-                        step={v.step}
-                        value={values[v.key as VarKey]}
-                        oninput={(e) =>
-                            updateValue(
-                                v.key as VarKey,
-                                parseFloat(
-                                    (e.target as HTMLInputElement).value,
-                                ),
-                            )}
-                        disabled={!enabled[v.key as keyof typeof enabled]}
-                    />
+                    <div class="row-controls">
+                        <input
+                            type="range"
+                            min={v.min}
+                            max={v.max}
+                            step={v.step}
+                            value={values[v.key as VarKey]}
+                            oninput={(e) =>
+                                updateValue(
+                                    v.key as VarKey,
+                                    parseFloat(
+                                        (e.target as HTMLInputElement).value,
+                                    ),
+                                )}
+                            disabled={!enabled[v.key as keyof typeof enabled]}
+                        />
+                    </div>
                 </div>
-            </div>
-        {/each}
-    </div>
+            {/each}
+        </div>
+    {/if}
 
     <!-- AI Behavior Section -->
-    <div class="section-header ai-section">
+    <button
+        class="section-header ai-section"
+        onclick={() => {
+            aiCollapsed = !aiCollapsed;
+            setCollapsedState(COLLAPSE_KEYS.ai, aiCollapsed);
+        }}
+    >
         <span class="section-title">🤖 AI Behavior</span>
-    </div>
+        <span class="collapse-icon">{aiCollapsed ? "▶" : "▼"}</span>
+    </button>
 
-    <div class="content-list">
-        {#each aiVariables as v}
-            <div
-                class="variable-row"
-                class:disabled={!enabled[v.key as keyof typeof enabled]}
-            >
-                <div class="row-top">
-                    <label class="toggle-label">
+    {#if !aiCollapsed}
+        <div class="content-list">
+            {#each aiVariables as v}
+                <div
+                    class="variable-row"
+                    class:disabled={!enabled[v.key as keyof typeof enabled]}
+                >
+                    <div class="row-top">
+                        <label class="toggle-label">
+                            <input
+                                type="checkbox"
+                                checked={enabled[v.key as keyof typeof enabled]}
+                                onchange={() =>
+                                    toggle(v.key as keyof typeof enabled)}
+                            />
+                            <span class="var-name">{v.label}</span>
+                        </label>
+                        <span class="current-val"
+                            >{values[v.key as VarKey].toFixed(2)}</span
+                        >
+                    </div>
+
+                    <div class="row-controls">
                         <input
-                            type="checkbox"
-                            checked={enabled[v.key as keyof typeof enabled]}
-                            onchange={() =>
-                                toggle(v.key as keyof typeof enabled)}
+                            type="range"
+                            min={v.min}
+                            max={v.max}
+                            step={v.step}
+                            value={values[v.key as VarKey]}
+                            oninput={(e) =>
+                                updateValue(
+                                    v.key as VarKey,
+                                    parseFloat(
+                                        (e.target as HTMLInputElement).value,
+                                    ),
+                                )}
+                            disabled={!enabled[v.key as keyof typeof enabled]}
                         />
-                        <span class="var-name">{v.label}</span>
-                    </label>
-                    <span class="current-val"
-                        >{values[v.key as VarKey].toFixed(2)}</span
-                    >
+                    </div>
                 </div>
-
-                <div class="row-controls">
-                    <input
-                        type="range"
-                        min={v.min}
-                        max={v.max}
-                        step={v.step}
-                        value={values[v.key as VarKey]}
-                        oninput={(e) =>
-                            updateValue(
-                                v.key as VarKey,
-                                parseFloat(
-                                    (e.target as HTMLInputElement).value,
-                                ),
-                            )}
-                        disabled={!enabled[v.key as keyof typeof enabled]}
-                    />
-                </div>
-            </div>
-        {/each}
-    </div>
+            {/each}
+        </div>
+    {/if}
 </div>
 
 <style>
@@ -473,6 +537,24 @@
     .section-header {
         display: flex;
         align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        background: transparent;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+        color: inherit;
+        text-align: left;
+    }
+
+    .section-header:hover .section-title {
+        color: #fff;
+    }
+
+    .collapse-icon {
+        font-size: 10px;
+        color: #888;
+        margin-left: 6px;
     }
 
     .section-title {
@@ -514,6 +596,10 @@
         color: #88aaff;
         text-transform: uppercase;
         letter-spacing: 1px;
+    }
+
+    .sidebar-header h3:hover .collapse-icon {
+        color: #fff;
     }
 
     .reset-btn {
