@@ -4,12 +4,22 @@
     interface Props {
         speed: GameSpeed;
         isPaused: boolean;
+        hasStarted: boolean;
         onSpeedChange: (speed: GameSpeed) => void;
         onPause: () => void;
         onResume: () => void;
+        onStart: () => void;
     }
 
-    let { speed, isPaused, onSpeedChange, onPause, onResume }: Props = $props();
+    let {
+        speed,
+        isPaused,
+        hasStarted,
+        onSpeedChange,
+        onPause,
+        onResume,
+        onStart,
+    }: Props = $props();
 
     // Local state to track current speed for UI highlighting
     let currentSpeed = $state<GameSpeed>(speed || 1);
@@ -35,33 +45,75 @@
         }
         onSpeedChange(newSpeed);
     }
+
+    function handleStart() {
+        onStart();
+    }
 </script>
 
-<div class="speed-controls">
-    <!-- Pause Button -->
-    <button
-        class="speed-btn"
-        class:speed-btn--active={isPaused}
-        onclick={isPaused ? onResume : onPause}
-        title={isPaused ? "Resume" : "Pause"}
-    >
-        ⏸
-    </button>
+<div class="speed-controls-container">
+    <!-- START Button (before game starts) -->
+    {#if !hasStarted}
+        <button class="start-btn" onclick={handleStart}> ▶ START </button>
+    {/if}
 
-    <!-- Speed Buttons -->
-    {#each speeds as { value, label }}
+    <div class="speed-controls">
+        <!-- Pause Button -->
         <button
             class="speed-btn"
-            class:speed-btn--active={!isPaused && currentSpeed === value}
-            onclick={() => handleSpeedClick(value)}
-            title="{value}x Speed"
+            class:speed-btn--active={isPaused}
+            onclick={isPaused ? onResume : onPause}
+            title={isPaused ? "Resume (Spacebar)" : "Pause (Spacebar)"}
         >
-            {label}
+            ⏸
         </button>
-    {/each}
+
+        <!-- Speed Buttons -->
+        {#each speeds as { value, label }}
+            <button
+                class="speed-btn"
+                class:speed-btn--active={!isPaused && currentSpeed === value}
+                onclick={() => handleSpeedClick(value)}
+                title="{value}x Speed"
+            >
+                {label}
+            </button>
+        {/each}
+    </div>
 </div>
 
 <style>
+    .speed-controls-container {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+    }
+
+    .start-btn {
+        width: 100%;
+        padding: var(--space-3) var(--space-4);
+        font-size: var(--text-lg);
+        font-weight: bold;
+        background: linear-gradient(
+            135deg,
+            var(--color-accent-cyan),
+            var(--color-player-human)
+        );
+        color: var(--color-void-deep);
+        border: none;
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        transition: all var(--transition-normal);
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        box-shadow: 0 4px 20px rgba(0, 255, 255, 0.3);
+    }
+
+    .start-btn:hover {
+        transform: scale(1.02);
+        box-shadow: 0 6px 30px rgba(0, 255, 255, 0.5);
+    }
+
     .speed-controls {
         display: flex;
         gap: var(--space-1);

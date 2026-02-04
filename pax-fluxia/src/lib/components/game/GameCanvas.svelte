@@ -898,6 +898,7 @@
                         animationTime,
                     );
                     targetX = slot.x;
+                    const shipMultiplier = slot.multiplier;
                     targetY = slot.y;
 
                     // ATTACK MODE: Egg-shaped pulse - ships facing target surge forward
@@ -953,6 +954,7 @@
                         ship.scale,
                         ship.alpha,
                         false,
+                        shipMultiplier,
                     );
                 });
             }
@@ -1044,14 +1046,30 @@
         scale: number,
         alpha: number,
         isDamaged: boolean,
+        multiplier: number = 1,
     ) {
         if (!shipGraphics) return;
 
         const size = 3 * scale;
 
+        // Apply white tinting based on multiplier (1 = normal, 2 = slightly white, 4 = whiter, etc.)
+        let finalColor = color;
+        if (multiplier > 1) {
+            // Blend towards white based on log2(multiplier)
+            // multiplier 2 -> blend 0.25, multiplier 4 -> blend 0.5, multiplier 8 -> blend 0.75
+            const blendAmount = Math.min(0.8, Math.log2(multiplier) * 0.25);
+            const r = (color >> 16) & 0xff;
+            const g = (color >> 8) & 0xff;
+            const b = color & 0xff;
+            const newR = Math.round(r + (255 - r) * blendAmount);
+            const newG = Math.round(g + (255 - g) * blendAmount);
+            const newB = Math.round(b + (255 - b) * blendAmount);
+            finalColor = (newR << 16) | (newG << 8) | newB;
+        }
+
         // Draw filled circle for ship
         shipGraphics.circle(x, y, size);
-        shipGraphics.fill({ color, alpha });
+        shipGraphics.fill({ color: finalColor, alpha });
 
         // Damaged ships get a dark border indicator
         if (isDamaged) {
@@ -1329,9 +1347,39 @@
                             activeStarId = targetStar.id;
                         }
                     }
+                } else if (
+                    activeStarSnapshot?.ownerId !== "human-player" &&
+                    activeStarSnapshot?.ownerId !== "neutral"
+                ) {
+                    // Selected star is enemy - try to set deferred order
+                    const isConnected = gameStore.snapshot?.connections.some(
+                        (c) =>
+                            (c.sourceId === activeStarId &&
+                                c.targetId === targetStar.id) ||
+                            (c.sourceId === targetStar.id &&
+                                c.targetId === activeStarId),
+                    );
+                    if (isConnected) {
+                        const success = gameStore.setDeferredOrder(
+                            activeStarId,
+                            targetStar.id,
+                            !event.ctrlKey,
+                        );
+                        if (success) {
+                            addPendingOrder(activeStarId, targetStar.id, true);
+                            log.success(
+                                "GameCanvas",
+                                `Deferred order via click: ${activeStarId} -> ${targetStar.id}`,
+                            );
+                            activeStarId = targetStar.id; // Chain to next
+                        }
+                    }
                 } else {
                     // Previous selection wasn't ours, just select new one
                     if (targetStar.ownerId === "human-player") {
+                        activeStarId = targetStar.id;
+                    } else if (targetStar.ownerId !== "neutral") {
+                        // Can select enemy stars for chaining deferred orders
                         activeStarId = targetStar.id;
                     }
                 }
@@ -1340,6 +1388,13 @@
             else if (targetStar.ownerId === "human-player") {
                 activeStarId = targetStar.id;
                 log.state("GameCanvas", `Star ${targetStar.id} selected`);
+            } else if (targetStar.ownerId !== "neutral") {
+                // Allow selecting enemy stars to set up deferred order chains
+                activeStarId = targetStar.id;
+                log.state(
+                    "GameCanvas",
+                    `Enemy star ${targetStar.id} selected for deferred orders`,
+                );
             }
         } else if (!movedSignificantly && !targetStar) {
             clearSelection();
@@ -1361,6 +1416,22 @@
             // Cancel order for this star
             gameStore.cancelOrder(star.id);
             log.state("GameCanvas", `Order cancelled for star ${star.id}`);
+        } else if (
+            star &&
+            star.ownerId !== "human-player" &&
+            star.ownerId !== "neutral"
+        ) {
+            // Right-click on enemy star - cancel any deferred order
+            const key = Array.from(deferredOrders).find((k) =>
+                k.startsWith(`${star.id}|`),
+            );
+            if (key) {
+                deferredOrders.delete(key);
+                log.state(
+                    "GameCanvas",
+                    `Deferred order cancelled for enemy star ${star.id}`,
+                );
+            }
         }
 
         // Right-click always clears selection
@@ -1447,6 +1518,14 @@
     function handleKeyDown(event: KeyboardEvent) {
         if (event.key === "Escape") {
             clearSelection();
+        } else if (event.key === " " || event.code === "Space") {
+            // Spacebar = pause/play toggle
+            event.preventDefault();
+            if (gameStore.isPaused) {
+                gameStore.resumeGame();
+            } else {
+                gameStore.pauseGame();
+            }
         }
     }
 </script>

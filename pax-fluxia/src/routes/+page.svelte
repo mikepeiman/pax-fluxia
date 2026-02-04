@@ -59,7 +59,10 @@
     </div>
   {:else if gameStore.currentView === "game"}
     <!-- Audio Settings Modal -->
-    <AudioSettings visible={showAudioSettings} onClose={() => (showAudioSettings = false)} />
+    <AudioSettings
+      visible={showAudioSettings}
+      onClose={() => (showAudioSettings = false)}
+    />
 
     <!-- Combat Log Drawer (fixed position, outside grid) -->
     <CombatLogPanel bind:isOpen={combatLogOpen} />
@@ -86,9 +89,11 @@
             <SpeedControls
               speed={gameStore.speed}
               isPaused={gameStore.isPaused}
+              hasStarted={gameStore.hasStarted}
               onSpeedChange={gameStore.setSpeed}
               onPause={gameStore.pauseGame}
               onResume={gameStore.resumeGame}
+              onStart={gameStore.beginGame}
             />
             <div class="action-buttons">
               <button
@@ -167,7 +172,9 @@
     grid-template-areas: "canvas right";
     height: 100vh;
     width: 100vw;
-    transition: margin-left 0.2s ease, width 0.2s ease;
+    transition:
+      margin-left 0.2s ease,
+      width 0.2s ease;
   }
 
   /* When combat log drawer is open, shift content right */

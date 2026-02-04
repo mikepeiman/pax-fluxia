@@ -34,11 +34,39 @@ export interface VisualShipState {
 }
 
 /**
+ * Maximum number of orbit layers before stacking begins.
+ * After this, ships wrap to layer 0 with a 2x multiplier, then 4x, etc.
+ */
+const MAX_ORBIT_LAYERS = 10;
+
+/**
+ * Calculate the total capacity of layers 0 through maxLayer
+ */
+function calculateTotalCapacity(starRadius: number): { layerCapacities: number[], totalCapacity: number } {
+    const BASE_SIZE = GAME_CONFIG.SHIP_BASE_SIZE || 4;
+    const PADDING = 2;
+    const RING_SPACING = BASE_SIZE * 1.4;
+
+    const layerCapacities: number[] = [];
+    let totalCapacity = 0;
+    let currentRadius = starRadius + PADDING + BASE_SIZE;
+
+    for (let layer = 0; layer < MAX_ORBIT_LAYERS; layer++) {
+        const circumference = 2 * Math.PI * currentRadius;
+        const capacity = Math.max(1, Math.floor(circumference / (BASE_SIZE * 1.5)));
+        layerCapacities.push(capacity);
+        totalCapacity += capacity;
+        currentRadius += RING_SPACING;
+    }
+
+    return { layerCapacities, totalCapacity };
+}
+
+/**
  * Calculate stable target slot for a ship in orbit
  * 
- * Performance Note: This is pure math (trig), no allocations if called individually.
- * To optimize large fleets, we calculate the specific slot needed for a ship index,
- * rather than regenerating the whole array every frame.
+ * Now with stacking: after 10 layers, ships wrap to layer 0 with 2x multiplier.
+ * Returns { x, y, multiplier } where multiplier is 1, 2, 4, 8, etc.
  */
 export function getOrbitSlot(
     index: number,
@@ -46,60 +74,53 @@ export function getOrbitSlot(
     cy: number,
     starRadius: number,
     time: number
-): { x: number, y: number } {
+): { x: number, y: number, multiplier: number } {
     const BASE_SIZE = GAME_CONFIG.SHIP_BASE_SIZE || 4;
     const PADDING = 2;
     const RING_SPACING = BASE_SIZE * 1.4;
 
-    // Determine which layer (ring) this index belongs to
-    // We solve for layer by filling inner rings first
+    // Calculate total capacity for 10 layers
+    const { layerCapacities, totalCapacity } = calculateTotalCapacity(starRadius);
 
-    // Ring 0 capacity: ~ (2 * PI * r) / size
-    // This is iterative, but for < 500 ships it's fast enough.
-    // For O(1), we'd need an approximation or lookup table.
+    // Calculate which "wrap cycle" we're in and the effective index within that cycle
+    const wrapCycle = Math.floor(index / totalCapacity);
+    const effectiveIndex = index % totalCapacity;
+    const multiplier = Math.pow(2, wrapCycle); // 1, 2, 4, 8, ...
 
+    // Find which layer this effective index belongs to
     let layer = 0;
-    let currentRadius = starRadius + PADDING + BASE_SIZE;
     let countInInnerLayers = 0;
+    let currentRadius = starRadius + PADDING + BASE_SIZE;
 
-    // Fast-forward to correct layer
-    // Optimization: Hardcode first few layer capacities? 
-    // Ring 0 (~60px circumference / 6px) ~= 10 ships
-    // Ring 1 (~80px / 6px) ~= 13 ships
-    // etc.
+    for (layer = 0; layer < MAX_ORBIT_LAYERS; layer++) {
+        const capacity = layerCapacities[layer];
 
-    while (true) {
-        const circumference = 2 * Math.PI * currentRadius;
-        const capacity = Math.max(1, Math.floor(circumference / (BASE_SIZE * 1.5)));
-
-        if (index < countInInnerLayers + capacity) {
+        if (effectiveIndex < countInInnerLayers + capacity) {
             // It's in this layer
-            const indexInRing = index - countInInnerLayers;
+            const indexInRing = effectiveIndex - countInInnerLayers;
             const angleStep = (2 * Math.PI) / capacity;
 
-            // Rotate rings slowly
+            // Rotate rings slowly, alternating direction
             const ringRotation = time * (0.2 / (layer + 1)) * (layer % 2 === 0 ? 1 : -1);
             const angle = indexInRing * angleStep + ringRotation;
 
             return {
                 x: cx + Math.cos(angle) * currentRadius,
-                y: cy + Math.sin(angle) * currentRadius
+                y: cy + Math.sin(angle) * currentRadius,
+                multiplier
             };
         }
 
         countInInnerLayers += capacity;
         currentRadius += RING_SPACING;
-        layer++;
-
-        // Safety break for extreme counts
-        if (layer > 20) {
-            // Fallback for overcrowding
-            return {
-                x: cx + Math.cos(index) * (currentRadius + 20),
-                y: cy + Math.sin(index) * (currentRadius + 20)
-            };
-        }
     }
+
+    // Fallback (shouldn't reach here due to modulo)
+    return {
+        x: cx + Math.cos(effectiveIndex) * currentRadius,
+        y: cy + Math.sin(effectiveIndex) * currentRadius,
+        multiplier
+    };
 }
 
 /**

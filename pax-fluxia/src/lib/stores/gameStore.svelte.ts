@@ -50,6 +50,9 @@ let engine: GameEngine | null = null;
 /** Session ID to force component remounts */
 let sessionId = $state(0);
 
+/** Whether the game has been started (START button pressed) */
+let hasStarted = $state(false);
+
 // ============================================================================
 // Derived State
 // ============================================================================
@@ -132,8 +135,8 @@ async function startGame(): Promise<void> {
     // Navigate to game view
     currentView = 'game';
 
-    // Start the engine
-    engine.start();
+    // Don't auto-start - game begins paused, player presses START or spacebar
+    // engine.start();
     snapshot = engine.getState();
 }
 
@@ -148,6 +151,11 @@ function pauseGame(): void {
 /** Resume the game */
 function resumeGame(): void {
     if (engine) {
+        // If not started yet, call beginGame instead
+        if (!hasStarted) {
+            beginGame();
+            return;
+        }
         engine.resume();
         snapshot = engine.getState();
     }
@@ -155,7 +163,17 @@ function resumeGame(): void {
 
 /** Restart the game */
 function restart(): void {
+    hasStarted = false; // Reset so START button shows again
     startGame();
+}
+
+/** Begin the game (START button pressed or spacebar when paused and not started) */
+function beginGame(): void {
+    if (engine && !hasStarted) {
+        hasStarted = true;
+        engine.start();
+        snapshot = engine.getState();
+    }
 }
 
 /** Set game speed */
@@ -287,6 +305,7 @@ export const gameStore = {
     get humanPlayer() { return humanPlayer; },
     get leaderboard() { return leaderboard; },
     get sessionId() { return sessionId; },
+    get hasStarted() { return hasStarted; },
 
     // Actions
     setView,
@@ -304,5 +323,6 @@ export const gameStore = {
     restart,
     getStats,
     getHistory,
-    updateConfig
+    updateConfig,
+    beginGame
 };

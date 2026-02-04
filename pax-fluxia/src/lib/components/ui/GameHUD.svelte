@@ -19,9 +19,11 @@
       <SpeedControls
         speed={gameStore.speed}
         isPaused={gameStore.isPaused}
+        hasStarted={gameStore.hasStarted}
         onSpeedChange={gameStore.setSpeed}
         onPause={gameStore.pauseGame}
         onResume={gameStore.resumeGame}
+        onStart={gameStore.beginGame}
       />
 
       <div class="system-controls">
