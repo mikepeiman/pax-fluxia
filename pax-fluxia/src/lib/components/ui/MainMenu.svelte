@@ -9,6 +9,17 @@
     let visible = $state(true);
     let showMultiplayer = $state(false);
 
+    // Watch multiplayer phase and transition to game when it starts
+    $effect(() => {
+        if (multiplayerStore.phase === "playing") {
+            console.log(
+                "🎮 Multiplayer game started! Transitioning to game view...",
+            );
+            visible = false;
+            gameStore.setView("game");
+        }
+    });
+
     // Load from localStorage or use defaults
     function loadSetting<T>(key: string, defaultValue: T): T {
         if (typeof window === "undefined") return defaultValue;
