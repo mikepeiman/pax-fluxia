@@ -132,6 +132,57 @@
         "ai-5": 0xff8844,
     };
 
+    // Helper: Check if star is owned by local player (works for both single player and multiplayer)
+    function isLocalPlayerStar(star: StarState): boolean {
+        const isMultiplayer = multiplayerStore.phase === "playing";
+        if (isMultiplayer) {
+            const localPlayerId = multiplayerStore.getLocalPlayerId();
+            return star.ownerId === localPlayerId;
+        }
+        // Single player mode
+        return star.ownerId === "human-player";
+    }
+
+    // Helper: Check if we're in multiplayer mode
+    function isMultiplayerMode(): boolean {
+        return multiplayerStore.phase === "playing";
+    }
+
+    // Helper: Issue order (works for both single player and multiplayer)
+    function doIssueOrder(
+        sourceId: string,
+        targetId: string,
+        persist: boolean,
+    ): boolean {
+        if (isMultiplayerMode()) {
+            multiplayerStore.issueOrder(sourceId, targetId);
+            return true; // Assume success for multiplayer
+        }
+        return gameStore.issueOrder(sourceId, targetId, persist);
+    }
+
+    // Helper: Cancel order (works for both single player and multiplayer)
+    function doCancelOrder(starId: string): void {
+        if (isMultiplayerMode()) {
+            multiplayerStore.cancelOrder(starId);
+        } else {
+            gameStore.cancelOrder(starId);
+        }
+    }
+
+    // Helper: Set deferred order (works for both single player and multiplayer)
+    function doSetDeferredOrder(
+        sourceId: string,
+        targetId: string,
+        persist: boolean,
+    ): boolean {
+        if (isMultiplayerMode()) {
+            multiplayerStore.setDeferredOrder(sourceId, targetId);
+            return true; // Assume success for multiplayer
+        }
+        return gameStore.setDeferredOrder(sourceId, targetId, persist);
+    }
+
     // ============================================================================
     // Lifecycle
     // ============================================================================
@@ -634,8 +685,8 @@
             const [sourceId, targetId] = key.split("|");
             const source = starsById.get(sourceId);
 
-            // Remove if source doesn't exist or no longer owned by human
-            if (!source || source.ownerId !== "human-player") {
+            // Remove if source doesn't exist or no longer owned by local player
+            if (!source || !isLocalPlayerStar(source)) {
                 pendingOrders.delete(key);
                 return;
             }
@@ -734,18 +785,20 @@
         // Render Deferred Orders (dashed lines, transparent)
         // ============================================================================
 
-        // Clean up deferred orders for stars that have been captured by human
+        // Clean up deferred orders for stars that have been captured by local player
         deferredOrders.forEach((key) => {
             const [sourceId] = key.split("|");
             const source = starsById.get(sourceId);
-            // If the star is now owned by human, the queued order has executed - remove it
-            if (source && source.ownerId === "human-player") {
+            // If the star is now owned by local player, the queued order has executed - remove it
+            if (source && isLocalPlayerStar(source)) {
                 deferredOrders.delete(key);
             }
         });
 
         // Also sync with actual queuedOrderTargetId from snapshot
-        const snapshotStars = gameStore.snapshot?.stars || [];
+        const snapshotStars = isMultiplayerMode()
+            ? multiplayerStore.stars
+            : gameStore.snapshot?.stars || [];
         deferredOrders.forEach((key) => {
             const [sourceId, targetId] = key.split("|");
             const star = snapshotStars.find((s) => s.id === sourceId);
@@ -1199,8 +1252,8 @@
         // FIX: Right Click to Cancel
         if (event.button === 2) {
             event.preventDefault();
-            if (star && star.ownerId === "human-player") {
-                gameStore.cancelOrder(star.id);
+            if (star && isLocalPlayerStar(star)) {
+                doCancelOrder(star.id);
                 // OPTIMISTIC UI: Remove from pending immediately
                 pendingOrders.forEach((key) => {
                     if (key.startsWith(`${star.id}|`)) {
@@ -1214,7 +1267,7 @@
             return;
         }
 
-        if (star && star.ownerId === "human-player") {
+        if (star && isLocalPlayerStar(star)) {
             // Start drag from this star
             isDragging = true;
             dragSourceId = star.id;
@@ -1272,7 +1325,7 @@
                 if (isSourceMine) {
                     // Dragging from my star - issue normal order
                     // Ctrl-click = order clears on conquest (inverts default persist=true)
-                    const success = gameStore.issueOrder(
+                    const success = doIssueOrder(
                         dragSourceId,
                         targetStar.id,
                         !event.ctrlKey, // persist unless ctrl-click
@@ -1302,7 +1355,7 @@
                 } else if (lastEnemyPassthrough === dragSourceId) {
                     // Dragging FROM an enemy star we're attacking - set deferred order!
                     // Ctrl-click = order clears on conquest
-                    const success = gameStore.setDeferredOrder(
+                    const success = doSetDeferredOrder(
                         dragSourceId,
                         targetStar.id,
                         !event.ctrlKey, // persist unless ctrl-click
@@ -1351,7 +1404,7 @@
             if (targetStar && targetStar.id !== dragSourceId) {
                 // Issue order from drag
                 // Ctrl-click = order clears on conquest
-                const success = gameStore.issueOrder(
+                const success = doIssueOrder(
                     dragSourceId,
                     targetStar.id,
                     !event.ctrlKey, // persist unless ctrl-click
@@ -1373,14 +1426,20 @@
         if (!movedSignificantly && targetStar) {
             // Case 1: Active Star Selected -> Click OTHER star (Issue Order)
             if (activeStarId && activeStarId !== targetStar.id) {
-                const activeStarSnapshot = gameStore.snapshot?.stars.find(
+                const currentStars = isMultiplayerMode()
+                    ? multiplayerStore.stars
+                    : gameStore.snapshot?.stars || [];
+                const activeStarSnapshot = currentStars.find(
                     (s) => s.id === activeStarId,
                 );
 
                 // If we own the source, we can send to ANY target (Self or Enemy)
-                if (activeStarSnapshot?.ownerId === "human-player") {
+                if (
+                    activeStarSnapshot &&
+                    isLocalPlayerStar(activeStarSnapshot)
+                ) {
                     // Ctrl-click = order clears on conquest
-                    const success = gameStore.issueOrder(
+                    const success = doIssueOrder(
                         activeStarId,
                         targetStar.id,
                         !event.ctrlKey, // persist unless ctrl-click
@@ -1391,16 +1450,20 @@
                         activeStarId = targetStar.id; // Chain selection
                     } else {
                         // Failed (not connected?) -> select the target if ours
-                        if (targetStar.ownerId === "human-player") {
+                        if (isLocalPlayerStar(targetStar)) {
                             activeStarId = targetStar.id;
                         }
                     }
                 } else if (
-                    activeStarSnapshot?.ownerId !== "human-player" &&
-                    activeStarSnapshot?.ownerId !== "neutral"
+                    activeStarSnapshot &&
+                    !isLocalPlayerStar(activeStarSnapshot) &&
+                    activeStarSnapshot.ownerId !== "neutral"
                 ) {
                     // Selected star is enemy - try to set deferred order
-                    const isConnected = gameStore.snapshot?.connections.some(
+                    const currentConnections = isMultiplayerMode()
+                        ? multiplayerStore.connections
+                        : gameStore.snapshot?.connections || [];
+                    const isConnected = currentConnections.some(
                         (c) =>
                             (c.sourceId === activeStarId &&
                                 c.targetId === targetStar.id) ||
@@ -1408,7 +1471,7 @@
                                 c.targetId === activeStarId),
                     );
                     if (isConnected) {
-                        const success = gameStore.setDeferredOrder(
+                        const success = doSetDeferredOrder(
                             activeStarId,
                             targetStar.id,
                             !event.ctrlKey,
@@ -1424,7 +1487,7 @@
                     }
                 } else {
                     // Previous selection wasn't ours, just select new one
-                    if (targetStar.ownerId === "human-player") {
+                    if (isLocalPlayerStar(targetStar)) {
                         activeStarId = targetStar.id;
                     } else if (targetStar.ownerId !== "neutral") {
                         // Can select enemy stars for chaining deferred orders
@@ -1433,7 +1496,7 @@
                 }
             }
             // Case 2: No active selection or clicked same -> Select
-            else if (targetStar.ownerId === "human-player") {
+            else if (isLocalPlayerStar(targetStar)) {
                 activeStarId = targetStar.id;
                 log.state("GameCanvas", `Star ${targetStar.id} selected`);
             } else if (targetStar.ownerId !== "neutral") {
@@ -1460,13 +1523,13 @@
 
         const star = hitTestStar(x, y);
 
-        if (star && star.ownerId === "human-player" && star.targetId) {
+        if (star && isLocalPlayerStar(star) && star.targetId) {
             // Cancel order for this star
-            gameStore.cancelOrder(star.id);
+            doCancelOrder(star.id);
             log.state("GameCanvas", `Order cancelled for star ${star.id}`);
         } else if (
             star &&
-            star.ownerId !== "human-player" &&
+            !isLocalPlayerStar(star) &&
             star.ownerId !== "neutral"
         ) {
             // Right-click on enemy star - cancel any deferred order
@@ -1548,8 +1611,7 @@
                     target.radius + 15,
                 );
                 dragPreviewGraphics.stroke({
-                    color:
-                        target.ownerId === "human-player" ? 0x00ff00 : 0xff4466,
+                    color: isLocalPlayerStar(target) ? 0x00ff00 : 0xff4466,
                     width: 3,
                     alpha: 0.8,
                 });

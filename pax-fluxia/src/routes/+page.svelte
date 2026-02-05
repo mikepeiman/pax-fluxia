@@ -1,6 +1,7 @@
 <script lang="ts">
   import "../app.css";
   import { gameStore } from "$lib/stores/gameStore.svelte";
+  import { multiplayerStore } from "$lib/stores/multiplayerStore.svelte";
   import MainMenu from "$lib/components/ui/MainMenu.svelte";
   import ResultsModal from "$lib/components/ui/ResultsModal.svelte";
   import GameCanvas from "$lib/components/game/GameCanvas.svelte";
@@ -17,9 +18,12 @@
   let combatLogOpen = $state(true);
   let showAudioSettings = $state(false);
 
-  // Derived leaderboard from snapshot for proper reactivity
+  // Derived leaderboard - use multiplayerStore when in multiplayer mode
   const leaderboardPlayers = $derived.by(() => {
-    const players = gameStore.snapshot?.players ?? [];
+    const isMultiplayer = multiplayerStore.phase === "playing";
+    const players = isMultiplayer
+      ? multiplayerStore.players
+      : (gameStore.snapshot?.players ?? []);
     return [...players]
       .filter((p: PlayerState) => !p.isEliminated)
       .sort(
