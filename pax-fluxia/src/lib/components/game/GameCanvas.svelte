@@ -344,6 +344,19 @@
     }
 
     function getPlayerColor(ownerId: string): number {
+        // In multiplayer mode, look up color from player data
+        if (isMultiplayerMode()) {
+            const player = multiplayerStore.players.find(
+                (p) => p.id === ownerId,
+            );
+            if (player && player.color) {
+                // Player color is stored as hex string like "#4488ff"
+                return parseInt(player.color.replace("#", ""), 16);
+            }
+            // Neutral or unknown
+            return 0x888888;
+        }
+        // Single player mode - use hardcoded colors
         return PLAYER_COLORS[ownerId] ?? 0x888888;
     }
 
