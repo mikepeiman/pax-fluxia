@@ -1317,9 +1317,11 @@
         const targetStar = hitTestStar(dragCurrentX, dragCurrentY);
 
         if (targetStar && targetStar.id !== dragSourceId) {
-            // Validate connection first
-            const snapshot = gameStore.snapshot;
-            const isConnected = snapshot?.connections.some(
+            // Validate connection first - use correct data source for multiplayer
+            const connections = isMultiplayerMode()
+                ? multiplayerStore.connections
+                : gameStore.snapshot?.connections || [];
+            const isConnected = connections.some(
                 (c) =>
                     (c.sourceId === dragSourceId &&
                         c.targetId === targetStar.id) ||
@@ -1328,14 +1330,15 @@
             );
 
             if (isConnected) {
-                const sourceStar = snapshot?.stars.find(
-                    (s) => s.id === dragSourceId,
-                );
-                const humanPlayerId = snapshot?.players.find(
-                    (p) => !p.isAI,
-                )?.id;
-                const isSourceMine = sourceStar?.ownerId === humanPlayerId;
-                const isTargetMine = targetStar.ownerId === humanPlayerId;
+                const stars = isMultiplayerMode()
+                    ? multiplayerStore.stars
+                    : gameStore.snapshot?.stars || [];
+                const sourceStar = stars.find((s) => s.id === dragSourceId);
+                const localPlayerId = isMultiplayerMode()
+                    ? multiplayerStore.getLocalPlayerId()
+                    : gameStore.snapshot?.players.find((p) => !p.isAI)?.id;
+                const isSourceMine = sourceStar?.ownerId === localPlayerId;
+                const isTargetMine = targetStar.ownerId === localPlayerId;
                 const isTargetEnemy =
                     !isTargetMine && targetStar.ownerId !== "neutral";
 
