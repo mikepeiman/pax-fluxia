@@ -444,10 +444,13 @@ export class GameRoom extends Room {
             }
         });
 
-        // 2. PROCESS ORDERS (simplified combat/reinforcement)
+        // 2. AI DECISION MAKING
+        this.processAI();
+
+        // 3. PROCESS ORDERS (simplified combat/reinforcement)
         this.processOrders();
 
-        // 3. REPAIR
+        // 4. REPAIR
         this.state.stars.forEach(star => {
             if (star.damagedShips > 0) {
                 const repaired = Math.max(1, Math.floor(star.damagedShips * star.repairRate));
@@ -456,14 +459,65 @@ export class GameRoom extends Room {
             }
         });
 
-        // 4. UPDATE PLAYER STATS
+        // 5. UPDATE PLAYER STATS
         this.updatePlayerStats();
 
-        // 5. CHECK WIN CONDITION
+        // 6. CHECK WIN CONDITION
         this.checkWinCondition();
 
         // Update tick progress
         this.state.tickProgress = 0;
+    }
+
+    private processAI() {
+        // Get all AI players
+        const aiPlayers = Array.from(this.state.players.values()).filter(p => p.isAI);
+
+        for (const ai of aiPlayers) {
+            // Get AI's stars
+            const aiStars = Array.from(this.state.stars.values()).filter(s => s.ownerId === ai.id);
+
+            for (const star of aiStars) {
+                // Skip if already has an order
+                if (star.targetId) continue;
+
+                // Skip if too few ships to attack
+                if (star.activeShips < 20) continue;
+
+                // Find connected stars
+                const connectedIds = Array.from(this.state.connections)
+                    .filter(c => c.sourceId === star.id)
+                    .map(c => c.targetId);
+
+                // Look for enemy target
+                let bestTarget: { id: string; ships: number } | null = null;
+                let weakestFriendly: { id: string; ships: number } | null = null;
+
+                for (const targetId of connectedIds) {
+                    const target = this.state.stars.get(targetId);
+                    if (!target) continue;
+
+                    if (target.ownerId !== ai.id) {
+                        // Enemy - attack weakest
+                        if (!bestTarget || target.activeShips < bestTarget.ships) {
+                            bestTarget = { id: target.id, ships: target.activeShips };
+                        }
+                    } else {
+                        // Friendly - reinforce weakest
+                        if (!weakestFriendly || target.activeShips < weakestFriendly.ships) {
+                            weakestFriendly = { id: target.id, ships: target.activeShips };
+                        }
+                    }
+                }
+
+                // Prefer attacking, then reinforcing
+                if (bestTarget && star.activeShips > bestTarget.ships * 1.5) {
+                    star.targetId = bestTarget.id;
+                } else if (weakestFriendly && star.activeShips > weakestFriendly.ships * 2) {
+                    star.targetId = weakestFriendly.id;
+                }
+            }
+        }
     }
 
     private processOrders() {

@@ -1,6 +1,7 @@
 <script lang="ts">
     import type { PlayerState } from "$lib/types/game.types";
     import { browser } from "$app/environment";
+    import { multiplayerStore } from "$lib/stores/multiplayerStore.svelte";
 
     interface Props {
         players: PlayerState[];
@@ -21,8 +22,14 @@
         }
     }
 
-    // Check if player is the human player
-    function isHuman(player: PlayerState): boolean {
+    // Check if player is the local player (works for single and multiplayer)
+    function isLocalPlayer(player: PlayerState): boolean {
+        const isMultiplayer = multiplayerStore.phase === "playing";
+        if (isMultiplayer) {
+            const localId = multiplayerStore.getLocalPlayerId();
+            return player.id === localId;
+        }
+        // Single player mode
         return player.id === "human-player";
     }
 
@@ -41,17 +48,20 @@
     {#if !isCollapsed}
         <ul class="leaderboard__list">
             {#each sortedPlayers as player, index}
-                <li class="leaderboard__item" class:is-self={isHuman(player)}>
+                <li
+                    class="leaderboard__item"
+                    class:is-self={isLocalPlayer(player)}
+                >
                     <span
                         class="player-dot"
-                        class:player-dot--self={isHuman(player)}
+                        class:player-dot--self={isLocalPlayer(player)}
                         style="background-color: {player.color}"
                     ></span>
                     <span
                         class="player-name"
-                        class:player-name--self={isHuman(player)}
+                        class:player-name--self={isLocalPlayer(player)}
                     >
-                        {isHuman(player) ? "★ " : ""}{player.name}
+                        {isLocalPlayer(player) ? "★ " : ""}{player.name}
                     </span>
                     <span class="player-stats font-data">
                         <span class="stat-ships" title="Active / Damaged Ships">
