@@ -1,7 +1,7 @@
 <script lang="ts">
   import "../app.css";
   import { gameStore } from "$lib/stores/gameStore.svelte";
-  import { multiplayerStore } from "$lib/stores/multiplayerStore.svelte";
+  import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
   import MainMenu from "$lib/components/ui/MainMenu.svelte";
   import ResultsModal from "$lib/components/ui/ResultsModal.svelte";
   import GameCanvas from "$lib/components/game/GameCanvas.svelte";
@@ -18,12 +18,9 @@
   let combatLogOpen = $state(true);
   let showAudioSettings = $state(false);
 
-  // Derived leaderboard - use multiplayerStore when in multiplayer mode
+  // Derived leaderboard - use activeGameStore for unified access
   const leaderboardPlayers = $derived.by(() => {
-    const isMultiplayer = multiplayerStore.phase === "playing";
-    const players = isMultiplayer
-      ? multiplayerStore.players
-      : (gameStore.snapshot?.players ?? []);
+    const players = activeGameStore.players as PlayerState[];
     return [...players]
       .filter((p: PlayerState) => !p.isEliminated)
       .sort(
@@ -94,31 +91,13 @@
         <div class="overlay-bottom-left">
           <div class="controls-wrapper glass-panel">
             <SpeedControls
-              speed={multiplayerStore.phase === "playing"
-                ? multiplayerStore.speed
-                : gameStore.speed}
-              isPaused={multiplayerStore.phase === "playing"
-                ? multiplayerStore.isPaused
-                : gameStore.isPaused}
-              hasStarted={multiplayerStore.phase === "playing"
-                ? true
-                : gameStore.hasStarted}
-              onSpeedChange={(speed) =>
-                multiplayerStore.phase === "playing"
-                  ? multiplayerStore.setSpeed(speed)
-                  : gameStore.setSpeed(speed)}
-              onPause={() =>
-                multiplayerStore.phase === "playing"
-                  ? multiplayerStore.pauseGame()
-                  : gameStore.pauseGame()}
-              onResume={() =>
-                multiplayerStore.phase === "playing"
-                  ? multiplayerStore.resumeGame()
-                  : gameStore.resumeGame()}
-              onStart={() =>
-                multiplayerStore.phase === "playing"
-                  ? multiplayerStore.resumeGame()
-                  : gameStore.beginGame()}
+              speed={activeGameStore.speed}
+              isPaused={activeGameStore.isPaused}
+              hasStarted={activeGameStore.phase === "playing"}
+              onSpeedChange={(speed) => activeGameStore.setSpeed(speed)}
+              onPause={() => activeGameStore.pauseGame()}
+              onResume={() => activeGameStore.resumeGame()}
+              onStart={() => activeGameStore.startGame()}
             />
 
             <div class="action-buttons">
