@@ -72,8 +72,8 @@ async function createRoom(options: { playerCount?: number; mapType?: string } = 
     connectionError = null;
 
     try {
-        // Use JSON.parse/stringify to avoid passing Svelte 5 Proxies to Colyseus
-        const plainOptions = JSON.parse(JSON.stringify(options));
+        // Use $state.snapshot() to strip Svelte 5 Proxy - proper method for Svelte 5
+        const plainOptions = $state.snapshot(options);
         console.log('🏠 [Client] Creating room with options:', plainOptions);
         console.log('🏠 [Client] Calling client.create("game_room", ...)');
 

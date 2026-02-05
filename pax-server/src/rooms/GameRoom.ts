@@ -45,8 +45,8 @@ export class GameRoom extends Room {
     private tickStartTime = 0;
     private roomOptions: RoomOptions = {};
 
-    // State - initialized as class property (Colyseus 0.17 pattern)
-    state = new GameRoomState();
+    // State - will be set in onCreate using this.setState() per 0.17.29 requirement
+    declare state: GameRoomState;
 
     // ========================================================================
     // Room Lifecycle
@@ -56,6 +56,11 @@ export class GameRoom extends Room {
         try {
             console.log(`📍 onCreate starting...`);
             console.log(`🎮 GameRoom created with options:`, options);
+
+            // IMPORTANT: Use setState() per Colyseus 0.17.29 strict type requirements
+            console.log(`📍 Calling this.setState()...`);
+            this.setState(new GameRoomState());
+
             this.roomOptions = options;
             this.maxClients = options.playerCount || 4;
 
