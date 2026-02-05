@@ -4,6 +4,7 @@
     "type": "module",
     "scripts": {
         "dev": "bun --watch src/index.ts",
+        "dev:node": "npx tsx --watch src/index.ts",
         "start": "bun src/index.ts",
         "build": "bun build src/index.ts --outdir dist --target node"
     },
@@ -12,6 +13,7 @@
         "colyseus": "latest"
     },
     "devDependencies": {
+        "tsx": "^4.21.0",
         "typescript": "~5.6.2"
     }
 }
