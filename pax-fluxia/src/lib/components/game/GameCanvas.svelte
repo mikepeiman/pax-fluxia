@@ -2,6 +2,7 @@
     import { onMount, onDestroy } from "svelte";
     import * as PIXI from "pixi.js";
     import { gameStore } from "$lib/stores/gameStore.svelte";
+    import { multiplayerStore } from "$lib/stores/multiplayerStore.svelte";
     import { log } from "$lib/utils/logger";
     import { GAME_CONFIG } from "$lib/config/game.config";
     import {
@@ -235,10 +236,23 @@
             lastTime = currentTime;
             animationTime += deltaTime;
 
-            // Render the current frame
-            const snapshot = gameStore.snapshot;
-            if (snapshot && app) {
-                renderFrame(snapshot.stars, gameStore.tickProgress);
+            // Render the current frame - check multiplayer first
+            if (
+                multiplayerStore.phase === "playing" &&
+                multiplayerStore.stars.length > 0 &&
+                app
+            ) {
+                // MULTIPLAYER MODE: Read from server-synced state
+                renderFrame(
+                    multiplayerStore.stars,
+                    multiplayerStore.tickProgress,
+                );
+            } else {
+                // SINGLE PLAYER MODE: Read from local gameStore
+                const snapshot = gameStore.snapshot;
+                if (snapshot && app) {
+                    renderFrame(snapshot.stars, gameStore.tickProgress);
+                }
             }
 
             animationFrameId = requestAnimationFrame(loop);
@@ -393,10 +407,13 @@
         // Render stars (static elements)
         renderStars(stars);
 
-        // Render connections (star network)
-        const snapshot = gameStore.snapshot;
-        if (snapshot?.connections) {
-            renderConnections(stars, snapshot.connections);
+        // Render connections (star network) - use multiplayerStore if in multiplayer mode
+        const isMultiplayer = multiplayerStore.phase === "playing";
+        const connections = isMultiplayer
+            ? multiplayerStore.connections
+            : gameStore.snapshot?.connections;
+        if (connections) {
+            renderConnections(stars, connections);
         }
 
         // Render flow links
@@ -405,9 +422,10 @@
         // NOTE: Pending orders cleanup is now handled in renderFlowLinks()
 
         // Render traveling fleets (authoritative)
-        if (snapshot?.fleets) {
+        const fleets = isMultiplayer ? [] : (gameStore.snapshot as any)?.fleets; // TODO: Add fleet sync to multiplayer
+        if (fleets && fleets.length > 0) {
             shipGraphics?.clear(); // Clear once before drawing any ships (fleets + orbiting)
-            renderFleets(stars, snapshot.fleets);
+            renderFleets(stars, fleets);
         } else {
             shipGraphics?.clear();
         }
