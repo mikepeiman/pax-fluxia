@@ -78,8 +78,8 @@ async function createRoom(options: { playerCount?: number; mapType?: string } = 
 
         // TESTING: Use test_room (minimal schema) instead of game_room  
         // TODO: Switch back to game_room once working
-        console.log('🧪 [Client] Calling client.create("test_room", ...)');
-        room = await client.create('test_room', plainOptions);
+        console.log('🏠 [Client] Calling client.create("game_room", ...)');
+        room = await client.create('game_room', plainOptions);
 
         console.log('🏠 [Client] client.create() returned!');
         console.log('   Room ID:', room?.roomId);
