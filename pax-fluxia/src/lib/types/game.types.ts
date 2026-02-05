@@ -85,7 +85,7 @@ export interface GameSettings {
   gameSpeed?: number;
 }
 
-export type GameSpeed = 'slow' | 'medium' | 'fast';
+export type GameSpeed = 0 | 1 | 2 | 4 | 10;
 
 export interface CombatResult {
   killsOnA: number;

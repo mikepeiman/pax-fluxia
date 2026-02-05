@@ -94,13 +94,31 @@
         <div class="overlay-bottom-left">
           <div class="controls-wrapper glass-panel">
             <SpeedControls
-              speed={gameStore.speed}
-              isPaused={gameStore.isPaused}
-              hasStarted={gameStore.hasStarted}
-              onSpeedChange={gameStore.setSpeed}
-              onPause={gameStore.pauseGame}
-              onResume={gameStore.resumeGame}
-              onStart={gameStore.beginGame}
+              speed={multiplayerStore.phase === "playing"
+                ? multiplayerStore.speed
+                : gameStore.speed}
+              isPaused={multiplayerStore.phase === "playing"
+                ? multiplayerStore.isPaused
+                : gameStore.isPaused}
+              hasStarted={multiplayerStore.phase === "playing"
+                ? true
+                : gameStore.hasStarted}
+              onSpeedChange={(speed) =>
+                multiplayerStore.phase === "playing"
+                  ? multiplayerStore.setSpeed(speed)
+                  : gameStore.setSpeed(speed)}
+              onPause={() =>
+                multiplayerStore.phase === "playing"
+                  ? multiplayerStore.pauseGame()
+                  : gameStore.pauseGame()}
+              onResume={() =>
+                multiplayerStore.phase === "playing"
+                  ? multiplayerStore.resumeGame()
+                  : gameStore.resumeGame()}
+              onStart={() =>
+                multiplayerStore.phase === "playing"
+                  ? multiplayerStore.resumeGame()
+                  : gameStore.beginGame()}
             />
 
             <div class="action-buttons">
