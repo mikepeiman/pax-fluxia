@@ -6,7 +6,7 @@ import type { Star, CombatResult } from './types';
 
 // === Combat Constants ===
 export const COMBAT_CONFIG = {
-    DAMAGE_PER_SHIP: 0.5,      // Each ship deals 0.5 damage per tick (was 0.1)
+    DAMAGE_PER_SHIP: 0.05,     // Each ship deals 0.05 damage per tick (user specified)
     LETHALITY: 0.25,           // 25% of damage kills, 75% disables
     DISABLED_RATIO: 0.75,      // % of damage that disables (1 - LETHALITY)
 } as const;

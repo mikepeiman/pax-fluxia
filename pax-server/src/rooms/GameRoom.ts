@@ -547,6 +547,10 @@ export class GameRoom extends Room {
                     return;
                 }
 
+                // DEBUG: Log before combat
+                const beforeSource = source.activeShips;
+                const beforeTarget = target.activeShips;
+
                 // Calculate combat using shared logic
                 const result = calculateCombat(source.activeShips, target.activeShips);
 
@@ -557,6 +561,9 @@ export class GameRoom extends Room {
                 // Apply damage to defender (target)
                 target.activeShips = Math.max(0, target.activeShips - result.defenderKills);
                 target.damagedShips += result.defenderDisabled;
+
+                // DEBUG: Log after combat
+                console.log(`[COMBAT] ${source.id}(${beforeSource}->${source.activeShips}) attacks ${target.id}(${beforeTarget}->${target.activeShips}) | kills: atk=${result.attackerKills} def=${result.defenderKills}`);
 
                 // Check conquest
                 if (target.activeShips <= 0) {
