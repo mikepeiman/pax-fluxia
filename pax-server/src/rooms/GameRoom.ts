@@ -10,6 +10,17 @@ import {
     ConnectionSchema
 } from "../schema/GameState.schema";
 
+// Import shared game logic from @pax/common
+import {
+    calculateCombat,
+    calculateProduction,
+    calculateRepair,
+    calculateTransfer,
+    isAttackOrder,
+    COMBAT_CONFIG,
+    ORDER_CONFIG
+} from "@pax/common";
+
 // Player colors palette (same as GameEngine)
 const PLAYER_COLORS = [
     '#4488ff', // Blue
@@ -521,52 +532,39 @@ export class GameRoom extends Room {
     }
 
     private processOrders() {
-        const TRANSFER_RATE = 0.25;
-        const MIN_TRANSFER = 1;
-        const DAMAGE_PER_SHIP = 0.1;
-        const LETHALITY = 0.25;
-
         this.state.stars.forEach(source => {
             if (!source.targetId) return;
 
             const target = this.state.stars.get(source.targetId);
             if (!target) return;
 
-            const isAttack = source.ownerId !== target.ownerId;
-
-            if (isAttack) {
-                // COMBAT: Calculate damage exchange
-                const attackerForce = source.activeShips;
-                const defenderForce = target.activeShips;
-
-                if (defenderForce <= 0) {
+            // Use shared logic to determine attack vs reinforcement
+            if (source.ownerId !== target.ownerId) {
+                // COMBAT: Use shared combat calculation
+                if (target.activeShips <= 0) {
                     // Instant conquest
                     this.executeConquest(source, target);
                     return;
                 }
 
-                // Symmetric damage
-                const attackerDamage = defenderForce * DAMAGE_PER_SHIP;
-                const defenderDamage = attackerForce * DAMAGE_PER_SHIP;
+                // Calculate combat using shared logic
+                const result = calculateCombat(source.activeShips, target.activeShips);
 
-                const attackerKills = Math.floor(attackerDamage * LETHALITY);
-                const attackerDisabled = Math.floor(attackerDamage * (1 - LETHALITY));
-                const defenderKills = Math.floor(defenderDamage * LETHALITY);
-                const defenderDisabled = Math.floor(defenderDamage * (1 - LETHALITY));
+                // Apply damage to attacker (source)
+                source.activeShips = Math.max(0, source.activeShips - result.attackerKills);
+                source.damagedShips += result.attackerDisabled;
 
-                // Apply damage
-                source.activeShips = Math.max(0, source.activeShips - attackerKills);
-                source.damagedShips += attackerDisabled;
-                target.activeShips = Math.max(0, target.activeShips - defenderKills);
-                target.damagedShips += defenderDisabled;
+                // Apply damage to defender (target)
+                target.activeShips = Math.max(0, target.activeShips - result.defenderKills);
+                target.damagedShips += result.defenderDisabled;
 
                 // Check conquest
                 if (target.activeShips <= 0) {
                     this.executeConquest(source, target);
                 }
             } else {
-                // REINFORCEMENT: Transfer ships
-                const transferAmount = Math.max(MIN_TRANSFER, Math.floor(source.activeShips * TRANSFER_RATE));
+                // REINFORCEMENT: Use shared transfer calculation
+                const transferAmount = calculateTransfer(source as any);
                 if (transferAmount > 0 && source.activeShips > 0) {
                     const shipped = Math.min(transferAmount, source.activeShips);
                     source.activeShips -= shipped;
