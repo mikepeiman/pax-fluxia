@@ -1,21 +1,22 @@
 // ============================================================================
 // Colyseus Server Entry Point - Pax Fluxia
-// EXHAUSTIVE LOGGING for debugging
+// Using Bun WebSockets transport for Bun compatibility
 // ============================================================================
 
 import { Server, matchMaker } from "colyseus";
+import { BunWebSockets } from "@colyseus/bun-websockets";
 import { GameRoom } from "./rooms/GameRoom";
 
 const PORT = Number(process.env.PORT) || 2567;
 
-console.log("🔧 Initializing Colyseus server...");
+console.log("🔧 Initializing Colyseus server with BunWebSockets transport...");
 
-// Create server using Server class
+// Create server using Bun-specific WebSocket transport
 const gameServer = new Server({
-    // Using default transport (uWebSockets.js)
+    transport: new BunWebSockets(),
 });
 
-console.log("🔧 Server instance created, defining rooms...");
+console.log("🔧 Server instance created with BunWebSockets, defining rooms...");
 
 // Define the room with logging
 gameServer.define("game_room", GameRoom)
@@ -42,6 +43,7 @@ gameServer.onShutdown(() => {
 // Start the server
 gameServer.listen(PORT).then(() => {
     console.log(`\n🚀 Pax Fluxia Server running on port ${PORT}`);
+    console.log(`   Transport: BunWebSockets`);
     console.log(`   WebSocket: ws://localhost:${PORT}`);
     console.log(`   HTTP: http://localhost:${PORT}`);
     console.log(`   Started: ${new Date().toLocaleTimeString()}\n`);
