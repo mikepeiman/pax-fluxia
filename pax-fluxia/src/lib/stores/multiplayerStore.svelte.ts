@@ -75,9 +75,11 @@ async function createRoom(options: { playerCount?: number; mapType?: string } = 
         // Use $state.snapshot() to strip Svelte 5 Proxy - proper method for Svelte 5
         const plainOptions = $state.snapshot(options);
         console.log('🏠 [Client] Creating room with options:', plainOptions);
-        console.log('🏠 [Client] Calling client.create("game_room", ...)');
 
-        room = await client.create('game_room', plainOptions);
+        // TESTING: Use test_room (minimal schema) instead of game_room  
+        // TODO: Switch back to game_room once working
+        console.log('🧪 [Client] Calling client.create("test_room", ...)');
+        room = await client.create('test_room', plainOptions);
 
         console.log('🏠 [Client] client.create() returned!');
         console.log('   Room ID:', room?.roomId);
