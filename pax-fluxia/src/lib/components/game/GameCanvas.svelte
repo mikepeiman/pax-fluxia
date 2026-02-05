@@ -1236,13 +1236,17 @@
     }
 
     function hitTestStar(screenX: number, screenY: number): StarState | null {
-        const snapshot = gameStore.snapshot;
-        if (!snapshot) return null;
+        // Use multiplayer stars when in multiplayer mode
+        const stars = isMultiplayerMode()
+            ? multiplayerStore.stars
+            : (gameStore.snapshot?.stars ?? []);
+
+        if (stars.length === 0) return null;
 
         // Convert screen coordinates to world coordinates
         const { x, y } = screenToWorld(screenX, screenY);
 
-        for (const star of snapshot.stars) {
+        for (const star of stars) {
             const dist = distance(x, y, star.x, star.y);
             // FIX: Enlarge hit target (4x radius or 80px min)
             // Make it excessively clickable

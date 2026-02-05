@@ -258,6 +258,16 @@ function setupRoomListeners(): void {
         syncStateFromRoom(state);
     });
 
+    // Handle playerJoined message (sent by server when a player joins)
+    room.onMessage('playerJoined', (data: { sessionId: string }) => {
+        console.log(`👤 Player joined message received: ${data.sessionId}`);
+    });
+
+    // Handle welcome message (sent by server on join)
+    room.onMessage('welcome', (message: string) => {
+        console.log(`👋 Welcome message: ${message}`);
+    });
+
     // Error handler
     room.onError((code: number, message?: string) => {
         console.error(`❌ Room error [${code}]:`, message);
