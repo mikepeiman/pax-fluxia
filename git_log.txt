@@ -1,0 +1,100 @@
+﻿3287307 fix: Critical bug - disabled ships not subtracted from active pool, causing infinite ship generation
+ad17d78 debug: Add combat logging to trace ship adding bug
+7134756 fix: Combat balance + drag chaining in multiplayer mode
+b65dcd0 refactor: Update +page.svelte to use activeGameStore facade
+e69f045 feat: Add activeGameStore.svelte.ts unified facade for game state
+2e2ebde refactor: Use shared combat logic from @pax/common in GameRoom.ts
+16f3edb feat: Add /common shared package with types, combat, production, orders modules
+ab2beaf fix: Add server AI logic + Fix player identification in Leaderboard
+1312051 feat: Wire up SpeedControls to use multiplayer actions + fix GameSpeed type
+1a2eeed fix: hitTestStar now uses multiplayerStore.stars + register message handlers
+92199e3 fix: Look up player colors dynamically in multiplayer mode
+534b48a feat: Make GameCanvas multiplayer-aware - ownership checks and order commands
+2300806 feat: Connect GameCanvas to multiplayerStore for multiplayer game rendering
+a94f05a fix: Add phase transition effect to switch from lobby to game view when multiplayer game starts
+1d79f55 fix: Switch back to game_room - multiplayer networking confirmed working with Node.js
+439fe62 fix: Switch to default uWebSocketsTransport - BunWebSockets doesn't support HTTP matchmaker
+f9f8a64 debug: Use test_room (minimal schema) instead of game_room for debugging
+fdc96d9 fix: Pin colyseus@0.17.8 to match client SDK version
+f938bc9 debug: Add minimal TestRoom and direct HTML test client to isolate issue
+a7dc0a2 fix: Apply 3 targeted fixes - this.setState(), .snapshot(), explicit 127.0.0.1 binding
+5b41953 debug: Add dev:node script to test with Node.js via tsx
+aecedf5 fix: Use BunWebSockets transport for Bun compatibility
+bf6f87a debug: Add exhaustive logging to both client and server for WebSocket debugging
+218f5e4 debug: Try Server class instead of defineServer for better debugging
+ace862b fix: Svelte 5 Proxy trap - use plain object for Colyseus options, use 127.0.0.1 instead of localhost
+9774b43 fix: Remove Room generic type per 0.17 migration guide
+57f3a41 debug: Add aggressive diagnostic logging to onCreate
+9c8753d fix: Add experimentalDecorators and useDefineForClassFields: false to tsconfig (required for @colyseus/schema)
+856189c fix: Use state as class property (Colyseus 0.17 pattern)
+557339a fix: Remove Express - let defineServer handle routing
+e1e20e0 feat: Switch to defineServer pattern and @colyseus/sdk per official docs
+10ba4e3 feat: Switch to @colyseus/bun-websockets transport and simplify server
+0247902 fix: Use gameServer.attach() for matchmaking routes
+fbfa973 fix: Add matchMaker.controller for HTTP matchmaking routes
+a4e92d4 feat: Upgrade to latest Colyseus 0.17.8 + colyseus.js 0.16.22
+6017c5b fix: Wait for onStateChange callback instead of reading room.state early
+a8e1bd7 fix: Clean multiplayerStore with proper initial state sync
+36ddd1a fix: Align Colyseus versions - server 0.15.57/schema 2.0.35, client 0.15.25
+117ca75 fix: Downgrade @colyseus/schema to 1.x for client compatibility
+1c3980d fix: Add debug logging and improved state sync for multiplayer lobby
+fce40ea fix: Add auto port-finding and fix health endpoint
+5a94688 fix: Add port-in-use error handling to server
+310dfeb feat: Add Colyseus multiplayer server and client integration
+dc88807 fix: Transfer Rate now persists to localStorage
+38cf792 fix: remove decimals from all ship counts in combat logs
+a20c149 feat: make all Control Panel sections collapsible
+d47428a feat: add Transfer Rate slider to Control Panel (right sidebar)
+fdc9e63 fix: semantic rename FLOW_* to TRANSFER_*, fix 100% transfer bug
+bed4178 fix: ship count bug, flow slider, self-highlight
+e3991b9 feat: collapsible panels, main game density effects
+f21472a feat: enhanced star labels, updated roadmap
+4bc1292 feat: UI controls and visual enhancements
+2668f26 fix: auto-aggression bug - clear conquered star orders
+8105e1b feat: SFD improvements - production, attack animation, 5k ships
+cb23ab8 fix: critical combat and order bugs
+ef07187 feat: conquest order retention, START button contrast, in-game toggle
+9a22082 feat: Complete standalone demo with movement, orders, stacking, START button
+a83065f feat: Add spacebar pause, click orders from enemy, START button, 10-layer ship stacking with tint
+513d05f fix: Simplify persistence flag, rewrite orbit demo with correct concentric ring logic
+f56d4dd feat: Add order persistence through conquest with ctrl-click override and standalone orbit demo
+43f3537 fix: Normalize defensivePosture to 1.0, remove misleading 'remote engagement' terminology, save territory reference image
+634412e docs: Add star type functional effects to PRD, update feature roadmap with user feedback
+c983997 Performed a semantic audit and update on codebase
+b859ced docs: semantic naming rule and rename proposal (40 items for review)
+522532e fix: audio system - remove ambient drone, fix timing errors, add settings modal
+b444b97 docs: update FEATURE_STATUS.md with completed audio, passthrough, star spacing
+31ca0cd feat: star spacing slider in pre-game menu (0.5x dense to 2.0x sparse)
+898db50 fix: passthrough/deferred orders now work - don't clear defender target on capture (preserves queued orders)
+659e1e1 feat: audio system with Tone.js - tick metronome, ambient drone, order chimes, combat sounds
+20d30db improve: larger star labels offset with leash line for better readability
+ec399f0 refactor: simpler chain conquest fix - check if target still set instead of tracking original owner. Preserves chain-through orders from new owner.
+86af424 chore: remove debug instrumentation from CombatLogPanel
+d9da8bf chore: remove dead code (handleFleetArrivals, resolveMultiwayCombat) - ~280 lines
+19eac9c fix: chain conquest bug - capture original owner at order collection to prevent mid-tick ownership change exploits
+9e24921 improve: combat logs now show owner/player names instead of star visual colors
+d91d5d2 feat: control panel fixes, AI behavior vars, leaderboard reactivity, combat log detail
+084b759 feat: speed button highlights, deferred orders, responsive gameboard scaling
+757d652 feat: SCATTER/retreat logic, combat log fix, game settings with localStorage
+870f7e4 fix: Click-to-command, remove stars panel, expand control panel
+e1d5adb fix: Stuck arrows, surrender, map variety, attack animation, UI controls
+db77fc1 feat: Responsive UI, endgame charts, star limit fix, combat log drawer
+e276a47 Migrate repo to workspace root; Switch to Cursor IDE context
+b217a9d Further reversions, game is in decent state now, good checkpoint.
+4b26592 fix(view): resolve build error in reverted GameCanvas
+852c4a2 checkpoint: saving current state before revert
+f9cb680 UI: Redesign Stars Panel, Fix drawers/canvas, Fix conquest logic
+1bb128b Fix: Pause button sync, Canvas resize, Multi-source conquest
+77b979f Add DEBUG MAP mode with 4-star fixed configuration
+a5d7148 Fix slider reactivity, restructure layout with Controls/Logs left column
+33dbb9d Add CombatDebugPanel and responsive canvas scaling
+7d31187 MSP - many steps completed, UI update, battle mechanics still not correct. AI failing to follow protocols
+5cd47f0 feat: star type canonical spec, UI improvements for battle logs, and telemetry cleanup
+810331f fix(engine): remove lingering legacy StarType references
+5dcc3d2 refactor(view): restore StarType in GameCanvas
+a3e0933 refactor(engine): restore StarType in GameEngine
+1ac5e36 refactor(engine): restore StarType usage in Star class
+a7f0b17 refactor: restore StarType semantic naming with Color values
+adc28a8 refactor(view): update GameCanvas to use StarColor
+fb4ba9a refactor(engine): use StarColor in map generation
+32d39ba refactor(engine): update Star.ts to use StarColor and standard icons
