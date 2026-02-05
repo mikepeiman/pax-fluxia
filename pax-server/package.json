@@ -10,7 +10,7 @@
     },
     "dependencies": {
         "@colyseus/bun-websockets": "^0.17.6",
-        "colyseus": "latest"
+        "colyseus": "0.17.8"
     },
     "devDependencies": {
         "tsx": "^4.21.0",
