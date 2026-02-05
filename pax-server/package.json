@@ -9,6 +9,7 @@
         "build": "bun build src/index.ts --outdir dist --target node"
     },
     "dependencies": {
+        "@pax/common": "workspace:*",
         "@colyseus/bun-websockets": "^0.17.6",
         "colyseus": "0.17.8"
     },

@@ -1,0 +1,13 @@
+{
+    "name": "pax-fluxia-monorepo",
+    "private": true,
+    "workspaces": [
+        "common",
+        "pax-fluxia",
+        "pax-server"
+    ],
+    "scripts": {
+        "dev": "npm run dev --workspace=pax-fluxia & npm run dev:node --workspace=pax-server",
+        "build": "npm run build --workspaces"
+    }
+}
