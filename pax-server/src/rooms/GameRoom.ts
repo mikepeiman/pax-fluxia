@@ -446,12 +446,20 @@ export class GameRoom extends Room {
 
     private executeTick() {
         this.state.tick++;
+        const tick = this.state.tick;
+
+        // Snapshot before all operations for debugging
+        const starSnapshot: Record<string, { active: number; damaged: number }> = {};
+        this.state.stars.forEach(star => {
+            starSnapshot[star.id] = { active: star.activeShips, damaged: star.damagedShips };
+        });
 
         // 1. PRODUCTION
         this.state.stars.forEach(star => {
             if (star.ownerId && star.ownerId !== 'neutral') {
-                // Simple production: add ships based on productionRate
+                const before = star.activeShips;
                 star.activeShips += star.productionRate;
+                console.log(`[T${tick}][PROD] ${star.id}: ${before} + ${star.productionRate} = ${star.activeShips}`);
             }
         });
 
@@ -464,9 +472,11 @@ export class GameRoom extends Room {
         // 4. REPAIR
         this.state.stars.forEach(star => {
             if (star.damagedShips > 0) {
+                const before = { active: star.activeShips, damaged: star.damagedShips };
                 const repaired = Math.max(1, Math.floor(star.damagedShips * star.repairRate));
                 star.damagedShips -= repaired;
                 star.activeShips += repaired;
+                console.log(`[T${tick}][REPAIR] ${star.id}: active ${before.active}+${repaired}=${star.activeShips}, damaged ${before.damaged}-${repaired}=${star.damagedShips}`);
             }
         });
 
@@ -475,6 +485,15 @@ export class GameRoom extends Room {
 
         // 6. CHECK WIN CONDITION
         this.checkWinCondition();
+
+        // Final summary for stars in combat
+        this.state.stars.forEach(star => {
+            if (star.targetId || starSnapshot[star.id]?.active !== star.activeShips) {
+                const before = starSnapshot[star.id];
+                const delta = star.activeShips - before.active;
+                console.log(`[T${tick}][DELTA] ${star.id}: ${before.active} → ${star.activeShips} (${delta >= 0 ? '+' : ''}${delta})`);
+            }
+        });
 
         // Update tick progress
         this.state.tickProgress = 0;
@@ -555,15 +574,18 @@ export class GameRoom extends Room {
                 const result = calculateCombat(source.activeShips, target.activeShips);
 
                 // Apply damage to attacker (source)
-                source.activeShips = Math.max(0, source.activeShips - result.attackerKills);
+                // BUG FIX: Subtract BOTH kills AND disabled from active (disabled ships come FROM active pool)
+                const attackerTotalDamage = result.attackerKills + result.attackerDisabled;
+                source.activeShips = Math.max(0, source.activeShips - attackerTotalDamage);
                 source.damagedShips += result.attackerDisabled;
 
                 // Apply damage to defender (target)
-                target.activeShips = Math.max(0, target.activeShips - result.defenderKills);
+                const defenderTotalDamage = result.defenderKills + result.defenderDisabled;
+                target.activeShips = Math.max(0, target.activeShips - defenderTotalDamage);
                 target.damagedShips += result.defenderDisabled;
 
                 // DEBUG: Log after combat
-                console.log(`[COMBAT] ${source.id}(${beforeSource}->${source.activeShips}) attacks ${target.id}(${beforeTarget}->${target.activeShips}) | kills: atk=${result.attackerKills} def=${result.defenderKills}`);
+                console.log(`[COMBAT] ${source.id}(${beforeSource}->${source.activeShips}) attacks ${target.id}(${beforeTarget}->${target.activeShips}) | kills: atk=${result.attackerKills} def=${result.defenderKills} | disabled: atk=${result.attackerDisabled} def=${result.defenderDisabled}`);
 
                 // Check conquest
                 if (target.activeShips <= 0) {
