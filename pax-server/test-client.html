@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Test Room - Direct WebSocket Test</title>
+    <style>
+        body {
+            font-family: system-ui;
+            padding: 20px;
+            background: #1a1a2e;
+            color: #eee;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 5px;
+        }
+
+        #log {
+            background: #16213e;
+            padding: 15px;
+            border-radius: 8px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .success {
+            color: #4ade80;
+        }
+
+        .error {
+            color: #f87171;
+        }
+
+        .info {
+            color: #60a5fa;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🧪 Test Room - Direct WebSocket Test</h1>
+    <p>This bypasses Svelte entirely to test if Colyseus WebSocket works.</p>
+
+    <button id="testBtn">Test Create Room</button>
+    <button id="testGameBtn">Test Game Room</button>
+
+    <h2>Log</h2>
+    <div id="log"></div>
+
+    <script type="module">
+        import { Client } from 'https://unpkg.com/@colyseus/sdk@0.17.25/dist/colyseus.esm.js';
+
+        const log = (msg, type = 'info') => {
+            const p = document.createElement('p');
+            p.className = type;
+            p.textContent = `${new Date().toLocaleTimeString()}: ${msg}`;
+            document.getElementById('log').prepend(p);
+            console.log(msg);
+        };
+
+        // Use 127.0.0.1 instead of localhost
+        const client = new Client('http://127.0.0.1:2567');
+        log('Client created for 127.0.0.1:2567', 'info');
+
+        document.getElementById('testBtn').addEventListener('click', async () => {
+            log('Creating test_room...', 'info');
+            try {
+                const room = await client.create('test_room', { name: 'DirectTestPlayer' });
+                log(`✅ SUCCESS! Room created: ${room.roomId}`, 'success');
+                log(`   Session ID: ${room.sessionId}`, 'success');
+                log(`   Room state: ${JSON.stringify(room.state)}`, 'success');
+
+                room.onStateChange((state) => {
+                    log(`State change: ${JSON.stringify(state)}`, 'info');
+                });
+
+                room.onError((code, message) => {
+                    log(`Room error [${code}]: ${message}`, 'error');
+                });
+
+                room.onLeave((code) => {
+                    log(`Left room with code: ${code}`, 'info');
+                });
+            } catch (e) {
+                log(`❌ FAILED: ${e.message}`, 'error');
+                log(`   Error name: ${e.name}`, 'error');
+                log(`   Error code: ${e.code}`, 'error');
+            }
+        });
+
+        document.getElementById('testGameBtn').addEventListener('click', async () => {
+            log('Creating game_room...', 'info');
+            try {
+                const room = await client.create('game_room', { playerCount: 4, mapType: 'standard' });
+                log(`✅ SUCCESS! Room created: ${room.roomId}`, 'success');
+                log(`   Session ID: ${room.sessionId}`, 'success');
+            } catch (e) {
+                log(`❌ FAILED: ${e.message}`, 'error');
+                log(`   Error code: ${e.code}`, 'error');
+            }
+        });
+    </script>
+</body>
+
+</html>
