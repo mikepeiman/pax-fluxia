@@ -13,3 +13,6 @@ export * from './production';
 
 // Re-export order logic
 export * from './orders';
+
+// Re-export schema definitions
+export * from './schema/GameState';

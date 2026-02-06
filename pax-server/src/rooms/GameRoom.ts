@@ -518,7 +518,7 @@ export class GameRoom extends Room {
 
                 // Find connected stars
                 const connectedIds = Array.from(this.state.connections)
-                    .filter(c => c.sourceId === star.id)
+                    .filter((c): c is ConnectionSchema => c != null && c.sourceId === star.id)
                     .map(c => c.targetId);
 
                 // Look for enemy target
