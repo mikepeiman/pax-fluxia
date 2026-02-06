@@ -2,6 +2,7 @@
 // Game Configuration - Centralized tunable game variables
 // ============================================================================
 
+import { calculateCombat as sharedCalculateCombat } from '@pax/common';
 /**
  * Game configuration interface for type safety
  */
@@ -317,13 +318,9 @@ export function calculateTransferAmount(activeShips: number): number {
 }
 
 /**
- * COMBAT V4 - Symmetric Damage Calculation (FIXED)
+ * COMBAT V4 - Wrapper around shared combat logic from @pax/common
  * 
- * CORRECT LOGIC:
- * - Side A and Side B exchange fire simultaneously
- * - Each side's DAMAGE OUTPUT = their ships * DAMAGE_PER_SHIP
- * - Aggressor bonus: Attacker deals more damage (not receives less)
- * - Force ratio: Larger force deals MORE damage proportionally
+ * This ensures single-player uses the exact same combat calculation as multiplayer.
  * 
  * @param sideAShips - Ships on side A (typically defender)
  * @param sideBShips - Ships on side B (typically attacker)
@@ -344,56 +341,22 @@ export function calculateCombatV4(
     disabledOnA: number;
     disabledOnB: number;
 } {
-    if (sideAShips <= 0 || sideBShips <= 0) {
-        return { damageToA: 0, damageToB: 0, killsOnA: 0, killsOnB: 0, disabledOnA: 0, disabledOnB: 0 };
-    }
+    // Use the shared combat function from @pax/common for parity
+    const result = sharedCalculateCombat(
+        sideAShips,
+        sideBShips,
+        sideAIsAttacking,
+        sideBIsAttacking
+    );
 
-    // ========================================================================
-    // DAMAGE OUTPUT CALCULATION
-    // Each side's damage output = their ship count * damage per ship
-    // ========================================================================
-    const baseOutputA = sideAShips * GAME_CONFIG.DAMAGE_PER_SHIP;
-    const baseOutputB = sideBShips * GAME_CONFIG.DAMAGE_PER_SHIP;
-
-    // ========================================================================
-    // AGGRESSOR ADVANTAGE
-    // Attacking side deals MORE damage (bonus to output, not reduction to input)
-    // ========================================================================
-    const aggressorA = sideAIsAttacking ? GAME_CONFIG.AGGRESSOR_ADVANTAGE : 1.0;
-    const aggressorB = sideBIsAttacking ? GAME_CONFIG.AGGRESSOR_ADVANTAGE : 1.0;
-
-    const outputA = baseOutputA * aggressorA;  // A's damage output
-    const outputB = baseOutputB * aggressorB;  // B's damage output
-
-    // ========================================================================
-    // FORCE RATIO MODIFIER (non-linear via log2)
-    // Larger force has advantage: deals more damage, takes less
-    // ========================================================================
-    const ratio = Math.max(sideAShips, sideBShips) / Math.min(sideAShips, sideBShips);
-    const forceBonus = 1 + (Math.log2(ratio) * GAME_CONFIG.FORCE_RATIO_EFFECT);
-
-    const aIsLarger = sideAShips > sideBShips;
-
-    // Larger force: output multiplied by bonus, input divided by bonus
-    // Smaller force: output divided by bonus, input multiplied by bonus
-    const outputModA = aIsLarger ? forceBonus : (1 / forceBonus);
-    const outputModB = aIsLarger ? (1 / forceBonus) : forceBonus;
-
-    // ========================================================================
-    // FINAL DAMAGE CALCULATION
-    // A's output affects B (damageToB), B's output affects A (damageToA)
-    // ========================================================================
-    const damageToA = Math.max(1, outputB * outputModB);  // B attacks A
-    const damageToB = Math.max(1, outputA * outputModA);  // A attacks B
-
-    // ========================================================================
-    // SPLIT INTO KILLS VS DISABLED
-    // Lethality determines percentage destroyed vs. converted to damaged
-    // ========================================================================
-    const killsOnA = Math.floor(damageToA * GAME_CONFIG.LETHALITY);
-    const disabledOnA = Math.floor(damageToA * (1 - GAME_CONFIG.LETHALITY));
-    const killsOnB = Math.floor(damageToB * GAME_CONFIG.LETHALITY);
-    const disabledOnB = Math.floor(damageToB * (1 - GAME_CONFIG.LETHALITY));
-
-    return { damageToA, damageToB, killsOnA, killsOnB, disabledOnA, disabledOnB };
+    // Map the shared result format to the local expected format
+    return {
+        damageToA: result.killsOnA + result.disabledOnA,
+        damageToB: result.killsOnB + result.disabledOnB,
+        killsOnA: result.killsOnA,
+        killsOnB: result.killsOnB,
+        disabledOnA: result.disabledOnA,
+        disabledOnB: result.disabledOnB
+    };
 }
+
