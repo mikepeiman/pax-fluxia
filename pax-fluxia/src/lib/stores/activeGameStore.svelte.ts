@@ -2,81 +2,142 @@
 // Active Game Store - Unified facade for game state
 // ============================================================================
 // This store provides a single interface for all game state and actions,
-// automatically delegating to the correct backend (server via multiplayerStore).
+// automatically delegating to the correct backend:
+//   - SINGLE-PLAYER: Uses gameStore (local GameEngine)
+//   - MULTIPLAYER: Uses multiplayerStore (Colyseus server)
+// 
 // Components should ONLY use this store, never directly access gameStore or multiplayerStore.
 
 import { multiplayerStore } from './multiplayerStore.svelte';
+import { gameStore } from './gameStore.svelte';
 import type { Star, Player, Connection, GameSpeed } from '@pax/common';
 import { validateOrder } from '@pax/common';
+import type { StarState, PlayerState, ConnectionState } from '$lib/types/game.types';
 
 // ============================================================================
-// State Accessors (read from server state via multiplayerStore)
+// Mode Detection
+// ============================================================================
+
+/**
+ * Determine if we're in multiplayer mode.
+ * Multiplayer = connected to a Colyseus room (inRoom or playing)
+ */
+function isMultiplayerMode(): boolean {
+    const mpPhase = multiplayerStore.phase;
+    return mpPhase === 'inRoom' || mpPhase === 'playing';
+}
+
+// ============================================================================
+// State Accessors (route to correct source)
 // ============================================================================
 
 /**
  * Current game phase
  */
 function getPhase(): 'menu' | 'lobby' | 'playing' | 'results' {
-    const mp = multiplayerStore.phase;
-    if (mp === 'playing') return 'playing';
-    if (mp === 'inRoom') return 'lobby';
-    return 'menu';
+    if (isMultiplayerMode()) {
+        const mp = multiplayerStore.phase;
+        if (mp === 'playing') return 'playing';
+        if (mp === 'inRoom') return 'lobby';
+        return 'menu';
+    } else {
+        // Single-player: check gameStore
+        if (gameStore.currentView === 'game') {
+            return gameStore.hasStarted ? 'playing' : 'lobby';
+        }
+        if (gameStore.currentView === 'results') return 'results';
+        return 'menu';
+    }
 }
 
 /**
  * All stars in the game
  */
 function getStars(): Star[] {
-    return multiplayerStore.stars as Star[];
+    if (isMultiplayerMode()) {
+        return multiplayerStore.stars as Star[];
+    } else {
+        return (gameStore.snapshot?.stars ?? []) as unknown as Star[];
+    }
 }
 
 /**
  * All connections between stars
  */
 function getConnections(): Connection[] {
-    return multiplayerStore.connections as Connection[];
+    if (isMultiplayerMode()) {
+        return multiplayerStore.connections as Connection[];
+    } else {
+        return (gameStore.snapshot?.connections ?? []) as unknown as Connection[];
+    }
 }
 
 /**
  * All players in the game
  */
 function getPlayers(): Player[] {
-    return multiplayerStore.players as Player[];
+    if (isMultiplayerMode()) {
+        return multiplayerStore.players as Player[];
+    } else {
+        return (gameStore.snapshot?.players ?? []) as unknown as Player[];
+    }
 }
 
 /**
  * Local player's ID (the user running this client)
  */
 function getLocalPlayerId(): string | null {
-    return multiplayerStore.getLocalPlayerId();
+    if (isMultiplayerMode()) {
+        return multiplayerStore.getLocalPlayerId();
+    } else {
+        // Single-player: human player ID
+        const human = gameStore.snapshot?.players.find(p => !p.isAI);
+        return human?.id ?? null;
+    }
 }
 
 /**
  * Whether game is paused
  */
 function getIsPaused(): boolean {
-    return multiplayerStore.isPaused;
+    if (isMultiplayerMode()) {
+        return multiplayerStore.isPaused;
+    } else {
+        return gameStore.snapshot?.isPaused ?? true;
+    }
 }
 
 /**
  * Current game speed
  */
 function getSpeed(): number {
-    return multiplayerStore.speed;
+    if (isMultiplayerMode()) {
+        return multiplayerStore.speed;
+    } else {
+        return gameStore.snapshot?.speed ?? 1;
+    }
 }
 
 /**
  * Whether local player is the host
  */
 function getIsHost(): boolean {
-    return multiplayerStore.isHost;
+    if (isMultiplayerMode()) {
+        return multiplayerStore.isHost;
+    } else {
+        return true; // Single-player is always host
+    }
 }
 
 /**
  * Tick progress (0-1) for animations
  */
 function getTickProgress(): number {
-    return multiplayerStore.tickProgress;
+    if (isMultiplayerMode()) {
+        return multiplayerStore.tickProgress;
+    } else {
+        return gameStore.tickProgress;
+    }
 }
 
 // ============================================================================
@@ -104,56 +165,85 @@ function getPlayerColor(ownerId: string): number {
 }
 
 // ============================================================================
-// Actions (send to server via multiplayerStore)
+// Actions (route to correct handler)
 // ============================================================================
 
 /**
  * Issue an order from source star to target star
  */
 function issueOrder(sourceId: string, targetId: string, persist?: boolean): void {
-    multiplayerStore.issueOrder(sourceId, targetId, persist);
+    if (isMultiplayerMode()) {
+        multiplayerStore.issueOrder(sourceId, targetId, persist);
+    } else {
+        gameStore.issueOrder(sourceId, targetId, persist);
+    }
 }
 
 /**
  * Cancel an existing order
  */
 function cancelOrder(starId: string): void {
-    multiplayerStore.cancelOrder(starId);
+    if (isMultiplayerMode()) {
+        multiplayerStore.cancelOrder(starId);
+    } else {
+        gameStore.cancelOrder(starId);
+    }
 }
 
 /**
  * Set a deferred order on an enemy star
  */
 function setDeferredOrder(starId: string, targetId: string, persist?: boolean): void {
-    multiplayerStore.setDeferredOrder(starId, targetId, persist);
+    if (isMultiplayerMode()) {
+        multiplayerStore.setDeferredOrder(starId, targetId, persist);
+    } else {
+        gameStore.setDeferredOrder(starId, targetId, persist);
+    }
 }
 
 /**
  * Pause the game
  */
 function pauseGame(): void {
-    multiplayerStore.pauseGame();
+    if (isMultiplayerMode()) {
+        multiplayerStore.pauseGame();
+    } else {
+        gameStore.pauseGame();
+    }
 }
 
 /**
  * Resume the game
  */
 function resumeGame(): void {
-    multiplayerStore.resumeGame();
+    if (isMultiplayerMode()) {
+        multiplayerStore.resumeGame();
+    } else {
+        gameStore.resumeGame();
+    }
 }
 
 /**
  * Set game speed
  */
 function setSpeed(speed: GameSpeed): void {
-    multiplayerStore.setSpeed(speed);
+    if (isMultiplayerMode()) {
+        multiplayerStore.setSpeed(speed);
+    } else {
+        gameStore.setSpeed(speed);
+    }
 }
 
 /**
- * Start the game (host only)
+ * Start the game (host only, or single-player)
  */
 function startGame(): void {
-    multiplayerStore.startGame();
+    if (isMultiplayerMode()) {
+        multiplayerStore.startGame();
+    } else {
+        // Single-player: begin the game (START button)
+        gameStore.beginGame();
+    }
 }
 
 // ============================================================================
@@ -179,6 +269,9 @@ function canIssueOrder(sourceId: string, targetId: string): boolean {
 // ============================================================================
 
 export const activeGameStore = {
+    // Mode detection
+    get isMultiplayer() { return isMultiplayerMode(); },
+
     // State getters
     get phase() { return getPhase(); },
     get stars() { return getStars(); },
