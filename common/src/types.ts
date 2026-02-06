@@ -111,4 +111,10 @@ export interface StarConfig {
     starType?: StarType;
     activeShips?: number;
     damagedShips?: number;
+    // Combat V2 optional properties
+    activationRate?: number;
+    defensivePosture?: number;
+    defenseStrength?: number;
+    repairRate?: number;
+    transferRate?: number;
 }

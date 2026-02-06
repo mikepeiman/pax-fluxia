@@ -1,95 +1,82 @@
 // ============================================================================
-// Core Game Types - Basic type definitions
+// Core Game Types - Re-export from @pax/common with local extensions
 // ============================================================================
 
-export type StarId = string;
-export type PlayerId = string;
-export type StarType = 'grey' | 'yellow' | 'blue' | 'purple' | 'red' | 'green';
+// Re-export all types from @pax/common as the canonical source
+export type {
+  StarId,
+  PlayerId,
+  StarType,
+  GameSpeed,
+  GameState,
+  GameSettings,
+  Player,
+  Star,
+  Connection,
+  CombatResult,
+  StarConfig
+} from '@pax/common';
 
-export interface GameState {
-  tick: number;
-  players: PlayerState[];
-  stars: StarState[];
-  connections: StarConnection[];
-  territoryPolygons?: Record<string, number[][]>;
-}
+// Import for local use
+import type {
+  Player as CommonPlayer,
+  Star as CommonStar,
+  Connection as CommonConnection,
+  GameState as CommonGameState
+} from '@pax/common';
 
-export interface PlayerState {
-  id: PlayerId;
-  name: string;
-  color: string;
-  isAI: boolean;
-  isEliminated: boolean;
-  // Extended stats (computed by GameEngine)
-  starCount?: number;
-  totalShips?: number;
-  activeShips?: number;
-  damagedShips?: number;
-  production?: number; // Total production rate across all owned stars
-}
+// ============================================================================
+// Local Type Aliases (for backward compatibility)
+// ============================================================================
 
-export interface StarState {
-  id: StarId;
-  x: number;
-  y: number;
-  radius: number;
-  productionRate: number;
-  activeShips: number;
-  damagedShips: number;
-  ownerId: PlayerId;
-  targetId: StarId | null;
-  queuedOrderTargetId: StarId | null;
-  icon: string;
-  starType: StarType;
-  activationRate: number;
-  defensivePosture: number;
-  defenseStrength: number;
-  repairRate: number;
-  transferRate: number;
-}
+/** @deprecated Use Player from @pax/common */
+export type PlayerState = CommonPlayer;
 
-export interface StarConnection {
-  sourceId: StarId;
-  targetId: StarId;
-  distance: number;
-}
+/** @deprecated Use Star from @pax/common */
+export type StarState = CommonStar;
 
-export interface StarConfig {
-  x: number;
-  y: number;
-  radius: number;
-  productionRate: number;
-  ownerId: PlayerId;
-  starType?: StarType;
-  activeShips?: number;
-  damagedShips?: number;
-  activationRate?: number;
-  defensivePosture?: number;
-  defenseStrength?: number;
-  repairRate?: number;
-  transferRate?: number;
-}
+/** @deprecated Use Connection from @pax/common */
+export type StarConnection = CommonConnection;
+
+/** @deprecated Use Connection from @pax/common */
+export type ConnectionState = CommonConnection;
+
+// ============================================================================
+// Client-Specific Types (not in common)
+// ============================================================================
+
+export type GameView = 'menu' | 'game' | 'results';
+
+export type AILevel = 'easy' | 'normal' | 'hard';
 
 export interface EngineConfig {
-  settings: GameSettings;
-  humanPlayerId: PlayerId;
+  settings: import('@pax/common').GameSettings;
+  humanPlayerId: string;
 }
 
-export interface GameSettings {
-  playerCount: number;
-  mapType?: 'standard' | 'debug';
-  starSpacing?: number;
-  minLinksPerStar?: number;
-  maxLinksPerStar?: number;
-  difficulty?: string;
-  gameSpeed?: number;
+// ============================================================================
+// Stats Types (for endgame charts)
+// ============================================================================
+
+export interface GameHistoryEntry {
+  tick: number;
+  players: {
+    id: string;
+    starCount: number;
+    totalShips: number;
+    production: number;
+  }[];
 }
 
-export type GameSpeed = 0 | 1 | 2 | 4 | 10;
+// ============================================================================
+// Fleet Types (client-side only, for fleet animations)
+// ============================================================================
 
-export interface CombatResult {
-  killsOnA: number;
-  killsOnB: number;
-  disabledOnA: number;
-  disabledOnB: number;
+export interface FleetState {
+  id: string;
+  sourceId: string;
+  targetId: string;
+  ownerId: string;
+  shipCount: number;
+  progress: number;
 }
