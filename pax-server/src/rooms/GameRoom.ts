@@ -17,6 +17,8 @@ import {
     calculateRepair,
     calculateTransfer,
     isAttackOrder,
+    getEffectiveDefenderForce,
+    checkConquestThreshold,
     COMBAT_CONFIG,
     ORDER_CONFIG
 } from "@pax/common";
@@ -550,57 +552,208 @@ export class GameRoom extends Room {
         }
     }
 
+    // ════════════════════════════════════════════════════════════════════════
+    // PROCESS ORDERS - Multi-star aggregation
+    // ════════════════════════════════════════════════════════════════════════
+    // 
+    // ┌─────────────────────────────────────────────────────────────────────┐
+    // │ PROCESS:                                                           │
+    // │   1. COLLECT all attack orders into map grouped by target          │
+    // │   2. COLLECT all reinforcement orders into array                   │
+    // │   3. PROCESS reinforcements (ships physically move)                │
+    // │   4. RESOLVE each target with ALL its attackers at once            │
+    // └─────────────────────────────────────────────────────────────────────┘
+
     private processOrders() {
+        // ──────────────────────────────────────────────────────────────────
+        // PHASE 1: COLLECTION
+        // Group attacks by target, collect reinforcements separately
+        // ──────────────────────────────────────────────────────────────────
+        const attacksByTarget = new Map<string, StarSchema[]>();
+        const reinforcements: { source: StarSchema; target: StarSchema }[] = [];
+
         this.state.stars.forEach(source => {
             if (!source.targetId) return;
 
             const target = this.state.stars.get(source.targetId);
             if (!target) return;
 
-            // Use shared logic to determine attack vs reinforcement
-            if (source.ownerId !== target.ownerId) {
-                // COMBAT: Use shared combat calculation
-                if (target.activeShips <= 0) {
-                    // Instant conquest
-                    this.executeConquest(source, target);
-                    return;
+            const isAttack = source.ownerId !== target.ownerId;
+
+            if (isAttack) {
+                // Group attacks by target
+                if (!attacksByTarget.has(target.id)) {
+                    attacksByTarget.set(target.id, []);
                 }
-
-                // DEBUG: Log before combat
-                const beforeSource = source.activeShips;
-                const beforeTarget = target.activeShips;
-
-                // Calculate combat using shared logic
-                const result = calculateCombat(source.activeShips, target.activeShips);
-
-                // Apply damage to attacker (source)
-                // BUG FIX: Subtract BOTH kills AND disabled from active (disabled ships come FROM active pool)
-                const attackerTotalDamage = result.attackerKills + result.attackerDisabled;
-                source.activeShips = Math.max(0, source.activeShips - attackerTotalDamage);
-                source.damagedShips += result.attackerDisabled;
-
-                // Apply damage to defender (target)
-                const defenderTotalDamage = result.defenderKills + result.defenderDisabled;
-                target.activeShips = Math.max(0, target.activeShips - defenderTotalDamage);
-                target.damagedShips += result.defenderDisabled;
-
-                // DEBUG: Log after combat
-                console.log(`[COMBAT] ${source.id}(${beforeSource}->${source.activeShips}) attacks ${target.id}(${beforeTarget}->${target.activeShips}) | kills: atk=${result.attackerKills} def=${result.defenderKills} | disabled: atk=${result.attackerDisabled} def=${result.defenderDisabled}`);
-
-                // Check conquest
-                if (target.activeShips <= 0) {
-                    this.executeConquest(source, target);
-                }
+                attacksByTarget.get(target.id)!.push(source);
             } else {
-                // REINFORCEMENT: Use shared transfer calculation
-                const transferAmount = calculateTransfer(source as any);
-                if (transferAmount > 0 && source.activeShips > 0) {
-                    const shipped = Math.min(transferAmount, source.activeShips);
-                    source.activeShips -= shipped;
-                    target.activeShips += shipped;
-                }
+                // Collect reinforcements
+                reinforcements.push({ source, target });
             }
         });
+
+        // ──────────────────────────────────────────────────────────────────
+        // PHASE 2: PROCESS REINFORCEMENTS
+        // Ships physically move from source to target
+        // ──────────────────────────────────────────────────────────────────
+        reinforcements.forEach(({ source, target }) => {
+            const transferAmount = calculateTransfer(source as any);
+            if (transferAmount > 0 && source.activeShips > 0) {
+                const shipped = Math.min(transferAmount, source.activeShips);
+                source.activeShips -= shipped;
+                target.activeShips += shipped;
+            }
+        });
+
+        // ──────────────────────────────────────────────────────────────────
+        // PHASE 3: RESOLVE EACH TARGET WITH ALL ATTACKERS
+        // Multi-star aggregation: all attackers on same target resolved together
+        // ──────────────────────────────────────────────────────────────────
+        attacksByTarget.forEach((attackers, targetId) => {
+            const target = this.state.stars.get(targetId);
+            if (target) {
+                this.resolveMultiSourceCombat(attackers, target);
+            }
+        });
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // MULTI-SOURCE COMBAT RESOLUTION
+    // ════════════════════════════════════════════════════════════════════════
+    //
+    // ┌─────────────────────────────────────────────────────────────────────┐
+    // │ INPUTS:                                                            │
+    // │   • attackers: StarSchema[]  Array of all stars attacking target   │
+    // │   • defender: StarSchema     The target star being attacked        │
+    // ├─────────────────────────────────────────────────────────────────────┤
+    // │ PROCESS:                                                           │
+    // │   1. FILTER invalid attackers (no ships, target changed)           │
+    // │   2. SUM total attacking force, track contributions                │
+    // │   3. CALCULATE defender force (active + damaged*effectiveness)     │
+    // │   4. RUN combat with TOTAL forces                                  │
+    // │   5. APPLY damage to defender                                      │
+    // │   6. DISTRIBUTE return fire proportionally to attackers            │
+    // │   7. CHECK conquest threshold                                      │
+    // └─────────────────────────────────────────────────────────────────────┘
+
+    private resolveMultiSourceCombat(attackers: StarSchema[], defender: StarSchema): void {
+
+        // ──────────────────────────────────────────────────────────────────
+        // STEP 1: FILTER INVALID ATTACKERS
+        // Skip attackers with no ships OR whose target changed mid-tick
+        // ──────────────────────────────────────────────────────────────────
+        const validAttackers = attackers.filter(attacker => {
+            if (attacker.activeShips <= 0) {
+                attacker.targetId = "";
+                return false;
+            }
+            // Target changed mid-tick (e.g., conquered by someone else)
+            if (attacker.targetId !== defender.id) {
+                console.log(`[COMBAT] Skipping ${attacker.id}: target changed mid-tick`);
+                return false;
+            }
+            return true;
+        });
+
+        if (validAttackers.length === 0) return;
+
+        // ──────────────────────────────────────────────────────────────────
+        // STEP 2: AGGREGATE TOTAL ATTACKING FORCE
+        // Track each attacker's contribution (ships + starType for future use)
+        // ──────────────────────────────────────────────────────────────────
+        let totalAttackForce = 0;
+        const contributions: {
+            attacker: StarSchema;
+            force: number;
+            starType: string;  // For future star-type-specific combat modifiers
+        }[] = [];
+
+        validAttackers.forEach(attacker => {
+            const force = attacker.activeShips;
+            totalAttackForce += force;
+            contributions.push({
+                attacker,
+                force,
+                starType: attacker.starType
+            });
+        });
+
+        // ──────────────────────────────────────────────────────────────────
+        // STEP 3: CALCULATE DEFENDER FORCE
+        // Active ships at full strength, damaged ships at reduced effectiveness
+        // ──────────────────────────────────────────────────────────────────
+        const defenderForce = getEffectiveDefenderForce(
+            defender.activeShips,
+            defender.damagedShips
+        );
+
+        // Defender has nothing = instant conquest
+        if (defenderForce <= 0) {
+            // Strongest attacker (by ships) becomes new owner
+            const victor = contributions.reduce((a, b) =>
+                a.force > b.force ? a : b
+            ).attacker;
+            this.executeConquest(victor, defender);
+            return;
+        }
+
+        // ──────────────────────────────────────────────────────────────────
+        // STEP 4: CALCULATE COMBAT
+        // Defender is "attacking" if they have an active target
+        // ──────────────────────────────────────────────────────────────────
+        const defenderIsAttacking = !!defender.targetId;
+        const result = calculateCombat(
+            defenderForce,      // Side A = defender
+            totalAttackForce,   // Side B = ALL attackers combined
+            defenderIsAttacking,
+            true                // Attackers are always attacking
+        );
+
+        // ──────────────────────────────────────────────────────────────────
+        // STEP 5: APPLY DAMAGE TO DEFENDER
+        // ──────────────────────────────────────────────────────────────────
+        const beforeDefender = defender.activeShips;
+        const defenderTotalDamage = result.killsOnA + result.disabledOnA;
+        defender.activeShips = Math.max(0, defender.activeShips - defenderTotalDamage);
+        defender.damagedShips += result.disabledOnA;
+
+        // ──────────────────────────────────────────────────────────────────
+        // STEP 6: DISTRIBUTE RETURN FIRE PROPORTIONALLY
+        // Each attacker takes damage based on their % of total force
+        // ──────────────────────────────────────────────────────────────────
+        contributions.forEach(({ attacker, force }) => {
+            const proportion = force / totalAttackForce;
+            const kills = Math.floor(result.killsOnB * proportion);
+            const disabled = Math.floor(result.disabledOnB * proportion);
+            const totalDamage = kills + disabled;
+
+            const beforeAttacker = attacker.activeShips;
+            attacker.activeShips = Math.max(0, attacker.activeShips - totalDamage);
+            attacker.damagedShips += disabled;
+
+            // Clear order if attacker has no ships left
+            if (attacker.activeShips <= 0) {
+                attacker.targetId = "";
+            }
+        });
+
+        // LOG: Combat summary
+        console.log(
+            `[COMBAT] ${contributions.length}×stars(${totalAttackForce}) → ${defender.id}(${beforeDefender}→${defender.activeShips}) | ` +
+            `damage: def=${result.killsOnA}k+${result.disabledOnA}d, atk=${result.killsOnB}k+${result.disabledOnB}d`
+        );
+
+        // ──────────────────────────────────────────────────────────────────
+        // STEP 7: CHECK CONQUEST THRESHOLD
+        // Conquest when defender falls below threshold (totalAttackers / 8)
+        // ──────────────────────────────────────────────────────────────────
+        if (defender.activeShips <= 0 || checkConquestThreshold(defender.activeShips, totalAttackForce)) {
+            // Strongest attacker (by original contribution) becomes new owner
+            const victor = contributions.reduce((a, b) =>
+                a.force > b.force ? a : b
+            ).attacker;
+            this.executeConquest(victor, defender);
+        }
     }
 
     private executeConquest(attacker: StarSchema, defender: StarSchema) {
