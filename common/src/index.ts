@@ -16,3 +16,7 @@ export * from './orders';
 
 // Re-export schema definitions
 export * from './schema/GameState';
+
+// Re-export engine
+export * from './engine/GameEngine';
+export * from './engine/GameInput';
