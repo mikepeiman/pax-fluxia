@@ -12,15 +12,11 @@ import {
 
 // Import shared game logic from @pax/common
 import {
+    GameEngine,
     calculateCombat,
-    calculateProduction,
-    calculateRepair,
-    calculateTransfer,
-    isAttackOrder,
     getEffectiveDefenderForce,
     checkConquestThreshold,
-    COMBAT_CONFIG,
-    ORDER_CONFIG
+    COMBAT_CONFIG
 } from "@pax/common";
 
 // Player colors palette (same as GameEngine)
@@ -597,7 +593,7 @@ export class GameRoom extends Room {
         // Ships physically move from source to target
         // ──────────────────────────────────────────────────────────────────
         reinforcements.forEach(({ source, target }) => {
-            const transferAmount = calculateTransfer(source as any);
+            const transferAmount = Math.max(1, Math.floor(source.activeShips * source.transferRate));
             if (transferAmount > 0 && source.activeShips > 0) {
                 const shipped = Math.min(transferAmount, source.activeShips);
                 source.activeShips -= shipped;
