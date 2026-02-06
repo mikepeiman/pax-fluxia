@@ -110,11 +110,11 @@ function getIsPaused(): boolean {
 /**
  * Current game speed
  */
-function getSpeed(): number {
+function getSpeed(): GameSpeed {
     if (isMultiplayerMode()) {
-        return multiplayerStore.speed;
+        return multiplayerStore.speed as GameSpeed;
     } else {
-        return gameStore.snapshot?.speed ?? 1;
+        return (gameStore.snapshot?.speed ?? 1) as GameSpeed;
     }
 }
 
