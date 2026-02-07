@@ -29,6 +29,7 @@ import { GAME_CONFIG, calculateCombatV4 } from '$lib/config/game.config';
 import { createFleet, type Fleet } from './Fleet';
 import { logCombat } from '$lib/utils/CombatLogger';
 import { combatLog } from '$lib/stores/combatLogStore';
+import { animationStore, ANIM_CONFIG } from '$lib/stores/animationStore';
 // NOTE: CombatRules.ts import removed - was dead code, combat handled by calculateCombatV4
 import { HexGrid } from './HexGrid';
 import { Delaunay } from 'd3-delaunay';
@@ -880,6 +881,18 @@ export class GameEngine {
             retreatTarget.addActiveShips(shipsEscaping);
             log.success('Retreat', `${shipsEscaping} ships retreat from ${defender.id} to ${retreatTarget.id}`);
 
+            // Emit retreat animation
+            animationStore.add({
+                type: 'retreat',
+                sourceId: defender.id,
+                targetId: retreatTarget.id,
+                ownerId: previousOwner,
+                shipCount: shipsEscaping,
+                duration: ANIM_CONFIG.RETREAT_DURATION,
+                sourceX: defender.x, sourceY: defender.y,
+                targetX: retreatTarget.x, targetY: retreatTarget.y,
+            });
+
         } else if (escapeRoutes.length > 0) {
             // Scatter: some captured, some destroyed, some escape
             captureRate = GAME_CONFIG.SCATTER_CAPTURE_RATE;
@@ -899,6 +912,18 @@ export class GameEngine {
                     route.addActiveShips(toAdd);
                 });
                 log.success('Scatter', `${shipsEscaping} ships scatter from ${defender.id} to ${escapeRoutes.length} neighbors`);
+
+                // Emit scatter animations (one per escape route)
+                animationStore.addBatch(escapeRoutes.map(route => ({
+                    type: 'scatter' as const,
+                    sourceId: defender.id,
+                    targetId: route.id,
+                    ownerId: previousOwner,
+                    shipCount: Math.ceil(shipsEscaping / escapeRoutes.length),
+                    duration: ANIM_CONFIG.SCATTER_DURATION,
+                    sourceX: defender.x, sourceY: defender.y,
+                    targetX: route.x, targetY: route.y,
+                })));
             }
 
             if (shipsDestroyed > 0) {

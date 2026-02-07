@@ -20,6 +20,11 @@
     } from "$lib/types/game.types";
     import { Star } from "$lib/engine/Star";
     import { audio } from "$lib/audio/AudioManager";
+    import {
+        animationStore,
+        ANIM_CONFIG,
+        type AnimationEvent,
+    } from "$lib/stores/animationStore";
 
     // ============================================================================
     // PixiJS Application
@@ -60,6 +65,12 @@
     let animationTime = 0;
     let animationFrameId: number | null = null;
     let resizeObserver: ResizeObserver | null = null;
+
+    // Previous frame cache for animation diff detection
+    let prevStarShips: Map<
+        string,
+        { active: number; owner: string; targetId: string | null }
+    > = new Map();
 
     // Input state
     let isDragging = false;
@@ -494,6 +505,12 @@
             shipGraphics?.clear();
         }
 
+        // Detect animation events by diffing current vs previous frame
+        detectAnimationEvents(stars);
+
+        // Render active animations (transfers, scatter, retreat)
+        renderAnimations();
+
         // Render animated ships (orbiting)
         renderShips(stars, tickProgress);
     }
@@ -892,6 +909,154 @@
             linkGraphics!.closePath();
             linkGraphics!.fill({ color: humanColor, alpha: 0.5 });
         });
+    }
+
+    // ============================================================================
+    // Animation System — Transfer / Scatter / Retreat visuals
+    // ============================================================================
+
+    /**
+     * Detect state changes between frames and emit animation events.
+     * Transfer: star's activeShips decreased and it has a friendly target
+     */
+    function detectAnimationEvents(stars: StarState[]) {
+        const starsById = new Map(stars.map((s) => [s.id, s]));
+
+        stars.forEach((star) => {
+            const prev = prevStarShips.get(star.id);
+            if (!prev) return;
+
+            const shipDelta = prev.active - star.activeShips;
+
+            // Transfer detection: ships decreased AND star has a target owned by same player
+            if (shipDelta >= 1 && star.targetId) {
+                const target = starsById.get(star.targetId);
+                if (target && target.ownerId === star.ownerId) {
+                    // Friendly transfer — emit animation
+                    animationStore.add({
+                        type: "transfer",
+                        sourceId: star.id,
+                        targetId: target.id,
+                        ownerId: star.ownerId,
+                        shipCount: Math.floor(shipDelta),
+                        duration: ANIM_CONFIG.TRANSFER_DURATION,
+                        sourceX: star.x,
+                        sourceY: star.y,
+                        targetX: target.x,
+                        targetY: target.y,
+                    });
+                }
+            }
+        });
+
+        // Update cache for next frame
+        prevStarShips.clear();
+        stars.forEach((star) => {
+            prevStarShips.set(star.id, {
+                active: star.activeShips,
+                owner: star.ownerId,
+                targetId: star.targetId,
+            });
+        });
+    }
+
+    /**
+     * Render all active animation events (transfer, scatter, retreat)
+     */
+    function renderAnimations() {
+        if (!shipGraphics) return;
+
+        const now = performance.now();
+        const activeAnims = animationStore.tick(now);
+
+        if (activeAnims.length === 0) return;
+
+        activeAnims.forEach((anim) => {
+            const progress = animationStore.getProgress(anim, now);
+
+            // Eased progress for smooth acceleration/deceleration
+            const eased = easeInOutCubic(progress);
+
+            const color = anim.color ?? getPlayerColor(anim.ownerId);
+            const visualCount = Math.min(
+                anim.shipCount,
+                ANIM_CONFIG.MAX_VISUAL_SHIPS,
+            );
+
+            // Direction vector
+            const dx = anim.targetX - anim.sourceX;
+            const dy = anim.targetY - anim.sourceY;
+            const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+            const ndx = dx / dist;
+            const ndy = dy / dist;
+
+            // Perpendicular for spread
+            const perpX = -ndy;
+            const perpY = ndx;
+
+            // Calculate start/end offsets (avoid drawing inside stars)
+            const startOffset = 20; // Clear of source star
+            const endOffset = 20; // Clear of target star
+
+            for (let i = 0; i < visualCount; i++) {
+                // Stagger: each ship slightly behind the leader
+                const stagger = i * 0.06;
+                const localProgress = Math.max(0, Math.min(1, eased - stagger));
+
+                if (localProgress <= 0) continue;
+
+                // Position along path
+                const pathProgress =
+                    startOffset / dist +
+                    localProgress * (1 - (startOffset + endOffset) / dist);
+                const px = anim.sourceX + dx * pathProgress;
+                const py = anim.sourceY + dy * pathProgress;
+
+                // Spread perpendicular to path
+                const spreadOffset =
+                    (i - (visualCount - 1) / 2) * ANIM_CONFIG.FLIGHT_SPREAD;
+                const sx = px + perpX * spreadOffset;
+                const sy = py + perpY * spreadOffset;
+
+                // Add subtle jitter for organic feel
+                const jitterX =
+                    Math.sin(now * 0.01 + i * 7.3) * ANIM_CONFIG.JITTER_AMP;
+                const jitterY =
+                    Math.cos(now * 0.01 + i * 5.1) * ANIM_CONFIG.JITTER_AMP;
+
+                // Fade in/out at edges
+                const fadeIn = Math.min(1, localProgress * 5);
+                const fadeOut = Math.min(1, (1 - localProgress) * 5);
+                const alpha = fadeIn * fadeOut;
+
+                // Scale based on animation type
+                const scale = anim.type === "scatter" ? 0.9 : 1.0;
+
+                drawShip(
+                    sx + jitterX,
+                    sy + jitterY,
+                    color,
+                    scale,
+                    alpha,
+                    false,
+                );
+            }
+
+            // Scatter burst: add expanding ring at source
+            if (anim.type === "scatter" && progress < 0.3) {
+                const burstRadius = 15 + progress * 80;
+                const burstAlpha = 0.4 * (1 - progress / 0.3);
+                shipGraphics!.circle(anim.sourceX, anim.sourceY, burstRadius);
+                shipGraphics!.stroke({ color, width: 2, alpha: burstAlpha });
+            }
+        });
+    }
+
+    /**
+     * Cubic ease in-out for smooth animation
+     */
+    function easeInOutCubic(t: number): number {
+        return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
     }
 
     function renderShips(stars: StarState[], tickProgress: number) {
