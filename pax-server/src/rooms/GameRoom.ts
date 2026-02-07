@@ -11,13 +11,8 @@ import {
 } from "../schema/GameState.schema";
 
 // Import shared game logic from @pax/common
-import {
-    GameEngine,
-    calculateCombat,
-    getEffectiveDefenderForce,
-    checkConquestThreshold,
-    COMBAT_CONFIG
-} from "@pax/common";
+import { GameEngine } from "@pax/common";
+import { log } from '../utils/logger';
 
 // Player colors palette (same as GameEngine)
 const PLAYER_COLORS = [
@@ -63,40 +58,39 @@ export class GameRoom extends Room {
 
     onCreate(options: RoomOptions) {
         try {
-            console.log(`📍 onCreate starting...`);
-            console.log(`🎮 GameRoom created with options:`, options);
+            log.sys('GameRoom', 'onCreate starting...', options);
 
             // IMPORTANT: Use setState() per Colyseus 0.17.29 strict type requirements
-            console.log(`📍 Calling this.setState()...`);
+            log.sys('GameRoom', 'Calling this.setState()...');
             this.setState(new GameRoomState());
 
             this.roomOptions = options;
             this.maxClients = options.playerCount || 4;
 
-            console.log(`📍 Setting state values...`);
+            log.sys('GameRoom', 'Setting state values...');
             // Initialize state values
             this.state.maxPlayers = this.maxClients;
             this.state.phase = "lobby";
 
-            console.log(`📍 Registering message handlers...`);
+            log.sys('GameRoom', 'Registering message handlers...');
             // Register message handlers
             this.registerMessageHandlers();
 
-            console.log(`✅ onCreate complete. Max players: ${this.maxClients}`);
+            log.sys('GameRoom', `onCreate complete. Max players: ${this.maxClients}`);
         } catch (err) {
-            console.error(`❌ Error in onCreate:`, err);
+            log.error('GameRoom', 'Error in onCreate', err);
             throw err;
         }
     }
 
     onJoin(client: Client, options: any) {
-        console.log(`👤 Player joined: ${client.sessionId}`);
+        log.net('GameRoom', `Player joined: ${client.sessionId}`);
         client.send("playerJoined", { sessionId: client.sessionId });
         client.send("welcome", "Default welcome message from server!")
         // First player is host
         if (this.state.players.size === 0) {
             this.state.hostSessionId = client.sessionId;
-            console.log(`   → Host assigned: ${client.sessionId}`);
+            log.net('GameRoom', `Host assigned: ${client.sessionId}`);
         }
 
         // Create player schema
@@ -113,11 +107,11 @@ export class GameRoom extends Room {
         this.state.players.set(client.sessionId, player);
         this.state.playerCount = this.state.players.size;
 
-        console.log(`   → Player ${player.id} (${player.name}) joined as ${player.color}`);
+        log.net('GameRoom', `Player ${player.id} (${player.name}) joined as ${player.color}`);
     }
 
     onLeave(client: Client, code?: number) {
-        console.log(`👤 Player left: ${client.sessionId} (code: ${code})`);
+        log.net('GameRoom', `Player left: ${client.sessionId} (code: ${code})`);
 
         const player = this.state.players.get(client.sessionId);
         if (player) {
@@ -135,12 +129,12 @@ export class GameRoom extends Room {
             // Assign new host
             const newHost = Array.from(this.state.players.keys())[0];
             this.state.hostSessionId = newHost;
-            console.log(`   → New host: ${newHost}`);
+            log.net('GameRoom', `New host assigned: ${newHost}`);
         }
     }
 
     onDispose() {
-        console.log(`🗑️ GameRoom disposed`);
+        log.sys('GameRoom', 'Room disposed');
         this.stopTick();
     }
 
@@ -152,15 +146,15 @@ export class GameRoom extends Room {
         // Start game (host only)
         this.onMessage("startGame", (client) => {
             if (client.sessionId !== this.state.hostSessionId) {
-                console.log(`   ⚠️ Non-host tried to start game: ${client.sessionId}`);
+                log.net('GameRoom', `Non-host tried to start game: ${client.sessionId}`);
                 return;
             }
             if (this.state.phase !== "lobby") {
-                console.log(`   ⚠️ Game already started`);
+                log.game('GameRoom', 'Game already started');
                 return;
             }
 
-            console.log(`🚀 Game starting!`);
+            log.game('GameRoom', 'Game starting!');
             this.initializeGame();
             this.state.phase = "playing";
             this.state.isPaused = true; // Start paused, await player ready
@@ -171,7 +165,7 @@ export class GameRoom extends Room {
             if (this.state.phase !== "playing") return;
             this.state.isPaused = false;
             this.startTick();
-            console.log(`▶️ Game resumed by ${client.sessionId}`);
+            log.game('GameRoom', `Game resumed by ${client.sessionId}`);
         });
 
         // Pause
@@ -179,7 +173,7 @@ export class GameRoom extends Room {
             if (this.state.phase !== "playing") return;
             this.state.isPaused = true;
             this.stopTick();
-            console.log(`⏸️ Game paused by ${client.sessionId}`);
+            log.game('GameRoom', `Game paused by ${client.sessionId}`);
         });
 
         // Set speed
@@ -191,7 +185,7 @@ export class GameRoom extends Room {
             } else {
                 this.restartTick();
             }
-            console.log(`⏩ Speed set to ${message.speed}x by ${client.sessionId}`);
+            log.game('GameRoom', `Speed set to ${message.speed}x by ${client.sessionId}`);
         });
 
         // Issue order (attack/reinforce)
@@ -204,7 +198,7 @@ export class GameRoom extends Room {
 
             // Only allow orders on owned stars
             if (source.ownerId !== player.id) {
-                console.log(`   ⚠️ Player ${player.id} tried to order non-owned star ${message.sourceId}`);
+                log.net('GameRoom', `Player ${player.id} tried to order non-owned star ${message.sourceId}`);
                 return;
             }
 
@@ -213,7 +207,7 @@ export class GameRoom extends Room {
 
             // Set order
             source.targetId = message.targetId;
-            console.log(`📍 Order: ${message.sourceId} → ${message.targetId} by ${player.id}`);
+            log.game('GameRoom', `Order: ${message.sourceId} → ${message.targetId} by ${player.id}`);
         });
 
         // Cancel order
@@ -226,7 +220,7 @@ export class GameRoom extends Room {
 
             star.targetId = "";
             star.queuedOrderTargetId = "";
-            console.log(`❌ Order cancelled: ${message.starId} by ${player.id}`);
+            log.game('GameRoom', `Order cancelled: ${message.starId} by ${player.id}`);
         });
 
         // Deferred order (through enemy star)
@@ -241,7 +235,7 @@ export class GameRoom extends Room {
             if (enemyStar.ownerId === player.id) return;
 
             enemyStar.queuedOrderTargetId = message.nextTargetId;
-            console.log(`📍 Deferred: ${message.enemyStarId} → ${message.nextTargetId} by ${player.id}`);
+            log.game('GameRoom', `Deferred order: ${message.enemyStarId} → ${message.nextTargetId} by ${player.id}`);
         });
     }
 
@@ -275,7 +269,7 @@ export class GameRoom extends Room {
             this.initStandardMap();
         }
 
-        console.log(`🗺️ Map initialized with ${this.state.stars.size} stars, ${this.state.connections.length} connections`);
+        log.sys('GameRoom', `Map initialized: ${this.state.stars.size} stars, ${this.state.connections.length} connections`);
     }
 
     private initDebugMap() {
@@ -443,57 +437,22 @@ export class GameRoom extends Room {
     }
 
     private executeTick() {
-        this.state.tick++;
-        const tick = this.state.tick;
-
-        // Snapshot before all operations for debugging
-        const starSnapshot: Record<string, { active: number; damaged: number }> = {};
-        this.state.stars.forEach(star => {
-            starSnapshot[star.id] = { active: star.activeShips, damaged: star.damagedShips };
-        });
-
-        // 1. PRODUCTION
-        this.state.stars.forEach(star => {
-            if (star.ownerId && star.ownerId !== 'neutral') {
-                const before = star.activeShips;
-                star.activeShips += star.productionRate;
-                console.log(`[T${tick}][PROD] ${star.id}: ${before} + ${star.productionRate} = ${star.activeShips}`);
-            }
-        });
-
-        // 2. AI DECISION MAKING
+        // 1. AI DECISION MAKING (server-only, runs before shared tick)
         this.processAI();
 
-        // 3. PROCESS ORDERS (simplified combat/reinforcement)
-        this.processOrders();
+        // 2. SHARED ENGINE TICK (production, orders, combat, repair, stats, win-check)
+        GameEngine.tick(this.state);
 
-        // 4. REPAIR
-        this.state.stars.forEach(star => {
-            if (star.damagedShips > 0) {
-                const before = { active: star.activeShips, damaged: star.damagedShips };
-                const repaired = Math.max(1, Math.floor(star.damagedShips * star.repairRate));
-                star.damagedShips -= repaired;
-                star.activeShips += repaired;
-                console.log(`[T${tick}][REPAIR] ${star.id}: active ${before.active}+${repaired}=${star.activeShips}, damaged ${before.damaged}-${repaired}=${star.damagedShips}`);
-            }
-        });
+        // 3. POST-TICK: Check if game ended (server needs to stop interval)
+        if (this.state.phase === "ended") {
+            this.stopTick();
+            const winner = this.state.winnerId
+                ? this.state.players.get(this.state.winnerId)?.name
+                : 'nobody';
+            log.game('GameRoom', `Game ended. Winner: ${winner}`);
+        }
 
-        // 5. UPDATE PLAYER STATS
-        this.updatePlayerStats();
-
-        // 6. CHECK WIN CONDITION
-        this.checkWinCondition();
-
-        // Final summary for stars in combat
-        this.state.stars.forEach(star => {
-            if (star.targetId || starSnapshot[star.id]?.active !== star.activeShips) {
-                const before = starSnapshot[star.id];
-                const delta = star.activeShips - before.active;
-                console.log(`[T${tick}][DELTA] ${star.id}: ${before.active} → ${star.activeShips} (${delta >= 0 ? '+' : ''}${delta})`);
-            }
-        });
-
-        // Update tick progress
+        // 4. Reset tick progress for interpolation
         this.state.tickProgress = 0;
     }
 
@@ -548,284 +507,4 @@ export class GameRoom extends Room {
         }
     }
 
-    // ════════════════════════════════════════════════════════════════════════
-    // PROCESS ORDERS - Multi-star aggregation
-    // ════════════════════════════════════════════════════════════════════════
-    // 
-    // ┌─────────────────────────────────────────────────────────────────────┐
-    // │ PROCESS:                                                           │
-    // │   1. COLLECT all attack orders into map grouped by target          │
-    // │   2. COLLECT all reinforcement orders into array                   │
-    // │   3. PROCESS reinforcements (ships physically move)                │
-    // │   4. RESOLVE each target with ALL its attackers at once            │
-    // └─────────────────────────────────────────────────────────────────────┘
-
-    private processOrders() {
-        // ──────────────────────────────────────────────────────────────────
-        // PHASE 1: COLLECTION
-        // Group attacks by target, collect reinforcements separately
-        // ──────────────────────────────────────────────────────────────────
-        const attacksByTarget = new Map<string, StarSchema[]>();
-        const reinforcements: { source: StarSchema; target: StarSchema }[] = [];
-
-        this.state.stars.forEach(source => {
-            if (!source.targetId) return;
-
-            const target = this.state.stars.get(source.targetId);
-            if (!target) return;
-
-            const isAttack = source.ownerId !== target.ownerId;
-
-            if (isAttack) {
-                // Group attacks by target
-                if (!attacksByTarget.has(target.id)) {
-                    attacksByTarget.set(target.id, []);
-                }
-                attacksByTarget.get(target.id)!.push(source);
-            } else {
-                // Collect reinforcements
-                reinforcements.push({ source, target });
-            }
-        });
-
-        // ──────────────────────────────────────────────────────────────────
-        // PHASE 2: PROCESS REINFORCEMENTS
-        // Ships physically move from source to target
-        // ──────────────────────────────────────────────────────────────────
-        reinforcements.forEach(({ source, target }) => {
-            const transferAmount = Math.max(1, Math.floor(source.activeShips * source.transferRate));
-            if (transferAmount > 0 && source.activeShips > 0) {
-                const shipped = Math.min(transferAmount, source.activeShips);
-                source.activeShips -= shipped;
-                target.activeShips += shipped;
-            }
-        });
-
-        // ──────────────────────────────────────────────────────────────────
-        // PHASE 3: RESOLVE EACH TARGET WITH ALL ATTACKERS
-        // Multi-star aggregation: all attackers on same target resolved together
-        // ──────────────────────────────────────────────────────────────────
-        attacksByTarget.forEach((attackers, targetId) => {
-            const target = this.state.stars.get(targetId);
-            if (target) {
-                this.resolveMultiSourceCombat(attackers, target);
-            }
-        });
-    }
-
-    // ════════════════════════════════════════════════════════════════════════
-    // MULTI-SOURCE COMBAT RESOLUTION
-    // ════════════════════════════════════════════════════════════════════════
-    //
-    // ┌─────────────────────────────────────────────────────────────────────┐
-    // │ INPUTS:                                                            │
-    // │   • attackers: StarSchema[]  Array of all stars attacking target   │
-    // │   • defender: StarSchema     The target star being attacked        │
-    // ├─────────────────────────────────────────────────────────────────────┤
-    // │ PROCESS:                                                           │
-    // │   1. FILTER invalid attackers (no ships, target changed)           │
-    // │   2. SUM total attacking force, track contributions                │
-    // │   3. CALCULATE defender force (active + damaged*effectiveness)     │
-    // │   4. RUN combat with TOTAL forces                                  │
-    // │   5. APPLY damage to defender                                      │
-    // │   6. DISTRIBUTE return fire proportionally to attackers            │
-    // │   7. CHECK conquest threshold                                      │
-    // └─────────────────────────────────────────────────────────────────────┘
-
-    private resolveMultiSourceCombat(attackers: StarSchema[], defender: StarSchema): void {
-
-        // ──────────────────────────────────────────────────────────────────
-        // STEP 1: FILTER INVALID ATTACKERS
-        // Skip attackers with no ships OR whose target changed mid-tick
-        // ──────────────────────────────────────────────────────────────────
-        const validAttackers = attackers.filter(attacker => {
-            if (attacker.activeShips <= 0) {
-                attacker.targetId = "";
-                return false;
-            }
-            // Target changed mid-tick (e.g., conquered by someone else)
-            if (attacker.targetId !== defender.id) {
-                console.log(`[COMBAT] Skipping ${attacker.id}: target changed mid-tick`);
-                return false;
-            }
-            return true;
-        });
-
-        if (validAttackers.length === 0) return;
-
-        // ──────────────────────────────────────────────────────────────────
-        // STEP 2: AGGREGATE TOTAL ATTACKING FORCE
-        // Track each attacker's contribution (ships + starType for future use)
-        // ──────────────────────────────────────────────────────────────────
-        let totalAttackForce = 0;
-        const contributions: {
-            attacker: StarSchema;
-            force: number;
-            starType: string;  // For future star-type-specific combat modifiers
-        }[] = [];
-
-        validAttackers.forEach(attacker => {
-            const force = attacker.activeShips;
-            totalAttackForce += force;
-            contributions.push({
-                attacker,
-                force,
-                starType: attacker.starType
-            });
-        });
-
-        // ──────────────────────────────────────────────────────────────────
-        // STEP 3: CALCULATE DEFENDER FORCE
-        // Active ships at full strength, damaged ships at reduced effectiveness
-        // ──────────────────────────────────────────────────────────────────
-        const defenderForce = getEffectiveDefenderForce(
-            defender.activeShips,
-            defender.damagedShips
-        );
-
-        // Defender has nothing = instant conquest
-        if (defenderForce <= 0) {
-            // Strongest attacker (by ships) becomes new owner
-            const victor = contributions.reduce((a, b) =>
-                a.force > b.force ? a : b
-            ).attacker;
-            this.executeConquest(victor, defender);
-            return;
-        }
-
-        // ──────────────────────────────────────────────────────────────────
-        // STEP 4: CALCULATE COMBAT
-        // Defender is "attacking" if they have an active target
-        // ──────────────────────────────────────────────────────────────────
-        const defenderIsAttacking = !!defender.targetId;
-        const result = calculateCombat(
-            defenderForce,      // Side A = defender
-            totalAttackForce,   // Side B = ALL attackers combined
-            defenderIsAttacking,
-            true                // Attackers are always attacking
-        );
-
-        // ──────────────────────────────────────────────────────────────────
-        // STEP 5: APPLY DAMAGE TO DEFENDER
-        // ──────────────────────────────────────────────────────────────────
-        const beforeDefender = defender.activeShips;
-        const defenderTotalDamage = result.killsOnA + result.disabledOnA;
-        defender.activeShips = Math.max(0, defender.activeShips - defenderTotalDamage);
-        defender.damagedShips += result.disabledOnA;
-
-        // ──────────────────────────────────────────────────────────────────
-        // STEP 6: DISTRIBUTE RETURN FIRE PROPORTIONALLY
-        // Each attacker takes damage based on their % of total force
-        // ──────────────────────────────────────────────────────────────────
-        contributions.forEach(({ attacker, force }) => {
-            const proportion = force / totalAttackForce;
-            const kills = Math.floor(result.killsOnB * proportion);
-            const disabled = Math.floor(result.disabledOnB * proportion);
-            const totalDamage = kills + disabled;
-
-            const beforeAttacker = attacker.activeShips;
-            attacker.activeShips = Math.max(0, attacker.activeShips - totalDamage);
-            attacker.damagedShips += disabled;
-
-            // Clear order if attacker has no ships left
-            if (attacker.activeShips <= 0) {
-                attacker.targetId = "";
-            }
-        });
-
-        // LOG: Combat summary
-        console.log(
-            `[COMBAT] ${contributions.length}×stars(${totalAttackForce}) → ${defender.id}(${beforeDefender}→${defender.activeShips}) | ` +
-            `damage: def=${result.killsOnA}k+${result.disabledOnA}d, atk=${result.killsOnB}k+${result.disabledOnB}d`
-        );
-
-        // ──────────────────────────────────────────────────────────────────
-        // STEP 7: CHECK CONQUEST THRESHOLD
-        // Conquest when defender falls below threshold (totalAttackers / 8)
-        // ──────────────────────────────────────────────────────────────────
-        if (defender.activeShips <= 0 || checkConquestThreshold(defender.activeShips, totalAttackForce)) {
-            // Strongest attacker (by original contribution) becomes new owner
-            const victor = contributions.reduce((a, b) =>
-                a.force > b.force ? a : b
-            ).attacker;
-            this.executeConquest(victor, defender);
-        }
-    }
-
-    private executeConquest(attacker: StarSchema, defender: StarSchema) {
-        const previousOwner = defender.ownerId;
-
-        // Transfer ownership
-        defender.ownerId = attacker.ownerId;
-
-        // Transfer 50% of attacker's ships
-        const transferAmount = Math.floor(attacker.activeShips * 0.5);
-        attacker.activeShips -= transferAmount;
-        defender.activeShips = transferAmount;
-        defender.damagedShips = 0;
-
-        // Clear orders
-        defender.targetId = "";
-
-        // Check for queued order
-        if (defender.queuedOrderTargetId) {
-            defender.targetId = defender.queuedOrderTargetId;
-            defender.queuedOrderTargetId = "";
-        }
-
-        // Clear attacker's order (target conquered)
-        attacker.targetId = "";
-
-        console.log(`🏴 Conquest: ${defender.id} captured by ${attacker.ownerId} (was ${previousOwner})`);
-    }
-
-    private updatePlayerStats() {
-        this.state.players.forEach(player => {
-            let totalShips = 0;
-            let activeShips = 0;
-            let damagedShips = 0;
-            let starCount = 0;
-            let production = 0;
-
-            this.state.stars.forEach(star => {
-                if (star.ownerId === player.id) {
-                    starCount++;
-                    activeShips += star.activeShips;
-                    damagedShips += star.damagedShips;
-                    production += star.productionRate;
-                }
-            });
-
-            totalShips = activeShips + damagedShips;
-
-            player.totalShips = totalShips;
-            player.activeShips = activeShips;
-            player.damagedShips = damagedShips;
-            player.starCount = starCount;
-            player.production = production;
-
-            // Check elimination
-            if (starCount === 0 && !player.isEliminated) {
-                player.isEliminated = true;
-                console.log(`💀 Player eliminated: ${player.name}`);
-            }
-        });
-    }
-
-    private checkWinCondition() {
-        const activePlayers = Array.from(this.state.players.values())
-            .filter(p => !p.isEliminated);
-
-        if (activePlayers.length === 1) {
-            this.state.winnerId = activePlayers[0].id;
-            this.state.phase = "ended";
-            this.stopTick();
-            console.log(`🏆 Winner: ${activePlayers[0].name}!`);
-        } else if (activePlayers.length === 0) {
-            // Draw (shouldn't happen)
-            this.state.phase = "ended";
-            this.stopTick();
-            console.log(`🤝 Draw! No players remain.`);
-        }
-    }
 }

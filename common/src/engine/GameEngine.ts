@@ -20,17 +20,13 @@ import type { GameInput, IssueOrderInput, CancelOrderInput, SetDeferredOrderInpu
 // ============================================================================
 
 export interface GameEngineConfig {
-    TRANSFER_RATE: number;
     MIN_SHIPS_PER_TRANSFER: number;
     PRODUCTION_BASE: number;
-    REPAIR_RATE: number;
 }
 
 export const DEFAULT_ENGINE_CONFIG: GameEngineConfig = {
-    TRANSFER_RATE: 0.25,
     MIN_SHIPS_PER_TRANSFER: 1,
-    PRODUCTION_BASE: 1,
-    REPAIR_RATE: 0.2
+    PRODUCTION_BASE: 1
 };
 
 // ============================================================================
@@ -192,7 +188,7 @@ export class GameEngine {
         reinforcements.forEach(({ source, target }) => {
             const transferAmount = Math.max(
                 cfg.MIN_SHIPS_PER_TRANSFER,
-                Math.floor(source.activeShips * cfg.TRANSFER_RATE)
+                Math.floor(source.activeShips * source.transferRate)
             );
 
             if (transferAmount > 0 && source.activeShips > 0) {
@@ -341,7 +337,7 @@ export class GameEngine {
         state.stars.forEach(star => {
             if (star.damagedShips <= 0) return;
 
-            const repaired = Math.max(1, Math.floor(star.damagedShips * cfg.REPAIR_RATE));
+            const repaired = Math.max(1, Math.floor(star.damagedShips * star.repairRate));
             const actualRepair = Math.min(repaired, star.damagedShips);
 
             star.damagedShips -= actualRepair;
