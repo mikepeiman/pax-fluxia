@@ -81,6 +81,11 @@ export class Star {
     private _lastCombatTick: number = -1;
     private _queuedOrder: { ownerId: PlayerId, targetId: StarId, persistAfterConquest: boolean } | null = null;
 
+    // Fractional overflow accumulators — ships are always integers,
+    // fractional production/repair accumulates here until >= 1
+    private _productionOverflow: number = 0;
+    private _repairOverflow: number = 0;
+
     // Current order's persistence flag (inverted by ctrl-click)
     private _orderPersistsAfterConquest: boolean = true;
 
@@ -172,12 +177,18 @@ export class Star {
     /**
      * Produce new ships each tick
      * Only produces if star has an owner
+     * Fractional production accumulates in overflow; whole ships added when overflow >= 1
      */
     produce(): void {
         if (this._ownerId) {
             const baseRate = GAME_CONFIG.BASE_PRODUCTION ?? 0.5;
             const typeMult = Star.TYPE_STATS[this.starType]?.prod ?? 1.0;
-            this._activeShips += this.productionRate * baseRate * typeMult;
+            this._productionOverflow += this.productionRate * baseRate * typeMult;
+            if (this._productionOverflow >= 1) {
+                const newShips = Math.floor(this._productionOverflow);
+                this._activeShips += newShips;
+                this._productionOverflow -= newShips;
+            }
         }
     }
 
@@ -194,9 +205,13 @@ export class Star {
                 amount *= GAME_CONFIG.REPAIR_COMBAT_PENALTY;
             }
 
-            const repaired = Math.min(this._damagedShips, amount);
-            this._damagedShips -= repaired;
-            this._activeShips += repaired;
+            this._repairOverflow += amount;
+            if (this._repairOverflow >= 1) {
+                const repaired = Math.min(this._damagedShips, Math.floor(this._repairOverflow));
+                this._damagedShips -= repaired;
+                this._activeShips += repaired;
+                this._repairOverflow -= repaired;
+            }
         }
     }
 
@@ -247,6 +262,8 @@ export class Star {
     clearShips(): void {
         this._activeShips = 0;
         this._damagedShips = 0;
+        this._productionOverflow = 0;
+        this._repairOverflow = 0;
     }
 
     /**

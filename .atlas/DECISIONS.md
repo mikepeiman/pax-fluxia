@@ -18,6 +18,7 @@
 | ADR-007 | 2026-01-29 | Defer Stalemate Resolution | ✅ Accepted |
 | ADR-008 | 2026-01-29 | No Neutral Stars in MVP | ✅ Accepted |
 | ADR-009 | 2026-01-31 | Strict Topology Validation for AI | ✅ Accepted |
+| ADR-010 | 2026-02-07 | Ships vs Force: Clear Variable Distinction | ✅ Accepted |
 
 ---
 
@@ -256,6 +257,40 @@ A discrepancy existed where the Human Player was constrained by the connection g
 - AI calculation cost slightly increases (checking connection existence).
 - "Illegal Attack" errors are now logged if AI fails logic.
 - Ensures consistent "Remote Engagement" model.
+
+---
+
+## [ADR-010] Ships Are Atomic Integers Throughout All Logic
+
+**Date:** 2026-02-07  
+**Status:** ✅ Accepted
+
+### Context
+The combat log showed floating-point ship counts (e.g., `42.4999...`) because `Star._activeShips` was a float — production adds fractional amounts per tick and these floats propagated through all combat calculations, flow transfers, and logging.
+
+### Decision
+**Ships are always whole integers in ALL game logic.** This is a fundamental invariant, not a display concern.
+
+| Concept | Type | Rule |
+|---------|------|------|
+| `activeShips` | `number` (integer) | Always whole. The core atomic unit. |
+| `damagedShips` | `number` (integer) | Always whole. |
+| `totalShips` | `number` (integer) | `activeShips + damagedShips` |
+| `_productionOverflow` | `number` (float) | Fractional production accumulates here |
+| `force` | `number` (may be float) | Derived combat value with modifiers — NOT ship count |
+
+### Rules
+1. **Ship counts are integers** in `Star.ts`, combat calculations, flow transfers, combat log, and UI
+2. **Production** accumulates fractional output in `_productionOverflow`; when `overflow >= 1`, `Math.floor(overflow)` whole ships are added and remainder stays
+3. **Force** is a derived value for combat resolution only — never stored as a ship count
+4. Variable naming: `*Ships` = actual integer count, `*Force` = derived combat value
+5. **No `Math.floor()` at display time** should ever be needed — values are already integers
+
+### Consequences
+- Requires refactor of `Star.produce()` to use overflow accumulation
+- All `removeActiveShips()`, `addActiveShips()`, combat damage must deal in integers
+- Combat log numbers will always be clean integers
+- Slight behavior change: production is quantized (ships appear in whole units)
 
 ---
 
