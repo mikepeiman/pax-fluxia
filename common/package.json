@@ -12,8 +12,8 @@
         "./orders": "./src/orders.ts",
         "./schema": "./src/schema/GameState.ts"
     },
-    "dependencies": {
-        "@colyseus/schema": "^2.0.36"
+    "peerDependencies": {
+        "@colyseus/schema": ">=2.0.0"
     },
     "devDependencies": {
         "typescript": "~5.6.2"
