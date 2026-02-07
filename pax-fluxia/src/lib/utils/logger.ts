@@ -3,6 +3,31 @@
 // ============================================================================
 // Rule: No raw console.log. Use this semantic logger instead.
 // Colors map to PRISM dimensions for visual scanning.
+//
+// LOG LEVELS: Toggle categories at runtime via browser console:
+//   window.logFlags.combat = false  // Mute combat logs
+//   window.logFlags.sys = false     // Mute system logs
+// ============================================================================
+
+/**
+ * Toggleable log flags - gate each category on/off at runtime.
+ * All enabled by default. Disable noisy channels as needed.
+ */
+export const logFlags = {
+    sys: true,
+    state: true,
+    data: true,
+    net: true,
+    error: true,     // Errors always recommended ON
+    success: true,
+    combat: true,
+    input: true,
+};
+
+// Expose on window for runtime console toggling
+if (typeof window !== 'undefined') {
+    (window as any).logFlags = logFlags;
+}
 
 const styles = {
     sys: 'background: #3b82f6; color: #fff; padding: 2px 4px; border-radius: 2px; font-weight: bold;',
@@ -25,35 +50,51 @@ const styles = {
  * - net: NETWORK - API, IO
  * - error: CORRECTION - Errors, fixes
  * - success: VERIFICATION - Success markers
+ * - combat: COMBAT - Battle events
+ * - input: INPUT - User interactions
  */
 export const log = {
     /** 🔵 SYSTEM - Lifecycle and initialization */
-    sys: (context: string, msg: string, data?: unknown) =>
-        console.log(`%cSYSTEM%c [${context}] ${msg}`, styles.sys, styles.reset, data ?? ''),
+    sys: (context: string, msg: string, data?: unknown) => {
+        if (!logFlags.sys) return;
+        console.log(`%cSYSTEM%c [${context}] ${msg}`, styles.sys, styles.reset, data ?? '');
+    },
 
     /** 🟣 STATE - Logic and state transitions */
-    state: (context: string, msg: string, state?: unknown) =>
-        console.log(`%cSTATE%c [${context}] ${msg}`, styles.state, styles.reset, state ?? ''),
+    state: (context: string, msg: string, state?: unknown) => {
+        if (!logFlags.state) return;
+        console.log(`%cSTATE%c [${context}] ${msg}`, styles.state, styles.reset, state ?? '');
+    },
 
     /** 🟢 DATA - Data flow and transformations */
-    data: (context: string, msg: string, data?: unknown) =>
-        console.log(`%cDATA%c [${context}] ${msg}`, styles.data, styles.reset, data ?? ''),
+    data: (context: string, msg: string, data?: unknown) => {
+        if (!logFlags.data) return;
+        console.log(`%cDATA%c [${context}] ${msg}`, styles.data, styles.reset, data ?? '');
+    },
 
     /** 🟡 NET - Network and API calls */
-    net: (context: string, msg: string, data?: unknown) =>
-        console.log(`%cNET%c [${context}] ${msg}`, styles.net, styles.reset, data ?? ''),
+    net: (context: string, msg: string, data?: unknown) => {
+        if (!logFlags.net) return;
+        console.log(`%cNET%c [${context}] ${msg}`, styles.net, styles.reset, data ?? '');
+    },
 
     /** 🔴 ERROR - Errors and corrections */
-    error: (context: string, msg: string, err?: unknown) =>
-        console.error(`%cERROR%c [${context}] ${msg}`, styles.err, styles.reset, err ?? ''),
+    error: (context: string, msg: string, err?: unknown) => {
+        if (!logFlags.error) return;
+        console.error(`%cERROR%c [${context}] ${msg}`, styles.err, styles.reset, err ?? '');
+    },
 
     /** ✅ SUCCESS - Verification and success */
-    success: (context: string, msg: string, data?: unknown) =>
-        console.log(`%cSUCCESS%c [${context}] ${msg}`, styles.ok, styles.reset, data ?? ''),
+    success: (context: string, msg: string, data?: unknown) => {
+        if (!logFlags.success) return;
+        console.log(`%cSUCCESS%c [${context}] ${msg}`, styles.ok, styles.reset, data ?? '');
+    },
 
     /** ⚔️ COMBAT - Battle and conflict events (simple) */
-    combat: (context: string, msg: string, data?: unknown) =>
-        console.log(`%cCOMBAT%c [${context}] ${msg}`, styles.combat, styles.reset, data ?? ''),
+    combat: (context: string, msg: string, data?: unknown) => {
+        if (!logFlags.combat) return;
+        console.log(`%cCOMBAT%c [${context}] ${msg}`, styles.combat, styles.reset, data ?? '');
+    },
 
     /**
      * ⚔️ COMBAT BATTLE - Detailed combat log with clear formatting
@@ -70,6 +111,8 @@ export const log = {
         damageToAttacker: { kills: number, disabled: number, repaired?: number },
         settings?: { aggressor: number, damage: number, lethality: number, forceRatio: number, repairRate: number }
     ) => {
+        if (!logFlags.combat) return;
+
         // Owner color map - for player identification
         const ownerColors: Record<string, string> = {
             'human': '#3b82f6',    // Blue for human player
@@ -140,8 +183,10 @@ export const log = {
     /**
      * 🖱️ INPUT - User interaction events (clicks, selections, commands)
      */
-    input: (action: string, data?: unknown) =>
-        console.log(`%cINPUT%c ${action}`, 'background: #6366f1; color: #fff; padding: 2px 4px; border-radius: 2px; font-weight: bold;', styles.reset, data ?? '')
+    input: (action: string, data?: unknown) => {
+        if (!logFlags.input) return;
+        console.log(`%cINPUT%c ${action}`, 'background: #6366f1; color: #fff; padding: 2px 4px; border-radius: 2px; font-weight: bold;', styles.reset, data ?? '');
+    }
 };
 
 // Default export for convenience
