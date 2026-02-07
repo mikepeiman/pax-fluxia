@@ -5,7 +5,6 @@
   import MainMenu from "$lib/components/ui/MainMenu.svelte";
   import ResultsModal from "$lib/components/ui/ResultsModal.svelte";
   import GameCanvas from "$lib/components/game/GameCanvas.svelte";
-  import DebugPanel from "$lib/components/ui/DebugPanel.svelte";
   import CombatDebugPanel from "$lib/components/ui/CombatDebugPanel.svelte";
   import Leaderboard from "$lib/components/ui/Leaderboard.svelte";
   import SpeedControls from "$lib/components/ui/SpeedControls.svelte";
@@ -14,7 +13,6 @@
   import type { PlayerState } from "$lib/types/game.types";
 
   // Panel visibility states
-  let showDebug = $state(false);
   let combatLogOpen = $state(true);
   let showAudioSettings = $state(false);
 
@@ -28,16 +26,7 @@
           (b.totalShips ?? 0) - (a.totalShips ?? 0),
       );
   });
-
-  function handleKeyDown(event: KeyboardEvent) {
-    if (event.key === "`" || event.key === "~") {
-      event.preventDefault();
-      showDebug = !showDebug;
-    }
-  }
 </script>
-
-<svelte:window onkeydown={handleKeyDown} />
 
 <svelte:head>
   <!-- Google Fonts -->
@@ -77,9 +66,6 @@
         <GameCanvas />
 
         <!-- Overlays -->
-        {#if showDebug}
-          <DebugPanel onClose={() => (showDebug = false)} />
-        {/if}
 
         {#if gameStore.winner}
           <div class="modal-overlay">
