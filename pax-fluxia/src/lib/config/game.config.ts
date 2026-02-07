@@ -212,6 +212,7 @@ export const GAME_CONFIG: GameConfigType = {
     /** % of non-captured ships destroyed during scatter (rest escape) */
     SCATTER_DESTROY_RATE: 0.50,
 
+
     /** Starting ships per star at game start */
     STARTING_SHIPS: 40,
 

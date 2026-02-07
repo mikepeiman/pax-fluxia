@@ -52,9 +52,9 @@ export class Star implements IStar {
         this.id = config.id;
         this.x = config.x;
         this.y = config.y;
-        this.radius = config.radius;
-        this.productionRate = config.productionRate;
-        this._ownerId = config.ownerId;
+        this.radius = config.radius ?? 20;
+        this.productionRate = config.productionRate ?? 1;
+        this._ownerId = config.ownerId ?? '';
         this.starType = config.starType || 'grey';
 
         // Ships should be 0 by default - addActiveShips() is called separately with STARTING_SHIPS
@@ -86,8 +86,16 @@ export class Star implements IStar {
         return this._ownerId;
     }
 
+    set ownerId(value: PlayerId) {
+        this._ownerId = value;
+    }
+
     get targetId(): StarId | null {
         return this._targetId;
+    }
+
+    set targetId(value: StarId | null | string) {
+        this._targetId = (value === '' || value === null) ? null : value;
     }
 
     /** Total ships at this star */
@@ -103,6 +111,14 @@ export class Star implements IStar {
     /** Get the queued order target (for human player deferred orders) */
     get queuedOrderTargetId(): StarId | null {
         return this._queuedOrder?.targetId ?? null;
+    }
+
+    /** Set queued order target directly (used by shared conquest function) */
+    set queuedOrderTargetId(value: StarId | null | string) {
+        if (value === '' || value === null) {
+            this._queuedOrder = null;
+        }
+        // Setting via string is only for clearing; use setQueuedOrder() for full setup
     }
 
     /**

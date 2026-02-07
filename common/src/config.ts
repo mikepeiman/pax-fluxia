@@ -50,6 +50,18 @@ export interface EngineConfig {
 
     // Transfer
     MIN_SHIPS_PER_TRANSFER: number;
+
+    // Conquest
+    CONQUEST_TRANSFER_PERCENTAGE: number;  // % of attacker ships transferred on conquest
+    RETAIN_ORDER_ON_CONQUEST: boolean;     // Keep attacker order post-conquest
+
+    // Scatter / Retreat
+    RETREAT_CAPTURE_RATE: number;          // % captured when defender retreats
+    SCATTER_CAPTURE_RATE: number;          // % captured when defender scatters
+    SCATTER_DESTROY_RATE: number;          // % of non-captured destroyed during scatter
+
+    // Combat
+    DAMAGED_SHIP_EFFECTIVENESS: number;    // Damaged ships as fraction of defenders
 }
 
 export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
@@ -58,4 +70,10 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
     MIN_REPAIR: 1,
     REPAIR_COMBAT_PENALTY: 0.1,
     MIN_SHIPS_PER_TRANSFER: 1,
+    CONQUEST_TRANSFER_PERCENTAGE: 50,
+    RETAIN_ORDER_ON_CONQUEST: true,
+    RETREAT_CAPTURE_RATE: 0.35,
+    SCATTER_CAPTURE_RATE: 0.50,
+    SCATTER_DESTROY_RATE: 0.50,
+    DAMAGED_SHIP_EFFECTIVENESS: 0.14,
 };

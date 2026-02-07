@@ -17,6 +17,9 @@ export * from './config';
 // Re-export order logic
 export * from './orders';
 
+// Re-export conquest logic
+export * from './conquest';
+
 // Re-export schema definitions
 export * from './schema/GameState';
 

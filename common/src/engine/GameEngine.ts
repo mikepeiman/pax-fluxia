@@ -14,6 +14,8 @@ import {
 } from "../schema/GameState";
 import { calculateCombat, getEffectiveDefenderForce, checkConquestThreshold, COMBAT_CONFIG } from "../combat";
 import { applyProduction, applyRepair } from "../production";
+import { applyConquest } from "../conquest";
+import type { ConquestContext } from "../conquest";
 import type { EngineConfig } from "../config";
 import { DEFAULT_ENGINE_CONFIG } from "../config";
 import type { GameInput, IssueOrderInput, CancelOrderInput, SetDeferredOrderInput } from "./GameInput";
@@ -196,7 +198,7 @@ export class GameEngine {
         attacksByTarget.forEach((attackers, targetId) => {
             const target = state.stars.get(targetId);
             if (target) {
-                this.resolveMultiSourceCombat(state, attackers, target);
+                this.resolveMultiSourceCombat(state, attackers, target, cfg);
             }
         });
     }
@@ -208,7 +210,8 @@ export class GameEngine {
     private static resolveMultiSourceCombat(
         state: GameRoomState,
         attackers: StarSchema[],
-        defender: StarSchema
+        defender: StarSchema,
+        cfg: EngineConfig
     ): void {
         // Filter valid attackers
         const validAttackers = attackers.filter(attacker => {
@@ -235,17 +238,15 @@ export class GameEngine {
         });
 
         // Calculate defender force (active + damaged at reduced effectiveness)
-        const defenderForce = getEffectiveDefenderForce(
-            defender.activeShips,
-            defender.damagedShips
-        );
+        const defenderForce = defender.activeShips +
+            Math.floor(defender.damagedShips * cfg.DAMAGED_SHIP_EFFECTIVENESS);
 
         // Instant conquest if no defenders
         if (defenderForce <= 0) {
             const victor = contributions.reduce((a, b) =>
                 a.force > b.force ? a : b
             ).attacker;
-            this.executeConquest(state, victor, defender);
+            this.executeConquest(state, victor, defender, cfg);
             return;
         }
 
@@ -263,7 +264,7 @@ export class GameEngine {
         defender.activeShips = Math.max(0, defender.activeShips - defenderTotalDamage);
         defender.damagedShips += result.disabledOnA;
 
-        // Mark combat for repair pinning penalty
+        // Mark combat for repair pinning penalty (both sides)
         defender.lastCombatTick = state.tick;
 
         // Apply proportional damage to attackers
@@ -276,6 +277,9 @@ export class GameEngine {
             attacker.activeShips = Math.max(0, attacker.activeShips - totalDamage);
             attacker.damagedShips += disabled;
 
+            // Mark combat on attacker too
+            attacker.lastCombatTick = state.tick;
+
             if (attacker.activeShips <= 0) {
                 attacker.targetId = "";
             }
@@ -286,42 +290,26 @@ export class GameEngine {
             const victor = contributions.reduce((a, b) =>
                 a.force > b.force ? a : b
             ).attacker;
-            this.executeConquest(state, victor, defender);
+            this.executeConquest(state, victor, defender, cfg);
         }
     }
 
     private static executeConquest(
         state: GameRoomState,
         attacker: StarSchema,
-        defender: StarSchema
+        defender: StarSchema,
+        cfg: EngineConfig
     ): void {
-        const previousOwner = defender.ownerId;
+        // Build conquest context for neighbor lookups
+        const ctx: ConquestContext = {
+            getNeighborIds: (starId: string) => this.getNeighborIds(state, starId),
+            getStar: (id: string) => state.stars.get(id) as any,
+        };
 
-        // Transfer ownership
-        defender.ownerId = attacker.ownerId;
+        // Delegate to shared conquest function
+        applyConquest(attacker, defender as any, ctx, cfg);
 
-        // Transfer 50% of attacker's ships
-        const transferAmount = Math.floor(attacker.activeShips * 0.5);
-        attacker.activeShips -= transferAmount;
-        defender.activeShips = transferAmount;
-        defender.damagedShips = 0;
-        defender.productionOverflow = 0;
-        defender.repairOverflow = 0;
-        defender.lastCombatTick = -1;
-
-        // Clear orders
-        defender.targetId = "";
-
-        // Apply queued order if exists
-        if (defender.queuedOrderTargetId) {
-            defender.targetId = defender.queuedOrderTargetId;
-            defender.queuedOrderTargetId = "";
-        }
-
-        // Clear attacker's order
-        attacker.targetId = "";
-
-        // Void other players' orders to this star
+        // Void other players' orders to the conquered star
         state.stars.forEach(star => {
             if (star.targetId === defender.id && star.ownerId !== attacker.ownerId) {
                 star.targetId = "";
@@ -400,5 +388,15 @@ export class GameEngine {
             }
         }
         return false;
+    }
+
+    /** Get all neighbor star IDs connected to the given star */
+    private static getNeighborIds(state: GameRoomState, starId: string): string[] {
+        const neighbors: string[] = [];
+        state.connections.forEach(conn => {
+            if (conn.sourceId === starId) neighbors.push(conn.targetId);
+            else if (conn.targetId === starId) neighbors.push(conn.sourceId);
+        });
+        return neighbors;
     }
 }
