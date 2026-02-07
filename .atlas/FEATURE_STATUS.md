@@ -73,6 +73,7 @@ Update this file after each development session.
 ~~1. **Command Input Lag** — UI interactions not instant. Must fix.~~ ✅ FIXED
 ~~2. **Vector Arrow Delay** — May be same root cause as #1.~~ ✅ FIXED
 3. **Passthrough Orders** — Deferred orders through enemy stars not working. Need to fix drag-through logic.
+4. ~~**Star Selection Sticking** — After issuing order, star selection chains and requires multiple clicks to deselect.~~ **FIXED 2026-02-07**
 
 ---
 
@@ -88,17 +89,17 @@ Update this file after each development session.
 | **Ship Transfer Animations** | 🔴 High | Ships visually flowing along connection paths |
 | **Conquer-Scatter Animations** | 🔴 High | Ships scattering to escape route stars on conquest |
 | **Retreat Animations** | 🔴 High | Ships retreating to friendly stars |
-| **Logging Levels** | 🟡 Medium | Toggleable flags in logger (combat, ai, input, net) |
-| **Multiplayer Deployment** | 🟡 Medium | Deploy for alpha testing (research hosting options) |
-| **Combat Log: Captured Ships** | 🟢 Standard | Show how many ships were captured in combat logs |
-| **Combat Log: "You" Filter** | 🟢 Standard | Filter combat logs to show only your own battles |
-| **Damaged Ships Defense in UI** | 🟢 Standard | Expose DAMAGED_SHIP_EFFECTIVENESS (1/7th) in control panel |
+| **Logging Levels** | ✅ Done | Toggleable `logFlags` in logger — 8 categories, runtime toggling via `window.logFlags` |
+| **Combat Log: Captured Ships** | ✅ Done | Shows captured, escaped, and destroyed counts on conquest |
+| **Combat Log: "You" Filter** | ✅ Done | "👤 You" toggle button filters to own battles |
+| **Damaged Ships Defense in UI** | ✅ Done | `DAMAGED_SHIP_EFFECTIVENESS` config + tuning panel slider |
 | **AI: Frontline Forces** | 🟢 Standard | Distribute ships along frontline, configurable allocation |
 | **AI: Match Opposing Forces** | 🟢 Standard | AI matches enemy force levels on frontline |
 | **AI: Evenly-Distributed** | 🟢 Standard | Option to spread ships evenly across territory |
 | **AI: Backline-and-Pounce** | 🟢 Standard | Hold back, commit to battles on frontline capture |
 | **AI: Tactical Surround** | 🟢 Standard | Multi-star coordination to surround enemy forces |
 | **AI: Star Type Awareness** | 🟢 Standard | Attack from Green, defend Red/Purple |
+| **Multiplayer Deployment** | 🟡 Medium | Deploy for alpha testing (Vercel + Railway) |
 | **Custom Map Editor** | 🔵 Backlog | Implementation plan needed with effort estimates |
 
 ---
@@ -107,6 +108,7 @@ Update this file after each development session.
 
 | Date | Summary |
 |------|---------| 
+| 2026-02-07 | Group A+B: Star selection bug fix, combat log enhancements (captured/escaped/destroyed), My Battles filter, DAMAGED_SHIP_EFFECTIVENESS config, logging levels, root README. |
 | 2026-02-07 | Protocol audit & consolidation, comprehensive game spec, dev history, new doc-everything rule. |
 | 2026-02-07 | Colyseus multiplayer: fixed player interaction, star ownership with sessionId. |
 | 2026-02-03 | Audio system (Tone.js), passthrough orders fix, star spacing slider. |
