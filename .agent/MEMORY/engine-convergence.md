@@ -1,3 +1,4 @@
+
 # Engine Convergence Directive
 
 ## Status: APPROVED — Option C targeting Option A
@@ -20,9 +21,17 @@
 - Example: `this.calculateProduction()` → `GameEngine.calculateProduction(star: IStar)`
 
 ### Step 3: Incremental Migration
-- **Phase 1: Math Parity** — Production & Repair formulas (most desyncs)
-- **Phase 2: Combat & Capture** — Conquest/retreat logic
+- **Phase 1: Math Parity** — Production & Repair formulas ✅ COMPLETE
+- **Phase 2: Combat & Capture** — Conquest/retreat logic ✅ COMPLETE
 - **Phase 3: Cleanup** — Strip logic from client engine, delegate to shared
+
+## What Changed in Phase 2
+- Created `@pax/common/conquest.ts` with stateless `applyConquest()` function
+- Extended `EngineConfig` with 6 new params (conquest, scatter, retreat, combat)
+- Both shared and client engines now delegate to `applyConquest()`
+- Client only adds animation emissions on top of the shared result
+- `DAMAGED_SHIP_EFFECTIVENESS` now comes from config (not hardcoded)
+- `lastCombatTick` now marked on both attacker and defender
 
 ## Constraints
 - Server remains authoritative
