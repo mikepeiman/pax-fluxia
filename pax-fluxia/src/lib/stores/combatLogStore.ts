@@ -40,6 +40,7 @@ export interface CombatLogEntry {
     captured?: number;   // Ships captured by attacker
     escaped?: number;    // Ships that escaped (retreat/scatter)
     destroyed?: number;  // Ships destroyed during scatter
+    defenderTotalAtConquest?: number; // Actual defender ship count at conquest time (includes reinforcements)
 }
 
 // Star type color map - Canonical Spec

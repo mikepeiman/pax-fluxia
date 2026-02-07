@@ -689,19 +689,19 @@ export class GameEngine {
             tick: this.tick,
             attacker: {
                 id: validAttackers.length > 1 ? `${validAttackers.length} stars` : primaryAttacker.id,
-                ships: totalAttackForce,
+                ships: Math.floor(totalAttackForce),
                 starType: primaryAttacker.starType,
                 ownerId: primaryAttacker.ownerId,
-                kills: killsOnAttacker,
-                disabled: disabledOnAttacker
+                kills: Math.floor(killsOnAttacker),
+                disabled: Math.floor(disabledOnAttacker)
             },
             defender: {
                 id: defender.id,
-                ships: defenderForce,
+                ships: Math.floor(defenderForce),
                 starType: defender.starType,
                 ownerId: defender.ownerId,
-                kills: killsOnDefender,
-                disabled: disabledOnDefender
+                kills: Math.floor(killsOnDefender),
+                disabled: Math.floor(disabledOnDefender)
             },
             settings: {
                 aggressor: GAME_CONFIG.AGGRESSOR_ADVANTAGE,
@@ -793,19 +793,19 @@ export class GameEngine {
             tick: this.tick,
             attacker: {
                 id: attacker.id,
-                ships: attackerForce,
+                ships: Math.floor(attackerForce),
                 starType: attacker.starType,
                 ownerId: attacker.ownerId,
-                kills: killsOnAttacker,
-                disabled: disabledOnAttacker
+                kills: Math.floor(killsOnAttacker),
+                disabled: Math.floor(disabledOnAttacker)
             },
             defender: {
                 id: defender.id,
-                ships: defenderForce,
+                ships: Math.floor(defenderForce),
                 starType: defender.starType,
                 ownerId: defender.ownerId,
-                kills: killsOnDefender,
-                disabled: disabledOnDefender
+                kills: Math.floor(killsOnDefender),
+                disabled: Math.floor(disabledOnDefender)
             },
             settings: {
                 aggressor: GAME_CONFIG.AGGRESSOR_ADVANTAGE,
@@ -834,7 +834,7 @@ export class GameEngine {
      */
     private executeConquest(attacker: Star, defender: Star): void {
         const previousOwner = defender.ownerId;
-        const defenderTotal = defender.totalShips;
+        const defenderTotal = Math.floor(defender.totalShips);
 
         // ====================================================================
         // SCATTER/RETREAT LOGIC
@@ -875,7 +875,7 @@ export class GameEngine {
             // Retreating: lower capture rate, rest escape to target
             captureRate = GAME_CONFIG.RETREAT_CAPTURE_RATE;
             const shipsCaptured = Math.floor(defenderTotal * captureRate);
-            shipsEscaping = defenderTotal - shipsCaptured;
+            shipsEscaping = Math.floor(defenderTotal - shipsCaptured);
 
             // Transfer escaping ships to retreat target
             retreatTarget.addActiveShips(shipsEscaping);
@@ -899,7 +899,7 @@ export class GameEngine {
             const shipsCaptured = Math.floor(defenderTotal * captureRate);
             const remaining = defenderTotal - shipsCaptured;
             shipsDestroyed = Math.floor(remaining * GAME_CONFIG.SCATTER_DESTROY_RATE);
-            shipsEscaping = remaining - shipsDestroyed;
+            shipsEscaping = Math.floor(remaining - shipsDestroyed);
 
             // Distribute escaping ships to friendly neighbors
             if (shipsEscaping > 0 && escapeRoutes.length > 0) {
@@ -989,19 +989,19 @@ export class GameEngine {
             tick: this.tick,
             attacker: {
                 id: attacker.id,
-                ships: attacker.activeShips,
+                ships: Math.floor(attacker.activeShips),
                 starType: attacker.starType,
                 ownerId: attacker.ownerId,
-                kills: shipsDestroyed,
+                kills: Math.floor(shipsDestroyed),
                 disabled: 0
             },
             defender: {
                 id: defender.id,
-                ships: shipsCaptured,
+                ships: Math.floor(shipsCaptured),
                 starType: defender.starType,
                 ownerId: previousOwner,
                 kills: 0,
-                disabled: shipsEscaping
+                disabled: Math.floor(shipsEscaping)
             },
             settings: {
                 aggressor: GAME_CONFIG.AGGRESSOR_ADVANTAGE,
@@ -1011,9 +1011,10 @@ export class GameEngine {
                 repairRate: GAME_CONFIG.REPAIR_RATE
             },
             result: 'CONQUERED',
-            captured: shipsCaptured,
-            escaped: shipsEscaping,
-            destroyed: shipsDestroyed
+            captured: Math.floor(shipsCaptured),
+            escaped: Math.floor(shipsEscaping),
+            destroyed: Math.floor(shipsDestroyed),
+            defenderTotalAtConquest: defenderTotal
         });
     }
 

@@ -354,24 +354,32 @@
                                                             class="stat-losses"
                                                         >
                                                             {#if entry.result === "CONQUERED"}
+                                                                {#if entry.defenderTotalAtConquest}
+                                                                    <span
+                                                                        class="stat-ships"
+                                                                        style="font-size: 0.7em; opacity: 0.6"
+                                                                        >{entry.defenderTotalAtConquest}
+                                                                        total</span
+                                                                    >
+                                                                {/if}
                                                                 <span
                                                                     class="captured"
-                                                                    >🏴{entry.captured ??
-                                                                        Math.floor(
+                                                                    >🏴{Math.floor(
+                                                                        entry.captured ??
                                                                             entry
                                                                                 .defender
                                                                                 .ships,
-                                                                        )} captured</span
+                                                                    )} captured</span
                                                                 >
                                                                 {#if (entry.escaped ?? entry.defender.disabled) > 0}
                                                                     <span
                                                                         class="escaped"
-                                                                        >🏃{entry.escaped ??
-                                                                            Math.floor(
+                                                                        >🏃{Math.floor(
+                                                                            entry.escaped ??
                                                                                 entry
                                                                                     .defender
                                                                                     .disabled,
-                                                                            )} escaped</span
+                                                                        )} escaped</span
                                                                     >
                                                                 {/if}
                                                                 {#if (entry.destroyed ?? 0) > 0}
