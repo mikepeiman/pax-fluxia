@@ -619,7 +619,7 @@ export class GameEngine {
         });
 
         // Damaged ships count at 1/7th effectiveness for defense
-        const defenderForce = defender.activeShips + Math.floor(defender.damagedShips / 7);
+        const defenderForce = defender.activeShips + Math.floor(defender.damagedShips * GAME_CONFIG.DAMAGED_SHIP_EFFECTIVENESS);
 
         if (defenderForce <= 0) {
             // Instant conquest - no defenders
@@ -737,7 +737,7 @@ export class GameEngine {
         // Combat uses CURRENT ship counts - ships don't leave
         const attackerForce = attacker.activeShips;
         // Damaged ships count at 1/7th effectiveness for defense
-        const defenderForce = defender.activeShips + Math.floor(defender.damagedShips / 7);
+        const defenderForce = defender.activeShips + Math.floor(defender.damagedShips * GAME_CONFIG.DAMAGED_SHIP_EFFECTIVENESS);
 
         if (defenderForce <= 0) {
             // Instant conquest - no defenders
@@ -985,7 +985,10 @@ export class GameEngine {
                 forceRatio: GAME_CONFIG.FORCE_RATIO_EFFECT,
                 repairRate: GAME_CONFIG.REPAIR_RATE
             },
-            result: 'CONQUERED'
+            result: 'CONQUERED',
+            captured: shipsCaptured,
+            escaped: shipsEscaping,
+            destroyed: shipsDestroyed
         });
     }
 

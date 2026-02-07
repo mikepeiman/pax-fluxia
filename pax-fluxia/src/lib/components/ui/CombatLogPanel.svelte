@@ -9,6 +9,9 @@
     // Track which battle cards are expanded
     let expandedBattles = $state<Set<string>>(new Set());
 
+    // "My Battles" filter toggle
+    let myBattlesOnly = $state(false);
+
     function toggleDrawer() {
         isOpen = !isOpen;
     }
@@ -93,9 +96,19 @@
         }
 
         // Convert to array and sort by most recent
-        return Array.from(battleMap.values()).sort(
+        const all = Array.from(battleMap.values()).sort(
             (a, b) => b.endTick - a.endTick,
         );
+
+        // Apply "My Battles" filter
+        if (myBattlesOnly) {
+            return all.filter(
+                (b) =>
+                    b.attackerId === "human-player" ||
+                    b.targetOwnerId === "human-player",
+            );
+        }
+        return all;
     });
 
     // Helper functions
@@ -159,9 +172,19 @@
         >
             <div class="drawer-header">
                 <h3>⚔️ Combat Log</h3>
-                <span class="battle-count"
-                    >{$combatLog.length} logs / {battles.length} battles</span
-                >
+                <div class="header-controls">
+                    <button
+                        class="filter-btn"
+                        class:active={myBattlesOnly}
+                        onclick={() => (myBattlesOnly = !myBattlesOnly)}
+                        title="Show only battles involving you"
+                    >
+                        👤 You
+                    </button>
+                    <span class="battle-count"
+                        >{$combatLog.length} logs / {battles.length} battles</span
+                    >
+                </div>
             </div>
 
             <div class="battles-list">
@@ -333,20 +356,29 @@
                                                             {#if entry.result === "CONQUERED"}
                                                                 <span
                                                                     class="captured"
-                                                                    >🏴{Math.floor(
-                                                                        entry
-                                                                            .defender
-                                                                            .ships,
-                                                                    )}</span
-                                                                >
-                                                                {#if entry.defender.disabled > 0}
-                                                                    <span
-                                                                        class="escaped"
-                                                                        >🏃{Math.floor(
+                                                                    >🏴{entry.captured ??
+                                                                        Math.floor(
                                                                             entry
                                                                                 .defender
-                                                                                .disabled,
-                                                                        )}</span
+                                                                                .ships,
+                                                                        )} captured</span
+                                                                >
+                                                                {#if (entry.escaped ?? entry.defender.disabled) > 0}
+                                                                    <span
+                                                                        class="escaped"
+                                                                        >🏃{entry.escaped ??
+                                                                            Math.floor(
+                                                                                entry
+                                                                                    .defender
+                                                                                    .disabled,
+                                                                            )} escaped</span
+                                                                    >
+                                                                {/if}
+                                                                {#if (entry.destroyed ?? 0) > 0}
+                                                                    <span
+                                                                        class="kills"
+                                                                        >💥{entry.destroyed}
+                                                                        destroyed</span
                                                                     >
                                                                 {/if}
                                                             {:else}
@@ -500,6 +532,35 @@
         font-size: 11px;
         color: #666;
         font-family: monospace;
+    }
+
+    .header-controls {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .filter-btn {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #888;
+        font-size: 10px;
+        padding: 3px 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.15s;
+        font-family: inherit;
+    }
+
+    .filter-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: #ccc;
+    }
+
+    .filter-btn.active {
+        background: rgba(0, 224, 255, 0.15);
+        border-color: #00e0ff44;
+        color: #00e0ff;
     }
 
     /* Battles List */

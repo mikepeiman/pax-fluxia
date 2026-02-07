@@ -49,6 +49,7 @@ interface GameConfigType {
     RETREAT_CAPTURE_RATE: number;      // % captured when defender is retreating (default 0.35)
     SCATTER_CAPTURE_RATE: number;      // % captured when escape routes exist (default 0.50)
     SCATTER_DESTROY_RATE: number;      // % of remaining destroyed on scatter (default 0.50)
+    DAMAGED_SHIP_EFFECTIVENESS: number; // Fraction of damaged ships counting toward defense (1/7 ≈ 0.14)
     STARTING_SHIPS: number;            // Ships per star at game start
 
     // AI Behavior
@@ -152,6 +153,9 @@ export const GAME_CONFIG: GameConfigType = {
 
     /** Overwhelm ratio for instant conquest (need Nx enemy ships) */
     CONQUEST_THRESHOLD: 8,
+
+    /** Fraction of damaged ships that count toward defensive force (1/7 ≈ 0.14) */
+    DAMAGED_SHIP_EFFECTIVENESS: 0.14,
 
     // ========================================================================
     // PRODUCTION

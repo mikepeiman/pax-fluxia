@@ -1464,10 +1464,12 @@
                         targetStar.id,
                         !event.ctrlKey, // persist unless ctrl-click
                     );
-                    if (success) addPendingOrder(activeStarId, targetStar.id);
-
                     if (success) {
-                        activeStarId = targetStar.id; // Chain selection
+                        addPendingOrder(activeStarId, targetStar.id);
+                        // FIX: Clear selection after order instead of chaining
+                        // This prevents the "sticky selection" bug where activeStarId
+                        // chains endlessly and requires multiple clicks to deselect
+                        activeStarId = null;
                     } else {
                         // Failed (not connected?) -> select the target if ours
                         if (isLocalPlayerStar(targetStar)) {
@@ -1515,7 +1517,15 @@
                     }
                 }
             }
-            // Case 2: No active selection or clicked same -> Select
+            // Case 2: Clicked same star -> TOGGLE (deselect)
+            else if (activeStarId === targetStar.id) {
+                activeStarId = null;
+                log.state(
+                    "GameCanvas",
+                    `Star ${targetStar.id} deselected (toggle)`,
+                );
+            }
+            // Case 3: No active selection -> Select
             else if (isLocalPlayerStar(targetStar)) {
                 activeStarId = targetStar.id;
                 log.state("GameCanvas", `Star ${targetStar.id} selected`);

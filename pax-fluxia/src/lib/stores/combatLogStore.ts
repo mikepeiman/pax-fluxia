@@ -35,6 +35,11 @@ export interface CombatLogEntry {
 
     // Result
     result: 'DEFENSE' | 'FALLING' | 'CONQUERED';
+
+    // Conquest details (only present on CONQUERED results)
+    captured?: number;   // Ships captured by attacker
+    escaped?: number;    // Ships that escaped (retreat/scatter)
+    destroyed?: number;  // Ships destroyed during scatter
 }
 
 // Star type color map - Canonical Spec

@@ -19,6 +19,7 @@
         RETREAT_CAPTURE_RATE: 0.35,
         SCATTER_CAPTURE_RATE: 0.5,
         SCATTER_DESTROY_RATE: 0.5,
+        DAMAGED_SHIP_EFFECTIVENESS: 0.14,
         // AI Behavior
         AI_ATTACK_THRESHOLD: 1.33,
         AI_DESIST_THRESHOLD: 1.0,
@@ -71,6 +72,7 @@
         RETREAT_CAPTURE_RATE: true,
         SCATTER_CAPTURE_RATE: true,
         SCATTER_DESTROY_RATE: true,
+        DAMAGED_SHIP_EFFECTIVENESS: true,
         AI_ATTACK_THRESHOLD: true,
         AI_DESIST_THRESHOLD: true,
         AI_RANDOM_AGGRESSION: true,
@@ -110,6 +112,7 @@
         RETREAT_CAPTURE_RATE: 1.0, // Capture all on retreat
         SCATTER_CAPTURE_RATE: 1.0, // Capture all on scatter
         SCATTER_DESTROY_RATE: 0, // No destruction
+        DAMAGED_SHIP_EFFECTIVENESS: 0, // No defensive contribution from damaged ships
         AI_ATTACK_THRESHOLD: 999, // Never attack
         AI_DESIST_THRESHOLD: 999, // Never retreat
         AI_RANDOM_AGGRESSION: 0, // No random attacks
@@ -209,6 +212,14 @@
             min: 0,
             max: 1,
             step: 0.05,
+        },
+        {
+            key: "DAMAGED_SHIP_EFFECTIVENESS",
+            label: "Damaged Ship Defense",
+            desc: "Fraction of damaged ships counting as defenders",
+            min: 0,
+            max: 1,
+            step: 0.01,
         },
     ] as const;
 
