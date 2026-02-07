@@ -86,9 +86,9 @@ Update this file after each development session.
 | **Passthrough Orders** | ✅ Done | Queue orders from/through enemy stars. Dashed arrows for deferred orders. Executes on capture. |
 | **Combat Log Improvements** | ✅ Done | Shows player owners (YOU, AI1, etc.) instead of star colors. |
 | **Chain Conquest Fix** | ✅ Done | Attacks invalidated when star ownership changes mid-tick. |
-| **Ship Transfer Animations** | 🔴 High | Ships visually flowing along connection paths |
-| **Conquer-Scatter Animations** | 🔴 High | Ships scattering to escape route stars on conquest |
-| **Retreat Animations** | 🔴 High | Ships retreating to friendly stars |
+| **Ship Transfer Animations** | ✅ Done | Ships visually fly along connections with eased motion, spread, and jitter |
+| **Conquer-Scatter Animations** | ✅ Done | Burst effect + ships scatter to escape route stars on conquest |
+| **Retreat Animations** | ✅ Done | Ships fly from conquered star to retreat target |
 | **Logging Levels** | ✅ Done | Toggleable `logFlags` in logger — 8 categories, runtime toggling via `window.logFlags` |
 | **Combat Log: Captured Ships** | ✅ Done | Shows captured, escaped, and destroyed counts on conquest |
 | **Combat Log: "You" Filter** | ✅ Done | "👤 You" toggle button filters to own battles |
