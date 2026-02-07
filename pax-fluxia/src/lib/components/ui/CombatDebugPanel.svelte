@@ -10,7 +10,7 @@
         // Transfer
         TRANSFER_RATE: 25, // Stored as % in UI, converted to decimal when applied
         // Combat
-        AGGRESSOR_ADVANTAGE: 0.8,
+        AGGRESSOR_ADVANTAGE: 0.7,
         DAMAGE_PER_SHIP: 0.1,
         LETHALITY: 0.25,
         FORCE_RATIO_EFFECT: 0,
@@ -20,6 +20,8 @@
         SCATTER_CAPTURE_RATE: 0.5,
         SCATTER_DESTROY_RATE: 0.5,
         DAMAGED_SHIP_EFFECTIVENESS: 0.14,
+        // Production / Repair
+        REPAIR_RATE: 0.2,
         // AI Behavior
         AI_ATTACK_THRESHOLD: 1.33,
         AI_DESIST_THRESHOLD: 1.0,
@@ -73,6 +75,7 @@
         SCATTER_CAPTURE_RATE: true,
         SCATTER_DESTROY_RATE: true,
         DAMAGED_SHIP_EFFECTIVENESS: true,
+        REPAIR_RATE: true,
         AI_ATTACK_THRESHOLD: true,
         AI_DESIST_THRESHOLD: true,
         AI_RANDOM_AGGRESSION: true,
@@ -113,6 +116,7 @@
         SCATTER_CAPTURE_RATE: 1.0, // Capture all on scatter
         SCATTER_DESTROY_RATE: 0, // No destruction
         DAMAGED_SHIP_EFFECTIVENESS: 0, // No defensive contribution from damaged ships
+        REPAIR_RATE: 0, // No repair
         AI_ATTACK_THRESHOLD: 999, // Never attack
         AI_DESIST_THRESHOLD: 999, // Never retreat
         AI_RANDOM_AGGRESSION: 0, // No random attacks
@@ -217,6 +221,14 @@
             key: "DAMAGED_SHIP_EFFECTIVENESS",
             label: "Damaged Ship Defense",
             desc: "Fraction of damaged ships counting as defenders",
+            min: 0,
+            max: 1,
+            step: 0.01,
+        },
+        {
+            key: "REPAIR_RATE",
+            label: "🔧 Repair Rate",
+            desc: "% of damaged ships repaired per tick (Purple 2x)",
             min: 0,
             max: 1,
             step: 0.01,
