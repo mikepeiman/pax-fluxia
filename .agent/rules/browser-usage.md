@@ -1,18 +1,13 @@
+---
+description: Restrict browser subagent usage to explicit user requests
+trigger: always_on
+---
+
 # Browser Usage Policy
 
 ## CRITICAL RULE: Do NOT use browser without explicit permission
 
 **The AI agent MUST NOT attempt to use the browser subagent or any browser-related tools unless the user has EXPLICITLY requested it in the current message.**
-
-### Why This Rule Exists
-
-Browser operations frequently fail due to:
-- Connection timeouts
-- Browser initialization issues  
-- Page load failures
-- System-level browser conflicts
-
-These failures cause the agent to waste significant time in retry loops, providing no value to the user.
 
 ### When Browser Usage IS Permitted
 

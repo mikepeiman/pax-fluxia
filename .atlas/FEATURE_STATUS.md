@@ -85,13 +85,30 @@ Update this file after each development session.
 | **Passthrough Orders** | ✅ Done | Queue orders from/through enemy stars. Dashed arrows for deferred orders. Executes on capture. |
 | **Combat Log Improvements** | ✅ Done | Shows player owners (YOU, AI1, etc.) instead of star colors. |
 | **Chain Conquest Fix** | ✅ Done | Attacks invalidated when star ownership changes mid-tick. |
+| **Ship Transfer Animations** | 🔴 High | Ships visually flowing along connection paths |
+| **Conquer-Scatter Animations** | 🔴 High | Ships scattering to escape route stars on conquest |
+| **Retreat Animations** | 🔴 High | Ships retreating to friendly stars |
+| **Logging Levels** | 🟡 Medium | Toggleable flags in logger (combat, ai, input, net) |
+| **Multiplayer Deployment** | 🟡 Medium | Deploy for alpha testing (research hosting options) |
+| **Combat Log: Captured Ships** | 🟢 Standard | Show how many ships were captured in combat logs |
+| **Combat Log: "You" Filter** | 🟢 Standard | Filter combat logs to show only your own battles |
+| **Damaged Ships Defense in UI** | 🟢 Standard | Expose DAMAGED_SHIP_EFFECTIVENESS (1/7th) in control panel |
+| **AI: Frontline Forces** | 🟢 Standard | Distribute ships along frontline, configurable allocation |
+| **AI: Match Opposing Forces** | 🟢 Standard | AI matches enemy force levels on frontline |
+| **AI: Evenly-Distributed** | 🟢 Standard | Option to spread ships evenly across territory |
+| **AI: Backline-and-Pounce** | 🟢 Standard | Hold back, commit to battles on frontline capture |
+| **AI: Tactical Surround** | 🟢 Standard | Multi-star coordination to surround enemy forces |
+| **AI: Star Type Awareness** | 🟢 Standard | Attack from Green, defend Red/Purple |
+| **Custom Map Editor** | 🔵 Backlog | Implementation plan needed with effort estimates |
 
 ---
 
 ## Session Log
 
 | Date | Summary |
-|------|---------|
+|------|---------| 
+| 2026-02-07 | Protocol audit & consolidation, comprehensive game spec, dev history, new doc-everything rule. |
+| 2026-02-07 | Colyseus multiplayer: fixed player interaction, star ownership with sessionId. |
 | 2026-02-03 | Audio system (Tone.js), passthrough orders fix, star spacing slider. |
 | 2026-02-02 | Fixed scatter/escape on conquest (checks connections). Fixed competing orders A↔B. |
 | 2026-02-02 | Fixed: rt-click cancel, ship disappear, attack damage reduced 90%. |

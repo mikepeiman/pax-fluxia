@@ -8,18 +8,20 @@
 ## 🗺️ Navigation
 
 ### 🏗️ Project Structure
-- **`pax-fluxia/`**: Main Application (SvelteKit + Tauri + PixiJS)
+- **`common/`**: Shared game logic (engine, combat, types, schemas)
+- **`pax-fluxia/`**: Client Application (SvelteKit + PixiJS)
+- **`pax-server/`**: Game Server (Node.js + Colyseus)
 - **`.atlas/`**: The Architecture Map (Single Source of Truth)
-  - `00_PHYSICAL_MAP.md` (Files & Folders)
-  - `01_ASSET_INVENTORY.md` (Code Assets)
-  - `02_IO_REGISTRY.md` (Data Flow)
-  - `03_EVENT_MATRIX.md` (Events & State)
-  - `04_FUNCTIONAL_STORY.md` (User Stories)
+  - `GAME_SPECIFICATION.md` ⭐ (Comprehensive game spec)
+  - `DEVELOPMENT_HISTORY.md` (Build history & roadmap)
   - `PRD_ACTIVE.md` (Product Specs)
+  - `FEATURE_STATUS.md` (Current status & backlog)
   - `MECHANICS.md` (Combat Logic)
-- **`.cursor/rules/`**: Agent Behavioral Constraints
+  - `DECISIONS.md` (Architectural Decisions)
+  - `00_PHYSICAL_MAP.md` → `04_FUNCTIONAL_STORY.md` (Atlas Maps)
+- **`.agent/rules/`**: ⚖️ Canonical Agent Rules (10 files)
 - **`.agent/.skills/`**: Portable Skill Library
-- **`reference/`**: Legacy code (`legacy_app`) and Research (`research`)
+- **`reference/`**: Legacy code and research
 
 ---
 
@@ -33,7 +35,7 @@
 - *New Event?* → Update Map 03.
 
 ### 2. D.A.R.T. Method
-- **D**ialect: Generally: think, identify your assumptions, and check to confirm understanding. Bias towards dialogue with the user!
+- **D**ialect: Think, identify assumptions, check understanding. Bias towards dialogue!
 - **A**tomic: Small, testable changes.
 - **R**epair: Self-correct errors immediately.
 - **T**hreat-Model: List risks before coding.
@@ -43,15 +45,20 @@
 - **YES** `import { log } from '$lib/utils/logger'`.
 
 ### 4. Git Policy
-- **ONLY** commit if the user explicitly asks.
+- Commit with `git ac "message"` after every code/doc change.
+- Always push: `git push origin master`.
 - **NEVER** use `&&` in PowerShell.
+
+### 5. Document Everything
+- Every idea, fix, or roadmap feature must be recorded in `.atlas/`.
 
 ---
 
 ## 🚀 Getting Started
-1. Read `.atlas/PRD_ACTIVE.md` for context.
-2. Check `.atlas/FEATURE_STATUS.md` for current state.
-3. Use `.cursor/rules/` to guide your agent behavior.
+1. Read `.atlas/GAME_SPECIFICATION.md` for full game spec.
+2. Read `.atlas/DEVELOPMENT_HISTORY.md` for build context.
+3. Check `.atlas/FEATURE_STATUS.md` for current state.
+4. Review `.agent/rules/` for all agent behavioral rules.
 
 ---
 
