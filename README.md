@@ -2,6 +2,7 @@
   <img src="https://img.shields.io/badge/status-alpha-blueviolet?style=for-the-badge" alt="Status: Alpha">
   <img src="https://img.shields.io/badge/engine-custom-ff6b35?style=for-the-badge" alt="Engine: Custom">
   <img src="https://img.shields.io/badge/stack-svelte%20%2B%20pixi%20%2B%20colyseus-00e0ff?style=for-the-badge" alt="Stack">
+  <img src="https://img.shields.io/badge/runtime-bun-f472b6?style=for-the-badge" alt="Runtime: Bun">
 </p>
 
 # 🌌 Pax Galaxia Redux
@@ -59,8 +60,7 @@ Ships transfer continuously along active orders. Combat resolves automatically w
 
 ### Prerequisites
 
-- **Node.js** 18+
-- **npm** 9+
+- **Bun** 1.0+
 
 ### Install & Run
 
@@ -70,11 +70,11 @@ git clone https://github.com/mikepeiman/pax-galaxia-redux.git
 cd pax-galaxia-redux
 
 # Install dependencies
-npm install
+bun install
 
 # Start the dev server (single-player)
 cd pax-fluxia
-npm run dev
+bun run dev
 ```
 
 Open `http://localhost:5173` in your browser.
@@ -83,12 +83,12 @@ Open `http://localhost:5173` in your browser.
 
 ```bash
 # Terminal 1: Start Colyseus server
-cd server
-npx tsx src/index.ts
+cd pax-server
+bun run src/index.ts
 
 # Terminal 2: Start client
 cd pax-fluxia
-npm run dev
+bun run dev
 ```
 
 ---
