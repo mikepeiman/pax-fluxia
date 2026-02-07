@@ -4,30 +4,17 @@
 // These types work in both browser and server environments.
 // The browser uses them locally, the server uses them for network sync.
 //
-// NOTE: Uses defineTypes() instead of @type decorators to avoid
-// decorator transpilation issues between tsx/esbuild and Colyseus.
+// Uses schema() function API — avoids decorator transpilation issues
+// between tsx/esbuild and different tsconfig contexts.
+// See: https://docs.colyseus.io/state/schema/
 
-import { Schema, defineTypes, MapSchema, ArraySchema } from "@colyseus/schema";
+import { schema, type SchemaType, MapSchema, ArraySchema } from "@colyseus/schema";
 
 // ============================================================================
 // Player Schema
 // ============================================================================
 
-export class PlayerSchema extends Schema {
-    id: string = "";
-    name: string = "";
-    color: string = "";
-    isAI: boolean = false;
-    isEliminated: boolean = false;
-    starCount: number = 0;
-    totalShips: number = 0;
-    activeShips: number = 0;
-    damagedShips: number = 0;
-    production: number = 0;
-    isConnected: boolean = true;
-    sessionId: string = "";
-}
-defineTypes(PlayerSchema, {
+export const PlayerSchema = schema({
     id: "string",
     name: "string",
     color: "string",
@@ -40,32 +27,14 @@ defineTypes(PlayerSchema, {
     production: "number",
     isConnected: "boolean",
     sessionId: "string",
-});
+}, "PlayerSchema");
+export type PlayerSchema = SchemaType<typeof PlayerSchema>;
 
 // ============================================================================
 // Star Schema
 // ============================================================================
 
-export class StarSchema extends Schema {
-    id: string = "";
-    x: number = 0;
-    y: number = 0;
-    radius: number = 30;
-    productionRate: number = 1;
-    activeShips: number = 0;
-    damagedShips: number = 0;
-    ownerId: string = "";
-    targetId: string = "";
-    queuedOrderTargetId: string = "";
-    icon: string = "🌟";
-    starType: string = "grey";
-    activationRate: number = 0.8;
-    defensivePosture: number = 1.0;
-    defenseStrength: number = 1.0;
-    repairRate: number = 0.2;
-    transferRate: number = 1.0;
-}
-defineTypes(StarSchema, {
+export const StarSchema = schema({
     id: "string",
     x: "number",
     y: "number",
@@ -83,96 +52,72 @@ defineTypes(StarSchema, {
     defenseStrength: "number",
     repairRate: "number",
     transferRate: "number",
-});
+}, "StarSchema");
+export type StarSchema = SchemaType<typeof StarSchema>;
 
 // ============================================================================
 // Connection Schema
 // ============================================================================
 
-export class ConnectionSchema extends Schema {
-    sourceId: string = "";
-    targetId: string = "";
-    distance: number = 0;
-}
-defineTypes(ConnectionSchema, {
+export const ConnectionSchema = schema({
     sourceId: "string",
     targetId: "string",
     distance: "number",
-});
+}, "ConnectionSchema");
+export type ConnectionSchema = SchemaType<typeof ConnectionSchema>;
 
 // ============================================================================
 // Territory Polygon (for Voronoi)
 // ============================================================================
 
-export class PointSchema extends Schema {
-    x: number = 0;
-    y: number = 0;
-}
-defineTypes(PointSchema, {
+export const PointSchema = schema({
     x: "number",
     y: "number",
-});
+}, "PointSchema");
+export type PointSchema = SchemaType<typeof PointSchema>;
 
-export class TerritorySchema extends Schema {
-    playerId: string = "";
-    points = new ArraySchema<PointSchema>();
-}
-defineTypes(TerritorySchema, {
+export const TerritorySchema = schema({
     playerId: "string",
-    points: [PointSchema],
-});
+    points: { array: PointSchema },
+}, "TerritorySchema");
+export type TerritorySchema = SchemaType<typeof TerritorySchema>;
 
 // ============================================================================
 // Room State Schema (Root)
 // ============================================================================
 
-export class GameRoomState extends Schema {
+export const GameRoomState = schema({
     // Game phase
-    phase: "lobby" | "playing" | "ended" = "lobby";
+    phase: "string",
 
     // Tick state
-    tick: number = 0;
-    tickProgress: number = 0;
-    isPaused: boolean = true;
-    speed: number = 1;
-
-    // Players (map by session ID for easy lookup)
-    players = new MapSchema<PlayerSchema>();
-
-    // Stars (map by star ID)
-    stars = new MapSchema<StarSchema>();
-
-    // Connections (array for iteration)
-    connections = new ArraySchema<ConnectionSchema>();
-
-    // Territories (optional, for visualization)
-    territories = new MapSchema<TerritorySchema>();
-
-    // Room settings
-    maxPlayers: number = 4;
-    playerCount: number = 0;
-    hostSessionId: string = "";
-    winnerId: string = "";
-}
-defineTypes(GameRoomState, {
-    phase: "string",
     tick: "number",
     tickProgress: "number",
     isPaused: "boolean",
     speed: "number",
+
+    // Players (map by session ID for easy lookup)
     players: { map: PlayerSchema },
+
+    // Stars (map by star ID)
     stars: { map: StarSchema },
-    connections: [ConnectionSchema],
+
+    // Connections (array for iteration)
+    connections: { array: ConnectionSchema },
+
+    // Territories (optional, for visualization)
     territories: { map: TerritorySchema },
+
+    // Room settings
     maxPlayers: "number",
     playerCount: "number",
     hostSessionId: "string",
     winnerId: "string",
-});
+}, "GameRoomState");
+export type GameRoomState = SchemaType<typeof GameRoomState>;
 
 // ============================================================================
 // Re-export ArraySchema and MapSchema for consumers
 // ============================================================================
 
 export { MapSchema, ArraySchema };
-

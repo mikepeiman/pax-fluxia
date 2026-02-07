@@ -1,20 +1,14 @@
 // Minimal test schema - simplest possible schema for debugging
-import { Schema, defineTypes, MapSchema } from "@colyseus/schema";
+import { schema, type SchemaType } from "@colyseus/schema";
 
-export class MinimalPlayerSchema extends Schema {
-    id: string = "";
-    name: string = "";
-}
-defineTypes(MinimalPlayerSchema, {
+export const MinimalPlayerSchema = schema({
     id: "string",
     name: "string",
-});
+}, "MinimalPlayerSchema");
+export type MinimalPlayerSchema = SchemaType<typeof MinimalPlayerSchema>;
 
-export class MinimalState extends Schema {
-    status: string = "lobby";
-    players = new MapSchema<MinimalPlayerSchema>();
-}
-defineTypes(MinimalState, {
+export const MinimalState = schema({
     status: "string",
     players: { map: MinimalPlayerSchema },
-});
+}, "MinimalState");
+export type MinimalState = SchemaType<typeof MinimalState>;
