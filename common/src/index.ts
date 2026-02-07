@@ -11,6 +11,9 @@ export * from './combat';
 // Re-export production logic
 export * from './production';
 
+// Re-export config (star type stats, engine config)
+export * from './config';
+
 // Re-export order logic
 export * from './orders';
 

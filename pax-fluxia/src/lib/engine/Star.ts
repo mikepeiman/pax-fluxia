@@ -3,6 +3,9 @@
 // ============================================================================
 
 import type { StarId, PlayerId, StarState, StarConfig, StarType } from '$lib/types/game.types';
+import type { Star as IStar } from '@pax/common';
+import { STAR_TYPE_STATS, applyProduction, applyRepair, DEFAULT_ENGINE_CONFIG } from '@pax/common';
+import type { EngineConfig } from '@pax/common';
 import { GAME_CONFIG } from '$lib/config/game.config';
 
 /** Constants */
@@ -16,14 +19,14 @@ export const REPAIR_RATE = 0.5; // Damaged ships repaired per tick
  * - Active (solid dots): Can attack, participate in flow
  * - Damaged (hollow rings): Repairing, cannot attack, defend at reduced rate
  */
-export class Star {
+export class Star implements IStar {
     readonly id: StarId;
     readonly x: number;
     readonly y: number;
     readonly radius: number;
     readonly productionRate: number;
     readonly icon: string;
-    readonly starType: StarType;
+    readonly starType: string;
 
     // Combat V2 Properties
     readonly activationRate: number;
@@ -32,59 +35,15 @@ export class Star {
     readonly repairRate: number;
     readonly transferRate: number;
 
-    // Type Configs - Canonical Star Type Spec
-    // Each type has 2x bonus on its specialty, all other stats @ 1.0
-    static readonly TYPE_STATS: Record<StarType, {
-        defense: number,      // Combat defense multiplier (RED = 2x)
-        prod: number,         // Production rate (YELLOW = 2x)
-        speed: number,        // Movement/transfer speed (BLUE = 2x)
-        repair: number,       // Repair rate (PURPLE = 2x)
-        attack: number,       // Attack power (GREEN = 2x)
-        color: number,
-        // V2 Stats (consistent across types for now)
-        activationRate: number,
-        defensivePosture: number,
-        defenseStrength: number,
-        repairRate: number,
-        transferRate: number
-    }> = {
-            'grey': { // BASIC - No bonuses, all stats @ 1.0
-                defense: 1, prod: 1, speed: 1, repair: 1, attack: 1, color: 0x8899aa,
-                activationRate: 0.5, defensivePosture: 1.0, defenseStrength: 1.0, repairRate: 0.2, transferRate: 0.1
-            },
-            'yellow': { // PRODUCTION - 2x production rate
-                defense: 1, prod: 2, speed: 1, repair: 1, attack: 1, color: 0xfbbf24,
-                activationRate: 0.5, defensivePosture: 1.0, defenseStrength: 1.0, repairRate: 0.2, transferRate: 0.1
-            },
-            'blue': { // MOVEMENT - 2x transfer/movement speed
-                defense: 1, prod: 1, speed: 2, repair: 1, attack: 1, color: 0x3b82f6,
-                activationRate: 0.5, defensivePosture: 1.0, defenseStrength: 1.0, repairRate: 0.2, transferRate: 0.2
-            },
-            'purple': { // REPAIR - 2x repair rate
-                defense: 1, prod: 1, speed: 1, repair: 2, attack: 1, color: 0xa855f7,
-                activationRate: 0.5, defensivePosture: 1.0, defenseStrength: 1.0, repairRate: 0.4, transferRate: 0.1
-            },
-            'red': { // DEFENSE - 2x defense strength
-                defense: 2, prod: 1, speed: 1, repair: 1, attack: 1, color: 0xef4444,
-                activationRate: 0.5, defensivePosture: 1.0, defenseStrength: 2.0, repairRate: 0.2, transferRate: 0.1
-            },
-            'green': { // ATTACK - 2x attack power
-                defense: 1, prod: 1, speed: 1, repair: 1, attack: 2, color: 0x22c55e,
-                activationRate: 0.5, defensivePosture: 1.0, defenseStrength: 1.0, repairRate: 0.2, transferRate: 0.1
-            },
-        };
-
-    private _activeShips: number;
-    private _damagedShips: number;
+    // Public fields satisfying IStar interface
+    activeShips: number;
+    damagedShips: number;
+    productionOverflow: number = 0;
+    repairOverflow: number = 0;
+    lastCombatTick: number = -1;
     private _ownerId: PlayerId;
     private _targetId: StarId | null;
-    private _lastCombatTick: number = -1;
     private _queuedOrder: { ownerId: PlayerId, targetId: StarId, persistAfterConquest: boolean } | null = null;
-
-    // Fractional overflow accumulators — ships are always integers,
-    // fractional production/repair accumulates here until >= 1
-    private _productionOverflow: number = 0;
-    private _repairOverflow: number = 0;
 
     // Current order's persistence flag (inverted by ctrl-click)
     private _orderPersistsAfterConquest: boolean = true;
@@ -99,13 +58,13 @@ export class Star {
         this.starType = config.starType || 'grey';
 
         // Ships should be 0 by default - addActiveShips() is called separately with STARTING_SHIPS
-        this._activeShips = config.activeShips ?? 0;
-        this._damagedShips = config.damagedShips ?? 0;
+        this.activeShips = config.activeShips ?? 0;
+        this.damagedShips = config.damagedShips ?? 0;
         this._targetId = null;
 
         // Initialize V2 Stats from CONFIG or Defaults
         // Fallback to 'grey' if type not found (though types enforces it)
-        const stats = Star.TYPE_STATS[this.starType] || Star.TYPE_STATS['grey'];
+        const stats = STAR_TYPE_STATS[this.starType as StarType] || STAR_TYPE_STATS['grey'];
 
         this.activationRate = config.activationRate ?? stats.activationRate;
         this.defensivePosture = config.defensivePosture ?? stats.defensivePosture;
@@ -123,14 +82,6 @@ export class Star {
     // Getters
     // ============================================================================
 
-    get activeShips(): number {
-        return this._activeShips;
-    }
-
-    get damagedShips(): number {
-        return this._damagedShips;
-    }
-
     get ownerId(): PlayerId {
         return this._ownerId;
     }
@@ -141,7 +92,7 @@ export class Star {
 
     /** Total ships at this star */
     get totalShips(): number {
-        return this._activeShips + this._damagedShips;
+        return this.activeShips + this.damagedShips;
     }
 
     /** Is this star currently sending ships somewhere? */
@@ -175,51 +126,42 @@ export class Star {
     // ============================================================================
 
     /**
-     * Produce new ships each tick
-     * Only produces if star has an owner
-     * Fractional production accumulates in overflow; whole ships added when overflow >= 1
+     * Produce new ships each tick.
+     * Delegates to shared applyProduction() from @pax/common.
      */
     produce(): void {
-        if (this._ownerId) {
-            const baseRate = GAME_CONFIG.BASE_PRODUCTION ?? 0.5;
-            const typeMult = Star.TYPE_STATS[this.starType]?.prod ?? 1.0;
-            this._productionOverflow += this.productionRate * baseRate * typeMult;
-            if (this._productionOverflow >= 1) {
-                const newShips = Math.floor(this._productionOverflow);
-                this._activeShips += newShips;
-                this._productionOverflow -= newShips;
-            }
-        }
+        const cfg: EngineConfig = {
+            ...DEFAULT_ENGINE_CONFIG,
+            BASE_PRODUCTION: GAME_CONFIG.BASE_PRODUCTION ?? 0.5,
+            REPAIR_RATE: GAME_CONFIG.REPAIR_RATE ?? 0.20,
+            MIN_REPAIR: GAME_CONFIG.MIN_REPAIR ?? 1,
+            REPAIR_COMBAT_PENALTY: GAME_CONFIG.REPAIR_COMBAT_PENALTY ?? 0.1,
+            MIN_SHIPS_PER_TRANSFER: GAME_CONFIG.MIN_SHIPS_PER_TRANSFER ?? 1,
+        };
+        applyProduction(this, cfg);
     }
 
+    /**
+     * Repair damaged ships each tick.
+     * Delegates to shared applyRepair() from @pax/common.
+     */
     repair(currentTick: number): void {
-        if (this._damagedShips > 0) {
-            const configRate = GAME_CONFIG.REPAIR_RATE ?? 0.20;
-            const minRepair = GAME_CONFIG.MIN_REPAIR ?? 1;
-            const typeMult = Star.TYPE_STATS[this.starType]?.repair ?? 1.0;
-
-            let amount = Math.max(minRepair, this._damagedShips * configRate * typeMult);
-
-            // Apply Pinning Penalty
-            if (this._lastCombatTick >= currentTick - 1) {
-                amount *= GAME_CONFIG.REPAIR_COMBAT_PENALTY;
-            }
-
-            this._repairOverflow += amount;
-            if (this._repairOverflow >= 1) {
-                const repaired = Math.min(this._damagedShips, Math.floor(this._repairOverflow));
-                this._damagedShips -= repaired;
-                this._activeShips += repaired;
-                this._repairOverflow -= repaired;
-            }
-        }
+        const cfg: EngineConfig = {
+            ...DEFAULT_ENGINE_CONFIG,
+            BASE_PRODUCTION: GAME_CONFIG.BASE_PRODUCTION ?? 0.5,
+            REPAIR_RATE: GAME_CONFIG.REPAIR_RATE ?? 0.20,
+            MIN_REPAIR: GAME_CONFIG.MIN_REPAIR ?? 1,
+            REPAIR_COMBAT_PENALTY: GAME_CONFIG.REPAIR_COMBAT_PENALTY ?? 0.1,
+            MIN_SHIPS_PER_TRANSFER: GAME_CONFIG.MIN_SHIPS_PER_TRANSFER ?? 1,
+        };
+        applyRepair(this, currentTick, cfg);
     }
 
     /**
      * Mark star as engaged in combat (prevents repair)
      */
     markCombat(tick: number): void {
-        this._lastCombatTick = tick;
+        this.lastCombatTick = tick;
     }
 
     /**
@@ -237,8 +179,8 @@ export class Star {
      * Returns the number of ships actually removed
      */
     removeActiveShips(count: number): number {
-        const removed = Math.min(this._activeShips, count);
-        this._activeShips -= removed;
+        const removed = Math.min(this.activeShips, count);
+        this.activeShips -= removed;
         return removed;
     }
 
@@ -246,24 +188,24 @@ export class Star {
      * Add ships (from reinforcement or capture)
      */
     addActiveShips(count: number): void {
-        this._activeShips += count;
+        this.activeShips += count;
     }
 
     /**
      * Add damaged ships (from combat survivors)
      */
     addDamagedShips(count: number): void {
-        this._damagedShips += count;
+        this.damagedShips += count;
     }
 
     /**
      * Clear all ships (used on conquest to reset population)
      */
     clearShips(): void {
-        this._activeShips = 0;
-        this._damagedShips = 0;
-        this._productionOverflow = 0;
-        this._repairOverflow = 0;
+        this.activeShips = 0;
+        this.damagedShips = 0;
+        this.productionOverflow = 0;
+        this.repairOverflow = 0;
     }
 
     /**
@@ -274,19 +216,10 @@ export class Star {
      * 3. Returns { converted: number, destroyed: number }
      */
     takeDamage(damage: number): { converted: number, destroyed: number } {
-        // 1. Convert Active -> Damaged
-        // User Request: Damaged ships are NEVER destroyed in combat.
-        // They are safe until the star is conquered.
-
-        const converted = Math.min(this._activeShips, damage);
-        this._activeShips -= converted;
-        this._damagedShips += converted;
-
-        // No rollover damage to damaged ships. 
-        // Any excess damage is effectively wasted/absorbed by the "shield" of combat chaos?
-        // Or simply ignored as they are already out of the fight.
+        const converted = Math.min(this.activeShips, damage);
+        this.activeShips -= converted;
+        this.damagedShips += converted;
         const destroyed = 0;
-
         return { converted, destroyed };
     }
 
@@ -334,13 +267,16 @@ export class Star {
             y: this.y,
             radius: this.radius,
             productionRate: this.productionRate,
-            activeShips: Math.floor(this._activeShips),
-            damagedShips: Math.floor(this._damagedShips),
+            activeShips: this.activeShips,
+            damagedShips: this.damagedShips,
             ownerId: this._ownerId,
             targetId: this._targetId,
             queuedOrderTargetId: this._queuedOrder?.targetId ?? null,
             icon: this.icon,
             starType: this.starType,
+            productionOverflow: this.productionOverflow,
+            repairOverflow: this.repairOverflow,
+            lastCombatTick: this.lastCombatTick,
             // V2 Logic
             activationRate: this.activationRate,
             defensivePosture: this.defensivePosture,

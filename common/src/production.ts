@@ -1,34 +1,84 @@
 // ============================================================================
 // Pax Fluxia - Production & Repair Logic (Shared)
 // ============================================================================
+// Stateless functions that operate on the Star interface.
+// Used by both client (SP prediction) and server (authoritative MP).
+// ============================================================================
 
-import type { Star } from './types';
+import type { Star, StarType } from './types';
+import type { EngineConfig } from './config';
+import { STAR_TYPE_STATS } from './config';
 
-// === Production Constants ===
-export const PRODUCTION_CONFIG = {
-    BASE_PRODUCTION_RATE: 1,
-    BASE_REPAIR_RATE: 0.2,
-    MIN_REPAIR: 1,
-} as const;
+// ============================================================================
+// Production
+// ============================================================================
 
 /**
- * Calculate ships produced this tick for a star.
+ * Apply production to a star. Mutates star in place.
+ * Fractional production accumulates in overflow; whole ships added when >= 1.
+ *
+ * Formula: productionRate × BASE_PRODUCTION × starType.prod
+ *   - Grey:   1 × 0.5 × 1 = 0.5 → 1 ship every 2 ticks
+ *   - Yellow: 1 × 0.5 × 2 = 1.0 → 1 ship every tick
  */
-export function calculateProduction(star: Star): number {
-    // Only owned stars produce
-    if (!star.ownerId || star.ownerId === 'neutral') {
-        return 0;
+export function applyProduction(star: Star, cfg: EngineConfig): void {
+    if (!star.ownerId || star.ownerId === 'neutral') return;
+
+    const typeMult = STAR_TYPE_STATS[star.starType as StarType]?.prod ?? 1.0;
+    star.productionOverflow += star.productionRate * cfg.BASE_PRODUCTION * typeMult;
+
+    if (star.productionOverflow >= 1) {
+        const newShips = Math.floor(star.productionOverflow);
+        star.activeShips += newShips;
+        star.productionOverflow -= newShips;
     }
+}
+
+// ============================================================================
+// Repair
+// ============================================================================
+
+/**
+ * Apply repair to a star. Mutates star in place.
+ * Fractional repair accumulates in overflow; whole ships repaired when >= 1.
+ *
+ * Features:
+ *   - Star type multiplier (Purple = 2x repair)
+ *   - Pinning penalty: repair reduced when in active combat (lastCombatTick)
+ *   - Integer invariant: only whole ships transition from damaged → active
+ */
+export function applyRepair(star: Star, currentTick: number, cfg: EngineConfig): void {
+    if (star.damagedShips <= 0) return;
+
+    const typeMult = STAR_TYPE_STATS[star.starType as StarType]?.repair ?? 1.0;
+    let amount = Math.max(cfg.MIN_REPAIR, star.damagedShips * cfg.REPAIR_RATE * typeMult);
+
+    // Pinning penalty: reduced repair when in combat
+    if (star.lastCombatTick >= currentTick - 1) {
+        amount *= cfg.REPAIR_COMBAT_PENALTY;
+    }
+
+    star.repairOverflow += amount;
+    if (star.repairOverflow >= 1) {
+        const repaired = Math.min(star.damagedShips, Math.floor(star.repairOverflow));
+        star.damagedShips -= repaired;
+        star.activeShips += repaired;
+        star.repairOverflow -= repaired;
+    }
+}
+
+// ============================================================================
+// Legacy exports (kept for backward compatibility during migration)
+// ============================================================================
+
+/** @deprecated Use applyProduction instead */
+export function calculateProduction(star: Star): number {
+    if (!star.ownerId || star.ownerId === 'neutral') return 0;
     return star.productionRate;
 }
 
-/**
- * Calculate ships repaired this tick for a star.
- */
+/** @deprecated Use applyRepair instead */
 export function calculateRepair(star: Star): number {
-    if (star.damagedShips <= 0) {
-        return 0;
-    }
-    const { MIN_REPAIR } = PRODUCTION_CONFIG;
-    return Math.max(MIN_REPAIR, Math.floor(star.damagedShips * star.repairRate));
+    if (star.damagedShips <= 0) return 0;
+    return Math.max(1, Math.floor(star.damagedShips * star.repairRate));
 }

@@ -11,7 +11,7 @@ import {
 } from "../schema/GameState.schema";
 
 // Import shared game logic from @pax/common
-import { GameEngine } from "@pax/common";
+import { GameEngine, STAR_TYPE_STATS } from "@pax/common";
 import { log } from '../utils/logger';
 
 // Player colors palette (same as GameEngine)
@@ -348,6 +348,7 @@ export class GameRoom extends Room {
 
     private createStar(id: string, x: number, y: number, ownerId: string, starType: string) {
         const star = new StarSchema();
+        const stats = STAR_TYPE_STATS[starType as import("@pax/common").StarType] || STAR_TYPE_STATS['grey'];
         star.id = id;
         star.x = x;
         star.y = y;
@@ -356,13 +357,17 @@ export class GameRoom extends Room {
         star.activeShips = 40; // Starting ships
         star.damagedShips = 0;
         star.productionRate = 1;
-        star.repairRate = 0.2;
-        star.transferRate = 1.0;
-        star.activationRate = 0.8;
-        star.defensivePosture = 1.0;
-        star.defenseStrength = 1.0;
+        star.repairRate = stats.repairRate;
+        star.transferRate = stats.transferRate;
+        star.activationRate = stats.activationRate;
+        star.defensivePosture = stats.defensivePosture;
+        star.defenseStrength = stats.defenseStrength;
         star.radius = 25;
         star.icon = "🌟";
+        // Integer-ship invariant fields
+        star.productionOverflow = 0;
+        star.repairOverflow = 0;
+        star.lastCombatTick = -1;
         this.state.stars.set(id, star);
     }
 

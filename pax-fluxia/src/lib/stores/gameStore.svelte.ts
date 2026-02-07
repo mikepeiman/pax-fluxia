@@ -76,7 +76,7 @@ const humanPlayer = $derived(
 const leaderboard = $derived(
     [...(snapshot?.players ?? [])]
         .filter((p: PlayerState) => !p.isEliminated)
-        .sort((a: PlayerState, b: PlayerState) => b.totalShips - a.totalShips)
+        .sort((a: PlayerState, b: PlayerState) => (b.totalShips ?? 0) - (a.totalShips ?? 0))
 );
 
 // ============================================================================

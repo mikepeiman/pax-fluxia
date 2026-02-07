@@ -13,21 +13,18 @@ import {
     PlayerSchema
 } from "../schema/GameState";
 import { calculateCombat, getEffectiveDefenderForce, checkConquestThreshold, COMBAT_CONFIG } from "../combat";
+import { applyProduction, applyRepair } from "../production";
+import type { EngineConfig } from "../config";
+import { DEFAULT_ENGINE_CONFIG } from "../config";
 import type { GameInput, IssueOrderInput, CancelOrderInput, SetDeferredOrderInput } from "./GameInput";
 
 // ============================================================================
 // Configuration (can be overridden by caller)
 // ============================================================================
 
-export interface GameEngineConfig {
-    MIN_SHIPS_PER_TRANSFER: number;
-    PRODUCTION_BASE: number;
-}
-
-export const DEFAULT_ENGINE_CONFIG: GameEngineConfig = {
-    MIN_SHIPS_PER_TRANSFER: 1,
-    PRODUCTION_BASE: 1
-};
+// Re-export config types for consumers
+export type { EngineConfig };
+export { DEFAULT_ENGINE_CONFIG };
 
 // ============================================================================
 // GameEngine - Static Methods Only
@@ -43,8 +40,8 @@ export class GameEngine {
      * @param state - The game state (Colyseus Schema)
      * @param config - Optional config overrides
      */
-    static tick(state: GameRoomState, config: Partial<GameEngineConfig> = {}): void {
-        const cfg = { ...DEFAULT_ENGINE_CONFIG, ...config };
+    static tick(state: GameRoomState, config: Partial<EngineConfig> = {}): void {
+        const cfg: EngineConfig = { ...DEFAULT_ENGINE_CONFIG, ...config };
 
         // Skip if paused or not playing
         if (state.isPaused || state.phase !== "playing") return;
@@ -148,12 +145,9 @@ export class GameEngine {
     // PRODUCTION PROCESSING
     // ════════════════════════════════════════════════════════════════════════
 
-    private static processProduction(state: GameRoomState, cfg: GameEngineConfig): void {
+    private static processProduction(state: GameRoomState, cfg: EngineConfig): void {
         state.stars.forEach(star => {
-            if (!star.ownerId || star.ownerId === "neutral") return;
-
-            // Each star produces ships equal to its productionRate
-            star.activeShips += star.productionRate;
+            applyProduction(star, cfg);
         });
     }
 
@@ -161,7 +155,7 @@ export class GameEngine {
     // ORDER PROCESSING - Multi-star aggregation
     // ════════════════════════════════════════════════════════════════════════
 
-    private static processOrders(state: GameRoomState, cfg: GameEngineConfig): void {
+    private static processOrders(state: GameRoomState, cfg: EngineConfig): void {
         // Phase 1: Collect and group orders
         const attacksByTarget = new Map<string, StarSchema[]>();
         const reinforcements: { source: StarSchema; target: StarSchema }[] = [];
@@ -192,7 +186,7 @@ export class GameEngine {
             );
 
             if (transferAmount > 0 && source.activeShips > 0) {
-                const shipped = Math.min(transferAmount, source.activeShips);
+                const shipped = Math.min(transferAmount, Math.floor(source.activeShips));
                 source.activeShips -= shipped;
                 target.activeShips += shipped;
             }
@@ -269,6 +263,9 @@ export class GameEngine {
         defender.activeShips = Math.max(0, defender.activeShips - defenderTotalDamage);
         defender.damagedShips += result.disabledOnA;
 
+        // Mark combat for repair pinning penalty
+        defender.lastCombatTick = state.tick;
+
         // Apply proportional damage to attackers
         contributions.forEach(({ attacker, force }) => {
             const proportion = force / totalAttackForce;
@@ -308,6 +305,9 @@ export class GameEngine {
         attacker.activeShips -= transferAmount;
         defender.activeShips = transferAmount;
         defender.damagedShips = 0;
+        defender.productionOverflow = 0;
+        defender.repairOverflow = 0;
+        defender.lastCombatTick = -1;
 
         // Clear orders
         defender.targetId = "";
@@ -333,15 +333,9 @@ export class GameEngine {
     // REPAIR PROCESSING
     // ════════════════════════════════════════════════════════════════════════
 
-    private static processRepair(state: GameRoomState, cfg: GameEngineConfig): void {
+    private static processRepair(state: GameRoomState, cfg: EngineConfig): void {
         state.stars.forEach(star => {
-            if (star.damagedShips <= 0) return;
-
-            const repaired = Math.max(1, Math.floor(star.damagedShips * star.repairRate));
-            const actualRepair = Math.min(repaired, star.damagedShips);
-
-            star.damagedShips -= actualRepair;
-            star.activeShips += actualRepair;
+            applyRepair(star, state.tick, cfg);
         });
     }
 

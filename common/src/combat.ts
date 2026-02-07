@@ -42,7 +42,7 @@ export const COMBAT_CONFIG = {
     // < 1.0 = attackers deal LESS damage (defenders advantage)
     // = 1.0 = symmetric (no advantage)
     // ────────────────────────────────────────────────────────────────────────
-    AGGRESSOR_ADVANTAGE: 1.5,       // Attackers deal 50% more damage
+    AGGRESSOR_ADVANTAGE: 0.7,       // Slight defender advantage (was 1.5/0.8, user set to 0.7)
 
     // ────────────────────────────────────────────────────────────────────────
     // FORCE RATIO EFFECT

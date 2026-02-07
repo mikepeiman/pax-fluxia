@@ -140,7 +140,7 @@ export const GAME_CONFIG: GameConfigType = {
     // ========================================================================
 
     /** Tilts damage toward attacker (>1) or defender (<1). 1.0 = symmetric. */
-    AGGRESSOR_ADVANTAGE: 0.8,
+    AGGRESSOR_ADVANTAGE: 0.7,
 
     /** Base damage per engaged ship per tick. Range: 0.05-2.0 */
     DAMAGE_PER_SHIP: 0.1,

@@ -39,10 +39,15 @@ export interface Star {
     y: number;
     radius: number;
     ownerId: PlayerId;
-    starType: StarType;
+    starType: string;  // StarType union, but string in Schema for Colyseus compat
     // Ships
     activeShips: number;
     damagedShips: number;
+    // Overflow accumulators (integer ship invariant)
+    productionOverflow: number;
+    repairOverflow: number;
+    // Combat state
+    lastCombatTick: number;
     // Orders
     targetId: StarId | null;
     queuedOrderTargetId: StarId | null;

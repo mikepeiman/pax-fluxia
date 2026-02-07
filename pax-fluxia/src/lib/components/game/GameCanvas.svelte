@@ -19,6 +19,7 @@
         StarId,
     } from "$lib/types/game.types";
     import { Star } from "$lib/engine/Star";
+    import { STAR_TYPE_STATS } from "@pax/common";
     import { audio } from "$lib/audio/AudioManager";
     import {
         animationStore,
@@ -645,7 +646,10 @@
 
             // Main star body
             // Base color from StarType
-            const typeStats = Star.TYPE_STATS[star.starType];
+            const typeStats =
+                STAR_TYPE_STATS[
+                    star.starType as import("@pax/common").StarType
+                ];
             const typeColor = typeStats ? typeStats.color : 0xffffff;
 
             graphics.circle(star.x, star.y, radius);
