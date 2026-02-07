@@ -7,21 +7,8 @@ import { Server } from "colyseus";
 import { GameRoom } from "./rooms/GameRoom";
 import { TestRoom } from "./rooms/TestRoom";
 import { log } from "./utils/logger";
-import { StarSchema, GameRoomState } from "@pax/common";
 
 const PORT = Number(process.env.PORT) || 2567;
-
-// ── Quick schema() sanity check ──
-{
-    const state = new GameRoomState();
-    const star = new StarSchema();
-    star.ownerId = "test-owner";
-    star.activeShips = 42;
-    state.stars.set("test", star);
-    const got = state.stars.get("test");
-    const desc = Object.getOwnPropertyDescriptor(star, 'ownerId');
-    log.sys('SchemaDiag', `star.ownerId=${star.ownerId} got.ownerId=${got?.ownerId} activeShips=${got?.activeShips} descriptor=${desc?.get ? 'get/set' : desc?.value !== undefined ? 'value:' + desc.value : 'MISSING'} Symbol.metadata=${!!star.constructor[Symbol.metadata]} toJSON=${JSON.stringify(star.toJSON())}`);
-}
 
 log.sys('Init', 'Initializing Colyseus server with uWebSocketsTransport (default)...');
 

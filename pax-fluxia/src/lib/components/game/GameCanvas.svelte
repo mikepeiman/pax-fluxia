@@ -347,7 +347,7 @@
         // In multiplayer mode, look up color from player data
         if (isMultiplayerMode()) {
             const player = multiplayerStore.players.find(
-                (p) => p.id === ownerId,
+                (p) => p.sessionId === ownerId,
             );
             if (player && player.color) {
                 // Player color is stored as hex string like "#4488ff"
