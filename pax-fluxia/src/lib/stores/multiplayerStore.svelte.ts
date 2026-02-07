@@ -187,6 +187,10 @@ function syncStateFromRoom(state: any): void {
     // Convert stars map to array
     const starArray: StarState[] = [];
     if (state.stars) {
+        // DEBUG: Check if stars exist and how many
+        const starsSize = state.stars.size || (state.stars as any).length || Object.keys(state.stars).length;
+        log.data('Sync', `DEBUG: state.stars exists, size/length=${starsSize}, typeof=${typeof state.stars}, constructor=${state.stars.constructor?.name}`);
+
         state.stars.forEach((star: any) => {
             starArray.push({
                 id: star.id,
@@ -208,6 +212,7 @@ function syncStateFromRoom(state: any): void {
                 transferRate: star.transferRate
             });
         });
+        log.data('Sync', `DEBUG: Processed ${starArray.length} stars from forEach`);
     }
     stars = starArray;
 

@@ -364,6 +364,12 @@ export class GameRoom extends Room {
         star.radius = 25;
         star.icon = "🌟";
         this.state.stars.set(id, star);
+
+        // DEBUG: Verify star properties are set
+        const verify = this.state.stars.get(id);
+        if (verify) {
+            log.sys('GameRoom', `DEBUG star ${id}: ownerId=${verify.ownerId} active=${verify.activeShips} type=${verify.starType} hasDescriptors=${Object.getOwnPropertyDescriptor(verify, 'ownerId')?.get ? 'get/set' : 'value'}`);
+        }
     }
 
     private addConnection(sourceId: string, targetId: string) {
