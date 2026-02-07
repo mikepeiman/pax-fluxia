@@ -71,6 +71,8 @@ export class GameRoom extends Room {
             // Initialize state values
             this.state.maxPlayers = this.maxClients;
             this.state.phase = "lobby";
+            this.state.speed = 1;
+            this.state.isPaused = true;
 
             log.sys('GameRoom', 'Registering message handlers...');
             // Register message handlers
@@ -197,8 +199,8 @@ export class GameRoom extends Room {
             if (!source) return;
 
             // Only allow orders on owned stars
-            if (source.ownerId !== player.id) {
-                log.net('GameRoom', `Player ${player.id} tried to order non-owned star ${message.sourceId}`);
+            if (source.ownerId !== player.sessionId) {
+                log.net('GameRoom', `Player ${player.sessionId} tried to order non-owned star ${message.sourceId}`);
                 return;
             }
 
@@ -207,7 +209,7 @@ export class GameRoom extends Room {
 
             // Set order
             source.targetId = message.targetId;
-            log.game('GameRoom', `Order: ${message.sourceId} → ${message.targetId} by ${player.id}`);
+            log.game('GameRoom', `Order: ${message.sourceId} → ${message.targetId} by ${player.sessionId}`);
         });
 
         // Cancel order
@@ -216,11 +218,11 @@ export class GameRoom extends Room {
             if (!player) return;
 
             const star = this.state.stars.get(message.starId);
-            if (!star || star.ownerId !== player.id) return;
+            if (!star || star.ownerId !== player.sessionId) return;
 
             star.targetId = "";
             star.queuedOrderTargetId = "";
-            log.game('GameRoom', `Order cancelled: ${message.starId} by ${player.id}`);
+            log.game('GameRoom', `Order cancelled: ${message.starId} by ${player.sessionId}`);
         });
 
         // Deferred order (through enemy star)
@@ -232,10 +234,10 @@ export class GameRoom extends Room {
             if (!enemyStar) return;
 
             // Must be enemy star
-            if (enemyStar.ownerId === player.id) return;
+            if (enemyStar.ownerId === player.sessionId) return;
 
             enemyStar.queuedOrderTargetId = message.nextTargetId;
-            log.game('GameRoom', `Deferred order: ${message.enemyStarId} → ${message.nextTargetId} by ${player.id}`);
+            log.game('GameRoom', `Deferred order: ${message.enemyStarId} → ${message.nextTargetId} by ${player.sessionId}`);
         });
     }
 
@@ -277,7 +279,7 @@ export class GameRoom extends Room {
         const centerY = 450;
         const spread = 250;
 
-        const playerIds = Array.from(this.state.players.values()).map(p => p.id);
+        const playerIds = Array.from(this.state.players.values()).map(p => p.sessionId);
         const humanId = playerIds[0] || 'player-0';
         const aiId = playerIds[1] || 'ai-1';
 
@@ -305,7 +307,7 @@ export class GameRoom extends Room {
         const height = 900;
         const padding = 100;
 
-        const playerIds = Array.from(this.state.players.values()).map(p => p.id);
+        const playerIds = Array.from(this.state.players.values()).map(p => p.sessionId);
         const starsPerPlayer = 5;
         const totalStars = playerIds.length * starsPerPlayer;
 
@@ -355,7 +357,12 @@ export class GameRoom extends Room {
         star.damagedShips = 0;
         star.productionRate = 1;
         star.repairRate = 0.2;
+        star.transferRate = 1.0;
+        star.activationRate = 0.8;
+        star.defensivePosture = 1.0;
+        star.defenseStrength = 1.0;
         star.radius = 25;
+        star.icon = "🌟";
         this.state.stars.set(id, star);
     }
 
@@ -462,7 +469,7 @@ export class GameRoom extends Room {
 
         for (const ai of aiPlayers) {
             // Get AI's stars
-            const aiStars = Array.from(this.state.stars.values()).filter(s => s.ownerId === ai.id);
+            const aiStars = Array.from(this.state.stars.values()).filter(s => s.ownerId === ai.sessionId);
 
             for (const star of aiStars) {
                 // Skip if already has an order
@@ -484,7 +491,7 @@ export class GameRoom extends Room {
                     const target = this.state.stars.get(targetId);
                     if (!target) continue;
 
-                    if (target.ownerId !== ai.id) {
+                    if (target.ownerId !== ai.sessionId) {
                         // Enemy - attack weakest
                         if (!bestTarget || target.activeShips < bestTarget.ships) {
                             bestTarget = { id: target.id, ships: target.activeShips };
