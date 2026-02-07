@@ -9,6 +9,7 @@
  */
 
 import * as Tone from 'tone';
+import { log } from '$lib/utils/logger';
 
 // Audio state
 let initialized = false;
@@ -100,9 +101,9 @@ export async function initAudio(): Promise<void> {
         combatSynth.volume.value = -28;
 
         initialized = true;
-        console.log('[Audio] Initialized');
+        log.sys('Audio', 'Initialized');
     } catch (err) {
-        console.warn('[Audio] Failed to initialize:', err);
+        log.error('Audio', 'Failed to initialize', err);
     }
 }
 
@@ -111,7 +112,7 @@ export async function initAudio(): Promise<void> {
  */
 export function playTick(): void {
     if (!initialized || !enabled || !tickSynth || tickVolume === 0) return;
-    
+
     // Very subtle low thump
     tickSynth.triggerAttackRelease('C1', '32n', Tone.now(), 0.3 * tickVolume);
 }
@@ -121,11 +122,11 @@ export function playTick(): void {
  */
 export function playOrderIssued(starIndex: number = 0): void {
     if (!initialized || !enabled || !orderSynth || orderVolume === 0) return;
-    
+
     // Ascending notes based on star index in chain
     const notes = ['C4', 'E4', 'G4', 'B4', 'C5', 'E5'];
     const note = notes[Math.min(starIndex, notes.length - 1)];
-    
+
     orderSynth.triggerAttackRelease(note, '16n', Tone.now(), 0.4 * orderVolume);
 }
 
@@ -135,16 +136,16 @@ export function playOrderIssued(starIndex: number = 0): void {
  */
 export function playCombat(intensity: number = 0.5): void {
     if (!initialized || !enabled || !combatSynth || combatVolume === 0) return;
-    
+
     // Cooldown to prevent "Start time must be greater" errors
     const now = Date.now();
     if (now - lastCombatTime < COMBAT_COOLDOWN) return;
     lastCombatTime = now;
-    
+
     // MetalSynth uses triggerAttackRelease with duration
     const duration = 0.03 + intensity * 0.08;
     const velocity = (0.2 + intensity * 0.5) * combatVolume;
-    
+
     try {
         combatSynth.triggerAttackRelease(duration, Tone.now(), velocity);
     } catch (e) {
@@ -157,7 +158,7 @@ export function playCombat(intensity: number = 0.5): void {
  */
 export function playConquest(): void {
     if (!initialized || !enabled || !orderSynth) return;
-    
+
     // Triumphant rising arpeggio
     const now = Tone.now();
     orderSynth.triggerAttackRelease('C4', '8n', now, 0.5);
@@ -229,7 +230,7 @@ export function dispose(): void {
     if (reverb) reverb.dispose();
     if (filter) filter.dispose();
     if (masterGain) masterGain.dispose();
-    
+
     initialized = false;
 }
 

@@ -68,7 +68,7 @@
             log.sys("DebugPanel", "Loaded config from localStorage");
         }
     } catch (e) {
-        console.warn("Failed to load config", e);
+        log.error("DebugPanel", "Failed to load config", e);
     }
 
     const params = $state(initialParams);
@@ -109,7 +109,7 @@
             // Using JSON.stringify directly often works with proxies, but safer to copy.
             localStorage.setItem(SAVED_CONFIG_KEY, JSON.stringify(params));
         } catch (e) {
-            console.warn("Failed to save config", e);
+            log.error("DebugPanel", "Failed to save config", e);
         }
     });
 

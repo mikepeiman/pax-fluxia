@@ -71,7 +71,7 @@
             log.sys("CombatPanel", "Loaded combat config V2 from localStorage");
         }
     } catch (e) {
-        console.warn("Failed to load combat config", e);
+        log.error("CombatPanel", "Failed to load combat config", e);
     }
 
     const params = $state(initialParams);
@@ -93,7 +93,7 @@
         try {
             localStorage.setItem(SAVED_COMBAT_KEY, JSON.stringify(params));
         } catch (e) {
-            console.warn("Failed to save combat config", e);
+            log.error("CombatPanel", "Failed to save combat config", e);
         }
     });
 

@@ -5,6 +5,7 @@
     import type { GameSettings } from "$lib/types/game.types";
     import MultiplayerLobby from "./MultiplayerLobby.svelte";
     import { multiplayerStore } from "$lib/stores/multiplayerStore.svelte";
+    import { log } from "$lib/utils/logger";
 
     let visible = $state(true);
     let showMultiplayer = $state(false);
@@ -12,8 +13,9 @@
     // Watch multiplayer phase and transition to game when it starts
     $effect(() => {
         if (multiplayerStore.phase === "playing") {
-            console.log(
-                "🎮 Multiplayer game started! Transitioning to game view...",
+            log.sys(
+                "MainMenu",
+                "Multiplayer game started, transitioning to game view",
             );
             visible = false;
             gameStore.setView("game");

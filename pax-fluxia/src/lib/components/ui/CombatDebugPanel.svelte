@@ -1,6 +1,7 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import { GAME_CONFIG } from "$lib/config/game.config";
+    import { log } from "$lib/utils/logger";
 
     const STORAGE_KEY = "pax-fluxia-combat-tuning";
 
@@ -36,7 +37,11 @@
                 return { ...defaultValues, ...parsed };
             }
         } catch (e) {
-            console.warn("Failed to load combat tuning from localStorage", e);
+            log.error(
+                "CombatDebugPanel",
+                "Failed to load combat tuning from localStorage",
+                e,
+            );
         }
         return { ...defaultValues };
     }
@@ -46,7 +51,11 @@
         try {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(vals));
         } catch (e) {
-            console.warn("Failed to save combat tuning to localStorage", e);
+            log.error(
+                "CombatDebugPanel",
+                "Failed to save combat tuning to localStorage",
+                e,
+            );
         }
     }
 

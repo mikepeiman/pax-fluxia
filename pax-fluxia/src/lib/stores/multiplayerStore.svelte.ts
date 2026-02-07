@@ -4,6 +4,7 @@
 
 import { Client, Room } from '@colyseus/sdk';
 import type { PlayerState, StarState, StarConnection, StarId } from '$lib/types/game.types';
+import { log } from '$lib/utils/logger';
 
 // Server URL (dev default) - use 127.0.0.1 to avoid IPv6/IPv4 mismatch
 const SERVER_URL = 'http://127.0.0.1:2567';
@@ -55,10 +56,10 @@ async function connect(): Promise<void> {
 
     try {
         client = new Client(SERVER_URL);
-        console.log('🔌 Colyseus client created');
+        log.net('Colyseus', 'Client created');
     } catch (err) {
         connectionError = `Failed to connect: ${err}`;
-        console.error('❌ Connection failed:', err);
+        log.error('Colyseus', 'Connection failed', err);
     } finally {
         isConnecting = false;
     }
@@ -74,33 +75,21 @@ async function createRoom(options: { playerCount?: number; mapType?: string } = 
     try {
         // Use $state.snapshot() to strip Svelte 5 Proxy - proper method for Svelte 5
         const plainOptions = $state.snapshot(options);
-        console.log('🏠 [Client] Creating room with options:', plainOptions);
-
-        // TESTING: Use test_room (minimal schema) instead of game_room  
-        // TODO: Switch back to game_room once working
-        console.log('🏠 [Client] Calling client.create("game_room", ...)');
+        log.net('Room', 'Creating room with options', plainOptions);
         room = await client.create('game_room', plainOptions);
 
-        console.log('🏠 [Client] client.create() returned!');
-        console.log('   Room ID:', room?.roomId);
-        console.log('   Session ID:', room?.sessionId);
-        console.log('   Room name:', room?.name);
-        console.log('   Room state:', room?.state);
+        log.net('Room', `Created: id=${room?.roomId} session=${room?.sessionId}`);
 
         roomId = room.roomId;
         localSessionId = room.sessionId;
         isConnected = true;
 
-        console.log(`✅ [Client] Room joined successfully: ${roomId}`);
+        log.success('Room', `Joined: ${roomId}`);
         setupRoomListeners();
         return roomId;
     } catch (err: any) {
         connectionError = `Failed to create room: ${err}`;
-        console.error('❌ [Client] Room creation failed:', err);
-        console.error('   Error name:', err?.name);
-        console.error('   Error message:', err?.message);
-        console.error('   Error code:', err?.code);
-        console.error('   Full error:', JSON.stringify(err, null, 2));
+        log.error('Room', `Creation failed: ${err?.message}`, err);
         return null;
     } finally {
         isConnecting = false;
@@ -115,18 +104,18 @@ async function joinRoom(targetRoomId: string): Promise<boolean> {
     connectionError = null;
 
     try {
-        console.log('🚪 Joining room:', targetRoomId);
+        log.net('Room', `Joining room: ${targetRoomId}`);
         room = await client.joinById(targetRoomId);
         roomId = room.roomId;
         localSessionId = room.sessionId;
         isConnected = true;
 
-        console.log(`✅ Joined room: ${roomId}, sessionId: ${localSessionId}`);
+        log.success('Room', `Joined: ${roomId}, session: ${localSessionId}`);
         setupRoomListeners();
         return true;
     } catch (err) {
         connectionError = `Failed to join room: ${err}`;
-        console.error('❌ Room join failed:', err);
+        log.error('Room', 'Join failed', err);
         return false;
     } finally {
         isConnecting = false;
@@ -160,12 +149,7 @@ function disconnect(): void {
 // ============================================================================
 
 function syncStateFromRoom(state: any): void {
-    console.log('🔄 Syncing state:', {
-        phase: state.phase,
-        playerCount: state.playerCount,
-        hostSessionId: state.hostSessionId,
-        playersSize: state.players?.size ?? 0
-    });
+    log.data('Sync', `phase=${state.phase} players=${state.players?.size ?? 0}`);
 
     // Update local state from server
     phase = state.phase ?? 'lobby';
@@ -182,7 +166,7 @@ function syncStateFromRoom(state: any): void {
     const playerArray: PlayerState[] = [];
     if (state.players) {
         state.players.forEach((player: any, key: string) => {
-            console.log(`  👤 Player: ${key} = ${player.name} (${player.color})`);
+            log.data('Sync', `Player: ${key} = ${player.name} (${player.color})`);
             playerArray.push({
                 id: player.id,
                 name: player.name,
@@ -240,7 +224,7 @@ function syncStateFromRoom(state: any): void {
     }
     connections = connArray;
 
-    console.log(`  📊 Synced: ${players.length} players, isHost=${getIsHost()}`);
+    log.data('Sync', `Synced: ${players.length} players, isHost=${getIsHost()}`);
 }
 
 // ============================================================================
@@ -250,33 +234,33 @@ function syncStateFromRoom(state: any): void {
 function setupRoomListeners(): void {
     if (!room) return;
 
-    console.log('📡 Setting up room listeners...');
+    log.net('Room', 'Setting up listeners');
 
     // Listen for state changes - this fires AFTER handshake completes with actual data
     room.onStateChange((state: any) => {
-        console.log('📥 onStateChange fired');
+        log.data('Room', 'onStateChange fired');
         syncStateFromRoom(state);
     });
 
     // Handle playerJoined message (sent by server when a player joins)
     room.onMessage('playerJoined', (data: { sessionId: string }) => {
-        console.log(`👤 Player joined message received: ${data.sessionId}`);
+        log.net('Room', `Player joined: ${data.sessionId}`);
     });
 
     // Handle welcome message (sent by server on join)
     room.onMessage('welcome', (message: string) => {
-        console.log(`👋 Welcome message: ${message}`);
+        log.net('Room', `Welcome: ${message}`);
     });
 
     // Error handler
     room.onError((code: number, message?: string) => {
-        console.error(`❌ Room error [${code}]:`, message);
+        log.error('Room', `Error [${code}]: ${message}`);
         connectionError = message ?? 'Unknown error';
     });
 
     // Leave handler
     room.onLeave((code: number) => {
-        console.log(`👋 Left room with code: ${code}`);
+        log.net('Room', `Left with code: ${code}`);
         isConnected = false;
     });
 }
@@ -286,7 +270,7 @@ function setupRoomListeners(): void {
 // ============================================================================
 
 function startGame(): void {
-    console.log('🚀 Sending startGame message');
+    log.net('Room', 'Sending startGame');
     room?.send('startGame');
 }
 
