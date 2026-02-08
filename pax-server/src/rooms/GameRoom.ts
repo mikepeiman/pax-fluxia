@@ -73,6 +73,8 @@ export class GameRoom extends Room {
             this.state.phase = "lobby";
             this.state.speed = 1;
             this.state.isPaused = true;
+            this.state.tick = 0;
+            this.state.tickProgress = 0;
 
             log.sys('GameRoom', 'Registering message handlers...');
             // Register message handlers
