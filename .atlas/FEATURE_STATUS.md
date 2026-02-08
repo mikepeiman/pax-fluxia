@@ -86,6 +86,10 @@ Update this file after each development session.
 13. **MP: Spacebar** — Spacebar doesn't control play/pause in multiplayer.
 14. **MP: Combat logs empty** — Logs show nothing in multiplayer mode.
 15. **MP: Multi-star conquest** — Same as #5 but on server side.
+16. **Lane passes under star** — Map lanes should never visually cross underneath a star. Obscures gameplay.
+17. **Command arrows reach target** — Order arrows extend to target star; should stop partway. Termination point should be adjustable via control panel slider.
+18. **MP: Restart button broken** — Restart does not work in multiplayer.
+19. **MP: Can draw arrows to non-connected stars** — No apparent effect but misleading; should be blocked.
 
 ---
 
@@ -111,6 +115,7 @@ Update this file after each development session.
 | **AI: Backline-and-Pounce** | 🟢 Standard | Hold back, commit to battles on frontline capture |
 | **AI: Tactical Surround** | 🟢 Standard | Multi-star coordination to surround enemy forces |
 | **AI: Star Type Awareness** | 🟢 Standard | Attack from Green, defend Red/Purple |
+| **AI: Pre-Conquest Retreat** | 🟢 Standard | AI orders retreat before losing a star to minimize losses. Variable aggressiveness makes AI easier/harder |
 | **Multiplayer Deployment** | 🟡 Medium | Deploy for alpha testing (Vercel + Railway) |
 | **Percentage Directives** | 🔵 Backlog | Split forces: send fractions in multiple directions from one star. Requires new order model. |
 | **Command Arrow Styles** | 🔵 Backlog | Different colors and styles for attack vs reinforce vs deferred order arrows. |
