@@ -301,7 +301,13 @@
         const loop = (currentTime: number) => {
             const deltaTime = (currentTime - lastTime) / 1000; // in seconds
             lastTime = currentTime;
-            animationTime += deltaTime;
+
+            // Freeze all animations when paused (orbits, glow, ship positions)
+            const isPaused =
+                gameStore.isPaused && multiplayerStore.phase !== "playing";
+            if (!isPaused) {
+                animationTime += deltaTime;
+            }
 
             // Render the current frame - check multiplayer first
             if (
@@ -1116,6 +1122,19 @@
 
         const now = performance.now();
         const starsById = new Map(stars.map((s) => [s.id, s]));
+
+        // When paused, shift all departTimes forward so ships freeze in place
+        const isPaused =
+            gameStore.isPaused && multiplayerStore.phase !== "playing";
+        if (isPaused) {
+            const dt = now - (renderTravelingShips as any)._lastNow;
+            if (dt > 0) {
+                for (const ship of travelingShips) {
+                    ship.departTime += dt;
+                }
+            }
+        }
+        (renderTravelingShips as any)._lastNow = now;
 
         // Process each traveling ship
         const stillTraveling: VisualShipState[] = [];
