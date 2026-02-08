@@ -207,6 +207,12 @@ export class GameRoom extends Room {
             const target = this.state.stars.get(message.targetId);
             if (!target) return;
 
+            // Verify source and target are connected by a route
+            if (!this.areStarsConnected(message.sourceId, message.targetId)) {
+                log.net('GameRoom', `Rejected order: ${message.sourceId} → ${message.targetId} (not connected)`);
+                return;
+            }
+
             // Set order
             source.targetId = message.targetId;
             log.game('GameRoom', `Order: ${message.sourceId} → ${message.targetId} by ${player.sessionId}`);
@@ -235,6 +241,12 @@ export class GameRoom extends Room {
 
             // Must be enemy star
             if (enemyStar.ownerId === player.sessionId) return;
+
+            // Verify enemy star and next target are connected
+            if (!this.areStarsConnected(message.enemyStarId, message.nextTargetId)) {
+                log.net('GameRoom', `Rejected deferred order: ${message.enemyStarId} → ${message.nextTargetId} (not connected)`);
+                return;
+            }
 
             enemyStar.queuedOrderTargetId = message.nextTargetId;
             log.game('GameRoom', `Deferred order: ${message.enemyStarId} → ${message.nextTargetId} by ${player.sessionId}`);
@@ -390,6 +402,15 @@ export class GameRoom extends Room {
         conn2.targetId = sourceId;
         conn2.distance = distance;
         this.state.connections.push(conn2);
+    }
+
+    /** Check if two stars are linked by a connection/route */
+    private areStarsConnected(starA: string, starB: string): boolean {
+        for (let i = 0; i < this.state.connections.length; i++) {
+            const conn = this.state.connections[i];
+            if (conn.sourceId === starA && conn.targetId === starB) return true;
+        }
+        return false;
     }
 
     private generateConnections() {
