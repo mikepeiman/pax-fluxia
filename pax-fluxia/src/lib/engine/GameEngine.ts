@@ -522,16 +522,16 @@ export class GameEngine {
                 attackOrders.push({ source, target });
             } else {
                 // REINFORCEMENT: Ships physically transfer to friendly star
-                const transferRate = GAME_CONFIG.TRANSFER_RATE || 0.25;
+                const transferRate = GAME_CONFIG.TRANSFER_RATE || 0.1;
                 const transferAmount = Math.max(
                     GAME_CONFIG.MIN_SHIPS_PER_TRANSFER,
-                    Math.floor(source.activeShips * transferRate)
+                    Math.ceil(source.activeShips * transferRate)
                 );
 
-                if (transferAmount === 0 || source.activeShips === 0) {
-                    source.clearTarget();
-                    return;
-                }
+                // if (transferAmount === 0 || source.activeShips === 0) {
+                //     source.clearTarget();
+                //     return;
+                // }
 
                 const shipped = source.removeActiveShips(transferAmount);
                 if (shipped > 0) {

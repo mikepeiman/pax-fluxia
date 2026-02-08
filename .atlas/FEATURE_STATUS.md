@@ -2,7 +2,7 @@
 
 **Purpose**: Systematic tracking of feature status for human-AI development collaboration.
 
-**Last Updated**: 2026-02-02  
+**Last Updated**: 2026-02-08  
 **Last Reviewer**: Agent
 
 ---
@@ -48,9 +48,10 @@ Update this file after each development session.
 | Feature | Works? | Changed? | Notes |
 |---------|--------|----------|-------|
 | Attrition (per-tick damage) | ✅ | 🔄 | V3.1 symmetric formula implemented |
-| Conquest (star capture) | ✅ | ➖ | Works correctly |
+| Conquest (star capture) | ❌ | 🔄 | Multi-star attacks not aggregating per-player correctly |
 | Retreat (directed) | ✅ | 🔄 | 35% capture, 65% escape verified |
-| Scatter (escape routes) | ✅ | 🔄 | 50%/25%/25% logic verified |
+| Scatter (escape routes) | ✅ | 🔄 | Fixed: now uses actual connections |
+| Ship Transfer Rate | ❌ | 🔄 | Ships plateau due to production/transfer equilibrium |
 | Repair (damaged → active) | ❓ | ➖ | Needs verification |
 | Production (ship spawn) | ✅ | ➖ | Works |
 
@@ -74,6 +75,17 @@ Update this file after each development session.
 ~~2. **Vector Arrow Delay** — May be same root cause as #1.~~ ✅ FIXED
 3. **Passthrough Orders** — Deferred orders through enemy stars not working. Need to fix drag-through logic.
 4. ~~**Star Selection Sticking** — After issuing order, star selection chains and requires multiple clicks to deselect.~~ **FIXED 2026-02-07**
+5. **Multi-star conquest** — Sum ALL attacking forces per player per tick; largest player wins. Currently groups by target only.
+6. **Transfer rate equilibrium** — Stars sit at 4-8+ ships instead of draining; production outpaces transfer due to `floor` rounding.
+7. **Attack orders persist** — When another player conquers your target, your attack orders should auto-cancel.
+8. **Attack travel animation** — Ships animate along lanes during attacks; should only happen on friendly transfers.
+9. **Conquest ship bloom** — Captured ships bloom from star center instead of showing transfer from conquering star.
+10. **Pause doesn't freeze orbits** — Orbit animations continue during pause.
+11. **Control panel variables** — Some sliders may not be wired to GAME_CONFIG.
+12. **Map lane overlap** — Random maps can generate lanes with near-zero angle between them.
+13. **MP: Spacebar** — Spacebar doesn't control play/pause in multiplayer.
+14. **MP: Combat logs empty** — Logs show nothing in multiplayer mode.
+15. **MP: Multi-star conquest** — Same as #5 but on server side.
 
 ---
 
@@ -106,6 +118,10 @@ Update this file after each development session.
 | **Performance Audit** | 🟡 Medium | Major perf examination — machine runs hot at ~few thousand ships. Optimize rendering, batching, culling. |
 | **Custom Map Editor** | 🔵 Backlog | Implementation plan needed with effort estimates |
 | **Slow-Mo Debug Mode** | 🟢 Standard | Keyboard shortcut to slow tick ~20x on conquest for animation debugging/tuning |
+| **Conquest Stats Popup** | 🟢 Standard | Pause on conquest + popup showing destroyed/damaged/retreated/captured stats |
+| **Animation Style Toggle** | 🟢 Standard | UI widget to switch between animation styles; keep all styles available |
+| **Ship Color Fade** | 🟢 Standard | Ships fade toward white mid-travel, back to player color at destination |
+| **Damaged Ship Overlapping Orbits** | 🟢 Standard | Large numbers of damaged ships stack in overlapping rings instead of dense single ring |
 
 ---
 
