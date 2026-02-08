@@ -370,7 +370,8 @@ export class GameEngine {
             .filter(p => !p.isEliminated);
 
         if (activePlayers.length === 1) {
-            state.winnerId = activePlayers[0].id;
+            // Use sessionId since that's how players are keyed in the map
+            state.winnerId = activePlayers[0].sessionId || activePlayers[0].id;
             state.phase = "ended";
         } else if (activePlayers.length === 0) {
             state.phase = "ended";

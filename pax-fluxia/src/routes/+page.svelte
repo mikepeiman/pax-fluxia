@@ -67,7 +67,7 @@
 
         <!-- Overlays -->
 
-        {#if gameStore.winner}
+        {#if gameStore.winner || activeGameStore.phase === "results"}
           <div class="modal-overlay">
             <ResultsModal />
           </div>

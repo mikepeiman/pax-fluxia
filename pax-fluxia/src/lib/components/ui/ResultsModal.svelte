@@ -1,31 +1,80 @@
 <script lang="ts">
     import { gameStore } from "$lib/stores/gameStore.svelte";
+    import { multiplayerStore } from "$lib/stores/multiplayerStore.svelte";
     import type { GameHistoryEntry } from "$lib/types/game.types";
 
     // Tab state
-    let activeTab = $state<'overview' | 'power' | 'territory' | 'activity'>('overview');
-
-    // Get winner info
-    const winner = $derived(gameStore.winner);
-    const humanPlayer = $derived(gameStore.humanPlayer);
-
-    // Determine if human won
-    const isVictory = $derived(
-        winner && humanPlayer && winner.id === humanPlayer.id,
+    let activeTab = $state<"overview" | "power" | "territory" | "activity">(
+        "overview",
     );
 
-    // Get actual stats from engine
-    const engineStats = $derived(gameStore.getStats());
-    const history = $derived(gameStore.getHistory() as GameHistoryEntry[]);
+    // Detect multiplayer mode
+    const isMP = $derived(
+        multiplayerStore.phase === "ended" ||
+            multiplayerStore.phase === "playing",
+    );
+
+    // Get winner info (unified)
+    const winner = $derived.by(() => {
+        if (isMP) {
+            const wId = multiplayerStore.winnerId;
+            if (!wId) return null;
+            const players = multiplayerStore.players;
+            return (
+                players.find((p) => p.sessionId === wId || p.id === wId) ?? null
+            );
+        }
+        return gameStore.winner;
+    });
+
+    const humanPlayer = $derived.by(() => {
+        if (isMP) {
+            const sid = multiplayerStore.localSessionId;
+            return (
+                multiplayerStore.players.find((p) => p.sessionId === sid) ??
+                null
+            );
+        }
+        return gameStore.humanPlayer;
+    });
+
+    // Determine if human won
+    const isVictory = $derived.by(() => {
+        if (!winner) return false;
+        if (isMP) {
+            const sid = multiplayerStore.localSessionId;
+            return (winner as any).sessionId === sid;
+        }
+        return (
+            humanPlayer &&
+            winner &&
+            (winner as any).id === (humanPlayer as any).id
+        );
+    });
+
+    // Get actual stats from engine (only available in SP)
+    const engineStats = $derived(
+        isMP
+            ? {
+                  elapsedMs: 0,
+                  totalTicks: multiplayerStore.tick,
+                  peakFleetSize: 0,
+                  starsCaptured: 0,
+              }
+            : gameStore.getStats(),
+    );
+    const history = $derived(
+        isMP ? [] : (gameStore.getHistory() as GameHistoryEntry[]),
+    );
 
     // Player colors map
     const playerColors: Record<string, string> = {
-        'human-player': '#4488ff',
-        'ai-1': '#ff4466',
-        'ai-2': '#44ff88',
-        'ai-3': '#ffcc44',
-        'ai-4': '#aa66ff',
-        'ai-5': '#ff8844'
+        "human-player": "#4488ff",
+        "ai-1": "#ff4466",
+        "ai-2": "#44ff88",
+        "ai-3": "#ffcc44",
+        "ai-4": "#aa66ff",
+        "ai-5": "#ff8844",
     };
 
     // Format elapsed time
@@ -49,7 +98,9 @@
     const sampledHistory = $derived(() => {
         if (history.length <= 50) return history;
         const step = Math.ceil(history.length / 50);
-        return history.filter((_, i) => i % step === 0 || i === history.length - 1);
+        return history.filter(
+            (_, i) => i % step === 0 || i === history.length - 1,
+        );
     });
 
     // Power chart data (total ships per player)
@@ -57,22 +108,35 @@
         const data = sampledHistory();
         if (data.length === 0) return { lines: [], maxY: 100, maxX: 100 };
 
-        const playerIds = [...new Set(data.flatMap(d => d.players.map(p => p.id)))];
-        const maxShips = Math.max(...data.flatMap(d => d.players.map(p => p.totalShips)), 10);
-        const maxTick = Math.max(...data.map(d => d.tick), 1);
+        const playerIds = [
+            ...new Set(data.flatMap((d) => d.players.map((p) => p.id))),
+        ];
+        const maxShips = Math.max(
+            ...data.flatMap((d) => d.players.map((p) => p.totalShips)),
+            10,
+        );
+        const maxTick = Math.max(...data.map((d) => d.tick), 1);
 
-        const lines = playerIds.map(playerId => {
+        const lines = playerIds.map((playerId) => {
             const points = data
-                .map(entry => {
-                    const player = entry.players.find(p => p.id === playerId);
+                .map((entry) => {
+                    const player = entry.players.find((p) => p.id === playerId);
                     if (!player) return null;
-                    const x = padding.left + (entry.tick / maxTick) * innerWidth;
-                    const y = padding.top + innerHeight - (player.totalShips / maxShips) * innerHeight;
+                    const x =
+                        padding.left + (entry.tick / maxTick) * innerWidth;
+                    const y =
+                        padding.top +
+                        innerHeight -
+                        (player.totalShips / maxShips) * innerHeight;
                     return `${x},${y}`;
                 })
                 .filter(Boolean)
-                .join(' ');
-            return { playerId, points, color: playerColors[playerId] || '#888' };
+                .join(" ");
+            return {
+                playerId,
+                points,
+                color: playerColors[playerId] || "#888",
+            };
         });
 
         return { lines, maxY: maxShips, maxX: maxTick };
@@ -83,22 +147,35 @@
         const data = sampledHistory();
         if (data.length === 0) return { lines: [], maxY: 10, maxX: 100 };
 
-        const playerIds = [...new Set(data.flatMap(d => d.players.map(p => p.id)))];
-        const maxStars = Math.max(...data.flatMap(d => d.players.map(p => p.starCount)), 1);
-        const maxTick = Math.max(...data.map(d => d.tick), 1);
+        const playerIds = [
+            ...new Set(data.flatMap((d) => d.players.map((p) => p.id))),
+        ];
+        const maxStars = Math.max(
+            ...data.flatMap((d) => d.players.map((p) => p.starCount)),
+            1,
+        );
+        const maxTick = Math.max(...data.map((d) => d.tick), 1);
 
-        const lines = playerIds.map(playerId => {
+        const lines = playerIds.map((playerId) => {
             const points = data
-                .map(entry => {
-                    const player = entry.players.find(p => p.id === playerId);
+                .map((entry) => {
+                    const player = entry.players.find((p) => p.id === playerId);
                     if (!player) return null;
-                    const x = padding.left + (entry.tick / maxTick) * innerWidth;
-                    const y = padding.top + innerHeight - (player.starCount / maxStars) * innerHeight;
+                    const x =
+                        padding.left + (entry.tick / maxTick) * innerWidth;
+                    const y =
+                        padding.top +
+                        innerHeight -
+                        (player.starCount / maxStars) * innerHeight;
                     return `${x},${y}`;
                 })
                 .filter(Boolean)
-                .join(' ');
-            return { playerId, points, color: playerColors[playerId] || '#888' };
+                .join(" ");
+            return {
+                playerId,
+                points,
+                color: playerColors[playerId] || "#888",
+            };
         });
 
         return { lines, maxY: maxStars, maxX: maxTick };
@@ -109,25 +186,50 @@
         const data = sampledHistory();
         if (data.length === 0) return { bars: [], maxY: 1, maxX: 100 };
 
-        const maxCombat = Math.max(...data.map(d => d.totalCombatEvents || 0), 1);
-        const maxTick = Math.max(...data.map(d => d.tick), 1);
+        const maxCombat = Math.max(
+            ...data.map((d) => d.totalCombatEvents || 0),
+            1,
+        );
+        const maxTick = Math.max(...data.map((d) => d.tick), 1);
         const barWidth = Math.max(2, innerWidth / data.length - 1);
 
         const bars = data.map((entry, i) => {
             const x = padding.left + (i / data.length) * innerWidth;
-            const height = ((entry.totalCombatEvents || 0) / maxCombat) * innerHeight;
+            const height =
+                ((entry.totalCombatEvents || 0) / maxCombat) * innerHeight;
             const y = padding.top + innerHeight - height;
             const conquest = entry.conquestsThisTick || 0;
-            return { x, y, width: barWidth, height, conquest, tick: entry.tick };
+            return {
+                x,
+                y,
+                width: barWidth,
+                height,
+                conquest,
+                tick: entry.tick,
+            };
         });
 
         return { bars, maxY: maxCombat, maxX: maxTick };
     });
 
     function formatPlayerId(id: string): string {
-        if (id === 'human-player') return 'You';
-        if (id.startsWith('ai-')) return `AI ${id.split('-')[1]}`;
+        if (id === "human-player") return "You";
+        if (id.startsWith("ai-")) return `AI ${id.split("-")[1]}`;
         return id;
+    }
+
+    function handlePlayAgain() {
+        if (isMP) {
+            multiplayerStore.leaveRoom();
+        }
+        gameStore.playAgain();
+    }
+
+    function handleReturnToMenu() {
+        if (isMP) {
+            multiplayerStore.leaveRoom();
+        }
+        gameStore.returnToMenu();
     }
 </script>
 
@@ -156,31 +258,31 @@
 
         <!-- Tab Navigation -->
         <nav class="tab-nav">
-            <button 
-                class="tab-btn" 
-                class:active={activeTab === 'overview'}
-                onclick={() => activeTab = 'overview'}
+            <button
+                class="tab-btn"
+                class:active={activeTab === "overview"}
+                onclick={() => (activeTab = "overview")}
             >
                 Overview
             </button>
-            <button 
-                class="tab-btn" 
-                class:active={activeTab === 'power'}
-                onclick={() => activeTab = 'power'}
+            <button
+                class="tab-btn"
+                class:active={activeTab === "power"}
+                onclick={() => (activeTab = "power")}
             >
                 Power
             </button>
-            <button 
-                class="tab-btn" 
-                class:active={activeTab === 'territory'}
-                onclick={() => activeTab = 'territory'}
+            <button
+                class="tab-btn"
+                class:active={activeTab === "territory"}
+                onclick={() => (activeTab = "territory")}
             >
                 Territory
             </button>
-            <button 
-                class="tab-btn" 
-                class:active={activeTab === 'activity'}
-                onclick={() => activeTab = 'activity'}
+            <button
+                class="tab-btn"
+                class:active={activeTab === "activity"}
+                onclick={() => (activeTab = "activity")}
             >
                 Activity
             </button>
@@ -188,7 +290,7 @@
 
         <!-- Tab Content -->
         <section class="tab-content">
-            {#if activeTab === 'overview'}
+            {#if activeTab === "overview"}
                 <!-- Stats Grid -->
                 <div class="stats-grid">
                     <div class="stat-item">
@@ -196,20 +298,25 @@
                         <span class="stat-label">Time Elapsed</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-value font-data">{engineStats.totalTicks}</span>
+                        <span class="stat-value font-data"
+                            >{engineStats.totalTicks}</span
+                        >
                         <span class="stat-label">Total Ticks</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-value font-data">{engineStats.peakFleetSize.toLocaleString()}</span>
+                        <span class="stat-value font-data"
+                            >{engineStats.peakFleetSize.toLocaleString()}</span
+                        >
                         <span class="stat-label">Peak Fleet</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-value font-data">{engineStats.starsCaptured}</span>
+                        <span class="stat-value font-data"
+                            >{engineStats.starsCaptured}</span
+                        >
                         <span class="stat-label">Stars Captured</span>
                     </div>
                 </div>
-
-            {:else if activeTab === 'power'}
+            {:else if activeTab === "power"}
                 <!-- Power Over Time Chart -->
                 <div class="chart-container">
                     <h3 class="chart-title">Fleet Strength Over Time</h3>
@@ -217,8 +324,8 @@
                         <!-- Grid lines -->
                         <g class="grid">
                             {#each [0, 0.25, 0.5, 0.75, 1] as ratio}
-                                <line 
-                                    x1={padding.left} 
+                                <line
+                                    x1={padding.left}
                                     y1={padding.top + innerHeight * (1 - ratio)}
                                     x2={padding.left + innerWidth}
                                     y2={padding.top + innerHeight * (1 - ratio)}
@@ -226,35 +333,54 @@
                                 />
                             {/each}
                         </g>
-                        
+
                         <!-- Axes -->
-                        <line 
-                            x1={padding.left} y1={padding.top} 
-                            x2={padding.left} y2={padding.top + innerHeight}
+                        <line
+                            x1={padding.left}
+                            y1={padding.top}
+                            x2={padding.left}
+                            y2={padding.top + innerHeight}
                             stroke="rgba(255,255,255,0.3)"
                         />
-                        <line 
-                            x1={padding.left} y1={padding.top + innerHeight} 
-                            x2={padding.left + innerWidth} y2={padding.top + innerHeight}
+                        <line
+                            x1={padding.left}
+                            y1={padding.top + innerHeight}
+                            x2={padding.left + innerWidth}
+                            y2={padding.top + innerHeight}
                             stroke="rgba(255,255,255,0.3)"
                         />
-                        
+
                         <!-- Y-axis labels -->
-                        <text x={padding.left - 5} y={padding.top + 5} class="axis-label" text-anchor="end">
+                        <text
+                            x={padding.left - 5}
+                            y={padding.top + 5}
+                            class="axis-label"
+                            text-anchor="end"
+                        >
                             {Math.round(powerChartData().maxY)}
                         </text>
-                        <text x={padding.left - 5} y={padding.top + innerHeight} class="axis-label" text-anchor="end">
+                        <text
+                            x={padding.left - 5}
+                            y={padding.top + innerHeight}
+                            class="axis-label"
+                            text-anchor="end"
+                        >
                             0
                         </text>
-                        
+
                         <!-- X-axis label -->
-                        <text x={padding.left + innerWidth / 2} y={chartHeight - 5} class="axis-label" text-anchor="middle">
+                        <text
+                            x={padding.left + innerWidth / 2}
+                            y={chartHeight - 5}
+                            class="axis-label"
+                            text-anchor="middle"
+                        >
                             Tick
                         </text>
-                        
+
                         <!-- Lines -->
                         {#each powerChartData().lines as line}
-                            <polyline 
+                            <polyline
                                 points={line.points}
                                 fill="none"
                                 stroke={line.color}
@@ -264,19 +390,23 @@
                             />
                         {/each}
                     </svg>
-                    
+
                     <!-- Legend -->
                     <div class="chart-legend">
                         {#each powerChartData().lines as line}
                             <div class="legend-item">
-                                <span class="legend-dot" style="background: {line.color}"></span>
-                                <span class="legend-label">{formatPlayerId(line.playerId)}</span>
+                                <span
+                                    class="legend-dot"
+                                    style="background: {line.color}"
+                                ></span>
+                                <span class="legend-label"
+                                    >{formatPlayerId(line.playerId)}</span
+                                >
                             </div>
                         {/each}
                     </div>
                 </div>
-
-            {:else if activeTab === 'territory'}
+            {:else if activeTab === "territory"}
                 <!-- Territory Control Chart -->
                 <div class="chart-container">
                     <h3 class="chart-title">Territory Control Over Time</h3>
@@ -284,8 +414,8 @@
                         <!-- Grid lines -->
                         <g class="grid">
                             {#each [0, 0.25, 0.5, 0.75, 1] as ratio}
-                                <line 
-                                    x1={padding.left} 
+                                <line
+                                    x1={padding.left}
                                     y1={padding.top + innerHeight * (1 - ratio)}
                                     x2={padding.left + innerWidth}
                                     y2={padding.top + innerHeight * (1 - ratio)}
@@ -293,35 +423,54 @@
                                 />
                             {/each}
                         </g>
-                        
+
                         <!-- Axes -->
-                        <line 
-                            x1={padding.left} y1={padding.top} 
-                            x2={padding.left} y2={padding.top + innerHeight}
+                        <line
+                            x1={padding.left}
+                            y1={padding.top}
+                            x2={padding.left}
+                            y2={padding.top + innerHeight}
                             stroke="rgba(255,255,255,0.3)"
                         />
-                        <line 
-                            x1={padding.left} y1={padding.top + innerHeight} 
-                            x2={padding.left + innerWidth} y2={padding.top + innerHeight}
+                        <line
+                            x1={padding.left}
+                            y1={padding.top + innerHeight}
+                            x2={padding.left + innerWidth}
+                            y2={padding.top + innerHeight}
                             stroke="rgba(255,255,255,0.3)"
                         />
-                        
+
                         <!-- Y-axis labels -->
-                        <text x={padding.left - 5} y={padding.top + 5} class="axis-label" text-anchor="end">
+                        <text
+                            x={padding.left - 5}
+                            y={padding.top + 5}
+                            class="axis-label"
+                            text-anchor="end"
+                        >
                             {Math.round(territoryChartData().maxY)}
                         </text>
-                        <text x={padding.left - 5} y={padding.top + innerHeight} class="axis-label" text-anchor="end">
+                        <text
+                            x={padding.left - 5}
+                            y={padding.top + innerHeight}
+                            class="axis-label"
+                            text-anchor="end"
+                        >
                             0
                         </text>
-                        
+
                         <!-- X-axis label -->
-                        <text x={padding.left + innerWidth / 2} y={chartHeight - 5} class="axis-label" text-anchor="middle">
+                        <text
+                            x={padding.left + innerWidth / 2}
+                            y={chartHeight - 5}
+                            class="axis-label"
+                            text-anchor="middle"
+                        >
                             Tick
                         </text>
-                        
+
                         <!-- Lines -->
                         {#each territoryChartData().lines as line}
-                            <polyline 
+                            <polyline
                                 points={line.points}
                                 fill="none"
                                 stroke={line.color}
@@ -331,19 +480,23 @@
                             />
                         {/each}
                     </svg>
-                    
+
                     <!-- Legend -->
                     <div class="chart-legend">
                         {#each territoryChartData().lines as line}
                             <div class="legend-item">
-                                <span class="legend-dot" style="background: {line.color}"></span>
-                                <span class="legend-label">{formatPlayerId(line.playerId)}</span>
+                                <span
+                                    class="legend-dot"
+                                    style="background: {line.color}"
+                                ></span>
+                                <span class="legend-label"
+                                    >{formatPlayerId(line.playerId)}</span
+                                >
                             </div>
                         {/each}
                     </div>
                 </div>
-
-            {:else if activeTab === 'activity'}
+            {:else if activeTab === "activity"}
                 <!-- Combat Activity Chart -->
                 <div class="chart-container">
                     <h3 class="chart-title">Combat Intensity Over Time</h3>
@@ -351,8 +504,8 @@
                         <!-- Grid lines -->
                         <g class="grid">
                             {#each [0, 0.25, 0.5, 0.75, 1] as ratio}
-                                <line 
-                                    x1={padding.left} 
+                                <line
+                                    x1={padding.left}
                                     y1={padding.top + innerHeight * (1 - ratio)}
                                     x2={padding.left + innerWidth}
                                     y2={padding.top + innerHeight * (1 - ratio)}
@@ -360,48 +513,64 @@
                                 />
                             {/each}
                         </g>
-                        
+
                         <!-- Axes -->
-                        <line 
-                            x1={padding.left} y1={padding.top} 
-                            x2={padding.left} y2={padding.top + innerHeight}
+                        <line
+                            x1={padding.left}
+                            y1={padding.top}
+                            x2={padding.left}
+                            y2={padding.top + innerHeight}
                             stroke="rgba(255,255,255,0.3)"
                         />
-                        <line 
-                            x1={padding.left} y1={padding.top + innerHeight} 
-                            x2={padding.left + innerWidth} y2={padding.top + innerHeight}
+                        <line
+                            x1={padding.left}
+                            y1={padding.top + innerHeight}
+                            x2={padding.left + innerWidth}
+                            y2={padding.top + innerHeight}
                             stroke="rgba(255,255,255,0.3)"
                         />
-                        
+
                         <!-- Y-axis labels -->
-                        <text x={padding.left - 5} y={padding.top + 5} class="axis-label" text-anchor="end">
+                        <text
+                            x={padding.left - 5}
+                            y={padding.top + 5}
+                            class="axis-label"
+                            text-anchor="end"
+                        >
                             {Math.round(activityChartData().maxY)}
                         </text>
-                        <text x={padding.left - 5} y={padding.top + innerHeight} class="axis-label" text-anchor="end">
+                        <text
+                            x={padding.left - 5}
+                            y={padding.top + innerHeight}
+                            class="axis-label"
+                            text-anchor="end"
+                        >
                             0
                         </text>
-                        
+
                         <!-- Bars -->
                         {#each activityChartData().bars as bar}
-                            <rect 
+                            <rect
                                 x={bar.x}
                                 y={bar.y}
                                 width={bar.width}
                                 height={Math.max(0, bar.height)}
-                                fill={bar.conquest > 0 ? '#ef4444' : '#4488ff'}
+                                fill={bar.conquest > 0 ? "#ef4444" : "#4488ff"}
                                 opacity="0.7"
                             />
                         {/each}
                     </svg>
-                    
+
                     <!-- Legend -->
                     <div class="chart-legend">
                         <div class="legend-item">
-                            <span class="legend-dot" style="background: #4488ff"></span>
+                            <span class="legend-dot" style="background: #4488ff"
+                            ></span>
                             <span class="legend-label">Combat</span>
                         </div>
                         <div class="legend-item">
-                            <span class="legend-dot" style="background: #ef4444"></span>
+                            <span class="legend-dot" style="background: #ef4444"
+                            ></span>
                             <span class="legend-label">Conquest</span>
                         </div>
                     </div>
@@ -411,16 +580,10 @@
 
         <!-- Actions -->
         <section class="results-actions">
-            <button
-                class="btn btn--primary btn--lg"
-                onclick={() => gameStore.playAgain()}
-            >
+            <button class="btn btn--primary btn--lg" onclick={handlePlayAgain}>
                 Play Again
             </button>
-            <button
-                class="btn btn--secondary"
-                onclick={() => gameStore.returnToMenu()}
-            >
+            <button class="btn btn--secondary" onclick={handleReturnToMenu}>
                 Main Menu
             </button>
         </section>

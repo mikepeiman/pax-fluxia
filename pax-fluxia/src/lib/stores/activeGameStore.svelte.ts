@@ -24,7 +24,7 @@ import type { StarState, PlayerState, ConnectionState } from '$lib/types/game.ty
  */
 function isMultiplayerMode(): boolean {
     const mpPhase = multiplayerStore.phase;
-    return mpPhase === 'inRoom' || mpPhase === 'playing';
+    return mpPhase === 'inRoom' || mpPhase === 'playing' || mpPhase === 'ended';
 }
 
 // ============================================================================
@@ -38,6 +38,7 @@ function getPhase(): 'menu' | 'lobby' | 'playing' | 'results' {
     if (isMultiplayerMode()) {
         const mp = multiplayerStore.phase;
         if (mp === 'playing') return 'playing';
+        if (mp === 'ended') return 'results';
         if (mp === 'inRoom') return 'lobby';
         return 'menu';
     } else {
