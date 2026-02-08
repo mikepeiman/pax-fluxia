@@ -608,30 +608,48 @@ export class GameEngine {
             return;
         }
 
-        // Calculate TOTAL attacking force from all sources
-        let totalAttackForce = 0;
-        const attackerContributions: { attacker: Star, force: number }[] = [];
+        // Calculate TOTAL attacking force from all sources, grouped by player (ownerId)
+        // Per MECHANICS.md §3.3: forces = Map<PlayerId, count>
+        let totalAttackShips = 0;
+        const attackerContributions: { attacker: Star, ships: number }[] = [];
+        const shipsByOwner = new Map<string, { stars: Star[], totalShips: number }>();
 
         validAttackers.forEach(attacker => {
-            const force = attacker.activeShips;
-            totalAttackForce += force;
-            attackerContributions.push({ attacker, force });
+            const ships = attacker.activeShips;
+            totalAttackShips += ships;
+            attackerContributions.push({ attacker, ships });
+
+            // Group by owner for per-player victor determination
+            const entry = shipsByOwner.get(attacker.ownerId) || { stars: [], totalShips: 0 };
+            entry.stars.push(attacker);
+            entry.totalShips += ships;
+            shipsByOwner.set(attacker.ownerId, entry);
         });
 
-        // Damaged ships count at 1/7th effectiveness for defense
+        // Damaged ships count at reduced effectiveness for defense
         const defenderForce = defender.activeShips + Math.floor(defender.damagedShips * GAME_CONFIG.DAMAGED_SHIP_EFFECTIVENESS);
 
         if (defenderForce <= 0) {
             // Instant conquest - no defenders
-            // Find strongest attacker to be the victor
-            const strongestAttacker = validAttackers.reduce((a, b) =>
+            // Victor = PLAYER with largest total attacking ships (not individual star)
+            let bestOwnerId = '';
+            let bestShips = 0;
+            shipsByOwner.forEach((entry, ownerId) => {
+                if (entry.totalShips > bestShips) {
+                    bestShips = entry.totalShips;
+                    bestOwnerId = ownerId;
+                }
+            });
+            // Strongest individual star of winning player for executeConquest
+            const winnerStars = shipsByOwner.get(bestOwnerId)!.stars;
+            const strongestAttacker = winnerStars.reduce((a, b) =>
                 a.activeShips > b.activeShips ? a : b
             );
             this.executeConquest(strongestAttacker, defender);
             return;
         }
 
-        // Calculate symmetric damage using TOTAL forces
+        // Calculate symmetric damage using TOTAL ships from ALL attackers (all players)
         const attackerIsAttacking = true;
         const defenderIsAttacking = defender.targetId !== null;
 
@@ -642,7 +660,7 @@ export class GameEngine {
             disabledOnB: disabledOnAttacker
         } = calculateCombatV4(
             defenderForce,
-            totalAttackForce,  // Use TOTAL attacking force
+            totalAttackShips,  // Use TOTAL attacking ships (all players combined)
             defenderIsAttacking,
             attackerIsAttacking
         );
@@ -652,9 +670,9 @@ export class GameEngine {
         defender.takeDamage(disabledOnDefender);
         defender.markCombat(this.tick);
 
-        // Apply damage to ATTACKERS (proportional return fire)
-        attackerContributions.forEach(({ attacker, force }) => {
-            const proportion = force / totalAttackForce;
+        // Apply damage to ATTACKERS (proportional return fire based on ship contribution)
+        attackerContributions.forEach(({ attacker, ships }) => {
+            const proportion = ships / totalAttackShips;
             const kills = Math.floor(killsOnAttacker * proportion);
             const disabled = Math.floor(disabledOnAttacker * proportion);
 
@@ -670,7 +688,7 @@ export class GameEngine {
         const primaryAttacker = validAttackers[0];
         log.combatBattle(
             this.tick,
-            { id: `${validAttackers.length} stars`, ships: totalAttackForce, starType: primaryAttacker.starType, ownerId: primaryAttacker.ownerId },
+            { id: `${validAttackers.length} stars`, ships: totalAttackShips, starType: primaryAttacker.starType, ownerId: primaryAttacker.ownerId },
             { id: defender.id, ships: defenderForce, starType: defender.starType, ownerId: defender.ownerId },
             { kills: killsOnDefender, disabled: disabledOnDefender },
             { kills: killsOnAttacker, disabled: disabledOnAttacker },
@@ -688,7 +706,7 @@ export class GameEngine {
             tick: this.tick,
             attacker: {
                 id: validAttackers.length > 1 ? `${validAttackers.length} stars` : primaryAttacker.id,
-                ships: Math.floor(totalAttackForce),
+                ships: Math.floor(totalAttackShips),
                 starType: primaryAttacker.starType,
                 ownerId: primaryAttacker.ownerId,
                 kills: Math.floor(killsOnAttacker),
@@ -712,13 +730,23 @@ export class GameEngine {
             result: defender.activeShips > 0 ? 'DEFENSE' : 'FALLING'
         });
 
-        // Check CONQUEST condition using TOTAL attacking force
-        const conquestThreshold = totalAttackForce / GAME_CONFIG.CONQUEST_THRESHOLD;
+        // Check CONQUEST condition using TOTAL attacking ships (all players)
+        const conquestThreshold = totalAttackShips / GAME_CONFIG.CONQUEST_THRESHOLD;
         if (defender.activeShips <= conquestThreshold) {
-            // Find the attacker with the LARGEST contribution to be the victor
-            const victor = attackerContributions.reduce((a, b) =>
-                a.force > b.force ? a : b
-            ).attacker;
+            // Victor = PLAYER with largest total attacking ships per MECHANICS.md §3.3
+            let bestOwnerId = '';
+            let bestShips = 0;
+            shipsByOwner.forEach((entry, ownerId) => {
+                if (entry.totalShips > bestShips) {
+                    bestShips = entry.totalShips;
+                    bestOwnerId = ownerId;
+                }
+            });
+            // Strongest individual star of winning player for executeConquest
+            const winnerStars = shipsByOwner.get(bestOwnerId)!.stars;
+            const victor = winnerStars.reduce((a, b) =>
+                a.activeShips > b.activeShips ? a : b
+            );
             this.executeConquest(victor, defender);
         }
     }
