@@ -110,6 +110,7 @@ Update this file after each development session.
 |------|---------| 
 | 2026-02-07 | Group A+B: Star selection bug fix, combat log enhancements (captured/escaped/destroyed), My Battles filter, DAMAGED_SHIP_EFFECTIVENESS config, logging levels, root README. |
 | 2026-02-07 | Protocol audit & consolidation, comprehensive game spec, dev history, new doc-everything rule. |
+| 2026-02-07 | Engine Convergence Phase 2 (conquest/scatter/retreat unified). Fixed MP connection constraint bug (orders could bypass routes). |
 | 2026-02-07 | Colyseus multiplayer: fixed player interaction, star ownership with sessionId. |
 | 2026-02-03 | Audio system (Tone.js), passthrough orders fix, star spacing slider. |
 | 2026-02-02 | Fixed scatter/escape on conquest (checks connections). Fixed competing orders A↔B. |
