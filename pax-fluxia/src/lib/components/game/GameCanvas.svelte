@@ -98,12 +98,14 @@
         targetId: string,
         isDeferred: boolean = false,
     ) {
-        // Validate both stars exist in current snapshot
-        const snapshot = gameStore.snapshot;
-        if (!snapshot) return;
+        // Validate both stars exist in current data source
+        const currentStars = isMultiplayerMode()
+            ? multiplayerStore.stars
+            : gameStore.snapshot?.stars || [];
+        if (currentStars.length === 0) return;
 
-        const sourceExists = snapshot.stars.some((s) => s.id === sourceId);
-        const targetExists = snapshot.stars.some((s) => s.id === targetId);
+        const sourceExists = currentStars.some((s) => s.id === sourceId);
+        const targetExists = currentStars.some((s) => s.id === targetId);
         if (!sourceExists || !targetExists) return;
 
         const key = `${sourceId}|${targetId}`;
@@ -1612,59 +1614,57 @@
         }
 
         // CLICK LOGIC (Not valid drag)
+        // Model: Click any star to select. If prior selection X is connected to Y,
+        // issue order (own star = move/attack, enemy star = deferred order).
+        // If not connected, just select Y.
         if (!movedSignificantly && targetStar) {
-            // Case 1: Active Star Selected -> Click OTHER star (Issue Order)
-            if (activeStarId && activeStarId !== targetStar.id) {
-                const currentStars = isMultiplayerMode()
-                    ? multiplayerStore.stars
-                    : gameStore.snapshot?.stars || [];
-                const activeStarSnapshot = currentStars.find(
-                    (s) => s.id === activeStarId,
+            // Case 1: Clicked same star -> TOGGLE (deselect)
+            if (activeStarId === targetStar.id) {
+                activeStarId = null;
+                log.state(
+                    "GameCanvas",
+                    `Star ${targetStar.id} deselected (toggle)`,
+                );
+            }
+            // Case 2: Have a prior selection -> try to issue order, then select Y
+            else if (activeStarId) {
+                const currentConnections = isMultiplayerMode()
+                    ? multiplayerStore.connections
+                    : gameStore.snapshot?.connections || [];
+                const isConnected = currentConnections.some(
+                    (c) =>
+                        (c.sourceId === activeStarId &&
+                            c.targetId === targetStar.id) ||
+                        (c.sourceId === targetStar.id &&
+                            c.targetId === activeStarId),
                 );
 
-                // If we own the source, we can send to ANY target (Self or Enemy)
-                if (
-                    activeStarSnapshot &&
-                    isLocalPlayerStar(activeStarSnapshot)
-                ) {
-                    // Ctrl-click = order clears on conquest
-                    const success = doIssueOrder(
-                        activeStarId,
-                        targetStar.id,
-                        !event.ctrlKey, // persist unless ctrl-click
+                if (isConnected) {
+                    const currentStars = isMultiplayerMode()
+                        ? multiplayerStore.stars
+                        : gameStore.snapshot?.stars || [];
+                    const activeStarSnapshot = currentStars.find(
+                        (s) => s.id === activeStarId,
                     );
-                    if (success) {
-                        addPendingOrder(activeStarId, targetStar.id);
-                        // If target is enemy, keep it selected for deferred order chaining
-                        // If target is friendly (reinforce), clear selection
-                        if (!isLocalPlayerStar(targetStar)) {
-                            activeStarId = targetStar.id;
-                        } else {
-                            activeStarId = null;
+
+                    if (
+                        activeStarSnapshot &&
+                        isLocalPlayerStar(activeStarSnapshot)
+                    ) {
+                        // Own star → normal order (attack or reinforce)
+                        const success = doIssueOrder(
+                            activeStarId,
+                            targetStar.id,
+                            !event.ctrlKey,
+                        );
+                        if (success) {
+                            addPendingOrder(activeStarId, targetStar.id);
                         }
-                    } else {
-                        // Failed (not connected?) -> select the target if ours
-                        if (isLocalPlayerStar(targetStar)) {
-                            activeStarId = targetStar.id;
-                        }
-                    }
-                } else if (
-                    activeStarSnapshot &&
-                    !isLocalPlayerStar(activeStarSnapshot) &&
-                    activeStarSnapshot.ownerId !== "neutral"
-                ) {
-                    // Selected star is enemy - try to set deferred order
-                    const currentConnections = isMultiplayerMode()
-                        ? multiplayerStore.connections
-                        : gameStore.snapshot?.connections || [];
-                    const isConnected = currentConnections.some(
-                        (c) =>
-                            (c.sourceId === activeStarId &&
-                                c.targetId === targetStar.id) ||
-                            (c.sourceId === targetStar.id &&
-                                c.targetId === activeStarId),
-                    );
-                    if (isConnected) {
+                    } else if (
+                        activeStarSnapshot &&
+                        activeStarSnapshot.ownerId !== "neutral"
+                    ) {
+                        // Enemy star → deferred order
                         const success = doSetDeferredOrder(
                             activeStarId,
                             targetStar.id,
@@ -1674,40 +1674,19 @@
                             addPendingOrder(activeStarId, targetStar.id, true);
                             log.success(
                                 "GameCanvas",
-                                `Deferred order via click: ${activeStarId} -> ${targetStar.id}`,
+                                `Deferred order: ${activeStarId} → ${targetStar.id}`,
                             );
-                            activeStarId = targetStar.id; // Chain to next
                         }
                     }
-                } else {
-                    // Previous selection wasn't ours, just select new one
-                    if (isLocalPlayerStar(targetStar)) {
-                        activeStarId = targetStar.id;
-                    } else if (targetStar.ownerId !== "neutral") {
-                        // Can select enemy stars for chaining deferred orders
-                        activeStarId = targetStar.id;
-                    }
                 }
+
+                // Always select the new star (whether order was issued or not)
+                activeStarId = targetStar.id;
             }
-            // Case 2: Clicked same star -> TOGGLE (deselect)
-            else if (activeStarId === targetStar.id) {
-                activeStarId = null;
-                log.state(
-                    "GameCanvas",
-                    `Star ${targetStar.id} deselected (toggle)`,
-                );
-            }
-            // Case 3: No active selection -> Select
-            else if (isLocalPlayerStar(targetStar)) {
+            // Case 3: No prior selection -> just select
+            else {
                 activeStarId = targetStar.id;
                 log.state("GameCanvas", `Star ${targetStar.id} selected`);
-            } else if (targetStar.ownerId !== "neutral") {
-                // Allow selecting enemy stars to set up deferred order chains
-                activeStarId = targetStar.id;
-                log.state(
-                    "GameCanvas",
-                    `Enemy star ${targetStar.id} selected for deferred orders`,
-                );
             }
         } else if (!movedSignificantly && !targetStar) {
             clearSelection();
