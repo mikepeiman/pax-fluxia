@@ -104,11 +104,9 @@
 
 | ID | Issue |
 |----|-------|
-| B-13 | Spacebar doesn't control play/pause in MP |
 | B-14 | Combat logs empty in MP |
 | B-15 | Multi-star conquest not aggregating per-player on server |
 | B-18 | Restart button broken in MP |
-| B-19 | Can draw order arrows to non-connected stars |
 
 ## Resolved Bugs (B)
 
@@ -125,6 +123,8 @@
 | B-12 | Map lane minimum angle | 15° min angle filter in Phase 3 of `generateStarConnections` | `d38cdba` |
 | B-16 | Lane passes under star | Lanes gap around intermediate stars | `d38cdba` |
 | B-17 | Command arrows reach target | `ARROW_LENGTH_FRACTION` config + slider (default 50%) | `d38cdba` |
+| B-13 | Spacebar doesn't work in MP | Routed spacebar + animation freeze through `activeGameStore` | `pending` |
+| B-19 | Arrows to non-connected stars | Added connection validation to drag-end order path | `pending` |
 
 ---
 
@@ -168,6 +168,23 @@
 | R-17 | Command Arrow Styles | 🔵 |
 | R-18 | Custom Map Editor | 🔵 |
 | R-19 | Imperative Animation Events (architectural) | 🔴 |
+| R-20 | Star Upgrades (spend ships to upgrade) | 🔵 |
+| R-21 | Star Hybrids / Multi-classing | 🔵 |
+| R-22 | Spectator Mode (MP) | 🟡 |
+| R-23 | Take Over AI Player (MP) | 🟡 |
+| R-24 | Vote System for MP Settings | 🟡 |
+| R-25 | Multiple Targets / Branching Orders | 🔵 |
+| R-26 | Conditional Orders (trigger on conquest) | 🔵 |
+| R-27 | Strategic Patterns (auto-behavior algorithms) | 🔵 |
+| R-28 | Last-Stand Resistance Mode | 🟢 |
+| R-29 | Captured Ship Activation Rate Slider | 🟢 |
+| R-30 | Deferred Order Arrows Overlay Priority | 🟢 |
+| R-31 | Tick Length Control Panel Slider | 🟢 |
+| R-32 | End-Game Screen Enlargement + Better Charts | 🟡 |
+| R-33 | Damaged Ships Never Destroyed (design rule) | 🟢 |
+| R-34 | AST-Based Bidirectional Documentation | 🔵 |
+| R-35 | Conquest Pause + Stats Card Popup | 🟢 |
+| R-36 | Damaged Ship Visual Density Tiers (overlapping orbits) | 🟢 |
 
 ---
 
@@ -175,6 +192,9 @@
 
 | Date | Summary |
 |------|---------|
+| 2026-02-08 | B-13 fix: MP spacebar pause/resume via `activeGameStore`. B-19 fix: drag-end connection validation. GameHUD SpeedControls routed through `activeGameStore`. Dev notes triage: 17 new roadmap items documented. |
+| 2026-02-08 | Batch 1 fixes: B-8 (no attack travel anim), B-12 (15° lane angle), B-16 (lane gaps around stars), B-17 (arrow length slider). |
+| 2026-02-08 | Ship animation redesign: unified lifecycle (orbit→depart→travel→arrive). Scatter uses real connections. |
 | 2026-02-08 | Combat slider wiring (`CombatConfigOverride`). Transfer rate slider step 5→1. MECHANICS.md canonical rewrite. Multi-star per-player aggregation. Pause freeze. Order cancel on conquest. |
 | 2026-02-08 | Ship animation redesign: unified lifecycle (orbit→depart→travel→arrive). Scatter uses real connections. |
 | 2026-02-07 | Star selection fix, combat log enhancements, My Battles filter, DAMAGED_SHIP_EFFECTIVENESS slider, logging levels, root README. |

@@ -56,3 +56,52 @@ A `clearTarget` guard auto-cancelled move orders when a star had 0 ships. This b
 - Zero ships does NOT auto-cancel orders
 - `clearTarget` guard removed from `processFlowLinks`
 
+---
+
+# Decision: Damaged Ships Are Never Destroyed in Combat
+
+**Date:** 2026-02-08 (extracted from dev notes 2026-01-31)
+**Status:** Active
+
+## Context
+User clarified: damaged ships are removed from combat after being damaged. They are NOT destroyed during combat ticks. They will either:
+1. Repair over time (at the owning star)
+2. Be captured upon conquest (in damaged state)
+3. Be partially destroyed as attrition on loss (star conquered)
+
+## Decision
+- Combat damage transitions active → damaged, never active → destroyed
+- Damaged ships are out of combat; they contribute 1/7th defensive value (configurable via `DAMAGED_SHIP_EFFECTIVENESS`)
+- Ship destruction only occurs as part of conquest attrition (scatter/retreat)
+
+---
+
+# Decision: No Mechanical Travel Between Stars
+
+**Date:** 2026-02-08 (extracted from dev notes 2026-01-30)
+**Status:** Active
+
+## Context
+Repeated misunderstandings about "ships traveling between stars". The user was emphatic: there is NO intermediate state between stars. All mechanics are computed on the tick. Visual travel animations are purely presentational.
+
+## Decision
+- Mechanically there is no "in transit" state. Everything happens on the tick.
+- Visual animations (orbit→depart→travel→arrive) fill the inter-tick period for human comprehension.
+- Attack is "remote engagement": ships surge toward target visually but remain at source star.
+- Transfer/reinforce: ships visually travel the lane between ticks, but mechanically the ship count changes at source and destination simultaneously on the tick.
+
+---
+
+# Decision: Retreat Reduces Capture Rate
+
+**Date:** 2026-02-08 (extracted from dev notes 2026-02-04)
+**Status:** Active
+
+## Context
+Retreat order should meaningfully affect conquest outcomes vs. passive loss.
+
+## Decision
+- **Active retreat ordered**: `captureRate = 0.35` — defender preserves more ships by fleeing
+- **Passive loss (no retreat)**: `captureRate = 0.70` — more ships captured by victor
+- **No escape routes**: Capture is total regardless of orders
+- Active retreat = player has escape route AND has ordered retreat on that star

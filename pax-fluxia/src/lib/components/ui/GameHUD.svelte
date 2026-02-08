@@ -1,5 +1,6 @@
 <script lang="ts">
   import { gameStore } from "$lib/stores/gameStore.svelte";
+  import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
   import SpeedControls from "./SpeedControls.svelte";
   import Leaderboard from "./Leaderboard.svelte";
   import ResultsModal from "./ResultsModal.svelte";
@@ -48,12 +49,12 @@
 
       {#if !isCollapsed}
         <SpeedControls
-          speed={gameStore.speed}
-          isPaused={gameStore.isPaused}
+          speed={activeGameStore.speed}
+          isPaused={activeGameStore.isPaused}
           hasStarted={gameStore.hasStarted}
-          onSpeedChange={gameStore.setSpeed}
-          onPause={gameStore.pauseGame}
-          onResume={gameStore.resumeGame}
+          onSpeedChange={activeGameStore.setSpeed}
+          onPause={activeGameStore.pauseGame}
+          onResume={activeGameStore.resumeGame}
           onStart={gameStore.beginGame}
         />
 

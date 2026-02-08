@@ -3,6 +3,7 @@
     import * as PIXI from "pixi.js";
     import { gameStore } from "$lib/stores/gameStore.svelte";
     import { multiplayerStore } from "$lib/stores/multiplayerStore.svelte";
+    import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
     import { log } from "$lib/utils/logger";
     import { GAME_CONFIG } from "$lib/config/game.config";
     import {
@@ -303,8 +304,7 @@
             lastTime = currentTime;
 
             // Freeze all animations when paused (orbits, glow, ship positions)
-            const isPaused =
-                gameStore.isPaused && multiplayerStore.phase !== "playing";
+            const isPaused = activeGameStore.isPaused;
             if (!isPaused) {
                 animationTime += deltaTime;
             }
@@ -1216,8 +1216,7 @@
         const starsById = new Map(stars.map((s) => [s.id, s]));
 
         // When paused, shift all departTimes forward so ships freeze in place
-        const isPaused =
-            gameStore.isPaused && multiplayerStore.phase !== "playing";
+        const isPaused = activeGameStore.isPaused;
         if (isPaused) {
             const dt = now - (renderTravelingShips as any)._lastNow;
             if (dt > 0) {
@@ -1888,19 +1887,38 @@
         // DRAG MODE: If we dragged significantly
         if (movedSignificantly && dragSourceId) {
             if (targetStar && targetStar.id !== dragSourceId) {
-                // Issue order from drag
-                // Ctrl-click = order clears on conquest
-                const success = doIssueOrder(
-                    dragSourceId,
-                    targetStar.id,
-                    !event.ctrlKey, // persist unless ctrl-click
+                // Validate connection before issuing order
+                const connections = isMultiplayerMode()
+                    ? multiplayerStore.connections
+                    : gameStore.snapshot?.connections || [];
+                const isConnected = connections.some(
+                    (c) =>
+                        (c.sourceId === dragSourceId &&
+                            c.targetId === targetStar.id) ||
+                        (c.sourceId === targetStar.id &&
+                            c.targetId === dragSourceId),
                 );
-                if (success) {
-                    // OPTIMISTIC UI: Add immediately for instant arrow display
-                    addPendingOrder(dragSourceId, targetStar.id);
-                    log.success(
+
+                if (isConnected) {
+                    // Issue order from drag
+                    // Ctrl-click = order clears on conquest
+                    const success = doIssueOrder(
+                        dragSourceId,
+                        targetStar.id,
+                        !event.ctrlKey, // persist unless ctrl-click
+                    );
+                    if (success) {
+                        // OPTIMISTIC UI: Add immediately for instant arrow display
+                        addPendingOrder(dragSourceId, targetStar.id);
+                        log.success(
+                            "GameCanvas",
+                            `Drag order: ${dragSourceId} → ${targetStar.id}`,
+                        );
+                    }
+                } else {
+                    log.state(
                         "GameCanvas",
-                        `Drag order: ${dragSourceId} → ${targetStar.id}`,
+                        `Drag order rejected: ${dragSourceId} → ${targetStar.id} (not connected)`,
                     );
                 }
             }
@@ -2105,12 +2123,12 @@
         if (event.key === "Escape") {
             clearSelection();
         } else if (event.key === " " || event.code === "Space") {
-            // Spacebar = pause/play toggle
+            // Spacebar = pause/play toggle (routes through activeGameStore for SP/MP)
             event.preventDefault();
-            if (gameStore.isPaused) {
-                gameStore.resumeGame();
+            if (activeGameStore.isPaused) {
+                activeGameStore.resumeGame();
             } else {
-                gameStore.pauseGame();
+                activeGameStore.pauseGame();
             }
         }
     }
