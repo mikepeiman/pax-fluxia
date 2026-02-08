@@ -923,6 +923,25 @@ export class GameEngine {
             destroyed: Math.floor(result.shipsDestroyed),
             defenderTotalAtConquest: result.defenderTotalAtConquest
         });
+
+        // ================================================================
+        // Cancel orders targeting this conquered star from all other players
+        // Also cancel winning player's attack order (star is now friendly)
+        // ================================================================
+        const conqueredId = defender.id;
+        const newOwner = defender.ownerId; // Now owned by attacker
+        this.stars.forEach(star => {
+            // Cancel targetId pointing at conquered star
+            if (star.targetId === conqueredId && star.ownerId !== newOwner) {
+                log.state('OrderCancel', `Cancelling ${star.id}'s order to ${conqueredId} (conquered by another player)`);
+                star.setTarget(null);
+            }
+            // Cancel queued/chained orders pointing at conquered star from non-owners
+            if (star.queuedOrderTargetId === conqueredId && star.ownerId !== newOwner) {
+                log.state('OrderCancel', `Cancelling ${star.id}'s queued order to ${conqueredId}`);
+                star.queuedOrderTargetId = null;
+            }
+        });
     }
 
     // NOTE: handleFleetArrivals and resolveMultiwayCombat were removed as dead code
