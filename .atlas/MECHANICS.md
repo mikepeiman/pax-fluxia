@@ -1,101 +1,268 @@
-# V3 Combat mechanics
+# Pax Fluxia — Game Mechanics
 
-## 1. Core Concept
+**Version:** 4.0  
+**Last Updated:** 2026-02-08
 
-Expanded understanding and more comprehensive articulation of the gameplay mechanics of Pax Galaxia.
+This document is the canonical, definitive specification of all game mechanics. It describes *what the game does*, not how to implement it.
 
-The AI developer agent has shifted and expanded their understanding from a simple attrition model to include the crucial tactical element of ship capture and strategic retreat. 
+---
 
-Key shifts:
+## 1. Star Types
 
-- **Star Properties**: Star types influence how combat resolves (Hardened defenses vs Repair).
-- **Postures**: "Holding Ground" (Defending) vs "Retreating" (Active Move Order). These apply ONLY to being under active attack, for V1.0. This idea may be expanded in Pax Fluxia roadmap (the successor to Pax Galaxia Redux)
-- **Capture Dynamics**: Surrendering forces are subject to different destruction & capture dynamics based on whether they were trying to retreat or not.
+Each star type has a **2× bonus** in one specialty. All other multipliers are 1.0.
 
-## 2. User Specifications 
+| Type | Color | Specialty | Effect | Strategic Role |
+|------|-------|-----------|--------|---------------|
+| **Grey** | `#8899aa` | None | Baseline stats | No advantage |
+| **Yellow** | `#fbbf24` | Production | 2× ship generation rate | Economy |
+| **Blue** | `#3b82f6` | Speed | 2× transfer rate (0.2 vs 0.1) | Logistics |
+| **Purple** | `#a855f7` | Repair | 2× repair rate (0.4 vs 0.2) | Attrition |
+| **Red** | `#ef4444` | Defense | 2× defense strength | Fortress |
+| **Green** | `#22c55e` | Attack | 2× attack power | Assault |
 
-### 2.1. Formulas
+### Star Properties
 
-- **Combat Ratio**: `attackingForce / defendingForce`
-- **Casualty Calculation** (Per Tick for attrition):
-    - `smallerForce = Math.min(my.force, enemy.force)`
-    - `largerForce = Math.max(my.force, enemy.force)`
-    - `myForceIsLarger = my.force > enemy.force`
-    - **Damaged**: `shipsDamaged = myForceIsLarger ? (combatModifier * smallerForce) : (combatModifier * largerForce)`
-    - **Destroyed**: `shipsDestroyed = Star.defensivePosture * (isLarger ? enemy.force : my.force)`
-    - _Note_: This replaces the old "Attack * Rate" formula. It scales with engagement size.
+| Property | Default | Description |
+|----------|---------|-------------|
+| `activationRate` | 0.50 | % of captured damaged ships becoming active |
+| `defensivePosture` | 1.0 | Defensive posture modifier |
+| `defenseStrength` | 1.0 | Defense multiplier (Red = 2.0) |
+| `repairRate` | 0.20 | % of damaged ships repaired per tick (Purple = 0.4) |
+| `transferRate` | 0.10 | Base transfer rate (Blue = 0.2) |
 
-### 2.2. Definitions
+---
 
-- **Escape Route**: Exists if the star has `connections.some(c => target(c).owner === self.owner)`.
-- **Retreating**: targetId points to a friendly star (Active Order) AND Escape Route exists.
-- **Capture Rate**:
-    - If Retreating: `0.35` (Attacker captures 35% of force). Remaining 65% escapes to targetId.
-    - If Not Retreating: `0.50` (Attacker captures 50% of force). Of remaining 50%:
-        - half destroyed
-        - half retreat
-- **Force**: Integer quantity of ships. Also referred to varyingly as "ships" and "fleet" or "fleet size".
+## 2. Ship States
 
-## 3. Implementation Specification
+Ships exist in two states:
 
-### 3.1. File: 
+| State | Description |
+|-------|-------------|
+| **Active** | Combat-ready. Participate in attacks, defense, and transfer. |
+| **Damaged** | In repair pool. Contribute to defense at reduced effectiveness (14%). Cannot attack or transfer. |
 
-src/lib/types/game.types.ts
+---
 
-**Update StarConfig and StarState**:
+## 3. Tick Order
+
+Every tick (default 1200ms at 1× speed), the engine processes in this exact order:
+
+1. **Production** — Stars generate ships: `BASE_PRODUCTION × productionRate`
+2. **Orders** — Process reinforcements (friendly transfers), then resolve attacks
+3. **Repair** — Damaged ships heal: `max(MIN_REPAIR, repairRate × damagedShips)`
+4. **Stats** — Aggregate player totals
+5. **Win Check** — Last player standing wins
+
+---
+
+## 4. Production
+
+Each owned star produces ships per tick:
+
 ```
-interface StarConfig {
-    // ... existing
-    baseDefense?: number;
-    // New Props for "Unique Properties"
-    activationRate?: number;    // % of captured damaged ships that become active
-    defensivePosture?: number;  // % of casualties that are Destroyed vs Damaged
-    defenseStrength?: number;   // Global defense modifier (modifier vs attackerStrength)
-    repairRate?: number;        // Repair rate per tick
-    transferRate?: number;      // Rate of ship transfer (movement, travel)
-}
+shipsProduced = BASE_PRODUCTION × starType.prod
 ```
 
-### 3.2. File: 
+- `BASE_PRODUCTION`: 0.5 ships/tick (default)
+- Yellow stars produce at 2× rate (1.0 ships/tick)
+- Fractional ships accumulate; a ship appears when the total reaches the next integer
 
-src/lib/engine/Star.ts
+---
 
-**Logic Update**:
+## 5. Transfer (Reinforcement)
 
-- Default properties in constructor (or `TYPE_STATS` mapping).
-- `activationRate` default: 0.5
-- `defensivePosture` default: 0.25 (25% destroyed, 75% damaged)
-- Update repair(): Check `activeCombat` flag (inhibited).
+When a star has an order targeting a **friendly** star, it sends ships along the lane each tick.
 
-### 3.3. File: 
+```
+transferAmount = max(MIN_SHIPS_PER_TRANSFER, ceil(activeShips × TRANSFER_RATE))
+```
 
-src/lib/engine/CombatRules.ts
+- `TRANSFER_RATE`: 10% of active ships per tick (default)
+- `MIN_SHIPS_PER_TRANSFER`: 1
+- Blue stars: 2× transfer rate
 
-**Rewrite resolveMultiwayCombat**:
+**Order Persistence**: Orders persist until explicitly cancelled by the player. 
 
-#### A. Combat Logic (Attrition)
+**Attack vs Transfer**: Attacks are remote engagement, with an animation "surge/recede" effect to represent combat force — ships stay at their source star and deal damage across the lane. Only reinforcements (friendly transfers) involve physical ship movement from star to star.
 
-- **Input**: `forces` (Map of PlayerId -> count).
-- **Process**:
-    - Identify `attackerForce` (Sum of non-owners).
-    - Identify `defenderForce` (Owner ships).
-    - Calculate casualties for defenders using **Casualty Calculation.
-    - Apply damage to defending fleet `defendingStar.ships.active` 
-    - Calculate casualties for attackers using **Casualty Calculation** (loop through attacking stars and apply damage to attacking fleets `attackingStar.ships.active`
+---
 
-#### B. Capture Logic (Conquest)
+## 6. Combat (V4 — Symmetric Damage Model)
 
-- Trigger: `defender.active <= 0` or `ratio >= 7`.
-- **Retreat Check**:
-    - `isRetreating = star.targetId && targetIsFriendly`. Upon defeat, this will direct all surviving ships to the target system (Star).
-    - `escapeRouteExists` = Check connections for friendly neighbor.
-    - `canRetreat = escapeRouteExists`. Upon defeat, this will scatter (equally) all surviving ships to every self-owned system connected to the just-conquered star.
-- **Resolution**:
-    - `captureRate = isRetreating ? 0.35 : (canRetreat ? 0.50 : 1.0)`.
-    - `capturedShips = defender.total * captureRate`.
-    - `survivingRetreaters = defender.total - capturedShips` 
-    - **Execution**:
-        - If `canRetreat`: detailed `Star.addActiveShips` to destination.
-        - `Star.setOwner(victor)`.
-        - `Star.ships.active = capturedShips * activationRate` (approx).
-        - `Star.ships.damaged = capturedShips - (capturedShips * activationRate)` (approx).
+Combat occurs when a star has an order targeting an **enemy** star. Both sides take damage simultaneously each tick. Ships do not effectively leave their star during combat, aside from the visual representation as mentioned.
+
+### 6.1. Damage Formula (Per Tick)
+
+```
+baseOutput   = myShips × DAMAGE_PER_SHIP
+aggressorMod = isAttacking ? AGGRESSOR_ADVANTAGE : 1.0
+ratioBonus   = 1 + log₂(ratio) × FORCE_RATIO_EFFECT
+finalDamage  = ceil(baseOutput × aggressorMod × ratioBonus)
+```
+
+### 6.2. Damage Split
+
+```
+killed   = floor(finalDamage × LETHALITY)
+disabled = floor(finalDamage × (1 - LETHALITY))
+```
+
+- Killed ships are permanently removed
+- Disabled ships move to the damaged pool (can be repaired)
+
+### 6.3. Combat Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DAMAGE_PER_SHIP` | 0.10 | Base damage per ship per tick |
+| `LETHALITY` | 0.25 | % of damage that destroys (rest disables) |
+| `AGGRESSOR_ADVANTAGE` | 0.70 | Multiplier for attacking side (<1 = defender advantage) |
+| `FORCE_RATIO_EFFECT` | 0.00 | Numerical superiority bonus (0 = disabled) |
+| `MINIMUM_DAMAGE` | 1 | Floor damage per tick |
+| `DAMAGED_SHIP_EFFECTIVENESS` | 0.14 | Fraction of damaged ships counting toward defense |
+
+### 6.4. Effective Defender Force
+
+Damaged ships contribute to defense at reduced effectiveness:
+
+```
+defenderForce = activeShips + floor(damagedShips × DAMAGED_SHIP_EFFECTIVENESS)
+```
+
+### 6.5. Multi-Star Combat (Per-Player Aggregation)
+
+When multiple stars attack the same target:
+
+1. Group all attackers by **ownerId** (player)
+2. **Total damage** to defender = all attackers combined (all players)
+3. Damage to attackers distributed proportionally by each star's ship contribution
+4. **Victor** = the **player** with the largest total attacking ships, not any individual star
+5. `executeConquest` receives the strongest individual star of the winning player
+
+---
+
+## 7. Conquest
+
+Conquest triggers when:
+
+- `defender.activeShips ≤ 0` (attrition victory), **OR**
+- `defender.activeShips ≤ totalAttackerShips / CONQUEST_THRESHOLD` (overwhelm)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CONQUEST_THRESHOLD` | 8 | Attacker:defender ratio for overwhelm |
+| `CONQUEST_TRANSFER_PERCENTAGE` | 50% | Winning ships transferred to conquered star |
+
+### 7.1. Conquest Resolution
+
+1. Defender ownership transfers to winning **player**
+2. 50% of winning player's attacking ships transfer to conquered star
+3. Defender's damaged ships are zeroed
+4. Surviving defender ships undergo scatter/retreat (see §8)
+5. All orders targeting this star from **other players** are cancelled (including chained orders)
+6. Winning player's orders to this star are cancelled (star is now friendly)
+7. Queued (deferred) orders activate if set
+
+---
+
+## 8. Scatter & Retreat
+
+When a star is conquered, the defender's surviving ships attempt to escape.
+
+### 8.1. Retreat (Ordered)
+
+If the defending star has an active order targeting a **friendly** star:
+
+- `RETREAT_CAPTURE_RATE` (35%) of ships are captured by the attacker
+- Remaining 65% escape to the ordered target
+
+### 8.2. Scatter (Unordered)
+
+If the defending star has **no retreat order** but has friendly neighbors:
+
+- `SCATTER_CAPTURE_RATE` (50%) of ships are captured
+- Of the remaining 50%:
+  - `SCATTER_DESTROY_RATE` (50%) are destroyed
+  - Rest scatter equally to connected friendly stars
+
+### 8.3. No Escape
+
+If no friendly neighbors exist:
+
+- 100% of ships are captured by the attacker
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `RETREAT_CAPTURE_RATE` | 0.35 | % captured when defender retreats |
+| `SCATTER_CAPTURE_RATE` | 0.50 | % captured when defender scatters |
+| `SCATTER_DESTROY_RATE` | 0.50 | % of non-captured destroyed on scatter |
+
+---
+
+## 9. Repair
+
+Each tick, damaged ships are repaired:
+
+```
+repaired = max(MIN_REPAIR, repairRate × damagedShips)
+```
+
+- `REPAIR_RATE`: 0.20 (20% per tick, default)
+- `MIN_REPAIR`: 1 ship minimum per tick
+- Purple stars: 2× repair rate (0.4)
+- `REPAIR_COMBAT_PENALTY`: 0.1 — repair is reduced to 10% during active combat
+
+---
+
+## 10. Orders
+
+### 10.1. Active Order
+
+A star's `targetId` directs its behavior:
+
+- **Friendly target** → Reinforcement (ships transfer along lane)
+- **Enemy target** → Attack (remote engagement, ships stay)
+- **null** → Idle (produce and repair only)
+
+### 10.2. Queued (Deferred) Order
+
+`queuedOrderTargetId` stores a second order that activates when the star is conquered. This enables chain-through strategies where a player pre-plans the flow after capturing a key star.
+
+### 10.3. Order Persistence
+
+- Orders persist until **explicitly cancelled** by the player
+- Zero remaining ships does NOT auto-cancel an order
+- When a star is conquered by a third party, orders from non-victors targeting that star are cancelled
+- The conquering player's orders to the now-friendly star are also cancelled
+
+---
+
+## 11. AI Behavior
+
+The AI evaluates all its stars each tick and issues orders based on configurable thresholds.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `AI_ATTACK_THRESHOLD` | 1.33 | Min ship ratio to initiate attack |
+| `AI_DESIST_THRESHOLD` | 1.00 | Ratio at which AI stops attacking |
+| `AI_RANDOM_AGGRESSION` | 0.05 | Chance per tick for random attack |
+| `AI_TACTICAL_AGGRESSION` | 0.10 | Chance to attack weak target as bait |
+
+---
+
+## 12. Map Generation
+
+Stars are placed on a hex grid and connected via Delaunay triangulation.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `STARS_PER_PLAYER` | 5 | Stars each player starts with |
+| `MIN_LINKS_PER_STAR` | 1 | Minimum connections per star |
+| `MAX_LINKS_PER_STAR` | 6 | Maximum connections per star |
+| `STARTING_SHIPS` | 40 | Ships per star at game start |
+
+---
+
+## 13. Victory
+
+The last player with at least one star wins. A player is eliminated when they lose all stars.
