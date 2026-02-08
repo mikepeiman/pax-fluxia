@@ -1,148 +1,190 @@
-# Feature Regression Tracker
-
-**Purpose**: Systematic tracking of feature status for human-AI development collaboration.
+# Feature & Regression Tracker
 
 **Last Updated**: 2026-02-08  
-**Last Reviewer**: Agent
+**Last Verified By**: User (partial — see Verified column)
 
 ---
 
-## How to Use
+## Legend
 
-Each feature has:
-- **Works?** — Boolean: ✅ (working) or ❌ (broken)
-- **Changed?** — Did this change since last session? 🔄 (yes) or ➖ (no)
-- **Notes** — Current status, issues, or observations
-
-Update this file after each development session.
+| Symbol | Meaning |
+|--------|---------|
+| ✅ | User-verified working |
+| ❓ | Agent-implemented, not user-verified |
+| ❌ | User-confirmed broken |
+| 🔧 | Code change made (commit ref in Notes) |
 
 ---
 
 ## Core Gameplay
 
-| Feature | Works? | Changed? | Notes |
-|---------|--------|----------|-------|
-| Start Game | ✅ | ➖ | Menu → Game transition works |
-| Pause/Resume | ✅ | ➖ | Speed controls functional |
-| Speed Control (1x-50x) | ✅ | ➖ | All speeds work |
-| Win/Lose Detection | ✅ | ➖ | Elimination and victory detected |
-| Replay / Return to Menu | ✅ | ➖ | Both work correctly |
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Start Game | ✅ | Menu → Game transition |
+| Pause/Resume | ❓ | Orbit + traveling ship freeze added (`60395be`) |
+| Speed Control (1x-50x) | ✅ | |
+| Win/Lose Detection | ✅ | |
+| Replay / Return to Menu | ✅ | SP only. MP restart broken (see Open Issues #18) |
 
 ---
 
 ## Input / Controls
 
-| Feature | Works? | Changed? | Notes |
-|---------|--------|----------|-------|
-| **Instant Command Issue** | ✅ | 🔄 | Fixed pendingOrders consistency for optimistic UI |
-| Click-to-Select Star | ✅ | ➖ | Selection works |
-| Drag-to-Attack | ✅ | ➖ | Drag gesture works |
-| Click-Click Attack | ✅ | ➖ | Two-click mode works |
-| Right-Click Cancel | ✅ | ➖ | Cancels selection |
-| Vector Arrow Display | ✅ | 🔄 | Fixed — now instant via pendingOrders |
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Click-to-Select Star | ✅ | |
+| Drag-to-Attack | ✅ | |
+| Click-Click Attack | ✅ | |
+| Right-Click Cancel | ✅ | |
+| Command Issue Speed | ❓ | Uses `pendingOrders` for optimistic UI |
+| Vector Arrow Display | ❓ | Uses `pendingOrders` for instant rendering |
 
 ---
 
 ## Combat Mechanics
 
-| Feature | Works? | Changed? | Notes |
-|---------|--------|----------|-------|
-| Attrition (per-tick damage) | ✅ | 🔄 | V4 symmetric formula, UI sliders now wired via CombatConfigOverride |
-| Conquest (star capture) | ✅ | 🔄 | Fixed: per-player aggregation, largest player wins |
-| Retreat (directed) | ✅ | 🔄 | 35% capture, 65% escape verified |
-| Scatter (escape routes) | ✅ | 🔄 | Fixed: now uses actual connections |
-| Ship Transfer Rate | ✅ | 🔄 | Slider step 5→1, min 5→1; wired correctly |
-| Repair (damaged → active) | ❓ | ➖ | Needs verification |
-| Production (ship spawn) | ✅ | ➖ | Works |
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Attrition (per-tick damage) | ❓ | V4 symmetric formula. UI sliders wired via `CombatConfigOverride` (`441010d`) |
+| Conquest (star capture) | ❓ | Per-player aggregation via `shipsByOwner` map (`43cd2fc`) |
+| Conquest Threshold | ✅ | User verified 2026-02-08 |
+| Retreat (directed) | ❓ | 35% capture rate. Needs user verification |
+| Scatter (escape routes) | ❓ | Uses star connections. Needs user verification |
+| Ship Transfer Rate | ✅ | Slider step changed to 1% (`441010d`) |
+| Repair (damaged → active) | ✅ | User verified 2026-02-08 |
+| Production (ship spawn) | ✅ | |
+| Order Persistence | ❓ | Orders persist until cancelled; `clearTarget` guard removed |
+| Order Cancel on 3rd-Party Conquest | ❓ | Chained orders also cancelled (`60395be`) |
 
 ---
 
 ## Visual / Animation
 
-| Feature | Works? | Changed? | Notes |
-|---------|--------|----------|-------|
-| Ship Orbit (idle) | ✅ | ➖ | Ships orbit stars |
-| Ship Surge (attack) | ✅ | 🔄 | V3.1 individual ship animation |
-| Ship Transfer (flow) | ✅ | 🔄 | Ships flow along connection lines |
-| Tick Orb Pulse | ✅ | ➖ | Metronome visual works |
-| Star Glow / Selection | ✅ | ➖ | Visual feedback works |
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Ship Orbit (idle) | ✅ | |
+| Ship Transfer (flow along lanes) | ❓ | Unified lifecycle: orbit→depart→travel→arrive |
+| Tick Orb Pulse | ✅ | |
+| Star Glow / Selection | ✅ | |
 
 ---
 
-## Known Regressions (Priority)
+## Control Panel (CombatDebugPanel)
 
-~~1. **Command Input Lag** — UI interactions not instant. Must fix.~~ ✅ FIXED
-~~2. **Vector Arrow Delay** — May be same root cause as #1.~~ ✅ FIXED
-3. **Passthrough Orders** — Deferred orders through enemy stars not working. Need to fix drag-through logic.
-4. ~~**Star Selection Sticking** — After issuing order, star selection chains and requires multiple clicks to deselect.~~ **FIXED 2026-02-07**
-5. ~~**Multi-star conquest** — Sum ALL attacking forces per player per tick; largest player wins.~~ **FIXED 2026-02-08**
-6. **Transfer rate equilibrium** — Stars sit at 4-8+ ships instead of draining; production outpaces transfer due to `floor` rounding.
-7. ~~**Attack orders persist** — When another player conquers your target, your attack orders should auto-cancel.~~ **FIXED 2026-02-08**
-8. **Attack travel animation** — Ships animate along lanes during attacks; should only happen on friendly transfers.
-9. **Conquest ship bloom** — Captured ships bloom from star center instead of showing transfer from conquering star.
-10. ~~**Pause doesn't freeze orbits** — Orbit animations continue during pause.~~ **FIXED 2026-02-08**
-11. ~~**Control panel variables** — Combat sliders (Aggressor, Lethality, Damage) disconnected from combat math.~~ **FIXED 2026-02-08** via `CombatConfigOverride`
-12. **Map lane overlap** — Random maps can generate lanes with near-zero angle between them.
-13. **MP: Spacebar** — Spacebar doesn't control play/pause in multiplayer.
-14. **MP: Combat logs empty** — Logs show nothing in multiplayer mode.
-15. **MP: Multi-star conquest** — Same as #5 but on server side.
-16. **Lane passes under star** — Map lanes should never visually cross underneath a star. Obscures gameplay.
-17. **Command arrows reach target** — Order arrows extend to target star; should stop partway. Termination point should be adjustable via control panel slider.
-18. **MP: Restart button broken** — Restart does not work in multiplayer.
-19. **MP: Can draw arrows to non-connected stars** — No apparent effect but misleading; should be blocked.
+| Slider | Wired? | Notes |
+|--------|--------|-------|
+| Transfer Rate | ✅ | Step=1%, min=1%. Writes to `GAME_CONFIG.TRANSFER_RATE` (÷100) |
+| Aggressor Advantage | ❓ | Wired via `CombatConfigOverride` (`441010d`) |
+| Damage Per Ship | ❓ | Wired via `CombatConfigOverride` (`441010d`) |
+| Lethality | ❓ | Wired via `CombatConfigOverride` (`441010d`) |
+| Force Ratio Effect | ❓ | Wired via `CombatConfigOverride` (`441010d`) |
+| Conquest Threshold | ✅ | Reads directly from `GAME_CONFIG` in GameEngine |
+| Conquest Transfer % | ❓ | Reads from `GAME_CONFIG` |
+| Retreat Capture Rate | ❓ | Reads from `GAME_CONFIG` |
+| Scatter Capture Rate | ❓ | Reads from `GAME_CONFIG` |
+| Scatter Destroy Rate | ❓ | Reads from `GAME_CONFIG` |
+| Damaged Ship Effectiveness | ❓ | Reads from `GAME_CONFIG` |
+| Repair Rate | ❓ | Reads from `GAME_CONFIG` |
+| AI thresholds (4 sliders) | ❓ | Read from `GAME_CONFIG` in `AI.ts` |
+
+---
+
+## Open Issues
+
+Issues requiring code fixes. Ordered by category.
+
+### Bugs (SP)
+
+| # | Issue | Status |
+|---|-------|--------|
+| 3 | Passthrough orders — deferred orders through enemy stars not working | Open |
+| 6 | Transfer rate equilibrium — stars sit at 4-8 ships due to production/floor rounding | Open |
+| 8 | Attack travel animation — ships animate along lanes during attacks; should only happen on friendly transfers | Open |
+| 9 | Conquest ship bloom — captured ships appear from star center instead of transfer visual | Open |
+| 12 | Map lane minimum angle — lanes can generate with near-zero angle between them | Open |
+| 16 | Lane passes under star — lanes must not visually cross underneath a star | Open |
+| 17 | Command arrows reach target — should stop partway; termination point adjustable via slider | Open |
+
+### Bugs (MP)
+
+| # | Issue | Status |
+|---|-------|--------|
+| 13 | Spacebar doesn't control play/pause in MP | Open |
+| 14 | Combat logs empty in MP | Open |
+| 15 | Multi-star conquest not aggregating per-player on server | Open |
+| 18 | Restart button broken in MP | Open |
+| 19 | Can draw order arrows to non-connected stars | Open |
+
+### Resolved (User-Verified or Commit-Referenced)
+
+| # | Issue | Resolution | Ref |
+|---|-------|------------|-----|
+| 1 | Command input lag | `pendingOrders` for optimistic UI | 2026-02-02 |
+| 2 | Vector arrow delay | Same fix as #1 | 2026-02-02 |
+| 4 | Star selection sticking | Fixed | 2026-02-07 |
+| 5 | Multi-star conquest grouping | Per-player `shipsByOwner` map | `43cd2fc` |
+| 7 | Attack orders persist after 3rd-party conquest | Orders cancelled on conquest | `60395be` |
+| 10 | Pause doesn't freeze orbits | `animationTime` + `departTime` frozen | `60395be` |
+| 11 | Combat sliders disconnected | `CombatConfigOverride` parameter | `441010d` |
 
 ---
 
 ## Planned Features (Backlog)
 
-| Feature | Priority | Notes |
-|---------|----------|-------|
-| **Audio System** | ✅ Done | Tone.js: tick metronome, ambient drone, order chimes (ascending), combat sounds (intensity-scaled), conquest fanfare. |
-| **Star Distance Slider** | ✅ Done | Pre-game setting (0.5x dense to 2.0x sparse). Saved to localStorage. |
-| **Passthrough Orders** | ✅ Done | Queue orders from/through enemy stars. Dashed arrows for deferred orders. Executes on capture. |
-| **Combat Log Improvements** | ✅ Done | Shows player owners (YOU, AI1, etc.) instead of star colors. |
-| **Chain Conquest Fix** | ✅ Done | Attacks invalidated when star ownership changes mid-tick. |
-| **Ship Transfer Animations** | ✅ Done | Ships visually fly along connections with eased motion, spread, and jitter |
-| **Conquer-Scatter Animations** | ✅ Done | Burst effect + ships scatter to escape route stars on conquest |
-| **Retreat Animations** | ✅ Done | Ships fly from conquered star to retreat target |
-| **Logging Levels** | ✅ Done | Toggleable `logFlags` in logger — 8 categories, runtime toggling via `window.logFlags` |
-| **Combat Log: Captured Ships** | ✅ Done | Shows captured, escaped, and destroyed counts on conquest |
-| **Combat Log: "You" Filter** | ✅ Done | "👤 You" toggle button filters to own battles |
-| **Damaged Ships Defense in UI** | ✅ Done | `DAMAGED_SHIP_EFFECTIVENESS` config + tuning panel slider |
-| **AI: Frontline Forces** | 🟢 Standard | Distribute ships along frontline, configurable allocation |
-| **AI: Match Opposing Forces** | 🟢 Standard | AI matches enemy force levels on frontline |
-| **AI: Evenly-Distributed** | 🟢 Standard | Option to spread ships evenly across territory |
-| **AI: Backline-and-Pounce** | 🟢 Standard | Hold back, commit to battles on frontline capture |
-| **AI: Tactical Surround** | 🟢 Standard | Multi-star coordination to surround enemy forces |
-| **AI: Star Type Awareness** | 🟢 Standard | Attack from Green, defend Red/Purple |
-| **AI: Pre-Conquest Retreat** | 🟢 Standard | AI orders retreat before losing a star to minimize losses. Variable aggressiveness makes AI easier/harder |
-| **Multiplayer Deployment** | 🟡 Medium | Deploy for alpha testing (Vercel + Railway) |
-| **Percentage Directives** | 🔵 Backlog | Split forces: send fractions in multiple directions from one star. Requires new order model. |
-| **Command Arrow Styles** | 🔵 Backlog | Different colors and styles for attack vs reinforce vs deferred order arrows. |
-| **Scrollwheel Zoom** | 🟡 Medium | Zoom in/out centered on cursor position via mousewheel. |
-| **Performance Audit** | 🟡 Medium | Major perf examination — machine runs hot at ~few thousand ships. Optimize rendering, batching, culling. |
-| **Custom Map Editor** | 🔵 Backlog | Implementation plan needed with effort estimates |
-| **Slow-Mo Debug Mode** | 🟢 Standard | Keyboard shortcut to slow tick ~20x on conquest for animation debugging/tuning |
-| **Conquest Stats Popup** | 🟢 Standard | Pause on conquest + popup showing destroyed/damaged/retreated/captured stats |
-| **Animation Style Toggle** | 🟢 Standard | UI widget to switch between animation styles; keep all styles available |
-| **Ship Color Fade** | 🟢 Standard | Ships fade toward white mid-travel, back to player color at destination |
-| **Damaged Ship Overlapping Orbits** | 🟢 Standard | Large numbers of damaged ships stack in overlapping rings instead of dense single ring |
+### Implemented (Needs Verification)
+
+| Feature | Commit/Date |
+|---------|-------------|
+| Audio System (Tone.js) | 2026-02-03 |
+| Star Distance Slider | 2026-02-03 |
+| Passthrough Orders (UI) | 2026-02-03 |
+| Combat Log: player owners | 2026-02-07 |
+| Chain Conquest Fix | 2026-02-07 |
+| Ship Transfer Animations | 2026-02-08 |
+| Conquer-Scatter Animations | 2026-02-08 |
+| Retreat Animations | 2026-02-08 |
+| Logging Levels (8 categories) | 2026-02-07 |
+| Combat Log: captured/escaped/destroyed | 2026-02-07 |
+| Combat Log: "You" filter | 2026-02-07 |
+| Damaged Ships Defense slider | 2026-02-07 |
+
+### Not Started
+
+| Feature | Priority |
+|---------|----------|
+| AI: Frontline Forces | 🟢 |
+| AI: Match Opposing Forces | 🟢 |
+| AI: Evenly-Distributed | 🟢 |
+| AI: Backline-and-Pounce | 🟢 |
+| AI: Tactical Surround | 🟢 |
+| AI: Star Type Awareness | 🟢 |
+| AI: Pre-Conquest Retreat | 🟢 |
+| Conquest Stats Popup (pause + stats card) | 🟢 |
+| Slow-Mo Debug Mode | � |
+| Animation Style Toggle | 🟢 |
+| Ship Color Fade (mid-travel) | 🟢 |
+| Damaged Ship Overlapping Orbits | 🟢 |
+| Scrollwheel Zoom | 🟡 |
+| Performance Audit | 🟡 |
+| Multiplayer Deployment | 🟡 |
+| Percentage Directives | � |
+| Command Arrow Styles | � |
+| Custom Map Editor | � |
 
 ---
 
 ## Session Log
 
 | Date | Summary |
-|------|---------| 
-| 2026-02-08 | Control panel wiring fix: combat sliders now drive actual combat math via `CombatConfigOverride`. Transfer rate slider step 5→1. MECHANICS.md rewritten as canonical spec. Multi-star per-player aggregation. Pause freeze. Order cancel on conquest. |
-| 2026-02-08 | Ship animation redesign: unified lifecycle (orbit→depart→travel→arrive). Fixed scatter to use real connections + real ship count diffs. |
-| 2026-02-07 | Group A+B: Star selection bug fix, combat log enhancements (captured/escaped/destroyed), My Battles filter, DAMAGED_SHIP_EFFECTIVENESS config, logging levels, root README. |
-| 2026-02-07 | Protocol audit & consolidation, comprehensive game spec, dev history, new doc-everything rule. |
-| 2026-02-07 | Engine Convergence Phase 2 (conquest/scatter/retreat unified). Fixed MP connection constraint bug (orders could bypass routes). |
-| 2026-02-07 | Colyseus multiplayer: fixed player interaction, star ownership with sessionId. |
-| 2026-02-03 | Audio system (Tone.js), passthrough orders fix, star spacing slider. |
-| 2026-02-02 | Fixed scatter/escape on conquest (checks connections). Fixed competing orders A↔B. |
-| 2026-02-02 | Fixed: rt-click cancel, ship disappear, attack damage reduced 90%. |
-| 2026-02-02 | Fixed command lag via consistent `pendingOrders` in all order paths. Created tracker. |
-| 2026-02-01 | Implemented V3.1 combat + individual ship animation. |
-
+|------|---------|
+| 2026-02-08 | Combat slider wiring (`CombatConfigOverride`). Transfer rate slider step 5→1. MECHANICS.md canonical rewrite. Multi-star per-player aggregation. Pause freeze. Order cancel on conquest. |
+| 2026-02-08 | Ship animation redesign: unified lifecycle (orbit→depart→travel→arrive). Scatter uses real connections. |
+| 2026-02-07 | Star selection fix, combat log enhancements, My Battles filter, DAMAGED_SHIP_EFFECTIVENESS slider, logging levels, root README. |
+| 2026-02-07 | Protocol audit, comprehensive game spec, dev history, doc-everything rule. |
+| 2026-02-07 | Engine Convergence Phase 2. MP connection constraint fix. |
+| 2026-02-07 | Colyseus multiplayer: star ownership via sessionId. |
+| 2026-02-03 | Audio system, passthrough orders, star spacing slider. |
+| 2026-02-02 | Scatter/escape connections fix. Competing orders fix. |
+| 2026-02-02 | Right-click cancel, ship disappear fix, attack damage fix. |
+| 2026-02-02 | Command lag fix via pendingOrders. Created tracker. |
+| 2026-02-01 | V3.1 combat + individual ship animation. |
