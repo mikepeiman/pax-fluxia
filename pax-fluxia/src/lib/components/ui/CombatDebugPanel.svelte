@@ -402,6 +402,32 @@
                     />
                 </div>
             </div>
+            <div class="variable-row">
+                <div class="row-top">
+                    <span class="var-name">Arrow Length</span>
+                    <span class="current-val"
+                        >{Math.round(
+                            GAME_CONFIG.ARROW_LENGTH_FRACTION * 100,
+                        )}%</span
+                    >
+                </div>
+                <div class="row-controls">
+                    <input
+                        type="range"
+                        min="10"
+                        max="100"
+                        step="1"
+                        value={Math.round(
+                            GAME_CONFIG.ARROW_LENGTH_FRACTION * 100,
+                        )}
+                        oninput={(e) => {
+                            GAME_CONFIG.ARROW_LENGTH_FRACTION =
+                                parseInt((e.target as HTMLInputElement).value) /
+                                100;
+                        }}
+                    />
+                </div>
+            </div>
         {/if}
     </div>
 

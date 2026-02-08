@@ -531,14 +531,97 @@
 
         connectionGraphics.clear();
 
-        // Draw connections (static graph) - BOLD BRIGHT WHITE
+        // Build star lookup for intersection testing
+        const starsById = new Map(stars.map((s) => [s.id, s]));
+
         connections.forEach((conn) => {
-            const source = stars.find((s) => s.id === conn.sourceId);
-            const target = stars.find((s) => s.id === conn.targetId);
+            const source = starsById.get(conn.sourceId);
+            const target = starsById.get(conn.targetId);
             if (!source || !target) return;
 
-            connectionGraphics!.moveTo(source.x, source.y);
-            connectionGraphics!.lineTo(target.x, target.y);
+            const dx = target.x - source.x;
+            const dy = target.y - source.y;
+            const laneDist = Math.sqrt(dx * dx + dy * dy);
+            if (laneDist < 1) return;
+
+            const ndx = dx / laneDist;
+            const ndy = dy / laneDist;
+
+            // Collect gap intervals [tStart, tEnd] along the lane (0..1 parameterization)
+            // Always gap at source and target star edges
+            const gaps: [number, number][] = [];
+
+            // Check all other stars for proximity to this lane
+            for (const star of stars) {
+                if (star.id === conn.sourceId || star.id === conn.targetId)
+                    continue;
+
+                // Project star center onto the line
+                const ax = star.x - source.x;
+                const ay = star.y - source.y;
+                const t = (ax * ndx + ay * ndy) / laneDist; // parametric position [0..1]
+
+                if (t <= 0 || t >= 1) continue; // Outside segment
+
+                // Perpendicular distance from star center to line
+                const projX = source.x + ndx * t * laneDist;
+                const projY = source.y + ndy * t * laneDist;
+                const perpDist = Math.sqrt(
+                    (star.x - projX) ** 2 + (star.y - projY) ** 2,
+                );
+
+                const clearance = star.radius + 6; // Gap radius around star
+                if (perpDist < clearance) {
+                    // Calculate the arc length along the lane that falls within the star's clearance
+                    const halfChord = Math.sqrt(
+                        Math.max(
+                            0,
+                            clearance * clearance - perpDist * perpDist,
+                        ),
+                    );
+                    const gapStart = Math.max(0, t - halfChord / laneDist);
+                    const gapEnd = Math.min(1, t + halfChord / laneDist);
+                    gaps.push([gapStart, gapEnd]);
+                }
+            }
+
+            // Sort gaps by start and merge overlapping
+            gaps.sort((a, b) => a[0] - b[0]);
+            const merged: [number, number][] = [];
+            for (const gap of gaps) {
+                if (
+                    merged.length > 0 &&
+                    gap[0] <= merged[merged.length - 1][1]
+                ) {
+                    merged[merged.length - 1][1] = Math.max(
+                        merged[merged.length - 1][1],
+                        gap[1],
+                    );
+                } else {
+                    merged.push([...gap]);
+                }
+            }
+
+            // Draw lane segments between gaps
+            let segStart = 0;
+            for (const [gStart, gEnd] of merged) {
+                if (segStart < gStart) {
+                    const x1 = source.x + ndx * segStart * laneDist;
+                    const y1 = source.y + ndy * segStart * laneDist;
+                    const x2 = source.x + ndx * gStart * laneDist;
+                    const y2 = source.y + ndy * gStart * laneDist;
+                    connectionGraphics!.moveTo(x1, y1);
+                    connectionGraphics!.lineTo(x2, y2);
+                }
+                segStart = gEnd;
+            }
+            // Final segment after last gap
+            if (segStart < 1) {
+                const x1 = source.x + ndx * segStart * laneDist;
+                const y1 = source.y + ndy * segStart * laneDist;
+                connectionGraphics!.moveTo(x1, y1);
+                connectionGraphics!.lineTo(target.x, target.y);
+            }
         });
 
         // Draw all connection lines in one stroke
@@ -769,8 +852,12 @@
 
             // Start: Source Edge
             const startDist = source.radius + padding;
-            // End: Target Edge (minus head length to place head correctly)
-            const endDist = dist - (target.radius + padding);
+            // Full extent: Target Edge
+            const fullEndDist = dist - (target.radius + padding);
+            // Apply arrow length fraction (0.5 = halfway)
+            const endDist =
+                startDist +
+                (fullEndDist - startDist) * GAME_CONFIG.ARROW_LENGTH_FRACTION;
 
             // Calculate points
             const startX = source.x + Math.cos(angle) * startDist;
@@ -873,7 +960,10 @@
             const lineWidth = 4;
 
             const startDist = source.radius + padding;
-            const endDist = dist - (target.radius + padding);
+            const fullEndDist = dist - (target.radius + padding);
+            const endDist =
+                startDist +
+                (fullEndDist - startDist) * GAME_CONFIG.ARROW_LENGTH_FRACTION;
 
             const startX = source.x + Math.cos(angle) * startDist;
             const startY = source.y + Math.sin(angle) * startDist;
@@ -963,7 +1053,9 @@
             // Transfer: ships decreased AND star has a target
             if (shipDelta >= 1 && star.targetId) {
                 const target = starsById.get(star.targetId);
-                if (target) {
+                // Only animate ship travel for friendly transfers (same owner)
+                // Attacks are remote engagement — ships stay at source star
+                if (target && target.ownerId === star.ownerId) {
                     const count = Math.floor(shipDelta);
                     const ships = visualShips.get(star.id) || [];
 

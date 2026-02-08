@@ -64,6 +64,9 @@ interface GameConfigType {
     SHIP_BASE_SIZE: number;
     TRANSFER_ANIMATION_MS: number;
 
+    /** How far order arrows extend along the lane (0.0-1.0, 1.0 = full distance to target edge) */
+    ARROW_LENGTH_FRACTION: number;
+
     // Combat Legacy (kept for compatibility)
     COMBAT_MODIFIER: number;            // DEPRECATED - use DAMAGE_PER_SHIP
     CONQUEST_TRANSFER_MODIFIER: number; // Post-conquest ship transfer modifier
@@ -247,6 +250,9 @@ export const GAME_CONFIG: GameConfigType = {
 
     /** Ship transfer animation duration (ms) */
     TRANSFER_ANIMATION_MS: 600,
+
+    /** Order arrow length as fraction of lane distance (0.0-1.0, default 0.5 = halfway) */
+    ARROW_LENGTH_FRACTION: 0.5,
 
     // ========================================================================
     // COMBAT V2

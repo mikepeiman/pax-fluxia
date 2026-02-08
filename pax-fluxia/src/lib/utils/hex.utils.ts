@@ -244,6 +244,66 @@ export function generateStarConnections<T extends { id: string; x: number; y: nu
             }
         }
     });
+    // Phase 3: Remove lanes with near-zero angle between them at a star
+    // For each star, compute angles to all connected neighbors.
+    // If two lanes are within MIN_ANGLE_DEG of each other, remove the longer one.
+    const MIN_ANGLE_RAD = (15 * Math.PI) / 180; // 15° minimum angle
+
+    const starPositions = new Map(stars.map(s => [s.id, s]));
+
+    // Iterate until no more removals needed
+    let changed = true;
+    while (changed) {
+        changed = false;
+        for (const star of stars) {
+            // Get all current connections for this star
+            const connectedEdges: { key: string; targetId: string; angle: number; dist: number }[] = [];
+            finalConnections.forEach(key => {
+                const [aId, bId] = key.split('|');
+                let targetId: string | null = null;
+                if (aId === star.id) targetId = bId;
+                else if (bId === star.id) targetId = aId;
+                if (!targetId) return;
+
+                const target = starPositions.get(targetId)!;
+                const dxe = target.x - star.x;
+                const dye = target.y - star.y;
+                const angle = Math.atan2(dye, dxe);
+                const dist = Math.sqrt(dxe * dxe + dye * dye);
+                connectedEdges.push({ key, targetId, angle, dist });
+            });
+
+            if (connectedEdges.length < 2) continue;
+
+            // Sort by angle
+            connectedEdges.sort((a, b) => a.angle - b.angle);
+
+            // Check adjacent pairs (including wraparound)
+            for (let i = 0; i < connectedEdges.length; i++) {
+                const curr = connectedEdges[i];
+                const next = connectedEdges[(i + 1) % connectedEdges.length];
+
+                let angleDiff = next.angle - curr.angle;
+                if (angleDiff < 0) angleDiff += 2 * Math.PI;
+
+                if (angleDiff < MIN_ANGLE_RAD) {
+                    // Remove the longer edge (keep shorter for tighter connectivity)
+                    const toRemove = curr.dist > next.dist ? curr : next;
+
+                    // Only remove if both stars would keep at least minLinksPerStar connections
+                    const sourceCount = linkCount.get(star.id)!;
+                    const targetCount = linkCount.get(toRemove.targetId)!;
+                    if (sourceCount > minLinksPerStar && targetCount > minLinksPerStar) {
+                        finalConnections.delete(toRemove.key);
+                        linkCount.set(star.id, sourceCount - 1);
+                        linkCount.set(toRemove.targetId, targetCount - 1);
+                        changed = true;
+                        break; // Restart inner loop for this star
+                    }
+                }
+            }
+        }
+    }
 
     // Convert to connection array
     const connections: StarConnection[] = [];
