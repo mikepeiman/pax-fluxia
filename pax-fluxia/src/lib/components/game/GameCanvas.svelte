@@ -511,7 +511,7 @@
         }
 
         // Detect ship transfers by diffing state, move visual ships to traveling
-        detectTransfers(stars);
+        detectTransfers(stars, connections || []);
 
         // Render all ships: orbiting (per-star) + traveling (in-flight lifecycle)
         renderShips(stars, tickProgress);
@@ -930,9 +930,23 @@
      * Detect transfers by diffing star ship counts between frames.
      * When ships decrease on a star with a target, move visual ships to travelingShips.
      */
-    function detectTransfers(stars: StarState[]) {
+    function detectTransfers(
+        stars: StarState[],
+        connections: StarConnection[],
+    ) {
         const starsById = new Map(stars.map((s) => [s.id, s]));
         const now = performance.now();
+
+        // Build neighbor lookup from connections
+        const neighborMap = new Map<string, Set<string>>();
+        connections.forEach((conn) => {
+            if (!neighborMap.has(conn.fromId))
+                neighborMap.set(conn.fromId, new Set());
+            if (!neighborMap.has(conn.toId))
+                neighborMap.set(conn.toId, new Set());
+            neighborMap.get(conn.fromId)!.add(conn.toId);
+            neighborMap.get(conn.toId)!.add(conn.fromId);
+        });
 
         stars.forEach((star) => {
             const prev = prevStarShips.get(star.id);
@@ -969,7 +983,6 @@
                     const shipsToMove = Math.min(count, ships.length);
                     for (let i = 0; i < shipsToMove; i++) {
                         const ship = ships.pop()!;
-                        // Transition to departing state
                         ship.state = "departing";
                         ship.fromStarId = star.id;
                         ship.toStarId = target.id;
@@ -1006,44 +1019,77 @@
                 star.ownerId !== prev.owner &&
                 prev.owner !== ""
             ) {
-                // All remaining ships of the previous owner scatter
                 const ships = visualShips.get(star.id) || [];
                 if (ships.length > 0) {
-                    // Find neighbor stars owned by previous owner for scatter
-                    const neighbors = stars.filter((s) => {
-                        if (s.id === star.id) return false;
-                        // Check if connected (use connections from the render loop)
-                        return s.ownerId === prev.owner;
+                    // Find CONNECTED neighbor stars owned by previous owner
+                    const connectedIds = neighborMap.get(star.id) || new Set();
+                    const scatterTargets: {
+                        star: StarState;
+                        shipsGained: number;
+                    }[] = [];
+
+                    connectedIds.forEach((nId) => {
+                        const neighbor = starsById.get(nId);
+                        if (!neighbor) return;
+                        // Check if neighbor belongs to previous owner
+                        if (neighbor.ownerId !== prev.owner) return;
+                        // Check how many ships this neighbor gained
+                        const prevNeighbor = prevStarShips.get(nId);
+                        if (!prevNeighbor) return;
+                        const gained =
+                            neighbor.activeShips - prevNeighbor.active;
+                        if (gained > 0) {
+                            scatterTargets.push({
+                                star: neighbor,
+                                shipsGained: gained,
+                            });
+                        }
                     });
 
-                    if (neighbors.length > 0) {
-                        ships.forEach((ship, i) => {
-                            const scatterTarget =
-                                neighbors[i % neighbors.length];
-                            const dx = scatterTarget.x - star.x;
-                            const dy = scatterTarget.y - star.y;
-                            const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                            const ndx = dx / dist;
-                            const ndy = dy / dist;
+                    if (scatterTargets.length > 0) {
+                        // Animate only the real ships that scattered
+                        let shipsAnimated = 0;
+                        scatterTargets.forEach((target) => {
+                            const count = Math.min(
+                                target.shipsGained,
+                                ships.length - shipsAnimated,
+                            );
+                            for (let i = 0; i < count; i++) {
+                                if (shipsAnimated >= ships.length) break;
+                                const ship = ships[shipsAnimated];
+                                const dx = target.star.x - star.x;
+                                const dy = target.star.y - star.y;
+                                const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                                const ndx = dx / dist;
+                                const ndy = dy / dist;
 
-                            ship.state = "departing";
-                            ship.fromStarId = star.id;
-                            ship.toStarId = scatterTarget.id;
-                            ship.departTime = now + i * 20; // Fast scatter
-                            ship.travelDuration =
-                                SHIP_ANIM.TRAVEL_BASE_DURATION * 0.7; // Faster
-                            ship.laneStartX = star.x + ndx * (star.radius + 5);
-                            ship.laneStartY = star.y + ndy * (star.radius + 5);
-                            ship.laneEndX =
-                                scatterTarget.x -
-                                ndx * (scatterTarget.radius + 5);
-                            ship.laneEndY =
-                                scatterTarget.y -
-                                ndy * (scatterTarget.radius + 5);
-                            ship.staggerDelay = i * 20;
-                            ship.ownerId = prev.owner;
-                            travelingShips.push(ship);
+                                ship.state = "departing";
+                                ship.fromStarId = star.id;
+                                ship.toStarId = target.star.id;
+                                ship.departTime = now + shipsAnimated * 20;
+                                ship.travelDuration =
+                                    SHIP_ANIM.TRAVEL_BASE_DURATION * 0.7;
+                                ship.laneStartX =
+                                    star.x + ndx * (star.radius + 5);
+                                ship.laneStartY =
+                                    star.y + ndy * (star.radius + 5);
+                                ship.laneEndX =
+                                    target.star.x -
+                                    ndx * (target.star.radius + 5);
+                                ship.laneEndY =
+                                    target.star.y -
+                                    ndy * (target.star.radius + 5);
+                                ship.staggerDelay = shipsAnimated * 20;
+                                ship.ownerId = prev.owner;
+                                travelingShips.push(ship);
+                                shipsAnimated++;
+                            }
                         });
+                        // Remove animated ships, keep the rest (they were captured/destroyed)
+                        ships.splice(0, shipsAnimated);
+                        visualShips.set(star.id, ships);
+                    } else {
+                        // No escape routes — all captured/destroyed, just clear visuals
                         visualShips.set(star.id, []);
                     }
                 }
