@@ -1635,10 +1635,13 @@
                     );
                     if (success) {
                         addPendingOrder(activeStarId, targetStar.id);
-                        // FIX: Clear selection after order instead of chaining
-                        // This prevents the "sticky selection" bug where activeStarId
-                        // chains endlessly and requires multiple clicks to deselect
-                        activeStarId = null;
+                        // If target is enemy, keep it selected for deferred order chaining
+                        // If target is friendly (reinforce), clear selection
+                        if (!isLocalPlayerStar(targetStar)) {
+                            activeStarId = targetStar.id;
+                        } else {
+                            activeStarId = null;
+                        }
                     } else {
                         // Failed (not connected?) -> select the target if ours
                         if (isLocalPlayerStar(targetStar)) {
