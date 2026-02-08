@@ -173,16 +173,16 @@ When a star is conquered, the defender's surviving ships attempt to escap if pos
 
 If the defending star has an active order targeting a **friendly** star:
 
-- `RETREAT_CAPTURE_RATE` (35%) of ships are captured by the attacker
-- Remaining 65% escape to the ordered target
+- `RETREAT_CAPTURE_RATE` (25%) of damaged ships are captured by the attacker
+- Remaining 67% escape to the ordered target
 
 ### 8.2. Scatter (Unordered)
 
 If the defending star has **no retreat order** but has friendly neighbors:
 
-- `SCATTER_CAPTURE_RATE` (50%) of ships are captured
+- `SCATTER_CAPTURE_RATE` (40%) of ships are captured
 - Of the remaining 50%:
-  - `SCATTER_DESTROY_RATE` (50%) are destroyed
+  - `SCATTER_DESTROY_RATE` (40%) are destroyed
   - Rest scatter equally to connected friendly stars
 
 ### 8.3. No Escape
@@ -193,9 +193,9 @@ If no friendly neighbors exist:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `RETREAT_CAPTURE_RATE` | 0.35 | % captured when defender retreats |
-| `SCATTER_CAPTURE_RATE` | 0.50 | % captured when defender scatters |
-| `SCATTER_DESTROY_RATE` | 0.50 | % of non-captured destroyed on scatter |
+| `RETREAT_CAPTURE_RATE` | 0.25 | % captured when defender retreats |
+| `SCATTER_CAPTURE_RATE` | 0.40 | % captured when defender scatters |
+| `SCATTER_DESTROY_RATE` | 0.40 | % of non-captured destroyed on scatter |
 
 ---
 
@@ -207,10 +207,10 @@ Each tick, damaged ships are repaired:
 repaired = max(MIN_REPAIR, repairRate × damagedShips)
 ```
 
-- `REPAIR_RATE`: 0.20 (20% per tick, default)
+- `REPAIR_RATE`: 0.10 (10% per tick, default)
 - `MIN_REPAIR`: 1 ship minimum per tick
-- Purple stars: 2× repair rate (0.4)
-- `REPAIR_COMBAT_PENALTY`: 0.1 — repair is reduced to 10% during active combat
+- Purple stars: 2× repair rate (0.2)
+- `REPAIR_COMBAT_PENALTY`: 10 (`REPAIR_RATE / 10`) repair is reduced by a magnitude during combat
 
 ---
 

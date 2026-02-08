@@ -47,11 +47,11 @@ Update this file after each development session.
 
 | Feature | Works? | Changed? | Notes |
 |---------|--------|----------|-------|
-| Attrition (per-tick damage) | ✅ | 🔄 | V3.1 symmetric formula implemented |
-| Conquest (star capture) | ❌ | 🔄 | Multi-star attacks not aggregating per-player correctly |
+| Attrition (per-tick damage) | ✅ | 🔄 | V4 symmetric formula, UI sliders now wired via CombatConfigOverride |
+| Conquest (star capture) | ✅ | 🔄 | Fixed: per-player aggregation, largest player wins |
 | Retreat (directed) | ✅ | 🔄 | 35% capture, 65% escape verified |
 | Scatter (escape routes) | ✅ | 🔄 | Fixed: now uses actual connections |
-| Ship Transfer Rate | ❌ | 🔄 | Ships plateau due to production/transfer equilibrium |
+| Ship Transfer Rate | ✅ | 🔄 | Slider step 5→1, min 5→1; wired correctly |
 | Repair (damaged → active) | ❓ | ➖ | Needs verification |
 | Production (ship spawn) | ✅ | ➖ | Works |
 
@@ -75,13 +75,13 @@ Update this file after each development session.
 ~~2. **Vector Arrow Delay** — May be same root cause as #1.~~ ✅ FIXED
 3. **Passthrough Orders** — Deferred orders through enemy stars not working. Need to fix drag-through logic.
 4. ~~**Star Selection Sticking** — After issuing order, star selection chains and requires multiple clicks to deselect.~~ **FIXED 2026-02-07**
-5. **Multi-star conquest** — Sum ALL attacking forces per player per tick; largest player wins. Currently groups by target only.
+5. ~~**Multi-star conquest** — Sum ALL attacking forces per player per tick; largest player wins.~~ **FIXED 2026-02-08**
 6. **Transfer rate equilibrium** — Stars sit at 4-8+ ships instead of draining; production outpaces transfer due to `floor` rounding.
-7. **Attack orders persist** — When another player conquers your target, your attack orders should auto-cancel.
+7. ~~**Attack orders persist** — When another player conquers your target, your attack orders should auto-cancel.~~ **FIXED 2026-02-08**
 8. **Attack travel animation** — Ships animate along lanes during attacks; should only happen on friendly transfers.
 9. **Conquest ship bloom** — Captured ships bloom from star center instead of showing transfer from conquering star.
-10. **Pause doesn't freeze orbits** — Orbit animations continue during pause.
-11. **Control panel variables** — Some sliders may not be wired to GAME_CONFIG.
+10. ~~**Pause doesn't freeze orbits** — Orbit animations continue during pause.~~ **FIXED 2026-02-08**
+11. ~~**Control panel variables** — Combat sliders (Aggressor, Lethality, Damage) disconnected from combat math.~~ **FIXED 2026-02-08** via `CombatConfigOverride`
 12. **Map lane overlap** — Random maps can generate lanes with near-zero angle between them.
 13. **MP: Spacebar** — Spacebar doesn't control play/pause in multiplayer.
 14. **MP: Combat logs empty** — Logs show nothing in multiplayer mode.
@@ -129,6 +129,7 @@ Update this file after each development session.
 
 | Date | Summary |
 |------|---------| 
+| 2026-02-08 | Control panel wiring fix: combat sliders now drive actual combat math via `CombatConfigOverride`. Transfer rate slider step 5→1. MECHANICS.md rewritten as canonical spec. Multi-star per-player aggregation. Pause freeze. Order cancel on conquest. |
 | 2026-02-08 | Ship animation redesign: unified lifecycle (orbit→depart→travel→arrive). Fixed scatter to use real connections + real ship count diffs. |
 | 2026-02-07 | Group A+B: Star selection bug fix, combat log enhancements (captured/escaped/destroyed), My Battles filter, DAMAGED_SHIP_EFFECTIVENESS config, logging levels, root README. |
 | 2026-02-07 | Protocol audit & consolidation, comprehensive game spec, dev history, new doc-everything rule. |
