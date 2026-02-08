@@ -88,6 +88,7 @@
 | P-14 | AI Desist Threshold | ❓ | Reads from `GAME_CONFIG` in `AI.ts` |
 | P-15 | AI Random Aggression | ❓ | Reads from `GAME_CONFIG` in `AI.ts` |
 | P-16 | AI Tactical Aggression | ❓ | Reads from `GAME_CONFIG` in `AI.ts` |
+| P-17 | Arrow Length | ❓ | `ARROW_LENGTH_FRACTION` (10-100%), default 50% (`d38cdba`) |
 
 ---
 
@@ -97,11 +98,7 @@
 |----|-------|
 | B-3 | Passthrough orders — deferred orders through enemy stars not working |
 | B-6 | Transfer rate equilibrium — stars plateau at 4-8 ships due to production/floor rounding |
-| B-8 | Attack travel animation — ships fly along lanes during attacks; should only happen on friendly transfers |
 | B-9 | Conquest ship bloom — captured ships appear from star center instead of transfer visual |
-| B-12 | Map lane minimum angle — lanes can generate with near-zero angle between them |
-| B-16 | Lane passes under star — lanes must not visually cross underneath a star |
-| B-17 | Command arrows reach target — should stop partway; termination point adjustable via slider |
 
 ## Open Bugs — MP (B)
 
@@ -124,6 +121,10 @@
 | B-7 | Attack orders persist after 3rd-party conquest | Orders cancelled on conquest | `60395be` |
 | B-10 | Pause doesn't freeze orbits | `animationTime` + `departTime` frozen | `60395be` |
 | B-11 | Combat sliders disconnected | `CombatConfigOverride` parameter | `441010d` |
+| B-8 | Attack travel animation on attacks | Only animate friendly transfers, not attacks | `d38cdba` |
+| B-12 | Map lane minimum angle | 15° min angle filter in Phase 3 of `generateStarConnections` | `d38cdba` |
+| B-16 | Lane passes under star | Lanes gap around intermediate stars | `d38cdba` |
+| B-17 | Command arrows reach target | `ARROW_LENGTH_FRACTION` config + slider (default 50%) | `d38cdba` |
 
 ---
 
