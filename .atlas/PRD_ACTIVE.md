@@ -75,7 +75,20 @@ When Star A (Source) attacks Star B (Target):
     *   Star Labels: Icon + Active Count (Bright) + Damaged Count (Dim).
     *   Combat Logs: Detailed breakdown of "Ships Damaged" vs "Ships Destroyed".
 
-### 3.3. Star Type Functional Effects
+### 3.3. Ship Transfer Animation (CRITICAL)
+Ships must maintain **visual continuity** through the full transfer lifecycle:
+
+1.  **Depart**: Ships peel off from orbit at the source star, easing toward the connection lane exit. Smooth ease-out.
+2.  **Travel**: Ships stream along the connection lane between stars. Multiple ships form a visible stream/convoy with slight stagger. Smooth `easeInOutCubic` motion.
+3.  **Arrive**: Ships ease into orbit slots at the destination star. Smooth ease-in, no teleporting.
+
+**Hard requirements:**
+*   **Zero disjoint**: The same visual ship entity moves through all three phases. No popping, no separate dot system.
+*   **Smooth easing**: All transitions use easeInOutCubic or equivalent. No linear snapping.
+*   **Lane adherence**: Ships closely follow the connection lane (the white line) between stars.
+*   **Stream formation**: Multiple transferring ships form a visible stream, not a clump.
+
+### 3.4. Star Type Functional Effects
 Each star type has a 2x bonus in one specialty (all other stats @ 1.0):
 
 | Type | Color | 2x Bonus | Gameplay Effect |

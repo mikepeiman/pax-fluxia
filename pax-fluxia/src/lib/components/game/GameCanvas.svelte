@@ -9,7 +9,9 @@
         getOrbitSlot,
         getFleetPositions,
         lerp,
+        SHIP_ANIM,
         type VisualShipState,
+        type ShipLifecycleState,
     } from "$lib/utils/render.utils";
     import { distance } from "$lib/utils/math.utils";
     import type {
@@ -21,11 +23,8 @@
     import { Star } from "$lib/engine/Star";
     import { STAR_TYPE_STATS } from "@pax/common";
     import { audio } from "$lib/audio/AudioManager";
-    import {
-        animationStore,
-        ANIM_CONFIG,
-        type AnimationEvent,
-    } from "$lib/stores/animationStore";
+    // animationStore is deprecated — ship animations handled via unified lifecycle
+    import { ANIM_CONFIG } from "$lib/stores/animationStore";
 
     // ============================================================================
     // PixiJS Application
@@ -61,6 +60,9 @@
     let visualShips: Map<string, VisualShipState[]> = new Map();
     let visualDamagedShips: Map<string, VisualShipState[]> = new Map();
     let nextShipId = 0; // Unique counter
+
+    // In-flight ships (departing, traveling, arriving)
+    let travelingShips: VisualShipState[] = [];
 
     // Animation state
     let animationTime = 0;
@@ -508,13 +510,10 @@
             shipGraphics?.clear();
         }
 
-        // Detect animation events by diffing current vs previous frame
-        detectAnimationEvents(stars);
+        // Detect ship transfers by diffing state, move visual ships to traveling
+        detectTransfers(stars);
 
-        // Render active animations (transfers, scatter, retreat)
-        renderAnimations();
-
-        // Render animated ships (orbiting)
+        // Render all ships: orbiting (per-star) + traveling (in-flight lifecycle)
         renderShips(stars, tickProgress);
     }
 
@@ -924,15 +923,16 @@
     }
 
     // ============================================================================
-    // Animation System — Transfer / Scatter / Retreat visuals
+    // Animation System — Unified Ship Lifecycle
     // ============================================================================
 
     /**
-     * Detect state changes between frames and emit animation events.
-     * Transfer: star's activeShips decreased and it has a friendly target
+     * Detect transfers by diffing star ship counts between frames.
+     * When ships decrease on a star with a target, move visual ships to travelingShips.
      */
-    function detectAnimationEvents(stars: StarState[]) {
+    function detectTransfers(stars: StarState[]) {
         const starsById = new Map(stars.map((s) => [s.id, s]));
+        const now = performance.now();
 
         stars.forEach((star) => {
             const prev = prevStarShips.get(star.id);
@@ -940,23 +940,112 @@
 
             const shipDelta = prev.active - star.activeShips;
 
-            // Transfer detection: ships decreased AND star has a target owned by same player
+            // Transfer: ships decreased AND star has a target
             if (shipDelta >= 1 && star.targetId) {
                 const target = starsById.get(star.targetId);
-                if (target && target.ownerId === star.ownerId) {
-                    // Friendly transfer — emit animation
-                    animationStore.add({
-                        type: "transfer",
-                        sourceId: star.id,
-                        targetId: target.id,
-                        ownerId: star.ownerId,
-                        shipCount: Math.floor(shipDelta),
-                        duration: ANIM_CONFIG.TRANSFER_DURATION,
-                        sourceX: star.x,
-                        sourceY: star.y,
-                        targetX: target.x,
-                        targetY: target.y,
+                if (target) {
+                    const count = Math.floor(shipDelta);
+                    const ships = visualShips.get(star.id) || [];
+
+                    // Calculate lane geometry
+                    const dx = target.x - star.x;
+                    const dy = target.y - star.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                    const ndx = dx / dist;
+                    const ndy = dy / dist;
+
+                    // Lane start/end (offset from star centers by radius)
+                    const laneStartX = star.x + ndx * (star.radius + 5);
+                    const laneStartY = star.y + ndy * (star.radius + 5);
+                    const laneEndX = target.x - ndx * (target.radius + 5);
+                    const laneEndY = target.y - ndy * (target.radius + 5);
+
+                    // Travel duration based on distance
+                    const travelDuration =
+                        SHIP_ANIM.TRAVEL_BASE_DURATION +
+                        (dist / 100) * SHIP_ANIM.TRAVEL_PER_100PX;
+
+                    // Pull ships from the end of the array (most recently spawned)
+                    const shipsToMove = Math.min(count, ships.length);
+                    for (let i = 0; i < shipsToMove; i++) {
+                        const ship = ships.pop()!;
+                        // Transition to departing state
+                        ship.state = "departing";
+                        ship.fromStarId = star.id;
+                        ship.toStarId = target.id;
+                        ship.departTime =
+                            now +
+                            i *
+                                Math.min(
+                                    SHIP_ANIM.STREAM_STAGGER,
+                                    SHIP_ANIM.MAX_STREAM_STAGGER /
+                                        Math.max(1, shipsToMove),
+                                );
+                        ship.travelDuration = travelDuration;
+                        ship.laneStartX = laneStartX;
+                        ship.laneStartY = laneStartY;
+                        ship.laneEndX = laneEndX;
+                        ship.laneEndY = laneEndY;
+                        ship.staggerDelay =
+                            i *
+                            Math.min(
+                                SHIP_ANIM.STREAM_STAGGER,
+                                SHIP_ANIM.MAX_STREAM_STAGGER /
+                                    Math.max(1, shipsToMove),
+                            );
+                        ship.ownerId = star.ownerId;
+                        travelingShips.push(ship);
+                    }
+                    visualShips.set(star.id, ships);
+                }
+            }
+
+            // Conquest detection: ownership changed
+            if (
+                prev.owner &&
+                star.ownerId !== prev.owner &&
+                prev.owner !== ""
+            ) {
+                // All remaining ships of the previous owner scatter
+                const ships = visualShips.get(star.id) || [];
+                if (ships.length > 0) {
+                    // Find neighbor stars owned by previous owner for scatter
+                    const neighbors = stars.filter((s) => {
+                        if (s.id === star.id) return false;
+                        // Check if connected (use connections from the render loop)
+                        return s.ownerId === prev.owner;
                     });
+
+                    if (neighbors.length > 0) {
+                        ships.forEach((ship, i) => {
+                            const scatterTarget =
+                                neighbors[i % neighbors.length];
+                            const dx = scatterTarget.x - star.x;
+                            const dy = scatterTarget.y - star.y;
+                            const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                            const ndx = dx / dist;
+                            const ndy = dy / dist;
+
+                            ship.state = "departing";
+                            ship.fromStarId = star.id;
+                            ship.toStarId = scatterTarget.id;
+                            ship.departTime = now + i * 20; // Fast scatter
+                            ship.travelDuration =
+                                SHIP_ANIM.TRAVEL_BASE_DURATION * 0.7; // Faster
+                            ship.laneStartX = star.x + ndx * (star.radius + 5);
+                            ship.laneStartY = star.y + ndy * (star.radius + 5);
+                            ship.laneEndX =
+                                scatterTarget.x -
+                                ndx * (scatterTarget.radius + 5);
+                            ship.laneEndY =
+                                scatterTarget.y -
+                                ndy * (scatterTarget.radius + 5);
+                            ship.staggerDelay = i * 20;
+                            ship.ownerId = prev.owner;
+                            travelingShips.push(ship);
+                        });
+                        visualShips.set(star.id, []);
+                    }
                 }
             }
         });
@@ -973,95 +1062,113 @@
     }
 
     /**
-     * Render all active animation events (transfer, scatter, retreat)
+     * Render in-flight ships through their lifecycle phases.
+     * Called from renderShips after orbiting ships.
      */
-    function renderAnimations() {
+    function renderTravelingShips(stars: StarState[]) {
         if (!shipGraphics) return;
 
         const now = performance.now();
-        const activeAnims = animationStore.tick(now);
+        const starsById = new Map(stars.map((s) => [s.id, s]));
 
-        if (activeAnims.length === 0) return;
+        // Process each traveling ship
+        const stillTraveling: VisualShipState[] = [];
 
-        activeAnims.forEach((anim) => {
-            const progress = animationStore.getProgress(anim, now);
+        for (const ship of travelingShips) {
+            const elapsed = now - ship.departTime;
 
-            // Eased progress for smooth acceleration/deceleration
-            const eased = easeInOutCubic(progress);
+            // Skip ships that haven't started yet (stagger delay)
+            if (elapsed < 0) {
+                stillTraveling.push(ship);
+                // Still draw at current position (orbit slot)
+                const color = getPlayerColor(ship.ownerId);
+                drawShip(ship.x, ship.y, color, ship.scale, ship.alpha, false);
+                continue;
+            }
 
-            const color = anim.color ?? getPlayerColor(anim.ownerId);
-            const visualCount = Math.min(
-                anim.shipCount,
-                ANIM_CONFIG.MAX_VISUAL_SHIPS,
-            );
+            const color = getPlayerColor(ship.ownerId);
 
-            // Direction vector
-            const dx = anim.targetX - anim.sourceX;
-            const dy = anim.targetY - anim.sourceY;
-            const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-            const ndx = dx / dist;
-            const ndy = dy / dist;
+            if (ship.state === "departing") {
+                // Phase 1: Ease from current position to lane start
+                const departProgress = Math.min(
+                    1,
+                    elapsed / SHIP_ANIM.DEPART_DURATION,
+                );
+                const eased = easeInOutCubic(departProgress);
 
-            // Perpendicular for spread
-            const perpX = -ndy;
-            const perpY = ndx;
+                ship.x = lerp(ship.x, ship.laneStartX, eased * 0.3 + 0.02);
+                ship.y = lerp(ship.y, ship.laneStartY, eased * 0.3 + 0.02);
+                ship.scale = lerp(ship.scale, 0.9, 0.1);
 
-            // Calculate start/end offsets (avoid drawing inside stars)
-            const startOffset = 20; // Clear of source star
-            const endOffset = 20; // Clear of target star
+                if (departProgress >= 1) {
+                    // Snap to lane start and transition to traveling
+                    ship.x = ship.laneStartX;
+                    ship.y = ship.laneStartY;
+                    ship.state = "traveling";
+                    ship.departTime = now; // Reset timer for travel phase
+                }
 
-            for (let i = 0; i < visualCount; i++) {
-                // Stagger: each ship slightly behind the leader
-                const stagger = i * 0.06;
-                const localProgress = Math.max(0, Math.min(1, eased - stagger));
+                drawShip(ship.x, ship.y, color, ship.scale, ship.alpha, false);
+                stillTraveling.push(ship);
+            } else if (ship.state === "traveling") {
+                // Phase 2: Stream along the lane
+                const travelProgress = Math.min(
+                    1,
+                    elapsed / ship.travelDuration,
+                );
+                const eased = easeInOutCubic(travelProgress);
 
-                if (localProgress <= 0) continue;
-
-                // Position along path
-                const pathProgress =
-                    startOffset / dist +
-                    localProgress * (1 - (startOffset + endOffset) / dist);
-                const px = anim.sourceX + dx * pathProgress;
-                const py = anim.sourceY + dy * pathProgress;
-
-                // Spread perpendicular to path
-                const spreadOffset =
-                    (i - (visualCount - 1) / 2) * ANIM_CONFIG.FLIGHT_SPREAD;
-                const sx = px + perpX * spreadOffset;
-                const sy = py + perpY * spreadOffset;
-
-                // Add subtle jitter for organic feel
-                const jitterX =
-                    Math.sin(now * 0.01 + i * 7.3) * ANIM_CONFIG.JITTER_AMP;
-                const jitterY =
-                    Math.cos(now * 0.01 + i * 5.1) * ANIM_CONFIG.JITTER_AMP;
+                ship.x =
+                    ship.laneStartX + (ship.laneEndX - ship.laneStartX) * eased;
+                ship.y =
+                    ship.laneStartY + (ship.laneEndY - ship.laneStartY) * eased;
 
                 // Fade in/out at edges
-                const fadeIn = Math.min(1, localProgress * 5);
-                const fadeOut = Math.min(1, (1 - localProgress) * 5);
-                const alpha = fadeIn * fadeOut;
+                const fadeIn = Math.min(1, travelProgress * 5);
+                const fadeOut = Math.min(1, (1 - travelProgress) * 5);
+                ship.alpha = fadeIn * fadeOut * 1.0;
+                ship.scale = 0.9;
 
-                // Scale based on animation type
-                const scale = anim.type === "scatter" ? 0.9 : 1.0;
+                if (travelProgress >= 1) {
+                    // Arrive at destination
+                    ship.x = ship.laneEndX;
+                    ship.y = ship.laneEndY;
+                    ship.state = "arriving";
+                    ship.departTime = now; // Reset timer for arrive phase
 
-                drawShip(
-                    sx + jitterX,
-                    sy + jitterY,
-                    color,
-                    scale,
-                    alpha,
-                    false,
-                );
+                    // Add ship to destination star's orbit
+                    const destStar = starsById.get(ship.toStarId!);
+                    if (destStar) {
+                        ship.fromStarId = null;
+                        ship.toStarId = null;
+                        ship.state = "orbiting";
+                        ship.alpha = 1;
+                        ship.scale = 0.1; // Start small, will lerp to full in renderShips
+                        const destShips = visualShips.get(destStar.id) || [];
+                        ship.targetIndex = destShips.length;
+                        destShips.push(ship);
+                        visualShips.set(destStar.id, destShips);
+                    }
+                    // Don't push to stillTraveling — ship is now orbiting
+                } else {
+                    drawShip(
+                        ship.x,
+                        ship.y,
+                        color,
+                        ship.scale,
+                        ship.alpha,
+                        false,
+                    );
+                    stillTraveling.push(ship);
+                }
+            } else if (ship.state === "arriving") {
+                // Phase 3: Ease into orbit (handled by transitioning to orbiting above)
+                // This state shouldn't be reached in practice since we go straight to orbiting
+                stillTraveling.push(ship);
             }
+        }
 
-            // Scatter burst: add expanding ring at source
-            if (anim.type === "scatter" && progress < 0.3) {
-                const burstRadius = 15 + progress * 80;
-                const burstAlpha = 0.4 * (1 - progress / 0.3);
-                shipGraphics!.circle(anim.sourceX, anim.sourceY, burstRadius);
-                shipGraphics!.stroke({ color, width: 2, alpha: burstAlpha });
-            }
-        });
+        travelingShips = stillTraveling;
     }
 
     /**
@@ -1100,6 +1207,17 @@
                         scale: 0.1, // Start tiny
                         alpha: 0,
                         spawnTime: performance.now(),
+                        state: "orbiting" as const,
+                        fromStarId: null,
+                        toStarId: null,
+                        departTime: 0,
+                        travelDuration: 0,
+                        laneStartX: 0,
+                        laneStartY: 0,
+                        laneEndX: 0,
+                        laneEndY: 0,
+                        staggerDelay: 0,
+                        ownerId: star.ownerId,
                     });
                 }
             }
@@ -1238,6 +1356,17 @@
                         scale: 0.1,
                         alpha: 0,
                         spawnTime: performance.now(),
+                        state: "orbiting" as const,
+                        fromStarId: null,
+                        toStarId: null,
+                        departTime: 0,
+                        travelDuration: 0,
+                        laneStartX: 0,
+                        laneStartY: 0,
+                        laneEndX: 0,
+                        laneEndY: 0,
+                        staggerDelay: 0,
+                        ownerId: star.ownerId,
                     });
                 }
             } else if (damagedShips.length > damageCount) {
@@ -1262,6 +1391,9 @@
                 drawShip(ship.x, ship.y, color, ship.scale, ship.alpha, true);
             });
         });
+
+        // Render in-flight ships (departing, traveling, arriving)
+        renderTravelingShips(stars);
     }
 
     function renderFleets(stars: StarState[], fleets: FleetState[]) {

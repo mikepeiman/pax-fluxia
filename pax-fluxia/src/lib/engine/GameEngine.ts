@@ -31,7 +31,7 @@ import type { ConquestContext, EngineConfig as SharedEngineConfig } from '@pax/c
 import { createFleet, type Fleet } from './Fleet';
 import { logCombat } from '$lib/utils/CombatLogger';
 import { combatLog } from '$lib/stores/combatLogStore';
-import { animationStore, ANIM_CONFIG } from '$lib/stores/animationStore';
+// Animation store removed — canvas handles animations via state diffing
 // NOTE: CombatRules.ts import removed - was dead code, combat handled by calculateCombatV4
 import { HexGrid } from './HexGrid';
 import { Delaunay } from 'd3-delaunay';
@@ -865,43 +865,16 @@ export class GameEngine {
         const result = applyConquest(attacker as any, defender as any, ctx, cfg);
 
         // ================================================================
-        // CLIENT-ONLY: Animations
+        // CLIENT-ONLY: Animation logging (visual animations handled by canvas diffing)
         // ================================================================
 
         if (result.retreatTargetId) {
             const retreatTarget = this.stars.get(result.retreatTargetId);
             if (retreatTarget) {
                 log.success('Retreat', `${result.shipsEscaped} ships retreat from ${defender.id} to ${retreatTarget.id}`);
-                animationStore.add({
-                    type: 'retreat',
-                    sourceId: defender.id,
-                    targetId: retreatTarget.id,
-                    ownerId: previousOwner,
-                    shipCount: result.shipsEscaped,
-                    duration: ANIM_CONFIG.RETREAT_DURATION,
-                    sourceX: defender.x, sourceY: defender.y,
-                    targetX: retreatTarget.x, targetY: retreatTarget.y,
-                });
             }
         } else if (result.scatterTargetIds && result.scatterTargetIds.length > 0) {
-            const scatterAnims = result.scatterTargetIds.map((targetId, i) => {
-                const route = this.stars.get(targetId);
-                return route ? {
-                    type: 'scatter' as const,
-                    sourceId: defender.id,
-                    targetId: route.id,
-                    ownerId: previousOwner,
-                    shipCount: result.scatterShipCounts?.[i] ?? Math.ceil(result.shipsEscaped / result.scatterTargetIds!.length),
-                    duration: ANIM_CONFIG.SCATTER_DURATION,
-                    sourceX: defender.x, sourceY: defender.y,
-                    targetX: route.x, targetY: route.y,
-                } : null;
-            }).filter(Boolean);
-
-            if (scatterAnims.length > 0) {
-                log.success('Scatter', `${result.shipsEscaped} ships scatter from ${defender.id} to ${scatterAnims.length} neighbors`);
-                animationStore.addBatch(scatterAnims as any);
-            }
+            log.success('Scatter', `${result.shipsEscaped} ships scatter from ${defender.id} to ${result.scatterTargetIds.length} neighbors`);
 
             if (result.shipsDestroyed > 0) {
                 log.data('Scatter', `${result.shipsDestroyed} ships destroyed during scatter`);

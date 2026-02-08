@@ -21,3 +21,21 @@ Client and server engines diverged — client had rich game logic (overflow accu
 ## ADR References
 - Follows ADR-010 (Ships Are Atomic Integers)
 - Supersedes previous duplicated config approach
+
+---
+
+# Decision: Ship Transfer Animation — Unified Lifecycle
+
+**Date:** 2026-02-08
+**Status:** Planned
+
+## Context
+Animation system had two completely disjoint systems: orbit rendering (per-star ship arrays with lerp physics) and fire-and-forget dots (separate animationStore events). Ships teleported out of orbit, separate dots flew the lane, different ships popped into orbit. Result: jerky, disjointed, ugly.
+
+## Decision
+- **Unified lifecycle**: Each visual ship transitions through `orbiting → departing → traveling → arriving → orbiting`
+- **Same entity**: The visual ship that departs orbit IS the ship that travels the lane IS the ship that arrives
+- **Lane adherence**: Ships follow the connection line between stars
+- **Smooth easing**: `easeInOutCubic` at all transitions. Zero linear snapping.
+- **Stream formation**: Multiple ships stagger along the lane as a visible stream
+- **Remove animationStore**: Ship flight handled entirely by lifecycle system in `renderShips()`

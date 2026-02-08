@@ -19,6 +19,11 @@ export interface ShipVisual {
 }
 
 /**
+ * Ship lifecycle state
+ */
+export type ShipLifecycleState = 'orbiting' | 'departing' | 'traveling' | 'arriving';
+
+/**
  * Persistent visual state for a single ship (Orbit/Physics)
  */
 export interface VisualShipState {
@@ -31,7 +36,40 @@ export interface VisualShipState {
     scale: number;
     alpha: number;
     spawnTime: number;
+    // Lifecycle fields
+    state: ShipLifecycleState;
+    fromStarId: string | null;    // Source star (for traveling)
+    toStarId: string | null;      // Destination star (for traveling/arriving)
+    departTime: number;           // performance.now() when transition started
+    travelDuration: number;       // ms for current phase
+    // Lane endpoints (cached for performance)
+    laneStartX: number;
+    laneStartY: number;
+    laneEndX: number;
+    laneEndY: number;
+    // Stagger offset for stream formation
+    staggerDelay: number;
+    // Owner color (needed when ship is in transit between stars)
+    ownerId: string;
 }
+
+/**
+ * Animation timing constants
+ */
+export const SHIP_ANIM = {
+    /** Time to ease out of orbit toward lane (ms) */
+    DEPART_DURATION: 200,
+    /** Base travel time (ms) — scaled by distance */
+    TRAVEL_BASE_DURATION: 350,
+    /** Travel time per 100px distance (ms) */
+    TRAVEL_PER_100PX: 150,
+    /** Time to ease into orbit at destination (ms) */
+    ARRIVE_DURATION: 200,
+    /** Stagger delay between ships in a stream (ms) */
+    STREAM_STAGGER: 40,
+    /** Max stagger so large fleets don't take forever to depart */
+    MAX_STREAM_STAGGER: 400,
+};
 
 /**
  * Maximum number of orbit layers before stacking begins.
