@@ -105,6 +105,7 @@ Update this file after each development session.
 | **Scrollwheel Zoom** | 🟡 Medium | Zoom in/out centered on cursor position via mousewheel. |
 | **Performance Audit** | 🟡 Medium | Major perf examination — machine runs hot at ~few thousand ships. Optimize rendering, batching, culling. |
 | **Custom Map Editor** | 🔵 Backlog | Implementation plan needed with effort estimates |
+| **Slow-Mo Debug Mode** | 🟢 Standard | Keyboard shortcut to slow tick ~20x on conquest for animation debugging/tuning |
 
 ---
 
@@ -112,6 +113,7 @@ Update this file after each development session.
 
 | Date | Summary |
 |------|---------| 
+| 2026-02-08 | Ship animation redesign: unified lifecycle (orbit→depart→travel→arrive). Fixed scatter to use real connections + real ship count diffs. |
 | 2026-02-07 | Group A+B: Star selection bug fix, combat log enhancements (captured/escaped/destroyed), My Battles filter, DAMAGED_SHIP_EFFECTIVENESS config, logging levels, root README. |
 | 2026-02-07 | Protocol audit & consolidation, comprehensive game spec, dev history, new doc-everything rule. |
 | 2026-02-07 | Engine Convergence Phase 2 (conquest/scatter/retreat unified). Fixed MP connection constraint bug (orders could bypass routes). |
