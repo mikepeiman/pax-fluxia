@@ -101,6 +101,7 @@ Update this file after each development session.
 | **AI: Star Type Awareness** | 🟢 Standard | Attack from Green, defend Red/Purple |
 | **Multiplayer Deployment** | 🟡 Medium | Deploy for alpha testing (Vercel + Railway) |
 | **Percentage Directives** | 🔵 Backlog | Split forces: send fractions in multiple directions from one star. Requires new order model. |
+| **Command Arrow Styles** | 🔵 Backlog | Different colors and styles for attack vs reinforce vs deferred order arrows. |
 | **Custom Map Editor** | 🔵 Backlog | Implementation plan needed with effort estimates |
 
 ---

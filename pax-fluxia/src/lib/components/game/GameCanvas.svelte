@@ -832,14 +832,20 @@
         });
 
         // Also sync with actual queuedOrderTargetId from snapshot
+        // Only remove if server has a DIFFERENT non-empty queued order
+        // (empty = server hasn't confirmed yet, keep our optimistic order)
         const snapshotStars = isMultiplayerMode()
             ? multiplayerStore.stars
             : gameStore.snapshot?.stars || [];
         deferredOrders.forEach((key) => {
             const [sourceId, targetId] = key.split("|");
             const star = snapshotStars.find((s) => s.id === sourceId);
-            // Remove if star doesn't have this queued order anymore
-            if (star && star.queuedOrderTargetId !== targetId) {
+            if (
+                star &&
+                star.queuedOrderTargetId &&
+                star.queuedOrderTargetId !== targetId
+            ) {
+                // Server has a different queued order for this star — remove stale local one
                 deferredOrders.delete(key);
             }
         });
