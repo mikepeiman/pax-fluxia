@@ -347,11 +347,18 @@ export function calculateCombatV4(
     disabledOnB: number;
 } {
     // Use the shared combat function from @pax/common for parity
+    // Pass GAME_CONFIG values as overrides so UI panel sliders take effect
     const result = sharedCalculateCombat(
         sideAShips,
         sideBShips,
         sideAIsAttacking,
-        sideBIsAttacking
+        sideBIsAttacking,
+        {
+            DAMAGE_PER_SHIP: GAME_CONFIG.DAMAGE_PER_SHIP,
+            LETHALITY: GAME_CONFIG.LETHALITY,
+            AGGRESSOR_ADVANTAGE: GAME_CONFIG.AGGRESSOR_ADVANTAGE,
+            FORCE_RATIO_EFFECT: GAME_CONFIG.FORCE_RATIO_EFFECT,
+        }
     );
 
     // Map the shared result format to the local expected format

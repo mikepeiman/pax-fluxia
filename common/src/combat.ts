@@ -110,11 +110,22 @@ export interface CombatResultFull {
     disabledOnB: number;
 }
 
+/** Optional overrides for combat variables (client UI panel passes these) */
+export interface CombatConfigOverride {
+    DAMAGE_PER_SHIP?: number;
+    LETHALITY?: number;
+    AGGRESSOR_ADVANTAGE?: number;
+    FORCE_RATIO_EFFECT?: number;
+    MINIMUM_DAMAGE?: number;
+    CONQUEST_THRESHOLD?: number;
+}
+
 export function calculateCombat(
     sideAShips: number,
     sideBShips: number,
     sideAIsAttacking: boolean = false,
-    sideBIsAttacking: boolean = true
+    sideBIsAttacking: boolean = true,
+    configOverrides?: CombatConfigOverride
 ): CombatResultFull {
     // ────────────────────────────────────────────────────────────────────────
     // GUARD: Zero ships = no combat
@@ -130,13 +141,12 @@ export function calculateCombat(
         };
     }
 
-    const {
-        DAMAGE_PER_SHIP,
-        AGGRESSOR_ADVANTAGE,
-        FORCE_RATIO_EFFECT,
-        MINIMUM_DAMAGE,
-        LETHALITY
-    } = COMBAT_CONFIG;
+    // Merge overrides with defaults — allows UI panel to drive combat math
+    const DAMAGE_PER_SHIP = configOverrides?.DAMAGE_PER_SHIP ?? COMBAT_CONFIG.DAMAGE_PER_SHIP;
+    const AGGRESSOR_ADVANTAGE = configOverrides?.AGGRESSOR_ADVANTAGE ?? COMBAT_CONFIG.AGGRESSOR_ADVANTAGE;
+    const FORCE_RATIO_EFFECT = configOverrides?.FORCE_RATIO_EFFECT ?? COMBAT_CONFIG.FORCE_RATIO_EFFECT;
+    const MINIMUM_DAMAGE = configOverrides?.MINIMUM_DAMAGE ?? COMBAT_CONFIG.MINIMUM_DAMAGE;
+    const LETHALITY = configOverrides?.LETHALITY ?? COMBAT_CONFIG.LETHALITY;
 
     // ────────────────────────────────────────────────────────────────────────
     // STEP 1: BASE DAMAGE OUTPUT

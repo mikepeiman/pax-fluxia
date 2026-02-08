@@ -160,14 +160,14 @@ Conquest triggers when:
 3. Defender's damaged ships are zeroed
 4. Surviving defender ships undergo scatter/retreat (see §8)
 5. All orders targeting this star from **other players** are cancelled (including chained orders)
-6. Winning player's orders to this star are cancelled (star is now friendly)
+6. Winning player's orders to this star are cancelled (star is now friendly) IF the player has chosen that option `MAINTAIN_ORDERS_ON_CONQUEST = false`
 7. Queued (deferred) orders activate if set
 
 ---
 
 ## 8. Scatter & Retreat
 
-When a star is conquered, the defender's surviving ships attempt to escape.
+When a star is conquered, the defender's surviving ships attempt to escap if possible (if escape routes exist).
 
 ### 8.1. Retreat (Ordered)
 

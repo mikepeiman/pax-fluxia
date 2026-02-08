@@ -391,9 +391,9 @@
                 <div class="row-controls">
                     <input
                         type="range"
-                        min="5"
+                        min="1"
                         max="100"
-                        step="5"
+                        step="1"
                         value={transferRate}
                         oninput={(e) =>
                             updateTransferRate(
