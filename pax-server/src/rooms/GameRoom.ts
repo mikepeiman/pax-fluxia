@@ -215,6 +215,13 @@ export class GameRoom extends Room {
 
             // Set order
             source.targetId = message.targetId;
+
+            // Prevent circular orders: if target has order back to source, cancel it
+            if (target.ownerId === player.sessionId && target.targetId === message.sourceId) {
+                target.targetId = "";
+                log.game('GameRoom', `Circular order cancelled: ${message.targetId} → ${message.sourceId}`);
+            }
+
             log.game('GameRoom', `Order: ${message.sourceId} → ${message.targetId} by ${player.sessionId}`);
         });
 

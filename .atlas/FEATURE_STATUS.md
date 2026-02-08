@@ -100,6 +100,7 @@ Update this file after each development session.
 | **AI: Tactical Surround** | 🟢 Standard | Multi-star coordination to surround enemy forces |
 | **AI: Star Type Awareness** | 🟢 Standard | Attack from Green, defend Red/Purple |
 | **Multiplayer Deployment** | 🟡 Medium | Deploy for alpha testing (Vercel + Railway) |
+| **Percentage Directives** | 🔵 Backlog | Split forces: send fractions in multiple directions from one star. Requires new order model. |
 | **Custom Map Editor** | 🔵 Backlog | Implementation plan needed with effort estimates |
 
 ---
