@@ -528,11 +528,8 @@ export class GameEngine {
                     Math.ceil(source.activeShips * transferRate)
                 );
 
-                // if (transferAmount === 0 || source.activeShips === 0) {
-                //     source.clearTarget();
-                //     return;
-                // }
-
+                // Orders persist until explicitly cancelled — zero ships does NOT auto-cancel.
+                // Ships will flow again when reinforcements arrive.
                 const shipped = source.removeActiveShips(transferAmount);
                 if (shipped > 0) {
                     reinforcements.push({ source, target, shipped });

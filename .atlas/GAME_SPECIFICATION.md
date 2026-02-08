@@ -212,14 +212,24 @@ effectiveForce = activeShips + floor(damagedShips × DAMAGED_SHIP_EFFECTIVENESS)
 
 Conquest occurs when:
 - `defender.activeShips <= 0` (attrition victory), OR
-- `defender.activeShips <= totalAttackers / CONQUEST_THRESHOLD` (overwhelm)
+- `defender.activeShips <= totalAttackerShips / CONQUEST_THRESHOLD` (overwhelm)
+
+> [!IMPORTANT]
+> **Multi-Star / Multi-Player Combat**: When multiple stars attack the same defender:
+> 1. Group ALL attackers by `ownerId` (player)
+> 2. Sum ships per player to get each player's total attacking ships
+> 3. Total of ALL attackers (all players combined) determines damage dealt to defender
+> 4. Damage to attackers distributed proportionally by each star's ship contribution
+> 5. **Victor** = the **player** (ownerId) with the largest total attacking ships, NOT the single largest star
+> 6. `executeConquest` receives the strongest individual star of the winning player
 
 On conquest:
-1. Defender ownership transfers to attacker
-2. 50% of attacker's ships teleport to conquered star
+1. Defender ownership transfers to winning **player** (not star)
+2. 50% of winning player's attacking ships transfer to conquered star
 3. Defender's damaged ships are zeroed
-4. All orders to/from conquered star are cleared
-5. Queued (deferred) orders activate if set
+4. All orders targeting conquered star from OTHER players are cancelled (including chained orders)
+5. Winning player's orders to conquered star are cancelled (it's now friendly)
+6. Queued (deferred) orders activate if set
 
 ### 5.6. Scatter & Retreat (Conquest Aftermath)
 
@@ -249,10 +259,16 @@ On conquest:
 
 ### 6.3. Transfer (Reinforcement)
 
-- On each tick, stars with active orders send ships
-- Transfer amount: `max(MIN_SHIPS_PER_TRANSFER, floor(activeShips × TRANSFER_RATE))`
+- On each tick, stars with active move orders send ships to friendly targets
+- Transfer amount: `max(MIN_SHIPS_PER_TRANSFER, ceil(activeShips × TRANSFER_RATE))`
 - Default transfer rate: 25% of active ships per tick
 - Blue stars: 2× transfer rate
+
+> [!IMPORTANT]
+> **Order Persistence**: Orders persist until explicitly cancelled by the player. Zero remaining ships does NOT auto-cancel an order. When reinforcements arrive at an empty star with an active order, they immediately flow onward. This is fundamental to the flow topology design.
+
+> [!IMPORTANT]
+> **Attack vs Transfer**: Attacks are REMOTE ENGAGEMENT — ships stay at their source star and deal damage across the lane. Ships do NOT physically travel to the target during an attack. Only reinforcements (friendly transfers) involve physical ship movement along lanes.
 
 ---
 
@@ -333,7 +349,24 @@ On conquest:
 | Deferred orders | Dashed arrow lines |
 | Star labels | Icon + active count (bright) + damaged count (dim) |
 
-### 9.4. Audio (Tone.js)
+### 9.4. Animation Rules
+
+> [!IMPORTANT]
+> **Imperative, Not Reactive**: All animations are driven by typed engine events, NOT by observing state diffs between frames. The engine emits events specifying the action type, source, target, and ship count.
+
+| Game Action | Animation | Event Type |
+|-------------|-----------|------------|
+| **Reinforcement** (friendly transfer) | Ships depart orbit → travel along lane → arrive in orbit | `reinforce` |
+| **Attack** (remote engagement) | Surge visual at source star (ships stay) | `attack` (or no event — existing surge) |
+| **Conquest** | Ships immediately begin traveling from victor star(s) to conquered star. Ownership color changes as ships arrive. | `conquest` |
+| **Scatter** | Ships burst outward to connected friendly neighbors | `scatter` |
+| **Retreat** | Ships fly to directed retreat target | `retreat` |
+
+**Timing**: Conquest/scatter/retreat animations begin IMMEDIATELY (same frame as the game event), NOT on the following tick. The animation plays out over time (smooth travel), but its initiation is simultaneous with the engine state change.
+
+**Ship Color**: Ships may fade toward white at the midpoint of travel and return to player color on arrival.
+
+### 9.5. Audio (Tone.js)
 
 - Tick metronome (ambient heartbeat)
 - Order chimes (ascending tones)

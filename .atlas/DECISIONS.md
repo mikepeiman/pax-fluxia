@@ -38,4 +38,21 @@ Animation system had two completely disjoint systems: orbit rendering (per-star 
 - **Lane adherence**: Ships follow the connection line between stars
 - **Smooth easing**: `easeInOutCubic` at all transitions. Zero linear snapping.
 - **Stream formation**: Multiple ships stagger along the lane as a visible stream
-- **Remove animationStore**: Ship flight handled entirely by lifecycle system in `renderShips()`
+- **Imperative events**: Engine emits typed events (`reinforce`, `conquest`, `scatter`, `retreat`). Animation consumes events, NOT state diffs.
+- **No attack travel**: Attacks are remote engagement. Ships stay at source. No travel animation for attacks.
+
+---
+
+# Decision: Orders Persist Until Cancelled
+
+**Date:** 2026-02-08
+**Status:** Active
+
+## Context
+A `clearTarget` guard auto-cancelled move orders when a star had 0 ships. This broke flow topology — the whole game is about chains of command. An empty star should continue forwarding ships when reinforcements arrive.
+
+## Decision
+- Orders persist until **explicitly cancelled** by the player
+- Zero ships does NOT auto-cancel orders
+- `clearTarget` guard removed from `processFlowLinks`
+
