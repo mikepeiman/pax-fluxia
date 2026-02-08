@@ -281,12 +281,21 @@
         if (!wasEnabled) {
             // Was disabled, now enabling: restore saved value
             values = { ...values, [key]: savedValues[key] };
-            (GAME_CONFIG as any)[key] = savedValues[key];
+            if (key === "TRANSFER_RATE") {
+                GAME_CONFIG.TRANSFER_RATE = (savedValues[key] as number) / 100;
+            } else {
+                (GAME_CONFIG as any)[key] = savedValues[key];
+            }
         } else {
             // Was enabled, now disabling: save current value, apply neutral
             savedValues = { ...savedValues, [key]: values[key] };
             values = { ...values, [key]: neutralValues[key] };
-            (GAME_CONFIG as any)[key] = neutralValues[key];
+            if (key === "TRANSFER_RATE") {
+                GAME_CONFIG.TRANSFER_RATE =
+                    (neutralValues[key] as number) / 100;
+            } else {
+                (GAME_CONFIG as any)[key] = neutralValues[key];
+            }
         }
     }
 
@@ -423,8 +432,16 @@
                         ...savedValues,
                         [key]: defaultValues[key],
                     };
-                    (GAME_CONFIG as any)[key] = defaultValues[key];
+                    if (key === "TRANSFER_RATE") {
+                        GAME_CONFIG.TRANSFER_RATE =
+                            (defaultValues[key] as number) / 100;
+                    } else {
+                        (GAME_CONFIG as any)[key] = defaultValues[key];
+                    }
                 });
+                // Reset transfer rate slider too
+                transferRate = defaultValues.TRANSFER_RATE;
+                GAME_CONFIG.TRANSFER_RATE = defaultValues.TRANSFER_RATE / 100;
                 // Reset AI vars
                 aiVariables.forEach((v) => {
                     const key = v.key as VarKey;
