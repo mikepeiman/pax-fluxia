@@ -102,6 +102,8 @@ Update this file after each development session.
 | **Multiplayer Deployment** | 🟡 Medium | Deploy for alpha testing (Vercel + Railway) |
 | **Percentage Directives** | 🔵 Backlog | Split forces: send fractions in multiple directions from one star. Requires new order model. |
 | **Command Arrow Styles** | 🔵 Backlog | Different colors and styles for attack vs reinforce vs deferred order arrows. |
+| **Scrollwheel Zoom** | 🟡 Medium | Zoom in/out centered on cursor position via mousewheel. |
+| **Performance Audit** | 🟡 Medium | Major perf examination — machine runs hot at ~few thousand ships. Optimize rendering, batching, culling. |
 | **Custom Map Editor** | 🔵 Backlog | Implementation plan needed with effort estimates |
 
 ---
