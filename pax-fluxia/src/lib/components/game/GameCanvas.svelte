@@ -1483,7 +1483,7 @@
         if (!shipGraphics) return;
 
         // Progress is globally driven by game tick progress (0 -> 1)
-        const progress = gameStore.tickProgress;
+        const progress = activeGameStore.tickProgress;
 
         fleets.forEach((fleet) => {
             const source = stars.find((s) => s.id === fleet.sourceId);
@@ -1628,10 +1628,8 @@
     }
 
     function hitTestStar(screenX: number, screenY: number): StarState | null {
-        // Use multiplayer stars when in multiplayer mode
-        const stars = isMultiplayerMode()
-            ? multiplayerStore.stars
-            : (gameStore.snapshot?.stars ?? []);
+        // Use activeGameStore for unified star access
+        const stars = activeGameStore.stars as StarState[];
 
         if (stars.length === 0) return null;
 
