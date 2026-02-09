@@ -1,6 +1,7 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import { GAME_CONFIG } from "$lib/config/game.config";
+    import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
     import { log } from "$lib/utils/logger";
 
     const STORAGE_KEY = "pax-fluxia-combat-tuning";
@@ -105,31 +106,36 @@
 
     // Neutral values when disabled
     const neutralValues: Record<string, number> = {
-        TRANSFER_RATE: 25, // Default 25%
-        AGGRESSOR_ADVANTAGE: 1.0, // No bonus
-        DAMAGE_PER_SHIP: 0, // No damage
-        LETHALITY: 0, // All damage converts to disabled
+        TRANSFER_RATE: 10, // Default 10%
+        AGGRESSOR_ADVANTAGE: 0.7, // defense is stronger
+        DAMAGE_PER_SHIP: 0.05, // base damage
+        LETHALITY: 0.1, //
         FORCE_RATIO_EFFECT: 0, // No force ratio bonus
-        CONQUEST_THRESHOLD: 9999, // Impossible to conquer
-        CONQUEST_TRANSFER_PERCENTAGE: 0, // No transfer
-        RETREAT_CAPTURE_RATE: 1.0, // Capture all on retreat
-        SCATTER_CAPTURE_RATE: 1.0, // Capture all on scatter
-        SCATTER_DESTROY_RATE: 0, // No destruction
-        DAMAGED_SHIP_EFFECTIVENESS: 0, // No defensive contribution from damaged ships
-        REPAIR_RATE: 0, // No repair
-        AI_ATTACK_THRESHOLD: 999, // Never attack
-        AI_DESIST_THRESHOLD: 999, // Never retreat
-        AI_RANDOM_AGGRESSION: 0, // No random attacks
-        AI_TACTICAL_AGGRESSION: 0, // No tactical attacks
+        CONQUEST_THRESHOLD: 12, //
+        CONQUEST_TRANSFER_PERCENTAGE: 0.3, // No transfer
+        RETREAT_CAPTURE_RATE: 0.25, // Capture all on retreat
+        SCATTER_CAPTURE_RATE: 0.4, // Capture all on scatter
+        SCATTER_DESTROY_RATE: 0.5, // No destruction
+        DAMAGED_SHIP_EFFECTIVENESS: 0.1, // small defensive contribution from damaged ships
+        REPAIR_RATE: 0.1, // 10% repair
+        AI_ATTACK_THRESHOLD: 1.33, //
+        AI_DESIST_THRESHOLD: 1.0, //
+        AI_RANDOM_AGGRESSION: 0.05, //
+        AI_TACTICAL_AGGRESSION: 0.1, //
     };
 
     // Timing variables
-    let tickLength = $state(GAME_CONFIG.BASE_TICK_MS);
-    const defaultTickLength = 1200;
+    let tickInterval = $state(GAME_CONFIG.BASE_TICK_MS);
+    let animationSpeed = $state(GAME_CONFIG.ANIMATION_SPEED_MS);
 
-    function updateTickLength(value: number) {
-        tickLength = value;
-        GAME_CONFIG.BASE_TICK_MS = value;
+    function updateTickInterval(value: number) {
+        tickInterval = value;
+        activeGameStore.updateTickInterval(value);
+    }
+
+    function updateAnimationSpeed(value: number) {
+        animationSpeed = value;
+        GAME_CONFIG.ANIMATION_SPEED_MS = value;
     }
 
     // Transfer Rate control (% in UI, decimal in GAME_CONFIG)
@@ -350,8 +356,8 @@
         {#if !timingCollapsed}
             <div class="variable-row">
                 <div class="row-top">
-                    <span class="var-name">Tick Length</span>
-                    <span class="current-val">{tickLength}ms</span>
+                    <span class="var-name">Tick Interval</span>
+                    <span class="current-val">{tickInterval}ms</span>
                 </div>
                 <div class="row-controls">
                     <input
@@ -359,9 +365,28 @@
                         min="200"
                         max="3000"
                         step="100"
-                        value={tickLength}
+                        value={tickInterval}
                         oninput={(e) =>
-                            updateTickLength(
+                            updateTickInterval(
+                                parseInt((e.target as HTMLInputElement).value),
+                            )}
+                    />
+                </div>
+            </div>
+            <div class="variable-row">
+                <div class="row-top">
+                    <span class="var-name">Animation Speed</span>
+                    <span class="current-val">{animationSpeed}ms</span>
+                </div>
+                <div class="row-controls">
+                    <input
+                        type="range"
+                        min="200"
+                        max="3000"
+                        step="100"
+                        value={animationSpeed}
+                        oninput={(e) =>
+                            updateAnimationSpeed(
                                 parseInt((e.target as HTMLInputElement).value),
                             )}
                     />
@@ -447,8 +472,10 @@
             class="reset-btn"
             onclick={() => {
                 // Reset timing
-                tickLength = defaultTickLength;
-                GAME_CONFIG.BASE_TICK_MS = defaultTickLength;
+                tickInterval = 1200;
+                activeGameStore.updateTickInterval(1200);
+                animationSpeed = 1200;
+                GAME_CONFIG.ANIMATION_SPEED_MS = 1200;
                 // Reset combat vars
                 variables.forEach((v) => {
                     const key = v.key as VarKey;

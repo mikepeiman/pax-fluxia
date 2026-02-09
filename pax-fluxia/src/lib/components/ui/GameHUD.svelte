@@ -7,7 +7,7 @@
   import { GAME_CONFIG } from "$lib/config/game.config";
   import { browser } from "$app/environment";
 
-  const winner = $derived(gameStore.winner);
+  const winner = $derived(activeGameStore.phase === "results");
 
   // Transfer rate control (display as %, store as decimal)
   let transferPercent = $state(Math.round(GAME_CONFIG.TRANSFER_RATE * 100));
@@ -36,7 +36,7 @@
 <div class="hud-footer no-select">
   <!-- Left: Leaderboard -->
   <div class="footer-left">
-    <Leaderboard players={gameStore.leaderboard} />
+    <Leaderboard players={activeGameStore.players} />
   </div>
 
   <!-- Right: Controls -->
@@ -51,11 +51,11 @@
         <SpeedControls
           speed={activeGameStore.speed}
           isPaused={activeGameStore.isPaused}
-          hasStarted={gameStore.hasStarted}
+          hasStarted={activeGameStore.phase === "playing"}
           onSpeedChange={activeGameStore.setSpeed}
           onPause={activeGameStore.pauseGame}
           onResume={activeGameStore.resumeGame}
-          onStart={gameStore.beginGame}
+          onStart={() => activeGameStore.startGame()}
         />
 
         <!-- Transfer Rate Slider -->

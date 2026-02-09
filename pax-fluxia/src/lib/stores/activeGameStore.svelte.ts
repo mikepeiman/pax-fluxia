@@ -15,6 +15,7 @@ import { validateOrder } from '@pax/common';
 import type { TickEvents } from '@pax/common';
 import type { StarState, PlayerState, ConnectionState } from '$lib/types/game.types';
 import { combatLog } from '$lib/stores/combatLogStore';
+import { GAME_CONFIG } from '$lib/config/game.config';
 
 // ============================================================================
 // Mode Detection
@@ -361,4 +362,12 @@ export const activeGameStore = {
     resumeGame,
     setSpeed,
     startGame,
+
+    /** Update BASE_TICK_MS and reschedule engine interval (SP only) */
+    updateTickInterval(ms: number) {
+        GAME_CONFIG.BASE_TICK_MS = ms;
+        if (!isMultiplayerMode()) {
+            gameStore.updateConfig();
+        }
+    },
 };

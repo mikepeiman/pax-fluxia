@@ -10,6 +10,7 @@ interface GameConfigType {
     // Timing
     BASE_TICK_MS: number;
     MIN_TICK_MS: number;
+    ANIMATION_SPEED_MS: number;
 
     // Transfer
     TRANSFER_RATE: number;
@@ -101,6 +102,10 @@ export const GAME_CONFIG: GameConfigType = {
 
     /** Minimum tick interval at max speed (ms) */
     MIN_TICK_MS: 100,
+
+    /** Animation interpolation speed (ms) - controls visual smoothness of tick progress.
+     *  Lower = faster visual transitions. Separate from actual tick rate. */
+    ANIMATION_SPEED_MS: 1200,
 
     // ========================================================================
     // TRANSFER MECHANICS

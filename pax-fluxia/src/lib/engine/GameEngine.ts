@@ -454,8 +454,8 @@ export class GameEngine {
         const loop = () => {
             if (this.speed > 0 && this.onTickProgress) {
                 const elapsed = performance.now() - this.tickStartTime;
-                const interval = Math.max(GAME_CONFIG.BASE_TICK_MS / this.speed, GAME_CONFIG.MIN_TICK_MS);
-                const progress = Math.min(elapsed / interval, 1);
+                const animSpeed = Math.max(GAME_CONFIG.ANIMATION_SPEED_MS / this.speed, GAME_CONFIG.MIN_TICK_MS);
+                const progress = Math.min(elapsed / animSpeed, 1);
                 this.onTickProgress(progress);
             }
             this.progressLoopId = requestAnimationFrame(loop);
