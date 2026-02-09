@@ -70,6 +70,20 @@
 
     // Previous frame cache removed — animations are event-driven (see POST_MORTEMS.md)
 
+    // Zoom & Pan state
+    let baseScale = 1; // Fit-to-screen scale (recalculated on resize)
+    let zoomLevel = 1; // User zoom multiplier (1.0 = default fit)
+    let panOffsetX = 0; // Pan offset in world coordinates
+    let panOffsetY = 0;
+    const ZOOM_MIN = 0.5; // 4× spread: 0.5 to 2.0
+    const ZOOM_MAX = 2.0;
+    const ZOOM_STEP = 0.1; // Per scroll notch
+    let isPanning = false; // Middle-mouse-button pan
+    let panStartScreenX = 0;
+    let panStartScreenY = 0;
+    let panStartOffsetX = 0;
+    let panStartOffsetY = 0;
+
     // Input state
     let isDragging = false;
     let dragSourceId: string | null = null;
@@ -305,22 +319,115 @@
 
         app.resize();
 
-        // Calculate scale to fit game world in container while maintaining aspect ratio
+        // Calculate base scale to fit game world in container
         const containerWidth = app.screen.width;
         const containerHeight = app.screen.height;
 
         const scaleX = containerWidth / GAME_WIDTH;
         const scaleY = containerHeight / GAME_HEIGHT;
-        const scale = Math.min(scaleX, scaleY); // Fit (not fill)
+        baseScale = Math.min(scaleX, scaleY); // Fit (not fill)
 
-        // Apply scale to stage
-        app.stage.scale.set(scale, scale);
+        // Apply combined scale + zoom
+        applyZoomTransform();
+    }
 
-        // Center the scaled content
-        const scaledWidth = GAME_WIDTH * scale;
-        const scaledHeight = GAME_HEIGHT * scale;
-        app.stage.x = (containerWidth - scaledWidth) / 2;
-        app.stage.y = (containerHeight - scaledHeight) / 2;
+    function applyZoomTransform() {
+        if (!app) return;
+
+        const containerWidth = app.screen.width;
+        const containerHeight = app.screen.height;
+        const effectiveScale = baseScale * zoomLevel;
+
+        app.stage.scale.set(effectiveScale, effectiveScale);
+
+        // Center content, then apply pan offset
+        const scaledWidth = GAME_WIDTH * effectiveScale;
+        const scaledHeight = GAME_HEIGHT * effectiveScale;
+        const centerX = (containerWidth - scaledWidth) / 2;
+        const centerY = (containerHeight - scaledHeight) / 2;
+
+        app.stage.x = centerX - panOffsetX * effectiveScale;
+        app.stage.y = centerY - panOffsetY * effectiveScale;
+
+        // Clamp pan so map edges stay roughly visible
+        clampPan();
+    }
+
+    function clampPan() {
+        if (!app) return;
+
+        const containerWidth = app.screen.width;
+        const containerHeight = app.screen.height;
+        const effectiveScale = baseScale * zoomLevel;
+        const scaledWidth = GAME_WIDTH * effectiveScale;
+        const scaledHeight = GAME_HEIGHT * effectiveScale;
+
+        // Allow panning up to half the world size beyond edges
+        const maxPanX = Math.max(
+            0,
+            (scaledWidth - containerWidth) / (2 * effectiveScale) +
+                GAME_WIDTH * 0.1,
+        );
+        const maxPanY = Math.max(
+            0,
+            (scaledHeight - containerHeight) / (2 * effectiveScale) +
+                GAME_HEIGHT * 0.1,
+        );
+
+        panOffsetX = Math.max(-maxPanX, Math.min(maxPanX, panOffsetX));
+        panOffsetY = Math.max(-maxPanY, Math.min(maxPanY, panOffsetY));
+
+        // Reapply position after clamp
+        const centerX = (containerWidth - scaledWidth) / 2;
+        const centerY = (containerHeight - scaledHeight) / 2;
+        app.stage.x = centerX - panOffsetX * effectiveScale;
+        app.stage.y = centerY - panOffsetY * effectiveScale;
+    }
+
+    function handleWheel(event: WheelEvent) {
+        event.preventDefault();
+        if (!app) return;
+
+        const rect = canvasContainer.getBoundingClientRect();
+        const screenX = event.clientX - rect.left;
+        const screenY = event.clientY - rect.top;
+
+        // World point under cursor BEFORE zoom
+        const worldBefore = screenToWorld(screenX, screenY);
+
+        // Apply zoom
+        const direction = event.deltaY < 0 ? 1 : -1;
+        const oldZoom = zoomLevel;
+        zoomLevel = Math.max(
+            ZOOM_MIN,
+            Math.min(ZOOM_MAX, zoomLevel + direction * ZOOM_STEP),
+        );
+
+        if (zoomLevel === oldZoom) return; // Hit limit
+
+        // Anchor: adjust pan so the same world point stays under cursor
+        const effectiveScale = baseScale * zoomLevel;
+        const containerWidth = app.screen.width;
+        const containerHeight = app.screen.height;
+        const scaledWidth = GAME_WIDTH * effectiveScale;
+        const scaledHeight = GAME_HEIGHT * effectiveScale;
+        const centerX = (containerWidth - scaledWidth) / 2;
+        const centerY = (containerHeight - scaledHeight) / 2;
+
+        // worldBefore should equal screenToWorld(screenX, screenY) after transform
+        // screenX = centerX - panOffsetX * effectiveScale + worldBefore.x * effectiveScale
+        // => panOffsetX = (centerX + worldBefore.x * effectiveScale - screenX) / effectiveScale
+        panOffsetX = worldBefore.x - (screenX - centerX) / effectiveScale;
+        panOffsetY = worldBefore.y - (screenY - centerY) / effectiveScale;
+
+        applyZoomTransform();
+    }
+
+    function resetZoom() {
+        zoomLevel = 1;
+        panOffsetX = 0;
+        panOffsetY = 0;
+        applyZoomTransform();
     }
 
     function getPlayerColor(ownerId: string): number {
@@ -1659,6 +1766,18 @@
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
 
+        // Middle-click: start pan
+        if (event.button === 1) {
+            event.preventDefault();
+            isPanning = true;
+            panStartScreenX = event.clientX;
+            panStartScreenY = event.clientY;
+            panStartOffsetX = panOffsetX;
+            panStartOffsetY = panOffsetY;
+            canvasContainer.style.cursor = "grabbing";
+            return;
+        }
+
         const star = hitTestStar(x, y);
 
         // FIX: Right Click to Cancel
@@ -1701,6 +1820,17 @@
     let lastEnemyPassthrough: StarId | null = null;
 
     function handlePointerMove(event: PointerEvent) {
+        // Pan mode: update pan offset based on mouse delta
+        if (isPanning) {
+            const effectiveScale = baseScale * zoomLevel;
+            const dx = event.clientX - panStartScreenX;
+            const dy = event.clientY - panStartScreenY;
+            panOffsetX = panStartOffsetX - dx / effectiveScale;
+            panOffsetY = panStartOffsetY - dy / effectiveScale;
+            applyZoomTransform();
+            return;
+        }
+
         if (!isDragging || !dragSourceId) return;
 
         const rect = canvasContainer.getBoundingClientRect();
@@ -1801,6 +1931,13 @@
     }
 
     function handlePointerUp(event: PointerEvent) {
+        // End pan
+        if (isPanning) {
+            isPanning = false;
+            canvasContainer.style.cursor = "crosshair";
+            return;
+        }
+
         const rect = canvasContainer.getBoundingClientRect();
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
@@ -2046,6 +2183,9 @@
     function handleKeyDown(event: KeyboardEvent) {
         if (event.key === "Escape") {
             clearSelection();
+        } else if (event.key === "Home") {
+            // Reset zoom/pan to default fit-to-screen
+            resetZoom();
         } else if (event.key === " " || event.code === "Space") {
             // Spacebar = pause/play toggle (routes through activeGameStore for SP/MP)
             event.preventDefault();
@@ -2068,8 +2208,15 @@
     onpointerdown={handlePointerDown}
     onpointermove={handlePointerMove}
     onpointerup={handlePointerUp}
-    onpointerleave={() => cancelDrag()}
+    onpointerleave={() => {
+        cancelDrag();
+        if (isPanning) {
+            isPanning = false;
+            canvasContainer.style.cursor = "crosshair";
+        }
+    }}
     oncontextmenu={handleRightClick}
+    onwheel={handleWheel}
 ></div>
 
 <style>
