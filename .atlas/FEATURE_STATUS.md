@@ -96,17 +96,13 @@
 
 | ID | Issue |
 |----|-------|
-| B-3 | Passthrough orders — deferred orders through enemy stars not working |
-| B-6 | Transfer rate equilibrium — stars plateau at 4-8 ships due to production/floor rounding |
 | B-9 | Conquest ship bloom — captured ships appear from star center instead of transfer visual |
 
 ## Open Bugs — MP (B)
 
 | ID | Issue |
 |----|-------|
-| B-14 | Combat logs empty in MP |
-| B-15 | Multi-star conquest not aggregating per-player on server |
-| B-18 | Restart button broken in MP |
+| B-23 | Play/pause outline not updating correctly (pending user verification) |
 
 ## Resolved Bugs (B)
 
@@ -123,8 +119,18 @@
 | B-12 | Map lane minimum angle | 15° min angle filter in Phase 3 of `generateStarConnections` | `d38cdba` |
 | B-16 | Lane passes under star | Lanes gap around intermediate stars | `d38cdba` |
 | B-17 | Command arrows reach target | `ARROW_LENGTH_FRACTION` config + slider (default 50%) | `d38cdba` |
-| B-13 | Spacebar doesn't work in MP | Routed spacebar + animation freeze through `activeGameStore` | `pending` |
-| B-19 | Arrows to non-connected stars | Added connection validation to drag-end order path | `pending` |
+| B-13 | Spacebar doesn't work in MP | Routed spacebar through `activeGameStore` | `01a8b23` |
+| B-19 | Arrows to non-connected stars | Added connection validation to drag-end | `01a8b23` |
+| B-20 | Tick length regression | Split into Tick Interval + Animation Speed | `b8c406b` |
+| B-21 | MP HUD wiring | startGame/hasStarted/leaderboard via activeGameStore | `b8c406b` |
+| B-22 | MP no player colors | id/sessionId mismatch in getPlayerColor | `8a6eaab` |
+| B-24 | Leaderboard highlights wrong player | Check sessionId for MP, removed :first-child | `8a6eaab` |
+| B-25 | Game over screen empty in MP | MP history accumulation + unified ResultsModal | `a91f17d` |
+| B-3 | Passthrough orders | Already implemented in GameCanvas + shared engine | `a91f17d` |
+| B-6 | Transfer rate equilibrium | `Math.ceil` + `TRANSFER_RATE × star-type speed` | `e42320c` |
+| B-14 | Combat logs empty in MP | Fed from server tickEvents | `8329f4a` |
+| B-15 | Multi-star conquest aggregation | Already implemented in shared GameEngine | `a91f17d` |
+| B-18 | Restart button broken in MP | Routed through activeGameStore | `a91f17d` |
 
 ---
 
