@@ -169,7 +169,9 @@
 | R-12 | Damaged Ship Overlapping Orbits | 🟢 |
 | R-13 | Scrollwheel Zoom | 🟡 |
 | R-14 | Performance Audit | 🟡 |
-| R-15 | Multiplayer Deployment | 🟡 |
+| R-15 | Multiplayer Deployment (get online for human playtesting) | 🔴 |
+| V-3 | Territory Alpha Masks (Voronoi/gradient ownership overlays) | 🔴 |
+| V-4 | Travel Animation Polish (elegant, smooth, satisfying feel) | 🔴 |
 | R-16 | Percentage Directives | 🔵 |
 | R-17 | Command Arrow Styles | 🔵 |
 | R-18 | Custom Map Editor | 🔵 |
