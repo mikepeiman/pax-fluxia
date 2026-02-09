@@ -423,12 +423,13 @@ export class GameRoom extends Room {
     }
 
     private generateConnections() {
-        // Simple nearest-neighbor connections
         const stars = Array.from(this.state.stars.values());
         const connected = new Set<string>();
+        const linkCount = new Map<string, number>();
+        stars.forEach(s => linkCount.set(s.id, 0));
 
+        // Phase 1: Build nearest-neighbor connections
         stars.forEach(star => {
-            // Find 2-4 nearest neighbors
             const distances = stars
                 .filter(s => s.id !== star.id)
                 .map(s => ({
@@ -437,15 +438,110 @@ export class GameRoom extends Room {
                 }))
                 .sort((a, b) => a.distance - b.distance);
 
-            const connectionCount = 2 + Math.floor(Math.random() * 3); // 2-4 connections
+            const connectionCount = 2 + Math.floor(Math.random() * 3); // 2-4
             distances.slice(0, connectionCount).forEach(d => {
                 const key = [star.id, d.id].sort().join('-');
                 if (!connected.has(key)) {
                     connected.add(key);
-                    this.addConnection(star.id, d.id);
+                    linkCount.set(star.id, (linkCount.get(star.id) || 0) + 1);
+                    linkCount.set(d.id, (linkCount.get(d.id) || 0) + 1);
                 }
             });
         });
+
+        const starMap = new Map(stars.map(s => [s.id, s]));
+
+        // Phase 2: Remove near-zero angle connections (15° minimum)
+        const MIN_ANGLE_RAD = (15 * Math.PI) / 180;
+        let changed = true;
+        while (changed) {
+            changed = false;
+            for (const star of stars) {
+                const edges: { key: string; targetId: string; angle: number; dist: number }[] = [];
+                connected.forEach(key => {
+                    const [aId, bId] = key.split('-');
+                    let targetId: string | null = null;
+                    if (aId === star.id) targetId = bId;
+                    else if (bId === star.id) targetId = aId;
+                    if (!targetId) return;
+
+                    const target = starMap.get(targetId)!;
+                    const dx = target.x - star.x;
+                    const dy = target.y - star.y;
+                    edges.push({ key, targetId, angle: Math.atan2(dy, dx), dist: Math.sqrt(dx * dx + dy * dy) });
+                });
+
+                if (edges.length < 2) continue;
+                edges.sort((a, b) => a.angle - b.angle);
+
+                for (let i = 0; i < edges.length; i++) {
+                    const curr = edges[i];
+                    const next = edges[(i + 1) % edges.length];
+                    let angleDiff = next.angle - curr.angle;
+                    if (angleDiff < 0) angleDiff += 2 * Math.PI;
+
+                    if (angleDiff < MIN_ANGLE_RAD) {
+                        const toRemove = curr.dist > next.dist ? curr : next;
+                        const sCount = linkCount.get(star.id)!;
+                        const tCount = linkCount.get(toRemove.targetId)!;
+                        if (sCount > 1 && tCount > 1) {
+                            connected.delete(toRemove.key);
+                            linkCount.set(star.id, sCount - 1);
+                            linkCount.set(toRemove.targetId, tCount - 1);
+                            changed = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Phase 3: Remove connections that pass through intermediate stars
+        const CLEARANCE = 35;
+        changed = true;
+        while (changed) {
+            changed = false;
+            for (const key of Array.from(connected)) {
+                const [aId, bId] = key.split('-');
+                const a = starMap.get(aId)!;
+                const b = starMap.get(bId)!;
+
+                let passesThrough = false;
+                for (const other of stars) {
+                    if (other.id === aId || other.id === bId) continue;
+                    const dist = this.pointToSegment(other.x, other.y, a.x, a.y, b.x, b.y);
+                    if (dist < CLEARANCE) {
+                        passesThrough = true;
+                        break;
+                    }
+                }
+
+                if (passesThrough) {
+                    const ac = linkCount.get(aId)!;
+                    const bc = linkCount.get(bId)!;
+                    if (ac > 1 && bc > 1) {
+                        connected.delete(key);
+                        linkCount.set(aId, ac - 1);
+                        linkCount.set(bId, bc - 1);
+                        changed = true;
+                    }
+                }
+            }
+        }
+
+        // Create final connection schemas
+        connected.forEach(key => {
+            const [aId, bId] = key.split('-');
+            this.addConnection(aId, bId);
+        });
+    }
+
+    private pointToSegment(px: number, py: number, ax: number, ay: number, bx: number, by: number): number {
+        const dx = bx - ax, dy = by - ay;
+        const lenSq = dx * dx + dy * dy;
+        if (lenSq === 0) return Math.sqrt((px - ax) ** 2 + (py - ay) ** 2);
+        const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lenSq));
+        return Math.sqrt((px - (ax + t * dx)) ** 2 + (py - (ay + t * dy)) ** 2);
     }
 
     // ========================================================================

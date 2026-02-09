@@ -152,6 +152,27 @@ export interface StarConnection {
 import { Delaunay } from 'd3-delaunay';
 
 /**
+ * Compute the shortest distance from point (px, py) to line segment (ax, ay)–(bx, by).
+ * Used to detect connections that pass too close to intermediate stars.
+ */
+function pointToSegmentDistance(
+    px: number, py: number,
+    ax: number, ay: number,
+    bx: number, by: number
+): number {
+    const dx = bx - ax;
+    const dy = by - ay;
+    const lenSq = dx * dx + dy * dy;
+    if (lenSq === 0) return Math.sqrt((px - ax) ** 2 + (py - ay) ** 2);
+
+    // Project point onto line, clamped to [0, 1]
+    const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lenSq));
+    const projX = ax + t * dx;
+    const projY = ay + t * dy;
+    return Math.sqrt((px - projX) ** 2 + (py - projY) ** 2);
+}
+
+/**
  * Generate connections between stars using Delaunay Triangulation
  * This ensures a planar graph (no crossing lines) and natural proximity connections.
  * 
@@ -300,6 +321,48 @@ export function generateStarConnections<T extends { id: string; x: number; y: nu
                         changed = true;
                         break; // Restart inner loop for this star
                     }
+                }
+            }
+        }
+    }
+
+    // Phase 4: Remove connections that pass too close to intermediate stars
+    // (lanes visually passing "under" unconnected stars)
+    const CLEARANCE_RADIUS = 35; // star radius (25) + padding (10)
+
+    changed = true;
+    while (changed) {
+        changed = false;
+        for (const key of Array.from(finalConnections)) {
+            const [aId, bId] = key.split('|');
+            const starA = starPositions.get(aId)!;
+            const starB = starPositions.get(bId)!;
+
+            // Check every other star for pass-through
+            let passesThrough = false;
+            for (const other of stars) {
+                if (other.id === aId || other.id === bId) continue;
+
+                const dist = pointToSegmentDistance(
+                    other.x, other.y,
+                    starA.x, starA.y,
+                    starB.x, starB.y
+                );
+                if (dist < CLEARANCE_RADIUS) {
+                    passesThrough = true;
+                    break;
+                }
+            }
+
+            if (passesThrough) {
+                // Only remove if both endpoints keep minimum links
+                const aCount = linkCount.get(aId)!;
+                const bCount = linkCount.get(bId)!;
+                if (aCount > minLinksPerStar && bCount > minLinksPerStar) {
+                    finalConnections.delete(key);
+                    linkCount.set(aId, aCount - 1);
+                    linkCount.set(bId, bCount - 1);
+                    changed = true;
                 }
             }
         }

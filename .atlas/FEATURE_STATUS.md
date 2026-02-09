@@ -116,8 +116,9 @@
 | B-10 | Pause doesn't freeze orbits | `animationTime` + `departTime` frozen | `60395be` |
 | B-11 | Combat sliders disconnected | `CombatConfigOverride` parameter | `441010d` |
 | B-8 | Attack travel animation on attacks | Only animate friendly transfers, not attacks | `d38cdba` |
-| B-12 | Map lane minimum angle | 15° min angle filter in Phase 3 of `generateStarConnections` | `d38cdba` |
-| B-16 | Lane passes under star | Lanes gap around intermediate stars | `d38cdba` |
+| B-12 | Map lane minimum angle | 15° min angle filter in Phase 3 of `generateStarConnections` + server | `d38cdba` |
+| B-16 | Lane passes under star | Phase 4: point-to-segment clearance filter (35px), client + server | re-fixed |
+| B-26 | Star click targets wrong star on dense maps | `hitTestStar` finds nearest star, not first in array | `1fd62b6` |
 | B-17 | Command arrows reach target | `ARROW_LENGTH_FRACTION` config + slider (default 50%) | `d38cdba` |
 | B-13 | Spacebar doesn't work in MP | Routed spacebar through `activeGameStore` | `01a8b23` |
 | B-19 | Arrows to non-connected stars | Added connection validation to drag-end | `01a8b23` |
