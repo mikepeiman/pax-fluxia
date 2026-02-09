@@ -1,6 +1,5 @@
 <script lang="ts">
-    import { gameStore } from "$lib/stores/gameStore.svelte";
-    import { multiplayerStore } from "$lib/stores/multiplayerStore.svelte";
+    import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
     import type { GameHistoryEntry } from "$lib/types/game.types";
 
     // Tab state
@@ -8,74 +7,26 @@
         "overview",
     );
 
-    // Detect multiplayer mode
-    const isMP = $derived(
-        multiplayerStore.phase === "ended" ||
-            multiplayerStore.phase === "playing",
-    );
-
-    // Get winner info (unified)
-    const winner = $derived.by(() => {
-        if (isMP) {
-            const wId = multiplayerStore.winnerId;
-            if (!wId) return null;
-            const players = multiplayerStore.players;
-            return (
-                players.find((p) => p.sessionId === wId || p.id === wId) ?? null
-            );
-        }
-        return gameStore.winner;
-    });
-
-    const humanPlayer = $derived.by(() => {
-        if (isMP) {
-            const sid = multiplayerStore.localSessionId;
-            return (
-                multiplayerStore.players.find((p) => p.sessionId === sid) ??
-                null
-            );
-        }
-        return gameStore.humanPlayer;
-    });
-
-    // Determine if human won
-    const isVictory = $derived.by(() => {
-        if (!winner) return false;
-        if (isMP) {
-            const sid = multiplayerStore.localSessionId;
-            return (winner as any).sessionId === sid;
-        }
-        return (
-            humanPlayer &&
-            winner &&
-            (winner as any).id === (humanPlayer as any).id
-        );
-    });
-
-    // Get actual stats from engine (only available in SP)
-    const engineStats = $derived(
-        isMP
-            ? {
-                  elapsedMs: 0,
-                  totalTicks: multiplayerStore.tick,
-                  peakFleetSize: 0,
-                  starsCaptured: 0,
-              }
-            : gameStore.getStats(),
-    );
+    // All state from unified store
+    const winner = $derived(activeGameStore.getWinner());
+    const humanPlayer = $derived(activeGameStore.getHumanPlayer());
+    const victory = $derived(activeGameStore.isVictory());
+    const engineStats = $derived(activeGameStore.getStats());
     const history = $derived(
-        isMP ? [] : (gameStore.getHistory() as GameHistoryEntry[]),
+        activeGameStore.getHistory() as GameHistoryEntry[],
     );
 
-    // Player colors map
-    const playerColors: Record<string, string> = {
-        "human-player": "#4488ff",
-        "ai-1": "#ff4466",
-        "ai-2": "#44ff88",
-        "ai-3": "#ffcc44",
-        "ai-4": "#aa66ff",
-        "ai-5": "#ff8844",
-    };
+    // Build player colors from store data
+    const playerColorMap = $derived.by(() => {
+        const map: Record<string, string> = {};
+        for (const p of activeGameStore.players) {
+            if (p.color) map[p.id] = p.color;
+            if ((p as any).sessionId && p.color) {
+                map[(p as any).sessionId] = p.color;
+            }
+        }
+        return map;
+    });
 
     // Format elapsed time
     function formatTime(ms: number): string {
@@ -135,7 +86,7 @@
             return {
                 playerId,
                 points,
-                color: playerColors[playerId] || "#888",
+                color: playerColorMap[playerId] || "#888",
             };
         });
 
@@ -174,7 +125,7 @@
             return {
                 playerId,
                 points,
-                color: playerColors[playerId] || "#888",
+                color: playerColorMap[playerId] || "#888",
             };
         });
 
@@ -187,7 +138,7 @@
         if (data.length === 0) return { bars: [], maxY: 1, maxX: 100 };
 
         const maxCombat = Math.max(
-            ...data.map((d) => d.totalCombatEvents || 0),
+            ...data.map((d) => (d as any).totalCombatEvents || 0),
             1,
         );
         const maxTick = Math.max(...data.map((d) => d.tick), 1);
@@ -196,9 +147,10 @@
         const bars = data.map((entry, i) => {
             const x = padding.left + (i / data.length) * innerWidth;
             const height =
-                ((entry.totalCombatEvents || 0) / maxCombat) * innerHeight;
+                (((entry as any).totalCombatEvents || 0) / maxCombat) *
+                innerHeight;
             const y = padding.top + innerHeight - height;
-            const conquest = entry.conquestsThisTick || 0;
+            const conquest = (entry as any).conquestsThisTick || 0;
             return {
                 x,
                 y,
@@ -215,21 +167,20 @@
     function formatPlayerId(id: string): string {
         if (id === "human-player") return "You";
         if (id.startsWith("ai-")) return `AI ${id.split("-")[1]}`;
-        return id;
+        const localId = activeGameStore.localPlayerId;
+        if (id === localId) return "You";
+        const player = activeGameStore.players.find(
+            (p) => p.id === id || (p as any).sessionId === id,
+        );
+        return player?.name || id;
     }
 
     function handlePlayAgain() {
-        if (isMP) {
-            multiplayerStore.leaveRoom();
-        }
-        gameStore.playAgain();
+        activeGameStore.playAgain();
     }
 
     function handleReturnToMenu() {
-        if (isMP) {
-            multiplayerStore.leaveRoom();
-        }
-        gameStore.returnToMenu();
+        activeGameStore.returnToMenu();
     }
 </script>
 
@@ -239,10 +190,10 @@
         <header class="results-header">
             <h1
                 class="results-title font-display"
-                class:victory={isVictory}
-                class:defeat={!isVictory}
+                class:victory
+                class:defeat={!victory}
             >
-                {isVictory ? "VICTORY" : "DEFEAT"}
+                {victory ? "VICTORY" : "DEFEAT"}
             </h1>
 
             {#if winner}

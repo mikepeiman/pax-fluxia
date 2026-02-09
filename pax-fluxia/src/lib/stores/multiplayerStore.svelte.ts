@@ -3,7 +3,7 @@
 // ============================================================================
 
 import { Client, Room } from '@colyseus/sdk';
-import type { PlayerState, StarState, StarConnection, StarId } from '$lib/types/game.types';
+import type { PlayerState, StarState, StarConnection, StarId, GameHistoryEntry } from '$lib/types/game.types';
 import { log } from '$lib/utils/logger';
 import type { TickEvents, TransferEvent } from '@pax/common';
 import { activeGameStore } from '$lib/stores/activeGameStore.svelte';
@@ -41,6 +41,7 @@ let players = $state<PlayerState[]>([]);
 let stars = $state<StarState[]>([]);
 let connections = $state<StarConnection[]>([]);
 let pendingTransfers = $state<TransferEvent[]>([]);
+let gameHistory = $state<GameHistoryEntry[]>([]);
 
 // Client-side tick interpolation (for smooth animations in MP)
 const BASE_TICK_MS = 1200;
@@ -172,6 +173,7 @@ function leaveRoom(): void {
     players = [];
     stars = [];
     connections = [];
+    gameHistory = [];
 }
 
 function disconnect(): void {
@@ -235,6 +237,19 @@ function syncStateFromRoom(state: any): void {
         });
     }
     players = playerArray;
+
+    // Accumulate history snapshot for game-over charts
+    if (newPhase === 'playing' && newTick > 0 && playerArray.length > 0) {
+        gameHistory.push({
+            tick: newTick,
+            players: playerArray.map(p => ({
+                id: p.id,
+                starCount: p.starCount ?? 0,
+                totalShips: p.totalShips ?? 0,
+                production: p.production ?? 0,
+            }))
+        });
+    }
 
     // Convert stars map to array
     const starArray: StarState[] = [];
@@ -412,6 +427,7 @@ export const multiplayerStore = {
     get connections() { return connections; },
     get localPlayer() { return players.find(p => (p as any).sessionId === localSessionId); },
     get pendingTransfers() { return pendingTransfers; },
+    get history() { return gameHistory; },
     consumeTransfers() {
         const t = pendingTransfers;
         pendingTransfers = [];

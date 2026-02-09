@@ -13,7 +13,7 @@ import { gameStore } from './gameStore.svelte';
 import type { Star, Player, Connection, GameSpeed } from '@pax/common';
 import { validateOrder } from '@pax/common';
 import type { TickEvents } from '@pax/common';
-import type { StarState, PlayerState, ConnectionState } from '$lib/types/game.types';
+import type { StarState, PlayerState, ConnectionState, GameHistoryEntry } from '$lib/types/game.types';
 import { combatLog } from '$lib/stores/combatLogStore';
 import { GAME_CONFIG } from '$lib/config/game.config';
 
@@ -329,6 +329,72 @@ function canIssueOrder(sourceId: string, targetId: string): boolean {
 }
 
 // ============================================================================
+// Results / History (for game-over screen)
+// ============================================================================
+
+function getHistory(): GameHistoryEntry[] {
+    if (isMultiplayerMode()) {
+        return multiplayerStore.history;
+    }
+    return gameStore.getHistory() as GameHistoryEntry[];
+}
+
+function getStats() {
+    if (isMultiplayerMode()) {
+        return {
+            elapsedMs: 0,
+            totalTicks: multiplayerStore.tick,
+            peakFleetSize: 0,
+            starsCaptured: 0,
+        };
+    }
+    return gameStore.getStats();
+}
+
+function getWinner(): PlayerState | null {
+    if (isMultiplayerMode()) {
+        const wId = multiplayerStore.winnerId;
+        if (!wId) return null;
+        const players = multiplayerStore.players;
+        return players.find(p => (p as any).sessionId === wId || p.id === wId) ?? null;
+    }
+    return gameStore.winner;
+}
+
+function getHumanPlayer(): PlayerState | null {
+    if (isMultiplayerMode()) {
+        const sid = multiplayerStore.localSessionId;
+        return multiplayerStore.players.find(p => (p as any).sessionId === sid) ?? null;
+    }
+    return gameStore.humanPlayer;
+}
+
+function isVictory(): boolean {
+    const w = getWinner();
+    if (!w) return false;
+    if (isMultiplayerMode()) {
+        const sid = multiplayerStore.localSessionId;
+        return (w as any).sessionId === sid;
+    }
+    const human = getHumanPlayer();
+    return human != null && (w as any).id === (human as any).id;
+}
+
+function playAgain(): void {
+    if (isMultiplayerMode()) {
+        multiplayerStore.leaveRoom();
+    }
+    gameStore.playAgain();
+}
+
+function returnToMenu(): void {
+    if (isMultiplayerMode()) {
+        multiplayerStore.leaveRoom();
+    }
+    gameStore.returnToMenu();
+}
+
+// ============================================================================
 // Export Store
 // ============================================================================
 
@@ -365,6 +431,15 @@ export const activeGameStore = {
     resumeGame,
     setSpeed,
     startGame,
+    playAgain,
+    returnToMenu,
+
+    // Results / History
+    getHistory,
+    getStats,
+    getWinner,
+    getHumanPlayer,
+    isVictory,
 
     /** Update BASE_TICK_MS and reschedule engine interval (SP only) */
     updateTickInterval(ms: number) {
