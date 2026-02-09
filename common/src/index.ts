@@ -26,3 +26,4 @@ export * from './schema/GameState';
 // Re-export engine
 export * from './engine/GameEngine';
 export * from './engine/GameInput';
+export * from './engine/TickEvents';

@@ -483,9 +483,17 @@ export class GameRoom extends Room {
         this.processAI();
 
         // 2. SHARED ENGINE TICK (production, orders, combat, repair, stats, win-check)
-        GameEngine.tick(this.state);
+        const events = GameEngine.tick(this.state);
 
-        // 3. POST-TICK: Check if game ended (server needs to stop interval)
+        // 3. BROADCAST TICK EVENTS to clients (for animations, combat logs)
+        const hasEvents = events.transfers.length > 0 ||
+            events.combats.length > 0 ||
+            events.conquests.length > 0;
+        if (hasEvents) {
+            this.broadcast("tickEvents", events);
+        }
+
+        // 4. POST-TICK: Check if game ended (server needs to stop interval)
         if (this.state.phase === "ended") {
             this.stopTick();
             const winner = this.state.winnerId
@@ -494,7 +502,7 @@ export class GameRoom extends Room {
             log.game('GameRoom', `Game ended. Winner: ${winner}`);
         }
 
-        // 4. Reset tick progress for interpolation
+        // 5. Reset tick progress for interpolation
         this.state.tickProgress = 0;
     }
 

@@ -20,6 +20,8 @@ import type { EngineConfig } from "../config";
 import { DEFAULT_ENGINE_CONFIG, STAR_TYPE_STATS } from "../config";
 import type { StarType } from "../types";
 import type { GameInput, IssueOrderInput, CancelOrderInput, SetDeferredOrderInput } from "./GameInput";
+import type { TickEvents } from "./TickEvents";
+import { createEmptyTickEvents } from "./TickEvents";
 
 // ============================================================================
 // Configuration (can be overridden by caller)
@@ -39,15 +41,15 @@ export class GameEngine {
     // ════════════════════════════════════════════════════════════════════════
 
     /**
-     * Execute one game tick on the provided state
-     * @param state - The game state (Colyseus Schema)
-     * @param config - Optional config overrides
+     * Execute one game tick. Mutates state in place.
+     * Returns TickEvents for server to broadcast to clients (animations, combat logs).
      */
-    static tick(state: GameRoomState, config: Partial<EngineConfig> = {}): void {
+    static tick(state: GameRoomState, config: Partial<EngineConfig> = {}): TickEvents {
         const cfg: EngineConfig = { ...DEFAULT_ENGINE_CONFIG, ...config };
+        const events = createEmptyTickEvents();
 
         // Skip if paused or not playing
-        if (state.isPaused || state.phase !== "playing") return;
+        if (state.isPaused || state.phase !== "playing") return events;
 
         // Increment tick counter
         state.tick++;
@@ -55,8 +57,8 @@ export class GameEngine {
         // 1. PRODUCTION - Stars generate ships
         this.processProduction(state, cfg);
 
-        // 2. ORDERS - Process attacks and reinforcements
-        this.processOrders(state, cfg);
+        // 2. ORDERS - Process attacks and reinforcements (collects events)
+        this.processOrders(state, cfg, events);
 
         // 3. REPAIR - Damaged ships repair
         this.processRepair(state, cfg);
@@ -66,6 +68,8 @@ export class GameEngine {
 
         // 5. WIN CHECK
         this.checkWinCondition(state);
+
+        return events;
     }
 
     // ════════════════════════════════════════════════════════════════════════
@@ -158,7 +162,7 @@ export class GameEngine {
     // ORDER PROCESSING - Multi-star aggregation
     // ════════════════════════════════════════════════════════════════════════
 
-    private static processOrders(state: GameRoomState, cfg: EngineConfig): void {
+    private static processOrders(state: GameRoomState, cfg: EngineConfig, events: TickEvents): void {
         // Phase 1: Collect and group orders
         const attacksByTarget = new Map<string, StarSchema[]>();
         const reinforcements: { source: StarSchema; target: StarSchema }[] = [];
@@ -197,6 +201,14 @@ export class GameEngine {
                 const shipped = Math.min(transferAmount, Math.floor(source.activeShips));
                 source.activeShips -= shipped;
                 target.activeShips += shipped;
+
+                // Emit transfer event for client animations
+                events.transfers.push({
+                    sourceId: source.id,
+                    targetId: target.id,
+                    ownerId: source.ownerId,
+                    shipCount: shipped,
+                });
             }
         });
 
@@ -204,7 +216,7 @@ export class GameEngine {
         attacksByTarget.forEach((attackers, targetId) => {
             const target = state.stars.get(targetId);
             if (target) {
-                this.resolveMultiSourceCombat(state, attackers, target, cfg);
+                this.resolveMultiSourceCombat(state, attackers, target, cfg, events);
             }
         });
     }
@@ -217,7 +229,8 @@ export class GameEngine {
         state: GameRoomState,
         attackers: StarSchema[],
         defender: StarSchema,
-        cfg: EngineConfig
+        cfg: EngineConfig,
+        events: TickEvents
     ): void {
         // Filter valid attackers
         const validAttackers = attackers.filter(attacker => {
@@ -252,7 +265,7 @@ export class GameEngine {
             const victor = contributions.reduce((a, b) =>
                 a.force > b.force ? a : b
             ).attacker;
-            this.executeConquest(state, victor, defender, cfg);
+            this.executeConquest(state, victor, defender, cfg, events);
             return;
         }
 
@@ -291,12 +304,30 @@ export class GameEngine {
             }
         });
 
+        // Emit combat event
+        events.combats.push({
+            tick: state.tick,
+            attackerIds: validAttackers.map(a => a.id),
+            attackerOwnerId: validAttackers[0].ownerId,
+            defenderId: defender.id,
+            defenderOwnerId: defender.ownerId,
+            totalAttackForce,
+            defenderForce,
+            killsOnDefender: result.killsOnA,
+            disabledOnDefender: result.disabledOnA,
+            killsOnAttacker: result.killsOnB,
+            disabledOnAttacker: result.disabledOnB,
+            conquered: false,
+        });
+
         // Check conquest threshold
         if (defender.activeShips <= 0 || checkConquestThreshold(defender.activeShips, totalAttackForce)) {
             const victor = contributions.reduce((a, b) =>
                 a.force > b.force ? a : b
             ).attacker;
-            this.executeConquest(state, victor, defender, cfg);
+            // Mark the last combat event as conquered
+            events.combats[events.combats.length - 1].conquered = true;
+            this.executeConquest(state, victor, defender, cfg, events);
         }
     }
 
@@ -304,8 +335,11 @@ export class GameEngine {
         state: GameRoomState,
         attacker: StarSchema,
         defender: StarSchema,
-        cfg: EngineConfig
+        cfg: EngineConfig,
+        events: TickEvents
     ): void {
+        const previousOwner = defender.ownerId;
+
         // Build conquest context for neighbor lookups
         const ctx: ConquestContext = {
             getNeighborIds: (starId: string) => this.getNeighborIds(state, starId),
@@ -313,7 +347,21 @@ export class GameEngine {
         };
 
         // Delegate to shared conquest function
-        applyConquest(attacker, defender as any, ctx, cfg);
+        const conquestResult = applyConquest(attacker, defender as any, ctx, cfg);
+
+        // Emit conquest event
+        events.conquests.push({
+            tick: state.tick,
+            starId: defender.id,
+            previousOwner,
+            newOwner: attacker.ownerId,
+            shipsCaptured: conquestResult.shipsCaptured,
+            shipsEscaped: conquestResult.shipsEscaped,
+            shipsDestroyed: conquestResult.shipsDestroyed,
+            retreatTargetId: conquestResult.retreatTargetId,
+            scatterTargetIds: conquestResult.scatterTargetIds,
+            scatterShipCounts: conquestResult.scatterShipCounts,
+        });
 
         // Void other players' orders to the conquered star
         state.stars.forEach(star => {
