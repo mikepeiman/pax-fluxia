@@ -26,7 +26,7 @@ import {
     areConnected
 } from '$lib/utils/hex.utils';
 import { GAME_CONFIG, calculateCombatV4 } from '$lib/config/game.config';
-import { applyConquest } from '@pax/common';
+import { applyConquest, STAR_TYPE_STATS } from '@pax/common';
 import type { ConquestContext, EngineConfig as SharedEngineConfig } from '@pax/common';
 import { createFleet, type Fleet } from './Fleet';
 import { logCombat } from '$lib/utils/CombatLogger';
@@ -522,10 +522,13 @@ export class GameEngine {
                 attackOrders.push({ source, target });
             } else {
                 // REINFORCEMENT: Ships physically transfer to friendly star
-                const transferRate = GAME_CONFIG.TRANSFER_RATE || 0.1;
+                // Transfer rate: global base rate × star-type speed multiplier
+                // (Blue stars have speed=2, so they transfer at 2× the global rate)
+                const speedMultiplier = STAR_TYPE_STATS[source.starType as StarType]?.speed ?? 1;
+                const effectiveRate = (GAME_CONFIG.TRANSFER_RATE || 0.1) * speedMultiplier;
                 const transferAmount = Math.max(
                     GAME_CONFIG.MIN_SHIPS_PER_TRANSFER,
-                    Math.ceil(source.activeShips * transferRate)
+                    Math.ceil(source.activeShips * effectiveRate)
                 );
 
                 // Orders persist until explicitly cancelled — zero ships does NOT auto-cancel.
@@ -884,6 +887,7 @@ export class GameEngine {
             SCATTER_CAPTURE_RATE: GAME_CONFIG.SCATTER_CAPTURE_RATE,
             SCATTER_DESTROY_RATE: GAME_CONFIG.SCATTER_DESTROY_RATE,
             DAMAGED_SHIP_EFFECTIVENESS: GAME_CONFIG.DAMAGED_SHIP_EFFECTIVENESS,
+            TRANSFER_RATE: GAME_CONFIG.TRANSFER_RATE ?? 0.1,
         };
 
         // Delegate to shared conquest logic

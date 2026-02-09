@@ -49,6 +49,7 @@ export interface EngineConfig {
     REPAIR_COMBAT_PENALTY: number;
 
     // Transfer
+    TRANSFER_RATE: number;                 // Base transfer rate (Blue stars get 2x via speed multiplier)
     MIN_SHIPS_PER_TRANSFER: number;
 
     // Conquest
@@ -70,6 +71,7 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
     MIN_REPAIR: 1,
     REPAIR_COMBAT_PENALTY: 0.1,
     MIN_SHIPS_PER_TRANSFER: 1,
+    TRANSFER_RATE: 0.1,
     CONQUEST_TRANSFER_PERCENTAGE: 50,
     RETAIN_ORDER_ON_CONQUEST: true,
     RETREAT_CAPTURE_RATE: 0.35,

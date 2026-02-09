@@ -70,9 +70,10 @@ User clarified: damaged ships are removed from combat after being damaged. They 
 3. Be partially destroyed as attrition on loss (star conquered)
 
 ## Decision
-- Combat damage transitions active → damaged, never active → destroyed
+- Combat damage transitions active → damaged & active → destroyed (moderated ratio via "Lethality" variable (which needs a better name)), but never damaged → destroyed*.
+*Pax-Fluxia roadmap: ideas: perhaps there could be star types or ship types that favor attacking damaged ships.
 - Damaged ships are out of combat; they contribute 1/7th defensive value (configurable via `DAMAGED_SHIP_EFFECTIVENESS`)
-- Ship destruction only occurs as part of conquest attrition (scatter/retreat)
+
 
 ---
 
@@ -105,3 +106,21 @@ Retreat order should meaningfully affect conquest outcomes vs. passive loss.
 - **Passive loss (no retreat)**: `captureRate = 0.70` — more ships captured by victor
 - **No escape routes**: Capture is total regardless of orders
 - Active retreat = player has escape route AND has ordered retreat on that star
+
+---
+
+# Decision: Star Types Multiply Global Config Variables
+
+**Date:** 2026-02-08
+**Status:** Active
+
+## Context
+All gameplay variables (transfer rate, production, defense, attack, repair) should be tunable via global config sliders. Star types provide bonuses as multipliers on global base values.
+
+## Decision
+- **Global slider** = base value (e.g., `TRANSFER_RATE = 0.1`)
+- **Star type** = multiplier from `STAR_TYPE_STATS[type].{speed|prod|defense|attack|repair}`
+- **Effective value** = `globalBase × starTypeMultiplier`
+- Example: Blue star transfer rate = `0.1 × 2 = 0.2` (Blue has `speed = 2`)
+- Same principle for all star types: Yellow 2× production, Red 2× defense, Green 2× attack, Purple 2× repair
+- Future (Pax Fluxia roadmap): additional multipliers from star upgrades possible

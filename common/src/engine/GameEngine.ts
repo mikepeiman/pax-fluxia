@@ -17,7 +17,8 @@ import { applyProduction, applyRepair } from "../production";
 import { applyConquest } from "../conquest";
 import type { ConquestContext } from "../conquest";
 import type { EngineConfig } from "../config";
-import { DEFAULT_ENGINE_CONFIG } from "../config";
+import { DEFAULT_ENGINE_CONFIG, STAR_TYPE_STATS } from "../config";
+import type { StarType } from "../types";
 import type { GameInput, IssueOrderInput, CancelOrderInput, SetDeferredOrderInput } from "./GameInput";
 
 // ============================================================================
@@ -182,9 +183,14 @@ export class GameEngine {
 
         // Phase 2: Process reinforcements
         reinforcements.forEach(({ source, target }) => {
+            // Transfer rate: global base rate × star-type speed multiplier
+            // (Blue stars have speed=2, so they transfer at 2× the global rate)
+            const starType = (source.starType || 'grey') as StarType;
+            const speedMultiplier = STAR_TYPE_STATS[starType]?.speed ?? 1;
+            const effectiveRate = cfg.TRANSFER_RATE * speedMultiplier;
             const transferAmount = Math.max(
                 cfg.MIN_SHIPS_PER_TRANSFER,
-                Math.floor(source.activeShips * source.transferRate)
+                Math.ceil(source.activeShips * effectiveRate)
             );
 
             if (transferAmount > 0 && source.activeShips > 0) {

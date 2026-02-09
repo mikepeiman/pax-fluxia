@@ -39,6 +39,37 @@ let players = $state<PlayerState[]>([]);
 let stars = $state<StarState[]>([]);
 let connections = $state<StarConnection[]>([]);
 
+// Client-side tick interpolation (for smooth animations in MP)
+const BASE_TICK_MS = 1200;
+let lastTickTime = 0;
+let tickProgressRAF: number | null = null;
+
+function startTickProgressLoop() {
+    if (tickProgressRAF !== null) return;
+
+    function loop() {
+        if (isPaused || phase !== 'playing' || speed <= 0) {
+            tickProgress = 0;
+            tickProgressRAF = requestAnimationFrame(loop);
+            return;
+        }
+
+        const tickIntervalMs = BASE_TICK_MS / speed;
+        const elapsed = performance.now() - lastTickTime;
+        tickProgress = Math.min(1, elapsed / tickIntervalMs);
+        tickProgressRAF = requestAnimationFrame(loop);
+    }
+    tickProgressRAF = requestAnimationFrame(loop);
+}
+
+function stopTickProgressLoop() {
+    if (tickProgressRAF !== null) {
+        cancelAnimationFrame(tickProgressRAF);
+        tickProgressRAF = null;
+    }
+    tickProgress = 0;
+}
+
 // Derived - use function to ensure reactivity
 function getIsHost(): boolean {
     return localSessionId !== null && hostSessionId !== null && localSessionId === hostSessionId;
@@ -123,6 +154,7 @@ async function joinRoom(targetRoomId: string): Promise<boolean> {
 }
 
 function leaveRoom(): void {
+    stopTickProgressLoop();
     if (room) {
         room.leave();
         room = null;
@@ -151,16 +183,33 @@ function disconnect(): void {
 function syncStateFromRoom(state: any): void {
     log.data('Sync', `phase=${state.phase} players=${state.players?.size ?? 0}`);
 
+    // Track tick changes for local interpolation
+    const newTick = state.tick ?? 0;
+    const newPhase = state.phase ?? 'lobby';
+    const newIsPaused = state.isPaused ?? true;
+
+    if (newTick !== tick) {
+        // New tick arrived — reset interpolation timer
+        lastTickTime = performance.now();
+    }
+
     // Update local state from server
-    phase = state.phase ?? 'lobby';
-    tick = state.tick ?? 0;
-    tickProgress = state.tickProgress ?? 0;
-    isPaused = state.isPaused ?? true;
+    phase = newPhase;
+    tick = newTick;
+    // tickProgress computed locally via RAF — don't overwrite from server
+    isPaused = newIsPaused;
     speed = state.speed ?? 1;
     playerCount = state.playerCount ?? 0;
     maxPlayers = state.maxPlayers ?? 4;
     hostSessionId = state.hostSessionId ?? null;
     winnerId = state.winnerId ?? null;
+
+    // Start/stop tick interpolation based on game state
+    if (phase === 'playing' && !isPaused) {
+        startTickProgressLoop();
+    } else {
+        stopTickProgressLoop();
+    }
 
     // Convert players map to array
     const playerArray: PlayerState[] = [];
@@ -205,7 +254,10 @@ function syncStateFromRoom(state: any): void {
                 defensivePosture: star.defensivePosture,
                 defenseStrength: star.defenseStrength,
                 repairRate: star.repairRate,
-                transferRate: star.transferRate
+                transferRate: star.transferRate,
+                productionOverflow: star.productionOverflow ?? 0,
+                repairOverflow: star.repairOverflow ?? 0,
+                lastCombatTick: star.lastCombatTick ?? -1
             });
         });
     }
