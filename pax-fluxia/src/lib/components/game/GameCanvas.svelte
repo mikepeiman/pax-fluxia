@@ -1636,15 +1636,20 @@
         // Convert screen coordinates to world coordinates
         const { x, y } = screenToWorld(screenX, screenY);
 
+        // Find the NEAREST star within a reasonable hit radius
+        let nearest: StarState | null = null;
+        let nearestDist = Infinity;
+
         for (const star of stars) {
             const dist = distance(x, y, star.x, star.y);
-            // FIX: Enlarge hit target (4x radius or 80px min)
-            // Make it excessively clickable
-            if (dist <= Math.max(star.radius * 4, 80)) {
-                return star;
+            // Hit radius: 2× visual radius or 40px minimum
+            const hitRadius = Math.max(star.radius * 2, 40);
+            if (dist <= hitRadius && dist < nearestDist) {
+                nearest = star;
+                nearestDist = dist;
             }
         }
-        return null;
+        return nearest;
     }
 
     function handlePointerDown(event: PointerEvent) {
