@@ -6,28 +6,25 @@
 
     const STORAGE_KEY = "pax-fluxia-combat-tuning";
 
-    // Default values for reset button (canonical game balance settings)
+    // Default values — single source of truth for reset + disabled toggle state
+    // All values in raw units as used by GAME_CONFIG (decimals, not percentages)
     const defaultValues = {
-        // Transfer
-        TRANSFER_RATE: 25, // Stored as % in UI, converted to decimal when applied
-        // Combat
-        AGGRESSOR_ADVANTAGE: 0.7,
-        DAMAGE_PER_SHIP: 0.1,
-        LETHALITY: 0.25,
-        FORCE_RATIO_EFFECT: 0,
-        CONQUEST_THRESHOLD: 8,
-        CONQUEST_TRANSFER_PERCENTAGE: 50,
-        RETREAT_CAPTURE_RATE: 0.35,
-        SCATTER_CAPTURE_RATE: 0.5,
-        SCATTER_DESTROY_RATE: 0.5,
-        DAMAGED_SHIP_EFFECTIVENESS: 0.14,
-        // Production / Repair
-        REPAIR_RATE: 0.2,
-        // AI Behavior
-        AI_ATTACK_THRESHOLD: 1.33,
-        AI_DESIST_THRESHOLD: 1.0,
-        AI_RANDOM_AGGRESSION: 0.05,
-        AI_TACTICAL_AGGRESSION: 0.1,
+        TRANSFER_RATE: 0.1, // 10% transfer rate
+        AGGRESSOR_ADVANTAGE: 0.7, // defense is stronger
+        DAMAGE_PER_SHIP: 0.05, // base damage per ship per tick
+        LETHALITY: 0.1, // kill vs disable ratio
+        FORCE_RATIO_EFFECT: 0, // no force ratio bonus
+        CONQUEST_THRESHOLD: 12, // ratio: attacker force / defender force
+        CONQUEST_TRANSFER_PERCENTAGE: 0.3, // transfer on conquest
+        RETREAT_CAPTURE_RATE: 0.25, // capture rate on retreat
+        SCATTER_CAPTURE_RATE: 0.4, // capture rate on scatter
+        SCATTER_DESTROY_RATE: 0.5, // destruction rate on scatter
+        DAMAGED_SHIP_EFFECTIVENESS: 0.1, // small defensive contribution
+        REPAIR_RATE: 0.1, // 10% repair per tick
+        AI_ATTACK_THRESHOLD: 1.33, // AI attack threshold ratio
+        AI_DESIST_THRESHOLD: 1.0, // AI retreat threshold ratio
+        AI_RANDOM_AGGRESSION: 0.05, // random attack chance per tick
+        AI_TACTICAL_AGGRESSION: 0.1, // tactical attack chance
     };
 
     // Load from localStorage or use defaults
@@ -95,34 +92,9 @@
     // Apply loaded values to GAME_CONFIG on mount
     onMount(() => {
         Object.entries(values).forEach(([key, val]) => {
-            if (key === "TRANSFER_RATE") {
-                // TRANSFER_RATE is stored as % in UI/storage, but needs to be decimal in GAME_CONFIG
-                GAME_CONFIG.TRANSFER_RATE = (val as number) / 100;
-            } else {
-                (GAME_CONFIG as any)[key] = val;
-            }
+            (GAME_CONFIG as any)[key] = val;
         });
     });
-
-    // Neutral values when disabled
-    const neutralValues: Record<string, number> = {
-        TRANSFER_RATE: 10, // Default 10%
-        AGGRESSOR_ADVANTAGE: 0.7, // defense is stronger
-        DAMAGE_PER_SHIP: 0.05, // base damage
-        LETHALITY: 0.1, //
-        FORCE_RATIO_EFFECT: 0, // No force ratio bonus
-        CONQUEST_THRESHOLD: 12, //
-        CONQUEST_TRANSFER_PERCENTAGE: 0.3, // No transfer
-        RETREAT_CAPTURE_RATE: 0.25, // Capture all on retreat
-        SCATTER_CAPTURE_RATE: 0.4, // Capture all on scatter
-        SCATTER_DESTROY_RATE: 0.5, // No destruction
-        DAMAGED_SHIP_EFFECTIVENESS: 0.1, // small defensive contribution from damaged ships
-        REPAIR_RATE: 0.1, // 10% repair
-        AI_ATTACK_THRESHOLD: 1.33, //
-        AI_DESIST_THRESHOLD: 1.0, //
-        AI_RANDOM_AGGRESSION: 0.05, //
-        AI_TACTICAL_AGGRESSION: 0.1, //
-    };
 
     // Timing variables
     let tickInterval = $state(GAME_CONFIG.BASE_TICK_MS);
@@ -138,14 +110,16 @@
         GAME_CONFIG.ANIMATION_SPEED_MS = value;
     }
 
-    // Transfer Rate control (% in UI, decimal in GAME_CONFIG)
-    // Stored as % (25) in localStorage, converted to decimal (0.25) for GAME_CONFIG in onMount
-    let transferRate = $state(initialValues.TRANSFER_RATE ?? 25);
+    // Transfer Rate control — stored as decimal in defaultValues, displayed as % in UI
+    let transferRate = $state(
+        Math.round((initialValues.TRANSFER_RATE ?? 0.1) * 100),
+    );
 
     function updateTransferRate(value: number) {
         transferRate = value;
-        values = { ...values, TRANSFER_RATE: value };
-        GAME_CONFIG.TRANSFER_RATE = value / 100; // Convert % to decimal
+        const decimal = value / 100;
+        values = { ...values, TRANSFER_RATE: decimal };
+        GAME_CONFIG.TRANSFER_RATE = decimal;
         saveToStorage(values as typeof defaultValues);
     }
 
@@ -287,21 +261,12 @@
         if (!wasEnabled) {
             // Was disabled, now enabling: restore saved value
             values = { ...values, [key]: savedValues[key] };
-            if (key === "TRANSFER_RATE") {
-                GAME_CONFIG.TRANSFER_RATE = (savedValues[key] as number) / 100;
-            } else {
-                (GAME_CONFIG as any)[key] = savedValues[key];
-            }
+            (GAME_CONFIG as any)[key] = savedValues[key];
         } else {
             // Was enabled, now disabling: save current value, apply neutral
             savedValues = { ...savedValues, [key]: values[key] };
-            values = { ...values, [key]: neutralValues[key] };
-            if (key === "TRANSFER_RATE") {
-                GAME_CONFIG.TRANSFER_RATE =
-                    (neutralValues[key] as number) / 100;
-            } else {
-                (GAME_CONFIG as any)[key] = neutralValues[key];
-            }
+            values = { ...values, [key]: defaultValues[key] };
+            (GAME_CONFIG as any)[key] = defaultValues[key];
         }
     }
 
