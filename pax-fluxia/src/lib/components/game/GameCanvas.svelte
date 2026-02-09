@@ -324,10 +324,10 @@
     }
 
     function getPlayerColor(ownerId: string): number {
-        // Delegate to unified store for both SP and MP
+        // Use ?? (not ||) — 0x000000 is a valid color, || would treat it as falsy
         return (
-            activeGameStore.getPlayerColor(ownerId) ||
-            PLAYER_COLORS[ownerId] ||
+            activeGameStore.getPlayerColor(ownerId) ??
+            PLAYER_COLORS[ownerId] ??
             0x888888
         );
     }

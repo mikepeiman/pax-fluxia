@@ -372,7 +372,8 @@ function setDeferredOrder(enemyStarId: StarId, nextTargetId: StarId, persistAfte
 function getLocalPlayerId(): string | null {
     if (!localSessionId) return null;
     const player = players.find(p => (p as any).sessionId === localSessionId);
-    return player?.sessionId ?? null;
+    // Return sessionId — matches star.ownerId which is keyed by session
+    return player ? localSessionId : null;
 }
 
 function isOwnStar(starId: StarId): boolean {

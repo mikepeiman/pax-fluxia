@@ -216,13 +216,16 @@ function isLocalStar(star: Star): boolean {
 /**
  * Get player color by owner ID
  */
-function getPlayerColor(ownerId: string): number {
-    const player = getPlayers().find(p => p.id === ownerId);
+function getPlayerColor(ownerId: string): number | null {
+    // In SP, ownerId matches player.id. In MP, ownerId is sessionId.
+    // Check both to handle both modes uniformly.
+    const player = getPlayers().find(p =>
+        p.id === ownerId || (p as any).sessionId === ownerId
+    );
     if (player?.color) {
-        // Parse hex color string to number
         return parseInt(player.color.replace('#', ''), 16);
     }
-    return 0x888888; // Default gray
+    return null;
 }
 
 // ============================================================================

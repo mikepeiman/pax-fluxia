@@ -1,7 +1,7 @@
 <script lang="ts">
     import type { PlayerState } from "$lib/types/game.types";
     import { browser } from "$app/environment";
-    import { multiplayerStore } from "$lib/stores/multiplayerStore.svelte";
+    import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
 
     interface Props {
         players: PlayerState[];
@@ -24,13 +24,9 @@
 
     // Check if player is the local player (works for single and multiplayer)
     function isLocalPlayer(player: PlayerState): boolean {
-        const isMultiplayer = multiplayerStore.phase === "playing";
-        if (isMultiplayer) {
-            const localId = multiplayerStore.getLocalPlayerId();
-            return player.id === localId;
-        }
-        // Single player mode
-        return player.id === "human-player";
+        const localId = activeGameStore.localPlayerId;
+        // In SP, localId matches player.id. In MP, localId is sessionId.
+        return player.id === localId || (player as any).sessionId === localId;
     }
 
     // Derived to ensure reactivity with updated player data
@@ -136,9 +132,9 @@
         background: rgba(255, 255, 255, 0.02);
     }
 
+    /* First place styling (rank 1, not player identity) */
     .leaderboard__item:first-child {
-        background: rgba(0, 255, 255, 0.05);
-        border: 1px solid rgba(0, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.04);
     }
 
     .player-dot {
