@@ -12,7 +12,9 @@ import { multiplayerStore } from './multiplayerStore.svelte';
 import { gameStore } from './gameStore.svelte';
 import type { Star, Player, Connection, GameSpeed } from '@pax/common';
 import { validateOrder } from '@pax/common';
+import type { TickEvents } from '@pax/common';
 import type { StarState, PlayerState, ConnectionState } from '$lib/types/game.types';
+import { combatLog } from '$lib/stores/combatLogStore';
 
 // ============================================================================
 // Mode Detection
@@ -25,6 +27,56 @@ import type { StarState, PlayerState, ConnectionState } from '$lib/types/game.ty
 function isMultiplayerMode(): boolean {
     const mpPhase = multiplayerStore.phase;
     return mpPhase === 'inRoom' || mpPhase === 'playing' || mpPhase === 'ended';
+}
+
+// ============================================================================
+// Event Pipeline State
+// ============================================================================
+
+// Pending tick events — fed by SP or MP, consumed by canvas
+let pendingTickEvents: TickEvents | null = $state(null);
+
+/**
+ * Push tick events from either SP engine or MP server.
+ * Also feeds combat log from events.
+ */
+function pushTickEvents(events: TickEvents): void {
+    pendingTickEvents = events;
+
+    // Feed combat log from events (unified — no longer done separately in each store)
+    for (const combat of events.combats) {
+        combatLog.add({
+            tick: combat.tick,
+            attacker: {
+                id: combat.attackerIds.length > 1 ? `${combat.attackerIds.length} stars` : combat.attackerIds[0],
+                ships: Math.floor(combat.totalAttackForce),
+                starType: '',
+                ownerId: combat.attackerOwnerId,
+                kills: Math.floor(combat.killsOnAttacker),
+                disabled: Math.floor(combat.disabledOnAttacker),
+            },
+            defender: {
+                id: combat.defenderId,
+                ships: Math.floor(combat.defenderForce),
+                starType: '',
+                ownerId: combat.defenderOwnerId,
+                kills: Math.floor(combat.killsOnDefender),
+                disabled: Math.floor(combat.disabledOnDefender),
+            },
+            settings: { aggressor: 0, damage: 0, lethality: 0, forceRatio: 0, repairRate: 0 },
+            result: combat.conquered ? 'CONQUERED' : 'DEFENSE',
+        });
+    }
+}
+
+/**
+ * Consume pending tick events (returns them and clears).
+ * Called by canvas each frame.
+ */
+function consumeTickEvents(): TickEvents | null {
+    const events = pendingTickEvents;
+    pendingTickEvents = null;
+    return events;
 }
 
 // ============================================================================
@@ -139,6 +191,13 @@ function getTickProgress(): number {
     } else {
         return gameStore.tickProgress;
     }
+}
+
+/**
+ * Session ID (changes on new game, used for cache invalidation)
+ */
+function getSessionId(): number {
+    return gameStore.sessionId;
 }
 
 // ============================================================================
@@ -283,6 +342,11 @@ export const activeGameStore = {
     get speed() { return getSpeed(); },
     get isHost() { return getIsHost(); },
     get tickProgress() { return getTickProgress(); },
+    get sessionId() { return getSessionId(); },
+
+    // Tick events pipeline
+    pushTickEvents,
+    consumeTickEvents,
 
     // Helpers
     isLocalStar,

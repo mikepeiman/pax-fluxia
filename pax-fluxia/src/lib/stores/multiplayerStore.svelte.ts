@@ -5,8 +5,8 @@
 import { Client, Room } from '@colyseus/sdk';
 import type { PlayerState, StarState, StarConnection, StarId } from '$lib/types/game.types';
 import { log } from '$lib/utils/logger';
-import { combatLog } from '$lib/stores/combatLogStore';
 import type { TickEvents, TransferEvent } from '@pax/common';
+import { activeGameStore } from '$lib/stores/activeGameStore.svelte';
 
 // Server URL (dev default) - use 127.0.0.1 to avoid IPv6/IPv4 mismatch
 const SERVER_URL = 'http://127.0.0.1:2567';
@@ -309,50 +309,8 @@ function setupRoomListeners(): void {
 
     // Handle tick events (combat, transfer, conquest broadcasts from server)
     room.onMessage('tickEvents', (events: TickEvents) => {
-        // Process transfer events (for canvas ship travel animations)
-        if (events.transfers.length > 0) {
-            pendingTransfers = events.transfers;
-        }
-
-        // Process combat events (feed to combat log store)
-        events.combats.forEach(combat => {
-            // Find star data for attacker/defender to get starType
-            const attackerStar = stars.find(s => s.id === combat.attackerIds[0]);
-            const defenderStar = stars.find(s => s.id === combat.defenderId);
-
-            combatLog.add({
-                tick: combat.tick,
-                attacker: {
-                    id: combat.attackerIds[0],
-                    ships: combat.totalAttackForce,
-                    starType: attackerStar?.starType || 'grey',
-                    ownerId: combat.attackerOwnerId,
-                    kills: combat.killsOnDefender,
-                    disabled: combat.disabledOnDefender,
-                },
-                defender: {
-                    id: combat.defenderId,
-                    ships: combat.defenderForce,
-                    starType: defenderStar?.starType || 'grey',
-                    ownerId: combat.defenderOwnerId,
-                    kills: combat.killsOnAttacker,
-                    disabled: combat.disabledOnAttacker,
-                },
-                settings: {
-                    aggressor: 0,
-                    damage: 0,
-                    lethality: 0,
-                    forceRatio: combat.totalAttackForce / Math.max(1, combat.defenderForce),
-                    repairRate: 0,
-                },
-                result: combat.conquered ? 'CONQUERED' : 'DEFENSE',
-            });
-        });
-
-        // Log conquest events
-        events.conquests.forEach(conquest => {
-            log.data('MP', `Conquest: ${conquest.starId} ${conquest.previousOwner} → ${conquest.newOwner} (captured=${conquest.shipsCaptured} escaped=${conquest.shipsEscaped})`);
-        });
+        // Feed into unified event pipeline (handles combat log + canvas animations)
+        activeGameStore.pushTickEvents(events);
     });
 
     // Error handler

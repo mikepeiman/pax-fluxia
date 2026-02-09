@@ -26,12 +26,12 @@ import {
     areConnected
 } from '$lib/utils/hex.utils';
 import { GAME_CONFIG, calculateCombatV4 } from '$lib/config/game.config';
-import { applyConquest, STAR_TYPE_STATS } from '@pax/common';
-import type { ConquestContext, EngineConfig as SharedEngineConfig } from '@pax/common';
+import { applyConquest, STAR_TYPE_STATS, createEmptyTickEvents } from '@pax/common';
+import type { ConquestContext, EngineConfig as SharedEngineConfig, TickEvents } from '@pax/common';
 import { createFleet, type Fleet } from './Fleet';
 import { logCombat } from '$lib/utils/CombatLogger';
 import { combatLog } from '$lib/stores/combatLogStore';
-// Animation store removed — canvas handles animations via state diffing
+// Animation driven by TickEvents, not state diffing (see POST_MORTEMS.md)
 // NOTE: CombatRules.ts import removed - was dead code, combat handled by calculateCombatV4
 import { HexGrid } from './HexGrid';
 import { Delaunay } from 'd3-delaunay';
@@ -64,6 +64,7 @@ interface Player {
 
 type TickCallback = (state: GameState) => void;
 type TickProgressCallback = (progress: number) => void;
+type TickEventsCallback = (events: TickEvents) => void;
 
 // ============================================================================
 // GameEngine Class
@@ -109,6 +110,7 @@ export class GameEngine {
     // Callbacks
     private onTick: TickCallback | null = null;
     private onTickProgress: TickProgressCallback | null = null;
+    private onTickEvents: TickEventsCallback | null = null;
 
     // Territory
     private territoryPolygons: Record<string, number[][]> = {};
@@ -465,6 +467,9 @@ export class GameEngine {
         this.tick++;
         this.tickStartTime = performance.now();
 
+        // Collect typed events for animations (POST_MORTEMS.md: event-driven, not diff-based)
+        const events = createEmptyTickEvents();
+
         // Reset per-tick combat metrics
         this.tickCombatEvents = 0;
         this.tickConquests = 0;
@@ -472,8 +477,8 @@ export class GameEngine {
         // 1. PRODUCTION
         this.stars.forEach(star => star.produce());
 
-        // 2. FLOW (includes combat)
-        this.processFlowLinks();
+        // 2. ORDERS — transfers + combat (collects events)
+        this.executeTransferOrders(events);
 
         // 3. REPAIR
         this.stars.forEach(star => star.repair(this.tick));
@@ -494,13 +499,16 @@ export class GameEngine {
         // 7. AI
         this.executeAI();
 
-        // 8. CALLBACK
+        // 8. CALLBACKS
         if (this.onTick) {
             this.onTick(this.getState());
         }
+        if (this.onTickEvents) {
+            this.onTickEvents(events);
+        }
     }
 
-    private processFlowLinks(): void {
+    private executeTransferOrders(events: TickEvents): void {
         this.transfers = [];
         const attackOrders: { source: Star, target: Star }[] = [];
         const reinforcements: { source: Star, target: Star, shipped: number }[] = [];
@@ -537,17 +545,13 @@ export class GameEngine {
                 if (shipped > 0) {
                     reinforcements.push({ source, target, shipped });
 
-                    // Create transfer packet for visual
-                    const transferPacket = createFleet({
-                        id: `transfer-${this.tick}-${source.id}-${target.id}`,
+                    // Emit transfer event for animations (event-driven, not diff-based)
+                    events.transfers.push({
                         sourceId: source.id,
                         targetId: target.id,
                         ownerId: source.ownerId,
                         shipCount: shipped,
-                        totalDistance: 100,
-                        speed: 0
                     });
-                    this.transfers.push(transferPacket);
                 }
             }
         });
@@ -575,7 +579,7 @@ export class GameEngine {
         attacksByTarget.forEach((attackers, targetId) => {
             const target = this.stars.get(targetId);
             if (target) {
-                this.resolveMultiSourceCombat(attackers, target);
+                this.resolveMultiSourceCombat(attackers, target, events);
             }
         });
     }
@@ -589,7 +593,7 @@ export class GameEngine {
      * and old owner's order was cancelled). If new owner had a chain-through order
      * to this same target, it will still be set and attack proceeds.
      */
-    private resolveMultiSourceCombat(attackers: Star[], defender: Star): void {
+    private resolveMultiSourceCombat(attackers: Star[], defender: Star, events: TickEvents): void {
         // Filter out attackers with no ships OR whose target was cancelled mid-tick
         // When a star is conquered, setOwner() clears old target and may set new one from queued order
         const validAttackers = attackers.filter(attacker => {
@@ -648,7 +652,7 @@ export class GameEngine {
             const strongestAttacker = winnerStars.reduce((a, b) =>
                 a.activeShips > b.activeShips ? a : b
             );
-            this.executeConquest(strongestAttacker, defender);
+            this.executeConquest(strongestAttacker, defender, events);
             return;
         }
 
@@ -733,6 +737,22 @@ export class GameEngine {
             result: defender.activeShips > 0 ? 'DEFENSE' : 'FALLING'
         });
 
+        // Emit CombatEvent for unified event pipeline
+        events.combats.push({
+            tick: this.tick,
+            attackerIds: validAttackers.map(a => a.id),
+            attackerOwnerId: primaryAttacker.ownerId,
+            defenderId: defender.id,
+            defenderOwnerId: defender.ownerId,
+            totalAttackForce: totalAttackShips,
+            defenderForce,
+            killsOnDefender: Math.floor(killsOnDefender),
+            disabledOnDefender: Math.floor(disabledOnDefender),
+            killsOnAttacker: Math.floor(killsOnAttacker),
+            disabledOnAttacker: Math.floor(disabledOnAttacker),
+            conquered: false,
+        });
+
         // Check CONQUEST condition using TOTAL attacking ships (all players)
         const conquestThreshold = totalAttackShips / GAME_CONFIG.CONQUEST_THRESHOLD;
         if (defender.activeShips <= conquestThreshold) {
@@ -750,7 +770,7 @@ export class GameEngine {
             const victor = winnerStars.reduce((a, b) =>
                 a.activeShips > b.activeShips ? a : b
             );
-            this.executeConquest(victor, defender);
+            this.executeConquest(victor, defender, events);
         }
     }
 
@@ -759,7 +779,7 @@ export class GameEngine {
      * Ships stay at their stars during combat - damage is dealt each tick until conquest
      * Both sides take damage simultaneously
      */
-    private resolveCombat(attacker: Star, defender: Star): void {
+    private resolveCombat(attacker: Star, defender: Star, events: TickEvents): void {
         if (attacker.activeShips <= 0) {
             attacker.clearTarget();
             return;
@@ -772,7 +792,7 @@ export class GameEngine {
 
         if (defenderForce <= 0) {
             // Instant conquest - no defenders
-            this.executeConquest(attacker, defender);
+            this.executeConquest(attacker, defender, events);
             return;
         }
 
@@ -850,7 +870,7 @@ export class GameEngine {
         // Check CONQUEST condition: defender ships <= 1/7th of attacker
         const conquestThreshold = attackerForce / GAME_CONFIG.CONQUEST_THRESHOLD;
         if (defender.activeShips <= conquestThreshold) {
-            this.executeConquest(attacker, defender);
+            this.executeConquest(attacker, defender, events);
         }
     }
 
@@ -858,7 +878,7 @@ export class GameEngine {
      * Execute star conquest - delegates to shared applyConquest() for mechanics,
      * then handles client-only animation/logging from the result.
      */
-    private executeConquest(attacker: Star, defender: Star): void {
+    private executeConquest(attacker: Star, defender: Star, events: TickEvents): void {
         const previousOwner = defender.ownerId;
 
         // Build conquest context for neighbor lookups
@@ -894,7 +914,7 @@ export class GameEngine {
         const result = applyConquest(attacker as any, defender as any, ctx, cfg);
 
         // ================================================================
-        // CLIENT-ONLY: Animation logging (visual animations handled by canvas diffing)
+        // CLIENT-ONLY: Logging
         // ================================================================
 
         if (result.retreatTargetId) {
@@ -955,6 +975,28 @@ export class GameEngine {
             destroyed: Math.floor(result.shipsDestroyed),
             defenderTotalAtConquest: result.defenderTotalAtConquest
         });
+
+        // Emit ConquestEvent for unified event pipeline
+        events.conquests.push({
+            tick: this.tick,
+            starId: defender.id,
+            previousOwner,
+            newOwner: attacker.ownerId,
+            shipsCaptured: result.shipsCaptured,
+            shipsEscaped: result.shipsEscaped,
+            shipsDestroyed: result.shipsDestroyed,
+            retreatTargetId: result.retreatTargetId,
+            scatterTargetIds: result.scatterTargetIds,
+            scatterShipCounts: result.scatterShipCounts,
+        });
+
+        // Mark the last combat event as conquered (if combat preceded this)
+        if (events.combats.length > 0) {
+            const lastCombat = events.combats[events.combats.length - 1];
+            if (lastCombat.defenderId === defender.id) {
+                lastCombat.conquered = true;
+            }
+        }
 
         // ================================================================
         // Cancel orders targeting this conquered star from all other players
@@ -1336,6 +1378,10 @@ export class GameEngine {
         this.onTickProgress = callback;
     }
 
+    setOnTickEvents(callback: TickEventsCallback): void {
+        this.onTickEvents = callback;
+    }
+
     destroy(): void {
         this.clearTickInterval();
         if (this.progressLoopId) {
@@ -1344,6 +1390,7 @@ export class GameEngine {
         }
         this.onTick = null;
         this.onTickProgress = null;
+        this.onTickEvents = null;
         this.stars.clear();
         this.links.clear();
         this.fleets.clear();

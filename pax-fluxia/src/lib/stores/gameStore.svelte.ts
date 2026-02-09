@@ -16,6 +16,7 @@ import { GameEngine, createEngine } from '$lib/engine/GameEngine';
 import { combatLog } from '$lib/stores/combatLogStore';
 import { audio } from '$lib/audio/AudioManager';
 import { GAME_CONFIG } from '$lib/config/game.config';
+import { activeGameStore } from '$lib/stores/activeGameStore.svelte';
 
 // Default settings
 const DEFAULT_SETTINGS: GameSettings = {
@@ -128,6 +129,11 @@ async function startGame(): Promise<void> {
 
     engine.setOnTickProgress((progress: number) => {
         tickProgress = progress;
+    });
+
+    // Feed tick events into the unified pipeline
+    engine.setOnTickEvents((events) => {
+        activeGameStore.pushTickEvents(events);
     });
 
     // Initial state

@@ -1,8 +1,6 @@
 <script lang="ts">
     import { onMount, onDestroy } from "svelte";
     import * as PIXI from "pixi.js";
-    import { gameStore } from "$lib/stores/gameStore.svelte";
-    import { multiplayerStore } from "$lib/stores/multiplayerStore.svelte";
     import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
     import { log } from "$lib/utils/logger";
     import { GAME_CONFIG } from "$lib/config/game.config";
@@ -70,11 +68,7 @@
     let animationFrameId: number | null = null;
     let resizeObserver: ResizeObserver | null = null;
 
-    // Previous frame cache for animation diff detection
-    let prevStarShips: Map<
-        string,
-        { active: number; owner: string; targetId: string | null }
-    > = new Map();
+    // Previous frame cache removed — animations are event-driven (see POST_MORTEMS.md)
 
     // Input state
     let isDragging = false;
@@ -102,9 +96,7 @@
         isDeferred: boolean = false,
     ) {
         // Validate both stars exist in current data source
-        const currentStars = isMultiplayerMode()
-            ? multiplayerStore.stars
-            : gameStore.snapshot?.stars || [];
+        const currentStars = activeGameStore.stars as StarState[];
         if (currentStars.length === 0) return;
 
         const sourceExists = currentStars.some((s) => s.id === sourceId);
@@ -149,55 +141,34 @@
         "ai-5": 0xff8844,
     };
 
-    // Helper: Check if star is owned by local player (works for both single player and multiplayer)
+    // Helper: Check if star is owned by local player
     function isLocalPlayerStar(star: StarState): boolean {
-        const isMultiplayer = multiplayerStore.phase === "playing";
-        if (isMultiplayer) {
-            const localPlayerId = multiplayerStore.getLocalPlayerId();
-            return star.ownerId === localPlayerId;
-        }
-        // Single player mode
-        return star.ownerId === "human-player";
+        return activeGameStore.isLocalStar(star as any);
     }
 
-    // Helper: Check if we're in multiplayer mode
-    function isMultiplayerMode(): boolean {
-        return multiplayerStore.phase === "playing";
-    }
-
-    // Helper: Issue order (works for both single player and multiplayer)
+    // Helper: Issue order via unified store
     function doIssueOrder(
         sourceId: string,
         targetId: string,
         persist: boolean,
     ): boolean {
-        if (isMultiplayerMode()) {
-            multiplayerStore.issueOrder(sourceId, targetId);
-            return true; // Assume success for multiplayer
-        }
-        return gameStore.issueOrder(sourceId, targetId, persist);
+        activeGameStore.issueOrder(sourceId, targetId, persist);
+        return true;
     }
 
-    // Helper: Cancel order (works for both single player and multiplayer)
+    // Helper: Cancel order via unified store
     function doCancelOrder(starId: string): void {
-        if (isMultiplayerMode()) {
-            multiplayerStore.cancelOrder(starId);
-        } else {
-            gameStore.cancelOrder(starId);
-        }
+        activeGameStore.cancelOrder(starId);
     }
 
-    // Helper: Set deferred order (works for both single player and multiplayer)
+    // Helper: Set deferred order via unified store
     function doSetDeferredOrder(
         sourceId: string,
         targetId: string,
         persist: boolean,
     ): boolean {
-        if (isMultiplayerMode()) {
-            multiplayerStore.setDeferredOrder(sourceId, targetId);
-            return true; // Assume success for multiplayer
-        }
-        return gameStore.setDeferredOrder(sourceId, targetId, persist);
+        activeGameStore.setDeferredOrder(sourceId, targetId, persist);
+        return true;
     }
 
     // ============================================================================
@@ -309,23 +280,10 @@
                 animationTime += deltaTime;
             }
 
-            // Render the current frame - check multiplayer first
-            if (
-                multiplayerStore.phase === "playing" &&
-                multiplayerStore.stars.length > 0 &&
-                app
-            ) {
-                // MULTIPLAYER MODE: Read from server-synced state
-                renderFrame(
-                    multiplayerStore.stars,
-                    multiplayerStore.tickProgress,
-                );
-            } else {
-                // SINGLE PLAYER MODE: Read from local gameStore
-                const snapshot = gameStore.snapshot;
-                if (snapshot && app) {
-                    renderFrame(snapshot.stars, gameStore.tickProgress);
-                }
+            // Render the current frame from unified store
+            const stars = activeGameStore.stars as StarState[];
+            if (stars.length > 0 && app) {
+                renderFrame(stars, activeGameStore.tickProgress);
             }
 
             animationFrameId = requestAnimationFrame(loop);
@@ -366,20 +324,12 @@
     }
 
     function getPlayerColor(ownerId: string): number {
-        // In multiplayer mode, look up color from player data
-        if (isMultiplayerMode()) {
-            const player = multiplayerStore.players.find(
-                (p) => p.sessionId === ownerId,
-            );
-            if (player && player.color) {
-                // Player color is stored as hex string like "#4488ff"
-                return parseInt(player.color.replace("#", ""), 16);
-            }
-            // Neutral or unknown
-            return 0x888888;
-        }
-        // Single player mode - use hardcoded colors
-        return PLAYER_COLORS[ownerId] ?? 0x888888;
+        // Delegate to unified store for both SP and MP
+        return (
+            activeGameStore.getPlayerColor(ownerId) ||
+            PLAYER_COLORS[ownerId] ||
+            0x888888
+        );
     }
 
     // Helper to safely parse color from config (string/number/object)
@@ -454,7 +404,7 @@
             return;
 
         // Reset state on new game session
-        const currentSessionId = gameStore.sessionId;
+        const currentSessionId = activeGameStore.sessionId;
         if (currentSessionId !== lastSessionId) {
             lastSessionId = currentSessionId;
             pendingOrders.clear();
@@ -493,11 +443,8 @@
         // Render stars (static elements)
         renderStars(stars);
 
-        // Render connections (star network) - use multiplayerStore if in multiplayer mode
-        const isMultiplayer = multiplayerStore.phase === "playing";
-        const connections = isMultiplayer
-            ? multiplayerStore.connections
-            : gameStore.snapshot?.connections;
+        // Render connections (star network) - unified source
+        const connections = activeGameStore.connections as StarConnection[];
         if (connections) {
             renderConnections(stars, connections);
         }
@@ -507,17 +454,14 @@
 
         // NOTE: Pending orders cleanup is now handled in renderFlowLinks()
 
-        // Render traveling fleets (authoritative)
-        const fleets = isMultiplayer ? [] : (gameStore.snapshot as any)?.fleets; // TODO: Add fleet sync to multiplayer
-        if (fleets && fleets.length > 0) {
-            shipGraphics?.clear(); // Clear once before drawing any ships (fleets + orbiting)
-            renderFleets(stars, fleets);
-        } else {
-            shipGraphics?.clear();
-        }
+        // Clear ship graphics for current frame
+        shipGraphics?.clear();
 
-        // Detect ship transfers by diffing state, move visual ships to traveling
-        detectTransfers(stars, connections || []);
+        // Process tick events (event-driven animations, not diff-based — see POST_MORTEMS.md)
+        const tickEvents = activeGameStore.consumeTickEvents();
+        if (tickEvents) {
+            processTickEvents(stars, tickEvents, connections || []);
+        }
 
         // Render all ships: orbiting (per-star) + traveling (in-flight lifecycle)
         renderShips(stars, tickProgress);
@@ -1019,190 +963,175 @@
     }
 
     // ============================================================================
-    // Animation System — Unified Ship Lifecycle
+    // Animation System — Event-Driven Ship Lifecycle
+    // (POST_MORTEMS.md: animations driven by TickEvents, not state diffing)
     // ============================================================================
 
     /**
-     * Detect transfers by diffing star ship counts between frames.
-     * When ships decrease on a star with a target, move visual ships to travelingShips.
+     * Process tick events to create ship travel animations.
+     * Uses explicit TransferEvent/ConquestEvent data instead of diff-based detection.
      */
-    function detectTransfers(
+    function processTickEvents(
         stars: StarState[],
+        events: import("@pax/common").TickEvents,
         connections: StarConnection[],
     ) {
         const starsById = new Map(stars.map((s) => [s.id, s]));
         const now = performance.now();
 
-        // Build neighbor lookup from connections
-        const neighborMap = new Map<string, Set<string>>();
-        connections.forEach((conn) => {
-            if (!neighborMap.has(conn.fromId))
-                neighborMap.set(conn.fromId, new Set());
-            if (!neighborMap.has(conn.toId))
-                neighborMap.set(conn.toId, new Set());
-            neighborMap.get(conn.fromId)!.add(conn.toId);
-            neighborMap.get(conn.toId)!.add(conn.fromId);
-        });
+        // Process TRANSFER events → ship travel animations
+        for (const transfer of events.transfers) {
+            const source = starsById.get(transfer.sourceId);
+            const target = starsById.get(transfer.targetId);
+            if (!source || !target) continue;
 
-        stars.forEach((star) => {
-            const prev = prevStarShips.get(star.id);
-            if (!prev) return;
+            const count = Math.floor(transfer.shipCount);
+            const ships = visualShips.get(transfer.sourceId) || [];
 
-            const shipDelta = prev.active - star.activeShips;
+            // Calculate lane geometry
+            const dx = target.x - source.x;
+            const dy = target.y - source.y;
+            const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+            const ndx = dx / dist;
+            const ndy = dy / dist;
 
-            // Transfer: ships decreased AND star has a target
-            if (shipDelta >= 1 && star.targetId) {
-                const target = starsById.get(star.targetId);
-                // Only animate ship travel for friendly transfers (same owner)
-                // Attacks are remote engagement — ships stay at source star
-                if (target && target.ownerId === star.ownerId) {
-                    const count = Math.floor(shipDelta);
-                    const ships = visualShips.get(star.id) || [];
+            const laneStartX = source.x + ndx * (source.radius + 5);
+            const laneStartY = source.y + ndy * (source.radius + 5);
+            const laneEndX = target.x - ndx * (target.radius + 5);
+            const laneEndY = target.y - ndy * (target.radius + 5);
 
-                    // Calculate lane geometry
-                    const dx = target.x - star.x;
-                    const dy = target.y - star.y;
-                    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                    const ndx = dx / dist;
-                    const ndy = dy / dist;
+            const travelDuration =
+                SHIP_ANIM.TRAVEL_BASE_DURATION +
+                (dist / 100) * SHIP_ANIM.TRAVEL_PER_100PX;
 
-                    // Lane start/end (offset from star centers by radius)
-                    const laneStartX = star.x + ndx * (star.radius + 5);
-                    const laneStartY = star.y + ndy * (star.radius + 5);
-                    const laneEndX = target.x - ndx * (target.radius + 5);
-                    const laneEndY = target.y - ndy * (target.radius + 5);
+            const shipsToMove = Math.min(count, ships.length);
+            for (let i = 0; i < shipsToMove; i++) {
+                const ship = ships.pop()!;
+                ship.state = "departing";
+                ship.fromStarId = transfer.sourceId;
+                ship.toStarId = transfer.targetId;
+                ship.departTime =
+                    now +
+                    i *
+                        Math.min(
+                            SHIP_ANIM.STREAM_STAGGER,
+                            SHIP_ANIM.MAX_STREAM_STAGGER /
+                                Math.max(1, shipsToMove),
+                        );
+                ship.travelDuration = travelDuration;
+                ship.laneStartX = laneStartX;
+                ship.laneStartY = laneStartY;
+                ship.laneEndX = laneEndX;
+                ship.laneEndY = laneEndY;
+                ship.staggerDelay =
+                    i *
+                    Math.min(
+                        SHIP_ANIM.STREAM_STAGGER,
+                        SHIP_ANIM.MAX_STREAM_STAGGER / Math.max(1, shipsToMove),
+                    );
+                ship.ownerId = transfer.ownerId;
+                travelingShips.push(ship);
+            }
+            visualShips.set(transfer.sourceId, ships);
+        }
 
-                    // Travel duration based on distance
-                    const travelDuration =
-                        SHIP_ANIM.TRAVEL_BASE_DURATION +
-                        (dist / 100) * SHIP_ANIM.TRAVEL_PER_100PX;
+        // Process CONQUEST events → scatter/retreat animations
+        for (const conquest of events.conquests) {
+            const conqueredStar = starsById.get(conquest.starId);
+            if (!conqueredStar) continue;
 
-                    // Pull ships from the end of the array (most recently spawned)
-                    const shipsToMove = Math.min(count, ships.length);
-                    for (let i = 0; i < shipsToMove; i++) {
-                        const ship = ships.pop()!;
+            const ships = visualShips.get(conquest.starId) || [];
+            if (ships.length === 0) continue;
+
+            // Use explicit scatter data from ConquestEvent
+            if (
+                conquest.scatterTargetIds &&
+                conquest.scatterTargetIds.length > 0
+            ) {
+                let shipsAnimated = 0;
+                for (let t = 0; t < conquest.scatterTargetIds.length; t++) {
+                    const targetId = conquest.scatterTargetIds[t];
+                    const targetStar = starsById.get(targetId);
+                    if (!targetStar) continue;
+
+                    const shipCount = conquest.scatterShipCounts?.[t] ?? 1;
+                    const count = Math.min(
+                        shipCount,
+                        ships.length - shipsAnimated,
+                    );
+
+                    for (let i = 0; i < count; i++) {
+                        if (shipsAnimated >= ships.length) break;
+                        const ship = ships[shipsAnimated];
+                        const dx = targetStar.x - conqueredStar.x;
+                        const dy = targetStar.y - conqueredStar.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                        const ndx = dx / dist;
+                        const ndy = dy / dist;
+
                         ship.state = "departing";
-                        ship.fromStarId = star.id;
-                        ship.toStarId = target.id;
-                        ship.departTime =
-                            now +
-                            i *
-                                Math.min(
-                                    SHIP_ANIM.STREAM_STAGGER,
-                                    SHIP_ANIM.MAX_STREAM_STAGGER /
-                                        Math.max(1, shipsToMove),
-                                );
-                        ship.travelDuration = travelDuration;
-                        ship.laneStartX = laneStartX;
-                        ship.laneStartY = laneStartY;
-                        ship.laneEndX = laneEndX;
-                        ship.laneEndY = laneEndY;
-                        ship.staggerDelay =
-                            i *
-                            Math.min(
-                                SHIP_ANIM.STREAM_STAGGER,
-                                SHIP_ANIM.MAX_STREAM_STAGGER /
-                                    Math.max(1, shipsToMove),
-                            );
-                        ship.ownerId = star.ownerId;
+                        ship.fromStarId = conquest.starId;
+                        ship.toStarId = targetId;
+                        ship.departTime = now + shipsAnimated * 20;
+                        ship.travelDuration =
+                            SHIP_ANIM.TRAVEL_BASE_DURATION * 0.7;
+                        ship.laneStartX =
+                            conqueredStar.x + ndx * (conqueredStar.radius + 5);
+                        ship.laneStartY =
+                            conqueredStar.y + ndy * (conqueredStar.radius + 5);
+                        ship.laneEndX =
+                            targetStar.x - ndx * (targetStar.radius + 5);
+                        ship.laneEndY =
+                            targetStar.y - ndy * (targetStar.radius + 5);
+                        ship.staggerDelay = shipsAnimated * 20;
+                        ship.ownerId = conquest.previousOwner;
+                        travelingShips.push(ship);
+                        shipsAnimated++;
+                    }
+                }
+                ships.splice(0, shipsAnimated);
+                visualShips.set(conquest.starId, ships);
+            } else if (conquest.retreatTargetId) {
+                // Single retreat target
+                const retreatStar = starsById.get(conquest.retreatTargetId);
+                if (retreatStar) {
+                    const escapeCount = Math.min(
+                        Math.floor(conquest.shipsEscaped),
+                        ships.length,
+                    );
+                    for (let i = 0; i < escapeCount; i++) {
+                        const ship = ships.pop()!;
+                        const dx = retreatStar.x - conqueredStar.x;
+                        const dy = retreatStar.y - conqueredStar.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                        const ndx = dx / dist;
+                        const ndy = dy / dist;
+
+                        ship.state = "departing";
+                        ship.fromStarId = conquest.starId;
+                        ship.toStarId = conquest.retreatTargetId!;
+                        ship.departTime = now + i * 20;
+                        ship.travelDuration =
+                            SHIP_ANIM.TRAVEL_BASE_DURATION * 0.7;
+                        ship.laneStartX =
+                            conqueredStar.x + ndx * (conqueredStar.radius + 5);
+                        ship.laneStartY =
+                            conqueredStar.y + ndy * (conqueredStar.radius + 5);
+                        ship.laneEndX =
+                            retreatStar.x - ndx * (retreatStar.radius + 5);
+                        ship.laneEndY =
+                            retreatStar.y - ndy * (retreatStar.radius + 5);
+                        ship.staggerDelay = i * 20;
+                        ship.ownerId = conquest.previousOwner;
                         travelingShips.push(ship);
                     }
-                    visualShips.set(star.id, ships);
+                    visualShips.set(conquest.starId, ships);
                 }
+            } else {
+                // No escape — all captured/destroyed, clear visuals
+                visualShips.set(conquest.starId, []);
             }
-
-            // Conquest detection: ownership changed
-            if (
-                prev.owner &&
-                star.ownerId !== prev.owner &&
-                prev.owner !== ""
-            ) {
-                const ships = visualShips.get(star.id) || [];
-                if (ships.length > 0) {
-                    // Find CONNECTED neighbor stars owned by previous owner
-                    const connectedIds = neighborMap.get(star.id) || new Set();
-                    const scatterTargets: {
-                        star: StarState;
-                        shipsGained: number;
-                    }[] = [];
-
-                    connectedIds.forEach((nId) => {
-                        const neighbor = starsById.get(nId);
-                        if (!neighbor) return;
-                        // Check if neighbor belongs to previous owner
-                        if (neighbor.ownerId !== prev.owner) return;
-                        // Check how many ships this neighbor gained
-                        const prevNeighbor = prevStarShips.get(nId);
-                        if (!prevNeighbor) return;
-                        const gained =
-                            neighbor.activeShips - prevNeighbor.active;
-                        if (gained > 0) {
-                            scatterTargets.push({
-                                star: neighbor,
-                                shipsGained: gained,
-                            });
-                        }
-                    });
-
-                    if (scatterTargets.length > 0) {
-                        // Animate only the real ships that scattered
-                        let shipsAnimated = 0;
-                        scatterTargets.forEach((target) => {
-                            const count = Math.min(
-                                target.shipsGained,
-                                ships.length - shipsAnimated,
-                            );
-                            for (let i = 0; i < count; i++) {
-                                if (shipsAnimated >= ships.length) break;
-                                const ship = ships[shipsAnimated];
-                                const dx = target.star.x - star.x;
-                                const dy = target.star.y - star.y;
-                                const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                                const ndx = dx / dist;
-                                const ndy = dy / dist;
-
-                                ship.state = "departing";
-                                ship.fromStarId = star.id;
-                                ship.toStarId = target.star.id;
-                                ship.departTime = now + shipsAnimated * 20;
-                                ship.travelDuration =
-                                    SHIP_ANIM.TRAVEL_BASE_DURATION * 0.7;
-                                ship.laneStartX =
-                                    star.x + ndx * (star.radius + 5);
-                                ship.laneStartY =
-                                    star.y + ndy * (star.radius + 5);
-                                ship.laneEndX =
-                                    target.star.x -
-                                    ndx * (target.star.radius + 5);
-                                ship.laneEndY =
-                                    target.star.y -
-                                    ndy * (target.star.radius + 5);
-                                ship.staggerDelay = shipsAnimated * 20;
-                                ship.ownerId = prev.owner;
-                                travelingShips.push(ship);
-                                shipsAnimated++;
-                            }
-                        });
-                        // Remove animated ships, keep the rest (they were captured/destroyed)
-                        ships.splice(0, shipsAnimated);
-                        visualShips.set(star.id, ships);
-                    } else {
-                        // No escape routes — all captured/destroyed, just clear visuals
-                        visualShips.set(star.id, []);
-                    }
-                }
-            }
-        });
-
-        // Update cache for next frame
-        prevStarShips.clear();
-        stars.forEach((star) => {
-            prevStarShips.set(star.id, {
-                active: star.activeShips,
-                owner: star.ownerId,
-                targetId: star.targetId,
-            });
-        });
+        }
     }
 
     /**
@@ -1783,9 +1712,7 @@
 
         if (targetStar && targetStar.id !== dragSourceId) {
             // Validate connection first - use correct data source for multiplayer
-            const connections = isMultiplayerMode()
-                ? multiplayerStore.connections
-                : gameStore.snapshot?.connections || [];
+            const connections = activeGameStore.connections as StarConnection[];
             const isConnected = connections.some(
                 (c) =>
                     (c.sourceId === dragSourceId &&
@@ -1795,13 +1722,11 @@
             );
 
             if (isConnected) {
-                const stars = isMultiplayerMode()
-                    ? multiplayerStore.stars
-                    : gameStore.snapshot?.stars || [];
-                const sourceStar = stars.find((s) => s.id === dragSourceId);
-                const localPlayerId = isMultiplayerMode()
-                    ? multiplayerStore.getLocalPlayerId()
-                    : gameStore.snapshot?.players.find((p) => !p.isAI)?.id;
+                const stars = activeGameStore.stars as StarState[];
+                const sourceStar = stars.find(
+                    (s: StarState) => s.id === dragSourceId,
+                );
+                const localPlayerId = activeGameStore.localPlayerId;
                 const isSourceMine = sourceStar?.ownerId === localPlayerId;
                 const isTargetMine = targetStar.ownerId === localPlayerId;
                 const isTargetEnemy =
@@ -1888,9 +1813,8 @@
         if (movedSignificantly && dragSourceId) {
             if (targetStar && targetStar.id !== dragSourceId) {
                 // Validate connection before issuing order
-                const connections = isMultiplayerMode()
-                    ? multiplayerStore.connections
-                    : gameStore.snapshot?.connections || [];
+                const connections =
+                    activeGameStore.connections as StarConnection[];
                 const isConnected = connections.some(
                     (c) =>
                         (c.sourceId === dragSourceId &&
@@ -1941,9 +1865,8 @@
             }
             // Case 2: Have a prior selection -> try to issue order, then select Y
             else if (activeStarId) {
-                const currentConnections = isMultiplayerMode()
-                    ? multiplayerStore.connections
-                    : gameStore.snapshot?.connections || [];
+                const currentConnections =
+                    activeGameStore.connections as StarConnection[];
                 const isConnected = currentConnections.some(
                     (c) =>
                         (c.sourceId === activeStarId &&
@@ -1953,9 +1876,7 @@
                 );
 
                 if (isConnected) {
-                    const currentStars = isMultiplayerMode()
-                        ? multiplayerStore.stars
-                        : gameStore.snapshot?.stars || [];
+                    const currentStars = activeGameStore.stars as StarState[];
                     const activeStarSnapshot = currentStars.find(
                         (s) => s.id === activeStarId,
                     );
@@ -2091,9 +2012,11 @@
         const target = hitTestStar(dragCurrentX, dragCurrentY);
         if (target && target.id !== dragSourceId) {
             // Check connectivity
-            const snapshot = gameStore.snapshot;
-            const isConnected = snapshot?.connections.some(
-                (c) =>
+            // Check connectivity
+            const currentConnections =
+                activeGameStore.connections as StarConnection[];
+            const isConnected = currentConnections.some(
+                (c: StarConnection) =>
                     (c.sourceId === dragSourceId && c.targetId === target.id) ||
                     (c.sourceId === target.id && c.targetId === dragSourceId),
             );
