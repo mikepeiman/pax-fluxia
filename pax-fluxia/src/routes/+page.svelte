@@ -67,7 +67,7 @@
 
         <!-- Overlays -->
 
-        {#if gameStore.winner || activeGameStore.phase === "results"}
+        {#if gameStore.winner || (activeGameStore.phase as string) === "ended"}
           <div class="modal-overlay">
             <ResultsModal />
           </div>
@@ -89,7 +89,7 @@
             <div class="action-buttons">
               <button
                 class="btn btn--ghost btn--sm"
-                onclick={() => gameStore.playAgain()}
+                onclick={() => activeGameStore.playAgain()}
               >
                 Restart
               </button>
@@ -102,7 +102,7 @@
               </button>
               <button
                 class="btn btn--danger btn--sm"
-                onclick={() => gameStore.surrender()}
+                onclick={() => activeGameStore.returnToMenu()}
               >
                 Surrender
               </button>
