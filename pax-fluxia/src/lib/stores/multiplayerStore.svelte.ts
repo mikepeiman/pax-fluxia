@@ -186,11 +186,14 @@ function disconnect(): void {
 // ============================================================================
 
 function syncStateFromRoom(state: any): void {
-    log.data('Sync', `phase=${state.phase} players=${state.players?.size ?? 0}`);
+    const newPhase = state.phase ?? 'lobby';
+    // Only log phase transitions, not every tick
+    if (newPhase !== phase) {
+        log.data('Sync', `phase=${newPhase} players=${state.players?.size ?? 0}`);
+    }
 
     // Track tick changes for local interpolation
     const newTick = state.tick ?? 0;
-    const newPhase = state.phase ?? 'lobby';
     const newIsPaused = state.isPaused ?? true;
 
     if (newTick !== tick) {
@@ -220,7 +223,6 @@ function syncStateFromRoom(state: any): void {
     const playerArray: PlayerState[] = [];
     if (state.players) {
         state.players.forEach((player: any, key: string) => {
-            log.data('Sync', `Player: ${key} = ${player.name} (${player.color})`);
             playerArray.push({
                 id: player.id,
                 name: player.name,
@@ -293,8 +295,6 @@ function syncStateFromRoom(state: any): void {
         });
     }
     connections = connArray;
-
-    log.data('Sync', `Synced: ${players.length} players, isHost=${getIsHost()}`);
 }
 
 // ============================================================================
@@ -308,7 +308,6 @@ function setupRoomListeners(): void {
 
     // Listen for state changes - this fires AFTER handshake completes with actual data
     room.onStateChange((state: any) => {
-        log.data('Room', 'onStateChange fired');
         syncStateFromRoom(state);
     });
 
