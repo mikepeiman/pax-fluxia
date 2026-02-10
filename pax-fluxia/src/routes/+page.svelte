@@ -8,12 +8,11 @@
   import CombatDebugPanel from "$lib/components/ui/CombatDebugPanel.svelte";
   import Leaderboard from "$lib/components/ui/Leaderboard.svelte";
   import SpeedControls from "$lib/components/ui/SpeedControls.svelte";
-  import CombatLogPanel from "$lib/components/ui/CombatLogPanel.svelte";
+  import StarInfoPanel from "$lib/components/ui/StarInfoPanel.svelte";
   import AudioSettings from "$lib/components/ui/AudioSettings.svelte";
   import type { PlayerState } from "$lib/types/game.types";
 
   // Panel visibility states
-  let combatLogOpen = $state(true);
   let showAudioSettings = $state(false);
 
   // Derived leaderboard - use activeGameStore for unified access
@@ -57,15 +56,17 @@
       onClose={() => (showAudioSettings = false)}
     />
 
-    <!-- Combat Log Drawer (fixed position, outside grid) -->
-    <CombatLogPanel bind:isOpen={combatLogOpen} />
-
-    <div class="game-layout" class:combat-log-open={combatLogOpen}>
+    <div class="game-layout">
       <!-- MAIN CANVAS AREA -->
       <div class="area-canvas">
         <GameCanvas />
 
         <!-- Overlays -->
+
+        <!-- TOP LEFT: Star Info Panel -->
+        <div class="overlay-top-left">
+          <StarInfoPanel />
+        </div>
 
         {#if gameStore.winner || (activeGameStore.phase as string) === "ended"}
           <div class="modal-overlay">
@@ -168,30 +169,16 @@
       width 0.2s ease;
   }
 
-  /* When combat log drawer is open, shift content right */
-  .game-layout.combat-log-open {
-    margin-left: 320px;
-    width: calc(100vw - 320px);
-  }
-
   /* Responsive: narrower sidebar on smaller viewports */
   @media (max-width: 1400px) {
     .game-layout {
       grid-template-columns: 1fr 280px;
-    }
-    .game-layout.combat-log-open {
-      margin-left: 280px;
-      width: calc(100vw - 280px);
     }
   }
 
   @media (max-width: 1100px) {
     .game-layout {
       grid-template-columns: 1fr 240px;
-    }
-    .game-layout.combat-log-open {
-      margin-left: 240px;
-      width: calc(100vw - 240px);
     }
   }
 
@@ -203,10 +190,6 @@
     }
     .area-right {
       display: none;
-    }
-    .game-layout.combat-log-open {
-      margin-left: 280px;
-      width: calc(100vw - 280px);
     }
   }
 
@@ -248,6 +231,14 @@
   }
 
   /* OVERLAYS (Floating above Canvas) */
+  .overlay-top-left {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    z-index: 30;
+    pointer-events: auto;
+  }
+
   .modal-overlay {
     position: absolute;
     top: 0;

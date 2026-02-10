@@ -21,7 +21,9 @@
     } from "$lib/types/game.types";
     import { Star } from "$lib/engine/Star";
     import { STAR_TYPE_STATS } from "@pax/common";
+    import type { StarType } from "@pax/common";
     import { audio } from "$lib/audio/AudioManager";
+    import { selectedStarStore } from "$lib/stores/selectedStarStore.svelte";
     // animationStore is deprecated — ship animations handled via unified lifecycle
     import { ANIM_CONFIG } from "$lib/stores/animationStore";
 
@@ -825,10 +827,18 @@
             graphics.fill({ color: typeColor, alpha: 0.3 }); // Inner type color
             graphics.stroke({ color, width: isActive ? 4 : 2, alpha: 1 }); // Owner border
 
-            // Inner core (brighter when producing)
-            const coreAlpha = 0.3 + Math.sin(animationTime * 3) * 0.1;
-            graphics.circle(star.x, star.y, radius * 0.4);
-            graphics.fill({ color: 0xffffff, alpha: coreAlpha });
+            // Inner type icon (geometric shape based on star type)
+            const iconAlpha = 0.5 + Math.sin(animationTime * 3) * 0.1;
+            const iconSize = radius * 0.35;
+            drawTypeIcon(
+                graphics,
+                star.x,
+                star.y,
+                iconSize,
+                star.starType,
+                iconAlpha,
+                typeColor,
+            );
 
             // Update labels
             const activeText = label.getChildByLabel("active") as PIXI.Text;
@@ -1720,6 +1730,57 @@
     }
 
     // Draw hexagonal border around a point
+    // ============================================================================
+    // Geometric Type Icons
+    // ============================================================================
+
+    // Star type → polygon sides: green=3 (attack), red=4 (defense),
+    // yellow=5 (prod), purple=6 (repair), blue=7 (move), grey=0 (circle)
+    const TYPE_SIDES: Record<string, number> = {
+        green: 3,
+        red: 4,
+        yellow: 5,
+        purple: 6,
+        blue: 7,
+        grey: 0,
+    };
+
+    function drawTypeIcon(
+        g: PIXI.Graphics,
+        cx: number,
+        cy: number,
+        size: number,
+        starType: string,
+        alpha: number,
+        color: number,
+    ) {
+        const sides = TYPE_SIDES[starType] ?? 0;
+        if (sides === 0) {
+            // Grey = circle (default)
+            g.circle(cx, cy, size);
+            g.fill({ color: 0xffffff, alpha });
+            return;
+        }
+
+        // Draw regular polygon
+        const angleStep = (2 * Math.PI) / sides;
+        const startAngle = -Math.PI / 2; // Point up
+        g.moveTo(
+            cx + size * Math.cos(startAngle),
+            cy + size * Math.sin(startAngle),
+        );
+        for (let i = 1; i <= sides; i++) {
+            const angle = startAngle + angleStep * i;
+            g.lineTo(cx + size * Math.cos(angle), cy + size * Math.sin(angle));
+        }
+        g.fill({ color, alpha });
+        g.stroke({ color: 0xffffff, width: 1, alpha: alpha * 0.6 });
+    }
+
+    // ============================================================================
+    // Hex Border (active star indicator)
+    // ============================================================================
+
     function drawHexBorder(
         graphics: PIXI.Graphics,
         cx: number,
@@ -1807,6 +1868,11 @@
         }
 
         const star = hitTestStar(x, y);
+
+        // Always select star for info panel (any button, any owner)
+        if (star) {
+            selectedStarStore.select(star.id);
+        }
 
         // FIX: Right Click to Cancel
         if (event.button === 2) {

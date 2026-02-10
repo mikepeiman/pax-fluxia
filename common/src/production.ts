@@ -54,16 +54,33 @@ export function applyRepair(star: Star, currentTick: number, cfg: EngineConfig):
     let amount = Math.max(cfg.MIN_REPAIR, star.damagedShips * cfg.REPAIR_RATE * typeMult);
 
     // Pinning penalty: reduced repair when in combat
-    if (star.lastCombatTick >= currentTick - 1) {
+    const isPinned = star.lastCombatTick >= currentTick - 1;
+    if (isPinned) {
         amount *= cfg.REPAIR_COMBAT_PENALTY;
     }
 
     star.repairOverflow += amount;
+    let repaired = 0;
     if (star.repairOverflow >= 1) {
-        const repaired = Math.min(star.damagedShips, Math.floor(star.repairOverflow));
+        repaired = Math.min(star.damagedShips, Math.floor(star.repairOverflow));
         star.damagedShips -= repaired;
         star.activeShips += repaired;
         star.repairOverflow -= repaired;
+    }
+
+    // Dataflow debug log (will be visible in browser console)
+    if (repaired > 0 || isPinned) {
+        console.log(
+            `%c[REPAIR] %c${star.starType}%c star(${(star as any).id ?? '?'}) | ` +
+            `dmg=${star.damagedShips + repaired}→${star.damagedShips} | ` +
+            `rate=${cfg.REPAIR_RATE} × typeMult=${typeMult} = ${(cfg.REPAIR_RATE * typeMult).toFixed(3)} | ` +
+            `rawAmt=${Math.max(cfg.MIN_REPAIR, (star.damagedShips + repaired) * cfg.REPAIR_RATE * typeMult).toFixed(1)} | ` +
+            `${isPinned ? `PINNED(×${cfg.REPAIR_COMBAT_PENALTY})→${amount.toFixed(1)}` : `amt=${amount.toFixed(1)}`} | ` +
+            `repaired=${repaired} | overflow=${star.repairOverflow.toFixed(2)}`,
+            'color: #a855f7; font-weight: bold',
+            `color: ${star.starType === 'purple' ? '#a855f7' : star.starType === 'yellow' ? '#fbbf24' : '#8899aa'}; font-weight: bold`,
+            'color: inherit'
+        );
     }
 }
 
