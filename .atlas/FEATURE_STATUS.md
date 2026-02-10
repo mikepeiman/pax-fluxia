@@ -206,6 +206,7 @@
 | R-44 | AI Difficulty Levels + Strategy/Posture Options (clearly specified behaviors) | 🔴 |
 | R-45 | Star Spacing Formula: min = diameter + 5 orbits + adjustable buffer (e.g. 20px) | 🟢 |
 | R-46 | Orbit Density Controls: exposed in-game variable for orbit layer/scale tuning | 🟢 |
+| R-47 | Per-Target Conquest Transfer Amount: player sets per-target override superseding global | 🟡 |
 
 ---
 
