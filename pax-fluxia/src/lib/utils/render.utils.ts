@@ -75,7 +75,7 @@ export const SHIP_ANIM = {
  * Maximum number of orbit layers before stacking begins.
  * After this, ships wrap to layer 0 with a 2x multiplier, then 4x, etc.
  */
-const MAX_ORBIT_LAYERS = 10;
+const MAX_ORBIT_LAYERS = 5;
 
 /**
  * Calculate the total capacity of layers 0 through maxLayer

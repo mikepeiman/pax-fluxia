@@ -367,16 +367,16 @@
         const scaledWidth = GAME_WIDTH * effectiveScale;
         const scaledHeight = GAME_HEIGHT * effectiveScale;
 
-        // Allow panning up to 25% the world size beyond edges
+        // Allow panning up to 50% the world size beyond edges
         const maxPanX = Math.max(
             0,
             (scaledWidth - containerWidth) / (2 * effectiveScale) +
-                GAME_WIDTH * 0.25,
+                GAME_WIDTH * 0.5,
         );
         const maxPanY = Math.max(
             0,
             (scaledHeight - containerHeight) / (2 * effectiveScale) +
-                GAME_HEIGHT * 0.25,
+                GAME_HEIGHT * 0.5,
         );
 
         panOffsetX = Math.max(-maxPanX, Math.min(maxPanX, panOffsetX));
@@ -1673,19 +1673,8 @@
 
         const size = 3 * scale;
 
-        // Apply white tinting based on multiplier (1 = normal, 2 = slightly white, etc.)
-        // Blend rate: 0.30 per log2 power, max blend: 1.0 (full white for very high stacks)
-        let finalColor = color;
-        if (multiplier > 1) {
-            const blendAmount = Math.min(1.0, Math.log2(multiplier) * 0.3);
-            const r = (color >> 16) & 0xff;
-            const g = (color >> 8) & 0xff;
-            const b = color & 0xff;
-            const newR = Math.round(r + (255 - r) * blendAmount);
-            const newG = Math.round(g + (255 - g) * blendAmount);
-            const newB = Math.round(b + (255 - b) * blendAmount);
-            finalColor = (newR << 16) | (newG << 8) | newB;
-        }
+        // Stacked ships: keep player color, no white blending
+        const finalColor = color;
 
         // Use shapes for high-multiplier ships (better visual distinction)
         if (multiplier > 1) {
@@ -1693,6 +1682,12 @@
             const sides = Math.min(8, 3 + Math.floor(Math.log2(multiplier)));
             drawPolygon(shipGraphics, x, y, size, sides, animationTime);
             shipGraphics.fill({ color: finalColor, alpha });
+            // Thin solid border in player color for stacked ships
+            shipGraphics.stroke({
+                color: finalColor,
+                width: 1,
+                alpha: Math.min(1, alpha + 0.2),
+            });
         } else {
             // Regular circle for single ships
             shipGraphics.circle(x, y, size);

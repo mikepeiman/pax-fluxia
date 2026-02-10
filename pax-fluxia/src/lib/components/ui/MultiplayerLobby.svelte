@@ -145,7 +145,7 @@
                             <input
                                 type="range"
                                 min="0.5"
-                                max="2.0"
+                                max="5.0"
                                 step="0.1"
                                 bind:value={starSpacing}
                             />
