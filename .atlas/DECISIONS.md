@@ -209,4 +209,24 @@ Current random map generation skews star types: grey 30%, yellow 20%, red 15%, g
 
 ## Decision
 - **Even distribution** for random maps: ~16.7% each (6 types)
+- Switched from `Math.random()` to round-robin for guaranteed ±1 balance
 - Future: tunable distribution sliders. Most gameplay will use human-designed maps.
+
+---
+
+# Decision: Star Types Affect Combat
+
+**Date:** 2026-02-10
+**Status:** Active
+
+## Context
+Star types have defined `attack` and `defense` multipliers in `STAR_TYPE_STATS` (Green=2× attack, Red=2× defense) but these were never applied in the combat calculation. Combat used raw ship counts only.
+
+## Decision
+- Apply star type `attack` multiplier to effective attacking force before passing to combat function
+- Apply star type `defense` multiplier to effective defending force (including damaged ship contribution)
+- For multi-star attacks, use weighted average of attackers' attack multipliers proportional to each star's ship contribution
+- Display absolute/derived/relative forces in the Stars Panel
+
+> [!WARNING]
+> This logic is currently duplicated in both `common/src/engine/GameEngine.ts` and `pax-fluxia/src/lib/engine/GameEngine.ts`. The core refactor to unify to a single engine is pending — this duplication is tech debt, not target architecture.
