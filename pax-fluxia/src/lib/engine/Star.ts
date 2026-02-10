@@ -7,6 +7,7 @@ import type { Star as IStar } from '@pax/common';
 import { STAR_TYPE_STATS, applyProduction, applyRepair, DEFAULT_ENGINE_CONFIG } from '@pax/common';
 import type { EngineConfig } from '@pax/common';
 import { GAME_CONFIG } from '$lib/config/game.config';
+import { log } from '$lib/utils/logger';
 
 /** Constants */
 export const PRODUCTION_PER_TICK = 1;
@@ -160,8 +161,10 @@ export class Star implements IStar {
     /**
      * Repair damaged ships each tick.
      * Delegates to shared applyRepair() from @pax/common.
+     * Logs via Visual Telemetry for dataflow debugging.
      */
     repair(currentTick: number): void {
+        const damagedBefore = this.damagedShips;
         const cfg: EngineConfig = {
             ...DEFAULT_ENGINE_CONFIG,
             BASE_PRODUCTION: GAME_CONFIG.BASE_PRODUCTION ?? 0.5,
@@ -170,7 +173,21 @@ export class Star implements IStar {
             REPAIR_COMBAT_PENALTY: GAME_CONFIG.REPAIR_COMBAT_PENALTY ?? 0.1,
             MIN_SHIPS_PER_TRANSFER: GAME_CONFIG.MIN_SHIPS_PER_TRANSFER ?? 1,
         };
-        applyRepair(this, currentTick, cfg);
+        const result = applyRepair(this, currentTick, cfg);
+
+        if (result.repaired > 0 || result.isPinned) {
+            log.repair(this.id, this.starType, {
+                damagedBefore,
+                damagedAfter: this.damagedShips,
+                repaired: result.repaired,
+                repairRate: cfg.REPAIR_RATE,
+                typeMult: result.typeMult,
+                isPinned: result.isPinned,
+                combatPenalty: cfg.REPAIR_COMBAT_PENALTY,
+                amount: result.amount,
+                overflow: this.repairOverflow,
+            });
+        }
     }
 
     /**

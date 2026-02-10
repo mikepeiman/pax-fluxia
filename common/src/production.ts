@@ -47,8 +47,8 @@ export function applyProduction(star: Star, cfg: EngineConfig): void {
  *   - Pinning penalty: repair reduced when in active combat (lastCombatTick)
  *   - Integer invariant: only whole ships transition from damaged → active
  */
-export function applyRepair(star: Star, currentTick: number, cfg: EngineConfig): void {
-    if (star.damagedShips <= 0) return;
+export function applyRepair(star: Star, currentTick: number, cfg: EngineConfig): { repaired: number; amount: number; isPinned: boolean; typeMult: number } {
+    if (star.damagedShips <= 0) return { repaired: 0, amount: 0, isPinned: false, typeMult: 1 };
 
     const typeMult = STAR_TYPE_STATS[star.starType as StarType]?.repair ?? 1.0;
     let amount = Math.max(cfg.MIN_REPAIR, star.damagedShips * cfg.REPAIR_RATE * typeMult);
@@ -68,20 +68,7 @@ export function applyRepair(star: Star, currentTick: number, cfg: EngineConfig):
         star.repairOverflow -= repaired;
     }
 
-    // Dataflow debug log (will be visible in browser console)
-    if (repaired > 0 || isPinned) {
-        console.log(
-            `%c[REPAIR] %c${star.starType}%c star(${(star as any).id ?? '?'}) | ` +
-            `dmg=${star.damagedShips + repaired}→${star.damagedShips} | ` +
-            `rate=${cfg.REPAIR_RATE} × typeMult=${typeMult} = ${(cfg.REPAIR_RATE * typeMult).toFixed(3)} | ` +
-            `rawAmt=${Math.max(cfg.MIN_REPAIR, (star.damagedShips + repaired) * cfg.REPAIR_RATE * typeMult).toFixed(1)} | ` +
-            `${isPinned ? `PINNED(×${cfg.REPAIR_COMBAT_PENALTY})→${amount.toFixed(1)}` : `amt=${amount.toFixed(1)}`} | ` +
-            `repaired=${repaired} | overflow=${star.repairOverflow.toFixed(2)}`,
-            'color: #a855f7; font-weight: bold',
-            `color: ${star.starType === 'purple' ? '#a855f7' : star.starType === 'yellow' ? '#fbbf24' : '#8899aa'}; font-weight: bold`,
-            'color: inherit'
-        );
-    }
+    return { repaired, amount, isPinned, typeMult };
 }
 
 // ============================================================================

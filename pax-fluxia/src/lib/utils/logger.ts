@@ -22,6 +22,7 @@ export const logFlags = {
     success: true,
     combat: true,
     input: true,
+    repair: true,
 };
 
 // Expose on window for runtime console toggling
@@ -186,7 +187,64 @@ export const log = {
     input: (action: string, data?: unknown) => {
         if (!logFlags.input) return;
         console.log(`%cINPUT%c ${action}`, 'background: #6366f1; color: #fff; padding: 2px 4px; border-radius: 2px; font-weight: bold;', styles.reset, data ?? '');
-    }
+    },
+
+    /**
+     * 🔧 REPAIR - Dataflow debug log for ship repair
+     * Rich console formatting: star name bold, type chip, rates, ship counts
+     */
+    repair: (starId: string, starType: string, data: {
+        damagedBefore: number;
+        damagedAfter: number;
+        repaired: number;
+        repairRate: number;
+        typeMult: number;
+        isPinned: boolean;
+        combatPenalty: number;
+        amount: number;
+        overflow: number;
+    }) => {
+        if (!logFlags.repair) return;
+
+        const typeColors: Record<string, string> = {
+            green: '#22c55e', red: '#ef4444', yellow: '#fbbf24',
+            purple: '#a855f7', blue: '#3b82f6', grey: '#8899aa',
+        };
+        const typeLabels: Record<string, string> = {
+            green: 'ATK', red: 'DEF', yellow: 'PROD',
+            purple: 'REPAIR', blue: 'MOVE', grey: 'BAL',
+        };
+        const col = typeColors[starType] || '#8899aa';
+        const label = typeLabels[starType] || 'BAL';
+
+        // Effective rate (base × typeMult × pinning)
+        const effectiveRate = data.repairRate * data.typeMult * (data.isPinned ? data.combatPenalty : 1);
+
+        // Line 1: Star name (big bold) + type chip + rate
+        console.log(
+            `%c🔧 ${starId}%c  %c ${label} %c  RATE %c${(effectiveRate * 100).toFixed(1)}%%c` +
+            `${data.isPinned ? '  %c⚡PINNED%c' : ''}`,
+            `font-size: 13px; font-weight: bold; color: #fff;`,
+            styles.reset,
+            `background: ${col}; color: #fff; padding: 1px 8px; border-radius: 4px; font-weight: bold; font-size: 11px;`,
+            styles.reset,
+            `color: ${col}; font-weight: bold; font-size: 12px;`,
+            styles.reset,
+            ...(data.isPinned ? [
+                `background: #ef4444; color: #fff; padding: 1px 6px; border-radius: 3px; font-weight: bold;`,
+                styles.reset,
+            ] : []),
+        );
+
+        // Line 2: Ship counts — DAMAGED and REPAIRED with clear spacing
+        console.log(
+            `     DAMAGED  %c${data.damagedBefore}%c  →  %c${data.damagedAfter}%c      REPAIRED  %c+${data.repaired}%c      %c(overflow: ${data.overflow.toFixed(2)})%c`,
+            `color: #f87171; font-weight: bold; font-size: 12px;`, styles.reset,
+            `color: ${data.repaired > 0 ? '#4ade80' : '#f87171'}; font-weight: bold; font-size: 12px;`, styles.reset,
+            `color: #4ade80; font-weight: bold; font-size: 12px;`, styles.reset,
+            `color: #555; font-size: 10px;`, styles.reset,
+        );
+    },
 };
 
 // Default export for convenience
