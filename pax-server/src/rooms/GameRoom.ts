@@ -25,11 +25,16 @@ const PLAYER_COLORS = [
 ];
 
 
-// Room options passed from client
+// Room options passed from client (shared between SP MainMenu and MP Lobby)
 interface RoomOptions {
     playerCount?: number;
     mapType?: 'standard' | 'debug';
+    starsPerPlayer?: number;
+    shipsPerStar?: number;
     starSpacing?: number;
+    minLinks?: number;
+    maxLinks?: number;
+    retainOrderOnConquest?: boolean;
 }
 
 // Message types from client
@@ -332,34 +337,48 @@ export class GameRoom extends Room {
     private initStandardMap() {
         const width = 1600;
         const height = 900;
-        const padding = 100;
 
         const playerIds = Array.from(this.state.players.values()).map(p => p.sessionId);
-        const starsPerPlayer = 5;
+        const starsPerPlayer = this.roomOptions.starsPerPlayer ?? 5;
         const totalStars = playerIds.length * starsPerPlayer;
+        const spacingMultiplier = this.roomOptions.starSpacing ?? 1.0;
 
-        // Generate random positions with spacing
-        const positions: { x: number; y: number }[] = [];
-        const minSpacing = 120;
+        // Dynamic padding: reduce for large star counts
+        const padding = totalStars > 50 ? 60 : totalStars > 20 ? 80 : 100;
 
-        for (let i = 0; i < totalStars && positions.length < totalStars; i++) {
-            let attempts = 0;
-            while (attempts < 100) {
+        // Calculate dynamic spacing based on area and star count
+        const effectiveArea = (width - padding * 2) * (height - padding * 2);
+        const areaPerStar = effectiveArea / totalStars;
+        const dynamicSpacing = Math.max(50, Math.sqrt(areaPerStar) * 0.6);
+        const baseSpacing = Math.min(100, dynamicSpacing);
+        let minSpacing = baseSpacing * spacingMultiplier;
+        const MIN_ABSOLUTE_SPACING = 30;
+
+        log.sys('GameRoom', `Map: ${totalStars} stars (${starsPerPlayer}/player), spacing=${minSpacing.toFixed(0)}px`);
+
+        // Generate random positions with adaptive spacing retry
+        let positions: { x: number; y: number }[] = [];
+
+        while (minSpacing >= MIN_ABSOLUTE_SPACING) {
+            positions = [];
+            for (let i = 0; i < totalStars * 10 && positions.length < totalStars; i++) {
                 const x = padding + Math.random() * (width - padding * 2);
                 const y = padding + Math.random() * (height - padding * 2);
 
-                // Check spacing
                 const tooClose = positions.some(p =>
                     Math.sqrt((p.x - x) ** 2 + (p.y - y) ** 2) < minSpacing
                 );
 
                 if (!tooClose) {
                     positions.push({ x, y });
-                    break;
                 }
-                attempts++;
             }
+
+            if (positions.length >= totalStars) break;
+            minSpacing *= 0.8; // Reduce spacing and retry
         }
+
+        log.sys('GameRoom', `Placed ${positions.length}/${totalStars} stars (final spacing=${minSpacing.toFixed(0)}px)`);
 
         // Create stars
         positions.forEach((pos, i) => {
@@ -369,7 +388,7 @@ export class GameRoom extends Room {
             this.createStar(`star-${i}`, pos.x, pos.y, ownerId, starType);
         });
 
-        // Generate connections using Delaunay-like approach (simplified)
+        // Generate connections using nearest-neighbor approach
         this.generateConnections();
     }
 
@@ -381,7 +400,7 @@ export class GameRoom extends Room {
         star.y = y;
         star.ownerId = ownerId;
         star.starType = starType;
-        star.activeShips = 40; // Starting ships
+        star.activeShips = this.roomOptions.shipsPerStar ?? 40;
         star.damagedShips = 0;
         star.productionRate = 1;
         star.repairRate = stats.repairRate;

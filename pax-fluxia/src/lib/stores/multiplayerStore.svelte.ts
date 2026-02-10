@@ -100,7 +100,16 @@ async function connect(): Promise<void> {
     }
 }
 
-async function createRoom(options: { playerCount?: number; mapType?: string } = {}): Promise<string | null> {
+async function createRoom(options: {
+    playerCount?: number;
+    mapType?: string;
+    starsPerPlayer?: number;
+    shipsPerStar?: number;
+    starSpacing?: number;
+    minLinks?: number;
+    maxLinks?: number;
+    retainOrderOnConquest?: boolean;
+} = {}): Promise<string | null> {
     if (!client) await connect();
     if (!client) return null;
 

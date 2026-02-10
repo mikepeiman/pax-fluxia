@@ -1,15 +1,60 @@
 <script lang="ts">
     import { multiplayerStore } from "$lib/stores/multiplayerStore.svelte";
 
-    // Local state
+    // Load from localStorage (same keys as MainMenu for consistency)
+    function loadSetting<T>(key: string, defaultValue: T): T {
+        if (typeof window === "undefined") return defaultValue;
+        const stored = localStorage.getItem(`pax-fluxia-${key}`);
+        if (stored) {
+            try {
+                return JSON.parse(stored) as T;
+            } catch {
+                return defaultValue;
+            }
+        }
+        return defaultValue;
+    }
+    function saveSetting(key: string, value: any) {
+        if (typeof window === "undefined") return;
+        localStorage.setItem(`pax-fluxia-${key}`, JSON.stringify(value));
+    }
+
+    // Local state — shared localStorage keys with MainMenu
     let joinRoomId = $state("");
     let playerName = $state("");
-    let playerCount = $state(4);
-    let mapType = $state<"standard" | "debug">("standard");
+    let playerCount = $state(loadSetting("playerCount", 4));
+    let mapType = $state<"standard" | "debug">(
+        String(loadSetting("mapType", "Standard"))
+            .toUpperCase()
+            .includes("DEBUG")
+            ? "debug"
+            : "standard",
+    );
+    let starsPerPlayer = $state(loadSetting("starsPerPlayer", 5));
+    let shipsPerStar = $state(loadSetting("shipsPerStar", 40));
+    let starSpacing = $state(loadSetting("starSpacing", 1.0));
+    let minLinks = $state(loadSetting("minLinks", 1));
+    let maxLinks = $state(loadSetting("maxLinks", 6));
 
     // Handlers
     async function handleCreateRoom() {
-        await multiplayerStore.createRoom({ playerCount, mapType });
+        // Save settings to localStorage
+        saveSetting("playerCount", playerCount);
+        saveSetting("starsPerPlayer", starsPerPlayer);
+        saveSetting("shipsPerStar", shipsPerStar);
+        saveSetting("starSpacing", starSpacing);
+        saveSetting("minLinks", minLinks);
+        saveSetting("maxLinks", maxLinks);
+
+        await multiplayerStore.createRoom({
+            playerCount,
+            mapType,
+            starsPerPlayer,
+            shipsPerStar,
+            starSpacing,
+            minLinks,
+            maxLinks,
+        });
     }
 
     async function handleJoinRoom() {
@@ -64,6 +109,75 @@
                         <option value="debug">Debug (4 stars)</option>
                     </select>
                 </div>
+
+                <!-- Game Settings (same as SP MainMenu) -->
+                <div class="settings-grid">
+                    <div class="setting-row">
+                        <label>Stars / Player</label>
+                        <div class="slider-row">
+                            <input
+                                type="range"
+                                min="1"
+                                max="20"
+                                bind:value={starsPerPlayer}
+                            />
+                            <span class="val">{starsPerPlayer}</span>
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <label>Ships / Star</label>
+                        <div class="slider-row">
+                            <input
+                                type="range"
+                                min="10"
+                                max="200"
+                                step="10"
+                                bind:value={shipsPerStar}
+                            />
+                            <span class="val">{shipsPerStar}</span>
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <label>Star Spacing</label>
+                        <div class="slider-row">
+                            <input
+                                type="range"
+                                min="0.5"
+                                max="2.0"
+                                step="0.1"
+                                bind:value={starSpacing}
+                            />
+                            <span class="val">{starSpacing.toFixed(1)}x</span>
+                        </div>
+                    </div>
+                    <div class="setting-row dual">
+                        <div class="half">
+                            <label>Min Links</label>
+                            <div class="slider-row">
+                                <input
+                                    type="range"
+                                    min="1"
+                                    max="4"
+                                    bind:value={minLinks}
+                                />
+                                <span class="val">{minLinks}</span>
+                            </div>
+                        </div>
+                        <div class="half">
+                            <label>Max Links</label>
+                            <div class="slider-row">
+                                <input
+                                    type="range"
+                                    min="2"
+                                    max="8"
+                                    bind:value={maxLinks}
+                                />
+                                <span class="val">{maxLinks}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <button class="btn-primary" onclick={handleCreateRoom}>
                     Create Room
                 </button>
@@ -459,5 +573,75 @@
         to {
             transform: rotate(360deg);
         }
+    }
+
+    /* Game Settings Grid */
+    .settings-grid {
+        margin: 1rem 0;
+        padding: 0.75rem;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .setting-row {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .setting-row label {
+        font-size: 0.7rem;
+        color: rgba(255, 255, 255, 0.5);
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+
+    .slider-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .slider-row input[type="range"] {
+        flex: 1;
+        accent-color: #00ffff;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 2px;
+        appearance: none;
+    }
+
+    .slider-row input[type="range"]::-webkit-slider-thumb {
+        appearance: none;
+        width: 14px;
+        height: 14px;
+        background: #00ffff;
+        border-radius: 50%;
+        cursor: pointer;
+        box-shadow: 0 0 6px rgba(0, 255, 255, 0.5);
+    }
+
+    .val {
+        color: #00ffff;
+        font-family: monospace;
+        font-size: 0.8rem;
+        min-width: 30px;
+        text-align: right;
+    }
+
+    .setting-row.dual {
+        flex-direction: row;
+        gap: 12px;
+    }
+
+    .half {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
     }
 </style>

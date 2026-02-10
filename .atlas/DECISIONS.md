@@ -124,3 +124,22 @@ All gameplay variables (transfer rate, production, defense, attack, repair) shou
 - Example: Blue star transfer rate = `0.1 × 2 = 0.2` (Blue has `speed = 2`)
 - Same principle for all star types: Yellow 2× production, Red 2× defense, Green 2× attack, Purple 2× repair
 - Future (Pax Fluxia roadmap): additional multipliers from star upgrades possible
+
+---
+
+# Decision: Unified Game Settings — SP and MP
+
+**Date:** 2026-02-09
+**Status:** Active
+
+## Context
+SP MainMenu had full game settings (stars/player, ships/star, spacing, links). MP lobby only sent `playerCount`/`mapType`. Server `initStandardMap()` used hardcoded values (`starsPerPlayer = 5`, `minSpacing = 120`). Two completely separate map generators — a DRY violation.
+
+## Decision
+- MP lobby now has the **same settings UI** as SP MainMenu
+- Both read/write to the **same localStorage keys** (`pax-fluxia-starsPerPlayer`, etc.)
+- MP lobby passes settings as `RoomOptions` to the server
+- Server `initStandardMap()` reads from `roomOptions` with sensible defaults
+
+## Future Work
+- Full engine unification: server should use the shared `GameEngine.initializeMap()` (hex grid with Delaunay connections) instead of custom `initStandardMap()` (random positions with nearest-neighbor connections)

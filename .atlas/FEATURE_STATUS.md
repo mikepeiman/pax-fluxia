@@ -194,6 +194,7 @@
 | R-34 | AST-Based Bidirectional Documentation | 🔵 |
 | R-35 | Conquest Pause + Stats Card Popup | 🟢 |
 | R-36 | Damaged Ship Visual Density Tiers (overlapping orbits) | 🟢 |
+| R-37 | Full Engine Unification: server uses shared GameEngine for map generation | 🔴 |
 
 ---
 
@@ -201,7 +202,7 @@
 
 | Date | Summary |
 |------|---------|
-| 2026-02-08 | B-13 fix: MP spacebar pause/resume via `activeGameStore`. B-19 fix: drag-end connection validation. GameHUD SpeedControls routed through `activeGameStore`. Dev notes triage: 17 new roadmap items documented. |
+| 2026-02-09 | Unified game settings: MP lobby now has same settings as SP (stars/player, ships/star, spacing, links). Server `initStandardMap` reads from `RoomOptions`. Star count fix: adaptive spacing retry + adaptive hex radius. |
 | 2026-02-08 | Batch 1 fixes: B-8 (no attack travel anim), B-12 (15° lane angle), B-16 (lane gaps around stars), B-17 (arrow length slider). |
 | 2026-02-08 | Ship animation redesign: unified lifecycle (orbit→depart→travel→arrive). Scatter uses real connections. |
 | 2026-02-08 | Combat slider wiring (`CombatConfigOverride`). Transfer rate slider step 5→1. MECHANICS.md canonical rewrite. Multi-star per-player aggregation. Pause freeze. Order cancel on conquest. |
