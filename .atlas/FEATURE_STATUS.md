@@ -96,15 +96,13 @@
 
 | ID | Issue |
 |----|-------|
-| B-9 | Conquest ship bloom — captured ships appear from star center instead of transfer visual |
+| B-9 | Conquest ships render as production bloom — new ships at conquered star spawn from center and spiral out over multiple ticks instead of appearing instantly. Root: `GameCanvas.svelte` lines 1412-1440 use identical spawn logic for production and conquest. Needs distinct conquest path. |
 
 ## Open Bugs — MP (B)
 
 | ID | Issue |
 |----|-------|
 | B-23 | Play/pause outline not updating correctly (pending user verification) |
-| B-26 | MP variables not wired: most exposed config variables have no effect in MP |
-| B-28 | Tone.js progressive lag: enabling sound causes game to slow down and get worse over time |
 
 ## Resolved Bugs (B)
 
@@ -133,6 +131,8 @@
 | B-6 | Transfer rate equilibrium | `Math.ceil` + `TRANSFER_RATE × star-type speed` | `e42320c` |
 | B-14 | Combat logs empty in MP | Fed from server tickEvents | `8329f4a` |
 | B-15 | Multi-star conquest aggregation | Already implemented in shared GameEngine | `a91f17d` |
+| B-26 | MP variables not wired | Phase A config pipeline: `buildEngineConfig()` → `RoomOptions` → server `engineConfig` → `GameEngine.tick()` | 2026-02-10 |
+| B-28 | Tone.js progressive lag | Tone.js removed entirely, AudioManager stubbed to no-ops | 2026-02-10 |
 | B-18 | Restart button broken in MP | Routed through activeGameStore | `a91f17d` |
 
 ---

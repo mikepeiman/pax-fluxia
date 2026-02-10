@@ -13,13 +13,12 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@pax/common": "workspace:*",
     "@colyseus/sdk": "^0.17.25",
+    "@pax/common": "workspace:*",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-opener": "^2",
     "d3-delaunay": "^6.0.4",
     "pixi.js": "^8.15.0",
-    "tone": "^15.1.22",
     "tweakpane": "^4.0.5"
   },
   "devDependencies": {

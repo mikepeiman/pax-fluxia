@@ -3,6 +3,35 @@
 // ============================================================================
 
 import { calculateCombat as sharedCalculateCombat } from '@pax/common';
+import type { EngineConfig } from '@pax/common';
+
+/**
+ * Build an EngineConfig from the current GAME_CONFIG values.
+ * Used to send config to the server on room creation and
+ * by the client engine when calling shared logic.
+ */
+export function buildEngineConfig(): EngineConfig {
+    return {
+        BASE_PRODUCTION: GAME_CONFIG.BASE_PRODUCTION,
+        REPAIR_RATE: GAME_CONFIG.REPAIR_RATE,
+        MIN_REPAIR: GAME_CONFIG.MIN_REPAIR,
+        REPAIR_COMBAT_PENALTY: GAME_CONFIG.REPAIR_COMBAT_PENALTY,
+        TRANSFER_RATE: GAME_CONFIG.TRANSFER_RATE,
+        MIN_SHIPS_PER_TRANSFER: GAME_CONFIG.MIN_SHIPS_PER_TRANSFER,
+        CONQUEST_TRANSFER_PERCENTAGE: GAME_CONFIG.CONQUEST_TRANSFER_PERCENTAGE,
+        RETAIN_ORDER_ON_CONQUEST: GAME_CONFIG.RETAIN_ORDER_ON_CONQUEST,
+        RETREAT_CAPTURE_RATE: GAME_CONFIG.RETREAT_CAPTURE_RATE,
+        SCATTER_CAPTURE_RATE: GAME_CONFIG.SCATTER_CAPTURE_RATE,
+        SCATTER_DESTROY_RATE: GAME_CONFIG.SCATTER_DESTROY_RATE,
+        DAMAGED_SHIP_EFFECTIVENESS: GAME_CONFIG.DAMAGED_SHIP_EFFECTIVENESS,
+        DAMAGE_PER_SHIP: GAME_CONFIG.DAMAGE_PER_SHIP,
+        LETHALITY: GAME_CONFIG.LETHALITY,
+        AGGRESSOR_ADVANTAGE: GAME_CONFIG.AGGRESSOR_ADVANTAGE,
+        FORCE_RATIO_EFFECT: GAME_CONFIG.FORCE_RATIO_EFFECT,
+        CONQUEST_THRESHOLD: GAME_CONFIG.CONQUEST_THRESHOLD,
+        MINIMUM_DAMAGE: 1,
+    };
+}
 /**
  * Game configuration interface for type safety
  */

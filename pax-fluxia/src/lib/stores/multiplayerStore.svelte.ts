@@ -3,6 +3,7 @@
 // ============================================================================
 
 import { Client, Room } from '@colyseus/sdk';
+import type { EngineConfig } from '@pax/common';
 import type { PlayerState, StarState, StarConnection, StarId, GameHistoryEntry } from '$lib/types/game.types';
 import { log } from '$lib/utils/logger';
 import type { TickEvents, TransferEvent } from '@pax/common';
@@ -109,6 +110,7 @@ async function createRoom(options: {
     minLinks?: number;
     maxLinks?: number;
     retainOrderOnConquest?: boolean;
+    gameplayConfig?: Partial<EngineConfig>;
 } = {}): Promise<string | null> {
     if (!client) await connect();
     if (!client) return null;

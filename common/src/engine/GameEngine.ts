@@ -269,13 +269,21 @@ export class GameEngine {
             return;
         }
 
-        // Calculate combat damage
+        // Calculate combat damage using config-driven values
         const defenderIsAttacking = !!defender.targetId;
         const result = calculateCombat(
             defenderForce,
             totalAttackForce,
             defenderIsAttacking,
-            true
+            true,
+            {
+                DAMAGE_PER_SHIP: cfg.DAMAGE_PER_SHIP,
+                LETHALITY: cfg.LETHALITY,
+                AGGRESSOR_ADVANTAGE: cfg.AGGRESSOR_ADVANTAGE,
+                FORCE_RATIO_EFFECT: cfg.FORCE_RATIO_EFFECT,
+                MINIMUM_DAMAGE: cfg.MINIMUM_DAMAGE,
+                CONQUEST_THRESHOLD: cfg.CONQUEST_THRESHOLD,
+            }
         );
 
         // Apply damage to defender

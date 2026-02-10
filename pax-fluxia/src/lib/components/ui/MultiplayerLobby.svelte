@@ -1,5 +1,6 @@
 <script lang="ts">
     import { multiplayerStore } from "$lib/stores/multiplayerStore.svelte";
+    import { buildEngineConfig } from "$lib/config/game.config";
 
     // Load from localStorage (same keys as MainMenu for consistency)
     function loadSetting<T>(key: string, defaultValue: T): T {
@@ -54,6 +55,7 @@
             starSpacing,
             minLinks,
             maxLinks,
+            gameplayConfig: buildEngineConfig(),
         });
     }
 

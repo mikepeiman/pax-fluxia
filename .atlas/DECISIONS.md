@@ -165,3 +165,18 @@ Repeated refactors to fix SP/MP parity have failed to prevent regression because
 - Before creating any new UI component, check: does the equivalent already exist for the other mode?
 - Before adding any game config variable, verify: is it wired to both paths?
 - `activeGameStore` facade must remain the single API for all game interactions.
+
+---
+
+# Decision: Remove Tone.js — Use Web Audio API Directly (or No Audio)
+
+**Date:** 2026-02-10
+**Status:** Approved
+
+## Context
+Tone.js was added for combat/conquest/tick sounds. Despite aggressive throttling (200ms cooldown, 4 max/sec combat sounds, capped polyphony at 6), the library continued causing noticeable performance lag. The overhead isn't justified for simple synth beeps.
+
+## Decision
+- **Remove Tone.js entirely** — uninstall the package and delete `AudioManager.ts`
+- **Stub all call sites** so audio calls become no-ops
+- **Future audio**: If needed later, use raw Web Audio API with minimal oscillators, or pre-rendered audio sprites

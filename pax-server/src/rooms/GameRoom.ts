@@ -11,7 +11,8 @@ import {
 } from "../schema/GameState.schema";
 
 // Import shared game logic from @pax/common
-import { GameEngine, STAR_TYPE_STATS } from "@pax/common";
+import { GameEngine, STAR_TYPE_STATS, DEFAULT_ENGINE_CONFIG } from "@pax/common";
+import type { EngineConfig } from "@pax/common";
 import { log } from '../utils/logger';
 
 // Player colors palette (same as GameEngine)
@@ -35,6 +36,8 @@ interface RoomOptions {
     minLinks?: number;
     maxLinks?: number;
     retainOrderOnConquest?: boolean;
+    // Phase A: Full gameplay config from client
+    gameplayConfig?: Partial<EngineConfig>;
 }
 
 // Message types from client
@@ -53,6 +56,7 @@ export class GameRoom extends Room {
     private tickIntervalId: ReturnType<typeof setInterval> | null = null;
     private tickStartTime = 0;
     private roomOptions: RoomOptions = {};
+    private engineConfig: EngineConfig = { ...DEFAULT_ENGINE_CONFIG };
 
     // State - will be set in onCreate using this.setState() per 0.17.29 requirement
     declare state: GameRoomState;
@@ -71,6 +75,12 @@ export class GameRoom extends Room {
 
             this.roomOptions = options;
             this.maxClients = options.playerCount || 4;
+
+            // Merge client gameplay config with defaults (Phase A)
+            if (options.gameplayConfig) {
+                this.engineConfig = { ...DEFAULT_ENGINE_CONFIG, ...options.gameplayConfig };
+                log.sys('GameRoom', 'Using client gameplay config', options.gameplayConfig);
+            }
 
             log.sys('GameRoom', 'Setting state values...');
             // Initialize state values
@@ -606,8 +616,8 @@ export class GameRoom extends Room {
             // 1. AI DECISION MAKING (server-only, runs before shared tick)
             this.processAI();
 
-            // 2. SHARED ENGINE TICK
-            const events = GameEngine.tick(this.state);
+            // 2. SHARED ENGINE TICK (with gameplay config from client)
+            const events = GameEngine.tick(this.state, this.engineConfig);
 
             // 3. BROADCAST TICK EVENTS to clients (for animations, combat logs)
             const hasEvents = events.transfers.length > 0 ||

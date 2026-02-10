@@ -61,8 +61,14 @@ export interface EngineConfig {
     SCATTER_CAPTURE_RATE: number;          // % captured when defender scatters
     SCATTER_DESTROY_RATE: number;          // % of non-captured destroyed during scatter
 
-    // Combat
+    // Combat — unified from COMBAT_CONFIG (Phase A: single pipeline)
     DAMAGED_SHIP_EFFECTIVENESS: number;    // Damaged ships as fraction of defenders
+    DAMAGE_PER_SHIP: number;               // Base damage per ship per tick
+    LETHALITY: number;                     // Fraction of damage that kills (rest disables)
+    AGGRESSOR_ADVANTAGE: number;           // Attacker damage multiplier (>1 = attacker advantage)
+    FORCE_RATIO_EFFECT: number;            // How much numerical superiority matters
+    CONQUEST_THRESHOLD: number;            // Overwhelm ratio for instant capture
+    MINIMUM_DAMAGE: number;                // Floor damage per combat tick
 }
 
 export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
@@ -78,4 +84,10 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
     SCATTER_CAPTURE_RATE: 0.50,
     SCATTER_DESTROY_RATE: 0.50,
     DAMAGED_SHIP_EFFECTIVENESS: 0.14,
+    DAMAGE_PER_SHIP: 0.1,
+    LETHALITY: 0.25,
+    AGGRESSOR_ADVANTAGE: 0.7,
+    FORCE_RATIO_EFFECT: 0,
+    CONQUEST_THRESHOLD: 8,
+    MINIMUM_DAMAGE: 1,
 };
