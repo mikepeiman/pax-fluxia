@@ -104,7 +104,7 @@
 |----|-------|
 | B-23 | Play/pause outline not updating correctly (pending user verification) |
 | B-26 | MP variables not wired: most exposed config variables have no effect in MP |
-| B-27 | Star spacing not working in SP or MP — minimum spacing should be star diameter + 5 ship orbit layers + buffer |
+| B-28 | Tone.js progressive lag: enabling sound causes game to slow down and get worse over time |
 
 ## Resolved Bugs (B)
 
@@ -214,6 +214,7 @@
 
 | Date | Summary |
 |------|---------|
+| 2026-02-10 | Phase 1: R-45/B-27 physics star spacing, R-40 leaderboard, R-41 surrender modal. B-28 Tone.js lag fix (throttling). SP/MP parity audit completed. |
 | 2026-02-10 | Documented 9 new items from user: orbit density (R-38/R-39/R-46), leaderboard (R-40), surrender modal (R-41), player stats console (R-42), SP/MP parity (R-43), AI difficulty (R-44), star spacing (R-45/B-27), MP variable wiring (B-26). |
 | 2026-02-09 | Unified game settings: MP lobby now has same settings as SP (stars/player, ships/star, spacing, links). Server `initStandardMap` reads from `RoomOptions`. Star count fix: adaptive spacing retry + adaptive hex radius. |
 | 2026-02-08 | Batch 1 fixes: B-8 (no attack travel anim), B-12 (15° lane angle), B-16 (lane gaps around stars), B-17 (arrow length slider). |

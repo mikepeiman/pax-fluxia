@@ -6,6 +6,10 @@
  * - Order: Soft chime when issuing commands (per star dragged through)
  * - Combat: Subtle percussive sounds, scaled to battle size
  * - Conquest: Triumphant arpeggio on star capture
+ * 
+ * PERFORMANCE: All sound functions are aggressively throttled.
+ * Tone.js Web Audio scheduling is expensive — too many concurrent
+ * triggerAttackRelease calls starve the UI thread. (B-28)
  */
 
 import * as Tone from 'tone';
@@ -22,16 +26,56 @@ let combatVolume = 0.5;
 // Synths and effects
 let tickSynth: Tone.MembraneSynth | null = null;
 let orderSynth: Tone.PolySynth | null = null;
-let combatSynth: Tone.MetalSynth | null = null; // Changed from NoiseSynth to avoid timing issues
+let combatSynth: Tone.MetalSynth | null = null;
 
 // Effects chain
 let reverb: Tone.Reverb | null = null;
 let filter: Tone.Filter | null = null;
 let masterGain: Tone.Gain | null = null;
 
-// Combat sound cooldown to prevent timing errors
+// ============================================================================
+// THROTTLING (B-28: prevent Tone.js from starving the UI thread)
+// ============================================================================
+
+/** Minimum ms between combat sounds */
+const COMBAT_COOLDOWN_MS = 200;
 let lastCombatTime = 0;
-const COMBAT_COOLDOWN = 50; // ms between combat sounds
+
+/** Minimum ms between tick sounds */
+const TICK_COOLDOWN_MS = 100;
+let lastTickTime = 0;
+
+/** Maximum combat sounds per second (hard cap) */
+const MAX_COMBAT_PER_SECOND = 4;
+let combatCountThisSecond = 0;
+let combatSecondStart = 0;
+
+/** Maximum conquest sounds per second */
+const MAX_CONQUEST_PER_SECOND = 2;
+let conquestCountThisSecond = 0;
+let conquestSecondStart = 0;
+
+/**
+ * Check if a sound can play within its per-second budget.
+ * Returns true if allowed, false if throttled.
+ */
+function checkBudget(
+    now: number,
+    countRef: { count: number; start: number },
+    maxPerSecond: number
+): boolean {
+    if (now - countRef.start > 1000) {
+        countRef.count = 0;
+        countRef.start = now;
+    }
+    if (countRef.count >= maxPerSecond) return false;
+    countRef.count++;
+    return true;
+}
+
+// Shared budget objects (avoids closure overhead)
+const combatBudget = { count: 0, start: 0 };
+const conquestBudget = { count: 0, start: 0 };
 
 /**
  * Initialize the audio system (must be called after user interaction)
@@ -73,8 +117,9 @@ export async function initAudio(): Promise<void> {
         }).connect(filter);
         tickSynth.volume.value = -22;
 
-        // Order synth - soft chimes/bells
+        // Order synth - soft chimes/bells (limit max polyphony to prevent voice buildup)
         orderSynth = new Tone.PolySynth(Tone.Synth, {
+            maxPolyphony: 6,
             oscillator: { type: 'triangle' },
             envelope: {
                 attack: 0.01,
@@ -82,12 +127,11 @@ export async function initAudio(): Promise<void> {
                 sustain: 0.1,
                 release: 0.6
             }
-        }).connect(filter);
+        } as any).connect(filter);
         orderSynth.volume.value = -16;
 
-        // Combat synth - metallic percussion (no timing issues like NoiseSynth)
+        // Combat synth - metallic percussion
         combatSynth = new Tone.MetalSynth({
-            frequency: 80,
             envelope: {
                 attack: 0.001,
                 decay: 0.1,
@@ -108,13 +152,21 @@ export async function initAudio(): Promise<void> {
 }
 
 /**
- * Play tick sound (each game tick)
+ * Play tick sound (each game tick).
+ * Throttled to prevent buildup at high game speeds.
  */
 export function playTick(): void {
     if (!initialized || !enabled || !tickSynth || tickVolume === 0) return;
 
-    // Very subtle low thump
-    tickSynth.triggerAttackRelease('C1', '32n', Tone.now(), 0.3 * tickVolume);
+    const now = Date.now();
+    if (now - lastTickTime < TICK_COOLDOWN_MS) return;
+    lastTickTime = now;
+
+    try {
+        tickSynth.triggerAttackRelease('C1', '32n', Tone.now(), 0.3 * tickVolume);
+    } catch {
+        // Silently ignore timing errors
+    }
 }
 
 /**
@@ -127,44 +179,58 @@ export function playOrderIssued(starIndex: number = 0): void {
     const notes = ['C4', 'E4', 'G4', 'B4', 'C5', 'E5'];
     const note = notes[Math.min(starIndex, notes.length - 1)];
 
-    orderSynth.triggerAttackRelease(note, '16n', Tone.now(), 0.4 * orderVolume);
-}
-
-/**
- * Play combat sound (scaled to battle intensity)
- * @param intensity 0-1 scale of how intense the battle is
- */
-export function playCombat(intensity: number = 0.5): void {
-    if (!initialized || !enabled || !combatSynth || combatVolume === 0) return;
-
-    // Cooldown to prevent "Start time must be greater" errors
-    const now = Date.now();
-    if (now - lastCombatTime < COMBAT_COOLDOWN) return;
-    lastCombatTime = now;
-
-    // MetalSynth uses triggerAttackRelease with duration
-    const duration = 0.03 + intensity * 0.08;
-    const velocity = (0.2 + intensity * 0.5) * combatVolume;
-
     try {
-        combatSynth.triggerAttackRelease(duration, Tone.now(), velocity);
-    } catch (e) {
+        orderSynth.triggerAttackRelease(note, '16n', Tone.now(), 0.4 * orderVolume);
+    } catch {
         // Silently ignore timing errors
     }
 }
 
 /**
- * Play conquest/capture sound
+ * Play combat sound (scaled to battle intensity).
+ * Heavily throttled: max 4/sec with 200ms cooldown. (B-28)
+ */
+export function playCombat(intensity: number = 0.5): void {
+    if (!initialized || !enabled || !combatSynth || combatVolume === 0) return;
+
+    const now = Date.now();
+
+    // Cooldown gate
+    if (now - lastCombatTime < COMBAT_COOLDOWN_MS) return;
+    lastCombatTime = now;
+
+    // Per-second budget gate
+    if (!checkBudget(now, combatBudget, MAX_COMBAT_PER_SECOND)) return;
+
+    const duration = 0.03 + intensity * 0.08;
+    const velocity = (0.2 + intensity * 0.5) * combatVolume;
+
+    try {
+        combatSynth.triggerAttackRelease(duration, Tone.now(), velocity);
+    } catch {
+        // Silently ignore timing errors
+    }
+}
+
+/**
+ * Play conquest/capture sound.
+ * Throttled to max 2/sec. (B-28)
  */
 export function playConquest(): void {
     if (!initialized || !enabled || !orderSynth) return;
 
-    // Triumphant rising arpeggio
-    const now = Tone.now();
-    orderSynth.triggerAttackRelease('C4', '8n', now, 0.5);
-    orderSynth.triggerAttackRelease('E4', '8n', now + 0.1, 0.5);
-    orderSynth.triggerAttackRelease('G4', '8n', now + 0.2, 0.5);
-    orderSynth.triggerAttackRelease('C5', '4n', now + 0.3, 0.6);
+    const now = Date.now();
+    if (!checkBudget(now, conquestBudget, MAX_CONQUEST_PER_SECOND)) return;
+
+    try {
+        const toneNow = Tone.now();
+        orderSynth.triggerAttackRelease('C4', '8n', toneNow, 0.5);
+        orderSynth.triggerAttackRelease('E4', '8n', toneNow + 0.1, 0.5);
+        orderSynth.triggerAttackRelease('G4', '8n', toneNow + 0.2, 0.5);
+        orderSynth.triggerAttackRelease('C5', '4n', toneNow + 0.3, 0.6);
+    } catch {
+        // Silently ignore timing errors
+    }
 }
 
 /**
@@ -230,6 +296,13 @@ export function dispose(): void {
     if (reverb) reverb.dispose();
     if (filter) filter.dispose();
     if (masterGain) masterGain.dispose();
+
+    tickSynth = null;
+    orderSynth = null;
+    combatSynth = null;
+    reverb = null;
+    filter = null;
+    masterGain = null;
 
     initialized = false;
 }
