@@ -206,10 +206,9 @@
         // Append canvas to container
         canvasContainer.appendChild(app.canvas);
 
-        // Create graphics layers (order matters: connections → links → stars → ships → labels → drag)
-        connectionGraphics = new PIXI.Graphics();
-        app.stage.addChild(connectionGraphics);
-
+        // Create graphics layers
+        // Layer order (bottom to top): links → stars → ships → connections → labels → drag
+        // Connections render ABOVE ships so lanes remain visible under dense ship clusters
         linkGraphics = new PIXI.Graphics();
         app.stage.addChild(linkGraphics);
 
@@ -221,6 +220,9 @@
 
         shipGraphics = new PIXI.Graphics();
         shipsContainer.addChild(shipGraphics);
+
+        connectionGraphics = new PIXI.Graphics();
+        app.stage.addChild(connectionGraphics);
 
         labelsContainer = new PIXI.Container();
         app.stage.addChild(labelsContainer);
@@ -363,16 +365,16 @@
         const scaledWidth = GAME_WIDTH * effectiveScale;
         const scaledHeight = GAME_HEIGHT * effectiveScale;
 
-        // Allow panning up to half the world size beyond edges
+        // Allow panning up to 25% the world size beyond edges
         const maxPanX = Math.max(
             0,
             (scaledWidth - containerWidth) / (2 * effectiveScale) +
-                GAME_WIDTH * 0.1,
+                GAME_WIDTH * 0.25,
         );
         const maxPanY = Math.max(
             0,
             (scaledHeight - containerHeight) / (2 * effectiveScale) +
-                GAME_HEIGHT * 0.1,
+                GAME_HEIGHT * 0.25,
         );
 
         panOffsetX = Math.max(-maxPanX, Math.min(maxPanX, panOffsetX));
@@ -605,6 +607,12 @@
 
             // Collect gap intervals [tStart, tEnd] along the lane (0..1 parameterization)
             const gaps: [number, number][] = [];
+
+            // Gap at source and target star edges (lanes terminate at star boundary)
+            const srcGap = source.radius / laneDist;
+            const tgtGap = target.radius / laneDist;
+            gaps.push([0, srcGap]);
+            gaps.push([1 - tgtGap, 1]);
 
             // Check all other stars for proximity to this lane
             for (const star of stars) {
