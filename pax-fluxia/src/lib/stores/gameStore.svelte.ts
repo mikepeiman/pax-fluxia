@@ -226,9 +226,8 @@ function cancelOrder(starId: StarId): void {
 function setDeferredOrder(enemyStarId: StarId, nextTargetId: StarId, persistAfterConquest?: boolean): boolean {
     if (engine) {
         const result = engine.setDeferredOrder(enemyStarId, nextTargetId, persistAfterConquest);
-        if (result) {
-            snapshot = engine.getState();
-        }
+        // Skip engine.getState() — deferred orders are metadata-only.
+        // The next tick will pick up the change naturally.
         return result;
     }
     return false;
