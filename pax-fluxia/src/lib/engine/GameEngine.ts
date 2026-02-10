@@ -248,15 +248,9 @@ export class GameEngine {
                 // Capital assignment
                 starType = 'grey';
             } else {
-                // Weighted random distribution
-                const rand = Math.random();
-                if (rand < 0.3) starType = 'grey';
-                else if (rand < 0.5) starType = 'yellow';
-                else if (rand < 0.65) starType = 'red';
-                else if (rand < 0.8) starType = 'green';
-                else if (rand < 0.9) starType = 'purple';
-                else if (rand < 0.95) starType = 'blue';
-                else starType = 'grey'; // fallback
+                // Even distribution across all 6 types
+                const types: StarType[] = ['grey', 'yellow', 'red', 'green', 'purple', 'blue'];
+                starType = types[Math.floor(Math.random() * types.length)];
             }
 
             starsAssigned++;
@@ -916,6 +910,8 @@ export class GameEngine {
             SCATTER_CAPTURE_RATE: GAME_CONFIG.SCATTER_CAPTURE_RATE,
             SCATTER_DESTROY_RATE: GAME_CONFIG.SCATTER_DESTROY_RATE,
             DAMAGED_SHIP_EFFECTIVENESS: GAME_CONFIG.DAMAGED_SHIP_EFFECTIVENESS,
+            CONQUEST_DAMAGED_CAPTURE_RATE: GAME_CONFIG.CONQUEST_DAMAGED_CAPTURE_RATE,
+            CONQUEST_DAMAGED_DESTROY_RATE: GAME_CONFIG.CONQUEST_DAMAGED_DESTROY_RATE,
             TRANSFER_RATE: GAME_CONFIG.TRANSFER_RATE ?? 0.1,
             DAMAGE_PER_SHIP: GAME_CONFIG.DAMAGE_PER_SHIP ?? 0.1,
             LETHALITY: GAME_CONFIG.LETHALITY ?? 0.25,

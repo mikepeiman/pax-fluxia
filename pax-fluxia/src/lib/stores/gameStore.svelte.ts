@@ -340,3 +340,15 @@ export const gameStore = {
     beginGame,
     toggleRetainOrderOnConquest
 };
+
+// ============================================================================
+// HMR Cleanup: Destroy engine when module is hot-replaced
+// ============================================================================
+if (import.meta.hot) {
+    import.meta.hot.dispose(() => {
+        if (engine) {
+            engine.destroy();
+            engine = null;
+        }
+    });
+}

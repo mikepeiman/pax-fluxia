@@ -19,6 +19,8 @@ export function buildEngineConfig(): EngineConfig {
         TRANSFER_RATE: GAME_CONFIG.TRANSFER_RATE,
         MIN_SHIPS_PER_TRANSFER: GAME_CONFIG.MIN_SHIPS_PER_TRANSFER,
         CONQUEST_TRANSFER_PERCENTAGE: GAME_CONFIG.CONQUEST_TRANSFER_PERCENTAGE,
+        CONQUEST_DAMAGED_CAPTURE_RATE: GAME_CONFIG.CONQUEST_DAMAGED_CAPTURE_RATE,
+        CONQUEST_DAMAGED_DESTROY_RATE: GAME_CONFIG.CONQUEST_DAMAGED_DESTROY_RATE,
         RETAIN_ORDER_ON_CONQUEST: GAME_CONFIG.RETAIN_ORDER_ON_CONQUEST,
         RETREAT_CAPTURE_RATE: GAME_CONFIG.RETREAT_CAPTURE_RATE,
         SCATTER_CAPTURE_RATE: GAME_CONFIG.SCATTER_CAPTURE_RATE,
@@ -66,6 +68,8 @@ interface GameConfigType {
 
     // Conquest
     CONQUEST_TRANSFER_PERCENTAGE: number;
+    CONQUEST_DAMAGED_CAPTURE_RATE: number;  // % of damaged ships captured at conquest (0-1)
+    CONQUEST_DAMAGED_DESTROY_RATE: number;  // % of damaged ships destroyed at conquest (0-1)
     OVERWHELM_THRESHOLD: number;
     CLEAR_ORDER_ON_CAPTURE: boolean;
 
@@ -237,6 +241,11 @@ export const GAME_CONFIG: GameConfigType = {
 
     /** When attacker conquers defender, retain attack order as movement order (default: true) */
     RETAIN_ORDER_ON_CONQUEST: true,
+
+    /** % of damaged ships captured (transferred to new owner) at conquest (0-1) */
+    CONQUEST_DAMAGED_CAPTURE_RATE: 1.0,
+    /** % of damaged ships destroyed at conquest (0-1) */
+    CONQUEST_DAMAGED_DESTROY_RATE: 0,
 
     // ========================================================================
     // SCATTER / RETREAT

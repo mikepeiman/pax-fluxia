@@ -155,9 +155,16 @@ export function applyConquest(
     // EXECUTE CONQUEST
     // ========================================================================
 
-    // Clear defender ships
+    // Clear defender active ships
     defender.activeShips = 0;
-    defender.damagedShips = 0;
+
+    // Handle damaged ships based on config rates
+    const damagedAtCapture = defender.damagedShips;
+    const damagedCaptured = Math.floor(damagedAtCapture * (cfg.CONQUEST_DAMAGED_CAPTURE_RATE ?? 1.0));
+    const damagedDestroyed = Math.floor(damagedAtCapture * (cfg.CONQUEST_DAMAGED_DESTROY_RATE ?? 0));
+    // Remaining damaged ships that are neither captured nor destroyed are lost
+    defender.damagedShips = damagedCaptured;
+
     defender.productionOverflow = 0;
     defender.repairOverflow = 0;
     defender.lastCombatTick = -1;

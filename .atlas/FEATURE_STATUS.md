@@ -98,6 +98,8 @@
 |----|-------|
 | B-9 | Conquest ships render as production bloom — new ships at conquered star spawn from center and spiral out over multiple ticks instead of appearing instantly. Root: `GameCanvas.svelte` lines 1412-1440 use identical spawn logic for production and conquest. Needs distinct conquest path. |
 | B-24 | Erratic repair rates: user reports 200→120 damaged in single tick, rates varying 5-50%. Dataflow logging added to `applyRepair()` — console output shows star type, rate, typeMult, pinning, overflow. Investigate with StarInfoPanel + console. |
+| B-25 | Lag when selecting enemy stars to issue deferred orders. User-reported, needs investigation. |
+| B-26 | Game engine continues running after client dev server reloads (HMR). Console logs keep generating. `GameEngine.destroy()` may not be called on unmount. |
 
 ## Open Bugs — MP (B)
 

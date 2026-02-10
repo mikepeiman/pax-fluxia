@@ -180,3 +180,33 @@ Tone.js was added for combat/conquest/tick sounds. Despite aggressive throttling
 - **Remove Tone.js entirely** — uninstall the package and delete `AudioManager.ts`
 - **Stub all call sites** so audio calls become no-ops
 - **Future audio**: If needed later, use raw Web Audio API with minimal oscillators, or pre-rendered audio sprites
+
+---
+
+# Decision: Conquest Damaged Ship Handling
+
+**Date:** 2026-02-10
+**Status:** Planned
+
+## Context
+At conquest time, `conquest.ts:160` sets `defender.damagedShips = 0` — all damaged ships vanish. User observed 50 damaged → 0 on capture. Currently no configurability for what happens to damaged ships.
+
+## Decision
+- Add configurable percentage for damaged ships at capture: what % are repaired instantly, destroyed, or captured as-damaged
+- **Default**: all damaged ships are captured (as damaged) by the conquering player — no instant repair, no destruction
+- Expose as sliders in Control Panel for playtesting
+- Future: separate "retreat damaged" vs "retreat active" percentages
+
+---
+
+# Decision: Star Type Distribution
+
+**Date:** 2026-02-10
+**Status:** Planned
+
+## Context
+Current random map generation skews star types: grey 30%, yellow 20%, red 15%, green 15%, purple 10%, blue 5%, grey fallback 5%. Specialized types like blue (movement) are too rare.
+
+## Decision
+- **Even distribution** for random maps: ~16.7% each (6 types)
+- Future: tunable distribution sliders. Most gameplay will use human-designed maps.
