@@ -257,8 +257,12 @@ export class GameEngine {
         });
 
         // Calculate defender force (active + damaged at reduced effectiveness)
-        const defenderForce = defender.activeShips +
+        const defenderBaseForce = defender.activeShips +
             Math.floor(defender.damagedShips * cfg.DAMAGED_SHIP_EFFECTIVENESS);
+
+        // Apply star type defense multiplier
+        const defenderDefenseMult = STAR_TYPE_STATS[(defender.starType || 'grey') as StarType]?.defense ?? 1;
+        const defenderForce = Math.floor(defenderBaseForce * defenderDefenseMult);
 
         // Instant conquest if no defenders
         if (defenderForce <= 0) {
@@ -269,11 +273,19 @@ export class GameEngine {
             return;
         }
 
+        // Calculate weighted average attack multiplier
+        let weightedAttackMult = 0;
+        contributions.forEach(({ attacker, force }) => {
+            const attackMult = STAR_TYPE_STATS[(attacker.starType || 'grey') as StarType]?.attack ?? 1;
+            weightedAttackMult += attackMult * (force / totalAttackForce);
+        });
+        const effectiveAttackForce = Math.floor(totalAttackForce * weightedAttackMult);
+
         // Calculate combat damage using config-driven values
         const defenderIsAttacking = !!defender.targetId;
         const result = calculateCombat(
             defenderForce,
-            totalAttackForce,
+            effectiveAttackForce,
             defenderIsAttacking,
             true,
             {

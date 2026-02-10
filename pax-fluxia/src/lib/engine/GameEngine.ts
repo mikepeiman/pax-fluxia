@@ -248,9 +248,10 @@ export class GameEngine {
                 // Capital assignment
                 starType = 'grey';
             } else {
-                // Even distribution across all 6 types
+                // Guaranteed even distribution: round-robin across all 6 types
                 const types: StarType[] = ['grey', 'yellow', 'red', 'green', 'purple', 'blue'];
-                starType = types[Math.floor(Math.random() * types.length)];
+                const nonCapitalIndex = starsAssigned - playerIds.length;
+                starType = types[nonCapitalIndex % types.length];
             }
 
             starsAssigned++;
@@ -637,7 +638,11 @@ export class GameEngine {
         });
 
         // Damaged ships count at reduced effectiveness for defense
-        const defenderForce = defender.activeShips + Math.floor(defender.damagedShips * GAME_CONFIG.DAMAGED_SHIP_EFFECTIVENESS);
+        const defenderBaseForce = defender.activeShips + Math.floor(defender.damagedShips * GAME_CONFIG.DAMAGED_SHIP_EFFECTIVENESS);
+
+        // Apply defender star type defense multiplier
+        const defenderDefenseMult = STAR_TYPE_STATS[defender.starType as StarType]?.defense ?? 1;
+        const defenderForce = Math.floor(defenderBaseForce * defenderDefenseMult);
 
         if (defenderForce <= 0) {
             // Instant conquest - no defenders
@@ -659,6 +664,14 @@ export class GameEngine {
             return;
         }
 
+        // Calculate weighted average attack multiplier from all attacking stars
+        let weightedAttackMult = 0;
+        attackerContributions.forEach(({ attacker, ships }) => {
+            const attackMult = STAR_TYPE_STATS[attacker.starType as StarType]?.attack ?? 1;
+            weightedAttackMult += attackMult * (ships / totalAttackShips);
+        });
+        const effectiveAttackForce = Math.floor(totalAttackShips * weightedAttackMult);
+
         // Calculate symmetric damage using TOTAL ships from ALL attackers (all players)
         const attackerIsAttacking = true;
         const defenderIsAttacking = defender.targetId !== null;
@@ -670,7 +683,7 @@ export class GameEngine {
             disabledOnB: disabledOnAttacker
         } = calculateCombatV4(
             defenderForce,
-            totalAttackShips,  // Use TOTAL attacking ships (all players combined)
+            effectiveAttackForce,  // Scaled by weighted attack multiplier
             defenderIsAttacking,
             attackerIsAttacking
         );
@@ -789,9 +802,15 @@ export class GameEngine {
         }
 
         // Combat uses CURRENT ship counts - ships don't leave
-        const attackerForce = attacker.activeShips;
+        const attackerBaseForce = attacker.activeShips;
         // Damaged ships count at 1/7th effectiveness for defense
-        const defenderForce = defender.activeShips + Math.floor(defender.damagedShips * GAME_CONFIG.DAMAGED_SHIP_EFFECTIVENESS);
+        const defenderBaseForce = defender.activeShips + Math.floor(defender.damagedShips * GAME_CONFIG.DAMAGED_SHIP_EFFECTIVENESS);
+
+        // Apply star type multipliers
+        const attackMult = STAR_TYPE_STATS[attacker.starType as StarType]?.attack ?? 1;
+        const defenseMult = STAR_TYPE_STATS[defender.starType as StarType]?.defense ?? 1;
+        const attackerForce = Math.floor(attackerBaseForce * attackMult);
+        const defenderForce = Math.floor(defenderBaseForce * defenseMult);
 
         if (defenderForce <= 0) {
             // Instant conquest - no defenders

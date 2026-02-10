@@ -1856,7 +1856,7 @@
         const y = event.clientY - rect.top;
 
         // Middle-click or Space+click: start pan
-        if (event.button === 1 || (event.button === 0 && isSpaceHeld)) {
+        if (event.button === 1) {
             event.preventDefault();
             isPanning = true;
             panStartScreenX = event.clientX;
@@ -2284,12 +2284,15 @@
             (event.key === " " || event.code === "Space") &&
             !event.repeat
         ) {
-            // Spacebar = hold-to-pan (design tool convention)
+            // Spacebar = play/pause toggle (restores previous speed)
             event.preventDefault();
-            isSpaceHeld = true;
-            canvasContainer.style.cursor = "grab";
+            if (activeGameStore.isPaused) {
+                activeGameStore.resumeGame();
+            } else {
+                activeGameStore.pauseGame();
+            }
         } else if (event.key === "p" || event.key === "P") {
-            // P = pause/play toggle
+            // P = pause/play toggle (alias)
             if (activeGameStore.isPaused) {
                 activeGameStore.resumeGame();
             } else {
@@ -2301,11 +2304,6 @@
     function handleKeyUp(event: KeyboardEvent) {
         if (event.key === " " || event.code === "Space") {
             event.preventDefault();
-            isSpaceHeld = false;
-            if (isPanning) {
-                isPanning = false;
-            }
-            canvasContainer.style.cursor = "crosshair";
         }
     }
 </script>

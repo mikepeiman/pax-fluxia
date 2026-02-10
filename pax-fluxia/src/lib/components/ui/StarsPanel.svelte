@@ -3,6 +3,7 @@
     import { selectedStarStore } from "$lib/stores/selectedStarStore.svelte";
     import { STAR_TYPE_STATS } from "@pax/common";
     import type { StarType } from "@pax/common";
+    import { GAME_CONFIG } from "$lib/config/game.config";
 
     const TYPE_INFO: Record<
         string,
@@ -37,6 +38,68 @@
         const stats =
             STAR_TYPE_STATS[type as StarType] ?? STAR_TYPE_STATS["grey"];
         const ti = TYPE_INFO[type] ?? TYPE_INFO["grey"];
+
+        // Force calculations
+        const activeShips = selectedStar.activeShips;
+        const damagedShips = selectedStar.damagedShips;
+        const absolute = activeShips; // raw active ships
+        const damagedBonus = Math.floor(
+            damagedShips * (GAME_CONFIG.DAMAGED_SHIP_EFFECTIVENESS ?? 0.14),
+        );
+        const derivedDefense = Math.floor(
+            (activeShips + damagedBonus) * stats.defense,
+        );
+        const derivedAttack = Math.floor(activeShips * stats.attack);
+
+        // Relative: find target or attackers to compute ratio
+        let relativeRatio: number | null = null;
+        let relativeLabel = "";
+        const allStars = activeGameStore.stars as any[];
+        if (selectedStar.targetId) {
+            // This star is attacking — compare our attack force vs target's defense
+            const target = allStars.find(
+                (s: any) => s.id === selectedStar.targetId,
+            );
+            if (target) {
+                const tStats =
+                    STAR_TYPE_STATS[(target.starType || "grey") as StarType] ??
+                    STAR_TYPE_STATS["grey"];
+                const tDamagedBonus = Math.floor(
+                    target.damagedShips *
+                        (GAME_CONFIG.DAMAGED_SHIP_EFFECTIVENESS ?? 0.14),
+                );
+                const tDefense = Math.floor(
+                    (target.activeShips + tDamagedBonus) * tStats.defense,
+                );
+                relativeRatio =
+                    tDefense > 0 ? derivedAttack / tDefense : Infinity;
+                relativeLabel = `vs ${target.id}`;
+            }
+        } else {
+            // Check if anyone is attacking this star
+            const attackers = allStars.filter(
+                (s: any) =>
+                    s.targetId === selectedStar.id &&
+                    s.ownerId !== selectedStar.ownerId,
+            );
+            if (attackers.length > 0) {
+                let totalAttackForce = 0;
+                attackers.forEach((a: any) => {
+                    const aStats =
+                        STAR_TYPE_STATS[(a.starType || "grey") as StarType] ??
+                        STAR_TYPE_STATS["grey"];
+                    totalAttackForce += Math.floor(
+                        a.activeShips * aStats.attack,
+                    );
+                });
+                relativeRatio =
+                    totalAttackForce > 0
+                        ? derivedDefense / totalAttackForce
+                        : Infinity;
+                relativeLabel = `vs ${attackers.length} attacker${attackers.length > 1 ? "s" : ""}`;
+            }
+        }
+
         return {
             id: selectedStar.id,
             type,
@@ -45,9 +108,9 @@
             typeColor: ti.color,
             owner: selectedStar.ownerId || "neutral",
             ownerColor: getPlayerColor(selectedStar.ownerId),
-            activeShips: selectedStar.activeShips,
-            damagedShips: selectedStar.damagedShips,
-            totalShips: selectedStar.activeShips + selectedStar.damagedShips,
+            activeShips,
+            damagedShips,
+            totalShips: activeShips + damagedShips,
             prodMult: stats.prod,
             repairMult: stats.repair,
             speedMult: stats.speed,
@@ -58,6 +121,13 @@
             lastCombatTick: selectedStar.lastCombatTick,
             productionOverflow: selectedStar.productionOverflow,
             repairOverflow: selectedStar.repairOverflow,
+            // Force values
+            absolute,
+            derivedAttack,
+            derivedDefense,
+            damagedBonus,
+            relativeRatio,
+            relativeLabel,
         };
     });
 
@@ -114,7 +184,7 @@
                             >
                             {#if selectedInfo.damagedShips > 0}
                                 <span class="damaged"
-                                    >+{selectedInfo.damagedShips} dmg</span
+                                    >│ {selectedInfo.damagedShips} dmg</span
                                 >
                             {/if}
                             <span class="total"
@@ -151,6 +221,50 @@
                             {/if}
                         </span>
                     </div>
+
+                    <div class="detail-row">
+                        <span class="label">Force</span>
+                        <span class="value force-row">
+                            <span
+                                class="force-abs"
+                                title="Absolute: raw active ships"
+                                >{selectedInfo.absolute}</span
+                            >
+                            <span class="force-sep">→</span>
+                            <span
+                                class="force-atk"
+                                title="Derived Attack: active × ATK mult"
+                                >⚔{selectedInfo.derivedAttack}</span
+                            >
+                            <span
+                                class="force-def"
+                                title="Derived Defense: (active + dmg bonus) × DEF mult"
+                                >🛡{selectedInfo.derivedDefense}</span
+                            >
+                        </span>
+                    </div>
+
+                    {#if selectedInfo.relativeRatio !== null}
+                        <div class="detail-row">
+                            <span class="label">Ratio</span>
+                            <span class="value">
+                                <span
+                                    class="force-ratio"
+                                    class:favorable={selectedInfo.relativeRatio >=
+                                        1}
+                                    class:unfavorable={selectedInfo.relativeRatio <
+                                        1}
+                                >
+                                    {selectedInfo.relativeRatio === Infinity
+                                        ? "∞"
+                                        : selectedInfo.relativeRatio.toFixed(2)}
+                                </span>
+                                <span class="force-vs"
+                                    >{selectedInfo.relativeLabel}</span
+                                >
+                            </span>
+                        </div>
+                    {/if}
 
                     <div class="detail-row">
                         <span class="label">Target</span>
@@ -215,7 +329,7 @@
                     <span class="row-ships">
                         <span class="active">{s.activeShips}</span>
                         {#if s.damagedShips > 0}
-                            <span class="damaged">+{s.damagedShips}</span>
+                            <span class="damaged">│ {s.damagedShips}</span>
                         {/if}
                     </span>
                 </button>
@@ -454,5 +568,43 @@
         text-align: right;
         min-width: 40px;
         flex-shrink: 0;
+    }
+
+    /* ── Force Display ── */
+    .force-row {
+        display: flex;
+        gap: 3px;
+        align-items: center;
+    }
+    .force-abs {
+        color: #c8d0e0;
+        font-weight: 600;
+    }
+    .force-sep {
+        color: #445;
+        font-size: 9px;
+    }
+    .force-atk {
+        color: #22c55e;
+        font-size: 10px;
+    }
+    .force-def {
+        color: #ef4444;
+        font-size: 10px;
+    }
+    .force-ratio {
+        font-weight: 700;
+        font-size: 11px;
+    }
+    .force-ratio.favorable {
+        color: #4ade80;
+    }
+    .force-ratio.unfavorable {
+        color: #f87171;
+    }
+    .force-vs {
+        color: #556;
+        font-size: 9px;
+        margin-left: 3px;
     }
 </style>
