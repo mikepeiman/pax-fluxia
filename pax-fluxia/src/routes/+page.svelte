@@ -5,10 +5,10 @@
   import MainMenu from "$lib/components/ui/MainMenu.svelte";
   import ResultsModal from "$lib/components/ui/ResultsModal.svelte";
   import GameCanvas from "$lib/components/game/GameCanvas.svelte";
-  import StarsPanel from "$lib/components/ui/StarsPanel.svelte";
+  import CombatDebugPanel from "$lib/components/ui/CombatDebugPanel.svelte";
   import Leaderboard from "$lib/components/ui/Leaderboard.svelte";
   import SpeedControls from "$lib/components/ui/SpeedControls.svelte";
-  import StarInfoPanel from "$lib/components/ui/StarInfoPanel.svelte";
+  import StarsPanel from "$lib/components/ui/StarsPanel.svelte";
   import AudioSettings from "$lib/components/ui/AudioSettings.svelte";
   import type { PlayerState } from "$lib/types/game.types";
 
@@ -63,9 +63,9 @@
 
         <!-- Overlays -->
 
-        <!-- TOP LEFT: Star Info Panel -->
+        <!-- TOP LEFT: Stars Panel (was Combat Logs, then StarInfoPanel) -->
         <div class="overlay-top-left">
-          <StarInfoPanel />
+          <StarsPanel />
         </div>
 
         {#if gameStore.winner || (activeGameStore.phase as string) === "ended"}
@@ -119,9 +119,9 @@
           <Leaderboard players={leaderboardPlayers} />
         </div>
 
-        <!-- 2. Stars Panel (fills remaining space) -->
+        <!-- 2. Combat Tuning (fills remaining space) -->
         <div class="panel-section section-tuning">
-          <StarsPanel />
+          <CombatDebugPanel />
         </div>
       </div>
     </div>

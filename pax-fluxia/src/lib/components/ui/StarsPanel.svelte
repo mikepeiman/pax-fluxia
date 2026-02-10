@@ -228,10 +228,16 @@
     .stars-panel {
         display: flex;
         flex-direction: column;
-        height: 100%;
+        max-height: calc(100vh - 100px);
+        width: 280px;
         gap: 0;
         font-size: 12px;
         color: #c8d0e0;
+        background: rgba(10, 14, 20, 0.92);
+        border: 1px solid rgba(100, 120, 160, 0.3);
+        border-radius: 8px;
+        backdrop-filter: blur(8px);
+        overflow: hidden;
     }
 
     .section-title {
