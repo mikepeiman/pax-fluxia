@@ -108,10 +108,12 @@ export function hexDistance(a: HexCoord, b: HexCoord): number {
 export function selectRandomHexPositions(
     hexes: HexCoord[],
     count: number,
-    minSpacing: number = 100
+    minSpacing: number = 100,
+    absoluteMinSpacing: number = 50
 ): HexCoord[] {
-    const MIN_ABSOLUTE_SPACING = 30; // Never go below this
+    const MIN_ABSOLUTE_SPACING = Math.max(absoluteMinSpacing, 50);
     let currentSpacing = minSpacing;
+    let attempt = 0;
 
     // Retry with progressively reduced spacing until we get enough stars
     while (currentSpacing >= MIN_ABSOLUTE_SPACING) {
@@ -135,10 +137,14 @@ export function selectRandomHexPositions(
         }
 
         if (selected.length >= count) {
+            if (attempt > 0) {
+                console.warn(`[HexUtils] Star spacing fell back from ${minSpacing.toFixed(0)}px to ${currentSpacing.toFixed(0)}px after ${attempt} retries`);
+            }
             return selected;
         }
 
         // Reduce spacing and retry
+        attempt++;
         currentSpacing *= 0.8;
     }
 

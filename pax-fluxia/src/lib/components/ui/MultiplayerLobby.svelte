@@ -358,6 +358,11 @@
         font-size: 1rem;
     }
 
+    .form-group select option {
+        background: #1a1a2e;
+        color: #e0e0e0;
+    }
+
     .form-group input:focus,
     .form-group select:focus {
         outline: none;

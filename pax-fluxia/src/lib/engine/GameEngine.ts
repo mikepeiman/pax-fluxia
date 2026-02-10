@@ -192,9 +192,9 @@ export class GameEngine {
         const paddingY = basePaddingY;
 
         // Adaptive hex radius: shrink grid cell size to ensure enough positions
-        // Each hex occupies ~(1.5r × sqrt(3)r) area; we need at least 2x positions for spacing freedom
+        // Each hex occupies ~(1.5r × sqrt(3)r) area; we need at least 3x positions for spacing freedom
         const gridArea = (width - paddingX * 2) * (height - paddingY * 2);
-        const neededPositions = totalStars * 2; // 2x for spacing margin
+        const neededPositions = totalStars * 3; // 3x for physics spacing margin
         const maxHexArea = gridArea / neededPositions;
         const maxHexRadius = Math.sqrt(maxHexArea / (1.5 * Math.sqrt(3)));
         hexRadius = Math.max(20, Math.min(hexRadius, Math.floor(maxHexRadius)));
@@ -232,7 +232,8 @@ export class GameEngine {
 
         log.sys('GameEngine', `Star spacing: ${minSpacing.toFixed(0)}px (physics min: ${physicsMinSpacing.toFixed(0)}, multiplier: ${spacingMultiplier})`);
 
-        const starPositions = selectRandomHexPositions(hexes, totalStars, minSpacing);
+        // Pass physicsMinSpacing as absolute floor — spacing should never go below what physics requires
+        const starPositions = selectRandomHexPositions(hexes, totalStars, minSpacing, physicsMinSpacing);
 
         log.sys('GameEngine', `Selected ${starPositions.length} positions for stars`);
 
