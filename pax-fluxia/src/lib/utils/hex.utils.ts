@@ -110,26 +110,45 @@ export function selectRandomHexPositions(
     count: number,
     minSpacing: number = 100
 ): HexCoord[] {
-    const selected: HexCoord[] = [];
-    const available = [...hexes];
+    const MIN_ABSOLUTE_SPACING = 30; // Never go below this
+    let currentSpacing = minSpacing;
 
-    // Shuffle available hexes
+    // Retry with progressively reduced spacing until we get enough stars
+    while (currentSpacing >= MIN_ABSOLUTE_SPACING) {
+        const selected: HexCoord[] = [];
+        const available = [...hexes];
+
+        // Shuffle available hexes
+        for (let i = available.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [available[i], available[j]] = [available[j], available[i]];
+        }
+
+        for (const hex of available) {
+            if (selected.length >= count) break;
+
+            // Check minimum spacing from all already-selected
+            const tooClose = selected.some(s => hexDistance(s, hex) < currentSpacing);
+            if (!tooClose) {
+                selected.push(hex);
+            }
+        }
+
+        if (selected.length >= count) {
+            return selected;
+        }
+
+        // Reduce spacing and retry
+        currentSpacing *= 0.8;
+    }
+
+    // Final fallback: no spacing constraint, just pick random positions
+    const available = [...hexes];
     for (let i = available.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [available[i], available[j]] = [available[j], available[i]];
     }
-
-    for (const hex of available) {
-        if (selected.length >= count) break;
-
-        // Check minimum spacing from all already-selected
-        const tooClose = selected.some(s => hexDistance(s, hex) < minSpacing);
-        if (!tooClose) {
-            selected.push(hex);
-        }
-    }
-
-    return selected;
+    return available.slice(0, count);
 }
 
 /**

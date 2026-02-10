@@ -178,7 +178,7 @@ export class GameEngine {
     private initializeMap(): void {
         const width = 1600;
         const height = 900;
-        const hexRadius = GAME_CONFIG.HEX_RADIUS || 60;
+        let hexRadius = GAME_CONFIG.HEX_RADIUS || 60;
 
         // Calculate total stars first to determine optimal padding
         const playerIds = Array.from(this.players.keys());
@@ -190,6 +190,14 @@ export class GameEngine {
         const basePaddingY = totalStars > 50 ? 60 : totalStars > 20 ? 80 : 100;
         const paddingX = basePaddingX;
         const paddingY = basePaddingY;
+
+        // Adaptive hex radius: shrink grid cell size to ensure enough positions
+        // Each hex occupies ~(1.5r × sqrt(3)r) area; we need at least 2x positions for spacing freedom
+        const gridArea = (width - paddingX * 2) * (height - paddingY * 2);
+        const neededPositions = totalStars * 2; // 2x for spacing margin
+        const maxHexArea = gridArea / neededPositions;
+        const maxHexRadius = Math.sqrt(maxHexArea / (1.5 * Math.sqrt(3)));
+        hexRadius = Math.max(20, Math.min(hexRadius, Math.floor(maxHexRadius)));
 
         const grid = new HexGrid({
             width: width - (paddingX * 2),
@@ -207,7 +215,7 @@ export class GameEngine {
             q: 0, r: 0
         }));
 
-        log.sys('GameEngine', `Generated hex grid with ${hexes.length} positions for ${totalStars} requested stars`);
+        log.sys('GameEngine', `Hex grid: radius=${hexRadius}, ${hexes.length} positions for ${totalStars} requested stars`);
 
         // Dynamic spacing calculation based on available area and star count
         const effectiveWidth = width - (paddingX * 2);
