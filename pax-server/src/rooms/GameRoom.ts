@@ -159,7 +159,13 @@ export class GameRoom extends Room {
             }
 
             log.game('GameRoom', 'Game starting!');
-            this.initializeGame();
+            try {
+                this.initializeGame();
+            } catch (err) {
+                log.error('GameRoom', 'initializeGame CRASHED:', err);
+                console.error('Full initializeGame error:', err);
+                return;
+            }
             this.state.phase = "playing";
             this.state.isPaused = true; // Start paused, await player ready
         });
@@ -440,7 +446,7 @@ export class GameRoom extends Room {
 
             const connectionCount = 2 + Math.floor(Math.random() * 3); // 2-4
             distances.slice(0, connectionCount).forEach(d => {
-                const key = [star.id, d.id].sort().join('-');
+                const key = [star.id, d.id].sort().join('|');
                 if (!connected.has(key)) {
                     connected.add(key);
                     linkCount.set(star.id, (linkCount.get(star.id) || 0) + 1);
@@ -459,7 +465,7 @@ export class GameRoom extends Room {
             for (const star of stars) {
                 const edges: { key: string; targetId: string; angle: number; dist: number }[] = [];
                 connected.forEach(key => {
-                    const [aId, bId] = key.split('-');
+                    const [aId, bId] = key.split('|');
                     let targetId: string | null = null;
                     if (aId === star.id) targetId = bId;
                     else if (bId === star.id) targetId = aId;
@@ -502,7 +508,7 @@ export class GameRoom extends Room {
         while (changed) {
             changed = false;
             for (const key of Array.from(connected)) {
-                const [aId, bId] = key.split('-');
+                const [aId, bId] = key.split('|');
                 const a = starMap.get(aId)!;
                 const b = starMap.get(bId)!;
 
@@ -531,7 +537,7 @@ export class GameRoom extends Room {
 
         // Create final connection schemas
         connected.forEach(key => {
-            const [aId, bId] = key.split('-');
+            const [aId, bId] = key.split('|');
             this.addConnection(aId, bId);
         });
     }
@@ -575,31 +581,37 @@ export class GameRoom extends Room {
     }
 
     private executeTick() {
-        // 1. AI DECISION MAKING (server-only, runs before shared tick)
-        this.processAI();
+        try {
+            // 1. AI DECISION MAKING (server-only, runs before shared tick)
+            this.processAI();
 
-        // 2. SHARED ENGINE TICK (production, orders, combat, repair, stats, win-check)
-        const events = GameEngine.tick(this.state);
+            // 2. SHARED ENGINE TICK
+            const events = GameEngine.tick(this.state);
 
-        // 3. BROADCAST TICK EVENTS to clients (for animations, combat logs)
-        const hasEvents = events.transfers.length > 0 ||
-            events.combats.length > 0 ||
-            events.conquests.length > 0;
-        if (hasEvents) {
-            this.broadcast("tickEvents", events);
-        }
+            // 3. BROADCAST TICK EVENTS to clients (for animations, combat logs)
+            const hasEvents = events.transfers.length > 0 ||
+                events.combats.length > 0 ||
+                events.conquests.length > 0;
+            if (hasEvents) {
+                this.broadcast("tickEvents", events);
+            }
 
-        // 4. POST-TICK: Check if game ended (server needs to stop interval)
-        if (this.state.phase === "ended") {
+            // 4. POST-TICK: Check if game ended (server needs to stop interval)
+            if (this.state.phase === "ended") {
+                this.stopTick();
+                const winner = this.state.winnerId
+                    ? this.state.players.get(this.state.winnerId)?.name
+                    : 'nobody';
+                log.game('GameRoom', `Game ended. Winner: ${winner}`);
+            }
+
+            // 5. Reset tick progress for interpolation
+            this.state.tickProgress = 0;
+        } catch (err) {
+            log.error('GameRoom', 'executeTick CRASHED:', err);
+            console.error('Full tick error:', err);
             this.stopTick();
-            const winner = this.state.winnerId
-                ? this.state.players.get(this.state.winnerId)?.name
-                : 'nobody';
-            log.game('GameRoom', `Game ended. Winner: ${winner}`);
         }
-
-        // 5. Reset tick progress for interpolation
-        this.state.tickProgress = 0;
     }
 
     private processAI() {
