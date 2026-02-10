@@ -287,6 +287,7 @@
         transfer: "pax-fluxia-collapse-transfer",
         combat: "pax-fluxia-collapse-combat",
         ai: "pax-fluxia-collapse-ai",
+        visuals: "pax-fluxia-collapse-visuals",
     };
 
     function getCollapsedState(key: string): boolean {
@@ -303,6 +304,46 @@
     let transferCollapsed = $state(getCollapsedState(COLLAPSE_KEYS.transfer));
     let combatCollapsed = $state(getCollapsedState(COLLAPSE_KEYS.combat));
     let aiCollapsed = $state(getCollapsedState(COLLAPSE_KEYS.ai));
+    let visualsCollapsed = $state(getCollapsedState(COLLAPSE_KEYS.visuals));
+
+    // Visuals state
+    const VISUALS_STORAGE_KEY = "pax-fluxia-visuals";
+    const visualDefaults = {
+        laneWidth: GAME_CONFIG.CONNECTION_WIDTH,
+        laneAlpha: GAME_CONFIG.CONNECTION_ALPHA,
+        shadowWidth: GAME_CONFIG.CONNECTION_SHADOW_WIDTH,
+        shadowAlpha: GAME_CONFIG.CONNECTION_SHADOW_ALPHA,
+    };
+    function loadVisuals() {
+        if (typeof window === "undefined") return { ...visualDefaults };
+        try {
+            const s = localStorage.getItem(VISUALS_STORAGE_KEY);
+            if (s) return { ...visualDefaults, ...JSON.parse(s) };
+        } catch {
+            /* ignore */
+        }
+        return { ...visualDefaults };
+    }
+    let vis = $state(loadVisuals());
+    function saveVisuals() {
+        if (typeof window === "undefined") return;
+        localStorage.setItem(VISUALS_STORAGE_KEY, JSON.stringify(vis));
+    }
+    function updateVisual(key: keyof typeof vis, value: number) {
+        vis = { ...vis, [key]: value };
+        GAME_CONFIG.CONNECTION_WIDTH = vis.laneWidth;
+        GAME_CONFIG.CONNECTION_ALPHA = vis.laneAlpha;
+        GAME_CONFIG.CONNECTION_SHADOW_WIDTH = vis.shadowWidth;
+        GAME_CONFIG.CONNECTION_SHADOW_ALPHA = vis.shadowAlpha;
+        saveVisuals();
+    }
+    // Apply from storage on mount
+    onMount(() => {
+        GAME_CONFIG.CONNECTION_WIDTH = vis.laneWidth;
+        GAME_CONFIG.CONNECTION_ALPHA = vis.laneAlpha;
+        GAME_CONFIG.CONNECTION_SHADOW_WIDTH = vis.shadowWidth;
+        GAME_CONFIG.CONNECTION_SHADOW_ALPHA = vis.shadowAlpha;
+    });
 </script>
 
 <div class="combat-tuning-list">
@@ -574,6 +615,113 @@
                     </div>
                 </div>
             {/each}
+        </div>
+    {/if}
+
+    <!-- Visuals Section -->
+    <button
+        class="section-header visuals-section"
+        onclick={() => {
+            visualsCollapsed = !visualsCollapsed;
+            setCollapsedState(COLLAPSE_KEYS.visuals, visualsCollapsed);
+        }}
+    >
+        <span class="section-title">🎨 Lane Visuals</span>
+        <span class="collapse-icon">{visualsCollapsed ? "▶" : "▼"}</span>
+    </button>
+
+    {#if !visualsCollapsed}
+        <div class="content-list">
+            <div class="variable-row">
+                <div class="row-top">
+                    <span class="var-name">Lane Width</span>
+                    <span class="current-val">{vis.laneWidth.toFixed(1)}</span>
+                </div>
+                <div class="row-controls">
+                    <input
+                        type="range"
+                        min={0.5}
+                        max={8}
+                        step={0.5}
+                        value={vis.laneWidth}
+                        oninput={(e) =>
+                            updateVisual(
+                                "laneWidth",
+                                parseFloat(
+                                    (e.target as HTMLInputElement).value,
+                                ),
+                            )}
+                    />
+                </div>
+            </div>
+            <div class="variable-row">
+                <div class="row-top">
+                    <span class="var-name">Lane Opacity</span>
+                    <span class="current-val">{vis.laneAlpha.toFixed(2)}</span>
+                </div>
+                <div class="row-controls">
+                    <input
+                        type="range"
+                        min={0.05}
+                        max={1}
+                        step={0.05}
+                        value={vis.laneAlpha}
+                        oninput={(e) =>
+                            updateVisual(
+                                "laneAlpha",
+                                parseFloat(
+                                    (e.target as HTMLInputElement).value,
+                                ),
+                            )}
+                    />
+                </div>
+            </div>
+            <div class="variable-row">
+                <div class="row-top">
+                    <span class="var-name">Shadow Width</span>
+                    <span class="current-val">{vis.shadowWidth.toFixed(1)}</span
+                    >
+                </div>
+                <div class="row-controls">
+                    <input
+                        type="range"
+                        min={0}
+                        max={10}
+                        step={1}
+                        value={vis.shadowWidth}
+                        oninput={(e) =>
+                            updateVisual(
+                                "shadowWidth",
+                                parseFloat(
+                                    (e.target as HTMLInputElement).value,
+                                ),
+                            )}
+                    />
+                </div>
+            </div>
+            <div class="variable-row">
+                <div class="row-top">
+                    <span class="var-name">Shadow Opacity</span>
+                    <span class="current-val">{vis.shadowAlpha.toFixed(2)}</span
+                    >
+                </div>
+                <div class="row-controls">
+                    <input
+                        type="range"
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        value={vis.shadowAlpha}
+                        oninput={(e) =>
+                            updateVisual(
+                                "shadowAlpha",
+                                parseFloat(
+                                    (e.target as HTMLInputElement).value,
+                                ),
+                            )}
+                    />
+                </div>
+            </div>
         </div>
     {/if}
 </div>

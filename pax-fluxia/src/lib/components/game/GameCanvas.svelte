@@ -78,7 +78,8 @@
     const ZOOM_MIN = 0.5; // 4× spread: 0.5 to 2.0
     const ZOOM_MAX = 2.0;
     const ZOOM_STEP = 0.1; // Per scroll notch
-    let isPanning = false; // Middle-mouse-button pan
+    let isPanning = false; // Middle-mouse-button or spacebar pan
+    let isSpaceHeld = false; // Spacebar held for pan mode
     let panStartScreenX = 0;
     let panStartScreenY = 0;
     let panStartOffsetX = 0;
@@ -585,6 +586,10 @@
         // Build star lookup for intersection testing
         const starsById = new Map(stars.map((s) => [s.id, s]));
 
+        // Collect all lane segments (reused for both shadow and foreground passes)
+        const segments: { x1: number; y1: number; x2: number; y2: number }[] =
+            [];
+
         connections.forEach((conn) => {
             const source = starsById.get(conn.sourceId);
             const target = starsById.get(conn.targetId);
@@ -599,7 +604,6 @@
             const ndy = dy / laneDist;
 
             // Collect gap intervals [tStart, tEnd] along the lane (0..1 parameterization)
-            // Always gap at source and target star edges
             const gaps: [number, number][] = [];
 
             // Check all other stars for proximity to this lane
@@ -607,23 +611,20 @@
                 if (star.id === conn.sourceId || star.id === conn.targetId)
                     continue;
 
-                // Project star center onto the line
                 const ax = star.x - source.x;
                 const ay = star.y - source.y;
-                const t = (ax * ndx + ay * ndy) / laneDist; // parametric position [0..1]
+                const t = (ax * ndx + ay * ndy) / laneDist;
 
-                if (t <= 0 || t >= 1) continue; // Outside segment
+                if (t <= 0 || t >= 1) continue;
 
-                // Perpendicular distance from star center to line
                 const projX = source.x + ndx * t * laneDist;
                 const projY = source.y + ndy * t * laneDist;
                 const perpDist = Math.sqrt(
                     (star.x - projX) ** 2 + (star.y - projY) ** 2,
                 );
 
-                const clearance = star.radius + 6; // Gap radius around star
+                const clearance = star.radius + 6;
                 if (perpDist < clearance) {
-                    // Calculate the arc length along the lane that falls within the star's clearance
                     const halfChord = Math.sqrt(
                         Math.max(
                             0,
@@ -653,29 +654,48 @@
                 }
             }
 
-            // Draw lane segments between gaps
+            // Collect segments between gaps
             let segStart = 0;
             for (const [gStart, gEnd] of merged) {
                 if (segStart < gStart) {
-                    const x1 = source.x + ndx * segStart * laneDist;
-                    const y1 = source.y + ndy * segStart * laneDist;
-                    const x2 = source.x + ndx * gStart * laneDist;
-                    const y2 = source.y + ndy * gStart * laneDist;
-                    connectionGraphics!.moveTo(x1, y1);
-                    connectionGraphics!.lineTo(x2, y2);
+                    segments.push({
+                        x1: source.x + ndx * segStart * laneDist,
+                        y1: source.y + ndy * segStart * laneDist,
+                        x2: source.x + ndx * gStart * laneDist,
+                        y2: source.y + ndy * gStart * laneDist,
+                    });
                 }
                 segStart = gEnd;
             }
-            // Final segment after last gap
             if (segStart < 1) {
-                const x1 = source.x + ndx * segStart * laneDist;
-                const y1 = source.y + ndy * segStart * laneDist;
-                connectionGraphics!.moveTo(x1, y1);
-                connectionGraphics!.lineTo(target.x, target.y);
+                segments.push({
+                    x1: source.x + ndx * segStart * laneDist,
+                    y1: source.y + ndy * segStart * laneDist,
+                    x2: target.x,
+                    y2: target.y,
+                });
             }
         });
 
-        // Draw all connection lines in one stroke
+        // Pass 1: Dark shadow/border (wider, dark, semi-transparent)
+        const shadowWidth =
+            GAME_CONFIG.CONNECTION_WIDTH + GAME_CONFIG.CONNECTION_SHADOW_WIDTH;
+        for (const seg of segments) {
+            connectionGraphics.moveTo(seg.x1, seg.y1);
+            connectionGraphics.lineTo(seg.x2, seg.y2);
+        }
+        connectionGraphics.stroke({
+            color: 0x000000,
+            width: shadowWidth,
+            alpha: GAME_CONFIG.CONNECTION_SHADOW_ALPHA,
+            cap: "round",
+        });
+
+        // Pass 2: Foreground lane stroke
+        for (const seg of segments) {
+            connectionGraphics.moveTo(seg.x1, seg.y1);
+            connectionGraphics.lineTo(seg.x2, seg.y2);
+        }
         connectionGraphics.stroke({
             color: parseColor(GAME_CONFIG.CONNECTION_COLOR),
             width: GAME_CONFIG.CONNECTION_WIDTH,
@@ -1766,8 +1786,8 @@
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
 
-        // Middle-click: start pan
-        if (event.button === 1) {
+        // Middle-click or Space+click: start pan
+        if (event.button === 1 || (event.button === 0 && isSpaceHeld)) {
             event.preventDefault();
             isPanning = true;
             panStartScreenX = event.clientX;
@@ -2186,9 +2206,16 @@
         } else if (event.key === "Home") {
             // Reset zoom/pan to default fit-to-screen
             resetZoom();
-        } else if (event.key === " " || event.code === "Space") {
-            // Spacebar = pause/play toggle (routes through activeGameStore for SP/MP)
+        } else if (
+            (event.key === " " || event.code === "Space") &&
+            !event.repeat
+        ) {
+            // Spacebar = hold-to-pan (design tool convention)
             event.preventDefault();
+            isSpaceHeld = true;
+            canvasContainer.style.cursor = "grab";
+        } else if (event.key === "p" || event.key === "P") {
+            // P = pause/play toggle
             if (activeGameStore.isPaused) {
                 activeGameStore.resumeGame();
             } else {
@@ -2196,9 +2223,20 @@
             }
         }
     }
+
+    function handleKeyUp(event: KeyboardEvent) {
+        if (event.key === " " || event.code === "Space") {
+            event.preventDefault();
+            isSpaceHeld = false;
+            if (isPanning) {
+                isPanning = false;
+            }
+            canvasContainer.style.cursor = "crosshair";
+        }
+    }
 </script>
 
-<svelte:window onkeydown={handleKeyDown} />
+<svelte:window onkeydown={handleKeyDown} onkeyup={handleKeyUp} />
 
 <div
     class="game-canvas"

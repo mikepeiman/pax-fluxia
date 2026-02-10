@@ -79,6 +79,8 @@ interface GameConfigType {
     CONNECTION_COLOR: string;
     CONNECTION_WIDTH: number;
     CONNECTION_ALPHA: number;
+    CONNECTION_SHADOW_WIDTH: number;
+    CONNECTION_SHADOW_ALPHA: number;
     SHOW_CONNECTIONS: boolean;
     SHOW_HEX_GRID: boolean;
     STARS_PER_PLAYER: number;
@@ -286,10 +288,16 @@ export const GAME_CONFIG: GameConfigType = {
     CONNECTION_COLOR: '0xffffff',
 
     /** Connection line width */
-    CONNECTION_WIDTH: 1,
+    CONNECTION_WIDTH: 2,
 
     /** Connection line alpha */
-    CONNECTION_ALPHA: 0.2,
+    CONNECTION_ALPHA: 0.35,
+
+    /** Connection shadow/border width (added to CONNECTION_WIDTH) */
+    CONNECTION_SHADOW_WIDTH: 4,
+
+    /** Connection shadow alpha */
+    CONNECTION_SHADOW_ALPHA: 0.5,
 
     /** Show connection lines */
     SHOW_CONNECTIONS: true,
