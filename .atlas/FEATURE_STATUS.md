@@ -103,6 +103,8 @@
 | ID | Issue |
 |----|-------|
 | B-23 | Play/pause outline not updating correctly (pending user verification) |
+| B-26 | MP variables not wired: most exposed config variables have no effect in MP |
+| B-27 | Star spacing not working in SP or MP — minimum spacing should be star diameter + 5 ship orbit layers + buffer |
 
 ## Resolved Bugs (B)
 
@@ -195,6 +197,15 @@
 | R-35 | Conquest Pause + Stats Card Popup | 🟢 |
 | R-36 | Damaged Ship Visual Density Tiers (overlapping orbits) | 🟢 |
 | R-37 | Full Engine Unification: server uses shared GameEngine for map generation | 🔴 |
+| R-38 | Ship Orbit Density: limit to 5 layers, scale colors max 5000 ships, enlarge on overflow | 🔴 |
+| R-39 | Power Density VFX: animations/effects for increasing fleet power at stars | 🔴 |
+| R-40 | Leaderboard: emphasize TOTAL SHIPS first, then active/damaged fraction | 🟢 |
+| R-41 | Surrender Modal: End Game (results) or Abandon (main menu) — replaces raw button | 🟢 |
+| R-42 | Player Stats Console: bottom-up drawer replacing combat log, shows live dynamics | 🔴 |
+| R-43 | SP/MP Full Parity: ONE GAME — eliminate all divergent UI, logic, and settings paths | 🔴 |
+| R-44 | AI Difficulty Levels + Strategy/Posture Options (clearly specified behaviors) | 🔴 |
+| R-45 | Star Spacing Formula: min = diameter + 5 orbits + adjustable buffer (e.g. 20px) | 🟢 |
+| R-46 | Orbit Density Controls: exposed in-game variable for orbit layer/scale tuning | 🟢 |
 
 ---
 
@@ -202,6 +213,7 @@
 
 | Date | Summary |
 |------|---------|
+| 2026-02-10 | Documented 9 new items from user: orbit density (R-38/R-39/R-46), leaderboard (R-40), surrender modal (R-41), player stats console (R-42), SP/MP parity (R-43), AI difficulty (R-44), star spacing (R-45/B-27), MP variable wiring (B-26). |
 | 2026-02-09 | Unified game settings: MP lobby now has same settings as SP (stars/player, ships/star, spacing, links). Server `initStandardMap` reads from `RoomOptions`. Star count fix: adaptive spacing retry + adaptive hex radius. |
 | 2026-02-08 | Batch 1 fixes: B-8 (no attack travel anim), B-12 (15° lane angle), B-16 (lane gaps around stars), B-17 (arrow length slider). |
 | 2026-02-08 | Ship animation redesign: unified lifecycle (orbit→depart→travel→arrive). Scatter uses real connections. |

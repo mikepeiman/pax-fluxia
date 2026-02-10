@@ -143,3 +143,25 @@ SP MainMenu had full game settings (stars/player, ships/star, spacing, links). M
 
 ## Future Work
 - Full engine unification: server should use the shared `GameEngine.initializeMap()` (hex grid with Delaunay connections) instead of custom `initStandardMap()` (random positions with nearest-neighbor connections)
+
+---
+
+# Decision: ONE GAME — No SP/MP Divergence
+
+**Date:** 2026-02-10
+**Status:** Active (CRITICAL)
+
+## Context
+Repeated refactors to fix SP/MP parity have failed to prevent regression because the architecture permits divergence: separate MainMenu vs MultiplayerLobby, separate `gameStore` vs `multiplayerStore`, separate `GameEngine.initializeMap()` vs `GameRoom.initStandardMap()`. Every new feature risks being wired to only one path.
+
+## Decision
+- **This is ONE game.** A singleplayer game with AI is mechanically identical to a multiplayer lobby where all other players happen to be AI.
+- **One UI flow**: The MainMenu/lobby distinction must converge. Settings live in one place. There are not two "start game" paths.
+- **One settings pipeline**: All game config variables must be applied uniformly. If a slider exists, it must work in both SP and MP.
+- **One engine**: Server-side map generation must use the same shared engine logic as client-side.
+- **No exceptions**: Any PR/change that adds a feature to SP-only or MP-only without justification is a regression.
+
+## Enforcement
+- Before creating any new UI component, check: does the equivalent already exist for the other mode?
+- Before adding any game config variable, verify: is it wired to both paths?
+- `activeGameStore` facade must remain the single API for all game interactions.
