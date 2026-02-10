@@ -44,6 +44,8 @@
     {#if !isCollapsed}
         <ul class="leaderboard__list">
             {#each sortedPlayers as player, index}
+                {@const totalShips =
+                    (player.activeShips ?? 0) + (player.damagedShips ?? 0)}
                 <li
                     class="leaderboard__item"
                     class:is-self={isLocalPlayer(player)}
@@ -60,11 +62,14 @@
                         {isLocalPlayer(player) ? "★ " : ""}{player.name}
                     </span>
                     <span class="player-stats font-data">
-                        <span class="stat-ships" title="Active / Damaged Ships">
-                            {player.activeShips ?? 0}<span class="stat-dim"
+                        <span class="stat-total" title="Total Ships"
+                            >{totalShips}</span
+                        >
+                        <span class="stat-breakdown" title="Active / Damaged"
+                            >{player.activeShips ?? 0}<span class="stat-dim"
                                 >/{player.damagedShips ?? 0}</span
-                            >
-                        </span>
+                            ></span
+                        >
                         <span class="stat-stars" title="Stars Owned"
                             >⭐{player.starCount ?? 0}</span
                         >
@@ -184,8 +189,18 @@
         padding: var(--space-4);
     }
 
-    .stat-ships {
-        min-width: 3.5em;
+    .stat-total {
+        font-weight: 700;
+        font-size: var(--text-sm);
+        color: var(--color-text-primary);
+        min-width: 2.5em;
+        text-align: right;
+    }
+
+    .stat-breakdown {
+        font-size: 0.65rem;
+        opacity: 0.6;
+        min-width: 3em;
     }
 
     .stat-dim {

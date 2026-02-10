@@ -343,18 +343,20 @@ export class GameRoom extends Room {
         const totalStars = playerIds.length * starsPerPlayer;
         const spacingMultiplier = this.roomOptions.starSpacing ?? 1.0;
 
+        // Physics-aware spacing: stars must not overlap each other's orbit layers
+        const STAR_RADIUS = 20;
+        const SHIP_BASE_SIZE = 4;
+        const RING_SPACING = SHIP_BASE_SIZE * 1.4;
+        const MAX_ORBIT_LAYERS = 5;
+        const SPACING_BUFFER = 20;
+        const physicsMinSpacing = (STAR_RADIUS * 2) + (RING_SPACING * MAX_ORBIT_LAYERS * 2) + SPACING_BUFFER;
+        let minSpacing = physicsMinSpacing * spacingMultiplier;
+        const MIN_ABSOLUTE_SPACING = 50;
+
+        log.sys('GameRoom', `Map: ${totalStars} stars (${starsPerPlayer}/player), spacing=${minSpacing.toFixed(0)}px (physics min: ${physicsMinSpacing.toFixed(0)})`);
+
         // Dynamic padding: reduce for large star counts
         const padding = totalStars > 50 ? 60 : totalStars > 20 ? 80 : 100;
-
-        // Calculate dynamic spacing based on area and star count
-        const effectiveArea = (width - padding * 2) * (height - padding * 2);
-        const areaPerStar = effectiveArea / totalStars;
-        const dynamicSpacing = Math.max(50, Math.sqrt(areaPerStar) * 0.6);
-        const baseSpacing = Math.min(100, dynamicSpacing);
-        let minSpacing = baseSpacing * spacingMultiplier;
-        const MIN_ABSOLUTE_SPACING = 30;
-
-        log.sys('GameRoom', `Map: ${totalStars} stars (${starsPerPlayer}/player), spacing=${minSpacing.toFixed(0)}px`);
 
         // Generate random positions with adaptive spacing retry
         let positions: { x: number; y: number }[] = [];

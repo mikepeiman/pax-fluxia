@@ -217,20 +217,20 @@ export class GameEngine {
 
         log.sys('GameEngine', `Hex grid: radius=${hexRadius}, ${hexes.length} positions for ${totalStars} requested stars`);
 
-        // Dynamic spacing calculation based on available area and star count
-        const effectiveWidth = width - (paddingX * 2);
-        const effectiveHeight = height - (paddingY * 2);
-        const effectiveArea = effectiveWidth * effectiveHeight;
-        const areaPerStar = effectiveArea / totalStars;
-        // Calculate spacing that would allow all stars to fit, with minimum of 50px
-        const dynamicSpacing = Math.max(50, Math.sqrt(areaPerStar) * 0.6);
+        // Physics-aware spacing: stars must not overlap each other's orbit layers
+        // Formula: minSpacing = (starRadius * 2) + (orbitLayerWidth * MAX_ORBIT_LAYERS * 2) + buffer
+        const STAR_RADIUS = 20;  // Default star radius from Star.ts
+        const SHIP_BASE_SIZE = 4;
+        const RING_SPACING = SHIP_BASE_SIZE * 1.4; // Matches render.utils.ts
+        const MAX_ORBIT_LAYERS = 5;  // Max visual orbit layers (R-38)
+        const SPACING_BUFFER = 20;  // Adjustable gap between orbit envelopes
+        const physicsMinSpacing = (STAR_RADIUS * 2) + (RING_SPACING * MAX_ORBIT_LAYERS * 2) + SPACING_BUFFER;
+
         // Apply user spacing multiplier (default 1.0)
         const spacingMultiplier = this.settings.starSpacing ?? 1.0;
-        // Use the smaller of dynamic spacing or default (hexRadius * 2), then apply multiplier
-        const baseSpacing = Math.min(hexRadius * 2, dynamicSpacing);
-        const minSpacing = baseSpacing * spacingMultiplier;
+        const minSpacing = physicsMinSpacing * spacingMultiplier;
 
-        log.sys('GameEngine', `Star spacing: ${minSpacing.toFixed(0)}px (dynamic: ${dynamicSpacing.toFixed(0)}, default: ${hexRadius * 2})`);
+        log.sys('GameEngine', `Star spacing: ${minSpacing.toFixed(0)}px (physics min: ${physicsMinSpacing.toFixed(0)}, multiplier: ${spacingMultiplier})`);
 
         const starPositions = selectRandomHexPositions(hexes, totalStars, minSpacing);
 
