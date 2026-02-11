@@ -38,17 +38,17 @@
 
     const elapsedTime = $derived(formatTime(engineStats.elapsedMs));
 
-    // Chart dimensions
-    const chartWidth = 380;
-    const chartHeight = 180;
-    const padding = { top: 20, right: 20, bottom: 30, left: 50 };
+    // Chart dimensions — much larger now
+    const chartWidth = 700;
+    const chartHeight = 320;
+    const padding = { top: 30, right: 30, bottom: 40, left: 60 };
     const innerWidth = chartWidth - padding.left - padding.right;
     const innerHeight = chartHeight - padding.top - padding.bottom;
 
     // Downsample history for smoother charts (every 10th tick)
     const sampledHistory = $derived(() => {
-        if (history.length <= 50) return history;
-        const step = Math.ceil(history.length / 50);
+        if (history.length <= 80) return history;
+        const step = Math.ceil(history.length / 80);
         return history.filter(
             (_, i) => i % step === 0 || i === history.length - 1,
         );
@@ -142,7 +142,7 @@
             1,
         );
         const maxTick = Math.max(...data.map((d) => d.tick), 1);
-        const barWidth = Math.max(2, innerWidth / data.length - 1);
+        const barWidth = Math.max(3, innerWidth / data.length - 1);
 
         const bars = data.map((entry, i) => {
             const x = padding.left + (i / data.length) * innerWidth;
@@ -182,30 +182,71 @@
     function handleReturnToMenu() {
         activeGameStore.returnToMenu();
     }
+
+    // Get final scoreboard from last history entry
+    const finalScoreboard = $derived.by(() => {
+        if (!history || history.length === 0) return [];
+        const last = history[history.length - 1];
+        if (!last?.players) return [];
+        return [...last.players].sort((a, b) => b.totalShips - a.totalShips);
+    });
 </script>
 
 <div class="modal-backdrop">
-    <div class="results-modal glass-panel glass-panel--accent animate-slide-up">
+    <div class="results-modal animate-slide-up">
+        <!-- Ambient glow behind title -->
+        <div class="ambient-glow" class:victory class:defeat={!victory}></div>
+
         <!-- Header -->
         <header class="results-header">
-            <h1
-                class="results-title font-display"
-                class:victory
-                class:defeat={!victory}
-            >
-                {victory ? "VICTORY" : "DEFEAT"}
-            </h1>
+            <div class="title-wrapper">
+                <h1 class="results-title" class:victory class:defeat={!victory}>
+                    {victory ? "VICTORY" : "DEFEAT"}
+                </h1>
+                <div
+                    class="title-underline"
+                    class:victory
+                    class:defeat={!victory}
+                ></div>
+            </div>
 
             {#if winner}
                 <p class="winner-name">
                     <span
                         class="winner-dot"
-                        style="background-color: {winner.color}"
+                        style="background-color: {winner.color}; box-shadow: 0 0 12px {winner.color}"
                     ></span>
-                    {winner.name} conquers the galaxy
+                    <span class="winner-text">{winner.name}</span>
+                    <span class="winner-subtitle">conquers the galaxy</span>
                 </p>
             {/if}
         </header>
+
+        <!-- Stats Row - always visible at top -->
+        <div class="stats-row">
+            <div class="stat-card">
+                <span class="stat-icon">⏱</span>
+                <span class="stat-value">{elapsedTime}</span>
+                <span class="stat-label">Duration</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-icon">⚡</span>
+                <span class="stat-value">{engineStats.totalTicks}</span>
+                <span class="stat-label">Ticks</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-icon">🚀</span>
+                <span class="stat-value"
+                    >{engineStats.peakFleetSize.toLocaleString()}</span
+                >
+                <span class="stat-label">Peak Fleet</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-icon">⭐</span>
+                <span class="stat-value">{engineStats.starsCaptured}</span>
+                <span class="stat-label">Conquests</span>
+            </div>
+        </div>
 
         <!-- Tab Navigation -->
         <nav class="tab-nav">
@@ -214,13 +255,15 @@
                 class:active={activeTab === "overview"}
                 onclick={() => (activeTab = "overview")}
             >
-                Overview
+                <span class="tab-icon">📊</span>
+                Scoreboard
             </button>
             <button
                 class="tab-btn"
                 class:active={activeTab === "power"}
                 onclick={() => (activeTab = "power")}
             >
+                <span class="tab-icon">💪</span>
                 Power
             </button>
             <button
@@ -228,6 +271,7 @@
                 class:active={activeTab === "territory"}
                 onclick={() => (activeTab = "territory")}
             >
+                <span class="tab-icon">🗺️</span>
                 Territory
             </button>
             <button
@@ -235,43 +279,97 @@
                 class:active={activeTab === "activity"}
                 onclick={() => (activeTab = "activity")}
             >
-                Activity
+                <span class="tab-icon">⚔️</span>
+                Combat
             </button>
         </nav>
 
         <!-- Tab Content -->
         <section class="tab-content">
             {#if activeTab === "overview"}
-                <!-- Stats Grid -->
-                <div class="stats-grid">
-                    <div class="stat-item">
-                        <span class="stat-value font-data">{elapsedTime}</span>
-                        <span class="stat-label">Time Elapsed</span>
+                <!-- Scoreboard -->
+                <div class="scoreboard">
+                    <div class="scoreboard-header">
+                        <span class="sb-rank">#</span>
+                        <span class="sb-player">Player</span>
+                        <span class="sb-stat">Stars</span>
+                        <span class="sb-stat">Ships</span>
+                        <span class="sb-stat">Fleet</span>
                     </div>
-                    <div class="stat-item">
-                        <span class="stat-value font-data"
-                            >{engineStats.totalTicks}</span
+                    {#each finalScoreboard as player, i}
+                        <div
+                            class="scoreboard-row"
+                            class:winner-row={i === 0}
+                            class:you-row={player.id === "human-player" ||
+                                player.id === activeGameStore.localPlayerId}
                         >
-                        <span class="stat-label">Total Ticks</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-value font-data"
-                            >{engineStats.peakFleetSize.toLocaleString()}</span
-                        >
-                        <span class="stat-label">Peak Fleet</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-value font-data"
-                            >{engineStats.starsCaptured}</span
-                        >
-                        <span class="stat-label">Stars Captured</span>
-                    </div>
+                            <span class="sb-rank">{i + 1}</span>
+                            <span class="sb-player">
+                                <span
+                                    class="sb-dot"
+                                    style="background: {playerColorMap[
+                                        player.id
+                                    ] ||
+                                        '#666'}; box-shadow: 0 0 8px {playerColorMap[
+                                        player.id
+                                    ] || '#666'}80"
+                                ></span>
+                                {formatPlayerId(player.id)}
+                            </span>
+                            <span class="sb-stat">{player.starCount}</span>
+                            <span class="sb-stat"
+                                >{player.totalShips.toLocaleString()}</span
+                            >
+                            <span class="sb-stat"
+                                >{(
+                                    player.totalShips +
+                                        (player as any).damagedShips || 0
+                                ).toLocaleString()}</span
+                            >
+                        </div>
+                    {:else}
+                        <div class="scoreboard-row">
+                            <span
+                                class="sb-player"
+                                style="grid-column: 1 / -1; text-align: center; opacity: 0.5"
+                                >No player data available</span
+                            >
+                        </div>
+                    {/each}
                 </div>
             {:else if activeTab === "power"}
                 <!-- Power Over Time Chart -->
                 <div class="chart-container">
                     <h3 class="chart-title">Fleet Strength Over Time</h3>
                     <svg viewBox="0 0 {chartWidth} {chartHeight}" class="chart">
+                        <!-- Gradient background -->
+                        <defs>
+                            <linearGradient
+                                id="chartBg"
+                                x1="0"
+                                y1="0"
+                                x2="0"
+                                y2="1"
+                            >
+                                <stop
+                                    offset="0%"
+                                    stop-color="rgba(0,255,255,0.03)"
+                                />
+                                <stop
+                                    offset="100%"
+                                    stop-color="rgba(0,0,0,0)"
+                                />
+                            </linearGradient>
+                        </defs>
+                        <rect
+                            x={padding.left}
+                            y={padding.top}
+                            width={innerWidth}
+                            height={innerHeight}
+                            fill="url(#chartBg)"
+                            rx="4"
+                        />
+
                         <!-- Grid lines -->
                         <g class="grid">
                             {#each [0, 0.25, 0.5, 0.75, 1] as ratio}
@@ -280,7 +378,8 @@
                                     y1={padding.top + innerHeight * (1 - ratio)}
                                     x2={padding.left + innerWidth}
                                     y2={padding.top + innerHeight * (1 - ratio)}
-                                    stroke="rgba(255,255,255,0.1)"
+                                    stroke="rgba(255,255,255,0.06)"
+                                    stroke-dasharray="4,4"
                                 />
                             {/each}
                         </g>
@@ -291,46 +390,51 @@
                             y1={padding.top}
                             x2={padding.left}
                             y2={padding.top + innerHeight}
-                            stroke="rgba(255,255,255,0.3)"
+                            stroke="rgba(255,255,255,0.2)"
                         />
                         <line
                             x1={padding.left}
                             y1={padding.top + innerHeight}
                             x2={padding.left + innerWidth}
                             y2={padding.top + innerHeight}
-                            stroke="rgba(255,255,255,0.3)"
+                            stroke="rgba(255,255,255,0.2)"
                         />
 
                         <!-- Y-axis labels -->
                         <text
-                            x={padding.left - 5}
+                            x={padding.left - 8}
                             y={padding.top + 5}
                             class="axis-label"
                             text-anchor="end"
+                            >{Math.round(powerChartData().maxY)}</text
                         >
-                            {Math.round(powerChartData().maxY)}
-                        </text>
                         <text
-                            x={padding.left - 5}
+                            x={padding.left - 8}
                             y={padding.top + innerHeight}
                             class="axis-label"
-                            text-anchor="end"
+                            text-anchor="end">0</text
                         >
-                            0
-                        </text>
 
                         <!-- X-axis label -->
                         <text
                             x={padding.left + innerWidth / 2}
-                            y={chartHeight - 5}
+                            y={chartHeight - 8}
                             class="axis-label"
-                            text-anchor="middle"
+                            text-anchor="middle">Tick</text
                         >
-                            Tick
-                        </text>
 
-                        <!-- Lines -->
+                        <!-- Lines with glow -->
                         {#each powerChartData().lines as line}
+                            <polyline
+                                points={line.points}
+                                fill="none"
+                                stroke={line.color}
+                                stroke-width="3"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                opacity="0.3"
+                                filter="blur(4px)"
+                            />
                             <polyline
                                 points={line.points}
                                 fill="none"
@@ -348,7 +452,7 @@
                             <div class="legend-item">
                                 <span
                                     class="legend-dot"
-                                    style="background: {line.color}"
+                                    style="background: {line.color}; box-shadow: 0 0 6px {line.color}"
                                 ></span>
                                 <span class="legend-label"
                                     >{formatPlayerId(line.playerId)}</span
@@ -362,7 +466,33 @@
                 <div class="chart-container">
                     <h3 class="chart-title">Territory Control Over Time</h3>
                     <svg viewBox="0 0 {chartWidth} {chartHeight}" class="chart">
-                        <!-- Grid lines -->
+                        <defs>
+                            <linearGradient
+                                id="chartBg2"
+                                x1="0"
+                                y1="0"
+                                x2="0"
+                                y2="1"
+                            >
+                                <stop
+                                    offset="0%"
+                                    stop-color="rgba(168,85,247,0.03)"
+                                />
+                                <stop
+                                    offset="100%"
+                                    stop-color="rgba(0,0,0,0)"
+                                />
+                            </linearGradient>
+                        </defs>
+                        <rect
+                            x={padding.left}
+                            y={padding.top}
+                            width={innerWidth}
+                            height={innerHeight}
+                            fill="url(#chartBg2)"
+                            rx="4"
+                        />
+
                         <g class="grid">
                             {#each [0, 0.25, 0.5, 0.75, 1] as ratio}
                                 <line
@@ -370,57 +500,58 @@
                                     y1={padding.top + innerHeight * (1 - ratio)}
                                     x2={padding.left + innerWidth}
                                     y2={padding.top + innerHeight * (1 - ratio)}
-                                    stroke="rgba(255,255,255,0.1)"
+                                    stroke="rgba(255,255,255,0.06)"
+                                    stroke-dasharray="4,4"
                                 />
                             {/each}
                         </g>
 
-                        <!-- Axes -->
                         <line
                             x1={padding.left}
                             y1={padding.top}
                             x2={padding.left}
                             y2={padding.top + innerHeight}
-                            stroke="rgba(255,255,255,0.3)"
+                            stroke="rgba(255,255,255,0.2)"
                         />
                         <line
                             x1={padding.left}
                             y1={padding.top + innerHeight}
                             x2={padding.left + innerWidth}
                             y2={padding.top + innerHeight}
-                            stroke="rgba(255,255,255,0.3)"
+                            stroke="rgba(255,255,255,0.2)"
                         />
 
-                        <!-- Y-axis labels -->
                         <text
-                            x={padding.left - 5}
+                            x={padding.left - 8}
                             y={padding.top + 5}
                             class="axis-label"
                             text-anchor="end"
+                            >{Math.round(territoryChartData().maxY)}</text
                         >
-                            {Math.round(territoryChartData().maxY)}
-                        </text>
                         <text
-                            x={padding.left - 5}
+                            x={padding.left - 8}
                             y={padding.top + innerHeight}
                             class="axis-label"
-                            text-anchor="end"
+                            text-anchor="end">0</text
                         >
-                            0
-                        </text>
-
-                        <!-- X-axis label -->
                         <text
                             x={padding.left + innerWidth / 2}
-                            y={chartHeight - 5}
+                            y={chartHeight - 8}
                             class="axis-label"
-                            text-anchor="middle"
+                            text-anchor="middle">Tick</text
                         >
-                            Tick
-                        </text>
 
-                        <!-- Lines -->
                         {#each territoryChartData().lines as line}
+                            <polyline
+                                points={line.points}
+                                fill="none"
+                                stroke={line.color}
+                                stroke-width="3"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                opacity="0.3"
+                                filter="blur(4px)"
+                            />
                             <polyline
                                 points={line.points}
                                 fill="none"
@@ -432,13 +563,12 @@
                         {/each}
                     </svg>
 
-                    <!-- Legend -->
                     <div class="chart-legend">
                         {#each territoryChartData().lines as line}
                             <div class="legend-item">
                                 <span
                                     class="legend-dot"
-                                    style="background: {line.color}"
+                                    style="background: {line.color}; box-shadow: 0 0 6px {line.color}"
                                 ></span>
                                 <span class="legend-label"
                                     >{formatPlayerId(line.playerId)}</span
@@ -452,7 +582,29 @@
                 <div class="chart-container">
                     <h3 class="chart-title">Combat Intensity Over Time</h3>
                     <svg viewBox="0 0 {chartWidth} {chartHeight}" class="chart">
-                        <!-- Grid lines -->
+                        <defs>
+                            <linearGradient
+                                id="barGrad"
+                                x1="0"
+                                y1="0"
+                                x2="0"
+                                y2="1"
+                            >
+                                <stop offset="0%" stop-color="#4488ff" />
+                                <stop offset="100%" stop-color="#2244aa" />
+                            </linearGradient>
+                            <linearGradient
+                                id="barGradConquest"
+                                x1="0"
+                                y1="0"
+                                x2="0"
+                                y2="1"
+                            >
+                                <stop offset="0%" stop-color="#ff4444" />
+                                <stop offset="100%" stop-color="#aa2222" />
+                            </linearGradient>
+                        </defs>
+
                         <g class="grid">
                             {#each [0, 0.25, 0.5, 0.75, 1] as ratio}
                                 <line
@@ -460,67 +612,68 @@
                                     y1={padding.top + innerHeight * (1 - ratio)}
                                     x2={padding.left + innerWidth}
                                     y2={padding.top + innerHeight * (1 - ratio)}
-                                    stroke="rgba(255,255,255,0.1)"
+                                    stroke="rgba(255,255,255,0.06)"
+                                    stroke-dasharray="4,4"
                                 />
                             {/each}
                         </g>
 
-                        <!-- Axes -->
                         <line
                             x1={padding.left}
                             y1={padding.top}
                             x2={padding.left}
                             y2={padding.top + innerHeight}
-                            stroke="rgba(255,255,255,0.3)"
+                            stroke="rgba(255,255,255,0.2)"
                         />
                         <line
                             x1={padding.left}
                             y1={padding.top + innerHeight}
                             x2={padding.left + innerWidth}
                             y2={padding.top + innerHeight}
-                            stroke="rgba(255,255,255,0.3)"
+                            stroke="rgba(255,255,255,0.2)"
                         />
 
-                        <!-- Y-axis labels -->
                         <text
-                            x={padding.left - 5}
+                            x={padding.left - 8}
                             y={padding.top + 5}
                             class="axis-label"
                             text-anchor="end"
+                            >{Math.round(activityChartData().maxY)}</text
                         >
-                            {Math.round(activityChartData().maxY)}
-                        </text>
                         <text
-                            x={padding.left - 5}
+                            x={padding.left - 8}
                             y={padding.top + innerHeight}
                             class="axis-label"
-                            text-anchor="end"
+                            text-anchor="end">0</text
                         >
-                            0
-                        </text>
 
-                        <!-- Bars -->
                         {#each activityChartData().bars as bar}
                             <rect
                                 x={bar.x}
                                 y={bar.y}
                                 width={bar.width}
                                 height={Math.max(0, bar.height)}
-                                fill={bar.conquest > 0 ? "#ef4444" : "#4488ff"}
-                                opacity="0.7"
+                                fill={bar.conquest > 0
+                                    ? "url(#barGradConquest)"
+                                    : "url(#barGrad)"}
+                                opacity="0.85"
+                                rx="1"
                             />
                         {/each}
                     </svg>
 
-                    <!-- Legend -->
                     <div class="chart-legend">
                         <div class="legend-item">
-                            <span class="legend-dot" style="background: #4488ff"
+                            <span
+                                class="legend-dot"
+                                style="background: #4488ff; box-shadow: 0 0 6px #4488ff"
                             ></span>
                             <span class="legend-label">Combat</span>
                         </div>
                         <div class="legend-item">
-                            <span class="legend-dot" style="background: #ef4444"
+                            <span
+                                class="legend-dot"
+                                style="background: #ef4444; box-shadow: 0 0 6px #ef4444"
                             ></span>
                             <span class="legend-label">Conquest</span>
                         </div>
@@ -531,7 +684,8 @@
 
         <!-- Actions -->
         <section class="results-actions">
-            <button class="btn btn--primary btn--lg" onclick={handlePlayAgain}>
+            <button class="btn btn--primary" onclick={handlePlayAgain}>
+                <span class="btn-glow"></span>
                 Play Again
             </button>
             <button class="btn btn--secondary" onclick={handleReturnToMenu}>
@@ -542,219 +696,438 @@
 </div>
 
 <style>
-    .results-modal {
-        width: 100%;
-        max-width: 450px;
-        padding: 24px;
+    /* ═══════════════════════════════════════ */
+    /*  FULLSCREEN RESULTS MODAL              */
+    /* ═══════════════════════════════════════ */
+
+    .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
         display: flex;
-        flex-direction: column;
-        gap: 16px;
-        text-align: center;
-        background: rgba(10, 15, 25, 0.95);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 12px;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.85);
+        backdrop-filter: blur(12px);
     }
 
+    .results-modal {
+        position: relative;
+        width: 92vw;
+        max-width: 900px;
+        max-height: 92vh;
+        overflow-y: auto;
+        padding: 48px 56px;
+        display: flex;
+        flex-direction: column;
+        gap: 28px;
+        text-align: center;
+        background: linear-gradient(
+            170deg,
+            rgba(12, 18, 32, 0.97) 0%,
+            rgba(6, 10, 20, 0.98) 50%,
+            rgba(10, 14, 28, 0.97) 100%
+        );
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 20px;
+        box-shadow:
+            0 0 80px rgba(0, 0, 0, 0.6),
+            0 0 200px rgba(0, 100, 150, 0.08),
+            inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    }
+
+    /* Ambient glow behind the title */
+    .ambient-glow {
+        position: absolute;
+        top: -40px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 400px;
+        height: 200px;
+        border-radius: 50%;
+        pointer-events: none;
+        filter: blur(80px);
+        opacity: 0.4;
+    }
+    .ambient-glow.victory {
+        background: radial-gradient(circle, #22c55e, transparent 70%);
+    }
+    .ambient-glow.defeat {
+        background: radial-gradient(circle, #ef4444, transparent 70%);
+    }
+
+    /* Slide-up entrance */
+    .animate-slide-up {
+        animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    @keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(60px) scale(0.95);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
+    /* ── Header ─────────────────────────── */
     .results-header {
         display: flex;
         flex-direction: column;
+        align-items: center;
+        gap: 16px;
+        position: relative;
+        z-index: 1;
+    }
+
+    .title-wrapper {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
         gap: 8px;
     }
 
     .results-title {
-        font-size: 2rem;
-        letter-spacing: 0.15em;
+        font-size: 4.5rem;
+        letter-spacing: 0.25em;
         margin: 0;
         font-family: "Exo", sans-serif;
+        font-weight: 900;
+        line-height: 1;
     }
-
     .results-title.victory {
         color: #22c55e;
-        text-shadow: 0 0 30px rgba(34, 197, 94, 0.5);
+        text-shadow:
+            0 0 40px rgba(34, 197, 94, 0.6),
+            0 0 80px rgba(34, 197, 94, 0.3),
+            0 2px 4px rgba(0, 0, 0, 0.5);
     }
-
     .results-title.defeat {
         color: #ef4444;
-        text-shadow: 0 0 30px rgba(239, 68, 68, 0.5);
+        text-shadow:
+            0 0 40px rgba(239, 68, 68, 0.6),
+            0 0 80px rgba(239, 68, 68, 0.3),
+            0 2px 4px rgba(0, 0, 0, 0.5);
+    }
+
+    .title-underline {
+        width: 200px;
+        height: 2px;
+        border-radius: 2px;
+    }
+    .title-underline.victory {
+        background: linear-gradient(90deg, transparent, #22c55e, transparent);
+        box-shadow: 0 0 12px rgba(34, 197, 94, 0.5);
+    }
+    .title-underline.defeat {
+        background: linear-gradient(90deg, transparent, #ef4444, transparent);
+        box-shadow: 0 0 12px rgba(239, 68, 68, 0.5);
     }
 
     .winner-name {
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 8px;
-        color: #888;
-        font-size: 14px;
+        gap: 10px;
         margin: 0;
     }
-
     .winner-dot {
-        width: 12px;
-        height: 12px;
+        width: 16px;
+        height: 16px;
         border-radius: 50%;
+        flex-shrink: 0;
+    }
+    .winner-text {
+        color: #eee;
+        font-size: 20px;
+        font-weight: 700;
+        font-family: "Exo", sans-serif;
+    }
+    .winner-subtitle {
+        color: #667;
+        font-size: 16px;
+        font-style: italic;
     }
 
-    /* Tab Navigation */
+    /* ── Stats Row ──────────────────────── */
+    .stats-row {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+    }
+    .stat-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        padding: 18px 12px;
+        background: rgba(255, 255, 255, 0.025);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 14px;
+        transition: all 0.3s;
+    }
+    .stat-card:hover {
+        background: rgba(255, 255, 255, 0.04);
+        border-color: rgba(0, 255, 255, 0.15);
+        transform: translateY(-2px);
+    }
+    .stat-icon {
+        font-size: 20px;
+        margin-bottom: 2px;
+    }
+    .stat-value {
+        font-size: 2rem;
+        color: #00ffff;
+        font-family: "Exo", sans-serif;
+        font-weight: 700;
+        line-height: 1.1;
+        text-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+    }
+    .stat-label {
+        font-size: 11px;
+        color: #556;
+        text-transform: uppercase;
+        letter-spacing: 0.15em;
+        font-weight: 600;
+    }
+
+    /* ── Tab Navigation ─────────────────── */
     .tab-nav {
         display: flex;
         gap: 4px;
         background: rgba(0, 0, 0, 0.3);
-        padding: 4px;
-        border-radius: 8px;
+        padding: 5px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.04);
     }
-
     .tab-btn {
         flex: 1;
-        padding: 8px 12px;
+        padding: 12px 16px;
         border: none;
         background: transparent;
-        color: #666;
-        font-size: 11px;
+        color: #556;
+        font-size: 13px;
         font-weight: 600;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: 0.06em;
         cursor: pointer;
-        border-radius: 6px;
-        transition: all 0.2s;
-        font-family: inherit;
+        border-radius: 9px;
+        transition: all 0.25s;
+        font-family: "Exo", sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
     }
-
     .tab-btn:hover {
-        color: #aaa;
-        background: rgba(255, 255, 255, 0.05);
+        color: #99a;
+        background: rgba(255, 255, 255, 0.04);
     }
-
     .tab-btn.active {
         color: #00ffff;
-        background: rgba(0, 255, 255, 0.1);
+        background: rgba(0, 255, 255, 0.08);
+        box-shadow: 0 0 20px rgba(0, 255, 255, 0.05);
+    }
+    .tab-icon {
+        font-size: 15px;
     }
 
-    /* Tab Content */
+    /* ── Tab Content ────────────────────── */
     .tab-content {
-        min-height: 200px;
+        min-height: 300px;
     }
 
-    /* Stats Grid */
-    .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 12px;
-    }
-
-    .stat-item {
+    /* ── Scoreboard ─────────────────────── */
+    .scoreboard {
         display: flex;
         flex-direction: column;
         gap: 4px;
-        padding: 12px;
-        background: rgba(255, 255, 255, 0.03);
-        border-radius: 8px;
     }
-
-    .stat-value {
-        font-size: 1.5rem;
-        color: #00ffff;
+    .scoreboard-header {
+        display: grid;
+        grid-template-columns: 40px 1fr 80px 80px 80px;
+        padding: 8px 16px;
+        font-size: 10px;
+        color: #445;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        font-weight: 700;
+    }
+    .scoreboard-row {
+        display: grid;
+        grid-template-columns: 40px 1fr 80px 80px 80px;
+        padding: 14px 16px;
+        background: rgba(255, 255, 255, 0.02);
+        border-radius: 10px;
+        align-items: center;
+        transition: all 0.2s;
+        border: 1px solid transparent;
+    }
+    .scoreboard-row:hover {
+        background: rgba(255, 255, 255, 0.04);
+    }
+    .scoreboard-row.winner-row {
+        background: rgba(0, 255, 255, 0.04);
+        border-color: rgba(0, 255, 255, 0.1);
+    }
+    .scoreboard-row.you-row {
+        border-color: rgba(255, 255, 255, 0.08);
+    }
+    .sb-rank {
+        font-size: 16px;
+        font-weight: 800;
+        color: #445;
         font-family: "Exo", sans-serif;
     }
-
-    .stat-label {
-        font-size: 10px;
-        color: #666;
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
+    .winner-row .sb-rank {
+        color: #00ffff;
+    }
+    .sb-player {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 15px;
+        font-weight: 600;
+        color: #ccd;
+    }
+    .sb-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+    .sb-stat {
+        font-size: 15px;
+        font-family: "Exo", sans-serif;
+        color: #889;
+        text-align: center;
+        font-weight: 600;
+    }
+    .winner-row .sb-stat {
+        color: #bbd;
     }
 
-    /* Chart Styles */
+    /* ── Chart Styles ──────────────────── */
     .chart-container {
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: 16px;
     }
-
     .chart-title {
-        font-size: 12px;
-        color: #888;
+        font-size: 14px;
+        color: #778;
         text-transform: uppercase;
-        letter-spacing: 0.1em;
+        letter-spacing: 0.12em;
         margin: 0;
-        font-weight: 600;
+        font-weight: 700;
+        font-family: "Exo", sans-serif;
     }
-
     .chart {
         width: 100%;
         height: auto;
     }
-
     .axis-label {
-        font-size: 9px;
-        fill: #666;
-        font-family: monospace;
+        font-size: 10px;
+        fill: #556;
+        font-family: "Exo", monospace;
     }
-
     .chart-legend {
         display: flex;
         justify-content: center;
-        gap: 16px;
+        gap: 24px;
         flex-wrap: wrap;
     }
-
     .legend-item {
         display: flex;
         align-items: center;
-        gap: 6px;
+        gap: 8px;
     }
-
     .legend-dot {
         width: 10px;
         height: 10px;
         border-radius: 50%;
     }
-
     .legend-label {
-        font-size: 11px;
-        color: #888;
+        font-size: 12px;
+        color: #889;
+        font-weight: 600;
     }
 
-    /* Actions */
+    /* ── Action Buttons ────────────────── */
     .results-actions {
         display: flex;
-        flex-direction: column;
-        gap: 10px;
+        gap: 14px;
+        justify-content: center;
         margin-top: 8px;
     }
-
     .btn {
-        padding: 12px 20px;
+        padding: 16px 40px;
         border: none;
-        border-radius: 6px;
+        border-radius: 12px;
         cursor: pointer;
         font-family: "Exo", sans-serif;
-        font-weight: 600;
+        font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.1em;
-        transition: all 0.2s;
+        letter-spacing: 0.12em;
+        transition: all 0.3s;
+        position: relative;
+        overflow: hidden;
     }
-
     .btn--primary {
-        background: linear-gradient(180deg, #00cccc, #0088aa);
-        color: #000;
-        font-size: 14px;
+        background: linear-gradient(135deg, #00ddcc, #0088cc);
+        color: #001a1a;
+        font-size: 16px;
+        box-shadow: 0 4px 24px rgba(0, 200, 200, 0.25);
     }
-
     .btn--primary:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 0 20px rgba(0, 204, 204, 0.4);
+        transform: translateY(-3px);
+        box-shadow: 0 8px 40px rgba(0, 200, 200, 0.4);
     }
-
+    .btn-glow {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+            90deg,
+            transparent,
+            rgba(255, 255, 255, 0.2),
+            transparent
+        );
+        transform: translateX(-100%);
+        animation: shimmer 3s infinite;
+    }
+    @keyframes shimmer {
+        0% {
+            transform: translateX(-100%);
+        }
+        100% {
+            transform: translateX(100%);
+        }
+    }
     .btn--secondary {
         background: transparent;
-        border: 1px solid #445;
-        color: #888;
-        font-size: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #667;
+        font-size: 13px;
+    }
+    .btn--secondary:hover {
+        border-color: rgba(255, 255, 255, 0.2);
+        color: #aab;
+        background: rgba(255, 255, 255, 0.03);
     }
 
-    .btn--secondary:hover {
-        border-color: #667;
-        color: #ccc;
+    /* ── Scrollbar ──────────────────────── */
+    .results-modal::-webkit-scrollbar {
+        width: 6px;
+    }
+    .results-modal::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .results-modal::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 3px;
+    }
+    .results-modal::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.2);
     }
 </style>
