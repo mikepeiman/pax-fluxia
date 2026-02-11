@@ -1242,6 +1242,10 @@ export class GameEngine {
         });
 
         this.statsHistory.push(entry);
+        // Cap history to prevent memory leak (500 entries ≈ 10 min at 1x speed)
+        if (this.statsHistory.length > 500) {
+            this.statsHistory.splice(0, this.statsHistory.length - 500);
+        }
     }
 
     private getPlayerShipCount(playerId: PlayerId): number {

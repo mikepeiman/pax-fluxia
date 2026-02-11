@@ -552,17 +552,20 @@
             }
         });
 
+        // Build star lookup ONCE per frame (was built 4x per frame = major GC pressure)
+        const starsById = new Map(stars.map((s) => [s.id, s]));
+
         // Render stars (static elements)
         renderStars(stars);
 
         // Render connections (star network) - unified source
         const connections = activeGameStore.connections as StarConnection[];
         if (connections) {
-            renderConnections(stars, connections);
+            renderConnections(stars, connections, starsById);
         }
 
         // Render flow links
-        renderFlowLinks(stars);
+        renderFlowLinks(stars, starsById);
 
         // NOTE: Pending orders cleanup is now handled in renderFlowLinks()
 
@@ -572,23 +575,23 @@
         // Process tick events (event-driven animations, not diff-based — see POST_MORTEMS.md)
         const tickEvents = activeGameStore.consumeTickEvents();
         if (tickEvents) {
-            processTickEvents(stars, tickEvents, connections || []);
+            processTickEvents(stars, tickEvents, connections || [], starsById);
         }
 
         // Render all ships: orbiting (per-star) + traveling (in-flight lifecycle)
-        renderShips(stars, tickProgress);
+        renderShips(stars, tickProgress, starsById);
     }
 
     function renderConnections(
         stars: StarState[],
         connections: StarConnection[],
+        starsById: Map<string, StarState>,
     ) {
         if (!connectionGraphics) return;
 
         connectionGraphics.clear();
 
-        // Build star lookup for intersection testing
-        const starsById = new Map(stars.map((s) => [s.id, s]));
+        // starsById passed in from renderFrame (no allocation needed)
 
         // Collect all lane segments (reused for both shadow and foreground passes)
         const segments: { x1: number; y1: number; x2: number; y2: number }[] =
@@ -877,7 +880,10 @@
         });
     }
 
-    function renderFlowLinks(stars: StarState[]) {
+    function renderFlowLinks(
+        stars: StarState[],
+        starsById: Map<string, StarState>,
+    ) {
         if (!linkGraphics) return;
 
         linkGraphics.clear();
@@ -893,7 +899,7 @@
         // Clean up stale pending orders:
         // 1. Remove if source now has a confirmed target (snapshot overrides pending)
         // 2. Remove if source no longer exists
-        const starsById = new Map(stars.map((s) => [s.id, s]));
+        // starsById passed in from renderFrame (no allocation needed)
         pendingOrders.forEach((key) => {
             const [sourceId, targetId] = key.split("|");
             const source = starsById.get(sourceId);
@@ -1118,8 +1124,9 @@
         stars: StarState[],
         events: import("@pax/common").TickEvents,
         connections: StarConnection[],
+        starsById: Map<string, StarState>,
     ) {
-        const starsById = new Map(stars.map((s) => [s.id, s]));
+        // starsById passed in from renderFrame
         const now = performance.now();
 
         // Process TRANSFER events → ship travel animations
@@ -1281,11 +1288,14 @@
      * Render in-flight ships through their lifecycle phases.
      * Called from renderShips after orbiting ships.
      */
-    function renderTravelingShips(stars: StarState[]) {
+    function renderTravelingShips(
+        stars: StarState[],
+        starsById: Map<string, StarState>,
+    ) {
         if (!shipGraphics) return;
 
         const now = performance.now();
-        const starsById = new Map(stars.map((s) => [s.id, s]));
+        // starsById passed in from renderShips (no allocation needed)
 
         // When paused, shift all departTimes forward so ships freeze in place
         const isPaused = activeGameStore.isPaused;
@@ -1406,7 +1416,11 @@
         return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
     }
 
-    function renderShips(stars: StarState[], tickProgress: number) {
+    function renderShips(
+        stars: StarState[],
+        tickProgress: number,
+        starsById: Map<string, StarState>,
+    ) {
         if (!shipGraphics) return;
 
         // Configuration for Physics
@@ -1607,8 +1621,11 @@
 
             damagedShips.forEach((ship, i) => {
                 // Damaged ships float randomly near center
+                const damageTime = GAME_CONFIG.STATIC_ORBITS
+                    ? 0
+                    : animationTime;
                 const angle =
-                    animationTime * 0.5 +
+                    damageTime * 0.5 +
                     (i * Math.PI * 2) / Math.max(damagedShips.length, 1);
                 const radius = 15;
                 const tx = star.x + Math.cos(angle) * radius;
@@ -1624,7 +1641,7 @@
         });
 
         // Render in-flight ships (departing, traveling, arriving)
-        renderTravelingShips(stars);
+        renderTravelingShips(stars, starsById);
     }
 
     function renderFleets(stars: StarState[], fleets: FleetState[]) {
