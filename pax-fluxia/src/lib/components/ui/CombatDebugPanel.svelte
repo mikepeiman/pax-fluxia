@@ -468,6 +468,25 @@
             </div>
             <div class="variable-row">
                 <div class="row-top">
+                    <span class="var-name">🚀 Transfer Rate</span>
+                    <span class="current-val">{transferRate}%</span>
+                </div>
+                <div class="row-controls">
+                    <input
+                        type="range"
+                        min="1"
+                        max="100"
+                        step="1"
+                        value={transferRate}
+                        oninput={(e) =>
+                            updateTransferRate(
+                                parseInt((e.target as HTMLInputElement).value),
+                            )}
+                    />
+                </div>
+            </div>
+            <div class="variable-row">
+                <div class="row-top">
                     <span class="var-name">🔧 Repair</span>
                     <span class="current-val"
                         >{(GAME_CONFIG.REPAIR_RATE ?? 0.2).toFixed(2)}</span
@@ -492,26 +511,27 @@
                 <div class="row-top">
                     <span class="var-name">🛡️ Defense</span>
                     <span class="current-val"
-                        >{(GAME_CONFIG.AGGRESSOR_ADVANTAGE ?? 0.7).toFixed(
-                            2,
-                        )}</span
+                        >{(
+                            1 / (GAME_CONFIG.AGGRESSOR_ADVANTAGE ?? 0.7)
+                        ).toFixed(2)}×</span
                     >
                 </div>
                 <div class="row-controls">
                     <input
                         type="range"
-                        min="0.1"
-                        max="2"
+                        min="0.5"
+                        max="3"
                         step="0.05"
-                        value={GAME_CONFIG.AGGRESSOR_ADVANTAGE ?? 0.7}
+                        value={1 / (GAME_CONFIG.AGGRESSOR_ADVANTAGE ?? 0.7)}
                         oninput={(e) => {
-                            GAME_CONFIG.AGGRESSOR_ADVANTAGE = parseFloat(
-                                (e.target as HTMLInputElement).value,
-                            );
+                            GAME_CONFIG.AGGRESSOR_ADVANTAGE =
+                                1 /
+                                parseFloat(
+                                    (e.target as HTMLInputElement).value,
+                                );
                         }}
                     />
                 </div>
-                <span class="var-desc">Lower = stronger defense</span>
             </div>
             <div class="variable-row">
                 <div class="row-top">
@@ -540,7 +560,7 @@
         {/if}
     </div>
 
-    <!-- Transfer Section -->
+    <!-- Arrow Controls Section -->
     <div class="transfer-section">
         <button
             class="section-header"
@@ -549,33 +569,10 @@
                 setCollapsedState(COLLAPSE_KEYS.transfer, transferCollapsed);
             }}
         >
-            <span class="section-title"
-                >🚀 Movement <span style="font-size: 10px; opacity: 0.5"
-                    >(Transfer Rate)</span
-                ></span
-            >
+            <span class="section-title">➡️ Orders</span>
             <span class="collapse-icon">{transferCollapsed ? "▶" : "▼"}</span>
         </button>
         {#if !transferCollapsed}
-            <div class="variable-row">
-                <div class="row-top">
-                    <span class="var-name">Transfer Rate</span>
-                    <span class="current-val">{transferRate}%</span>
-                </div>
-                <div class="row-controls">
-                    <input
-                        type="range"
-                        min="1"
-                        max="100"
-                        step="1"
-                        value={transferRate}
-                        oninput={(e) =>
-                            updateTransferRate(
-                                parseInt((e.target as HTMLInputElement).value),
-                            )}
-                    />
-                </div>
-            </div>
             <div class="variable-row">
                 <div class="row-top">
                     <span class="var-name">Arrow Length</span>
@@ -839,80 +836,72 @@
                 </div>
             </div>
 
-            {#if GAME_CONFIG.ORBIT_BIAS_OSCILLATE}
-                <div class="variable-row" style="padding-left: 12px;">
-                    <div class="row-top">
-                        <span class="var-name">Min</span>
-                        <span class="current-val"
-                            >{(GAME_CONFIG.ORBIT_BIAS_MIN ?? 0).toFixed(
-                                2,
-                            )}</span
-                        >
-                    </div>
-                    <div class="row-controls">
-                        <input
-                            type="range"
-                            min="0"
-                            max="1"
-                            step="0.05"
-                            value={GAME_CONFIG.ORBIT_BIAS_MIN ?? 0}
-                            oninput={(e) => {
-                                GAME_CONFIG.ORBIT_BIAS_MIN = parseFloat(
-                                    (e.target as HTMLInputElement).value,
-                                );
-                            }}
-                        />
-                    </div>
+            <div class="variable-row" style="padding-left: 12px;">
+                <div class="row-top">
+                    <span class="var-name">Min</span>
+                    <span class="current-val"
+                        >{(GAME_CONFIG.ORBIT_BIAS_MIN ?? 0).toFixed(2)}</span
+                    >
                 </div>
-                <div class="variable-row" style="padding-left: 12px;">
-                    <div class="row-top">
-                        <span class="var-name">Max</span>
-                        <span class="current-val"
-                            >{(GAME_CONFIG.ORBIT_BIAS_MAX ?? 1).toFixed(
-                                2,
-                            )}</span
-                        >
-                    </div>
-                    <div class="row-controls">
-                        <input
-                            type="range"
-                            min="0"
-                            max="1"
-                            step="0.05"
-                            value={GAME_CONFIG.ORBIT_BIAS_MAX ?? 1}
-                            oninput={(e) => {
-                                GAME_CONFIG.ORBIT_BIAS_MAX = parseFloat(
-                                    (e.target as HTMLInputElement).value,
-                                );
-                            }}
-                        />
-                    </div>
+                <div class="row-controls">
+                    <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        value={GAME_CONFIG.ORBIT_BIAS_MIN ?? 0}
+                        oninput={(e) => {
+                            GAME_CONFIG.ORBIT_BIAS_MIN = parseFloat(
+                                (e.target as HTMLInputElement).value,
+                            );
+                        }}
+                    />
                 </div>
-                <div class="variable-row" style="padding-left: 12px;">
-                    <div class="row-top">
-                        <span class="var-name">Freq (×tick)</span>
-                        <span class="current-val"
-                            >{(GAME_CONFIG.ORBIT_BIAS_FREQ ?? 1).toFixed(
-                                2,
-                            )}</span
-                        >
-                    </div>
-                    <div class="row-controls">
-                        <input
-                            type="range"
-                            min="0.25"
-                            max="5"
-                            step="0.25"
-                            value={GAME_CONFIG.ORBIT_BIAS_FREQ ?? 1}
-                            oninput={(e) => {
-                                GAME_CONFIG.ORBIT_BIAS_FREQ = parseFloat(
-                                    (e.target as HTMLInputElement).value,
-                                );
-                            }}
-                        />
-                    </div>
+            </div>
+            <div class="variable-row" style="padding-left: 12px;">
+                <div class="row-top">
+                    <span class="var-name">Max</span>
+                    <span class="current-val"
+                        >{(GAME_CONFIG.ORBIT_BIAS_MAX ?? 1).toFixed(2)}</span
+                    >
                 </div>
-            {/if}
+                <div class="row-controls">
+                    <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        value={GAME_CONFIG.ORBIT_BIAS_MAX ?? 1}
+                        oninput={(e) => {
+                            GAME_CONFIG.ORBIT_BIAS_MAX = parseFloat(
+                                (e.target as HTMLInputElement).value,
+                            );
+                        }}
+                    />
+                </div>
+            </div>
+            <div class="variable-row" style="padding-left: 12px;">
+                <div class="row-top">
+                    <span class="var-name">Freq (×tick)</span>
+                    <span class="current-val"
+                        >{(GAME_CONFIG.ORBIT_BIAS_FREQ ?? 1).toFixed(2)}</span
+                    >
+                </div>
+                <div class="row-controls">
+                    <input
+                        type="range"
+                        min="0.25"
+                        max="5"
+                        step="0.25"
+                        value={GAME_CONFIG.ORBIT_BIAS_FREQ ?? 1}
+                        oninput={(e) => {
+                            GAME_CONFIG.ORBIT_BIAS_FREQ = parseFloat(
+                                (e.target as HTMLInputElement).value,
+                            );
+                        }}
+                    />
+                </div>
+            </div>
 
             <!-- Depart Fraction -->
             <div class="variable-row">
