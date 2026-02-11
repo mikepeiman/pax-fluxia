@@ -219,6 +219,9 @@
 | R-45 | Star Spacing Formula: min = diameter + 5 orbits + adjustable buffer (e.g. 20px) | 🟢 |
 | R-46 | Orbit Density Controls: exposed in-game variable for orbit layer/scale tuning | 🟢 |
 | R-47 | Per-Target Conquest Transfer Amount: player sets per-target override superseding global | 🟡 |
+| R-48 | Scatter Visual Effects: scatter events need distinct visual presence — ships breaking away to escape routes | 🔴 |
+| R-49 | Capture Animation: text enlarges + damaged ships animate conversion to friendly — creative VFX proportional to captured count | 🔴 |
+| R-50 | Oscillation Period Slider: expose orbit bias oscillation period/frequency as a range slider in Animation Tuning | 🟢 |
 
 ---
 
