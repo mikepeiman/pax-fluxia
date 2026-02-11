@@ -222,6 +222,8 @@
 | R-48 | Scatter Visual Effects: scatter events need distinct visual presence — ships breaking away to escape routes | 🔴 |
 | R-49 | Capture Animation: text enlarges + damaged ships animate conversion to friendly — creative VFX proportional to captured count | 🔴 |
 | R-50 | Oscillation Period Slider: expose orbit bias oscillation period/frequency as a range slider in Animation Tuning | 🟢 |
+| R-51 | Orb Travel Animation: ships merge into glowing orb during travel, fragment on arrival — orb brilliance proportional to ship count | 🟢 |
+| R-52 | End Game Screen Redesign: fullscreen 900px modal, ambient glow, scoreboard, enlarged charts, shimmer button, premium VFX | 🟢 |
 
 ---
 
