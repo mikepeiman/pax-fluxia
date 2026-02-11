@@ -1401,23 +1401,40 @@
                 ship.scale = 0.9;
 
                 if (travelProgress >= 1) {
-                    // Arrive at destination — transition to orbiting at visible scale
+                    // Transition to ARRIVING — ease from lane end into orbit slot
                     ship.x = ship.laneEndX;
                     ship.y = ship.laneEndY;
 
                     const destStar = starsById.get(ship.toStarId!);
                     if (destStar) {
-                        ship.fromStarId = null;
-                        ship.toStarId = null;
-                        ship.state = "orbiting";
-                        ship.alpha = 1;
-                        ship.scale = 0.7; // Visible during orbit lerp (not 0.1 poof)
+                        // Calculate the orbit slot this ship will settle into
                         const destShips = visualShips.get(destStar.id) || [];
                         ship.targetIndex = destShips.length;
+                        const orbitTime = GAME_CONFIG.STATIC_ORBITS
+                            ? 0
+                            : animationTime;
+                        const slot = getOrbitSlot(
+                            ship.targetIndex,
+                            destStar.x,
+                            destStar.y,
+                            destStar.radius,
+                            orbitTime,
+                        );
+
+                        ship.state = "arriving";
+                        ship.arriveStarId = destStar.id;
+                        ship.arriveToX = slot.x;
+                        ship.arriveToY = slot.y;
+                        ship.departTime = now; // Reset timer for arrive phase
+                        ship.alpha = 1;
+                        ship.scale = 0.9;
+
+                        // Reserve the slot in visualShips
                         destShips.push(ship);
                         visualShips.set(destStar.id, destShips);
                     }
-                    // Don't push to stillTraveling — ship is now orbiting
+                    // Ship stays in stillTraveling during arriving phase
+                    stillTraveling.push(ship);
                 } else {
                     drawShip(
                         ship.x,
@@ -1430,8 +1447,42 @@
                     stillTraveling.push(ship);
                 }
             } else if (ship.state === "arriving") {
-                // Phase 3: Ease into orbit (handled above by transitioning to orbiting)
-                stillTraveling.push(ship);
+                // Phase 3: Ease from lane endpoint into orbit slot
+                const arriveProgress = Math.min(
+                    1,
+                    elapsed / SHIP_ANIM.ARRIVE_DURATION,
+                );
+                // easeOutCubic: fast initial settle, gentle final positioning (magnetic snap)
+                const eased = 1 - Math.pow(1 - arriveProgress, 3);
+
+                ship.x =
+                    ship.laneEndX + (ship.arriveToX - ship.laneEndX) * eased;
+                ship.y =
+                    ship.laneEndY + (ship.arriveToY - ship.laneEndY) * eased;
+                ship.scale = 0.9 - 0.1 * eased; // Scale from 0.9 → 0.8 (orbit size)
+                ship.alpha = 1;
+
+                if (arriveProgress >= 1) {
+                    // Fully settled into orbit — hand off to renderShips
+                    ship.state = "orbiting";
+                    ship.fromStarId = null;
+                    ship.toStarId = null;
+                    ship.arriveStarId = null;
+                    ship.x = ship.arriveToX;
+                    ship.y = ship.arriveToY;
+                    ship.scale = 0.8;
+                    // Don't push to stillTraveling — ship is now managed by renderShips
+                } else {
+                    drawShip(
+                        ship.x,
+                        ship.y,
+                        color,
+                        ship.scale,
+                        ship.alpha,
+                        false,
+                    );
+                    stillTraveling.push(ship);
+                }
             }
         }
 
@@ -1489,6 +1540,9 @@
                         laneEndY: 0,
                         departFromX: 0,
                         departFromY: 0,
+                        arriveToX: 0,
+                        arriveToY: 0,
+                        arriveStarId: null,
                         laneOffset: 0,
                         staggerDelay: 0,
                         ownerId: star.ownerId,
@@ -1535,6 +1589,8 @@
                 const perpY = dirX;
 
                 ships.forEach((ship, i) => {
+                    // Skip ships still in arriving phase — rendered by renderTravelingShips
+                    if (ship.state === "arriving") return;
                     ship.targetIndex = i;
 
                     // Per-ship phase offset for organic variation
@@ -1644,6 +1700,9 @@
                         laneEndY: 0,
                         departFromX: 0,
                         departFromY: 0,
+                        arriveToX: 0,
+                        arriveToY: 0,
+                        arriveStarId: null,
                         laneOffset: 0,
                         staggerDelay: 0,
                         ownerId: star.ownerId,

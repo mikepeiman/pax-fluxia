@@ -50,6 +50,10 @@ export interface VisualShipState {
     // Departure origin (captured when ship starts departing)
     departFromX: number;
     departFromY: number;
+    // Arrival target orbit slot (calculated when arriving phase starts)
+    arriveToX: number;
+    arriveToY: number;
+    arriveStarId: string | null;
     // Per-ship perpendicular offset for organic variation near lane center
     laneOffset: number;
     // Stagger offset for stream formation
@@ -63,13 +67,13 @@ export interface VisualShipState {
  */
 export const SHIP_ANIM = {
     /** Time to ease out of orbit toward lane (ms) */
-    DEPART_DURATION: 200,
+    DEPART_DURATION: 350,
     /** Base travel time (ms) — scaled by distance */
     TRAVEL_BASE_DURATION: 350,
     /** Travel time per 100px distance (ms) */
     TRAVEL_PER_100PX: 150,
-    /** Time to ease into orbit at destination (ms) */
-    ARRIVE_DURATION: 200,
+    /** Time to ease from lane end into orbit slot (ms) */
+    ARRIVE_DURATION: 400,
     /** Stagger delay between ships in a stream (ms) */
     STREAM_STAGGER: 40,
     /** Max stagger so large fleets don't take forever to depart */
