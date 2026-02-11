@@ -61,6 +61,10 @@ export interface VisualShipState {
     staggerDelay: number;
     // Owner color (needed when ship is in transit between stars)
     ownerId: string;
+    // Time-based arc settle (polar interpolation, never crosses star)
+    settleStartTime: number;       // performance.now() when orbiting started
+    settleStartAngle: number;      // Initial polar angle relative to star center
+    settleStartRadius: number;     // Initial radius from star center
 }
 
 /**

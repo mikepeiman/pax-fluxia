@@ -768,6 +768,7 @@
                         align: "center",
                         stroke: { color: 0x000000, width: 3 },
                     },
+                    resolution: 2,
                 });
                 idText.anchor.set(0.5, 0.5);
                 idText.position.y = 0;
@@ -785,6 +786,7 @@
                         align: "center",
                         stroke: { color: 0x000000, width: 3 },
                     },
+                    resolution: 2,
                 });
                 activeText.anchor.set(0.5, 0.5);
                 activeText.position.y = 18;
@@ -802,6 +804,7 @@
                         align: "center",
                         stroke: { color: 0x000000, width: 2 },
                     },
+                    resolution: 2,
                 });
                 damagedText.anchor.set(0.5, 0.5);
                 damagedText.position.y = 38;
@@ -1512,9 +1515,21 @@
                         ship.fromStarId = null;
                         ship.toStarId = null;
                         ship.arriveStarId = null;
-                        ship.alpha = 1;
-                        ship.scale = 0.9;
+                        ship.alpha = 0.5;
+                        ship.scale = 0.3;
                         ship.targetIndex = destShips.length;
+                        // Set settle fields for arc interpolation
+                        const arrAngle = Math.atan2(
+                            ship.y - destStar.y,
+                            ship.x - destStar.x,
+                        );
+                        const arrR = Math.sqrt(
+                            (ship.x - destStar.x) ** 2 +
+                                (ship.y - destStar.y) ** 2,
+                        );
+                        ship.settleStartTime = performance.now();
+                        ship.settleStartAngle = arrAngle;
+                        ship.settleStartRadius = arrR;
                         destShips.push(ship);
                         visualShips.set(destStar.id, destShips);
                     } else {
@@ -1633,9 +1648,6 @@
     ) {
         if (!shipGraphics) return;
 
-        // Configuration for Physics
-        const LERP_FACTOR = 0.25; // Faster settle (~95% in 12 frames ≈ 200ms at 60fps)
-
         stars.forEach((star) => {
             const color = getPlayerColor(star.ownerId);
 
@@ -1652,18 +1664,21 @@
             if (ships.length < targetCount) {
                 const diff = targetCount - ships.length;
                 for (let i = 0; i < diff; i++) {
-                    const spawnIndex = ships.length; // Will be valid index
-                    // Start at center of star
+                    const spawnIndex = ships.length;
+                    // Spawn at orbit-edge angle (random position on correct orbit ring)
+                    const spawnAngle = Math.random() * Math.PI * 2;
+                    const spawnR = star.radius + 8; // Just outside star surface
+                    const now = performance.now();
                     ships.push({
                         id: nextShipId++,
-                        x: star.x,
-                        y: star.y,
+                        x: star.x + Math.cos(spawnAngle) * spawnR,
+                        y: star.y + Math.sin(spawnAngle) * spawnR,
                         vx: 0,
                         vy: 0,
                         targetIndex: spawnIndex,
-                        scale: 0.1,
-                        alpha: 0,
-                        spawnTime: performance.now(),
+                        scale: 0.3,
+                        alpha: 0.5,
+                        spawnTime: now,
                         state: "orbiting" as const,
                         fromStarId: null,
                         toStarId: null,
@@ -1682,6 +1697,9 @@
                         laneOffset: 0,
                         staggerDelay: 0,
                         ownerId: star.ownerId,
+                        settleStartTime: now,
+                        settleStartAngle: spawnAngle,
+                        settleStartRadius: spawnR,
                     });
                 }
             }
@@ -1725,6 +1743,17 @@
                 const perpY = dirX;
 
                 ships.forEach((ship, i) => {
+                    // When targetIndex changes, reset settle from current position
+                    if (ship.targetIndex !== i) {
+                        ship.settleStartTime = performance.now();
+                        ship.settleStartAngle = Math.atan2(
+                            ship.y - star.y,
+                            ship.x - star.x,
+                        );
+                        ship.settleStartRadius = Math.sqrt(
+                            (ship.x - star.x) ** 2 + (ship.y - star.y) ** 2,
+                        );
+                    }
                     ship.targetIndex = i;
 
                     // Per-ship phase offset for organic variation
@@ -1814,13 +1843,48 @@
                     // TRANSFER MODE: For now, same as idle (ships stay until fleet system)
                     // Future: Separate fleet visuals will show traveling ships
 
-                    // Smooth interpolation to target
-                    ship.x = lerp(ship.x, targetX, LERP_FACTOR);
-                    ship.y = lerp(ship.y, targetY, LERP_FACTOR);
+                    // Time-based polar arc interpolation (never crosses star)
+                    const now = performance.now();
+                    const elapsed = now - ship.settleStartTime;
+                    const settleDur = GAME_CONFIG.SETTLE_DURATION_MS || 150;
+                    const t = Math.min(1, elapsed / settleDur);
+                    // easeOutCubic: fast start, smooth deceleration
+                    const ease = 1 - Math.pow(1 - t, 3);
 
-                    const TARGET_SCALE = 0.8;
-                    ship.scale = lerp(ship.scale, TARGET_SCALE, 0.1);
-                    ship.alpha = lerp(ship.alpha, 1, 0.1);
+                    if (t < 1) {
+                        // Convert target to polar relative to star center
+                        const targetAngle = Math.atan2(
+                            targetY - star.y,
+                            targetX - star.x,
+                        );
+                        const targetRadius = Math.sqrt(
+                            (targetX - star.x) ** 2 + (targetY - star.y) ** 2,
+                        );
+
+                        // Interpolate radius
+                        const curRadius =
+                            ship.settleStartRadius +
+                            (targetRadius - ship.settleStartRadius) * ease;
+
+                        // Interpolate angle (shortest arc — never through center)
+                        let angleDelta = targetAngle - ship.settleStartAngle;
+                        // Normalize to [-PI, PI] for shortest path
+                        while (angleDelta > Math.PI) angleDelta -= 2 * Math.PI;
+                        while (angleDelta < -Math.PI) angleDelta += 2 * Math.PI;
+                        const curAngle =
+                            ship.settleStartAngle + angleDelta * ease;
+
+                        ship.x = star.x + Math.cos(curAngle) * curRadius;
+                        ship.y = star.y + Math.sin(curAngle) * curRadius;
+                        ship.scale = 0.3 + 0.5 * ease; // 0.3 -> 0.8
+                        ship.alpha = 0.5 + 0.5 * ease; // 0.5 -> 1.0
+                    } else {
+                        // Fully settled — snap to exact target
+                        ship.x = targetX;
+                        ship.y = targetY;
+                        ship.scale = 0.8;
+                        ship.alpha = 1;
+                    }
 
                     drawShip(
                         ship.x,
@@ -1842,16 +1906,19 @@
             if (damagedShips.length < damageCount) {
                 const diff = damageCount - damagedShips.length;
                 for (let i = 0; i < diff; i++) {
+                    const spawnAngle = Math.random() * Math.PI * 2;
+                    const spawnR = star.radius + 6;
+                    const now = performance.now();
                     damagedShips.push({
                         id: nextShipId++,
-                        x: star.x + (Math.random() - 0.5) * 20,
-                        y: star.y + (Math.random() - 0.5) * 20,
+                        x: star.x + Math.cos(spawnAngle) * spawnR,
+                        y: star.y + Math.sin(spawnAngle) * spawnR,
                         vx: 0,
                         vy: 0,
                         targetIndex: i,
                         scale: 0.1,
                         alpha: 0,
-                        spawnTime: performance.now(),
+                        spawnTime: now,
                         state: "orbiting" as const,
                         fromStarId: null,
                         toStarId: null,
@@ -1870,6 +1937,9 @@
                         laneOffset: 0,
                         staggerDelay: 0,
                         ownerId: star.ownerId,
+                        settleStartTime: now,
+                        settleStartAngle: spawnAngle,
+                        settleStartRadius: spawnR,
                     });
                 }
             } else if (damagedShips.length > damageCount) {

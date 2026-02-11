@@ -231,6 +231,9 @@
 | R-57 | Elimination Screen: show modal when player eliminated — Spectate or End Game options | 🟢 |
 | R-58 | Nearside Departure/Arrival: ships depart from side facing target, arrive on nearside, outer-layer-first departure selection | 🟢 |
 | R-59 | Orb Fragmentation Boundary: orbs break apart outside outermost orbit ring, ships fly directly to orbit slots with eased curve | 🟢 |
+| R-60 | Time-based Arc Settle: ships orbit-snap via easeOutCubic over SETTLE_DURATION_MS (150ms default), never cross star center — polar interpolation | 🟢 |
+| R-61 | Crisp Text at Zoom: all PIXI.Text rendered at 2x resolution for sharp text at any zoom level | 🟢 |
+| R-62 | No-Cross-Star Constraint: ships always arc around star perimeter to reach orbit slot, never path through center | 🟢 |
 
 ---
 
