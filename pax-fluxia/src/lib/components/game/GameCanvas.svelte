@@ -1159,8 +1159,23 @@
             const laneOffsetPx = GAME_CONFIG.LANE_OFFSET_PX ?? 8;
 
             const shipsToMove = Math.min(count, ships.length);
-            for (let i = 0; i < shipsToMove; i++) {
-                const ship = ships.pop()!;
+
+            // Sort ships by proximity to target direction — ships nearest the facing side depart first
+            // This ensures departure visually originates from the outermost orbit layers closest to the lane
+            ships.sort((a, b) => {
+                const aDx = a.x - source.x;
+                const aDy = a.y - source.y;
+                const bDx = b.x - source.x;
+                const bDy = b.y - source.y;
+                // Dot product with lane direction: higher = more aligned with target
+                const aDot = aDx * ndx + aDy * ndy;
+                const bDot = bDx * ndx + bDy * ndy;
+                return bDot - aDot; // Descending: closest to target first
+            });
+
+            // Take ships from the FRONT (facing side) — splice instead of pop
+            const departingShips = ships.splice(0, shipsToMove);
+            for (const ship of departingShips) {
                 // Capture departure origin for absolute interpolation
                 ship.departFromX = ship.x;
                 ship.departFromY = ship.y;
@@ -1182,6 +1197,10 @@
                 ship.staggerDelay = 0;
                 ship.ownerId = transfer.ownerId;
                 travelingShips.push(ship);
+            }
+            // Re-index remaining ships' targetIndex after splice
+            for (let j = 0; j < ships.length; j++) {
+                ships[j].targetIndex = j;
             }
             visualShips.set(transfer.sourceId, ships);
         }
@@ -1483,7 +1502,12 @@
 
             // 1. Manage Active Ships State
             let ships = visualShips.get(star.id) || [];
-            const targetCount = star.activeShips;
+            // Count ships in-flight TO this star — don't pre-spawn them at center
+            let inFlightToStar = 0;
+            for (const ts of travelingShips) {
+                if (ts.toStarId === star.id) inFlightToStar++;
+            }
+            const targetCount = Math.max(0, star.activeShips - inFlightToStar);
 
             // SPWAN: If we need more ships, add them
             if (ships.length < targetCount) {
