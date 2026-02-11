@@ -240,6 +240,8 @@
 | R-66 | Arrival Stagger: ships settle across tick×ARRIVAL_SPREAD (0-2x slider), spawn/repair/transfer all staggered | 🟢 |
 | R-67 | Wobble Travel: sinusoidal perpendicular oscillation on travel paths, per-ship frequency/phase, fades at endpoints (0-40px slider) | 🟢 |
 | R-68 | Settle Slider Extended: range expanded to 0-2000ms for full range from instant to slow drift | 🟢 |
+| R-69 | Sprite Pool Ship Rendering: replaced per-ship Graphics.circle with batched sprite pool for O(1) draw calls | 🟢 |
+| R-70 | FPS + Ship Count Overlay: real-time FPS, total visual ships, and sprite pool size displayed in monospace badge | 🟢 |
 
 ---
 
