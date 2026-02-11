@@ -48,6 +48,7 @@ export interface Star {
     repairOverflow: number;
     // Combat state
     lastCombatTick: number;
+    repairedThisTick?: number;
     // Orders
     targetId: StarId | null;
     queuedOrderTargetId: StarId | null;

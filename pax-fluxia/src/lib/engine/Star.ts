@@ -42,6 +42,7 @@ export class Star implements IStar {
     productionOverflow: number = 0;
     repairOverflow: number = 0;
     lastCombatTick: number = -1;
+    repairedThisTick: number = 0;
     private _ownerId: PlayerId;
     private _targetId: StarId | null;
     private _queuedOrder: { ownerId: PlayerId, targetId: StarId, persistAfterConquest: boolean } | null = null;
@@ -164,6 +165,7 @@ export class Star implements IStar {
      * Logs via Visual Telemetry for dataflow debugging.
      */
     repair(currentTick: number): void {
+        this.repairedThisTick = 0;
         const damagedBefore = this.damagedShips;
         const cfg: EngineConfig = {
             ...DEFAULT_ENGINE_CONFIG,
@@ -174,6 +176,8 @@ export class Star implements IStar {
             MIN_SHIPS_PER_TRANSFER: GAME_CONFIG.MIN_SHIPS_PER_TRANSFER ?? 1,
         };
         const result = applyRepair(this, currentTick, cfg);
+
+        this.repairedThisTick = result.repaired;
 
         if (result.repaired > 0 || result.isPinned) {
             log.repair(this.id, this.starType, {
@@ -310,6 +314,7 @@ export class Star implements IStar {
             productionOverflow: this.productionOverflow,
             repairOverflow: this.repairOverflow,
             lastCombatTick: this.lastCombatTick,
+            repairedThisTick: this.repairedThisTick,
             // V2 Logic
             activationRate: this.activationRate,
             defensivePosture: this.defensivePosture,

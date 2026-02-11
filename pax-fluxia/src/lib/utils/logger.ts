@@ -14,15 +14,15 @@
  * All enabled by default. Disable noisy channels as needed.
  */
 export const logFlags = {
-    sys: true,
-    state: true,
-    data: true,
-    net: true,
-    error: true,     // Errors always recommended ON
-    success: true,
-    combat: true,
-    input: true,
-    repair: true,
+    sys: false,
+    state: false,
+    data: false,
+    net: false,
+    error: true,     // Errors always ON
+    success: false,
+    combat: false,
+    input: false,
+    repair: false,
 };
 
 // Expose on window for runtime console toggling

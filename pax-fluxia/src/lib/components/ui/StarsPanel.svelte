@@ -310,6 +310,7 @@
                 {@const ti = TYPE_INFO[type] ?? TYPE_INFO["grey"]}
                 {@const isSelected = selectedStarStore.id === s.id}
                 {@const ownerColor = getPlayerColor(s.ownerId)}
+                {@const repaired = (s as any).repairedThisTick ?? 0}
                 <button
                     class="star-row"
                     class:selected={isSelected}
@@ -326,12 +327,13 @@
                         style="background: {ti.color}20; color: {ti.color}"
                         >{ti.label}</span
                     >
-                    <span class="row-ships">
-                        <span class="active">{s.activeShips}</span>
-                        {#if s.damagedShips > 0}
-                            <span class="damaged">│ {s.damagedShips}</span>
-                        {/if}
-                    </span>
+                    <span class="row-active">{s.activeShips}</span>
+                    <span class="row-damaged"
+                        >{s.damagedShips > 0 ? `│${s.damagedShips}` : ""}</span
+                    >
+                    <span class="row-repaired"
+                        >{repaired > 0 ? `+${repaired}` : ""}</span
+                    >
                 </button>
             {/each}
         </div>
@@ -511,9 +513,10 @@
     }
 
     .star-row {
-        display: flex;
+        display: grid;
+        grid-template-columns: 6px 14px 7ch 40px 1fr 5ch 4ch;
         align-items: center;
-        gap: 5px;
+        gap: 4px;
         padding: 3px 10px;
         cursor: pointer;
         border: none;
@@ -536,20 +539,15 @@
         width: 6px;
         height: 6px;
         border-radius: 50%;
-        flex-shrink: 0;
     }
     .row-type {
         font-size: 12px;
-        flex-shrink: 0;
-        width: 14px;
         text-align: center;
     }
     .row-id {
         font-family: "JetBrains Mono", monospace;
         font-size: 10px;
         color: #8899aa;
-        flex: 1;
-        min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -560,14 +558,26 @@
         border-radius: 2px;
         font-weight: 700;
         letter-spacing: 0.3px;
-        flex-shrink: 0;
     }
-    .row-ships {
+    .row-active {
         font-family: "JetBrains Mono", monospace;
         font-size: 10px;
         text-align: right;
-        min-width: 40px;
-        flex-shrink: 0;
+        color: #4ade80;
+        font-weight: 600;
+    }
+    .row-damaged {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 10px;
+        text-align: right;
+        color: #f87171;
+    }
+    .row-repaired {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 10px;
+        text-align: right;
+        color: #a855f7;
+        font-weight: 600;
     }
 
     /* ── Force Display ── */

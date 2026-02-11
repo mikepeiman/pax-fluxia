@@ -1673,25 +1673,30 @@
 
         const size = 3 * scale;
 
-        // Stacked ships: keep player color, no white blending
-        const finalColor = color;
-
-        // Use shapes for high-multiplier ships (better visual distinction)
+        // White scaling: blend toward white based on multiplier (1 = normal, 2+ = increasingly white)
+        let finalColor = color;
         if (multiplier > 1) {
-            // Draw polygon: sides increase with multiplier (triangle -> square -> pentagon -> hex...)
-            const sides = Math.min(8, 3 + Math.floor(Math.log2(multiplier)));
-            drawPolygon(shipGraphics, x, y, size, sides, animationTime);
-            shipGraphics.fill({ color: finalColor, alpha });
-            // Thin solid border in player color for stacked ships
+            const blendAmount = Math.min(1.0, Math.log2(multiplier) * 0.3);
+            const r = (color >> 16) & 0xff;
+            const g = (color >> 8) & 0xff;
+            const b = color & 0xff;
+            const newR = Math.round(r + (255 - r) * blendAmount);
+            const newG = Math.round(g + (255 - g) * blendAmount);
+            const newB = Math.round(b + (255 - b) * blendAmount);
+            finalColor = (newR << 16) | (newG << 8) | newB;
+        }
+
+        // All ships are uniform circles
+        shipGraphics.circle(x, y, size);
+        shipGraphics.fill({ color: finalColor, alpha });
+
+        // Stacked ships get a thin player-colored border for ownership identification
+        if (multiplier > 1) {
             shipGraphics.stroke({
-                color: finalColor,
+                color,
                 width: 1,
                 alpha: Math.min(1, alpha + 0.2),
             });
-        } else {
-            // Regular circle for single ships
-            shipGraphics.circle(x, y, size);
-            shipGraphics.fill({ color: finalColor, alpha });
         }
 
         // Damaged ships get a dark border indicator

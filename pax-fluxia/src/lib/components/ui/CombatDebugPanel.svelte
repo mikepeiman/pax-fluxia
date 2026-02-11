@@ -2,7 +2,7 @@
     import { onMount } from "svelte";
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
-    import { log } from "$lib/utils/logger";
+    import { log, logFlags } from "$lib/utils/logger";
 
     const STORAGE_KEY = "pax-fluxia-combat-tuning";
 
@@ -288,6 +288,7 @@
         combat: "pax-fluxia-collapse-combat",
         ai: "pax-fluxia-collapse-ai",
         visuals: "pax-fluxia-collapse-visuals",
+        logging: "pax-fluxia-collapse-logging",
     };
 
     function getCollapsedState(key: string): boolean {
@@ -305,6 +306,21 @@
     let combatCollapsed = $state(getCollapsedState(COLLAPSE_KEYS.combat));
     let aiCollapsed = $state(getCollapsedState(COLLAPSE_KEYS.ai));
     let visualsCollapsed = $state(getCollapsedState(COLLAPSE_KEYS.visuals));
+    let loggingCollapsed = $state(getCollapsedState(COLLAPSE_KEYS.logging));
+
+    // Log toggle categories
+    const logCategories = [
+        { key: "sys", label: "🔵 System", desc: "Lifecycle, init" },
+        { key: "state", label: "🟣 State", desc: "Logic, transitions" },
+        { key: "data", label: "🟢 Data", desc: "Data flow" },
+        { key: "net", label: "🟡 Network", desc: "API, IO" },
+        { key: "error", label: "🔴 Error", desc: "Errors (keep ON)" },
+        { key: "success", label: "✅ Success", desc: "Verifications" },
+        { key: "combat", label: "⚔️ Combat", desc: "Battle events" },
+        { key: "input", label: "🖱️ Input", desc: "User clicks" },
+        { key: "repair", label: "🔧 Repair", desc: "Ship repair" },
+    ] as const;
+    let logRefresh = $state(0); // triggers reactivity
 
     // Visuals state
     const VISUALS_STORAGE_KEY = "pax-fluxia-visuals";
@@ -724,6 +740,61 @@
             </div>
         </div>
     {/if}
+
+    <!-- Logging Section -->
+    <button
+        class="section-header"
+        onclick={() => {
+            loggingCollapsed = !loggingCollapsed;
+            setCollapsedState(COLLAPSE_KEYS.logging, loggingCollapsed);
+        }}
+    >
+        <span class="section-title">📋 Logging</span>
+        <span class="collapse-icon">{loggingCollapsed ? "▶" : "▼"}</span>
+    </button>
+
+    {#if !loggingCollapsed}
+        <div class="content-list">
+            <div class="log-quick-actions">
+                <button
+                    class="btn btn--ghost btn--xs"
+                    onclick={() => {
+                        Object.keys(logFlags).forEach(
+                            (k) => ((logFlags as any)[k] = true),
+                        );
+                        logRefresh++;
+                    }}>All On</button
+                >
+                <button
+                    class="btn btn--ghost btn--xs"
+                    onclick={() => {
+                        Object.keys(logFlags).forEach((k) => {
+                            if (k !== "error") (logFlags as any)[k] = false;
+                        });
+                        logRefresh++;
+                    }}>All Off</button
+                >
+            </div>
+            {#each logCategories as cat}
+                {#key logRefresh}
+                    <label class="log-toggle-row">
+                        <input
+                            type="checkbox"
+                            checked={(logFlags as any)[cat.key]}
+                            onchange={(e) => {
+                                (logFlags as any)[cat.key] = (
+                                    e.target as HTMLInputElement
+                                ).checked;
+                                logRefresh++;
+                            }}
+                        />
+                        <span class="log-label">{cat.label}</span>
+                        <span class="log-desc">{cat.desc}</span>
+                    </label>
+                {/key}
+            {/each}
+        </div>
+    {/if}
 </div>
 
 <style>
@@ -886,5 +957,38 @@
         background: #334;
         border-radius: 2px;
         cursor: pointer;
+    }
+
+    /* ── Logging Section ── */
+    .log-quick-actions {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 4px;
+    }
+    .log-toggle-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 2px 4px;
+        cursor: pointer;
+        font-size: 11px;
+        border-radius: 3px;
+    }
+    .log-toggle-row:hover {
+        background: rgba(100, 120, 160, 0.1);
+    }
+    .log-toggle-row input[type="checkbox"] {
+        accent-color: #00e0ff;
+        width: 14px;
+        height: 14px;
+    }
+    .log-label {
+        font-weight: 600;
+        white-space: nowrap;
+    }
+    .log-desc {
+        font-size: 9px;
+        color: #556;
+        margin-left: auto;
     }
 </style>
