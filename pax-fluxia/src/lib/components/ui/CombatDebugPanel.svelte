@@ -648,6 +648,19 @@
 
     {#if !visualsCollapsed}
         <div class="content-list">
+            <label class="log-toggle-row">
+                <input
+                    type="checkbox"
+                    checked={GAME_CONFIG.STATIC_ORBITS}
+                    onchange={(e) => {
+                        GAME_CONFIG.STATIC_ORBITS = (
+                            e.target as HTMLInputElement
+                        ).checked;
+                    }}
+                />
+                <span class="log-label">🛑 Static Orbits</span>
+                <span class="log-desc">No rotation (performance)</span>
+            </label>
             <div class="variable-row">
                 <div class="row-top">
                     <span class="var-name">Lane Width</span>

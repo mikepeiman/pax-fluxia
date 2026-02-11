@@ -1497,12 +1497,15 @@
                     let targetX: number, targetY: number;
 
                     // === All ships stay in ORBIT, with optional surge offset ===
+                    const orbitTime = GAME_CONFIG.STATIC_ORBITS
+                        ? 0
+                        : animationTime;
                     const slot = getOrbitSlot(
                         ship.targetIndex,
                         star.x,
                         star.y,
                         star.radius,
-                        animationTime,
+                        orbitTime,
                     );
                     targetX = slot.x;
                     const shipMultiplier = slot.multiplier;

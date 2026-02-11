@@ -14,6 +14,7 @@
 
   // Panel visibility states
   let showAudioSettings = $state(false);
+  let showSurrenderModal = $state(false);
 
   // Derived leaderboard - use activeGameStore for unified access
   const leaderboardPlayers = $derived.by(() => {
@@ -103,7 +104,7 @@
               </button>
               <button
                 class="btn btn--danger btn--sm"
-                onclick={() => activeGameStore.returnToMenu()}
+                onclick={() => (showSurrenderModal = true)}
               >
                 Surrender
               </button>
@@ -125,6 +126,44 @@
         </div>
       </div>
     </div>
+
+    <!-- Surrender Confirmation Modal -->
+    {#if showSurrenderModal}
+      <div class="modal-overlay" role="dialog" aria-modal="true">
+        <div class="surrender-modal glass-panel">
+          <h3 class="surrender-modal__title">Surrender?</h3>
+          <p class="surrender-modal__desc">Choose how to end your campaign.</p>
+          <div class="surrender-modal__actions">
+            <button
+              class="btn btn--primary btn--md"
+              onclick={() => {
+                showSurrenderModal = false;
+                gameStore.surrender();
+              }}
+            >
+              🏁 End Game
+              <span class="btn-sub">View results & graphs</span>
+            </button>
+            <button
+              class="btn btn--ghost btn--md"
+              onclick={() => {
+                showSurrenderModal = false;
+                gameStore.returnToMenu();
+              }}
+            >
+              🚪 Abandon
+              <span class="btn-sub">Return to main menu</span>
+            </button>
+          </div>
+          <button
+            class="btn btn--ghost btn--sm surrender-modal__cancel"
+            onclick={() => (showSurrenderModal = false)}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    {/if}
   {/if}
 </main>
 
@@ -320,5 +359,63 @@
   .btn--danger:hover {
     background: rgba(239, 68, 68, 0.4);
     color: #fff;
+  }
+
+  .btn--primary {
+    background: rgba(59, 130, 246, 0.3);
+    border: 1px solid rgba(59, 130, 246, 0.6);
+    color: #93c5fd;
+  }
+  .btn--primary:hover {
+    background: rgba(59, 130, 246, 0.5);
+    color: #fff;
+  }
+
+  .btn--md {
+    padding: 12px 16px;
+    font-size: 13px;
+  }
+
+  .surrender-modal {
+    padding: 24px;
+    max-width: 340px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    text-align: center;
+  }
+  .surrender-modal__title {
+    font-size: 1.2rem;
+    margin: 0;
+    color: #fff;
+    letter-spacing: 0.08em;
+  }
+  .surrender-modal__desc {
+    font-size: 0.875rem;
+    color: #888;
+    margin: 0;
+  }
+  .surrender-modal__actions {
+    display: flex;
+    gap: 12px;
+    width: 100%;
+  }
+  .surrender-modal__actions .btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  .btn-sub {
+    font-size: 0.65rem;
+    opacity: 0.6;
+    font-weight: 400;
+    text-transform: none;
+  }
+  .surrender-modal__cancel {
+    opacity: 0.5;
+    font-size: 0.75rem;
   }
 </style>

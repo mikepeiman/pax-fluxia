@@ -97,6 +97,7 @@ interface GameConfigType {
     SHIPS_PER_RING: number;
     SHIP_BASE_SIZE: number;
     TRANSFER_ANIMATION_MS: number;
+    STATIC_ORBITS: boolean;  // When true, ships don't rotate around stars (performance)
 
     /** How far order arrows extend along the lane (0.0-1.0, 1.0 = full distance to target edge) */
     ARROW_LENGTH_FRACTION: number;
@@ -295,6 +296,7 @@ export const GAME_CONFIG: GameConfigType = {
 
     /** Ship transfer animation duration (ms) */
     TRANSFER_ANIMATION_MS: 600,
+    STATIC_ORBITS: false,
 
     /** Order arrow length as fraction of lane distance (0.0-1.0, default 0.5 = halfway) */
     ARROW_LENGTH_FRACTION: 0.5,

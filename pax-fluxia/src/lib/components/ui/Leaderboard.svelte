@@ -33,6 +33,17 @@
     const sortedPlayers = $derived(
         [...players].sort((a, b) => (b.totalShips ?? 0) - (a.totalShips ?? 0)),
     );
+
+    // Game-wide totals
+    const gameTotals = $derived.by(() => {
+        let active = 0,
+            damaged = 0;
+        for (const p of players) {
+            active += p.activeShips ?? 0;
+            damaged += p.damagedShips ?? 0;
+        }
+        return { active, damaged, total: active + damaged };
+    });
 </script>
 
 <div class="leaderboard glass-panel">
@@ -42,6 +53,17 @@
     </button>
 
     {#if !isCollapsed}
+        <!-- Game-wide totals row -->
+        <div class="game-totals font-data">
+            <span class="totals-label">Ships in game:</span>
+            <span class="totals-total">{gameTotals.total}</span>
+            <span class="totals-breakdown">
+                <span class="totals-active">{gameTotals.active}</span><span
+                    class="stat-dim">/{gameTotals.damaged}</span
+                >
+            </span>
+        </div>
+
         <ul class="leaderboard__list">
             {#each sortedPlayers as player, index}
                 {@const totalShips =
@@ -214,5 +236,31 @@
     .stat-prod {
         color: #8f8;
         min-width: 2.5em;
+    }
+
+    .game-totals {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 8px;
+        margin-bottom: 4px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        font-size: 0.7rem;
+        color: var(--color-text-muted, #888);
+    }
+    .totals-label {
+        opacity: 0.7;
+    }
+    .totals-total {
+        font-weight: 700;
+        color: var(--color-text-primary, #fff);
+        font-size: 0.8rem;
+    }
+    .totals-active {
+        color: #4ade80;
+    }
+    .totals-breakdown {
+        font-size: 0.65rem;
+        opacity: 0.7;
     }
 </style>

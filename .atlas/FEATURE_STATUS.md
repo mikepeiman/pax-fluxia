@@ -217,6 +217,7 @@
 
 | Date | Summary |
 |------|---------|
+| 2026-02-10 | Batch 2: Surrender modal fix (+page.svelte was calling returnToMenu directly), STATIC_ORBITS toggle (performance), leaderboard total ships row, log toggles UI, Stars Panel CSS Grid, repairedThisTick on Star model, ship visuals reverted to circles+white+border. |
 | 2026-02-10 | Phase 1: R-45/B-27 physics star spacing, R-40 leaderboard, R-41 surrender modal. B-28 Tone.js lag fix (throttling). SP/MP parity audit completed. |
 | 2026-02-10 | Documented 9 new items from user: orbit density (R-38/R-39/R-46), leaderboard (R-40), surrender modal (R-41), player stats console (R-42), SP/MP parity (R-43), AI difficulty (R-44), star spacing (R-45/B-27), MP variable wiring (B-26). |
 | 2026-02-09 | Unified game settings: MP lobby now has same settings as SP (stars/player, ships/star, spacing, links). Server `initStandardMap` reads from `RoomOptions`. Star count fix: adaptive spacing retry + adaptive hex radius. |
