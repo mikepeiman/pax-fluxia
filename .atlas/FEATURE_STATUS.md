@@ -245,6 +245,8 @@
 | R-71 | Spawn/Production Instant Settle: removed ARRIVAL_SPREAD stagger from spawned ships — only travel arrivals stagger | 🟢 |
 | R-72 | Sharper Sprites: circle texture increased 16→64px with anti-aliased edge for crisp rendering at all scales | 🟢 |
 | R-73 | Reset All Button: CombatDebugPanel has red-tinted reset button that clears localStorage and restores defaults | 🟢 |
+| R-74 | Orbit Density Slider: controls ship spacing per ring (1.0-4.0x), higher = more spread out, fewer per ring | 🟢 |
+| R-75 | Attack Surge Slider: controls attack displacement (0-1.5x star radius), adjustable in real-time | 🟢 |
 
 ---
 

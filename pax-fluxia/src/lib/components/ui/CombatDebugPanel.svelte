@@ -398,6 +398,8 @@
         settleDuration: GAME_CONFIG.SETTLE_DURATION_MS,
         arrivalSpread: GAME_CONFIG.ARRIVAL_SPREAD,
         wobbleAmp: GAME_CONFIG.WOBBLE_AMP,
+        orbitDensity: GAME_CONFIG.ORBIT_DENSITY,
+        attackSurgeMult: GAME_CONFIG.ATTACK_SURGE_MULT,
         orbTravel: GAME_CONFIG.ORB_TRAVEL,
         orbitBias: GAME_CONFIG.ORBIT_BIAS_STRENGTH,
         oscillate: GAME_CONFIG.ORBIT_BIAS_OSCILLATE,
@@ -465,6 +467,8 @@
         GAME_CONFIG.SETTLE_DURATION_MS = panel.settleDuration as number;
         GAME_CONFIG.ARRIVAL_SPREAD = panel.arrivalSpread as number;
         GAME_CONFIG.WOBBLE_AMP = panel.wobbleAmp as number;
+        GAME_CONFIG.ORBIT_DENSITY = panel.orbitDensity as number;
+        GAME_CONFIG.ATTACK_SURGE_MULT = panel.attackSurgeMult as number;
         GAME_CONFIG.ORB_TRAVEL = panel.orbTravel as boolean;
         GAME_CONFIG.ORBIT_BIAS_STRENGTH = panel.orbitBias as number;
         GAME_CONFIG.ORBIT_BIAS_OSCILLATE = panel.oscillate as boolean;
@@ -998,6 +1002,50 @@
                         const val = +(e.target as HTMLInputElement).value;
                         GAME_CONFIG.WOBBLE_AMP = val;
                         updatePanel("wobbleAmp", val);
+                    }}
+                />
+            </div>
+
+            <!-- Orbit Density slider -->
+            <div class="variable-row">
+                <div class="row-top">
+                    <span class="var-name">Orbit Density</span>
+                    <span class="current-val"
+                        >{(panel.orbitDensity as number).toFixed(1)}x</span
+                    >
+                </div>
+                <input
+                    type="range"
+                    min="1.0"
+                    max="4.0"
+                    step="0.1"
+                    value={panel.orbitDensity}
+                    oninput={(e) => {
+                        const val = +(e.target as HTMLInputElement).value;
+                        GAME_CONFIG.ORBIT_DENSITY = val;
+                        updatePanel("orbitDensity", val);
+                    }}
+                />
+            </div>
+
+            <!-- Attack Surge slider -->
+            <div class="variable-row">
+                <div class="row-top">
+                    <span class="var-name">Attack Surge</span>
+                    <span class="current-val"
+                        >{(panel.attackSurgeMult as number).toFixed(2)}x</span
+                    >
+                </div>
+                <input
+                    type="range"
+                    min="0"
+                    max="1.5"
+                    step="0.05"
+                    value={panel.attackSurgeMult}
+                    oninput={(e) => {
+                        const val = +(e.target as HTMLInputElement).value;
+                        GAME_CONFIG.ATTACK_SURGE_MULT = val;
+                        updatePanel("attackSurgeMult", val);
                     }}
                 />
             </div>

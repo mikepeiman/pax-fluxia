@@ -1913,7 +1913,9 @@
 
                         // Subtle surge: max displacement toward target
                         // Front ships get full surge, back ships get none
-                        const surgeMax = star.radius * 0.4;
+                        const surgeMax =
+                            star.radius *
+                            (GAME_CONFIG.ATTACK_SURGE_MULT ?? 0.4);
                         targetX += dirX * surgePulse * surgeMax * surgeFactor;
                         targetY += dirY * surgePulse * surgeMax * surgeFactor;
                     }

@@ -112,6 +112,8 @@ interface GameConfigType {
     SETTLE_DURATION_MS: number;    // How fast ships snap into orbit slot (ms, default 150)
     ARRIVAL_SPREAD: number;        // Fraction of tick used to stagger arrivals (0=instant, 1=full tick, 2=2 ticks)
     WOBBLE_AMP: number;            // Amplitude of sinusoidal wobble on travel path (px, default 12)
+    ORBIT_DENSITY: number;         // Ship spacing factor per ring: circumference / (BASE_SIZE * ORBIT_DENSITY). Higher = fewer per ring (default 1.5)
+    ATTACK_SURGE_MULT: number;     // Attack surge displacement as fraction of star radius (default 0.4)
     // Orbit bias oscillation
     ORBIT_BIAS_OSCILLATE: boolean; // Enable oscillation between min/max bias (default false)
     ORBIT_BIAS_MIN: number;        // Min bias strength for oscillation (default 0.0)
@@ -353,6 +355,10 @@ export const GAME_CONFIG: GameConfigType = {
     ARRIVAL_SPREAD: 1.0,
     /** Amplitude of sinusoidal wobble on travel path (px) */
     WOBBLE_AMP: 12,
+    /** Ship spacing factor per ring: higher = fewer ships per ring = more spread out (default 1.5) */
+    ORBIT_DENSITY: 1.5,
+    /** Attack surge displacement as fraction of star radius (default 0.4) */
+    ATTACK_SURGE_MULT: 0.4,
     /** Enable orbit bias oscillation between min/max */
     ORBIT_BIAS_OSCILLATE: false,
     /** Min bias strength for oscillation */

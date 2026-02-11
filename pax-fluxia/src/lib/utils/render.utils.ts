@@ -105,7 +105,7 @@ function calculateTotalCapacity(starRadius: number): { layerCapacities: number[]
 
     for (let layer = 0; layer < MAX_ORBIT_LAYERS; layer++) {
         const circumference = 2 * Math.PI * currentRadius;
-        const capacity = Math.max(1, Math.floor(circumference / (BASE_SIZE * 1.5)));
+        const capacity = Math.max(1, Math.floor(circumference / (BASE_SIZE * (GAME_CONFIG.ORBIT_DENSITY || 1.5))));
         layerCapacities.push(capacity);
         totalCapacity += capacity;
         currentRadius += RING_SPACING;
