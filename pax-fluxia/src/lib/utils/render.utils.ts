@@ -47,6 +47,11 @@ export interface VisualShipState {
     laneStartY: number;
     laneEndX: number;
     laneEndY: number;
+    // Departure origin (captured when ship starts departing)
+    departFromX: number;
+    departFromY: number;
+    // Per-ship perpendicular offset for organic variation near lane center
+    laneOffset: number;
     // Stagger offset for stream formation
     staggerDelay: number;
     // Owner color (needed when ship is in transit between stars)

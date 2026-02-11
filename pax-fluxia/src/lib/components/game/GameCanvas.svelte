@@ -1157,6 +1157,9 @@
             const shipsToMove = Math.min(count, ships.length);
             for (let i = 0; i < shipsToMove; i++) {
                 const ship = ships.pop()!;
+                // Capture departure origin for absolute interpolation
+                ship.departFromX = ship.x;
+                ship.departFromY = ship.y;
                 ship.state = "departing";
                 ship.fromStarId = transfer.sourceId;
                 ship.toStarId = transfer.targetId;
@@ -1173,6 +1176,8 @@
                 ship.laneStartY = laneStartY;
                 ship.laneEndX = laneEndX;
                 ship.laneEndY = laneEndY;
+                // Per-ship perpendicular offset for organic variation (±8px)
+                ship.laneOffset = (Math.random() - 0.5) * 16;
                 ship.staggerDelay =
                     i *
                     Math.min(
@@ -1220,6 +1225,8 @@
                         const ndy = dy / dist;
 
                         ship.state = "departing";
+                        ship.departFromX = ship.x;
+                        ship.departFromY = ship.y;
                         ship.fromStarId = conquest.starId;
                         ship.toStarId = targetId;
                         ship.departTime = now + shipsAnimated * 20;
@@ -1233,6 +1240,7 @@
                             targetStar.x - ndx * (targetStar.radius + 5);
                         ship.laneEndY =
                             targetStar.y - ndy * (targetStar.radius + 5);
+                        ship.laneOffset = (Math.random() - 0.5) * 16;
                         ship.staggerDelay = shipsAnimated * 20;
                         ship.ownerId = conquest.previousOwner;
                         travelingShips.push(ship);
@@ -1258,6 +1266,8 @@
                         const ndy = dy / dist;
 
                         ship.state = "departing";
+                        ship.departFromX = ship.x;
+                        ship.departFromY = ship.y;
                         ship.fromStarId = conquest.starId;
                         ship.toStarId = conquest.retreatTargetId!;
                         ship.departTime = now + i * 20;
@@ -1271,6 +1281,7 @@
                             retreatStar.x - ndx * (retreatStar.radius + 5);
                         ship.laneEndY =
                             retreatStar.y - ndy * (retreatStar.radius + 5);
+                        ship.laneOffset = (Math.random() - 0.5) * 16;
                         ship.staggerDelay = i * 20;
                         ship.ownerId = conquest.previousOwner;
                         travelingShips.push(ship);
@@ -1327,19 +1338,25 @@
             const color = getPlayerColor(ship.ownerId);
 
             if (ship.state === "departing") {
-                // Phase 1: Ease from current position to lane start
+                // Phase 1: Ease out of orbit toward lane start
+                // Absolute interpolation from saved departure origin
                 const departProgress = Math.min(
                     1,
                     elapsed / SHIP_ANIM.DEPART_DURATION,
                 );
-                const eased = easeInOutCubic(departProgress);
+                // easeOutCubic: reluctant departure (fast start, slow end leaving orbit)
+                const eased = 1 - Math.pow(1 - departProgress, 3);
 
-                ship.x = lerp(ship.x, ship.laneStartX, eased * 0.3 + 0.02);
-                ship.y = lerp(ship.y, ship.laneStartY, eased * 0.3 + 0.02);
-                ship.scale = lerp(ship.scale, 0.9, 0.1);
+                ship.x =
+                    ship.departFromX +
+                    (ship.laneStartX - ship.departFromX) * eased;
+                ship.y =
+                    ship.departFromY +
+                    (ship.laneStartY - ship.departFromY) * eased;
+                ship.scale = 0.8 + 0.1 * eased; // Grow slightly as departing
+                ship.alpha = 1; // Always visible
 
                 if (departProgress >= 1) {
-                    // Snap to lane start and transition to traveling
                     ship.x = ship.laneStartX;
                     ship.y = ship.laneStartY;
                     ship.state = "traveling";
@@ -1349,39 +1366,52 @@
                 drawShip(ship.x, ship.y, color, ship.scale, ship.alpha, false);
                 stillTraveling.push(ship);
             } else if (ship.state === "traveling") {
-                // Phase 2: Stream along the lane
+                // Phase 2: Stream along the lane with magnetic pull toward destination
                 const travelProgress = Math.min(
                     1,
                     elapsed / ship.travelDuration,
                 );
-                const eased = easeInOutCubic(travelProgress);
+                // easeInCubic: magnetic pull — starts slow, accelerates toward target
+                const eased = travelProgress * travelProgress * travelProgress;
 
-                ship.x =
+                // Base lane position
+                const baseX =
                     ship.laneStartX + (ship.laneEndX - ship.laneStartX) * eased;
-                ship.y =
+                const baseY =
                     ship.laneStartY + (ship.laneEndY - ship.laneStartY) * eased;
 
-                // Fade in/out at edges
-                const fadeIn = Math.min(1, travelProgress * 5);
-                const fadeOut = Math.min(1, (1 - travelProgress) * 5);
-                ship.alpha = fadeIn * fadeOut * 1.0;
+                // Perpendicular offset for organic variation (fades at endpoints)
+                const laneNdx = ship.laneEndX - ship.laneStartX;
+                const laneNdy = ship.laneEndY - ship.laneStartY;
+                const laneDist =
+                    Math.sqrt(laneNdx * laneNdx + laneNdy * laneNdy) || 1;
+                const perpX = -laneNdy / laneDist; // perpendicular
+                const perpY = laneNdx / laneDist;
+                // Offset fades near endpoints for smooth entry/exit
+                const edgeFade = Math.min(
+                    travelProgress * 4,
+                    (1 - travelProgress) * 4,
+                    1,
+                );
+                ship.x = baseX + perpX * ship.laneOffset * edgeFade;
+                ship.y = baseY + perpY * ship.laneOffset * edgeFade;
+
+                // Ships stay fully visible during travel — no fade pulse
+                ship.alpha = 1;
                 ship.scale = 0.9;
 
                 if (travelProgress >= 1) {
-                    // Arrive at destination
+                    // Arrive at destination — transition to orbiting at visible scale
                     ship.x = ship.laneEndX;
                     ship.y = ship.laneEndY;
-                    ship.state = "arriving";
-                    ship.departTime = now; // Reset timer for arrive phase
 
-                    // Add ship to destination star's orbit
                     const destStar = starsById.get(ship.toStarId!);
                     if (destStar) {
                         ship.fromStarId = null;
                         ship.toStarId = null;
                         ship.state = "orbiting";
                         ship.alpha = 1;
-                        ship.scale = 0.1; // Start small, will lerp to full in renderShips
+                        ship.scale = 0.7; // Visible during orbit lerp (not 0.1 poof)
                         const destShips = visualShips.get(destStar.id) || [];
                         ship.targetIndex = destShips.length;
                         destShips.push(ship);
@@ -1400,8 +1430,7 @@
                     stillTraveling.push(ship);
                 }
             } else if (ship.state === "arriving") {
-                // Phase 3: Ease into orbit (handled by transitioning to orbiting above)
-                // This state shouldn't be reached in practice since we go straight to orbiting
+                // Phase 3: Ease into orbit (handled above by transitioning to orbiting)
                 stillTraveling.push(ship);
             }
         }
@@ -1446,7 +1475,7 @@
                         vx: 0,
                         vy: 0,
                         targetIndex: spawnIndex,
-                        scale: 0.1, // Start tiny
+                        scale: 0.1,
                         alpha: 0,
                         spawnTime: performance.now(),
                         state: "orbiting" as const,
@@ -1458,6 +1487,9 @@
                         laneStartY: 0,
                         laneEndX: 0,
                         laneEndY: 0,
+                        departFromX: 0,
+                        departFromY: 0,
+                        laneOffset: 0,
                         staggerDelay: 0,
                         ownerId: star.ownerId,
                     });
@@ -1610,6 +1642,9 @@
                         laneStartY: 0,
                         laneEndX: 0,
                         laneEndY: 0,
+                        departFromX: 0,
+                        departFromY: 0,
+                        laneOffset: 0,
                         staggerDelay: 0,
                         ownerId: star.ownerId,
                     });

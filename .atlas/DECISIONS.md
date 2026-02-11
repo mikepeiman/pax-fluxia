@@ -27,17 +27,28 @@ Client and server engines diverged — client had rich game logic (overflow accu
 # Decision: Ship Transfer Animation — Unified Lifecycle
 
 **Date:** 2026-02-08
-**Status:** Planned
+**Updated:** 2026-02-10
+**Status:** Implemented
 
 ## Context
 Animation system had two completely disjoint systems: orbit rendering (per-star ship arrays with lerp physics) and fire-and-forget dots (separate animationStore events). Ships teleported out of orbit, separate dots flew the lane, different ships popped into orbit. Result: jerky, disjointed, ugly.
 
+## Previous Issues (2026-02-10)
+1. **Depart**: Per-frame lerp with tiny factor → ship barely moves, then SNAPS to lane start. "Ships peel off orbit and disappear."
+2. **Travel**: Alpha fades in (first 20%) and out (last 20%). "Mere pulses along the lane" — ships flash instead of streaming.
+3. **Arrive**: Ship goes directly to `orbiting` at `scale: 0.1`. "Ships poof out of star center."
+
 ## Decision
 - **Unified lifecycle**: Each visual ship transitions through `orbiting → departing → traveling → arriving → orbiting`
 - **Same entity**: The visual ship that departs orbit IS the ship that travels the lane IS the ship that arrives
-- **Lane adherence**: Ships follow the connection line between stars
-- **Smooth easing**: `easeInOutCubic` at all transitions. Zero linear snapping.
+- **Lane adherence**: Ships follow the connection line between stars with slight organic variation (±8px perpendicular offset per ship, fading at endpoints)
+- **Magnetic easing**: Destination planet "pulls" ships toward it.
+  - Depart: `easeOutCubic` — reluctant departure (fast initial peel, slow exit from orbit)
+  - Travel: `easeInCubic` — starts slow, accelerates toward target (magnetic pull)
+- **Always visible**: Ships have alpha=1 throughout travel. No fading. No pulses.
 - **Stream formation**: Multiple ships stagger along the lane as a visible stream
+- **Visible arrival**: Arriving ships enter orbit at scale 0.7 (visible), not 0.1 (invisible poof)
+- **Absolute interpolation**: Depart phase captures origin position and uses absolute `from + (to - from) * t`, not per-frame lerp
 - **Imperative events**: Engine emits typed events (`reinforce`, `conquest`, `scatter`, `retreat`). Animation consumes events, NOT state diffs.
 - **No attack travel**: Attacks are remote engagement. Ships stay at source. No travel animation for attacks.
 

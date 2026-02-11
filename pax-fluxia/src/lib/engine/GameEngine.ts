@@ -940,8 +940,51 @@ export class GameEngine {
             MINIMUM_DAMAGE: 1,
         };
 
+        // ================================================================
+        // CONQUEST DEBUG: Pre-conquest snapshot
+        // ================================================================
+        const neighborIds = ctx.getNeighborIds(defender.id);
+        const friendlyNeighborsBefore = neighborIds
+            .map(id => this.stars.get(id))
+            .filter(s => s && s.ownerId === previousOwner)
+            .map(s => ({ id: s!.id, owner: s!.ownerId, active: Math.floor(s!.activeShips), damaged: Math.floor(s!.damagedShips) }));
+
+        const preSnapshot = {
+            tick: this.tick,
+            attacker: { id: attacker.id, owner: attacker.ownerId, active: Math.floor(attacker.activeShips), damaged: Math.floor(attacker.damagedShips) },
+            defender: { id: defender.id, owner: previousOwner, active: Math.floor(defender.activeShips), damaged: Math.floor(defender.damagedShips), targetId: defender.targetId },
+            friendlyNeighbors: friendlyNeighborsBefore,
+            config: { SCATTER_CAPTURE_RATE: cfg.SCATTER_CAPTURE_RATE, SCATTER_DESTROY_RATE: cfg.SCATTER_DESTROY_RATE, RETREAT_CAPTURE_RATE: cfg.RETREAT_CAPTURE_RATE },
+        };
+
         // Delegate to shared conquest logic
         const result = applyConquest(attacker as any, defender as any, ctx, cfg);
+
+        // ================================================================
+        // CONQUEST DEBUG: Post-conquest snapshot
+        // ================================================================
+        const friendlyNeighborsAfter = neighborIds
+            .map(id => this.stars.get(id))
+            .filter(s => s != null)
+            .map(s => ({ id: s!.id, owner: s!.ownerId, active: Math.floor(s!.activeShips), damaged: Math.floor(s!.damagedShips) }));
+
+        console.log('%c🏴 CONQUEST DEBUG', 'color: #ff6b6b; font-weight: bold; font-size: 14px', {
+            PRE: preSnapshot,
+            RESULT: {
+                captured: result.shipsCaptured,
+                escaped: result.shipsEscaped,
+                destroyed: result.shipsDestroyed,
+                retreatTo: result.retreatTargetId ?? 'none',
+                scatterTo: result.scatterTargetIds ?? [],
+                scatterCounts: result.scatterShipCounts ?? [],
+                defenderTotalAtConquest: result.defenderTotalAtConquest,
+            },
+            POST: {
+                attacker: { id: attacker.id, owner: attacker.ownerId, active: Math.floor(attacker.activeShips), damaged: Math.floor(attacker.damagedShips) },
+                defender: { id: defender.id, owner: defender.ownerId, active: Math.floor(defender.activeShips), damaged: Math.floor(defender.damagedShips) },
+                neighbors: friendlyNeighborsAfter,
+            },
+        });
 
         // ================================================================
         // CLIENT-ONLY: Logging
