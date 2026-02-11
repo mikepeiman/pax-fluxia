@@ -189,6 +189,29 @@ export function getOrbitSlot(
 }
 
 /**
+ * Get the radius of the outermost occupied orbit ring for a star with N ships.
+ * Used to place the orb fragmentation boundary just outside this ring.
+ */
+export function getOuterOrbitRadius(starRadius: number, shipCount: number): number {
+    const BASE_SIZE = GAME_CONFIG.SHIP_BASE_SIZE || 4;
+    const PADDING = 2;
+    const RING_SPACING = BASE_SIZE * (GAME_CONFIG.ORBIT_RING_MULT || 1.4);
+    const { layerCapacities } = calculateTotalCapacity(starRadius);
+
+    if (shipCount <= 0) return starRadius + PADDING + BASE_SIZE;
+
+    let currentRadius = starRadius + PADDING + BASE_SIZE;
+    let remaining = shipCount;
+
+    for (let layer = 0; layer < MAX_ORBIT_LAYERS; layer++) {
+        remaining -= layerCapacities[layer];
+        if (remaining <= 0) return currentRadius;
+        currentRadius += RING_SPACING;
+    }
+    return currentRadius;
+}
+
+/**
  * Calculate positions for ships in a traveling fleet
  * Ships are clustered around the fleet's current progress position
  */

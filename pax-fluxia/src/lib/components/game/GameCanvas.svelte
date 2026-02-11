@@ -6,6 +6,7 @@
     import { GAME_CONFIG } from "$lib/config/game.config";
     import {
         getOrbitSlot,
+        getOuterOrbitRadius,
         getFleetPositions,
         lerp,
         SHIP_ANIM,
@@ -1179,29 +1180,23 @@
 
             const shipsToMove = Math.min(count, ships.length);
 
-            // Select which ships depart
-            let departingShips: VisualShipState[];
-            if (GAME_CONFIG.FACING_DEPARTURE) {
-                // FACING MODE: Sort by proximity to target direction — ships nearest the facing side depart first
-                // This causes the "orbit dance" effect where remaining ships reshuffle slots
-                ships.sort((a, b) => {
-                    const aDot =
-                        (a.x - source.x) * ndx + (a.y - source.y) * ndy;
-                    const bDot =
-                        (b.x - source.x) * ndx + (b.y - source.y) * ndy;
-                    return bDot - aDot; // Descending: closest to target first
-                });
-                departingShips = ships.splice(0, shipsToMove);
-                // Re-index remaining ships' targetIndex after splice
-                for (let j = 0; j < ships.length; j++) {
-                    ships[j].targetIndex = j;
-                }
-            } else {
-                // DEFAULT: Pop from end — no reindexing, no dance
-                departingShips = [];
-                for (let i = 0; i < shipsToMove; i++) {
-                    departingShips.push(ships.pop()!);
-                }
+            // Select which ships depart — always nearside, outer-layer-first
+            // Score = direction proximity × layer weight (outer layers have higher indices)
+            // This "digs" ships from the nearside of the star facing the target,
+            // preferring outer orbits first, with decreasing proportions from inner layers
+            ships.forEach((s, i) => {
+                const dot = (s.x - source.x) * ndx + (s.y - source.y) * ndy;
+                const layerWeight =
+                    1 + s.targetIndex / Math.max(1, ships.length); // 1.0–2.0
+                (s as any)._departScore = dot * layerWeight;
+            });
+            ships.sort(
+                (a, b) => (b as any)._departScore - (a as any)._departScore,
+            );
+            const departingShips = ships.splice(0, shipsToMove);
+            // Re-index remaining ships' targetIndex after splice
+            for (let j = 0; j < ships.length; j++) {
+                ships[j].targetIndex = j;
             }
 
             for (const ship of departingShips) {
@@ -1493,23 +1488,38 @@
                 ship.scale = 0.9;
 
                 if (travelProgress >= 1) {
-                    // Arrive at destination — transition to orbiting at lane end
-                    // Let the orbit lerp in renderShips pull it smoothly into orbit slot
-                    ship.x = ship.laneEndX;
-                    ship.y = ship.laneEndY;
-
+                    // Arrive at destination — position at fragmentation boundary
+                    // (outside the outermost orbit ring, on the nearside from source)
                     const destStar = starsById.get(ship.toStarId!);
                     if (destStar) {
+                        const destShips = visualShips.get(destStar.id) || [];
+                        // Fragmentation boundary: just outside outermost occupied orbit ring
+                        const outerR = getOuterOrbitRadius(
+                            destStar.radius,
+                            destShips.length + 1,
+                        );
+                        const fragBoundary = outerR + 8; // 8px outside outermost ring
+                        // Direction from source to dest (arrival angle)
+                        const arrDx = ship.laneEndX - destStar.x;
+                        const arrDy = ship.laneEndY - destStar.y;
+                        const arrDist =
+                            Math.sqrt(arrDx * arrDx + arrDy * arrDy) || 1;
+                        // Place ship at fragmentation boundary on the arrival side
+                        ship.x = destStar.x + (arrDx / arrDist) * fragBoundary;
+                        ship.y = destStar.y + (arrDy / arrDist) * fragBoundary;
+
                         ship.state = "orbiting";
                         ship.fromStarId = null;
                         ship.toStarId = null;
                         ship.arriveStarId = null;
                         ship.alpha = 1;
-                        ship.scale = 0.9; // Slightly larger than orbit target (0.8) — lerp will settle it
-                        const destShips = visualShips.get(destStar.id) || [];
+                        ship.scale = 0.9;
                         ship.targetIndex = destShips.length;
                         destShips.push(ship);
                         visualShips.set(destStar.id, destShips);
+                    } else {
+                        ship.x = ship.laneEndX;
+                        ship.y = ship.laneEndY;
                     }
                     // Don't push to stillTraveling — ship is now managed by renderShips
                 } else {
@@ -1624,7 +1634,7 @@
         if (!shipGraphics) return;
 
         // Configuration for Physics
-        const LERP_FACTOR = 0.1; // Smoothness (0.1 = smooth, 0.5 = snappy)
+        const LERP_FACTOR = 0.25; // Faster settle (~95% in 12 frames ≈ 200ms at 60fps)
 
         stars.forEach((star) => {
             const color = getPlayerColor(star.ownerId);

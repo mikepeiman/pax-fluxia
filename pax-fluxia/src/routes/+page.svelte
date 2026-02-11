@@ -106,7 +106,7 @@
                 class="btn btn--danger btn--sm"
                 onclick={() => (showSurrenderModal = true)}
               >
-                Surrender
+                Quit
               </button>
             </div>
           </div>

@@ -394,6 +394,15 @@ function returnToMenu(): void {
     gameStore.returnToMenu();
 }
 
+function isLocalPlayerEliminated(): boolean {
+    if (getPhase() !== 'playing') return false;
+    const localId = getLocalPlayerId();
+    if (!localId) return false;
+    const players = getPlayers();
+    const local = players.find((p: any) => p.id === localId || p.sessionId === localId);
+    return local?.isEliminated === true;
+}
+
 // ============================================================================
 // Export Store
 // ============================================================================
@@ -443,6 +452,7 @@ export const activeGameStore = {
     getWinner,
     getHumanPlayer,
     isVictory,
+    isLocalPlayerEliminated,
 
     /** Update BASE_TICK_MS and reschedule engine interval (SP only) */
     updateTickInterval(ms: number) {

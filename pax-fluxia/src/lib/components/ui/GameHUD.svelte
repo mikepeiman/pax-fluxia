@@ -26,6 +26,17 @@
   }
 
   let showSurrenderModal = $state(false);
+  let showEliminatedModal = $state(false);
+  let hasSeenElimination = $state(false);
+
+  // Auto-show elimination modal when player is eliminated
+  const isEliminated = $derived(activeGameStore.isLocalPlayerEliminated());
+  $effect(() => {
+    if (isEliminated && !hasSeenElimination) {
+      hasSeenElimination = true;
+      showEliminatedModal = true;
+    }
+  });
 
   function handleTransferChange(e: Event) {
     const target = e.target as HTMLInputElement;
@@ -88,7 +99,7 @@
             class="btn btn--danger btn--sm"
             onclick={() => (showSurrenderModal = true)}
           >
-            Surrender
+            Quit
           </button>
         </div>
       {/if}
@@ -136,6 +147,39 @@
         >
           Cancel
         </button>
+      </div>
+    </div>
+  {/if}
+
+  <!-- Elimination Modal -->
+  {#if showEliminatedModal}
+    <div class="modal-overlay" role="dialog" aria-modal="true">
+      <div class="surrender-modal glass-panel">
+        <h3 class="surrender-modal__title">💀 Eliminated</h3>
+        <p class="surrender-modal__desc">
+          You have been wiped from the galaxy.
+        </p>
+        <div class="surrender-modal__actions">
+          <button
+            class="btn btn--primary btn--md"
+            onclick={() => {
+              showEliminatedModal = false;
+            }}
+          >
+            👁 Spectate
+            <span class="btn-sub">Watch the galaxy burn</span>
+          </button>
+          <button
+            class="btn btn--ghost btn--md"
+            onclick={() => {
+              showEliminatedModal = false;
+              gameStore.surrender();
+            }}
+          >
+            🏁 End Game
+            <span class="btn-sub">View results & graphs</span>
+          </button>
+        </div>
       </div>
     </div>
   {/if}

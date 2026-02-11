@@ -228,6 +228,9 @@
 | R-54 | Orb Travel Tuning: full set of sliders for orb colors, gradients, glow, sizes — all persisted to localStorage | 🟡 |
 | R-55 | Scatter/Retreat Animation Type: separate scatter/retreat from movement animations — distinct visual language for fleeing ships | 🔴 |
 | R-56 | Scatter Escape-Capture Mechanic: when ships scatter, some may be captured by nearby enemy stars — escape routes determined by proximity | 🔴 |
+| R-57 | Elimination Screen: show modal when player eliminated — Spectate or End Game options | 🟢 |
+| R-58 | Nearside Departure/Arrival: ships depart from side facing target, arrive on nearside, outer-layer-first departure selection | 🟢 |
+| R-59 | Orb Fragmentation Boundary: orbs break apart outside outermost orbit ring, ships fly directly to orbit slots with eased curve | 🟢 |
 
 ---
 
