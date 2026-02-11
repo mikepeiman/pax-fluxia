@@ -19,6 +19,7 @@
         RETREAT_CAPTURE_RATE: 0.25, // capture rate on retreat
         SCATTER_CAPTURE_RATE: 0.4, // capture rate on scatter
         SCATTER_DESTROY_RATE: 0.5, // destruction rate on scatter
+        RETREAT_DAMAGED_ACTIVATION_RATE: 0, // % of damaged ships activated on retreat/scatter
         DAMAGED_SHIP_EFFECTIVENESS: 0.1, // small defensive contribution
         REPAIR_RATE: 0.1, // 10% repair per tick
         AI_ATTACK_THRESHOLD: 1.33, // AI attack threshold ratio
@@ -72,6 +73,7 @@
         RETREAT_CAPTURE_RATE: true,
         SCATTER_CAPTURE_RATE: true,
         SCATTER_DESTROY_RATE: true,
+        RETREAT_DAMAGED_ACTIVATION_RATE: true,
         DAMAGED_SHIP_EFFECTIVENESS: true,
         REPAIR_RATE: true,
         AI_ATTACK_THRESHOLD: true,
@@ -193,6 +195,14 @@
             key: "SCATTER_DESTROY_RATE",
             label: "Scatter Destroy",
             desc: "% of escapees destroyed",
+            min: 0,
+            max: 1,
+            step: 0.05,
+        },
+        {
+            key: "RETREAT_DAMAGED_ACTIVATION_RATE",
+            label: "🔄 Damaged Activation",
+            desc: "% of damaged ships activated on retreat/scatter (0=stay damaged)",
             min: 0,
             max: 1,
             step: 0.05,

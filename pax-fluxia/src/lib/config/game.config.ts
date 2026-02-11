@@ -25,6 +25,7 @@ export function buildEngineConfig(): EngineConfig {
         RETREAT_CAPTURE_RATE: GAME_CONFIG.RETREAT_CAPTURE_RATE,
         SCATTER_CAPTURE_RATE: GAME_CONFIG.SCATTER_CAPTURE_RATE,
         SCATTER_DESTROY_RATE: GAME_CONFIG.SCATTER_DESTROY_RATE,
+        RETREAT_DAMAGED_ACTIVATION_RATE: GAME_CONFIG.RETREAT_DAMAGED_ACTIVATION_RATE,
         DAMAGED_SHIP_EFFECTIVENESS: GAME_CONFIG.DAMAGED_SHIP_EFFECTIVENESS,
         DAMAGE_PER_SHIP: GAME_CONFIG.DAMAGE_PER_SHIP,
         LETHALITY: GAME_CONFIG.LETHALITY,
@@ -83,6 +84,7 @@ interface GameConfigType {
     RETREAT_CAPTURE_RATE: number;      // % captured when defender is retreating (default 0.35)
     SCATTER_CAPTURE_RATE: number;      // % captured when escape routes exist (default 0.50)
     SCATTER_DESTROY_RATE: number;      // % of remaining destroyed on scatter (default 0.50)
+    RETREAT_DAMAGED_ACTIVATION_RATE: number; // % of damaged ships activated on retreat/scatter (0-1)
     DAMAGED_SHIP_EFFECTIVENESS: number; // Fraction of damaged ships counting toward defense (1/7 ≈ 0.14)
     STARTING_SHIPS: number;            // Ships per star at game start
 
@@ -260,6 +262,9 @@ export const GAME_CONFIG: GameConfigType = {
 
     /** % of non-captured ships destroyed during scatter (rest escape) */
     SCATTER_DESTROY_RATE: 0.50,
+
+    /** % of damaged ships converted to active on retreat/scatter (0=stay damaged, 1=all activate) */
+    RETREAT_DAMAGED_ACTIVATION_RATE: 0,
 
 
     /** Starting ships per star at game start */

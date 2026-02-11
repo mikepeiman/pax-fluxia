@@ -1344,8 +1344,8 @@
                     1,
                     elapsed / SHIP_ANIM.DEPART_DURATION,
                 );
-                // easeOutCubic: reluctant departure (fast start, slow end leaving orbit)
-                const eased = 1 - Math.pow(1 - departProgress, 3);
+                // easeInCubic: reluctant departure (slow peel from orbit, then accelerate toward lane)
+                const eased = departProgress * departProgress * departProgress;
 
                 ship.x =
                     ship.departFromX +

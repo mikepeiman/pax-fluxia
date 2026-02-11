@@ -62,6 +62,7 @@ export interface EngineConfig {
     RETREAT_CAPTURE_RATE: number;          // % captured when defender retreats
     SCATTER_CAPTURE_RATE: number;          // % captured when defender scatters
     SCATTER_DESTROY_RATE: number;          // % of non-captured destroyed during scatter
+    RETREAT_DAMAGED_ACTIVATION_RATE: number; // % of damaged ships converted to active on retreat/scatter (0=stay damaged, 1=all activate)
 
     // Combat — unified from COMBAT_CONFIG (Phase A: single pipeline)
     DAMAGED_SHIP_EFFECTIVENESS: number;    // Damaged ships as fraction of defenders
@@ -87,6 +88,7 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
     RETREAT_CAPTURE_RATE: 0.35,
     SCATTER_CAPTURE_RATE: 0.50,
     SCATTER_DESTROY_RATE: 0.50,
+    RETREAT_DAMAGED_ACTIVATION_RATE: 0,    // Default: damaged stay damaged on retreat/scatter
     DAMAGED_SHIP_EFFECTIVENESS: 0.14,
     DAMAGE_PER_SHIP: 0.1,
     LETHALITY: 0.25,

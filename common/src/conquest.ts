@@ -108,8 +108,18 @@ export function applyConquest(
         const shipsCaptured = Math.floor(defenderTotal * captureRate);
         shipsEscaping = Math.floor(defenderTotal - shipsCaptured);
 
-        // Transfer escaping ships to retreat target
-        retreatTarget.activeShips = (retreatTarget.activeShips ?? 0) + shipsEscaping;
+        // Split escaping ships by their original status (active vs damaged)
+        const activeRatio = defenderTotal > 0 ? (defender.activeShips ?? 0) / defenderTotal : 1;
+        const escapingActive = Math.round(shipsEscaping * activeRatio);
+        const escapingDamaged = shipsEscaping - escapingActive;
+
+        // Damaged ships may activate based on config (0 = stay damaged, 1 = all activate)
+        const activationRate = cfg.RETREAT_DAMAGED_ACTIVATION_RATE ?? 0;
+        const damagedActivated = Math.floor(escapingDamaged * activationRate);
+        const damagedStayDamaged = escapingDamaged - damagedActivated;
+
+        retreatTarget.activeShips = (retreatTarget.activeShips ?? 0) + escapingActive + damagedActivated;
+        retreatTarget.damagedShips = (retreatTarget.damagedShips ?? 0) + damagedStayDamaged;
 
         result.retreatTargetId = retreatTarget.id;
         result.shipsEscaped = shipsEscaping;
@@ -122,6 +132,10 @@ export function applyConquest(
         shipsDestroyed = Math.floor(remaining * cfg.SCATTER_DESTROY_RATE);
         shipsEscaping = Math.floor(remaining - shipsDestroyed);
 
+        // Split escaping ships by original status (active vs damaged)
+        const activeRatio = defenderTotal > 0 ? (defender.activeShips ?? 0) / defenderTotal : 1;
+        const activationRate = cfg.RETREAT_DAMAGED_ACTIVATION_RATE ?? 0;
+
         // Distribute escaping ships evenly to friendly neighbors
         if (shipsEscaping > 0) {
             const perRoute = Math.floor(shipsEscaping / escapeRoutes.length);
@@ -131,7 +145,15 @@ export function applyConquest(
             escapeRoutes.forEach(route => {
                 const toAdd = perRoute + (remainder > 0 ? 1 : 0);
                 remainder = Math.max(0, remainder - 1);
-                route.activeShips = (route.activeShips ?? 0) + toAdd;
+
+                // Split this route's ships into active/damaged
+                const activeToAdd = Math.round(toAdd * activeRatio);
+                const damagedToAdd = toAdd - activeToAdd;
+                const damagedActivated = Math.floor(damagedToAdd * activationRate);
+                const damagedStayDamaged = damagedToAdd - damagedActivated;
+
+                route.activeShips = (route.activeShips ?? 0) + activeToAdd + damagedActivated;
+                route.damagedShips = (route.damagedShips ?? 0) + damagedStayDamaged;
                 scatterCounts.push(toAdd);
             });
 
