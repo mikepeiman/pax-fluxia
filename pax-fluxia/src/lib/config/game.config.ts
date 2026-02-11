@@ -108,7 +108,7 @@ interface GameConfigType {
     DEPART_FRACTION: number;       // Fraction of half-tick spent departing (rest is travel, default 0.3)
     DEPART_JITTER_MS: number;      // Max random jitter on departure timing (ms, default 80)
     LANE_OFFSET_PX: number;        // Max perpendicular offset for lane variation (px, default 8)
-    FACING_DEPARTURE: boolean;     // Ships depart from facing side (causes dance effect, default false)
+    DEPART_MODE: 'lifo' | 'fifo' | 'nearside';  // Ship departure selection mode
     SETTLE_DURATION_MS: number;    // How fast ships snap into orbit slot (ms, default 150)
     // Orbit bias oscillation
     ORBIT_BIAS_OSCILLATE: boolean; // Enable oscillation between min/max bias (default false)
@@ -343,8 +343,8 @@ export const GAME_CONFIG: GameConfigType = {
     DEPART_JITTER_MS: 80,
     /** Max perpendicular lane offset (px per side) */
     LANE_OFFSET_PX: 8,
-    /** Ships depart from facing side — causes orbit dance effect (default OFF) */
-    FACING_DEPARTURE: false,
+    /** Ship departure mode: lifo (newest first), fifo (oldest first), nearside (closest to target) */
+    DEPART_MODE: 'nearside' as const,
     /** How fast ships settle into orbit slot (ms) */
     SETTLE_DURATION_MS: 150,
     /** Enable orbit bias oscillation between min/max */

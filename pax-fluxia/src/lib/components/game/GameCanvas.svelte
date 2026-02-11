@@ -1183,20 +1183,47 @@
 
             const shipsToMove = Math.min(count, ships.length);
 
-            // Select which ships depart — always nearside, outer-layer-first
-            // Score = direction proximity × layer weight (outer layers have higher indices)
-            // This "digs" ships from the nearside of the star facing the target,
-            // preferring outer orbits first, with decreasing proportions from inner layers
-            ships.forEach((s, i) => {
-                const dot = (s.x - source.x) * ndx + (s.y - source.y) * ndy;
-                const layerWeight =
-                    1 + s.targetIndex / Math.max(1, ships.length); // 1.0–2.0
-                (s as any)._departScore = dot * layerWeight;
-            });
-            ships.sort(
-                (a, b) => (b as any)._departScore - (a as any)._departScore,
-            );
-            const departingShips = ships.splice(0, shipsToMove);
+            // === Departure selection based on DEPART_MODE ===
+            const mode = GAME_CONFIG.DEPART_MODE || "nearside";
+            let departingShips: typeof ships;
+
+            if (mode === "lifo") {
+                // LIFO: newest ships depart first (splice from end)
+                departingShips = ships.splice(
+                    ships.length - shipsToMove,
+                    shipsToMove,
+                );
+            } else if (mode === "fifo") {
+                // FIFO: oldest ships depart first (sort by id ascending, take lowest)
+                ships.sort((a, b) => a.id - b.id);
+                departingShips = ships.splice(0, shipsToMove);
+            } else {
+                // NEARSIDE: use orbit SLOT positions for dot product, not mid-settle ship.x/y
+                ships.forEach((s) => {
+                    // Compute where this ship's orbit slot IS (its target position)
+                    const slot = getOrbitSlot(
+                        s.targetIndex,
+                        source.x,
+                        source.y,
+                        source.radius,
+                        0, // static position for scoring
+                        Math.atan2(ndy, ndx), // bias toward target
+                        GAME_CONFIG.ORBIT_BIAS_STRENGTH ?? 0.6,
+                    );
+                    // Dot product of slot position relative to star center vs target direction
+                    const slotDx = slot.x - source.x;
+                    const slotDy = slot.y - source.y;
+                    const dot = slotDx * ndx + slotDy * ndy;
+                    // Layer weight: outer layers depart first
+                    const layerWeight =
+                        1 + s.targetIndex / Math.max(1, ships.length);
+                    (s as any)._departScore = dot * layerWeight;
+                });
+                ships.sort(
+                    (a, b) => (b as any)._departScore - (a as any)._departScore,
+                );
+                departingShips = ships.splice(0, shipsToMove);
+            }
             // Re-index remaining ships' targetIndex after splice
             for (let j = 0; j < ships.length; j++) {
                 ships[j].targetIndex = j;

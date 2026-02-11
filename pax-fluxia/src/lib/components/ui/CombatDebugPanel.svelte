@@ -394,7 +394,8 @@
         defense: 1 / GAME_CONFIG.AGGRESSOR_ADVANTAGE,
         attack: GAME_CONFIG.DAMAGE_PER_SHIP,
         arrowLength: GAME_CONFIG.ARROW_LENGTH_FRACTION,
-        facingDeparture: GAME_CONFIG.FACING_DEPARTURE,
+        departMode: GAME_CONFIG.DEPART_MODE,
+        settleDuration: GAME_CONFIG.SETTLE_DURATION_MS,
         orbTravel: GAME_CONFIG.ORB_TRAVEL,
         orbitBias: GAME_CONFIG.ORBIT_BIAS_STRENGTH,
         oscillate: GAME_CONFIG.ORBIT_BIAS_OSCILLATE,
@@ -455,7 +456,11 @@
         GAME_CONFIG.AGGRESSOR_ADVANTAGE = 1 / (panel.defense as number);
         GAME_CONFIG.DAMAGE_PER_SHIP = panel.attack as number;
         GAME_CONFIG.ARROW_LENGTH_FRACTION = panel.arrowLength as number;
-        GAME_CONFIG.FACING_DEPARTURE = panel.facingDeparture as boolean;
+        GAME_CONFIG.DEPART_MODE = panel.departMode as
+            | "lifo"
+            | "fifo"
+            | "nearside";
+        GAME_CONFIG.SETTLE_DURATION_MS = panel.settleDuration as number;
         GAME_CONFIG.ORB_TRAVEL = panel.orbTravel as boolean;
         GAME_CONFIG.ORBIT_BIAS_STRENGTH = panel.orbitBias as number;
         GAME_CONFIG.ORBIT_BIAS_OSCILLATE = panel.oscillate as boolean;
@@ -889,25 +894,50 @@
             <div class="variable-row">
                 <div class="row-top">
                     <label class="toggle-label">
-                        <input
-                            type="checkbox"
-                            checked={panel.facingDeparture}
-                            onchange={() => {
-                                GAME_CONFIG.FACING_DEPARTURE =
-                                    !GAME_CONFIG.FACING_DEPARTURE;
-                                updatePanel(
-                                    "facingDeparture",
-                                    GAME_CONFIG.FACING_DEPARTURE,
-                                );
+                        <span class="var-name">Depart Mode</span>
+                        <select
+                            value={panel.departMode}
+                            onchange={(e) => {
+                                const val = (e.target as HTMLSelectElement)
+                                    .value;
+                                GAME_CONFIG.DEPART_MODE = val as
+                                    | "lifo"
+                                    | "fifo"
+                                    | "nearside";
+                                updatePanel("departMode", val as any);
                             }}
-                        />
-                        <span class="var-name">Facing Departure</span>
+                            style="margin-left:8px; background:#222; color:#fff; border:1px solid #555; padding:2px 4px; font-size:0.75rem;"
+                        >
+                            <option value="nearside">Nearside</option>
+                            <option value="lifo">LIFO (newest)</option>
+                            <option value="fifo">FIFO (oldest)</option>
+                        </select>
                     </label>
                     <span
                         class="current-val"
                         style="font-size: 10px; opacity: 0.6">orbit dance</span
                     >
                 </div>
+            </div>
+
+            <!-- Settle Duration slider -->
+            <div class="variable-row">
+                <div class="row-top">
+                    <span class="var-name">Settle Time</span>
+                    <span class="current-val">{panel.settleDuration}ms</span>
+                </div>
+                <input
+                    type="range"
+                    min="30"
+                    max="500"
+                    step="10"
+                    value={panel.settleDuration}
+                    oninput={(e) => {
+                        const val = +(e.target as HTMLInputElement).value;
+                        GAME_CONFIG.SETTLE_DURATION_MS = val;
+                        updatePanel("settleDuration", val);
+                    }}
+                />
             </div>
 
             <!-- Orb Travel toggle -->

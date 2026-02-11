@@ -234,6 +234,9 @@
 | R-60 | Time-based Arc Settle: ships orbit-snap via easeOutCubic over SETTLE_DURATION_MS (150ms default), never cross star center — polar interpolation | 🟢 |
 | R-61 | Crisp Text at Zoom: all PIXI.Text rendered at 2x resolution for sharp text at any zoom level | 🟢 |
 | R-62 | No-Cross-Star Constraint: ships always arc around star perimeter to reach orbit slot, never path through center | 🟢 |
+| R-63 | Depart Mode Selector: dropdown for LIFO/FIFO/Nearside departure selection with panel persistence | 🟢 |
+| R-64 | Settle Duration Slider: exposed SETTLE_DURATION_MS (30-500ms) in panel for tuning orbit snap speed | 🟢 |
+| R-65 | Nearside Departure Fix: dot product now computed against orbit SLOT position (getOrbitSlot) instead of mid-settle ship.x/y | 🟢 |
 
 ---
 
