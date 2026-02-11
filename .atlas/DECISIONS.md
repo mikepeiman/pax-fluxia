@@ -45,10 +45,10 @@ Animation system had two completely disjoint systems: orbit rendering (per-star 
 - **Magnetic easing**: Destination planet "pulls" ships toward it.
   - Depart: `easeInCubic` — reluctant departure (slow peel from orbit, then accelerate toward lane)
   - Travel: `easeInCubic` — starts slow, accelerates toward target (magnetic pull)
-  - Arrive: `easeOutCubic` — fast initial settle from lane end, gentle final positioning into orbit slot
+  - Arrive: per-frame orbit lerp — ship placed at lane end, lerp smoothly pulls into orbit slot (no bounce)
 - **Always visible**: Ships have alpha=1 throughout travel. No fading. No pulses.
-- **Stream formation**: Multiple ships stagger along the lane as a visible stream
-- **Proper arrival**: Ships ease from lane end into calculated orbit slot over 400ms (not instant snap)
+- **Crowd rush departure**: Ships leave nearly simultaneously with random jitter (0-80ms), not in clean sequence or unified waves. A crowd with a small degree of chaos.
+- **Natural arrival**: No dedicated arriving phase. Ship transitions to orbiting at lane end position, and the orbit lerp continuously updates the target as the orbit rotates — creating a smooth spiral into orbit.
 - **Absolute interpolation**: Depart phase captures origin position and uses absolute `from + (to - from) * t`, not per-frame lerp
 - **Imperative events**: Engine emits typed events (`reinforce`, `conquest`, `scatter`, `retreat`). Animation consumes events, NOT state diffs.
 - **No attack travel**: Attacks are remote engagement. Ships stay at source. No travel animation for attacks.

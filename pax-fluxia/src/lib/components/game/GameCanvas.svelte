@@ -1165,12 +1165,8 @@
                 ship.toStarId = transfer.targetId;
                 ship.departTime =
                     now +
-                    i *
-                        Math.min(
-                            SHIP_ANIM.STREAM_STAGGER,
-                            SHIP_ANIM.MAX_STREAM_STAGGER /
-                                Math.max(1, shipsToMove),
-                        );
+                    Math.random() *
+                        Math.min(80, 300 / Math.max(1, shipsToMove));
                 ship.travelDuration = travelDuration;
                 ship.laneStartX = laneStartX;
                 ship.laneStartY = laneStartY;
@@ -1178,12 +1174,7 @@
                 ship.laneEndY = laneEndY;
                 // Per-ship perpendicular offset for organic variation (±8px)
                 ship.laneOffset = (Math.random() - 0.5) * 16;
-                ship.staggerDelay =
-                    i *
-                    Math.min(
-                        SHIP_ANIM.STREAM_STAGGER,
-                        SHIP_ANIM.MAX_STREAM_STAGGER / Math.max(1, shipsToMove),
-                    );
+                ship.staggerDelay = 0; // No longer used — random jitter instead
                 ship.ownerId = transfer.ownerId;
                 travelingShips.push(ship);
             }
@@ -1229,7 +1220,7 @@
                         ship.departFromY = ship.y;
                         ship.fromStarId = conquest.starId;
                         ship.toStarId = targetId;
-                        ship.departTime = now + shipsAnimated * 20;
+                        ship.departTime = now + Math.random() * 60;
                         ship.travelDuration =
                             SHIP_ANIM.TRAVEL_BASE_DURATION * 0.7;
                         ship.laneStartX =
@@ -1241,7 +1232,7 @@
                         ship.laneEndY =
                             targetStar.y - ndy * (targetStar.radius + 5);
                         ship.laneOffset = (Math.random() - 0.5) * 16;
-                        ship.staggerDelay = shipsAnimated * 20;
+                        ship.staggerDelay = 0;
                         ship.ownerId = conquest.previousOwner;
                         travelingShips.push(ship);
                         shipsAnimated++;
@@ -1270,7 +1261,7 @@
                         ship.departFromY = ship.y;
                         ship.fromStarId = conquest.starId;
                         ship.toStarId = conquest.retreatTargetId!;
-                        ship.departTime = now + i * 20;
+                        ship.departTime = now + Math.random() * 60;
                         ship.travelDuration =
                             SHIP_ANIM.TRAVEL_BASE_DURATION * 0.7;
                         ship.laneStartX =
@@ -1282,7 +1273,7 @@
                         ship.laneEndY =
                             retreatStar.y - ndy * (retreatStar.radius + 5);
                         ship.laneOffset = (Math.random() - 0.5) * 16;
-                        ship.staggerDelay = i * 20;
+                        ship.staggerDelay = 0;
                         ship.ownerId = conquest.previousOwner;
                         travelingShips.push(ship);
                     }
@@ -1401,76 +1392,24 @@
                 ship.scale = 0.9;
 
                 if (travelProgress >= 1) {
-                    // Transition to ARRIVING — ease from lane end into orbit slot
+                    // Arrive at destination — transition to orbiting at lane end
+                    // Let the orbit lerp in renderShips pull it smoothly into orbit slot
                     ship.x = ship.laneEndX;
                     ship.y = ship.laneEndY;
 
                     const destStar = starsById.get(ship.toStarId!);
                     if (destStar) {
-                        // Calculate the orbit slot this ship will settle into
+                        ship.state = "orbiting";
+                        ship.fromStarId = null;
+                        ship.toStarId = null;
+                        ship.arriveStarId = null;
+                        ship.alpha = 1;
+                        ship.scale = 0.9; // Slightly larger than orbit target (0.8) — lerp will settle it
                         const destShips = visualShips.get(destStar.id) || [];
                         ship.targetIndex = destShips.length;
-                        const orbitTime = GAME_CONFIG.STATIC_ORBITS
-                            ? 0
-                            : animationTime;
-                        const slot = getOrbitSlot(
-                            ship.targetIndex,
-                            destStar.x,
-                            destStar.y,
-                            destStar.radius,
-                            orbitTime,
-                        );
-
-                        ship.state = "arriving";
-                        ship.arriveStarId = destStar.id;
-                        ship.arriveToX = slot.x;
-                        ship.arriveToY = slot.y;
-                        ship.departTime = now; // Reset timer for arrive phase
-                        ship.alpha = 1;
-                        ship.scale = 0.9;
-
-                        // Reserve the slot in visualShips
                         destShips.push(ship);
                         visualShips.set(destStar.id, destShips);
                     }
-                    // Ship stays in stillTraveling during arriving phase
-                    stillTraveling.push(ship);
-                } else {
-                    drawShip(
-                        ship.x,
-                        ship.y,
-                        color,
-                        ship.scale,
-                        ship.alpha,
-                        false,
-                    );
-                    stillTraveling.push(ship);
-                }
-            } else if (ship.state === "arriving") {
-                // Phase 3: Ease from lane endpoint into orbit slot
-                const arriveProgress = Math.min(
-                    1,
-                    elapsed / SHIP_ANIM.ARRIVE_DURATION,
-                );
-                // easeOutCubic: fast initial settle, gentle final positioning (magnetic snap)
-                const eased = 1 - Math.pow(1 - arriveProgress, 3);
-
-                ship.x =
-                    ship.laneEndX + (ship.arriveToX - ship.laneEndX) * eased;
-                ship.y =
-                    ship.laneEndY + (ship.arriveToY - ship.laneEndY) * eased;
-                ship.scale = 0.9 - 0.1 * eased; // Scale from 0.9 → 0.8 (orbit size)
-                ship.alpha = 1;
-
-                if (arriveProgress >= 1) {
-                    // Fully settled into orbit — hand off to renderShips
-                    ship.state = "orbiting";
-                    ship.fromStarId = null;
-                    ship.toStarId = null;
-                    ship.arriveStarId = null;
-                    ship.x = ship.arriveToX;
-                    ship.y = ship.arriveToY;
-                    ship.scale = 0.8;
                     // Don't push to stillTraveling — ship is now managed by renderShips
                 } else {
                     drawShip(
@@ -1589,8 +1528,6 @@
                 const perpY = dirX;
 
                 ships.forEach((ship, i) => {
-                    // Skip ships still in arriving phase — rendered by renderTravelingShips
-                    if (ship.state === "arriving") return;
                     ship.targetIndex = i;
 
                     // Per-ship phase offset for organic variation
