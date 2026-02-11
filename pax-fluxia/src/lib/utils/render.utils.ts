@@ -41,7 +41,8 @@ export interface VisualShipState {
     fromStarId: string | null;    // Source star (for traveling)
     toStarId: string | null;      // Destination star (for traveling/arriving)
     departTime: number;           // performance.now() when transition started
-    travelDuration: number;       // ms for current phase
+    travelDuration: number;       // ms for travel phase
+    departDuration: number;       // ms for departure phase
     // Lane endpoints (cached for performance)
     laneStartX: number;
     laneStartY: number;
@@ -114,13 +115,18 @@ function calculateTotalCapacity(starRadius: number): { layerCapacities: number[]
  * 
  * Now with stacking: after 10 layers, ships wrap to layer 0 with 2x multiplier.
  * Returns { x, y, multiplier } where multiplier is 1, 2, 4, 8, etc.
+ * 
+ * biasAngle (radians) — direction to bias ships toward (e.g. toward target star)
+ * biasStrength (0-1) — how strongly ships cluster toward biasAngle (0=uniform, 1=fully clustered)
  */
 export function getOrbitSlot(
     index: number,
     cx: number,
     cy: number,
     starRadius: number,
-    time: number
+    time: number,
+    biasAngle?: number,
+    biasStrength: number = 0
 ): { x: number, y: number, multiplier: number } {
     const BASE_SIZE = GAME_CONFIG.SHIP_BASE_SIZE || 4;
     const PADDING = 2;
@@ -149,7 +155,19 @@ export function getOrbitSlot(
 
             // Rotate rings slowly, alternating direction
             const ringRotation = time * (0.2 / (layer + 1)) * (layer % 2 === 0 ? 1 : -1);
-            const angle = indexInRing * angleStep + ringRotation;
+            let angle = indexInRing * angleStep + ringRotation;
+
+            // Apply directional bias — compress angles toward biasAngle
+            if (biasAngle !== undefined && biasStrength > 0) {
+                // Normalize angle relative to bias direction
+                let delta = angle - biasAngle;
+                // Wrap to [-PI, PI]
+                delta = ((delta + Math.PI) % (2 * Math.PI) + (2 * Math.PI)) % (2 * Math.PI) - Math.PI;
+                // Compress: reduce delta by biasStrength (ships cluster toward biasAngle)
+                // At strength 1.0, all ships compress to a ~60° arc centered on biasAngle
+                const compressed = delta * (1 - biasStrength * 0.7);
+                angle = biasAngle + compressed;
+            }
 
             return {
                 x: cx + Math.cos(angle) * currentRadius,

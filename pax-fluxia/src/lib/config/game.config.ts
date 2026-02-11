@@ -101,6 +101,12 @@ interface GameConfigType {
     TRANSFER_ANIMATION_MS: number;
     STATIC_ORBITS: boolean;  // When true, ships don't rotate around stars (performance)
 
+    // Animation tuning
+    ORBIT_BIAS_STRENGTH: number;   // How much ships cluster toward target (0=none, 1=max, default 0.6)
+    DEPART_FRACTION: number;       // Fraction of half-tick spent departing (rest is travel, default 0.3)
+    DEPART_JITTER_MS: number;      // Max random jitter on departure timing (ms, default 80)
+    LANE_OFFSET_PX: number;        // Max perpendicular offset for lane variation (px, default 8)
+
     /** How far order arrows extend along the lane (0.0-1.0, 1.0 = full distance to target edge) */
     ARROW_LENGTH_FRACTION: number;
 
@@ -302,6 +308,15 @@ export const GAME_CONFIG: GameConfigType = {
     /** Ship transfer animation duration (ms) */
     TRANSFER_ANIMATION_MS: 600,
     STATIC_ORBITS: false,
+
+    /** How much ships cluster toward target (0=none, 1=max) */
+    ORBIT_BIAS_STRENGTH: 0.6,
+    /** Fraction of half-tick spent departing vs traveling */
+    DEPART_FRACTION: 0.3,
+    /** Max random departure jitter (ms) */
+    DEPART_JITTER_MS: 80,
+    /** Max perpendicular lane offset (px per side) */
+    LANE_OFFSET_PX: 8,
 
     /** Order arrow length as fraction of lane distance (0.0-1.0, default 0.5 = halfway) */
     ARROW_LENGTH_FRACTION: 0.5,

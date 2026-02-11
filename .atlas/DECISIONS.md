@@ -49,6 +49,9 @@ Animation system had two completely disjoint systems: orbit rendering (per-star 
 - **Always visible**: Ships have alpha=1 throughout travel. No fading. No pulses.
 - **Crowd rush departure**: Ships leave nearly simultaneously with random jitter (0-80ms), not in clean sequence or unified waves. A crowd with a small degree of chaos.
 - **Natural arrival**: No dedicated arriving phase. Ship transitions to orbiting at lane end position, and the orbit lerp continuously updates the target as the orbit rotates — creating a smooth spiral into orbit.
+- **Orbit facing**: Ships cluster toward the target direction via `biasAngle`/`biasStrength` in `getOrbitSlot`. Angular compression (70% at strength 1.0) preserves spacing while biasing distribution. Idle stars (no target) remain uniform.
+- **Tick-synchronized travel**: All ships arrive at half-tick regardless of distance. `totalAnimTime = effectiveTickMs / 2`, split into depart (30%) and travel (70%) phases. No distance-based timing.
+- **Animation controls**: `ORBIT_BIAS_STRENGTH`, `DEPART_FRACTION`, `DEPART_JITTER_MS`, `LANE_OFFSET_PX` all tunable via CombatDebugPanel sliders.
 - **Absolute interpolation**: Depart phase captures origin position and uses absolute `from + (to - from) * t`, not per-frame lerp
 - **Imperative events**: Engine emits typed events (`reinforce`, `conquest`, `scatter`, `retreat`). Animation consumes events, NOT state diffs.
 - **No attack travel**: Attacks are remote engagement. Ships stay at source. No travel animation for attacks.

@@ -298,6 +298,7 @@
         combat: "pax-fluxia-collapse-combat",
         ai: "pax-fluxia-collapse-ai",
         visuals: "pax-fluxia-collapse-visuals",
+        animation: "pax-fluxia-collapse-animation",
         logging: "pax-fluxia-collapse-logging",
     };
 
@@ -316,6 +317,7 @@
     let combatCollapsed = $state(getCollapsedState(COLLAPSE_KEYS.combat));
     let aiCollapsed = $state(getCollapsedState(COLLAPSE_KEYS.ai));
     let visualsCollapsed = $state(getCollapsedState(COLLAPSE_KEYS.visuals));
+    let animationCollapsed = $state(getCollapsedState(COLLAPSE_KEYS.animation));
     let loggingCollapsed = $state(getCollapsedState(COLLAPSE_KEYS.logging));
 
     // Log toggle categories
@@ -641,6 +643,113 @@
                     </div>
                 </div>
             {/each}
+        </div>
+    {/if}
+
+    <!-- Animation Tuning Section -->
+    <button
+        class="section-header"
+        onclick={() => {
+            animationCollapsed = !animationCollapsed;
+            setCollapsedState(COLLAPSE_KEYS.animation, animationCollapsed);
+        }}
+    >
+        <span class="section-title">🎬 Animation Tuning</span>
+        <span class="collapse-icon">{animationCollapsed ? "▶" : "▼"}</span>
+    </button>
+
+    {#if !animationCollapsed}
+        <div class="content-list">
+            <div class="variable-row">
+                <div class="row-top">
+                    <span class="var-name">Orbit Bias Strength</span>
+                    <span class="current-val"
+                        >{(GAME_CONFIG.ORBIT_BIAS_STRENGTH ?? 0.6).toFixed(
+                            2,
+                        )}</span
+                    >
+                </div>
+                <div class="row-controls">
+                    <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        value={GAME_CONFIG.ORBIT_BIAS_STRENGTH ?? 0.6}
+                        oninput={(e) => {
+                            GAME_CONFIG.ORBIT_BIAS_STRENGTH = parseFloat(
+                                (e.target as HTMLInputElement).value,
+                            );
+                        }}
+                    />
+                </div>
+            </div>
+            <div class="variable-row">
+                <div class="row-top">
+                    <span class="var-name">Depart Fraction</span>
+                    <span class="current-val"
+                        >{(GAME_CONFIG.DEPART_FRACTION ?? 0.3).toFixed(2)}</span
+                    >
+                </div>
+                <div class="row-controls">
+                    <input
+                        type="range"
+                        min="0.1"
+                        max="0.6"
+                        step="0.05"
+                        value={GAME_CONFIG.DEPART_FRACTION ?? 0.3}
+                        oninput={(e) => {
+                            GAME_CONFIG.DEPART_FRACTION = parseFloat(
+                                (e.target as HTMLInputElement).value,
+                            );
+                        }}
+                    />
+                </div>
+            </div>
+            <div class="variable-row">
+                <div class="row-top">
+                    <span class="var-name">Depart Jitter (ms)</span>
+                    <span class="current-val"
+                        >{GAME_CONFIG.DEPART_JITTER_MS ?? 80}</span
+                    >
+                </div>
+                <div class="row-controls">
+                    <input
+                        type="range"
+                        min="0"
+                        max="200"
+                        step="5"
+                        value={GAME_CONFIG.DEPART_JITTER_MS ?? 80}
+                        oninput={(e) => {
+                            GAME_CONFIG.DEPART_JITTER_MS = parseInt(
+                                (e.target as HTMLInputElement).value,
+                            );
+                        }}
+                    />
+                </div>
+            </div>
+            <div class="variable-row">
+                <div class="row-top">
+                    <span class="var-name">Lane Offset (px)</span>
+                    <span class="current-val"
+                        >{GAME_CONFIG.LANE_OFFSET_PX ?? 8}</span
+                    >
+                </div>
+                <div class="row-controls">
+                    <input
+                        type="range"
+                        min="0"
+                        max="20"
+                        step="1"
+                        value={GAME_CONFIG.LANE_OFFSET_PX ?? 8}
+                        oninput={(e) => {
+                            GAME_CONFIG.LANE_OFFSET_PX = parseInt(
+                                (e.target as HTMLInputElement).value,
+                            );
+                        }}
+                    />
+                </div>
+            </div>
         </div>
     {/if}
 

@@ -1150,9 +1150,13 @@
             const laneEndX = target.x - ndx * (target.radius + 5);
             const laneEndY = target.y - ndy * (target.radius + 5);
 
-            const travelDuration =
-                SHIP_ANIM.TRAVEL_BASE_DURATION +
-                (dist / 100) * SHIP_ANIM.TRAVEL_PER_100PX;
+            // Tick-synchronized timing: all ships arrive at half-tick regardless of distance
+            const halfTick = activeGameStore.effectiveTickMs / 2;
+            const departFraction = GAME_CONFIG.DEPART_FRACTION ?? 0.3;
+            const departDuration = halfTick * departFraction;
+            const travelDuration = halfTick * (1 - departFraction);
+            const jitterMax = GAME_CONFIG.DEPART_JITTER_MS ?? 80;
+            const laneOffsetPx = GAME_CONFIG.LANE_OFFSET_PX ?? 8;
 
             const shipsToMove = Math.min(count, ships.length);
             for (let i = 0; i < shipsToMove; i++) {
@@ -1166,15 +1170,16 @@
                 ship.departTime =
                     now +
                     Math.random() *
-                        Math.min(80, 300 / Math.max(1, shipsToMove));
+                        Math.min(jitterMax, 300 / Math.max(1, shipsToMove));
                 ship.travelDuration = travelDuration;
+                ship.departDuration = departDuration;
                 ship.laneStartX = laneStartX;
                 ship.laneStartY = laneStartY;
                 ship.laneEndX = laneEndX;
                 ship.laneEndY = laneEndY;
-                // Per-ship perpendicular offset for organic variation (±8px)
-                ship.laneOffset = (Math.random() - 0.5) * 16;
-                ship.staggerDelay = 0; // No longer used — random jitter instead
+                // Per-ship perpendicular offset for organic variation
+                ship.laneOffset = (Math.random() - 0.5) * laneOffsetPx * 2;
+                ship.staggerDelay = 0;
                 ship.ownerId = transfer.ownerId;
                 travelingShips.push(ship);
             }
@@ -1220,9 +1225,19 @@
                         ship.departFromY = ship.y;
                         ship.fromStarId = conquest.starId;
                         ship.toStarId = targetId;
-                        ship.departTime = now + Math.random() * 60;
+                        ship.departTime =
+                            now +
+                            Math.random() *
+                                (GAME_CONFIG.DEPART_JITTER_MS ?? 60);
+                        // Scatter uses tick-synced timing (urgent — faster depart)
+                        const scatterHalfTick =
+                            activeGameStore.effectiveTickMs / 2;
+                        const scatterDepartFrac =
+                            (GAME_CONFIG.DEPART_FRACTION ?? 0.3) * 0.5;
+                        ship.departDuration =
+                            scatterHalfTick * scatterDepartFrac;
                         ship.travelDuration =
-                            SHIP_ANIM.TRAVEL_BASE_DURATION * 0.7;
+                            scatterHalfTick * (1 - scatterDepartFrac);
                         ship.laneStartX =
                             conqueredStar.x + ndx * (conqueredStar.radius + 5);
                         ship.laneStartY =
@@ -1231,7 +1246,10 @@
                             targetStar.x - ndx * (targetStar.radius + 5);
                         ship.laneEndY =
                             targetStar.y - ndy * (targetStar.radius + 5);
-                        ship.laneOffset = (Math.random() - 0.5) * 16;
+                        ship.laneOffset =
+                            (Math.random() - 0.5) *
+                            (GAME_CONFIG.LANE_OFFSET_PX ?? 8) *
+                            2;
                         ship.staggerDelay = 0;
                         ship.ownerId = conquest.previousOwner;
                         travelingShips.push(ship);
@@ -1261,9 +1279,19 @@
                         ship.departFromY = ship.y;
                         ship.fromStarId = conquest.starId;
                         ship.toStarId = conquest.retreatTargetId!;
-                        ship.departTime = now + Math.random() * 60;
+                        ship.departTime =
+                            now +
+                            Math.random() *
+                                (GAME_CONFIG.DEPART_JITTER_MS ?? 60);
+                        // Retreat uses tick-synced timing (urgent — faster depart)
+                        const retreatHalfTick =
+                            activeGameStore.effectiveTickMs / 2;
+                        const retreatDepartFrac =
+                            (GAME_CONFIG.DEPART_FRACTION ?? 0.3) * 0.5;
+                        ship.departDuration =
+                            retreatHalfTick * retreatDepartFrac;
                         ship.travelDuration =
-                            SHIP_ANIM.TRAVEL_BASE_DURATION * 0.7;
+                            retreatHalfTick * (1 - retreatDepartFrac);
                         ship.laneStartX =
                             conqueredStar.x + ndx * (conqueredStar.radius + 5);
                         ship.laneStartY =
@@ -1272,7 +1300,10 @@
                             retreatStar.x - ndx * (retreatStar.radius + 5);
                         ship.laneEndY =
                             retreatStar.y - ndy * (retreatStar.radius + 5);
-                        ship.laneOffset = (Math.random() - 0.5) * 16;
+                        ship.laneOffset =
+                            (Math.random() - 0.5) *
+                            (GAME_CONFIG.LANE_OFFSET_PX ?? 8) *
+                            2;
                         ship.staggerDelay = 0;
                         ship.ownerId = conquest.previousOwner;
                         travelingShips.push(ship);
@@ -1331,9 +1362,11 @@
             if (ship.state === "departing") {
                 // Phase 1: Ease out of orbit toward lane start
                 // Absolute interpolation from saved departure origin
+                // Use ship's per-event departDuration (tick-synced)
                 const departProgress = Math.min(
                     1,
-                    elapsed / SHIP_ANIM.DEPART_DURATION,
+                    elapsed /
+                        (ship.departDuration || SHIP_ANIM.DEPART_DURATION),
                 );
                 // easeInCubic: reluctant departure (slow peel from orbit, then accelerate toward lane)
                 const eased = departProgress * departProgress * departProgress;
@@ -1473,6 +1506,7 @@
                         toStarId: null,
                         departTime: 0,
                         travelDuration: 0,
+                        departDuration: 0,
                         laneStartX: 0,
                         laneStartY: 0,
                         laneEndX: 0,
@@ -1539,12 +1573,24 @@
                     const orbitTime = GAME_CONFIG.STATIC_ORBITS
                         ? 0
                         : animationTime;
+                    // Calculate orbit bias — ships face the target direction
+                    const biasAngle = targetStar
+                        ? Math.atan2(
+                              targetStar.y - star.y,
+                              targetStar.x - star.x,
+                          )
+                        : undefined;
+                    const biasStrength = targetStar
+                        ? (GAME_CONFIG.ORBIT_BIAS_STRENGTH ?? 0.6)
+                        : 0;
                     const slot = getOrbitSlot(
                         ship.targetIndex,
                         star.x,
                         star.y,
                         star.radius,
                         orbitTime,
+                        biasAngle,
+                        biasStrength,
                     );
                     targetX = slot.x;
                     const shipMultiplier = slot.multiplier;
@@ -1631,6 +1677,7 @@
                         toStarId: null,
                         departTime: 0,
                         travelDuration: 0,
+                        departDuration: 0,
                         laneStartX: 0,
                         laneStartY: 0,
                         laneEndX: 0,
