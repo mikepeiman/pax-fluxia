@@ -48,14 +48,9 @@
     // Graphics cache
     let starGraphics: Map<string, PIXI.Graphics> = new Map();
     let starLabels: Map<string, PIXI.Container> = new Map();
-    let shipGraphics: PIXI.Graphics | null = null; // Only for orb glow rendering
+    let shipGraphics: PIXI.Graphics | null = null;
     let linkGraphics: PIXI.Graphics | null = null;
     let debugGraphics: PIXI.Graphics | null = null; // New debug layer
-
-    // Sprite pool for batch ship rendering (replaces per-ship Graphics.circle calls)
-    let shipCircleTexture: PIXI.Texture | null = null;
-    let shipSpritePool: PIXI.Sprite[] = [];
-    let shipSpriteIndex = 0; // How many sprites used this frame
 
     // FPS tracking
     let fpsFrameCount = 0;
@@ -232,20 +227,8 @@
         shipsContainer = new PIXI.Container();
         app.stage.addChild(shipsContainer);
 
-        shipGraphics = new PIXI.Graphics(); // Used only for orb glow rendering
+        shipGraphics = new PIXI.Graphics();
         shipsContainer.addChild(shipGraphics);
-
-        // Create ship circle texture (white circle, tinted per-sprite)
-        const texSize = 16;
-        const texCanvas = document.createElement("canvas");
-        texCanvas.width = texSize;
-        texCanvas.height = texSize;
-        const ctx = texCanvas.getContext("2d")!;
-        ctx.beginPath();
-        ctx.arc(texSize / 2, texSize / 2, texSize / 2 - 1, 0, Math.PI * 2);
-        ctx.fillStyle = "#ffffff";
-        ctx.fill();
-        shipCircleTexture = PIXI.Texture.from(texCanvas);
 
         connectionGraphics = new PIXI.Graphics();
         app.stage.addChild(connectionGraphics);
@@ -613,9 +596,6 @@
         // NOTE: Pending orders cleanup is now handled in renderFlowLinks()
 
         // Clear ship graphics for current frame
-        // Reset sprite pool index for this frame
-        shipSpriteIndex = 0;
-        // Clear orb graphics (used only for orb glow, not individual ships)
         shipGraphics?.clear();
 
         // Process tick events (event-driven animations, not diff-based — see POST_MORTEMS.md)
@@ -626,11 +606,6 @@
 
         // Render all ships: orbiting (per-star) + traveling (in-flight lifecycle)
         renderShips(stars, tickProgress, starsById);
-
-        // Hide unused sprites from pool (sprites from previous frame that weren't needed this frame)
-        for (let i = shipSpriteIndex; i < shipSpritePool.length; i++) {
-            shipSpritePool[i].visible = false;
-        }
 
         // Count total visual ships for HUD
         let shipCount = 0;
@@ -1799,12 +1774,8 @@
                         laneOffset: 0,
                         staggerDelay: 0,
                         ownerId: star.ownerId,
-                        // Stagger spawned ships across tick
-                        settleStartTime:
-                            now +
-                            (i / Math.max(1, diff)) *
-                                (activeGameStore.effectiveTickMs || 1000) *
-                                (GAME_CONFIG.ARRIVAL_SPREAD ?? 1.0),
+                        // Spawned ships settle immediately (no stagger)
+                        settleStartTime: now,
                         settleStartAngle: spawnAngle,
                         settleStartRadius: spawnR,
                     });
@@ -2124,11 +2095,11 @@
         isDamaged: boolean,
         multiplier: number = 1,
     ) {
-        if (!shipsContainer || !shipCircleTexture) return;
+        if (!shipGraphics) return;
 
         const size = 3 * scale;
 
-        // White scaling: blend toward white based on multiplier
+        // White scaling: blend toward white based on multiplier (1 = normal, 2+ = increasingly white)
         let finalColor = color;
         if (multiplier > 1) {
             const blendAmount = Math.min(1.0, Math.log2(multiplier) * 0.3);
@@ -2141,44 +2112,23 @@
             finalColor = (newR << 16) | (newG << 8) | newB;
         }
 
-        // Get or create sprite from pool
-        let sprite: PIXI.Sprite;
-        if (shipSpriteIndex < shipSpritePool.length) {
-            sprite = shipSpritePool[shipSpriteIndex];
-            sprite.visible = true;
-        } else {
-            sprite = new PIXI.Sprite(shipCircleTexture);
-            sprite.anchor.set(0.5);
-            shipsContainer.addChild(sprite);
-            shipSpritePool.push(sprite);
+        // All ships are uniform circles
+        shipGraphics.circle(x, y, size);
+        shipGraphics.fill({ color: finalColor, alpha });
+
+        // Stacked ships get a thin player-colored border for ownership identification
+        if (multiplier > 1) {
+            shipGraphics.stroke({
+                color,
+                width: 1,
+                alpha: Math.min(1, alpha + 0.2),
+            });
         }
-        shipSpriteIndex++;
 
-        sprite.x = x;
-        sprite.y = y;
-        sprite.tint = finalColor;
-        sprite.alpha = alpha;
-        // Scale: texture is 16px diameter, we want `size` px radius = `size*2` px diameter
-        sprite.scale.set((size * 2) / 16);
-
-        // Damaged indicator: draw a second darker ring sprite
+        // Damaged ships get a dark border indicator
         if (isDamaged) {
-            let ringSprite: PIXI.Sprite;
-            if (shipSpriteIndex < shipSpritePool.length) {
-                ringSprite = shipSpritePool[shipSpriteIndex];
-                ringSprite.visible = true;
-            } else {
-                ringSprite = new PIXI.Sprite(shipCircleTexture);
-                ringSprite.anchor.set(0.5);
-                shipsContainer.addChild(ringSprite);
-                shipSpritePool.push(ringSprite);
-            }
-            shipSpriteIndex++;
-            ringSprite.x = x;
-            ringSprite.y = y;
-            ringSprite.tint = 0x333333;
-            ringSprite.alpha = 0.5;
-            ringSprite.scale.set(((size + 1.5) * 2) / 16);
+            shipGraphics.circle(x, y, size + 1);
+            shipGraphics.stroke({ color: 0x222222, width: 1.5, alpha: 0.8 });
         }
     }
 
@@ -2807,8 +2757,7 @@
 
 <!-- FPS / Ship Count Overlay -->
 <div class="fps-overlay">
-    {currentFps} FPS · {totalVisualShips.toLocaleString()} ships · {shipSpriteIndex}
-    sprites
+    {currentFps} FPS · {totalVisualShips.toLocaleString()} ships
 </div>
 
 <style>

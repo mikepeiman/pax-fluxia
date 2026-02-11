@@ -488,9 +488,25 @@
         GAME_CONFIG.STAR_RENDER_RADIUS = panel.starRenderRadius as number;
         GAME_CONFIG.ORBIT_RING_MULT = panel.orbitRingMult as number;
     }
+    function resetToDefaults() {
+        panel = { ...panelDefaults };
+        applyPanelToConfig();
+        localStorage.removeItem(PANEL_STORAGE_KEY);
+    }
 </script>
 
 <div class="combat-tuning-list">
+    <!-- Reset Button -->
+    <div class="panel-toolbar">
+        <button
+            class="reset-btn"
+            onclick={resetToDefaults}
+            title="Reset all settings to defaults"
+        >
+            ↺ Reset All
+        </button>
+    </div>
+
     <!-- Timing Section -->
     <div class="timing-section">
         <button
@@ -1826,18 +1842,30 @@
         color: #fff;
     }
 
+    .panel-toolbar {
+        display: flex;
+        justify-content: flex-end;
+        padding: 0 4px 6px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        margin-bottom: 6px;
+    }
+
     .reset-btn {
-        background: transparent;
-        border: 1px solid #445;
-        color: #888;
-        font-size: 9px;
-        padding: 2px 6px;
+        background: rgba(255, 80, 80, 0.08);
+        border: 1px solid rgba(255, 80, 80, 0.25);
+        color: #f88;
+        font-size: 10px;
+        padding: 3px 10px;
         border-radius: 3px;
         cursor: pointer;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        transition: all 0.15s;
     }
     .reset-btn:hover {
-        color: #fff;
-        border-color: #667;
+        background: rgba(255, 80, 80, 0.15);
+        color: #faa;
+        border-color: rgba(255, 80, 80, 0.4);
     }
 
     .content-list {

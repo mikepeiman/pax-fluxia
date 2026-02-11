@@ -245,3 +245,18 @@ Star types have defined `attack` and `defense` multipliers in `STAR_TYPE_STATS` 
 
 > [!WARNING]
 > This logic is currently duplicated in both `common/src/engine/GameEngine.ts` and `pax-fluxia/src/lib/engine/GameEngine.ts`. The core refactor to unify to a single engine is pending — this duplication is tech debt, not target architecture.
+
+---
+
+# Decision: Engine Unification Priority
+
+**Date:** 2026-02-11
+**Status:** Pending
+
+## Context
+Client and server engines remain split. User confirms engine unification is imminent ("It'll be time to unify the engine shortly"). Animation polish also noted as ongoing priority.
+
+## Next Steps
+- Phase 2 of Engine Convergence: Combat & Conquest logic into shared engine
+- Phase 3: Strip client duplicate, full delegation to shared
+- Animation system: user reports current feel is "not quite right" — further iteration needed

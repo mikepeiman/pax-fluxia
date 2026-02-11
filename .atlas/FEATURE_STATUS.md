@@ -242,6 +242,9 @@
 | R-68 | Settle Slider Extended: range expanded to 0-2000ms for full range from instant to slow drift | 🟢 |
 | R-69 | Sprite Pool Ship Rendering: replaced per-ship Graphics.circle with batched sprite pool for O(1) draw calls | 🟢 |
 | R-70 | FPS + Ship Count Overlay: real-time FPS, total visual ships, and sprite pool size displayed in monospace badge | 🟢 |
+| R-71 | Spawn/Production Instant Settle: removed ARRIVAL_SPREAD stagger from spawned ships — only travel arrivals stagger | 🟢 |
+| R-72 | Sharper Sprites: circle texture increased 16→64px with anti-aliased edge for crisp rendering at all scales | 🟢 |
+| R-73 | Reset All Button: CombatDebugPanel has red-tinted reset button that clears localStorage and restores defaults | 🟢 |
 
 ---
 
