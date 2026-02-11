@@ -65,6 +65,9 @@
 | V-2 | Ship Transfer (flow along lanes) | ❓ | Unified lifecycle: orbit→depart→travel→arrive |
 | V-3 | Tick Orb Pulse | ✅ | |
 | V-4 | Star Glow / Selection | ✅ | |
+| V-5 | Facing Departure (orbit dance) | ❓ | Toggle in Animation Tuning, OFF by default. Sort+splice causes dance effect |
+| V-6 | Orbit Bias Oscillation | ❓ | Min/Max/Freq controls. Oscillates bias strength per tick frequency |
+| V-7 | Smooth Departure Easing | ❓ | easeInOutQuad replaces easeInCubic for smoother departure |
 
 ---
 
@@ -89,6 +92,12 @@
 | P-15 | AI Random Aggression | ❓ | Reads from `GAME_CONFIG` in `AI.ts` |
 | P-16 | AI Tactical Aggression | ❓ | Reads from `GAME_CONFIG` in `AI.ts` |
 | P-17 | Arrow Length | ❓ | `ARROW_LENGTH_FRACTION` (10-100%), default 50% (`d38cdba`) |
+| P-18 | Facing Departure Toggle | ❓ | `FACING_DEPARTURE` checkbox in Animation Tuning |
+| P-19 | Oscillate Bias Toggle | ❓ | `ORBIT_BIAS_OSCILLATE` checkbox + Min/Max/Freq sliders |
+| P-20 | Global Production | ❓ | `BASE_PRODUCTION` slider (0-3) in Global Bonuses section |
+| P-21 | Global Repair | ❓ | `REPAIR_RATE` slider (0-1) in Global Bonuses section |
+| P-22 | Global Defense | ❓ | `AGGRESSOR_ADVANTAGE` slider (0.1-2) in Global Bonuses section |
+| P-23 | Global Attack | ❓ | `DAMAGE_PER_SHIP` slider (0-0.5) in Global Bonuses section |
 
 ---
 

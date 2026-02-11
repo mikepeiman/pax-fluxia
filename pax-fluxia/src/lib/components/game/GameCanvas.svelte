@@ -942,7 +942,7 @@
             const dist = Math.sqrt(dx * dx + dy * dy);
 
             const padding = 10;
-            const headLen = 25; // Length of arrowhead
+            const headLen = 30; // Length of arrowhead
             const lineWidth = 6;
 
             // Start: Source Edge
@@ -1160,21 +1160,31 @@
 
             const shipsToMove = Math.min(count, ships.length);
 
-            // Sort ships by proximity to target direction — ships nearest the facing side depart first
-            // This ensures departure visually originates from the outermost orbit layers closest to the lane
-            ships.sort((a, b) => {
-                const aDx = a.x - source.x;
-                const aDy = a.y - source.y;
-                const bDx = b.x - source.x;
-                const bDy = b.y - source.y;
-                // Dot product with lane direction: higher = more aligned with target
-                const aDot = aDx * ndx + aDy * ndy;
-                const bDot = bDx * ndx + bDy * ndy;
-                return bDot - aDot; // Descending: closest to target first
-            });
+            // Select which ships depart
+            let departingShips: VisualShipState[];
+            if (GAME_CONFIG.FACING_DEPARTURE) {
+                // FACING MODE: Sort by proximity to target direction — ships nearest the facing side depart first
+                // This causes the "orbit dance" effect where remaining ships reshuffle slots
+                ships.sort((a, b) => {
+                    const aDot =
+                        (a.x - source.x) * ndx + (a.y - source.y) * ndy;
+                    const bDot =
+                        (b.x - source.x) * ndx + (b.y - source.y) * ndy;
+                    return bDot - aDot; // Descending: closest to target first
+                });
+                departingShips = ships.splice(0, shipsToMove);
+                // Re-index remaining ships' targetIndex after splice
+                for (let j = 0; j < ships.length; j++) {
+                    ships[j].targetIndex = j;
+                }
+            } else {
+                // DEFAULT: Pop from end — no reindexing, no dance
+                departingShips = [];
+                for (let i = 0; i < shipsToMove; i++) {
+                    departingShips.push(ships.pop()!);
+                }
+            }
 
-            // Take ships from the FRONT (facing side) — splice instead of pop
-            const departingShips = ships.splice(0, shipsToMove);
             for (const ship of departingShips) {
                 // Capture departure origin for absolute interpolation
                 ship.departFromX = ship.x;
@@ -1197,10 +1207,6 @@
                 ship.staggerDelay = 0;
                 ship.ownerId = transfer.ownerId;
                 travelingShips.push(ship);
-            }
-            // Re-index remaining ships' targetIndex after splice
-            for (let j = 0; j < ships.length; j++) {
-                ships[j].targetIndex = j;
             }
             visualShips.set(transfer.sourceId, ships);
         }
@@ -1387,8 +1393,11 @@
                     elapsed /
                         (ship.departDuration || SHIP_ANIM.DEPART_DURATION),
                 );
-                // easeInCubic: reluctant departure (slow peel from orbit, then accelerate toward lane)
-                const eased = departProgress * departProgress * departProgress;
+                // easeInOutQuad: smooth departure (soft peel from orbit, eases into lane)
+                const eased =
+                    departProgress < 0.5
+                        ? 2 * departProgress * departProgress
+                        : 1 - Math.pow(-2 * departProgress + 2, 2) / 2;
 
                 ship.x =
                     ship.departFromX +
@@ -1604,9 +1613,26 @@
                               targetStar.x - star.x,
                           )
                         : undefined;
-                    const biasStrength = targetStar
-                        ? (GAME_CONFIG.ORBIT_BIAS_STRENGTH ?? 0.6)
-                        : 0;
+                    // Calculate orbit bias strength — supports oscillation mode
+                    let biasStrength: number;
+                    if (!targetStar) {
+                        biasStrength = 0;
+                    } else if (GAME_CONFIG.ORBIT_BIAS_OSCILLATE) {
+                        // Oscillate between min and max using sine wave relative to time
+                        const freq = GAME_CONFIG.ORBIT_BIAS_FREQ ?? 1.0;
+                        const effectiveTick = activeGameStore.effectiveTickMs;
+                        const phase = Math.sin(
+                            (animationTime / effectiveTick) *
+                                freq *
+                                Math.PI *
+                                2,
+                        );
+                        const min = GAME_CONFIG.ORBIT_BIAS_MIN ?? 0;
+                        const max = GAME_CONFIG.ORBIT_BIAS_MAX ?? 1;
+                        biasStrength = min + (max - min) * (phase * 0.5 + 0.5);
+                    } else {
+                        biasStrength = GAME_CONFIG.ORBIT_BIAS_STRENGTH ?? 0.6;
+                    }
                     const slot = getOrbitSlot(
                         ship.targetIndex,
                         star.x,

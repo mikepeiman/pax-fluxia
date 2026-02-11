@@ -300,6 +300,7 @@
         visuals: "pax-fluxia-collapse-visuals",
         animation: "pax-fluxia-collapse-animation",
         logging: "pax-fluxia-collapse-logging",
+        globals: "pax-fluxia-collapse-globals",
     };
 
     function getCollapsedState(key: string): boolean {
@@ -319,6 +320,7 @@
     let visualsCollapsed = $state(getCollapsedState(COLLAPSE_KEYS.visuals));
     let animationCollapsed = $state(getCollapsedState(COLLAPSE_KEYS.animation));
     let loggingCollapsed = $state(getCollapsedState(COLLAPSE_KEYS.logging));
+    let globalsCollapsed = $state(getCollapsedState(COLLAPSE_KEYS.globals));
 
     // Log toggle categories
     const logCategories = [
@@ -429,6 +431,115 @@
         {/if}
     </div>
 
+    <!-- Global Bonuses Section -->
+    <div class="transfer-section">
+        <button
+            class="section-header"
+            onclick={() => {
+                globalsCollapsed = !globalsCollapsed;
+                setCollapsedState(COLLAPSE_KEYS.globals, globalsCollapsed);
+            }}
+        >
+            <span class="section-title">🌐 Global Bonuses</span>
+            <span class="collapse-icon">{globalsCollapsed ? "▶" : "▼"}</span>
+        </button>
+        {#if !globalsCollapsed}
+            <div class="variable-row">
+                <div class="row-top">
+                    <span class="var-name">⚙️ Production</span>
+                    <span class="current-val"
+                        >{(GAME_CONFIG.BASE_PRODUCTION ?? 0.5).toFixed(2)}</span
+                    >
+                </div>
+                <div class="row-controls">
+                    <input
+                        type="range"
+                        min="0"
+                        max="3"
+                        step="0.05"
+                        value={GAME_CONFIG.BASE_PRODUCTION ?? 0.5}
+                        oninput={(e) => {
+                            GAME_CONFIG.BASE_PRODUCTION = parseFloat(
+                                (e.target as HTMLInputElement).value,
+                            );
+                        }}
+                    />
+                </div>
+            </div>
+            <div class="variable-row">
+                <div class="row-top">
+                    <span class="var-name">🔧 Repair</span>
+                    <span class="current-val"
+                        >{(GAME_CONFIG.REPAIR_RATE ?? 0.2).toFixed(2)}</span
+                    >
+                </div>
+                <div class="row-controls">
+                    <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.01"
+                        value={GAME_CONFIG.REPAIR_RATE ?? 0.2}
+                        oninput={(e) => {
+                            GAME_CONFIG.REPAIR_RATE = parseFloat(
+                                (e.target as HTMLInputElement).value,
+                            );
+                        }}
+                    />
+                </div>
+            </div>
+            <div class="variable-row">
+                <div class="row-top">
+                    <span class="var-name">🛡️ Defense</span>
+                    <span class="current-val"
+                        >{(GAME_CONFIG.AGGRESSOR_ADVANTAGE ?? 0.7).toFixed(
+                            2,
+                        )}</span
+                    >
+                </div>
+                <div class="row-controls">
+                    <input
+                        type="range"
+                        min="0.1"
+                        max="2"
+                        step="0.05"
+                        value={GAME_CONFIG.AGGRESSOR_ADVANTAGE ?? 0.7}
+                        oninput={(e) => {
+                            GAME_CONFIG.AGGRESSOR_ADVANTAGE = parseFloat(
+                                (e.target as HTMLInputElement).value,
+                            );
+                        }}
+                    />
+                </div>
+                <span class="var-desc">Lower = stronger defense</span>
+            </div>
+            <div class="variable-row">
+                <div class="row-top">
+                    <span class="var-name">⚔️ Attack</span>
+                    <span class="current-val"
+                        >{(GAME_CONFIG.DAMAGE_PER_SHIP ?? 0.05).toFixed(
+                            3,
+                        )}</span
+                    >
+                </div>
+                <div class="row-controls">
+                    <input
+                        type="range"
+                        min="0"
+                        max="0.5"
+                        step="0.005"
+                        value={GAME_CONFIG.DAMAGE_PER_SHIP ?? 0.05}
+                        oninput={(e) => {
+                            GAME_CONFIG.DAMAGE_PER_SHIP = parseFloat(
+                                (e.target as HTMLInputElement).value,
+                            );
+                        }}
+                    />
+                </div>
+            </div>
+        {/if}
+    </div>
+
     <!-- Transfer Section -->
     <div class="transfer-section">
         <button
@@ -438,7 +549,11 @@
                 setCollapsedState(COLLAPSE_KEYS.transfer, transferCollapsed);
             }}
         >
-            <span class="section-title">🚀 Transfer</span>
+            <span class="section-title"
+                >🚀 Movement <span style="font-size: 10px; opacity: 0.5"
+                    >(Transfer Rate)</span
+                ></span
+            >
             <span class="collapse-icon">{transferCollapsed ? "▶" : "▼"}</span>
         </button>
         {#if !transferCollapsed}
@@ -660,9 +775,31 @@
 
     {#if !animationCollapsed}
         <div class="content-list">
+            <!-- Facing Departure toggle -->
             <div class="variable-row">
                 <div class="row-top">
-                    <span class="var-name">Orbit Bias Strength</span>
+                    <label class="toggle-label">
+                        <input
+                            type="checkbox"
+                            checked={GAME_CONFIG.FACING_DEPARTURE}
+                            onchange={() => {
+                                GAME_CONFIG.FACING_DEPARTURE =
+                                    !GAME_CONFIG.FACING_DEPARTURE;
+                            }}
+                        />
+                        <span class="var-name">Facing Departure</span>
+                    </label>
+                    <span
+                        class="current-val"
+                        style="font-size: 10px; opacity: 0.6">orbit dance</span
+                    >
+                </div>
+            </div>
+
+            <!-- Orbit Bias Strength -->
+            <div class="variable-row">
+                <div class="row-top">
+                    <span class="var-name">Orbit Bias</span>
                     <span class="current-val"
                         >{(GAME_CONFIG.ORBIT_BIAS_STRENGTH ?? 0.6).toFixed(
                             2,
@@ -684,6 +821,100 @@
                     />
                 </div>
             </div>
+
+            <!-- Orbit Bias Oscillation toggle -->
+            <div class="variable-row">
+                <div class="row-top">
+                    <label class="toggle-label">
+                        <input
+                            type="checkbox"
+                            checked={GAME_CONFIG.ORBIT_BIAS_OSCILLATE}
+                            onchange={() => {
+                                GAME_CONFIG.ORBIT_BIAS_OSCILLATE =
+                                    !GAME_CONFIG.ORBIT_BIAS_OSCILLATE;
+                            }}
+                        />
+                        <span class="var-name">Oscillate Bias</span>
+                    </label>
+                </div>
+            </div>
+
+            {#if GAME_CONFIG.ORBIT_BIAS_OSCILLATE}
+                <div class="variable-row" style="padding-left: 12px;">
+                    <div class="row-top">
+                        <span class="var-name">Min</span>
+                        <span class="current-val"
+                            >{(GAME_CONFIG.ORBIT_BIAS_MIN ?? 0).toFixed(
+                                2,
+                            )}</span
+                        >
+                    </div>
+                    <div class="row-controls">
+                        <input
+                            type="range"
+                            min="0"
+                            max="1"
+                            step="0.05"
+                            value={GAME_CONFIG.ORBIT_BIAS_MIN ?? 0}
+                            oninput={(e) => {
+                                GAME_CONFIG.ORBIT_BIAS_MIN = parseFloat(
+                                    (e.target as HTMLInputElement).value,
+                                );
+                            }}
+                        />
+                    </div>
+                </div>
+                <div class="variable-row" style="padding-left: 12px;">
+                    <div class="row-top">
+                        <span class="var-name">Max</span>
+                        <span class="current-val"
+                            >{(GAME_CONFIG.ORBIT_BIAS_MAX ?? 1).toFixed(
+                                2,
+                            )}</span
+                        >
+                    </div>
+                    <div class="row-controls">
+                        <input
+                            type="range"
+                            min="0"
+                            max="1"
+                            step="0.05"
+                            value={GAME_CONFIG.ORBIT_BIAS_MAX ?? 1}
+                            oninput={(e) => {
+                                GAME_CONFIG.ORBIT_BIAS_MAX = parseFloat(
+                                    (e.target as HTMLInputElement).value,
+                                );
+                            }}
+                        />
+                    </div>
+                </div>
+                <div class="variable-row" style="padding-left: 12px;">
+                    <div class="row-top">
+                        <span class="var-name">Freq (×tick)</span>
+                        <span class="current-val"
+                            >{(GAME_CONFIG.ORBIT_BIAS_FREQ ?? 1).toFixed(
+                                2,
+                            )}</span
+                        >
+                    </div>
+                    <div class="row-controls">
+                        <input
+                            type="range"
+                            min="0.25"
+                            max="5"
+                            step="0.25"
+                            value={GAME_CONFIG.ORBIT_BIAS_FREQ ?? 1}
+                            oninput={(e) => {
+                                GAME_CONFIG.ORBIT_BIAS_FREQ = parseFloat(
+                                    (e.target as HTMLInputElement).value,
+                                );
+                            }}
+                        />
+                    </div>
+                </div>
+            {/if}
+
+            <!-- Depart Fraction -->
             <div class="variable-row">
                 <div class="row-top">
                     <span class="var-name">Depart Fraction</span>
@@ -706,6 +937,8 @@
                     />
                 </div>
             </div>
+
+            <!-- Depart Jitter -->
             <div class="variable-row">
                 <div class="row-top">
                     <span class="var-name">Depart Jitter (ms)</span>
@@ -728,6 +961,8 @@
                     />
                 </div>
             </div>
+
+            <!-- Lane Offset -->
             <div class="variable-row">
                 <div class="row-top">
                     <span class="var-name">Lane Offset (px)</span>

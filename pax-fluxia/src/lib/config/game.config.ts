@@ -106,6 +106,12 @@ interface GameConfigType {
     DEPART_FRACTION: number;       // Fraction of half-tick spent departing (rest is travel, default 0.3)
     DEPART_JITTER_MS: number;      // Max random jitter on departure timing (ms, default 80)
     LANE_OFFSET_PX: number;        // Max perpendicular offset for lane variation (px, default 8)
+    FACING_DEPARTURE: boolean;     // Ships depart from facing side (causes dance effect, default false)
+    // Orbit bias oscillation
+    ORBIT_BIAS_OSCILLATE: boolean; // Enable oscillation between min/max bias (default false)
+    ORBIT_BIAS_MIN: number;        // Min bias strength for oscillation (default 0.0)
+    ORBIT_BIAS_MAX: number;        // Max bias strength for oscillation (default 1.0)
+    ORBIT_BIAS_FREQ: number;       // Oscillation frequency relative to ticks (default 1.0)
 
     /** How far order arrows extend along the lane (0.0-1.0, 1.0 = full distance to target edge) */
     ARROW_LENGTH_FRACTION: number;
@@ -317,6 +323,16 @@ export const GAME_CONFIG: GameConfigType = {
     DEPART_JITTER_MS: 80,
     /** Max perpendicular lane offset (px per side) */
     LANE_OFFSET_PX: 8,
+    /** Ships depart from facing side — causes orbit dance effect (default OFF) */
+    FACING_DEPARTURE: false,
+    /** Enable orbit bias oscillation between min/max */
+    ORBIT_BIAS_OSCILLATE: false,
+    /** Min bias strength for oscillation */
+    ORBIT_BIAS_MIN: 0.0,
+    /** Max bias strength for oscillation */
+    ORBIT_BIAS_MAX: 1.0,
+    /** Oscillation frequency relative to ticks (0.25 = once per 4 ticks, 2.0 = twice per tick) */
+    ORBIT_BIAS_FREQ: 1.0,
 
     /** Order arrow length as fraction of lane distance (0.0-1.0, default 0.5 = halfway) */
     ARROW_LENGTH_FRACTION: 0.5,
