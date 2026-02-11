@@ -77,8 +77,8 @@
     let zoomLevel = 1; // User zoom multiplier (1.0 = default fit)
     let panOffsetX = 0; // Pan offset in world coordinates
     let panOffsetY = 0;
-    const ZOOM_MIN = 0.5; // 4× spread: 0.5 to 2.0
-    const ZOOM_MAX = 2.0;
+    const ZOOM_MIN = 0.1; // Allow zooming far out for large maps
+    const ZOOM_MAX = 5.0;
     const ZOOM_STEP = 0.1; // Per scroll notch
     let isPanning = false; // Middle-mouse-button or spacebar pan
     let isSpaceHeld = false; // Spacebar held for pan mode
@@ -315,14 +315,33 @@
     // Rendering
     // ============================================================================
 
-    // Game world dimensions (fixed, map is generated at this size)
-    const GAME_WIDTH = 1600;
-    const GAME_HEIGHT = 900;
+    // Game world dimensions (dynamic — computed from star positions)
+    let GAME_WIDTH = 1600;
+    let GAME_HEIGHT = 900;
+
+    /** Recompute world bounds from actual star positions + padding */
+    function updateWorldBounds() {
+        const currentStars = activeGameStore.stars as StarState[];
+        if (!currentStars || currentStars.length === 0) return;
+        let maxX = 0,
+            maxY = 0;
+        for (const s of currentStars) {
+            if (s.x > maxX) maxX = s.x;
+            if (s.y > maxY) maxY = s.y;
+        }
+        // Add padding (star radius + orbits)
+        const pad = 80;
+        GAME_WIDTH = maxX + pad;
+        GAME_HEIGHT = maxY + pad;
+    }
 
     function handleResize() {
         if (!app) return;
 
         app.resize();
+
+        // Recompute world bounds from star positions
+        updateWorldBounds();
 
         // Calculate base scale to fit game world in container
         const containerWidth = app.screen.width;
@@ -367,16 +386,16 @@
         const scaledWidth = GAME_WIDTH * effectiveScale;
         const scaledHeight = GAME_HEIGHT * effectiveScale;
 
-        // Allow panning up to 50% the world size beyond edges
+        // Allow panning up to 100% the world size beyond edges (unrestricted)
         const maxPanX = Math.max(
             0,
             (scaledWidth - containerWidth) / (2 * effectiveScale) +
-                GAME_WIDTH * 0.5,
+                GAME_WIDTH * 1.0,
         );
         const maxPanY = Math.max(
             0,
             (scaledHeight - containerHeight) / (2 * effectiveScale) +
-                GAME_HEIGHT * 0.5,
+                GAME_HEIGHT * 1.0,
         );
 
         panOffsetX = Math.max(-maxPanX, Math.min(maxPanX, panOffsetX));

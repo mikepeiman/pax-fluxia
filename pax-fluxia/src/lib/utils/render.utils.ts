@@ -93,7 +93,7 @@ const MAX_ORBIT_LAYERS = 5;
 function calculateTotalCapacity(starRadius: number): { layerCapacities: number[], totalCapacity: number } {
     const BASE_SIZE = GAME_CONFIG.SHIP_BASE_SIZE || 4;
     const PADDING = 2;
-    const RING_SPACING = BASE_SIZE * 1.4;
+    const RING_SPACING = BASE_SIZE * (GAME_CONFIG.ORBIT_RING_MULT || 1.4);
 
     const layerCapacities: number[] = [];
     let totalCapacity = 0;
@@ -130,7 +130,7 @@ export function getOrbitSlot(
 ): { x: number, y: number, multiplier: number } {
     const BASE_SIZE = GAME_CONFIG.SHIP_BASE_SIZE || 4;
     const PADDING = 2;
-    const RING_SPACING = BASE_SIZE * 1.4;
+    const RING_SPACING = BASE_SIZE * (GAME_CONFIG.ORBIT_RING_MULT || 1.4);
 
     // Calculate total capacity for 10 layers
     const { layerCapacities, totalCapacity } = calculateTotalCapacity(starRadius);

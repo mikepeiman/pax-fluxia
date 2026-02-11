@@ -321,6 +321,7 @@
     let animationCollapsed = $state(getCollapsedState(COLLAPSE_KEYS.animation));
     let loggingCollapsed = $state(getCollapsedState(COLLAPSE_KEYS.logging));
     let globalsCollapsed = $state(getCollapsedState(COLLAPSE_KEYS.globals));
+    let sizeCollapsed = $state(true); // Start collapsed
 
     // Log toggle categories
     const logCategories = [
@@ -412,6 +413,10 @@
         orbOuterScale: GAME_CONFIG.ORB_OUTER_SCALE,
         orbMidScale: GAME_CONFIG.ORB_MID_SCALE,
         orbCoreScale: GAME_CONFIG.ORB_CORE_SCALE,
+        // Size controls
+        shipBaseSize: GAME_CONFIG.SHIP_BASE_SIZE,
+        starRenderRadius: GAME_CONFIG.STAR_RENDER_RADIUS,
+        orbitRingMult: GAME_CONFIG.ORBIT_RING_MULT,
     };
 
     function loadPanelSettings(): typeof panelDefaults {
@@ -469,6 +474,10 @@
         GAME_CONFIG.ORB_OUTER_SCALE = panel.orbOuterScale as number;
         GAME_CONFIG.ORB_MID_SCALE = panel.orbMidScale as number;
         GAME_CONFIG.ORB_CORE_SCALE = panel.orbCoreScale as number;
+        // Size controls
+        GAME_CONFIG.SHIP_BASE_SIZE = panel.shipBaseSize as number;
+        GAME_CONFIG.STAR_RENDER_RADIUS = panel.starRenderRadius as number;
+        GAME_CONFIG.ORBIT_RING_MULT = panel.orbitRingMult as number;
     }
 </script>
 
@@ -550,7 +559,7 @@
                 <div class="row-top">
                     <span class="var-name">⚙️ Production</span>
                     <span class="current-val"
-                        >{(GAME_CONFIG.BASE_PRODUCTION ?? 0.5).toFixed(2)}</span
+                        >{(panel.production as number).toFixed(2)}</span
                     >
                 </div>
                 <div class="row-controls">
@@ -559,7 +568,7 @@
                         min="0"
                         max="3"
                         step="0.05"
-                        value={GAME_CONFIG.BASE_PRODUCTION ?? 0.5}
+                        value={panel.production}
                         oninput={(e) => {
                             const v = parseFloat(
                                 (e.target as HTMLInputElement).value,
@@ -593,7 +602,7 @@
                 <div class="row-top">
                     <span class="var-name">🔧 Repair</span>
                     <span class="current-val"
-                        >{(GAME_CONFIG.REPAIR_RATE ?? 0.2).toFixed(2)}</span
+                        >{(panel.repair as number).toFixed(2)}</span
                     >
                 </div>
                 <div class="row-controls">
@@ -602,7 +611,7 @@
                         min="0"
                         max="1"
                         step="0.01"
-                        value={GAME_CONFIG.REPAIR_RATE ?? 0.2}
+                        value={panel.repair}
                         oninput={(e) => {
                             const v = parseFloat(
                                 (e.target as HTMLInputElement).value,
@@ -617,9 +626,7 @@
                 <div class="row-top">
                     <span class="var-name">🛡️ Defense</span>
                     <span class="current-val"
-                        >{(
-                            1 / (GAME_CONFIG.AGGRESSOR_ADVANTAGE ?? 0.7)
-                        ).toFixed(2)}×</span
+                        >{(panel.defense as number).toFixed(2)}×</span
                     >
                 </div>
                 <div class="row-controls">
@@ -628,7 +635,7 @@
                         min="0.5"
                         max="3"
                         step="0.05"
-                        value={1 / (GAME_CONFIG.AGGRESSOR_ADVANTAGE ?? 0.7)}
+                        value={panel.defense}
                         oninput={(e) => {
                             const v = parseFloat(
                                 (e.target as HTMLInputElement).value,
@@ -643,9 +650,7 @@
                 <div class="row-top">
                     <span class="var-name">⚔️ Attack</span>
                     <span class="current-val"
-                        >{(GAME_CONFIG.DAMAGE_PER_SHIP ?? 0.05).toFixed(
-                            3,
-                        )}</span
+                        >{(panel.attack as number).toFixed(3)}</span
                     >
                 </div>
                 <div class="row-controls">
@@ -654,7 +659,7 @@
                         min="0"
                         max="0.5"
                         step="0.005"
-                        value={GAME_CONFIG.DAMAGE_PER_SHIP ?? 0.05}
+                        value={panel.attack}
                         oninput={(e) => {
                             const v = parseFloat(
                                 (e.target as HTMLInputElement).value,
@@ -886,7 +891,7 @@
                     <label class="toggle-label">
                         <input
                             type="checkbox"
-                            checked={GAME_CONFIG.FACING_DEPARTURE}
+                            checked={panel.facingDeparture}
                             onchange={() => {
                                 GAME_CONFIG.FACING_DEPARTURE =
                                     !GAME_CONFIG.FACING_DEPARTURE;
@@ -911,7 +916,7 @@
                     <label class="toggle-label">
                         <input
                             type="checkbox"
-                            checked={GAME_CONFIG.ORB_TRAVEL}
+                            checked={panel.orbTravel}
                             onchange={() => {
                                 GAME_CONFIG.ORB_TRAVEL =
                                     !GAME_CONFIG.ORB_TRAVEL;
@@ -936,9 +941,7 @@
                 <div class="row-top">
                     <span class="var-name">Orbit Bias</span>
                     <span class="current-val"
-                        >{(GAME_CONFIG.ORBIT_BIAS_STRENGTH ?? 0.6).toFixed(
-                            2,
-                        )}</span
+                        >{(panel.orbitBias as number).toFixed(2)}</span
                     >
                 </div>
                 <div class="row-controls">
@@ -947,7 +950,7 @@
                         min="0"
                         max="1"
                         step="0.05"
-                        value={GAME_CONFIG.ORBIT_BIAS_STRENGTH ?? 0.6}
+                        value={panel.orbitBias}
                         oninput={(e) => {
                             const v = parseFloat(
                                 (e.target as HTMLInputElement).value,
@@ -965,7 +968,7 @@
                     <label class="toggle-label">
                         <input
                             type="checkbox"
-                            checked={GAME_CONFIG.ORBIT_BIAS_OSCILLATE}
+                            checked={panel.oscillate}
                             onchange={() => {
                                 GAME_CONFIG.ORBIT_BIAS_OSCILLATE =
                                     !GAME_CONFIG.ORBIT_BIAS_OSCILLATE;
@@ -984,7 +987,7 @@
                 <div class="row-top">
                     <span class="var-name">Min</span>
                     <span class="current-val"
-                        >{(GAME_CONFIG.ORBIT_BIAS_MIN ?? 0).toFixed(2)}</span
+                        >{(panel.oscMin as number).toFixed(2)}</span
                     >
                 </div>
                 <div class="row-controls">
@@ -993,7 +996,7 @@
                         min="0"
                         max="1"
                         step="0.05"
-                        value={GAME_CONFIG.ORBIT_BIAS_MIN ?? 0}
+                        value={panel.oscMin}
                         oninput={(e) => {
                             const v = parseFloat(
                                 (e.target as HTMLInputElement).value,
@@ -1008,7 +1011,7 @@
                 <div class="row-top">
                     <span class="var-name">Max</span>
                     <span class="current-val"
-                        >{(GAME_CONFIG.ORBIT_BIAS_MAX ?? 1).toFixed(2)}</span
+                        >{(panel.oscMax as number).toFixed(2)}</span
                     >
                 </div>
                 <div class="row-controls">
@@ -1017,7 +1020,7 @@
                         min="0"
                         max="1"
                         step="0.05"
-                        value={GAME_CONFIG.ORBIT_BIAS_MAX ?? 1}
+                        value={panel.oscMax}
                         oninput={(e) => {
                             const v = parseFloat(
                                 (e.target as HTMLInputElement).value,
@@ -1032,7 +1035,7 @@
                 <div class="row-top">
                     <span class="var-name">Freq (×tick)</span>
                     <span class="current-val"
-                        >{(GAME_CONFIG.ORBIT_BIAS_FREQ ?? 1).toFixed(2)}</span
+                        >{(panel.oscFreq as number).toFixed(2)}</span
                     >
                 </div>
                 <div class="row-controls">
@@ -1041,7 +1044,7 @@
                         min="0.25"
                         max="5"
                         step="0.25"
-                        value={GAME_CONFIG.ORBIT_BIAS_FREQ ?? 1}
+                        value={panel.oscFreq}
                         oninput={(e) => {
                             const v = parseFloat(
                                 (e.target as HTMLInputElement).value,
@@ -1058,7 +1061,7 @@
                 <div class="row-top">
                     <span class="var-name">Depart Fraction</span>
                     <span class="current-val"
-                        >{(GAME_CONFIG.DEPART_FRACTION ?? 0.3).toFixed(2)}</span
+                        >{(panel.departFraction as number).toFixed(2)}</span
                     >
                 </div>
                 <div class="row-controls">
@@ -1067,7 +1070,7 @@
                         min="0.1"
                         max="0.6"
                         step="0.05"
-                        value={GAME_CONFIG.DEPART_FRACTION ?? 0.3}
+                        value={panel.departFraction}
                         oninput={(e) => {
                             const v = parseFloat(
                                 (e.target as HTMLInputElement).value,
@@ -1083,9 +1086,7 @@
             <div class="variable-row">
                 <div class="row-top">
                     <span class="var-name">Depart Jitter (ms)</span>
-                    <span class="current-val"
-                        >{GAME_CONFIG.DEPART_JITTER_MS ?? 80}</span
-                    >
+                    <span class="current-val">{panel.departJitter}</span>
                 </div>
                 <div class="row-controls">
                     <input
@@ -1093,7 +1094,7 @@
                         min="0"
                         max="200"
                         step="5"
-                        value={GAME_CONFIG.DEPART_JITTER_MS ?? 80}
+                        value={panel.departJitter}
                         oninput={(e) => {
                             const v = parseInt(
                                 (e.target as HTMLInputElement).value,
@@ -1106,7 +1107,7 @@
             </div>
 
             <!-- Orb Visual Tuning (only shown when orb travel is on) -->
-            {#if GAME_CONFIG.ORB_TRAVEL}
+            {#if panel.orbTravel}
                 <div
                     class="variable-row"
                     style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 6px; margin-top: 4px;"
@@ -1121,9 +1122,7 @@
                     <div class="row-top">
                         <span class="var-name">Base Radius</span>
                         <span class="current-val"
-                            >{(GAME_CONFIG.ORB_BASE_RADIUS ?? 4).toFixed(
-                                1,
-                            )}</span
+                            >{(panel.orbBaseRadius as number).toFixed(1)}</span
                         >
                     </div>
                     <div class="row-controls">
@@ -1132,7 +1131,7 @@
                             min="1"
                             max="12"
                             step="0.5"
-                            value={GAME_CONFIG.ORB_BASE_RADIUS ?? 4}
+                            value={panel.orbBaseRadius}
                             oninput={(e) => {
                                 const v = parseFloat(
                                     (e.target as HTMLInputElement).value,
@@ -1147,9 +1146,7 @@
                     <div class="row-top">
                         <span class="var-name">Radius Scale</span>
                         <span class="current-val"
-                            >{(GAME_CONFIG.ORB_RADIUS_SCALE ?? 1.6).toFixed(
-                                2,
-                            )}</span
+                            >{(panel.orbRadiusScale as number).toFixed(2)}</span
                         >
                     </div>
                     <div class="row-controls">
@@ -1158,7 +1155,7 @@
                             min="0.2"
                             max="5"
                             step="0.1"
-                            value={GAME_CONFIG.ORB_RADIUS_SCALE ?? 1.6}
+                            value={panel.orbRadiusScale}
                             oninput={(e) => {
                                 const v = parseFloat(
                                     (e.target as HTMLInputElement).value,
@@ -1173,7 +1170,7 @@
                     <div class="row-top">
                         <span class="var-name">Glow Mult</span>
                         <span class="current-val"
-                            >{(GAME_CONFIG.ORB_GLOW_MULT ?? 1).toFixed(2)}</span
+                            >{(panel.orbGlowMult as number).toFixed(2)}</span
                         >
                     </div>
                     <div class="row-controls">
@@ -1182,7 +1179,7 @@
                             min="0"
                             max="3"
                             step="0.1"
-                            value={GAME_CONFIG.ORB_GLOW_MULT ?? 1}
+                            value={panel.orbGlowMult}
                             oninput={(e) => {
                                 const v = parseFloat(
                                     (e.target as HTMLInputElement).value,
@@ -1197,9 +1194,7 @@
                     <div class="row-top">
                         <span class="var-name">Outer α</span>
                         <span class="current-val"
-                            >{(GAME_CONFIG.ORB_OUTER_ALPHA ?? 0.12).toFixed(
-                                2,
-                            )}</span
+                            >{(panel.orbOuterAlpha as number).toFixed(2)}</span
                         >
                     </div>
                     <div class="row-controls">
@@ -1208,7 +1203,7 @@
                             min="0"
                             max="1"
                             step="0.02"
-                            value={GAME_CONFIG.ORB_OUTER_ALPHA ?? 0.12}
+                            value={panel.orbOuterAlpha}
                             oninput={(e) => {
                                 const v = parseFloat(
                                     (e.target as HTMLInputElement).value,
@@ -1223,9 +1218,7 @@
                     <div class="row-top">
                         <span class="var-name">Mid α</span>
                         <span class="current-val"
-                            >{(GAME_CONFIG.ORB_MID_ALPHA ?? 0.25).toFixed(
-                                2,
-                            )}</span
+                            >{(panel.orbMidAlpha as number).toFixed(2)}</span
                         >
                     </div>
                     <div class="row-controls">
@@ -1234,7 +1227,7 @@
                             min="0"
                             max="1"
                             step="0.02"
-                            value={GAME_CONFIG.ORB_MID_ALPHA ?? 0.25}
+                            value={panel.orbMidAlpha}
                             oninput={(e) => {
                                 const v = parseFloat(
                                     (e.target as HTMLInputElement).value,
@@ -1249,9 +1242,7 @@
                     <div class="row-top">
                         <span class="var-name">Core α</span>
                         <span class="current-val"
-                            >{(GAME_CONFIG.ORB_CORE_ALPHA ?? 0.6).toFixed(
-                                2,
-                            )}</span
+                            >{(panel.orbCoreAlpha as number).toFixed(2)}</span
                         >
                     </div>
                     <div class="row-controls">
@@ -1260,7 +1251,7 @@
                             min="0"
                             max="1"
                             step="0.02"
-                            value={GAME_CONFIG.ORB_CORE_ALPHA ?? 0.6}
+                            value={panel.orbCoreAlpha}
                             oninput={(e) => {
                                 const v = parseFloat(
                                     (e.target as HTMLInputElement).value,
@@ -1275,9 +1266,7 @@
                     <div class="row-top">
                         <span class="var-name">Center α</span>
                         <span class="current-val"
-                            >{(GAME_CONFIG.ORB_CENTER_ALPHA ?? 1).toFixed(
-                                2,
-                            )}</span
+                            >{(panel.orbCenterAlpha as number).toFixed(2)}</span
                         >
                     </div>
                     <div class="row-controls">
@@ -1286,7 +1275,7 @@
                             min="0"
                             max="2"
                             step="0.05"
-                            value={GAME_CONFIG.ORB_CENTER_ALPHA ?? 1}
+                            value={panel.orbCenterAlpha}
                             oninput={(e) => {
                                 const v = parseFloat(
                                     (e.target as HTMLInputElement).value,
@@ -1301,9 +1290,7 @@
                     <div class="row-top">
                         <span class="var-name">Outer Scale</span>
                         <span class="current-val"
-                            >{(GAME_CONFIG.ORB_OUTER_SCALE ?? 2.5).toFixed(
-                                1,
-                            )}</span
+                            >{(panel.orbOuterScale as number).toFixed(1)}</span
                         >
                     </div>
                     <div class="row-controls">
@@ -1312,7 +1299,7 @@
                             min="1"
                             max="5"
                             step="0.1"
-                            value={GAME_CONFIG.ORB_OUTER_SCALE ?? 2.5}
+                            value={panel.orbOuterScale}
                             oninput={(e) => {
                                 const v = parseFloat(
                                     (e.target as HTMLInputElement).value,
@@ -1327,9 +1314,7 @@
                     <div class="row-top">
                         <span class="var-name">Mid Scale</span>
                         <span class="current-val"
-                            >{(GAME_CONFIG.ORB_MID_SCALE ?? 1.6).toFixed(
-                                1,
-                            )}</span
+                            >{(panel.orbMidScale as number).toFixed(1)}</span
                         >
                     </div>
                     <div class="row-controls">
@@ -1338,7 +1323,7 @@
                             min="0.5"
                             max="4"
                             step="0.1"
-                            value={GAME_CONFIG.ORB_MID_SCALE ?? 1.6}
+                            value={panel.orbMidScale}
                             oninput={(e) => {
                                 const v = parseFloat(
                                     (e.target as HTMLInputElement).value,
@@ -1353,9 +1338,7 @@
                     <div class="row-top">
                         <span class="var-name">Core Scale</span>
                         <span class="current-val"
-                            >{(GAME_CONFIG.ORB_CORE_SCALE ?? 0.75).toFixed(
-                                2,
-                            )}</span
+                            >{(panel.orbCoreScale as number).toFixed(2)}</span
                         >
                     </div>
                     <div class="row-controls">
@@ -1364,7 +1347,7 @@
                             min="0.1"
                             max="1.5"
                             step="0.05"
-                            value={GAME_CONFIG.ORB_CORE_SCALE ?? 0.75}
+                            value={panel.orbCoreScale}
                             oninput={(e) => {
                                 const v = parseFloat(
                                     (e.target as HTMLInputElement).value,
@@ -1402,6 +1385,97 @@
             </div>
         </div>
     {/if}
+
+    <!-- Size Controls Section -->
+    <div class="transfer-section">
+        <button
+            class="section-header"
+            onclick={() => {
+                sizeCollapsed = !sizeCollapsed;
+            }}
+        >
+            <span class="section-title">📐 Size Controls</span>
+            <span class="collapse-icon">{sizeCollapsed ? "▶" : "▼"}</span>
+        </button>
+        {#if !sizeCollapsed}
+            <div class="section-content">
+                <div class="variable-row">
+                    <div class="row-top">
+                        <span class="var-name">Ship Size</span>
+                        <span class="current-val"
+                            >{(panel.shipBaseSize as number).toFixed(1)}</span
+                        >
+                    </div>
+                    <div class="row-controls">
+                        <input
+                            type="range"
+                            min="1"
+                            max="12"
+                            step="0.5"
+                            value={panel.shipBaseSize}
+                            oninput={(e) => {
+                                const v = parseFloat(
+                                    (e.target as HTMLInputElement).value,
+                                );
+                                GAME_CONFIG.SHIP_BASE_SIZE = v;
+                                updatePanel("shipBaseSize", v);
+                            }}
+                        />
+                    </div>
+                </div>
+                <div class="variable-row">
+                    <div class="row-top">
+                        <span class="var-name">Star Radius</span>
+                        <span class="current-val"
+                            >{(panel.starRenderRadius as number).toFixed(
+                                0,
+                            )}</span
+                        >
+                    </div>
+                    <div class="row-controls">
+                        <input
+                            type="range"
+                            min="5"
+                            max="50"
+                            step="1"
+                            value={panel.starRenderRadius}
+                            oninput={(e) => {
+                                const v = parseFloat(
+                                    (e.target as HTMLInputElement).value,
+                                );
+                                GAME_CONFIG.STAR_RENDER_RADIUS = v;
+                                updatePanel("starRenderRadius", v);
+                            }}
+                        />
+                    </div>
+                </div>
+                <div class="variable-row">
+                    <div class="row-top">
+                        <span class="var-name">Orbit Spacing</span>
+                        <span class="current-val"
+                            >{(panel.orbitRingMult as number).toFixed(1)}×</span
+                        >
+                    </div>
+                    <div class="row-controls">
+                        <input
+                            type="range"
+                            min="0.5"
+                            max="4"
+                            step="0.1"
+                            value={panel.orbitRingMult}
+                            oninput={(e) => {
+                                const v = parseFloat(
+                                    (e.target as HTMLInputElement).value,
+                                );
+                                GAME_CONFIG.ORBIT_RING_MULT = v;
+                                updatePanel("orbitRingMult", v);
+                            }}
+                        />
+                    </div>
+                </div>
+            </div>
+        {/if}
+    </div>
 
     <!-- Visuals Section -->
     <button

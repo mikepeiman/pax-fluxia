@@ -98,6 +98,8 @@ interface GameConfigType {
     MAX_RENDERED_SHIPS: number;
     SHIPS_PER_RING: number;
     SHIP_BASE_SIZE: number;
+    STAR_RENDER_RADIUS: number;    // Visual radius of stars on canvas (default 20)
+    ORBIT_RING_MULT: number;       // Orbit ring spacing = SHIP_BASE_SIZE * ORBIT_RING_MULT (default 1.4)
     TRANSFER_ANIMATION_MS: number;
     STATIC_ORBITS: boolean;  // When true, ships don't rotate around stars (performance)
 
@@ -321,6 +323,12 @@ export const GAME_CONFIG: GameConfigType = {
 
     /** Base ship render size */
     SHIP_BASE_SIZE: 4,
+
+    /** Visual radius of stars on canvas */
+    STAR_RENDER_RADIUS: 20,
+
+    /** Orbit ring spacing multiplier (ringSpacing = shipBaseSize * this) */
+    ORBIT_RING_MULT: 1.4,
 
     /** Ship transfer animation duration (ms) */
     TRANSFER_ANIMATION_MS: 600,
