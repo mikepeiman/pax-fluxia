@@ -4,7 +4,7 @@
 
     // Tab state
     let activeTab = $state<"overview" | "power" | "territory" | "activity">(
-        "overview",
+        "power",
     );
 
     // All state from unified store

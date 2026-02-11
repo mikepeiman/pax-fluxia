@@ -113,6 +113,16 @@ interface GameConfigType {
     ORBIT_BIAS_MAX: number;        // Max bias strength for oscillation (default 1.0)
     ORBIT_BIAS_FREQ: number;       // Oscillation frequency relative to ticks (default 1.0)
     ORB_TRAVEL: boolean;           // Ships merge into glowing orb during travel, fragment on arrival (default true)
+    ORB_BASE_RADIUS: number;       // Base orb radius in px before ship count scaling (default 4)
+    ORB_RADIUS_SCALE: number;      // Sqrt multiplier for ship count → radius (default 1.6)
+    ORB_GLOW_MULT: number;         // Overall glow multiplier for orb layers (default 1.0)
+    ORB_OUTER_ALPHA: number;       // Outer glow ring alpha (default 0.12)
+    ORB_MID_ALPHA: number;         // Middle glow ring alpha (default 0.25)
+    ORB_CORE_ALPHA: number;        // Inner core alpha (default 0.6)
+    ORB_CENTER_ALPHA: number;      // Bright center dot alpha (default 1.0)
+    ORB_OUTER_SCALE: number;       // Outer glow ring radius multiplier (default 2.5)
+    ORB_MID_SCALE: number;         // Middle glow ring radius multiplier (default 1.6)
+    ORB_CORE_SCALE: number;        // Core radius as fraction of base (default 0.75)
 
     /** How far order arrows extend along the lane (0.0-1.0, 1.0 = full distance to target edge) */
     ARROW_LENGTH_FRACTION: number;
@@ -336,6 +346,26 @@ export const GAME_CONFIG: GameConfigType = {
     ORBIT_BIAS_FREQ: 1.0,
     /** Ships merge into single glowing orb during travel, fragment into ships on arrival */
     ORB_TRAVEL: true,
+    /** Base orb radius in px before ship count scaling */
+    ORB_BASE_RADIUS: 4,
+    /** Sqrt multiplier for ship count → radius */
+    ORB_RADIUS_SCALE: 1.6,
+    /** Overall glow multiplier for orb layers */
+    ORB_GLOW_MULT: 1.0,
+    /** Outer glow ring alpha */
+    ORB_OUTER_ALPHA: 0.12,
+    /** Middle glow ring alpha */
+    ORB_MID_ALPHA: 0.25,
+    /** Inner core alpha */
+    ORB_CORE_ALPHA: 0.6,
+    /** Bright center dot alpha */
+    ORB_CENTER_ALPHA: 1.0,
+    /** Outer glow ring radius multiplier */
+    ORB_OUTER_SCALE: 2.5,
+    /** Middle glow ring radius multiplier */
+    ORB_MID_SCALE: 1.6,
+    /** Core radius as fraction of base */
+    ORB_CORE_SCALE: 0.75,
 
     /** Order arrow length as fraction of lane distance (0.0-1.0, default 0.5 = halfway) */
     ARROW_LENGTH_FRACTION: 0.5,

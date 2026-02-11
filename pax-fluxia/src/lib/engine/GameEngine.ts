@@ -176,8 +176,11 @@ export class GameEngine {
     }
 
     private initializeMap(): void {
-        const width = 1600;
-        const height = 900;
+        // Apply user spacing multiplier FIRST — scales the entire map
+        const spacingMultiplier = this.settings.starSpacing ?? 1.0;
+        const scaleFactor = Math.max(1, spacingMultiplier);
+        const width = Math.round(1600 * scaleFactor);
+        const height = Math.round(900 * scaleFactor);
         let hexRadius = GAME_CONFIG.HEX_RADIUS || 60;
 
         // Calculate total stars first to determine optimal padding
@@ -185,11 +188,11 @@ export class GameEngine {
         const starsPerPlayer = GAME_CONFIG.STARS_PER_PLAYER;
         const totalStars = playerIds.length * starsPerPlayer;
 
-        // Dynamic padding: reduce for large star counts
+        // Dynamic padding: reduce for large star counts, scale with map size
         const basePaddingX = totalStars > 50 ? 80 : totalStars > 20 ? 120 : 150;
         const basePaddingY = totalStars > 50 ? 60 : totalStars > 20 ? 80 : 100;
-        const paddingX = basePaddingX;
-        const paddingY = basePaddingY;
+        const paddingX = Math.round(basePaddingX * scaleFactor);
+        const paddingY = Math.round(basePaddingY * scaleFactor);
 
         // Adaptive hex radius: shrink grid cell size to ensure enough positions
         // Each hex occupies ~(1.5r × sqrt(3)r) area; we need at least 3x positions for spacing freedom
@@ -215,7 +218,7 @@ export class GameEngine {
             q: 0, r: 0
         }));
 
-        log.sys('GameEngine', `Hex grid: radius=${hexRadius}, ${hexes.length} positions for ${totalStars} requested stars`);
+        log.sys('GameEngine', `Hex grid: radius=${hexRadius}, ${hexes.length} positions for ${totalStars} requested stars (map: ${width}x${height}, spacing: ${spacingMultiplier}x)`);
 
         // Physics-aware spacing: stars must not overlap each other's orbit layers
         // Formula: minSpacing = (starRadius * 2) + (orbitLayerWidth * MAX_ORBIT_LAYERS * 2) + buffer
@@ -226,8 +229,7 @@ export class GameEngine {
         const SPACING_BUFFER = 20;  // Adjustable gap between orbit envelopes
         const physicsMinSpacing = (STAR_RADIUS * 2) + (RING_SPACING * MAX_ORBIT_LAYERS * 2) + SPACING_BUFFER;
 
-        // Apply user spacing multiplier (default 1.0)
-        const spacingMultiplier = this.settings.starSpacing ?? 1.0;
+        // Apply spacing multiplier to physics minimum
         const minSpacing = physicsMinSpacing * spacingMultiplier;
 
         log.sys('GameEngine', `Star spacing: ${minSpacing.toFixed(0)}px (physics min: ${physicsMinSpacing.toFixed(0)}, multiplier: ${spacingMultiplier})`);

@@ -373,7 +373,103 @@
         GAME_CONFIG.CONNECTION_ALPHA = vis.laneAlpha;
         GAME_CONFIG.CONNECTION_SHADOW_WIDTH = vis.shadowWidth;
         GAME_CONFIG.CONNECTION_SHADOW_ALPHA = vis.shadowAlpha;
+        applyPanelToConfig();
+        // Also update local timing vars for old controls that still use them
+        tickInterval = panel.tickInterval;
+        animationSpeed = panel.animSpeed;
+        activeGameStore.updateTickInterval(panel.tickInterval);
     });
+
+    // =========================================================================
+    // Unified Panel Settings Persistence (timing, globals, orders, animation, orb)
+    // =========================================================================
+    const PANEL_STORAGE_KEY = "pax-fluxia-panel-settings";
+
+    const panelDefaults = {
+        tickInterval: GAME_CONFIG.BASE_TICK_MS,
+        animSpeed: GAME_CONFIG.ANIMATION_SPEED_MS,
+        production: GAME_CONFIG.BASE_PRODUCTION,
+        repair: GAME_CONFIG.REPAIR_RATE,
+        defense: 1 / GAME_CONFIG.AGGRESSOR_ADVANTAGE,
+        attack: GAME_CONFIG.DAMAGE_PER_SHIP,
+        arrowLength: GAME_CONFIG.ARROW_LENGTH_FRACTION,
+        facingDeparture: GAME_CONFIG.FACING_DEPARTURE,
+        orbTravel: GAME_CONFIG.ORB_TRAVEL,
+        orbitBias: GAME_CONFIG.ORBIT_BIAS_STRENGTH,
+        oscillate: GAME_CONFIG.ORBIT_BIAS_OSCILLATE,
+        oscMin: GAME_CONFIG.ORBIT_BIAS_MIN,
+        oscMax: GAME_CONFIG.ORBIT_BIAS_MAX,
+        oscFreq: GAME_CONFIG.ORBIT_BIAS_FREQ,
+        departFraction: GAME_CONFIG.DEPART_FRACTION,
+        departJitter: GAME_CONFIG.DEPART_JITTER_MS,
+        orbBaseRadius: GAME_CONFIG.ORB_BASE_RADIUS,
+        orbRadiusScale: GAME_CONFIG.ORB_RADIUS_SCALE,
+        orbGlowMult: GAME_CONFIG.ORB_GLOW_MULT,
+        orbOuterAlpha: GAME_CONFIG.ORB_OUTER_ALPHA,
+        orbMidAlpha: GAME_CONFIG.ORB_MID_ALPHA,
+        orbCoreAlpha: GAME_CONFIG.ORB_CORE_ALPHA,
+        orbCenterAlpha: GAME_CONFIG.ORB_CENTER_ALPHA,
+        orbOuterScale: GAME_CONFIG.ORB_OUTER_SCALE,
+        orbMidScale: GAME_CONFIG.ORB_MID_SCALE,
+        orbCoreScale: GAME_CONFIG.ORB_CORE_SCALE,
+    };
+
+    function loadPanelSettings(): typeof panelDefaults {
+        if (typeof window === "undefined") return { ...panelDefaults };
+        try {
+            const s = localStorage.getItem(PANEL_STORAGE_KEY);
+            if (s) return { ...panelDefaults, ...JSON.parse(s) };
+        } catch {
+            /* ignore */
+        }
+        return { ...panelDefaults };
+    }
+
+    let panel = $state(loadPanelSettings());
+
+    function savePanelSettings() {
+        if (typeof window === "undefined") return;
+        try {
+            localStorage.setItem(PANEL_STORAGE_KEY, JSON.stringify(panel));
+        } catch {
+            /* ignore */
+        }
+    }
+
+    function updatePanel(key: keyof typeof panel, value: number | boolean) {
+        panel = { ...panel, [key]: value };
+        applyPanelToConfig();
+        savePanelSettings();
+    }
+
+    function applyPanelToConfig() {
+        GAME_CONFIG.BASE_TICK_MS = panel.tickInterval as number;
+        GAME_CONFIG.ANIMATION_SPEED_MS = panel.animSpeed as number;
+        GAME_CONFIG.BASE_PRODUCTION = panel.production as number;
+        GAME_CONFIG.REPAIR_RATE = panel.repair as number;
+        GAME_CONFIG.AGGRESSOR_ADVANTAGE = 1 / (panel.defense as number);
+        GAME_CONFIG.DAMAGE_PER_SHIP = panel.attack as number;
+        GAME_CONFIG.ARROW_LENGTH_FRACTION = panel.arrowLength as number;
+        GAME_CONFIG.FACING_DEPARTURE = panel.facingDeparture as boolean;
+        GAME_CONFIG.ORB_TRAVEL = panel.orbTravel as boolean;
+        GAME_CONFIG.ORBIT_BIAS_STRENGTH = panel.orbitBias as number;
+        GAME_CONFIG.ORBIT_BIAS_OSCILLATE = panel.oscillate as boolean;
+        GAME_CONFIG.ORBIT_BIAS_MIN = panel.oscMin as number;
+        GAME_CONFIG.ORBIT_BIAS_MAX = panel.oscMax as number;
+        GAME_CONFIG.ORBIT_BIAS_FREQ = panel.oscFreq as number;
+        GAME_CONFIG.DEPART_FRACTION = panel.departFraction as number;
+        GAME_CONFIG.DEPART_JITTER_MS = panel.departJitter as number;
+        GAME_CONFIG.ORB_BASE_RADIUS = panel.orbBaseRadius as number;
+        GAME_CONFIG.ORB_RADIUS_SCALE = panel.orbRadiusScale as number;
+        GAME_CONFIG.ORB_GLOW_MULT = panel.orbGlowMult as number;
+        GAME_CONFIG.ORB_OUTER_ALPHA = panel.orbOuterAlpha as number;
+        GAME_CONFIG.ORB_MID_ALPHA = panel.orbMidAlpha as number;
+        GAME_CONFIG.ORB_CORE_ALPHA = panel.orbCoreAlpha as number;
+        GAME_CONFIG.ORB_CENTER_ALPHA = panel.orbCenterAlpha as number;
+        GAME_CONFIG.ORB_OUTER_SCALE = panel.orbOuterScale as number;
+        GAME_CONFIG.ORB_MID_SCALE = panel.orbMidScale as number;
+        GAME_CONFIG.ORB_CORE_SCALE = panel.orbCoreScale as number;
+    }
 </script>
 
 <div class="combat-tuning-list">
@@ -402,10 +498,13 @@
                         max="3000"
                         step="100"
                         value={tickInterval}
-                        oninput={(e) =>
-                            updateTickInterval(
-                                parseInt((e.target as HTMLInputElement).value),
-                            )}
+                        oninput={(e) => {
+                            const v = parseInt(
+                                (e.target as HTMLInputElement).value,
+                            );
+                            updateTickInterval(v);
+                            updatePanel("tickInterval", v);
+                        }}
                     />
                 </div>
             </div>
@@ -421,10 +520,13 @@
                         max="3000"
                         step="100"
                         value={animationSpeed}
-                        oninput={(e) =>
-                            updateAnimationSpeed(
-                                parseInt((e.target as HTMLInputElement).value),
-                            )}
+                        oninput={(e) => {
+                            const v = parseInt(
+                                (e.target as HTMLInputElement).value,
+                            );
+                            updateAnimationSpeed(v);
+                            updatePanel("animSpeed", v);
+                        }}
                     />
                 </div>
             </div>
@@ -459,9 +561,11 @@
                         step="0.05"
                         value={GAME_CONFIG.BASE_PRODUCTION ?? 0.5}
                         oninput={(e) => {
-                            GAME_CONFIG.BASE_PRODUCTION = parseFloat(
+                            const v = parseFloat(
                                 (e.target as HTMLInputElement).value,
                             );
+                            GAME_CONFIG.BASE_PRODUCTION = v;
+                            updatePanel("production", v);
                         }}
                     />
                 </div>
@@ -500,9 +604,11 @@
                         step="0.01"
                         value={GAME_CONFIG.REPAIR_RATE ?? 0.2}
                         oninput={(e) => {
-                            GAME_CONFIG.REPAIR_RATE = parseFloat(
+                            const v = parseFloat(
                                 (e.target as HTMLInputElement).value,
                             );
+                            GAME_CONFIG.REPAIR_RATE = v;
+                            updatePanel("repair", v);
                         }}
                     />
                 </div>
@@ -524,11 +630,11 @@
                         step="0.05"
                         value={1 / (GAME_CONFIG.AGGRESSOR_ADVANTAGE ?? 0.7)}
                         oninput={(e) => {
-                            GAME_CONFIG.AGGRESSOR_ADVANTAGE =
-                                1 /
-                                parseFloat(
-                                    (e.target as HTMLInputElement).value,
-                                );
+                            const v = parseFloat(
+                                (e.target as HTMLInputElement).value,
+                            );
+                            GAME_CONFIG.AGGRESSOR_ADVANTAGE = 1 / v;
+                            updatePanel("defense", v);
                         }}
                     />
                 </div>
@@ -550,9 +656,11 @@
                         step="0.005"
                         value={GAME_CONFIG.DAMAGE_PER_SHIP ?? 0.05}
                         oninput={(e) => {
-                            GAME_CONFIG.DAMAGE_PER_SHIP = parseFloat(
+                            const v = parseFloat(
                                 (e.target as HTMLInputElement).value,
                             );
+                            GAME_CONFIG.DAMAGE_PER_SHIP = v;
+                            updatePanel("attack", v);
                         }}
                     />
                 </div>
@@ -782,6 +890,10 @@
                             onchange={() => {
                                 GAME_CONFIG.FACING_DEPARTURE =
                                     !GAME_CONFIG.FACING_DEPARTURE;
+                                updatePanel(
+                                    "facingDeparture",
+                                    GAME_CONFIG.FACING_DEPARTURE,
+                                );
                             }}
                         />
                         <span class="var-name">Facing Departure</span>
@@ -803,6 +915,10 @@
                             onchange={() => {
                                 GAME_CONFIG.ORB_TRAVEL =
                                     !GAME_CONFIG.ORB_TRAVEL;
+                                updatePanel(
+                                    "orbTravel",
+                                    GAME_CONFIG.ORB_TRAVEL,
+                                );
                             }}
                         />
                         <span class="var-name">Orb Travel</span>
@@ -833,9 +949,11 @@
                         step="0.05"
                         value={GAME_CONFIG.ORBIT_BIAS_STRENGTH ?? 0.6}
                         oninput={(e) => {
-                            GAME_CONFIG.ORBIT_BIAS_STRENGTH = parseFloat(
+                            const v = parseFloat(
                                 (e.target as HTMLInputElement).value,
                             );
+                            GAME_CONFIG.ORBIT_BIAS_STRENGTH = v;
+                            updatePanel("orbitBias", v);
                         }}
                     />
                 </div>
@@ -851,6 +969,10 @@
                             onchange={() => {
                                 GAME_CONFIG.ORBIT_BIAS_OSCILLATE =
                                     !GAME_CONFIG.ORBIT_BIAS_OSCILLATE;
+                                updatePanel(
+                                    "oscillate",
+                                    GAME_CONFIG.ORBIT_BIAS_OSCILLATE,
+                                );
                             }}
                         />
                         <span class="var-name">Oscillate Bias</span>
@@ -873,9 +995,11 @@
                         step="0.05"
                         value={GAME_CONFIG.ORBIT_BIAS_MIN ?? 0}
                         oninput={(e) => {
-                            GAME_CONFIG.ORBIT_BIAS_MIN = parseFloat(
+                            const v = parseFloat(
                                 (e.target as HTMLInputElement).value,
                             );
+                            GAME_CONFIG.ORBIT_BIAS_MIN = v;
+                            updatePanel("oscMin", v);
                         }}
                     />
                 </div>
@@ -895,9 +1019,11 @@
                         step="0.05"
                         value={GAME_CONFIG.ORBIT_BIAS_MAX ?? 1}
                         oninput={(e) => {
-                            GAME_CONFIG.ORBIT_BIAS_MAX = parseFloat(
+                            const v = parseFloat(
                                 (e.target as HTMLInputElement).value,
                             );
+                            GAME_CONFIG.ORBIT_BIAS_MAX = v;
+                            updatePanel("oscMax", v);
                         }}
                     />
                 </div>
@@ -917,9 +1043,11 @@
                         step="0.25"
                         value={GAME_CONFIG.ORBIT_BIAS_FREQ ?? 1}
                         oninput={(e) => {
-                            GAME_CONFIG.ORBIT_BIAS_FREQ = parseFloat(
+                            const v = parseFloat(
                                 (e.target as HTMLInputElement).value,
                             );
+                            GAME_CONFIG.ORBIT_BIAS_FREQ = v;
+                            updatePanel("oscFreq", v);
                         }}
                     />
                 </div>
@@ -941,9 +1069,11 @@
                         step="0.05"
                         value={GAME_CONFIG.DEPART_FRACTION ?? 0.3}
                         oninput={(e) => {
-                            GAME_CONFIG.DEPART_FRACTION = parseFloat(
+                            const v = parseFloat(
                                 (e.target as HTMLInputElement).value,
                             );
+                            GAME_CONFIG.DEPART_FRACTION = v;
+                            updatePanel("departFraction", v);
                         }}
                     />
                 </div>
@@ -965,13 +1095,287 @@
                         step="5"
                         value={GAME_CONFIG.DEPART_JITTER_MS ?? 80}
                         oninput={(e) => {
-                            GAME_CONFIG.DEPART_JITTER_MS = parseInt(
+                            const v = parseInt(
                                 (e.target as HTMLInputElement).value,
                             );
+                            GAME_CONFIG.DEPART_JITTER_MS = v;
+                            updatePanel("departJitter", v);
                         }}
                     />
                 </div>
             </div>
+
+            <!-- Orb Visual Tuning (only shown when orb travel is on) -->
+            {#if GAME_CONFIG.ORB_TRAVEL}
+                <div
+                    class="variable-row"
+                    style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 6px; margin-top: 4px;"
+                >
+                    <div class="row-top">
+                        <span class="var-name" style="color: #ffcc44;"
+                            >✨ Orb Visuals</span
+                        >
+                    </div>
+                </div>
+                <div class="variable-row" style="padding-left: 12px;">
+                    <div class="row-top">
+                        <span class="var-name">Base Radius</span>
+                        <span class="current-val"
+                            >{(GAME_CONFIG.ORB_BASE_RADIUS ?? 4).toFixed(
+                                1,
+                            )}</span
+                        >
+                    </div>
+                    <div class="row-controls">
+                        <input
+                            type="range"
+                            min="1"
+                            max="12"
+                            step="0.5"
+                            value={GAME_CONFIG.ORB_BASE_RADIUS ?? 4}
+                            oninput={(e) => {
+                                const v = parseFloat(
+                                    (e.target as HTMLInputElement).value,
+                                );
+                                GAME_CONFIG.ORB_BASE_RADIUS = v;
+                                updatePanel("orbBaseRadius", v);
+                            }}
+                        />
+                    </div>
+                </div>
+                <div class="variable-row" style="padding-left: 12px;">
+                    <div class="row-top">
+                        <span class="var-name">Radius Scale</span>
+                        <span class="current-val"
+                            >{(GAME_CONFIG.ORB_RADIUS_SCALE ?? 1.6).toFixed(
+                                2,
+                            )}</span
+                        >
+                    </div>
+                    <div class="row-controls">
+                        <input
+                            type="range"
+                            min="0.2"
+                            max="5"
+                            step="0.1"
+                            value={GAME_CONFIG.ORB_RADIUS_SCALE ?? 1.6}
+                            oninput={(e) => {
+                                const v = parseFloat(
+                                    (e.target as HTMLInputElement).value,
+                                );
+                                GAME_CONFIG.ORB_RADIUS_SCALE = v;
+                                updatePanel("orbRadiusScale", v);
+                            }}
+                        />
+                    </div>
+                </div>
+                <div class="variable-row" style="padding-left: 12px;">
+                    <div class="row-top">
+                        <span class="var-name">Glow Mult</span>
+                        <span class="current-val"
+                            >{(GAME_CONFIG.ORB_GLOW_MULT ?? 1).toFixed(2)}</span
+                        >
+                    </div>
+                    <div class="row-controls">
+                        <input
+                            type="range"
+                            min="0"
+                            max="3"
+                            step="0.1"
+                            value={GAME_CONFIG.ORB_GLOW_MULT ?? 1}
+                            oninput={(e) => {
+                                const v = parseFloat(
+                                    (e.target as HTMLInputElement).value,
+                                );
+                                GAME_CONFIG.ORB_GLOW_MULT = v;
+                                updatePanel("orbGlowMult", v);
+                            }}
+                        />
+                    </div>
+                </div>
+                <div class="variable-row" style="padding-left: 12px;">
+                    <div class="row-top">
+                        <span class="var-name">Outer α</span>
+                        <span class="current-val"
+                            >{(GAME_CONFIG.ORB_OUTER_ALPHA ?? 0.12).toFixed(
+                                2,
+                            )}</span
+                        >
+                    </div>
+                    <div class="row-controls">
+                        <input
+                            type="range"
+                            min="0"
+                            max="1"
+                            step="0.02"
+                            value={GAME_CONFIG.ORB_OUTER_ALPHA ?? 0.12}
+                            oninput={(e) => {
+                                const v = parseFloat(
+                                    (e.target as HTMLInputElement).value,
+                                );
+                                GAME_CONFIG.ORB_OUTER_ALPHA = v;
+                                updatePanel("orbOuterAlpha", v);
+                            }}
+                        />
+                    </div>
+                </div>
+                <div class="variable-row" style="padding-left: 12px;">
+                    <div class="row-top">
+                        <span class="var-name">Mid α</span>
+                        <span class="current-val"
+                            >{(GAME_CONFIG.ORB_MID_ALPHA ?? 0.25).toFixed(
+                                2,
+                            )}</span
+                        >
+                    </div>
+                    <div class="row-controls">
+                        <input
+                            type="range"
+                            min="0"
+                            max="1"
+                            step="0.02"
+                            value={GAME_CONFIG.ORB_MID_ALPHA ?? 0.25}
+                            oninput={(e) => {
+                                const v = parseFloat(
+                                    (e.target as HTMLInputElement).value,
+                                );
+                                GAME_CONFIG.ORB_MID_ALPHA = v;
+                                updatePanel("orbMidAlpha", v);
+                            }}
+                        />
+                    </div>
+                </div>
+                <div class="variable-row" style="padding-left: 12px;">
+                    <div class="row-top">
+                        <span class="var-name">Core α</span>
+                        <span class="current-val"
+                            >{(GAME_CONFIG.ORB_CORE_ALPHA ?? 0.6).toFixed(
+                                2,
+                            )}</span
+                        >
+                    </div>
+                    <div class="row-controls">
+                        <input
+                            type="range"
+                            min="0"
+                            max="1"
+                            step="0.02"
+                            value={GAME_CONFIG.ORB_CORE_ALPHA ?? 0.6}
+                            oninput={(e) => {
+                                const v = parseFloat(
+                                    (e.target as HTMLInputElement).value,
+                                );
+                                GAME_CONFIG.ORB_CORE_ALPHA = v;
+                                updatePanel("orbCoreAlpha", v);
+                            }}
+                        />
+                    </div>
+                </div>
+                <div class="variable-row" style="padding-left: 12px;">
+                    <div class="row-top">
+                        <span class="var-name">Center α</span>
+                        <span class="current-val"
+                            >{(GAME_CONFIG.ORB_CENTER_ALPHA ?? 1).toFixed(
+                                2,
+                            )}</span
+                        >
+                    </div>
+                    <div class="row-controls">
+                        <input
+                            type="range"
+                            min="0"
+                            max="2"
+                            step="0.05"
+                            value={GAME_CONFIG.ORB_CENTER_ALPHA ?? 1}
+                            oninput={(e) => {
+                                const v = parseFloat(
+                                    (e.target as HTMLInputElement).value,
+                                );
+                                GAME_CONFIG.ORB_CENTER_ALPHA = v;
+                                updatePanel("orbCenterAlpha", v);
+                            }}
+                        />
+                    </div>
+                </div>
+                <div class="variable-row" style="padding-left: 12px;">
+                    <div class="row-top">
+                        <span class="var-name">Outer Scale</span>
+                        <span class="current-val"
+                            >{(GAME_CONFIG.ORB_OUTER_SCALE ?? 2.5).toFixed(
+                                1,
+                            )}</span
+                        >
+                    </div>
+                    <div class="row-controls">
+                        <input
+                            type="range"
+                            min="1"
+                            max="5"
+                            step="0.1"
+                            value={GAME_CONFIG.ORB_OUTER_SCALE ?? 2.5}
+                            oninput={(e) => {
+                                const v = parseFloat(
+                                    (e.target as HTMLInputElement).value,
+                                );
+                                GAME_CONFIG.ORB_OUTER_SCALE = v;
+                                updatePanel("orbOuterScale", v);
+                            }}
+                        />
+                    </div>
+                </div>
+                <div class="variable-row" style="padding-left: 12px;">
+                    <div class="row-top">
+                        <span class="var-name">Mid Scale</span>
+                        <span class="current-val"
+                            >{(GAME_CONFIG.ORB_MID_SCALE ?? 1.6).toFixed(
+                                1,
+                            )}</span
+                        >
+                    </div>
+                    <div class="row-controls">
+                        <input
+                            type="range"
+                            min="0.5"
+                            max="4"
+                            step="0.1"
+                            value={GAME_CONFIG.ORB_MID_SCALE ?? 1.6}
+                            oninput={(e) => {
+                                const v = parseFloat(
+                                    (e.target as HTMLInputElement).value,
+                                );
+                                GAME_CONFIG.ORB_MID_SCALE = v;
+                                updatePanel("orbMidScale", v);
+                            }}
+                        />
+                    </div>
+                </div>
+                <div class="variable-row" style="padding-left: 12px;">
+                    <div class="row-top">
+                        <span class="var-name">Core Scale</span>
+                        <span class="current-val"
+                            >{(GAME_CONFIG.ORB_CORE_SCALE ?? 0.75).toFixed(
+                                2,
+                            )}</span
+                        >
+                    </div>
+                    <div class="row-controls">
+                        <input
+                            type="range"
+                            min="0.1"
+                            max="1.5"
+                            step="0.05"
+                            value={GAME_CONFIG.ORB_CORE_SCALE ?? 0.75}
+                            oninput={(e) => {
+                                const v = parseFloat(
+                                    (e.target as HTMLInputElement).value,
+                                );
+                                GAME_CONFIG.ORB_CORE_SCALE = v;
+                                updatePanel("orbCoreScale", v);
+                            }}
+                        />
+                    </div>
+                </div>
+            {/if}
 
             <!-- Lane Offset -->
             <div class="variable-row">

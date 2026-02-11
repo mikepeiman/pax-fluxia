@@ -224,6 +224,8 @@
 | R-50 | Oscillation Period Slider: expose orbit bias oscillation period/frequency as a range slider in Animation Tuning | 🟢 |
 | R-51 | Orb Travel Animation: ships merge into glowing orb during travel, fragment on arrival — orb brilliance proportional to ship count | 🟢 |
 | R-52 | End Game Screen Redesign: fullscreen 900px modal, ambient glow, scoreboard, enlarged charts, shimmer button, premium VFX | 🟢 |
+| R-53 | Gameboard Resize-to-Fit: hotkey/button to resize gameboard to fit available viewport space | 🔴 |
+| R-54 | Orb Travel Tuning: full set of sliders for orb colors, gradients, glow, sizes — all persisted to localStorage | 🟡 |
 
 ---
 

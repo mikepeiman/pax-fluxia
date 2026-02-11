@@ -1530,43 +1530,47 @@
 
         // Draw orbs for grouped traveling ships
         if (GAME_CONFIG.ORB_TRAVEL && orbGroups.size > 0 && shipGraphics) {
+            const G = GAME_CONFIG; // shorthand for readability
             for (const [, group] of orbGroups) {
                 const cx = group.sumX / group.count;
                 const cy = group.sumY / group.count;
                 const shipCount = group.count;
 
                 // Orb radius scales with sqrt of ship count for visual balance
-                // Min 5px for 1 ship, grows to ~20px for 100 ships
-                const baseRadius = 4 + Math.sqrt(shipCount) * 1.6;
+                const baseRadius =
+                    G.ORB_BASE_RADIUS +
+                    Math.sqrt(shipCount) * G.ORB_RADIUS_SCALE;
 
                 // Intensity scales with ship count (brighter = more ships)
-                const intensity = Math.min(
-                    1.0,
-                    0.4 + Math.sqrt(shipCount) * 0.06,
-                );
+                const intensity =
+                    Math.min(1.0, 0.4 + Math.sqrt(shipCount) * 0.06) *
+                    G.ORB_GLOW_MULT;
 
                 // Draw outer glow (large, faint)
-                const glowRadius = baseRadius * 2.5;
+                const glowRadius = baseRadius * G.ORB_OUTER_SCALE;
                 shipGraphics.circle(cx, cy, glowRadius);
                 shipGraphics.fill({
                     color: group.color,
-                    alpha: intensity * 0.12,
+                    alpha: intensity * G.ORB_OUTER_ALPHA,
                 });
 
                 // Draw middle glow
-                const midRadius = baseRadius * 1.6;
+                const midRadius = baseRadius * G.ORB_MID_SCALE;
                 shipGraphics.circle(cx, cy, midRadius);
                 shipGraphics.fill({
                     color: group.color,
-                    alpha: intensity * 0.25,
+                    alpha: intensity * G.ORB_MID_ALPHA,
                 });
 
                 // Draw inner orb (bright core)
                 shipGraphics.circle(cx, cy, baseRadius);
-                shipGraphics.fill({ color: 0xffffff, alpha: intensity * 0.6 });
+                shipGraphics.fill({
+                    color: 0xffffff,
+                    alpha: intensity * G.ORB_CORE_ALPHA,
+                });
 
                 // Draw orb body (player colored)
-                const coreRadius = baseRadius * 0.75;
+                const coreRadius = baseRadius * G.ORB_CORE_SCALE;
                 shipGraphics.circle(cx, cy, coreRadius);
                 shipGraphics.fill({
                     color: group.color,
@@ -1578,7 +1582,7 @@
                 shipGraphics.circle(cx, cy, dotRadius);
                 shipGraphics.fill({
                     color: 0xffffff,
-                    alpha: Math.min(1, intensity * 1.2),
+                    alpha: Math.min(1, intensity * G.ORB_CENTER_ALPHA),
                 });
             }
         }
