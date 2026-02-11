@@ -793,6 +793,28 @@
                 </div>
             </div>
 
+            <!-- Orb Travel toggle -->
+            <div class="variable-row">
+                <div class="row-top">
+                    <label class="toggle-label">
+                        <input
+                            type="checkbox"
+                            checked={GAME_CONFIG.ORB_TRAVEL}
+                            onchange={() => {
+                                GAME_CONFIG.ORB_TRAVEL =
+                                    !GAME_CONFIG.ORB_TRAVEL;
+                            }}
+                        />
+                        <span class="var-name">Orb Travel</span>
+                    </label>
+                    <span
+                        class="current-val"
+                        style="font-size: 10px; opacity: 0.6"
+                        >ships merge into orb</span
+                    >
+                </div>
+            </div>
+
             <!-- Orbit Bias Strength -->
             <div class="variable-row">
                 <div class="row-top">

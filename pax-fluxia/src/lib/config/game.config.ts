@@ -112,6 +112,7 @@ interface GameConfigType {
     ORBIT_BIAS_MIN: number;        // Min bias strength for oscillation (default 0.0)
     ORBIT_BIAS_MAX: number;        // Max bias strength for oscillation (default 1.0)
     ORBIT_BIAS_FREQ: number;       // Oscillation frequency relative to ticks (default 1.0)
+    ORB_TRAVEL: boolean;           // Ships merge into glowing orb during travel, fragment on arrival (default true)
 
     /** How far order arrows extend along the lane (0.0-1.0, 1.0 = full distance to target edge) */
     ARROW_LENGTH_FRACTION: number;
@@ -333,6 +334,8 @@ export const GAME_CONFIG: GameConfigType = {
     ORBIT_BIAS_MAX: 1.0,
     /** Oscillation frequency relative to ticks (0.25 = once per 4 ticks, 2.0 = twice per tick) */
     ORBIT_BIAS_FREQ: 1.0,
+    /** Ships merge into single glowing orb during travel, fragment into ships on arrival */
+    ORB_TRAVEL: true,
 
     /** Order arrow length as fraction of lane distance (0.0-1.0, default 0.5 = halfway) */
     ARROW_LENGTH_FRACTION: 0.5,

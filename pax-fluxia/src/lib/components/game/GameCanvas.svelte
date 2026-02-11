@@ -1370,6 +1370,20 @@
         // Process each traveling ship
         const stillTraveling: VisualShipState[] = [];
 
+        // When ORB_TRAVEL is on, we track groups of traveling ships by route
+        // key = `${fromStarId}->${toStarId}`, value = { ships, avgX, avgY, color, count }
+        const orbGroups: Map<
+            string,
+            {
+                ships: VisualShipState[];
+                sumX: number;
+                sumY: number;
+                count: number;
+                color: number;
+                ownerId: string;
+            }
+        > = new Map();
+
         for (const ship of travelingShips) {
             const elapsed = now - ship.departTime;
 
@@ -1413,6 +1427,13 @@
                     ship.y = ship.laneStartY;
                     ship.state = "traveling";
                     ship.departTime = now; // Reset timer for travel phase
+                }
+
+                // In ORB mode, departing ships converge to lane start — draw individually but fade out near end
+                if (GAME_CONFIG.ORB_TRAVEL && departProgress > 0.7) {
+                    // Fade into the orb as departure nears completion
+                    const fadeToOrb = (departProgress - 0.7) / 0.3;
+                    ship.alpha = 1 - fadeToOrb * 0.8;
                 }
 
                 drawShip(ship.x, ship.y, color, ship.scale, ship.alpha, false);
@@ -1473,16 +1494,92 @@
                     }
                     // Don't push to stillTraveling — ship is now managed by renderShips
                 } else {
-                    drawShip(
-                        ship.x,
-                        ship.y,
-                        color,
-                        ship.scale,
-                        ship.alpha,
-                        false,
-                    );
+                    if (GAME_CONFIG.ORB_TRAVEL) {
+                        // Group into orbs — don't draw individually
+                        const routeKey = `${ship.fromStarId}->${ship.toStarId}`;
+                        let group = orbGroups.get(routeKey);
+                        if (!group) {
+                            group = {
+                                ships: [],
+                                sumX: 0,
+                                sumY: 0,
+                                count: 0,
+                                color,
+                                ownerId: ship.ownerId,
+                            };
+                            orbGroups.set(routeKey, group);
+                        }
+                        group.ships.push(ship);
+                        group.sumX += ship.x;
+                        group.sumY += ship.y;
+                        group.count++;
+                    } else {
+                        drawShip(
+                            ship.x,
+                            ship.y,
+                            color,
+                            ship.scale,
+                            ship.alpha,
+                            false,
+                        );
+                    }
                     stillTraveling.push(ship);
                 }
+            }
+        }
+
+        // Draw orbs for grouped traveling ships
+        if (GAME_CONFIG.ORB_TRAVEL && orbGroups.size > 0 && shipGraphics) {
+            for (const [, group] of orbGroups) {
+                const cx = group.sumX / group.count;
+                const cy = group.sumY / group.count;
+                const shipCount = group.count;
+
+                // Orb radius scales with sqrt of ship count for visual balance
+                // Min 5px for 1 ship, grows to ~20px for 100 ships
+                const baseRadius = 4 + Math.sqrt(shipCount) * 1.6;
+
+                // Intensity scales with ship count (brighter = more ships)
+                const intensity = Math.min(
+                    1.0,
+                    0.4 + Math.sqrt(shipCount) * 0.06,
+                );
+
+                // Draw outer glow (large, faint)
+                const glowRadius = baseRadius * 2.5;
+                shipGraphics.circle(cx, cy, glowRadius);
+                shipGraphics.fill({
+                    color: group.color,
+                    alpha: intensity * 0.12,
+                });
+
+                // Draw middle glow
+                const midRadius = baseRadius * 1.6;
+                shipGraphics.circle(cx, cy, midRadius);
+                shipGraphics.fill({
+                    color: group.color,
+                    alpha: intensity * 0.25,
+                });
+
+                // Draw inner orb (bright core)
+                shipGraphics.circle(cx, cy, baseRadius);
+                shipGraphics.fill({ color: 0xffffff, alpha: intensity * 0.6 });
+
+                // Draw orb body (player colored)
+                const coreRadius = baseRadius * 0.75;
+                shipGraphics.circle(cx, cy, coreRadius);
+                shipGraphics.fill({
+                    color: group.color,
+                    alpha: intensity * 0.9,
+                });
+
+                // Bright center dot
+                const dotRadius = Math.max(1.5, baseRadius * 0.3);
+                shipGraphics.circle(cx, cy, dotRadius);
+                shipGraphics.fill({
+                    color: 0xffffff,
+                    alpha: Math.min(1, intensity * 1.2),
+                });
             }
         }
 
