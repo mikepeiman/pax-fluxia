@@ -1510,8 +1510,23 @@
                     (1 - travelProgress) * 4,
                     1,
                 );
-                ship.x = baseX + perpX * ship.laneOffset * edgeFade;
-                ship.y = baseY + perpY * ship.laneOffset * edgeFade;
+
+                // Sinusoidal wobble: 2-3 oscillations along path, per-ship phase
+                const wobbleAmp = GAME_CONFIG.WOBBLE_AMP ?? 12;
+                const wobbleFreq = 2.5 + (ship.id % 7) * 0.3; // 2.5-4.6 waves
+                const wobblePhase = ((ship.id % 13) / 13) * Math.PI * 2;
+                const wobble =
+                    wobbleAmp > 0
+                        ? Math.sin(
+                              travelProgress * wobbleFreq * Math.PI * 2 +
+                                  wobblePhase,
+                          ) *
+                          wobbleAmp *
+                          edgeFade
+                        : 0;
+
+                ship.x = baseX + perpX * (ship.laneOffset * edgeFade + wobble);
+                ship.y = baseY + perpY * (ship.laneOffset * edgeFade + wobble);
 
                 // Ships stay fully visible during travel — no fade pulse
                 ship.alpha = 1;
@@ -1554,7 +1569,18 @@
                             (ship.x - destStar.x) ** 2 +
                                 (ship.y - destStar.y) ** 2,
                         );
-                        ship.settleStartTime = performance.now();
+                        // Stagger settle across tick based on ARRIVAL_SPREAD
+                        const arrivalSpread = GAME_CONFIG.ARRIVAL_SPREAD ?? 1.0;
+                        const tickMs = activeGameStore.effectiveTickMs || 1000;
+                        const staggerWindow = tickMs * arrivalSpread;
+                        const staggerOffset =
+                            destShips.length > 0
+                                ? (destShips.length /
+                                      Math.max(1, destShips.length + 1)) *
+                                  staggerWindow
+                                : 0;
+                        ship.settleStartTime =
+                            performance.now() + staggerOffset;
                         ship.settleStartAngle = arrAngle;
                         ship.settleStartRadius = arrR;
                         destShips.push(ship);
@@ -1724,7 +1750,12 @@
                         laneOffset: 0,
                         staggerDelay: 0,
                         ownerId: star.ownerId,
-                        settleStartTime: now,
+                        // Stagger spawned ships across tick
+                        settleStartTime:
+                            now +
+                            (i / Math.max(1, diff)) *
+                                (activeGameStore.effectiveTickMs || 1000) *
+                                (GAME_CONFIG.ARRIVAL_SPREAD ?? 1.0),
                         settleStartAngle: spawnAngle,
                         settleStartRadius: spawnR,
                     });
@@ -1874,7 +1905,7 @@
                     const now = performance.now();
                     const elapsed = now - ship.settleStartTime;
                     const settleDur = GAME_CONFIG.SETTLE_DURATION_MS || 150;
-                    const t = Math.min(1, elapsed / settleDur);
+                    const t = Math.max(0, Math.min(1, elapsed / settleDur));
                     // easeOutCubic: fast start, smooth deceleration
                     const ease = 1 - Math.pow(1 - t, 3);
 

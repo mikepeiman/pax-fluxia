@@ -237,6 +237,9 @@
 | R-63 | Depart Mode Selector: dropdown for LIFO/FIFO/Nearside departure selection with panel persistence | 🟢 |
 | R-64 | Settle Duration Slider: exposed SETTLE_DURATION_MS (30-500ms) in panel for tuning orbit snap speed | 🟢 |
 | R-65 | Nearside Departure Fix: dot product now computed against orbit SLOT position (getOrbitSlot) instead of mid-settle ship.x/y | 🟢 |
+| R-66 | Arrival Stagger: ships settle across tick×ARRIVAL_SPREAD (0-2x slider), spawn/repair/transfer all staggered | 🟢 |
+| R-67 | Wobble Travel: sinusoidal perpendicular oscillation on travel paths, per-ship frequency/phase, fades at endpoints (0-40px slider) | 🟢 |
+| R-68 | Settle Slider Extended: range expanded to 0-2000ms for full range from instant to slow drift | 🟢 |
 
 ---
 

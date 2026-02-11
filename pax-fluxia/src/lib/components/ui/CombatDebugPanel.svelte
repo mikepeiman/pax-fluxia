@@ -396,6 +396,8 @@
         arrowLength: GAME_CONFIG.ARROW_LENGTH_FRACTION,
         departMode: GAME_CONFIG.DEPART_MODE,
         settleDuration: GAME_CONFIG.SETTLE_DURATION_MS,
+        arrivalSpread: GAME_CONFIG.ARRIVAL_SPREAD,
+        wobbleAmp: GAME_CONFIG.WOBBLE_AMP,
         orbTravel: GAME_CONFIG.ORB_TRAVEL,
         orbitBias: GAME_CONFIG.ORBIT_BIAS_STRENGTH,
         oscillate: GAME_CONFIG.ORBIT_BIAS_OSCILLATE,
@@ -461,6 +463,8 @@
             | "fifo"
             | "nearside";
         GAME_CONFIG.SETTLE_DURATION_MS = panel.settleDuration as number;
+        GAME_CONFIG.ARRIVAL_SPREAD = panel.arrivalSpread as number;
+        GAME_CONFIG.WOBBLE_AMP = panel.wobbleAmp as number;
         GAME_CONFIG.ORB_TRAVEL = panel.orbTravel as boolean;
         GAME_CONFIG.ORBIT_BIAS_STRENGTH = panel.orbitBias as number;
         GAME_CONFIG.ORBIT_BIAS_OSCILLATE = panel.oscillate as boolean;
@@ -928,14 +932,56 @@
                 </div>
                 <input
                     type="range"
-                    min="30"
-                    max="500"
+                    min="0"
+                    max="2000"
                     step="10"
                     value={panel.settleDuration}
                     oninput={(e) => {
                         const val = +(e.target as HTMLInputElement).value;
                         GAME_CONFIG.SETTLE_DURATION_MS = val;
                         updatePanel("settleDuration", val);
+                    }}
+                />
+            </div>
+
+            <!-- Arrival Spread slider -->
+            <div class="variable-row">
+                <div class="row-top">
+                    <span class="var-name">Arrival Spread</span>
+                    <span class="current-val"
+                        >{(panel.arrivalSpread as number).toFixed(1)}x</span
+                    >
+                </div>
+                <input
+                    type="range"
+                    min="0"
+                    max="2"
+                    step="0.1"
+                    value={panel.arrivalSpread}
+                    oninput={(e) => {
+                        const val = +(e.target as HTMLInputElement).value;
+                        GAME_CONFIG.ARRIVAL_SPREAD = val;
+                        updatePanel("arrivalSpread", val);
+                    }}
+                />
+            </div>
+
+            <!-- Wobble Amplitude slider -->
+            <div class="variable-row">
+                <div class="row-top">
+                    <span class="var-name">Wobble Amp</span>
+                    <span class="current-val">{panel.wobbleAmp}px</span>
+                </div>
+                <input
+                    type="range"
+                    min="0"
+                    max="40"
+                    step="1"
+                    value={panel.wobbleAmp}
+                    oninput={(e) => {
+                        const val = +(e.target as HTMLInputElement).value;
+                        GAME_CONFIG.WOBBLE_AMP = val;
+                        updatePanel("wobbleAmp", val);
                     }}
                 />
             </div>

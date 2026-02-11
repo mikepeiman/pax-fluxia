@@ -110,6 +110,8 @@ interface GameConfigType {
     LANE_OFFSET_PX: number;        // Max perpendicular offset for lane variation (px, default 8)
     DEPART_MODE: 'lifo' | 'fifo' | 'nearside';  // Ship departure selection mode
     SETTLE_DURATION_MS: number;    // How fast ships snap into orbit slot (ms, default 150)
+    ARRIVAL_SPREAD: number;        // Fraction of tick used to stagger arrivals (0=instant, 1=full tick, 2=2 ticks)
+    WOBBLE_AMP: number;            // Amplitude of sinusoidal wobble on travel path (px, default 12)
     // Orbit bias oscillation
     ORBIT_BIAS_OSCILLATE: boolean; // Enable oscillation between min/max bias (default false)
     ORBIT_BIAS_MIN: number;        // Min bias strength for oscillation (default 0.0)
@@ -347,6 +349,10 @@ export const GAME_CONFIG: GameConfigType = {
     DEPART_MODE: 'nearside' as const,
     /** How fast ships settle into orbit slot (ms) */
     SETTLE_DURATION_MS: 150,
+    /** Fraction of tick used to stagger arrival settle (0=instant, 1=full tick spread) */
+    ARRIVAL_SPREAD: 1.0,
+    /** Amplitude of sinusoidal wobble on travel path (px) */
+    WOBBLE_AMP: 12,
     /** Enable orbit bias oscillation between min/max */
     ORBIT_BIAS_OSCILLATE: false,
     /** Min bias strength for oscillation */
