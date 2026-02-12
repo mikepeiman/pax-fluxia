@@ -1635,6 +1635,73 @@
                     }
                 }
             }
+
+            // ── IMMEDIATE SPAWN: Pre-populate conquered star with new owner's ships ──
+            // Don't wait for transfer animation to deliver ships — appear within this tick.
+            // The transfer animation (above) is cosmetic; these ships ARE the occupation.
+            if (conquest.shipsTransferred > 0 && conqueredStar) {
+                const existingShips = visualShips.get(conquest.starId) || [];
+                // Only spawn if the star doesn't already have enough ships
+                // (transfer animation ships will merge in when they arrive)
+                const neededShips = Math.max(
+                    0,
+                    conquest.shipsTransferred - existingShips.length,
+                );
+                if (neededShips > 0) {
+                    // Direction from attacker to this star (ships arrive from that side)
+                    const atkStar = conquest.attackerStarId
+                        ? starsById.get(conquest.attackerStarId)
+                        : null;
+                    const arrivalAngle = atkStar
+                        ? Math.atan2(
+                              conqueredStar.y - atkStar.y,
+                              conqueredStar.x - atkStar.x,
+                          )
+                        : Math.random() * Math.PI * 2;
+
+                    for (let i = 0; i < neededShips; i++) {
+                        const spawnIndex = existingShips.length;
+                        // Spawn at orbit edge from attacker direction
+                        const spreadAngle =
+                            arrivalAngle + (Math.random() - 0.5) * 1.2;
+                        const spawnR = conqueredStar.radius + 8;
+                        const ship = {
+                            id: nextShipId++,
+                            x: conqueredStar.x + Math.cos(spreadAngle) * spawnR,
+                            y: conqueredStar.y + Math.sin(spreadAngle) * spawnR,
+                            vx: 0,
+                            vy: 0,
+                            targetIndex: spawnIndex,
+                            alpha: 0.5,
+                            scale: 0.3,
+                            spawnTime: now,
+                            state: "orbiting" as const,
+                            fromStarId: null,
+                            toStarId: null,
+                            departFromX: 0,
+                            departFromY: 0,
+                            departTime: 0,
+                            departDuration: 0,
+                            travelDuration: 0,
+                            laneStartX: 0,
+                            laneStartY: 0,
+                            laneEndX: 0,
+                            laneEndY: 0,
+                            laneOffset: 0,
+                            staggerDelay: 0,
+                            arriveToX: 0,
+                            arriveToY: 0,
+                            arriveStarId: null,
+                            ownerId: conquest.newOwner,
+                            settleStartTime: now,
+                            settleStartAngle: spreadAngle,
+                            settleStartRadius: spawnR,
+                        };
+                        existingShips.push(ship);
+                    }
+                    visualShips.set(conquest.starId, existingShips);
+                }
+            }
         }
     }
 
