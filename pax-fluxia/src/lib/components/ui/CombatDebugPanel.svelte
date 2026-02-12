@@ -175,13 +175,6 @@
             max: 1,
             step: 0.01,
         },
-        {
-            key: "REPAIR_RATE",
-            label: "🔧 Repair Rate",
-            min: 0,
-            max: 1,
-            step: 0.01,
-        },
     ] as const;
 
     const aiVariables = [
@@ -246,6 +239,7 @@
         { key: "error", label: "🔴 Error", desc: "Errors (keep ON)" },
         { key: "success", label: "✅ Success", desc: "Verifications" },
         { key: "combat", label: "⚔️ Combat", desc: "Battle events" },
+        { key: "conquest", label: "🏰 Conquest", desc: "Capture details" },
         { key: "input", label: "🖱️ Input", desc: "User clicks" },
         { key: "repair", label: "🔧 Repair", desc: "Ship repair" },
     ] as const;
@@ -477,7 +471,7 @@
     }[] = [
         { id: "speed", icon: "⚡", label: "Game Speed", color: "#ffcc00" },
         { id: "battle", icon: "⚔️", label: "Battle", color: "#ff4466" },
-        { id: "economy", icon: "🏭", label: "Economy", color: "#44ff88" },
+        { id: "economy", icon: "🎛️", label: "Core / Global", color: "#44ff88" },
         { id: "ai", icon: "🤖", label: "AI Behavior", color: "#ff8844" },
         { id: "ships", icon: "🚀", label: "Ships & Motion", color: "#44aaff" },
         { id: "visuals", icon: "🎨", label: "Map Visuals", color: "#cc66ff" },
@@ -553,9 +547,8 @@
                     </div>
                     <div class="var-row">
                         <div class="row-top">
-                            <span class="var-name">Animation Speed</span><span
-                                class="val">{animationSpeed}ms</span
-                            >
+                            <span class="var-name">Ship Travel Duration</span
+                            ><span class="val">{animationSpeed}ms</span>
                         </div>
                         <input
                             type="range"
@@ -731,31 +724,6 @@
                             }}
                         />
                     </div>
-                    <div class="var-row">
-                        <div class="row-top">
-                            <span class="var-name">➡️ Arrow Length</span><span
-                                class="val"
-                                >{Math.round(
-                                    GAME_CONFIG.ARROW_LENGTH_FRACTION * 100,
-                                )}%</span
-                            >
-                        </div>
-                        <input
-                            type="range"
-                            min="10"
-                            max="100"
-                            step="1"
-                            value={Math.round(
-                                GAME_CONFIG.ARROW_LENGTH_FRACTION * 100,
-                            )}
-                            oninput={(e) => {
-                                GAME_CONFIG.ARROW_LENGTH_FRACTION =
-                                    parseInt(
-                                        (e.target as HTMLInputElement).value,
-                                    ) / 100;
-                            }}
-                        />
-                    </div>
 
                     <!-- 🤖 AI BEHAVIOR -->
                 {:else if activeSection === "ai"}
@@ -804,6 +772,67 @@
                             />
                         </div>
                     {/each}
+
+                    <h4 class="sub-heading">Future Strategies</h4>
+                    <div class="var-row grayed">
+                        <div class="row-top">
+                            <span class="var-name">🎯 Sniper</span><span
+                                class="val">—</span
+                            >
+                        </div>
+                        <span class="future-desc"
+                            >Targets weakest stars first</span
+                        >
+                    </div>
+                    <div class="var-row grayed">
+                        <div class="row-top">
+                            <span class="var-name">🛡️ Turtle</span><span
+                                class="val">—</span
+                            >
+                        </div>
+                        <span class="future-desc"
+                            >Defensive posture, holds territory</span
+                        >
+                    </div>
+                    <div class="var-row grayed">
+                        <div class="row-top">
+                            <span class="var-name">🌊 Swarm</span><span
+                                class="val">—</span
+                            >
+                        </div>
+                        <span class="future-desc">Mass coordinated attacks</span
+                        >
+                    </div>
+                    <div class="var-row grayed">
+                        <div class="row-top">
+                            <span class="var-name">🎲 Chaos</span><span
+                                class="val">—</span
+                            >
+                        </div>
+                        <span class="future-desc"
+                            >Unpredictable, random targets</span
+                        >
+                    </div>
+                    <div class="var-row grayed">
+                        <div class="row-top">
+                            <span class="var-name">🤝 Diplomat</span><span
+                                class="val">—</span
+                            >
+                        </div>
+                        <span class="future-desc"
+                            >Avoids conflict, grows economy</span
+                        >
+                    </div>
+                    <div class="var-row grayed">
+                        <div class="row-top">
+                            <span class="var-name">⚖️ Balanced</span><span
+                                class="val">—</span
+                            >
+                        </div>
+                        <span class="future-desc"
+                            >Adapts to game state dynamically</span
+                        >
+                    </div>
 
                     <!-- 🚀 SHIPS & MOTION -->
                 {:else if activeSection === "ships"}
@@ -1531,6 +1560,31 @@
 
                     <!-- 🎨 MAP VISUALS -->
                 {:else if activeSection === "visuals"}
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">➡️ Arrow Length</span><span
+                                class="val"
+                                >{Math.round(
+                                    GAME_CONFIG.ARROW_LENGTH_FRACTION * 100,
+                                )}%</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="10"
+                            max="100"
+                            step="1"
+                            value={Math.round(
+                                GAME_CONFIG.ARROW_LENGTH_FRACTION * 100,
+                            )}
+                            oninput={(e) => {
+                                GAME_CONFIG.ARROW_LENGTH_FRACTION =
+                                    parseInt(
+                                        (e.target as HTMLInputElement).value,
+                                    ) / 100;
+                            }}
+                        />
+                    </div>
                     <label class="toggle-row"
                         ><input
                             type="checkbox"
@@ -1925,5 +1979,16 @@
         font-size: 8px;
         color: #556;
         margin-left: auto;
+    }
+    /* ── Future AI Strategies ── */
+    .var-row.grayed {
+        opacity: 0.35;
+        pointer-events: none;
+        border-style: dashed;
+    }
+    .future-desc {
+        font-size: 8px;
+        color: #667;
+        padding: 0 6px 2px;
     }
 </style>

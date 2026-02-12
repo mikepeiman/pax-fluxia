@@ -143,6 +143,7 @@
 | B-6 | Transfer rate equilibrium | `Math.ceil` + `TRANSFER_RATE × star-type speed` | `e42320c` |
 | B-14 | Combat logs empty in MP | Fed from server tickEvents | `8329f4a` |
 | B-15 | Multi-star conquest aggregation | Already implemented in shared GameEngine | `a91f17d` |
+| B-27 | Conquest double-counting damaged ships | Damaged ships were counted in `defenderTotal * captureRate` AND again via `CONQUEST_DAMAGED_CAPTURE_RATE`, inflating captured ships by 300-400. Fixed by setting `result.shipsCaptured` inside each branch, removing redundant recalc. | 2026-02-12 |
 | B-26 | MP variables not wired | Phase A config pipeline: `buildEngineConfig()` → `RoomOptions` → server `engineConfig` → `GameEngine.tick()` | 2026-02-10 |
 | B-28 | Tone.js progressive lag | Tone.js removed entirely, AudioManager stubbed to no-ops | 2026-02-10 |
 | B-18 | Restart button broken in MP | Routed through activeGameStore | `a91f17d` |
@@ -165,6 +166,7 @@
 | F-10 | Combat Log: captured/escaped/destroyed | 2026-02-07 |
 | F-11 | Combat Log: "You" filter | 2026-02-07 |
 | F-12 | Damaged Ships Defense slider | 2026-02-07 |
+| F-13 | Conquest Logging (per-player totals, ship disposition, UI toggle) | 2026-02-12 |
 
 ## Planned Features — Not Started (R)
 

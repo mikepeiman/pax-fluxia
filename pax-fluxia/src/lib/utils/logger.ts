@@ -21,6 +21,7 @@ export const logFlags = {
     error: true,     // Errors always ON
     success: false,
     combat: false,
+    conquest: false,
     input: false,
     repair: false,
 };
@@ -38,6 +39,7 @@ const styles = {
     err: 'background: #ef4444; color: #fff; padding: 2px 4px; border-radius: 2px; font-weight: bold;',
     ok: 'background: #22c55e; color: #fff; padding: 2px 4px; border-radius: 2px; font-weight: bold;',
     combat: 'background: #ff6b35; color: #fff; padding: 2px 4px; border-radius: 2px; font-weight: bold;',
+    conquest: 'background: #e11d48; color: #fff; padding: 2px 4px; border-radius: 2px; font-weight: bold;',
     reset: 'color: inherit;'
 };
 
@@ -244,6 +246,92 @@ export const log = {
             `color: #4ade80; font-weight: bold; font-size: 12px;`, styles.reset,
             `color: #555; font-size: 10px;`, styles.reset,
         );
+    },
+
+    /**
+     * 🏰 CONQUEST - Detailed conquest log with per-player totals
+     * Shows ship disposition (captured/destroyed/escaped) and player fleet summaries
+     */
+    conquest: (
+        tick: number,
+        data: {
+            starId: string;
+            previousOwner: string;
+            newOwner: string;
+            shipsCaptured: number;
+            shipsEscaped: number;
+            shipsDestroyed: number;
+            defenderTotal: number;
+            attackerShips: number;
+            attackerPostShips: number;
+            defenderPostShips: number;
+            retreatTargetId?: string;
+            scatterTargetIds?: string[];
+            scatterShipCounts?: number[];
+            playerTotals?: Array<{ id: string; active: number; damaged: number; total: number; stars: number }>;
+        }
+    ) => {
+        if (!logFlags.conquest) return;
+
+        const ownerLabel = (id: string) => {
+            if (!id) return 'NEUTRAL';
+            if (id === 'human-player') return 'YOU';
+            if (id.startsWith('ai-')) return id.toUpperCase().replace('-', '');
+            return id.toUpperCase();
+        };
+
+        console.groupCollapsed(
+            `%c🏰 CONQUEST T${tick}%c │ ${data.starId} │ %c${ownerLabel(data.previousOwner)}%c → %c${ownerLabel(data.newOwner)}%c │ total:${data.defenderTotal} captured:${data.shipsCaptured} destroyed:${data.shipsDestroyed} escaped:${data.shipsEscaped}`,
+            styles.conquest, styles.reset,
+            'color: #f87171; font-weight: bold;', styles.reset,
+            'color: #4ade80; font-weight: bold;', styles.reset
+        );
+
+        // Ship disposition
+        console.log(
+            `  📊 Disposition: %c${data.shipsCaptured}%c captured │ %c${data.shipsDestroyed}%c destroyed │ %c${data.shipsEscaped}%c escaped`,
+            'color: #4ade80; font-weight: bold;', styles.reset,
+            'color: #f87171; font-weight: bold;', styles.reset,
+            'color: #fbbf24; font-weight: bold;', styles.reset
+        );
+
+        // Attacker state
+        console.log(
+            `  ⚔️ Attacker: %c${data.attackerShips}%c ships before → %c${data.attackerPostShips}%c after`,
+            'color: #60a5fa; font-weight: bold;', styles.reset,
+            'color: #60a5fa; font-weight: bold;', styles.reset
+        );
+
+        // Conquered star state
+        console.log(
+            `  🏰 ${data.starId}: %c${data.defenderPostShips}%c ships post-conquest`,
+            'color: #4ade80; font-weight: bold;', styles.reset
+        );
+
+        // Scatter/retreat info
+        if (data.retreatTargetId) {
+            console.log(`  🏃 Retreated to: ${data.retreatTargetId} (${data.shipsEscaped} ships)`);
+        }
+        if (data.scatterTargetIds && data.scatterTargetIds.length > 0) {
+            const pairs = data.scatterTargetIds.map((id, i) => `${id}(${data.scatterShipCounts?.[i] ?? '?'})`);
+            console.log(`  💨 Scattered to: ${pairs.join(', ')}`);
+        }
+
+        // Per-player totals
+        if (data.playerTotals && data.playerTotals.length > 0) {
+            console.log('  ── Player Fleet Totals ──');
+            data.playerTotals.forEach(p => {
+                console.log(
+                    `    %c${ownerLabel(p.id).padEnd(8)}%c │ ⭐${p.stars} │ active:%c${p.active}%c damaged:%c${p.damaged}%c total:%c${p.total}%c`,
+                    'font-weight: bold; color: #ddd;', styles.reset,
+                    'color: #4ade80; font-weight: bold;', styles.reset,
+                    'color: #fbbf24; font-weight: bold;', styles.reset,
+                    'color: #60a5fa; font-weight: bold;', styles.reset
+                );
+            });
+        }
+
+        console.groupEnd();
     },
 };
 

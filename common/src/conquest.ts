@@ -58,9 +58,9 @@ export function applyConquest(
     cfg: EngineConfig
 ): ConquestResult {
     const previousOwner = defender.ownerId;
-    const defenderTotal = Math.floor(
-        (defender.activeShips ?? 0) + (defender.damagedShips ?? 0)
-    );
+    const defenderActive = Math.floor(defender.activeShips ?? 0);
+    const defenderDamaged = Math.floor(defender.damagedShips ?? 0);
+    const defenderTotal = defenderActive + defenderDamaged;
 
     // ========================================================================
     // SCATTER / RETREAT LOGIC
@@ -106,10 +106,11 @@ export function applyConquest(
         // Retreating: lower capture rate, rest escape to target
         captureRate = cfg.RETREAT_CAPTURE_RATE;
         const shipsCaptured = Math.floor(defenderTotal * captureRate);
-        shipsEscaping = Math.floor(defenderTotal - shipsCaptured);
+        shipsEscaping = defenderTotal - shipsCaptured;
+        result.shipsCaptured = shipsCaptured;
 
         // Split escaping ships by their original status (active vs damaged)
-        const activeRatio = defenderTotal > 0 ? (defender.activeShips ?? 0) / defenderTotal : 1;
+        const activeRatio = defenderTotal > 0 ? defenderActive / defenderTotal : 1;
         const escapingActive = Math.round(shipsEscaping * activeRatio);
         const escapingDamaged = shipsEscaping - escapingActive;
 
@@ -130,10 +131,12 @@ export function applyConquest(
         const shipsCaptured = Math.floor(defenderTotal * captureRate);
         const remaining = defenderTotal - shipsCaptured;
         shipsDestroyed = Math.floor(remaining * cfg.SCATTER_DESTROY_RATE);
-        shipsEscaping = Math.floor(remaining - shipsDestroyed);
+        shipsEscaping = remaining - shipsDestroyed;
+        result.shipsCaptured = shipsCaptured;
+        result.shipsDestroyed = shipsDestroyed;
 
         // Split escaping ships by original status (active vs damaged)
-        const activeRatio = defenderTotal > 0 ? (defender.activeShips ?? 0) / defenderTotal : 1;
+        const activeRatio = defenderTotal > 0 ? defenderActive / defenderTotal : 1;
         const activationRate = cfg.RETREAT_DAMAGED_ACTIVATION_RATE ?? 0;
 
         // Distribute escaping ships evenly to friendly neighbors
@@ -162,31 +165,19 @@ export function applyConquest(
         }
 
         result.shipsEscaped = shipsEscaping;
-        result.shipsDestroyed = shipsDestroyed;
 
     } else {
         // No escape: 100% captured
-        captureRate = 1.0;
+        result.shipsCaptured = defenderTotal;
     }
-
-    // Calculate captured ships
-    const shipsCaptured = Math.floor(defenderTotal * captureRate);
-    result.shipsCaptured = shipsCaptured;
 
     // ========================================================================
     // EXECUTE CONQUEST
     // ========================================================================
 
-    // Clear defender active ships
+    // Clear defender ships
     defender.activeShips = 0;
-
-    // Handle damaged ships based on config rates
-    const damagedAtCapture = defender.damagedShips;
-    const damagedCaptured = Math.floor(damagedAtCapture * (cfg.CONQUEST_DAMAGED_CAPTURE_RATE ?? 1.0));
-    const damagedDestroyed = Math.floor(damagedAtCapture * (cfg.CONQUEST_DAMAGED_DESTROY_RATE ?? 0));
-    // Remaining damaged ships that are neither captured nor destroyed are lost
-    defender.damagedShips = damagedCaptured;
-
+    defender.damagedShips = 0;
     defender.productionOverflow = 0;
     defender.repairOverflow = 0;
     defender.lastCombatTick = -1;
@@ -194,8 +185,8 @@ export function applyConquest(
     // Transfer ownership
     defender.ownerId = attacker.ownerId;
 
-    // Add captured ships to defender (now owned by attacker)
-    defender.activeShips = shipsCaptured;
+    // Captured ships become active ships on the conquered star
+    defender.activeShips = result.shipsCaptured;
 
     // Transfer attacker ships to newly conquered star
     const transferPercentage = cfg.CONQUEST_TRANSFER_PERCENTAGE / 100;
@@ -221,3 +212,4 @@ export function applyConquest(
 
     return result;
 }
+
