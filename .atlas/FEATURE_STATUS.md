@@ -148,6 +148,10 @@
 | B-28 | Tone.js progressive lag | Tone.js removed entirely, AudioManager stubbed to no-ops | 2026-02-10 |
 | B-18 | Restart button broken in MP | Routed through activeGameStore | `a91f17d` |
 | B-29 | Multi-star conquest: victor ships only transfer from one star | ConquestEvent has single `attackerStarId`, need per-star proportional transfer | OPEN |
+| B-30 | Deferred orders on enemy stars: clicking enemy star doesn't allow setting deferred orders | Need same zero-lag path as regular orders | OPEN |
+| B-31 | Attack surge activates on order, not on tick | `isAttack` checks `star.targetId` (set on order), should only surge after first combat tick | OPEN |
+| B-32 | Mid-surge order change teleports ships | Ships should complete current surge cycle before reorienting to new target | OPEN |
+| B-33 | Ships jump into attack surge before animation continues smoothly | Ramp-in not working visibly; initial frame snap | OPEN |
 
 ---
 
@@ -269,6 +273,12 @@
 | R-80 | Bottom-Drawer Combat Log Panel: short bottom drawer (~6-8 lines), styled per-line combat/conquest events, full formula on one line, replaces old Combat Logs panel | 🔴 |
 | R-81 | Ship Density Color Graduation: HSL-based auxiliary colors (3 per side of player hue) replacing white-wash for high ship counts | 🔴 |
 | R-82 | Timing Section: rename Game Speed → TIMING, consolidate ATTACK_SURGE_RAMP_MS + CONQUEST_LERP_DELAY_MS sliders | 🟢 |
+| R-83 | AI Pinning Strategy: intelligent pinning that ignores mere force ratio between two stars — sophisticated movement | 🔴 |
+| R-84 | AI Multi-Source Attacks: lower AI considers single star ratio, smarter AI considers all available sources | 🔴 |
+| R-85 | Conquest Visual Flair: border shine/pulse, star icon heartbeat (brighten + expand-contract), lightness/size/glow transitions | 🔴 |
+| R-86 | Ship Travel Spread: ships more spread out in both dimensions, individual wobbles with smaller-group coherence | 🔴 |
+| R-87 | Easing Curve Visual Editor: lightweight JS widget for standard easing parameters (cubic-bezier style) | 🔴 |
+| R-88 | Attack Surge Tick-Sync: surge should only animate during actual combat ticks, not on order issuance | 🔴 |
 
 ---
 
