@@ -312,8 +312,8 @@ export const log = {
     },
 
     /**
-     * 🏰 CONQUEST - Detailed conquest log with per-player totals
-     * Shows ship disposition (captured/destroyed/escaped) and player fleet summaries
+     * 🏰 CONQUEST - Flat, readable conquest log. One line per section.
+     * No nested objects, no groupCollapsed. Everything visible at a glance.
      */
     conquest: (
         tick: number,
@@ -331,70 +331,74 @@ export const log = {
             retreatTargetId?: string;
             scatterTargetIds?: string[];
             scatterShipCounts?: number[];
-            playerTotals?: Array<{ id: string; active: number; damaged: number; total: number; stars: number }>;
+            prePlayerTotals?: Array<{ id: string; name?: string; active: number; damaged: number; total: number; stars: number }>;
+            postPlayerTotals?: Array<{ id: string; name?: string; active: number; damaged: number; total: number; stars: number }>;
         }
     ) => {
         if (!logFlags.conquest) return;
 
-        const ownerLabel = (id: string) => {
+        const lbl = (id: string) => {
             if (!id) return 'NEUTRAL';
             if (id === 'human-player') return 'YOU';
             if (id.startsWith('ai-')) return id.toUpperCase().replace('-', '');
-            return id.toUpperCase();
+            return id.substring(0, 8).toUpperCase();
         };
 
-        console.groupCollapsed(
-            `%c🏰 CONQUEST T${tick}%c │ ${data.starId} │ %c${ownerLabel(data.previousOwner)}%c → %c${ownerLabel(data.newOwner)}%c │ total:${data.defenderTotal} captured:${data.shipsCaptured} destroyed:${data.shipsDestroyed} escaped:${data.shipsEscaped}`,
-            styles.conquest, styles.reset,
-            'color: #f87171; font-weight: bold;', styles.reset,
-            'color: #4ade80; font-weight: bold;', styles.reset
-        );
+        const red = 'color: #f87171; font-weight: bold;';
+        const grn = 'color: #4ade80; font-weight: bold;';
+        const yel = 'color: #fbbf24; font-weight: bold;';
+        const blu = 'color: #60a5fa; font-weight: bold;';
+        const dim = 'color: #888;';
+        const rst = styles.reset;
 
-        // Ship disposition
+        // ── HEADER ── 
         console.log(
-            `  📊 Disposition: %c${data.shipsCaptured}%c captured │ %c${data.shipsDestroyed}%c destroyed │ %c${data.shipsEscaped}%c escaped`,
-            'color: #4ade80; font-weight: bold;', styles.reset,
-            'color: #f87171; font-weight: bold;', styles.reset,
-            'color: #fbbf24; font-weight: bold;', styles.reset
+            `%c🏰 CONQUEST T${tick}%c │ %c${lbl(data.previousOwner)}%c → %c${lbl(data.newOwner)}%c │ ⭐${data.starId} │ DEF had %c${data.defenderTotal}%c ships │ ATK had %c${data.attackerShips}%c ships`,
+            styles.conquest, rst,
+            red, rst, grn, rst,
+            red, rst, blu, rst
         );
 
-        // Attacker state
-        console.log(
-            `  ⚔️ Attacker: %c${data.attackerShips}%c ships before → %c${data.attackerPostShips}%c after`,
-            'color: #60a5fa; font-weight: bold;', styles.reset,
-            'color: #60a5fa; font-weight: bold;', styles.reset
-        );
+        // ── DISPOSITION: captured / destroyed / escaped — all one line ──
+        let dispLine = `  📊 captured:%c${data.shipsCaptured}%c  destroyed:%c${data.shipsDestroyed}%c  escaped:%c${data.shipsEscaped}%c`;
+        const dispStyles = [grn, rst, red, rst, yel, rst];
 
-        // Conquered star state
-        console.log(
-            `  🏰 ${data.starId}: %c${data.defenderPostShips}%c ships post-conquest`,
-            'color: #4ade80; font-weight: bold;', styles.reset
-        );
-
-        // Scatter/retreat info
         if (data.retreatTargetId) {
-            console.log(`  🏃 Retreated to: ${data.retreatTargetId} (${data.shipsEscaped} ships)`);
+            dispLine += `  🏃→${data.retreatTargetId}`;
         }
         if (data.scatterTargetIds && data.scatterTargetIds.length > 0) {
-            const pairs = data.scatterTargetIds.map((id, i) => `${id}(${data.scatterShipCounts?.[i] ?? '?'})`);
-            console.log(`  💨 Scattered to: ${pairs.join(', ')}`);
+            const pairs = data.scatterTargetIds.map((id, i) => `${id}(${data.scatterShipCounts?.[i] ?? '?'})`).join(',');
+            dispLine += `  💨→${pairs}`;
         }
+        console.log(dispLine, ...dispStyles);
 
-        // Per-player totals
-        if (data.playerTotals && data.playerTotals.length > 0) {
-            console.log('  ── Player Fleet Totals ──');
-            data.playerTotals.forEach(p => {
-                console.log(
-                    `    %c${ownerLabel(p.id).padEnd(8)}%c │ ⭐${p.stars} │ active:%c${p.active}%c damaged:%c${p.damaged}%c total:%c${p.total}%c`,
-                    'font-weight: bold; color: #ddd;', styles.reset,
-                    'color: #4ade80; font-weight: bold;', styles.reset,
-                    'color: #fbbf24; font-weight: bold;', styles.reset,
-                    'color: #60a5fa; font-weight: bold;', styles.reset
-                );
+        // ── POST STATE: attacker + conquered star ──
+        console.log(
+            `  📍 ATK post:%c${data.attackerPostShips}%c ships │ %c${data.starId}%c post:%c${data.defenderPostShips}%c ships (now %c${lbl(data.newOwner)}%c)`,
+            blu, rst, grn, rst, grn, rst, grn, rst
+        );
+
+        // ── PRE PLAYER TOTALS (before conquest) ──
+        if (data.prePlayerTotals && data.prePlayerTotals.length > 0) {
+            const preParts: string[] = [];
+            const preStyles: string[] = [];
+            data.prePlayerTotals.forEach(p => {
+                preParts.push(`%c${(p.name || lbl(p.id)).padEnd(6)}%c ⭐${p.stars} A:%c${p.active}%c D:%c${p.damaged}%c T:%c${p.total}%c`);
+                preStyles.push('font-weight:bold;color:#ddd', rst, grn, rst, yel, rst, blu, rst);
             });
+            console.log(`  %cPRE%c  │ ${preParts.join(' │ ')}`, 'background:#444;color:#fff;padding:1px 4px;border-radius:2px;font-weight:bold;', rst, ...preStyles);
         }
 
-        console.groupEnd();
+        // ── POST PLAYER TOTALS (after conquest) ──
+        if (data.postPlayerTotals && data.postPlayerTotals.length > 0) {
+            const postParts: string[] = [];
+            const postStyles: string[] = [];
+            data.postPlayerTotals.forEach(p => {
+                postParts.push(`%c${(p.name || lbl(p.id)).padEnd(6)}%c ⭐${p.stars} A:%c${p.active}%c D:%c${p.damaged}%c T:%c${p.total}%c`);
+                postStyles.push('font-weight:bold;color:#ddd', rst, grn, rst, yel, rst, blu, rst);
+            });
+            console.log(`  %cPOST%c │ ${postParts.join(' │ ')}`, 'background:#2a6;color:#fff;padding:1px 4px;border-radius:2px;font-weight:bold;', rst, ...postStyles);
+        }
     },
 };
 

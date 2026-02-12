@@ -171,6 +171,8 @@
 | F-15 | Dominant Victory Condition (99% ship ownership → game over) | 2026-02-12 |
 | F-16 | Orb Travel UI Consolidation (paired sliders, orbit bias removed) | 2026-02-12 |
 | F-17 | Settings Panel Full-Height Scroll Fix | 2026-02-12 |
+| F-18 | Conquest Log Flat Format (no nested objects, PRE/POST per-player totals) | 2026-02-12 |
+| F-19 | Attack Surge Animation (verified working) | 2026-02-12 |
 
 ## Planned Features — Not Started (R)
 
@@ -252,11 +254,12 @@
 | R-72 | Sharper Sprites: circle texture increased 16→64px with anti-aliased edge for crisp rendering at all scales | 🟢 |
 | R-73 | Reset All Button: CombatDebugPanel has red-tinted reset button that clears localStorage and restores defaults | 🟢 |
 | R-74 | Orbit Density Slider: controls ship spacing per ring (1.0-4.0x), higher = more spread out, fewer per ring | 🟢 |
-| R-75 | Attack Surge Slider: controls attack displacement (0-1.5x star radius), adjustable in real-time | 🟢 |
+| R-75 | ~~Attack Surge Slider~~ → moved to F-19 (verified working) | ✅ |
 | R-76 | ParticleContainer Rendering: replaced Graphics.circle with ParticleContainer + Particle pool (24fps @ 30k ships) | 🟢 |
 | R-77 | Player-Color Outlines: ring texture behind each ship shows raw player color, visible even when fill is white-blended | 🟢 |
 | R-78 | Orb Travel Flash Fix: departing ships fade to full transparency before orb grouping, eliminating single-frame arc | 🟢 |
 | R-79 | Stars Panel Sorting: group/sort by owner, ship count, or star name — dropdown in Stars panel header | 🟢 |
+| R-80 | Bottom-Drawer Combat Log Panel: short bottom drawer (~6-8 lines), styled per-line combat/conquest events, full formula on one line, replaces old Combat Logs panel | 🔴 |
 
 ---
 

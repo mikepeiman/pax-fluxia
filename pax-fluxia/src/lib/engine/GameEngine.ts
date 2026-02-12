@@ -1022,67 +1022,43 @@ export class GameEngine {
         };
 
         // ================================================================
-        // CONQUEST DEBUG: Pre-conquest snapshot
+        // CONQUEST DEBUG: Read per-player totals PRE and POST
         // ================================================================
-        const neighborIds = ctx.getNeighborIds(defender.id);
-        const friendlyNeighborsBefore = neighborIds
-            .map(id => this.stars.get(id))
-            .filter(s => s && s.ownerId === previousOwner)
-            .map(s => ({ id: s!.id, owner: s!.ownerId, active: Math.floor(s!.activeShips), damaged: Math.floor(s!.damagedShips) }));
-
-        // Read per-player totals from state BEFORE conquest (same as leaderboard)
         const readPlayerTotals = () => {
-            const totals: Array<{ id: string; active: number; damaged: number; total: number; stars: number }> = [];
+            const totals: Array<{ id: string; name: string; active: number; damaged: number; total: number; stars: number }> = [];
             this.players.forEach(p => {
                 const active = this.getPlayerActiveShips(p.id);
                 const damaged = this.getPlayerDamagedShips(p.id);
-                totals.push({ id: p.id, active, damaged, total: active + damaged, stars: this.getPlayerStarCount(p.id) });
+                totals.push({ id: p.id, name: p.name, active, damaged, total: active + damaged, stars: this.getPlayerStarCount(p.id) });
             });
             return totals;
         };
 
         const prePlayerTotals = readPlayerTotals();
 
-        const preSnapshot = {
-            tick: this.tick,
-            attacker: { id: attacker.id, owner: attacker.ownerId, active: Math.floor(attacker.activeShips), damaged: Math.floor(attacker.damagedShips) },
-            defender: { id: defender.id, owner: previousOwner, active: Math.floor(defender.activeShips), damaged: Math.floor(defender.damagedShips), targetId: defender.targetId },
-            friendlyNeighbors: friendlyNeighborsBefore,
-            config: { SCATTER_CAPTURE_RATE: cfg.SCATTER_CAPTURE_RATE, SCATTER_DESTROY_RATE: cfg.SCATTER_DESTROY_RATE, RETREAT_CAPTURE_RATE: cfg.RETREAT_CAPTURE_RATE },
-            playerTotals: prePlayerTotals,
-        };
-
         // Delegate to shared conquest logic
         const result = applyConquest(attacker as any, defender as any, ctx, cfg);
 
-        // ================================================================
-        // CONQUEST DEBUG: Post-conquest snapshot + per-player totals
-        // ================================================================
-        const friendlyNeighborsAfter = neighborIds
-            .map(id => this.stars.get(id))
-            .filter(s => s != null)
-            .map(s => ({ id: s!.id, owner: s!.ownerId, active: Math.floor(s!.activeShips), damaged: Math.floor(s!.damagedShips) }));
-
-        // Read per-player totals from state AFTER conquest (same as leaderboard)
+        // Read per-player totals from state AFTER conquest
         const postPlayerTotals = readPlayerTotals();
 
-        console.log('%c🏴 CONQUEST DEBUG', 'color: #ff6b6b; font-weight: bold; font-size: 14px', {
-            PRE: { ...preSnapshot },
-            RESULT: {
-                captured: result.shipsCaptured,
-                escaped: result.shipsEscaped,
-                destroyed: result.shipsDestroyed,
-                retreatTo: result.retreatTargetId ?? 'none',
-                scatterTo: result.scatterTargetIds ?? [],
-                scatterCounts: result.scatterShipCounts ?? [],
-                defenderTotalAtConquest: result.defenderTotalAtConquest,
-            },
-            POST: {
-                attacker: { id: attacker.id, owner: attacker.ownerId, active: Math.floor(attacker.activeShips), damaged: Math.floor(attacker.damagedShips) },
-                defender: { id: defender.id, owner: defender.ownerId, active: Math.floor(defender.activeShips), damaged: Math.floor(defender.damagedShips) },
-                neighbors: friendlyNeighborsAfter,
-                playerTotals: postPlayerTotals,
-            },
+        // Flat, readable conquest log via log.conquest()
+        log.conquest(this.tick, {
+            starId: defender.id,
+            previousOwner,
+            newOwner: attacker.ownerId,
+            shipsCaptured: result.shipsCaptured,
+            shipsEscaped: result.shipsEscaped,
+            shipsDestroyed: result.shipsDestroyed,
+            defenderTotal: result.defenderTotalAtConquest,
+            attackerShips: Math.floor(attacker.activeShips + (result.shipsCaptured ?? 0)),
+            attackerPostShips: Math.floor(attacker.activeShips),
+            defenderPostShips: Math.floor(defender.activeShips),
+            retreatTargetId: result.retreatTargetId,
+            scatterTargetIds: result.scatterTargetIds,
+            scatterShipCounts: result.scatterShipCounts,
+            prePlayerTotals,
+            postPlayerTotals,
         });
 
         // ================================================================
@@ -1558,7 +1534,6 @@ export class GameEngine {
             speed: this.speed,
             isPaused: this.speed === 0,
             stars: Array.from(this.stars.values()).map(s => s.getState()),
-            fleets: [], // Instant fleets don't persist
             connections: this.connections,
             links: Array.from(this.stars.values()).filter(s => s.targetId).map(s => ({
                 id: `link-${s.id}-${s.targetId}`,
@@ -1570,7 +1545,7 @@ export class GameEngine {
             winner: this.getWinner(),
             elapsedMs: performance.now() - this.startTime,
             history: this.statsHistory
-        };
+        } as GameState & { links: any[]; elapsedMs: number; history: any[] };
     }
 
     setOnTick(callback: TickCallback): void {
