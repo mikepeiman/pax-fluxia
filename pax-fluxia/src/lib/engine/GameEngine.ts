@@ -1128,11 +1128,13 @@ export class GameEngine {
         events.conquests.push({
             tick: this.tick,
             starId: defender.id,
+            attackerStarId: attacker.id,
             previousOwner,
             newOwner: attacker.ownerId,
             shipsCaptured: result.shipsCaptured,
             shipsEscaped: result.shipsEscaped,
             shipsDestroyed: result.shipsDestroyed,
+            shipsTransferred: result.shipsTransferred,
             retreatTargetId: result.retreatTargetId,
             scatterTargetIds: result.scatterTargetIds,
             scatterShipCounts: result.scatterShipCounts,

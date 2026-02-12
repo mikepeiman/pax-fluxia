@@ -34,6 +34,8 @@ export interface ConquestResult {
     scatterTargetIds?: string[];
     /** Per-route ship counts for scatter visualization */
     scatterShipCounts?: number[];
+    /** Number of attacker ships transferred to conquered star */
+    shipsTransferred: number;
 }
 
 // ============================================================================
@@ -100,6 +102,7 @@ export function applyConquest(
         shipsEscaped: 0,
         shipsDestroyed: 0,
         defenderTotalAtConquest: defenderTotal,
+        shipsTransferred: 0,
     };
 
     if (isRetreating && retreatTarget) {
@@ -196,6 +199,9 @@ export function applyConquest(
         attacker.activeShips = (attacker.activeShips ?? 0) - shipsToTransfer;
         defender.activeShips += shipsToTransfer;
     }
+
+    // Add transfer count to result for animation
+    result.shipsTransferred = shipsToTransfer;
 
     // Handle queued orders
     if (defender.queuedOrderTargetId) {

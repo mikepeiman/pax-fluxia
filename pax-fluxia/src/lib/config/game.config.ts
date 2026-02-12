@@ -116,6 +116,9 @@ interface GameConfigType {
     ATTACK_SURGE_MULT: number;     // Attack surge displacement as fraction of star radius (default 0.4)
     ATTACK_SURGE_PROPORTIONAL: boolean; // Scale surge by force disparity ratio (default true)
     ATTACK_SURGE_FORCE_COFACTOR: number; // How much force ratio amplifies surge (0=none, 1=full, default 0.5)
+    // Conquest ship travel animation
+    CONQUEST_TRAVEL_SPEED: number;       // Duration multiplier vs normal transfer (lower = faster, default 0.7)
+    CONQUEST_TRAVEL_MODE: 'straight' | 'arc' | 'magnetic'; // Path shape for conquest travel (default 'magnetic')
     // Orbit bias oscillation
     ORBIT_BIAS_OSCILLATE: boolean; // Enable oscillation between min/max bias (default false)
     ORBIT_BIAS_MIN: number;        // Min bias strength for oscillation (default 0.0)
@@ -370,6 +373,10 @@ export const GAME_CONFIG: GameConfigType = {
     ATTACK_SURGE_MULT: 0.4,
     ATTACK_SURGE_PROPORTIONAL: true,
     ATTACK_SURGE_FORCE_COFACTOR: 0.5,
+    /** Conquest travel speed: duration multiplier vs normal transfer (lower = faster) */
+    CONQUEST_TRAVEL_SPEED: 0.7,
+    /** Conquest travel path mode: 'straight' | 'arc' | 'magnetic' */
+    CONQUEST_TRAVEL_MODE: 'magnetic' as const,
     /** Show player-color outline behind each ship */
     SHIP_OUTLINE_ON: true,
     /** Outline thickness in px */

@@ -1466,6 +1466,111 @@
                 // No escape — all captured/destroyed, clear visuals
                 visualShips.set(conquest.starId, []);
             }
+
+            // ── ATTACKER SHIPS: Lerp front-line ships to conquered star ──
+            if (conquest.attackerStarId && conquest.shipsTransferred > 0) {
+                const attackerStar = starsById.get(conquest.attackerStarId);
+                if (attackerStar) {
+                    const atkShips =
+                        visualShips.get(conquest.attackerStarId) || [];
+                    const transferCount = Math.min(
+                        conquest.shipsTransferred,
+                        atkShips.length,
+                    );
+
+                    if (transferCount > 0) {
+                        // Direction from attacker to conquered star
+                        const adx = conqueredStar.x - attackerStar.x;
+                        const ady = conqueredStar.y - attackerStar.y;
+                        const adist = Math.sqrt(adx * adx + ady * ady) || 1;
+                        const andx = adx / adist;
+                        const andy = ady / adist;
+
+                        // Score by dot product (same nearside algorithm as transfers)
+                        atkShips.forEach((s) => {
+                            const slot = getOrbitSlot(
+                                s.targetIndex,
+                                attackerStar.x,
+                                attackerStar.y,
+                                attackerStar.radius,
+                                0,
+                                Math.atan2(andy, andx),
+                                GAME_CONFIG.ORBIT_BIAS_STRENGTH ?? 0.6,
+                            );
+                            const slotDx = slot.x - attackerStar.x;
+                            const slotDy = slot.y - attackerStar.y;
+                            const dot = slotDx * andx + slotDy * andy;
+                            const layerWeight =
+                                1 +
+                                s.targetIndex / Math.max(1, atkShips.length);
+                            (s as any)._departScore = dot * layerWeight;
+                        });
+                        atkShips.sort(
+                            (a, b) =>
+                                (b as any)._departScore -
+                                (a as any)._departScore,
+                        );
+
+                        const conquestShips = atkShips.splice(0, transferCount);
+
+                        // Re-index remaining attacker ships
+                        for (let j = 0; j < atkShips.length; j++) {
+                            atkShips[j].targetIndex = j;
+                        }
+
+                        // Conquest travel timing (faster than normal)
+                        const conquestSpeedMult =
+                            GAME_CONFIG.CONQUEST_TRAVEL_SPEED ?? 0.7;
+                        const conquestHalfTick =
+                            activeGameStore.effectiveTickMs / 2;
+                        const conquestDepartFrac =
+                            (GAME_CONFIG.DEPART_FRACTION ?? 0.3) * 0.3; // Very fast depart — they're already surged
+                        const conquestDepartDuration =
+                            conquestHalfTick *
+                            conquestDepartFrac *
+                            conquestSpeedMult;
+                        const conquestTravelDuration =
+                            conquestHalfTick *
+                            (1 - conquestDepartFrac) *
+                            conquestSpeedMult;
+
+                        const laneStartX =
+                            attackerStar.x + andx * (attackerStar.radius + 5);
+                        const laneStartY =
+                            attackerStar.y + andy * (attackerStar.radius + 5);
+                        const laneEndX =
+                            conqueredStar.x - andx * (conqueredStar.radius + 5);
+                        const laneEndY =
+                            conqueredStar.y - andy * (conqueredStar.radius + 5);
+                        const laneOffsetPx = GAME_CONFIG.LANE_OFFSET_PX ?? 8;
+
+                        for (const ship of conquestShips) {
+                            // Maintain exact current position — no snap
+                            ship.departFromX = ship.x;
+                            ship.departFromY = ship.y;
+                            ship.state = "departing";
+                            ship.fromStarId = conquest.attackerStarId;
+                            ship.toStarId = conquest.starId;
+                            ship.departTime = now; // Immediate — these ships were already surging
+                            ship.departDuration = conquestDepartDuration;
+                            ship.travelDuration = conquestTravelDuration;
+                            ship.laneStartX = laneStartX;
+                            ship.laneStartY = laneStartY;
+                            ship.laneEndX = laneEndX;
+                            ship.laneEndY = laneEndY;
+                            ship.laneOffset =
+                                (Math.random() - 0.5) * laneOffsetPx * 2;
+                            ship.staggerDelay = 0;
+                            ship.ownerId = conquest.newOwner;
+                            // Tag for conquest travel mode handling
+                            (ship as any)._conquestTravel = true;
+                            travelingShips.push(ship);
+                        }
+
+                        visualShips.set(conquest.attackerStarId, atkShips);
+                    }
+                }
+            }
         }
     }
 
@@ -1583,8 +1688,29 @@
                     1,
                     elapsed / ship.travelDuration,
                 );
-                // easeInCubic: magnetic pull — starts slow, accelerates toward target
-                const eased = travelProgress * travelProgress * travelProgress;
+
+                // Easing depends on whether this is a conquest travel ship
+                let eased: number;
+                if ((ship as any)._conquestTravel) {
+                    const mode = GAME_CONFIG.CONQUEST_TRAVEL_MODE ?? "magnetic";
+                    if (mode === "magnetic") {
+                        // Ease-in-out-quart: smooth pull, decelerates at target (rubber-band feel)
+                        eased =
+                            travelProgress < 0.5
+                                ? 8 * travelProgress ** 4
+                                : 1 - Math.pow(-2 * travelProgress + 2, 4) / 2;
+                    } else if (mode === "arc") {
+                        // easeInCubic with perpendicular arc handled below
+                        eased =
+                            travelProgress * travelProgress * travelProgress;
+                    } else {
+                        // straight: linear
+                        eased = travelProgress;
+                    }
+                } else {
+                    // Normal transfer: easeInCubic (magnetic pull)
+                    eased = travelProgress * travelProgress * travelProgress;
+                }
 
                 // Base lane position
                 const baseX =
@@ -1620,8 +1746,25 @@
                           edgeFade
                         : 0;
 
-                ship.x = baseX + perpX * (ship.laneOffset * edgeFade + wobble);
-                ship.y = baseY + perpY * (ship.laneOffset * edgeFade + wobble);
+                // Arc mode: add perpendicular bulge for conquest travel ships
+                let arcBulge = 0;
+                if (
+                    (ship as any)._conquestTravel &&
+                    (GAME_CONFIG.CONQUEST_TRAVEL_MODE ?? "magnetic") === "arc"
+                ) {
+                    // Smooth sine arch peaking at midpoint, scaling with lane distance
+                    arcBulge =
+                        Math.sin(travelProgress * Math.PI) * laneDist * 0.15;
+                    // Per-ship direction variation (alternate sides)
+                    if (ship.id % 2 === 0) arcBulge = -arcBulge;
+                }
+
+                ship.x =
+                    baseX +
+                    perpX * (ship.laneOffset * edgeFade + wobble + arcBulge);
+                ship.y =
+                    baseY +
+                    perpY * (ship.laneOffset * edgeFade + wobble + arcBulge);
 
                 // Ships stay fully visible during travel — no fade pulse
                 ship.alpha = 1;

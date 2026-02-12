@@ -29,11 +29,13 @@ export interface CombatEvent {
 export interface ConquestEvent {
     tick: number;
     starId: string;
+    attackerStarId: string;
     previousOwner: string;
     newOwner: string;
     shipsCaptured: number;
     shipsEscaped: number;
     shipsDestroyed: number;
+    shipsTransferred: number;
     retreatTargetId?: string;
     scatterTargetIds?: string[];
     scatterShipCounts?: number[];
