@@ -12,9 +12,11 @@
   "app": {
     "windows": [
       {
-        "title": "pax-fluxia",
-        "width": 800,
-        "height": 600
+        "title": "Pax Fluxia",
+        "width": 1400,
+        "height": 900,
+        "resizable": true,
+        "fullscreen": false
       }
     ],
     "security": {
