@@ -152,6 +152,7 @@
 | B-31 | Attack surge activates on order, not on tick | `isAttack` checks `star.targetId` (set on order), should only surge after first combat tick | OPEN |
 | B-32 | Mid-surge order change teleports ships | Ships should complete current surge cycle before reorienting to new target | OPEN |
 | B-33 | Ships jump into attack surge before animation continues smoothly | Ramp-in not working visibly; initial frame snap | OPEN |
+| B-34 | Conquest: victor ships wait entire tick to appear | Should appear within conquest tick, not next tick | OPEN |
 
 ---
 

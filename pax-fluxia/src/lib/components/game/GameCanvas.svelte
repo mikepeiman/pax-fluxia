@@ -82,6 +82,14 @@
     let attackRampProgress: Map<string, number> = new Map();
     let lastSurgeFrameTime: number = 0; // For computing per-frame delta
 
+    // Tick-synced combat tracking: stars only surge when CombatEvent confirms active combat
+    let starsInCombat: Set<string> = new Set();
+    // Direction lock for mid-surge target changes: complete cycle before reorienting
+    let surgeLockedDir: Map<
+        string,
+        { x: number; y: number; targetId: string }
+    > = new Map();
+
     // Animation state
     let animationTime = 0;
     let animationFrameId: number | null = null;
@@ -657,7 +665,10 @@
 
         // Process tick events (event-driven animations, not diff-based — see POST_MORTEMS.md)
         const tickEvents = activeGameStore.consumeTickEvents();
+        // Clear combat tracking before processing new tick events
+        // (starsInCombat is rebuilt each tick from CombatEvents)
         if (tickEvents) {
+            starsInCombat.clear();
             processTickEvents(stars, tickEvents, connections || [], starsById);
         }
 
@@ -1238,6 +1249,16 @@
     ) {
         // starsById passed in from renderFrame
         const now = performance.now();
+
+        // Process COMBAT events → populate starsInCombat set for tick-synced surge
+        for (const combat of events.combats) {
+            // All attacking stars are in combat
+            for (const attackerId of combat.attackerIds) {
+                starsInCombat.add(attackerId);
+            }
+            // Defender star is also in combat
+            starsInCombat.add(combat.defenderId);
+        }
 
         // Process TRANSFER events → ship travel animations
         for (const transfer of events.transfers) {
@@ -2111,8 +2132,38 @@
 
                     // ATTACK MODE: Egg-shaped pulse - ships facing target surge forward
                     // Ships at back stay at orbit radius (don't cross planetary valence)
-                    if (isAttack && targetStar) {
+                    // TICK-SYNCED: only surge when CombatEvent confirms active combat
+                    if (isAttack && targetStar && starsInCombat.has(star.id)) {
                         const gamePaused = activeGameStore.isPaused;
+
+                        // Direction lock: if target changed mid-surge, keep old direction
+                        // until tickProgress returns near 0 (surge cycle complete)
+                        let useDirX = dirX;
+                        let useDirY = dirY;
+                        const lockedDir = surgeLockedDir.get(star.id);
+
+                        if (lockedDir && lockedDir.targetId !== star.targetId) {
+                            // Target changed — use locked direction until cycle completes
+                            if (tickProgress < 0.1) {
+                                // Cycle complete (near start of new tick) — unlock and use new direction
+                                surgeLockedDir.set(star.id, {
+                                    x: dirX,
+                                    y: dirY,
+                                    targetId: star.targetId!,
+                                });
+                            } else {
+                                // Mid-cycle — keep old direction
+                                useDirX = lockedDir.x;
+                                useDirY = lockedDir.y;
+                            }
+                        } else if (!lockedDir) {
+                            // First surge for this star — lock current direction
+                            surgeLockedDir.set(star.id, {
+                                x: dirX,
+                                y: dirY,
+                                targetId: star.targetId!,
+                            });
+                        }
 
                         // Initialize ramp for newly attacking stars
                         if (!attackRampProgress.has(star.id)) {
@@ -2148,9 +2199,9 @@
                         const shipNormX = shipDx / shipDist;
                         const shipNormY = shipDy / shipDist;
 
-                        // Dot product with target direction = how much ship faces target
+                        // Dot product with LOCKED target direction
                         const facingFactor =
-                            shipNormX * dirX + shipNormY * dirY;
+                            shipNormX * useDirX + shipNormY * useDirY;
 
                         // Only surge ships facing target (facingFactor > 0)
                         const surgeFactor = Math.max(0, facingFactor) ** 1.5;
@@ -2187,22 +2238,23 @@
 
                         // Apply: pulse × amplitude-phase × max × facing × ramp
                         targetX +=
-                            dirX *
+                            useDirX *
                             surgePulse *
                             phaseAmplitude *
                             surgeMax *
                             surgeFactor *
                             rampFactor;
                         targetY +=
-                            dirY *
+                            useDirY *
                             surgePulse *
                             phaseAmplitude *
                             surgeMax *
                             surgeFactor *
                             rampFactor;
                     } else {
-                        // Not attacking — clear ramp tracking for this star
+                        // Not in active combat — clear ramp and direction lock
                         attackRampProgress.delete(star.id);
+                        surgeLockedDir.delete(star.id);
                     }
 
                     // TRANSFER MODE: For now, same as idle (ships stay until fleet system)
