@@ -648,6 +648,8 @@
 
         // Reset particle pool index for this frame
         shipParticleIndex = 0;
+        // Clear orb travel graphics (drawn fresh each frame)
+        if (orbGraphics) orbGraphics.clear();
 
         // Process tick events (event-driven animations, not diff-based — see POST_MORTEMS.md)
         const tickEvents = activeGameStore.consumeTickEvents();
@@ -1720,7 +1722,6 @@
 
         // Draw orbs for grouped traveling ships
         if (GAME_CONFIG.ORB_TRAVEL && orbGroups.size > 0 && orbGraphics) {
-            orbGraphics.clear();
             const G = GAME_CONFIG; // shorthand for readability
             for (const [, group] of orbGroups) {
                 const cx = group.sumX / group.count;

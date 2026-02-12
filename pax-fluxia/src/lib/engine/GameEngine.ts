@@ -952,12 +952,26 @@ export class GameEngine {
             .filter(s => s && s.ownerId === previousOwner)
             .map(s => ({ id: s!.id, owner: s!.ownerId, active: Math.floor(s!.activeShips), damaged: Math.floor(s!.damagedShips) }));
 
+        // Read per-player totals from state BEFORE conquest (same as leaderboard)
+        const readPlayerTotals = () => {
+            const totals: Array<{ id: string; active: number; damaged: number; total: number; stars: number }> = [];
+            this.players.forEach(p => {
+                const active = this.getPlayerActiveShips(p.id);
+                const damaged = this.getPlayerDamagedShips(p.id);
+                totals.push({ id: p.id, active, damaged, total: active + damaged, stars: this.getPlayerStarCount(p.id) });
+            });
+            return totals;
+        };
+
+        const prePlayerTotals = readPlayerTotals();
+
         const preSnapshot = {
             tick: this.tick,
             attacker: { id: attacker.id, owner: attacker.ownerId, active: Math.floor(attacker.activeShips), damaged: Math.floor(attacker.damagedShips) },
             defender: { id: defender.id, owner: previousOwner, active: Math.floor(defender.activeShips), damaged: Math.floor(defender.damagedShips), targetId: defender.targetId },
             friendlyNeighbors: friendlyNeighborsBefore,
             config: { SCATTER_CAPTURE_RATE: cfg.SCATTER_CAPTURE_RATE, SCATTER_DESTROY_RATE: cfg.SCATTER_DESTROY_RATE, RETREAT_CAPTURE_RATE: cfg.RETREAT_CAPTURE_RATE },
+            playerTotals: prePlayerTotals,
         };
 
         // Delegate to shared conquest logic
@@ -971,22 +985,11 @@ export class GameEngine {
             .filter(s => s != null)
             .map(s => ({ id: s!.id, owner: s!.ownerId, active: Math.floor(s!.activeShips), damaged: Math.floor(s!.damagedShips) }));
 
-        // Compute per-player fleet totals (the new addition)
-        const playerTotals: Array<{ id: string; active: number; damaged: number; total: number; stars: number }> = [];
-        this.players.forEach(p => {
-            const active = this.getPlayerActiveShips(p.id);
-            const damaged = this.getPlayerDamagedShips(p.id);
-            playerTotals.push({
-                id: p.id,
-                active,
-                damaged,
-                total: active + damaged,
-                stars: this.getPlayerStarCount(p.id),
-            });
-        });
+        // Read per-player totals from state AFTER conquest (same as leaderboard)
+        const postPlayerTotals = readPlayerTotals();
 
         console.log('%c🏴 CONQUEST DEBUG', 'color: #ff6b6b; font-weight: bold; font-size: 14px', {
-            PRE: preSnapshot,
+            PRE: { ...preSnapshot },
             RESULT: {
                 captured: result.shipsCaptured,
                 escaped: result.shipsEscaped,
@@ -1000,8 +1003,8 @@ export class GameEngine {
                 attacker: { id: attacker.id, owner: attacker.ownerId, active: Math.floor(attacker.activeShips), damaged: Math.floor(attacker.damagedShips) },
                 defender: { id: defender.id, owner: defender.ownerId, active: Math.floor(defender.activeShips), damaged: Math.floor(defender.damagedShips) },
                 neighbors: friendlyNeighborsAfter,
+                playerTotals: postPlayerTotals,
             },
-            PLAYER_TOTALS: playerTotals,
         });
 
         // ================================================================
