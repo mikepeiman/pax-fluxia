@@ -1551,7 +1551,10 @@
                             ship.state = "departing";
                             ship.fromStarId = conquest.attackerStarId;
                             ship.toStarId = conquest.starId;
-                            ship.departTime = now; // Immediate — these ships were already surging
+                            // Delay: ships hold surged position before moving
+                            const lerpDelay =
+                                GAME_CONFIG.CONQUEST_LERP_DELAY_MS ?? 200;
+                            ship.departTime = now + lerpDelay;
                             ship.departDuration = conquestDepartDuration;
                             ship.travelDuration = conquestTravelDuration;
                             ship.laneStartX = laneStartX;

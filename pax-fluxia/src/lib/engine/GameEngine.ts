@@ -441,7 +441,8 @@ export class GameEngine {
 
     private scheduleTick(): void {
         if (this.speed === 0) return;
-        const interval = Math.max(GAME_CONFIG.BASE_TICK_MS / this.speed, GAME_CONFIG.MIN_TICK_MS);
+        const slowmo = (GAME_CONFIG as any).SLOWMO_FACTOR ?? 1;
+        const interval = Math.max((GAME_CONFIG.BASE_TICK_MS / this.speed) * slowmo, GAME_CONFIG.MIN_TICK_MS);
         this.tickStartTime = performance.now();
         this.tickIntervalId = setInterval(() => {
             this.executeTick();

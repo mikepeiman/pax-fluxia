@@ -177,6 +177,7 @@
 | F-21 | Tauri Desktop Build: native .exe, .msi, .nsis installer (1400×900 default window) | 2026-02-12 |
 | F-22 | Attack Surge Proportional to Force Disparity: log2-scaled, toggleable, cofactor slider | 2026-02-12 |
 | F-23 | Conquest Ship Lerp: front-line ships travel to conquered star (magnetic/arc/straight modes) | 2026-02-12 |
+| F-24 | Conquest Lerp Delay (200ms) + Slowmo Mode (4×/10× toggle, full framerate) | 2026-02-12 |
 
 ## Planned Features — Not Started (R)
 

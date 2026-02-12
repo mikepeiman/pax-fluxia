@@ -1,5 +1,6 @@
 <script lang="ts">
     import type { GameSpeed } from "$lib/types/game.types";
+    import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
 
     interface Props {
         speed: GameSpeed;
@@ -49,6 +50,20 @@
     function handleStart() {
         onStart();
     }
+
+    const slowmoOptions = [
+        { factor: 4, label: "🐢 4×" },
+        { factor: 10, label: "🐌 10×" },
+    ];
+
+    function handleSlowmo(factor: number) {
+        // Toggle: if already at this factor, turn off
+        if (activeGameStore.slowmoFactor === factor) {
+            activeGameStore.setSlowmo(1);
+        } else {
+            activeGameStore.setSlowmo(factor);
+        }
+    }
 </script>
 
 <div class="speed-controls-container">
@@ -75,6 +90,22 @@
                 class:speed-btn--active={!isPaused && currentSpeed === value}
                 onclick={() => handleSpeedClick(value)}
                 title="{value}x Speed"
+            >
+                {label}
+            </button>
+        {/each}
+
+        <!-- Slowmo separator -->
+        <span class="speed-divider">│</span>
+
+        <!-- Slowmo Buttons -->
+        {#each slowmoOptions as { factor, label }}
+            <button
+                class="speed-btn slowmo-btn"
+                class:slowmo-btn--active={activeGameStore.slowmoFactor ===
+                    factor}
+                onclick={() => handleSlowmo(factor)}
+                title="Slowmo {factor}× (toggle)"
             >
                 {label}
             </button>
@@ -151,5 +182,29 @@
     .speed-btn--active:hover {
         background: var(--color-accent-cyan);
         color: var(--color-void-deep);
+    }
+
+    .speed-divider {
+        color: var(--color-text-dim);
+        opacity: 0.3;
+        font-size: var(--text-xs);
+        display: flex;
+        align-items: center;
+        user-select: none;
+    }
+
+    .slowmo-btn {
+        font-size: 0.65rem;
+        width: 46px;
+    }
+
+    .slowmo-btn--active {
+        background: #e67e22;
+        color: #1a1a2e;
+    }
+
+    .slowmo-btn--active:hover {
+        background: #f39c12;
+        color: #1a1a2e;
     }
 </style>
