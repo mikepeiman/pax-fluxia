@@ -48,9 +48,14 @@
     // Graphics cache
     let starGraphics: Map<string, PIXI.Graphics> = new Map();
     let starLabels: Map<string, PIXI.Container> = new Map();
-    let shipGraphics: PIXI.Graphics | null = null;
     let linkGraphics: PIXI.Graphics | null = null;
     let debugGraphics: PIXI.Graphics | null = null; // New debug layer
+
+    // ParticleContainer ship rendering (high-perf batched sprites)
+    let shipCircleTexture: PIXI.Texture | null = null;
+    let shipParticleContainer: PIXI.ParticleContainer | null = null;
+    let shipParticlePool: PIXI.Particle[] = [];
+    let shipParticleIndex = 0;
 
     // FPS tracking
     let fpsFrameCount = 0;
@@ -227,8 +232,42 @@
         shipsContainer = new PIXI.Container();
         app.stage.addChild(shipsContainer);
 
-        shipGraphics = new PIXI.Graphics();
-        shipsContainer.addChild(shipGraphics);
+        // Create 128px circle texture with radial gradient for anti-aliased ship rendering
+        const texSize = 128;
+        const texCanvas = document.createElement("canvas");
+        texCanvas.width = texSize;
+        texCanvas.height = texSize;
+        const ctx = texCanvas.getContext("2d")!;
+        const grad = ctx.createRadialGradient(
+            texSize / 2,
+            texSize / 2,
+            0,
+            texSize / 2,
+            texSize / 2,
+            texSize / 2,
+        );
+        grad.addColorStop(0, "rgba(255,255,255,1)");
+        grad.addColorStop(0.85, "rgba(255,255,255,1)");
+        grad.addColorStop(0.95, "rgba(255,255,255,0.6)");
+        grad.addColorStop(1, "rgba(255,255,255,0)");
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(texSize / 2, texSize / 2, texSize / 2, 0, Math.PI * 2);
+        ctx.fill();
+        shipCircleTexture = PIXI.Texture.from(texCanvas);
+        shipCircleTexture.source.scaleMode = "linear";
+
+        // ParticleContainer: position + color dynamic (updated every frame)
+        shipParticleContainer = new PIXI.ParticleContainer({
+            texture: shipCircleTexture,
+            dynamicProperties: {
+                position: true,
+                color: true,
+                vertex: true, // needed for scale changes
+            },
+            roundPixels: true,
+        });
+        shipsContainer.addChild(shipParticleContainer);
 
         connectionGraphics = new PIXI.Graphics();
         app.stage.addChild(connectionGraphics);
@@ -595,8 +634,8 @@
 
         // NOTE: Pending orders cleanup is now handled in renderFlowLinks()
 
-        // Clear ship graphics for current frame
-        shipGraphics?.clear();
+        // Reset particle pool index for this frame
+        shipParticleIndex = 0;
 
         // Process tick events (event-driven animations, not diff-based — see POST_MORTEMS.md)
         const tickEvents = activeGameStore.consumeTickEvents();
@@ -606,6 +645,12 @@
 
         // Render all ships: orbiting (per-star) + traveling (in-flight lifecycle)
         renderShips(stars, tickProgress, starsById);
+
+        // Hide unused particles from pool
+        for (let i = shipParticleIndex; i < shipParticlePool.length; i++) {
+            shipParticlePool[i].alpha = 0;
+        }
+        if (shipParticleContainer) shipParticleContainer.update();
 
         // Count total visual ships for HUD
         let shipCount = 0;
@@ -2097,9 +2142,12 @@
         isDamaged: boolean,
         multiplier: number = 1,
     ) {
-        if (!shipGraphics) return;
+        if (!shipParticleContainer || !shipCircleTexture) return;
 
-        const size = 3 * scale;
+        // The texture is 128px; ship base visual size is 3px * scale
+        // So sprite scale = (3 * scale * 2) / 128  (×2 because texture is diameter)
+        const pixelSize = 3 * scale;
+        const spriteScale = (pixelSize * 2) / 128;
 
         // White scaling: blend toward white based on multiplier (1 = normal, 2+ = increasingly white)
         let finalColor = color;
@@ -2114,23 +2162,50 @@
             finalColor = (newR << 16) | (newG << 8) | newB;
         }
 
-        // All ships are uniform circles
-        shipGraphics.circle(x, y, size);
-        shipGraphics.fill({ color: finalColor, alpha });
-
-        // Stacked ships get a thin player-colored border for ownership identification
-        if (multiplier > 1) {
-            shipGraphics.stroke({
-                color,
-                width: 1,
-                alpha: Math.min(1, alpha + 0.2),
+        // Get or create particle from pool
+        let particle: PIXI.Particle;
+        if (shipParticleIndex < shipParticlePool.length) {
+            particle = shipParticlePool[shipParticleIndex];
+        } else {
+            particle = new PIXI.Particle({
+                texture: shipCircleTexture,
+                anchorX: 0.5,
+                anchorY: 0.5,
             });
+            shipParticlePool.push(particle);
+            shipParticleContainer.addParticle(particle);
         }
 
-        // Damaged ships get a dark border indicator
+        particle.x = x;
+        particle.y = y;
+        particle.scaleX = spriteScale;
+        particle.scaleY = spriteScale;
+        particle.tint = finalColor;
+        particle.alpha = alpha;
+        shipParticleIndex++;
+
+        // Damaged ships get a slightly larger, darker ring behind them
         if (isDamaged) {
-            shipGraphics.circle(x, y, size + 1);
-            shipGraphics.stroke({ color: 0x222222, width: 1.5, alpha: 0.8 });
+            const ringScale = ((pixelSize + 1.5) * 2) / 128;
+            let ringParticle: PIXI.Particle;
+            if (shipParticleIndex < shipParticlePool.length) {
+                ringParticle = shipParticlePool[shipParticleIndex];
+            } else {
+                ringParticle = new PIXI.Particle({
+                    texture: shipCircleTexture,
+                    anchorX: 0.5,
+                    anchorY: 0.5,
+                });
+                shipParticlePool.push(ringParticle);
+                shipParticleContainer.addParticle(ringParticle);
+            }
+            ringParticle.x = x;
+            ringParticle.y = y;
+            ringParticle.scaleX = ringScale;
+            ringParticle.scaleY = ringScale;
+            ringParticle.tint = 0x222222;
+            ringParticle.alpha = 0.5;
+            shipParticleIndex++;
         }
     }
 
@@ -2759,7 +2834,8 @@
 
 <!-- FPS / Ship Count Overlay -->
 <div class="fps-overlay">
-    {currentFps} FPS · {totalVisualShips.toLocaleString()} ships
+    {currentFps} FPS · {totalVisualShips.toLocaleString()} ships · {shipParticleIndex}
+    sprites
 </div>
 
 <style>
