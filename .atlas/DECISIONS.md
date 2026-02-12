@@ -260,3 +260,40 @@ Client and server engines remain split. User confirms engine unification is immi
 - Phase 2 of Engine Convergence: Combat & Conquest logic into shared engine
 - Phase 3: Strip client duplicate, full delegation to shared
 - Animation system: user reports current feel is "not quite right" — further iteration needed
+
+---
+
+# Decision: ParticleContainer Ship Rendering
+
+**Date:** 2026-02-11
+**Status:** Approved — Implementation Pending
+
+## Context
+At 10k ships, `Graphics.circle().fill()` per ship per frame drops to <10 FPS. This is CPU-bound: PixiJS tessellates each circle into triangles every frame. The GPU is idle while JavaScript does geometry work.
+
+## Options Evaluated
+
+| Approach | Expected @ 10k | Effort | Risk |
+|----------|----------------|--------|------|
+| Sprite Pool (tried, reverted) | ~120 FPS | 2-3h | Low |
+| **ParticleContainer** ⭐ | ~200 FPS | 3-4h | Low |
+| Custom WebGL Instanced | ~500 FPS | 8-12h | Med |
+| Graphics Batching | ~40-60 FPS | 1-2h | Low |
+| Raw Canvas 2D | ~60-80 FPS | 4-6h | Med |
+| WASM Position Math | Depends | 12-20h | High |
+| Three.js InstancedMesh | ~300 FPS | 16-24h | High |
+
+## Decision
+- **ParticleContainer** with pre-rendered 128px circle texture
+- Texture uses radial gradient edge for anti-aliasing
+- `scaleMode = 'linear'` for smooth downscaling
+- `roundPixels = true` for pixel-snapped positioning
+- Multiplier borders: second particle layer behind main ships
+- Damaged indicators: third particle layer
+- If ParticleContainer insufficient at 50k+: escalate to custom WebGL instanced rendering
+
+## Trade-offs
+- Circles are rasterized rather than mathematically perfect (indistinguishable at game scale)
+- No per-sprite rotation or complex blend modes (not needed for circles)
+- Multiplier borders require additional sprites (acceptable overhead)
+

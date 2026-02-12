@@ -82,7 +82,31 @@ This document serves as a running history of all work done on the game, sequence
 
 ---
 
-## Current State (2026-02-07)
+## Phase 7 — Animation System & Performance (2026-02-08 → 2026-02-11)
+
+**Ship Transfer Lifecycle + Rendering Optimization**
+
+- Ship transfer animation: depart → travel → arrive lifecycle (no teleporting)
+- Orbit slot assignment with concentric ring packing via `getOrbitSlot()`
+- Ship stacking (multiplier system): ships wrap to inner layers at 2×, 4×, etc.
+- Settle animation: polar arc interpolation with easeOutCubic
+- Wobble travel paths (sinusoidal offset along travel lane)
+- Departure modes: nearside, LIFO, FIFO (configurable)
+- Arrival spread: stagger arriving ships across tick duration
+- Attack surge animation: egg-shaped pulse toward target (configurable)
+- Orb travel: ships merge into glowing orb during transit, fragment on arrival
+- FPS overlay + ship count HUD
+- CombatDebugPanel: 15+ configurable animation variables, all persisted to localStorage
+- Reset All button for panel settings
+- Orbit density control (ships per ring spacing factor)
+- Attack surge multiplier control
+- **Performance crisis**: `Graphics.circle()` per ship per frame collapses at 10k ships (<10 FPS)
+- Sprite pool attempt (reverted due to visual quality regression)
+- Decision: migrate to PIXI ParticleContainer for batched rendering
+
+---
+
+## Current State (2026-02-11)
 
 ### Working ✅
 - Core gameplay loop (production, combat, repair, win detection)
@@ -90,15 +114,18 @@ This document serves as a running history of all work done on the game, sequence
 - 6 star types with specialty bonuses
 - AI opponent with configurable difficulty
 - Combat V4 symmetric model with 7 tunable variables
-- Tweakpane control panel
-- Audio system
+- Full ship transfer animation lifecycle (depart → travel → arrive)
+- 15+ configurable animation variables with live sliders
 - Colyseus multiplayer (basic connection + sync)
 - Combat logging with player identification
+- FPS + ship count overlay
 
 ### Known Issues 🐛
+- Rendering performance: <10 FPS at 10k ships (ParticleContainer migration pending)
+- `ORBIT_BIAS_OSCILLATE` not functional
 - Star selection "sticking" after issuing order sequences
-- Repair verification needed
 - Multiplayer not deployed (local only)
+- Pre-existing lint errors in GameEngine.ts (unused type properties)
 
 ---
 
@@ -108,15 +135,14 @@ This document serves as a running history of all work done on the game, sequence
 
 | Feature | Status | Priority |
 |---------|--------|----------|
-| Ship transfer animations | 📋 Planned | 🔴 High |
-| Conquer-scatter animations | 📋 Planned | 🔴 High |
-| Retreat animations | 📋 Planned | 🔴 High |
+| ParticleContainer ship rendering | 🔄 In Progress | 🔴 Critical |
+| Engine unification (shared client/server) | 📋 Planned | 🔴 High |
+| Ship transfer animations | ✅ Done | ✅ Complete |
+| Conquer-scatter animations | ✅ Done | ✅ Complete |
+| UI panel improvements + Reset All | ✅ Done | ✅ Complete |
+| Orbit density + attack surge controls | ✅ Done | ✅ Complete |
 | Logging levels (toggleable flags) | 📋 Planned | 🟡 Medium |
 | Multiplayer deployment (alpha) | 📋 Planned | 🟡 Medium |
-| Combat log: ships captured count | 📋 Planned | 🟢 Standard |
-| Combat log: "You" filter | 📋 Planned | 🟢 Standard |
-| Damaged ships defensive value in UI | 📋 Planned | 🟢 Standard |
-| Star selection bug fix | 📋 Planned | 🟢 Standard |
 
 ### Medium-Term
 

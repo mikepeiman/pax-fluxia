@@ -66,14 +66,17 @@ When Star A (Source) attacks Star B (Target):
 
 ### 3.2. Representation
 *   **Ships**:
-    *   *Active*: Solid colored dots packed in concentric rings.
+    *   *Active*: Solid colored dots packed in concentric rings. Rendered via `ParticleContainer` sprite batching for high-count performance (10k+).
     *   *Damaged*: Hollow rings (outlined) orbiting lazily.
+    *   *Stacked*: At high density, ships wrap to inner orbit layers with increasing multiplier (2×, 4×, etc.). Stacked ships blend toward white and show player-colored border.
+    *   *Attack Surge*: During combat, ships pulse outward toward target star in an egg-shaped displacement (configurable via `ATTACK_SURGE_MULT`).
 *   **Connections**:
     *   *Topology*: Bold White Lines (Valid Paths).
     *   *Flow*: Animated Chevron overlays indicating active force projection.
 *   **Telemetry**:
     *   Star Labels: Icon + Active Count (Bright) + Damaged Count (Dim).
     *   Combat Logs: Detailed breakdown of "Ships Damaged" vs "Ships Destroyed".
+    *   FPS Overlay: Real-time FPS + total visual ship count (top-left badge).
 
 ### 3.3. Ship Transfer Animation (CRITICAL)
 Ships must maintain **visual continuity** through the full transfer lifecycle:

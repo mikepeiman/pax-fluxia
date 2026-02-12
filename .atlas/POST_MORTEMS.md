@@ -37,3 +37,25 @@
 **Analysis**: `floor` alone was NOT the root cause — `MIN_SHIPS_PER_TRANSFER=1` prevents zero transfer. The real cause is **production/transfer equilibrium**: production adds ships before transfer removes them, creating a steady-state. Changing to `ceil` shifts the equilibrium lower but doesn't eliminate it.
 
 **Resolution**: User changed `floor` → `ceil`. The equilibrium interaction between production rate and transfer rate is a game design consideration, not a code bug.
+
+---
+
+## 2026-02-11: Graphics.circle() Performance Wall
+
+**What happened**: At 10k ships, FPS dropped below 10. Each ship was rendered via `shipGraphics.circle(x, y, size)` + `.fill()` every frame, totaling 10k+ geometry tessellations per frame.
+
+**Why**: `PIXI.Graphics` rebuilds and tessellates all circle geometry from scratch every frame. This is a CPU-bound operation — the GPU was idle while JavaScript converted circles to triangle meshes. This approach works for hundreds of objects but collapses at thousands.
+
+**Resolution**: Decision made to switch to `ParticleContainer` with pre-rendered sprite textures. Sprite batching submits all ships as a single GPU draw call, moving the bottleneck from CPU tessellation to GPU fill rate (which can handle 100k+ sprites).
+
+---
+
+## 2026-02-11: Sprite Pool Visual Quality Regression
+
+**What happened**: First attempt at sprite-based ship rendering (replacing Graphics.circle) produced visibly softer, blurrier ships. User immediately noticed degradation.
+
+**Why**: Initial texture was 16px, then 64px. The scaled-down bitmap lost the mathematical precision of vector `Graphics.circle()` calls. Missing `scaleMode = 'linear'` filtering and insufficient texture resolution for the display's device pixel ratio.
+
+**Lesson**: When replacing vector with raster, texture must be at least 128px with proper anti-aliasing, radial gradient edges, and correct PIXI texture filtering settings. Test at native resolution before shipping.
+
+**Resolution**: Reverted to Graphics.circle temporarily. Now implementing ParticleContainer with 128px high-quality textures and proper filtering.

@@ -146,7 +146,8 @@ classDiagram
 | `distance` | `math.utils.ts` | `(x1, y1, x2, y2) => number` | Euclidean distance |
 | `clamp` | `math.utils.ts` | `(value, min, max) => number` | Constrain value |
 | [`randomColor`](../pax-fluxia/src/lib/utils/render.utils.ts) | `render.utils.ts` | `() => string` | Generate player color |
-| [`getPackedPositions`](../pax-fluxia/src/lib/utils/render.utils.ts) | `render.utils.ts` | `(cx, cy, radius, count, time) => ShipVisual[]` | Calculate ship packing layout |
+| [`getOrbitSlot`](../pax-fluxia/src/lib/utils/render.utils.ts) | `render.utils.ts` | `(index, cx, cy, starRadius, time, biasAngle?, biasStrength?) => {x, y, multiplier}` | Ship orbit packing with stacking |
+| [`getOuterOrbitRadius`](../pax-fluxia/src/lib/utils/render.utils.ts) | `render.utils.ts` | `(starRadius, shipCount) => number` | Outermost occupied ring radius |
 | [`renderStars`](../pax-fluxia/src/lib/components/game/GameCanvas.svelte) | `GameCanvas.svelte` | `(stars: StarState[]) => void` | Render static star field and attributes |
 | [`updateTerritories`](../pax-fluxia/src/lib/engine/GameEngine.ts) | `GameEngine.ts` | `(width, height) => void` | Calculate Voronoi territory ownership |
 
@@ -193,6 +194,12 @@ interface GameSettings {
 | [`REPAIR_RATE`](../pax-fluxia/src/lib/config/game.config.ts) | `game.config.ts` | `0.20` | Repair per tick (20%) |
 | [`REPAIR_COMBAT_PENALTY`](../pax-fluxia/src/lib/config/game.config.ts) | `game.config.ts` | `0.1` | Penalty when pinned (Effectively 2%) |
 | [`OVERWHELM_THRESHOLD`](../pax-fluxia/src/lib/config/game.config.ts) | `game.config.ts` | `0.1` | <10% force = Instant Surrender |
+| [`ORBIT_DENSITY`](../pax-fluxia/src/lib/config/game.config.ts) | `game.config.ts` | `1.5` | Ship spacing per ring (higher = fewer per ring) |
+| [`ATTACK_SURGE_MULT`](../pax-fluxia/src/lib/config/game.config.ts) | `game.config.ts` | `0.4` | Attack surge displacement (fraction of star radius) |
+| [`SHIP_BASE_SIZE`](../pax-fluxia/src/lib/config/game.config.ts) | `game.config.ts` | `4` | Base ship circle radius (px) |
+| [`ORBIT_RING_MULT`](../pax-fluxia/src/lib/config/game.config.ts) | `game.config.ts` | `1.4` | Ring spacing = BASE_SIZE × this |
+| [`SETTLE_DURATION_MS`](../pax-fluxia/src/lib/config/game.config.ts) | `game.config.ts` | `150` | Ship settle-into-orbit time |
+| [`WOBBLE_AMP`](../pax-fluxia/src/lib/config/game.config.ts) | `game.config.ts` | `12` | Travel wobble amplitude (px) |
 
 ---
 
