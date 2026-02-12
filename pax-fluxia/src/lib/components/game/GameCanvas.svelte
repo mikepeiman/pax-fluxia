@@ -78,8 +78,9 @@
     // In-flight ships (departing, traveling, arriving)
     let travelingShips: VisualShipState[] = [];
 
-    // Per-star attack ramp-in tracking — records when each star first entered attack mode
-    let attackStartTimes: Map<string, number> = new Map();
+    // Per-star attack ramp-in progress (0→1, advances per-frame only when unpaused)
+    let attackRampProgress: Map<string, number> = new Map();
+    let lastSurgeFrameTime: number = 0; // For computing per-frame delta
 
     // Animation state
     let animationTime = 0;
@@ -2111,90 +2112,100 @@
                     // ATTACK MODE: Egg-shaped pulse - ships facing target surge forward
                     // Ships at back stay at orbit radius (don't cross planetary valence)
                     if (isAttack && targetStar) {
-                        // Track when this star first entered attack mode
-                        const nowMs = performance.now();
-                        if (!attackStartTimes.has(star.id)) {
-                            attackStartTimes.set(star.id, nowMs);
+                        const isPaused = activeGameStore.isPaused;
+
+                        // Initialize ramp for newly attacking stars
+                        if (!attackRampProgress.has(star.id)) {
+                            attackRampProgress.set(star.id, 0);
                         }
-                        // Configurable ramp-in: 0 = instant (old behavior)
+
+                        // Advance ramp only when unpaused (delta-based, pause-safe)
                         const rampDuration =
                             GAME_CONFIG.ATTACK_SURGE_RAMP_MS ?? 300;
                         let rampFactor = 1;
                         if (rampDuration > 0) {
-                            const attackElapsed =
-                                nowMs - attackStartTimes.get(star.id)!;
-                            const rampT = Math.min(
-                                1,
-                                attackElapsed / rampDuration,
-                            );
+                            let rampVal = attackRampProgress.get(star.id)!;
+                            if (!isPaused && lastSurgeFrameTime > 0) {
+                                const frameDelta =
+                                    performance.now() - lastSurgeFrameTime;
+                                rampVal = Math.min(
+                                    1,
+                                    rampVal + frameDelta / rampDuration,
+                                );
+                                attackRampProgress.set(star.id, rampVal);
+                            }
                             // easeOutCubic for natural acceleration
-                            rampFactor = 1 - Math.pow(1 - rampT, 3);
+                            rampFactor = 1 - Math.pow(1 - rampVal, 3);
                         }
 
-                        // Calculate ship's position relative to star center
-                        const shipDx = slot.x - star.x;
-                        const shipDy = slot.y - star.y;
-                        const shipDist =
-                            Math.sqrt(shipDx * shipDx + shipDy * shipDy) || 1;
+                        // Skip surge displacement when paused (ships hold orbit position)
+                        if (!isPaused) {
+                            // Calculate ship's position relative to star center
+                            const shipDx = slot.x - star.x;
+                            const shipDy = slot.y - star.y;
+                            const shipDist =
+                                Math.sqrt(shipDx * shipDx + shipDy * shipDy) ||
+                                1;
 
-                        // Normalize ship position vector
-                        const shipNormX = shipDx / shipDist;
-                        const shipNormY = shipDy / shipDist;
+                            // Normalize ship position vector
+                            const shipNormX = shipDx / shipDist;
+                            const shipNormY = shipDy / shipDist;
 
-                        // Dot product with target direction = how much ship faces target
-                        // +1 = facing target, -1 = facing away, 0 = perpendicular
-                        const facingFactor =
-                            shipNormX * dirX + shipNormY * dirY;
+                            // Dot product with target direction = how much ship faces target
+                            const facingFactor =
+                                shipNormX * dirX + shipNormY * dirY;
 
-                        // Only surge ships facing target (facingFactor > 0)
-                        // Use smooth transition: max(0, facingFactor)^2 for softer falloff
-                        const surgeFactor = Math.max(0, facingFactor) ** 1.5;
+                            // Only surge ships facing target (facingFactor > 0)
+                            const surgeFactor =
+                                Math.max(0, facingFactor) ** 1.5;
 
-                        // Per-ship phase offset for staggered surge
-                        const phaseOffsetTime = tickProgress + shipPhase * 0.12;
-                        const surgePulse = Math.sin(
-                            Math.min(phaseOffsetTime, 1) * Math.PI,
-                        );
+                            // Surge pulse: uniform timing for all ships (tick-boundary continuous)
+                            // Phase offset on AMPLITUDE axis (not time) to avoid tick-boundary snap
+                            const surgePulse = Math.sin(tickProgress * Math.PI);
+                            const phaseAmplitude =
+                                0.75 + 0.25 * Math.sin(shipPhase * Math.PI * 2);
 
-                        // Subtle surge: max displacement toward target
-                        // Front ships get full surge, back ships get none
-                        let surgeMax =
-                            star.radius *
-                            (GAME_CONFIG.ATTACK_SURGE_MULT ?? 0.4);
+                            // Subtle surge: max displacement toward target
+                            let surgeMax =
+                                star.radius *
+                                (GAME_CONFIG.ATTACK_SURGE_MULT ?? 0.4);
 
-                        // Proportional surge: scale by force disparity
-                        if (
-                            GAME_CONFIG.ATTACK_SURGE_PROPORTIONAL &&
-                            targetStar
-                        ) {
-                            const myShips = star.activeShips || 1;
-                            const theirShips = targetStar.activeShips || 1;
-                            // log2-based ratio so 8:1 → 3x, not 8x
-                            const ratio = myShips / theirShips;
-                            const cofactor =
-                                GAME_CONFIG.ATTACK_SURGE_FORCE_COFACTOR ?? 0.5;
-                            // forceBoost ranges from ~0.5 (outnumbered) to ~2+ (dominant)
-                            const forceBoost =
-                                1 + Math.log2(Math.max(0.25, ratio)) * cofactor;
-                            surgeMax *= Math.max(0.2, forceBoost);
+                            // Proportional surge: scale by force disparity
+                            if (
+                                GAME_CONFIG.ATTACK_SURGE_PROPORTIONAL &&
+                                targetStar
+                            ) {
+                                const myShips = star.activeShips || 1;
+                                const theirShips = targetStar.activeShips || 1;
+                                const ratio = myShips / theirShips;
+                                const cofactor =
+                                    GAME_CONFIG.ATTACK_SURGE_FORCE_COFACTOR ??
+                                    0.5;
+                                const forceBoost =
+                                    1 +
+                                    Math.log2(Math.max(0.25, ratio)) * cofactor;
+                                surgeMax *= Math.max(0.2, forceBoost);
+                            }
+
+                            // Apply: pulse × amplitude-phase × max × facing × ramp
+                            targetX +=
+                                dirX *
+                                surgePulse *
+                                phaseAmplitude *
+                                surgeMax *
+                                surgeFactor *
+                                rampFactor;
+                            targetY +=
+                                dirY *
+                                surgePulse *
+                                phaseAmplitude *
+                                surgeMax *
+                                surgeFactor *
+                                rampFactor;
                         }
-
-                        // Apply ramp-in factor so surge eases from zero
-                        targetX +=
-                            dirX *
-                            surgePulse *
-                            surgeMax *
-                            surgeFactor *
-                            rampFactor;
-                        targetY +=
-                            dirY *
-                            surgePulse *
-                            surgeMax *
-                            surgeFactor *
-                            rampFactor;
                     } else {
                         // Not attacking — clear ramp tracking for this star
-                        attackStartTimes.delete(star.id);
+                        attackRampProgress.delete(star.id);
                     }
 
                     // TRANSFER MODE: For now, same as idle (ships stay until fleet system)
@@ -2327,6 +2338,9 @@
 
         // Render in-flight ships (departing, traveling, arriving)
         renderTravelingShips(stars, starsById);
+
+        // Update frame timestamp for surge ramp delta (must be AFTER all stars processed)
+        lastSurgeFrameTime = performance.now();
     }
 
     function renderFleets(stars: StarState[], fleets: FleetState[]) {
