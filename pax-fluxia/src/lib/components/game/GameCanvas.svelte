@@ -1805,7 +1805,12 @@
             for (const ts of travelingShips) {
                 if (ts.toStarId === star.id) inFlightToStar++;
             }
-            const targetCount = Math.max(0, star.activeShips - inFlightToStar);
+            const actualCount = Math.max(0, star.activeShips - inFlightToStar);
+            const maxVisual = GAME_CONFIG.MAX_VISUAL_SHIPS ?? 100;
+            const targetCount = Math.min(actualCount, maxVisual);
+            // Density multiplier: how many real ships each visual ship represents
+            const starMultiplier =
+                targetCount > 0 ? actualCount / targetCount : 1;
 
             // SPWAN: If we need more ships, add them
             if (ships.length < targetCount) {
@@ -1950,7 +1955,7 @@
                         biasStrength,
                     );
                     targetX = slot.x;
-                    const shipMultiplier = slot.multiplier;
+                    const shipMultiplier = slot.multiplier * starMultiplier;
                     targetY = slot.y;
 
                     // ATTACK MODE: Egg-shaped pulse - ships facing target surge forward

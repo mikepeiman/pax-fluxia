@@ -136,6 +136,7 @@ interface GameConfigType {
     SHIP_OUTLINE_PX: number;       // Outline thickness in px (default 1.0)
     SHIP_GLOW_INTENSITY: number;   // Multiplier brightness glow (0=none, 1=max hue-brighten, default 0.3)
     SHIP_SCALE_MULT: number;       // Global ship size multiplier (default 1.0)
+    MAX_VISUAL_SHIPS: number;      // Max visual ship sprites per star (overflow → brightness, default 100)
 
     /** How far order arrows extend along the lane (0.0-1.0, 1.0 = full distance to target edge) */
     ARROW_LENGTH_FRACTION: number;
@@ -373,6 +374,8 @@ export const GAME_CONFIG: GameConfigType = {
     SHIP_GLOW_INTENSITY: 0.3,
     /** Global ship size multiplier */
     SHIP_SCALE_MULT: 1.0,
+    /** Max visual ship sprites per star — overflow represented as brightness multiplier */
+    MAX_VISUAL_SHIPS: 100,
     /** Enable orbit bias oscillation between min/max */
     ORBIT_BIAS_OSCILLATE: false,
     /** Min bias strength for oscillation */

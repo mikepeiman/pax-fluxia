@@ -427,6 +427,7 @@
         shipOutlinePx: GAME_CONFIG.SHIP_OUTLINE_PX,
         shipGlowIntensity: GAME_CONFIG.SHIP_GLOW_INTENSITY,
         shipScaleMult: GAME_CONFIG.SHIP_SCALE_MULT,
+        maxVisualShips: GAME_CONFIG.MAX_VISUAL_SHIPS,
     };
 
     function loadPanelSettings(): typeof panelDefaults {
@@ -501,6 +502,7 @@
         GAME_CONFIG.SHIP_OUTLINE_PX = panel.shipOutlinePx as number;
         GAME_CONFIG.SHIP_GLOW_INTENSITY = panel.shipGlowIntensity as number;
         GAME_CONFIG.SHIP_SCALE_MULT = panel.shipScaleMult as number;
+        GAME_CONFIG.MAX_VISUAL_SHIPS = panel.maxVisualShips as number;
     }
     function resetToDefaults() {
         panel = { ...panelDefaults };
@@ -1147,6 +1149,26 @@
                         const val = +(e.target as HTMLInputElement).value;
                         GAME_CONFIG.SHIP_SCALE_MULT = val;
                         updatePanel("shipScaleMult", val);
+                    }}
+                />
+            </div>
+
+            <!-- Max Visual Ships -->
+            <div class="variable-row">
+                <div class="row-top">
+                    <span class="var-name">Max Ships/Star</span>
+                    <span class="current-val">{panel.maxVisualShips}</span>
+                </div>
+                <input
+                    type="range"
+                    min="10"
+                    max="500"
+                    step="10"
+                    value={panel.maxVisualShips}
+                    oninput={(e) => {
+                        const val = +(e.target as HTMLInputElement).value;
+                        GAME_CONFIG.MAX_VISUAL_SHIPS = val;
+                        updatePanel("maxVisualShips", val);
                     }}
                 />
             </div>
