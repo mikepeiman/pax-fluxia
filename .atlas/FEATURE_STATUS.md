@@ -247,6 +247,9 @@
 | R-73 | Reset All Button: CombatDebugPanel has red-tinted reset button that clears localStorage and restores defaults | 🟢 |
 | R-74 | Orbit Density Slider: controls ship spacing per ring (1.0-4.0x), higher = more spread out, fewer per ring | 🟢 |
 | R-75 | Attack Surge Slider: controls attack displacement (0-1.5x star radius), adjustable in real-time | 🟢 |
+| R-76 | ParticleContainer Rendering: replaced Graphics.circle with ParticleContainer + Particle pool (24fps @ 30k ships) | 🟢 |
+| R-77 | Player-Color Outlines: ring texture behind each ship shows raw player color, visible even when fill is white-blended | 🟢 |
+| R-78 | Orb Travel Flash Fix: departing ships fade to full transparency before orb grouping, eliminating single-frame arc | 🟢 |
 
 ---
 
