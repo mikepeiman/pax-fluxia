@@ -53,13 +53,9 @@
 
     // ParticleContainer ship rendering (high-perf batched sprites)
     let shipCircleTexture: PIXI.Texture | null = null;
-    let shipRingTexture: PIXI.Texture | null = null; // Hollow ring for outlines
-    let shipOutlineContainer: PIXI.ParticleContainer | null = null; // Outlines BEHIND fills
     let shipParticleContainer: PIXI.ParticleContainer | null = null;
     let shipParticlePool: PIXI.Particle[] = [];
     let shipParticleIndex = 0;
-    let outlineParticlePool: PIXI.Particle[] = [];
-    let outlineParticleIndex = 0;
     let orbGraphics: PIXI.Graphics | null = null; // For orb travel glow effects (needs Graphics)
 
     // FPS tracking
@@ -262,40 +258,8 @@
         shipCircleTexture = PIXI.Texture.from(texCanvas);
         shipCircleTexture.source.scaleMode = "linear";
 
-        // Create ring texture (hollow circle for outlines)
-        const ringSize = 128;
-        const ringCanvas = document.createElement("canvas");
-        ringCanvas.width = ringSize;
-        ringCanvas.height = ringSize;
-        const ringCtx = ringCanvas.getContext("2d")!;
-        const ringThickness = 12; // px at 128px scale
-        ringCtx.beginPath();
-        ringCtx.arc(
-            ringSize / 2,
-            ringSize / 2,
-            ringSize / 2 - 1,
-            0,
-            Math.PI * 2,
-        );
-        ringCtx.lineWidth = ringThickness;
-        ringCtx.strokeStyle = "white";
-        ringCtx.stroke();
-        shipRingTexture = PIXI.Texture.from(ringCanvas);
-        shipRingTexture.source.scaleMode = "linear";
-
-        // Outline container renders BEHIND fill container
-        shipOutlineContainer = new PIXI.ParticleContainer({
-            texture: shipRingTexture,
-            dynamicProperties: {
-                position: true,
-                color: true,
-                vertex: true,
-            },
-            roundPixels: true,
-        });
-        shipsContainer.addChild(shipOutlineContainer);
-
-        // ParticleContainer: position + color dynamic (updated every frame)
+        // Single ParticleContainer for all ship rendering (outlines + fills + damage indicators)
+        // Outlines are backing circles drawn BEFORE fills in the same batch
         shipParticleContainer = new PIXI.ParticleContainer({
             texture: shipCircleTexture,
             dynamicProperties: {
@@ -682,9 +646,8 @@
 
         // NOTE: Pending orders cleanup is now handled in renderFlowLinks()
 
-        // Reset particle pool indices for this frame
+        // Reset particle pool index for this frame
         shipParticleIndex = 0;
-        outlineParticleIndex = 0;
 
         // Process tick events (event-driven animations, not diff-based — see POST_MORTEMS.md)
         const tickEvents = activeGameStore.consumeTickEvents();
@@ -695,19 +658,11 @@
         // Render all ships: orbiting (per-star) + traveling (in-flight lifecycle)
         renderShips(stars, tickProgress, starsById);
 
-        // Hide unused particles from pools
+        // Hide unused particles from pool
         for (let i = shipParticleIndex; i < shipParticlePool.length; i++) {
             shipParticlePool[i].alpha = 0;
         }
-        for (
-            let i = outlineParticleIndex;
-            i < outlineParticlePool.length;
-            i++
-        ) {
-            outlineParticlePool[i].alpha = 0;
-        }
         if (shipParticleContainer) shipParticleContainer.update();
-        if (shipOutlineContainer) shipOutlineContainer.update();
 
         // Count total visual ships for HUD
         let shipCount = 0;
@@ -2212,55 +2167,60 @@
         isDamaged: boolean,
         multiplier: number = 1,
     ) {
-        if (
-            !shipParticleContainer ||
-            !shipCircleTexture ||
-            !shipOutlineContainer ||
-            !shipRingTexture
-        )
-            return;
+        if (!shipParticleContainer || !shipCircleTexture) return;
 
-        // The texture is 128px; ship base visual size is 3px * scale
-        // So sprite scale = (3 * scale * 2) / 128  (×2 because texture is diameter)
-        const pixelSize = 3 * scale;
+        // Apply global ship scale multiplier
+        const globalScale = GAME_CONFIG.SHIP_SCALE_MULT ?? 1.0;
+        const pixelSize = 3 * scale * globalScale;
         const spriteScale = (pixelSize * 2) / 128;
 
-        // White scaling: blend toward white based on multiplier (1 = normal, 2+ = increasingly white)
+        // Hue-brighten: increase brightness within the player's own hue (not toward white)
+        // This preserves color identity while showing power level
         let finalColor = color;
         if (multiplier > 1) {
-            const blendAmount = Math.min(1.0, Math.log2(multiplier) * 0.3);
+            const glowIntensity = GAME_CONFIG.SHIP_GLOW_INTENSITY ?? 0.3;
+            const blendAmount = Math.min(
+                1.0,
+                Math.log2(multiplier) * glowIntensity,
+            );
             const r = (color >> 16) & 0xff;
             const g = (color >> 8) & 0xff;
             const b = color & 0xff;
-            const newR = Math.round(r + (255 - r) * blendAmount);
-            const newG = Math.round(g + (255 - g) * blendAmount);
-            const newB = Math.round(b + (255 - b) * blendAmount);
+            // Find the dominant channel and boost all proportionally
+            const maxC = Math.max(r, g, b, 1);
+            const boost = 1 + blendAmount * (255 / maxC - 1);
+            const newR = Math.min(255, Math.round(r * boost));
+            const newG = Math.min(255, Math.round(g * boost));
+            const newB = Math.min(255, Math.round(b * boost));
             finalColor = (newR << 16) | (newG << 8) | newB;
         }
 
-        // === Outline ring particle (player's raw color, slightly larger) ===
-        const outlineScale = ((pixelSize + 1.5) * 2) / 128;
-        let outlineP: PIXI.Particle;
-        if (outlineParticleIndex < outlineParticlePool.length) {
-            outlineP = outlineParticlePool[outlineParticleIndex];
-        } else {
-            outlineP = new PIXI.Particle({
-                texture: shipRingTexture,
-                anchorX: 0.5,
-                anchorY: 0.5,
-            });
-            outlineParticlePool.push(outlineP);
-            shipOutlineContainer.addParticle(outlineP);
+        // === Outline: backing circle (same texture, slightly larger, raw player color) ===
+        if (GAME_CONFIG.SHIP_OUTLINE_ON !== false) {
+            const outlinePx = GAME_CONFIG.SHIP_OUTLINE_PX ?? 1.0;
+            const outlineScale = ((pixelSize + outlinePx) * 2) / 128;
+            let outlineP: PIXI.Particle;
+            if (shipParticleIndex < shipParticlePool.length) {
+                outlineP = shipParticlePool[shipParticleIndex];
+            } else {
+                outlineP = new PIXI.Particle({
+                    texture: shipCircleTexture,
+                    anchorX: 0.5,
+                    anchorY: 0.5,
+                });
+                shipParticlePool.push(outlineP);
+                shipParticleContainer.addParticle(outlineP);
+            }
+            outlineP.x = x;
+            outlineP.y = y;
+            outlineP.scaleX = outlineScale;
+            outlineP.scaleY = outlineScale;
+            outlineP.tint = color; // Always raw player color
+            outlineP.alpha = alpha;
+            shipParticleIndex++;
         }
-        outlineP.x = x;
-        outlineP.y = y;
-        outlineP.scaleX = outlineScale;
-        outlineP.scaleY = outlineScale;
-        outlineP.tint = color; // Always raw player color
-        outlineP.alpha = alpha;
-        outlineParticleIndex++;
 
-        // === Fill circle particle (may be white-blended) ===
+        // === Fill circle (may be hue-brightened for multiplier) ===
         let particle: PIXI.Particle;
         if (shipParticleIndex < shipParticlePool.length) {
             particle = shipParticlePool[shipParticleIndex];
@@ -2273,7 +2233,6 @@
             shipParticlePool.push(particle);
             shipParticleContainer.addParticle(particle);
         }
-
         particle.x = x;
         particle.y = y;
         particle.scaleX = spriteScale;
@@ -2282,28 +2241,28 @@
         particle.alpha = alpha;
         shipParticleIndex++;
 
-        // Damaged ships get a slightly larger, darker ring behind them
+        // Damaged ships: slightly larger dark backing circle
         if (isDamaged) {
-            const ringScale = ((pixelSize + 2.5) * 2) / 128;
-            let ringParticle: PIXI.Particle;
-            if (outlineParticleIndex < outlineParticlePool.length) {
-                ringParticle = outlineParticlePool[outlineParticleIndex];
+            const dmgScale = ((pixelSize + 2) * 2) / 128;
+            let dmgP: PIXI.Particle;
+            if (shipParticleIndex < shipParticlePool.length) {
+                dmgP = shipParticlePool[shipParticleIndex];
             } else {
-                ringParticle = new PIXI.Particle({
-                    texture: shipRingTexture,
+                dmgP = new PIXI.Particle({
+                    texture: shipCircleTexture,
                     anchorX: 0.5,
                     anchorY: 0.5,
                 });
-                outlineParticlePool.push(ringParticle);
-                shipOutlineContainer.addParticle(ringParticle);
+                shipParticlePool.push(dmgP);
+                shipParticleContainer.addParticle(dmgP);
             }
-            ringParticle.x = x;
-            ringParticle.y = y;
-            ringParticle.scaleX = ringScale;
-            ringParticle.scaleY = ringScale;
-            ringParticle.tint = 0x222222;
-            ringParticle.alpha = 0.5;
-            outlineParticleIndex++;
+            dmgP.x = x;
+            dmgP.y = y;
+            dmgP.scaleX = dmgScale;
+            dmgP.scaleY = dmgScale;
+            dmgP.tint = 0x222222;
+            dmgP.alpha = 0.5;
+            shipParticleIndex++;
         }
     }
 

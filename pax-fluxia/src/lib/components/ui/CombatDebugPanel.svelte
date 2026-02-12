@@ -422,6 +422,11 @@
         shipBaseSize: GAME_CONFIG.SHIP_BASE_SIZE,
         starRenderRadius: GAME_CONFIG.STAR_RENDER_RADIUS,
         orbitRingMult: GAME_CONFIG.ORBIT_RING_MULT,
+        // Ship appearance
+        shipOutlineOn: GAME_CONFIG.SHIP_OUTLINE_ON,
+        shipOutlinePx: GAME_CONFIG.SHIP_OUTLINE_PX,
+        shipGlowIntensity: GAME_CONFIG.SHIP_GLOW_INTENSITY,
+        shipScaleMult: GAME_CONFIG.SHIP_SCALE_MULT,
     };
 
     function loadPanelSettings(): typeof panelDefaults {
@@ -491,6 +496,11 @@
         GAME_CONFIG.SHIP_BASE_SIZE = panel.shipBaseSize as number;
         GAME_CONFIG.STAR_RENDER_RADIUS = panel.starRenderRadius as number;
         GAME_CONFIG.ORBIT_RING_MULT = panel.orbitRingMult as number;
+        // Ship appearance
+        GAME_CONFIG.SHIP_OUTLINE_ON = panel.shipOutlineOn as boolean;
+        GAME_CONFIG.SHIP_OUTLINE_PX = panel.shipOutlinePx as number;
+        GAME_CONFIG.SHIP_GLOW_INTENSITY = panel.shipGlowIntensity as number;
+        GAME_CONFIG.SHIP_SCALE_MULT = panel.shipScaleMult as number;
     }
     function resetToDefaults() {
         panel = { ...panelDefaults };
@@ -1046,6 +1056,97 @@
                         const val = +(e.target as HTMLInputElement).value;
                         GAME_CONFIG.ATTACK_SURGE_MULT = val;
                         updatePanel("attackSurgeMult", val);
+                    }}
+                />
+            </div>
+
+            <!-- ═══ Ship Appearance ═══ -->
+            <h4 class="section-divider">Ship Appearance</h4>
+
+            <!-- Ship Outline toggle -->
+            <div class="variable-row">
+                <div class="row-top">
+                    <label class="toggle-label">
+                        <input
+                            type="checkbox"
+                            checked={panel.shipOutlineOn}
+                            onchange={() => {
+                                panel.shipOutlineOn = !panel.shipOutlineOn;
+                                GAME_CONFIG.SHIP_OUTLINE_ON =
+                                    panel.shipOutlineOn as boolean;
+                                updatePanel(
+                                    "shipOutlineOn",
+                                    panel.shipOutlineOn,
+                                );
+                            }}
+                        />
+                        Ship Outline
+                    </label>
+                </div>
+            </div>
+
+            <!-- Outline Thickness -->
+            <div class="variable-row">
+                <div class="row-top">
+                    <span class="var-name">Outline px</span>
+                    <span class="current-val"
+                        >{(panel.shipOutlinePx as number).toFixed(1)}</span
+                    >
+                </div>
+                <input
+                    type="range"
+                    min="0.2"
+                    max="3.0"
+                    step="0.1"
+                    value={panel.shipOutlinePx}
+                    oninput={(e) => {
+                        const val = +(e.target as HTMLInputElement).value;
+                        GAME_CONFIG.SHIP_OUTLINE_PX = val;
+                        updatePanel("shipOutlinePx", val);
+                    }}
+                />
+            </div>
+
+            <!-- Glow Intensity -->
+            <div class="variable-row">
+                <div class="row-top">
+                    <span class="var-name">Glow Intensity</span>
+                    <span class="current-val"
+                        >{(panel.shipGlowIntensity as number).toFixed(2)}</span
+                    >
+                </div>
+                <input
+                    type="range"
+                    min="0"
+                    max="1.0"
+                    step="0.02"
+                    value={panel.shipGlowIntensity}
+                    oninput={(e) => {
+                        const val = +(e.target as HTMLInputElement).value;
+                        GAME_CONFIG.SHIP_GLOW_INTENSITY = val;
+                        updatePanel("shipGlowIntensity", val);
+                    }}
+                />
+            </div>
+
+            <!-- Ship Scale -->
+            <div class="variable-row">
+                <div class="row-top">
+                    <span class="var-name">Ship Scale</span>
+                    <span class="current-val"
+                        >{(panel.shipScaleMult as number).toFixed(1)}x</span
+                    >
+                </div>
+                <input
+                    type="range"
+                    min="0.3"
+                    max="3.0"
+                    step="0.1"
+                    value={panel.shipScaleMult}
+                    oninput={(e) => {
+                        const val = +(e.target as HTMLInputElement).value;
+                        GAME_CONFIG.SHIP_SCALE_MULT = val;
+                        updatePanel("shipScaleMult", val);
                     }}
                 />
             </div>
@@ -1861,6 +1962,16 @@
 
     .ai-section .section-title {
         color: #ff8844;
+    }
+
+    h4.section-divider {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #99bbdd;
+        margin: 8px 0 4px;
+        padding-top: 6px;
+        border-top: 1px solid #334;
     }
 
     .var-name {
