@@ -519,6 +519,8 @@
         wobbleAmp: GAME_CONFIG.WOBBLE_AMP,
         orbitDensity: GAME_CONFIG.ORBIT_DENSITY,
         attackSurgeMult: GAME_CONFIG.ATTACK_SURGE_MULT,
+        attackSurgeProportional: GAME_CONFIG.ATTACK_SURGE_PROPORTIONAL,
+        attackSurgeForceCofactor: GAME_CONFIG.ATTACK_SURGE_FORCE_COFACTOR,
         orbTravel: GAME_CONFIG.ORB_TRAVEL,
         orbitBias: GAME_CONFIG.ORBIT_BIAS_STRENGTH,
         oscillate: GAME_CONFIG.ORBIT_BIAS_OSCILLATE,
@@ -592,6 +594,10 @@
         GAME_CONFIG.WOBBLE_AMP = panel.wobbleAmp as number;
         GAME_CONFIG.ORBIT_DENSITY = panel.orbitDensity as number;
         GAME_CONFIG.ATTACK_SURGE_MULT = panel.attackSurgeMult as number;
+        GAME_CONFIG.ATTACK_SURGE_PROPORTIONAL =
+            panel.attackSurgeProportional as boolean;
+        GAME_CONFIG.ATTACK_SURGE_FORCE_COFACTOR =
+            panel.attackSurgeForceCofactor as number;
         GAME_CONFIG.ORB_TRAVEL = panel.orbTravel as boolean;
         GAME_CONFIG.ORBIT_BIAS_STRENGTH = panel.orbitBias as number;
         GAME_CONFIG.ORBIT_BIAS_OSCILLATE = panel.oscillate as boolean;
@@ -1357,6 +1363,46 @@
                             }}
                         />
                     </div>
+                    <label class="toggle-row" style="margin-top:2px;">
+                        <input
+                            type="checkbox"
+                            checked={panel.attackSurgeProportional}
+                            onchange={(e) => {
+                                const v = (e.target as HTMLInputElement)
+                                    .checked;
+                                GAME_CONFIG.ATTACK_SURGE_PROPORTIONAL = v;
+                                updatePanel("attackSurgeProportional", v);
+                            }}
+                        />
+                        <span class="log-label" style="font-size:9px;"
+                            >Proportional to force</span
+                        >
+                    </label>
+                    {#if panel.attackSurgeProportional}
+                        <div class="var-row compact" style="margin-top:2px;">
+                            <div class="row-top">
+                                <span class="var-name">Force Cofactor</span
+                                ><span class="val"
+                                    >{(
+                                        panel.attackSurgeForceCofactor as number
+                                    ).toFixed(2)}</span
+                                >
+                            </div>
+                            <input
+                                type="range"
+                                min="0"
+                                max="2"
+                                step="0.05"
+                                value={panel.attackSurgeForceCofactor}
+                                oninput={(e) => {
+                                    const v = +(e.target as HTMLInputElement)
+                                        .value;
+                                    GAME_CONFIG.ATTACK_SURGE_FORCE_COFACTOR = v;
+                                    updatePanel("attackSurgeForceCofactor", v);
+                                }}
+                            />
+                        </div>
+                    {/if}
                     <div class="var-row">
                         <div class="row-top">
                             <span class="var-name">Depart Fraction</span><span

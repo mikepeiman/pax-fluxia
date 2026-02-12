@@ -1989,9 +1989,27 @@
 
                         // Subtle surge: max displacement toward target
                         // Front ships get full surge, back ships get none
-                        const surgeMax =
+                        let surgeMax =
                             star.radius *
                             (GAME_CONFIG.ATTACK_SURGE_MULT ?? 0.4);
+
+                        // Proportional surge: scale by force disparity
+                        if (
+                            GAME_CONFIG.ATTACK_SURGE_PROPORTIONAL &&
+                            targetStar
+                        ) {
+                            const myShips = star.activeShips || 1;
+                            const theirShips = targetStar.activeShips || 1;
+                            // log2-based ratio so 8:1 → 3x, not 8x
+                            const ratio = myShips / theirShips;
+                            const cofactor =
+                                GAME_CONFIG.ATTACK_SURGE_FORCE_COFACTOR ?? 0.5;
+                            // forceBoost ranges from ~0.5 (outnumbered) to ~2+ (dominant)
+                            const forceBoost =
+                                1 + Math.log2(Math.max(0.25, ratio)) * cofactor;
+                            surgeMax *= Math.max(0.2, forceBoost);
+                        }
+
                         targetX += dirX * surgePulse * surgeMax * surgeFactor;
                         targetY += dirY * surgePulse * surgeMax * surgeFactor;
                     }

@@ -114,6 +114,8 @@ interface GameConfigType {
     WOBBLE_AMP: number;            // Amplitude of sinusoidal wobble on travel path (px, default 12)
     ORBIT_DENSITY: number;         // Ship spacing factor per ring: circumference / (BASE_SIZE * ORBIT_DENSITY). Higher = fewer per ring (default 1.5)
     ATTACK_SURGE_MULT: number;     // Attack surge displacement as fraction of star radius (default 0.4)
+    ATTACK_SURGE_PROPORTIONAL: boolean; // Scale surge by force disparity ratio (default true)
+    ATTACK_SURGE_FORCE_COFACTOR: number; // How much force ratio amplifies surge (0=none, 1=full, default 0.5)
     // Orbit bias oscillation
     ORBIT_BIAS_OSCILLATE: boolean; // Enable oscillation between min/max bias (default false)
     ORBIT_BIAS_MIN: number;        // Min bias strength for oscillation (default 0.0)
@@ -366,6 +368,8 @@ export const GAME_CONFIG: GameConfigType = {
     ORBIT_DENSITY: 1.5,
     /** Attack surge displacement as fraction of star radius (default 0.4) */
     ATTACK_SURGE_MULT: 0.4,
+    ATTACK_SURGE_PROPORTIONAL: true,
+    ATTACK_SURGE_FORCE_COFACTOR: 0.5,
     /** Show player-color outline behind each ship */
     SHIP_OUTLINE_ON: true,
     /** Outline thickness in px */

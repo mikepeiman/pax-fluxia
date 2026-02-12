@@ -175,6 +175,7 @@
 | F-19 | Attack Surge Animation (verified working) | 2026-02-12 |
 | F-20 | Config Import/Export: JSON + MD export, JSON import with type validation, in Logging tab | 2026-02-12 |
 | F-21 | Tauri Desktop Build: native .exe, .msi, .nsis installer (1400×900 default window) | 2026-02-12 |
+| F-22 | Attack Surge Proportional to Force Disparity: log2-scaled, toggleable, cofactor slider | 2026-02-12 |
 
 ## Planned Features — Not Started (R)
 
