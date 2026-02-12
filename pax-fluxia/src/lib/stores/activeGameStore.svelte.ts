@@ -37,9 +37,6 @@ function isMultiplayerMode(): boolean {
 // Pending tick events — fed by SP or MP, consumed by canvas
 let pendingTickEvents: TickEvents | null = $state(null);
 
-// Slowmo factor — multiplies effectiveTickMs to stretch all animations
-let _slowmoFactor: number = $state(1);
-
 /**
  * Push tick events from either SP engine or MP server.
  * Also feeds combat log from events.
@@ -424,9 +421,8 @@ export const activeGameStore = {
     get speed() { return getSpeed(); },
     get effectiveTickMs() {
         const speed = getSpeed() || 1;
-        return Math.max(GAME_CONFIG.MIN_TICK_MS, (GAME_CONFIG.BASE_TICK_MS / speed) * _slowmoFactor);
+        return Math.max(GAME_CONFIG.MIN_TICK_MS, GAME_CONFIG.BASE_TICK_MS / speed);
     },
-    get slowmoFactor() { return _slowmoFactor; },
     get tickProgress() { return getTickProgress(); },
     get sessionId() { return getSessionId(); },
 
@@ -449,17 +445,6 @@ export const activeGameStore = {
     startGame,
     playAgain,
     returnToMenu,
-
-    /** Set slowmo factor (1 = normal, 4 = 4× slow, 10 = 10× slow) */
-    setSlowmo(factor: number) {
-        _slowmoFactor = factor;
-        // Write to GAME_CONFIG so engine's scheduleTick reads it
-        (GAME_CONFIG as any).SLOWMO_FACTOR = factor;
-        // Reschedule engine tick interval
-        if (!isMultiplayerMode()) {
-            gameStore.updateConfig();
-        }
-    },
 
     // Results / History
     getHistory,

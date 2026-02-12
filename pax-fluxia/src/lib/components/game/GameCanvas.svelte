@@ -78,6 +78,9 @@
     // In-flight ships (departing, traveling, arriving)
     let travelingShips: VisualShipState[] = [];
 
+    // Per-star attack ramp-in tracking — records when each star first entered attack mode
+    let attackStartTimes: Map<string, number> = new Map();
+
     // Animation state
     let animationTime = 0;
     let animationFrameId: number | null = null;
@@ -2108,6 +2111,26 @@
                     // ATTACK MODE: Egg-shaped pulse - ships facing target surge forward
                     // Ships at back stay at orbit radius (don't cross planetary valence)
                     if (isAttack && targetStar) {
+                        // Track when this star first entered attack mode
+                        const nowMs = performance.now();
+                        if (!attackStartTimes.has(star.id)) {
+                            attackStartTimes.set(star.id, nowMs);
+                        }
+                        // Configurable ramp-in: 0 = instant (old behavior)
+                        const rampDuration =
+                            GAME_CONFIG.ATTACK_SURGE_RAMP_MS ?? 300;
+                        let rampFactor = 1;
+                        if (rampDuration > 0) {
+                            const attackElapsed =
+                                nowMs - attackStartTimes.get(star.id)!;
+                            const rampT = Math.min(
+                                1,
+                                attackElapsed / rampDuration,
+                            );
+                            // easeOutCubic for natural acceleration
+                            rampFactor = 1 - Math.pow(1 - rampT, 3);
+                        }
+
                         // Calculate ship's position relative to star center
                         const shipDx = slot.x - star.x;
                         const shipDy = slot.y - star.y;
@@ -2156,8 +2179,22 @@
                             surgeMax *= Math.max(0.2, forceBoost);
                         }
 
-                        targetX += dirX * surgePulse * surgeMax * surgeFactor;
-                        targetY += dirY * surgePulse * surgeMax * surgeFactor;
+                        // Apply ramp-in factor so surge eases from zero
+                        targetX +=
+                            dirX *
+                            surgePulse *
+                            surgeMax *
+                            surgeFactor *
+                            rampFactor;
+                        targetY +=
+                            dirY *
+                            surgePulse *
+                            surgeMax *
+                            surgeFactor *
+                            rampFactor;
+                    } else {
+                        // Not attacking — clear ramp tracking for this star
+                        attackStartTimes.delete(star.id);
                     }
 
                     // TRANSFER MODE: For now, same as idle (ships stay until fleet system)

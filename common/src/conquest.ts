@@ -188,8 +188,23 @@ export function applyConquest(
     // Transfer ownership
     defender.ownerId = attacker.ownerId;
 
-    // Captured ships become active ships on the conquered star
-    defender.activeShips = result.shipsCaptured;
+    // Split captured ships by their original status (active vs damaged)
+    // Captured active ships become active on conquered star
+    // Captured damaged ships: some captured (stay damaged), some destroyed, rest stay damaged
+    const capturedTotal = result.shipsCaptured;
+    const activeRatio = defenderTotal > 0 ? defenderActive / defenderTotal : 1;
+    const capturedActive = Math.round(capturedTotal * activeRatio);
+    const capturedDamaged = capturedTotal - capturedActive;
+
+    // Apply conquest damaged rates
+    const damagedCaptureRate = cfg.CONQUEST_DAMAGED_CAPTURE_RATE ?? 1.0;
+    const damagedDestroyRate = cfg.CONQUEST_DAMAGED_DESTROY_RATE ?? 0;
+    const damagedKept = Math.floor(capturedDamaged * damagedCaptureRate);
+    const damagedDestroyed = Math.floor(capturedDamaged * damagedDestroyRate);
+    const damagedOnStar = Math.max(0, damagedKept - damagedDestroyed);
+
+    defender.activeShips = capturedActive;
+    defender.damagedShips = damagedOnStar;
 
     // Transfer attacker ships to newly conquered star
     const transferPercentage = cfg.CONQUEST_TRANSFER_PERCENTAGE / 100;

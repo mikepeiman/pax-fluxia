@@ -521,6 +521,7 @@
         attackSurgeMult: GAME_CONFIG.ATTACK_SURGE_MULT,
         attackSurgeProportional: GAME_CONFIG.ATTACK_SURGE_PROPORTIONAL,
         attackSurgeForceCofactor: GAME_CONFIG.ATTACK_SURGE_FORCE_COFACTOR,
+        attackSurgeRampMs: GAME_CONFIG.ATTACK_SURGE_RAMP_MS,
         conquestTravelSpeed: GAME_CONFIG.CONQUEST_TRAVEL_SPEED,
         conquestTravelMode: GAME_CONFIG.CONQUEST_TRAVEL_MODE,
         orbTravel: GAME_CONFIG.ORB_TRAVEL,
@@ -600,6 +601,7 @@
             panel.attackSurgeProportional as boolean;
         GAME_CONFIG.ATTACK_SURGE_FORCE_COFACTOR =
             panel.attackSurgeForceCofactor as number;
+        GAME_CONFIG.ATTACK_SURGE_RAMP_MS = panel.attackSurgeRampMs as number;
         GAME_CONFIG.CONQUEST_TRAVEL_SPEED = panel.conquestTravelSpeed as number;
         GAME_CONFIG.CONQUEST_TRAVEL_MODE = panel.conquestTravelMode as
             | "straight"
@@ -1410,6 +1412,25 @@
                             />
                         </div>
                     {/if}
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Surge Ramp</span><span
+                                class="val">{panel.attackSurgeRampMs}ms</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="1000"
+                            step="50"
+                            value={panel.attackSurgeRampMs}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.ATTACK_SURGE_RAMP_MS = v;
+                                updatePanel("attackSurgeRampMs", v);
+                            }}
+                        />
+                    </div>
                     <div class="var-row" style="margin-top:6px;">
                         <div class="row-top">
                             <span class="var-name">Conquest Speed</span><span

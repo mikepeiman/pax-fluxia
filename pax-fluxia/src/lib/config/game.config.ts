@@ -72,7 +72,6 @@ interface GameConfigType {
     CONQUEST_DAMAGED_CAPTURE_RATE: number;  // % of damaged ships captured at conquest (0-1)
     CONQUEST_DAMAGED_DESTROY_RATE: number;  // % of damaged ships destroyed at conquest (0-1)
     OVERWHELM_THRESHOLD: number;
-    CLEAR_ORDER_ON_CAPTURE: boolean;
 
     // Order Persistence
     ORDERS_PERSIST_AFTER_CONQUEST: boolean;
@@ -116,6 +115,7 @@ interface GameConfigType {
     ATTACK_SURGE_MULT: number;     // Attack surge displacement as fraction of star radius (default 0.4)
     ATTACK_SURGE_PROPORTIONAL: boolean; // Scale surge by force disparity ratio (default true)
     ATTACK_SURGE_FORCE_COFACTOR: number; // How much force ratio amplifies surge (0=none, 1=full, default 0.5)
+    ATTACK_SURGE_RAMP_MS: number;        // Ramp-in duration for attack surge (ms, 0=instant/old behavior, default 300)
     // Conquest ship travel animation
     CONQUEST_TRAVEL_SPEED: number;       // Duration multiplier vs normal transfer (lower = faster, default 0.7)
     CONQUEST_TRAVEL_MODE: 'straight' | 'arc' | 'magnetic'; // Path shape for conquest travel (default 'magnetic')
@@ -279,9 +279,6 @@ export const GAME_CONFIG: GameConfigType = {
     /** Defender strength ratio below which they are instantly overwhelmed (e.g. 0.1 = 10% of attackers) */
     OVERWHELM_THRESHOLD: 0.1,
 
-    /** Whether to clear flow order after capture - DEPRECATED, use ORDERS_PERSIST_AFTER_CONQUEST */
-    CLEAR_ORDER_ON_CAPTURE: true,
-
     /** Default behavior: orders persist through star conquest (Ctrl-click inverts this per-order) */
     ORDERS_PERSIST_AFTER_CONQUEST: true,
 
@@ -374,6 +371,8 @@ export const GAME_CONFIG: GameConfigType = {
     ATTACK_SURGE_MULT: 0.4,
     ATTACK_SURGE_PROPORTIONAL: true,
     ATTACK_SURGE_FORCE_COFACTOR: 0.5,
+    /** Ramp-in duration for attack surge (ms, 0=instant/old behavior) */
+    ATTACK_SURGE_RAMP_MS: 300,
     /** Conquest travel speed: duration multiplier vs normal transfer (lower = faster) */
     CONQUEST_TRAVEL_SPEED: 0.7,
     /** Conquest travel path mode: 'straight' | 'arc' | 'magnetic' */
