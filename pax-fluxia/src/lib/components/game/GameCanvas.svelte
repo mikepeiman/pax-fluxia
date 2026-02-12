@@ -56,6 +56,7 @@
     let shipParticleContainer: PIXI.ParticleContainer | null = null;
     let shipParticlePool: PIXI.Particle[] = [];
     let shipParticleIndex = 0;
+    let orbGraphics: PIXI.Graphics | null = null; // For orb travel glow effects (needs Graphics)
 
     // FPS tracking
     let fpsFrameCount = 0;
@@ -269,6 +270,10 @@
         });
         shipsContainer.addChild(shipParticleContainer);
 
+        // Orb travel effects need Graphics (variable-radius glow circles)
+        orbGraphics = new PIXI.Graphics();
+        shipsContainer.addChild(orbGraphics);
+
         connectionGraphics = new PIXI.Graphics();
         app.stage.addChild(connectionGraphics);
 
@@ -324,7 +329,8 @@
         linkGraphics = null;
         starsContainer = null;
         shipsContainer = null;
-        shipGraphics = null;
+        shipParticleContainer = null;
+        orbGraphics = null;
         labelsContainer = null;
     });
 
@@ -1468,7 +1474,7 @@
         stars: StarState[],
         starsById: Map<string, StarState>,
     ) {
-        if (!shipGraphics) return;
+        if (!shipParticleContainer) return;
 
         const now = performance.now();
         // starsById passed in from renderShips (no allocation needed)
@@ -1700,7 +1706,8 @@
         }
 
         // Draw orbs for grouped traveling ships
-        if (GAME_CONFIG.ORB_TRAVEL && orbGroups.size > 0 && shipGraphics) {
+        if (GAME_CONFIG.ORB_TRAVEL && orbGroups.size > 0 && orbGraphics) {
+            orbGraphics.clear();
             const G = GAME_CONFIG; // shorthand for readability
             for (const [, group] of orbGroups) {
                 const cx = group.sumX / group.count;
@@ -1719,39 +1726,39 @@
 
                 // Draw outer glow (large, faint)
                 const glowRadius = baseRadius * G.ORB_OUTER_SCALE;
-                shipGraphics.circle(cx, cy, glowRadius);
-                shipGraphics.fill({
+                orbGraphics.circle(cx, cy, glowRadius);
+                orbGraphics.fill({
                     color: group.color,
                     alpha: intensity * G.ORB_OUTER_ALPHA,
                 });
 
                 // Draw middle glow
                 const midRadius = baseRadius * G.ORB_MID_SCALE;
-                shipGraphics.circle(cx, cy, midRadius);
-                shipGraphics.fill({
+                orbGraphics.circle(cx, cy, midRadius);
+                orbGraphics.fill({
                     color: group.color,
                     alpha: intensity * G.ORB_MID_ALPHA,
                 });
 
                 // Draw inner orb (bright core)
-                shipGraphics.circle(cx, cy, baseRadius);
-                shipGraphics.fill({
+                orbGraphics.circle(cx, cy, baseRadius);
+                orbGraphics.fill({
                     color: 0xffffff,
                     alpha: intensity * G.ORB_CORE_ALPHA,
                 });
 
                 // Draw orb body (player colored)
                 const coreRadius = baseRadius * G.ORB_CORE_SCALE;
-                shipGraphics.circle(cx, cy, coreRadius);
-                shipGraphics.fill({
+                orbGraphics.circle(cx, cy, coreRadius);
+                orbGraphics.fill({
                     color: group.color,
                     alpha: intensity * 0.9,
                 });
 
                 // Bright center dot
                 const dotRadius = Math.max(1.5, baseRadius * 0.3);
-                shipGraphics.circle(cx, cy, dotRadius);
-                shipGraphics.fill({
+                orbGraphics.circle(cx, cy, dotRadius);
+                orbGraphics.fill({
                     color: 0xffffff,
                     alpha: Math.min(1, intensity * G.ORB_CENTER_ALPHA),
                 });
@@ -1773,7 +1780,7 @@
         tickProgress: number,
         starsById: Map<string, StarState>,
     ) {
-        if (!shipGraphics) return;
+        if (!shipParticleContainer) return;
 
         stars.forEach((star) => {
             const color = getPlayerColor(star.ownerId);
@@ -2103,7 +2110,7 @@
     }
 
     function renderFleets(stars: StarState[], fleets: FleetState[]) {
-        if (!shipGraphics) return;
+        if (!shipParticleContainer) return;
 
         // Progress is globally driven by game tick progress (0 -> 1)
         const progress = activeGameStore.tickProgress;
