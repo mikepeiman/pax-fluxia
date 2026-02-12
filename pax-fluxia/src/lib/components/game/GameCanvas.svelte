@@ -90,12 +90,12 @@
         { x: number; y: number; targetId: string }
     > = new Map();
 
-    // Visual count delay buffer: snapshot counts at tick boundary,
-    // display buffered counts until tickProgress >= VISUAL_COUNT_DELAY
-    let bufferedCounts: Map<string, { active: number; damaged: number }> =
+    // Visual count delay: displayCounts holds the counts shown to the user.
+    // Updated only when tickProgress >= VISUAL_COUNT_DELAY, so during the delay
+    // window it naturally holds the previous tick's values.
+    let displayCounts: Map<string, { active: number; damaged: number }> =
         new Map();
-    let countsSnapshotted = false; // Prevent double-snapshotting within same tick
-    let lastTickEventFrame = 0; // Frame counter when last tick events arrived
+    let displayCountsUpdatedThisTick = false;
 
     // Animation state
     let animationTime = 0;
@@ -673,29 +673,31 @@
         // Process tick events (event-driven animations, not diff-based — see POST_MORTEMS.md)
         const tickEvents = activeGameStore.consumeTickEvents();
 
-        // Snapshot current visual counts BEFORE processing tick events
-        // (so we can defer visual updates via VISUAL_COUNT_DELAY)
-        if (tickEvents && !countsSnapshotted) {
-            for (const star of stars) {
-                bufferedCounts.set(star.id, {
-                    active: star.activeShips,
-                    damaged: star.damagedShips,
-                });
-            }
-            countsSnapshotted = true;
-            lastTickEventFrame = performance.now();
-        }
-
         // Clear combat tracking before processing new tick events
         // (starsInCombat is rebuilt each tick from CombatEvents)
         if (tickEvents) {
             starsInCombat.clear();
             processTickEvents(stars, tickEvents, connections || [], starsById);
+            // New tick arrived — reset the per-tick flag so counts can update at threshold
+            displayCountsUpdatedThisTick = false;
         }
 
-        // Reset snapshot flag when tickProgress resets (new tick cycle)
-        if (tickProgress < 0.05) {
-            countsSnapshotted = false;
+        // Visual count delay: update displayCounts when tickProgress crosses threshold
+        const countDelay = GAME_CONFIG.VISUAL_COUNT_DELAY ?? 0;
+        if (countDelay > 0) {
+            if (tickProgress >= countDelay && !displayCountsUpdatedThisTick) {
+                // Crossed threshold — snap displayCounts to real values
+                for (const star of stars) {
+                    displayCounts.set(star.id, {
+                        active: star.activeShips,
+                        damaged: star.damagedShips,
+                    });
+                }
+                displayCountsUpdatedThisTick = true;
+            }
+        } else {
+            // No delay — always show real values (clear displayCounts to avoid stale data)
+            displayCountsUpdatedThisTick = true;
         }
 
         // Render all ships: orbiting (per-star) + traveling (in-flight lifecycle)
@@ -998,14 +1000,12 @@
             ) as PIXI.Graphics;
 
             const delay = GAME_CONFIG.VISUAL_COUNT_DELAY ?? 0;
-            const buf = bufferedCounts.get(star.id);
+            const dc = displayCounts.get(star.id);
             const tp = activeGameStore.tickProgress;
             const showActive =
-                delay > 0 && buf && tp < delay ? buf.active : star.activeShips;
+                delay > 0 && dc && tp < delay ? dc.active : star.activeShips;
             const showDamaged =
-                delay > 0 && buf && tp < delay
-                    ? buf.damaged
-                    : star.damagedShips;
+                delay > 0 && dc && tp < delay ? dc.damaged : star.damagedShips;
 
             if (activeText) activeText.text = String(showActive);
 
@@ -2015,10 +2015,10 @@
             }
             // Visual ship count — use delay buffer for coherent animation timing
             const countDelay = GAME_CONFIG.VISUAL_COUNT_DELAY ?? 0;
-            const countBuf = bufferedCounts.get(star.id);
+            const dc = displayCounts.get(star.id);
             const visualActiveShips =
-                countDelay > 0 && countBuf && tickProgress < countDelay
-                    ? countBuf.active
+                countDelay > 0 && dc && tickProgress < countDelay
+                    ? dc.active
                     : star.activeShips;
             const actualCount = Math.max(0, visualActiveShips - inFlightToStar);
             const maxVisual = GAME_CONFIG.MAX_VISUAL_SHIPS ?? 100;
