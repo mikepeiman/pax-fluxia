@@ -577,7 +577,12 @@
 
     // Main render loop
     function renderFrame(stars: StarState[], tickProgress: number) {
-        if (!app || !starsContainer || !labelsContainer || !shipGraphics)
+        if (
+            !app ||
+            !starsContainer ||
+            !labelsContainer ||
+            !shipParticleContainer
+        )
             return;
 
         // Reset state on new game session
