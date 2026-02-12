@@ -964,8 +964,14 @@ export class GameEngine {
         const result = applyConquest(attacker as any, defender as any, ctx, cfg);
 
         // ================================================================
-        // CONQUEST LOGGING: Rich structured log with per-player totals
+        // CONQUEST DEBUG: Post-conquest snapshot + per-player totals
         // ================================================================
+        const friendlyNeighborsAfter = neighborIds
+            .map(id => this.stars.get(id))
+            .filter(s => s != null)
+            .map(s => ({ id: s!.id, owner: s!.ownerId, active: Math.floor(s!.activeShips), damaged: Math.floor(s!.damagedShips) }));
+
+        // Compute per-player fleet totals (the new addition)
         const playerTotals: Array<{ id: string; active: number; damaged: number; total: number; stars: number }> = [];
         this.players.forEach(p => {
             const active = this.getPlayerActiveShips(p.id);
@@ -979,21 +985,23 @@ export class GameEngine {
             });
         });
 
-        log.conquest(this.tick, {
-            starId: defender.id,
-            previousOwner,
-            newOwner: attacker.ownerId,
-            shipsCaptured: result.shipsCaptured,
-            shipsEscaped: result.shipsEscaped,
-            shipsDestroyed: result.shipsDestroyed,
-            defenderTotal: result.defenderTotalAtConquest,
-            attackerShips: Math.floor(preSnapshot.attacker.active),
-            attackerPostShips: Math.floor(attacker.activeShips),
-            defenderPostShips: Math.floor(defender.activeShips),
-            retreatTargetId: result.retreatTargetId,
-            scatterTargetIds: result.scatterTargetIds,
-            scatterShipCounts: result.scatterShipCounts,
-            playerTotals,
+        console.log('%c🏴 CONQUEST DEBUG', 'color: #ff6b6b; font-weight: bold; font-size: 14px', {
+            PRE: preSnapshot,
+            RESULT: {
+                captured: result.shipsCaptured,
+                escaped: result.shipsEscaped,
+                destroyed: result.shipsDestroyed,
+                retreatTo: result.retreatTargetId ?? 'none',
+                scatterTo: result.scatterTargetIds ?? [],
+                scatterCounts: result.scatterShipCounts ?? [],
+                defenderTotalAtConquest: result.defenderTotalAtConquest,
+            },
+            POST: {
+                attacker: { id: attacker.id, owner: attacker.ownerId, active: Math.floor(attacker.activeShips), damaged: Math.floor(attacker.damagedShips) },
+                defender: { id: defender.id, owner: defender.ownerId, active: Math.floor(defender.activeShips), damaged: Math.floor(defender.damagedShips) },
+                neighbors: friendlyNeighborsAfter,
+            },
+            PLAYER_TOTALS: playerTotals,
         });
 
         // ================================================================
