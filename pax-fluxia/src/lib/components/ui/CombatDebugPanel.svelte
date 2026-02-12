@@ -245,6 +245,222 @@
     ] as const;
     let logRefresh = $state(0);
 
+    // ── Config Import/Export ──
+    let configStatus = $state("");
+    let configStatusColor = $state("#4ade80");
+
+    function exportConfigJSON() {
+        const data = JSON.stringify(GAME_CONFIG, null, 2);
+        const blob = new Blob([data], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+        a.href = url;
+        a.download = `pax-config-${ts}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        configStatus = `✅ Exported ${Object.keys(GAME_CONFIG).length} settings`;
+        configStatusColor = "#4ade80";
+    }
+
+    function exportConfigMD() {
+        const sections: Record<string, string[]> = {
+            Combat: [
+                "AGGRESSOR_ADVANTAGE",
+                "DAMAGE_PER_SHIP",
+                "LETHALITY",
+                "FORCE_RATIO_EFFECT",
+                "CONQUEST_THRESHOLD",
+                "DAMAGED_SHIP_EFFECTIVENESS",
+            ],
+            "Production & Repair": [
+                "BASE_PRODUCTION",
+                "TICKS_PER_SHIP",
+                "REPAIR_RATE",
+                "MIN_REPAIR",
+                "REPAIR_COMBAT_PENALTY",
+            ],
+            Transfer: [
+                "TRANSFER_RATE",
+                "MIN_SHIPS_PER_TRANSFER",
+                "MAX_SHIPS_PER_TRANSFER",
+                "CONQUEST_TRANSFER_PERCENTAGE",
+            ],
+            Conquest: [
+                "OVERWHELM_THRESHOLD",
+                "RETREAT_CAPTURE_RATE",
+                "SCATTER_CAPTURE_RATE",
+                "SCATTER_DESTROY_RATE",
+                "RETREAT_DAMAGED_ACTIVATION_RATE",
+                "CONQUEST_DAMAGED_CAPTURE_RATE",
+                "CONQUEST_DAMAGED_DESTROY_RATE",
+            ],
+            AI: [
+                "AI_ATTACK_THRESHOLD",
+                "AI_DESIST_THRESHOLD",
+                "AI_RANDOM_AGGRESSION",
+                "AI_TACTICAL_AGGRESSION",
+            ],
+            Visual: [
+                "SHIP_BASE_SIZE",
+                "STAR_RENDER_RADIUS",
+                "ORBIT_DENSITY",
+                "ATTACK_SURGE_MULT",
+                "SETTLE_DURATION_MS",
+                "WOBBLE_AMP",
+                "ARRIVAL_SPREAD",
+            ],
+        };
+
+        let md = `# Pax Fluxia Config\n_Exported ${new Date().toISOString()}_\n\n`;
+        const cfg = GAME_CONFIG as Record<string, any>;
+
+        for (const [section, keys] of Object.entries(sections)) {
+            md += `## ${section}\n| Key | Value |\n|-----|-------|\n`;
+            for (const k of keys) {
+                if (k in cfg) md += `| \`${k}\` | ${cfg[k]} |\n`;
+            }
+            md += "\n";
+        }
+
+        // Remaining keys
+        const listed = new Set(Object.values(sections).flat());
+        const remaining = Object.keys(cfg).filter((k) => !listed.has(k));
+        if (remaining.length > 0) {
+            md += `## Other\n| Key | Value |\n|-----|-------|\n`;
+            for (const k of remaining) md += `| \`${k}\` | ${cfg[k]} |\n`;
+        }
+
+        const blob = new Blob([md], { type: "text/markdown" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+        a.href = url;
+        a.download = `pax-config-${ts}.md`;
+        a.click();
+        URL.revokeObjectURL(url);
+        configStatus = `✅ Exported MD`;
+        configStatusColor = "#4ade80";
+    }
+
+    function importConfigJSON(e: Event) {
+        const input = e.target as HTMLInputElement;
+        const file = input?.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = () => {
+            try {
+                const raw = reader.result as string;
+                let data: unknown;
+                try {
+                    data = JSON.parse(raw);
+                } catch {
+                    configStatus = "❌ Invalid JSON — could not parse file";
+                    configStatusColor = "#f87171";
+                    input.value = "";
+                    return;
+                }
+
+                // Must be a plain object
+                if (!data || typeof data !== "object" || Array.isArray(data)) {
+                    configStatus = "❌ Expected a JSON object with config keys";
+                    configStatusColor = "#f87171";
+                    input.value = "";
+                    return;
+                }
+
+                const incoming = data as Record<string, unknown>;
+                const cfg = GAME_CONFIG as Record<string, any>;
+                let applied = 0;
+                let skipped = 0;
+                let typeErrors = 0;
+
+                for (const [k, v] of Object.entries(incoming)) {
+                    if (!(k in cfg)) {
+                        skipped++;
+                        continue;
+                    }
+                    // Type guard: only apply if types match
+                    const existing = cfg[k];
+                    if (
+                        typeof existing === "number" &&
+                        typeof v === "number" &&
+                        isFinite(v)
+                    ) {
+                        cfg[k] = v;
+                        applied++;
+                    } else if (
+                        typeof existing === "boolean" &&
+                        typeof v === "boolean"
+                    ) {
+                        cfg[k] = v;
+                        applied++;
+                    } else if (
+                        typeof existing === "string" &&
+                        typeof v === "string"
+                    ) {
+                        cfg[k] = v;
+                        applied++;
+                    } else {
+                        typeErrors++;
+                    }
+                }
+
+                // Sync combat tuning values to localStorage + reactive state
+                const stored = loadFromStorage();
+                for (const k of Object.keys(stored)) {
+                    if (
+                        k in incoming &&
+                        typeof incoming[k] === typeof (stored as any)[k]
+                    ) {
+                        (stored as any)[k] = incoming[k];
+                    }
+                }
+                saveToStorage(stored);
+                // Refresh reactive slider values
+                Object.assign(values, stored);
+
+                // Also persist visual settings if they exist
+                try {
+                    const visuals = localStorage.getItem(VISUALS_STORAGE_KEY);
+                    if (visuals) {
+                        const vObj = JSON.parse(visuals);
+                        let changed = false;
+                        for (const k of Object.keys(vObj)) {
+                            if (
+                                k in incoming &&
+                                typeof incoming[k] === typeof vObj[k]
+                            ) {
+                                vObj[k] = incoming[k];
+                                changed = true;
+                            }
+                        }
+                        if (changed)
+                            localStorage.setItem(
+                                VISUALS_STORAGE_KEY,
+                                JSON.stringify(vObj),
+                            );
+                    }
+                } catch {
+                    /* ignore */
+                }
+
+                const parts = [`✅ ${applied} applied`];
+                if (skipped) parts.push(`${skipped} unknown`);
+                if (typeErrors) parts.push(`${typeErrors} type mismatches`);
+                configStatus = parts.join(", ");
+                configStatusColor = typeErrors > 0 ? "#fbbf24" : "#4ade80";
+            } catch (err) {
+                configStatus = `❌ Import failed: ${(err as Error).message}`;
+                configStatusColor = "#f87171";
+            }
+            // Reset input so same file can be re-imported
+            input.value = "";
+        };
+        reader.readAsText(file);
+    }
+
     // Visuals state
     const VISUALS_STORAGE_KEY = "pax-fluxia-visuals";
     const visualDefaults = {
@@ -1649,6 +1865,47 @@
                             </label>
                         {/key}
                     {/each}
+
+                    <!-- ── Config Import/Export ── -->
+                    <h4 class="sub-heading" style="margin-top: 10px;">
+                        ⚙️ Config
+                    </h4>
+                    <div class="log-actions" style="flex-wrap: wrap;">
+                        <button
+                            class="btn-xs btn-export"
+                            onclick={() => exportConfigJSON()}
+                            >📥 Export JSON</button
+                        >
+                        <button
+                            class="btn-xs btn-export"
+                            onclick={() => exportConfigMD()}
+                            >📄 Export MD</button
+                        >
+                        <button
+                            class="btn-xs btn-import"
+                            onclick={() => {
+                                const inp = document.getElementById(
+                                    "config-import-input",
+                                ) as HTMLInputElement;
+                                if (inp) inp.click();
+                            }}>📤 Import JSON</button
+                        >
+                    </div>
+                    <input
+                        id="config-import-input"
+                        type="file"
+                        accept=".json"
+                        style="display:none;"
+                        onchange={(e) => importConfigJSON(e)}
+                    />
+                    {#if configStatus}
+                        <div
+                            class="config-status"
+                            style="color:{configStatusColor};font-size:9px;padding:2px 4px;margin-top:2px;"
+                        >
+                            {configStatus}
+                        </div>
+                    {/if}
                 {/if}
             </div>
         </div>
@@ -1928,6 +2185,34 @@
         font-size: 8px;
         color: #556;
         margin-left: auto;
+    }
+    .sub-heading {
+        font-size: 10px;
+        font-weight: 700;
+        color: #8899aa;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+        padding-top: 6px;
+        margin: 0;
+    }
+    .btn-export {
+        border-color: #4a7;
+        color: #6c9;
+    }
+    .btn-export:hover {
+        border-color: #6fb;
+        color: #8fe;
+        background: rgba(80, 220, 140, 0.08);
+    }
+    .btn-import {
+        border-color: #47a;
+        color: #69c;
+    }
+    .btn-import:hover {
+        border-color: #6af;
+        color: #8cf;
+        background: rgba(80, 140, 220, 0.08);
     }
     /* ── Future AI Strategies ── */
     .var-row.grayed {
