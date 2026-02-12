@@ -526,7 +526,6 @@
         conquestTravelSpeed: GAME_CONFIG.CONQUEST_TRAVEL_SPEED,
         conquestTravelMode: GAME_CONFIG.CONQUEST_TRAVEL_MODE,
         conquestLerpDelayMs: GAME_CONFIG.CONQUEST_LERP_DELAY_MS,
-        visualCountDelay: GAME_CONFIG.VISUAL_COUNT_DELAY,
         orbTravel: GAME_CONFIG.ORB_TRAVEL,
         orbitBias: GAME_CONFIG.ORBIT_BIAS_STRENGTH,
         oscillate: GAME_CONFIG.ORBIT_BIAS_OSCILLATE,
@@ -613,7 +612,6 @@
             | "magnetic";
         GAME_CONFIG.CONQUEST_LERP_DELAY_MS =
             panel.conquestLerpDelayMs as number;
-        GAME_CONFIG.VISUAL_COUNT_DELAY = panel.visualCountDelay as number;
         GAME_CONFIG.ORB_TRAVEL = panel.orbTravel as boolean;
         GAME_CONFIG.ORBIT_BIAS_STRENGTH = panel.orbitBias as number;
         GAME_CONFIG.ORBIT_BIAS_OSCILLATE = panel.oscillate as boolean;
@@ -861,28 +859,6 @@
                                 const v = +(e.target as HTMLInputElement).value;
                                 GAME_CONFIG.CONQUEST_LERP_DELAY_MS = v;
                                 updatePanel("conquestLerpDelayMs", v);
-                            }}
-                        />
-                    </div>
-                    <div class="var-row">
-                        <div class="row-top">
-                            <span class="var-name">Visual Count Delay</span
-                            ><span class="val"
-                                >{Math.round(
-                                    (panel.visualCountDelay as number) * 100,
-                                )}%</span
-                            >
-                        </div>
-                        <input
-                            type="range"
-                            min="0"
-                            max="1"
-                            step="0.05"
-                            value={panel.visualCountDelay}
-                            oninput={(e) => {
-                                const v = +(e.target as HTMLInputElement).value;
-                                GAME_CONFIG.VISUAL_COUNT_DELAY = v;
-                                updatePanel("visualCountDelay", v);
                             }}
                         />
                     </div>

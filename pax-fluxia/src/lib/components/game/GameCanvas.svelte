@@ -90,13 +90,6 @@
         { x: number; y: number; targetId: string }
     > = new Map();
 
-    // Visual count delay: displayCounts holds the counts shown to the user.
-    // Updated only when tickProgress >= VISUAL_COUNT_DELAY, so during the delay
-    // window it naturally holds the previous tick's values.
-    let displayCounts: Map<string, { active: number; damaged: number }> =
-        new Map();
-    let displayCountsUpdatedThisTick = false;
-
     // Animation state
     let animationTime = 0;
     let animationFrameId: number | null = null;
@@ -678,26 +671,6 @@
         if (tickEvents) {
             starsInCombat.clear();
             processTickEvents(stars, tickEvents, connections || [], starsById);
-            // New tick arrived — reset the per-tick flag so counts can update at threshold
-            displayCountsUpdatedThisTick = false;
-        }
-
-        // Visual count delay: update displayCounts when tickProgress crosses threshold
-        const countDelay = GAME_CONFIG.VISUAL_COUNT_DELAY ?? 0;
-        if (countDelay > 0) {
-            if (tickProgress >= countDelay && !displayCountsUpdatedThisTick) {
-                // Crossed threshold — snap displayCounts to real values
-                for (const star of stars) {
-                    displayCounts.set(star.id, {
-                        active: star.activeShips,
-                        damaged: star.damagedShips,
-                    });
-                }
-                displayCountsUpdatedThisTick = true;
-            }
-        } else {
-            // No delay — always show real values (clear displayCounts to avoid stale data)
-            displayCountsUpdatedThisTick = true;
         }
 
         // Render all ships: orbiting (per-star) + traveling (in-flight lifecycle)
@@ -992,26 +965,18 @@
                 typeColor,
             );
 
-            // Update labels — use visual count delay buffer
+            // Update labels
             const activeText = label.getChildByLabel("active") as PIXI.Text;
             const damagedText = label.getChildByLabel("damaged") as PIXI.Text;
             const leashGraphics = label.getChildByLabel(
                 "leash",
             ) as PIXI.Graphics;
 
-            const delay = GAME_CONFIG.VISUAL_COUNT_DELAY ?? 0;
-            const dc = displayCounts.get(star.id);
-            const tp = activeGameStore.tickProgress;
-            const showActive =
-                delay > 0 && dc && tp < delay ? dc.active : star.activeShips;
-            const showDamaged =
-                delay > 0 && dc && tp < delay ? dc.damaged : star.damagedShips;
-
-            if (activeText) activeText.text = String(showActive);
+            if (activeText) activeText.text = String(star.activeShips);
 
             if (damagedText) {
                 // ALWAYS show damaged count, even if 0, per request
-                damagedText.text = String(showDamaged);
+                damagedText.text = String(star.damagedShips);
                 damagedText.visible = true;
             }
 
@@ -2080,14 +2045,7 @@
             for (const ts of travelingShips) {
                 if (ts.toStarId === star.id) inFlightToStar++;
             }
-            // Visual ship count — use delay buffer for coherent animation timing
-            const countDelay = GAME_CONFIG.VISUAL_COUNT_DELAY ?? 0;
-            const dc = displayCounts.get(star.id);
-            const visualActiveShips =
-                countDelay > 0 && dc && tickProgress < countDelay
-                    ? dc.active
-                    : star.activeShips;
-            const actualCount = Math.max(0, visualActiveShips - inFlightToStar);
+            const actualCount = Math.max(0, star.activeShips - inFlightToStar);
             const maxVisual = GAME_CONFIG.MAX_VISUAL_SHIPS ?? 100;
             const targetCount = Math.min(actualCount, maxVisual);
             // Density multiplier: how many real ships each visual ship represents
