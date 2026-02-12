@@ -121,6 +121,8 @@ interface GameConfigType {
     CONQUEST_TRAVEL_SPEED: number;       // Duration multiplier vs normal transfer (lower = faster, default 0.7)
     CONQUEST_TRAVEL_MODE: 'straight' | 'arc' | 'magnetic'; // Path shape for conquest travel (default 'magnetic')
     CONQUEST_LERP_DELAY_MS: number;      // Delay before conquest ships start moving (ms, default 200)
+    // Visual timing
+    VISUAL_COUNT_DELAY: number;          // When within a tick to update visual ship counts (0=instant, 0.5=mid-tick, 1=end, default 0)
     // Orbit bias oscillation
     ORBIT_BIAS_OSCILLATE: boolean; // Enable oscillation between min/max bias (default false)
     ORBIT_BIAS_MIN: number;        // Min bias strength for oscillation (default 0.0)
@@ -382,6 +384,8 @@ export const GAME_CONFIG: GameConfigType = {
     CONQUEST_TRAVEL_MODE: 'magnetic' as const,
     /** Delay before conquest ships start moving (ms) */
     CONQUEST_LERP_DELAY_MS: 200,
+    /** When within a tick to update visual ship counts (0=instant, 0.5=mid-tick, 1=end) */
+    VISUAL_COUNT_DELAY: 0,
     /** Show player-color outline behind each ship */
     SHIP_OUTLINE_ON: true,
     /** Outline thickness in px */

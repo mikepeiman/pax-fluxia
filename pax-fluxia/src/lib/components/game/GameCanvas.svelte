@@ -90,6 +90,13 @@
         { x: number; y: number; targetId: string }
     > = new Map();
 
+    // Visual count delay buffer: snapshot counts at tick boundary,
+    // display buffered counts until tickProgress >= VISUAL_COUNT_DELAY
+    let bufferedCounts: Map<string, { active: number; damaged: number }> =
+        new Map();
+    let countsSnapshotted = false; // Prevent double-snapshotting within same tick
+    let lastTickEventFrame = 0; // Frame counter when last tick events arrived
+
     // Animation state
     let animationTime = 0;
     let animationFrameId: number | null = null;
@@ -665,11 +672,30 @@
 
         // Process tick events (event-driven animations, not diff-based — see POST_MORTEMS.md)
         const tickEvents = activeGameStore.consumeTickEvents();
+
+        // Snapshot current visual counts BEFORE processing tick events
+        // (so we can defer visual updates via VISUAL_COUNT_DELAY)
+        if (tickEvents && !countsSnapshotted) {
+            for (const star of stars) {
+                bufferedCounts.set(star.id, {
+                    active: star.activeShips,
+                    damaged: star.damagedShips,
+                });
+            }
+            countsSnapshotted = true;
+            lastTickEventFrame = performance.now();
+        }
+
         // Clear combat tracking before processing new tick events
         // (starsInCombat is rebuilt each tick from CombatEvents)
         if (tickEvents) {
             starsInCombat.clear();
             processTickEvents(stars, tickEvents, connections || [], starsById);
+        }
+
+        // Reset snapshot flag when tickProgress resets (new tick cycle)
+        if (tickProgress < 0.05) {
+            countsSnapshotted = false;
         }
 
         // Render all ships: orbiting (per-star) + traveling (in-flight lifecycle)
@@ -964,18 +990,28 @@
                 typeColor,
             );
 
-            // Update labels
+            // Update labels — use visual count delay buffer
             const activeText = label.getChildByLabel("active") as PIXI.Text;
             const damagedText = label.getChildByLabel("damaged") as PIXI.Text;
             const leashGraphics = label.getChildByLabel(
                 "leash",
             ) as PIXI.Graphics;
 
-            if (activeText) activeText.text = String(star.activeShips);
+            const delay = GAME_CONFIG.VISUAL_COUNT_DELAY ?? 0;
+            const buf = bufferedCounts.get(star.id);
+            const tp = activeGameStore.tickProgress;
+            const showActive =
+                delay > 0 && buf && tp < delay ? buf.active : star.activeShips;
+            const showDamaged =
+                delay > 0 && buf && tp < delay
+                    ? buf.damaged
+                    : star.damagedShips;
+
+            if (activeText) activeText.text = String(showActive);
 
             if (damagedText) {
                 // ALWAYS show damaged count, even if 0, per request
-                damagedText.text = String(star.damagedShips);
+                damagedText.text = String(showDamaged);
                 damagedText.visible = true;
             }
 
@@ -1977,7 +2013,14 @@
             for (const ts of travelingShips) {
                 if (ts.toStarId === star.id) inFlightToStar++;
             }
-            const actualCount = Math.max(0, star.activeShips - inFlightToStar);
+            // Visual ship count — use delay buffer for coherent animation timing
+            const countDelay = GAME_CONFIG.VISUAL_COUNT_DELAY ?? 0;
+            const countBuf = bufferedCounts.get(star.id);
+            const visualActiveShips =
+                countDelay > 0 && countBuf && tickProgress < countDelay
+                    ? countBuf.active
+                    : star.activeShips;
+            const actualCount = Math.max(0, visualActiveShips - inFlightToStar);
             const maxVisual = GAME_CONFIG.MAX_VISUAL_SHIPS ?? 100;
             const targetCount = Math.min(actualCount, maxVisual);
             // Density multiplier: how many real ships each visual ship represents
