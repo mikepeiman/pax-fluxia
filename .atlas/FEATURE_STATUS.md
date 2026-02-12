@@ -147,6 +147,7 @@
 | B-26 | MP variables not wired | Phase A config pipeline: `buildEngineConfig()` → `RoomOptions` → server `engineConfig` → `GameEngine.tick()` | 2026-02-10 |
 | B-28 | Tone.js progressive lag | Tone.js removed entirely, AudioManager stubbed to no-ops | 2026-02-10 |
 | B-18 | Restart button broken in MP | Routed through activeGameStore | `a91f17d` |
+| B-29 | Multi-star conquest: victor ships only transfer from one star | ConquestEvent has single `attackerStarId`, need per-star proportional transfer | OPEN |
 
 ---
 
@@ -178,6 +179,7 @@
 | F-22 | Attack Surge Proportional to Force Disparity: log2-scaled, toggleable, cofactor slider | 2026-02-12 |
 | F-23 | Conquest Ship Lerp: front-line ships travel to conquered star (magnetic/arc/straight modes) | 2026-02-12 |
 | F-24 | Conquest Lerp Delay (200ms) + Slowmo Mode (4×/10× toggle, full framerate) | 2026-02-12 |
+| F-25 | Attack Surge Pause-Safe Ramp: delta-based ramp progress, amplitude-based phase offset, no surge during pause | 2026-02-12 |
 
 ## Planned Features — Not Started (R)
 
@@ -265,6 +267,8 @@
 | R-78 | Orb Travel Flash Fix: departing ships fade to full transparency before orb grouping, eliminating single-frame arc | 🟢 |
 | R-79 | Stars Panel Sorting: group/sort by owner, ship count, or star name — dropdown in Stars panel header | 🟢 |
 | R-80 | Bottom-Drawer Combat Log Panel: short bottom drawer (~6-8 lines), styled per-line combat/conquest events, full formula on one line, replaces old Combat Logs panel | 🔴 |
+| R-81 | Ship Density Color Graduation: HSL-based auxiliary colors (3 per side of player hue) replacing white-wash for high ship counts | 🔴 |
+| R-82 | Timing Section: rename Game Speed → TIMING, consolidate ATTACK_SURGE_RAMP_MS + CONQUEST_LERP_DELAY_MS sliders | 🟢 |
 
 ---
 
@@ -272,6 +276,7 @@
 
 | Date | Summary |
 |------|---------|
+| 2026-02-12 | Attack surge fixes: pause-safe ramp (delta-based), tick-boundary continuous phase (amplitude axis), no surge during pause. Removed slowmo, CLEAR_ORDER_ON_CAPTURE dead code, added ATTACK_SURGE_RAMP_MS config. Conquest damaged ship split fixed. |
 | 2026-02-12 | Combat formula logging (full 5-step breakdown), dominant victory (99% ships), orb panel consolidation (paired sliders, orbit bias removed), settings panel scroll fix (flex-based full-height). |
 | 2026-02-10 | Batch 3: Performance fixes — statsHistory cap (500), starsById cache (was 4x new Map/frame), damaged ship static mode. |
 | 2026-02-10 | Batch 2: Surrender modal fix (+page.svelte was calling returnToMenu directly), STATIC_ORBITS toggle (performance), leaderboard total ships row, log toggles UI, Stars Panel CSS Grid, repairedThisTick on Star model, ship visuals reverted to circles+white+border. |

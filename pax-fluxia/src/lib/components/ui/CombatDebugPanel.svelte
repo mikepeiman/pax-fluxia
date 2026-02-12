@@ -522,8 +522,10 @@
         attackSurgeProportional: GAME_CONFIG.ATTACK_SURGE_PROPORTIONAL,
         attackSurgeForceCofactor: GAME_CONFIG.ATTACK_SURGE_FORCE_COFACTOR,
         attackSurgeRampMs: GAME_CONFIG.ATTACK_SURGE_RAMP_MS,
+        attackSurgeShape: GAME_CONFIG.ATTACK_SURGE_SHAPE,
         conquestTravelSpeed: GAME_CONFIG.CONQUEST_TRAVEL_SPEED,
         conquestTravelMode: GAME_CONFIG.CONQUEST_TRAVEL_MODE,
+        conquestLerpDelayMs: GAME_CONFIG.CONQUEST_LERP_DELAY_MS,
         orbTravel: GAME_CONFIG.ORB_TRAVEL,
         orbitBias: GAME_CONFIG.ORBIT_BIAS_STRENGTH,
         oscillate: GAME_CONFIG.ORBIT_BIAS_OSCILLATE,
@@ -602,11 +604,14 @@
         GAME_CONFIG.ATTACK_SURGE_FORCE_COFACTOR =
             panel.attackSurgeForceCofactor as number;
         GAME_CONFIG.ATTACK_SURGE_RAMP_MS = panel.attackSurgeRampMs as number;
+        GAME_CONFIG.ATTACK_SURGE_SHAPE = panel.attackSurgeShape as number;
         GAME_CONFIG.CONQUEST_TRAVEL_SPEED = panel.conquestTravelSpeed as number;
         GAME_CONFIG.CONQUEST_TRAVEL_MODE = panel.conquestTravelMode as
             | "straight"
             | "arc"
             | "magnetic";
+        GAME_CONFIG.CONQUEST_LERP_DELAY_MS =
+            panel.conquestLerpDelayMs as number;
         GAME_CONFIG.ORB_TRAVEL = panel.orbTravel as boolean;
         GAME_CONFIG.ORBIT_BIAS_STRENGTH = panel.orbitBias as number;
         GAME_CONFIG.ORBIT_BIAS_OSCILLATE = panel.oscillate as boolean;
@@ -700,7 +705,7 @@
         label: string;
         color: string;
     }[] = [
-        { id: "speed", icon: "⚡", label: "Game Speed", color: "#ffcc00" },
+        { id: "speed", icon: "⚡", label: "Timing", color: "#ffcc00" },
         { id: "battle", icon: "⚔️", label: "Battle", color: "#ff4466" },
         { id: "economy", icon: "🎛️", label: "Core / Global", color: "#44ff88" },
         { id: "ai", icon: "🤖", label: "AI Behavior", color: "#ff8844" },
@@ -793,6 +798,67 @@
                                 );
                                 updateAnimationSpeed(v);
                                 updatePanel("animSpeed", v);
+                            }}
+                        />
+                    </div>
+
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Surge Ramp</span><span
+                                class="val">{panel.attackSurgeRampMs}ms</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="1000"
+                            step="50"
+                            value={panel.attackSurgeRampMs}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.ATTACK_SURGE_RAMP_MS = v;
+                                updatePanel("attackSurgeRampMs", v);
+                            }}
+                        />
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Surge Shape</span><span
+                                class="val"
+                                >{(panel.attackSurgeShape as number).toFixed(
+                                    1,
+                                )}</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0.1"
+                            max="4"
+                            step="0.1"
+                            value={panel.attackSurgeShape}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.ATTACK_SURGE_SHAPE = v;
+                                updatePanel("attackSurgeShape", v);
+                            }}
+                        />
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Conquest Delay</span><span
+                                class="val">{panel.conquestLerpDelayMs}ms</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="1000"
+                            step="50"
+                            value={panel.conquestLerpDelayMs}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.CONQUEST_LERP_DELAY_MS = v;
+                                updatePanel("conquestLerpDelayMs", v);
                             }}
                         />
                     </div>
@@ -1412,25 +1478,6 @@
                             />
                         </div>
                     {/if}
-                    <div class="var-row">
-                        <div class="row-top">
-                            <span class="var-name">Surge Ramp</span><span
-                                class="val">{panel.attackSurgeRampMs}ms</span
-                            >
-                        </div>
-                        <input
-                            type="range"
-                            min="0"
-                            max="1000"
-                            step="50"
-                            value={panel.attackSurgeRampMs}
-                            oninput={(e) => {
-                                const v = +(e.target as HTMLInputElement).value;
-                                GAME_CONFIG.ATTACK_SURGE_RAMP_MS = v;
-                                updatePanel("attackSurgeRampMs", v);
-                            }}
-                        />
-                    </div>
                     <div class="var-row" style="margin-top:6px;">
                         <div class="row-top">
                             <span class="var-name">Conquest Speed</span><span

@@ -116,6 +116,7 @@ interface GameConfigType {
     ATTACK_SURGE_PROPORTIONAL: boolean; // Scale surge by force disparity ratio (default true)
     ATTACK_SURGE_FORCE_COFACTOR: number; // How much force ratio amplifies surge (0=none, 1=full, default 0.5)
     ATTACK_SURGE_RAMP_MS: number;        // Ramp-in duration for attack surge (ms, 0=instant/old behavior, default 300)
+    ATTACK_SURGE_SHAPE: number;          // Surge pulse shape power (1=sine, 2=sharper peak, 0.5=flatter, default 1)
     // Conquest ship travel animation
     CONQUEST_TRAVEL_SPEED: number;       // Duration multiplier vs normal transfer (lower = faster, default 0.7)
     CONQUEST_TRAVEL_MODE: 'straight' | 'arc' | 'magnetic'; // Path shape for conquest travel (default 'magnetic')
@@ -373,6 +374,8 @@ export const GAME_CONFIG: GameConfigType = {
     ATTACK_SURGE_FORCE_COFACTOR: 0.5,
     /** Ramp-in duration for attack surge (ms, 0=instant/old behavior) */
     ATTACK_SURGE_RAMP_MS: 300,
+    /** Surge pulse shape power (1=sine, 2=sharper peak, 0.5=flatter) */
+    ATTACK_SURGE_SHAPE: 1,
     /** Conquest travel speed: duration multiplier vs normal transfer (lower = faster) */
     CONQUEST_TRAVEL_SPEED: 0.7,
     /** Conquest travel path mode: 'straight' | 'arc' | 'magnetic' */
