@@ -100,86 +100,149 @@ export const log = {
     },
 
     /**
-     * ⚔️ COMBAT BATTLE - Detailed combat log with clear formatting
-     * Format: Shows OWNER clearly, not just star visual colors
-     * ⚔️ T# │ [OWNER] star-X (ships) → [OWNER] star-Y (ships)
-     *       star-Y (DEF) │ kills, disabled
-     *       star-X (ATT) │ kills, disabled
+     * ⚔️ COMBAT BATTLE - Full formula breakdown with real-time values
+     * Every intermediate step of the combat formula is shown flat in console.
+     * No nested objects — every number is readable at a glance.
      */
     combatBattle: (
         tick: number,
-        attacker: { id: string, ships: number, starType?: string, ownerId?: string },
-        defender: { id: string, ships: number, starType?: string, ownerId?: string },
-        damageToDefender: { kills: number, disabled: number, repaired?: number },
-        damageToAttacker: { kills: number, disabled: number, repaired?: number },
-        settings?: { aggressor: number, damage: number, lethality: number, forceRatio: number, repairRate: number }
+        attacker: { id: string, ships: number, starType?: string, ownerId?: string, isAttacking?: boolean },
+        defender: { id: string, ships: number, starType?: string, ownerId?: string, isAttacking?: boolean },
+        damageToDefender: { kills: number, disabled: number },
+        damageToAttacker: { kills: number, disabled: number },
+        settings?: { aggressor: number, damage: number, lethality: number, forceRatio: number, repairRate: number },
+        formula?: {
+            baseOutputAtk: number;
+            baseOutputDef: number;
+            aggressorMultAtk: number;
+            aggressorMultDef: number;
+            outputAtk: number;
+            outputDef: number;
+            forceRatio: number;
+            forceBonus: number;
+            forceMod_dmgToDefender: number;
+            forceMod_dmgToAttacker: number;
+            rawDmgToDefender: number;
+            rawDmgToAttacker: number;
+            minDamage: number;
+            finalDmgToDefender: number;
+            finalDmgToAttacker: number;
+        }
     ) => {
         if (!logFlags.combat) return;
 
-        // Owner color map - for player identification
         const ownerColors: Record<string, string> = {
-            'human': '#3b82f6',    // Blue for human player
-            'ai-1': '#fbbf24',     // Yellow
-            'ai-2': '#ef4444',     // Red
-            'ai-3': '#22c55e',     // Green
-            'ai-4': '#a855f7',     // Purple
-            'ai-5': '#f97316',     // Orange
-            'neutral': '#6b7280',  // Grey for neutral
+            'human': '#3b82f6', 'ai-1': '#fbbf24', 'ai-2': '#ef4444',
+            'ai-3': '#22c55e', 'ai-4': '#a855f7', 'ai-5': '#f97316', 'neutral': '#6b7280',
         };
-
         const getOwnerStyle = (ownerId?: string) => {
             const color = ownerColors[ownerId || 'neutral'] || '#6b7280';
             return `background: ${color}; color: #fff; padding: 1px 6px; border-radius: 3px; font-weight: bold;`;
         };
-
         const getOwnerLabel = (ownerId?: string) => {
             if (!ownerId) return 'NEUTRAL';
             if (ownerId === 'human') return 'YOU';
             if (ownerId.startsWith('ai-')) return ownerId.toUpperCase().replace('-', '');
             return ownerId.toUpperCase();
         };
+        const n = (v: number) => Math.floor(v);
+        const f = (v: number, d = 2) => v.toFixed(d);
 
-        // Force integers
-        const atkShips = Math.floor(attacker.ships);
-        const defShips = Math.floor(defender.ships);
-        const defKills = Math.floor(damageToDefender.kills);
-        const defDisabled = Math.floor(damageToDefender.disabled);
-        const atkKills = Math.floor(damageToAttacker.kills);
-        const atkDisabled = Math.floor(damageToAttacker.disabled);
-
+        const atkShips = n(attacker.ships);
+        const defShips = n(defender.ships);
         const atkOwner = attacker.ownerId || 'unknown';
         const defOwner = defender.ownerId || 'unknown';
 
-        // Line 1: Header with tick, OWNERS prominently, then star IDs
+        // ── HEADER ──
         console.log(
-            `%c⚔️ T${tick}%c │ %c${getOwnerLabel(atkOwner)}%c ${attacker.id} (${atkShips}) → %c${getOwnerLabel(defOwner)}%c ${defender.id} (${defShips})`,
+            `%c⚔️ T${tick}%c │ %c${getOwnerLabel(atkOwner)}%c ${attacker.id} (${atkShips} ships) → %c${getOwnerLabel(defOwner)}%c ${defender.id} (${defShips} ships)`,
             styles.combat, styles.reset,
             getOwnerStyle(atkOwner), styles.reset,
             getOwnerStyle(defOwner), styles.reset
         );
 
-        // Line 2: Defender damage taken
-        console.log(
-            `        ${defender.id.padEnd(12)} │ %cDEF%c │ ☠️%c${defKills}%c killed, 🔧%c${defDisabled}%c disabled`,
-            'background: #ef4444; color: #fff; padding: 1px 4px; border-radius: 2px;', styles.reset,
-            'color: #ff6b6b; font-weight: bold;', styles.reset,
-            'color: #ffa94d; font-weight: bold;', styles.reset
-        );
+        // ── FORMULA BREAKDOWN ──
+        if (formula && settings) {
+            const {
+                baseOutputAtk, baseOutputDef, aggressorMultAtk, aggressorMultDef,
+                outputAtk, outputDef, forceRatio: ratio, forceBonus,
+                forceMod_dmgToDefender, forceMod_dmgToAttacker,
+                rawDmgToDefender, rawDmgToAttacker, minDamage,
+                finalDmgToDefender, finalDmgToAttacker
+            } = formula;
 
-        // Line 3: Attacker damage taken
-        console.log(
-            `        ${attacker.id.padEnd(12)} │ %cATT%c │ ☠️%c${atkKills}%c killed, 🔧%c${atkDisabled}%c disabled`,
-            'background: #3b82f6; color: #fff; padding: 1px 4px; border-radius: 2px;', styles.reset,
-            'color: #ff6b6b; font-weight: bold;', styles.reset,
-            'color: #ffa94d; font-weight: bold;', styles.reset
-        );
+            const dim = 'color: #888;';
+            const hl = 'color: #5cf; font-weight: bold;';
+            const red = 'color: #ff6b6b; font-weight: bold;';
+            const org = 'color: #ffa94d; font-weight: bold;';
+            const grn = 'color: #4ade80; font-weight: bold;';
 
-        // Line 4: Settings (if provided) - more compact
-        if (settings) {
+            // Step 1: Base Output
             console.log(
-                `        %cSettings%c │ Agg:${settings.aggressor.toFixed(2)} Dmg:${settings.damage.toFixed(2)} Leth:${settings.lethality.toFixed(2)} Force:${settings.forceRatio.toFixed(2)} RR:${settings.repairRate.toFixed(2)}`,
-                'color: #666;', styles.reset
+                `  %cSTEP 1 Base Output%c │ ATK: %c${atkShips}%c × %c${f(settings.damage)}%c dmg/ship = %c${f(baseOutputAtk)}%c  │  DEF: %c${defShips}%c × %c${f(settings.damage)}%c = %c${f(baseOutputDef)}%c`,
+                dim, styles.reset, hl, styles.reset, dim, styles.reset, hl, styles.reset,
+                hl, styles.reset, dim, styles.reset, hl, styles.reset
             );
+
+            // Step 2: Aggressor Advantage
+            const atkRole = attacker.isAttacking ? 'ATTACKING' : 'defending';
+            const defRole = defender.isAttacking ? 'ATTACKING' : 'defending';
+            console.log(
+                `  %cSTEP 2 Aggressor%c   │ ATK %c${atkRole}%c × %c${f(aggressorMultAtk)}%c = %c${f(outputAtk)}%c  │  DEF %c${defRole}%c × %c${f(aggressorMultDef)}%c = %c${f(outputDef)}%c  (advantage: %c${f(settings.aggressor)}%c)`,
+                dim, styles.reset, grn, styles.reset, dim, styles.reset, hl, styles.reset,
+                grn, styles.reset, dim, styles.reset, hl, styles.reset, org, styles.reset
+            );
+
+            // Step 3: Force Ratio
+            console.log(
+                `  %cSTEP 3 Force Ratio%c │ ratio %c${f(ratio)}%c:1  log₂ bonus %c${f(forceBonus)}%c  (effect: %c${f(settings.forceRatio)}%c)  │  mod→def %c${f(forceMod_dmgToDefender)}%c  mod→atk %c${f(forceMod_dmgToAttacker)}%c`,
+                dim, styles.reset, hl, styles.reset, hl, styles.reset, dim, styles.reset,
+                hl, styles.reset, hl, styles.reset
+            );
+
+            // Step 4: Final Damage
+            console.log(
+                `  %cSTEP 4 Damage%c      │ Raw→DEF: %c${f(rawDmgToDefender)}%c Raw→ATK: %c${f(rawDmgToAttacker)}%c  min=%c${minDamage}%c  │  %cFinal→DEF: ${f(finalDmgToDefender)}%c  %cFinal→ATK: ${f(finalDmgToAttacker)}%c`,
+                dim, styles.reset, hl, styles.reset, hl, styles.reset, dim, styles.reset,
+                red, styles.reset, red, styles.reset
+            );
+
+            // Step 5: Kill/Disable Split
+            const defKills = n(damageToDefender.kills);
+            const defDis = n(damageToDefender.disabled);
+            const atkKills = n(damageToAttacker.kills);
+            const atkDis = n(damageToAttacker.disabled);
+            console.log(
+                `  %cSTEP 5 Lethality%c   │ leth=%c${f(settings.lethality)}%c  │  DEF takes ☠️%c${defKills}%c killed + 🔧%c${defDis}%c disabled  │  ATK takes ☠️%c${atkKills}%c killed + 🔧%c${atkDis}%c disabled`,
+                dim, styles.reset, org, styles.reset,
+                red, styles.reset, org, styles.reset,
+                red, styles.reset, org, styles.reset
+            );
+
+            // Outcome
+            const defRemaining = Math.max(0, defShips - defKills - defDis);
+            const atkRemaining = Math.max(0, atkShips - atkKills - atkDis);
+            console.log(
+                `  %cOUTCOME%c            │ DEF remaining: %c${defRemaining}%c  │  ATK remaining: %c${atkRemaining}%c`,
+                'color: #fff; font-weight: bold;', styles.reset,
+                defRemaining > 0 ? grn : red, styles.reset,
+                atkRemaining > 0 ? grn : red, styles.reset
+            );
+        } else {
+            // Fallback: compact format without formula data
+            const defKills = n(damageToDefender.kills);
+            const defDis = n(damageToDefender.disabled);
+            const atkKills = n(damageToAttacker.kills);
+            const atkDis = n(damageToAttacker.disabled);
+            console.log(
+                `  DEF takes ☠️${defKills} killed + 🔧${defDis} disabled  │  ATK takes ☠️${atkKills} killed + 🔧${atkDis} disabled`
+            );
+            if (settings) {
+                console.log(
+                    `  %cSettings%c │ Agg:${f(settings.aggressor)} Dmg:${f(settings.damage)} Leth:${f(settings.lethality)} Force:${f(settings.forceRatio)} RR:${f(settings.repairRate)}`,
+                    'color: #666;', styles.reset
+                );
+            }
         }
     },
 

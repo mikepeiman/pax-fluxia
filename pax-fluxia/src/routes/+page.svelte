@@ -265,8 +265,10 @@
 
   .section-tuning {
     flex: 1; /* Fill remaining space */
-    overflow-y: auto;
+    overflow: hidden; /* Inner section-body handles scroll */
     min-height: 200px;
+    display: flex;
+    flex-direction: column;
   }
 
   /* OVERLAYS (Floating above Canvas) */

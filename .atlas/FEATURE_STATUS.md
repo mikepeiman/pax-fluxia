@@ -167,6 +167,10 @@
 | F-11 | Combat Log: "You" filter | 2026-02-07 |
 | F-12 | Damaged Ships Defense slider | 2026-02-07 |
 | F-13 | Conquest Logging (per-player totals, ship disposition, UI toggle) | 2026-02-12 |
+| F-14 | Combat Formula Logging (full step-by-step formula in console) | 2026-02-12 |
+| F-15 | Dominant Victory Condition (99% ship ownership → game over) | 2026-02-12 |
+| F-16 | Orb Travel UI Consolidation (paired sliders, orbit bias removed) | 2026-02-12 |
+| F-17 | Settings Panel Full-Height Scroll Fix | 2026-02-12 |
 
 ## Planned Features — Not Started (R)
 
@@ -252,6 +256,7 @@
 | R-76 | ParticleContainer Rendering: replaced Graphics.circle with ParticleContainer + Particle pool (24fps @ 30k ships) | 🟢 |
 | R-77 | Player-Color Outlines: ring texture behind each ship shows raw player color, visible even when fill is white-blended | 🟢 |
 | R-78 | Orb Travel Flash Fix: departing ships fade to full transparency before orb grouping, eliminating single-frame arc | 🟢 |
+| R-79 | Stars Panel Sorting: group/sort by owner, ship count, or star name — dropdown in Stars panel header | 🟢 |
 
 ---
 
@@ -259,6 +264,7 @@
 
 | Date | Summary |
 |------|---------|
+| 2026-02-12 | Combat formula logging (full 5-step breakdown), dominant victory (99% ships), orb panel consolidation (paired sliders, orbit bias removed), settings panel scroll fix (flex-based full-height). |
 | 2026-02-10 | Batch 3: Performance fixes — statsHistory cap (500), starsById cache (was 4x new Map/frame), damaged ship static mode. |
 | 2026-02-10 | Batch 2: Surrender modal fix (+page.svelte was calling returnToMenu directly), STATIC_ORBITS toggle (performance), leaderboard total ships row, log toggles UI, Stars Panel CSS Grid, repairedThisTick on Star model, ship visuals reverted to circles+white+border. |
 | 2026-02-10 | Phase 1: R-45/B-27 physics star spacing, R-40 leaderboard, R-41 surrender modal. B-28 Tone.js lag fix (throttling). SP/MP parity audit completed. |

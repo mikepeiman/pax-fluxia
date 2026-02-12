@@ -60,11 +60,15 @@ export interface EngineConfig {
 
 export interface GameHistoryEntry {
   tick: number;
+  totalCombatEvents?: number;
+  conquestsThisTick?: number;
   players: {
     id: string;
     starCount: number;
     totalShips: number;
-    production: number;
+    production?: number;
+    activeAttacks?: number;
+    underAttack?: number;
   }[];
 }
 

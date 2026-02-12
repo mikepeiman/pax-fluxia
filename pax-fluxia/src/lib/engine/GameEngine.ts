@@ -711,18 +711,58 @@ export class GameEngine {
 
         // Combat telemetry - log the combined attack with OWNER info
         const primaryAttacker = validAttackers[0];
+
+        // Compute full formula intermediate values for debug log
+        const _dmgPerShip = GAME_CONFIG.DAMAGE_PER_SHIP;
+        const _aggAdv = GAME_CONFIG.AGGRESSOR_ADVANTAGE;
+        const _forceEffect = GAME_CONFIG.FORCE_RATIO_EFFECT;
+        const _lethality = GAME_CONFIG.LETHALITY;
+        const _baseOutputAtk = effectiveAttackForce * _dmgPerShip;
+        const _baseOutputDef = defenderForce * _dmgPerShip;
+        const _aggressorMultAtk = attackerIsAttacking ? _aggAdv : 1.0;
+        const _aggressorMultDef = defenderIsAttacking ? _aggAdv : 1.0;
+        const _outputAtk = _baseOutputAtk * _aggressorMultAtk;
+        const _outputDef = _baseOutputDef * _aggressorMultDef;
+        const _ratio = Math.max(effectiveAttackForce, defenderForce) / Math.min(effectiveAttackForce, defenderForce);
+        const _forceBonus = 1 + (Math.log2(_ratio) * _forceEffect);
+        const _atkIsLarger = effectiveAttackForce > defenderForce;
+        const _forceMod_dmgToDef = _atkIsLarger ? _forceBonus : (1 / _forceBonus);
+        const _forceMod_dmgToAtk = _atkIsLarger ? (1 / _forceBonus) : _forceBonus;
+        const _rawDmgToDef = _outputAtk * _forceMod_dmgToDef;
+        const _rawDmgToAtk = _outputDef * _forceMod_dmgToAtk;
+        const _minDmg = 1;
+        const _finalDmgToDef = Math.max(_minDmg, _rawDmgToDef);
+        const _finalDmgToAtk = Math.max(_minDmg, _rawDmgToAtk);
+
         log.combatBattle(
             this.tick,
-            { id: `${validAttackers.length} stars`, ships: totalAttackShips, starType: primaryAttacker.starType, ownerId: primaryAttacker.ownerId },
-            { id: defender.id, ships: defenderForce, starType: defender.starType, ownerId: defender.ownerId },
+            { id: `${validAttackers.length} stars`, ships: totalAttackShips, starType: primaryAttacker.starType, ownerId: primaryAttacker.ownerId, isAttacking: attackerIsAttacking },
+            { id: defender.id, ships: defenderForce, starType: defender.starType, ownerId: defender.ownerId, isAttacking: defenderIsAttacking },
             { kills: killsOnDefender, disabled: disabledOnDefender },
             { kills: killsOnAttacker, disabled: disabledOnAttacker },
             {
-                aggressor: GAME_CONFIG.AGGRESSOR_ADVANTAGE,
-                damage: GAME_CONFIG.DAMAGE_PER_SHIP,
-                lethality: GAME_CONFIG.LETHALITY,
-                forceRatio: GAME_CONFIG.FORCE_RATIO_EFFECT,
+                aggressor: _aggAdv,
+                damage: _dmgPerShip,
+                lethality: _lethality,
+                forceRatio: _forceEffect,
                 repairRate: GAME_CONFIG.REPAIR_RATE
+            },
+            {
+                baseOutputAtk: _baseOutputAtk,
+                baseOutputDef: _baseOutputDef,
+                aggressorMultAtk: _aggressorMultAtk,
+                aggressorMultDef: _aggressorMultDef,
+                outputAtk: _outputAtk,
+                outputDef: _outputDef,
+                forceRatio: _ratio,
+                forceBonus: _forceBonus,
+                forceMod_dmgToDefender: _forceMod_dmgToDef,
+                forceMod_dmgToAttacker: _forceMod_dmgToAtk,
+                rawDmgToDefender: _rawDmgToDef,
+                rawDmgToAttacker: _rawDmgToAtk,
+                minDamage: _minDmg,
+                finalDmgToDefender: _finalDmgToDef,
+                finalDmgToAttacker: _finalDmgToAtk
             }
         );
 
@@ -846,19 +886,57 @@ export class GameEngine {
         attacker.takeDamage(disabledOnAttacker);
         attacker.markCombat(this.tick);
 
-        // Combat telemetry with OWNER info
+        // Combat telemetry with OWNER info + full formula breakdown
+        const _dmgPerShip = GAME_CONFIG.DAMAGE_PER_SHIP;
+        const _aggAdv = GAME_CONFIG.AGGRESSOR_ADVANTAGE;
+        const _forceEffect = GAME_CONFIG.FORCE_RATIO_EFFECT;
+        const _lethality = GAME_CONFIG.LETHALITY;
+        const _baseOutputAtk = attackerForce * _dmgPerShip;
+        const _baseOutputDef = defenderForce * _dmgPerShip;
+        const _aggressorMultAtk = attackerIsAttacking ? _aggAdv : 1.0;
+        const _aggressorMultDef = defenderIsAttacking ? _aggAdv : 1.0;
+        const _outputAtk = _baseOutputAtk * _aggressorMultAtk;
+        const _outputDef = _baseOutputDef * _aggressorMultDef;
+        const _ratio = Math.max(attackerForce, defenderForce) / Math.min(attackerForce, defenderForce);
+        const _forceBonus = 1 + (Math.log2(_ratio) * _forceEffect);
+        const _atkIsLarger = attackerForce > defenderForce;
+        const _forceMod_dmgToDef = _atkIsLarger ? _forceBonus : (1 / _forceBonus);
+        const _forceMod_dmgToAtk = _atkIsLarger ? (1 / _forceBonus) : _forceBonus;
+        const _rawDmgToDef = _outputAtk * _forceMod_dmgToDef;
+        const _rawDmgToAtk = _outputDef * _forceMod_dmgToAtk;
+        const _minDmg = 1;
+        const _finalDmgToDef = Math.max(_minDmg, _rawDmgToDef);
+        const _finalDmgToAtk = Math.max(_minDmg, _rawDmgToAtk);
+
         log.combatBattle(
             this.tick,
-            { id: attacker.id, ships: attackerForce, starType: attacker.starType, ownerId: attacker.ownerId },
-            { id: defender.id, ships: defenderForce, starType: defender.starType, ownerId: defender.ownerId },
+            { id: attacker.id, ships: attackerForce, starType: attacker.starType, ownerId: attacker.ownerId, isAttacking: attackerIsAttacking },
+            { id: defender.id, ships: defenderForce, starType: defender.starType, ownerId: defender.ownerId, isAttacking: defenderIsAttacking },
             { kills: killsOnDefender, disabled: disabledOnDefender },
             { kills: killsOnAttacker, disabled: disabledOnAttacker },
             {
-                aggressor: GAME_CONFIG.AGGRESSOR_ADVANTAGE,
-                damage: GAME_CONFIG.DAMAGE_PER_SHIP,
-                lethality: GAME_CONFIG.LETHALITY,
-                forceRatio: GAME_CONFIG.FORCE_RATIO_EFFECT,
+                aggressor: _aggAdv,
+                damage: _dmgPerShip,
+                lethality: _lethality,
+                forceRatio: _forceEffect,
                 repairRate: GAME_CONFIG.REPAIR_RATE
+            },
+            {
+                baseOutputAtk: _baseOutputAtk,
+                baseOutputDef: _baseOutputDef,
+                aggressorMultAtk: _aggressorMultAtk,
+                aggressorMultDef: _aggressorMultDef,
+                outputAtk: _outputAtk,
+                outputDef: _outputDef,
+                forceRatio: _ratio,
+                forceBonus: _forceBonus,
+                forceMod_dmgToDefender: _forceMod_dmgToDef,
+                forceMod_dmgToAttacker: _forceMod_dmgToAtk,
+                rawDmgToDefender: _rawDmgToDef,
+                rawDmgToAttacker: _rawDmgToAtk,
+                minDamage: _minDmg,
+                finalDmgToDefender: _finalDmgToDef,
+                finalDmgToAttacker: _finalDmgToAtk
             }
         );
 
@@ -1259,6 +1337,33 @@ export class GameEngine {
                 log.state('GameEngine', `Player ${p.name} eliminated!`);
             }
         });
+
+        // Dominant victory: if one player owns 99%+ of all ships, they win
+        if (activePlayers.length > 1) {
+            let totalShips = 0;
+            const shipCounts = new Map<PlayerId, number>();
+            this.players.forEach(p => {
+                if (!p.isEliminated) {
+                    const count = this.getPlayerActiveShips(p.id) + this.getPlayerDamagedShips(p.id);
+                    shipCounts.set(p.id, count);
+                    totalShips += count;
+                }
+            });
+            if (totalShips > 0) {
+                for (const [pid, count] of shipCounts) {
+                    if (count / totalShips >= 0.99) {
+                        // This player dominates — eliminate everyone else
+                        this.players.forEach(p => {
+                            if (p.id !== pid && !p.isEliminated) {
+                                p.isEliminated = true;
+                                log.state('GameEngine', `Player ${p.name} eliminated (${Math.round(count / totalShips * 100)}% ship dominance by ${pid})`);
+                            }
+                        });
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     private recordHistory(): void {

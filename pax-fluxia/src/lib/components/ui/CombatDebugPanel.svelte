@@ -1203,105 +1203,6 @@
                         />
                     </div>
 
-                    <h4 class="sub-heading">Orbit Bias</h4>
-                    <div class="var-row">
-                        <div class="row-top">
-                            <span class="var-name">Bias Strength</span><span
-                                class="val"
-                                >{(panel.orbitBias as number).toFixed(2)}</span
-                            >
-                        </div>
-                        <input
-                            type="range"
-                            min="0"
-                            max="1"
-                            step="0.05"
-                            value={panel.orbitBias}
-                            oninput={(e) => {
-                                const v = +(e.target as HTMLInputElement).value;
-                                GAME_CONFIG.ORBIT_BIAS_STRENGTH = v;
-                                updatePanel("orbitBias", v);
-                            }}
-                        />
-                    </div>
-                    <div class="var-row">
-                        <div class="row-top">
-                            <label class="toggle-label"
-                                ><input
-                                    type="checkbox"
-                                    checked={panel.oscillate}
-                                    onchange={() => {
-                                        GAME_CONFIG.ORBIT_BIAS_OSCILLATE =
-                                            !GAME_CONFIG.ORBIT_BIAS_OSCILLATE;
-                                        updatePanel(
-                                            "oscillate",
-                                            GAME_CONFIG.ORBIT_BIAS_OSCILLATE,
-                                        );
-                                    }}
-                                />
-                                <span class="var-name">Oscillate</span></label
-                            >
-                        </div>
-                    </div>
-                    <div class="var-row indent">
-                        <div class="row-top">
-                            <span class="var-name">Min</span><span class="val"
-                                >{(panel.oscMin as number).toFixed(2)}</span
-                            >
-                        </div>
-                        <input
-                            type="range"
-                            min="0"
-                            max="1"
-                            step="0.05"
-                            value={panel.oscMin}
-                            oninput={(e) => {
-                                const v = +(e.target as HTMLInputElement).value;
-                                GAME_CONFIG.ORBIT_BIAS_MIN = v;
-                                updatePanel("oscMin", v);
-                            }}
-                        />
-                    </div>
-                    <div class="var-row indent">
-                        <div class="row-top">
-                            <span class="var-name">Max</span><span class="val"
-                                >{(panel.oscMax as number).toFixed(2)}</span
-                            >
-                        </div>
-                        <input
-                            type="range"
-                            min="0"
-                            max="1"
-                            step="0.05"
-                            value={panel.oscMax}
-                            oninput={(e) => {
-                                const v = +(e.target as HTMLInputElement).value;
-                                GAME_CONFIG.ORBIT_BIAS_MAX = v;
-                                updatePanel("oscMax", v);
-                            }}
-                        />
-                    </div>
-                    <div class="var-row indent">
-                        <div class="row-top">
-                            <span class="var-name">Freq (×tick)</span><span
-                                class="val"
-                                >{(panel.oscFreq as number).toFixed(2)}</span
-                            >
-                        </div>
-                        <input
-                            type="range"
-                            min="0.25"
-                            max="5"
-                            step="0.25"
-                            value={panel.oscFreq}
-                            oninput={(e) => {
-                                const v = +(e.target as HTMLInputElement).value;
-                                GAME_CONFIG.ORBIT_BIAS_FREQ = v;
-                                updatePanel("oscFreq", v);
-                            }}
-                        />
-                    </div>
-
                     <h4 class="sub-heading">Orb Travel</h4>
                     <div class="var-row">
                         <div class="row-top">
@@ -1326,53 +1227,59 @@
                         </div>
                     </div>
                     {#if panel.orbTravel}
-                        <div class="var-row indent">
-                            <div class="row-top">
-                                <span class="var-name">Base Radius</span><span
-                                    class="val"
-                                    >{(panel.orbBaseRadius as number).toFixed(
-                                        1,
-                                    )}</span
-                                >
+                        <!-- Size -->
+                        <div class="orb-pair indent">
+                            <div class="var-row compact">
+                                <div class="row-top">
+                                    <span class="var-name">Base R</span><span
+                                        class="val"
+                                        >{(
+                                            panel.orbBaseRadius as number
+                                        ).toFixed(1)}</span
+                                    >
+                                </div>
+                                <input
+                                    type="range"
+                                    min="1"
+                                    max="12"
+                                    step="0.5"
+                                    value={panel.orbBaseRadius}
+                                    oninput={(e) => {
+                                        const v = +(
+                                            e.target as HTMLInputElement
+                                        ).value;
+                                        GAME_CONFIG.ORB_BASE_RADIUS = v;
+                                        updatePanel("orbBaseRadius", v);
+                                    }}
+                                />
                             </div>
-                            <input
-                                type="range"
-                                min="1"
-                                max="12"
-                                step="0.5"
-                                value={panel.orbBaseRadius}
-                                oninput={(e) => {
-                                    const v = +(e.target as HTMLInputElement)
-                                        .value;
-                                    GAME_CONFIG.ORB_BASE_RADIUS = v;
-                                    updatePanel("orbBaseRadius", v);
-                                }}
-                            />
-                        </div>
-                        <div class="var-row indent">
-                            <div class="row-top">
-                                <span class="var-name">Radius Scale</span><span
-                                    class="val"
-                                    >{(panel.orbRadiusScale as number).toFixed(
-                                        2,
-                                    )}</span
-                                >
+                            <div class="var-row compact">
+                                <div class="row-top">
+                                    <span class="var-name">R Scale</span><span
+                                        class="val"
+                                        >{(
+                                            panel.orbRadiusScale as number
+                                        ).toFixed(2)}</span
+                                    >
+                                </div>
+                                <input
+                                    type="range"
+                                    min="0.2"
+                                    max="5"
+                                    step="0.1"
+                                    value={panel.orbRadiusScale}
+                                    oninput={(e) => {
+                                        const v = +(
+                                            e.target as HTMLInputElement
+                                        ).value;
+                                        GAME_CONFIG.ORB_RADIUS_SCALE = v;
+                                        updatePanel("orbRadiusScale", v);
+                                    }}
+                                />
                             </div>
-                            <input
-                                type="range"
-                                min="0.2"
-                                max="5"
-                                step="0.1"
-                                value={panel.orbRadiusScale}
-                                oninput={(e) => {
-                                    const v = +(e.target as HTMLInputElement)
-                                        .value;
-                                    GAME_CONFIG.ORB_RADIUS_SCALE = v;
-                                    updatePanel("orbRadiusScale", v);
-                                }}
-                            />
                         </div>
-                        <div class="var-row indent">
+                        <!-- Glow -->
+                        <div class="var-row indent compact">
                             <div class="row-top">
                                 <span class="var-name">Glow Mult</span><span
                                     class="val"
@@ -1395,76 +1302,161 @@
                                 }}
                             />
                         </div>
-                        <div class="var-row indent">
-                            <div class="row-top">
-                                <span class="var-name">Outer α</span><span
-                                    class="val"
-                                    >{(panel.orbOuterAlpha as number).toFixed(
-                                        2,
-                                    )}</span
-                                >
+                        <!-- Outer: α + Scale -->
+                        <div class="orb-pair indent">
+                            <div class="var-row compact">
+                                <div class="row-top">
+                                    <span class="var-name">Outer α</span><span
+                                        class="val"
+                                        >{(
+                                            panel.orbOuterAlpha as number
+                                        ).toFixed(2)}</span
+                                    >
+                                </div>
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max="1"
+                                    step="0.02"
+                                    value={panel.orbOuterAlpha}
+                                    oninput={(e) => {
+                                        const v = +(
+                                            e.target as HTMLInputElement
+                                        ).value;
+                                        GAME_CONFIG.ORB_OUTER_ALPHA = v;
+                                        updatePanel("orbOuterAlpha", v);
+                                    }}
+                                />
                             </div>
-                            <input
-                                type="range"
-                                min="0"
-                                max="1"
-                                step="0.02"
-                                value={panel.orbOuterAlpha}
-                                oninput={(e) => {
-                                    const v = +(e.target as HTMLInputElement)
-                                        .value;
-                                    GAME_CONFIG.ORB_OUTER_ALPHA = v;
-                                    updatePanel("orbOuterAlpha", v);
-                                }}
-                            />
-                        </div>
-                        <div class="var-row indent">
-                            <div class="row-top">
-                                <span class="var-name">Mid α</span><span
-                                    class="val"
-                                    >{(panel.orbMidAlpha as number).toFixed(
-                                        2,
-                                    )}</span
-                                >
+                            <div class="var-row compact">
+                                <div class="row-top">
+                                    <span class="var-name">Outer ×</span><span
+                                        class="val"
+                                        >{(
+                                            panel.orbOuterScale as number
+                                        ).toFixed(1)}</span
+                                    >
+                                </div>
+                                <input
+                                    type="range"
+                                    min="1"
+                                    max="5"
+                                    step="0.1"
+                                    value={panel.orbOuterScale}
+                                    oninput={(e) => {
+                                        const v = +(
+                                            e.target as HTMLInputElement
+                                        ).value;
+                                        GAME_CONFIG.ORB_OUTER_SCALE = v;
+                                        updatePanel("orbOuterScale", v);
+                                    }}
+                                />
                             </div>
-                            <input
-                                type="range"
-                                min="0"
-                                max="1"
-                                step="0.02"
-                                value={panel.orbMidAlpha}
-                                oninput={(e) => {
-                                    const v = +(e.target as HTMLInputElement)
-                                        .value;
-                                    GAME_CONFIG.ORB_MID_ALPHA = v;
-                                    updatePanel("orbMidAlpha", v);
-                                }}
-                            />
                         </div>
-                        <div class="var-row indent">
-                            <div class="row-top">
-                                <span class="var-name">Core α</span><span
-                                    class="val"
-                                    >{(panel.orbCoreAlpha as number).toFixed(
-                                        2,
-                                    )}</span
-                                >
+                        <!-- Mid: α + Scale -->
+                        <div class="orb-pair indent">
+                            <div class="var-row compact">
+                                <div class="row-top">
+                                    <span class="var-name">Mid α</span><span
+                                        class="val"
+                                        >{(panel.orbMidAlpha as number).toFixed(
+                                            2,
+                                        )}</span
+                                    >
+                                </div>
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max="1"
+                                    step="0.02"
+                                    value={panel.orbMidAlpha}
+                                    oninput={(e) => {
+                                        const v = +(
+                                            e.target as HTMLInputElement
+                                        ).value;
+                                        GAME_CONFIG.ORB_MID_ALPHA = v;
+                                        updatePanel("orbMidAlpha", v);
+                                    }}
+                                />
                             </div>
-                            <input
-                                type="range"
-                                min="0"
-                                max="1"
-                                step="0.02"
-                                value={panel.orbCoreAlpha}
-                                oninput={(e) => {
-                                    const v = +(e.target as HTMLInputElement)
-                                        .value;
-                                    GAME_CONFIG.ORB_CORE_ALPHA = v;
-                                    updatePanel("orbCoreAlpha", v);
-                                }}
-                            />
+                            <div class="var-row compact">
+                                <div class="row-top">
+                                    <span class="var-name">Mid ×</span><span
+                                        class="val"
+                                        >{(panel.orbMidScale as number).toFixed(
+                                            1,
+                                        )}</span
+                                    >
+                                </div>
+                                <input
+                                    type="range"
+                                    min="0.5"
+                                    max="4"
+                                    step="0.1"
+                                    value={panel.orbMidScale}
+                                    oninput={(e) => {
+                                        const v = +(
+                                            e.target as HTMLInputElement
+                                        ).value;
+                                        GAME_CONFIG.ORB_MID_SCALE = v;
+                                        updatePanel("orbMidScale", v);
+                                    }}
+                                />
+                            </div>
                         </div>
-                        <div class="var-row indent">
+                        <!-- Core: α + Scale -->
+                        <div class="orb-pair indent">
+                            <div class="var-row compact">
+                                <div class="row-top">
+                                    <span class="var-name">Core α</span><span
+                                        class="val"
+                                        >{(
+                                            panel.orbCoreAlpha as number
+                                        ).toFixed(2)}</span
+                                    >
+                                </div>
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max="1"
+                                    step="0.02"
+                                    value={panel.orbCoreAlpha}
+                                    oninput={(e) => {
+                                        const v = +(
+                                            e.target as HTMLInputElement
+                                        ).value;
+                                        GAME_CONFIG.ORB_CORE_ALPHA = v;
+                                        updatePanel("orbCoreAlpha", v);
+                                    }}
+                                />
+                            </div>
+                            <div class="var-row compact">
+                                <div class="row-top">
+                                    <span class="var-name">Core ×</span><span
+                                        class="val"
+                                        >{(
+                                            panel.orbCoreScale as number
+                                        ).toFixed(2)}</span
+                                    >
+                                </div>
+                                <input
+                                    type="range"
+                                    min="0.1"
+                                    max="1.5"
+                                    step="0.05"
+                                    value={panel.orbCoreScale}
+                                    oninput={(e) => {
+                                        const v = +(
+                                            e.target as HTMLInputElement
+                                        ).value;
+                                        GAME_CONFIG.ORB_CORE_SCALE = v;
+                                        updatePanel("orbCoreScale", v);
+                                    }}
+                                />
+                            </div>
+                        </div>
+                        <!-- Center dot -->
+                        <div class="var-row indent compact">
                             <div class="row-top">
                                 <span class="var-name">Center α</span><span
                                     class="val"
@@ -1484,75 +1476,6 @@
                                         .value;
                                     GAME_CONFIG.ORB_CENTER_ALPHA = v;
                                     updatePanel("orbCenterAlpha", v);
-                                }}
-                            />
-                        </div>
-                        <div class="var-row indent">
-                            <div class="row-top">
-                                <span class="var-name">Outer Scale</span><span
-                                    class="val"
-                                    >{(panel.orbOuterScale as number).toFixed(
-                                        1,
-                                    )}</span
-                                >
-                            </div>
-                            <input
-                                type="range"
-                                min="1"
-                                max="5"
-                                step="0.1"
-                                value={panel.orbOuterScale}
-                                oninput={(e) => {
-                                    const v = +(e.target as HTMLInputElement)
-                                        .value;
-                                    GAME_CONFIG.ORB_OUTER_SCALE = v;
-                                    updatePanel("orbOuterScale", v);
-                                }}
-                            />
-                        </div>
-                        <div class="var-row indent">
-                            <div class="row-top">
-                                <span class="var-name">Mid Scale</span><span
-                                    class="val"
-                                    >{(panel.orbMidScale as number).toFixed(
-                                        1,
-                                    )}</span
-                                >
-                            </div>
-                            <input
-                                type="range"
-                                min="0.5"
-                                max="4"
-                                step="0.1"
-                                value={panel.orbMidScale}
-                                oninput={(e) => {
-                                    const v = +(e.target as HTMLInputElement)
-                                        .value;
-                                    GAME_CONFIG.ORB_MID_SCALE = v;
-                                    updatePanel("orbMidScale", v);
-                                }}
-                            />
-                        </div>
-                        <div class="var-row indent">
-                            <div class="row-top">
-                                <span class="var-name">Core Scale</span><span
-                                    class="val"
-                                    >{(panel.orbCoreScale as number).toFixed(
-                                        2,
-                                    )}</span
-                                >
-                            </div>
-                            <input
-                                type="range"
-                                min="0.1"
-                                max="1.5"
-                                step="0.05"
-                                value={panel.orbCoreScale}
-                                oninput={(e) => {
-                                    const v = +(e.target as HTMLInputElement)
-                                        .value;
-                                    GAME_CONFIG.ORB_CORE_SCALE = v;
-                                    updatePanel("orbCoreScale", v);
                                 }}
                             />
                         </div>
@@ -1739,6 +1662,8 @@
         gap: 8px;
         color: #ccc;
         font-family: inherit;
+        height: 100%;
+        min-height: 0;
     }
 
     /* ── Icon Toolbar ── */
@@ -1815,6 +1740,10 @@
         border-radius: 8px;
         overflow: hidden;
         animation: slideIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
     }
     @keyframes slideIn {
         from {
@@ -1869,8 +1798,28 @@
         display: flex;
         flex-direction: column;
         gap: 6px;
-        max-height: 60vh;
+        flex: 1;
         overflow-y: auto;
+        min-height: 0;
+    }
+    /* Paired orb controls side-by-side */
+    .orb-pair {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4px;
+    }
+    .var-row.compact {
+        padding: 3px 5px;
+        gap: 2px;
+    }
+    .var-row.compact .row-top {
+        gap: 2px;
+    }
+    .var-row.compact .var-name {
+        font-size: 9px;
+    }
+    .var-row.compact .val {
+        font-size: 9px;
     }
 
     /* ── Controls ── */
