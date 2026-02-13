@@ -1,6 +1,6 @@
 # Feature & Regression Tracker
 
-**Last Updated**: 2026-02-08  
+**Last Updated**: 2026-02-13  
 **Last Verified By**: User (partial — see Status column)
 
 ---
@@ -153,6 +153,9 @@
 | B-32 | Mid-surge order change teleports ships | Ships should complete current surge cycle before reorienting to new target | OPEN |
 | B-33 | Ships jump into attack surge before animation continues smoothly | Ramp-in not working visibly; initial frame snap | OPEN |
 | B-34 | Conquest: victor ships wait entire tick to appear | Should appear within conquest tick, not next tick | OPEN |
+| B-35 | AI passive in MP: no difficulty settings exposed, AI uses default (easy) config | Server needs AI difficulty from RoomOptions | OPEN |
+| B-36 | MP quit/abandon buttons restart game instead of returning to main menu | Should route to main menu, not restart | OPEN |
+| B-37 | MP pause resets tick counter and animations | Pause/resume loses tick progress, animations snap | OPEN |
 
 ---
 
@@ -280,6 +283,11 @@
 | R-86 | Ship Travel Spread: ships more spread out in both dimensions, individual wobbles with smaller-group coherence | 🔴 |
 | R-87 | Easing Curve Visual Editor: lightweight JS widget for standard easing parameters (cubic-bezier style) | 🔴 |
 | R-88 | Attack Surge Tick-Sync: surge should only animate during actual combat ticks, not on order issuance | 🔴 |
+| R-89 | Unified Game-Start Screen: SP & MP share same lobby/settings UI, eliminate divergent paths | 🔴 |
+| R-90 | Per-AI Player Settings: select difficulty + strategy for each AI independently at game start | 🔴 |
+| R-91 | AI Custom Personality Editor: create/save/load named AI profiles with tuned strategies/variables | 🔵 |
+| R-92 | Game Sounds: tick sound, conquest sound, conquest-ships-arrival sound (lightweight, no Tone.js) | 🔴 |
+| R-93 | Animation General Polish: conquest, transfer, and orbit-meshing visual improvements | 🔴 |
 
 ---
 
@@ -300,6 +308,7 @@
 
 | Date | Summary |
 |------|---------|
+| 2026-02-13 | **User feedback batch**: AI passive in MP (B-35), quit buttons wrong (B-36), pause resets tick (B-37), unified game-start (R-89), per-AI settings (R-90), AI personality editor (R-91), game sounds (R-92), animation polish (R-93). Conquest naked tick reiterated (B-34). Zombie code Phase D complete. |
 | 2026-02-12 | **Engine unification planning**: Full architecture audit across 3 packages. Created `ENGINE_ARCHITECTURE_CURRENT.md` and `ENGINE_ARCHITECTURE_TARGET.md`. Updated `00_PHYSICAL_MAP.md` and `01_ASSET_INVENTORY.md` to current monorepo reality. Documented 6-phase unification plan in DECISIONS.md. |
 | 2026-02-12 | Zombie code cleanup: removed `_conquestTravel`, `CONQUEST_TRAVEL_MODE`, `arcBulge`. Updated ~50 config defaults from backup. Confirmed `FACING_DEPART` is legitimate (attack surge facing factor). |
 | 2026-02-12 | Conquest ship timing fix: separated conquest transfer ships from `inFlightToStar` counter (cosmetic-only). Immediate spawn at conquered star. `CONQUEST_TRAVEL_SPEED` inverted (>1=faster). `VISUAL_COUNT_DELAY` iced (removed). Transfer Rate duplication found: `EngineConfig.TRANSFER_RATE` vs `ORDER_CONFIG.TRANSFER_RATE` — documented in DECISIONS.md. |
