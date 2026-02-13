@@ -180,21 +180,21 @@ export const GAME_CONFIG: GameConfigType = {
     // ========================================================================
 
     /** Base tick interval at 1x speed (ms) - slower = more strategic */
-    BASE_TICK_MS: 1200,
+    BASE_TICK_MS: 1300,
 
     /** Minimum tick interval at max speed (ms) */
     MIN_TICK_MS: 100,
 
     /** Animation interpolation speed (ms) - controls visual smoothness of tick progress.
      *  Lower = faster visual transitions. Separate from actual tick rate. */
-    ANIMATION_SPEED_MS: 1200,
+    ANIMATION_SPEED_MS: 1150,
 
     // ========================================================================
     // TRANSFER MECHANICS
     // ========================================================================
 
     /** Percentage of ships that transfer per tick (0.0 - 1.0) */
-    TRANSFER_RATE: 0.25,
+    TRANSFER_RATE: 0.1,
 
     /** Minimum ships to transfer per tick */
     MIN_SHIPS_PER_TRANSFER: 1,
@@ -230,10 +230,10 @@ export const GAME_CONFIG: GameConfigType = {
     // ========================================================================
 
     /** Tilts damage toward attacker (>1) or defender (<1). 1.0 = symmetric. */
-    AGGRESSOR_ADVANTAGE: 0.7,
+    AGGRESSOR_ADVANTAGE: 0.8333333333333334,
 
     /** Base damage per engaged ship per tick. Range: 0.05-2.0 */
-    DAMAGE_PER_SHIP: 0.1,
+    DAMAGE_PER_SHIP: 0.075,
 
     /** Fraction of damage that destroys ships (rest disables). Range: 0-1 */
     LETHALITY: 0.25,
@@ -242,17 +242,17 @@ export const GAME_CONFIG: GameConfigType = {
     FORCE_RATIO_EFFECT: 0,
 
     /** Overwhelm ratio for instant conquest (need Nx enemy ships) */
-    CONQUEST_THRESHOLD: 8,
+    CONQUEST_THRESHOLD: 20,
 
     /** Fraction of damaged ships that count toward defensive force (1/7 ≈ 0.14) */
-    DAMAGED_SHIP_EFFECTIVENESS: 0.14,
+    DAMAGED_SHIP_EFFECTIVENESS: 0.5,
 
     // ========================================================================
     // PRODUCTION
     // ========================================================================
 
     /** Base ships produced per tick (modified by star type) */
-    BASE_PRODUCTION: 0.5,
+    BASE_PRODUCTION: 0.4,
 
     /** Production ticks required per ship at base rate */
     TICKS_PER_SHIP: 2,
@@ -262,7 +262,7 @@ export const GAME_CONFIG: GameConfigType = {
     // ========================================================================
 
     /** Percentage of damaged ships repaired per tick */
-    REPAIR_RATE: 0.20,
+    REPAIR_RATE: 0.05,
 
     /** Minimum ships repaired per tick */
     MIN_REPAIR: 1,
@@ -296,33 +296,33 @@ export const GAME_CONFIG: GameConfigType = {
     // ========================================================================
 
     /** % of ships captured when defender is actively retreating to friendly star */
-    RETREAT_CAPTURE_RATE: 0.35,
+    RETREAT_CAPTURE_RATE: 0.2,
 
     /** % of ships captured when defender has escape routes but not retreating */
-    SCATTER_CAPTURE_RATE: 0.50,
+    SCATTER_CAPTURE_RATE: 0.4,
 
     /** % of non-captured ships destroyed during scatter (rest escape) */
     SCATTER_DESTROY_RATE: 0.50,
 
     /** % of damaged ships converted to active on retreat/scatter (0=stay damaged, 1=all activate) */
-    RETREAT_DAMAGED_ACTIVATION_RATE: 0,
+    RETREAT_DAMAGED_ACTIVATION_RATE: 0.1,
 
 
     /** Starting ships per star at game start */
-    STARTING_SHIPS: 40,
+    STARTING_SHIPS: 200,
 
     // ========================================================================
     // AI BEHAVIOR
     // ========================================================================
 
     /** Min ship ratio to initiate attack (1.33 = need 33% more ships than enemy) */
-    AI_ATTACK_THRESHOLD: 1.33,
+    AI_ATTACK_THRESHOLD: 1.2,
 
     /** Ship ratio at which AI stops attacking and retreats (1.0 = retreat at parity) */
-    AI_DESIST_THRESHOLD: 1.0,
+    AI_DESIST_THRESHOLD: 0.9,
 
     /** Chance per tick to make a random attack even without advantage (0-1) */
-    AI_RANDOM_AGGRESSION: 0.05,
+    AI_RANDOM_AGGRESSION: 0.15,
 
     /** Chance to attack weaker target to bait other players (0-1) */
     AI_TACTICAL_AGGRESSION: 0.1,
@@ -338,38 +338,38 @@ export const GAME_CONFIG: GameConfigType = {
     SHIPS_PER_RING: 12,
 
     /** Base ship render size */
-    SHIP_BASE_SIZE: 4,
+    SHIP_BASE_SIZE: 3,
 
     /** Visual radius of stars on canvas */
-    STAR_RENDER_RADIUS: 20,
+    STAR_RENDER_RADIUS: 25,
 
     /** Orbit ring spacing multiplier (ringSpacing = shipBaseSize * this) */
-    ORBIT_RING_MULT: 1.4,
+    ORBIT_RING_MULT: 1.6,
 
     /** Ship transfer animation duration (ms) */
     TRANSFER_ANIMATION_MS: 600,
     STATIC_ORBITS: false,
 
     /** How much ships cluster toward target (0=none, 1=max) */
-    ORBIT_BIAS_STRENGTH: 0.6,
+    ORBIT_BIAS_STRENGTH: 0,
     /** Fraction of half-tick spent departing vs traveling */
-    DEPART_FRACTION: 0.3,
+    DEPART_FRACTION: 0.55,
     /** Max random departure jitter (ms) */
-    DEPART_JITTER_MS: 80,
+    DEPART_JITTER_MS: 0,
     /** Max perpendicular lane offset (px per side) */
     LANE_OFFSET_PX: 8,
     /** Ship departure mode: lifo (newest first), fifo (oldest first), nearside (closest to target) */
-    DEPART_MODE: 'nearside' as const,
+    DEPART_MODE: 'lifo' as const,
     /** How fast ships settle into orbit slot (ms) */
-    SETTLE_DURATION_MS: 150,
+    SETTLE_DURATION_MS: 830,
     /** Fraction of tick used to stagger arrival settle (0=instant, 1=full tick spread) */
-    ARRIVAL_SPREAD: 1.0,
+    ARRIVAL_SPREAD: 0,
     /** Amplitude of sinusoidal wobble on travel path (px) */
-    WOBBLE_AMP: 12,
+    WOBBLE_AMP: 5,
     /** Ship spacing factor per ring: higher = fewer ships per ring = more spread out (default 1.5) */
-    ORBIT_DENSITY: 1.5,
+    ORBIT_DENSITY: 1.7,
     /** Attack surge displacement as fraction of star radius (default 0.4) */
-    ATTACK_SURGE_MULT: 0.4,
+    ATTACK_SURGE_MULT: 0.65,
     ATTACK_SURGE_PROPORTIONAL: true,
     ATTACK_SURGE_FORCE_COFACTOR: 0.5,
     /** Ramp-in duration for attack surge (ms, 0=instant/old behavior) */
@@ -385,43 +385,43 @@ export const GAME_CONFIG: GameConfigType = {
     /** Show player-color outline behind each ship */
     SHIP_OUTLINE_ON: true,
     /** Outline thickness in px */
-    SHIP_OUTLINE_PX: 1.0,
+    SHIP_OUTLINE_PX: 0.4,
     /** Multiplier brightness glow: 0 = none, 1 = max (brightens within hue, not toward white) */
-    SHIP_GLOW_INTENSITY: 0.3,
+    SHIP_GLOW_INTENSITY: 1,
     /** Global ship size multiplier */
-    SHIP_SCALE_MULT: 1.0,
+    SHIP_SCALE_MULT: 0.6,
     /** Max visual ship sprites per star — overflow represented as brightness multiplier */
-    MAX_VISUAL_SHIPS: 100,
+    MAX_VISUAL_SHIPS: 500,
     /** Enable orbit bias oscillation between min/max */
     ORBIT_BIAS_OSCILLATE: false,
     /** Min bias strength for oscillation */
     ORBIT_BIAS_MIN: 0.0,
     /** Max bias strength for oscillation */
-    ORBIT_BIAS_MAX: 1.0,
+    ORBIT_BIAS_MAX: 0.95,
     /** Oscillation frequency relative to ticks (0.25 = once per 4 ticks, 2.0 = twice per tick) */
-    ORBIT_BIAS_FREQ: 1.0,
+    ORBIT_BIAS_FREQ: 0.25,
     /** Ships merge into single glowing orb during travel, fragment into ships on arrival */
-    ORB_TRAVEL: true,
+    ORB_TRAVEL: false,
     /** Base orb radius in px before ship count scaling */
-    ORB_BASE_RADIUS: 4,
+    ORB_BASE_RADIUS: 1.5,
     /** Sqrt multiplier for ship count → radius */
-    ORB_RADIUS_SCALE: 1.6,
+    ORB_RADIUS_SCALE: 0.5,
     /** Overall glow multiplier for orb layers */
-    ORB_GLOW_MULT: 1.0,
+    ORB_GLOW_MULT: 1.3,
     /** Outer glow ring alpha */
-    ORB_OUTER_ALPHA: 0.12,
+    ORB_OUTER_ALPHA: 0.06,
     /** Middle glow ring alpha */
-    ORB_MID_ALPHA: 0.25,
+    ORB_MID_ALPHA: 0.34,
     /** Inner core alpha */
-    ORB_CORE_ALPHA: 0.6,
+    ORB_CORE_ALPHA: 0.74,
     /** Bright center dot alpha */
-    ORB_CENTER_ALPHA: 1.0,
+    ORB_CENTER_ALPHA: 1.2,
     /** Outer glow ring radius multiplier */
-    ORB_OUTER_SCALE: 2.5,
+    ORB_OUTER_SCALE: 3.6,
     /** Middle glow ring radius multiplier */
-    ORB_MID_SCALE: 1.6,
+    ORB_MID_SCALE: 1.5,
     /** Core radius as fraction of base */
-    ORB_CORE_SCALE: 0.75,
+    ORB_CORE_SCALE: 0.4,
 
     /** Order arrow length as fraction of lane distance (0.0-1.0, default 0.5 = halfway) */
     ARROW_LENGTH_FRACTION: 0.5,
@@ -453,16 +453,16 @@ export const GAME_CONFIG: GameConfigType = {
     CONNECTION_COLOR: '0xffffff',
 
     /** Connection line width */
-    CONNECTION_WIDTH: 2,
+    CONNECTION_WIDTH: 3.5,
 
     /** Connection line alpha */
-    CONNECTION_ALPHA: 0.35,
+    CONNECTION_ALPHA: 0.3,
 
     /** Connection shadow/border width (added to CONNECTION_WIDTH) */
-    CONNECTION_SHADOW_WIDTH: 4,
+    CONNECTION_SHADOW_WIDTH: 5,
 
     /** Connection shadow alpha */
-    CONNECTION_SHADOW_ALPHA: 0.5,
+    CONNECTION_SHADOW_ALPHA: 0.2,
 
     /** Show connection lines */
     SHOW_CONNECTIONS: true,
@@ -471,7 +471,7 @@ export const GAME_CONFIG: GameConfigType = {
     SHOW_HEX_GRID: false,
 
     /** Stars per player (Map Size) */
-    STARS_PER_PLAYER: 5,
+    STARS_PER_PLAYER: 3,
 
     // ========================================================================
     // LINK CONNECTIVITY
@@ -481,7 +481,7 @@ export const GAME_CONFIG: GameConfigType = {
     MIN_LINKS_PER_STAR: 1,
 
     /** Maximum connections per star (4-8 typical) */
-    MAX_LINKS_PER_STAR: 6,
+    MAX_LINKS_PER_STAR: 5,
 };
 
 /**
