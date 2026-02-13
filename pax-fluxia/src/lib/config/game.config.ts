@@ -111,6 +111,8 @@ interface GameConfigType {
     SETTLE_DURATION_MS: number;    // How fast ships snap into orbit slot (ms, default 150)
     ARRIVAL_SPREAD: number;        // Fraction of tick used to stagger arrivals (0=instant, 1=full tick, 2=2 ticks)
     WOBBLE_AMP: number;            // Amplitude of sinusoidal wobble on travel path (px, default 12)
+    // Travel animation mode
+    TRAVEL_MODE: 'bezier' | 'lane';  // 'bezier' = single-pass arc, 'lane' = old convergence+straight
     // Travel easing controls
     TRAVEL_EASING: 'easeInOut' | 'easeIn' | 'easeOut' | 'linear';  // Easing curve for travel arc
     TRAVEL_EASING_POWER: number;    // Easing curve steepness (1=gentle, 3=aggressive, default 2)
@@ -380,6 +382,8 @@ export const GAME_CONFIG: GameConfigType = {
     WOBBLE_AMP: 12,
 
     // Travel easing controls
+    // Travel animation mode
+    TRAVEL_MODE: 'bezier' as const,
     TRAVEL_EASING: 'easeInOut' as const,
     TRAVEL_EASING_POWER: 2,
     TRAVEL_DURATION_MULT: 1,

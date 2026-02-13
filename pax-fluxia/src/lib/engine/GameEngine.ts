@@ -516,8 +516,8 @@ export class GameEngine {
 
     pause(): void {
         // Save how far into the current tick we are
-        const animSpeed = Math.max(GAME_CONFIG.ANIMATION_SPEED_MS / Math.max(this.speed, 1), GAME_CONFIG.MIN_TICK_MS);
-        this.pausedElapsed = Math.min(performance.now() - this.tickStartTime, animSpeed);
+        const tickInterval = Math.max(GAME_CONFIG.BASE_TICK_MS / Math.max(this.speed, 1), GAME_CONFIG.MIN_TICK_MS);
+        this.pausedElapsed = Math.min(performance.now() - this.tickStartTime, tickInterval);
         this.speed = 0;
         this.clearTickInterval();
     }
@@ -527,8 +527,18 @@ export class GameEngine {
             this.speed = 1;
             // Restore tickStartTime so progress continues from where we paused
             this.tickStartTime = performance.now() - this.pausedElapsed;
+            // Calculate remaining time until next tick should fire
+            const fullInterval = Math.max(GAME_CONFIG.BASE_TICK_MS / this.speed, GAME_CONFIG.MIN_TICK_MS);
+            const remaining = Math.max(0, fullInterval - this.pausedElapsed);
             this.pausedElapsed = 0;
-            this.scheduleTick();
+            // Use setTimeout for the remaining time, then switch to regular setInterval
+            this.clearTickInterval();
+            this.tickIntervalId = setTimeout(() => {
+                this.executeTick();
+                // Now start regular interval for subsequent ticks
+                this.tickIntervalId = null;
+                this.scheduleTick();
+            }, remaining) as unknown as ReturnType<typeof setInterval>;
         }
     }
 

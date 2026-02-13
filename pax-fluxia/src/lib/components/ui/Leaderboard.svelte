@@ -2,6 +2,7 @@
     import type { PlayerState } from "$lib/types/game.types";
     import { browser } from "$app/environment";
     import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
+    import { onMount, onDestroy } from "svelte";
 
     interface Props {
         players: PlayerState[];
@@ -44,6 +45,23 @@
         }
         return { active, damaged, total: active + damaged };
     });
+
+    // Smoothly animated tick progress (0-100%) via rAF polling
+    let tickProgressPct = $state(0);
+    let rafId: number | null = null;
+
+    function updateTickProgress() {
+        tickProgressPct = (activeGameStore.tickProgress ?? 0) * 100;
+        rafId = requestAnimationFrame(updateTickProgress);
+    }
+
+    onMount(() => {
+        rafId = requestAnimationFrame(updateTickProgress);
+    });
+
+    onDestroy(() => {
+        if (rafId !== null) cancelAnimationFrame(rafId);
+    });
 </script>
 
 <div class="leaderboard glass-panel">
@@ -54,18 +72,27 @@
 
     {#if !isCollapsed}
         <!-- Game-wide totals row -->
-        <div class="game-totals font-data">
-            <span class="totals-label">Ships:</span>
-            <span class="totals-total">{gameTotals.total}</span>
-            <span class="totals-breakdown">
-                <span class="totals-active">{gameTotals.active}</span><span
-                    class="stat-dim">/{gameTotals.damaged}</span
-                >
-            </span>
+        <div class="flex flex-row justify-between items-baseline">
+            <div class="game-totals font-data">
+                <span class="totals-label">Ships:</span>
+                <span class="totals-total">{gameTotals.total}</span>
+                <span class="totals-breakdown items-baseline">
+                    <span class="totals-active">{gameTotals.active}</span><span
+                        class="stat-dim">/{gameTotals.damaged}</span
+                    >
+                </span>
+            </div>
+            <div class="tick-counter font-data">
+                <span class="tick-label">Tick</span>
+                <span class="tick-value">{activeGameStore.currentTick}</span>
+            </div>
         </div>
-        <div class="tick-counter font-data">
-            <span class="tick-label">Tick</span>
-            <span class="tick-value">{activeGameStore.currentTick}</span>
+        <!-- Tick progress bar -->
+        <div class="tick-progress-bar">
+            <div
+                class="tick-progress-fill"
+                style="width: {tickProgressPct}%"
+            ></div>
         </div>
 
         <ul class="leaderboard__list">
@@ -271,7 +298,7 @@
         display: flex;
         align-items: baseline;
         gap: 6px;
-        padding: 6px 10px;
+        padding: 0;
         margin-top: 2px;
         border-top: 1px solid rgba(255, 255, 255, 0.06);
     }
@@ -286,5 +313,20 @@
         font-weight: 700;
         color: var(--color-accent-cyan, #4fd1c5);
         text-shadow: 0 0 8px rgba(79, 209, 197, 0.4);
+    }
+    .tick-progress-bar {
+        width: 100%;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 2px;
+        overflow: hidden;
+        margin: 4px 0 6px 0;
+    }
+    .tick-progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #4fd1c5, #63b3ed);
+        border-radius: 2px;
+        box-shadow: 0 0 6px rgba(79, 209, 197, 0.5);
+        transition: width 16ms linear;
     }
 </style>

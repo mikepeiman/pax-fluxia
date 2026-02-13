@@ -518,6 +518,7 @@
         arrivalSpread: GAME_CONFIG.ARRIVAL_SPREAD,
         wobbleAmp: GAME_CONFIG.WOBBLE_AMP,
         travelEasing: GAME_CONFIG.TRAVEL_EASING,
+        travelMode: GAME_CONFIG.TRAVEL_MODE,
         travelEasingPower: GAME_CONFIG.TRAVEL_EASING_POWER,
         travelDurationMult: GAME_CONFIG.TRAVEL_DURATION_MULT,
         travelArcIntensity: GAME_CONFIG.TRAVEL_ARC_INTENSITY,
@@ -612,6 +613,7 @@
             | "easeIn"
             | "easeOut"
             | "linear";
+        GAME_CONFIG.TRAVEL_MODE = panel.travelMode as "bezier" | "lane";
         GAME_CONFIG.TRAVEL_EASING_POWER = panel.travelEasingPower as number;
         GAME_CONFIG.TRAVEL_DURATION_MULT = panel.travelDurationMult as number;
         GAME_CONFIG.TRAVEL_ARC_INTENSITY = panel.travelArcIntensity as number;
@@ -1495,6 +1497,26 @@
                                 updatePanel("wobbleAmp", v);
                             }}
                         />
+                    </div>
+                    <!-- Travel Animation Mode -->
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Travel Mode</span><span
+                                class="val">{panel.travelMode}</span
+                            >
+                        </div>
+                        <select
+                            value={panel.travelMode}
+                            onchange={(e) => {
+                                const v = (e.target as HTMLSelectElement).value;
+                                GAME_CONFIG.TRAVEL_MODE = v as any;
+                                updatePanel("travelMode", v);
+                            }}
+                            style="width:100%;background:#1a1e2a;color:#fff;border:1px solid #333;padding:4px;border-radius:4px;font-size:0.7rem;"
+                        >
+                            <option value="bezier">Bezier Arc</option>
+                            <option value="lane">Lane (Classic)</option>
+                        </select>
                     </div>
                     <!-- Travel Easing Controls -->
                     <div class="var-row">

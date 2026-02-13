@@ -1718,8 +1718,8 @@
                         ship.state = "traveling";
                         ship.departTime = now;
                     }
-                } else {
-                    // SHIP mode: SINGLE-PASS bezier arc from orbit to destination
+                } else if (GAME_CONFIG.TRAVEL_MODE === "bezier") {
+                    // BEZIER mode: SINGLE-PASS bezier arc from orbit to destination
                     // Total duration = depart + travel (no phase transition, no mid-pause)
                     const totalDuration =
                         ((ship.departDuration || SHIP_ANIM.DEPART_DURATION) +
@@ -1772,6 +1772,35 @@
                         ship.state = "traveling"; // Will be caught by arrival logic below
                         ship.departTime = now - ship.travelDuration; // Force travelProgress = 1
                     }
+                } else {
+                    // LANE mode (classic): depart to lane start, then transition to traveling
+                    const departProgress = Math.min(
+                        1,
+                        elapsed /
+                            (ship.departDuration || SHIP_ANIM.DEPART_DURATION),
+                    );
+                    const eased =
+                        departProgress < 0.5
+                            ? 2 * departProgress * departProgress
+                            : 1 - Math.pow(-2 * departProgress + 2, 2) / 2;
+
+                    ship.x =
+                        ship.departFromX +
+                        (ship.laneStartX - ship.departFromX) * eased;
+                    ship.y =
+                        ship.departFromY +
+                        (ship.laneStartY - ship.departFromY) * eased;
+                    ship.scale = 0.8 + 0.1 * eased;
+                    ship.alpha = 1;
+
+                    if (departProgress >= 1) {
+                        ship.x = ship.laneStartX;
+                        ship.y = ship.laneStartY;
+                        ship.laneStartX = ship.x;
+                        ship.laneStartY = ship.y;
+                        ship.state = "traveling";
+                        ship.departTime = now;
+                    }
                 }
 
                 // In ORB mode, skip drawing ships that have fully faded
@@ -1807,6 +1836,52 @@
                     const baseY =
                         ship.laneStartY +
                         (ship.laneEndY - ship.laneStartY) * eased;
+
+                    const laneNdx = ship.laneEndX - ship.laneStartX;
+                    const laneNdy = ship.laneEndY - ship.laneStartY;
+                    const laneDist =
+                        Math.sqrt(laneNdx * laneNdx + laneNdy * laneNdy) || 1;
+                    const perpX = -laneNdy / laneDist;
+                    const perpY = laneNdx / laneDist;
+                    const edgeFade = Math.min(
+                        travelProgress * 4,
+                        (1 - travelProgress) * 4,
+                        1,
+                    );
+
+                    const wobbleAmp = GAME_CONFIG.WOBBLE_AMP ?? 12;
+                    const wobbleFreq = 2.5 + (ship.id % 7) * 0.3;
+                    const wobblePhase = ((ship.id % 13) / 13) * Math.PI * 2;
+                    const wobble =
+                        wobbleAmp > 0
+                            ? Math.sin(
+                                  travelProgress * wobbleFreq * Math.PI * 2 +
+                                      wobblePhase,
+                              ) *
+                              wobbleAmp *
+                              edgeFade
+                            : 0;
+
+                    ship.x =
+                        baseX + perpX * (ship.laneOffset * edgeFade + wobble);
+                    ship.y =
+                        baseY + perpY * (ship.laneOffset * edgeFade + wobble);
+                } else {
+                    // LANE mode traveling: straight-line with perpendicular offset + wobble
+                    const easingType = GAME_CONFIG.TRAVEL_EASING ?? "easeInOut";
+                    const easingPower = GAME_CONFIG.TRAVEL_EASING_POWER ?? 2;
+                    const laneEased = applyTravelEasing(
+                        travelProgress,
+                        easingType,
+                        easingPower,
+                    );
+
+                    const baseX =
+                        ship.laneStartX +
+                        (ship.laneEndX - ship.laneStartX) * laneEased;
+                    const baseY =
+                        ship.laneStartY +
+                        (ship.laneEndY - ship.laneStartY) * laneEased;
 
                     const laneNdx = ship.laneEndX - ship.laneStartX;
                     const laneNdy = ship.laneEndY - ship.laneStartY;
