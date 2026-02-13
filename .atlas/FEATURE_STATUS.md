@@ -225,6 +225,7 @@
 | R-28 | Last-Stand Resistance Mode | 🟢 |
 | R-29 | Captured Ship Activation Rate Slider | 🟢 |
 | R-30 | Deferred Order Arrows Overlay Priority | 🟢 |
+| R-34 | Visual Style Packs (selectable animation & visual presets, gameplay feel variety) | 🔴 |
 | R-31 | Tick Length Control Panel Slider | 🟢 |
 | R-32 | End-Game Screen Enlargement + Better Charts | 🟡 |
 | R-33 | Damaged Ships Never Destroyed (design rule) | 🟢 |

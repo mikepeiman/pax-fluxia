@@ -1,17 +1,47 @@
-# Decision: Animation Effect Collection Policy
+# Decision: Animation Modularity via Strategy Pattern
 
 **Date:** 2026-02-13
 **Status:** Active
 
 ## Context
-Repeated user instruction: when creating new animations, COLLECT rather than replace the old ones. Both should exist as selectable options. All tuning variables must be exposed.
+Repeated user instruction: when creating new animations, COLLECT rather than replace. Each animation style must be selectable. Future vision: players choose from visual style packs (R-34) that change the entire gameplay feel.
 
 ## Decision
-- Animation effects are additive — never delete, always keep as selectable option
-- New config key `CONQUEST_ANIMATION_MODE` selects between 'immediate' (popcorn spawn) and 'surge' (settle from attacker direction)
-- Conquest surge mode has 3 tunable values: `CONQUEST_SETTLE_MS`, `CONQUEST_SURGE_RADIUS`, `CONQUEST_SURGE_STAGGER_MS`
-- All values exposed in CombatDebugPanel
-- Memory rule: `.agent/memory/collect-dont-rewrite.md`
+- **Strategy Pattern**: Each animation behavior is a standalone function conforming to a shared interface
+- All strategies are registered in a registry and selected via config string
+- New animations = add a function + register it. No existing code touched.
+- Config key selects the active strategy at runtime
+- All tuning variables exposed in debug panel
+
+## Architecture: ConquestTransferStrategy
+
+```typescript
+// Type: a function that takes conquest context and produces traveling ships
+type ConquestTransferStrategy = (ctx: {
+    ships: VisualShipState[];       // All ships at attacker star
+    attackerStar: StarState;        // Attacker star
+    conqueredStar: StarState;       // Conquered star
+    transferCount: number;          // How many to transfer
+    newOwner: string;               // New owner ID
+    now: number;                    // performance.now()
+    config: typeof GAME_CONFIG;     // Full config for tuning params
+}) => {
+    departing: VisualShipState[];   // Ships to push to travelingShips[]
+    remaining: VisualShipState[];   // Ships staying at attacker
+};
+
+// Registry
+const CONQUEST_STRATEGIES: Record<string, ConquestTransferStrategy> = {
+    'immediate': conquestImmediate,   // Pop into orbit (legacy)
+    'surge': conquestSurge,           // Settle from above (current)
+    'travel': conquestTravel,         // Fly through lane (new)
+    'optimal': conquestOptimal,       // Optimal transport matching (future)
+};
+```
+
+## Enforcement
+- `.agent/memory/collect-dont-rewrite.md` — never remove animation options
+- `.agent/memory/expose-tuning-variables.md` — always expose params to UI
 
 ---
 
