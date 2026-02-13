@@ -517,6 +517,10 @@
         settleDuration: GAME_CONFIG.SETTLE_DURATION_MS,
         arrivalSpread: GAME_CONFIG.ARRIVAL_SPREAD,
         wobbleAmp: GAME_CONFIG.WOBBLE_AMP,
+        travelEasing: GAME_CONFIG.TRAVEL_EASING,
+        travelEasingPower: GAME_CONFIG.TRAVEL_EASING_POWER,
+        travelDurationMult: GAME_CONFIG.TRAVEL_DURATION_MULT,
+        travelArcIntensity: GAME_CONFIG.TRAVEL_ARC_INTENSITY,
         orbitDensity: GAME_CONFIG.ORBIT_DENSITY,
         attackSurgeMult: GAME_CONFIG.ATTACK_SURGE_MULT,
         attackSurgeProportional: GAME_CONFIG.ATTACK_SURGE_PROPORTIONAL,
@@ -603,6 +607,14 @@
         GAME_CONFIG.SETTLE_DURATION_MS = panel.settleDuration as number;
         GAME_CONFIG.ARRIVAL_SPREAD = panel.arrivalSpread as number;
         GAME_CONFIG.WOBBLE_AMP = panel.wobbleAmp as number;
+        GAME_CONFIG.TRAVEL_EASING = panel.travelEasing as
+            | "easeInOut"
+            | "easeIn"
+            | "easeOut"
+            | "linear";
+        GAME_CONFIG.TRAVEL_EASING_POWER = panel.travelEasingPower as number;
+        GAME_CONFIG.TRAVEL_DURATION_MULT = panel.travelDurationMult as number;
+        GAME_CONFIG.TRAVEL_ARC_INTENSITY = panel.travelArcIntensity as number;
         GAME_CONFIG.ORBIT_DENSITY = panel.orbitDensity as number;
         GAME_CONFIG.ATTACK_SURGE_MULT = panel.attackSurgeMult as number;
         GAME_CONFIG.ATTACK_SURGE_PROPORTIONAL =
@@ -1481,6 +1493,94 @@
                                 const v = +(e.target as HTMLInputElement).value;
                                 GAME_CONFIG.WOBBLE_AMP = v;
                                 updatePanel("wobbleAmp", v);
+                            }}
+                        />
+                    </div>
+                    <!-- Travel Easing Controls -->
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Travel Easing</span><span
+                                class="val">{panel.travelEasing}</span
+                            >
+                        </div>
+                        <select
+                            value={panel.travelEasing}
+                            onchange={(e) => {
+                                const v = (e.target as HTMLSelectElement).value;
+                                GAME_CONFIG.TRAVEL_EASING = v as any;
+                                updatePanel("travelEasing", v);
+                            }}
+                            style="width:100%;background:#1a1e2a;color:#fff;border:1px solid #333;padding:4px;border-radius:4px;font-size:0.7rem;"
+                        >
+                            <option value="linear">Linear</option>
+                            <option value="easeIn">Ease In</option>
+                            <option value="easeOut">Ease Out</option>
+                            <option value="easeInOut">Ease In-Out</option>
+                        </select>
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Easing Power</span><span
+                                class="val"
+                                >{(panel.travelEasingPower as number).toFixed(
+                                    1,
+                                )}</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0.5"
+                            max="5"
+                            step="0.1"
+                            value={panel.travelEasingPower}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.TRAVEL_EASING_POWER = v;
+                                updatePanel("travelEasingPower", v);
+                            }}
+                        />
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Travel Duration</span><span
+                                class="val"
+                                >{(panel.travelDurationMult as number).toFixed(
+                                    1,
+                                )}×</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0.2"
+                            max="3"
+                            step="0.1"
+                            value={panel.travelDurationMult}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.TRAVEL_DURATION_MULT = v;
+                                updatePanel("travelDurationMult", v);
+                            }}
+                        />
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Arc Intensity</span><span
+                                class="val"
+                                >{(panel.travelArcIntensity as number).toFixed(
+                                    2,
+                                )}</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="2"
+                            step="0.05"
+                            value={panel.travelArcIntensity}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.TRAVEL_ARC_INTENSITY = v;
+                                updatePanel("travelArcIntensity", v);
                             }}
                         />
                     </div>

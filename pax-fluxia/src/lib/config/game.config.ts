@@ -111,6 +111,11 @@ interface GameConfigType {
     SETTLE_DURATION_MS: number;    // How fast ships snap into orbit slot (ms, default 150)
     ARRIVAL_SPREAD: number;        // Fraction of tick used to stagger arrivals (0=instant, 1=full tick, 2=2 ticks)
     WOBBLE_AMP: number;            // Amplitude of sinusoidal wobble on travel path (px, default 12)
+    // Travel easing controls
+    TRAVEL_EASING: 'easeInOut' | 'easeIn' | 'easeOut' | 'linear';  // Easing curve for travel arc
+    TRAVEL_EASING_POWER: number;    // Easing curve steepness (1=gentle, 3=aggressive, default 2)
+    TRAVEL_DURATION_MULT: number;   // Multiplier on total travel time (1=one tick, 2=two ticks, default 1)
+    TRAVEL_ARC_INTENSITY: number;   // How much curvature in the bezier arc (0=straight, 1=max, default 0.5)
     ORBIT_DENSITY: number;         // Ship spacing factor per ring: circumference / (BASE_SIZE * ORBIT_DENSITY). Higher = fewer per ring (default 1.5)
     ATTACK_SURGE_MULT: number;     // Attack surge displacement as fraction of star radius (default 0.4)
     ATTACK_SURGE_PROPORTIONAL: boolean; // Scale surge by force disparity ratio (default true)
@@ -372,7 +377,13 @@ export const GAME_CONFIG: GameConfigType = {
     /** Fraction of tick used to stagger arrival settle (0=instant, 1=full tick spread) */
     ARRIVAL_SPREAD: 0,
     /** Amplitude of sinusoidal wobble on travel path (px) */
-    WOBBLE_AMP: 5,
+    WOBBLE_AMP: 12,
+
+    // Travel easing controls
+    TRAVEL_EASING: 'easeInOut' as const,
+    TRAVEL_EASING_POWER: 2,
+    TRAVEL_DURATION_MULT: 1,
+    TRAVEL_ARC_INTENSITY: 0.5,
     /** Ship spacing factor per ring: higher = fewer ships per ring = more spread out (default 1.5) */
     ORBIT_DENSITY: 1.7,
     /** Attack surge displacement as fraction of star radius (default 0.4) */

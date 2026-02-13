@@ -62,9 +62,10 @@
                     class="stat-dim">/{gameTotals.damaged}</span
                 >
             </span>
-            <span class="totals-tick" title="Current Tick"
-                >⏱{activeGameStore.currentTick}</span
-            >
+        </div>
+        <div class="tick-counter font-data">
+            <span class="tick-label">Tick</span>
+            <span class="tick-value">{activeGameStore.currentTick}</span>
         </div>
 
         <ul class="leaderboard__list">
@@ -266,10 +267,24 @@
         font-size: 0.65rem;
         opacity: 0.7;
     }
-    .totals-tick {
-        margin-left: auto;
-        color: var(--color-text-dim, #666);
-        font-size: 0.65rem;
-        opacity: 0.8;
+    .tick-counter {
+        display: flex;
+        align-items: baseline;
+        gap: 6px;
+        padding: 6px 10px;
+        margin-top: 2px;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .tick-label {
+        font-size: 0.75rem;
+        color: var(--color-text-muted, #888);
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+    }
+    .tick-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--color-accent-cyan, #4fd1c5);
+        text-shadow: 0 0 8px rgba(79, 209, 197, 0.4);
     }
 </style>
