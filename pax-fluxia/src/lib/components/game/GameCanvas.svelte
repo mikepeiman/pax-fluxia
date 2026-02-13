@@ -22,6 +22,7 @@
     } from "$lib/types/game.types";
     import { Star } from "$lib/engine/Star";
     import { STAR_TYPE_STATS } from "@pax/common";
+    import { executeConquestTransfer } from "$lib/animations/conquest";
     import type { StarType } from "@pax/common";
     import { audio } from "$lib/audio/AudioManager";
     import { selectedStarStore } from "$lib/stores/selectedStarStore.svelte";
@@ -1503,7 +1504,7 @@
                 visualShips.set(conquest.starId, ships);
             }
 
-            // ── ATTACKER SHIPS: Lerp front-line ships to conquered star ──
+            // ── ATTACKER SHIPS: Strategy-dispatched conquest transfer ──
             if (conquest.attackerStarId && conquest.shipsTransferred > 0) {
                 const attackerStar = starsById.get(conquest.attackerStarId);
                 if (attackerStar) {
@@ -1515,128 +1516,51 @@
                     );
 
                     if (transferCount > 0) {
-                        // Direction from attacker to conquered star
-                        const adx = conqueredStar.x - attackerStar.x;
-                        const ady = conqueredStar.y - attackerStar.y;
-                        const adist = Math.sqrt(adx * adx + ady * ady) || 1;
-                        const andx = adx / adist;
-                        const andy = ady / adist;
-
-                        // Score by dot product (same nearside algorithm as transfers)
-                        atkShips.forEach((s) => {
-                            const slot = getOrbitSlot(
-                                s.targetIndex,
-                                attackerStar.x,
-                                attackerStar.y,
-                                attackerStar.radius,
-                                0,
-                                Math.atan2(andy, andx),
-                                GAME_CONFIG.ORBIT_BIAS_STRENGTH ?? 0.6,
-                            );
-                            const slotDx = slot.x - attackerStar.x;
-                            const slotDy = slot.y - attackerStar.y;
-                            const dot = slotDx * andx + slotDy * andy;
-                            const layerWeight =
-                                1 +
-                                s.targetIndex / Math.max(1, atkShips.length);
-                            (s as any)._departScore = dot * layerWeight;
+                        const result = executeConquestTransfer({
+                            ships: atkShips,
+                            attackerStar,
+                            conqueredStar,
+                            transferCount,
+                            newOwner: conquest.newOwner,
+                            now: performance.now(),
+                            effectiveTickMs: activeGameStore.effectiveTickMs,
+                            attackerStarId: conquest.attackerStarId,
+                            conqueredStarId: conquest.starId,
                         });
-                        atkShips.sort(
-                            (a, b) =>
-                                (b as any)._departScore -
-                                (a as any)._departScore,
+
+                        // Departing ships enter the travel pipeline (travel mode)
+                        for (const ship of result.departing) {
+                            travelingShips.push(ship);
+                        }
+
+                        // Arriving ships go directly to conquered star orbit (immediate/surge mode)
+                        if (result.arriving.length > 0) {
+                            const destShips =
+                                visualShips.get(conquest.starId) || [];
+                            for (const ship of result.arriving) {
+                                ship.targetIndex = destShips.length;
+                                destShips.push(ship);
+                            }
+                            visualShips.set(conquest.starId, destShips);
+                        }
+
+                        // Update attacker star with remaining ships
+                        visualShips.set(
+                            conquest.attackerStarId,
+                            result.remaining,
                         );
-
-                        const conquestShips = atkShips.splice(0, transferCount);
-
-                        // Re-index remaining attacker ships
-                        for (let j = 0; j < atkShips.length; j++) {
-                            atkShips[j].targetIndex = j;
-                        }
-
-                        // ── CONQUEST ANIMATION: Dual-mode ──
-                        const conquestMode =
-                            GAME_CONFIG.CONQUEST_ANIMATION_MODE ?? "surge";
-                        const destShips =
-                            visualShips.get(conquest.starId) || [];
-                        const now = performance.now();
-
-                        if (conquestMode === "immediate") {
-                            // MODE A: Immediate spawn — ships pop into orbit instantly
-                            for (let ci = 0; ci < conquestShips.length; ci++) {
-                                const ship = conquestShips[ci];
-                                const spawnIndex = destShips.length;
-                                const spawnAngle = Math.random() * Math.PI * 2;
-                                const spawnR = conqueredStar.radius + 8;
-                                ship.x =
-                                    conqueredStar.x +
-                                    Math.cos(spawnAngle) * spawnR;
-                                ship.y =
-                                    conqueredStar.y +
-                                    Math.sin(spawnAngle) * spawnR;
-                                ship.state = "orbiting";
-                                ship.targetIndex = spawnIndex;
-                                ship.fromStarId = null;
-                                ship.toStarId = null;
-                                ship.ownerId = conquest.newOwner;
-                                ship.settleStartTime = now;
-                                ship.settleStartAngle = spawnAngle;
-                                ship.settleStartRadius = spawnR;
-                                destShips.push(ship);
-                            }
-                        } else {
-                            // MODE B: Surge-to-orbit — ships settle from attacker direction, above orbit
-                            const surgeRadius =
-                                conqueredStar.radius +
-                                (GAME_CONFIG.CONQUEST_SURGE_RADIUS ?? 40);
-                            const staggerMs =
-                                GAME_CONFIG.CONQUEST_SURGE_STAGGER_MS ?? 30;
-                            // Angle FROM attacker TO conquered (arrival direction)
-                            const arrivalAngle = Math.atan2(
-                                conqueredStar.y - attackerStar.y,
-                                conqueredStar.x - attackerStar.x,
-                            );
-                            // Spread ships in a fan around the arrival direction
-                            const fanSpread = Math.PI * 0.6; // ~108° fan
-
-                            for (let ci = 0; ci < conquestShips.length; ci++) {
-                                const ship = conquestShips[ci];
-                                const spawnIndex = destShips.length;
-                                // Fan angle: distributed around arrival direction
-                                const fanT =
-                                    conquestShips.length > 1
-                                        ? ci / (conquestShips.length - 1) - 0.5
-                                        : 0;
-                                const spawnAngle =
-                                    arrivalAngle +
-                                    fanT * fanSpread +
-                                    (Math.random() - 0.5) * 0.15; // slight randomness
-                                // Spawn above outer orbit
-                                ship.x =
-                                    conqueredStar.x +
-                                    Math.cos(spawnAngle) * surgeRadius;
-                                ship.y =
-                                    conqueredStar.y +
-                                    Math.sin(spawnAngle) * surgeRadius;
-                                ship.state = "orbiting";
-                                ship.targetIndex = spawnIndex;
-                                ship.fromStarId = null;
-                                ship.toStarId = null;
-                                ship.ownerId = conquest.newOwner;
-                                // Stagger settle start for organic arrival
-                                ship.settleStartTime = now + ci * staggerMs;
-                                ship.settleStartAngle = spawnAngle;
-                                ship.settleStartRadius = surgeRadius;
-                                // Tag for conquest-specific settle duration
-                                (ship as any).conquestSettle = true;
-                                destShips.push(ship);
-                            }
-                        }
-                        visualShips.set(conquest.starId, destShips);
-
-                        visualShips.set(conquest.attackerStarId, atkShips);
                     }
                 }
+            }
+
+            // ── AUTO-SLOWMO: Temporarily slow animations for conquest tuning ──
+            if (GAME_CONFIG.CONQUEST_SLOWMO_ENABLED) {
+                const originalSpeed = GAME_CONFIG.ANIMATION_SPEED_MS;
+                GAME_CONFIG.ANIMATION_SPEED_MS =
+                    originalSpeed * GAME_CONFIG.CONQUEST_SLOWMO_FACTOR;
+                setTimeout(() => {
+                    GAME_CONFIG.ANIMATION_SPEED_MS = originalSpeed;
+                }, GAME_CONFIG.CONQUEST_SLOWMO_DURATION_MS);
             }
         }
     }

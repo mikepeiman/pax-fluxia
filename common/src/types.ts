@@ -89,7 +89,7 @@ export interface GameState {
 
 export interface GameSettings {
     playerCount: number;
-    mapType?: 'standard' | 'debug';
+    mapType?: 'standard' | 'debug' | 'debug-b';
     starSpacing?: number;
     minLinksPerStar?: number;
     maxLinksPerStar?: number;

@@ -225,7 +225,7 @@
 | R-28 | Last-Stand Resistance Mode | 🟢 |
 | R-29 | Captured Ship Activation Rate Slider | 🟢 |
 | R-30 | Deferred Order Arrows Overlay Priority | 🟢 |
-| R-34 | Visual Style Packs (selectable animation & visual presets, gameplay feel variety) | 🔴 |
+| R-94 | Visual Style Packs (selectable animation & visual presets, gameplay feel variety) | 🔴 |
 | R-31 | Tick Length Control Panel Slider | 🟢 |
 | R-32 | End-Game Screen Enlargement + Better Charts | 🟡 |
 | R-33 | Damaged Ships Never Destroyed (design rule) | 🟢 |
@@ -289,6 +289,11 @@
 | R-91 | AI Custom Personality Editor: create/save/load named AI profiles with tuned strategies/variables | 🔵 |
 | R-92 | Game Sounds: tick sound, conquest sound, conquest-ships-arrival sound (lightweight, no Tone.js) | 🔴 |
 | R-93 | Animation General Polish: conquest, transfer, and orbit-meshing visual improvements | 🔴 |
+| R-95 | Lane Stationing: ships can be stationed in lanes between stars — changes travel timing & defense dynamics | 🔵 |
+| R-96 | Satellites/Planets/Battle Stations: purchasable orbital structures that orbit stars | 🔵 |
+| R-97 | Planetary/Star Shields: defensive shields protecting stars from attack | 🔵 |
+| R-98 | Mines: deployable hazards in lanes or around stars | 🔵 |
+| R-99 | Economy & Production System: resource economy to support purchasing structures, shields, and mines | 🔵 |
 
 ---
 

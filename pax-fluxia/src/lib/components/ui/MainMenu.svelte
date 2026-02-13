@@ -42,7 +42,7 @@
     }
 
     // Config State (loaded from localStorage)
-    let mapType = $state(loadSetting("mapType", "Standard"));
+    let mapType = $state(loadSetting("mapType", "standard"));
     let playerCount = $state<GameSettings["playerCount"]>(
         loadSetting("playerCount", 6),
     );
@@ -57,7 +57,71 @@
     );
 
     // Constants
-    const MAP_TYPES = ["Standard", "DEBUG MAP"];
+    const MAP_DEFS: {
+        id: string;
+        label: string;
+        mapType: "standard" | "debug" | "debug-b";
+        stars: { x: number; y: number; color: string }[];
+        connections: [number, number][];
+    }[] = [
+        {
+            id: "standard",
+            label: "STANDARD",
+            mapType: "standard",
+            stars: [
+                { x: 15, y: 12, color: "#4488ff" },
+                { x: 45, y: 8, color: "#ff4444" },
+                { x: 50, y: 35, color: "#44ff44" },
+                { x: 20, y: 38, color: "#ffaa00" },
+                { x: 32, y: 22, color: "#aa44ff" },
+            ],
+            connections: [
+                [0, 4],
+                [1, 4],
+                [2, 4],
+                [3, 4],
+                [0, 3],
+                [1, 2],
+            ],
+        },
+        {
+            id: "debug",
+            label: "DEBUG A",
+            mapType: "debug",
+            stars: [
+                { x: 32, y: 8, color: "#44ff44" },
+                { x: 12, y: 36, color: "#ff4444" },
+                { x: 52, y: 36, color: "#ffaa00" },
+                { x: 52, y: 10, color: "#4488ff" },
+            ],
+            connections: [
+                [0, 1],
+                [1, 2],
+                [2, 0],
+                [0, 3],
+            ],
+        },
+        {
+            id: "debug-b",
+            label: "DEBUG B",
+            mapType: "debug-b",
+            stars: [
+                { x: 8, y: 22, color: "#44ff44" },
+                { x: 24, y: 12, color: "#ff4444" },
+                { x: 38, y: 16, color: "#ffaa00" },
+                { x: 50, y: 25, color: "#aa44ff" },
+                { x: 58, y: 32, color: "#4488ff" },
+                { x: 14, y: 38, color: "#666" },
+            ],
+            connections: [
+                [0, 1],
+                [1, 2],
+                [2, 3],
+                [3, 4],
+                [0, 5],
+            ],
+        },
+    ];
     const PLAYERS: GameSettings["playerCount"][] = [2, 3, 4, 5, 6];
     const DIFFICULTIES = ["Easy", "Normal", "Hard", "Expert"];
 
@@ -80,13 +144,22 @@
         GAME_CONFIG.MAX_LINKS_PER_STAR = maxLinks;
         GAME_CONFIG.RETAIN_ORDER_ON_CONQUEST = retainOrderOnConquest;
 
+        // Find the selected map definition
+        const selectedMap =
+            MAP_DEFS.find((m) => m.id === mapType) ?? MAP_DEFS[0];
+
         gameStore.updateSettings({
             playerCount,
-            mapType: mapType === "DEBUG MAP" ? "debug" : "standard",
+            mapType: selectedMap.mapType,
             minLinksPerStar: minLinks,
             maxLinksPerStar: maxLinks,
             starSpacing: starSpacing,
         });
+
+        // Auto-enable slowmo on debug-b map
+        if (selectedMap.mapType === "debug-b") {
+            GAME_CONFIG.CONQUEST_SLOWMO_ENABLED = true;
+        }
 
         // Restart Engine
         gameStore.restart();
@@ -125,16 +198,49 @@
                 <div class="subtitle">TERRITORY CONTROL STRATEGY</div>
 
                 <div class="controls-grid">
-                    <!-- Map Selection -->
+                    <!-- Map Selection: Thumbnail Cards -->
                     <div class="control-group">
                         <label>MAP</label>
-                        <div class="button-row">
-                            {#each MAP_TYPES as m}
+                        <div class="map-card-row">
+                            {#each MAP_DEFS as m}
                                 <button
-                                    class:active={mapType === m}
-                                    class:debug={m === "DEBUG MAP"}
-                                    onclick={() => (mapType = m)}>{m}</button
+                                    class="map-card"
+                                    class:active={mapType === m.id}
+                                    class:debug={m.id.startsWith("debug")}
+                                    onclick={() => (mapType = m.id)}
                                 >
+                                    <svg
+                                        class="map-thumb"
+                                        viewBox="0 0 64 48"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                        {#each m.connections as [a, b]}
+                                            <line
+                                                x1={m.stars[a].x}
+                                                y1={m.stars[a].y}
+                                                x2={m.stars[b].x}
+                                                y2={m.stars[b].y}
+                                                stroke={mapType === m.id
+                                                    ? "#4488ff44"
+                                                    : "#334466"}
+                                                stroke-width="1"
+                                            />
+                                        {/each}
+                                        {#each m.stars as star}
+                                            <circle
+                                                cx={star.x}
+                                                cy={star.y}
+                                                r="3"
+                                                fill={star.color}
+                                                opacity={mapType === m.id
+                                                    ? 1
+                                                    : 0.6}
+                                            />
+                                        {/each}
+                                    </svg>
+                                    <span class="map-card-label">{m.label}</span
+                                    >
+                                </button>
                             {/each}
                         </div>
                     </div>
@@ -372,15 +478,64 @@
         letter-spacing: 1px;
     }
 
-    .select-box {
-        background: rgba(255, 255, 255, 0.05);
+    .map-card-row {
+        display: flex;
+        gap: 8px;
+    }
+
+    .map-card {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        padding: 6px;
+        background: rgba(255, 255, 255, 0.03);
         border: 1px solid #334466;
-        padding: 10px;
-        border-radius: 4px;
-        color: #fff;
-        font-family: "Inter", sans-serif;
-        font-size: 0.9rem;
-        cursor: default;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .map-card:hover {
+        border-color: #557799;
+        background: rgba(255, 255, 255, 0.06);
+    }
+
+    .map-card.active {
+        border-color: #00cccc;
+        background: rgba(0, 204, 204, 0.08);
+        box-shadow: 0 0 12px rgba(0, 204, 204, 0.2);
+    }
+
+    .map-card.debug {
+        border-color: #443322;
+    }
+
+    .map-card.debug.active {
+        border-color: #ffaa33;
+        background: rgba(255, 170, 51, 0.08);
+        box-shadow: 0 0 12px rgba(255, 170, 51, 0.2);
+    }
+
+    .map-thumb {
+        width: 64px;
+        height: 48px;
+    }
+
+    .map-card-label {
+        font-size: 0.55rem;
+        letter-spacing: 1.5px;
+        color: #8899aa;
+        font-weight: 600;
+    }
+
+    .map-card.active .map-card-label {
+        color: #00ffff;
+    }
+
+    .map-card.debug.active .map-card-label {
+        color: #ffcc66;
     }
 
     .button-row {

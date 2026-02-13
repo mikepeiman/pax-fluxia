@@ -120,6 +120,8 @@ export class GameEngine {
         // Check mapType for debug vs standard map
         if (this.settings.mapType === 'debug') {
             this.initDebugMap();
+        } else if (this.settings.mapType === 'debug-b') {
+            this.initDebugMapB();
         } else {
             this.initializeMap();
         }
@@ -362,6 +364,116 @@ export class GameEngine {
         ];
 
         log.success('GameEngine', `DEBUG MAP initialized: 4 stars (A=Human, B=AI, C=Neutral, D=Dead-end)`);
+    }
+
+    /**
+     * Debug Map B: Conquest Tuning Chain
+     * 6 stars in a chain designed to test all conquest scenarios:
+     * A(Human,60) → B(AI,10) easy conquest
+     * A → F(Neutral,0) empty conquest
+     * B → C(AI,10) → D(AI,40) → E(AI,20) chain with escape routes
+     */
+    private initDebugMapB(): void {
+        const centerX = 800;
+        const centerY = 450;
+        const spacing = 200;
+
+        const aiPlayer = Array.from(this.players.values()).find(p => p.isAI);
+        const aiId = aiPlayer ? aiPlayer.id as PlayerId : 'ai-1' as PlayerId;
+
+        // Star A: Human homeworld (left) — strong attacker
+        const starA = createStar({
+            x: centerX - spacing * 1.5,
+            y: centerY,
+            radius: 25,
+            productionRate: 1,
+            ownerId: this.humanPlayerId,
+            starType: 'green',
+        }, 1);
+        starA.addActiveShips(60);
+        this.stars.set(starA.id, starA);
+
+        // Star B: AI — weak, easy conquest target
+        const starB = createStar({
+            x: centerX - spacing * 0.3,
+            y: centerY - spacing * 0.5,
+            radius: 25,
+            productionRate: 1,
+            ownerId: aiId,
+            starType: 'red',
+        }, 2);
+        starB.addActiveShips(10);
+        this.stars.set(starB.id, starB);
+
+        // Star C: AI — connected to B & D, tests scatter
+        const starC = createStar({
+            x: centerX + spacing * 0.5,
+            y: centerY - spacing * 0.3,
+            radius: 25,
+            productionRate: 1,
+            ownerId: aiId,
+            starType: 'yellow',
+        }, 3);
+        starC.addActiveShips(10);
+        this.stars.set(starC.id, starC);
+
+        // Star D: AI — strong defender with escape route to E
+        const starD = createStar({
+            x: centerX + spacing * 1.3,
+            y: centerY + spacing * 0.2,
+            radius: 25,
+            productionRate: 1,
+            ownerId: aiId,
+            starType: 'purple',
+        }, 4);
+        starD.addActiveShips(40);
+        this.stars.set(starD.id, starD);
+
+        // Star E: AI — retreat target for D
+        const starE = createStar({
+            x: centerX + spacing * 2.0,
+            y: centerY + spacing * 0.5,
+            radius: 25,
+            productionRate: 1,
+            ownerId: aiId,
+            starType: 'blue',
+        }, 5);
+        starE.addActiveShips(20);
+        this.stars.set(starE.id, starE);
+
+        // Star F: Neutral — empty, undefended conquest
+        const starF = createStar({
+            x: centerX - spacing * 1.0,
+            y: centerY + spacing * 0.8,
+            radius: 25,
+            productionRate: 1,
+            ownerId: 'neutral' as PlayerId,
+            starType: 'grey',
+        }, 6);
+        starF.addActiveShips(0);
+        this.stars.set(starF.id, starF);
+
+        // Connections: Chain A↔B↔C↔D↔E + branch A↔F
+        const dist = (id1: string, id2: string) => {
+            const s1 = this.stars.get(id1 as StarId)!;
+            const s2 = this.stars.get(id2 as StarId)!;
+            return Math.sqrt((s1.x - s2.x) ** 2 + (s1.y - s2.y) ** 2);
+        };
+
+        const link = (s1: { id: string }, s2: { id: string }) => [
+            { sourceId: s1.id, targetId: s2.id, distance: dist(s1.id, s2.id) },
+            { sourceId: s2.id, targetId: s1.id, distance: dist(s2.id, s1.id) },
+        ];
+
+        this.connections = [
+            ...link(starA, starB),
+            ...link(starB, starC),
+            ...link(starC, starD),
+            ...link(starD, starE),
+            ...link(starA, starF),
+        ];
+
+        log.success('GameEngine', `DEBUG MAP B initialized: 6 stars (A=Human60, B=AI10, C=AI10, D=AI40, E=AI20, F=Neutral0)`);
     }
 
     private updateTerritories(width: number, height: number): void {

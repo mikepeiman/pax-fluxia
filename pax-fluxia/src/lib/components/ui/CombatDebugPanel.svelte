@@ -616,7 +616,8 @@
             panel.conquestLerpDelayMs as number;
         GAME_CONFIG.CONQUEST_ANIMATION_MODE = panel.conquestAnimMode as
             | "immediate"
-            | "surge";
+            | "surge"
+            | "travel";
         GAME_CONFIG.CONQUEST_SETTLE_MS = panel.conquestSettleMs as number;
         GAME_CONFIG.CONQUEST_SURGE_RADIUS = panel.conquestSurgeRadius as number;
         GAME_CONFIG.CONQUEST_SURGE_STAGGER_MS =
@@ -884,13 +885,14 @@
                             value={panel.conquestAnimMode}
                             onchange={(e) => {
                                 const v = (e.target as HTMLSelectElement)
-                                    .value as "immediate" | "surge";
+                                    .value as "immediate" | "surge" | "travel";
                                 GAME_CONFIG.CONQUEST_ANIMATION_MODE = v;
                                 updatePanel("conquestAnimMode", v);
                             }}
                         >
                             <option value="immediate">Immediate</option>
                             <option value="surge">Surge</option>
+                            <option value="travel">Travel</option>
                         </select>
                     </div>
                     <div class="var-row">

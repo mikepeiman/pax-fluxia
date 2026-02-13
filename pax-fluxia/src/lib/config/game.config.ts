@@ -118,12 +118,16 @@ interface GameConfigType {
     ATTACK_SURGE_RAMP_MS: number;        // Ramp-in duration for attack surge (ms, 0=instant/old behavior, default 300)
     ATTACK_SURGE_SHAPE: number;          // Surge pulse shape power (1=sine, 2=sharper peak, 0.5=flatter, default 1)
     // Conquest animation
-    CONQUEST_ANIMATION_MODE: 'immediate' | 'surge'; // 'immediate' = pop into orbit, 'surge' = settle from attacker direction
+    CONQUEST_ANIMATION_MODE: 'immediate' | 'surge' | 'travel'; // Strategy for transferring attacker ships to conquered star
     CONQUEST_SETTLE_MS: number;          // How long conquest ships take to settle into orbit in surge mode (ms, default 500)
     CONQUEST_SURGE_RADIUS: number;       // Initial spawn radius above orbit for surge mode (px, default 40)
     CONQUEST_SURGE_STAGGER_MS: number;   // Per-ship stagger delay for organic arrival spread (ms, default 30)
     CONQUEST_TRAVEL_SPEED: number;       // Duration multiplier vs normal transfer (lower = faster, default 0.7)
     CONQUEST_LERP_DELAY_MS: number;      // Delay before conquest ships start moving (ms, default 200)
+    // Conquest slowmo
+    CONQUEST_SLOWMO_ENABLED: boolean;    // Auto-slow game when conquest fires (default true)
+    CONQUEST_SLOWMO_FACTOR: number;      // How much to slow (multiplier on ANIMATION_SPEED_MS, default 5)
+    CONQUEST_SLOWMO_DURATION_MS: number; // How long slowmo lasts (ms, default 5000)
     // Orbit bias oscillation
     ORBIT_BIAS_OSCILLATE: boolean; // Enable oscillation between min/max bias (default false)
     ORBIT_BIAS_MIN: number;        // Min bias strength for oscillation (default 0.0)
@@ -379,8 +383,8 @@ export const GAME_CONFIG: GameConfigType = {
     ATTACK_SURGE_RAMP_MS: 300,
     /** Surge pulse shape power (1=sine, 2=sharper peak, 0.5=flatter) */
     ATTACK_SURGE_SHAPE: 1,
-    /** Conquest animation mode: 'immediate' = pop into orbit, 'surge' = settle from attacker direction */
-    CONQUEST_ANIMATION_MODE: 'surge' as const,
+    /** Conquest animation strategy: 'immediate' = pop, 'surge' = settle from above, 'travel' = fly through lane */
+    CONQUEST_ANIMATION_MODE: 'travel' as const,
     /** How long conquest ships settle into orbit in surge mode (ms) */
     CONQUEST_SETTLE_MS: 500,
     /** Initial spawn radius above orbit for surge mode (px above star edge) */
@@ -391,6 +395,12 @@ export const GAME_CONFIG: GameConfigType = {
     CONQUEST_TRAVEL_SPEED: 1.3,
     /** Delay before conquest ships start moving (ms) — ships hold surged position */
     CONQUEST_LERP_DELAY_MS: 200,
+    /** Auto-slow game when conquest fires (for tuning/debugging) */
+    CONQUEST_SLOWMO_ENABLED: false,
+    /** How much to slow animation on conquest (multiplier on tick duration) */
+    CONQUEST_SLOWMO_FACTOR: 5,
+    /** How long conquest slowmo lasts (ms) */
+    CONQUEST_SLOWMO_DURATION_MS: 5000,
     /** Show player-color outline behind each ship */
     SHIP_OUTLINE_ON: true,
     /** Outline thickness in px */
