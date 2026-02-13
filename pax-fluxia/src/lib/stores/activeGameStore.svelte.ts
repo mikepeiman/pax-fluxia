@@ -380,6 +380,17 @@ function isVictory(): boolean {
     return human != null && (w as any).id === (human as any).id;
 }
 
+function surrender(): void {
+    if (isMultiplayerMode()) {
+        // MP: leave the room and show results
+        // (server handles the game state; client just disconnects)
+        multiplayerStore.leaveRoom();
+        gameStore.returnToMenu();
+    } else {
+        gameStore.surrender();
+    }
+}
+
 function playAgain(): void {
     if (isMultiplayerMode()) {
         multiplayerStore.leaveRoom();
@@ -445,6 +456,7 @@ export const activeGameStore = {
     startGame,
     playAgain,
     returnToMenu,
+    surrender,
 
     // Results / History
     getHistory,

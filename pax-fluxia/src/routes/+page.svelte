@@ -138,7 +138,7 @@
               class="btn btn--primary btn--md"
               onclick={() => {
                 showSurrenderModal = false;
-                gameStore.surrender();
+                activeGameStore.surrender();
               }}
             >
               🏁 End Game
@@ -148,7 +148,7 @@
               class="btn btn--ghost btn--md"
               onclick={() => {
                 showSurrenderModal = false;
-                gameStore.returnToMenu();
+                activeGameStore.returnToMenu();
               }}
             >
               🚪 Abandon

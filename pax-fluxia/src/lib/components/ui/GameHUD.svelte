@@ -91,7 +91,7 @@
         <div class="system-controls">
           <button
             class="btn btn--ghost btn--sm"
-            onclick={() => gameStore.playAgain()}
+            onclick={() => activeGameStore.playAgain()}
           >
             Restart
           </button>
@@ -124,7 +124,7 @@
             class="btn btn--primary btn--md"
             onclick={() => {
               showSurrenderModal = false;
-              gameStore.surrender();
+              activeGameStore.surrender();
             }}
           >
             🏁 End Game
@@ -134,7 +134,7 @@
             class="btn btn--ghost btn--md"
             onclick={() => {
               showSurrenderModal = false;
-              gameStore.returnToMenu();
+              activeGameStore.returnToMenu();
             }}
           >
             🚪 Abandon
