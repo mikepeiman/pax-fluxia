@@ -113,8 +113,9 @@
 | B-28 | Active ships drop to zero on attack — disproportionate to weaker attacker. **Confirmed repeated**: AI with 70 ships attacks stronger player → instantly zeroed. Math shows ~14 damage/tick max — shouldn't happen. Suspect star-type defense multiplier, simultaneous transfer drain, or visual sync bug. Needs combat tick logging to isolate. |
 | B-29 | ~~Pause/play freezes attack surge~~ **FIXED**: tickProgress now uses `BASE_TICK_MS` instead of `ANIMATION_SPEED_MS` — eliminates dead zone where `sin(π)=0`. |
 | B-30 | Cancelling attack order snaps ships back to orbit instantly instead of easing back smoothly. |
-| B-38 | Cannot chain click-click commands — clicking source then target doesn't register reliably. Click must be crisp and instant (targeting act). Must work from any star, with deferred orders if unowned. |
-| B-39 | Intermittent star unresponsiveness — some stars seem unclickable (both click and drag) while others work, then the pattern changes. Observed on SP random map. May be related to recent FX refactor or hitTest changes. Needs visual telemetry. |
+| B-38 | ~~Cannot chain click-click commands~~ **FIXED**: stale `dragStartX/Y` in `handlePointerDown` caused `movedSignificantly` to eat clicks. Reset drag state in all branches. User-confirmed working `d76af73`. |
+| B-39 | ~~Intermittent star unresponsiveness~~ **FIXED**: same root cause as B-38 — stale drag state from previous interaction. User-confirmed working `d76af73`. |
+| B-40 | Controls Icon Menu not responding when DevTools drawer is open. Works again when DevTools closed. Likely z-index or focus/pointer-events issue with DevTools panel overlay. |
 
 ## Open Bugs — MP (B)
 
@@ -321,6 +322,7 @@
 
 | Date | Summary |
 |------|---------|
+| 2026-02-13 | **Click input fixes**: B-38/B-39 fixed (stale drag state in `handlePointerDown`). Visual telemetry added to full click pipeline. CONTROLS.md created. B-40 logged (icon menu + devtools). R-100 documented (ownership inversion). Phase 3 FX refactor committed (travel behavior registry). |
 | 2026-02-13 | **User feedback batch**: AI passive in MP (B-35), quit buttons wrong (B-36), pause resets tick (B-37), unified game-start (R-89), per-AI settings (R-90), AI personality editor (R-91), game sounds (R-92), animation polish (R-93). Conquest naked tick reiterated (B-34). Zombie code Phase D complete. |
 | 2026-02-12 | **Engine unification planning**: Full architecture audit across 3 packages. Created `ENGINE_ARCHITECTURE_CURRENT.md` and `ENGINE_ARCHITECTURE_TARGET.md`. Updated `00_PHYSICAL_MAP.md` and `01_ASSET_INVENTORY.md` to current monorepo reality. Documented 6-phase unification plan in DECISIONS.md. |
 | 2026-02-12 | Zombie code cleanup: removed `_conquestTravel`, `CONQUEST_TRAVEL_MODE`, `arcBulge`. Updated ~50 config defaults from backup. Confirmed `FACING_DEPART` is legitimate (attack surge facing factor). |
