@@ -64,7 +64,7 @@ graph TB
 
 | Feature | Common | Client | Server | Status |
 |---------|--------|--------|--------|--------|
-| **Combat formula** | `calculateCombat()` | `calculateCombatV4()` | via Common | ⚠️ **Two different functions** |
+| **Combat formula** | `calculateCombat()` | `calculateCombatV4()` (wrapper → Common) | via Common | ✅ **Unified** (thin wrapper remains) |
 | **Transfer rate** | `EngineConfig.TRANSFER_RATE = 0.1` | `GAME_CONFIG.TRANSFER_RATE` | via Common | ⚠️ **3 sources** (also `ORDER_CONFIG = 0.25`) |
 | **Tick orchestration** | `GameEngine.tick()` | Own `executeTick()` | Calls `GameEngine.tick()` | ⚠️ **Client reimplements** |
 | **Combat resolution** | `resolveMultiSourceCombat()` | Own `resolveMultiSourceCombat()` + `resolveCombat()` | via Common | ⚠️ **Client reimplements** |
@@ -131,14 +131,13 @@ Only `GAME_CONFIG.TRANSFER_RATE` is connected to the UI slider. The user sets it
 
 | Aspect | `calculateCombatV4` (Client) | `calculateCombat` (Common) |
 |--------|------------------------------|---------------------------|
-| File | `pax-fluxia/src/lib/engine/Combat.ts` | `common/src/combat.ts` |
+| File | `pax-fluxia/src/lib/config/game.config.ts` | `common/src/combat.ts` |
 | Used by | Client SP engine | Server via Common engine |
-| Parameters | `(defenderForce, attackerForce, defenderIsAttacking, attackerIsAttacking)` | Needs verification |
-| Lethality split | `killed = damage × LETHALITY`, `disabled = damage × (1 - LETHALITY)` | Needs verification |
-| Force ratio | `1 + log₂(ratio) × FORCE_RATIO_EFFECT` | Needs verification |
+| Implementation | **Thin wrapper** — calls `calculateCombat()` | The actual formula |
+| Config source | `GAME_CONFIG` slider values as `configOverrides` | `COMBAT_CONFIG` defaults |
 
-> [!WARNING]
-> The two combat functions may have diverged. This is the highest-priority item to verify and unify.
+> [!NOTE]
+> **The combat formulas are already unified.** `calculateCombatV4` is just a thin wrapper that calls `calculateCombat()` from `@pax/common`, passing `GAME_CONFIG` slider values as overrides. Phase 1 of unification is complete — only the wrapper indirection remains as cleanup.
 
 ---
 

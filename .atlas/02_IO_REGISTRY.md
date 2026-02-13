@@ -1,6 +1,6 @@
 # VIEW C: THE I/O REGISTRY (Boundaries)
 
-**Last Updated:** 2026-01-29  
+**Last Updated:** 2026-02-12  
 **Project:** Pax Fluxia
 
 ---
@@ -14,20 +14,19 @@ flowchart LR
         Keyboard["⌨️ Keyboard"]
         Timer["⏱️ Tick Timer"]
         Settings["⚙️ Game Settings"]
+        Colyseus["🌐 Colyseus Server"]
     end
 
-    subgraph Engine["GAME ENGINE (Authoritative)"]
-        TickLoop["Tick Loop"]
-        StarLogic["Star Production"]
-        FlowLogic["Flow Transfer"]
-        CombatLogic["Combat Resolution"]
-        WinCheck["Win Condition"]
+    subgraph Facade["ACTIVE GAME STORE (SP/MP Facade)"]
+        SPBranch["SP: Client GameEngine"]
+        MPBranch["MP: Colyseus Room"]
+        TickEvents["TickEvents Pipeline"]
     end
 
-    subgraph Store["GAME STORE (Reactive Bridge)"]
-        GameState["Game State Rune"]
-        ViewState["View State Rune"]
-        TickProgress["Tick Progress"]
+    subgraph Engine["GAME LOGIC"]
+        SharedEngine["Common GameEngine.tick()"]
+        ClientEngine["Client GameEngine.executeTick()"]
+        ServerRoom["Server GameRoom"]
     end
 
     subgraph View["VIEW LAYER"]
@@ -39,37 +38,35 @@ flowchart LR
     subgraph Output["OUTPUT SINKS"]
         DOM["📺 DOM Render"]
         WebGL["🎮 WebGL Canvas"]
-        Console["📝 Console Log"]
+        Network["🌐 Network (Colyseus)"]
     end
 
     %% Input Flow
     Mouse --> PixiCanvas
     Mouse --> SvelteHUD
-    Mouse --> SvelteMenu
-    Keyboard --> Engine
-    Timer --> TickLoop
-    Settings --> Engine
+    Keyboard --> Facade
+    Timer --> ClientEngine
+    Settings --> ClientEngine
+    Colyseus --> MPBranch
 
-    %% Engine Processing
-    TickLoop --> StarLogic
-    TickLoop --> FlowLogic
-    TickLoop --> CombatLogic
-    TickLoop --> WinCheck
+    %% SP Path
+    SPBranch --> ClientEngine
+    ClientEngine --> TickEvents
 
-    %% Engine to Store
-    Engine --> GameState
-    Engine --> TickProgress
-    WinCheck --> ViewState
+    %% MP Path
+    MPBranch --> ServerRoom
+    ServerRoom --> SharedEngine
+    ServerRoom --> TickEvents
 
-    %% Store to View
-    GameState --> PixiCanvas
-    GameState --> SvelteHUD
-    ViewState --> SvelteMenu
+    %% TickEvents to View
+    TickEvents --> PixiCanvas
+    Facade --> SvelteHUD
 
     %% View to Output
     SvelteHUD --> DOM
     SvelteMenu --> DOM
     PixiCanvas --> WebGL
+    MPBranch --> Network
 ```
 
 ---
@@ -78,132 +75,132 @@ flowchart LR
 
 | Source | Type | Location | Data Shape | Frequency |
 |--------|------|----------|------------|-----------|
-| Mouse Click | DOM Event | `GameCanvas.svelte` | `{x, y, button}` | On demand |
-| Mouse Drag | DOM Event | `GameCanvas.svelte` | `{startX, startY, endX, endY}` | On demand |
-| Right Click | DOM Event | `GameCanvas.svelte` | `{x, y, targetStarId}` | On demand |
-| Tick Timer | setInterval | `GameEngine.ts` | `tickNumber: number` | 75-750ms |
+| Mouse Click | PixiJS Event | `GameCanvas.svelte` | `{x, y, button, starId?}` | On demand |
+| Mouse Drag | PixiJS Event | `GameCanvas.svelte` | `{sourceStarId, targetStarId}` | On demand |
+| Right Click | PixiJS Event | `GameCanvas.svelte` | `{starId}` | On demand |
+| Tick Timer | setInterval | Client `GameEngine.ts` | `tickNumber: number` | 120-1200ms |
 | Settings Form | Rune | `MainMenu.svelte` | `GameSettings` | On change |
 | Speed Button | Click | `SpeedControls.svelte` | `GameSpeed` | On demand |
-| Debug Panel | Tweakpane | `DebugPanel.svelte` | `GameConfig` | Real-time |
+| Debug Panel | Sliders | `CombatDebugPanel.svelte` | `GAME_CONFIG` fields | Real-time |
+| Colyseus Messages | WebSocket | `multiplayerStore.svelte.ts` | `StarSchema[], ...` | Per tick |
 
 ---
 
 ## Data Sinks
 
-| Sink | Type | Location | Data Shape | Update Trigger |
-|------|------|----------|------------|----------------|
-| [Star Sprites](../pax-fluxia/src/lib/components/game/GameCanvas.svelte#L269) | PixiJS | `GameCanvas.svelte` | `{x, y, color, shipCount}[]` | Every tick |
-| [Ship Animations](../pax-fluxia/src/lib/components/game/GameCanvas.svelte#L437) | PixiJS | `GameCanvas.svelte` | `{orbitAngle, surgeProgress}` | Every frame |
-| [Flow Lines](../pax-fluxia/src/lib/components/game/GameCanvas.svelte#L394) | PixiJS | `GameCanvas.svelte` | `{fromX, fromY, toX, toY, color}[]` | Every tick |
-| Leaderboard | DOM | `Leaderboard.svelte` | `PlayerStats[]` | Every tick |
-| Tick Metronome | DOM | TickOrb | `tickProgress` (0.0-1.0), `opacity`, `scale` | Visual pulse |
-| Console Log | Browser | Various | Debug messages | Dev only |
+| Sink | Type | Location | Update Trigger |
+|------|------|----------|----------------|
+| Star Sprites | PixiJS Particles | `GameCanvas.svelte` | Every frame |
+| Ship Animations | PixiJS Particles | `GameCanvas.svelte` | Every frame |
+| Connection Lines | PixiJS Graphics | `GameCanvas.svelte` | Every tick |
+| Leaderboard | DOM | `Leaderboard.svelte` | Every tick |
+| Tick Metronome | DOM | `TickOrb.svelte` | Every frame |
+| Combat Log | DOM | `CombatLogDrawer.svelte` | Per combat event |
+| Stars Panel | DOM | `StarsPanel.svelte` | Every tick |
 
 ---
 
-## Transformations
-
-| Transform | Input | Output | Location | Purpose |
-|-----------|-------|--------|----------|---------|
-| `screenToWorld` | `{screenX, screenY}` | `{worldX, worldY}` | `render.utils.ts` | Mouse position to game coords |
-| `starAtPoint` | `{x, y, stars[]}` | `Star \| null` | `GameEngine.ts` | Raycast hit detection |
-| `interpolateShips` | `{prev, next, t}` | `{x, y}[]` | `render.utils.ts` | Animation frame positions |
-| `engineToSnapshot` | `GameEngine` | `GameState` | `GameEngine.ts` | Serializable state for UI |
-| `snapshotToRender` | `GameState` | `RenderData` | `GameCanvas.svelte` | Pixi-ready render data |
-
----
-
-## Contract: Engine ↔ Store
+## Contract: activeGameStore (SP/MP Facade)
 
 ```typescript
-// What the Engine PROVIDES to the Store
-interface EngineOutput {
-  getState(): GameState;       // Full snapshot
-  getTickProgress(): number;   // 0-1 for metronome
-  getWinner(): Player | null;  // Win condition
+// ═══════════════════════════════════════════════════════════════
+// READ — State Accessors (route to SP engine or MP Colyseus)
+// ═══════════════════════════════════════════════════════════════
+
+getPhase(): 'menu' | 'lobby' | 'playing' | 'results'
+getStars(): Star[]
+getConnections(): Connection[]
+getPlayers(): Player[]
+getLocalPlayerId(): string | null
+getIsPaused(): boolean
+getSpeed(): GameSpeed
+getIsHost(): boolean
+getTickProgress(): number
+getSessionId(): number
+
+// ═══════════════════════════════════════════════════════════════
+// WRITE — Actions (route to SP engine or MP Colyseus message)
+// ═══════════════════════════════════════════════════════════════
+
+issueOrder(sourceId: string, targetId: string, persist?: boolean): void
+cancelOrder(starId: string): void
+setDeferredOrder(starId: string, targetId: string, persist?: boolean): void
+pauseGame(): void
+resumeGame(): void
+setSpeed(speed: GameSpeed): void
+startGame(): void
+playAgain(): void
+returnToMenu(): void
+
+// ═══════════════════════════════════════════════════════════════
+// EVENTS — TickEvents Pipeline (SP & MP both feed this)
+// ═══════════════════════════════════════════════════════════════
+
+pushTickEvents(events: TickEvents): void     // SP engine or MP handler
+consumeTickEvents(): TickEvents | null       // Canvas reads & clears
+```
+
+---
+
+## Contract: TickEvents (Engine → Animation)
+
+```typescript
+interface TickEvents {
+    transfers: TransferEvent[];    // Ship movement (friendly → friendly)
+    combats: CombatEvent[];        // Per-tick combat damage exchange
+    conquests: ConquestEvent[];    // Star ownership change
 }
 
-// What the Store SENDS to the Engine
-interface StoreCommands {
-  start(settings: GameSettings): void;
-  pause(): void;
-  resume(): void;
-  setSpeed(multiplier: GameSpeed): void;
-  createLink(sourceId: StarId, targetId: StarId): void;
-  cancelLink(starId: StarId): void;
-  restart(): void;
-  destroy(): void;
+interface TransferEvent {
+    tick: number;
+    sourceId: string;
+    targetId: string;
+    shipsTransferred: number;
+    playerId: string;
+}
+
+interface CombatEvent {
+    tick: number;
+    attackerStarId: string;
+    defenderStarId: string;
+    damageToDefender: number;
+    damageToAttacker: number;
+    attackerShips: number;
+    defenderShips: number;
+}
+
+interface ConquestEvent {
+    tick: number;
+    starId: string;
+    attackerStarId: string;
+    previousOwner: string;
+    newOwner: string;
+    shipsCaptured: number;
+    shipsEscaped: number;
+    shipsDestroyed: number;
+    shipsTransferred: number;
+    retreatTargetId: string;
+    scatterTargetIds: string[];
+    scatterShipCounts: number[];
 }
 ```
 
 ---
 
-## Contract: Store ↔ View
+## Contract: Colyseus Messages (Client ↔ Server)
 
 ```typescript
-// Reactive state the View READS (Runes)
-interface ViewReads {
-  currentView: GameView;
-  settings: GameSettings;
-  tickProgress: number;
-  snapshot: GameState | null;
-}
+// Client → Server
+"set_target"    { starId, targetId }       // Issue order
+"clear_target"  { starId }                 // Cancel order
+"set_speed"     { speed }                  // Change game speed (host)
+"pause"         { }                        // Pause (host)
+"resume"        { }                        // Resume (host)
+"start_game"    { }                        // Start match (host)
 
-// Actions the View DISPATCHES
-interface ViewActions {
-  setView(view: GameView): void;
-  updateSettings(settings: Partial<GameSettings>): void;
-  startGame(): void;
-  pauseGame(): void;
-  resumeGame(): void;
-  setSpeed(speed: GameSpeed): void;
-  issueOrder(source: StarId, target: StarId): void;
-  cancelOrder(star: StarId): void;
-  surrender(): void;
-  playAgain(): void;
-  returnToMenu(): void;
-}
-```
-
----
-
-## Contract: View ↔ PixiJS
-
-```typescript
-// Data the Pixi Renderer CONSUMES
-interface RenderData {
-  stars: {
-    id: StarId;
-    x: number;
-    y: number;
-    radius: number;
-    color: string;
-    activeShips: number;
-    damagedShips: number;
-    isSelected: boolean;
-  }[];
-  links: {
-    fromX: number;
-    fromY: number;
-    toX: number;
-    toY: number;
-    color: string;
-    strength: number;
-  }[];
-  animations: {
-    type: 'surge' | 'orbit';
-    progress: number;  // 0-1
-  };
-}
-
-// Events PixiJS EMITS to Svelte
-interface PixiEvents {
-  onStarClick(starId: StarId): void;
-  onStarRightClick(starId: StarId): void;
-  onDragStart(starId: StarId): void;
-  onDragEnd(targetStarId: StarId | null): void;
-  onCanvasClick(x: number, y: number): void;
-}
+// Server → Client (via Colyseus schema sync)
+// All game state syncs automatically via @colyseus/schema
+// TickEvents broadcast via room.broadcast("tick_events", events)
 ```
 
 ---
@@ -211,13 +208,16 @@ interface PixiEvents {
 ## Boundary Rules
 
 > [!IMPORTANT]
-> **The Engine knows nothing about Svelte or PixiJS.** It only exposes pure TypeScript interfaces.
+> **The Common Engine knows nothing about Svelte, PixiJS, or Colyseus.** It only operates on plain objects.
 
 > [!IMPORTANT]
-> **The Store is the ONLY bridge.** Views never import from `$engine/*` directly.
+> **`activeGameStore` is the ONLY facade.** Views never import from engine directly. All actions route through the store.
 
 > [!IMPORTANT]
-> **PixiJS runs in requestAnimationFrame.** Engine runs in setInterval. They sync via Store snapshots.
+> **PixiJS runs in requestAnimationFrame.** Engine runs in setInterval. They sync via TickEvents (push/consume pattern).
+
+> [!IMPORTANT]
+> **SP and MP use the same view layer.** `activeGameStore` abstracts the source — views don't know which mode is active.
 
 ---
 
