@@ -91,6 +91,13 @@
         { x: number; y: number; targetId: string }
     > = new Map();
 
+    // Delayed star color change: store previous owner until attacker ships arrive
+    // Key = starId, Value = { previousOwner, transitionTime (ms since epoch) }
+    let pendingConquests: Map<
+        string,
+        { previousOwner: string; transitionTime: number }
+    > = new Map();
+
     // Animation state
     let animationTime = 0;
     let animationFrameId: number | null = null;
@@ -918,7 +925,17 @@
             // Clear previous drawings
             graphics.clear();
 
-            const color = getPlayerColor(star.ownerId);
+            // Delayed star color change: use previous owner until ships arrive
+            let effectiveOwner = star.ownerId;
+            const pending = pendingConquests.get(star.id);
+            if (pending) {
+                if (performance.now() < pending.transitionTime) {
+                    effectiveOwner = pending.previousOwner;
+                } else {
+                    pendingConquests.delete(star.id);
+                }
+            }
+            const color = getPlayerColor(effectiveOwner);
             const radius = star.radius;
             const isActive =
                 star.id === activeStarId || star.id === dragSourceId;
@@ -1371,7 +1388,8 @@
             if (!conqueredStar) continue;
 
             const ships = visualShips.get(conquest.starId) || [];
-            if (ships.length === 0) continue;
+            // Note: do NOT skip when ships.length === 0 — neutral stars still need
+            // attacker transfer animation even with no defender ships
 
             // Use explicit scatter data from ConquestEvent
             if (
@@ -1587,6 +1605,31 @@
                         );
                     }
                 }
+            }
+
+            // ── DELAYED STAR COLOR: Don't change ownership color until ships arrive ──
+            {
+                let arrivalDelay = 0;
+                if (conquest.attackerStarId && conquest.shipsTransferred > 0) {
+                    // Estimate arrival time based on animation mode
+                    const mode = GAME_CONFIG.CONQUEST_ANIMATION_MODE;
+                    if (mode === "travel") {
+                        // Ships travel — use their actual travel duration
+                        const sampleDuration =
+                            activeGameStore.effectiveTickMs * 0.8;
+                        arrivalDelay = sampleDuration;
+                    } else {
+                        // Immediate/surge — short visual delay for the transition
+                        arrivalDelay = GAME_CONFIG.CONQUEST_SETTLE_MS ?? 300;
+                    }
+                } else {
+                    // No transfer (e.g., neutral conquest with no attackerStarId) — minimal delay
+                    arrivalDelay = 200;
+                }
+                pendingConquests.set(conquest.starId, {
+                    previousOwner: conquest.previousOwner,
+                    transitionTime: now + arrivalDelay,
+                });
             }
 
             // ── AUTO-SLOWMO: Temporarily slow animations for conquest tuning ──
@@ -2088,7 +2131,17 @@
         if (!shipParticleContainer) return;
 
         stars.forEach((star) => {
-            const color = getPlayerColor(star.ownerId);
+            // Delayed star color: check pendingConquests
+            let effectiveOwner = star.ownerId;
+            const pending = pendingConquests.get(star.id);
+            if (pending) {
+                if (performance.now() < pending.transitionTime) {
+                    effectiveOwner = pending.previousOwner;
+                } else {
+                    pendingConquests.delete(star.id);
+                }
+            }
+            const color = getPlayerColor(effectiveOwner);
 
             // 1. Manage Active Ships State
             let ships = visualShips.get(star.id) || [];
