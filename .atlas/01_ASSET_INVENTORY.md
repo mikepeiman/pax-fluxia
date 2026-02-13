@@ -1,187 +1,209 @@
 # VIEW B: THE ASSET INVENTORY (Matter)
 
-**Last Updated:** 2026-01-29  
+**Last Updated:** 2026-02-12  
 **Project:** Pax Fluxia
 
 ---
 
-## Class Diagram
+## Class Diagram — Current Architecture
 
 ```mermaid
 classDiagram
-    class GameEngine {
-        +Star[] stars
-        +FlowLink[] links
-        +Player[] players
-        +number tickRate
-        +number speedMultiplier
-        +Player|null winner
-        +tick()
-        +start()
-        +pause()
-        +resume()
-        +setSpeed(multiplier)
-        +createLink(sourceId, targetId)
-        +cancelLink(starId)
+    direction TB
+
+    %% Common Package (@pax/common)
+    class SharedGameEngine {
+        <<static, stateless>>
+        +tick(state, config) TickEvents
+        +processInput(state, input) void
+        -processProduction(state, cfg) void
+        -processOrders(state, cfg, events) void
+        -processRepair(state, cfg) void
+        -resolveMultiSourceCombat() void
+        -executeConquest() void
+        -checkWinCondition(state) void
+    }
+
+    class EngineConfig {
+        <<interface>>
+        +BASE_PRODUCTION: number
+        +REPAIR_RATE: number
+        +TRANSFER_RATE: number
+        +DAMAGE_PER_SHIP: number
+        +LETHALITY: number
+        +AGGRESSOR_ADVANTAGE: number
+        +CONQUEST_THRESHOLD: number
+        +CONQUEST_TRANSFER_PERCENTAGE: number
+        ...17 more fields
+    }
+
+    class STAR_TYPE_STATS {
+        <<const>>
+        grey | yellow | blue | purple | red | green
+        defense, prod, speed, repair, attack, color
+    }
+
+    %% Client Package (pax-fluxia)
+    class ClientGameEngine {
+        <<stateful, SP only>>
+        -stars: Map~StarId, Star~
+        -connections: StarConnection[]
+        -players: Map~PlayerId, Player~
+        -aiPlayers: Map~PlayerId, AI~
+        -tick: number
+        -speed: GameSpeed
+        +start() void
+        +pause() void
+        +resume() void
+        +setSpeed(speed) void
+        +createLink(sourceId, targetId) boolean
+        +cancelLink(starId) void
+        +setDeferredOrder() boolean
         +getState() GameState
+        +destroy() void
+        -executeTick() void
+        -executeTransferOrders(events) void
+        -resolveMultiSourceCombat() void
+        -resolveCombat() void
+        -executeConquest() void
+        -executeAI() void
+        -checkWinCondition() void
     }
 
     class Star {
-        +string id
-        +number x
-        +number y
-        +number radius
-        +number productionRate
-        +number activeShips
-        +number damagedShips
-        +string ownerId
-        +string|null targetId
-        +produce()
-        +repair()
-        +clearShips()
-        +getShipCount() number
-        +setOwner(playerId)
-    }
-
-    class FlowLink {
-        +string sourceId
-        +string targetId
-        +number flowRate
-        +isActive() boolean
-        +getFlowAmount() number
-    }
-
-    class Player {
-        +string id
-        +string name
-        +string color
-        +boolean isAI
-        +boolean isEliminated
-        +getTotalShips() number
-        +getStarCount() number
-    }
-
-    class CombatRules {
-        +resolveMultiwayCombat(target, fleets)
-        +calculateCombatDamage(count) number
+        +id: StarId
+        +x, y: number
+        +activeShips: number
+        +damagedShips: number
+        +ownerId: PlayerId
+        +targetId: StarId | null
+        +starType: string
+        +queuedOrderTargetId: StarId | null
+        +produce() void
+        +repair(tick) void
+        +takeDamage(n) void
+        +setTarget(id, persist?) void
+        +setOwner(id) void
+        +getState() StarState
     }
 
     class AI {
-        +playerId string
-        +difficulty AILevel
-        +evaluate(gameState) void
-        +getTargetForStar(starId, stars) StarId|null
-    }
-    
-    class InputHandler {
-        +onPointerDown(x, y)
-        +onPointerMove(x, y)
-        +onPointerUp(x, y)
-        +onRightClick(x, y)
-        +hitTestStar(x, y) Star|null
+        +playerId: string
+        +evaluate(stars, connections) Decision[]
     }
 
-    GameEngine "1" --> "*" Star : manages
-    GameEngine "1" --> "*" FlowLink : manages
-    GameEngine "1" --> "*" Player : tracks
-    GameEngine --> Combat : uses
-    GameEngine --> AI : uses
-    Star --> FlowLink : creates
-    InputHandler --> GameEngine : issues orders
+    class ActiveGameStore {
+        <<SP/MP facade>>
+        +getStars() Star[]
+        +getConnections() Connection[]
+        +getPlayers() Player[]
+        +getPhase() string
+        +issueOrder(src, tgt) void
+        +cancelOrder(id) void
+        +pauseGame() void
+        +resumeGame() void
+        +pushTickEvents(events) void
+        +consumeTickEvents() TickEvents | null
+    }
+
+    %% Server Package (pax-server)
+    class GameRoom {
+        <<Colyseus Room>>
+        +state: GameRoomState
+        -engineConfig: EngineConfig
+        +onCreate(options) void
+        +onJoin(client) void
+        +onLeave(client) void
+        -registerMessageHandlers() void
+        -initializeGame() void
+        -initStandardMap() void
+        -initDebugMap() void
+        -executeTick() void
+        -processAI() void
+    }
+
+    %% Relationships
+    SharedGameEngine --> EngineConfig : uses
+    SharedGameEngine --> STAR_TYPE_STATS : uses
+    GameRoom --> SharedGameEngine : delegates to
+    ClientGameEngine --> Star : manages
+    ClientGameEngine --> AI : uses
+    Star --> STAR_TYPE_STATS : reads
+    ActiveGameStore --> ClientGameEngine : SP mode
 ```
 
 ---
 
 ## Types & Interfaces
 
-### Core Game Types (`src/lib/types/game.types.ts`)
+### Shared Types (`common/src/types.ts`)
 
-| Type | Definition | Purpose |
-|------|------------|---------|
-| `GameView` | `'menu' \| 'game' \| 'results'` | Current screen state |
-| `GameSpeed` | `0 \| 1 \| 2 \| 4 \| 10` | Speed multiplier (0 = paused) |
-| `GameState` | `{ stars, links, players, tick, winner }` | Snapshot for UI binding |
-| `CombatResult` | `{ attackerLoss, defenderLoss, captured }` | Combat resolution output |
-| `Order` | `{ type, sourceId, targetId? }` | Player/AI command |
+| Type | Purpose |
+|------|---------|
+| `StarType` | `'grey' \| 'yellow' \| 'blue' \| 'purple' \| 'red' \| 'green'` |
+| `EngineConfig` | Tunable game parameters (production, combat, conquest, etc.) |
+| `TickEvents` | `{ transfers, combats, conquests }` — events emitted per tick |
+| `TransferEvent` | Ship movement between friendly stars |
+| `CombatEvent` | Per-tick combat damage exchange |
+| `ConquestEvent` | Star ownership change with scatter/retreat details |
+| `ConquestContext` | Interface for neighbor lookups during conquest |
 
-### Star Types (`src/lib/types/star.types.ts`)
+### Client Types (`pax-fluxia/src/lib/types/`)
 
-| Type | Definition | Purpose |
-|------|------------|---------|
-| [`StarId`](../pax-fluxia/src/lib/types/star.types.ts) | `string` | Unique star identifier |
-| [`StarConfig`](../pax-fluxia/src/lib/types/star.types.ts) | `{ x, y, radius, productionRate }` | Star spawn configuration |
-| [`StarState`](../pax-fluxia/src/lib/types/star.types.ts) | `{ id, x, y, activeShips, damagedShips, ownerId }` | Runtime star state |
-
-### Player Types (`src/lib/types/player.types.ts`)
-
-| Type | Definition | Purpose |
-|------|------------|---------|
-| `PlayerId` | `string` | Unique player identifier |
-| `PlayerConfig` | `{ name, color, isAI, difficulty? }` | Player initialization |
-| `AILevel` | `'easy' \| 'normal' \| 'hard' \| 'expert'` | AI difficulty level |
+| Type | Purpose |
+|------|---------|
+| `GameState` | Full snapshot for UI binding (stars, connections, players, tick, winner) |
+| `GameSpeed` | `0 \| 1 \| 2 \| 4 \| 10 \| 50` |
+| `GameView` | `'menu' \| 'lobby' \| 'game' \| 'results'` |
+| `StarState` | Serializable star state for UI rendering |
+| `PlayerState` | Player stats snapshot (ships, stars, production) |
+| `GameHistoryEntry` | Per-tick snapshot for graphs (ship counts, combat events) |
 
 ---
 
 ## Exported Functions
 
-### Engine Functions
+### Shared Functions (`@pax/common`)
 
-| Function | File | Signature | Purpose |
-|----------|------|-----------|---------|
-| `createEngine` | `GameEngine.ts` | `(config: EngineConfig) => GameEngine` | Factory for game engine |
-| `generateMap` | `GameEngine.ts` | `(players: Player[], template: string) => Star[]` | Create star layout |
+| Function | File | Purpose |
+|----------|------|---------|
+| `GameEngine.tick(state, config)` | `engine/GameEngine.ts` | Stateless tick processor |
+| `calculateCombat(forceA, forceB, ...)` | `combat.ts` | Symmetric damage with lethality split |
+| `applyConquest(attacker, defender, ctx, cfg)` | `conquest.ts` | Ownership transfer + scatter/retreat |
+| `applyProduction(star, cfg)` | `production.ts` | Overflow-based integer ship production |
+| `applyRepair(star, cfg)` | `repair.ts` | Overflow-based integer ship repair |
+| `calculateTransfer(activeShips)` | `orders.ts` | Transfer amount calculation |
+| `validateOrder(source, target, ...)` | `orders.ts` | Order validation |
 
-### Combat Functions
+### Client Functions
 
-| Function | File | Signature | Purpose |
-|----------|------|-----------|---------|
-| [`resolveMultiwayCombat`](../pax-fluxia/src/lib/engine/CombatRules.ts) | `CombatRules.ts` | `(target, fleets, stars, tick) => void` | Multi-faction combat resolution |
-| [`calculateCombatDamage`](../pax-fluxia/src/lib/engine/CombatRules.ts) | `CombatRules.ts` | `(attack, defense, isDefending) => number` | Asymmetric Damage Calculation |
-
-### Utility Functions
-
-| Function | File | Signature | Purpose |
-|----------|------|-----------|---------|
-| `lerp` | `math.utils.ts` | `(a, b, t) => number` | Linear interpolation |
-| `distance` | `math.utils.ts` | `(x1, y1, x2, y2) => number` | Euclidean distance |
-| `clamp` | `math.utils.ts` | `(value, min, max) => number` | Constrain value |
-| [`randomColor`](../pax-fluxia/src/lib/utils/render.utils.ts) | `render.utils.ts` | `() => string` | Generate player color |
-| [`getOrbitSlot`](../pax-fluxia/src/lib/utils/render.utils.ts) | `render.utils.ts` | `(index, cx, cy, starRadius, time, biasAngle?, biasStrength?) => {x, y, multiplier}` | Ship orbit packing with stacking |
-| [`getOuterOrbitRadius`](../pax-fluxia/src/lib/utils/render.utils.ts) | `render.utils.ts` | `(starRadius, shipCount) => number` | Outermost occupied ring radius |
-| [`renderStars`](../pax-fluxia/src/lib/components/game/GameCanvas.svelte) | `GameCanvas.svelte` | `(stars: StarState[]) => void` | Render static star field and attributes |
-| [`updateTerritories`](../pax-fluxia/src/lib/engine/GameEngine.ts) | `GameEngine.ts` | `(width, height) => void` | Calculate Voronoi territory ownership |
+| Function | File | Purpose |
+|----------|------|---------|
+| `createEngine(config)` | `engine/GameEngine.ts` | Factory for SP engine |
+| `calculateCombatV4(...)` | `engine/Combat.ts` | **Client combat formula (duplicates shared)** |
+| `getOrbitSlot(index, ...)` | `utils/render.utils.ts` | Ship orbit packing |
 
 ---
 
 ## Stores
 
-| Store | File | State Shape | Purpose |
-|-------|------|-------------|---------|
-| `gameStore` | `gameStore.svelte.ts` | `GameStoreState` | Reactive bridge between Engine and UI |
+| Store | File | Purpose |
+|-------|------|---------|
+| `activeGameStore` | `activeGameStore.svelte.ts` | SP/MP facade — single API for both modes |
+| `gameStore` | `gameStore.svelte.ts` | SP game state (engine instance, snapshot) |
+| `multiplayerStore` | `multiplayerStore.svelte.ts` | MP Colyseus connection state |
+| `combatLog` | `combatLog.ts` | Rolling combat log for UI display |
 
-### UI Components (Svelte)
-- **GameLayout**: Main container.
-- **GameMap**: PixiJS Stage wrapper.
-- **GameHUD**: Overlay for UI controls.
-- **TickOrb**: Visualizer for game tick progress (Pulsing Orb).
+---
 
-### GameStoreState
+## Configuration Sources
 
-```typescript
-interface GameStoreState {
-  currentView: GameView;
-  engine: GameEngine | null;
-  settings: GameSettings;
-  tickProgress: number;  // 0-1 for metronome
-  lastSnapshot: GameState | null;
-}
-
-interface GameSettings {
-  map: 'empire' | 'random';
-  playerCount: 2 | 3 | 4 | 5 | 6;
-  difficulty: AILevel;
-}
-```
+| Source | File | Mutable? | Persistence | Purpose |
+|--------|------|----------|-------------|---------|
+| `GAME_CONFIG` | `pax-fluxia/src/lib/config/game.config.ts` | ✅ Yes | localStorage | Client-side runtime config (all tunable params) |
+| `DEFAULT_ENGINE_CONFIG` | `common/src/config.ts` | ❌ No | None | Default values for server & fallback |
+| `ORDER_CONFIG` | `common/src/orders.ts` | ❌ No | None | **Stale — TRANSFER_RATE=0.25 (conflicts)** |
+| `STAR_TYPE_STATS` | `common/src/config.ts` | ❌ No | None | Star type multipliers (single source of truth) |
 
 ---
 
@@ -189,17 +211,11 @@ interface GameSettings {
 
 | Constant | File | Value | Purpose |
 |----------|------|-------|---------|
-| [`BASE_TICK_MS`](../pax-fluxia/src/lib/config/game.config.ts) | `game.config.ts` | `750` | 80 BPM tick interval |
-| [`MIN_TICK_MS`](../pax-fluxia/src/lib/config/game.config.ts) | `game.config.ts` | `75` | Max speed (10x) tick |
-| [`REPAIR_RATE`](../pax-fluxia/src/lib/config/game.config.ts) | `game.config.ts` | `0.20` | Repair per tick (20%) |
-| [`REPAIR_COMBAT_PENALTY`](../pax-fluxia/src/lib/config/game.config.ts) | `game.config.ts` | `0.1` | Penalty when pinned (Effectively 2%) |
-| [`OVERWHELM_THRESHOLD`](../pax-fluxia/src/lib/config/game.config.ts) | `game.config.ts` | `0.1` | <10% force = Instant Surrender |
-| [`ORBIT_DENSITY`](../pax-fluxia/src/lib/config/game.config.ts) | `game.config.ts` | `1.5` | Ship spacing per ring (higher = fewer per ring) |
-| [`ATTACK_SURGE_MULT`](../pax-fluxia/src/lib/config/game.config.ts) | `game.config.ts` | `0.4` | Attack surge displacement (fraction of star radius) |
-| [`SHIP_BASE_SIZE`](../pax-fluxia/src/lib/config/game.config.ts) | `game.config.ts` | `4` | Base ship circle radius (px) |
-| [`ORBIT_RING_MULT`](../pax-fluxia/src/lib/config/game.config.ts) | `game.config.ts` | `1.4` | Ring spacing = BASE_SIZE × this |
-| [`SETTLE_DURATION_MS`](../pax-fluxia/src/lib/config/game.config.ts) | `game.config.ts` | `150` | Ship settle-into-orbit time |
-| [`WOBBLE_AMP`](../pax-fluxia/src/lib/config/game.config.ts) | `game.config.ts` | `12` | Travel wobble amplitude (px) |
+| `BASE_TICK_MS` | `game.config.ts` | `1200` | Tick interval at 1x speed |
+| `SHIP_BASE_SIZE` | `game.config.ts` | `4` | Ship circle radius (px) |
+| `ORBIT_RING_MULT` | `game.config.ts` | `1.4` | Ring spacing multiplier |
+| `WOBBLE_AMP` | `game.config.ts` | `12` | Travel wobble amplitude (px) |
+| `SETTLE_DURATION_MS` | `game.config.ts` | `150` | Ship settle-into-orbit time |
 
 ---
 

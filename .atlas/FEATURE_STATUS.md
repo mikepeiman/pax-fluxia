@@ -283,10 +283,25 @@
 
 ---
 
+## Architecture (A)
+
+| ID | Feature | Status | Notes |
+|----|---------|--------|-------|
+| A-1 | Engine Unification: Combat formula | ⬜ | Verify `calculateCombatV4` ≡ `calculateCombat`, unify |
+| A-2 | Engine Unification: Transfer rate | ⬜ | Delete `ORDER_CONFIG`, single `EngineConfig.TRANSFER_RATE` |
+| A-3 | Engine Unification: Client combat delegation | ⬜ | Client delegates to Common via state adapter |
+| A-4 | Engine Unification: Client tick delegation | ⬜ | Client calls `GameEngine.tick()` like server |
+| A-5 | Engine Unification: Map generation shared | ⬜ | Move hex grid to Common, server adopts it |
+| A-6 | Engine Unification: Config defaults sync | ⬜ | `DEFAULT_ENGINE_CONFIG` matches user's tuned values |
+
+---
+
 ## Session Log
 
 | Date | Summary |
 |------|---------|
+| 2026-02-12 | **Engine unification planning**: Full architecture audit across 3 packages. Created `ENGINE_ARCHITECTURE_CURRENT.md` and `ENGINE_ARCHITECTURE_TARGET.md`. Updated `00_PHYSICAL_MAP.md` and `01_ASSET_INVENTORY.md` to current monorepo reality. Documented 6-phase unification plan in DECISIONS.md. |
+| 2026-02-12 | Zombie code cleanup: removed `_conquestTravel`, `CONQUEST_TRAVEL_MODE`, `arcBulge`. Updated ~50 config defaults from backup. Confirmed `FACING_DEPART` is legitimate (attack surge facing factor). |
 | 2026-02-12 | Conquest ship timing fix: separated conquest transfer ships from `inFlightToStar` counter (cosmetic-only). Immediate spawn at conquered star. `CONQUEST_TRAVEL_SPEED` inverted (>1=faster). `VISUAL_COUNT_DELAY` iced (removed). Transfer Rate duplication found: `EngineConfig.TRANSFER_RATE` vs `ORDER_CONFIG.TRANSFER_RATE` — documented in DECISIONS.md. |
 | 2026-02-12 | Attack surge fixes: pause-safe ramp (delta-based), tick-boundary continuous phase (amplitude axis), no surge during pause. Removed slowmo, CLEAR_ORDER_ON_CAPTURE dead code, added ATTACK_SURGE_RAMP_MS config. Conquest damaged ship split fixed. |
 | 2026-02-12 | Combat formula logging (full 5-step breakdown), dominant victory (99% ships), orb panel consolidation (paired sliders, orbit bias removed), settings panel scroll fix (flex-based full-height). |

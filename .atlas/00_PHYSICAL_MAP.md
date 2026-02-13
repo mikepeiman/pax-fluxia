@@ -1,90 +1,121 @@
 # VIEW A: THE PHYSICAL MAP (Space)
 
-**Last Updated:** 2026-02-03
+**Last Updated:** 2026-02-12  
 **Project:** Pax Fluxia  
-**Stack:** Tauri 2.x + SvelteKit + PixiJS 8.x + TypeScript
+**Stack:** SvelteKit + PixiJS 8.x + TypeScript + Colyseus (MP) + Bun
 
 ---
 
+## Monorepo Structure
+
 ```mermaid
 graph TD
-    Root["pax-fluxia/"] --> Src["src/"]
-    Root --> SrcTauri["src-tauri/"]
-    Root --> Static["static/"]
+    Root["PRISM-Atlas-DART v1/"] --> Common["common/"]
+    Root --> Client["pax-fluxia/"]
+    Root --> Server["pax-server/"]
     Root --> Atlas[".atlas/"]
-    Root --> Cursor[".cursor/"]
-    Root --> Ref["reference/"]
-    
-    Atlas --> Specs["PRD & Specs"]
-    Atlas --> Maps["Maps 00-04"]
-    
-    Cursor --> Rules["rules/"]
-    
-    Ref --> Legacy["legacy_app/"]
-    Ref --> Research["research/"]
+    Root --> Agent[".agent/"]
 
-    %% Source Structure
-    Src --> App["app.html"]
-    Src --> AppCss["app.css"]
-    Src --> Lib["lib/"]
-    Src --> Routes["routes/"]
+    %% Common Package (@pax/common)
+    Common --> CSrc["src/"]
+    CSrc --> CEngine["engine/"]
+    CSrc --> CConfig["config.ts"]
+    CSrc --> CCombat["combat.ts"]
+    CSrc --> CConquest["conquest.ts"]
+    CSrc --> CProduction["production.ts"]
+    CSrc --> CRepair["repair.ts"]
+    CSrc --> COrders["orders.ts"]
+    CSrc --> CTypes["types.ts"]
+    CEngine --> CGameEngine["GameEngine.ts (stateless)"]
 
-    %% Lib Structure
-    Lib --> Components["components/"]
-    Lib --> Engine["engine/"]
-    Lib --> Stores["stores/"]
-    Lib --> Types["types/"]
-    Lib --> Utils["utils/"]
+    %% Client Package (pax-fluxia)
+    Client --> FLib["src/lib/"]
+    FLib --> FEngine["engine/"]
+    FLib --> FComponents["components/"]
+    FLib --> FStores["stores/"]
+    FLib --> FConfig["config/"]
+    FLib --> FTypes["types/"]
+    FLib --> FUtils["utils/"]
 
-    %% Components
-    Components --> UI["ui/"]
-    Components --> Game["game/"]
+    FEngine --> FGameEngine["GameEngine.ts (stateful, SP)"]
+    FEngine --> FStar["Star.ts"]
+    FEngine --> FCombat["Combat.ts"]
+    FEngine --> FAI["AI.ts"]
+    FEngine --> FHexGrid["HexGrid.ts"]
 
-    %% Engine (Pure TypeScript)
-    Engine --> GameEngine["GameEngine.ts"]
-    Engine --> Star["Star.ts"]
-    Engine --> FlowLink["FlowLink.ts"]
-    Engine --> Combat["Combat.ts"]
-    Engine --> AI["AI.ts"]
+    FComponents --> FUI["ui/"]
+    FComponents --> FGame["game/"]
+    FGame --> FCanvas["GameCanvas.svelte"]
+    FUI --> FMenu["MainMenu.svelte"]
+    FUI --> FHUD["GameHUD.svelte"]
+    FUI --> FCombatPanel["CombatDebugPanel.svelte"]
 
-    %% Stores
-    Stores --> GameStore["gameStore.svelte.ts"]
+    FStores --> FActiveStore["activeGameStore.svelte.ts"]
+    FStores --> FGameStore["gameStore.svelte.ts"]
+    FStores --> FMPStore["multiplayerStore.svelte.ts"]
 
-    %% Utils
-    Utils --> Logger["logger.ts"]
+    FConfig --> FGameConfig["game.config.ts"]
+
+    %% Server Package (pax-server)
+    Server --> SSrc["src/"]
+    SSrc --> SRooms["rooms/"]
+    SSrc --> SSchema["schema/"]
+    SRooms --> SGameRoom["GameRoom.ts"]
+    SSchema --> SGameState["GameState.schema.ts"]
 ```
 
 ---
 
-## Physical Inventory
+## Package Inventory
 
-### Core Directories
-
-| Path | Purpose |
-|------|---------|
-| [`src/lib/components/ui/`](../pax-fluxia/src/lib/components/ui/) | Svelte UI components (Menu, HUD, Modals) |
-| [`src/lib/components/game/`](../pax-fluxia/src/lib/components/game/) | Game rendering wrapper (PixiJS canvas host) |
-| [`src/lib/engine/`](../pax-fluxia/src/lib/engine/) | Pure TypeScript game logic (no framework deps) |
-| [`src/lib/stores/`](../pax-fluxia/src/lib/stores/) | Svelte 5 Runes-based state management |
-| [`src/lib/types/`](../pax-fluxia/src/lib/types/) | TypeScript type definitions |
-| [`src/lib/utils/`](../pax-fluxia/src/lib/utils/) | Helper functions (math, rendering, logging) |
-| [`src/routes/`](../pax-fluxia/src/routes/) | SvelteKit routing (single page for MVP) |
-| [`src-tauri/`](../pax-fluxia/src-tauri/) | Tauri Rust backend (minimal for MVP) |
-| [`.atlas/`](./) | Living architecture documentation |
-| [`.cursor/rules/`](../.cursor/rules/) | Agent behavioral rules |
-| [`reference/`](../reference/) | Legacy code and research material |
+| Package | Path | Purpose | Key Dependency |
+|---------|------|---------|----------------|
+| **@pax/common** | `common/` | Shared game logic (stateless), types, config | None |
+| **pax-fluxia** | `pax-fluxia/` | SvelteKit client (PixiJS rendering, SP engine, UI) | `@pax/common` |
+| **pax-server** | `pax-server/` | Colyseus MP server (room lifecycle, tick delegation) | `@pax/common` |
 
 ---
 
-### Key Files
+## Key Directories
+
+| Path | Purpose |
+|------|---------|
+| `common/src/` | Shared game logic: combat, conquest, production, repair, orders, config |
+| `common/src/engine/` | Stateless `GameEngine` (used by server) |
+| `pax-fluxia/src/lib/engine/` | Stateful SP engine (tick loop, AI, map gen, combat) |
+| `pax-fluxia/src/lib/components/ui/` | Svelte UI components (menus, HUD, debug panels) |
+| `pax-fluxia/src/lib/components/game/` | PixiJS canvas host and render loop |
+| `pax-fluxia/src/lib/stores/` | Svelte 5 Runes state — `activeGameStore` is the SP/MP facade |
+| `pax-fluxia/src/lib/config/` | Client-side `GAME_CONFIG` (mutable, localStorage-persisted) |
+| `pax-fluxia/src/lib/types/` | TypeScript type definitions |
+| `pax-fluxia/src/lib/utils/` | Helpers: logger, math, rendering |
+| `pax-server/src/rooms/` | Colyseus `GameRoom` (MP tick loop, AI, map gen) |
+| `pax-server/src/schema/` | Colyseus schema definitions (`GameRoomState`, `StarSchema`, etc.) |
+| `.atlas/` | Living architecture documentation |
+| `.agent/` | Agent behavioral rules and workflows |
+
+---
+
+## Key Files
 
 | File | Layer | Purpose |
 |------|-------|---------|
-| [`GameEngine.ts`](../pax-fluxia/src/lib/engine/GameEngine.ts) | Engine | Authoritative tick loop, game state, rules |
-| [`Star.ts`](../pax-fluxia/src/lib/engine/Star.ts) | Engine | Star entity: production, ships, ownership |
-| [`gameStore.svelte.ts`](../pax-fluxia/src/lib/stores/gameStore.svelte.ts) | Store | Reactive game state bridge (Runes) |
-| [`GameCanvas.svelte`](../pax-fluxia/src/lib/components/game/GameCanvas.svelte) | View | PixiJS Application host and render loop |
-| [`logger.ts`](../pax-fluxia/src/lib/utils/logger.ts) | Utils | Structured visual telemetry (No console.log) |
+| [`GameEngine.ts`](../common/src/engine/GameEngine.ts) | Common | Stateless tick processor (production → orders → repair → win check) |
+| [`config.ts`](../common/src/config.ts) | Common | `STAR_TYPE_STATS`, `EngineConfig`, `DEFAULT_ENGINE_CONFIG` |
+| [`combat.ts`](../common/src/combat.ts) | Common | `calculateCombat()` — symmetric damage with lethality split |
+| [`conquest.ts`](../common/src/conquest.ts) | Common | `applyConquest()` — ownership transfer, scatter/retreat |
+| [`production.ts`](../common/src/production.ts) | Common | `applyProduction()` — overflow-based integer ship generation |
+| [`repair.ts`](../common/src/repair.ts) | Common | `applyRepair()` — overflow-based healing with combat penalty |
+| [`orders.ts`](../common/src/orders.ts) | Common | Order validation, `calculateTransfer()` |
+| [`GameEngine.ts`](../pax-fluxia/src/lib/engine/GameEngine.ts) | Client | SP engine: tick loop, AI, map gen, combat, logging (1594 lines) |
+| [`Star.ts`](../pax-fluxia/src/lib/engine/Star.ts) | Client | Star entity with `produce()`, `repair()`, `takeDamage()` |
+| [`AI.ts`](../pax-fluxia/src/lib/engine/AI.ts) | Client | Configurable AI with thresholds |
+| [`HexGrid.ts`](../pax-fluxia/src/lib/engine/HexGrid.ts) | Client | Hex grid + Delaunay map generation |
+| [`game.config.ts`](../pax-fluxia/src/lib/config/game.config.ts) | Client | Mutable `GAME_CONFIG` with localStorage persistence |
+| [`activeGameStore.svelte.ts`](../pax-fluxia/src/lib/stores/activeGameStore.svelte.ts) | Client | SP/MP facade — routes calls to either SP engine or MP Colyseus |
+| [`GameCanvas.svelte`](../pax-fluxia/src/lib/components/game/GameCanvas.svelte) | Client | PixiJS render loop, ship animation, input handling |
+| [`GameRoom.ts`](../pax-server/src/rooms/GameRoom.ts) | Server | Colyseus room: lifecycle, message handlers, tick delegation |
+| [`GameState.schema.ts`](../pax-server/src/schema/GameState.schema.ts) | Server | Colyseus schema definitions for synced state |
 
 ---
 

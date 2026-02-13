@@ -366,3 +366,29 @@ User feedback: variable descriptions were too technical or meaningless ("Overall
 - Conquest Transfer % → "Percentage of victor's ships that immediately transfer to conquered star"
 - All variables must have tooltips/subtitles in the UI panel
 
+---
+
+# Decision: Engine Unification — Atlas-First Approach
+
+**Date:** 2026-02-12
+**Status:** Planning
+
+## Context
+Full architecture audit revealed significant logic duplication across three packages:
+- **Client** `GameEngine.ts` (1594 lines) reimplements combat, transfer, win check, tick orchestration
+- **Common** `GameEngine.ts` (480 lines, stateless) is the authority, used only by server
+- **Server** `GameRoom.ts` (700 lines) correctly delegates to Common but has its own map gen and AI
+
+Key conflicts: `calculateCombatV4` (client) vs `calculateCombat` (common), three `TRANSFER_RATE` sources, two map generators, two AI systems.
+
+## Decision
+- **Atlas-first method**: Document current state, document target state, use delta as work guide
+- **Client delegates to Common** (same pattern as server): `GameEngine.tick(state, config)`
+- **IStar interface** enables both `Star.ts` (client) and `StarSchema` (server) to work with Common
+- **6-phase migration**: Combat formula → Transfer rate → Combat delegation → Full tick delegation → Map gen → Config sync
+- **Client keeps**: tick loop/timing, AI evaluation, combat logging, history, animation hooks
+
+## Reference Docs
+- `ENGINE_ARCHITECTURE_CURRENT.md` — current duplication inventory
+- `ENGINE_ARCHITECTURE_TARGET.md` — desired unified state
+
