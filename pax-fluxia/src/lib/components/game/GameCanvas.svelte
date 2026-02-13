@@ -1435,6 +1435,8 @@
                     }
                 }
                 ships.splice(0, shipsAnimated);
+                // Captured ships stay — update their owner color
+                for (const s of ships) s.ownerId = conquest.newOwner;
                 visualShips.set(conquest.starId, ships);
             } else if (conquest.retreatTargetId) {
                 // Single retreat target
@@ -1486,11 +1488,19 @@
                         ship.ownerId = conquest.previousOwner;
                         travelingShips.push(ship);
                     }
+                    // Captured ships stay — update their owner color
+                    for (const s of ships) s.ownerId = conquest.newOwner;
                     visualShips.set(conquest.starId, ships);
                 }
             } else {
-                // No escape — all captured/destroyed, clear visuals
-                visualShips.set(conquest.starId, []);
+                // No escape — keep captured ships, update their owner color
+                const capturedCount = Math.floor(conquest.shipsCaptured);
+                // Keep up to capturedCount ships, remove the rest
+                if (ships.length > capturedCount) {
+                    ships.length = capturedCount;
+                }
+                for (const s of ships) s.ownerId = conquest.newOwner;
+                visualShips.set(conquest.starId, ships);
             }
 
             // ── ATTACKER SHIPS: Lerp front-line ships to conquered star ──
@@ -1544,53 +1554,31 @@
                             atkShips[j].targetIndex = j;
                         }
 
-                        // Conquest travel timing (faster than normal)
-                        const conquestSpeedMult =
-                            GAME_CONFIG.CONQUEST_TRAVEL_SPEED ?? 1.3;
-                        const conquestHalfTick =
-                            activeGameStore.effectiveTickMs / 2;
-                        const conquestDepartFrac =
-                            (GAME_CONFIG.DEPART_FRACTION ?? 0.3) * 0.3; // Very fast depart — they're already surged
-                        const conquestDepartDuration =
-                            (conquestHalfTick * conquestDepartFrac) /
-                            conquestSpeedMult;
-                        const conquestTravelDuration =
-                            (conquestHalfTick * (1 - conquestDepartFrac)) /
-                            conquestSpeedMult;
-
-                        const laneStartX =
-                            attackerStar.x + andx * (attackerStar.radius + 5);
-                        const laneStartY =
-                            attackerStar.y + andy * (attackerStar.radius + 5);
-                        const laneEndX =
-                            conqueredStar.x - andx * (conqueredStar.radius + 5);
-                        const laneEndY =
-                            conqueredStar.y - andy * (conqueredStar.radius + 5);
-                        const laneOffsetPx = GAME_CONFIG.LANE_OFFSET_PX ?? 8;
-
-                        for (const ship of conquestShips) {
-                            // Maintain exact current position — no snap
-                            ship.departFromX = ship.x;
-                            ship.departFromY = ship.y;
-                            ship.state = "departing";
-                            ship.fromStarId = conquest.attackerStarId;
-                            ship.toStarId = conquest.starId;
-                            // Delay: ships hold surged position before moving
-                            const lerpDelay =
-                                GAME_CONFIG.CONQUEST_LERP_DELAY_MS ?? 200;
-                            ship.departTime = now + lerpDelay;
-                            ship.departDuration = conquestDepartDuration;
-                            ship.travelDuration = conquestTravelDuration;
-                            ship.laneStartX = laneStartX;
-                            ship.laneStartY = laneStartY;
-                            ship.laneEndX = laneEndX;
-                            ship.laneEndY = laneEndY;
-                            ship.laneOffset =
-                                (Math.random() - 0.5) * laneOffsetPx * 2;
-                            ship.staggerDelay = 0;
+                        // IMMEDIATE ARRIVAL: Place conquest ships at conquered star instantly
+                        // This eliminates the "naked tick" where the star had 0 visible ships
+                        const destShips =
+                            visualShips.get(conquest.starId) || [];
+                        const now = performance.now();
+                        for (let ci = 0; ci < conquestShips.length; ci++) {
+                            const ship = conquestShips[ci];
+                            const spawnIndex = destShips.length;
+                            const spawnAngle = Math.random() * Math.PI * 2;
+                            const spawnR = conqueredStar.radius + 8;
+                            ship.x =
+                                conqueredStar.x + Math.cos(spawnAngle) * spawnR;
+                            ship.y =
+                                conqueredStar.y + Math.sin(spawnAngle) * spawnR;
+                            ship.state = "orbiting";
+                            ship.targetIndex = spawnIndex;
+                            ship.fromStarId = null;
+                            ship.toStarId = null;
                             ship.ownerId = conquest.newOwner;
-                            travelingShips.push(ship);
+                            ship.settleStartTime = now;
+                            ship.settleStartAngle = spawnAngle;
+                            ship.settleStartRadius = spawnR;
+                            destShips.push(ship);
                         }
+                        visualShips.set(conquest.starId, destShips);
 
                         visualShips.set(conquest.attackerStarId, atkShips);
                     }
