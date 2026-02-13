@@ -55,13 +55,16 @@
     {#if !isCollapsed}
         <!-- Game-wide totals row -->
         <div class="game-totals font-data">
-            <span class="totals-label">Ships in game:</span>
+            <span class="totals-label">Ships:</span>
             <span class="totals-total">{gameTotals.total}</span>
             <span class="totals-breakdown">
                 <span class="totals-active">{gameTotals.active}</span><span
                     class="stat-dim">/{gameTotals.damaged}</span
                 >
             </span>
+            <span class="totals-tick" title="Current Tick"
+                >⏱{activeGameStore.currentTick}</span
+            >
         </div>
 
         <ul class="leaderboard__list">
@@ -262,5 +265,11 @@
     .totals-breakdown {
         font-size: 0.65rem;
         opacity: 0.7;
+    }
+    .totals-tick {
+        margin-left: auto;
+        color: var(--color-text-dim, #666);
+        font-size: 0.65rem;
+        opacity: 0.8;
     }
 </style>

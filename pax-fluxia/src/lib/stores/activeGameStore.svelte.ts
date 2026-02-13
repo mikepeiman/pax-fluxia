@@ -435,6 +435,10 @@ export const activeGameStore = {
         return Math.max(GAME_CONFIG.MIN_TICK_MS, GAME_CONFIG.BASE_TICK_MS / speed);
     },
     get tickProgress() { return getTickProgress(); },
+    get currentTick() {
+        if (isMultiplayerMode()) return multiplayerStore.tick ?? 0;
+        return gameStore.getTick();
+    },
     get sessionId() { return getSessionId(); },
 
     // Tick events pipeline

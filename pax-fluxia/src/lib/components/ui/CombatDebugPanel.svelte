@@ -20,7 +20,7 @@
         SCATTER_DESTROY_RATE: 0.5,
         RETREAT_DAMAGED_ACTIVATION_RATE: 0,
         DAMAGED_SHIP_EFFECTIVENESS: 0.1,
-        REPAIR_RATE: 0.1,
+        REPAIR_RATE: 10,
         AI_ATTACK_THRESHOLD: 1.33,
         AI_DESIST_THRESHOLD: 1.0,
         AI_RANDOM_AGGRESSION: 0.05,
@@ -1049,15 +1049,14 @@
                     <div class="var-row">
                         <div class="row-top">
                             <span class="var-name">🔧 Repair</span><span
-                                class="val"
-                                >{(panel.repair as number).toFixed(2)}</span
+                                class="val">{panel.repair as number}%</span
                             >
                         </div>
                         <input
                             type="range"
                             min="0"
-                            max="1"
-                            step="0.01"
+                            max="100"
+                            step="1"
                             value={panel.repair}
                             oninput={(e) => {
                                 const v = parseFloat(

@@ -280,6 +280,11 @@ function getStats() {
     };
 }
 
+/** Get current tick count */
+function getTick(): number {
+    return engine?.getStats().totalTicks ?? 0;
+}
+
 /** Get stats history for endgame charts */
 function getHistory() {
     if (engine) {
@@ -335,6 +340,7 @@ export const gameStore = {
     restart,
     getStats,
     getHistory,
+    getTick,
     updateConfig,
     beginGame,
     toggleRetainOrderOnConquest

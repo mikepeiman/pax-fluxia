@@ -11,7 +11,7 @@ import { log } from '$lib/utils/logger';
 
 /** Constants */
 export const PRODUCTION_PER_TICK = 1;
-export const REPAIR_RATE = 0.5; // Damaged ships repaired per tick
+export const REPAIR_RATE = 50; // Damaged ships repaired per tick (0-100 integer %)
 
 /**
  * Star class - A territory node that produces ships

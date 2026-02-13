@@ -51,7 +51,7 @@ export function applyRepair(star: Star, currentTick: number, cfg: EngineConfig):
     if (star.damagedShips <= 0) return { repaired: 0, amount: 0, isPinned: false, typeMult: 1 };
 
     const typeMult = STAR_TYPE_STATS[star.starType as StarType]?.repair ?? 1.0;
-    let amount = Math.max(cfg.MIN_REPAIR, star.damagedShips * cfg.REPAIR_RATE * typeMult);
+    let amount = Math.max(cfg.MIN_REPAIR, star.damagedShips * (cfg.REPAIR_RATE / 100) * typeMult);
 
     // Pinning penalty: reduced repair when in combat
     const isPinned = star.lastCombatTick >= currentTick - 1;
@@ -84,5 +84,5 @@ export function calculateProduction(star: Star): number {
 /** @deprecated Use applyRepair instead */
 export function calculateRepair(star: Star): number {
     if (star.damagedShips <= 0) return 0;
-    return Math.max(1, Math.floor(star.damagedShips * star.repairRate));
+    return Math.max(1, Math.floor(star.damagedShips * (star.repairRate / 100)));
 }

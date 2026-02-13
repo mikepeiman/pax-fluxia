@@ -204,13 +204,13 @@ export const GAME_CONFIG: GameConfigType = {
     TRANSFER_RATE: 0.1,
 
     /** Minimum ships to transfer per tick */
-    MIN_SHIPS_PER_TRANSFER: 1,
+    MIN_SHIPS_PER_TRANSFER: 0,
 
     /** Maximum ships to transfer per tick (0 = unlimited) */
     MAX_SHIPS_PER_TRANSFER: 0,
 
     /** Pulse interval (ticks between transfer batches, 1 = every tick) */
-    TRANSFER_PULSE_INTERVAL: 1,
+    TRANSFER_PULSE_INTERVAL: .25,
 
     /** Fleet travel speed (pixels per tick) */
     FLEET_SPEED: 25,
@@ -268,8 +268,8 @@ export const GAME_CONFIG: GameConfigType = {
     // REPAIR
     // ========================================================================
 
-    /** Percentage of damaged ships repaired per tick */
-    REPAIR_RATE: 0.05,
+    /** Percentage of damaged ships repaired per tick (0-100 integer) */
+    REPAIR_RATE: 5,
 
     /** Minimum ships repaired per tick */
     MIN_REPAIR: 1,

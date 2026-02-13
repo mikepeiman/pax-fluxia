@@ -109,8 +109,9 @@
 | B-24 | Erratic repair rates: user reports 200→120 damaged in single tick, rates varying 5-50%. Dataflow logging added to `applyRepair()` — console output shows star type, rate, typeMult, pinning, overflow. Investigate with StarInfoPanel + console. |
 | B-25 | Lag when selecting enemy stars to issue deferred orders. User-reported, needs investigation. |
 | B-26 | Game engine continues running after client dev server reloads (HMR). Console logs keep generating. `GameEngine.destroy()` may not be called on unmount. |
-| B-27 | Travel conquest animation invisible: ships set to 'departing' state in travelingShips but do not render on screen. Diagnostic log added at dispatch point. |
+| B-27 | Travel animation: ships converge at lane-start point and flatten perpendicular to lane. Should instead smoothly arc from orbit position directly toward destination star. Grouping-at-lane-start should ONLY apply in orb mode. |
 | B-28 | Active ships sometimes drop to zero immediately on attack. User reports intermittent — percentage-based calculations should never zero out in one tick. Suspect `renderShips` sync double-subtraction or engine combat over-damage. |
+| B-29 | Pause/play freezes attack surge animations — after unpause, the attack surge visual gets stuck in place instead of continuing. |
 
 ## Open Bugs — MP (B)
 
