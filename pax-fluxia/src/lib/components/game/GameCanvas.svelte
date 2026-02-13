@@ -250,32 +250,10 @@
             antialias: true,
             resolution: window.devicePixelRatio || 1,
             autoDensity: true,
-            // CRITICAL: Disable PIXI's built-in event system.
-            // We handle ALL pointer events on the container div.
-            // PIXI's EventSystem attaches JS listeners directly to the canvas,
-            // which can intercept/consume events before they bubble to our handlers.
-            eventMode: "none",
-            eventFeatures: {
-                move: false,
-                globalMove: false,
-                click: false,
-                wheel: false,
-            },
         });
 
         // Append canvas to container
         canvasContainer.appendChild(app.canvas);
-
-        // Belt-and-suspenders: explicitly destroy PIXI's EventSystem
-        // so it doesn't attach DOM listeners to the canvas element.
-        // We handle ALL input on the container div.
-        if (app.renderer.events) {
-            app.renderer.events.destroy();
-            log.sys(
-                "GameCanvas",
-                "PIXI EventSystem destroyed — DOM events handled by container div",
-            );
-        }
 
         // Create graphics layers
         // Layer order (bottom to top): links → stars → ships → connections → labels → drag
