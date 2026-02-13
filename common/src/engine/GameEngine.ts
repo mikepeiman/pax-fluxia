@@ -16,6 +16,7 @@ import { calculateCombat, getEffectiveDefenderForce, checkConquestThreshold, COM
 import { applyProduction, applyRepair } from "../production";
 import { applyConquest } from "../conquest";
 import type { ConquestContext } from "../conquest";
+import { resolveMultiSourceCombat as sharedResolveCombat } from "../combatResolution";
 import type { EngineConfig } from "../config";
 import { DEFAULT_ENGINE_CONFIG, STAR_TYPE_STATS } from "../config";
 import type { StarType } from "../types";
@@ -222,7 +223,7 @@ export class GameEngine {
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    // COMBAT RESOLUTION
+    // COMBAT RESOLUTION — delegates to shared standalone function
     // ════════════════════════════════════════════════════════════════════════
 
     private static resolveMultiSourceCombat(
@@ -232,165 +233,66 @@ export class GameEngine {
         cfg: EngineConfig,
         events: TickEvents
     ): void {
-        // Filter valid attackers
-        const validAttackers = attackers.filter(attacker => {
-            if (attacker.activeShips <= 0) {
-                attacker.targetId = "";
-                return false;
-            }
-            if (attacker.targetId !== defender.id) {
-                return false;
-            }
-            return true;
-        });
-
-        if (validAttackers.length === 0) return;
-
-        // Calculate total attacking force
-        let totalAttackForce = 0;
-        const contributions: { attacker: StarSchema; force: number }[] = [];
-
-        validAttackers.forEach(attacker => {
-            const force = attacker.activeShips;
-            totalAttackForce += force;
-            contributions.push({ attacker, force });
-        });
-
-        // Calculate defender force (active + damaged at reduced effectiveness)
-        const defenderBaseForce = defender.activeShips +
-            Math.floor(defender.damagedShips * cfg.DAMAGED_SHIP_EFFECTIVENESS);
-
-        // Apply star type defense multiplier
-        const defenderDefenseMult = STAR_TYPE_STATS[(defender.starType || 'grey') as StarType]?.defense ?? 1;
-        const defenderForce = Math.floor(defenderBaseForce * defenderDefenseMult);
-
-        // Instant conquest if no defenders
-        if (defenderForce <= 0) {
-            const victor = contributions.reduce((a, b) =>
-                a.force > b.force ? a : b
-            ).attacker;
-            this.executeConquest(state, victor, defender, cfg, events);
-            return;
-        }
-
-        // Calculate weighted average attack multiplier
-        let weightedAttackMult = 0;
-        contributions.forEach(({ attacker, force }) => {
-            const attackMult = STAR_TYPE_STATS[(attacker.starType || 'grey') as StarType]?.attack ?? 1;
-            weightedAttackMult += attackMult * (force / totalAttackForce);
-        });
-        const effectiveAttackForce = Math.floor(totalAttackForce * weightedAttackMult);
-
-        // Calculate combat damage using config-driven values
-        const defenderIsAttacking = !!defender.targetId;
-        const result = calculateCombat(
-            defenderForce,
-            effectiveAttackForce,
-            defenderIsAttacking,
-            true,
-            {
-                DAMAGE_PER_SHIP: cfg.DAMAGE_PER_SHIP,
-                LETHALITY: cfg.LETHALITY,
-                AGGRESSOR_ADVANTAGE: cfg.AGGRESSOR_ADVANTAGE,
-                FORCE_RATIO_EFFECT: cfg.FORCE_RATIO_EFFECT,
-                MINIMUM_DAMAGE: cfg.MINIMUM_DAMAGE,
-                CONQUEST_THRESHOLD: cfg.CONQUEST_THRESHOLD,
-            }
-        );
-
-        // Apply damage to defender
-        const defenderTotalDamage = result.killsOnA + result.disabledOnA;
-        defender.activeShips = Math.max(0, defender.activeShips - defenderTotalDamage);
-        defender.damagedShips += result.disabledOnA;
-
-        // Mark combat for repair pinning penalty (both sides)
-        defender.lastCombatTick = state.tick;
-
-        // Apply proportional damage to attackers
-        contributions.forEach(({ attacker, force }) => {
-            const proportion = force / totalAttackForce;
-            const kills = Math.floor(result.killsOnB * proportion);
-            const disabled = Math.floor(result.disabledOnB * proportion);
-            const totalDamage = kills + disabled;
-
-            attacker.activeShips = Math.max(0, attacker.activeShips - totalDamage);
-            attacker.damagedShips += disabled;
-
-            // Mark combat on attacker too
-            attacker.lastCombatTick = state.tick;
-
-            if (attacker.activeShips <= 0) {
-                attacker.targetId = "";
-            }
-        });
-
-        // Emit combat event
-        events.combats.push({
-            tick: state.tick,
-            attackerIds: validAttackers.map(a => a.id),
-            attackerOwnerId: validAttackers[0].ownerId,
-            defenderId: defender.id,
-            defenderOwnerId: defender.ownerId,
-            totalAttackForce,
-            defenderForce,
-            killsOnDefender: result.killsOnA,
-            disabledOnDefender: result.disabledOnA,
-            killsOnAttacker: result.killsOnB,
-            disabledOnAttacker: result.disabledOnB,
-            conquered: false,
-        });
-
-        // Check conquest threshold
-        if (defender.activeShips <= 0 || checkConquestThreshold(defender.activeShips, totalAttackForce)) {
-            const victor = contributions.reduce((a, b) =>
-                a.force > b.force ? a : b
-            ).attacker;
-            // Mark the last combat event as conquered
-            events.combats[events.combats.length - 1].conquered = true;
-            this.executeConquest(state, victor, defender, cfg, events);
-        }
-    }
-
-    private static executeConquest(
-        state: GameRoomState,
-        attacker: StarSchema,
-        defender: StarSchema,
-        cfg: EngineConfig,
-        events: TickEvents
-    ): void {
-        const previousOwner = defender.ownerId;
-
         // Build conquest context for neighbor lookups
         const ctx: ConquestContext = {
             getNeighborIds: (starId: string) => this.getNeighborIds(state, starId),
             getStar: (id: string) => state.stars.get(id) as any,
         };
 
-        // Delegate to shared conquest function
-        const conquestResult = applyConquest(attacker, defender as any, ctx, cfg);
+        // Delegate to shared standalone function
+        const result = sharedResolveCombat(
+            attackers as any[],
+            defender as any,
+            ctx,
+            cfg,
+            state.tick
+        );
 
-        // Emit conquest event
-        events.conquests.push({
-            tick: state.tick,
-            starId: defender.id,
-            attackerStarId: attacker.id,
-            previousOwner,
-            newOwner: attacker.ownerId,
-            shipsCaptured: conquestResult.shipsCaptured,
-            shipsEscaped: conquestResult.shipsEscaped,
-            shipsDestroyed: conquestResult.shipsDestroyed,
-            shipsTransferred: conquestResult.shipsTransferred,
-            retreatTargetId: conquestResult.retreatTargetId,
-            scatterTargetIds: conquestResult.scatterTargetIds,
-            scatterShipCounts: conquestResult.scatterShipCounts,
-        });
+        if (!result.occurred) return;
 
-        // Void other players' orders to the conquered star
-        state.stars.forEach(star => {
-            if (star.targetId === defender.id && star.ownerId !== attacker.ownerId) {
-                star.targetId = "";
-            }
-        });
+        // Emit combat event (if damage was dealt, not just instant-conquest-with-no-defenders)
+        if (result.defenderForce > 0) {
+            events.combats.push({
+                tick: state.tick,
+                attackerIds: result.attackerDamage.map((a: { starId: string }) => a.starId),
+                attackerOwnerId: attackers.find((a: StarSchema) => a.activeShips > 0)?.ownerId ?? attackers[0].ownerId,
+                defenderId: defender.id,
+                defenderOwnerId: defender.ownerId,
+                totalAttackForce: result.totalAttackShips,
+                defenderForce: result.defenderForce,
+                killsOnDefender: result.defenderKills,
+                disabledOnDefender: result.defenderDisabled,
+                killsOnAttacker: result.attackerDamage.reduce((s: number, a: { kills: number }) => s + a.kills, 0),
+                disabledOnAttacker: result.attackerDamage.reduce((s: number, a: { disabled: number }) => s + a.disabled, 0),
+                conquered: result.conquest !== null,
+            });
+        }
+
+        // Emit conquest event if conquest occurred
+        if (result.conquest && result.victorStarId) {
+            const victor = state.stars.get(result.victorStarId);
+            events.conquests.push({
+                tick: state.tick,
+                starId: defender.id,
+                attackerStarId: result.victorStarId,
+                previousOwner: result.conquest.previousOwner,
+                newOwner: victor?.ownerId ?? '',
+                shipsCaptured: result.conquest.shipsCaptured,
+                shipsEscaped: result.conquest.shipsEscaped,
+                shipsDestroyed: result.conquest.shipsDestroyed,
+                shipsTransferred: result.conquest.shipsTransferred,
+                retreatTargetId: result.conquest.retreatTargetId,
+                scatterTargetIds: result.conquest.scatterTargetIds,
+                scatterShipCounts: result.conquest.scatterShipCounts,
+            });
+
+            // Void other players' orders to the conquered star
+            state.stars.forEach(star => {
+                if (star.targetId === defender.id && star.ownerId !== (victor?.ownerId ?? '')) {
+                    star.targetId = "";
+                }
+            });
+        }
     }
 
     // ════════════════════════════════════════════════════════════════════════

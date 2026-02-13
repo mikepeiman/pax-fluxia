@@ -20,6 +20,9 @@ export * from './orders';
 // Re-export conquest logic
 export * from './conquest';
 
+// Re-export combat resolution (standalone multi-source combat)
+export * from './combatResolution';
+
 // Re-export schema definitions
 export * from './schema/GameState';
 
