@@ -117,7 +117,11 @@ interface GameConfigType {
     ATTACK_SURGE_FORCE_COFACTOR: number; // How much force ratio amplifies surge (0=none, 1=full, default 0.5)
     ATTACK_SURGE_RAMP_MS: number;        // Ramp-in duration for attack surge (ms, 0=instant/old behavior, default 300)
     ATTACK_SURGE_SHAPE: number;          // Surge pulse shape power (1=sine, 2=sharper peak, 0.5=flatter, default 1)
-    // Conquest ship travel animation
+    // Conquest animation
+    CONQUEST_ANIMATION_MODE: 'immediate' | 'surge'; // 'immediate' = pop into orbit, 'surge' = settle from attacker direction
+    CONQUEST_SETTLE_MS: number;          // How long conquest ships take to settle into orbit in surge mode (ms, default 500)
+    CONQUEST_SURGE_RADIUS: number;       // Initial spawn radius above orbit for surge mode (px, default 40)
+    CONQUEST_SURGE_STAGGER_MS: number;   // Per-ship stagger delay for organic arrival spread (ms, default 30)
     CONQUEST_TRAVEL_SPEED: number;       // Duration multiplier vs normal transfer (lower = faster, default 0.7)
     CONQUEST_LERP_DELAY_MS: number;      // Delay before conquest ships start moving (ms, default 200)
     // Orbit bias oscillation
@@ -375,6 +379,14 @@ export const GAME_CONFIG: GameConfigType = {
     ATTACK_SURGE_RAMP_MS: 300,
     /** Surge pulse shape power (1=sine, 2=sharper peak, 0.5=flatter) */
     ATTACK_SURGE_SHAPE: 1,
+    /** Conquest animation mode: 'immediate' = pop into orbit, 'surge' = settle from attacker direction */
+    CONQUEST_ANIMATION_MODE: 'surge' as const,
+    /** How long conquest ships settle into orbit in surge mode (ms) */
+    CONQUEST_SETTLE_MS: 500,
+    /** Initial spawn radius above orbit for surge mode (px above star edge) */
+    CONQUEST_SURGE_RADIUS: 40,
+    /** Per-ship stagger delay for organic arrival spread in surge mode (ms) */
+    CONQUEST_SURGE_STAGGER_MS: 30,
     /** Conquest travel speed multiplier (>1 = faster, <1 = slower, 1 = normal) */
     CONQUEST_TRAVEL_SPEED: 1.3,
     /** Delay before conquest ships start moving (ms) — ships hold surged position */

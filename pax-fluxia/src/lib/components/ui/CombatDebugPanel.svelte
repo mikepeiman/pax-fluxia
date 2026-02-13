@@ -525,6 +525,10 @@
         attackSurgeShape: GAME_CONFIG.ATTACK_SURGE_SHAPE,
         conquestTravelSpeed: GAME_CONFIG.CONQUEST_TRAVEL_SPEED,
         conquestLerpDelayMs: GAME_CONFIG.CONQUEST_LERP_DELAY_MS,
+        conquestAnimMode: GAME_CONFIG.CONQUEST_ANIMATION_MODE,
+        conquestSettleMs: GAME_CONFIG.CONQUEST_SETTLE_MS,
+        conquestSurgeRadius: GAME_CONFIG.CONQUEST_SURGE_RADIUS,
+        conquestSurgeStaggerMs: GAME_CONFIG.CONQUEST_SURGE_STAGGER_MS,
         orbTravel: GAME_CONFIG.ORB_TRAVEL,
         orbitBias: GAME_CONFIG.ORBIT_BIAS_STRENGTH,
         oscillate: GAME_CONFIG.ORBIT_BIAS_OSCILLATE,
@@ -575,7 +579,10 @@
         }
     }
 
-    function updatePanel(key: keyof typeof panel, value: number | boolean) {
+    function updatePanel(
+        key: keyof typeof panel,
+        value: number | boolean | string,
+    ) {
         panel = { ...panel, [key]: value };
         applyPanelToConfig();
         savePanelSettings();
@@ -607,6 +614,13 @@
         GAME_CONFIG.CONQUEST_TRAVEL_SPEED = panel.conquestTravelSpeed as number;
         GAME_CONFIG.CONQUEST_LERP_DELAY_MS =
             panel.conquestLerpDelayMs as number;
+        GAME_CONFIG.CONQUEST_ANIMATION_MODE = panel.conquestAnimMode as
+            | "immediate"
+            | "surge";
+        GAME_CONFIG.CONQUEST_SETTLE_MS = panel.conquestSettleMs as number;
+        GAME_CONFIG.CONQUEST_SURGE_RADIUS = panel.conquestSurgeRadius as number;
+        GAME_CONFIG.CONQUEST_SURGE_STAGGER_MS =
+            panel.conquestSurgeStaggerMs as number;
         GAME_CONFIG.ORB_TRAVEL = panel.orbTravel as boolean;
         GAME_CONFIG.ORBIT_BIAS_STRENGTH = panel.orbitBias as number;
         GAME_CONFIG.ORBIT_BIAS_OSCILLATE = panel.oscillate as boolean;
@@ -854,6 +868,86 @@
                                 const v = +(e.target as HTMLInputElement).value;
                                 GAME_CONFIG.CONQUEST_LERP_DELAY_MS = v;
                                 updatePanel("conquestLerpDelayMs", v);
+                            }}
+                        />
+                    </div>
+
+                    <!-- Conquest Animation Mode -->
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Conquest Mode</span><span
+                                class="val">{panel.conquestAnimMode}</span
+                            >
+                        </div>
+                        <select
+                            class="mode-select"
+                            value={panel.conquestAnimMode}
+                            onchange={(e) => {
+                                const v = (e.target as HTMLSelectElement)
+                                    .value as "immediate" | "surge";
+                                GAME_CONFIG.CONQUEST_ANIMATION_MODE = v;
+                                updatePanel("conquestAnimMode", v);
+                            }}
+                        >
+                            <option value="immediate">Immediate</option>
+                            <option value="surge">Surge</option>
+                        </select>
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Conquest Settle</span><span
+                                class="val">{panel.conquestSettleMs}ms</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="100"
+                            max="2000"
+                            step="50"
+                            value={panel.conquestSettleMs}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.CONQUEST_SETTLE_MS = v;
+                                updatePanel("conquestSettleMs", v);
+                            }}
+                        />
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Surge Radius</span><span
+                                class="val">{panel.conquestSurgeRadius}px</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="10"
+                            max="120"
+                            step="5"
+                            value={panel.conquestSurgeRadius}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.CONQUEST_SURGE_RADIUS = v;
+                                updatePanel("conquestSurgeRadius", v);
+                            }}
+                        />
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Surge Stagger</span><span
+                                class="val"
+                                >{panel.conquestSurgeStaggerMs}ms</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="200"
+                            step="5"
+                            value={panel.conquestSurgeStaggerMs}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.CONQUEST_SURGE_STAGGER_MS = v;
+                                updatePanel("conquestSurgeStaggerMs", v);
                             }}
                         />
                     </div>
@@ -2269,6 +2363,21 @@
         accent-color: var(--accent, #00e0ff);
         width: 13px;
         height: 13px;
+    }
+    .mode-select {
+        width: 100%;
+        background: #1a1a2e;
+        color: #ddd;
+        border: 1px solid #334;
+        border-radius: 3px;
+        padding: 3px 6px;
+        font-size: 10px;
+        font-family: inherit;
+        accent-color: var(--accent, #00e0ff);
+        cursor: pointer;
+    }
+    .mode-select:focus {
+        outline: 1px solid var(--accent, #00e0ff);
     }
 
     .sub-heading {

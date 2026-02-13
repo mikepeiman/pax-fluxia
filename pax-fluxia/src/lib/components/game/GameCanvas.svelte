@@ -1554,29 +1554,83 @@
                             atkShips[j].targetIndex = j;
                         }
 
-                        // IMMEDIATE ARRIVAL: Place conquest ships at conquered star instantly
-                        // This eliminates the "naked tick" where the star had 0 visible ships
+                        // ── CONQUEST ANIMATION: Dual-mode ──
+                        const conquestMode =
+                            GAME_CONFIG.CONQUEST_ANIMATION_MODE ?? "surge";
                         const destShips =
                             visualShips.get(conquest.starId) || [];
                         const now = performance.now();
-                        for (let ci = 0; ci < conquestShips.length; ci++) {
-                            const ship = conquestShips[ci];
-                            const spawnIndex = destShips.length;
-                            const spawnAngle = Math.random() * Math.PI * 2;
-                            const spawnR = conqueredStar.radius + 8;
-                            ship.x =
-                                conqueredStar.x + Math.cos(spawnAngle) * spawnR;
-                            ship.y =
-                                conqueredStar.y + Math.sin(spawnAngle) * spawnR;
-                            ship.state = "orbiting";
-                            ship.targetIndex = spawnIndex;
-                            ship.fromStarId = null;
-                            ship.toStarId = null;
-                            ship.ownerId = conquest.newOwner;
-                            ship.settleStartTime = now;
-                            ship.settleStartAngle = spawnAngle;
-                            ship.settleStartRadius = spawnR;
-                            destShips.push(ship);
+
+                        if (conquestMode === "immediate") {
+                            // MODE A: Immediate spawn — ships pop into orbit instantly
+                            for (let ci = 0; ci < conquestShips.length; ci++) {
+                                const ship = conquestShips[ci];
+                                const spawnIndex = destShips.length;
+                                const spawnAngle = Math.random() * Math.PI * 2;
+                                const spawnR = conqueredStar.radius + 8;
+                                ship.x =
+                                    conqueredStar.x +
+                                    Math.cos(spawnAngle) * spawnR;
+                                ship.y =
+                                    conqueredStar.y +
+                                    Math.sin(spawnAngle) * spawnR;
+                                ship.state = "orbiting";
+                                ship.targetIndex = spawnIndex;
+                                ship.fromStarId = null;
+                                ship.toStarId = null;
+                                ship.ownerId = conquest.newOwner;
+                                ship.settleStartTime = now;
+                                ship.settleStartAngle = spawnAngle;
+                                ship.settleStartRadius = spawnR;
+                                destShips.push(ship);
+                            }
+                        } else {
+                            // MODE B: Surge-to-orbit — ships settle from attacker direction, above orbit
+                            const surgeRadius =
+                                conqueredStar.radius +
+                                (GAME_CONFIG.CONQUEST_SURGE_RADIUS ?? 40);
+                            const staggerMs =
+                                GAME_CONFIG.CONQUEST_SURGE_STAGGER_MS ?? 30;
+                            // Angle FROM attacker TO conquered (arrival direction)
+                            const arrivalAngle = Math.atan2(
+                                conqueredStar.y - attackerStar.y,
+                                conqueredStar.x - attackerStar.x,
+                            );
+                            // Spread ships in a fan around the arrival direction
+                            const fanSpread = Math.PI * 0.6; // ~108° fan
+
+                            for (let ci = 0; ci < conquestShips.length; ci++) {
+                                const ship = conquestShips[ci];
+                                const spawnIndex = destShips.length;
+                                // Fan angle: distributed around arrival direction
+                                const fanT =
+                                    conquestShips.length > 1
+                                        ? ci / (conquestShips.length - 1) - 0.5
+                                        : 0;
+                                const spawnAngle =
+                                    arrivalAngle +
+                                    fanT * fanSpread +
+                                    (Math.random() - 0.5) * 0.15; // slight randomness
+                                // Spawn above outer orbit
+                                ship.x =
+                                    conqueredStar.x +
+                                    Math.cos(spawnAngle) * surgeRadius;
+                                ship.y =
+                                    conqueredStar.y +
+                                    Math.sin(spawnAngle) * surgeRadius;
+                                ship.state = "orbiting";
+                                ship.targetIndex = spawnIndex;
+                                ship.fromStarId = null;
+                                ship.toStarId = null;
+                                ship.ownerId = conquest.newOwner;
+                                // Stagger settle start for organic arrival
+                                ship.settleStartTime = now + ci * staggerMs;
+                                ship.settleStartAngle = spawnAngle;
+                                ship.settleStartRadius = surgeRadius;
+                                // Tag for conquest-specific settle duration
+                                (ship as any).conquestSettle = true;
+                                destShips.push(ship);
+                            }
                         }
                         visualShips.set(conquest.starId, destShips);
 
@@ -2211,7 +2265,9 @@
                     // Time-based polar arc interpolation (never crosses star)
                     const now = performance.now();
                     const elapsed = now - ship.settleStartTime;
-                    const settleDur = GAME_CONFIG.SETTLE_DURATION_MS || 150;
+                    const settleDur = (ship as any).conquestSettle
+                        ? (GAME_CONFIG.CONQUEST_SETTLE_MS ?? 500)
+                        : GAME_CONFIG.SETTLE_DURATION_MS || 150;
                     const t = Math.max(0, Math.min(1, elapsed / settleDur));
                     // easeOutCubic: fast start, smooth deceleration
                     const ease = 1 - Math.pow(1 - t, 3);

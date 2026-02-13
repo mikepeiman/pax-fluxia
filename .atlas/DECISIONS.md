@@ -1,3 +1,20 @@
+# Decision: Animation Effect Collection Policy
+
+**Date:** 2026-02-13
+**Status:** Active
+
+## Context
+Repeated user instruction: when creating new animations, COLLECT rather than replace the old ones. Both should exist as selectable options. All tuning variables must be exposed.
+
+## Decision
+- Animation effects are additive — never delete, always keep as selectable option
+- New config key `CONQUEST_ANIMATION_MODE` selects between 'immediate' (popcorn spawn) and 'surge' (settle from attacker direction)
+- Conquest surge mode has 3 tunable values: `CONQUEST_SETTLE_MS`, `CONQUEST_SURGE_RADIUS`, `CONQUEST_SURGE_STAGGER_MS`
+- All values exposed in CombatDebugPanel
+- Memory rule: `.agent/memory/collect-dont-rewrite.md`
+
+---
+
 # Decision: Engine Convergence via Interface-Driven Refactor
 
 **Date:** 2026-02-07
