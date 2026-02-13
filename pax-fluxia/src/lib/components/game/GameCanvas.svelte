@@ -1528,6 +1528,42 @@
                             conqueredStarId: conquest.starId,
                         });
 
+                        console.log("[CONQUEST TRANSFER]", {
+                            mode: GAME_CONFIG.CONQUEST_ANIMATION_MODE,
+                            transferCount,
+                            departingCount: result.departing.length,
+                            arrivingCount: result.arriving.length,
+                            remainingCount: result.remaining.length,
+                            effectiveTickMs: activeGameStore.effectiveTickMs,
+                            sampleShip: result.departing[0]
+                                ? {
+                                      state: result.departing[0].state,
+                                      x: result.departing[0].x,
+                                      y: result.departing[0].y,
+                                      departFromX:
+                                          result.departing[0].departFromX,
+                                      departFromY:
+                                          result.departing[0].departFromY,
+                                      departTime:
+                                          result.departing[0].departTime,
+                                      departDuration:
+                                          result.departing[0].departDuration,
+                                      travelDuration:
+                                          result.departing[0].travelDuration,
+                                      laneStartX:
+                                          result.departing[0].laneStartX,
+                                      laneStartY:
+                                          result.departing[0].laneStartY,
+                                      laneEndX: result.departing[0].laneEndX,
+                                      laneEndY: result.departing[0].laneEndY,
+                                      fromStarId:
+                                          result.departing[0].fromStarId,
+                                      toStarId: result.departing[0].toStarId,
+                                      ownerId: result.departing[0].ownerId,
+                                  }
+                                : "NO DEPARTING SHIPS",
+                        });
+
                         // Departing ships enter the travel pipeline (travel mode)
                         for (const ship of result.departing) {
                             travelingShips.push(ship);
