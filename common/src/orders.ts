@@ -1,14 +1,12 @@
 // ============================================================================
 // Pax Fluxia - Order Logic (Shared)
 // ============================================================================
+// 
+// Transfer rate is sourced from EngineConfig.TRANSFER_RATE (passed via config).
+// There is no separate ORDER_CONFIG — that was removed as dead code (2026-02-12).
+// ============================================================================
 
 import type { Star, Connection, PlayerId } from './types';
-
-// === Transfer Constants ===
-export const ORDER_CONFIG = {
-    TRANSFER_RATE: 0.25,
-    MIN_TRANSFER: 1,
-} as const;
 
 /**
  * Validate that an order can be issued.
@@ -44,22 +42,9 @@ export function validateOrder(
 }
 
 /**
- * Calculate how many ships would be transferred this tick.
- */
-export function calculateTransfer(source: Star): number {
-    const { TRANSFER_RATE, MIN_TRANSFER } = ORDER_CONFIG;
-    if (source.activeShips <= 0) {
-        return 0;
-    }
-    return Math.min(
-        source.activeShips,
-        Math.max(MIN_TRANSFER, Math.floor(source.activeShips * TRANSFER_RATE))
-    );
-}
-
-/**
  * Check if this order would be an attack (different owner).
  */
 export function isAttackOrder(source: Star, target: Star): boolean {
     return source.ownerId !== target.ownerId;
 }
+
