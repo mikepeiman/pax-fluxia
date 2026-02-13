@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // GameEngine - Authoritative game state and tick loop
 // ============================================================================
 
@@ -11,13 +11,10 @@ import type {
     PlayerState,
     EngineConfig,
     StarConnection,
-    CombatResult,
     StarType
 } from '$lib/types/game.types';
 
 import { Star, createStar } from './Star';
-import { FlowLink, createFlowLink } from './FlowLink';
-import { resolveCombat } from './Combat';
 import { AI, createAI } from './AI';
 import { log } from '$lib/utils/logger';
 import {
@@ -28,11 +25,7 @@ import {
 import { GAME_CONFIG, calculateCombatV4, buildEngineConfig } from '$lib/config/game.config';
 import { applyConquest, STAR_TYPE_STATS, createEmptyTickEvents, resolveMultiSourceCombat as sharedResolveCombat } from '@pax/common';
 import type { ConquestContext, ConquestResult, EngineConfig as SharedEngineConfig, TickEvents } from '@pax/common';
-import { createFleet, type Fleet } from './Fleet';
-import { logCombat } from '$lib/utils/CombatLogger';
 import { combatLog } from '$lib/stores/combatLogStore';
-// Animation driven by TickEvents, not state diffing (see POST_MORTEMS.md)
-// NOTE: CombatRules.ts import removed - was dead code, combat handled by calculateCombatV4
 import { HexGrid } from './HexGrid';
 import { Delaunay } from 'd3-delaunay';
 
@@ -82,8 +75,6 @@ export class GameEngine {
     // State
     private stars: Map<StarId, Star> = new Map();
     private connections: StarConnection[] = [];
-    private links: Map<string, FlowLink> = new Map();
-    private fleets: Map<string, Fleet> = new Map();
     private players: Map<PlayerId, Player> = new Map();
     private aiPlayers: Map<PlayerId, AI> = new Map();
     private transfers: any[] = []; // Tracking active transfers
@@ -177,7 +168,7 @@ export class GameEngine {
     }
 
     private initializeMap(): void {
-        // Apply user spacing multiplier FIRST — scales the entire map
+        // Apply user spacing multiplier FIRST â€” scales the entire map
         const spacingMultiplier = this.settings.starSpacing ?? 1.0;
         const scaleFactor = Math.max(1, spacingMultiplier);
         const width = Math.round(1600 * scaleFactor);
@@ -196,7 +187,7 @@ export class GameEngine {
         const paddingY = Math.round(basePaddingY * scaleFactor);
 
         // Adaptive hex radius: shrink grid cell size to ensure enough positions
-        // Each hex occupies ~(1.5r × sqrt(3)r) area; we need at least 3x positions for spacing freedom
+        // Each hex occupies ~(1.5r Ã— sqrt(3)r) area; we need at least 3x positions for spacing freedom
         const gridArea = (width - paddingX * 2) * (height - paddingY * 2);
         const neededPositions = totalStars * 3; // 3x for physics spacing margin
         const maxHexArea = gridArea / neededPositions;
@@ -235,7 +226,7 @@ export class GameEngine {
 
         log.sys('GameEngine', `Star spacing: ${minSpacing.toFixed(0)}px (physics min: ${physicsMinSpacing.toFixed(0)}, multiplier: ${spacingMultiplier})`);
 
-        // Pass physicsMinSpacing as absolute floor — spacing should never go below what physics requires
+        // Pass physicsMinSpacing as absolute floor â€” spacing should never go below what physics requires
         const starPositions = selectRandomHexPositions(hexes, totalStars, minSpacing, physicsMinSpacing);
 
         log.sys('GameEngine', `Selected ${starPositions.length} positions for stars`);
@@ -292,7 +283,7 @@ export class GameEngine {
 
     /**
      * Initialize DEBUG MAP - 4 stars in a fixed configuration for testing combat
-     * Layout: Triangle (A↔B↔C↔A) + dead-end (D→A only)
+     * Layout: Triangle (Aâ†”Bâ†”Câ†”A) + dead-end (Dâ†’A only)
      * All stars start with 100 ships, owned by neutral except A (human) and B (AI)
      */
     private initDebugMap(): void {
@@ -351,7 +342,7 @@ export class GameEngine {
         starD.addActiveShips(GAME_CONFIG.STARTING_SHIPS);
         this.stars.set(starD.id, starD);
 
-        // Define connections: Triangle A↔B↔C↔A + dead-end D↔A
+        // Define connections: Triangle Aâ†”Bâ†”Câ†”A + dead-end Dâ†”A
         // Calculate distances for each connection
         const dist = (id1: string, id2: string) => {
             const s1 = this.stars.get(id1 as StarId)!;
@@ -449,7 +440,7 @@ export class GameEngine {
     private scheduleTick(): void {
         if (this.speed === 0) return;
         const interval = Math.max(GAME_CONFIG.BASE_TICK_MS / this.speed, GAME_CONFIG.MIN_TICK_MS);
-        // Don't reset tickStartTime here — it's managed by resume() and executeTick()
+        // Don't reset tickStartTime here â€” it's managed by resume() and executeTick()
         if (this.tickStartTime === 0) this.tickStartTime = performance.now();
         this.tickIntervalId = setInterval(() => {
             this.executeTick();
@@ -491,7 +482,7 @@ export class GameEngine {
         // 1. PRODUCTION
         this.stars.forEach(star => star.produce());
 
-        // 2. ORDERS — transfers + combat (collects events)
+        // 2. ORDERS â€” transfers + combat (collects events)
         this.executeTransferOrders(events);
 
         // 3. REPAIR
@@ -544,8 +535,8 @@ export class GameEngine {
                 attackOrders.push({ source, target });
             } else {
                 // REINFORCEMENT: Ships physically transfer to friendly star
-                // Transfer rate: global base rate × star-type speed multiplier
-                // (Blue stars have speed=2, so they transfer at 2× the global rate)
+                // Transfer rate: global base rate Ã— star-type speed multiplier
+                // (Blue stars have speed=2, so they transfer at 2Ã— the global rate)
                 const speedMultiplier = STAR_TYPE_STATS[source.starType as StarType]?.speed ?? 1;
                 const effectiveRate = (GAME_CONFIG.TRANSFER_RATE || 0.1) * speedMultiplier;
                 const transferAmount = Math.max(
@@ -553,7 +544,7 @@ export class GameEngine {
                     Math.ceil(source.activeShips * effectiveRate)
                 );
 
-                // Orders persist until explicitly cancelled — zero ships does NOT auto-cancel.
+                // Orders persist until explicitly cancelled â€” zero ships does NOT auto-cancel.
                 // Ships will flow again when reinforcements arrive.
                 const shipped = source.removeActiveShips(transferAmount);
                 if (shipped > 0) {
@@ -599,7 +590,7 @@ export class GameEngine {
     }
 
     /**
-     * Multi-Source Combat Resolution — delegates to shared function from @pax/common
+     * Multi-Source Combat Resolution â€” delegates to shared function from @pax/common
      * Client adds logging, combat log entries, and TickEvents emission.
      */
     private resolveMultiSourceCombat(attackers: Star[], defender: Star, events: TickEvents): void {
@@ -633,9 +624,9 @@ export class GameEngine {
         // Increment combat event counter for stats
         this.tickCombatEvents++;
 
-        // ════════════════════════════════════════════════════════════════════
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         // CLIENT-ONLY: Combat telemetry logging
-        // ════════════════════════════════════════════════════════════════════
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         if (result.defenderForce > 0) {
             const primaryAttacker = attackers.find(a => a.activeShips > 0) ?? attackers[0];
             const totalKillsOnAttacker = result.attackerDamage.reduce((s: number, a: { kills: number }) => s + a.kills, 0);
@@ -741,9 +732,9 @@ export class GameEngine {
             });
         }
 
-        // ════════════════════════════════════════════════════════════════════
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         // CONQUEST: handled by shared function, client adds logging/events
-        // ════════════════════════════════════════════════════════════════════
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         if (result.conquest && result.victorStarId) {
             const victor = this.stars.get(result.victorStarId);
             if (victor) {
@@ -752,348 +743,10 @@ export class GameEngine {
         }
     }
 
-    /**
-     * Single-Source Combat Resolution
-     * Ships stay at their stars during combat - damage is dealt each tick until conquest
-     * Both sides take damage simultaneously
-     */
-    private resolveCombat(attacker: Star, defender: Star, events: TickEvents): void {
-        if (attacker.activeShips <= 0) {
-            attacker.clearTarget();
-            return;
-        }
+    // NOTE: resolveCombat() and executeConquest() removed - dead code.
+    // All combat goes through resolveMultiSourceCombat() (single attackers are arrays of one).
+    // Conquest is handled by the shared function + handleConquestClientEffects().
 
-        // Combat uses CURRENT ship counts - ships don't leave
-        const attackerBaseForce = attacker.activeShips;
-        // Damaged ships count at 1/7th effectiveness for defense
-        const defenderBaseForce = defender.activeShips + Math.floor(defender.damagedShips * GAME_CONFIG.DAMAGED_SHIP_EFFECTIVENESS);
-
-        // Apply star type multipliers
-        const attackMult = STAR_TYPE_STATS[attacker.starType as StarType]?.attack ?? 1;
-        const defenseMult = STAR_TYPE_STATS[defender.starType as StarType]?.defense ?? 1;
-        const attackerForce = Math.floor(attackerBaseForce * attackMult);
-        const defenderForce = Math.floor(defenderBaseForce * defenseMult);
-
-        if (defenderForce <= 0) {
-            // Instant conquest - no defenders
-            this.executeConquest(attacker, defender, events);
-            return;
-        }
-
-        // Calculate symmetric damage
-        const attackerIsAttacking = true;
-        const defenderIsAttacking = defender.targetId !== null;
-
-        const {
-            killsOnA: killsOnDefender,
-            disabledOnA: disabledOnDefender,
-            killsOnB: killsOnAttacker,
-            disabledOnB: disabledOnAttacker
-        } = calculateCombatV4(
-            defenderForce,
-            attackerForce,
-            defenderIsAttacking,
-            attackerIsAttacking
-        );
-
-        // Apply damage to DEFENDER
-        defender.removeActiveShips(killsOnDefender);
-        defender.takeDamage(disabledOnDefender);
-        defender.markCombat(this.tick);
-
-        // Apply damage to ATTACKER (return fire)
-        attacker.removeActiveShips(killsOnAttacker);
-        attacker.takeDamage(disabledOnAttacker);
-        attacker.markCombat(this.tick);
-
-        // Combat telemetry with OWNER info + full formula breakdown
-        const _dmgPerShip = GAME_CONFIG.DAMAGE_PER_SHIP;
-        const _aggAdv = GAME_CONFIG.AGGRESSOR_ADVANTAGE;
-        const _forceEffect = GAME_CONFIG.FORCE_RATIO_EFFECT;
-        const _lethality = GAME_CONFIG.LETHALITY;
-        const _baseOutputAtk = attackerForce * _dmgPerShip;
-        const _baseOutputDef = defenderForce * _dmgPerShip;
-        const _aggressorMultAtk = attackerIsAttacking ? _aggAdv : 1.0;
-        const _aggressorMultDef = defenderIsAttacking ? _aggAdv : 1.0;
-        const _outputAtk = _baseOutputAtk * _aggressorMultAtk;
-        const _outputDef = _baseOutputDef * _aggressorMultDef;
-        const _ratio = Math.max(attackerForce, defenderForce) / Math.min(attackerForce, defenderForce);
-        const _forceBonus = 1 + (Math.log2(_ratio) * _forceEffect);
-        const _atkIsLarger = attackerForce > defenderForce;
-        const _forceMod_dmgToDef = _atkIsLarger ? _forceBonus : (1 / _forceBonus);
-        const _forceMod_dmgToAtk = _atkIsLarger ? (1 / _forceBonus) : _forceBonus;
-        const _rawDmgToDef = _outputAtk * _forceMod_dmgToDef;
-        const _rawDmgToAtk = _outputDef * _forceMod_dmgToAtk;
-        const _minDmg = 1;
-        const _finalDmgToDef = Math.max(_minDmg, _rawDmgToDef);
-        const _finalDmgToAtk = Math.max(_minDmg, _rawDmgToAtk);
-
-        log.combatBattle(
-            this.tick,
-            { id: attacker.id, ships: attackerForce, starType: attacker.starType, ownerId: attacker.ownerId, isAttacking: attackerIsAttacking },
-            { id: defender.id, ships: defenderForce, starType: defender.starType, ownerId: defender.ownerId, isAttacking: defenderIsAttacking },
-            { kills: killsOnDefender, disabled: disabledOnDefender },
-            { kills: killsOnAttacker, disabled: disabledOnAttacker },
-            {
-                aggressor: _aggAdv,
-                damage: _dmgPerShip,
-                lethality: _lethality,
-                forceRatio: _forceEffect,
-                repairRate: GAME_CONFIG.REPAIR_RATE
-            },
-            {
-                baseOutputAtk: _baseOutputAtk,
-                baseOutputDef: _baseOutputDef,
-                aggressorMultAtk: _aggressorMultAtk,
-                aggressorMultDef: _aggressorMultDef,
-                outputAtk: _outputAtk,
-                outputDef: _outputDef,
-                forceRatio: _ratio,
-                forceBonus: _forceBonus,
-                forceMod_dmgToDefender: _forceMod_dmgToDef,
-                forceMod_dmgToAttacker: _forceMod_dmgToAtk,
-                rawDmgToDefender: _rawDmgToDef,
-                rawDmgToAttacker: _rawDmgToAtk,
-                minDamage: _minDmg,
-                finalDmgToDefender: _finalDmgToDef,
-                finalDmgToAttacker: _finalDmgToAtk
-            }
-        );
-
-        // Push to UI Combat Log
-        combatLog.add({
-            tick: this.tick,
-            attacker: {
-                id: attacker.id,
-                ships: Math.floor(attackerForce),
-                starType: attacker.starType,
-                ownerId: attacker.ownerId,
-                kills: Math.floor(killsOnAttacker),
-                disabled: Math.floor(disabledOnAttacker)
-            },
-            defender: {
-                id: defender.id,
-                ships: Math.floor(defenderForce),
-                starType: defender.starType,
-                ownerId: defender.ownerId,
-                kills: Math.floor(killsOnDefender),
-                disabled: Math.floor(disabledOnDefender)
-            },
-            settings: {
-                aggressor: GAME_CONFIG.AGGRESSOR_ADVANTAGE,
-                damage: GAME_CONFIG.DAMAGE_PER_SHIP,
-                lethality: GAME_CONFIG.LETHALITY,
-                forceRatio: GAME_CONFIG.FORCE_RATIO_EFFECT,
-                repairRate: GAME_CONFIG.REPAIR_RATE
-            },
-            result: defender.activeShips > 0 ? 'DEFENSE' : 'FALLING'
-        });
-
-        // Check CONQUEST condition: defender ships <= 1/7th of attacker
-        const conquestThreshold = attackerForce / GAME_CONFIG.CONQUEST_THRESHOLD;
-        if (defender.activeShips <= conquestThreshold) {
-            this.executeConquest(attacker, defender, events);
-        }
-    }
-
-    /**
-     * Execute star conquest - delegates to shared applyConquest() for mechanics,
-     * then handles client-only animation/logging from the result.
-     */
-    private executeConquest(attacker: Star, defender: Star, events: TickEvents): void {
-        const previousOwner = defender.ownerId;
-
-        // Build conquest context for neighbor lookups
-        const ctx: ConquestContext = {
-            getNeighborIds: (starId: string) => {
-                const neighbors: string[] = [];
-                this.connections.forEach(conn => {
-                    if (conn.sourceId === starId) neighbors.push(conn.targetId);
-                    else if (conn.targetId === starId) neighbors.push(conn.sourceId);
-                });
-                return neighbors;
-            },
-            getStar: (id: string) => this.stars.get(id) as any,
-        };
-
-        // Build config from GAME_CONFIG
-        const cfg: SharedEngineConfig = {
-            BASE_PRODUCTION: GAME_CONFIG.BASE_PRODUCTION ?? 0.5,
-            REPAIR_RATE: GAME_CONFIG.REPAIR_RATE,
-            MIN_REPAIR: GAME_CONFIG.MIN_REPAIR ?? 1,
-            REPAIR_COMBAT_PENALTY: GAME_CONFIG.REPAIR_COMBAT_PENALTY ?? 0.1,
-            MIN_SHIPS_PER_TRANSFER: GAME_CONFIG.MIN_SHIPS_PER_TRANSFER ?? 1,
-            CONQUEST_TRANSFER_PERCENTAGE: GAME_CONFIG.CONQUEST_TRANSFER_PERCENTAGE,
-            RETAIN_ORDER_ON_CONQUEST: GAME_CONFIG.RETAIN_ORDER_ON_CONQUEST,
-            RETREAT_CAPTURE_RATE: GAME_CONFIG.RETREAT_CAPTURE_RATE,
-            SCATTER_CAPTURE_RATE: GAME_CONFIG.SCATTER_CAPTURE_RATE,
-            SCATTER_DESTROY_RATE: GAME_CONFIG.SCATTER_DESTROY_RATE,
-            RETREAT_DAMAGED_ACTIVATION_RATE: GAME_CONFIG.RETREAT_DAMAGED_ACTIVATION_RATE ?? 0,
-            DAMAGED_SHIP_EFFECTIVENESS: GAME_CONFIG.DAMAGED_SHIP_EFFECTIVENESS,
-            CONQUEST_DAMAGED_CAPTURE_RATE: GAME_CONFIG.CONQUEST_DAMAGED_CAPTURE_RATE,
-            CONQUEST_DAMAGED_DESTROY_RATE: GAME_CONFIG.CONQUEST_DAMAGED_DESTROY_RATE,
-            TRANSFER_RATE: GAME_CONFIG.TRANSFER_RATE ?? 0.1,
-            DAMAGE_PER_SHIP: GAME_CONFIG.DAMAGE_PER_SHIP ?? 0.1,
-            LETHALITY: GAME_CONFIG.LETHALITY ?? 0.25,
-            AGGRESSOR_ADVANTAGE: GAME_CONFIG.AGGRESSOR_ADVANTAGE ?? 0.7,
-            FORCE_RATIO_EFFECT: GAME_CONFIG.FORCE_RATIO_EFFECT ?? 0,
-            CONQUEST_THRESHOLD: GAME_CONFIG.CONQUEST_THRESHOLD ?? 8,
-            MINIMUM_DAMAGE: 1,
-        };
-
-        // ================================================================
-        // CONQUEST DEBUG: Read per-player totals PRE and POST
-        // ================================================================
-        const readPlayerTotals = () => {
-            const totals: Array<{ id: string; name: string; active: number; damaged: number; total: number; stars: number }> = [];
-            this.players.forEach(p => {
-                const active = this.getPlayerActiveShips(p.id);
-                const damaged = this.getPlayerDamagedShips(p.id);
-                totals.push({ id: p.id, name: p.name, active, damaged, total: active + damaged, stars: this.getPlayerStarCount(p.id) });
-            });
-            return totals;
-        };
-
-        const prePlayerTotals = readPlayerTotals();
-
-        // Delegate to shared conquest logic
-        const result = applyConquest(attacker as any, defender as any, ctx, cfg);
-
-        // Read per-player totals from state AFTER conquest
-        const postPlayerTotals = readPlayerTotals();
-
-        // Flat, readable conquest log via log.conquest()
-        log.conquest(this.tick, {
-            starId: defender.id,
-            previousOwner,
-            newOwner: attacker.ownerId,
-            shipsCaptured: result.shipsCaptured,
-            shipsEscaped: result.shipsEscaped,
-            shipsDestroyed: result.shipsDestroyed,
-            defenderTotal: result.defenderTotalAtConquest,
-            attackerShips: Math.floor(attacker.activeShips + (result.shipsCaptured ?? 0)),
-            attackerPostShips: Math.floor(attacker.activeShips),
-            defenderPostShips: Math.floor(defender.activeShips),
-            retreatTargetId: result.retreatTargetId,
-            scatterTargetIds: result.scatterTargetIds,
-            scatterShipCounts: result.scatterShipCounts,
-            prePlayerTotals,
-            postPlayerTotals,
-        });
-
-        // ================================================================
-        // CLIENT-ONLY: Logging
-        // ================================================================
-
-        if (result.retreatTargetId) {
-            const retreatTarget = this.stars.get(result.retreatTargetId);
-            if (retreatTarget) {
-                log.success('Retreat', `${result.shipsEscaped} ships retreat from ${defender.id} to ${retreatTarget.id}`);
-            }
-        } else if (result.scatterTargetIds && result.scatterTargetIds.length > 0) {
-            log.success('Scatter', `${result.shipsEscaped} ships scatter from ${defender.id} to ${result.scatterTargetIds.length} neighbors`);
-
-            if (result.shipsDestroyed > 0) {
-                log.data('Scatter', `${result.shipsDestroyed} ships destroyed during scatter`);
-            }
-        }
-
-        // ================================================================
-        // CLIENT-ONLY: Logging
-        // ================================================================
-
-        const captureInfo = result.retreatTargetId ? `(retreat: ${result.shipsEscaped} escaped)` :
-            (result.scatterTargetIds?.length ?? 0) > 0 ? `(scatter: ${result.shipsEscaped} escaped, ${result.shipsDestroyed} destroyed)` :
-                '(no escape)';
-        log.success('Conquest', `${attacker.id} conquered ${defender.id} - captured ${result.shipsCaptured}/${result.defenderTotalAtConquest} ${captureInfo}`);
-
-        // Increment conquest counter for stats
-        this.tickConquests++;
-        this.starsCaptured++;
-
-        // Combat log entry
-        combatLog.add({
-            tick: this.tick,
-            attacker: {
-                id: attacker.id,
-                ships: Math.floor(attacker.activeShips),
-                starType: attacker.starType,
-                ownerId: attacker.ownerId,
-                kills: Math.floor(result.shipsDestroyed),
-                disabled: 0
-            },
-            defender: {
-                id: defender.id,
-                ships: Math.floor(result.shipsCaptured),
-                starType: defender.starType,
-                ownerId: previousOwner,
-                kills: 0,
-                disabled: Math.floor(result.shipsEscaped)
-            },
-            settings: {
-                aggressor: GAME_CONFIG.AGGRESSOR_ADVANTAGE,
-                damage: GAME_CONFIG.DAMAGE_PER_SHIP,
-                lethality: GAME_CONFIG.LETHALITY,
-                forceRatio: GAME_CONFIG.FORCE_RATIO_EFFECT,
-                repairRate: GAME_CONFIG.REPAIR_RATE
-            },
-            result: 'CONQUERED',
-            captured: Math.floor(result.shipsCaptured),
-            escaped: Math.floor(result.shipsEscaped),
-            destroyed: Math.floor(result.shipsDestroyed),
-            defenderTotalAtConquest: result.defenderTotalAtConquest
-        });
-
-        // Emit ConquestEvent for unified event pipeline
-        events.conquests.push({
-            tick: this.tick,
-            starId: defender.id,
-            attackerStarId: attacker.id,
-            previousOwner,
-            newOwner: attacker.ownerId,
-            shipsCaptured: result.shipsCaptured,
-            shipsEscaped: result.shipsEscaped,
-            shipsDestroyed: result.shipsDestroyed,
-            shipsTransferred: result.shipsTransferred,
-            retreatTargetId: result.retreatTargetId,
-            scatterTargetIds: result.scatterTargetIds,
-            scatterShipCounts: result.scatterShipCounts,
-        });
-
-        // Mark the last combat event as conquered (if combat preceded this)
-        if (events.combats.length > 0) {
-            const lastCombat = events.combats[events.combats.length - 1];
-            if (lastCombat.defenderId === defender.id) {
-                lastCombat.conquered = true;
-            }
-        }
-
-        // ================================================================
-        // Cancel orders targeting this conquered star from all other players
-        // Also cancel winning player's attack order (star is now friendly)
-        // ================================================================
-        const conqueredId = defender.id;
-        const newOwner = defender.ownerId; // Now owned by attacker
-        this.stars.forEach(star => {
-            // Cancel targetId pointing at conquered star
-            if (star.targetId === conqueredId && star.ownerId !== newOwner) {
-                log.state('OrderCancel', `Cancelling ${star.id}'s order to ${conqueredId} (conquered by another player)`);
-                star.setTarget(null);
-            }
-            // Cancel queued/chained orders pointing at conquered star from non-owners
-            if (star.queuedOrderTargetId === conqueredId && star.ownerId !== newOwner) {
-                log.state('OrderCancel', `Cancelling ${star.id}'s queued order to ${conqueredId}`);
-                star.queuedOrderTargetId = null;
-            }
-        });
-    }
-
-    /**
-     * Handle client-side conquest effects when conquest was already applied by
-     * the shared resolveMultiSourceCombat() function.
-     * Does NOT call applyConquest() — that was already done by the shared function.
-     * Only handles logging, combat log, TickEvents, and order cancellation.
-     */
     private handleConquestClientEffects(attacker: Star, defender: Star, conquestResult: ConquestResult, events: TickEvents): void {
         const previousOwner = conquestResult.previousOwner;
 
@@ -1198,9 +851,6 @@ export class GameEngine {
         });
     }
 
-    // NOTE: handleFleetArrivals and resolveMultiwayCombat were removed as dead code
-    // Combat is now handled by resolveMultiSourceCombatWithOwnership via processFlowLinks
-
     private executeAI(): void {
         this.aiPlayers.forEach((ai, playerId) => {
             // Get all stars
@@ -1262,12 +912,12 @@ export class GameEngine {
             log.sys('GameEngine', `Cancelled opposite link from ${targetId} to ${sourceId}`);
         }
 
-        // FIX: Also cancel any queued deferred order from target→source
-        // This prevents loops when: A→B deferred, then B→A active order created
+        // FIX: Also cancel any queued deferred order from targetâ†’source
+        // This prevents loops when: Aâ†’B deferred, then Bâ†’A active order created
         const targetQueuedOrder = target.queuedOrderTargetId;
         if (targetQueuedOrder === sourceId) {
             target.clearQueuedOrder();
-            log.sys('GameEngine', `Cancelled queued order ${targetId} → ${sourceId} (would create loop with new order)`);
+            log.sys('GameEngine', `Cancelled queued order ${targetId} â†’ ${sourceId} (would create loop with new order)`);
         }
 
         // New order replaces old order (source can only target one star)
@@ -1305,17 +955,17 @@ export class GameEngine {
         );
         if (!isConnected) return false;
 
-        // FIX: Prevent bidirectional loops - cancel any active order from nextTarget→enemyStar
+        // FIX: Prevent bidirectional loops - cancel any active order from nextTargetâ†’enemyStar
         // This happens when player owns nextTarget and has active order pointing to enemyStar
         if (nextTarget.ownerId === this.humanPlayerId && nextTarget.targetId === enemyStarId) {
             nextTarget.setTarget(null);
-            log.sys('GameEngine', `Cancelled active order ${nextTargetId} → ${enemyStarId} (would create loop with deferred order)`);
+            log.sys('GameEngine', `Cancelled active order ${nextTargetId} â†’ ${enemyStarId} (would create loop with deferred order)`);
         }
 
-        // FIX: Also check and cancel any queued order from nextTarget→enemyStar
+        // FIX: Also check and cancel any queued order from nextTargetâ†’enemyStar
         if (nextTarget.queuedOrderTargetId === enemyStarId) {
             nextTarget.clearQueuedOrder();
-            log.sys('GameEngine', `Cancelled queued order ${nextTargetId} → ${enemyStarId} (would create loop with deferred order)`);
+            log.sys('GameEngine', `Cancelled queued order ${nextTargetId} â†’ ${enemyStarId} (would create loop with deferred order)`);
         }
 
         // Set queued order (will execute when human captures this star)
@@ -1360,7 +1010,7 @@ export class GameEngine {
             if (totalShips > 0) {
                 for (const [pid, count] of shipCounts) {
                     if (count / totalShips >= 0.99) {
-                        // This player dominates — eliminate everyone else
+                        // This player dominates â€” eliminate everyone else
                         this.players.forEach(p => {
                             if (p.id !== pid && !p.isEliminated) {
                                 p.isEliminated = true;
@@ -1419,7 +1069,7 @@ export class GameEngine {
         });
 
         this.statsHistory.push(entry);
-        // Cap history to prevent memory leak (500 entries ≈ 10 min at 1x speed)
+        // Cap history to prevent memory leak (500 entries â‰ˆ 10 min at 1x speed)
         if (this.statsHistory.length > 500) {
             this.statsHistory.splice(0, this.statsHistory.length - 500);
         }
@@ -1602,8 +1252,6 @@ export class GameEngine {
         this.onTickProgress = null;
         this.onTickEvents = null;
         this.stars.clear();
-        this.links.clear();
-        this.fleets.clear();
         this.players.clear();
 
         log.sys('GameEngine', 'Engine destroyed, resources cleaned up');

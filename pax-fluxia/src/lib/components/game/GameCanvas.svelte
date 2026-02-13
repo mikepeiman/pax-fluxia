@@ -654,9 +654,9 @@
         }
 
         // Render flow links
-        renderFlowLinks(stars, starsById);
+        renderOrderArrows(stars, starsById);
 
-        // NOTE: Pending orders cleanup is now handled in renderFlowLinks()
+        // NOTE: Pending orders cleanup is now handled in renderOrderArrows()
 
         // Reset particle pool index for this frame
         shipParticleIndex = 0;
@@ -1002,7 +1002,7 @@
         });
     }
 
-    function renderFlowLinks(
+    function renderOrderArrows(
         stars: StarState[],
         starsById: Map<string, StarState>,
     ) {
