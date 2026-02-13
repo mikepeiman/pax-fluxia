@@ -26,7 +26,7 @@ export const COMBAT_CONFIG = {
     // BASE DAMAGE
     // Each ship deals this much damage per tick to the enemy
     // ────────────────────────────────────────────────────────────────────────
-    DAMAGE_PER_SHIP: 0.1,           // Base damage per ship per tick
+    DAMAGE_PER_SHIP: 0.075,          // Base damage per ship per tick
 
     // ────────────────────────────────────────────────────────────────────────
     // LETHALITY
@@ -42,7 +42,7 @@ export const COMBAT_CONFIG = {
     // < 1.0 = attackers deal LESS damage (defenders advantage)
     // = 1.0 = symmetric (no advantage)
     // ────────────────────────────────────────────────────────────────────────
-    AGGRESSOR_ADVANTAGE: 0.7,       // Slight defender advantage (was 1.5/0.8, user set to 0.7)
+    AGGRESSOR_ADVANTAGE: 0.8333333333333334,  // Slight defender advantage
 
     // ────────────────────────────────────────────────────────────────────────
     // FORCE RATIO EFFECT
@@ -57,7 +57,7 @@ export const COMBAT_CONFIG = {
     // How much damaged ships contribute to defense.
     // 1.0 = full strength, 0.0 = useless, 0.14 (1/7) = original value
     // ────────────────────────────────────────────────────────────────────────
-    DAMAGED_SHIP_EFFECTIVENESS: 0.14,  // ~1/7 effectiveness
+    DAMAGED_SHIP_EFFECTIVENESS: 0.5,   // 50% effectiveness
 
     // ────────────────────────────────────────────────────────────────────────
     // CONQUEST THRESHOLD
@@ -65,7 +65,7 @@ export const COMBAT_CONFIG = {
     // Conquest occurs when defender.activeShips <= totalAttackers / threshold
     // Higher = harder to conquer, lower = easier
     // ────────────────────────────────────────────────────────────────────────
-    CONQUEST_THRESHOLD: 8,          // Need 8× ships to instantly conquer
+    CONQUEST_THRESHOLD: 20,          // Need 20× ships to instantly conquer
 
     // ────────────────────────────────────────────────────────────────────────
     // MINIMUM DAMAGE
