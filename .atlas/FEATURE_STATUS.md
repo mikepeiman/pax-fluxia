@@ -110,7 +110,7 @@
 | B-25 | Lag when selecting enemy stars to issue deferred orders. User-reported, needs investigation. |
 | B-26 | Game engine continues running after client dev server reloads (HMR). Console logs keep generating. `GameEngine.destroy()` may not be called on unmount. |
 | B-27 | ~~Travel animation converge/flatten~~ **FIXED**: single-pass bezier arc from orbit to destination, no lane-start convergence. |
-| B-28 | Active ships sometimes drop to zero immediately on attack. User reports intermittent — percentage-based calculations should never zero out in one tick. Suspect `renderShips` sync double-subtraction or engine combat over-damage. |
+| B-28 | Active ships drop to zero on attack — disproportionate to weaker attacker. **Confirmed repeated**: AI with 70 ships attacks stronger player → instantly zeroed. Math shows ~14 damage/tick max — shouldn't happen. Suspect star-type defense multiplier, simultaneous transfer drain, or visual sync bug. Needs combat tick logging to isolate. |
 | B-29 | ~~Pause/play freezes attack surge~~ **FIXED**: tickProgress now uses `BASE_TICK_MS` instead of `ANIMATION_SPEED_MS` — eliminates dead zone where `sin(π)=0`. |
 | B-30 | Cancelling attack order snaps ships back to orbit instantly instead of easing back smoothly. |
 
