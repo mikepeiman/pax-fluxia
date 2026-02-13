@@ -530,6 +530,8 @@
         attackSurgeShape: GAME_CONFIG.ATTACK_SURGE_SHAPE,
         conquestTravelSpeed: GAME_CONFIG.CONQUEST_TRAVEL_SPEED,
         conquestLerpDelayMs: GAME_CONFIG.CONQUEST_LERP_DELAY_MS,
+        conquestColorDelayMs: GAME_CONFIG.CONQUEST_COLOR_DELAY_MS,
+        conquestFlashDurationMs: GAME_CONFIG.CONQUEST_FLASH_DURATION_MS,
         conquestAnimMode: GAME_CONFIG.CONQUEST_ANIMATION_MODE,
         conquestSettleMs: GAME_CONFIG.CONQUEST_SETTLE_MS,
         conquestSurgeRadius: GAME_CONFIG.CONQUEST_SURGE_RADIUS,
@@ -628,6 +630,10 @@
         GAME_CONFIG.CONQUEST_TRAVEL_SPEED = panel.conquestTravelSpeed as number;
         GAME_CONFIG.CONQUEST_LERP_DELAY_MS =
             panel.conquestLerpDelayMs as number;
+        GAME_CONFIG.CONQUEST_COLOR_DELAY_MS =
+            panel.conquestColorDelayMs as number;
+        GAME_CONFIG.CONQUEST_FLASH_DURATION_MS =
+            panel.conquestFlashDurationMs as number;
         GAME_CONFIG.CONQUEST_ANIMATION_MODE = panel.conquestAnimMode as
             | "immediate"
             | "surge"
@@ -883,6 +889,45 @@
                                 const v = +(e.target as HTMLInputElement).value;
                                 GAME_CONFIG.CONQUEST_LERP_DELAY_MS = v;
                                 updatePanel("conquestLerpDelayMs", v);
+                            }}
+                        />
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Color Delay</span><span
+                                class="val">{panel.conquestColorDelayMs}ms</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="2000"
+                            step="50"
+                            value={panel.conquestColorDelayMs}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.CONQUEST_COLOR_DELAY_MS = v;
+                                updatePanel("conquestColorDelayMs", v);
+                            }}
+                        />
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Flash Duration</span><span
+                                class="val"
+                                >{panel.conquestFlashDurationMs}ms</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="1500"
+                            step="50"
+                            value={panel.conquestFlashDurationMs}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.CONQUEST_FLASH_DURATION_MS = v;
+                                updatePanel("conquestFlashDurationMs", v);
                             }}
                         />
                     </div>

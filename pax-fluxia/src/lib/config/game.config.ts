@@ -131,6 +131,8 @@ interface GameConfigType {
     CONQUEST_SURGE_STAGGER_MS: number;   // Per-ship stagger delay for organic arrival spread (ms, default 30)
     CONQUEST_TRAVEL_SPEED: number;       // Duration multiplier vs normal transfer (lower = faster, default 0.7)
     CONQUEST_LERP_DELAY_MS: number;      // Delay before conquest ships start moving (ms, default 200)
+    CONQUEST_COLOR_DELAY_MS: number;     // Delay before conquered star changes to new owner color (ms, default 400)
+    CONQUEST_FLASH_DURATION_MS: number;  // Duration of bright conquest flash on star (ms, 0=disabled, default 600)
     // Conquest slowmo
     CONQUEST_SLOWMO_ENABLED: boolean;    // Auto-slow game when conquest fires (default true)
     CONQUEST_SLOWMO_FACTOR: number;      // How much to slow (multiplier on ANIMATION_SPEED_MS, default 5)
@@ -410,6 +412,8 @@ export const GAME_CONFIG: GameConfigType = {
     CONQUEST_TRAVEL_SPEED: 1.3,
     /** Delay before conquest ships start moving (ms) — ships hold surged position */
     CONQUEST_LERP_DELAY_MS: 200,
+    CONQUEST_COLOR_DELAY_MS: 400,
+    CONQUEST_FLASH_DURATION_MS: 600,
     /** Auto-slow game when conquest fires (for tuning/debugging) */
     CONQUEST_SLOWMO_ENABLED: false,
     /** How much to slow animation on conquest (multiplier on tick duration) */

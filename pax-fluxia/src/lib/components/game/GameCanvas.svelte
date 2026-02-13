@@ -98,6 +98,10 @@
         { previousOwner: string; transitionTime: number }
     > = new Map();
 
+    // Conquest flash: bright white pulse when a star is conquered
+    let conquestFlashes: Map<string, { startTime: number; duration: number }> =
+        new Map();
+
     // Animation state
     let animationTime = 0;
     let animationFrameId: number | null = null;
@@ -970,6 +974,24 @@
             graphics.fill({ color: typeColor, alpha: 0.3 }); // Inner type color
             graphics.stroke({ color, width: isActive ? 4 : 2, alpha: 1 }); // Owner border
 
+            // Conquest flash: bright white pulse overlay
+            const flash = conquestFlashes.get(star.id);
+            if (flash) {
+                const flashElapsed = performance.now() - flash.startTime;
+                if (flashElapsed >= flash.duration) {
+                    conquestFlashes.delete(star.id);
+                } else {
+                    // sin curve: 0 → 1 → 0 over the duration
+                    const flashProgress = flashElapsed / flash.duration;
+                    const flashAlpha = Math.sin(flashProgress * Math.PI);
+                    graphics.circle(star.x, star.y, radius * 1.3);
+                    graphics.fill({
+                        color: 0xffffff,
+                        alpha: flashAlpha * 0.85,
+                    });
+                }
+            }
+
             // Inner type icon (geometric shape based on star type)
             const iconAlpha = 0.5 + Math.sin(animationTime * 3) * 0.1;
             const iconSize = radius * 0.35;
@@ -1609,27 +1631,22 @@
 
             // ── DELAYED STAR COLOR: Don't change ownership color until ships arrive ──
             {
-                let arrivalDelay = 0;
-                if (conquest.attackerStarId && conquest.shipsTransferred > 0) {
-                    // Estimate arrival time based on animation mode
-                    const mode = GAME_CONFIG.CONQUEST_ANIMATION_MODE;
-                    if (mode === "travel") {
-                        // Ships travel — use their actual travel duration
-                        const sampleDuration =
-                            activeGameStore.effectiveTickMs * 0.8;
-                        arrivalDelay = sampleDuration;
-                    } else {
-                        // Immediate/surge — short visual delay for the transition
-                        arrivalDelay = GAME_CONFIG.CONQUEST_SETTLE_MS ?? 300;
-                    }
-                } else {
-                    // No transfer (e.g., neutral conquest with no attackerStarId) — minimal delay
-                    arrivalDelay = 200;
-                }
+                const colorDelay = GAME_CONFIG.CONQUEST_COLOR_DELAY_MS ?? 400;
                 pendingConquests.set(conquest.starId, {
                     previousOwner: conquest.previousOwner,
-                    transitionTime: now + arrivalDelay,
+                    transitionTime: now + colorDelay,
                 });
+            }
+
+            // ── CONQUEST FLASH: bright white pulse on the star ──
+            {
+                const flashDur = GAME_CONFIG.CONQUEST_FLASH_DURATION_MS ?? 600;
+                if (flashDur > 0) {
+                    conquestFlashes.set(conquest.starId, {
+                        startTime: now,
+                        duration: flashDur,
+                    });
+                }
             }
 
             // ── AUTO-SLOWMO: Temporarily slow animations for conquest tuning ──
