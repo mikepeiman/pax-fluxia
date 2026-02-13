@@ -119,7 +119,6 @@ interface GameConfigType {
     ATTACK_SURGE_SHAPE: number;          // Surge pulse shape power (1=sine, 2=sharper peak, 0.5=flatter, default 1)
     // Conquest ship travel animation
     CONQUEST_TRAVEL_SPEED: number;       // Duration multiplier vs normal transfer (lower = faster, default 0.7)
-    CONQUEST_TRAVEL_MODE: 'straight' | 'arc' | 'magnetic'; // Path shape for conquest travel (default 'magnetic')
     CONQUEST_LERP_DELAY_MS: number;      // Delay before conquest ships start moving (ms, default 200)
     // Orbit bias oscillation
     ORBIT_BIAS_OSCILLATE: boolean; // Enable oscillation between min/max bias (default false)
@@ -378,8 +377,6 @@ export const GAME_CONFIG: GameConfigType = {
     ATTACK_SURGE_SHAPE: 1,
     /** Conquest travel speed multiplier (>1 = faster, <1 = slower, 1 = normal) */
     CONQUEST_TRAVEL_SPEED: 1.3,
-    /** Conquest travel path mode: 'straight' | 'arc' | 'magnetic' */
-    CONQUEST_TRAVEL_MODE: 'magnetic' as const,
     /** Delay before conquest ships start moving (ms) — ships hold surged position */
     CONQUEST_LERP_DELAY_MS: 200,
     /** Show player-color outline behind each ship */

@@ -1589,8 +1589,6 @@
                                 (Math.random() - 0.5) * laneOffsetPx * 2;
                             ship.staggerDelay = 0;
                             ship.ownerId = conquest.newOwner;
-                            // Tag for conquest travel mode handling
-                            (ship as any)._conquestTravel = true;
                             travelingShips.push(ship);
                         }
 
@@ -1716,28 +1714,8 @@
                     elapsed / ship.travelDuration,
                 );
 
-                // Easing depends on whether this is a conquest travel ship
-                let eased: number;
-                if ((ship as any)._conquestTravel) {
-                    const mode = GAME_CONFIG.CONQUEST_TRAVEL_MODE ?? "magnetic";
-                    if (mode === "magnetic") {
-                        // Ease-in-out-quart: smooth pull, decelerates at target (rubber-band feel)
-                        eased =
-                            travelProgress < 0.5
-                                ? 8 * travelProgress ** 4
-                                : 1 - Math.pow(-2 * travelProgress + 2, 4) / 2;
-                    } else if (mode === "arc") {
-                        // easeInCubic with perpendicular arc handled below
-                        eased =
-                            travelProgress * travelProgress * travelProgress;
-                    } else {
-                        // straight: linear
-                        eased = travelProgress;
-                    }
-                } else {
-                    // Normal transfer: easeInCubic (magnetic pull)
-                    eased = travelProgress * travelProgress * travelProgress;
-                }
+                // easeInCubic: magnetic pull toward destination
+                const eased = travelProgress * travelProgress * travelProgress;
 
                 // Base lane position
                 const baseX =
@@ -1773,25 +1751,8 @@
                           edgeFade
                         : 0;
 
-                // Arc mode: add perpendicular bulge for conquest travel ships
-                let arcBulge = 0;
-                if (
-                    (ship as any)._conquestTravel &&
-                    (GAME_CONFIG.CONQUEST_TRAVEL_MODE ?? "magnetic") === "arc"
-                ) {
-                    // Smooth sine arch peaking at midpoint, scaling with lane distance
-                    arcBulge =
-                        Math.sin(travelProgress * Math.PI) * laneDist * 0.15;
-                    // Per-ship direction variation (alternate sides)
-                    if (ship.id % 2 === 0) arcBulge = -arcBulge;
-                }
-
-                ship.x =
-                    baseX +
-                    perpX * (ship.laneOffset * edgeFade + wobble + arcBulge);
-                ship.y =
-                    baseY +
-                    perpY * (ship.laneOffset * edgeFade + wobble + arcBulge);
+                ship.x = baseX + perpX * (ship.laneOffset * edgeFade + wobble);
+                ship.y = baseY + perpY * (ship.laneOffset * edgeFade + wobble);
 
                 // Ships stay fully visible during travel — no fade pulse
                 ship.alpha = 1;

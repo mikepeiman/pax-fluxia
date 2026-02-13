@@ -524,7 +524,6 @@
         attackSurgeRampMs: GAME_CONFIG.ATTACK_SURGE_RAMP_MS,
         attackSurgeShape: GAME_CONFIG.ATTACK_SURGE_SHAPE,
         conquestTravelSpeed: GAME_CONFIG.CONQUEST_TRAVEL_SPEED,
-        conquestTravelMode: GAME_CONFIG.CONQUEST_TRAVEL_MODE,
         conquestLerpDelayMs: GAME_CONFIG.CONQUEST_LERP_DELAY_MS,
         orbTravel: GAME_CONFIG.ORB_TRAVEL,
         orbitBias: GAME_CONFIG.ORBIT_BIAS_STRENGTH,
@@ -606,10 +605,6 @@
         GAME_CONFIG.ATTACK_SURGE_RAMP_MS = panel.attackSurgeRampMs as number;
         GAME_CONFIG.ATTACK_SURGE_SHAPE = panel.attackSurgeShape as number;
         GAME_CONFIG.CONQUEST_TRAVEL_SPEED = panel.conquestTravelSpeed as number;
-        GAME_CONFIG.CONQUEST_TRAVEL_MODE = panel.conquestTravelMode as
-            | "straight"
-            | "arc"
-            | "magnetic";
         GAME_CONFIG.CONQUEST_LERP_DELAY_MS =
             panel.conquestLerpDelayMs as number;
         GAME_CONFIG.ORB_TRAVEL = panel.orbTravel as boolean;
@@ -1499,24 +1494,6 @@
                                 updatePanel("conquestTravelSpeed", v);
                             }}
                         />
-                    </div>
-                    <div class="var-row" style="margin-top:2px;">
-                        <div class="row-top">
-                            <span class="var-name">Conquest Mode</span>
-                        </div>
-                        <select
-                            class="mode-select"
-                            value={panel.conquestTravelMode}
-                            onchange={(e) => {
-                                const v = (e.target as HTMLSelectElement).value;
-                                GAME_CONFIG.CONQUEST_TRAVEL_MODE = v as any;
-                                updatePanel("conquestTravelMode", v as any);
-                            }}
-                        >
-                            <option value="magnetic">Magnetic</option>
-                            <option value="arc">Arc</option>
-                            <option value="straight">Straight</option>
-                        </select>
                     </div>
                     <div class="var-row">
                         <div class="row-top">
