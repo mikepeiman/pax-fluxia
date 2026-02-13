@@ -28,6 +28,11 @@
         handleCombatEvent,
         handleConquestEvent,
     } from "$lib/fx";
+    import {
+        DEPART_BEHAVIORS,
+        TRAVEL_BEHAVIORS,
+    } from "$lib/fx/phases/behaviors";
+    import type { PhaseContext } from "$lib/fx/phases/travelTypes";
     import type { StarType } from "@pax/common";
     import { audio } from "$lib/audio/AudioManager";
     import { selectedStarStore } from "$lib/stores/selectedStarStore.svelte";
@@ -1387,6 +1392,16 @@
             }
         > = new Map();
 
+        // Build phase context for behavior registry
+        const phaseCtx: PhaseContext = {
+            now,
+            elapsed: 0,
+            travelEasing: GAME_CONFIG.TRAVEL_EASING ?? "easeInOut",
+            travelEasingPower: GAME_CONFIG.TRAVEL_EASING_POWER ?? 2,
+            travelDurationMult: GAME_CONFIG.TRAVEL_DURATION_MULT ?? 1,
+            travelArcIntensity: GAME_CONFIG.TRAVEL_ARC_INTENSITY ?? 0.5,
+        };
+
         for (const ship of travelingShips) {
             const elapsed = now - ship.departTime;
 
@@ -1402,118 +1417,35 @@
             const color = getPlayerColor(ship.ownerId);
 
             if (ship.state === "departing") {
-                if (GAME_CONFIG.ORB_TRAVEL) {
-                    // ORB mode: converge to lane start (existing behavior)
-                    const departProgress = Math.min(
-                        1,
-                        elapsed /
-                            (ship.departDuration || SHIP_ANIM.DEPART_DURATION),
-                    );
-                    const eased =
-                        departProgress < 0.5
-                            ? 2 * departProgress * departProgress
-                            : 1 - Math.pow(-2 * departProgress + 2, 2) / 2;
+                // Select depart behavior from registry
+                const departMode = GAME_CONFIG.ORB_TRAVEL
+                    ? "orb"
+                    : GAME_CONFIG.TRAVEL_MODE || "lane";
+                const departBehavior =
+                    DEPART_BEHAVIORS[departMode] || DEPART_BEHAVIORS.lane;
 
-                    ship.x =
-                        ship.departFromX +
-                        (ship.laneStartX - ship.departFromX) * eased;
-                    ship.y =
-                        ship.departFromY +
-                        (ship.laneStartY - ship.departFromY) * eased;
+                const result = departBehavior.interpolate(
+                    ship,
+                    elapsed,
+                    phaseCtx,
+                );
+                ship.x = result.x;
+                ship.y = result.y;
+                ship.scale = result.scale;
+                ship.alpha = result.alpha;
 
-                    if (departProgress > 0.7) {
-                        const fadeToOrb = (departProgress - 0.7) / 0.3;
-                        ship.alpha = 1 - fadeToOrb;
-                    }
-
-                    ship.scale = 0.8 + 0.1 * eased;
-
-                    if (departProgress >= 1) {
-                        ship.x = ship.laneStartX;
-                        ship.y = ship.laneStartY;
+                if (result.done) {
+                    if (departMode === "bezier") {
+                        // Bezier skips traveling — force arrival
                         ship.state = "traveling";
-                        ship.departTime = now;
-                    }
-                } else if (GAME_CONFIG.TRAVEL_MODE === "bezier") {
-                    // BEZIER mode: SINGLE-PASS bezier arc from orbit to destination
-                    // Total duration = depart + travel (no phase transition, no mid-pause)
-                    const totalDuration =
-                        ((ship.departDuration || SHIP_ANIM.DEPART_DURATION) +
-                            ship.travelDuration) *
-                        (GAME_CONFIG.TRAVEL_DURATION_MULT ?? 1);
-                    const rawProgress = Math.min(1, elapsed / totalDuration);
-
-                    // Configurable easing — applyTravelEasing handles all types
-                    const easingType = GAME_CONFIG.TRAVEL_EASING ?? "easeInOut";
-                    const easingPower = GAME_CONFIG.TRAVEL_EASING_POWER ?? 2;
-                    const eased = applyTravelEasing(
-                        rawProgress,
-                        easingType,
-                        easingPower,
-                    );
-
-                    // Bezier control point for curved arc
-                    const dx = ship.laneEndX - ship.departFromX;
-                    const dy = ship.laneEndY - ship.departFromY;
-                    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                    const perpX = -dy / dist;
-                    const perpY = dx / dist;
-                    // Arc curvature scaled by laneOffset + config intensity
-                    const arcIntensity =
-                        GAME_CONFIG.TRAVEL_ARC_INTENSITY ?? 0.5;
-                    const arcOffset = ship.laneOffset * 2 * arcIntensity;
-                    const midX =
-                        (ship.departFromX + ship.laneEndX) * 0.5 +
-                        perpX * arcOffset;
-                    const midY =
-                        (ship.departFromY + ship.laneEndY) * 0.5 +
-                        perpY * arcOffset;
-
-                    // Quadratic bezier: B(t) = (1-t)²P0 + 2(1-t)t·CP + t²P1
-                    const t = eased;
-                    const mt = 1 - t;
-                    ship.x =
-                        mt * mt * ship.departFromX +
-                        2 * mt * t * midX +
-                        t * t * ship.laneEndX;
-                    ship.y =
-                        mt * mt * ship.departFromY +
-                        2 * mt * t * midY +
-                        t * t * ship.laneEndY;
-                    ship.scale = 0.8 + 0.1 * Math.min(rawProgress * 3, 1);
-                    ship.alpha = 1;
-
-                    if (rawProgress >= 1) {
-                        // Skip "traveling" — go directly to arrival
-                        ship.state = "traveling"; // Will be caught by arrival logic below
-                        ship.departTime = now - ship.travelDuration; // Force travelProgress = 1
-                    }
-                } else {
-                    // LANE mode (classic): depart to lane start, then transition to traveling
-                    const departProgress = Math.min(
-                        1,
-                        elapsed /
-                            (ship.departDuration || SHIP_ANIM.DEPART_DURATION),
-                    );
-                    const eased =
-                        departProgress < 0.5
-                            ? 2 * departProgress * departProgress
-                            : 1 - Math.pow(-2 * departProgress + 2, 2) / 2;
-
-                    ship.x =
-                        ship.departFromX +
-                        (ship.laneStartX - ship.departFromX) * eased;
-                    ship.y =
-                        ship.departFromY +
-                        (ship.laneStartY - ship.departFromY) * eased;
-                    ship.scale = 0.8 + 0.1 * eased;
-                    ship.alpha = 1;
-
-                    if (departProgress >= 1) {
+                        ship.departTime = now - ship.travelDuration;
+                    } else {
                         ship.x = ship.laneStartX;
                         ship.y = ship.laneStartY;
-                        ship.laneStartX = ship.x;
-                        ship.laneStartY = ship.y;
+                        if (departMode !== "orb") {
+                            ship.laneStartX = ship.x;
+                            ship.laneStartY = ship.y;
+                        }
                         ship.state = "traveling";
                         ship.departTime = now;
                     }
@@ -1534,106 +1466,25 @@
                     stillTraveling.push(ship);
                 }
             } else if (ship.state === "traveling") {
-                // Phase 2: For ORB mode — lane travel with wobble
-                // For SHIP mode, this is only reached as an immediate arrival trigger
+                // Select travel behavior from registry
+                const travelMode = GAME_CONFIG.ORB_TRAVEL ? "orb" : "lane";
+                const travelBehavior =
+                    TRAVEL_BEHAVIORS[travelMode] || TRAVEL_BEHAVIORS.lane;
+
+                const result = travelBehavior.interpolate(
+                    ship,
+                    elapsed,
+                    phaseCtx,
+                );
+                ship.x = result.x;
+                ship.y = result.y;
+                ship.scale = result.scale;
+                ship.alpha = result.alpha;
+
                 const travelProgress = Math.min(
                     1,
                     elapsed / ship.travelDuration,
                 );
-
-                // easeInCubic: magnetic pull toward destination
-                const eased = travelProgress * travelProgress * travelProgress;
-
-                if (GAME_CONFIG.ORB_TRAVEL) {
-                    // ORB mode: straight lane interpolation with perpendicular offset
-                    const baseX =
-                        ship.laneStartX +
-                        (ship.laneEndX - ship.laneStartX) * eased;
-                    const baseY =
-                        ship.laneStartY +
-                        (ship.laneEndY - ship.laneStartY) * eased;
-
-                    const laneNdx = ship.laneEndX - ship.laneStartX;
-                    const laneNdy = ship.laneEndY - ship.laneStartY;
-                    const laneDist =
-                        Math.sqrt(laneNdx * laneNdx + laneNdy * laneNdy) || 1;
-                    const perpX = -laneNdy / laneDist;
-                    const perpY = laneNdx / laneDist;
-                    const edgeFade = Math.min(
-                        travelProgress * 4,
-                        (1 - travelProgress) * 4,
-                        1,
-                    );
-
-                    const wobbleAmp = GAME_CONFIG.WOBBLE_AMP ?? 12;
-                    const wobbleFreq = 2.5 + (ship.id % 7) * 0.3;
-                    const wobblePhase = ((ship.id % 13) / 13) * Math.PI * 2;
-                    const wobble =
-                        wobbleAmp > 0
-                            ? Math.sin(
-                                  travelProgress * wobbleFreq * Math.PI * 2 +
-                                      wobblePhase,
-                              ) *
-                              wobbleAmp *
-                              edgeFade
-                            : 0;
-
-                    ship.x =
-                        baseX + perpX * (ship.laneOffset * edgeFade + wobble);
-                    ship.y =
-                        baseY + perpY * (ship.laneOffset * edgeFade + wobble);
-                } else {
-                    // LANE mode traveling: straight-line with perpendicular offset + wobble
-                    const easingType = GAME_CONFIG.TRAVEL_EASING ?? "easeInOut";
-                    const easingPower = GAME_CONFIG.TRAVEL_EASING_POWER ?? 2;
-                    const laneEased = applyTravelEasing(
-                        travelProgress,
-                        easingType,
-                        easingPower,
-                    );
-
-                    const baseX =
-                        ship.laneStartX +
-                        (ship.laneEndX - ship.laneStartX) * laneEased;
-                    const baseY =
-                        ship.laneStartY +
-                        (ship.laneEndY - ship.laneStartY) * laneEased;
-
-                    const laneNdx = ship.laneEndX - ship.laneStartX;
-                    const laneNdy = ship.laneEndY - ship.laneStartY;
-                    const laneDist =
-                        Math.sqrt(laneNdx * laneNdx + laneNdy * laneNdy) || 1;
-                    const perpX = -laneNdy / laneDist;
-                    const perpY = laneNdx / laneDist;
-                    const edgeFade = Math.min(
-                        travelProgress * 4,
-                        (1 - travelProgress) * 4,
-                        1,
-                    );
-
-                    const wobbleAmp = GAME_CONFIG.WOBBLE_AMP ?? 12;
-                    const wobbleFreq = 2.5 + (ship.id % 7) * 0.3;
-                    const wobblePhase = ((ship.id % 13) / 13) * Math.PI * 2;
-                    const wobble =
-                        wobbleAmp > 0
-                            ? Math.sin(
-                                  travelProgress * wobbleFreq * Math.PI * 2 +
-                                      wobblePhase,
-                              ) *
-                              wobbleAmp *
-                              edgeFade
-                            : 0;
-
-                    ship.x =
-                        baseX + perpX * (ship.laneOffset * edgeFade + wobble);
-                    ship.y =
-                        baseY + perpY * (ship.laneOffset * edgeFade + wobble);
-                }
-
-                // Ships stay fully visible during travel — no fade pulse
-                ship.alpha = 1;
-                ship.scale = 0.9;
-
                 if (travelProgress >= 1) {
                     // Arrive at destination — position at fragmentation boundary
                     // (outside the outermost orbit ring, on the nearside from source)
