@@ -2356,7 +2356,10 @@
         // Use activeGameStore for unified star access
         const stars = activeGameStore.stars as StarState[];
 
-        if (stars.length === 0) return null;
+        if (stars.length === 0) {
+            log.input("hitTestStar MISS — stars array empty");
+            return null;
+        }
 
         // Convert screen coordinates to world coordinates
         const { x, y } = screenToWorld(screenX, screenY);
@@ -2374,6 +2377,17 @@
                 nearestDist = dist;
             }
         }
+
+        if (nearest) {
+            log.input(
+                `hitTest HIT → ${nearest.id} (owner=${nearest.ownerId}, dist=${nearestDist.toFixed(0)}, r=${nearest.radius})`,
+            );
+        } else {
+            log.input(
+                `hitTest MISS — screen(${screenX.toFixed(0)},${screenY.toFixed(0)}) → world(${x.toFixed(0)},${y.toFixed(0)}), ${stars.length} stars checked`,
+            );
+        }
+
         return nearest;
     }
 
@@ -2433,9 +2447,22 @@
             dragSourceCenterY = star.y;
             dragCurrentX = x;
             dragCurrentY = y;
-
-            // DO NOT set activeStarId here - wait for Click logic regarding selection.
-            // But we can highlight drag source.
+            log.input(`pointerDown → DRAG START from owned star ${star.id}`);
+        } else if (star) {
+            // Clicked unowned star — reset drag state to prevent stale dragStartX/Y
+            isDragging = false;
+            dragSourceId = null;
+            dragStartX = x;
+            dragStartY = y;
+            log.input(
+                `pointerDown → unowned star ${star.id} (owner=${star.ownerId}), drag state reset`,
+            );
+        } else {
+            isDragging = false;
+            dragSourceId = null;
+            dragStartX = x;
+            dragStartY = y;
+            log.input(`pointerDown → empty space, drag state reset`);
         }
     }
 
@@ -2616,13 +2643,14 @@
         // issue order (own star = move/attack, enemy star = deferred order).
         // If not connected, just select Y.
         if (!movedSignificantly && targetStar) {
+            log.input(
+                `pointerUp CLICK → target=${targetStar.id}, activeStarId=${activeStarId || "null"}, isDragging=${isDragging}, movedSig=${movedSignificantly}`,
+            );
+
             // Case 1: Clicked same star -> TOGGLE (deselect)
             if (activeStarId === targetStar.id) {
                 activeStarId = null;
-                log.state(
-                    "GameCanvas",
-                    `Star ${targetStar.id} deselected (toggle)`,
-                );
+                log.input(`  Case 1: TOGGLE deselect ${targetStar.id}`);
             }
             // Case 2: Have a prior selection -> try to issue order, then select Y
             else if (activeStarId) {
@@ -2654,6 +2682,9 @@
                         );
                         if (success) {
                             addPendingOrder(activeStarId, targetStar.id);
+                            log.input(
+                                `  Case 2a: ORDER issued ${activeStarId} → ${targetStar.id}`,
+                            );
                         }
                     } else if (
                         activeStarSnapshot &&
@@ -2667,12 +2698,19 @@
                         );
                         if (success) {
                             addPendingOrder(activeStarId, targetStar.id, true);
-                            log.success(
-                                "GameCanvas",
-                                `Deferred order: ${activeStarId} → ${targetStar.id}`,
+                            log.input(
+                                `  Case 2b: DEFERRED order ${activeStarId} → ${targetStar.id}`,
                             );
                         }
+                    } else {
+                        log.input(
+                            `  Case 2c: no order (source=${activeStarId} owner=${activeStarSnapshot?.ownerId || "null"})`,
+                        );
                     }
+                } else {
+                    log.input(
+                        `  Case 2d: NOT CONNECTED ${activeStarId} ↛ ${targetStar.id}`,
+                    );
                 }
 
                 // Always select the new star (whether order was issued or not)
@@ -2681,10 +2719,17 @@
             // Case 3: No prior selection -> just select
             else {
                 activeStarId = targetStar.id;
-                log.state("GameCanvas", `Star ${targetStar.id} selected`);
+                log.input(`  Case 3: SELECT ${targetStar.id}`);
             }
         } else if (!movedSignificantly && !targetStar) {
+            log.input(
+                `pointerUp CLICK → empty space, clearing selection (movedSig=${movedSignificantly})`,
+            );
             clearSelection();
+        } else {
+            log.input(
+                `pointerUp → no action (movedSig=${movedSignificantly}, target=${targetStar?.id || "null"}, dragSrc=${dragSourceId || "null"})`,
+            );
         }
 
         cancelDrag();

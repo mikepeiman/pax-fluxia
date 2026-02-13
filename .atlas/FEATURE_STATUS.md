@@ -113,6 +113,8 @@
 | B-28 | Active ships drop to zero on attack — disproportionate to weaker attacker. **Confirmed repeated**: AI with 70 ships attacks stronger player → instantly zeroed. Math shows ~14 damage/tick max — shouldn't happen. Suspect star-type defense multiplier, simultaneous transfer drain, or visual sync bug. Needs combat tick logging to isolate. |
 | B-29 | ~~Pause/play freezes attack surge~~ **FIXED**: tickProgress now uses `BASE_TICK_MS` instead of `ANIMATION_SPEED_MS` — eliminates dead zone where `sin(π)=0`. |
 | B-30 | Cancelling attack order snaps ships back to orbit instantly instead of easing back smoothly. |
+| B-38 | Cannot chain click-click commands — clicking source then target doesn't register reliably. Click must be crisp and instant (targeting act). Must work from any star, with deferred orders if unowned. |
+| B-39 | Intermittent star unresponsiveness — some stars seem unclickable (both click and drag) while others work, then the pattern changes. Observed on SP random map. May be related to recent FX refactor or hitTest changes. Needs visual telemetry. |
 
 ## Open Bugs — MP (B)
 
@@ -298,6 +300,7 @@
 | R-97 | Planetary/Star Shields: defensive shields protecting stars from attack | 🔵 |
 | R-98 | Mines: deployable hazards in lanes or around stars | 🔵 |
 | R-99 | Economy & Production System: resource economy to support purchasing structures, shields, and mines | 🔵 |
+| R-100 | Ownership Inversion: Stars are currently a container for Ships. Future variation: Ships as containers for Stars, or more generally Locations/Roles — bidirectional ownership, increased complexity | 🔵 |
 
 ---
 
