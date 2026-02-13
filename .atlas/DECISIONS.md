@@ -297,3 +297,72 @@ At 10k ships, `Graphics.circle().fill()` per ship per frame drops to <10 FPS. Th
 - No per-sprite rotation or complex blend modes (not needed for circles)
 - Multiplier borders require additional sprites (acceptable overhead)
 
+---
+
+# Decision: Conquest Transfer Ships — Separate From Normal inFlightToStar
+
+**Date:** 2026-02-12
+**Status:** Active
+
+## Context
+Conquest ships spawned at the conquered star were being immediately truncated by `renderShips` because `inFlightToStar` counted the cosmetic transfer animation ships. `actualCount = max(0, schemaShips - inFlightToStar) = 0`, so renderShips deleted the spawned ships.
+
+## Decision
+- Tag conquest transfer traveling ships with `_conquestInFlight = true`
+- The `inFlightToStar` counter in `renderShips` EXCLUDES these conquest transfer ships
+- Immediate-spawn ships at the conquered star are the real occupation
+- Conquest transfer ships are purely cosmetic and merge/despawn when they arrive
+
+---
+
+# Decision: CONQUEST_TRAVEL_SPEED — Intuitive Direction (>1 = faster)
+
+**Date:** 2026-02-12
+**Status:** Active
+
+## Context
+`CONQUEST_TRAVEL_SPEED = 0.7` was meant to make conquest travel 30% faster, but the value was used as a duration multiplier. A value of 0.7 meaning "faster" is counter-intuitive. Users expect 1.3 = 30% faster.
+
+## Decision
+- Invert semantics: `CONQUEST_TRAVEL_SPEED` is now a speed multiplier, not a duration multiplier
+- `>1 = faster`, `<1 = slower`, `1 = normal`
+- Code applies as `duration / speed` instead of `duration * speed`
+- Default: 1.3 (was 0.7)
+
+---
+
+# Decision: Transfer Rate — Duplication Warning
+
+**Date:** 2026-02-12
+**Status:** Open (needs resolution)
+
+## Context
+Three separate `TRANSFER_RATE` values exist:
+1. `EngineConfig.TRANSFER_RATE = 0.1` (in `common/src/config.ts`) — used by `GameEngine.ts`
+2. `ORDER_CONFIG.TRANSFER_RATE = 0.25` (in `common/src/orders.ts`) — used by `executeTransfer()`
+3. Per-star-type `transferRate` (in `STAR_TYPE_STATS`) — multiplier on base rate
+
+> [!WARNING]
+> This is a real duplication bug risk. The Battle panel slider controls `EngineConfig.TRANSFER_RATE` but `orders.ts` uses its own hardcoded 0.25. Need to unify to a single source.
+
+## Next Steps
+- Determine which is authoritative (likely `EngineConfig.TRANSFER_RATE`)
+- Remove `ORDER_CONFIG.TRANSFER_RATE` and wire `orders.ts` to use the engine config
+- Or clarify if they serve genuinely different purposes
+
+---
+
+# Decision: Variable Descriptions — Plain English Required
+
+**Date:** 2026-02-12
+**Status:** Active
+
+## Context
+User feedback: variable descriptions were too technical or meaningless ("Overall combat lethality multiplier" tells the user nothing).
+
+## Decision
+- All UI variable descriptions must describe **what the user will see change**, not the internal mechanics
+- Lethality → "Percentage of damaged ships destroyed per attack tick"
+- Conquest Transfer % → "Percentage of victor's ships that immediately transfer to conquered star"
+- All variables must have tooltips/subtitles in the UI panel
+

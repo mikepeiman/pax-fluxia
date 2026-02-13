@@ -287,6 +287,7 @@
 
 | Date | Summary |
 |------|---------|
+| 2026-02-12 | Conquest ship timing fix: separated conquest transfer ships from `inFlightToStar` counter (cosmetic-only). Immediate spawn at conquered star. `CONQUEST_TRAVEL_SPEED` inverted (>1=faster). `VISUAL_COUNT_DELAY` iced (removed). Transfer Rate duplication found: `EngineConfig.TRANSFER_RATE` vs `ORDER_CONFIG.TRANSFER_RATE` — documented in DECISIONS.md. |
 | 2026-02-12 | Attack surge fixes: pause-safe ramp (delta-based), tick-boundary continuous phase (amplitude axis), no surge during pause. Removed slowmo, CLEAR_ORDER_ON_CAPTURE dead code, added ATTACK_SURGE_RAMP_MS config. Conquest damaged ship split fixed. |
 | 2026-02-12 | Combat formula logging (full 5-step breakdown), dominant victory (99% ships), orb panel consolidation (paired sliders, orbit bias removed), settings panel scroll fix (flex-based full-height). |
 | 2026-02-10 | Batch 3: Performance fixes — statsHistory cap (500), starsById cache (was 4x new Map/frame), damaged ship static mode. |
