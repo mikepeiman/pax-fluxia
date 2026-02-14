@@ -16,7 +16,7 @@ COPY pax-fluxia/package.json ./pax-fluxia/
 COPY pax-server/package.json ./pax-server/
 
 # Install ALL workspace dependencies (needed for common + client build)
-RUN bun install --frozen-lockfile
+RUN bun install
 
 # Copy source for common (shared types) and client
 COPY common/ ./common/
@@ -36,7 +36,7 @@ COPY common/package.json ./common/
 COPY pax-server/package.json ./pax-server/
 
 # Install only what's needed (bun handles workspaces natively)
-RUN bun install --frozen-lockfile --production
+RUN bun install --production
 
 # Copy server + common source
 COPY common/ ./common/
