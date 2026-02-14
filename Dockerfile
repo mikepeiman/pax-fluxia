@@ -33,6 +33,7 @@ WORKDIR /app
 # Copy workspace root + package manifests + lockfile
 COPY package.json bun.lock ./
 COPY common/package.json ./common/
+COPY pax-fluxia/package.json ./pax-fluxia/
 COPY pax-server/package.json ./pax-server/
 
 # Install only what's needed (bun handles workspaces natively)
