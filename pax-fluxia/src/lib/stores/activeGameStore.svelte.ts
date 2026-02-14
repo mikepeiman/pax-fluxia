@@ -27,7 +27,7 @@ import { GAME_CONFIG } from '$lib/config/game.config';
  */
 function isMultiplayerMode(): boolean {
     const mpPhase = multiplayerStore.phase;
-    return mpPhase === 'inRoom' || mpPhase === 'playing' || mpPhase === 'ended';
+    return multiplayerStore.isConnected && (mpPhase === 'lobby' || mpPhase === 'playing' || mpPhase === 'ended');
 }
 
 // ============================================================================
@@ -92,7 +92,7 @@ function getPhase(): 'menu' | 'lobby' | 'playing' | 'results' {
         const mp = multiplayerStore.phase;
         if (mp === 'playing') return 'playing';
         if (mp === 'ended') return 'results';
-        if (mp === 'inRoom') return 'lobby';
+        if (mp === 'lobby') return 'lobby';
         return 'menu';
     } else {
         // Single-player: check gameStore
@@ -393,7 +393,9 @@ function surrender(): void {
 
 function playAgain(): void {
     if (isMultiplayerMode()) {
-        multiplayerStore.leaveRoom();
+        // MP: restart within same room (server resets state to lobby)
+        multiplayerStore.restartGame();
+        return;
     }
     gameStore.playAgain();
 }

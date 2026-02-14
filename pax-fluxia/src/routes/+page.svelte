@@ -2,6 +2,7 @@
   import "../app.css";
   import { gameStore } from "$lib/stores/gameStore.svelte";
   import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
+  import { multiplayerStore } from "$lib/stores/multiplayerStore.svelte";
   import MainMenu from "$lib/components/ui/MainMenu.svelte";
   import ResultsModal from "$lib/components/ui/ResultsModal.svelte";
   import GameCanvas from "$lib/components/game/GameCanvas.svelte";
@@ -11,6 +12,15 @@
   import StarsPanel from "$lib/components/ui/StarsPanel.svelte";
   import AudioSettings from "$lib/components/ui/AudioSettings.svelte";
   import type { PlayerState } from "$lib/types/game.types";
+
+  let roomIdCopied = $state(false);
+  function copyRoomId() {
+    if (multiplayerStore.roomId) {
+      navigator.clipboard.writeText(multiplayerStore.roomId);
+      roomIdCopied = true;
+      setTimeout(() => (roomIdCopied = false), 1500);
+    }
+  }
 
   // Panel visibility states
   let showAudioSettings = $state(false);
@@ -64,12 +74,27 @@
 
         <!-- Overlays -->
 
+        <!-- TOP CENTER: Room ID Badge (MP only) -->
+        {#if multiplayerStore.isConnected && multiplayerStore.roomId}
+          <div class="overlay-top-center">
+            <button
+              class="room-id-badge glass-panel"
+              onclick={copyRoomId}
+              title="Click to copy Room ID"
+            >
+              <span class="room-id-label">ROOM</span>
+              <code class="room-id-code">{multiplayerStore.roomId}</code>
+              <span class="room-id-icon">{roomIdCopied ? "✓" : "📋"}</span>
+            </button>
+          </div>
+        {/if}
+
         <!-- TOP LEFT: Stars Panel (was Combat Logs, then StarInfoPanel) -->
         <div class="overlay-top-left">
           <StarsPanel />
         </div>
 
-        {#if gameStore.winner || (activeGameStore.phase as string) === "ended"}
+        {#if gameStore.winner || activeGameStore.phase === "results"}
           <div class="modal-overlay">
             <ResultsModal />
           </div>
@@ -272,6 +297,48 @@
   }
 
   /* OVERLAYS (Floating above Canvas) */
+  .overlay-top-center {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 30;
+    pointer-events: auto;
+  }
+
+  .room-id-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    cursor: pointer;
+    border: 1px solid rgba(0, 255, 255, 0.25);
+    transition: all 0.2s ease;
+    font-family: inherit;
+    color: #fff;
+  }
+  .room-id-badge:hover {
+    border-color: rgba(0, 255, 255, 0.5);
+    box-shadow: 0 0 12px rgba(0, 255, 255, 0.15);
+  }
+  .room-id-label {
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: rgba(255, 255, 255, 0.5);
+    text-transform: uppercase;
+  }
+  .room-id-code {
+    font-family: monospace;
+    font-size: 0.8rem;
+    color: #00ffff;
+    letter-spacing: 0.05em;
+  }
+  .room-id-icon {
+    font-size: 0.75rem;
+    opacity: 0.6;
+  }
+
   .overlay-top-left {
     position: absolute;
     top: 12px;

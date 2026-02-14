@@ -72,6 +72,9 @@ export class GameRoom extends Room {
             // Seat reservation for proxied deployments
             this.seatReservationTimeout = 30;
 
+            // Prevent Colyseus from auto-disposing room when host leaves
+            this.autoDispose = false;
+
             // IMPORTANT: Use setState() per Colyseus 0.17.29 strict type requirements
             this.setState(new GameRoomState());
 
@@ -143,11 +146,31 @@ export class GameRoom extends Room {
         }
 
         // Handle host leaving
-        if (client.sessionId === this.state.hostSessionId && this.state.players.size > 0) {
-            // Assign new host
-            const newHost = Array.from(this.state.players.keys())[0];
-            this.state.hostSessionId = newHost;
-            log.net('GameRoom', `New host assigned: ${newHost}`);
+        if (client.sessionId === this.state.hostSessionId) {
+            // Find next connected human player to be host
+            let newHost: string | null = null;
+            this.state.players.forEach((p, sid) => {
+                if (!p.isAI && p.isConnected && sid !== client.sessionId && !newHost) {
+                    newHost = sid;
+                }
+            });
+            if (newHost) {
+                this.state.hostSessionId = newHost;
+                log.net('GameRoom', `New host assigned: ${newHost}`);
+            }
+        }
+
+        // Manual disposal: if no human players remain connected, dispose the room
+        let anyHumansConnected = false;
+        this.state.players.forEach((p) => {
+            if (!p.isAI && p.isConnected) {
+                anyHumansConnected = true;
+            }
+        });
+        if (!anyHumansConnected) {
+            log.net('GameRoom', 'No human players remaining — disposing room');
+            this.stopTick();
+            this.disconnect();
         }
     }
 
@@ -182,6 +205,48 @@ export class GameRoom extends Room {
             }
             this.state.phase = "playing";
             this.state.isPaused = true; // Start paused, await player ready
+        });
+
+        // Restart game (host only) — reset to lobby within same room
+        this.onMessage("restartGame", (client) => {
+            if (client.sessionId !== this.state.hostSessionId) {
+                log.net('GameRoom', `Non-host tried to restart: ${client.sessionId}`);
+                return;
+            }
+
+            log.game('GameRoom', 'Restarting game — returning to lobby');
+
+            // Stop game loop
+            this.stopTick();
+
+            // Clear map data
+            this.state.stars.clear();
+            this.state.connections.splice(0, this.state.connections.length);
+
+            // Remove AI players, keep human players
+            const aiSessionIds: string[] = [];
+            this.state.players.forEach((p, sid) => {
+                if (p.isAI) {
+                    aiSessionIds.push(sid);
+                } else {
+                    // Reset human player stats
+                    p.totalShips = 0;
+                    p.starCount = 0;
+                    p.isEliminated = false;
+                }
+            });
+            aiSessionIds.forEach(sid => this.state.players.delete(sid));
+            this.state.playerCount = this.state.players.size;
+
+            // Reset game state
+            this.state.phase = "lobby";
+            this.state.isPaused = true;
+            this.state.tick = 0;
+            this.state.tickProgress = 0;
+            this.state.speed = 1;
+            this.state.winnerId = "";
+
+            log.game('GameRoom', `Restart complete. ${this.state.players.size} human players retained.`);
         });
 
         // Unpause/resume

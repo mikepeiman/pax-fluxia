@@ -215,8 +215,15 @@ function syncStateFromRoom(state: any): void {
         lastTickTime = performance.now();
     }
 
-    // Update local state from server
+    // Detect restart: server reset phase back to "lobby" → switch view to menu (shows lobby)
+    const prevPhase = phase;
     phase = newPhase;
+    if (newPhase === 'lobby' && (prevPhase === 'playing' || prevPhase === 'ended')) {
+        // Import gameStore dynamically to avoid circular dependency
+        import('./gameStore.svelte').then(({ gameStore }) => {
+            gameStore.returnToMenu();
+        });
+    }
     tick = newTick;
     // tickProgress computed locally via RAF — don't overwrite from server
     isPaused = newIsPaused;
@@ -393,6 +400,11 @@ function setDeferredOrder(enemyStarId: StarId, nextTargetId: StarId, persistAfte
     return true;
 }
 
+function restartGame(): void {
+    log.net('Room', 'Sending restartGame');
+    room?.send('restartGame');
+}
+
 // ============================================================================
 // Helpers
 // ============================================================================
@@ -462,6 +474,7 @@ export const multiplayerStore = {
     issueOrder,
     cancelOrder,
     setDeferredOrder,
+    restartGame,
 
     // Helpers
     getLocalPlayerId,
