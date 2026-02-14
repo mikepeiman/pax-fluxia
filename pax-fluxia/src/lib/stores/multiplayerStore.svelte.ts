@@ -445,6 +445,7 @@ export const multiplayerStore = {
     get playerCount() { return playerCount; },
     get maxPlayers() { return maxPlayers; },
     get isHost() { return getIsHost(); },
+    get hostSessionId() { return hostSessionId; },
     get winnerId() { return winnerId; },
 
     // Game state

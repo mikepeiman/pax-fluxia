@@ -243,6 +243,7 @@
 | R-24 | Vote System for MP Settings | 🟡 |
 | R-25 | Multiple Targets / Branching Orders | 🔵 |
 | R-26 | Conditional Orders (trigger on conquest) | 🔵 |
+| R-27 | Tailwind CSS Migration (70-80% inline utility, 20% custom classes, CSS custom properties for JS interpolation) | 🟡 |
 | R-27 | Strategic Patterns (auto-behavior algorithms) | 🔵 |
 | R-28 | Last-Stand Resistance Mode | 🟢 |
 | R-29 | Captured Ship Activation Rate Slider | 🟢 |

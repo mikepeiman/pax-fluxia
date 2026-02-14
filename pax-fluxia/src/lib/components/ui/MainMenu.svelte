@@ -187,17 +187,12 @@
 
     async function handleCreateRoom() {
         saveAllSettings();
+        applyConfig();
 
         const selectedMap =
             MAP_DEFS.find((m) => m.id === mapType) ?? MAP_DEFS[0];
 
-        const gameplayConfig = buildEngineConfig({
-            starsPerPlayer,
-            startingShips: shipsPerStar,
-            minLinks,
-            maxLinks,
-            starSpacing,
-        });
+        const gameplayConfig = buildEngineConfig();
 
         await multiplayerStore.createRoom({
             playerCount,
