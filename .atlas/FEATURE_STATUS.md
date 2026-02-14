@@ -108,12 +108,12 @@
 |----|-------|
 | B-9 | Conquest ships render as production bloom — new ships at conquered star spawn from center and spiral out over multiple ticks instead of appearing instantly. Root: `GameCanvas.svelte` lines 1412-1440 use identical spawn logic for production and conquest. Needs distinct conquest path. |
 | B-24 | Erratic repair rates: user reports 200→120 damaged in single tick, rates varying 5-50%. Dataflow logging added to `applyRepair()` — console output shows star type, rate, typeMult, pinning, overflow. Investigate with StarInfoPanel + console. |
-| B-25 | Lag when selecting enemy stars to issue deferred orders. User-reported, needs investigation. |
+| B-25 | Lag when selecting enemy stars to issue deferred orders. **User reiterated 2026-02-14: "Make it so I can, zero lag like regular orders. Same functions."** Needs same zero-lag path as regular click-click orders. |
 | B-26 | Game engine continues running after client dev server reloads (HMR). Console logs keep generating. `GameEngine.destroy()` may not be called on unmount. |
 | B-27 | ~~Travel animation converge/flatten~~ **FIXED**: single-pass bezier arc from orbit to destination, no lane-start convergence. |
 | B-28 | Active ships drop to zero on attack — disproportionate to weaker attacker. **Confirmed repeated**: AI with 70 ships attacks stronger player → instantly zeroed. Math shows ~14 damage/tick max — shouldn't happen. Suspect star-type defense multiplier, simultaneous transfer drain, or visual sync bug. Needs combat tick logging to isolate. |
 | B-29 | ~~Pause/play freezes attack surge~~ **FIXED**: tickProgress now uses `BASE_TICK_MS` instead of `ANIMATION_SPEED_MS` — eliminates dead zone where `sin(π)=0`. |
-| B-30 | Cancelling attack order snaps ships back to orbit instantly instead of easing back smoothly. |
+| B-30 | Cancelling attack order snaps ships back to orbit instantly instead of easing back smoothly. **User added 2026-02-14**: mid-surge order change — ships should adjust destinations but NOT present locations. Complete the surge cycle always, then smoothly animate back to orbit before reorienting to new target. |
 | B-38 | ~~Cannot chain click-click commands~~ **FIXED**: stale `dragStartX/Y` in `handlePointerDown` caused `movedSignificantly` to eat clicks. Reset drag state in all branches. User-confirmed working `d76af73`. |
 | B-39 | ~~Intermittent star unresponsiveness~~ **FIXED**: stale drag state (`d76af73`). Residual intermittent issues may have been OS-level — Windows desktop apps (Perplexity Electron, Antigravity) suspected of causing pointer event interference. |
 | B-40 | Controls Icon Menu not responding when DevTools drawer is open. Works again when DevTools closed. Likely z-index or focus/pointer-events issue with DevTools panel overlay. |
@@ -162,14 +162,14 @@
 | B-18 | Restart button broken in MP | Routed through activeGameStore | `a91f17d` |
 | B-29 | Multi-star conquest: victor ships only transfer from one star | ConquestEvent has single `attackerStarId`, need per-star proportional transfer | OPEN |
 | B-30 | Deferred orders on enemy stars: clicking enemy star doesn't allow setting deferred orders | Need same zero-lag path as regular orders | OPEN |
-| B-31 | Attack surge activates on order, not on tick | `isAttack` checks `star.targetId` (set on order), should only surge after first combat tick | OPEN |
-| B-32 | Mid-surge order change teleports ships | Ships should complete current surge cycle before reorienting to new target | OPEN |
+| B-31 | Attack surge activates on order, not on tick | `isAttack` checks `star.targetId` (set on order), should only surge after first combat tick. **User 2026-02-14**: "when issuing order, ships jump into attack surge before animation continues smoothly" | OPEN |
+| B-32 | Mid-surge order change teleports ships | Ships should complete current surge cycle ALWAYS before reorienting. "They should adjust their destinations but not their present locations, and smoothly animate back into orbit (complete the surge always) before reorienting to the new target" | OPEN |
 | B-33 | Ships jump into attack surge before animation continues smoothly | Ramp-in not working visibly; initial frame snap | OPEN |
 | B-34 | Conquest: victor ships wait entire tick to appear | Should appear within conquest tick, not next tick | OPEN |
 | B-35 | AI passive in MP: no difficulty settings exposed, AI uses default (easy) config | Server needs AI difficulty from RoomOptions | OPEN |
 | B-36 | MP quit/abandon buttons restart game instead of returning to main menu | Should route to main menu, not restart | OPEN |
 | B-37 | MP pause resets tick counter and animations | Pause/resume loses tick progress, animations snap | OPEN |
-| B-46 | **"Ship travel duration" slider does nothing** | Setting has no effect on gameplay | OPEN |
+| B-46 | **"Ship travel duration" slider does nothing** | Setting has no effect. Note: "travel duration" MULTIPLIER does work but only on Bezier mode (see B-51). Increase range to 10x for more variety | OPEN |
 | B-47 | **"Arc intensity" slider does nothing** | Setting has no effect | OPEN |
 | B-48 | **"Settle time" slider does nothing** | Setting has no visible effect | OPEN |
 | B-49 | **"Arrival spread" makes ships invisible** | Increasing turns arrivals invisible; reduced to zero looks normal. Purpose unclear to user | OPEN |
@@ -303,8 +303,8 @@
 | R-82 | Timing Section: rename Game Speed → TIMING, consolidate ATTACK_SURGE_RAMP_MS + CONQUEST_LERP_DELAY_MS sliders | 🟢 |
 | R-83 | AI Pinning Strategy: intelligent pinning that ignores mere force ratio between two stars — sophisticated movement | 🔴 |
 | R-84 | AI Multi-Source Attacks: lower AI considers single star ratio, smarter AI considers all available sources | 🔴 |
-| R-85 | Conquest Visual Flair: border shine/pulse, star icon heartbeat (brighten + expand-contract), lightness/size/glow transitions | 🔴 |
-| R-86 | Ship Travel Spread: ships more spread out in both dimensions, individual wobbles with smaller-group coherence | 🔴 |
+| R-85 | Conquest Visual Flair: border and background do several transitions — lightness, size, glow. Border should shine/pulse. Star icon should brighten + expand-contract like a single heartbeat | 🔴 |
+| R-86 | Ship Travel Spread: ships currently travel as "vertical walls/slices" perpendicular to lane. Need more spread in both dimensions, individual wobbles with smaller-group coherence. See also R-111 | 🔴 |
 | R-87 | Easing Curve Visual Editor: lightweight JS widget for standard easing parameters (cubic-bezier style) | 🔴 |
 | R-88 | Attack Surge Tick-Sync: surge should only animate during actual combat ticks, not on order issuance | 🔴 |
 | R-89 | Unified Game-Start Screen: SP & MP share same lobby/settings UI, eliminate divergent paths | 🔴 |
