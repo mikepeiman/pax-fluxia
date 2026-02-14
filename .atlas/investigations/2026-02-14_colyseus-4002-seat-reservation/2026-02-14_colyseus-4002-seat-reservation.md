@@ -1,7 +1,7 @@
 # Colyseus 4002 "Seat Reservation Expired" — Investigation Report
 
 **Date**: 2026-02-14
-**Status**: OPEN — root cause not yet identified
+**Status**: ✅ RESOLVED — dual `@colyseus/core` module instances from explicit WebSocketTransport import
 **Environment**: Northflank (Docker, Node.js runtime)
 
 ---
