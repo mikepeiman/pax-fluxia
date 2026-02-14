@@ -1,7 +1,8 @@
 # ============================================================================
 # Pax Fluxia — Single-container production build
 # Stage 1: Build the SvelteKit SPA client (Bun for speed)
-# Stage 2: Production server — Node runtime (Bun WS incompatible with ws lib)
+# Stage 2: Production server — Node runtime with Bun for dependency install
+#           (Bun WS runtime is incompatible with ws lib)
 # ============================================================================
 
 # --- Stage 1: Build Client ---
@@ -32,19 +33,25 @@ RUN ls -la pax-fluxia/build/ && test -f pax-fluxia/build/index.html
 # CRITICAL: Must use Node runtime, NOT Bun.
 # Bun's WebSocket implementation is incompatible with the `ws` library
 # used by @colyseus/ws-transport (causes "seat reservation expired" / 4002).
-# This is the same issue fixed locally by using `bun run dev:node` (tsx on Node).
 FROM node:20-slim AS production
 
 WORKDIR /app
 
-# Copy workspace root + package manifests
-COPY package.json ./
+# Install Bun (for workspace:* dependency resolution only — NOT for runtime)
+RUN apt-get update && apt-get install -y curl unzip && \
+    curl -fsSL https://bun.sh/install | bash && \
+    ln -s /root/.bun/bin/bun /usr/local/bin/bun && \
+    apt-get purge -y curl unzip && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
+
+# Copy workspace root + package manifests + lockfile
+COPY package.json bun.lock ./
 COPY common/package.json ./common/
 COPY pax-fluxia/package.json ./pax-fluxia/
 COPY pax-server/package.json ./pax-server/
 
-# Copy node_modules from Bun build stage (npm can't handle workspace:* protocol)
-COPY --from=client-build /app/node_modules ./node_modules
+# Install deps with Bun (handles workspace:* protocol)
+# Then remove Bun cache to save image size
+RUN bun install && rm -rf /root/.bun/install
 
 # Install tsx globally for TypeScript execution under Node
 RUN npm install -g tsx
@@ -64,5 +71,3 @@ EXPOSE 2567
 
 # Start the production server with Node (via tsx for TypeScript support)
 CMD ["tsx", "pax-server/src/prod.ts"]
-
-
