@@ -82,6 +82,7 @@
     let retainOrderOnConquest = $state(
         loadSetting("retainOrderOnConquest", true),
     );
+    let gameSpeed = $state(loadSetting("gameSpeed", 1));
 
     // MP Join state
     let joinRoomId = $state("");
@@ -169,7 +170,7 @@
     }[] = [
         {
             id: "standard",
-            label: "STANDARD",
+            label: "RANDOMIZED",
             mapType: "standard",
             stars: [
                 { x: 15, y: 12, color: "#4488ff" },
@@ -241,6 +242,7 @@
         saveSetting("retainOrderOnConquest", retainOrderOnConquest);
         saveSetting("playerConfigs", playerConfigs);
         saveSetting("hueOffset", hueOffset);
+        saveSetting("gameSpeed", gameSpeed);
     }
 
     function applyConfig() {
@@ -259,6 +261,7 @@
             minLinksPerStar: minLinks,
             maxLinksPerStar: maxLinks,
             starSpacing: starSpacing,
+            gameSpeed: gameSpeed,
             playerColors: playerConfigs.map((cfg) => hslToHex(cfg.hue)),
         });
 
@@ -356,48 +359,70 @@
 
             <!--  3-Column Layout  -->
             <div class="content-grid-3col">
-
-                <!--  Col 1: Menu + Settings  -->
+                <!--  Col 1: Options  -->
                 <section class="panel menu-sidebar">
-                    <h2 class="panel-title">MENU</h2>
+                    <h2 class="panel-title">OPTIONS</h2>
 
-                    <nav class="menu-nav">
-                        <button class="menu-item" onclick={startSPGame}>
-                            <span class="menu-icon">▶</span>
-                            <span>START GAME</span>
-                        </button>
-                        <button class="menu-item" disabled>
-                            <span class="menu-icon">⚙</span>
-                            <span>Settings</span>
-                        </button>
-                        <button class="menu-item" disabled>
-                            <span class="menu-icon">🛒</span>
-                            <span>Shop</span>
-                        </button>
-                        <button class="menu-item quit-item" onclick={() => window.close()}>
-                            <span class="menu-icon"></span>
-                            <span>Quit</span>
-                        </button>
-                    </nav>
-
-                    <div class="spacer"></div>
-
-                    <!-- AI Difficulty (for SP) -->
-                    <div class="control-group">
-                        <label>AI DIFFICULTY</label>
-                        <div class="button-row compact">
-                            {#each DIFFICULTIES as d}
-                                <button
-                                    class:active={difficulty === d}
-                                    onclick={() => (difficulty = d)}
-                                    >{d}</button
-                                >
-                            {/each}
-                        </div>
+                    <div class="options-list">
+                        <label class="checkbox-label">
+                            <input
+                                type="checkbox"
+                                bind:checked={retainOrderOnConquest}
+                            />
+                            <span>Retain orders after conquest</span>
+                            <span class="tooltip"
+                                >Attack orders become movement orders when
+                                target is captured</span
+                            >
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" checked disabled />
+                            <span>Auto-select new conquests</span>
+                            <span class="tooltip"
+                                >Automatically select newly captured stars</span
+                            >
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" disabled />
+                            <span>Fog of war</span>
+                            <span class="tooltip"
+                                >Only see stars within sensor range (coming
+                                soon)</span
+                            >
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" disabled />
+                            <span>Show production rates</span>
+                            <span class="tooltip"
+                                >Display ship production numbers on each star</span
+                            >
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" disabled />
+                            <span>Show movement trails</span>
+                            <span class="tooltip"
+                                >Visualize ship movement paths between stars</span
+                            >
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" disabled />
+                            <span>Auto-pause on combat</span>
+                            <span class="tooltip"
+                                >Pause game speed when battles occur</span
+                            >
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" disabled />
+                            <span>Surrender when hopeless</span>
+                            <span class="tooltip"
+                                >AI declares surrender when defeat is certain
+                                (coming soon)</span
+                            >
+                        </label>
                     </div>
                 </section>
 
-                <!--  Col 2: Map + Players + Config  -->
+                <!--  Col 2: Game Setup  -->
                 <section class="panel config-panel">
                     <h2 class="panel-title">GAME SETUP</h2>
 
@@ -448,196 +473,180 @@
                         </div>
                     </div>
 
-                    <!-- Player Count -->
-                    <div class="control-group">
-                        <label>PLAYERS</label>
-                        <div class="button-row">
-                            {#each PLAYERS as p}
-                                <button
-                                    class:active={playerCount === p}
-                                    onclick={() => (playerCount = p)}
-                                    >{p}</button
+                    <!-- Links + Spacing (side by side) -->
+                    <div class="config-dual-row">
+                        <div class="control-group">
+                            <label>LINKS</label>
+                            <div class="config-dual-row compact">
+                                <div class="config-item">
+                                    <span class="mini-label">MIN</span>
+                                    <div class="slider-container">
+                                        <input
+                                            type="range"
+                                            min="1"
+                                            max="4"
+                                            bind:value={minLinks}
+                                        />
+                                        <span class="value">{minLinks}</span>
+                                    </div>
+                                </div>
+                                <div class="config-item">
+                                    <span class="mini-label">MAX</span>
+                                    <div class="slider-container">
+                                        <input
+                                            type="range"
+                                            min="2"
+                                            max="8"
+                                            bind:value={maxLinks}
+                                        />
+                                        <span class="value">{maxLinks}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>SPACING</label>
+                            <div class="slider-container">
+                                <span class="mini-label">DENSE</span>
+                                <input
+                                    type="range"
+                                    min="0.5"
+                                    max="5.0"
+                                    step="0.1"
+                                    bind:value={starSpacing}
+                                />
+                                <span class="mini-label">SPARSE</span>
+                                <span class="value"
+                                    >{starSpacing.toFixed(1)}x</span
                                 >
-                            {/each}
-                        </div>
-                    </div>
-
-                    <!-- Stars/Ships Config -->
-                    <div class="control-group">
-                        <div class="config-dual-row">
-                            <div class="config-item">
-                                <label>STARS / PLAYER</label>
-                                <div class="slider-container">
-                                    <input
-                                        type="range"
-                                        min="1"
-                                        max="20"
-                                        bind:value={starsPerPlayer}
-                                    />
-                                    <span class="value">{starsPerPlayer}</span>
-                                </div>
-                            </div>
-                            <div class="config-item">
-                                <label>SHIPS / STAR</label>
-                                <div class="slider-container">
-                                    <input
-                                        type="range"
-                                        min="10"
-                                        max="200"
-                                        step="10"
-                                        bind:value={shipsPerStar}
-                                    />
-                                    <span class="value">{shipsPerStar}</span>
-                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Link Connectivity -->
-                    <div class="control-group">
-                        <label>LINK CONNECTIVITY</label>
-                        <div class="config-dual-row">
-                            <div class="config-item">
-                                <span class="mini-label">MIN</span>
-                                <div class="slider-container">
-                                    <input
-                                        type="range"
-                                        min="1"
-                                        max="4"
-                                        bind:value={minLinks}
-                                    />
-                                    <span class="value">{minLinks}</span>
-                                </div>
+                    <!-- Players + Stars + Ships (one row) -->
+                    <div class="config-triple-row">
+                        <div class="control-group">
+                            <label>PLAYERS</label>
+                            <div class="button-row">
+                                {#each PLAYERS as p}
+                                    <button
+                                        class:active={playerCount === p}
+                                        onclick={() => (playerCount = p)}
+                                        >{p}</button
+                                    >
+                                {/each}
                             </div>
-                            <div class="config-item">
-                                <span class="mini-label">MAX</span>
-                                <div class="slider-container">
-                                    <input
-                                        type="range"
-                                        min="2"
-                                        max="8"
-                                        bind:value={maxLinks}
-                                    />
-                                    <span class="value">{maxLinks}</span>
-                                </div>
+                        </div>
+                        <div class="config-item">
+                            <label>STARS/P</label>
+                            <div class="slider-container">
+                                <input
+                                    type="range"
+                                    min="1"
+                                    max="20"
+                                    bind:value={starsPerPlayer}
+                                />
+                                <span class="value">{starsPerPlayer}</span>
+                            </div>
+                        </div>
+                        <div class="config-item">
+                            <label>SHIPS/S</label>
+                            <div class="slider-container">
+                                <input
+                                    type="range"
+                                    min="10"
+                                    max="200"
+                                    step="10"
+                                    bind:value={shipsPerStar}
+                                />
+                                <span class="value">{shipsPerStar}</span>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Star Spacing -->
-                    <div class="control-group">
-                        <label>STAR SPACING</label>
-                        <div class="slider-container">
-                            <span class="mini-label">DENSE</span>
-                            <input
-                                type="range"
-                                min="0.5"
-                                max="5.0"
-                                step="0.1"
-                                bind:value={starSpacing}
-                            />
-                            <span class="mini-label">SPARSE</span>
-                            <span class="value">{starSpacing.toFixed(1)}x</span>
-                        </div>
-                    </div>
-
-                    <!-- Order Behavior -->
-                    <div class="control-group">
-                        <label class="checkbox-label">
-                            <input
-                                type="checkbox"
-                                bind:checked={retainOrderOnConquest}
-                            />
-                            <span>Retain order after conquest</span>
-                            <span class="tooltip"
-                                >Attack orders become movement orders when
-                                target is captured</span
-                            >
-                        </label>
-                    </div>
-
-                    <!-- Per-Player Configuration -->
+                    <!-- Player Configuration (inline AI settings) -->
                     <div class="control-group player-config-section">
-                        <label>PLAYER COLORS</label>
-                        <div class="hue-offset-row">
-                            <span class="mini-label">Hue offset</span>
-                            <input
-                                type="range"
-                                min="10"
-                                max="120"
-                                bind:value={hueOffset}
-                            />
-                            <span class="value">{hueOffset}</span>
+                        <div class="player-config-header">
+                            <label>PLAYERS</label>
+                            <div class="hue-offset-inline">
+                                <span class="mini-label">Hue offset</span>
+                                <input
+                                    type="range"
+                                    min="10"
+                                    max="120"
+                                    bind:value={hueOffset}
+                                />
+                                <span class="value">{hueOffset}</span>
+                            </div>
                         </div>
                         <div class="player-config-list">
                             {#each playerConfigs as cfg, i}
-                                <div class="player-config-row">
-                                    <!-- svelte-ignore a11y_click_events_have_key_events -->
-                                    <!-- svelte-ignore a11y_no_static_element_interactions -->
-                                    <div
-                                        class="player-header"
-                                        onclick={() =>
-                                            (expandedPlayer =
-                                                expandedPlayer === i
-                                                    ? null
-                                                    : i)}
-                                    >
-                                        <span
-                                            class="player-swatch"
-                                            style:background-color="hsl({cfg.hue}, 70%, 55%)"
-                                        ></span>
-                                        <span class="player-label">
-                                            {i === 0 ? "YOU" : `P${i + 1}`}
-                                            {#if cfg.isAI}
-                                                <span class="badge ai">AI</span>
-                                            {/if}
-                                        </span>
-                                        <span class="player-expand"
-                                            >{expandedPlayer === i
-                                                ? ""
-                                                : ""}</span
+                                <div class="player-config-row inline-row">
+                                    <span
+                                        class="player-swatch"
+                                        style:background-color="hsl({cfg.hue},
+                                        70%, 55%)"
+                                    ></span>
+                                    <span class="player-label-inline">
+                                        {i === 0 ? "YOU" : `P${i + 1}`}
+                                    </span>
+                                    <input
+                                        type="range"
+                                        class="hue-slider compact"
+                                        min="0"
+                                        max="360"
+                                        bind:value={playerConfigs[i].hue}
+                                        style:--hue={cfg.hue}
+                                    />
+                                    {#if i > 0}
+                                        <select
+                                            class="inline-select"
+                                            bind:value={
+                                                playerConfigs[i].difficulty
+                                            }
                                         >
-                                    </div>
-                                    {#if expandedPlayer === i}
-                                        <div class="player-details">
-                                            <div class="hue-control">
-                                                <label>Color</label>
-                                                <input
-                                                    type="range"
-                                                    class="hue-slider"
-                                                    min="0"
-                                                    max="360"
-                                                    bind:value={playerConfigs[i].hue}
-                                                    style:--hue={cfg.hue}
-                                                />
-                                                <span
-                                                    class="hue-preview"
-                                                    style:background-color="hsl({cfg.hue}, 70%, 55%)"
-                                                ></span>
-                                            </div>
-                                            {#if i > 0}
-                                                <div class="ai-setting">
-                                                    <label>Difficulty</label>
-                                                    <select bind:value={playerConfigs[i].difficulty}>
-                                                        {#each DIFFICULTIES as d}
-                                                            <option value={d}>{d}</option>
-                                                        {/each}
-                                                    </select>
-                                                </div>
-                                                <div class="ai-setting">
-                                                    <label>Strategy</label>
-                                                    <select bind:value={playerConfigs[i].strategy}>
-                                                        {#each AI_STRATEGIES as s}
-                                                            <option value={s.id}>{s.label}</option>
-                                                        {/each}
-                                                    </select>
-                                                </div>
-                                            {/if}
-                                        </div>
+                                            {#each DIFFICULTIES as d}
+                                                <option value={d}>{d}</option>
+                                            {/each}
+                                        </select>
+                                        <select
+                                            class="inline-select"
+                                            bind:value={
+                                                playerConfigs[i].strategy
+                                            }
+                                        >
+                                            {#each AI_STRATEGIES as s}
+                                                <option value={s.id}
+                                                    >{s.label}</option
+                                                >
+                                            {/each}
+                                        </select>
+                                    {:else}
+                                        <span class="human-badge">HUMAN</span>
                                     {/if}
                                 </div>
                             {/each}
                         </div>
+                    </div>
+
+                    <!-- Speed + Start -->
+                    <div class="speed-start-row">
+                        <div class="config-item speed-control">
+                            <label>SPEED</label>
+                            <div class="button-row">
+                                {#each [1, 2, 4, 10] as s}
+                                    <button
+                                        class:active={gameSpeed === s}
+                                        onclick={() => (gameSpeed = s)}
+                                        >{s}x</button
+                                    >
+                                {/each}
+                            </div>
+                        </div>
+                        <button class="start-btn" onclick={startSPGame}>
+                            <span class="btn-glow"></span>
+                            START GAME
+                        </button>
                     </div>
                 </section>
 
@@ -663,7 +672,6 @@
                                     onclick={copyRoomId}
                                     title="Copy Room ID"
                                 >
-                                    
                                 </button>
                             </div>
                             <div class="player-count-badge">
@@ -719,7 +727,7 @@
                                     onclick={handleStartGame}
                                 >
                                     <span class="btn-glow"></span>
-                                     START GAME
+                                    START GAME
                                 </button>
                             {:else}
                                 <p class="waiting-text">
@@ -1022,8 +1030,13 @@
     }
 
     @keyframes pulse-dot {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.4; }
+        0%,
+        100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.4;
+        }
     }
 
     /* -- 3-Column Grid (Named Areas) -- */
@@ -1034,12 +1047,20 @@
         gap: 20px;
     }
 
-    .menu-sidebar { grid-area: menu; }
-    .config-panel { grid-area: config; }
-    .mp-panel     { grid-area: multiplayer; }
+    .menu-sidebar {
+        grid-area: menu;
+    }
+    .config-panel {
+        grid-area: config;
+    }
+    .mp-panel {
+        grid-area: multiplayer;
+    }
 
     @media (max-width: 900px) {
-        .responsive-tabs { display: flex; }
+        .responsive-tabs {
+            display: flex;
+        }
         .content-grid-3col {
             grid-template-columns: 1fr;
             grid-template-areas: "menu" "config" "multiplayer";
@@ -1116,7 +1137,9 @@
         display: flex;
         flex-direction: column;
         gap: 18px;
-        box-shadow: -4px 0 20px rgba(100, 220, 255, 0.04), inset 0 0 30px rgba(100, 220, 255, 0.02);
+        box-shadow:
+            -4px 0 20px rgba(100, 220, 255, 0.04),
+            inset 0 0 30px rgba(100, 220, 255, 0.02);
     }
 
     .mp-panel .panel-title {
@@ -1871,19 +1894,6 @@
         overflow: hidden;
     }
 
-    .player-header {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.4rem 0.6rem;
-        cursor: pointer;
-        transition: background 0.15s;
-    }
-
-    .player-header:hover {
-        background: rgba(100, 220, 255, 0.06);
-    }
-
     .player-swatch {
         width: 14px;
         height: 14px;
@@ -1900,32 +1910,6 @@
         display: flex;
         align-items: center;
         gap: 0.4rem;
-    }
-
-    .player-expand {
-        color: #5a7a96;
-        font-size: 0.7rem;
-    }
-
-    .player-details {
-        padding: 0.5rem 0.6rem 0.6rem;
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-        border-top: 1px solid rgba(100, 220, 255, 0.06);
-        background: rgba(0, 0, 0, 0.15);
-    }
-
-    .hue-control {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .hue-control label {
-        font-size: 0.7rem;
-        color: #5a7a96;
-        min-width: 36px;
     }
 
     .hue-slider {
@@ -1978,30 +1962,108 @@
         border: 1px solid rgba(255, 255, 255, 0.2);
     }
 
-    .ai-setting {
+    /* -- Options List (left column) -- */
+    .options-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .options-list .checkbox-label {
+        font-size: 0.65rem;
+        padding: 4px 0;
+    }
+
+    /* -- Triple Row (Players | Stars | Ships) -- */
+    .config-triple-row {
+        display: grid;
+        grid-template-columns: auto 1fr 1fr;
+        gap: 12px;
+        align-items: end;
+    }
+
+    .config-dual-row.compact {
+        gap: 8px;
+    }
+
+    /* -- Player Config Inline -- */
+    .player-config-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .hue-offset-inline {
         display: flex;
         align-items: center;
-        gap: 0.5rem;
+        gap: 6px;
     }
 
-    .ai-setting label {
+    .hue-offset-inline input[type="range"] {
+        width: 60px;
+    }
+
+    .inline-row {
+        display: grid;
+        grid-template-columns: 20px 36px 1fr auto auto;
+        grid-template-areas: "swatch name slider diff strat";
+        gap: 8px;
+        align-items: center;
+        padding: 6px 10px;
+    }
+
+    .player-label-inline {
         font-size: 0.7rem;
-        color: #5a7a96;
-        min-width: 56px;
+        font-weight: 600;
+        color: #cce8ff;
+        white-space: nowrap;
     }
 
-    .ai-setting select {
-        flex: 1;
+    .hue-slider.compact {
+        height: 6px;
+    }
+
+    .inline-select {
         background: rgba(5, 15, 30, 0.6);
         border: 1px solid rgba(100, 220, 255, 0.15);
         color: #cce8ff;
-        padding: 0.25rem 0.4rem;
+        padding: 3px 6px;
         border-radius: 4px;
-        font-size: 0.75rem;
+        font-size: 0.65rem;
         cursor: pointer;
+        min-width: 60px;
     }
 
-    .ai-setting select:focus {
+    .inline-select:focus {
         outline: 1px solid rgba(100, 220, 255, 0.4);
     }
+
+    .human-badge {
+        font-size: 0.5rem;
+        padding: 2px 8px;
+        border-radius: 3px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        background: rgba(0, 255, 255, 0.1);
+        color: #00ffff;
+        border: 1px solid rgba(0, 255, 255, 0.2);
+    }
+
+    /* -- Speed + Start Row -- */
+    .speed-start-row {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        grid-template-areas: "speed start";
+        gap: 16px;
+        align-items: end;
+    }
+
+    .speed-control {
+        grid-area: speed;
+    }
+
+    .speed-control .button-row {
+        gap: 0;
+    }
+
 </style>
