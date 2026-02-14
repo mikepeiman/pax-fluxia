@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
     import { onMount } from "svelte";
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
@@ -6,7 +6,7 @@
 
     const STORAGE_KEY = "pax-fluxia-combat-tuning";
 
-    // Default values â€” single source of truth for reset + disabled toggle state
+    // Default values — single source of truth for reset + disabled toggle state
     const defaultValues = {
         TRANSFER_RATE: 0.1,
         AGGRESSOR_ADVANTAGE: 0.7,
@@ -163,7 +163,7 @@
         },
         {
             key: "RETREAT_DAMAGED_ACTIVATION_RATE",
-            label: "ðŸ”„ Damaged Activation",
+            label: "🔄 Damaged Activation",
             min: 0,
             max: 1,
             step: 0.05,
@@ -232,20 +232,20 @@
     }
 
     const logCategories = [
-        { key: "sys", label: "ðŸ”µ System", desc: "Lifecycle, init" },
-        { key: "state", label: "ðŸŸ£ State", desc: "Logic, transitions" },
-        { key: "data", label: "ðŸŸ¢ Data", desc: "Data flow" },
-        { key: "net", label: "ðŸŸ¡ Network", desc: "API, IO" },
-        { key: "error", label: "ðŸ”´ Error", desc: "Errors (keep ON)" },
-        { key: "success", label: "âœ… Success", desc: "Verifications" },
-        { key: "combat", label: "âš”ï¸ Combat", desc: "Battle events" },
-        { key: "conquest", label: "ðŸ° Conquest", desc: "Capture details" },
-        { key: "input", label: "ðŸ–±ï¸ Input", desc: "User clicks" },
-        { key: "repair", label: "ðŸ”§ Repair", desc: "Ship repair" },
+        { key: "sys", label: "🔵 System", desc: "Lifecycle, init" },
+        { key: "state", label: "🟣 State", desc: "Logic, transitions" },
+        { key: "data", label: "🟢 Data", desc: "Data flow" },
+        { key: "net", label: "🟡 Network", desc: "API, IO" },
+        { key: "error", label: "🔴 Error", desc: "Errors (keep ON)" },
+        { key: "success", label: "✅ Success", desc: "Verifications" },
+        { key: "combat", label: "⚔️ Combat", desc: "Battle events" },
+        { key: "conquest", label: "🏰 Conquest", desc: "Capture details" },
+        { key: "input", label: "🖱️ Input", desc: "User clicks" },
+        { key: "repair", label: "🔧 Repair", desc: "Ship repair" },
     ] as const;
     let logRefresh = $state(0);
 
-    // â”€â”€ Config Import/Export â”€â”€
+    // ── Config Import/Export ──
     let configStatus = $state("");
     let configStatusColor = $state("#4ade80");
 
@@ -259,7 +259,7 @@
         a.download = `pax-config-${ts}.json`;
         a.click();
         URL.revokeObjectURL(url);
-        configStatus = `âœ… Exported ${Object.keys(GAME_CONFIG).length} settings`;
+        configStatus = `✅ Exported ${Object.keys(GAME_CONFIG).length} settings`;
         configStatusColor = "#4ade80";
     }
 
@@ -339,7 +339,7 @@
         a.download = `pax-config-${ts}.md`;
         a.click();
         URL.revokeObjectURL(url);
-        configStatus = `âœ… Exported MD`;
+        configStatus = `✅ Exported MD`;
         configStatusColor = "#4ade80";
     }
 
@@ -356,7 +356,7 @@
                 try {
                     data = JSON.parse(raw);
                 } catch {
-                    configStatus = "âŒ Invalid JSON â€” could not parse file";
+                    configStatus = "❌ Invalid JSON — could not parse file";
                     configStatusColor = "#f87171";
                     input.value = "";
                     return;
@@ -364,7 +364,7 @@
 
                 // Must be a plain object
                 if (!data || typeof data !== "object" || Array.isArray(data)) {
-                    configStatus = "âŒ Expected a JSON object with config keys";
+                    configStatus = "❌ Expected a JSON object with config keys";
                     configStatusColor = "#f87171";
                     input.value = "";
                     return;
@@ -446,13 +446,13 @@
                     /* ignore */
                 }
 
-                const parts = [`âœ… ${applied} applied`];
+                const parts = [`✅ ${applied} applied`];
                 if (skipped) parts.push(`${skipped} unknown`);
                 if (typeErrors) parts.push(`${typeErrors} type mismatches`);
                 configStatus = parts.join(", ");
                 configStatusColor = typeErrors > 0 ? "#fbbf24" : "#4ade80";
             } catch (err) {
-                configStatus = `âŒ Import failed: ${(err as Error).message}`;
+                configStatus = `❌ Import failed: ${(err as Error).message}`;
                 configStatusColor = "#f87171";
             }
             // Reset input so same file can be re-imported
@@ -700,7 +700,7 @@
     }
 
     // =========================================================================
-    // Icon Toolbar â€” sections definition
+    // Icon Toolbar — sections definition
     // =========================================================================
     type SectionId =
         | "speed"
@@ -737,20 +737,15 @@
         label: string;
         color: string;
     }[] = [
-        { id: "speed", icon: "âš¡", label: "Timing", color: "#ffcc00" },
-        { id: "battle", icon: "âš”ï¸", label: "Battle", color: "#ff4466" },
-        {
-            id: "economy",
-            icon: "ðŸŽ›ï¸",
-            label: "Core / Global",
-            color: "#44ff88",
-        },
-        { id: "ai", icon: "ðŸ¤–", label: "AI Behavior", color: "#ff8844" },
-        { id: "travel", icon: "ðŸš€", label: "Ship Travel", color: "#44aaff" },
-        { id: "conquest", icon: "ðŸ°", label: "Conquest", color: "#ff66aa" },
-        { id: "ships", icon: "ðŸ›¸", label: "Ship Look", color: "#88ccff" },
-        { id: "visuals", icon: "ðŸŽ¨", label: "Map Visuals", color: "#cc66ff" },
-        { id: "logging", icon: "ðŸ“‹", label: "Logging", color: "#88aacc" },
+        { id: "speed", icon: "⚡", label: "Timing", color: "#ffcc00" },
+        { id: "battle", icon: "⚔️", label: "Battle", color: "#ff4466" },
+        { id: "economy", icon: "🎛️", label: "Core / Global", color: "#44ff88" },
+        { id: "ai", icon: "🤖", label: "AI Behavior", color: "#ff8844" },
+        { id: "travel", icon: "🚀", label: "Ship Travel", color: "#44aaff" },
+        { id: "conquest", icon: "🏰", label: "Conquest", color: "#ff66aa" },
+        { id: "ships", icon: "🛸", label: "Ship Look", color: "#88ccff" },
+        { id: "visuals", icon: "🎨", label: "Map Visuals", color: "#cc66ff" },
+        { id: "logging", icon: "📋", label: "Logging", color: "#88aacc" },
     ];
 </script>
 
@@ -776,7 +771,7 @@
             title="Reset All"
             onclick={resetToDefaults}
         >
-            <span class="icon-emoji">â†º</span>
+            <span class="icon-emoji">↺</span>
             {#if activeSection === null}
                 <span class="icon-label">Reset</span>
             {/if}
@@ -793,11 +788,11 @@
             >
                 <span class="head-icon">{sec?.icon}</span>
                 <span class="head-label">{sec?.label}</span>
-                <span class="head-close">âœ•</span>
+                <span class="head-close">✕</span>
             </button>
 
             <div class="section-body">
-                <!-- âš¡ TIMING -->
+                <!-- ⚡ TIMING -->
                 {#if activeSection === "speed"}
                     <div class="var-row">
                         <div class="row-top">
@@ -820,8 +815,29 @@
                             }}
                         />
                     </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Animation Speed</span><span
+                                class="val">{animationSpeed}ms</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="100"
+                            max="5000"
+                            step="50"
+                            value={animationSpeed}
+                            oninput={(e) => {
+                                const v = parseInt(
+                                    (e.target as HTMLInputElement).value,
+                                );
+                                updateAnimationSpeed(v);
+                                updatePanel("animSpeed", v);
+                            }}
+                        />
+                    </div>
 
-                    <!-- âš”ï¸ BATTLE -->
+                    <!-- ⚔️ BATTLE -->
                 {:else if activeSection === "battle"}
                     {#each variables as v}
                         <div
@@ -869,11 +885,11 @@
                         </div>
                     {/each}
 
-                    <!-- ðŸ­ ECONOMY -->
+                    <!-- 🏭 ECONOMY -->
                 {:else if activeSection === "economy"}
                     <div class="var-row">
                         <div class="row-top">
-                            <span class="var-name">âš™ï¸ Production</span><span
+                            <span class="var-name">⚙️ Production</span><span
                                 class="val"
                                 >{(panel.production as number).toFixed(2)}</span
                             >
@@ -895,8 +911,9 @@
                     </div>
                     <div class="var-row">
                         <div class="row-top">
-                            <span class="var-name">ðŸš€ Transfer Rate</span
-                            ><span class="val">{transferRate}%</span>
+                            <span class="var-name">🚀 Transfer Rate</span><span
+                                class="val">{transferRate}%</span
+                            >
                         </div>
                         <input
                             type="range"
@@ -914,7 +931,7 @@
                     </div>
                     <div class="var-row">
                         <div class="row-top">
-                            <span class="var-name">ðŸ”§ Repair</span><span
+                            <span class="var-name">🔧 Repair</span><span
                                 class="val">{panel.repair as number}%</span
                             >
                         </div>
@@ -935,9 +952,9 @@
                     </div>
                     <div class="var-row">
                         <div class="row-top">
-                            <span class="var-name">ðŸ›¡ï¸ Defense</span><span
+                            <span class="var-name">🛡️ Defense</span><span
                                 class="val"
-                                >{(panel.defense as number).toFixed(2)}Ã—</span
+                                >{(panel.defense as number).toFixed(2)}×</span
                             >
                         </div>
                         <input
@@ -957,7 +974,7 @@
                     </div>
                     <div class="var-row">
                         <div class="row-top">
-                            <span class="var-name">âš”ï¸ Attack</span><span
+                            <span class="var-name">⚔️ Attack</span><span
                                 class="val"
                                 >{(panel.attack as number).toFixed(3)}</span
                             >
@@ -978,7 +995,7 @@
                         />
                     </div>
 
-                    <!-- ðŸ¤– AI BEHAVIOR -->
+                    <!-- 🤖 AI BEHAVIOR -->
                 {:else if activeSection === "ai"}
                     {#each aiVariables as v}
                         <div
@@ -1029,8 +1046,8 @@
                     <h4 class="sub-heading">Future Strategies</h4>
                     <div class="var-row grayed">
                         <div class="row-top">
-                            <span class="var-name">ðŸŽ¯ Sniper</span><span
-                                class="val">â€”</span
+                            <span class="var-name">🎯 Sniper</span><span
+                                class="val">—</span
                             >
                         </div>
                         <span class="future-desc"
@@ -1039,8 +1056,8 @@
                     </div>
                     <div class="var-row grayed">
                         <div class="row-top">
-                            <span class="var-name">ðŸ›¡ï¸ Turtle</span><span
-                                class="val">â€”</span
+                            <span class="var-name">🛡️ Turtle</span><span
+                                class="val">—</span
                             >
                         </div>
                         <span class="future-desc"
@@ -1049,8 +1066,8 @@
                     </div>
                     <div class="var-row grayed">
                         <div class="row-top">
-                            <span class="var-name">ðŸŒŠ Swarm</span><span
-                                class="val">â€”</span
+                            <span class="var-name">🌊 Swarm</span><span
+                                class="val">—</span
                             >
                         </div>
                         <span class="future-desc">Mass coordinated attacks</span
@@ -1058,8 +1075,8 @@
                     </div>
                     <div class="var-row grayed">
                         <div class="row-top">
-                            <span class="var-name">ðŸŽ² Chaos</span><span
-                                class="val">â€”</span
+                            <span class="var-name">🎲 Chaos</span><span
+                                class="val">—</span
                             >
                         </div>
                         <span class="future-desc"
@@ -1068,8 +1085,8 @@
                     </div>
                     <div class="var-row grayed">
                         <div class="row-top">
-                            <span class="var-name">ðŸ¤ Diplomat</span><span
-                                class="val">â€”</span
+                            <span class="var-name">🤝 Diplomat</span><span
+                                class="val">—</span
                             >
                         </div>
                         <span class="future-desc"
@@ -1078,8 +1095,8 @@
                     </div>
                     <div class="var-row grayed">
                         <div class="row-top">
-                            <span class="var-name">âš–ï¸ Balanced</span><span
-                                class="val">â€”</span
+                            <span class="var-name">⚖️ Balanced</span><span
+                                class="val">—</span
                             >
                         </div>
                         <span class="future-desc"
@@ -1087,9 +1104,10 @@
                         >
                     </div>
 
-                    <!-- ðŸš€ SHIP TRAVEL -->
+                    <!-- 🚀 SHIP TRAVEL -->
                 {:else if activeSection === "travel"}
                     <h4 class="sub-heading">Mode & Easing</h4>
+                    <!-- Travel Animation Mode -->
                     <div class="var-row">
                         <div class="row-top">
                             <span class="var-name">Travel Mode</span><span
@@ -1109,6 +1127,7 @@
                             <option value="lane">Lane (Classic)</option>
                         </select>
                     </div>
+                    <!-- Travel Easing Controls -->
                     <div class="var-row">
                         <div class="row-top">
                             <span class="var-name">Travel Easing</span><span
@@ -1152,60 +1171,33 @@
                             }}
                         />
                     </div>
-                    <div class="var-row">
-                        <div class="row-top">
-                            <label class="toggle-label"
-                                ><span class="var-name">Depart Mode</span>
-                                <select
-                                    value={panel.departMode}
-                                    onchange={(e) => {
-                                        const val = (
-                                            e.target as HTMLSelectElement
-                                        ).value;
-                                        GAME_CONFIG.DEPART_MODE = val as
-                                            | "lifo"
-                                            | "fifo"
-                                            | "nearside";
-                                        updatePanel("departMode", val as any);
-                                    }}
-                                    style="margin-left:8px; background:#222; color:#fff; border:1px solid #555; padding:2px 4px; font-size:0.75rem;"
-                                >
-                                    <option value="nearside">Nearside</option>
-                                    <option value="lifo">LIFO (newest)</option>
-                                    <option value="fifo">FIFO (oldest)</option>
-                                </select>
-                            </label>
-                        </div>
-                    </div>
 
                     <h4 class="sub-heading">Timing & Motion</h4>
                     <div class="var-row">
                         <div class="row-top">
                             <span class="var-name">Ship Travel Duration</span
-                            ><span class="val">{animationSpeed}ms</span>
+                            ><span class="val">{panel.travelDurationMs}ms</span>
                         </div>
                         <input
                             type="range"
-                            min="100"
+                            min="200"
                             max="5000"
                             step="50"
-                            value={animationSpeed}
+                            value={panel.travelDurationMs}
                             oninput={(e) => {
-                                const v = parseInt(
-                                    (e.target as HTMLInputElement).value,
-                                );
-                                updateAnimationSpeed(v);
-                                updatePanel("animSpeed", v);
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.SHIP_TRAVEL_DURATION_MS = v;
+                                updatePanel("travelDurationMs", v);
                             }}
                         />
                     </div>
                     <div class="var-row">
                         <div class="row-top">
-                            <span class="var-name">Travel Duration Ã—</span
-                            ><span class="val"
+                            <span class="var-name">Travel Duration</span><span
+                                class="val"
                                 >{(panel.travelDurationMult as number).toFixed(
                                     1,
-                                )}Ã—</span
+                                )}×</span
                             >
                         </div>
                         <input
@@ -1245,6 +1237,31 @@
                     </div>
                     <div class="var-row">
                         <div class="row-top">
+                            <label class="toggle-label"
+                                ><span class="var-name">Depart Mode</span>
+                                <select
+                                    value={panel.departMode}
+                                    onchange={(e) => {
+                                        const val = (
+                                            e.target as HTMLSelectElement
+                                        ).value;
+                                        GAME_CONFIG.DEPART_MODE = val as
+                                            | "lifo"
+                                            | "fifo"
+                                            | "nearside";
+                                        updatePanel("departMode", val as any);
+                                    }}
+                                    style="margin-left:8px; background:#222; color:#fff; border:1px solid #555; padding:2px 4px; font-size:0.75rem;"
+                                >
+                                    <option value="nearside">Nearside</option>
+                                    <option value="lifo">LIFO (newest)</option>
+                                    <option value="fifo">FIFO (oldest)</option>
+                                </select>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
                             <span class="var-name">Settle Time</span><span
                                 class="val">{panel.settleDuration}ms</span
                             >
@@ -1268,7 +1285,7 @@
                                 class="val"
                                 >{(panel.arrivalSpread as number).toFixed(
                                     1,
-                                )}Ã—</span
+                                )}×</span
                             >
                         </div>
                         <input
@@ -1305,50 +1322,6 @@
                     </div>
                     <div class="var-row">
                         <div class="row-top">
-                            <span class="var-name">Orbit Density</span><span
-                                class="val"
-                                >{(panel.orbitDensity as number).toFixed(
-                                    1,
-                                )}Ã—</span
-                            >
-                        </div>
-                        <input
-                            type="range"
-                            min="1.0"
-                            max="4.0"
-                            step="0.1"
-                            value={panel.orbitDensity}
-                            oninput={(e) => {
-                                const v = +(e.target as HTMLInputElement).value;
-                                GAME_CONFIG.ORBIT_DENSITY = v;
-                                updatePanel("orbitDensity", v);
-                            }}
-                        />
-                    </div>
-                    <div class="var-row">
-                        <div class="row-top">
-                            <span class="var-name">Depart Fraction</span><span
-                                class="val"
-                                >{(panel.departFraction as number).toFixed(
-                                    2,
-                                )}</span
-                            >
-                        </div>
-                        <input
-                            type="range"
-                            min="0.1"
-                            max="0.6"
-                            step="0.05"
-                            value={panel.departFraction}
-                            oninput={(e) => {
-                                const v = +(e.target as HTMLInputElement).value;
-                                GAME_CONFIG.DEPART_FRACTION = v;
-                                updatePanel("departFraction", v);
-                            }}
-                        />
-                    </div>
-                    <div class="var-row">
-                        <div class="row-top">
                             <span class="var-name">Depart Jitter</span><span
                                 class="val">{panel.departJitter}ms</span
                             >
@@ -1376,13 +1349,35 @@
                         <input
                             type="range"
                             min="0"
-                            max="20"
+                            max="30"
                             step="1"
                             value={GAME_CONFIG.LANE_OFFSET_PX ?? 8}
                             oninput={(e) => {
-                                GAME_CONFIG.LANE_OFFSET_PX = parseInt(
-                                    (e.target as HTMLInputElement).value,
-                                );
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.LANE_OFFSET_PX = v;
+                                updatePanel("laneOffsetPx", v);
+                            }}
+                        />
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Orbit Density</span><span
+                                class="val"
+                                >{(panel.orbitDensity as number).toFixed(
+                                    1,
+                                )}×</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="1.0"
+                            max="4.0"
+                            step="0.1"
+                            value={panel.orbitDensity}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.ORBIT_DENSITY = v;
+                                updatePanel("orbitDensity", v);
                             }}
                         />
                     </div>
@@ -1390,11 +1385,11 @@
                     <h4 class="sub-heading">Attack Surge</h4>
                     <div class="var-row">
                         <div class="row-top">
-                            <span class="var-name">Attack Surge</span><span
+                            <span class="var-name">Attack Surge ×</span><span
                                 class="val"
                                 >{(panel.attackSurgeMult as number).toFixed(
                                     2,
-                                )}Ã—</span
+                                )}×</span
                             >
                         </div>
                         <input
@@ -1437,9 +1432,9 @@
                             </div>
                             <input
                                 type="range"
-                                min="0"
-                                max="2"
-                                step="0.05"
+                                min="0.1"
+                                max="5"
+                                step="0.1"
                                 value={panel.attackSurgeForceCofactor}
                                 oninput={(e) => {
                                     const v = +(e.target as HTMLInputElement)
@@ -1516,56 +1511,53 @@
                         </div>
                     </div>
                     {#if panel.orbTravel}
-                        <div class="orb-pair indent">
-                            <div class="var-row compact">
-                                <div class="row-top">
-                                    <span class="var-name">Base R</span><span
-                                        class="val"
-                                        >{(
-                                            panel.orbBaseRadius as number
-                                        ).toFixed(1)}</span
-                                    >
-                                </div>
-                                <input
-                                    type="range"
-                                    min="1"
-                                    max="12"
-                                    step="0.5"
-                                    value={panel.orbBaseRadius}
-                                    oninput={(e) => {
-                                        const v = +(
-                                            e.target as HTMLInputElement
-                                        ).value;
-                                        GAME_CONFIG.ORB_BASE_RADIUS = v;
-                                        updatePanel("orbBaseRadius", v);
-                                    }}
-                                />
+                        <div class="var-row indent compact">
+                            <div class="row-top">
+                                <span class="var-name">Base R</span><span
+                                    class="val"
+                                    >{(panel.orbBaseRadius as number).toFixed(
+                                        0,
+                                    )}px</span
+                                >
                             </div>
-                            <div class="var-row compact">
-                                <div class="row-top">
-                                    <span class="var-name">R Scale</span><span
-                                        class="val"
-                                        >{(
-                                            panel.orbRadiusScale as number
-                                        ).toFixed(2)}</span
-                                    >
-                                </div>
-                                <input
-                                    type="range"
-                                    min="0.2"
-                                    max="5"
-                                    step="0.1"
-                                    value={panel.orbRadiusScale}
-                                    oninput={(e) => {
-                                        const v = +(
-                                            e.target as HTMLInputElement
-                                        ).value;
-                                        GAME_CONFIG.ORB_RADIUS_SCALE = v;
-                                        updatePanel("orbRadiusScale", v);
-                                    }}
-                                />
-                            </div>
+                            <input
+                                type="range"
+                                min="2"
+                                max="30"
+                                step="1"
+                                value={panel.orbBaseRadius}
+                                oninput={(e) => {
+                                    const v = +(e.target as HTMLInputElement)
+                                        .value;
+                                    GAME_CONFIG.ORB_BASE_RADIUS = v;
+                                    updatePanel("orbBaseRadius", v);
+                                }}
+                            />
                         </div>
+                        <div class="var-row compact">
+                            <div class="row-top">
+                                <span class="var-name">R Scale</span><span
+                                    class="val"
+                                    >{(panel.orbRadiusScale as number).toFixed(
+                                        2,
+                                    )}</span
+                                >
+                            </div>
+                            <input
+                                type="range"
+                                min="0.2"
+                                max="5"
+                                step="0.1"
+                                value={panel.orbRadiusScale}
+                                oninput={(e) => {
+                                    const v = +(e.target as HTMLInputElement)
+                                        .value;
+                                    GAME_CONFIG.ORB_RADIUS_SCALE = v;
+                                    updatePanel("orbRadiusScale", v);
+                                }}
+                            />
+                        </div>
+                        <!-- Glow -->
                         <div class="var-row indent compact">
                             <div class="row-top">
                                 <span class="var-name">Glow Mult</span><span
@@ -1578,7 +1570,7 @@
                             <input
                                 type="range"
                                 min="0"
-                                max="3"
+                                max="4"
                                 step="0.1"
                                 value={panel.orbGlowMult}
                                 oninput={(e) => {
@@ -1592,7 +1584,7 @@
                         <div class="orb-pair indent">
                             <div class="var-row compact">
                                 <div class="row-top">
-                                    <span class="var-name">Outer Î±</span><span
+                                    <span class="var-name">Outer α</span><span
                                         class="val"
                                         >{(
                                             panel.orbOuterAlpha as number
@@ -1616,7 +1608,7 @@
                             </div>
                             <div class="var-row compact">
                                 <div class="row-top">
-                                    <span class="var-name">Outer Ã—</span><span
+                                    <span class="var-name">Outer ×</span><span
                                         class="val"
                                         >{(
                                             panel.orbOuterScale as number
@@ -1642,7 +1634,7 @@
                         <div class="orb-pair indent">
                             <div class="var-row compact">
                                 <div class="row-top">
-                                    <span class="var-name">Mid Î±</span><span
+                                    <span class="var-name">Mid α</span><span
                                         class="val"
                                         >{(panel.orbMidAlpha as number).toFixed(
                                             2,
@@ -1666,7 +1658,7 @@
                             </div>
                             <div class="var-row compact">
                                 <div class="row-top">
-                                    <span class="var-name">Mid Ã—</span><span
+                                    <span class="var-name">Mid ×</span><span
                                         class="val"
                                         >{(panel.orbMidScale as number).toFixed(
                                             1,
@@ -1676,7 +1668,7 @@
                                 <input
                                     type="range"
                                     min="0.5"
-                                    max="4"
+                                    max="3"
                                     step="0.1"
                                     value={panel.orbMidScale}
                                     oninput={(e) => {
@@ -1692,7 +1684,7 @@
                         <div class="orb-pair indent">
                             <div class="var-row compact">
                                 <div class="row-top">
-                                    <span class="var-name">Core Î±</span><span
+                                    <span class="var-name">Core α</span><span
                                         class="val"
                                         >{(
                                             panel.orbCoreAlpha as number
@@ -1702,8 +1694,8 @@
                                 <input
                                     type="range"
                                     min="0"
-                                    max="1"
-                                    step="0.02"
+                                    max="2"
+                                    step="0.05"
                                     value={panel.orbCoreAlpha}
                                     oninput={(e) => {
                                         const v = +(
@@ -1716,18 +1708,18 @@
                             </div>
                             <div class="var-row compact">
                                 <div class="row-top">
-                                    <span class="var-name">Core Ã—</span><span
+                                    <span class="var-name">Core ×</span><span
                                         class="val"
                                         >{(
                                             panel.orbCoreScale as number
-                                        ).toFixed(2)}</span
+                                        ).toFixed(1)}</span
                                     >
                                 </div>
                                 <input
                                     type="range"
-                                    min="0.1"
-                                    max="1.5"
-                                    step="0.05"
+                                    min="0.5"
+                                    max="3"
+                                    step="0.1"
                                     value={panel.orbCoreScale}
                                     oninput={(e) => {
                                         const v = +(
@@ -1739,9 +1731,10 @@
                                 />
                             </div>
                         </div>
+                        <!-- Center dot -->
                         <div class="var-row indent compact">
                             <div class="row-top">
-                                <span class="var-name">Center Î±</span><span
+                                <span class="var-name">Center α</span><span
                                     class="val"
                                     >{(panel.orbCenterAlpha as number).toFixed(
                                         2,
@@ -1764,7 +1757,7 @@
                         </div>
                     {/if}
 
-                    <!-- ðŸ° CONQUEST -->
+                    <!-- 🏰 CONQUEST -->
                 {:else if activeSection === "conquest"}
                     <h4 class="sub-heading">Animation</h4>
                     <div class="var-row">
@@ -1833,14 +1826,14 @@
                                 class="val"
                                 >{(panel.conquestTravelSpeed as number).toFixed(
                                     2,
-                                )}Ã—</span
+                                )}</span
                             >
                         </div>
                         <input
                             type="range"
-                            min="0.3"
-                            max="1.5"
-                            step="0.05"
+                            min="0.1"
+                            max="5"
+                            step="0.1"
                             value={panel.conquestTravelSpeed}
                             oninput={(e) => {
                                 const v = +(e.target as HTMLInputElement).value;
@@ -1928,7 +1921,7 @@
                         />
                     </div>
 
-                    <!-- ðŸ›¸ SHIP LOOK -->
+                    <!-- 🛸 SHIP LOOK -->
                 {:else if activeSection === "ships"}
                     <h4 class="sub-heading">Appearance</h4>
                     <div class="var-row">
@@ -2001,7 +1994,7 @@
                                 class="val"
                                 >{(panel.shipScaleMult as number).toFixed(
                                     1,
-                                )}Ã—</span
+                                )}×</span
                             >
                         </div>
                         <input
@@ -2088,7 +2081,7 @@
                                 class="val"
                                 >{(panel.orbitRingMult as number).toFixed(
                                     1,
-                                )}Ã—</span
+                                )}×</span
                             >
                         </div>
                         <input
@@ -2104,13 +2097,12 @@
                             }}
                         />
                     </div>
-
-                    <!-- ðŸŽ¨ MAP VISUALS -->
+                    <!-- 🎨 MAP VISUALS -->
                 {:else if activeSection === "visuals"}
                     <div class="var-row">
                         <div class="row-top">
-                            <span class="var-name">âž¡ï¸ Arrow Length</span
-                            ><span class="val"
+                            <span class="var-name">➡️ Arrow Length</span><span
+                                class="val"
                                 >{Math.round(
                                     GAME_CONFIG.ARROW_LENGTH_FRACTION * 100,
                                 )}%</span
@@ -2142,7 +2134,7 @@
                                 ).checked;
                             }}
                         />
-                        <span class="var-name">ðŸ›‘ Static Orbits</span><span
+                        <span class="var-name">🛑 Static Orbits</span><span
                             class="val"
                             style="font-size:9px;opacity:0.6">No rotation</span
                         ></label
@@ -2232,7 +2224,7 @@
                         />
                     </div>
 
-                    <!-- ðŸ“‹ LOGGING -->
+                    <!-- 📋 LOGGING -->
                 {:else if activeSection === "logging"}
                     <div class="log-actions">
                         <button
@@ -2274,20 +2266,20 @@
                         {/key}
                     {/each}
 
-                    <!-- â”€â”€ Config Import/Export â”€â”€ -->
+                    <!-- ── Config Import/Export ── -->
                     <h4 class="sub-heading" style="margin-top: 10px;">
-                        âš™ï¸ Config
+                        ⚙️ Config
                     </h4>
                     <div class="log-actions" style="flex-wrap: wrap;">
                         <button
                             class="btn-xs btn-export"
                             onclick={() => exportConfigJSON()}
-                            >ðŸ“¥ Export JSON</button
+                            >📥 Export JSON</button
                         >
                         <button
                             class="btn-xs btn-export"
                             onclick={() => exportConfigMD()}
-                            >ðŸ“„ Export MD</button
+                            >📄 Export MD</button
                         >
                         <button
                             class="btn-xs btn-import"
@@ -2296,7 +2288,7 @@
                                     "config-import-input",
                                 ) as HTMLInputElement;
                                 if (inp) inp.click();
-                            }}>ðŸ“¤ Import JSON</button
+                            }}>📤 Import JSON</button
                         >
                     </div>
                     <input
@@ -2331,7 +2323,7 @@
         min-height: 0;
     }
 
-    /* â”€â”€ Icon Toolbar â”€â”€ */
+    /* ── Icon Toolbar ── */
     .icon-toolbar {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
@@ -2398,7 +2390,7 @@
         filter: none;
     }
 
-    /* â”€â”€ Section Panel â”€â”€ */
+    /* ── Section Panel ── */
     .section-panel {
         background: rgba(255, 255, 255, 0.02);
         border: 1px solid rgba(255, 255, 255, 0.08);
@@ -2487,7 +2479,7 @@
         font-size: 9px;
     }
 
-    /* â”€â”€ Controls â”€â”€ */
+    /* ── Controls ── */
     .var-row {
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid rgba(255, 255, 255, 0.05);
@@ -2567,7 +2559,7 @@
         font-weight: 700;
     }
 
-    /* â”€â”€ Logging â”€â”€ */
+    /* ── Logging ── */
     .log-actions {
         display: flex;
         gap: 6px;
@@ -2637,7 +2629,7 @@
         color: #8cf;
         background: rgba(80, 140, 220, 0.08);
     }
-    /* â”€â”€ Future AI Strategies â”€â”€ */
+    /* ── Future AI Strategies ── */
     .var-row.grayed {
         opacity: 0.35;
         pointer-events: none;
