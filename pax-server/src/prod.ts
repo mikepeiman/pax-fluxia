@@ -31,12 +31,25 @@ app.use((_req, res, next) => {
     next();
 });
 
+// Explicit root route — must be defined BEFORE Colyseus binds its own "/" handler
+app.get("/", (_req, res) => {
+    res.sendFile(path.join(CLIENT_DIR, "index.html"));
+});
+
 // Serve static client files (with cache headers for assets)
 app.use(express.static(CLIENT_DIR, {
     maxAge: "1y",
     immutable: true,
-    index: "index.html",
 }));
+
+// SPA fallback for client-side routes (before Colyseus binds matchmaker)
+app.get("/{*splat}", (req, res, next) => {
+    // Let /matchmake and /colyseus paths fall through to Colyseus
+    if (req.path.startsWith("/matchmake") || req.path.startsWith("/colyseus")) {
+        return next();
+    }
+    res.sendFile(path.join(CLIENT_DIR, "index.html"));
+});
 
 // ============================================================================
 // Colyseus — game server on the same HTTP server
@@ -59,11 +72,6 @@ gameServer.define("test_room", TestRoom)
     .on("create", (room) => log.sys("MatchMaker", `test_room CREATED: ${room.roomId}`))
     .on("join", (room, client) => log.net("MatchMaker", `Client JOINED test_room ${room.roomId}: ${client.sessionId}`))
     .on("dispose", (room) => log.sys("MatchMaker", `test_room DISPOSED: ${room.roomId}`));
-
-// SPA fallback — must come AFTER Colyseus matchmaker routes
-app.get("/{*splat}", (_req, res) => {
-    res.sendFile(path.join(CLIENT_DIR, "index.html"));
-});
 
 // ============================================================================
 // Start
