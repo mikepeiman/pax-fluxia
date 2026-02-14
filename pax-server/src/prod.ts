@@ -34,11 +34,14 @@ const gameServer = new Server({
 });
 
 // ============================================================================
-// DIAGNOSTIC: Log exactly what the WS upgrade handler receives
-// This listener is passive — it does NOT interfere with the ws library.
+// DIAGNOSTIC: Wrap onConnection to see EXACTLY what connectClientToRoom receives.
+// Replaces the ws-transport's own handler with a wrapper that logs, then delegates.
 // Remove once the 4002 issue is resolved.
 // ============================================================================
-(transport as any).server.on("upgrade", (req: any) => {
+const wss = (transport as any).wss;
+const originalOnConnection = wss.listeners("connection")[0]; // ws-transport's handler
+wss.removeAllListeners("connection");
+wss.on("connection", (rawClient: any, req: any) => {
     try {
         const url = new URL(`ws://s/${req.url}`);
         const sid = url.searchParams.get("sessionId");
@@ -48,15 +51,21 @@ const gameServer = new Server({
         const room = rid ? (matchMaker as any).getLocalRoomById(rid) : null;
         const seats = room ? Object.keys(room["_reservedSeats"] || {}) : [];
         const has = room && sid ? room.hasReservedSeat(sid) : false;
-        log.net("WS-Diag", [
+        const reconnToken = url.searchParams.get("reconnectionToken");
+        const hasWithToken = room && sid ? room.hasReservedSeat(sid, reconnToken) : false;
+        log.net("WS-Diag-CONN", [
             `url=${req.url}`,
             `pid=${pid} rid=${rid} sid=${sid}`,
-            `roomFound=${!!room} seats=${JSON.stringify(seats)} hasReserved=${has}`,
-            `serverPid=${(matchMaker as any).processId}`,
+            `roomFound=${!!room} seats=${JSON.stringify(seats)}`,
+            `hasReserved=${has} hasReservedWithToken=${hasWithToken}`,
+            `reconnToken=${reconnToken}`,
+            `seatDetail=${room && sid && room["_reservedSeats"]?.[sid] ? JSON.stringify(room["_reservedSeats"][sid]) : "none"}`,
         ].join(" | "));
     } catch (e: any) {
         log.error("WS-Diag", e.message);
     }
+    // Delegate to original handler
+    originalOnConnection(rawClient, req);
 });
 
 // Define rooms (identical to index.ts)
