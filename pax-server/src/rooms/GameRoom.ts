@@ -67,26 +67,22 @@ export class GameRoom extends Room {
 
     onCreate(options: RoomOptions) {
         try {
-            log.sys('GameRoom', 'onCreate starting...', options);
+            log.sys('GameRoom', `onCreate: players=${options.playerCount || 4}, map=${options.mapType || 'standard'}`);
 
-            // Increase seat reservation time for proxied deployments (Northflank)
-            // Default is 15s; increase to 30s to allow for TLS+proxy latency
-            this.setSeatReservationTime(30);
+            // Seat reservation for proxied deployments
+            this.seatReservationTimeout = 30;
 
             // IMPORTANT: Use setState() per Colyseus 0.17.29 strict type requirements
-            log.sys('GameRoom', 'Calling this.setState()...');
             this.setState(new GameRoomState());
 
             this.roomOptions = options;
             this.maxClients = options.playerCount || 4;
 
-            // Merge client gameplay config with defaults (Phase A)
+            // Merge client gameplay config with defaults
             if (options.gameplayConfig) {
                 this.engineConfig = { ...DEFAULT_ENGINE_CONFIG, ...options.gameplayConfig };
-                log.sys('GameRoom', 'Using client gameplay config', options.gameplayConfig);
             }
 
-            log.sys('GameRoom', 'Setting state values...');
             // Initialize state values
             this.state.maxPlayers = this.maxClients;
             this.state.phase = "lobby";
@@ -95,7 +91,6 @@ export class GameRoom extends Room {
             this.state.tick = 0;
             this.state.tickProgress = 0;
 
-            log.sys('GameRoom', 'Registering message handlers...');
             // Register message handlers
             this.registerMessageHandlers();
 
