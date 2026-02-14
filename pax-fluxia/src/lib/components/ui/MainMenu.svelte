@@ -9,7 +9,7 @@
 
     let visible = $state(true);
 
-    // ── Game Mode ──────────────────────────────────────────────────────────
+    // â”€â”€ Game Mode â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Auto-switch to MP when connected
     let gameMode = $state<"sp" | "mp">(
         multiplayerStore.isConnected ? "mp" : "sp",
@@ -34,7 +34,7 @@
         }
     });
 
-    // ── Settings (localStorage-persisted) ──────────────────────────────────
+    // â”€â”€ Settings (localStorage-persisted) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     function loadSetting<T>(key: string, defaultValue: T): T {
         if (typeof window === "undefined") return defaultValue;
         const stored = localStorage.getItem(`pax-fluxia-${key}`);
@@ -96,7 +96,7 @@
         }
     });
 
-    // ── Per-Player Settings ───────────────────────────────────────────────
+    // â”€â”€ Per-Player Settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const AI_STRATEGIES = [
         { id: "default", label: "Default" },
         { id: "frontline", label: "Frontline Forces" },
@@ -159,7 +159,7 @@
 
     let expandedPlayer = $state<number | null>(null);
 
-    // ── Map Definitions ────────────────────────────────────────────────────
+    // â”€â”€ Map Definitions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const MAP_DEFS: {
         id: string;
         label: string;
@@ -228,7 +228,7 @@
     const PLAYERS: GameSettings["playerCount"][] = [2, 3, 4, 5, 6];
     const DIFFICULTIES = ["Easy", "Normal", "Hard", "Expert"];
 
-    // ── Actions ────────────────────────────────────────────────────────────
+    // â”€â”€ Actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     function saveAllSettings() {
         saveSetting("mapType", mapType);
         saveSetting("playerCount", playerCount);
@@ -274,7 +274,7 @@
         visible = false;
     }
 
-    // ── MP handlers ────────────────────────────────────────────────────────
+    // â”€â”€ MP handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     import { buildEngineConfig } from "$lib/config/game.config";
 
     async function handleCreateRoom() {
@@ -333,32 +333,71 @@
                 <div class="subtitle">TERRITORY CONTROL STRATEGY</div>
             </header>
 
-            <!-- ═══ Mode Toggle ═══ -->
-            <div class="mode-toggle">
+            <!-- ═══ Responsive tabs (small screens only)  -->
+            <div class="responsive-tabs">
                 <button
-                    class="mode-btn"
+                    class="tab-btn"
                     class:active={gameMode === "sp"}
                     onclick={() => (gameMode = "sp")}
                 >
-                    <span class="mode-icon">🎮</span>
-                    SOLO
+                    🎮 GAME
                 </button>
                 <button
-                    class="mode-btn"
+                    class="tab-btn"
                     class:active={gameMode === "mp"}
                     onclick={() => (gameMode = "mp")}
                 >
-                    <span class="mode-icon">🌐</span>
-                    MULTIPLAYER
+                    🌐 MULTIPLAYER
                     {#if multiplayerStore.isConnected}
                         <span class="connected-dot"></span>
                     {/if}
                 </button>
             </div>
 
-            <!-- ═══ Main Content: Two columns ═══ -->
-            <div class="content-grid">
-                <!-- ── Left: Game Config ── -->
+            <!--  3-Column Layout  -->
+            <div class="content-grid-3col">
+
+                <!--  Col 1: Menu + Settings  -->
+                <section class="panel menu-sidebar">
+                    <h2 class="panel-title">MENU</h2>
+
+                    <nav class="menu-nav">
+                        <button class="menu-item" onclick={startSPGame}>
+                            <span class="menu-icon">▶</span>
+                            <span>START GAME</span>
+                        </button>
+                        <button class="menu-item" disabled>
+                            <span class="menu-icon">⚙</span>
+                            <span>Settings</span>
+                        </button>
+                        <button class="menu-item" disabled>
+                            <span class="menu-icon">🛒</span>
+                            <span>Shop</span>
+                        </button>
+                        <button class="menu-item quit-item" onclick={() => window.close()}>
+                            <span class="menu-icon"></span>
+                            <span>Quit</span>
+                        </button>
+                    </nav>
+
+                    <div class="spacer"></div>
+
+                    <!-- AI Difficulty (for SP) -->
+                    <div class="control-group">
+                        <label>AI DIFFICULTY</label>
+                        <div class="button-row compact">
+                            {#each DIFFICULTIES as d}
+                                <button
+                                    class:active={difficulty === d}
+                                    onclick={() => (difficulty = d)}
+                                    >{d}</button
+                                >
+                            {/each}
+                        </div>
+                    </div>
+                </section>
+
+                <!--  Col 2: Map + Players + Config  -->
                 <section class="panel config-panel">
                     <h2 class="panel-title">GAME SETUP</h2>
 
@@ -516,37 +555,183 @@
                             >
                         </label>
                     </div>
+
+                    <!-- Per-Player Configuration -->
+                    <div class="control-group player-config-section">
+                        <label>PLAYER COLORS</label>
+                        <div class="hue-offset-row">
+                            <span class="mini-label">Hue offset</span>
+                            <input
+                                type="range"
+                                min="10"
+                                max="120"
+                                bind:value={hueOffset}
+                            />
+                            <span class="value">{hueOffset}</span>
+                        </div>
+                        <div class="player-config-list">
+                            {#each playerConfigs as cfg, i}
+                                <div class="player-config-row">
+                                    <!-- svelte-ignore a11y_click_events_have_key_events -->
+                                    <!-- svelte-ignore a11y_no_static_element_interactions -->
+                                    <div
+                                        class="player-header"
+                                        onclick={() =>
+                                            (expandedPlayer =
+                                                expandedPlayer === i
+                                                    ? null
+                                                    : i)}
+                                    >
+                                        <span
+                                            class="player-swatch"
+                                            style:background-color="hsl({cfg.hue}, 70%, 55%)"
+                                        ></span>
+                                        <span class="player-label">
+                                            {i === 0 ? "YOU" : `P${i + 1}`}
+                                            {#if cfg.isAI}
+                                                <span class="badge ai">AI</span>
+                                            {/if}
+                                        </span>
+                                        <span class="player-expand"
+                                            >{expandedPlayer === i
+                                                ? ""
+                                                : ""}</span
+                                        >
+                                    </div>
+                                    {#if expandedPlayer === i}
+                                        <div class="player-details">
+                                            <div class="hue-control">
+                                                <label>Color</label>
+                                                <input
+                                                    type="range"
+                                                    class="hue-slider"
+                                                    min="0"
+                                                    max="360"
+                                                    bind:value={playerConfigs[i].hue}
+                                                    style:--hue={cfg.hue}
+                                                />
+                                                <span
+                                                    class="hue-preview"
+                                                    style:background-color="hsl({cfg.hue}, 70%, 55%)"
+                                                ></span>
+                                            </div>
+                                            {#if i > 0}
+                                                <div class="ai-setting">
+                                                    <label>Difficulty</label>
+                                                    <select bind:value={playerConfigs[i].difficulty}>
+                                                        {#each DIFFICULTIES as d}
+                                                            <option value={d}>{d}</option>
+                                                        {/each}
+                                                    </select>
+                                                </div>
+                                                <div class="ai-setting">
+                                                    <label>Strategy</label>
+                                                    <select bind:value={playerConfigs[i].strategy}>
+                                                        {#each AI_STRATEGIES as s}
+                                                            <option value={s.id}>{s.label}</option>
+                                                        {/each}
+                                                    </select>
+                                                </div>
+                                            {/if}
+                                        </div>
+                                    {/if}
+                                </div>
+                            {/each}
+                        </div>
+                    </div>
                 </section>
 
-                <!-- ── Right: Mode-specific panel ── -->
-                <section class="panel mode-panel">
-                    {#if gameMode === "sp"}
-                        <!-- ══ Single Player ══ -->
-                        <h2 class="panel-title">SINGLE PLAYER</h2>
+                <!--  Col 3: Multiplayer (visually distinct)  -->
+                <section class="panel mp-panel">
+                    <h2 class="panel-title">
+                        �� MULTIPLAYER
+                        {#if multiplayerStore.isConnected}
+                            <span class="connected-dot"></span>
+                        {/if}
+                    </h2>
 
-                        <div class="control-group">
-                            <label>AI DIFFICULTY</label>
-                            <div class="button-row">
-                                {#each DIFFICULTIES as d}
-                                    <button
-                                        class:active={difficulty === d}
-                                        onclick={() => (difficulty = d)}
-                                        >{d}</button
-                                    >
-                                {/each}
+                    {#if multiplayerStore.isConnected}
+                        <!--  Connected Lobby  -->
+                        <div class="room-info-bar">
+                            <div class="room-id-block">
+                                <span class="room-label">ROOM</span>
+                                <code class="room-code"
+                                    >{multiplayerStore.roomId}</code
+                                >
+                                <button
+                                    class="copy-btn"
+                                    onclick={copyRoomId}
+                                    title="Copy Room ID"
+                                >
+                                    
+                                </button>
                             </div>
+                            <div class="player-count-badge">
+                                {multiplayerStore.playerCount} / {multiplayerStore.maxPlayers}
+                            </div>
+                        </div>
+
+                        <!-- Players List -->
+                        <div class="players-list">
+                            <h3>
+                                Players ({multiplayerStore.players.length})
+                            </h3>
+                            {#if multiplayerStore.players.length === 0}
+                                <p class="waiting-text">
+                                    Waiting for players...
+                                </p>
+                            {/if}
+                            <ul>
+                                {#each multiplayerStore.players as player}
+                                    <li class="player-row">
+                                        <span
+                                            class="player-dot"
+                                            style:background-color={player.color}
+                                        ></span>
+                                        <span class="player-name">
+                                            {player.name}
+                                            {#if player.sessionId === multiplayerStore.hostSessionId}
+                                                <span class="badge host"
+                                                    >HOST</span
+                                                >
+                                            {/if}
+                                            {#if player.sessionId === multiplayerStore.localSessionId}
+                                                <span class="badge you"
+                                                    >YOU</span
+                                                >
+                                            {/if}
+                                            {#if player.isAI}
+                                                <span class="badge ai">AI</span>
+                                            {/if}
+                                        </span>
+                                    </li>
+                                {/each}
+                            </ul>
                         </div>
 
                         <div class="spacer"></div>
 
-                        <button class="start-btn" onclick={startSPGame}>
-                            <span class="btn-glow"></span>
-                            START GAME
-                        </button>
-                    {:else if !multiplayerStore.isConnected}
-                        <!-- ══ Multiplayer: Not Connected ══ -->
-                        <h2 class="panel-title">MULTIPLAYER</h2>
-
+                        <!-- Lobby Actions -->
+                        <div class="lobby-actions">
+                            {#if multiplayerStore.isHost}
+                                <button
+                                    class="start-btn"
+                                    onclick={handleStartGame}
+                                >
+                                    <span class="btn-glow"></span>
+                                     START GAME
+                                </button>
+                            {:else}
+                                <p class="waiting-text">
+                                    Waiting for host to start...
+                                </p>
+                            {/if}
+                            <button class="leave-btn" onclick={handleLeaveRoom}>
+                                Leave Room
+                            </button>
+                        </div>
+                    {:else}
+                        <!--  Not Connected  -->
                         {#if multiplayerStore.isConnecting}
                             <div class="mp-loading">
                                 <div class="spinner"></div>
@@ -558,10 +743,9 @@
                                 <h3>Create Game</h3>
                                 <p class="mp-desc">
                                     Host a new room with your game settings.
-                                    Share the Room ID with friends.
                                 </p>
                                 <button
-                                    class="start-btn"
+                                    class="start-btn mp-btn"
                                     onclick={handleCreateRoom}
                                 >
                                     <span class="btn-glow"></span>
@@ -604,8 +788,8 @@
                                         disabled={multiplayerStore.isFetchingRooms}
                                     >
                                         {multiplayerStore.isFetchingRooms
-                                            ? "⟳"
-                                            : "↻"} Refresh
+                                            ? ""
+                                            : ""} Refresh
                                     </button>
                                 </div>
                                 {#if multiplayerStore.isFetchingRooms}
@@ -664,194 +848,7 @@
                                 </div>
                             {/if}
                         {/if}
-                    {:else}
-                        <!-- ══ Multiplayer: Connected (Lobby) ══ -->
-                        <h2 class="panel-title">GAME LOBBY</h2>
-
-                        <!-- Room Info -->
-                        <div class="room-info-bar">
-                            <div class="room-id-block">
-                                <span class="room-label">ROOM</span>
-                                <code class="room-code"
-                                    >{multiplayerStore.roomId}</code
-                                >
-                                <button
-                                    class="copy-btn"
-                                    onclick={copyRoomId}
-                                    title="Copy Room ID"
-                                >
-                                    📋
-                                </button>
-                            </div>
-                            <div class="player-count-badge">
-                                {multiplayerStore.playerCount} / {multiplayerStore.maxPlayers}
-                            </div>
-                        </div>
-
-                        <!-- Players List -->
-                        <div class="players-list">
-                            <h3>
-                                Players ({multiplayerStore.players.length})
-                            </h3>
-                            {#if multiplayerStore.players.length === 0}
-                                <p class="waiting-text">
-                                    Waiting for players...
-                                </p>
-                            {/if}
-                            <ul>
-                                {#each multiplayerStore.players as player}
-                                    <li class="player-row">
-                                        <span
-                                            class="player-dot"
-                                            style:background-color={player.color}
-                                        ></span>
-                                        <span class="player-name">
-                                            {player.name}
-                                            {#if player.sessionId === multiplayerStore.hostSessionId}
-                                                <span class="badge host"
-                                                    >HOST</span
-                                                >
-                                            {/if}
-                                            {#if player.sessionId === multiplayerStore.localSessionId}
-                                                <span class="badge you"
-                                                    >YOU</span
-                                                >
-                                            {/if}
-                                            {#if player.isAI}
-                                                <span class="badge ai">AI</span>
-                                            {/if}
-                                        </span>
-                                    </li>
-                                {/each}
-                            </ul>
-                        </div>
-
-                        <div class="spacer"></div>
-
-                        <!-- Lobby Actions -->
-                        <div class="lobby-actions">
-                            {#if multiplayerStore.isHost}
-                                <button
-                                    class="start-btn"
-                                    onclick={handleStartGame}
-                                >
-                                    <span class="btn-glow"></span>
-                                    🚀 START GAME
-                                </button>
-                            {:else}
-                                <p class="waiting-text">
-                                    Waiting for host to start...
-                                </p>
-                            {/if}
-                            <button class="leave-btn" onclick={handleLeaveRoom}>
-                                Leave Room
-                            </button>
-                        </div>
                     {/if}
-
-                    <!-- Per-Player Configuration (shared across SP/MP) -->
-                    <div class="control-group player-config-section">
-                        <label>PLAYERS</label>
-                        {#if gameMode === "sp"}
-                            <div class="hue-offset-row">
-                                <span class="mini-label">Hue offset</span>
-                                <input
-                                    type="range"
-                                    min="10"
-                                    max="120"
-                                    bind:value={hueOffset}
-                                />
-                                <span class="value">{hueOffset}°</span>
-                            </div>
-                        {/if}
-                        <div class="player-config-list">
-                            {#each playerConfigs as cfg, i}
-                                <div class="player-config-row">
-                                    <!-- svelte-ignore a11y_click_events_have_key_events -->
-                                    <!-- svelte-ignore a11y_no_static_element_interactions -->
-                                    <div
-                                        class="player-header"
-                                        onclick={() =>
-                                            (expandedPlayer =
-                                                expandedPlayer === i
-                                                    ? null
-                                                    : i)}
-                                    >
-                                        <span
-                                            class="player-swatch"
-                                            style:background-color="hsl({cfg.hue},
-                                            70%, 55%)"
-                                        ></span>
-                                        <span class="player-label">
-                                            {i === 0 ? "YOU" : `P${i + 1}`}
-                                            {#if cfg.isAI}
-                                                <span class="badge ai">AI</span>
-                                            {/if}
-                                        </span>
-                                        <span class="player-expand"
-                                            >{expandedPlayer === i
-                                                ? "▾"
-                                                : "▸"}</span
-                                        >
-                                    </div>
-                                    {#if expandedPlayer === i}
-                                        <div class="player-details">
-                                            <div class="hue-control">
-                                                <label>Color</label>
-                                                <input
-                                                    type="range"
-                                                    class="hue-slider"
-                                                    min="0"
-                                                    max="360"
-                                                    bind:value={
-                                                        playerConfigs[i].hue
-                                                    }
-                                                    style:--hue={cfg.hue}
-                                                />
-                                                <span
-                                                    class="hue-preview"
-                                                    style:background-color="hsl({cfg.hue},
-                                                    70%, 55%)"
-                                                ></span>
-                                            </div>
-                                            {#if i > 0}
-                                                <div class="ai-setting">
-                                                    <label>Difficulty</label>
-                                                    <select
-                                                        bind:value={
-                                                            playerConfigs[i]
-                                                                .difficulty
-                                                        }
-                                                    >
-                                                        {#each DIFFICULTIES as d}
-                                                            <option value={d}
-                                                                >{d}</option
-                                                            >
-                                                        {/each}
-                                                    </select>
-                                                </div>
-                                                <div class="ai-setting">
-                                                    <label>Strategy</label>
-                                                    <select
-                                                        bind:value={
-                                                            playerConfigs[i]
-                                                                .strategy
-                                                        }
-                                                    >
-                                                        {#each AI_STRATEGIES as s}
-                                                            <option value={s.id}
-                                                                >{s.label}</option
-                                                            >
-                                                        {/each}
-                                                    </select>
-                                                </div>
-                                            {/if}
-                                        </div>
-                                    {/if}
-                                </div>
-                            {/each}
-                        </div>
-                    </div>
                 </section>
             </div>
         </div>
@@ -876,7 +873,7 @@
             </p>
             <p>
                 {confirmJoinTarget.clients}/{confirmJoinTarget.maxClients} players
-                • {confirmJoinTarget.metadata?.mapType || "standard"}
+                â€¢ {confirmJoinTarget.metadata?.mapType || "standard"}
             </p>
             <div class="confirm-actions">
                 <button class="start-btn" onclick={handleConfirmJoin}>
@@ -893,9 +890,9 @@
 {/if}
 
 <style>
-    /* ═══════════════════════════════════════════════════════════════ */
+    /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
     /*  UNIFIED FULL-PAGE MENU                                        */
-    /* ═══════════════════════════════════════════════════════════════ */
+    /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
     :global(body) {
         margin: 0;
@@ -921,8 +918,8 @@
     }
 
     .menu-container {
-        width: 90vw;
-        max-width: 820px;
+        width: 95vw;
+        max-width: 1200px;
         max-height: 90vh;
         overflow-y: auto;
         display: flex;
@@ -940,7 +937,7 @@
         border-radius: 2px;
     }
 
-    /* ── Title ────────────────────────────────────── */
+    /* â”€â”€ Title â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
     .title-block {
         text-align: center;
     }
@@ -974,9 +971,10 @@
         margin-top: 6px;
     }
 
-    /* ── Mode Toggle ─────────────────────────────── */
-    .mode-toggle {
-        display: flex;
+    /* â”€â”€ Mode Toggle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+    /* -- Responsive Tabs (small screens only) -- */
+    .responsive-tabs {
+        display: none;
         gap: 2px;
         background: rgba(255, 255, 255, 0.02);
         border: 1px solid rgba(255, 255, 255, 0.06);
@@ -985,7 +983,7 @@
         align-self: center;
     }
 
-    .mode-btn {
+    .tab-btn {
         display: flex;
         align-items: center;
         gap: 8px;
@@ -1000,22 +998,17 @@
         cursor: pointer;
         border-radius: 8px;
         transition: all 0.25s;
-        position: relative;
     }
 
-    .mode-btn:hover {
+    .tab-btn:hover {
         color: #8899aa;
         background: rgba(255, 255, 255, 0.03);
     }
 
-    .mode-btn.active {
+    .tab-btn.active {
         color: #00ffff;
         background: rgba(0, 255, 255, 0.06);
         box-shadow: 0 0 20px rgba(0, 255, 255, 0.06);
-    }
-
-    .mode-icon {
-        font-size: 1rem;
     }
 
     .connected-dot {
@@ -1024,33 +1017,119 @@
         border-radius: 50%;
         background: #22cc66;
         box-shadow: 0 0 6px #22cc66;
+        display: inline-block;
         animation: pulse-dot 2s infinite;
     }
 
     @keyframes pulse-dot {
-        0%,
-        100% {
-            opacity: 1;
-        }
-        50% {
-            opacity: 0.4;
-        }
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.4; }
     }
 
-    /* ── Content Grid ────────────────────────────── */
-    .content-grid {
+    /* -- 3-Column Grid (Named Areas) -- */
+    .content-grid-3col {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 180px 1fr 280px;
+        grid-template-areas: "menu config multiplayer";
         gap: 20px;
     }
 
-    @media (max-width: 700px) {
-        .content-grid {
+    .menu-sidebar { grid-area: menu; }
+    .config-panel { grid-area: config; }
+    .mp-panel     { grid-area: multiplayer; }
+
+    @media (max-width: 900px) {
+        .responsive-tabs { display: flex; }
+        .content-grid-3col {
             grid-template-columns: 1fr;
+            grid-template-areas: "menu" "config" "multiplayer";
         }
     }
 
-    /* ── Panels ──────────────────────────────────── */
+    /* -- Menu Sidebar -- */
+    .menu-nav {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .menu-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 14px;
+        border: none;
+        background: rgba(255, 255, 255, 0.02);
+        border-radius: 8px;
+        color: #8899aa;
+        font-family: "Orbitron", sans-serif;
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 1px;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-align: left;
+        width: 100%;
+    }
+
+    .menu-item:hover:not(:disabled) {
+        background: rgba(0, 255, 255, 0.06);
+        color: #00ffff;
+    }
+
+    .menu-item:disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
+    }
+
+    .menu-item.quit-item:hover {
+        background: rgba(239, 68, 68, 0.08);
+        color: #ff6666;
+    }
+
+    .menu-icon {
+        font-size: 1rem;
+        width: 24px;
+        text-align: center;
+    }
+
+    .button-row.compact {
+        flex-direction: column;
+    }
+
+    .button-row.compact button {
+        border-right: none;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .button-row.compact button:last-child {
+        border-bottom: none;
+    }
+
+    /* -- MP Panel (visually distinct) -- */
+    .mp-panel {
+        background: rgba(8, 16, 32, 0.9);
+        border: 1px solid rgba(100, 220, 255, 0.15);
+        border-left: 3px solid rgba(100, 220, 255, 0.25);
+        border-radius: 12px;
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        box-shadow: -4px 0 20px rgba(100, 220, 255, 0.04), inset 0 0 30px rgba(100, 220, 255, 0.02);
+    }
+
+    .mp-panel .panel-title {
+        color: #64dcff;
+        border-bottom-color: rgba(100, 220, 255, 0.12);
+    }
+
+    .mp-btn {
+        font-size: 0.85rem;
+        padding: 12px;
+    }
+
+    /* â”€â”€ Panels â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
     .panel {
         background: rgba(8, 12, 24, 0.85);
         border: 1px solid rgba(255, 255, 255, 0.06);
@@ -1070,7 +1149,7 @@
         border-bottom: 1px solid rgba(255, 255, 255, 0.04);
     }
 
-    /* ── Controls ─────────────────────────────────── */
+    /* â”€â”€ Controls â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
     .control-group {
         display: flex;
         flex-direction: column;
@@ -1267,7 +1346,7 @@
         display: block;
     }
 
-    /* ── Start Button ─────────────────────────────── */
+    /* â”€â”€ Start Button â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
     .start-btn {
         position: relative;
         background: linear-gradient(
@@ -1330,7 +1409,7 @@
         flex: 1;
     }
 
-    /* ── MP Specific ──────────────────────────────── */
+    /* â”€â”€ MP Specific â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
     .mp-section {
         display: flex;
         flex-direction: column;
@@ -1459,7 +1538,7 @@
         font-family: "JetBrains Mono", monospace;
     }
 
-    /* ── Lobby (Connected) ───────────────────────── */
+    /* â”€â”€ Lobby (Connected) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
     .room-info-bar {
         display: flex;
         align-items: center;
