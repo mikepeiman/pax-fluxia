@@ -9,10 +9,11 @@ import { log } from '$lib/utils/logger';
 import type { TickEvents, TransferEvent } from '@pax/common';
 import { activeGameStore } from '$lib/stores/activeGameStore.svelte';
 
-// Server URL: runtime injection (prod) > env var > localhost (dev)
-const SERVER_URL = (typeof window !== 'undefined' && (window as any).__COLYSEUS_URL__)
-    || import.meta.env.VITE_SERVER_URL
-    || 'http://127.0.0.1:2567';
+// Server URL: env var > same-origin (production) > localhost (dev)
+const SERVER_URL = import.meta.env.VITE_SERVER_URL
+    || (typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+        ? window.location.origin
+        : 'http://127.0.0.1:2567');
 
 // ============================================================================
 // State (Svelte 5 Runes)

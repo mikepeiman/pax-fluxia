@@ -1,28 +1,52 @@
 // ============================================================================
 // Production Entry Point — Pax Fluxia
-// Colyseus (default uWebSocketsTransport, same as dev) + Bun.serve() static
-// Two ports, one container — NO Express, NO ws-transport
+// Express 5 serves static SPA + Colyseus ws-transport on SAME port
 // Used by Dockerfile / Northflank — NOT for local dev
 // ============================================================================
 
+import express from "express";
+import { createServer } from "http";
 import path from "path";
 import { fileURLToPath } from "url";
 import { Server } from "colyseus";
+import { WebSocketTransport } from "@colyseus/ws-transport";
 import { GameRoom } from "./rooms/GameRoom";
 import { TestRoom } from "./rooms/TestRoom";
 import { log } from "./utils/logger";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 2567;
-const STATIC_PORT = Number(process.env.STATIC_PORT) || 3000;
 const CLIENT_DIR = path.resolve(__dirname, "../../client");
-const COLYSEUS_URL = process.env.COLYSEUS_URL || `http://localhost:${PORT}`;
 
 // ============================================================================
-// 1. Colyseus game server — default uWebSocketsTransport (same as dev)
+// Express 5 — serves static SPA files
 // ============================================================================
 
-const gameServer = new Server();
+const app = express();
+
+app.use((_req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type");
+    next();
+});
+
+// Serve static client files (with cache headers for assets)
+app.use(express.static(CLIENT_DIR, {
+    maxAge: "1y",
+    immutable: true,
+    index: "index.html",
+}));
+
+// ============================================================================
+// Colyseus — game server on the same HTTP server
+// ============================================================================
+
+const httpServer = createServer(app);
+
+const gameServer = new Server({
+    transport: new WebSocketTransport({ server: httpServer }),
+});
 
 log.sys("Init", "Defining rooms...");
 
@@ -36,64 +60,23 @@ gameServer.define("test_room", TestRoom)
     .on("join", (room, client) => log.net("MatchMaker", `Client JOINED test_room ${room.roomId}: ${client.sessionId}`))
     .on("dispose", (room) => log.sys("MatchMaker", `test_room DISPOSED: ${room.roomId}`));
 
+// SPA fallback — must come AFTER Colyseus matchmaker routes
+app.get("/{*splat}", (_req, res) => {
+    res.sendFile(path.join(CLIENT_DIR, "index.html"));
+});
+
+// ============================================================================
+// Start
+// ============================================================================
+
 gameServer.listen(PORT).then(() => {
-    log.sys("Init", `🎮 Colyseus on port ${PORT} (uWebSocketsTransport)`);
+    log.sys("Init", `🚀 Pax Fluxia PRODUCTION on port ${PORT}`);
+    log.sys("Init", `   Static SPA: ${CLIENT_DIR}`);
+    log.sys("Init", `   WebSocket + Matchmaker on same port`);
 }).catch((err) => {
-    log.error("Init", "Colyseus failed to start", err);
+    log.error("Init", "Server failed to start", err);
     process.exit(1);
 });
-
-// ============================================================================
-// 2. Static file server — Bun.serve() (SPA + runtime config injection)
-// ============================================================================
-
-// Cache index.html with injected server URL
-const indexPath = path.join(CLIENT_DIR, "index.html");
-const indexFile = Bun.file(indexPath);
-let indexHtml: string | null = null;
-
-async function getIndexHtml(): Promise<string> {
-    if (!indexHtml) {
-        const raw = await indexFile.text();
-        // Inject the Colyseus server URL at runtime (not build time)
-        indexHtml = raw.replace(
-            "</head>",
-            `<script>window.__COLYSEUS_URL__="${COLYSEUS_URL}";</script></head>`
-        );
-    }
-    return indexHtml;
-}
-
-Bun.serve({
-    port: STATIC_PORT,
-    async fetch(req) {
-        const url = new URL(req.url);
-        const pathname = url.pathname;
-
-        // Try to serve the exact file
-        if (pathname !== "/" && pathname !== "/index.html") {
-            const filePath = path.join(CLIENT_DIR, pathname);
-            const file = Bun.file(filePath);
-            if (await file.exists()) {
-                return new Response(file);
-            }
-        }
-
-        // SPA fallback — serve index.html with injected config
-        const html = await getIndexHtml();
-        return new Response(html, {
-            headers: { "Content-Type": "text/html; charset=utf-8" },
-        });
-    },
-});
-
-log.sys("Init", `🌐 Static SPA on port ${STATIC_PORT}`);
-log.sys("Init", `   Client dir: ${CLIENT_DIR}`);
-log.sys("Init", `   Injected COLYSEUS_URL: ${COLYSEUS_URL}`);
-
-// ============================================================================
-// Error handlers
-// ============================================================================
 
 process.on("unhandledRejection", (reason, promise) => {
     log.error("Process", "Unhandled Rejection", { reason, promise });

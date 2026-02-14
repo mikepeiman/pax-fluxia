@@ -1,7 +1,7 @@
 # ============================================================================
 # Pax Fluxia — Single-container production build (bun-native)
 # Stage 1: Build the SvelteKit SPA client
-# Stage 2: Production server (Colyseus + Bun.serve static, two ports)
+# Stage 2: Production server (Express 5 + Colyseus ws-transport, single port)
 # ============================================================================
 
 # --- Stage 1: Build Client ---
@@ -46,8 +46,8 @@ COPY pax-server/ ./pax-server/
 # Copy the built SPA from stage 1
 COPY --from=client-build /app/pax-fluxia/build ./client
 
-# Expose both ports: Colyseus (2567) + Static SPA (3000)
-EXPOSE 2567 3000
+# Expose single port (Express + Colyseus on same port)
+EXPOSE 2567
 
 # Start the production server with bun
 CMD ["bun", "run", "pax-server/src/prod.ts"]
