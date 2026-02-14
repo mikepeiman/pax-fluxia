@@ -178,6 +178,7 @@
 | B-53 | **No glow effect exists** | Ship glow was never implemented despite UI presence | OPEN |
 | B-54 | **Star Radius never worked** | Slider has no visible effect | OPEN |
 | B-55 | **Game ends before complete conquest** | Abrupt and unsatisfying. Should show modal offering View Results or Keep Playing | OPEN |
+| B-56 | **Custom player colors not applied in MP** | `playerColors` wired through `GameEngine` (SP only). Server `GameRoom.ts` has its own hardcoded `PLAYER_COLORS` array at line 19, ignoring client hue selections. Part of broader unification gap: game init logic should import from `common/`. | OPEN |
 
 ---
 
