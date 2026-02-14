@@ -1,12 +1,10 @@
 // ============================================================================
 // Production Entry Point — Pax Fluxia
-// Express 5 as SOLE HTTP handler (no competing listeners)
-//   - Custom static middleware serves SPA files
-//   - Colyseus matchmaker routes registered after (via bindRouterToTransport)
+// Uses Colyseus Server's `express` callback to inject static SPA middleware
+// into the transport's internal Express app — ONE Express, ONE listener.
 // Used by Dockerfile / Northflank — NOT for local dev
 // ============================================================================
 
-import express from "express";
 import { createServer } from "http";
 import { readFileSync, existsSync, statSync, readdirSync } from "fs";
 import path from "path";
@@ -29,7 +27,7 @@ if (existsSync(CLIENT_DIR)) {
 }
 
 // ============================================================================
-// MIME types
+// MIME types for static file serving
 // ============================================================================
 
 const MIME: Record<string, string> = {
@@ -49,21 +47,17 @@ const MIME: Record<string, string> = {
 };
 
 // ============================================================================
-// Express 5 — the SOLE HTTP handler
+// Static file middleware — injected into Colyseus's internal Express via callback
 // ============================================================================
 
-const app = express();
-app.disable("x-powered-by");
-
-// Static file middleware — runs BEFORE Colyseus registers its matchmaker routes
-app.use((req, res, next) => {
-    // Only handle GET requests; let POST /matchmake/* pass through to Colyseus
+function staticMiddleware(req: any, res: any, next: () => void) {
+    // Only handle GET requests; let POST /matchmake/* pass to Colyseus
     if (req.method !== "GET") return next();
 
-    const url = req.path;
+    const url: string = req.path || req.url?.split("?")[0] || "/";
 
     // Let Colyseus handle its own API paths
-    if (url.startsWith("/matchmake") || url.startsWith("/colyseus")) {
+    if (url.startsWith("/matchmake") || url.startsWith("/colyseus") || url === "/__healthcheck") {
         return next();
     }
 
@@ -72,10 +66,10 @@ app.use((req, res, next) => {
     try {
         if (existsSync(filePath) && statSync(filePath).isFile()) {
             const ext = path.extname(filePath);
-            res.set("Content-Type", MIME[ext] || "application/octet-stream");
-            res.set("Cache-Control", ext === ".html" ? "no-cache" : "public, max-age=31536000, immutable");
-            res.send(readFileSync(filePath));
-            return; // Response sent — stop here
+            res.setHeader("Content-Type", MIME[ext] || "application/octet-stream");
+            res.setHeader("Cache-Control", ext === ".html" ? "no-cache" : "public, max-age=31536000, immutable");
+            res.end(readFileSync(filePath));
+            return;
         }
     } catch {
         // Fall through to SPA fallback
@@ -84,24 +78,32 @@ app.use((req, res, next) => {
     // SPA fallback — serve index.html for client-side routes
     const indexPath = path.join(CLIENT_DIR, "index.html");
     if (existsSync(indexPath)) {
-        res.set("Content-Type", "text/html; charset=utf-8");
-        res.send(readFileSync(indexPath));
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        res.end(readFileSync(indexPath));
         return;
     }
 
-    // No client files at all — let request pass through
+    // No client files — let request continue
     next();
-});
+}
 
 // ============================================================================
 // HTTP Server + Colyseus
+// Create httpServer with NO callback — Colyseus's transport owns the Express app
 // ============================================================================
 
-// Express is THE sole request handler — no competing listeners
-const httpServer = createServer(app);
+const httpServer = createServer();
 
 const gameServer = new Server({
     transport: new WebSocketTransport({ server: httpServer }),
+
+    // Inject our static middleware into the transport's internal Express app
+    // This runs BEFORE bindRouterToTransport adds matchmaker routes
+    express: (app: any) => {
+        app.disable("x-powered-by");
+        app.use(staticMiddleware);
+        log.sys("Init", "Static SPA middleware injected into Colyseus Express app");
+    },
 });
 
 log.sys("Init", "Defining rooms...");
