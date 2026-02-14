@@ -1,7 +1,7 @@
 # ============================================================================
 # Pax Fluxia — Single-container production build (bun-native)
 # Stage 1: Build the SvelteKit SPA client
-# Stage 2: Production server (Express + Colyseus on same port)
+# Stage 2: Production server (Colyseus + Bun.serve static, two ports)
 # ============================================================================
 
 # --- Stage 1: Build Client ---
@@ -36,7 +36,7 @@ COPY common/package.json ./common/
 COPY pax-fluxia/package.json ./pax-fluxia/
 COPY pax-server/package.json ./pax-server/
 
-# Install only what's needed (bun handles workspaces natively)
+# Install deps (bun handles workspaces natively)
 RUN bun install --production
 
 # Copy server + common source
@@ -46,12 +46,8 @@ COPY pax-server/ ./pax-server/
 # Copy the built SPA from stage 1
 COPY --from=client-build /app/pax-fluxia/build ./client
 
-# Expose the single port (Colyseus + static files on same port)
-EXPOSE 2567
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
-  CMD bun -e "fetch('http://localhost:2567/matchmake/').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+# Expose both ports: Colyseus (2567) + Static SPA (3000)
+EXPOSE 2567 3000
 
 # Start the production server with bun
 CMD ["bun", "run", "pax-server/src/prod.ts"]
