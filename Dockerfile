@@ -43,10 +43,10 @@ COPY common/package.json ./common/
 COPY pax-fluxia/package.json ./pax-fluxia/
 COPY pax-server/package.json ./pax-server/
 
-# Install deps with npm (needs tsx for TypeScript, so include devDeps)
-RUN npm install
+# Copy node_modules from Bun build stage (npm can't handle workspace:* protocol)
+COPY --from=client-build /app/node_modules ./node_modules
 
-# Install tsx globally so CMD doesn't rely on npx
+# Install tsx globally for TypeScript execution under Node
 RUN npm install -g tsx
 
 # Copy server + common source
