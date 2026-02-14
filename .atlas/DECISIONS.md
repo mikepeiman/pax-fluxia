@@ -439,3 +439,20 @@ Key conflicts: `calculateCombatV4` (client) vs `calculateCombat` (common), three
 - `ENGINE_ARCHITECTURE_CURRENT.md` — current duplication inventory
 - `ENGINE_ARCHITECTURE_TARGET.md` — desired unified state
 
+---
+
+# Decision: Node Runtime for Production Server (Not Bun)
+
+**Date:** 2026-02-14
+**Status:** Active
+
+## Context
+Colyseus WebSocket connections fail with "seat reservation expired" (close code 4002) when the server runs under Bun's runtime. The `@colyseus/ws-transport` depends on the `ws` library (Node.js WebSocket implementation). Bun's runtime replaces Node's `http` module internals with its own implementation, which is incompatible with how `ws` handles the HTTP `upgrade` event for WebSocket connections. This was discovered locally first — `bun --watch src/index.ts` failed, but `npx tsx --watch src/index.ts` (Node runtime) worked.
+
+## Decision
+- **Build stage**: Use `oven/bun:1` (fast install + Vite build)
+- **Production stage**: Use `node:20-slim` with `tsx` for TypeScript execution
+- **CMD**: `tsx pax-server/src/prod.ts` (NOT `bun run`)
+- **NEVER** use Bun's runtime for the Colyseus server until Bun resolves `ws` library compatibility
+
+
