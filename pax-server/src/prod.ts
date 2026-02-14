@@ -7,8 +7,12 @@
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
-import { Server, matchMaker } from "colyseus";
-import { WebSocketTransport } from "@colyseus/ws-transport";
+import { Server } from "colyseus";
+// NOTE: Do NOT import WebSocketTransport here!
+// Letting Server.getDefaultTransport() handle it via dynamicImport ensures
+// a single @colyseus/core module instance. Importing ws-transport explicitly
+// causes bun to resolve @colyseus/core as a SEPARATE module instance,
+// giving ws-transport its own matchMaker singleton with an empty rooms map.
 import { GameRoom } from "./rooms/GameRoom";
 import { TestRoom } from "./rooms/TestRoom";
 import { log } from "./utils/logger";
@@ -18,54 +22,15 @@ const PORT = Number(process.env.PORT) || 2567;
 const CLIENT_DIR = path.resolve(__dirname, "../../client");
 
 // ============================================================================
-// Server — as close to index.ts as possible, plus static file serving
+// Server — identical pattern to index.ts, plus express.static for SPA serving
 // ============================================================================
 
-const transport = new WebSocketTransport({});
-
 const gameServer = new Server({
-    transport,
-
     express: (app: any) => {
         // Serve built SPA static files
         app.use(express.static(CLIENT_DIR));
         log.sys("Init", `Serving static files from ${CLIENT_DIR}`);
     },
-});
-
-// ============================================================================
-// DIAGNOSTIC: Wrap onConnection to see EXACTLY what connectClientToRoom receives.
-// Replaces the ws-transport's own handler with a wrapper that logs, then delegates.
-// Remove once the 4002 issue is resolved.
-// ============================================================================
-const wss = (transport as any).wss;
-const originalOnConnection = wss.listeners("connection")[0]; // ws-transport's handler
-wss.removeAllListeners("connection");
-wss.on("connection", (rawClient: any, req: any) => {
-    try {
-        const url = new URL(`ws://s/${req.url}`);
-        const sid = url.searchParams.get("sessionId");
-        const m = url.pathname.match(/\/([a-zA-Z0-9_\-]+)\/([a-zA-Z0-9_\-]+)$/);
-        const pid = m?.[1] || null;
-        const rid = m?.[2] || null;
-        const room = rid ? (matchMaker as any).getLocalRoomById(rid) : null;
-        const seats = room ? Object.keys(room["_reservedSeats"] || {}) : [];
-        const has = room && sid ? room.hasReservedSeat(sid) : false;
-        const reconnToken = url.searchParams.get("reconnectionToken");
-        const hasWithToken = room && sid ? room.hasReservedSeat(sid, reconnToken) : false;
-        log.net("WS-Diag-CONN", [
-            `url=${req.url}`,
-            `pid=${pid} rid=${rid} sid=${sid}`,
-            `roomFound=${!!room} seats=${JSON.stringify(seats)}`,
-            `hasReserved=${has} hasReservedWithToken=${hasWithToken}`,
-            `reconnToken=${reconnToken}`,
-            `seatDetail=${room && sid && room["_reservedSeats"]?.[sid] ? JSON.stringify(room["_reservedSeats"][sid]) : "none"}`,
-        ].join(" | "));
-    } catch (e: any) {
-        log.error("WS-Diag", e.message);
-    }
-    // Delegate to original handler
-    originalOnConnection(rawClient, req);
 });
 
 // Define rooms (identical to index.ts)
