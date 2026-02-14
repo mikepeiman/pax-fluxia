@@ -111,11 +111,48 @@ httpServer.on("upgrade", (req, socket, head) => {
         upgrade: req.headers.upgrade,
         connection: req.headers.connection,
         origin: req.headers.origin,
+        "sec-websocket-key": req.headers["sec-websocket-key"],
+        "sec-websocket-version": req.headers["sec-websocket-version"],
     })}`);
 });
 
+// Diagnostic: log ALL request events to see if they fire for upgrade requests
+httpServer.on("request", (req, res) => {
+    if (req.headers.upgrade) {
+        log.net("WS-Request-Event", `⚠️ REQUEST event fired for upgrade: ${req.url}`);
+    }
+});
+
+const transport = new WebSocketTransport({ server: httpServer });
+
+// Diagnostic: access the internal WebSocketServer to add connection/error logging
+const wss = (transport as any).wss;
+if (wss) {
+    log.sys("Init", `WSS created. Clients set exists: ${!!wss.clients}`);
+
+    wss.on("connection", (ws: any, req: any) => {
+        log.net("WSS-Connection", `✅ WebSocket connected: ${req.url}`);
+    });
+
+    wss.on("error", (err: any) => {
+        log.error("WSS-Error", `❌ WebSocketServer error: ${err.message}`);
+    });
+
+    // Monkey-patch handleUpgrade to log when it's called
+    const originalHandleUpgrade = wss.handleUpgrade.bind(wss);
+    wss.handleUpgrade = function (req: any, socket: any, head: any, cb: any) {
+        log.net("WSS-HandleUpgrade", `🔄 handleUpgrade called for: ${req.url}`);
+        originalHandleUpgrade(req, socket, head, (ws: any) => {
+            log.net("WSS-HandleUpgrade", `✅ handleUpgrade completed for: ${req.url}`);
+            cb(ws);
+        });
+    };
+} else {
+    log.error("Init", "❌ Could not access transport.wss!");
+}
+
 const gameServer = new Server({
-    transport: new WebSocketTransport({ server: httpServer }),
+    transport,
 
     // Inject our static middleware into the transport's internal Express app
     // This runs BEFORE bindRouterToTransport adds matchmaker routes
@@ -144,6 +181,11 @@ gameServer.define("test_room", TestRoom)
 
 gameServer.listen(PORT).then(() => {
     log.sys("Init", `🚀 Pax Fluxia PRODUCTION on port ${PORT}`);
+    // Diagnostic: verify ws registered its upgrade handler
+    const upgradeListeners = httpServer.listenerCount("upgrade");
+    const requestListeners = httpServer.listenerCount("request");
+    log.sys("Init", `📊 httpServer listeners — upgrade: ${upgradeListeners}, request: ${requestListeners}`);
+    log.sys("Init", `📊 Upgrade listener names: ${httpServer.listeners("upgrade").map((fn: any) => fn.name || "(anonymous)").join(", ")}`);
 }).catch((err) => {
     log.error("Init", "Server failed to start", err);
     process.exit(1);

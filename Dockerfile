@@ -66,6 +66,9 @@ COPY --from=client-build /app/pax-fluxia/build ./client
 # Verify client files are present
 RUN ls -la ./client/ && test -f ./client/index.html && echo "✅ Client build verified"
 
+# Enable Colyseus internal debug logging
+ENV DEBUG=colyseus:*
+
 # Expose single port (Express + Colyseus on same port)
 EXPOSE 2567
 
