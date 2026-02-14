@@ -26,6 +26,13 @@ const CLIENT_DIR = path.resolve(__dirname, "../../client");
 
 const app = express();
 
+// Colyseus @colyseus/core@0.17 accesses app.router to detect Express,
+// but Express 4.x throws on that access. Override with actual router.
+Object.defineProperty(app, 'router', {
+    get() { return (this as any)._router; },
+    configurable: true,
+});
+
 // CORS headers for any API routes
 app.use((_req, res, next) => {
     res.header("Access-Control-Allow-Origin", "*");
