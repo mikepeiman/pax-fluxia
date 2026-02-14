@@ -5,7 +5,7 @@
 // Used by Dockerfile / Northflank — NOT for local dev
 // ============================================================================
 
-import express from "express";
+
 import { createServer } from "http";
 import { readFileSync, existsSync, statSync, readdirSync } from "fs";
 import path from "path";
@@ -48,13 +48,7 @@ const MIME: Record<string, string> = {
 };
 
 // ============================================================================
-// Express app (only used for Colyseus matchmaker routes)
-// ============================================================================
-
-const app = express();
-
-// ============================================================================
-// HTTP Server — static files handled HERE, before Express/Colyseus
+// HTTP Server — static files handled here, matchmaker handled by Colyseus
 // ============================================================================
 
 const httpServer = createServer((req, res) => {
@@ -91,8 +85,9 @@ const httpServer = createServer((req, res) => {
         }
     }
 
-    // Everything else → Express app (Colyseus matchmaker + WebSocket)
-    app(req, res);
+    // Matchmaker + other requests: handled by Colyseus's own httpServer listener
+    // (registered by bindRouterToTransport via @colyseus/better-call)
+    // Do NOT call app(req, res) — it causes double response
 });
 
 // ============================================================================
