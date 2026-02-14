@@ -215,13 +215,14 @@ function syncStateFromRoom(state: any): void {
         lastTickTime = performance.now();
     }
 
-    // Detect restart: server reset phase back to "lobby" → switch view to menu (shows lobby)
+    // Detect restart: server reset phase back to "lobby"
     const prevPhase = phase;
     phase = newPhase;
     if (newPhase === 'lobby' && (prevPhase === 'playing' || prevPhase === 'ended')) {
-        // Import gameStore dynamically to avoid circular dependency
+        log.net('Room', 'Server reset to lobby — triggering menu transition');
+        // Set gameStore view to menu so MainMenu shows (it will auto-detect MP connection)
         import('./gameStore.svelte').then(({ gameStore }) => {
-            gameStore.returnToMenu();
+            gameStore.setView('menu');
         });
     }
     tick = newTick;

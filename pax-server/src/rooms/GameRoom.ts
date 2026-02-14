@@ -55,6 +55,8 @@ export class GameRoom extends Room {
     maxClients = 4;
     private tickIntervalId: ReturnType<typeof setInterval> | null = null;
     private tickStartTime = 0;
+    private disposeTimer: ReturnType<typeof setTimeout> | null = null;
+    private readonly DISPOSE_GRACE_MS = 5 * 60 * 1000; // 5 minutes
     private roomOptions: RoomOptions = {};
     private engineConfig: EngineConfig = { ...DEFAULT_ENGINE_CONFIG };
 
@@ -105,6 +107,12 @@ export class GameRoom extends Room {
     }
 
     onJoin(client: Client, options: any) {
+        // Cancel dispose timer if a player joins during grace period
+        if (this.disposeTimer) {
+            clearTimeout(this.disposeTimer);
+            this.disposeTimer = null;
+            log.net('GameRoom', 'Dispose timer cancelled — player joined during grace period');
+        }
         log.net('GameRoom', `Player joined: ${client.sessionId}`);
         client.send("playerJoined", { sessionId: client.sessionId });
         client.send("welcome", "Default welcome message from server!")
@@ -160,23 +168,30 @@ export class GameRoom extends Room {
             }
         }
 
-        // Manual disposal: if no human players remain connected, dispose the room
+        // If no human players remain connected, start 5-minute dispose timer
         let anyHumansConnected = false;
         this.state.players.forEach((p) => {
             if (!p.isAI && p.isConnected) {
                 anyHumansConnected = true;
             }
         });
-        if (!anyHumansConnected) {
-            log.net('GameRoom', 'No human players remaining — disposing room');
+        if (!anyHumansConnected && !this.disposeTimer) {
+            log.net('GameRoom', `No human players remaining — starting ${this.DISPOSE_GRACE_MS / 1000}s dispose timer`);
             this.stopTick();
-            this.disconnect();
+            this.disposeTimer = setTimeout(() => {
+                log.net('GameRoom', 'Dispose timer expired — disposing room');
+                this.disconnect();
+            }, this.DISPOSE_GRACE_MS);
         }
     }
 
     onDispose() {
         log.sys('GameRoom', 'Room disposed');
         this.stopTick();
+        if (this.disposeTimer) {
+            clearTimeout(this.disposeTimer);
+            this.disposeTimer = null;
+        }
     }
 
     // ========================================================================

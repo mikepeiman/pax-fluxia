@@ -124,10 +124,9 @@
 | ID | Issue |
 |----|-------|
 | B-23 | Play/pause outline not updating correctly (pending user verification) |
-| B-42 | **MP Room ID not displayed**: Room ID must be shown for easy copy-paste sharing with other players |
-| B-43 | **MP Restart desyncs players**: On restart in MP lobby, players end up in different rooms. Restart should keep same room/lobby |
+| B-43 | **MP Restart kicks to SP menu**: Restart sends both players to SP main menu instead of staying in MP lobby. Server resets to `lobby` phase correctly but client shows wrong view |
 | B-44 | **MP 2nd player order control broken**: Cannot cancel or redirect an order once set during pause |
-| B-45 | **MP host leave destroys room**: When host leaves, room is destroyed. Should persist with next player becoming host |
+| B-46 | **Room disposal should use 5min timer**: Rooms should stay alive for 5 minutes after last human leaves, allowing reconnection |
 
 ## Resolved Bugs (B)
 

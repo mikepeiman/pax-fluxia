@@ -3,12 +3,16 @@
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { fade, fly } from "svelte/transition";
     import type { GameSettings } from "$lib/types/game.types";
-    import MultiplayerLobby from "./MultiplayerLobby.svelte";
     import { multiplayerStore } from "$lib/stores/multiplayerStore.svelte";
     import { log } from "$lib/utils/logger";
 
     let visible = $state(true);
-    let showMultiplayer = $state(false);
+
+    // ── Game Mode ──────────────────────────────────────────────────────────
+    // Auto-switch to MP when connected
+    let gameMode = $state<"sp" | "mp">(
+        multiplayerStore.isConnected ? "mp" : "sp",
+    );
 
     // Watch multiplayer phase and transition to game when it starts
     $effect(() => {
@@ -22,7 +26,14 @@
         }
     });
 
-    // Load from localStorage or use defaults
+    // Auto-switch to MP mode when connected (e.g. after restart)
+    $effect(() => {
+        if (multiplayerStore.isConnected) {
+            gameMode = "mp";
+        }
+    });
+
+    // ── Settings (localStorage-persisted) ──────────────────────────────────
     function loadSetting<T>(key: string, defaultValue: T): T {
         if (typeof window === "undefined") return defaultValue;
         const stored = localStorage.getItem(`pax-fluxia-${key}`);
@@ -41,7 +52,7 @@
         localStorage.setItem(`pax-fluxia-${key}`, JSON.stringify(value));
     }
 
-    // Config State (loaded from localStorage)
+    // Config state
     let mapType = $state(loadSetting("mapType", "standard"));
     let playerCount = $state<GameSettings["playerCount"]>(
         loadSetting("playerCount", 6),
@@ -56,7 +67,10 @@
         loadSetting("retainOrderOnConquest", true),
     );
 
-    // Constants
+    // MP Join state
+    let joinRoomId = $state("");
+
+    // ── Map Definitions ────────────────────────────────────────────────────
     const MAP_DEFS: {
         id: string;
         label: string;
@@ -125,8 +139,8 @@
     const PLAYERS: GameSettings["playerCount"][] = [2, 3, 4, 5, 6];
     const DIFFICULTIES = ["Easy", "Normal", "Hard", "Expert"];
 
-    function startGame() {
-        // Save settings to localStorage
+    // ── Actions ────────────────────────────────────────────────────────────
+    function saveAllSettings() {
         saveSetting("mapType", mapType);
         saveSetting("playerCount", playerCount);
         saveSetting("difficulty", difficulty);
@@ -136,15 +150,15 @@
         saveSetting("maxLinks", maxLinks);
         saveSetting("starSpacing", starSpacing);
         saveSetting("retainOrderOnConquest", retainOrderOnConquest);
+    }
 
-        // Apply Config
+    function applyConfig() {
         GAME_CONFIG.STARS_PER_PLAYER = starsPerPlayer;
         GAME_CONFIG.STARTING_SHIPS = shipsPerStar;
         GAME_CONFIG.MIN_LINKS_PER_STAR = minLinks;
         GAME_CONFIG.MAX_LINKS_PER_STAR = maxLinks;
         GAME_CONFIG.RETAIN_ORDER_ON_CONQUEST = retainOrderOnConquest;
 
-        // Find the selected map definition
         const selectedMap =
             MAP_DEFS.find((m) => m.id === mapType) ?? MAP_DEFS[0];
 
@@ -156,49 +170,106 @@
             starSpacing: starSpacing,
         });
 
-        // Auto-enable slowmo on debug-b map
         if (selectedMap.mapType === "debug-b") {
             GAME_CONFIG.CONQUEST_SLOWMO_ENABLED = true;
         }
+    }
 
-        // Restart Engine
+    function startSPGame() {
+        saveAllSettings();
+        applyConfig();
         gameStore.restart();
         visible = false;
+    }
+
+    // ── MP handlers ────────────────────────────────────────────────────────
+    import { buildEngineConfig } from "$lib/config/game.config";
+
+    async function handleCreateRoom() {
+        saveAllSettings();
+
+        const selectedMap =
+            MAP_DEFS.find((m) => m.id === mapType) ?? MAP_DEFS[0];
+
+        const gameplayConfig = buildEngineConfig({
+            starsPerPlayer,
+            startingShips: shipsPerStar,
+            minLinks,
+            maxLinks,
+            starSpacing,
+        });
+
+        await multiplayerStore.createRoom({
+            playerCount,
+            mapType: selectedMap.mapType,
+            gameplayConfig,
+        });
+    }
+
+    async function handleJoinRoom() {
+        if (!joinRoomId.trim()) return;
+        await multiplayerStore.joinRoom(joinRoomId.trim());
+    }
+
+    function handleLeaveRoom() {
+        multiplayerStore.leaveRoom();
+    }
+
+    function handleStartGame() {
+        multiplayerStore.startGame();
+    }
+
+    function copyRoomId() {
+        if (multiplayerStore.roomId) {
+            navigator.clipboard.writeText(multiplayerStore.roomId);
+        }
     }
 </script>
 
 {#if visible}
-    <!-- Multiplayer Lobby Modal -->
-    {#if showMultiplayer}
-        <div class="main-menu-overlay multiplayer-overlay" transition:fade>
-            <div
-                class="lobby-wrapper"
-                transition:fly={{ y: 20, duration: 400 }}
-            >
-                <button
-                    class="back-btn"
-                    onclick={() => (showMultiplayer = false)}
-                >
-                    ← Back to Menu
-                </button>
-                <MultiplayerLobby />
-            </div>
-        </div>
-    {:else}
-        <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div class="main-menu-overlay" transition:fade>
-            <div class="menu-chrome" transition:fly={{ y: 20, duration: 400 }}>
-                <div class="glow-border"></div>
-
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div class="menu-fullscreen" transition:fade>
+        <div class="menu-container" transition:fly={{ y: 20, duration: 400 }}>
+            <!-- ═══ Title ═══ -->
+            <header class="title-block">
                 <h1 class="title">
                     <span class="pax">PAX</span>
                     <span class="fluxia">FLUXIA</span>
                 </h1>
                 <div class="subtitle">TERRITORY CONTROL STRATEGY</div>
+            </header>
 
-                <div class="controls-grid">
-                    <!-- Map Selection: Thumbnail Cards -->
+            <!-- ═══ Mode Toggle ═══ -->
+            <div class="mode-toggle">
+                <button
+                    class="mode-btn"
+                    class:active={gameMode === "sp"}
+                    onclick={() => (gameMode = "sp")}
+                >
+                    <span class="mode-icon">🎮</span>
+                    SOLO
+                </button>
+                <button
+                    class="mode-btn"
+                    class:active={gameMode === "mp"}
+                    onclick={() => (gameMode = "mp")}
+                >
+                    <span class="mode-icon">🌐</span>
+                    MULTIPLAYER
+                    {#if multiplayerStore.isConnected}
+                        <span class="connected-dot"></span>
+                    {/if}
+                </button>
+            </div>
+
+            <!-- ═══ Main Content: Two columns ═══ -->
+            <div class="content-grid">
+                <!-- ── Left: Game Config ── -->
+                <section class="panel config-panel">
+                    <h2 class="panel-title">GAME SETUP</h2>
+
+                    <!-- Map Selection -->
                     <div class="control-group">
                         <label>MAP</label>
                         <div class="map-card-row">
@@ -259,21 +330,8 @@
                         </div>
                     </div>
 
-                    <!-- AI Difficulty -->
+                    <!-- Stars/Ships Config -->
                     <div class="control-group">
-                        <label>AI DIFFICULTY</label>
-                        <div class="button-row">
-                            {#each DIFFICULTIES as d}
-                                <button
-                                    class:active={difficulty === d}
-                                    onclick={() => (difficulty = d)}>{d}</button
-                                >
-                            {/each}
-                        </div>
-                    </div>
-
-                    <!-- Game Config (New Features) -->
-                    <div class="control-group config-row">
                         <div class="config-dual-row">
                             <div class="config-item">
                                 <label>STARS / PLAYER</label>
@@ -303,7 +361,7 @@
                         </div>
                     </div>
 
-                    <!-- Link Connectivity Settings -->
+                    <!-- Link Connectivity -->
                     <div class="control-group">
                         <label>LINK CONNECTIVITY</label>
                         <div class="config-dual-row">
@@ -365,42 +423,200 @@
                             >
                         </label>
                     </div>
+                </section>
 
-                    <div class="action-area">
-                        <button class="start-btn" onclick={startGame}>
+                <!-- ── Right: Mode-specific panel ── -->
+                <section class="panel mode-panel">
+                    {#if gameMode === "sp"}
+                        <!-- ══ Single Player ══ -->
+                        <h2 class="panel-title">SINGLE PLAYER</h2>
+
+                        <div class="control-group">
+                            <label>AI DIFFICULTY</label>
+                            <div class="button-row">
+                                {#each DIFFICULTIES as d}
+                                    <button
+                                        class:active={difficulty === d}
+                                        onclick={() => (difficulty = d)}
+                                        >{d}</button
+                                    >
+                                {/each}
+                            </div>
+                        </div>
+
+                        <div class="spacer"></div>
+
+                        <button class="start-btn" onclick={startSPGame}>
+                            <span class="btn-glow"></span>
                             START GAME
                         </button>
+                    {:else if !multiplayerStore.isConnected}
+                        <!-- ══ Multiplayer: Not Connected ══ -->
+                        <h2 class="panel-title">MULTIPLAYER</h2>
 
-                        <div class="bottom-row">
-                            <button
-                                class="secondary-btn"
-                                onclick={() => (showMultiplayer = true)}
-                                >MULTIPLAYER</button
-                            >
-                            <button class="secondary-btn">MAP EDITOR</button>
-                            <button class="icon-btn">⚙️</button>
+                        {#if multiplayerStore.isConnecting}
+                            <div class="mp-loading">
+                                <div class="spinner"></div>
+                                <p>Connecting...</p>
+                            </div>
+                        {:else}
+                            <!-- Create Room -->
+                            <div class="mp-section">
+                                <h3>Create Game</h3>
+                                <p class="mp-desc">
+                                    Host a new room with your game settings.
+                                    Share the Room ID with friends.
+                                </p>
+                                <button
+                                    class="start-btn"
+                                    onclick={handleCreateRoom}
+                                >
+                                    <span class="btn-glow"></span>
+                                    CREATE ROOM
+                                </button>
+                            </div>
+
+                            <div class="divider">
+                                <span>OR</span>
+                            </div>
+
+                            <!-- Join Room -->
+                            <div class="mp-section">
+                                <h3>Join Game</h3>
+                                <div class="join-row">
+                                    <input
+                                        type="text"
+                                        placeholder="Room ID"
+                                        bind:value={joinRoomId}
+                                        class="room-input"
+                                    />
+                                    <button
+                                        class="join-btn"
+                                        onclick={handleJoinRoom}
+                                        disabled={!joinRoomId.trim()}
+                                    >
+                                        JOIN
+                                    </button>
+                                </div>
+                            </div>
+
+                            {#if multiplayerStore.connectionError}
+                                <div class="error-msg">
+                                    {multiplayerStore.connectionError}
+                                </div>
+                            {/if}
+                        {/if}
+                    {:else}
+                        <!-- ══ Multiplayer: Connected (Lobby) ══ -->
+                        <h2 class="panel-title">GAME LOBBY</h2>
+
+                        <!-- Room Info -->
+                        <div class="room-info-bar">
+                            <div class="room-id-block">
+                                <span class="room-label">ROOM</span>
+                                <code class="room-code"
+                                    >{multiplayerStore.roomId}</code
+                                >
+                                <button
+                                    class="copy-btn"
+                                    onclick={copyRoomId}
+                                    title="Copy Room ID"
+                                >
+                                    📋
+                                </button>
+                            </div>
+                            <div class="player-count-badge">
+                                {multiplayerStore.playerCount} / {multiplayerStore.maxPlayers}
+                            </div>
                         </div>
-                    </div>
-                </div>
+
+                        <!-- Players List -->
+                        <div class="players-list">
+                            <h3>
+                                Players ({multiplayerStore.players.length})
+                            </h3>
+                            {#if multiplayerStore.players.length === 0}
+                                <p class="waiting-text">
+                                    Waiting for players...
+                                </p>
+                            {/if}
+                            <ul>
+                                {#each multiplayerStore.players as player}
+                                    <li class="player-row">
+                                        <span
+                                            class="player-dot"
+                                            style:background-color={player.color}
+                                        ></span>
+                                        <span class="player-name">
+                                            {player.name}
+                                            {#if player.sessionId === multiplayerStore.hostSessionId}
+                                                <span class="badge host"
+                                                    >HOST</span
+                                                >
+                                            {/if}
+                                            {#if player.sessionId === multiplayerStore.localSessionId}
+                                                <span class="badge you"
+                                                    >YOU</span
+                                                >
+                                            {/if}
+                                            {#if player.isAI}
+                                                <span class="badge ai">AI</span>
+                                            {/if}
+                                        </span>
+                                    </li>
+                                {/each}
+                            </ul>
+                        </div>
+
+                        <div class="spacer"></div>
+
+                        <!-- Lobby Actions -->
+                        <div class="lobby-actions">
+                            {#if multiplayerStore.isHost}
+                                <button
+                                    class="start-btn"
+                                    onclick={handleStartGame}
+                                >
+                                    <span class="btn-glow"></span>
+                                    🚀 START GAME
+                                </button>
+                            {:else}
+                                <p class="waiting-text">
+                                    Waiting for host to start...
+                                </p>
+                            {/if}
+                            <button class="leave-btn" onclick={handleLeaveRoom}>
+                                Leave Room
+                            </button>
+                        </div>
+                    {/if}
+                </section>
             </div>
         </div>
-    {/if}
+    </div>
 {/if}
 
 <style>
+    /* ═══════════════════════════════════════════════════════════════ */
+    /*  UNIFIED FULL-PAGE MENU                                        */
+    /* ═══════════════════════════════════════════════════════════════ */
+
     :global(body) {
         margin: 0;
         background: #050510;
         overflow: hidden;
     }
 
-    .main-menu-overlay {
+    .menu-fullscreen {
         position: absolute;
-        top: 0;
-        left: 0;
+        inset: 0;
         width: 100vw;
         height: 100vh;
-        background: #050510;
+        background: radial-gradient(
+            ellipse at 50% 20%,
+            rgba(0, 40, 60, 0.3) 0%,
+            #050510 70%
+        );
         display: flex;
         align-items: center;
         justify-content: center;
@@ -408,64 +624,157 @@
         font-family: "Orbitron", sans-serif;
     }
 
-    .menu-chrome {
-        position: relative;
-        width: 450px;
-        background: rgba(10, 15, 30, 0.95);
-        border: 1px solid #4488ff;
-        border-radius: 12px;
-        padding: 40px;
-        box-shadow: 0 0 50px rgba(68, 136, 255, 0.15);
+    .menu-container {
+        width: 90vw;
+        max-width: 820px;
+        max-height: 90vh;
+        overflow-y: auto;
         display: flex;
         flex-direction: column;
-        gap: 24px;
+        gap: 28px;
+        padding: 32px 0;
     }
 
-    .glow-border {
-        position: absolute;
-        top: -2px;
-        left: -2px;
-        right: -2px;
-        bottom: -2px;
-        border-radius: 14px;
-        border: 2px solid transparent;
-        box-shadow: 0 0 15px #00ffff;
-        opacity: 0.3;
-        pointer-events: none;
-        z-index: -1;
+    /* Scrollbar */
+    .menu-container::-webkit-scrollbar {
+        width: 4px;
+    }
+    .menu-container::-webkit-scrollbar-thumb {
+        background: rgba(0, 255, 255, 0.15);
+        border-radius: 2px;
+    }
+
+    /* ── Title ────────────────────────────────────── */
+    .title-block {
+        text-align: center;
     }
 
     .title {
-        text-align: center;
-        font-size: 3rem;
+        font-size: 3.2rem;
         margin: 0;
         line-height: 1.1;
         display: flex;
         flex-direction: column;
         align-items: center;
-        text-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+        text-shadow: 0 0 30px rgba(0, 255, 255, 0.4);
     }
 
     .pax {
         color: #00ffff;
-        letter-spacing: 4px;
+        letter-spacing: 6px;
+        font-weight: 300;
     }
     .fluxia {
         color: #00ffff;
-        letter-spacing: 8px;
+        letter-spacing: 10px;
         font-weight: 900;
     }
 
     .subtitle {
-        text-align: center;
-        color: #667799;
+        color: #4a5a6a;
         font-family: "JetBrains Mono", monospace;
-        font-size: 0.7rem;
-        letter-spacing: 3px;
-        margin-top: -10px;
-        margin-bottom: 20px;
+        font-size: 0.65rem;
+        letter-spacing: 4px;
+        margin-top: 6px;
     }
 
+    /* ── Mode Toggle ─────────────────────────────── */
+    .mode-toggle {
+        display: flex;
+        gap: 2px;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 10px;
+        padding: 4px;
+        align-self: center;
+    }
+
+    .mode-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 32px;
+        border: none;
+        background: transparent;
+        color: #556677;
+        font-family: "Orbitron", sans-serif;
+        font-size: 0.85rem;
+        font-weight: 700;
+        letter-spacing: 2px;
+        cursor: pointer;
+        border-radius: 8px;
+        transition: all 0.25s;
+        position: relative;
+    }
+
+    .mode-btn:hover {
+        color: #8899aa;
+        background: rgba(255, 255, 255, 0.03);
+    }
+
+    .mode-btn.active {
+        color: #00ffff;
+        background: rgba(0, 255, 255, 0.06);
+        box-shadow: 0 0 20px rgba(0, 255, 255, 0.06);
+    }
+
+    .mode-icon {
+        font-size: 1rem;
+    }
+
+    .connected-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #22cc66;
+        box-shadow: 0 0 6px #22cc66;
+        animation: pulse-dot 2s infinite;
+    }
+
+    @keyframes pulse-dot {
+        0%,
+        100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.4;
+        }
+    }
+
+    /* ── Content Grid ────────────────────────────── */
+    .content-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+
+    @media (max-width: 700px) {
+        .content-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* ── Panels ──────────────────────────────────── */
+    .panel {
+        background: rgba(8, 12, 24, 0.85);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 12px;
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+    }
+
+    .panel-title {
+        font-size: 0.75rem;
+        color: #556677;
+        letter-spacing: 3px;
+        margin: 0;
+        padding-bottom: 8px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    /* ── Controls ─────────────────────────────────── */
     .control-group {
         display: flex;
         flex-direction: column;
@@ -473,9 +782,9 @@
     }
 
     label {
-        font-size: 0.7rem;
-        color: #8899aa;
-        letter-spacing: 1px;
+        font-size: 0.65rem;
+        color: #667788;
+        letter-spacing: 1.5px;
     }
 
     .map-card-row {
@@ -490,43 +799,43 @@
         align-items: center;
         gap: 4px;
         padding: 6px;
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid #334466;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.06);
         border-radius: 6px;
         cursor: pointer;
         transition: all 0.2s;
     }
 
     .map-card:hover {
-        border-color: #557799;
-        background: rgba(255, 255, 255, 0.06);
+        border-color: rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.04);
     }
 
     .map-card.active {
         border-color: #00cccc;
-        background: rgba(0, 204, 204, 0.08);
-        box-shadow: 0 0 12px rgba(0, 204, 204, 0.2);
+        background: rgba(0, 204, 204, 0.06);
+        box-shadow: 0 0 12px rgba(0, 204, 204, 0.15);
     }
 
     .map-card.debug {
-        border-color: #443322;
+        border-color: rgba(255, 170, 51, 0.15);
     }
 
     .map-card.debug.active {
         border-color: #ffaa33;
-        background: rgba(255, 170, 51, 0.08);
-        box-shadow: 0 0 12px rgba(255, 170, 51, 0.2);
+        background: rgba(255, 170, 51, 0.06);
+        box-shadow: 0 0 12px rgba(255, 170, 51, 0.15);
     }
 
     .map-thumb {
-        width: 64px;
-        height: 48px;
+        width: 56px;
+        height: 42px;
     }
 
     .map-card-label {
-        font-size: 0.55rem;
+        font-size: 0.5rem;
         letter-spacing: 1.5px;
-        color: #8899aa;
+        color: #667788;
         font-weight: 600;
     }
 
@@ -540,8 +849,8 @@
 
     .button-row {
         display: flex;
-        border: 1px solid #334466;
-        border-radius: 4px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 6px;
         overflow: hidden;
     }
 
@@ -549,13 +858,13 @@
         flex: 1;
         background: transparent;
         border: none;
-        color: #667799;
+        color: #556677;
         padding: 8px;
         cursor: pointer;
         font-family: "JetBrains Mono", monospace;
-        font-size: 0.8rem;
+        font-size: 0.75rem;
         transition: all 0.2s;
-        border-right: 1px solid #334466;
+        border-right: 1px solid rgba(255, 255, 255, 0.06);
     }
 
     .button-row button:last-child {
@@ -563,28 +872,22 @@
     }
 
     .button-row button:hover {
-        background: rgba(255, 255, 255, 0.05);
-        color: #fff;
+        background: rgba(255, 255, 255, 0.04);
+        color: #aabbcc;
     }
 
     .button-row button.active {
-        background: #00ffff;
-        color: #000;
+        background: rgba(0, 255, 255, 0.12);
+        color: #00ffff;
         font-weight: bold;
-        box-shadow: 0 0 15px rgba(0, 255, 255, 0.4);
+        box-shadow: inset 0 0 12px rgba(0, 255, 255, 0.08);
     }
 
     /* Config Sliders */
-    .config-row {
-        margin-top: 10px;
-        padding-top: 20px;
-        border-top: 1px solid #1a2a40;
-    }
-
     .config-dual-row {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 20px;
+        gap: 16px;
     }
 
     .config-item {
@@ -594,109 +897,42 @@
     }
 
     .mini-label {
-        font-size: 0.6rem;
-        color: #667;
+        font-size: 0.55rem;
+        color: #445566;
         letter-spacing: 1px;
     }
 
     .slider-container {
         display: flex;
         align-items: center;
-        gap: 15px;
+        gap: 10px;
     }
 
     input[type="range"] {
         flex: 1;
         accent-color: #00ffff;
-        height: 6px;
-        background: #223355;
-        border-radius: 3px;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 2px;
         appearance: none;
     }
 
     input[type="range"]::-webkit-slider-thumb {
         appearance: none;
-        width: 16px;
-        height: 16px;
+        width: 14px;
+        height: 14px;
         background: #00ffff;
         border-radius: 50%;
         cursor: pointer;
-        box-shadow: 0 0 10px #00ffff;
+        box-shadow: 0 0 8px rgba(0, 255, 255, 0.5);
     }
 
     .value {
         color: #00ffff;
         font-family: "JetBrains Mono", monospace;
-        width: 24px;
-        text-align: right;
-    }
-
-    /* Action Area */
-    .action-area {
-        margin-top: 20px;
-        display: flex;
-        flex-direction: column;
-        gap: 15px;
-    }
-
-    .start-btn {
-        background: linear-gradient(180deg, #00cccc, #0088aa);
-        border: none;
-        padding: 16px;
-        color: #000;
-        font-family: "Orbitron", sans-serif;
-        font-size: 1.2rem;
-        font-weight: 900;
-        letter-spacing: 2px;
-        cursor: pointer;
-        border-radius: 6px;
-        box-shadow: 0 0 20px rgba(0, 204, 204, 0.3);
-        transition:
-            transform 0.1s,
-            box-shadow 0.1s;
-    }
-
-    .start-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 0 30px rgba(0, 204, 204, 0.5);
-    }
-
-    .start-btn:active {
-        transform: translateY(1px);
-    }
-
-    .bottom-row {
-        display: flex;
-        gap: 10px;
-    }
-
-    .secondary-btn {
-        flex: 2;
-        background: transparent;
-        border: 1px solid #00aaaa;
-        color: #00aaaa;
-        padding: 10px;
-        font-family: "Orbitron", sans-serif;
         font-size: 0.8rem;
-        letter-spacing: 1px;
-        cursor: pointer;
-        border-radius: 4px;
-        transition: all 0.2s;
-    }
-
-    .secondary-btn:hover {
-        background: rgba(0, 170, 170, 0.1);
-        color: #00ffff;
-        border-color: #00ffff;
-    }
-
-    .icon-btn {
-        flex: 1;
-        background: #111;
-        border: 1px solid #333;
-        color: #666;
-        cursor: pointer;
-        border-radius: 4px;
+        width: 28px;
+        text-align: right;
     }
 
     .checkbox-label {
@@ -704,14 +940,14 @@
         align-items: center;
         gap: 8px;
         cursor: pointer;
-        font-size: 0.85rem;
-        color: #ccd;
+        font-size: 0.75rem;
+        color: #8899aa;
         position: relative;
     }
 
     .checkbox-label input[type="checkbox"] {
-        width: 16px;
-        height: 16px;
+        width: 14px;
+        height: 14px;
         accent-color: #00ffff;
         cursor: pointer;
     }
@@ -722,12 +958,12 @@
         bottom: 100%;
         left: 0;
         background: rgba(0, 20, 40, 0.95);
-        color: #8899aa;
+        color: #667788;
         padding: 6px 10px;
         border-radius: 4px;
-        font-size: 0.7rem;
+        font-size: 0.65rem;
         white-space: nowrap;
-        border: 1px solid #334466;
+        border: 1px solid rgba(255, 255, 255, 0.08);
         margin-bottom: 4px;
     }
 
@@ -735,34 +971,356 @@
         display: block;
     }
 
-    /* Multiplayer Lobby Modal */
-    .multiplayer-overlay {
-        z-index: 10000;
+    /* ── Start Button ─────────────────────────────── */
+    .start-btn {
+        position: relative;
+        background: linear-gradient(
+            135deg,
+            rgba(0, 204, 204, 0.9),
+            rgba(0, 136, 170, 0.9)
+        );
+        border: none;
+        padding: 16px;
+        color: #001a1a;
+        font-family: "Orbitron", sans-serif;
+        font-size: 1.1rem;
+        font-weight: 900;
+        letter-spacing: 2px;
+        cursor: pointer;
+        border-radius: 8px;
+        box-shadow: 0 4px 24px rgba(0, 200, 200, 0.2);
+        transition:
+            transform 0.15s,
+            box-shadow 0.15s;
+        overflow: hidden;
+        width: 100%;
     }
 
-    .lobby-wrapper {
+    .start-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 36px rgba(0, 200, 200, 0.35);
+    }
+
+    .start-btn:active {
+        transform: translateY(1px);
+    }
+
+    .btn-glow {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+            90deg,
+            transparent,
+            rgba(255, 255, 255, 0.15),
+            transparent
+        );
+        transform: translateX(-100%);
+        animation: shimmer 3s infinite;
+    }
+
+    @keyframes shimmer {
+        0% {
+            transform: translateX(-100%);
+        }
+        50% {
+            transform: translateX(100%);
+        }
+        100% {
+            transform: translateX(100%);
+        }
+    }
+
+    .spacer {
+        flex: 1;
+    }
+
+    /* ── MP Specific ──────────────────────────────── */
+    .mp-section {
         display: flex;
         flex-direction: column;
-        gap: 1rem;
-        width: 100%;
-        max-width: 450px;
+        gap: 10px;
     }
 
-    .back-btn {
+    .mp-section h3 {
+        font-size: 0.7rem;
+        color: #8899aa;
+        letter-spacing: 2px;
+        margin: 0;
+    }
+
+    .mp-desc {
+        font-size: 0.7rem;
+        color: #445566;
+        font-family: "JetBrains Mono", monospace;
+        margin: 0;
+        line-height: 1.4;
+    }
+
+    .mp-loading {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        padding: 40px 0;
+    }
+
+    .mp-loading p {
+        color: #556677;
+        font-size: 0.8rem;
+        margin: 0;
+    }
+
+    .spinner {
+        width: 32px;
+        height: 32px;
+        border: 3px solid rgba(0, 255, 255, 0.1);
+        border-top-color: #00ffff;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .divider {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: #334455;
+        font-size: 0.65rem;
+        letter-spacing: 2px;
+    }
+
+    .divider::before,
+    .divider::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: rgba(255, 255, 255, 0.04);
+    }
+
+    .join-row {
+        display: flex;
+        gap: 8px;
+    }
+
+    .room-input {
+        flex: 1;
+        padding: 10px 14px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 6px;
+        color: #ddeeff;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.85rem;
+        outline: none;
+        transition: border-color 0.2s;
+    }
+
+    .room-input:focus {
+        border-color: rgba(0, 255, 255, 0.3);
+    }
+
+    .room-input::placeholder {
+        color: #334455;
+    }
+
+    .join-btn {
+        padding: 10px 20px;
         background: transparent;
-        border: 1px solid #556;
-        color: #889;
-        padding: 8px 16px;
+        border: 1px solid #00aaaa;
+        color: #00aaaa;
+        font-family: "Orbitron", sans-serif;
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 1px;
         cursor: pointer;
-        border-radius: 4px;
-        font-family: inherit;
-        font-size: 0.9rem;
+        border-radius: 6px;
         transition: all 0.2s;
-        align-self: flex-start;
     }
 
-    .back-btn:hover {
-        border-color: #fff;
-        color: #fff;
+    .join-btn:hover:not(:disabled) {
+        background: rgba(0, 170, 170, 0.1);
+        color: #00ffff;
+        border-color: #00ffff;
+    }
+
+    .join-btn:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+    }
+
+    .error-msg {
+        padding: 10px 14px;
+        background: rgba(239, 68, 68, 0.08);
+        border: 1px solid rgba(239, 68, 68, 0.2);
+        border-radius: 6px;
+        color: #ff6666;
+        font-size: 0.75rem;
+        font-family: "JetBrains Mono", monospace;
+    }
+
+    /* ── Lobby (Connected) ───────────────────────── */
+    .room-info-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 14px;
+        background: rgba(0, 255, 255, 0.03);
+        border: 1px solid rgba(0, 255, 255, 0.08);
+        border-radius: 8px;
+    }
+
+    .room-id-block {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .room-label {
+        font-size: 0.55rem;
+        color: #556677;
+        letter-spacing: 2px;
+    }
+
+    .room-code {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.85rem;
+        color: #00ffff;
+        background: rgba(0, 0, 0, 0.3);
+        padding: 2px 8px;
+        border-radius: 4px;
+    }
+
+    .copy-btn {
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 0.85rem;
+        opacity: 0.5;
+        transition: opacity 0.2s;
+    }
+
+    .copy-btn:hover {
+        opacity: 1;
+    }
+
+    .player-count-badge {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.8rem;
+        color: #667788;
+    }
+
+    .players-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .players-list h3 {
+        font-size: 0.65rem;
+        color: #556677;
+        letter-spacing: 2px;
+        margin: 0;
+    }
+
+    .players-list ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .player-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 12px;
+        background: rgba(255, 255, 255, 0.02);
+        border-radius: 6px;
+        transition: background 0.2s;
+    }
+
+    .player-row:hover {
+        background: rgba(255, 255, 255, 0.04);
+    }
+
+    .player-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    .player-name {
+        font-size: 0.8rem;
+        color: #bbccdd;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .badge {
+        font-size: 0.5rem;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-weight: 700;
+        letter-spacing: 1px;
+    }
+
+    .badge.host {
+        background: rgba(255, 170, 0, 0.15);
+        color: #ffaa00;
+        border: 1px solid rgba(255, 170, 0, 0.3);
+    }
+
+    .badge.you {
+        background: rgba(0, 255, 255, 0.1);
+        color: #00ffff;
+        border: 1px solid rgba(0, 255, 255, 0.2);
+    }
+
+    .badge.ai {
+        background: rgba(128, 128, 128, 0.15);
+        color: #888;
+        border: 1px solid rgba(128, 128, 128, 0.3);
+    }
+
+    .waiting-text {
+        color: #445566;
+        font-size: 0.75rem;
+        font-family: "JetBrains Mono", monospace;
+        text-align: center;
+        margin: 0;
+    }
+
+    .lobby-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .leave-btn {
+        background: transparent;
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        color: #aa5555;
+        padding: 10px;
+        font-family: "Orbitron", sans-serif;
+        font-size: 0.7rem;
+        letter-spacing: 1px;
+        cursor: pointer;
+        border-radius: 6px;
+        transition: all 0.2s;
+    }
+
+    .leave-btn:hover {
+        background: rgba(239, 68, 68, 0.08);
+        color: #ff6666;
+        border-color: rgba(239, 68, 68, 0.5);
     }
 </style>
