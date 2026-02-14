@@ -8,12 +8,13 @@ node_modules
 .colyseus-demo
 reference
 *.txt
-*.lock
+package-lock.json
 pax-fluxia/node_modules
 pax-fluxia/.svelte-kit
 pax-fluxia/build
 pax-fluxia/src-tauri
 pax-server/node_modules
 pax-server/dist
+pax-server/bun.lock
 common/node_modules
 common/dist
