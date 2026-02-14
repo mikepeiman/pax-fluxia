@@ -69,6 +69,10 @@ export class GameRoom extends Room {
         try {
             log.sys('GameRoom', 'onCreate starting...', options);
 
+            // Increase seat reservation time for proxied deployments (Northflank)
+            // Default is 15s; increase to 30s to allow for TLS+proxy latency
+            this.setSeatReservationTime(30);
+
             // IMPORTANT: Use setState() per Colyseus 0.17.29 strict type requirements
             log.sys('GameRoom', 'Calling this.setState()...');
             this.setState(new GameRoomState());

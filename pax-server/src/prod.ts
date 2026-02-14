@@ -50,14 +50,25 @@ const MIME: Record<string, string> = {
 // Static file middleware — injected into Colyseus's internal Express via callback
 // ============================================================================
 
+// Colyseus WebSocket paths look like: /<processId>/<roomId>?sessionId=...
+// Match two path segments of alphanumeric+dash+underscore characters
+const COLYSEUS_WS_PATH_RE = /^\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+$/;
+
 function staticMiddleware(req: any, res: any, next: () => void) {
     // Only handle GET requests; let POST /matchmake/* pass to Colyseus
     if (req.method !== "GET") return next();
 
     const url: string = req.path || req.url?.split("?")[0] || "/";
 
-    // Let Colyseus handle its own API paths
+    // Let Colyseus handle its own API paths and WebSocket upgrade paths
     if (url.startsWith("/matchmake") || url.startsWith("/colyseus") || url === "/__healthcheck") {
+        return next();
+    }
+
+    // Skip paths that look like Colyseus WebSocket URLs (/<processId>/<roomId>)
+    // This prevents the SPA fallback from serving index.html for WS upgrade GETs
+    if (COLYSEUS_WS_PATH_RE.test(url)) {
+        log.sys("Static", `Skipping Colyseus WS path: ${url}`);
         return next();
     }
 
@@ -93,6 +104,15 @@ function staticMiddleware(req: any, res: any, next: () => void) {
 // ============================================================================
 
 const httpServer = createServer();
+
+// Diagnostic: log all WebSocket upgrade attempts
+httpServer.on("upgrade", (req, socket, head) => {
+    log.net("WS-Upgrade", `Upgrade request: ${req.url} | headers: ${JSON.stringify({
+        upgrade: req.headers.upgrade,
+        connection: req.headers.connection,
+        origin: req.headers.origin,
+    })}`);
+});
 
 const gameServer = new Server({
     transport: new WebSocketTransport({ server: httpServer }),
