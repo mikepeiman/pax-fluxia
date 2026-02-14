@@ -31,21 +31,18 @@ app.use((_req, res, next) => {
     next();
 });
 
-// Explicit root route — must be defined BEFORE Colyseus binds its own "/" handler
-app.get("/", (_req, res) => {
-    res.sendFile(path.join(CLIENT_DIR, "index.html"));
-});
-
-// Serve static client files (with cache headers for assets)
+// Serve static client files — handles / via index.html automatically
 app.use(express.static(CLIENT_DIR, {
     maxAge: "1y",
     immutable: true,
+    index: "index.html",
 }));
 
-// SPA fallback for client-side routes (before Colyseus binds matchmaker)
-app.get("/{*splat}", (req, res, next) => {
-    // Let /matchmake and /colyseus paths fall through to Colyseus
-    if (req.path.startsWith("/matchmake") || req.path.startsWith("/colyseus")) {
+// SPA fallback middleware — serves index.html for client-side routes
+// Runs only if express.static didn't match a file
+app.use((req, res, next) => {
+    // Let /matchmake paths fall through to Colyseus
+    if (req.path.startsWith("/matchmake") || req.method !== "GET") {
         return next();
     }
     res.sendFile(path.join(CLIENT_DIR, "index.html"));
