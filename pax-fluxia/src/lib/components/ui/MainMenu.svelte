@@ -114,6 +114,7 @@
     let playerConfigs = $state<PlayerConfig[]>(
         loadSetting("playerConfigs", makeDefaultPlayerConfigs(6)),
     );
+    let hueOffset = $state(loadSetting("hueOffset", 45));
 
     // Sync player count changes to config array
     $effect(() => {
@@ -128,6 +129,16 @@
                 newConfigs[i] = playerConfigs[i];
             }
             playerConfigs = newConfigs;
+        }
+    });
+
+    // Auto-distribute hues from P1's hue in SP mode
+    $effect(() => {
+        if (gameMode === "sp" && playerConfigs.length > 1) {
+            const baseHue = playerConfigs[0].hue;
+            for (let i = 1; i < playerConfigs.length; i++) {
+                playerConfigs[i].hue = (baseHue + hueOffset * i) % 360;
+            }
         }
     });
 
@@ -214,6 +225,7 @@
         saveSetting("starSpacing", starSpacing);
         saveSetting("retainOrderOnConquest", retainOrderOnConquest);
         saveSetting("playerConfigs", playerConfigs);
+        saveSetting("hueOffset", hueOffset);
     }
 
     function applyConfig() {
@@ -488,100 +500,6 @@
                             >
                         </label>
                     </div>
-
-                    <!-- Per-Player Configuration -->
-                    <div class="control-group player-config-section">
-                        <label>PLAYERS</label>
-                        <div class="player-config-list">
-                            {#each playerConfigs as cfg, i}
-                                <div class="player-config-row">
-                                    <!-- svelte-ignore a11y_click_events_have_key_events -->
-                                    <!-- svelte-ignore a11y_no_static_element_interactions -->
-                                    <div
-                                        class="player-header"
-                                        onclick={() =>
-                                            (expandedPlayer =
-                                                expandedPlayer === i
-                                                    ? null
-                                                    : i)}
-                                    >
-                                        <span
-                                            class="player-swatch"
-                                            style:background-color="hsl({cfg.hue},
-                                            70%, 55%)"
-                                        ></span>
-                                        <span class="player-label">
-                                            {i === 0 ? "YOU" : `P${i + 1}`}
-                                            {#if cfg.isAI}
-                                                <span class="badge ai">AI</span>
-                                            {/if}
-                                        </span>
-                                        <span class="player-expand"
-                                            >{expandedPlayer === i
-                                                ? "▾"
-                                                : "▸"}</span
-                                        >
-                                    </div>
-                                    {#if expandedPlayer === i}
-                                        <div class="player-details">
-                                            <!-- Hue Wheel -->
-                                            <div class="hue-control">
-                                                <label>Color</label>
-                                                <input
-                                                    type="range"
-                                                    class="hue-slider"
-                                                    min="0"
-                                                    max="360"
-                                                    bind:value={
-                                                        playerConfigs[i].hue
-                                                    }
-                                                    style:--hue={cfg.hue}
-                                                />
-                                                <span
-                                                    class="hue-preview"
-                                                    style:background-color="hsl({cfg.hue},
-                                                    70%, 55%)"
-                                                ></span>
-                                            </div>
-                                            {#if i > 0}
-                                                <!-- AI settings -->
-                                                <div class="ai-setting">
-                                                    <label>Difficulty</label>
-                                                    <select
-                                                        bind:value={
-                                                            playerConfigs[i]
-                                                                .difficulty
-                                                        }
-                                                    >
-                                                        {#each DIFFICULTIES as d}
-                                                            <option value={d}
-                                                                >{d}</option
-                                                            >
-                                                        {/each}
-                                                    </select>
-                                                </div>
-                                                <div class="ai-setting">
-                                                    <label>Strategy</label>
-                                                    <select
-                                                        bind:value={
-                                                            playerConfigs[i]
-                                                                .strategy
-                                                        }
-                                                    >
-                                                        {#each AI_STRATEGIES as s}
-                                                            <option value={s.id}
-                                                                >{s.label}</option
-                                                            >
-                                                        {/each}
-                                                    </select>
-                                                </div>
-                                            {/if}
-                                        </div>
-                                    {/if}
-                                </div>
-                            {/each}
-                        </div>
-                    </div>
                 </section>
 
                 <!-- ── Right: Mode-specific panel ── -->
@@ -814,6 +732,110 @@
                             </button>
                         </div>
                     {/if}
+
+                    <!-- Per-Player Configuration (shared across SP/MP) -->
+                    <div class="control-group player-config-section">
+                        <label>PLAYERS</label>
+                        {#if gameMode === "sp"}
+                            <div class="hue-offset-row">
+                                <span class="mini-label">Hue offset</span>
+                                <input
+                                    type="range"
+                                    min="10"
+                                    max="120"
+                                    bind:value={hueOffset}
+                                />
+                                <span class="value">{hueOffset}°</span>
+                            </div>
+                        {/if}
+                        <div class="player-config-list">
+                            {#each playerConfigs as cfg, i}
+                                <div class="player-config-row">
+                                    <!-- svelte-ignore a11y_click_events_have_key_events -->
+                                    <!-- svelte-ignore a11y_no_static_element_interactions -->
+                                    <div
+                                        class="player-header"
+                                        onclick={() =>
+                                            (expandedPlayer =
+                                                expandedPlayer === i
+                                                    ? null
+                                                    : i)}
+                                    >
+                                        <span
+                                            class="player-swatch"
+                                            style:background-color="hsl({cfg.hue},
+                                            70%, 55%)"
+                                        ></span>
+                                        <span class="player-label">
+                                            {i === 0 ? "YOU" : `P${i + 1}`}
+                                            {#if cfg.isAI}
+                                                <span class="badge ai">AI</span>
+                                            {/if}
+                                        </span>
+                                        <span class="player-expand"
+                                            >{expandedPlayer === i
+                                                ? "▾"
+                                                : "▸"}</span
+                                        >
+                                    </div>
+                                    {#if expandedPlayer === i}
+                                        <div class="player-details">
+                                            <div class="hue-control">
+                                                <label>Color</label>
+                                                <input
+                                                    type="range"
+                                                    class="hue-slider"
+                                                    min="0"
+                                                    max="360"
+                                                    bind:value={
+                                                        playerConfigs[i].hue
+                                                    }
+                                                    style:--hue={cfg.hue}
+                                                />
+                                                <span
+                                                    class="hue-preview"
+                                                    style:background-color="hsl({cfg.hue},
+                                                    70%, 55%)"
+                                                ></span>
+                                            </div>
+                                            {#if i > 0}
+                                                <div class="ai-setting">
+                                                    <label>Difficulty</label>
+                                                    <select
+                                                        bind:value={
+                                                            playerConfigs[i]
+                                                                .difficulty
+                                                        }
+                                                    >
+                                                        {#each DIFFICULTIES as d}
+                                                            <option value={d}
+                                                                >{d}</option
+                                                            >
+                                                        {/each}
+                                                    </select>
+                                                </div>
+                                                <div class="ai-setting">
+                                                    <label>Strategy</label>
+                                                    <select
+                                                        bind:value={
+                                                            playerConfigs[i]
+                                                                .strategy
+                                                        }
+                                                    >
+                                                        {#each AI_STRATEGIES as s}
+                                                            <option value={s.id}
+                                                                >{s.label}</option
+                                                            >
+                                                        {/each}
+                                                    </select>
+                                                </div>
+                                            {/if}
+                                        </div>
+                                    {/if}
+                                </div>
+                            {/each}
+                        </div>
+                    </div>
                 </section>
             </div>
         </div>
