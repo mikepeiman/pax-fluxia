@@ -1,11 +1,13 @@
 // ============================================================================
 // Production Entry Point — Pax Fluxia
-// Express 5 serves static SPA + Colyseus ws-transport on SAME port
+// Static files served at HTTP level (bypasses Colyseus route override)
+// Colyseus matchmaker + WebSocket via Express 5 + ws-transport
 // Used by Dockerfile / Northflank — NOT for local dev
 // ============================================================================
 
 import express from "express";
 import { createServer } from "http";
+import { readFileSync, existsSync, statSync, readdirSync } from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { Server } from "colyseus";
@@ -18,54 +20,84 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 2567;
 const CLIENT_DIR = path.resolve(__dirname, "../../client");
 
-// Startup diagnostics — log what's in the client directory
-import { readdirSync, existsSync } from "fs";
-log.sys("Init", `__dirname: ${__dirname}`);
+// Startup diagnostics
 log.sys("Init", `CLIENT_DIR: ${CLIENT_DIR}`);
 log.sys("Init", `CLIENT_DIR exists: ${existsSync(CLIENT_DIR)}`);
 if (existsSync(CLIENT_DIR)) {
-    const files = readdirSync(CLIENT_DIR);
-    log.sys("Init", `CLIENT_DIR contents: ${files.join(", ")}`);
-    log.sys("Init", `index.html exists: ${existsSync(path.join(CLIENT_DIR, "index.html"))}`);
-} else {
-    log.error("Init", "CLIENT_DIR DOES NOT EXIST — SPA will not be served!");
+    log.sys("Init", `Contents: ${readdirSync(CLIENT_DIR).join(", ")}`);
 }
 
 // ============================================================================
-// Express 5 — serves static SPA files
+// MIME types
+// ============================================================================
+
+const MIME: Record<string, string> = {
+    ".html": "text/html; charset=utf-8",
+    ".js": "application/javascript",
+    ".css": "text/css",
+    ".json": "application/json",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".svg": "image/svg+xml",
+    ".ico": "image/x-icon",
+    ".woff2": "font/woff2",
+    ".wasm": "application/wasm",
+    ".webp": "image/webp",
+    ".mp3": "audio/mpeg",
+    ".ogg": "audio/ogg",
+};
+
+// ============================================================================
+// Express app (only used for Colyseus matchmaker routes)
 // ============================================================================
 
 const app = express();
 
-app.use((_req, res, next) => {
-    res.header("Access-Control-Allow-Origin", "*");
-    res.header("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-    res.header("Access-Control-Allow-Headers", "Content-Type");
-    next();
-});
+// ============================================================================
+// HTTP Server — static files handled HERE, before Express/Colyseus
+// ============================================================================
 
-// Serve static client files — handles / via index.html automatically
-app.use(express.static(CLIENT_DIR, {
-    maxAge: "1y",
-    immutable: true,
-    index: "index.html",
-}));
+const httpServer = createServer((req, res) => {
+    const url = (req.url || "/").split("?")[0];
 
-// SPA fallback middleware — serves index.html for client-side routes
-// Runs only if express.static didn't match a file
-app.use((req, res, next) => {
-    // Let /matchmake paths fall through to Colyseus
-    if (req.path.startsWith("/matchmake") || req.method !== "GET") {
-        return next();
+    // Serve static files for GET requests (non-matchmake paths)
+    if (req.method === "GET" && !url.startsWith("/matchmake")) {
+        const filePath = path.join(CLIENT_DIR, url === "/" ? "index.html" : url);
+
+        try {
+            if (existsSync(filePath) && statSync(filePath).isFile()) {
+                const ext = path.extname(filePath);
+                res.writeHead(200, {
+                    "Content-Type": MIME[ext] || "application/octet-stream",
+                    "Cache-Control": ext === ".html" ? "no-cache" : "public, max-age=31536000, immutable",
+                    "Access-Control-Allow-Origin": "*",
+                });
+                res.end(readFileSync(filePath));
+                return;
+            }
+        } catch (e) {
+            // fall through
+        }
+
+        // SPA fallback — serve index.html for client-side routes
+        const indexPath = path.join(CLIENT_DIR, "index.html");
+        if (existsSync(indexPath)) {
+            res.writeHead(200, {
+                "Content-Type": "text/html; charset=utf-8",
+                "Access-Control-Allow-Origin": "*",
+            });
+            res.end(readFileSync(indexPath));
+            return;
+        }
     }
-    res.sendFile(path.join(CLIENT_DIR, "index.html"));
+
+    // Everything else → Express app (Colyseus matchmaker + WebSocket)
+    app(req, res);
 });
 
 // ============================================================================
 // Colyseus — game server on the same HTTP server
 // ============================================================================
-
-const httpServer = createServer(app);
 
 const gameServer = new Server({
     transport: new WebSocketTransport({ server: httpServer }),
@@ -89,8 +121,6 @@ gameServer.define("test_room", TestRoom)
 
 gameServer.listen(PORT).then(() => {
     log.sys("Init", `🚀 Pax Fluxia PRODUCTION on port ${PORT}`);
-    log.sys("Init", `   Static SPA: ${CLIENT_DIR}`);
-    log.sys("Init", `   WebSocket + Matchmaker on same port`);
 }).catch((err) => {
     log.error("Init", "Server failed to start", err);
     process.exit(1);
