@@ -95,6 +95,8 @@ export interface GameSettings {
     maxLinksPerStar?: number;
     difficulty?: string;
     gameSpeed?: number;
+    /** Custom player colors as hex strings (e.g. '#4488ff'). Index 0 = human. */
+    playerColors?: string[];
 }
 
 // === Combat ===

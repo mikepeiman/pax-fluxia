@@ -137,12 +137,13 @@ export class GameEngine {
 
     private initializePlayers(): void {
         const { playerCount } = this.settings;
+        const customColors = this.settings.playerColors;
 
         // Human player is always first
         this.players.set(this.humanPlayerId, {
             id: this.humanPlayerId,
             name: 'You',
-            color: PLAYER_COLORS[0],
+            color: customColors?.[0] ?? PLAYER_COLORS[0],
             isAI: false,
             isEliminated: false
         });
@@ -153,7 +154,7 @@ export class GameEngine {
             this.players.set(id, {
                 id,
                 name: `AI ${i}`,
-                color: PLAYER_COLORS[i % PLAYER_COLORS.length],
+                color: customColors?.[i] ?? PLAYER_COLORS[i % PLAYER_COLORS.length],
                 isAI: true,
                 isEliminated: false
             });

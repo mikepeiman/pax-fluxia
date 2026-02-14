@@ -53,6 +53,21 @@
         localStorage.setItem(`pax-fluxia-${key}`, JSON.stringify(value));
     }
 
+    /** Convert HSL hue (0-360) at fixed S/L to hex string */
+    function hslToHex(hue: number): string {
+        const s = 0.7,
+            l = 0.55;
+        const a = s * Math.min(l, 1 - l);
+        const f = (n: number) => {
+            const k = (n + hue / 30) % 12;
+            const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+            return Math.round(255 * color)
+                .toString(16)
+                .padStart(2, "0");
+        };
+        return `#${f(0)}${f(8)}${f(4)}`;
+    }
+
     // Config state
     let mapType = $state(loadSetting("mapType", "standard"));
     let playerCount = $state<GameSettings["playerCount"]>(
@@ -244,6 +259,7 @@
             minLinksPerStar: minLinks,
             maxLinksPerStar: maxLinks,
             starSpacing: starSpacing,
+            playerColors: playerConfigs.map((cfg) => hslToHex(cfg.hue)),
         });
 
         if (selectedMap.mapType === "debug-b") {

@@ -258,6 +258,8 @@
 | R-35 | Conquest Pause + Stats Card Popup | 🟢 |
 | R-36 | Damaged Ship Visual Density Tiers (overlapping orbits) | 🟢 |
 | R-37 | Full Engine Unification: server uses shared GameEngine for map generation | 🔴 |
+| R-38 | **Main Menu Restructure** — always-visible room browser (no SP/MP tabs), unified layout | 🟢 |
+| R-39 | **Standard Menu Items** — Gameplay Options, Settings (audio/video icons), Shop, Quit to Desktop | 🟢 |
 | R-38 | Ship Orbit Density: limit to 5 layers, scale colors max 5000 ships, enlarge on overflow | 🔴 |
 | R-39 | Power Density VFX: animations/effects for increasing fleet power at stars | 🔴 |
 | R-40 | Leaderboard: emphasize TOTAL SHIPS first, then active/damaged fraction | 🟢 |
