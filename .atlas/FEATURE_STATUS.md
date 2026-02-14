@@ -114,7 +114,7 @@
 | B-29 | ~~Pause/play freezes attack surge~~ **FIXED**: tickProgress now uses `BASE_TICK_MS` instead of `ANIMATION_SPEED_MS` — eliminates dead zone where `sin(π)=0`. |
 | B-30 | Cancelling attack order snaps ships back to orbit instantly instead of easing back smoothly. |
 | B-38 | ~~Cannot chain click-click commands~~ **FIXED**: stale `dragStartX/Y` in `handlePointerDown` caused `movedSignificantly` to eat clicks. Reset drag state in all branches. User-confirmed working `d76af73`. |
-| B-39 | ~~Intermittent star unresponsiveness~~ **FIXED**: same root cause as B-38 — stale drag state from previous interaction. User-confirmed working `d76af73`. |
+| B-39 | ~~Intermittent star unresponsiveness~~ **FIXED**: stale drag state (`d76af73`). Residual intermittent issues may have been OS-level — Windows desktop apps (Perplexity Electron, Antigravity) suspected of causing pointer event interference. |
 | B-40 | Controls Icon Menu not responding when DevTools drawer is open. Works again when DevTools closed. Likely z-index or focus/pointer-events issue with DevTools panel overlay. |
 | B-41 | Deferred orders can be set in both directions between two stars (A→B and B→A). Same exclusivity rule as active orders should apply — flow can only go one direction at a time between any pair. |
 

@@ -6,7 +6,7 @@
 
     const STORAGE_KEY = "pax-fluxia-combat-tuning";
 
-    // Default values — single source of truth for reset + disabled toggle state
+    // Default values â€” single source of truth for reset + disabled toggle state
     const defaultValues = {
         TRANSFER_RATE: 0.1,
         AGGRESSOR_ADVANTAGE: 0.7,
@@ -163,7 +163,7 @@
         },
         {
             key: "RETREAT_DAMAGED_ACTIVATION_RATE",
-            label: "🔄 Damaged Activation",
+            label: "ðŸ”„ Damaged Activation",
             min: 0,
             max: 1,
             step: 0.05,
@@ -232,20 +232,20 @@
     }
 
     const logCategories = [
-        { key: "sys", label: "🔵 System", desc: "Lifecycle, init" },
-        { key: "state", label: "🟣 State", desc: "Logic, transitions" },
-        { key: "data", label: "🟢 Data", desc: "Data flow" },
-        { key: "net", label: "🟡 Network", desc: "API, IO" },
-        { key: "error", label: "🔴 Error", desc: "Errors (keep ON)" },
-        { key: "success", label: "✅ Success", desc: "Verifications" },
-        { key: "combat", label: "⚔️ Combat", desc: "Battle events" },
-        { key: "conquest", label: "🏰 Conquest", desc: "Capture details" },
-        { key: "input", label: "🖱️ Input", desc: "User clicks" },
-        { key: "repair", label: "🔧 Repair", desc: "Ship repair" },
+        { key: "sys", label: "ðŸ”µ System", desc: "Lifecycle, init" },
+        { key: "state", label: "ðŸŸ£ State", desc: "Logic, transitions" },
+        { key: "data", label: "ðŸŸ¢ Data", desc: "Data flow" },
+        { key: "net", label: "ðŸŸ¡ Network", desc: "API, IO" },
+        { key: "error", label: "ðŸ”´ Error", desc: "Errors (keep ON)" },
+        { key: "success", label: "âœ… Success", desc: "Verifications" },
+        { key: "combat", label: "âš”ï¸ Combat", desc: "Battle events" },
+        { key: "conquest", label: "ðŸ° Conquest", desc: "Capture details" },
+        { key: "input", label: "ðŸ–±ï¸ Input", desc: "User clicks" },
+        { key: "repair", label: "ðŸ”§ Repair", desc: "Ship repair" },
     ] as const;
     let logRefresh = $state(0);
 
-    // ── Config Import/Export ──
+    // â”€â”€ Config Import/Export â”€â”€
     let configStatus = $state("");
     let configStatusColor = $state("#4ade80");
 
@@ -259,7 +259,7 @@
         a.download = `pax-config-${ts}.json`;
         a.click();
         URL.revokeObjectURL(url);
-        configStatus = `✅ Exported ${Object.keys(GAME_CONFIG).length} settings`;
+        configStatus = `âœ… Exported ${Object.keys(GAME_CONFIG).length} settings`;
         configStatusColor = "#4ade80";
     }
 
@@ -339,7 +339,7 @@
         a.download = `pax-config-${ts}.md`;
         a.click();
         URL.revokeObjectURL(url);
-        configStatus = `✅ Exported MD`;
+        configStatus = `âœ… Exported MD`;
         configStatusColor = "#4ade80";
     }
 
@@ -356,7 +356,7 @@
                 try {
                     data = JSON.parse(raw);
                 } catch {
-                    configStatus = "❌ Invalid JSON — could not parse file";
+                    configStatus = "âŒ Invalid JSON â€” could not parse file";
                     configStatusColor = "#f87171";
                     input.value = "";
                     return;
@@ -364,7 +364,7 @@
 
                 // Must be a plain object
                 if (!data || typeof data !== "object" || Array.isArray(data)) {
-                    configStatus = "❌ Expected a JSON object with config keys";
+                    configStatus = "âŒ Expected a JSON object with config keys";
                     configStatusColor = "#f87171";
                     input.value = "";
                     return;
@@ -446,13 +446,13 @@
                     /* ignore */
                 }
 
-                const parts = [`✅ ${applied} applied`];
+                const parts = [`âœ… ${applied} applied`];
                 if (skipped) parts.push(`${skipped} unknown`);
                 if (typeErrors) parts.push(`${typeErrors} type mismatches`);
                 configStatus = parts.join(", ");
                 configStatusColor = typeErrors > 0 ? "#fbbf24" : "#4ade80";
             } catch (err) {
-                configStatus = `❌ Import failed: ${(err as Error).message}`;
+                configStatus = `âŒ Import failed: ${(err as Error).message}`;
                 configStatusColor = "#f87171";
             }
             // Reset input so same file can be re-imported
@@ -700,13 +700,15 @@
     }
 
     // =========================================================================
-    // Icon Toolbar — sections definition
+    // Icon Toolbar â€” sections definition
     // =========================================================================
     type SectionId =
         | "speed"
         | "battle"
         | "economy"
         | "ai"
+        | "travel"
+        | "conquest"
         | "ships"
         | "visuals"
         | "logging";
@@ -735,13 +737,20 @@
         label: string;
         color: string;
     }[] = [
-        { id: "speed", icon: "⚡", label: "Timing", color: "#ffcc00" },
-        { id: "battle", icon: "⚔️", label: "Battle", color: "#ff4466" },
-        { id: "economy", icon: "🎛️", label: "Core / Global", color: "#44ff88" },
-        { id: "ai", icon: "🤖", label: "AI Behavior", color: "#ff8844" },
-        { id: "ships", icon: "🚀", label: "Ships & Motion", color: "#44aaff" },
-        { id: "visuals", icon: "🎨", label: "Map Visuals", color: "#cc66ff" },
-        { id: "logging", icon: "📋", label: "Logging", color: "#88aacc" },
+        { id: "speed", icon: "âš¡", label: "Timing", color: "#ffcc00" },
+        { id: "battle", icon: "âš”ï¸", label: "Battle", color: "#ff4466" },
+        {
+            id: "economy",
+            icon: "ðŸŽ›ï¸",
+            label: "Core / Global",
+            color: "#44ff88",
+        },
+        { id: "ai", icon: "ðŸ¤–", label: "AI Behavior", color: "#ff8844" },
+        { id: "travel", icon: "ðŸš€", label: "Ship Travel", color: "#44aaff" },
+        { id: "conquest", icon: "ðŸ°", label: "Conquest", color: "#ff66aa" },
+        { id: "ships", icon: "ðŸ›¸", label: "Ship Look", color: "#88ccff" },
+        { id: "visuals", icon: "ðŸŽ¨", label: "Map Visuals", color: "#cc66ff" },
+        { id: "logging", icon: "ðŸ“‹", label: "Logging", color: "#88aacc" },
     ];
 </script>
 
@@ -767,7 +776,7 @@
             title="Reset All"
             onclick={resetToDefaults}
         >
-            <span class="icon-emoji">↺</span>
+            <span class="icon-emoji">â†º</span>
             {#if activeSection === null}
                 <span class="icon-label">Reset</span>
             {/if}
@@ -784,11 +793,11 @@
             >
                 <span class="head-icon">{sec?.icon}</span>
                 <span class="head-label">{sec?.label}</span>
-                <span class="head-close">✕</span>
+                <span class="head-close">âœ•</span>
             </button>
 
             <div class="section-body">
-                <!-- ⚡ GAME SPEED -->
+                <!-- âš¡ TIMING -->
                 {#if activeSection === "speed"}
                     <div class="var-row">
                         <div class="row-top">
@@ -811,6 +820,365 @@
                             }}
                         />
                     </div>
+
+                    <!-- âš”ï¸ BATTLE -->
+                {:else if activeSection === "battle"}
+                    {#each variables as v}
+                        <div
+                            class="var-row"
+                            class:disabled={!enabled[
+                                v.key as keyof typeof enabled
+                            ]}
+                        >
+                            <div class="row-top">
+                                <label class="toggle-label">
+                                    <input
+                                        type="checkbox"
+                                        checked={enabled[
+                                            v.key as keyof typeof enabled
+                                        ]}
+                                        onchange={() =>
+                                            toggle(
+                                                v.key as keyof typeof enabled,
+                                            )}
+                                    />
+                                    <span class="var-name">{v.label}</span>
+                                </label>
+                                <span class="val"
+                                    >{values[v.key as VarKey].toFixed(2)}</span
+                                >
+                            </div>
+                            <input
+                                type="range"
+                                min={v.min}
+                                max={v.max}
+                                step={v.step}
+                                value={values[v.key as VarKey]}
+                                oninput={(e) =>
+                                    updateValue(
+                                        v.key as VarKey,
+                                        parseFloat(
+                                            (e.target as HTMLInputElement)
+                                                .value,
+                                        ),
+                                    )}
+                                disabled={!enabled[
+                                    v.key as keyof typeof enabled
+                                ]}
+                            />
+                        </div>
+                    {/each}
+
+                    <!-- ðŸ­ ECONOMY -->
+                {:else if activeSection === "economy"}
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">âš™ï¸ Production</span><span
+                                class="val"
+                                >{(panel.production as number).toFixed(2)}</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="5"
+                            step="0.1"
+                            value={panel.production}
+                            oninput={(e) => {
+                                const v = parseFloat(
+                                    (e.target as HTMLInputElement).value,
+                                );
+                                GAME_CONFIG.BASE_PRODUCTION = v;
+                                updatePanel("production", v);
+                            }}
+                        />
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">ðŸš€ Transfer Rate</span
+                            ><span class="val">{transferRate}%</span>
+                        </div>
+                        <input
+                            type="range"
+                            min="1"
+                            max="100"
+                            step="1"
+                            value={transferRate}
+                            oninput={(e) =>
+                                updateTransferRate(
+                                    parseInt(
+                                        (e.target as HTMLInputElement).value,
+                                    ),
+                                )}
+                        />
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">ðŸ”§ Repair</span><span
+                                class="val">{panel.repair as number}%</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            step="1"
+                            value={panel.repair}
+                            oninput={(e) => {
+                                const v = parseFloat(
+                                    (e.target as HTMLInputElement).value,
+                                );
+                                GAME_CONFIG.REPAIR_RATE = v;
+                                updatePanel("repair", v);
+                            }}
+                        />
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">ðŸ›¡ï¸ Defense</span><span
+                                class="val"
+                                >{(panel.defense as number).toFixed(2)}Ã—</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0.2"
+                            max="5"
+                            step="0.1"
+                            value={panel.defense}
+                            oninput={(e) => {
+                                const v = parseFloat(
+                                    (e.target as HTMLInputElement).value,
+                                );
+                                GAME_CONFIG.AGGRESSOR_ADVANTAGE = 1 / v;
+                                updatePanel("defense", v);
+                            }}
+                        />
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">âš”ï¸ Attack</span><span
+                                class="val"
+                                >{(panel.attack as number).toFixed(3)}</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="0.5"
+                            step="0.005"
+                            value={panel.attack}
+                            oninput={(e) => {
+                                const v = parseFloat(
+                                    (e.target as HTMLInputElement).value,
+                                );
+                                GAME_CONFIG.DAMAGE_PER_SHIP = v;
+                                updatePanel("attack", v);
+                            }}
+                        />
+                    </div>
+
+                    <!-- ðŸ¤– AI BEHAVIOR -->
+                {:else if activeSection === "ai"}
+                    {#each aiVariables as v}
+                        <div
+                            class="var-row"
+                            class:disabled={!enabled[
+                                v.key as keyof typeof enabled
+                            ]}
+                        >
+                            <div class="row-top">
+                                <label class="toggle-label">
+                                    <input
+                                        type="checkbox"
+                                        checked={enabled[
+                                            v.key as keyof typeof enabled
+                                        ]}
+                                        onchange={() =>
+                                            toggle(
+                                                v.key as keyof typeof enabled,
+                                            )}
+                                    />
+                                    <span class="var-name">{v.label}</span>
+                                </label>
+                                <span class="val"
+                                    >{values[v.key as VarKey].toFixed(2)}</span
+                                >
+                            </div>
+                            <input
+                                type="range"
+                                min={v.min}
+                                max={v.max}
+                                step={v.step}
+                                value={values[v.key as VarKey]}
+                                oninput={(e) =>
+                                    updateValue(
+                                        v.key as VarKey,
+                                        parseFloat(
+                                            (e.target as HTMLInputElement)
+                                                .value,
+                                        ),
+                                    )}
+                                disabled={!enabled[
+                                    v.key as keyof typeof enabled
+                                ]}
+                            />
+                        </div>
+                    {/each}
+
+                    <h4 class="sub-heading">Future Strategies</h4>
+                    <div class="var-row grayed">
+                        <div class="row-top">
+                            <span class="var-name">ðŸŽ¯ Sniper</span><span
+                                class="val">â€”</span
+                            >
+                        </div>
+                        <span class="future-desc"
+                            >Targets weakest stars first</span
+                        >
+                    </div>
+                    <div class="var-row grayed">
+                        <div class="row-top">
+                            <span class="var-name">ðŸ›¡ï¸ Turtle</span><span
+                                class="val">â€”</span
+                            >
+                        </div>
+                        <span class="future-desc"
+                            >Defensive posture, holds territory</span
+                        >
+                    </div>
+                    <div class="var-row grayed">
+                        <div class="row-top">
+                            <span class="var-name">ðŸŒŠ Swarm</span><span
+                                class="val">â€”</span
+                            >
+                        </div>
+                        <span class="future-desc">Mass coordinated attacks</span
+                        >
+                    </div>
+                    <div class="var-row grayed">
+                        <div class="row-top">
+                            <span class="var-name">ðŸŽ² Chaos</span><span
+                                class="val">â€”</span
+                            >
+                        </div>
+                        <span class="future-desc"
+                            >Unpredictable, random targets</span
+                        >
+                    </div>
+                    <div class="var-row grayed">
+                        <div class="row-top">
+                            <span class="var-name">ðŸ¤ Diplomat</span><span
+                                class="val">â€”</span
+                            >
+                        </div>
+                        <span class="future-desc"
+                            >Avoids conflict, grows economy</span
+                        >
+                    </div>
+                    <div class="var-row grayed">
+                        <div class="row-top">
+                            <span class="var-name">âš–ï¸ Balanced</span><span
+                                class="val">â€”</span
+                            >
+                        </div>
+                        <span class="future-desc"
+                            >Adapts to game state dynamically</span
+                        >
+                    </div>
+
+                    <!-- ðŸš€ SHIP TRAVEL -->
+                {:else if activeSection === "travel"}
+                    <h4 class="sub-heading">Mode & Easing</h4>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Travel Mode</span><span
+                                class="val">{panel.travelMode}</span
+                            >
+                        </div>
+                        <select
+                            value={panel.travelMode}
+                            onchange={(e) => {
+                                const v = (e.target as HTMLSelectElement).value;
+                                GAME_CONFIG.TRAVEL_MODE = v as any;
+                                updatePanel("travelMode", v);
+                            }}
+                            style="width:100%;background:#1a1e2a;color:#fff;border:1px solid #333;padding:4px;border-radius:4px;font-size:0.7rem;"
+                        >
+                            <option value="bezier">Bezier Arc</option>
+                            <option value="lane">Lane (Classic)</option>
+                        </select>
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Travel Easing</span><span
+                                class="val">{panel.travelEasing}</span
+                            >
+                        </div>
+                        <select
+                            value={panel.travelEasing}
+                            onchange={(e) => {
+                                const v = (e.target as HTMLSelectElement).value;
+                                GAME_CONFIG.TRAVEL_EASING = v as any;
+                                updatePanel("travelEasing", v);
+                            }}
+                            style="width:100%;background:#1a1e2a;color:#fff;border:1px solid #333;padding:4px;border-radius:4px;font-size:0.7rem;"
+                        >
+                            <option value="linear">Linear</option>
+                            <option value="easeIn">Ease In</option>
+                            <option value="easeOut">Ease Out</option>
+                            <option value="easeInOut">Ease In-Out</option>
+                        </select>
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Easing Power</span><span
+                                class="val"
+                                >{(panel.travelEasingPower as number).toFixed(
+                                    1,
+                                )}</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0.5"
+                            max="5"
+                            step="0.1"
+                            value={panel.travelEasingPower}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.TRAVEL_EASING_POWER = v;
+                                updatePanel("travelEasingPower", v);
+                            }}
+                        />
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <label class="toggle-label"
+                                ><span class="var-name">Depart Mode</span>
+                                <select
+                                    value={panel.departMode}
+                                    onchange={(e) => {
+                                        const val = (
+                                            e.target as HTMLSelectElement
+                                        ).value;
+                                        GAME_CONFIG.DEPART_MODE = val as
+                                            | "lifo"
+                                            | "fifo"
+                                            | "nearside";
+                                        updatePanel("departMode", val as any);
+                                    }}
+                                    style="margin-left:8px; background:#222; color:#fff; border:1px solid #555; padding:2px 4px; font-size:0.75rem;"
+                                >
+                                    <option value="nearside">Nearside</option>
+                                    <option value="lifo">LIFO (newest)</option>
+                                    <option value="fifo">FIFO (oldest)</option>
+                                </select>
+                            </label>
+                        </div>
+                    </div>
+
+                    <h4 class="sub-heading">Timing & Motion</h4>
                     <div class="var-row">
                         <div class="row-top">
                             <span class="var-name">Ship Travel Duration</span
@@ -831,7 +1199,257 @@
                             }}
                         />
                     </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Travel Duration Ã—</span
+                            ><span class="val"
+                                >{(panel.travelDurationMult as number).toFixed(
+                                    1,
+                                )}Ã—</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0.2"
+                            max="3"
+                            step="0.1"
+                            value={panel.travelDurationMult}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.TRAVEL_DURATION_MULT = v;
+                                updatePanel("travelDurationMult", v);
+                            }}
+                        />
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Arc Intensity</span><span
+                                class="val"
+                                >{(panel.travelArcIntensity as number).toFixed(
+                                    2,
+                                )}</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="2"
+                            step="0.05"
+                            value={panel.travelArcIntensity}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.TRAVEL_ARC_INTENSITY = v;
+                                updatePanel("travelArcIntensity", v);
+                            }}
+                        />
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Settle Time</span><span
+                                class="val">{panel.settleDuration}ms</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="2000"
+                            step="10"
+                            value={panel.settleDuration}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.SETTLE_DURATION_MS = v;
+                                updatePanel("settleDuration", v);
+                            }}
+                        />
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Arrival Spread</span><span
+                                class="val"
+                                >{(panel.arrivalSpread as number).toFixed(
+                                    1,
+                                )}Ã—</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="2"
+                            step="0.1"
+                            value={panel.arrivalSpread}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.ARRIVAL_SPREAD = v;
+                                updatePanel("arrivalSpread", v);
+                            }}
+                        />
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Wobble Amp</span><span
+                                class="val">{panel.wobbleAmp}px</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="40"
+                            step="1"
+                            value={panel.wobbleAmp}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.WOBBLE_AMP = v;
+                                updatePanel("wobbleAmp", v);
+                            }}
+                        />
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Orbit Density</span><span
+                                class="val"
+                                >{(panel.orbitDensity as number).toFixed(
+                                    1,
+                                )}Ã—</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="1.0"
+                            max="4.0"
+                            step="0.1"
+                            value={panel.orbitDensity}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.ORBIT_DENSITY = v;
+                                updatePanel("orbitDensity", v);
+                            }}
+                        />
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Depart Fraction</span><span
+                                class="val"
+                                >{(panel.departFraction as number).toFixed(
+                                    2,
+                                )}</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0.1"
+                            max="0.6"
+                            step="0.05"
+                            value={panel.departFraction}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.DEPART_FRACTION = v;
+                                updatePanel("departFraction", v);
+                            }}
+                        />
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Depart Jitter</span><span
+                                class="val">{panel.departJitter}ms</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="200"
+                            step="5"
+                            value={panel.departJitter}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.DEPART_JITTER_MS = v;
+                                updatePanel("departJitter", v);
+                            }}
+                        />
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Lane Offset</span><span
+                                class="val"
+                                >{GAME_CONFIG.LANE_OFFSET_PX ?? 8}px</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="20"
+                            step="1"
+                            value={GAME_CONFIG.LANE_OFFSET_PX ?? 8}
+                            oninput={(e) => {
+                                GAME_CONFIG.LANE_OFFSET_PX = parseInt(
+                                    (e.target as HTMLInputElement).value,
+                                );
+                            }}
+                        />
+                    </div>
 
+                    <h4 class="sub-heading">Attack Surge</h4>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Attack Surge</span><span
+                                class="val"
+                                >{(panel.attackSurgeMult as number).toFixed(
+                                    2,
+                                )}Ã—</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="1.5"
+                            step="0.05"
+                            value={panel.attackSurgeMult}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.ATTACK_SURGE_MULT = v;
+                                updatePanel("attackSurgeMult", v);
+                            }}
+                        />
+                    </div>
+                    <label class="toggle-row" style="margin-top:2px;">
+                        <input
+                            type="checkbox"
+                            checked={panel.attackSurgeProportional}
+                            onchange={(e) => {
+                                const v = (e.target as HTMLInputElement)
+                                    .checked;
+                                GAME_CONFIG.ATTACK_SURGE_PROPORTIONAL = v;
+                                updatePanel("attackSurgeProportional", v);
+                            }}
+                        />
+                        <span class="log-label" style="font-size:9px;"
+                            >Proportional to force</span
+                        >
+                    </label>
+                    {#if panel.attackSurgeProportional}
+                        <div class="var-row compact" style="margin-top:2px;">
+                            <div class="row-top">
+                                <span class="var-name">Force Cofactor</span
+                                ><span class="val"
+                                    >{(
+                                        panel.attackSurgeForceCofactor as number
+                                    ).toFixed(2)}</span
+                                >
+                            </div>
+                            <input
+                                type="range"
+                                min="0"
+                                max="2"
+                                step="0.05"
+                                value={panel.attackSurgeForceCofactor}
+                                oninput={(e) => {
+                                    const v = +(e.target as HTMLInputElement)
+                                        .value;
+                                    GAME_CONFIG.ATTACK_SURGE_FORCE_COFACTOR = v;
+                                    updatePanel("attackSurgeForceCofactor", v);
+                                }}
+                            />
+                        </div>
+                    {/if}
                     <div class="var-row">
                         <div class="row-top">
                             <span class="var-name">Surge Ramp</span><span
@@ -873,6 +1491,365 @@
                             }}
                         />
                     </div>
+
+                    <h4 class="sub-heading">Orb Travel</h4>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <label class="toggle-label"
+                                ><input
+                                    type="checkbox"
+                                    checked={panel.orbTravel}
+                                    onchange={() => {
+                                        GAME_CONFIG.ORB_TRAVEL =
+                                            !GAME_CONFIG.ORB_TRAVEL;
+                                        updatePanel(
+                                            "orbTravel",
+                                            GAME_CONFIG.ORB_TRAVEL,
+                                        );
+                                    }}
+                                />
+                                <span class="var-name">Orb Travel</span></label
+                            >
+                            <span class="val" style="font-size:9px;opacity:0.6"
+                                >merge into orb</span
+                            >
+                        </div>
+                    </div>
+                    {#if panel.orbTravel}
+                        <div class="orb-pair indent">
+                            <div class="var-row compact">
+                                <div class="row-top">
+                                    <span class="var-name">Base R</span><span
+                                        class="val"
+                                        >{(
+                                            panel.orbBaseRadius as number
+                                        ).toFixed(1)}</span
+                                    >
+                                </div>
+                                <input
+                                    type="range"
+                                    min="1"
+                                    max="12"
+                                    step="0.5"
+                                    value={panel.orbBaseRadius}
+                                    oninput={(e) => {
+                                        const v = +(
+                                            e.target as HTMLInputElement
+                                        ).value;
+                                        GAME_CONFIG.ORB_BASE_RADIUS = v;
+                                        updatePanel("orbBaseRadius", v);
+                                    }}
+                                />
+                            </div>
+                            <div class="var-row compact">
+                                <div class="row-top">
+                                    <span class="var-name">R Scale</span><span
+                                        class="val"
+                                        >{(
+                                            panel.orbRadiusScale as number
+                                        ).toFixed(2)}</span
+                                    >
+                                </div>
+                                <input
+                                    type="range"
+                                    min="0.2"
+                                    max="5"
+                                    step="0.1"
+                                    value={panel.orbRadiusScale}
+                                    oninput={(e) => {
+                                        const v = +(
+                                            e.target as HTMLInputElement
+                                        ).value;
+                                        GAME_CONFIG.ORB_RADIUS_SCALE = v;
+                                        updatePanel("orbRadiusScale", v);
+                                    }}
+                                />
+                            </div>
+                        </div>
+                        <div class="var-row indent compact">
+                            <div class="row-top">
+                                <span class="var-name">Glow Mult</span><span
+                                    class="val"
+                                    >{(panel.orbGlowMult as number).toFixed(
+                                        2,
+                                    )}</span
+                                >
+                            </div>
+                            <input
+                                type="range"
+                                min="0"
+                                max="3"
+                                step="0.1"
+                                value={panel.orbGlowMult}
+                                oninput={(e) => {
+                                    const v = +(e.target as HTMLInputElement)
+                                        .value;
+                                    GAME_CONFIG.ORB_GLOW_MULT = v;
+                                    updatePanel("orbGlowMult", v);
+                                }}
+                            />
+                        </div>
+                        <div class="orb-pair indent">
+                            <div class="var-row compact">
+                                <div class="row-top">
+                                    <span class="var-name">Outer Î±</span><span
+                                        class="val"
+                                        >{(
+                                            panel.orbOuterAlpha as number
+                                        ).toFixed(2)}</span
+                                    >
+                                </div>
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max="1"
+                                    step="0.02"
+                                    value={panel.orbOuterAlpha}
+                                    oninput={(e) => {
+                                        const v = +(
+                                            e.target as HTMLInputElement
+                                        ).value;
+                                        GAME_CONFIG.ORB_OUTER_ALPHA = v;
+                                        updatePanel("orbOuterAlpha", v);
+                                    }}
+                                />
+                            </div>
+                            <div class="var-row compact">
+                                <div class="row-top">
+                                    <span class="var-name">Outer Ã—</span><span
+                                        class="val"
+                                        >{(
+                                            panel.orbOuterScale as number
+                                        ).toFixed(1)}</span
+                                    >
+                                </div>
+                                <input
+                                    type="range"
+                                    min="1"
+                                    max="5"
+                                    step="0.1"
+                                    value={panel.orbOuterScale}
+                                    oninput={(e) => {
+                                        const v = +(
+                                            e.target as HTMLInputElement
+                                        ).value;
+                                        GAME_CONFIG.ORB_OUTER_SCALE = v;
+                                        updatePanel("orbOuterScale", v);
+                                    }}
+                                />
+                            </div>
+                        </div>
+                        <div class="orb-pair indent">
+                            <div class="var-row compact">
+                                <div class="row-top">
+                                    <span class="var-name">Mid Î±</span><span
+                                        class="val"
+                                        >{(panel.orbMidAlpha as number).toFixed(
+                                            2,
+                                        )}</span
+                                    >
+                                </div>
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max="1"
+                                    step="0.02"
+                                    value={panel.orbMidAlpha}
+                                    oninput={(e) => {
+                                        const v = +(
+                                            e.target as HTMLInputElement
+                                        ).value;
+                                        GAME_CONFIG.ORB_MID_ALPHA = v;
+                                        updatePanel("orbMidAlpha", v);
+                                    }}
+                                />
+                            </div>
+                            <div class="var-row compact">
+                                <div class="row-top">
+                                    <span class="var-name">Mid Ã—</span><span
+                                        class="val"
+                                        >{(panel.orbMidScale as number).toFixed(
+                                            1,
+                                        )}</span
+                                    >
+                                </div>
+                                <input
+                                    type="range"
+                                    min="0.5"
+                                    max="4"
+                                    step="0.1"
+                                    value={panel.orbMidScale}
+                                    oninput={(e) => {
+                                        const v = +(
+                                            e.target as HTMLInputElement
+                                        ).value;
+                                        GAME_CONFIG.ORB_MID_SCALE = v;
+                                        updatePanel("orbMidScale", v);
+                                    }}
+                                />
+                            </div>
+                        </div>
+                        <div class="orb-pair indent">
+                            <div class="var-row compact">
+                                <div class="row-top">
+                                    <span class="var-name">Core Î±</span><span
+                                        class="val"
+                                        >{(
+                                            panel.orbCoreAlpha as number
+                                        ).toFixed(2)}</span
+                                    >
+                                </div>
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max="1"
+                                    step="0.02"
+                                    value={panel.orbCoreAlpha}
+                                    oninput={(e) => {
+                                        const v = +(
+                                            e.target as HTMLInputElement
+                                        ).value;
+                                        GAME_CONFIG.ORB_CORE_ALPHA = v;
+                                        updatePanel("orbCoreAlpha", v);
+                                    }}
+                                />
+                            </div>
+                            <div class="var-row compact">
+                                <div class="row-top">
+                                    <span class="var-name">Core Ã—</span><span
+                                        class="val"
+                                        >{(
+                                            panel.orbCoreScale as number
+                                        ).toFixed(2)}</span
+                                    >
+                                </div>
+                                <input
+                                    type="range"
+                                    min="0.1"
+                                    max="1.5"
+                                    step="0.05"
+                                    value={panel.orbCoreScale}
+                                    oninput={(e) => {
+                                        const v = +(
+                                            e.target as HTMLInputElement
+                                        ).value;
+                                        GAME_CONFIG.ORB_CORE_SCALE = v;
+                                        updatePanel("orbCoreScale", v);
+                                    }}
+                                />
+                            </div>
+                        </div>
+                        <div class="var-row indent compact">
+                            <div class="row-top">
+                                <span class="var-name">Center Î±</span><span
+                                    class="val"
+                                    >{(panel.orbCenterAlpha as number).toFixed(
+                                        2,
+                                    )}</span
+                                >
+                            </div>
+                            <input
+                                type="range"
+                                min="0"
+                                max="2"
+                                step="0.05"
+                                value={panel.orbCenterAlpha}
+                                oninput={(e) => {
+                                    const v = +(e.target as HTMLInputElement)
+                                        .value;
+                                    GAME_CONFIG.ORB_CENTER_ALPHA = v;
+                                    updatePanel("orbCenterAlpha", v);
+                                }}
+                            />
+                        </div>
+                    {/if}
+
+                    <!-- ðŸ° CONQUEST -->
+                {:else if activeSection === "conquest"}
+                    <h4 class="sub-heading">Animation</h4>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Conquest Mode</span><span
+                                class="val">{panel.conquestAnimMode}</span
+                            >
+                        </div>
+                        <select
+                            class="mode-select"
+                            value={panel.conquestAnimMode}
+                            onchange={(e) => {
+                                const v = (e.target as HTMLSelectElement)
+                                    .value as "immediate" | "surge" | "travel";
+                                GAME_CONFIG.CONQUEST_ANIMATION_MODE = v;
+                                updatePanel("conquestAnimMode", v);
+                            }}
+                        >
+                            <option value="immediate">Immediate</option>
+                            <option value="surge">Surge</option>
+                            <option value="travel">Travel</option>
+                        </select>
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Surge Radius</span><span
+                                class="val">{panel.conquestSurgeRadius}px</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="10"
+                            max="120"
+                            step="5"
+                            value={panel.conquestSurgeRadius}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.CONQUEST_SURGE_RADIUS = v;
+                                updatePanel("conquestSurgeRadius", v);
+                            }}
+                        />
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Surge Stagger</span><span
+                                class="val"
+                                >{panel.conquestSurgeStaggerMs}ms</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="200"
+                            step="5"
+                            value={panel.conquestSurgeStaggerMs}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.CONQUEST_SURGE_STAGGER_MS = v;
+                                updatePanel("conquestSurgeStaggerMs", v);
+                            }}
+                        />
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Conquest Speed</span><span
+                                class="val"
+                                >{(panel.conquestTravelSpeed as number).toFixed(
+                                    2,
+                                )}Ã—</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0.3"
+                            max="1.5"
+                            step="0.05"
+                            value={panel.conquestTravelSpeed}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.CONQUEST_TRAVEL_SPEED = v;
+                                updatePanel("conquestTravelSpeed", v);
+                            }}
+                        />
+                    </div>
+                    <h4 class="sub-heading">Timing</h4>
                     <div class="var-row">
                         <div class="row-top">
                             <span class="var-name">Conquest Delay</span><span
@@ -931,29 +1908,6 @@
                             }}
                         />
                     </div>
-
-                    <!-- Conquest Animation Mode -->
-                    <div class="var-row">
-                        <div class="row-top">
-                            <span class="var-name">Conquest Mode</span><span
-                                class="val">{panel.conquestAnimMode}</span
-                            >
-                        </div>
-                        <select
-                            class="mode-select"
-                            value={panel.conquestAnimMode}
-                            onchange={(e) => {
-                                const v = (e.target as HTMLSelectElement)
-                                    .value as "immediate" | "surge" | "travel";
-                                GAME_CONFIG.CONQUEST_ANIMATION_MODE = v;
-                                updatePanel("conquestAnimMode", v);
-                            }}
-                        >
-                            <option value="immediate">Immediate</option>
-                            <option value="surge">Surge</option>
-                            <option value="travel">Travel</option>
-                        </select>
-                    </div>
                     <div class="var-row">
                         <div class="row-top">
                             <span class="var-name">Conquest Settle</span><span
@@ -973,316 +1927,10 @@
                             }}
                         />
                     </div>
-                    <div class="var-row">
-                        <div class="row-top">
-                            <span class="var-name">Surge Radius</span><span
-                                class="val">{panel.conquestSurgeRadius}px</span
-                            >
-                        </div>
-                        <input
-                            type="range"
-                            min="10"
-                            max="120"
-                            step="5"
-                            value={panel.conquestSurgeRadius}
-                            oninput={(e) => {
-                                const v = +(e.target as HTMLInputElement).value;
-                                GAME_CONFIG.CONQUEST_SURGE_RADIUS = v;
-                                updatePanel("conquestSurgeRadius", v);
-                            }}
-                        />
-                    </div>
-                    <div class="var-row">
-                        <div class="row-top">
-                            <span class="var-name">Surge Stagger</span><span
-                                class="val"
-                                >{panel.conquestSurgeStaggerMs}ms</span
-                            >
-                        </div>
-                        <input
-                            type="range"
-                            min="0"
-                            max="200"
-                            step="5"
-                            value={panel.conquestSurgeStaggerMs}
-                            oninput={(e) => {
-                                const v = +(e.target as HTMLInputElement).value;
-                                GAME_CONFIG.CONQUEST_SURGE_STAGGER_MS = v;
-                                updatePanel("conquestSurgeStaggerMs", v);
-                            }}
-                        />
-                    </div>
 
-                    <!-- ⚔️ BATTLE -->
-                {:else if activeSection === "battle"}
-                    {#each variables as v}
-                        <div
-                            class="var-row"
-                            class:disabled={!enabled[
-                                v.key as keyof typeof enabled
-                            ]}
-                        >
-                            <div class="row-top">
-                                <label class="toggle-label">
-                                    <input
-                                        type="checkbox"
-                                        checked={enabled[
-                                            v.key as keyof typeof enabled
-                                        ]}
-                                        onchange={() =>
-                                            toggle(
-                                                v.key as keyof typeof enabled,
-                                            )}
-                                    />
-                                    <span class="var-name">{v.label}</span>
-                                </label>
-                                <span class="val"
-                                    >{values[v.key as VarKey].toFixed(2)}</span
-                                >
-                            </div>
-                            <input
-                                type="range"
-                                min={v.min}
-                                max={v.max}
-                                step={v.step}
-                                value={values[v.key as VarKey]}
-                                oninput={(e) =>
-                                    updateValue(
-                                        v.key as VarKey,
-                                        parseFloat(
-                                            (e.target as HTMLInputElement)
-                                                .value,
-                                        ),
-                                    )}
-                                disabled={!enabled[
-                                    v.key as keyof typeof enabled
-                                ]}
-                            />
-                        </div>
-                    {/each}
-
-                    <!-- 🏭 ECONOMY -->
-                {:else if activeSection === "economy"}
-                    <div class="var-row">
-                        <div class="row-top">
-                            <span class="var-name">⚙️ Production</span><span
-                                class="val"
-                                >{(panel.production as number).toFixed(2)}</span
-                            >
-                        </div>
-                        <input
-                            type="range"
-                            min="0"
-                            max="5"
-                            step="0.1"
-                            value={panel.production}
-                            oninput={(e) => {
-                                const v = parseFloat(
-                                    (e.target as HTMLInputElement).value,
-                                );
-                                GAME_CONFIG.BASE_PRODUCTION = v;
-                                updatePanel("production", v);
-                            }}
-                        />
-                    </div>
-                    <div class="var-row">
-                        <div class="row-top">
-                            <span class="var-name">🚀 Transfer Rate</span><span
-                                class="val">{transferRate}%</span
-                            >
-                        </div>
-                        <input
-                            type="range"
-                            min="1"
-                            max="100"
-                            step="1"
-                            value={transferRate}
-                            oninput={(e) =>
-                                updateTransferRate(
-                                    parseInt(
-                                        (e.target as HTMLInputElement).value,
-                                    ),
-                                )}
-                        />
-                    </div>
-                    <div class="var-row">
-                        <div class="row-top">
-                            <span class="var-name">🔧 Repair</span><span
-                                class="val">{panel.repair as number}%</span
-                            >
-                        </div>
-                        <input
-                            type="range"
-                            min="0"
-                            max="100"
-                            step="1"
-                            value={panel.repair}
-                            oninput={(e) => {
-                                const v = parseFloat(
-                                    (e.target as HTMLInputElement).value,
-                                );
-                                GAME_CONFIG.REPAIR_RATE = v;
-                                updatePanel("repair", v);
-                            }}
-                        />
-                    </div>
-                    <div class="var-row">
-                        <div class="row-top">
-                            <span class="var-name">🛡️ Defense</span><span
-                                class="val"
-                                >{(panel.defense as number).toFixed(2)}×</span
-                            >
-                        </div>
-                        <input
-                            type="range"
-                            min="0.2"
-                            max="5"
-                            step="0.1"
-                            value={panel.defense}
-                            oninput={(e) => {
-                                const v = parseFloat(
-                                    (e.target as HTMLInputElement).value,
-                                );
-                                GAME_CONFIG.AGGRESSOR_ADVANTAGE = 1 / v;
-                                updatePanel("defense", v);
-                            }}
-                        />
-                    </div>
-                    <div class="var-row">
-                        <div class="row-top">
-                            <span class="var-name">⚔️ Attack</span><span
-                                class="val"
-                                >{(panel.attack as number).toFixed(3)}</span
-                            >
-                        </div>
-                        <input
-                            type="range"
-                            min="0"
-                            max="0.5"
-                            step="0.005"
-                            value={panel.attack}
-                            oninput={(e) => {
-                                const v = parseFloat(
-                                    (e.target as HTMLInputElement).value,
-                                );
-                                GAME_CONFIG.DAMAGE_PER_SHIP = v;
-                                updatePanel("attack", v);
-                            }}
-                        />
-                    </div>
-
-                    <!-- 🤖 AI BEHAVIOR -->
-                {:else if activeSection === "ai"}
-                    {#each aiVariables as v}
-                        <div
-                            class="var-row"
-                            class:disabled={!enabled[
-                                v.key as keyof typeof enabled
-                            ]}
-                        >
-                            <div class="row-top">
-                                <label class="toggle-label">
-                                    <input
-                                        type="checkbox"
-                                        checked={enabled[
-                                            v.key as keyof typeof enabled
-                                        ]}
-                                        onchange={() =>
-                                            toggle(
-                                                v.key as keyof typeof enabled,
-                                            )}
-                                    />
-                                    <span class="var-name">{v.label}</span>
-                                </label>
-                                <span class="val"
-                                    >{values[v.key as VarKey].toFixed(2)}</span
-                                >
-                            </div>
-                            <input
-                                type="range"
-                                min={v.min}
-                                max={v.max}
-                                step={v.step}
-                                value={values[v.key as VarKey]}
-                                oninput={(e) =>
-                                    updateValue(
-                                        v.key as VarKey,
-                                        parseFloat(
-                                            (e.target as HTMLInputElement)
-                                                .value,
-                                        ),
-                                    )}
-                                disabled={!enabled[
-                                    v.key as keyof typeof enabled
-                                ]}
-                            />
-                        </div>
-                    {/each}
-
-                    <h4 class="sub-heading">Future Strategies</h4>
-                    <div class="var-row grayed">
-                        <div class="row-top">
-                            <span class="var-name">🎯 Sniper</span><span
-                                class="val">—</span
-                            >
-                        </div>
-                        <span class="future-desc"
-                            >Targets weakest stars first</span
-                        >
-                    </div>
-                    <div class="var-row grayed">
-                        <div class="row-top">
-                            <span class="var-name">🛡️ Turtle</span><span
-                                class="val">—</span
-                            >
-                        </div>
-                        <span class="future-desc"
-                            >Defensive posture, holds territory</span
-                        >
-                    </div>
-                    <div class="var-row grayed">
-                        <div class="row-top">
-                            <span class="var-name">🌊 Swarm</span><span
-                                class="val">—</span
-                            >
-                        </div>
-                        <span class="future-desc">Mass coordinated attacks</span
-                        >
-                    </div>
-                    <div class="var-row grayed">
-                        <div class="row-top">
-                            <span class="var-name">🎲 Chaos</span><span
-                                class="val">—</span
-                            >
-                        </div>
-                        <span class="future-desc"
-                            >Unpredictable, random targets</span
-                        >
-                    </div>
-                    <div class="var-row grayed">
-                        <div class="row-top">
-                            <span class="var-name">🤝 Diplomat</span><span
-                                class="val">—</span
-                            >
-                        </div>
-                        <span class="future-desc"
-                            >Avoids conflict, grows economy</span
-                        >
-                    </div>
-                    <div class="var-row grayed">
-                        <div class="row-top">
-                            <span class="var-name">⚖️ Balanced</span><span
-                                class="val">—</span
-                            >
-                        </div>
-                        <span class="future-desc"
-                            >Adapts to game state dynamically</span
-                        >
-                    </div>
-
-                    <!-- 🚀 SHIPS & MOTION -->
+                    <!-- ðŸ›¸ SHIP LOOK -->
                 {:else if activeSection === "ships"}
-                    <h4 class="sub-heading">Ship Appearance</h4>
+                    <h4 class="sub-heading">Appearance</h4>
                     <div class="var-row">
                         <div class="row-top">
                             <label class="toggle-label"
@@ -1353,7 +2001,7 @@
                                 class="val"
                                 >{(panel.shipScaleMult as number).toFixed(
                                     1,
-                                )}×</span
+                                )}Ã—</span
                             >
                         </div>
                         <input
@@ -1440,7 +2088,7 @@
                                 class="val"
                                 >{(panel.orbitRingMult as number).toFixed(
                                     1,
-                                )}×</span
+                                )}Ã—</span
                             >
                         </div>
                         <input
@@ -1457,652 +2105,12 @@
                         />
                     </div>
 
-                    <h4 class="sub-heading">Motion</h4>
-                    <div class="var-row">
-                        <div class="row-top">
-                            <label class="toggle-label"
-                                ><span class="var-name">Depart Mode</span>
-                                <select
-                                    value={panel.departMode}
-                                    onchange={(e) => {
-                                        const val = (
-                                            e.target as HTMLSelectElement
-                                        ).value;
-                                        GAME_CONFIG.DEPART_MODE = val as
-                                            | "lifo"
-                                            | "fifo"
-                                            | "nearside";
-                                        updatePanel("departMode", val as any);
-                                    }}
-                                    style="margin-left:8px; background:#222; color:#fff; border:1px solid #555; padding:2px 4px; font-size:0.75rem;"
-                                >
-                                    <option value="nearside">Nearside</option>
-                                    <option value="lifo">LIFO (newest)</option>
-                                    <option value="fifo">FIFO (oldest)</option>
-                                </select>
-                            </label>
-                        </div>
-                    </div>
-                    <div class="var-row">
-                        <div class="row-top">
-                            <span class="var-name">Settle Time</span><span
-                                class="val">{panel.settleDuration}ms</span
-                            >
-                        </div>
-                        <input
-                            type="range"
-                            min="0"
-                            max="2000"
-                            step="10"
-                            value={panel.settleDuration}
-                            oninput={(e) => {
-                                const v = +(e.target as HTMLInputElement).value;
-                                GAME_CONFIG.SETTLE_DURATION_MS = v;
-                                updatePanel("settleDuration", v);
-                            }}
-                        />
-                    </div>
-                    <div class="var-row">
-                        <div class="row-top">
-                            <span class="var-name">Arrival Spread</span><span
-                                class="val"
-                                >{(panel.arrivalSpread as number).toFixed(
-                                    1,
-                                )}×</span
-                            >
-                        </div>
-                        <input
-                            type="range"
-                            min="0"
-                            max="2"
-                            step="0.1"
-                            value={panel.arrivalSpread}
-                            oninput={(e) => {
-                                const v = +(e.target as HTMLInputElement).value;
-                                GAME_CONFIG.ARRIVAL_SPREAD = v;
-                                updatePanel("arrivalSpread", v);
-                            }}
-                        />
-                    </div>
-                    <div class="var-row">
-                        <div class="row-top">
-                            <span class="var-name">Wobble Amp</span><span
-                                class="val">{panel.wobbleAmp}px</span
-                            >
-                        </div>
-                        <input
-                            type="range"
-                            min="0"
-                            max="40"
-                            step="1"
-                            value={panel.wobbleAmp}
-                            oninput={(e) => {
-                                const v = +(e.target as HTMLInputElement).value;
-                                GAME_CONFIG.WOBBLE_AMP = v;
-                                updatePanel("wobbleAmp", v);
-                            }}
-                        />
-                    </div>
-                    <!-- Travel Animation Mode -->
-                    <div class="var-row">
-                        <div class="row-top">
-                            <span class="var-name">Travel Mode</span><span
-                                class="val">{panel.travelMode}</span
-                            >
-                        </div>
-                        <select
-                            value={panel.travelMode}
-                            onchange={(e) => {
-                                const v = (e.target as HTMLSelectElement).value;
-                                GAME_CONFIG.TRAVEL_MODE = v as any;
-                                updatePanel("travelMode", v);
-                            }}
-                            style="width:100%;background:#1a1e2a;color:#fff;border:1px solid #333;padding:4px;border-radius:4px;font-size:0.7rem;"
-                        >
-                            <option value="bezier">Bezier Arc</option>
-                            <option value="lane">Lane (Classic)</option>
-                        </select>
-                    </div>
-                    <!-- Travel Easing Controls -->
-                    <div class="var-row">
-                        <div class="row-top">
-                            <span class="var-name">Travel Easing</span><span
-                                class="val">{panel.travelEasing}</span
-                            >
-                        </div>
-                        <select
-                            value={panel.travelEasing}
-                            onchange={(e) => {
-                                const v = (e.target as HTMLSelectElement).value;
-                                GAME_CONFIG.TRAVEL_EASING = v as any;
-                                updatePanel("travelEasing", v);
-                            }}
-                            style="width:100%;background:#1a1e2a;color:#fff;border:1px solid #333;padding:4px;border-radius:4px;font-size:0.7rem;"
-                        >
-                            <option value="linear">Linear</option>
-                            <option value="easeIn">Ease In</option>
-                            <option value="easeOut">Ease Out</option>
-                            <option value="easeInOut">Ease In-Out</option>
-                        </select>
-                    </div>
-                    <div class="var-row">
-                        <div class="row-top">
-                            <span class="var-name">Easing Power</span><span
-                                class="val"
-                                >{(panel.travelEasingPower as number).toFixed(
-                                    1,
-                                )}</span
-                            >
-                        </div>
-                        <input
-                            type="range"
-                            min="0.5"
-                            max="5"
-                            step="0.1"
-                            value={panel.travelEasingPower}
-                            oninput={(e) => {
-                                const v = +(e.target as HTMLInputElement).value;
-                                GAME_CONFIG.TRAVEL_EASING_POWER = v;
-                                updatePanel("travelEasingPower", v);
-                            }}
-                        />
-                    </div>
-                    <div class="var-row">
-                        <div class="row-top">
-                            <span class="var-name">Travel Duration</span><span
-                                class="val"
-                                >{(panel.travelDurationMult as number).toFixed(
-                                    1,
-                                )}×</span
-                            >
-                        </div>
-                        <input
-                            type="range"
-                            min="0.2"
-                            max="3"
-                            step="0.1"
-                            value={panel.travelDurationMult}
-                            oninput={(e) => {
-                                const v = +(e.target as HTMLInputElement).value;
-                                GAME_CONFIG.TRAVEL_DURATION_MULT = v;
-                                updatePanel("travelDurationMult", v);
-                            }}
-                        />
-                    </div>
-                    <div class="var-row">
-                        <div class="row-top">
-                            <span class="var-name">Arc Intensity</span><span
-                                class="val"
-                                >{(panel.travelArcIntensity as number).toFixed(
-                                    2,
-                                )}</span
-                            >
-                        </div>
-                        <input
-                            type="range"
-                            min="0"
-                            max="2"
-                            step="0.05"
-                            value={panel.travelArcIntensity}
-                            oninput={(e) => {
-                                const v = +(e.target as HTMLInputElement).value;
-                                GAME_CONFIG.TRAVEL_ARC_INTENSITY = v;
-                                updatePanel("travelArcIntensity", v);
-                            }}
-                        />
-                    </div>
-                    <div class="var-row">
-                        <div class="row-top">
-                            <span class="var-name">Orbit Density</span><span
-                                class="val"
-                                >{(panel.orbitDensity as number).toFixed(
-                                    1,
-                                )}×</span
-                            >
-                        </div>
-                        <input
-                            type="range"
-                            min="1.0"
-                            max="4.0"
-                            step="0.1"
-                            value={panel.orbitDensity}
-                            oninput={(e) => {
-                                const v = +(e.target as HTMLInputElement).value;
-                                GAME_CONFIG.ORBIT_DENSITY = v;
-                                updatePanel("orbitDensity", v);
-                            }}
-                        />
-                    </div>
-                    <div class="var-row">
-                        <div class="row-top">
-                            <span class="var-name">Attack Surge</span><span
-                                class="val"
-                                >{(panel.attackSurgeMult as number).toFixed(
-                                    2,
-                                )}×</span
-                            >
-                        </div>
-                        <input
-                            type="range"
-                            min="0"
-                            max="1.5"
-                            step="0.05"
-                            value={panel.attackSurgeMult}
-                            oninput={(e) => {
-                                const v = +(e.target as HTMLInputElement).value;
-                                GAME_CONFIG.ATTACK_SURGE_MULT = v;
-                                updatePanel("attackSurgeMult", v);
-                            }}
-                        />
-                    </div>
-                    <label class="toggle-row" style="margin-top:2px;">
-                        <input
-                            type="checkbox"
-                            checked={panel.attackSurgeProportional}
-                            onchange={(e) => {
-                                const v = (e.target as HTMLInputElement)
-                                    .checked;
-                                GAME_CONFIG.ATTACK_SURGE_PROPORTIONAL = v;
-                                updatePanel("attackSurgeProportional", v);
-                            }}
-                        />
-                        <span class="log-label" style="font-size:9px;"
-                            >Proportional to force</span
-                        >
-                    </label>
-                    {#if panel.attackSurgeProportional}
-                        <div class="var-row compact" style="margin-top:2px;">
-                            <div class="row-top">
-                                <span class="var-name">Force Cofactor</span
-                                ><span class="val"
-                                    >{(
-                                        panel.attackSurgeForceCofactor as number
-                                    ).toFixed(2)}</span
-                                >
-                            </div>
-                            <input
-                                type="range"
-                                min="0"
-                                max="2"
-                                step="0.05"
-                                value={panel.attackSurgeForceCofactor}
-                                oninput={(e) => {
-                                    const v = +(e.target as HTMLInputElement)
-                                        .value;
-                                    GAME_CONFIG.ATTACK_SURGE_FORCE_COFACTOR = v;
-                                    updatePanel("attackSurgeForceCofactor", v);
-                                }}
-                            />
-                        </div>
-                    {/if}
-                    <div class="var-row" style="margin-top:6px;">
-                        <div class="row-top">
-                            <span class="var-name">Conquest Speed</span><span
-                                class="val"
-                                >{(panel.conquestTravelSpeed as number).toFixed(
-                                    2,
-                                )}×</span
-                            >
-                        </div>
-                        <input
-                            type="range"
-                            min="0.3"
-                            max="1.5"
-                            step="0.05"
-                            value={panel.conquestTravelSpeed}
-                            oninput={(e) => {
-                                const v = +(e.target as HTMLInputElement).value;
-                                GAME_CONFIG.CONQUEST_TRAVEL_SPEED = v;
-                                updatePanel("conquestTravelSpeed", v);
-                            }}
-                        />
-                    </div>
-                    <div class="var-row">
-                        <div class="row-top">
-                            <span class="var-name">Depart Fraction</span><span
-                                class="val"
-                                >{(panel.departFraction as number).toFixed(
-                                    2,
-                                )}</span
-                            >
-                        </div>
-                        <input
-                            type="range"
-                            min="0.1"
-                            max="0.6"
-                            step="0.05"
-                            value={panel.departFraction}
-                            oninput={(e) => {
-                                const v = +(e.target as HTMLInputElement).value;
-                                GAME_CONFIG.DEPART_FRACTION = v;
-                                updatePanel("departFraction", v);
-                            }}
-                        />
-                    </div>
-                    <div class="var-row">
-                        <div class="row-top">
-                            <span class="var-name">Depart Jitter</span><span
-                                class="val">{panel.departJitter}ms</span
-                            >
-                        </div>
-                        <input
-                            type="range"
-                            min="0"
-                            max="200"
-                            step="5"
-                            value={panel.departJitter}
-                            oninput={(e) => {
-                                const v = +(e.target as HTMLInputElement).value;
-                                GAME_CONFIG.DEPART_JITTER_MS = v;
-                                updatePanel("departJitter", v);
-                            }}
-                        />
-                    </div>
-                    <div class="var-row">
-                        <div class="row-top">
-                            <span class="var-name">Lane Offset</span><span
-                                class="val"
-                                >{GAME_CONFIG.LANE_OFFSET_PX ?? 8}px</span
-                            >
-                        </div>
-                        <input
-                            type="range"
-                            min="0"
-                            max="20"
-                            step="1"
-                            value={GAME_CONFIG.LANE_OFFSET_PX ?? 8}
-                            oninput={(e) => {
-                                GAME_CONFIG.LANE_OFFSET_PX = parseInt(
-                                    (e.target as HTMLInputElement).value,
-                                );
-                            }}
-                        />
-                    </div>
-
-                    <h4 class="sub-heading">Orb Travel</h4>
-                    <div class="var-row">
-                        <div class="row-top">
-                            <label class="toggle-label"
-                                ><input
-                                    type="checkbox"
-                                    checked={panel.orbTravel}
-                                    onchange={() => {
-                                        GAME_CONFIG.ORB_TRAVEL =
-                                            !GAME_CONFIG.ORB_TRAVEL;
-                                        updatePanel(
-                                            "orbTravel",
-                                            GAME_CONFIG.ORB_TRAVEL,
-                                        );
-                                    }}
-                                />
-                                <span class="var-name">Orb Travel</span></label
-                            >
-                            <span class="val" style="font-size:9px;opacity:0.6"
-                                >merge into orb</span
-                            >
-                        </div>
-                    </div>
-                    {#if panel.orbTravel}
-                        <!-- Size -->
-                        <div class="orb-pair indent">
-                            <div class="var-row compact">
-                                <div class="row-top">
-                                    <span class="var-name">Base R</span><span
-                                        class="val"
-                                        >{(
-                                            panel.orbBaseRadius as number
-                                        ).toFixed(1)}</span
-                                    >
-                                </div>
-                                <input
-                                    type="range"
-                                    min="1"
-                                    max="12"
-                                    step="0.5"
-                                    value={panel.orbBaseRadius}
-                                    oninput={(e) => {
-                                        const v = +(
-                                            e.target as HTMLInputElement
-                                        ).value;
-                                        GAME_CONFIG.ORB_BASE_RADIUS = v;
-                                        updatePanel("orbBaseRadius", v);
-                                    }}
-                                />
-                            </div>
-                            <div class="var-row compact">
-                                <div class="row-top">
-                                    <span class="var-name">R Scale</span><span
-                                        class="val"
-                                        >{(
-                                            panel.orbRadiusScale as number
-                                        ).toFixed(2)}</span
-                                    >
-                                </div>
-                                <input
-                                    type="range"
-                                    min="0.2"
-                                    max="5"
-                                    step="0.1"
-                                    value={panel.orbRadiusScale}
-                                    oninput={(e) => {
-                                        const v = +(
-                                            e.target as HTMLInputElement
-                                        ).value;
-                                        GAME_CONFIG.ORB_RADIUS_SCALE = v;
-                                        updatePanel("orbRadiusScale", v);
-                                    }}
-                                />
-                            </div>
-                        </div>
-                        <!-- Glow -->
-                        <div class="var-row indent compact">
-                            <div class="row-top">
-                                <span class="var-name">Glow Mult</span><span
-                                    class="val"
-                                    >{(panel.orbGlowMult as number).toFixed(
-                                        2,
-                                    )}</span
-                                >
-                            </div>
-                            <input
-                                type="range"
-                                min="0"
-                                max="3"
-                                step="0.1"
-                                value={panel.orbGlowMult}
-                                oninput={(e) => {
-                                    const v = +(e.target as HTMLInputElement)
-                                        .value;
-                                    GAME_CONFIG.ORB_GLOW_MULT = v;
-                                    updatePanel("orbGlowMult", v);
-                                }}
-                            />
-                        </div>
-                        <!-- Outer: α + Scale -->
-                        <div class="orb-pair indent">
-                            <div class="var-row compact">
-                                <div class="row-top">
-                                    <span class="var-name">Outer α</span><span
-                                        class="val"
-                                        >{(
-                                            panel.orbOuterAlpha as number
-                                        ).toFixed(2)}</span
-                                    >
-                                </div>
-                                <input
-                                    type="range"
-                                    min="0"
-                                    max="1"
-                                    step="0.02"
-                                    value={panel.orbOuterAlpha}
-                                    oninput={(e) => {
-                                        const v = +(
-                                            e.target as HTMLInputElement
-                                        ).value;
-                                        GAME_CONFIG.ORB_OUTER_ALPHA = v;
-                                        updatePanel("orbOuterAlpha", v);
-                                    }}
-                                />
-                            </div>
-                            <div class="var-row compact">
-                                <div class="row-top">
-                                    <span class="var-name">Outer ×</span><span
-                                        class="val"
-                                        >{(
-                                            panel.orbOuterScale as number
-                                        ).toFixed(1)}</span
-                                    >
-                                </div>
-                                <input
-                                    type="range"
-                                    min="1"
-                                    max="5"
-                                    step="0.1"
-                                    value={panel.orbOuterScale}
-                                    oninput={(e) => {
-                                        const v = +(
-                                            e.target as HTMLInputElement
-                                        ).value;
-                                        GAME_CONFIG.ORB_OUTER_SCALE = v;
-                                        updatePanel("orbOuterScale", v);
-                                    }}
-                                />
-                            </div>
-                        </div>
-                        <!-- Mid: α + Scale -->
-                        <div class="orb-pair indent">
-                            <div class="var-row compact">
-                                <div class="row-top">
-                                    <span class="var-name">Mid α</span><span
-                                        class="val"
-                                        >{(panel.orbMidAlpha as number).toFixed(
-                                            2,
-                                        )}</span
-                                    >
-                                </div>
-                                <input
-                                    type="range"
-                                    min="0"
-                                    max="1"
-                                    step="0.02"
-                                    value={panel.orbMidAlpha}
-                                    oninput={(e) => {
-                                        const v = +(
-                                            e.target as HTMLInputElement
-                                        ).value;
-                                        GAME_CONFIG.ORB_MID_ALPHA = v;
-                                        updatePanel("orbMidAlpha", v);
-                                    }}
-                                />
-                            </div>
-                            <div class="var-row compact">
-                                <div class="row-top">
-                                    <span class="var-name">Mid ×</span><span
-                                        class="val"
-                                        >{(panel.orbMidScale as number).toFixed(
-                                            1,
-                                        )}</span
-                                    >
-                                </div>
-                                <input
-                                    type="range"
-                                    min="0.5"
-                                    max="4"
-                                    step="0.1"
-                                    value={panel.orbMidScale}
-                                    oninput={(e) => {
-                                        const v = +(
-                                            e.target as HTMLInputElement
-                                        ).value;
-                                        GAME_CONFIG.ORB_MID_SCALE = v;
-                                        updatePanel("orbMidScale", v);
-                                    }}
-                                />
-                            </div>
-                        </div>
-                        <!-- Core: α + Scale -->
-                        <div class="orb-pair indent">
-                            <div class="var-row compact">
-                                <div class="row-top">
-                                    <span class="var-name">Core α</span><span
-                                        class="val"
-                                        >{(
-                                            panel.orbCoreAlpha as number
-                                        ).toFixed(2)}</span
-                                    >
-                                </div>
-                                <input
-                                    type="range"
-                                    min="0"
-                                    max="1"
-                                    step="0.02"
-                                    value={panel.orbCoreAlpha}
-                                    oninput={(e) => {
-                                        const v = +(
-                                            e.target as HTMLInputElement
-                                        ).value;
-                                        GAME_CONFIG.ORB_CORE_ALPHA = v;
-                                        updatePanel("orbCoreAlpha", v);
-                                    }}
-                                />
-                            </div>
-                            <div class="var-row compact">
-                                <div class="row-top">
-                                    <span class="var-name">Core ×</span><span
-                                        class="val"
-                                        >{(
-                                            panel.orbCoreScale as number
-                                        ).toFixed(2)}</span
-                                    >
-                                </div>
-                                <input
-                                    type="range"
-                                    min="0.1"
-                                    max="1.5"
-                                    step="0.05"
-                                    value={panel.orbCoreScale}
-                                    oninput={(e) => {
-                                        const v = +(
-                                            e.target as HTMLInputElement
-                                        ).value;
-                                        GAME_CONFIG.ORB_CORE_SCALE = v;
-                                        updatePanel("orbCoreScale", v);
-                                    }}
-                                />
-                            </div>
-                        </div>
-                        <!-- Center dot -->
-                        <div class="var-row indent compact">
-                            <div class="row-top">
-                                <span class="var-name">Center α</span><span
-                                    class="val"
-                                    >{(panel.orbCenterAlpha as number).toFixed(
-                                        2,
-                                    )}</span
-                                >
-                            </div>
-                            <input
-                                type="range"
-                                min="0"
-                                max="2"
-                                step="0.05"
-                                value={panel.orbCenterAlpha}
-                                oninput={(e) => {
-                                    const v = +(e.target as HTMLInputElement)
-                                        .value;
-                                    GAME_CONFIG.ORB_CENTER_ALPHA = v;
-                                    updatePanel("orbCenterAlpha", v);
-                                }}
-                            />
-                        </div>
-                    {/if}
-
-                    <!-- 🎨 MAP VISUALS -->
+                    <!-- ðŸŽ¨ MAP VISUALS -->
                 {:else if activeSection === "visuals"}
                     <div class="var-row">
                         <div class="row-top">
-                            <span class="var-name">➡️ Arrow Length</span><span
-                                class="val"
+                            <span class="var-name">âž¡ï¸ Arrow Length</span
+                            ><span class="val"
                                 >{Math.round(
                                     GAME_CONFIG.ARROW_LENGTH_FRACTION * 100,
                                 )}%</span
@@ -2134,7 +2142,7 @@
                                 ).checked;
                             }}
                         />
-                        <span class="var-name">🛑 Static Orbits</span><span
+                        <span class="var-name">ðŸ›‘ Static Orbits</span><span
                             class="val"
                             style="font-size:9px;opacity:0.6">No rotation</span
                         ></label
@@ -2224,7 +2232,7 @@
                         />
                     </div>
 
-                    <!-- 📋 LOGGING -->
+                    <!-- ðŸ“‹ LOGGING -->
                 {:else if activeSection === "logging"}
                     <div class="log-actions">
                         <button
@@ -2266,20 +2274,20 @@
                         {/key}
                     {/each}
 
-                    <!-- ── Config Import/Export ── -->
+                    <!-- â”€â”€ Config Import/Export â”€â”€ -->
                     <h4 class="sub-heading" style="margin-top: 10px;">
-                        ⚙️ Config
+                        âš™ï¸ Config
                     </h4>
                     <div class="log-actions" style="flex-wrap: wrap;">
                         <button
                             class="btn-xs btn-export"
                             onclick={() => exportConfigJSON()}
-                            >📥 Export JSON</button
+                            >ðŸ“¥ Export JSON</button
                         >
                         <button
                             class="btn-xs btn-export"
                             onclick={() => exportConfigMD()}
-                            >📄 Export MD</button
+                            >ðŸ“„ Export MD</button
                         >
                         <button
                             class="btn-xs btn-import"
@@ -2288,7 +2296,7 @@
                                     "config-import-input",
                                 ) as HTMLInputElement;
                                 if (inp) inp.click();
-                            }}>📤 Import JSON</button
+                            }}>ðŸ“¤ Import JSON</button
                         >
                     </div>
                     <input
@@ -2323,7 +2331,7 @@
         min-height: 0;
     }
 
-    /* ── Icon Toolbar ── */
+    /* â”€â”€ Icon Toolbar â”€â”€ */
     .icon-toolbar {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
@@ -2390,7 +2398,7 @@
         filter: none;
     }
 
-    /* ── Section Panel ── */
+    /* â”€â”€ Section Panel â”€â”€ */
     .section-panel {
         background: rgba(255, 255, 255, 0.02);
         border: 1px solid rgba(255, 255, 255, 0.08);
@@ -2479,7 +2487,7 @@
         font-size: 9px;
     }
 
-    /* ── Controls ── */
+    /* â”€â”€ Controls â”€â”€ */
     .var-row {
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid rgba(255, 255, 255, 0.05);
@@ -2559,7 +2567,7 @@
         font-weight: 700;
     }
 
-    /* ── Logging ── */
+    /* â”€â”€ Logging â”€â”€ */
     .log-actions {
         display: flex;
         gap: 6px;
@@ -2629,7 +2637,7 @@
         color: #8cf;
         background: rgba(80, 140, 220, 0.08);
     }
-    /* ── Future AI Strategies ── */
+    /* â”€â”€ Future AI Strategies â”€â”€ */
     .var-row.grayed {
         opacity: 0.35;
         pointer-events: none;
