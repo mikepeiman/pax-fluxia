@@ -13,8 +13,8 @@
         "@pax/common": "workspace:*",
         "@colyseus/bun-websockets": "^0.17.6",
         "@colyseus/schema": "^4.0.0",
-        "@colyseus/ws-transport": "^0.17.9",
-        "colyseus": "0.17.8",
+        "@colyseus/ws-transport": "^0.17.0",
+        "colyseus": "^0.17.8",
         "express": "^5.0.0"
     },
     "devDependencies": {
