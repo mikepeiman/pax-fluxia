@@ -1,6 +1,6 @@
 # Feature & Regression Tracker
 
-**Last Updated**: 2026-02-13  
+**Last Updated**: 2026-02-14  
 **Last Verified By**: User (partial — see Status column)
 
 ---
@@ -24,6 +24,7 @@
 | C-3 | Speed Control (1x-50x) | ✅ | |
 | C-4 | Win/Lose Detection | ✅ | |
 | C-5 | Replay / Return to Menu | ✅ | SP only. MP restart broken (see B-18) |
+| C-6 | Game Over Screen | ❌ | No Game Over screen on full conquest in MP. Need modal: View Results or Keep Playing |
 
 ---
 
@@ -123,6 +124,10 @@
 | ID | Issue |
 |----|-------|
 | B-23 | Play/pause outline not updating correctly (pending user verification) |
+| B-42 | **MP Room ID not displayed**: Room ID must be shown for easy copy-paste sharing with other players |
+| B-43 | **MP Restart desyncs players**: On restart in MP lobby, players end up in different rooms. Restart should keep same room/lobby |
+| B-44 | **MP 2nd player order control broken**: Cannot cancel or redirect an order once set during pause |
+| B-45 | **MP host leave destroys room**: When host leaves, room is destroyed. Should persist with next player becoming host |
 
 ## Resolved Bugs (B)
 
@@ -164,6 +169,16 @@
 | B-35 | AI passive in MP: no difficulty settings exposed, AI uses default (easy) config | Server needs AI difficulty from RoomOptions | OPEN |
 | B-36 | MP quit/abandon buttons restart game instead of returning to main menu | Should route to main menu, not restart | OPEN |
 | B-37 | MP pause resets tick counter and animations | Pause/resume loses tick progress, animations snap | OPEN |
+| B-46 | **"Ship travel duration" slider does nothing** | Setting has no effect on gameplay | OPEN |
+| B-47 | **"Arc intensity" slider does nothing** | Setting has no effect | OPEN |
+| B-48 | **"Settle time" slider does nothing** | Setting has no visible effect | OPEN |
+| B-49 | **"Arrival spread" makes ships invisible** | Increasing turns arrivals invisible; reduced to zero looks normal. Purpose unclear to user | OPEN |
+| B-50 | **"Wobble amp" and "Depart jitter" unclear** | User unsure what they do or if they work | OPEN |
+| B-51 | **Travel Duration only works on Bezier mode, not Lane** | All settings must be interoperable across travel modes. May need function updates to include variables | OPEN |
+| B-52 | **Outline color in Ship Look does nothing useful** | Cannot change colors. Need HSLA controls modifying player primary color for accents | OPEN |
+| B-53 | **No glow effect exists** | Ship glow was never implemented despite UI presence | OPEN |
+| B-54 | **Star Radius never worked** | Slider has no visible effect | OPEN |
+| B-55 | **Game ends before complete conquest** | Abrupt and unsatisfying. Should show modal offering View Results or Keep Playing | OPEN |
 
 ---
 
@@ -215,7 +230,7 @@
 | R-12 | Damaged Ship Overlapping Orbits | 🟢 |
 | R-13 | Scrollwheel Zoom | 🟡 |
 | R-14 | Performance Audit | 🟡 |
-| R-15 | Multiplayer Deployment (get online for human playtesting) | 🔴 |
+| R-15 | ~~Multiplayer Deployment~~ | ✅ RESOLVED 2026-02-14 — dual module instance fix |
 | V-3 | Territory Alpha Masks (Voronoi/gradient ownership overlays) | 🔴 |
 | V-4 | Travel Animation Polish (elegant, smooth, satisfying feel) | 🔴 |
 | R-16 | Percentage Directives | 🔵 |
@@ -303,6 +318,19 @@
 | R-98 | Mines: deployable hazards in lanes or around stars | 🔵 |
 | R-99 | Economy & Production System: resource economy to support purchasing structures, shields, and mines | 🔵 |
 | R-100 | Ownership Inversion: Stars are currently a container for Ships. Future variation: Ships as containers for Stars, or more generally Locations/Roles — bidirectional ownership, increased complexity | 🔵 |
+| R-101 | **Timing Panel Consolidation**: Tick interval, Animation speed, Travel duration, Settle time in ONE panel. Master slider adjusts all at once. Independent control via toggle. Numeric inputs showing ratio with tick duration (0-5, step 0.25) | 🔴 |
+| R-102 | **HSLA Ship Accent Controls**: Controls that modify player primary color for outline/glow accents | 🟢 |
+| R-103 | **Ship Glow Effect**: Actual glow rendering for ships | 🟢 |
+| R-104 | **Lane-Star Blending**: Attach lane ends visually to stars for cleaner look | 🟢 |
+| R-105 | **Victory Conditions System**: Pre-game setting category. Classic Mode = 100% conquest. Pax Fluxia offers variable thresholds by ship count, specific star/territory conditions | 🔴 |
+| R-106 | **Rapid-Fire Sequential Departures**: Ship transfers as steady stream — single ships in rapid-fire sequence, randomly-eased arrivals | 🟢 |
+| R-107 | **Arrival Centerline Targeting**: Arrivals head to lane centerpoint (not lane-star boundary intersection). Variable scatter-offset from centerline. Arc to orbit slot within same easing function | 🟢 |
+| R-108 | **Travel Time Game Mode (1x-10x)**: Variable travel duration changes gameplay dynamics. Ships exist as fleets at intermediate points. Below 1x = cosmetic only. Above 1x = mechanical. Opposing fleets on same lane either pass or fight | 🔵 |
+| R-109 | **Lane Combat (fleet interception)**: When travel time > 1x, opposing fleets on same lane fight en-route. Branch: pass unaffected OR fight each other | 🔵 |
+| R-110 | **Ship Power Density Visual**: Visual indicator for increasing ship power density at a star. *User confirmed this is priority. See also R-39.* | 🔴 |
+| R-111 | **Ship Travel Animation Handles**: More controls for flight behavior — spread in both dimensions, individual wobbles, smaller-group coherence | 🟢 |
+| R-112 | **Slider Detent at Mid**: UI sliders should have a small notch/tag at midpoint that can be clicked to center the value | 🟡 |
+| R-113 | **Animation Speed = Tick Duration Ratio**: Animation speed bound to tick duration. Control = how much of a tick duration it lasts (0-1, default 0.5) | 🟢 |
 
 ---
 
@@ -323,6 +351,8 @@
 
 | Date | Summary |
 |------|---------|
+| 2026-02-14 | **4002 FIX**: Resolved Colyseus "seat reservation expired" — root cause was dual `@colyseus/core` module instances from explicit WebSocketTransport import. Fix: let `Server.getDefaultTransport()` handle it. **Multiplayer now working online!** |
+| 2026-02-14 | **Feedback batch**: 4 MP bugs (B-42 through B-45: room ID display, restart desync, 2P order control, host leave), 10 settings bugs (B-46 through B-55: broken sliders, missing glow, game end), 13 features (R-101 through R-113: timing panel, HSLA controls, victory conditions, travel time game mode, lane combat, ship density VFX). |
 | 2026-02-13 | **Click input fixes**: B-38/B-39 fixed (stale drag state in `handlePointerDown`). Visual telemetry added to full click pipeline. CONTROLS.md created. B-40 logged (icon menu + devtools). R-100 documented (ownership inversion). Phase 3 FX refactor committed (travel behavior registry). |
 | 2026-02-13 | **User feedback batch**: AI passive in MP (B-35), quit buttons wrong (B-36), pause resets tick (B-37), unified game-start (R-89), per-AI settings (R-90), AI personality editor (R-91), game sounds (R-92), animation polish (R-93). Conquest naked tick reiterated (B-34). Zombie code Phase D complete. |
 | 2026-02-12 | **Engine unification planning**: Full architecture audit across 3 packages. Created `ENGINE_ARCHITECTURE_CURRENT.md` and `ENGINE_ARCHITECTURE_TARGET.md`. Updated `00_PHYSICAL_MAP.md` and `01_ASSET_INVENTORY.md` to current monorepo reality. Documented 6-phase unification plan in DECISIONS.md. |

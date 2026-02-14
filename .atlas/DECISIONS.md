@@ -455,4 +455,36 @@ Colyseus WebSocket connections fail with "seat reservation expired" (close code 
 - **CMD**: `tsx pax-server/src/prod.ts` (NOT `bun run`)
 - **NEVER** use Bun's runtime for the Colyseus server until Bun resolves `ws` library compatibility
 
+---
 
+# Decision: Colyseus Module Resolution — No Explicit WebSocketTransport Import
+
+**Date:** 2026-02-14
+**Status:** Active (CRITICAL)
+
+## Context
+Explicit `import { WebSocketTransport } from "@colyseus/ws-transport"` in `prod.ts` caused bun's content-addressable node_modules to load **two separate `@colyseus/core` instances** — each with its own `matchMaker` singleton and `rooms` map. Rooms were created in one map but looked up from the other, causing "seat reservation expired" (4002).
+
+## Decision
+- **NEVER** explicitly import `@colyseus/ws-transport` in server entry points
+- Let `Server.getDefaultTransport()` handle transport creation via `dynamicImport`
+- This ensures a single shared `@colyseus/core` module instance
+
+---
+
+# Decision: Travel Time Game Mode (Pax Fluxia Roadmap)
+
+**Date:** 2026-02-14
+**Status:** Planned (extends "No Mechanical Travel" decision)
+
+## Context
+User observed that setting `TRAVEL_DURATION` to 10× transforms gameplay fundamentally — ships exist as fleets at intermediate points, changing from "instant tick resolution" to "ships-in-transit" dynamics.
+
+## Decision
+- **Below 1x travel time**: Cosmetic animation only (current behavior). No mechanical impact.
+- **1x–10x travel time**: Mechanical travel. Ships physically occupy lane space for multiple ticks. This is a distinct game mode.
+- **Opposing fleets**: When travel time > 1x, opposing fleets on the same lane present a branching mechanic:
+  - **Pass mode**: Fleets pass each other unaffected
+  - **Intercept mode**: Fleets fight each other along the lane
+- **Above 10x / sub-tick**: Would require pure RTS game loop (separate game mode, deferred)
+- This does NOT replace the current "No Mechanical Travel" rule — it extends it with a new game mode toggle
