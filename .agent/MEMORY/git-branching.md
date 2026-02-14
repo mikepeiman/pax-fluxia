@@ -1,25 +1,17 @@
-# Git Branching Rule
 
-## CRITICAL: Develop on a branch, NOT master
 
-Every push to `master` triggers a production rebuild on Northflank. Therefore:
+# Git Branching Strategy
 
-1. **Create a feature/dev branch** for all work: `git checkout -b dev` or `git checkout -b feature/description`
-2. **Commit and push to the branch**: `git push origin dev`
-3. **Only merge to master** when changes are ready for production deployment
-4. **Never push directly to master** during development
+## Solo Dev Workflow: Master-First
 
-### Workflow
-```powershell
-# Start work
-git checkout -b dev
+**Default**: Commit directly to `master` for most work (bug fixes, UI, config, incremental features).
 
-# During work
-git ac "commit message"
-git push origin dev
+**Branch only when needed**:
+- Risky/experimental changes you might revert
+- Multi-day epics where master should stay deployable
+- Naming: `feat/name`, `fix/name`, `refactor/name`
 
-# When ready for production
-git checkout master
-git merge dev
-git push origin master
-```
+**After branching**: Merge back to master promptly, delete the branch.
+
+**No long-lived dev branch** — it's extra ceremony without value for a solo dev.
+
