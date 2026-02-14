@@ -1,11 +1,12 @@
 // ============================================================================
 // Production Entry Point — Pax Fluxia
-// Static files served at HTTP level (bypasses Colyseus route override)
-// Colyseus matchmaker + WebSocket via Express 5 + ws-transport
+// Express 5 as SOLE HTTP handler (no competing listeners)
+//   - Custom static middleware serves SPA files
+//   - Colyseus matchmaker routes registered after (via bindRouterToTransport)
 // Used by Dockerfile / Northflank — NOT for local dev
 // ============================================================================
 
-
+import express from "express";
 import { createServer } from "http";
 import { readFileSync, existsSync, statSync, readdirSync } from "fs";
 import path from "path";
@@ -48,51 +49,56 @@ const MIME: Record<string, string> = {
 };
 
 // ============================================================================
-// HTTP Server — static files handled here, matchmaker handled by Colyseus
+// Express 5 — the SOLE HTTP handler
 // ============================================================================
 
-const httpServer = createServer((req, res) => {
-    const url = (req.url || "/").split("?")[0];
+const app = express();
+app.disable("x-powered-by");
 
-    // Serve static files for GET requests (non-matchmake paths)
-    if (req.method === "GET" && !url.startsWith("/matchmake")) {
-        const filePath = path.join(CLIENT_DIR, url === "/" ? "index.html" : url);
+// Static file middleware — runs BEFORE Colyseus registers its matchmaker routes
+app.use((req, res, next) => {
+    // Only handle GET requests; let POST /matchmake/* pass through to Colyseus
+    if (req.method !== "GET") return next();
 
-        try {
-            if (existsSync(filePath) && statSync(filePath).isFile()) {
-                const ext = path.extname(filePath);
-                res.writeHead(200, {
-                    "Content-Type": MIME[ext] || "application/octet-stream",
-                    "Cache-Control": ext === ".html" ? "no-cache" : "public, max-age=31536000, immutable",
-                    "Access-Control-Allow-Origin": "*",
-                });
-                res.end(readFileSync(filePath));
-                return;
-            }
-        } catch (e) {
-            // fall through
-        }
+    const url = req.path;
 
-        // SPA fallback — serve index.html for client-side routes
-        const indexPath = path.join(CLIENT_DIR, "index.html");
-        if (existsSync(indexPath)) {
-            res.writeHead(200, {
-                "Content-Type": "text/html; charset=utf-8",
-                "Access-Control-Allow-Origin": "*",
-            });
-            res.end(readFileSync(indexPath));
-            return;
-        }
+    // Let Colyseus handle its own API paths
+    if (url.startsWith("/matchmake") || url.startsWith("/colyseus")) {
+        return next();
     }
 
-    // Matchmaker + other requests: handled by Colyseus's own httpServer listener
-    // (registered by bindRouterToTransport via @colyseus/better-call)
-    // Do NOT call app(req, res) — it causes double response
+    // Try to serve an exact file from CLIENT_DIR
+    const filePath = path.join(CLIENT_DIR, url === "/" ? "index.html" : url);
+    try {
+        if (existsSync(filePath) && statSync(filePath).isFile()) {
+            const ext = path.extname(filePath);
+            res.set("Content-Type", MIME[ext] || "application/octet-stream");
+            res.set("Cache-Control", ext === ".html" ? "no-cache" : "public, max-age=31536000, immutable");
+            res.send(readFileSync(filePath));
+            return; // Response sent — stop here
+        }
+    } catch {
+        // Fall through to SPA fallback
+    }
+
+    // SPA fallback — serve index.html for client-side routes
+    const indexPath = path.join(CLIENT_DIR, "index.html");
+    if (existsSync(indexPath)) {
+        res.set("Content-Type", "text/html; charset=utf-8");
+        res.send(readFileSync(indexPath));
+        return;
+    }
+
+    // No client files at all — let request pass through
+    next();
 });
 
 // ============================================================================
-// Colyseus — game server on the same HTTP server
+// HTTP Server + Colyseus
 // ============================================================================
+
+// Express is THE sole request handler — no competing listeners
+const httpServer = createServer(app);
 
 const gameServer = new Server({
     transport: new WebSocketTransport({ server: httpServer }),
