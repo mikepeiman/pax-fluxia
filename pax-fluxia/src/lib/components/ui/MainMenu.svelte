@@ -4,6 +4,7 @@
     import { fade, fly } from "svelte/transition";
     import type { GameSettings } from "$lib/types/game.types";
     import { multiplayerStore } from "$lib/stores/multiplayerStore.svelte";
+    import type { RoomListing } from "$lib/stores/multiplayerStore.svelte";
     import { log } from "$lib/utils/logger";
 
     let visible = $state(true);
@@ -69,6 +70,68 @@
 
     // MP Join state
     let joinRoomId = $state("");
+
+    // Room browser state
+    let confirmJoinTarget = $state<RoomListing | null>(null);
+
+    // Auto-fetch rooms when switching to MP mode
+    $effect(() => {
+        if (gameMode === "mp" && !multiplayerStore.isConnected) {
+            multiplayerStore.fetchRooms();
+        }
+    });
+
+    // ── Per-Player Settings ───────────────────────────────────────────────
+    const AI_STRATEGIES = [
+        { id: "default", label: "Default" },
+        { id: "frontline", label: "Frontline Forces" },
+        { id: "mirror", label: "Mirror Match" },
+        { id: "spread", label: "Even Spread" },
+        { id: "ambush", label: "Backline Ambush" },
+        { id: "surround", label: "Tactical Surround" },
+        { id: "staraware", label: "Star Hunter" },
+        { id: "retreat", label: "Ghost Retreat" },
+    ];
+
+    interface PlayerConfig {
+        hue: number; // 0-360 HSL hue
+        isAI: boolean;
+        difficulty: string;
+        strategy: string;
+    }
+
+    const DEFAULT_HUES = [210, 0, 120, 45, 280, 170]; // blue, red, green, orange, purple, teal
+
+    function makeDefaultPlayerConfigs(count: number): PlayerConfig[] {
+        return Array.from({ length: count }, (_, i) => ({
+            hue: DEFAULT_HUES[i % DEFAULT_HUES.length],
+            isAI: i > 0,
+            difficulty: "Normal",
+            strategy: "default",
+        }));
+    }
+
+    let playerConfigs = $state<PlayerConfig[]>(
+        loadSetting("playerConfigs", makeDefaultPlayerConfigs(6)),
+    );
+
+    // Sync player count changes to config array
+    $effect(() => {
+        if (playerConfigs.length !== playerCount) {
+            const newConfigs = makeDefaultPlayerConfigs(playerCount);
+            // Preserve existing configs where possible
+            for (
+                let i = 0;
+                i < Math.min(playerConfigs.length, playerCount);
+                i++
+            ) {
+                newConfigs[i] = playerConfigs[i];
+            }
+            playerConfigs = newConfigs;
+        }
+    });
+
+    let expandedPlayer = $state<number | null>(null);
 
     // ── Map Definitions ────────────────────────────────────────────────────
     const MAP_DEFS: {
@@ -150,6 +213,7 @@
         saveSetting("maxLinks", maxLinks);
         saveSetting("starSpacing", starSpacing);
         saveSetting("retainOrderOnConquest", retainOrderOnConquest);
+        saveSetting("playerConfigs", playerConfigs);
     }
 
     function applyConfig() {
@@ -218,6 +282,12 @@
         if (multiplayerStore.roomId) {
             navigator.clipboard.writeText(multiplayerStore.roomId);
         }
+    }
+
+    async function handleConfirmJoin() {
+        if (!confirmJoinTarget) return;
+        await multiplayerStore.joinRoomById(confirmJoinTarget.roomId);
+        confirmJoinTarget = null;
     }
 </script>
 
@@ -418,6 +488,100 @@
                             >
                         </label>
                     </div>
+
+                    <!-- Per-Player Configuration -->
+                    <div class="control-group player-config-section">
+                        <label>PLAYERS</label>
+                        <div class="player-config-list">
+                            {#each playerConfigs as cfg, i}
+                                <div class="player-config-row">
+                                    <!-- svelte-ignore a11y_click_events_have_key_events -->
+                                    <!-- svelte-ignore a11y_no_static_element_interactions -->
+                                    <div
+                                        class="player-header"
+                                        onclick={() =>
+                                            (expandedPlayer =
+                                                expandedPlayer === i
+                                                    ? null
+                                                    : i)}
+                                    >
+                                        <span
+                                            class="player-swatch"
+                                            style:background-color="hsl({cfg.hue},
+                                            70%, 55%)"
+                                        ></span>
+                                        <span class="player-label">
+                                            {i === 0 ? "YOU" : `P${i + 1}`}
+                                            {#if cfg.isAI}
+                                                <span class="badge ai">AI</span>
+                                            {/if}
+                                        </span>
+                                        <span class="player-expand"
+                                            >{expandedPlayer === i
+                                                ? "▾"
+                                                : "▸"}</span
+                                        >
+                                    </div>
+                                    {#if expandedPlayer === i}
+                                        <div class="player-details">
+                                            <!-- Hue Wheel -->
+                                            <div class="hue-control">
+                                                <label>Color</label>
+                                                <input
+                                                    type="range"
+                                                    class="hue-slider"
+                                                    min="0"
+                                                    max="360"
+                                                    bind:value={
+                                                        playerConfigs[i].hue
+                                                    }
+                                                    style:--hue={cfg.hue}
+                                                />
+                                                <span
+                                                    class="hue-preview"
+                                                    style:background-color="hsl({cfg.hue},
+                                                    70%, 55%)"
+                                                ></span>
+                                            </div>
+                                            {#if i > 0}
+                                                <!-- AI settings -->
+                                                <div class="ai-setting">
+                                                    <label>Difficulty</label>
+                                                    <select
+                                                        bind:value={
+                                                            playerConfigs[i]
+                                                                .difficulty
+                                                        }
+                                                    >
+                                                        {#each DIFFICULTIES as d}
+                                                            <option value={d}
+                                                                >{d}</option
+                                                            >
+                                                        {/each}
+                                                    </select>
+                                                </div>
+                                                <div class="ai-setting">
+                                                    <label>Strategy</label>
+                                                    <select
+                                                        bind:value={
+                                                            playerConfigs[i]
+                                                                .strategy
+                                                        }
+                                                    >
+                                                        {#each AI_STRATEGIES as s}
+                                                            <option value={s.id}
+                                                                >{s.label}</option
+                                                            >
+                                                        {/each}
+                                                    </select>
+                                                </div>
+                                            {/if}
+                                        </div>
+                                    {/if}
+                                </div>
+                            {/each}
+                        </div>
+                    </div>
                 </section>
 
                 <!-- ── Right: Mode-specific panel ── -->
@@ -493,6 +657,71 @@
                                         JOIN
                                     </button>
                                 </div>
+                            </div>
+
+                            <!-- Room Browser -->
+                            <div class="mp-section room-browser">
+                                <div class="browser-header">
+                                    <h3>Browse Games</h3>
+                                    <button
+                                        class="refresh-btn"
+                                        onclick={() =>
+                                            multiplayerStore.fetchRooms()}
+                                        disabled={multiplayerStore.isFetchingRooms}
+                                    >
+                                        {multiplayerStore.isFetchingRooms
+                                            ? "⟳"
+                                            : "↻"} Refresh
+                                    </button>
+                                </div>
+                                {#if multiplayerStore.isFetchingRooms}
+                                    <p class="waiting-text">
+                                        Scanning for rooms...
+                                    </p>
+                                {:else if multiplayerStore.availableRooms.length === 0}
+                                    <p class="waiting-text">
+                                        No public rooms available
+                                    </p>
+                                {:else}
+                                    <div class="room-list">
+                                        {#each multiplayerStore.availableRooms as room}
+                                            <!-- svelte-ignore a11y_click_events_have_key_events -->
+                                            <!-- svelte-ignore a11y_no_static_element_interactions -->
+                                            <div
+                                                class="room-card"
+                                                onclick={() =>
+                                                    (confirmJoinTarget = room)}
+                                            >
+                                                <div class="room-card-top">
+                                                    <span class="room-host"
+                                                        >{room.metadata
+                                                            ?.hostName ||
+                                                            "Unknown"}</span
+                                                    >
+                                                    <span
+                                                        class="room-phase badge {room
+                                                            .metadata?.phase ||
+                                                            'lobby'}"
+                                                    >
+                                                        {room.metadata?.phase ||
+                                                            "lobby"}
+                                                    </span>
+                                                </div>
+                                                <div class="room-card-bottom">
+                                                    <span class="room-map"
+                                                        >{room.metadata
+                                                            ?.mapType ||
+                                                            "?"}</span
+                                                    >
+                                                    <span class="room-slots">
+                                                        {room.clients}/{room.maxClients}
+                                                        players
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        {/each}
+                                    </div>
+                                {/if}
                             </div>
 
                             {#if multiplayerStore.connectionError}
@@ -586,6 +815,40 @@
                         </div>
                     {/if}
                 </section>
+            </div>
+        </div>
+    </div>
+{/if}
+
+<!-- Join Confirmation Modal -->
+{#if confirmJoinTarget}
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+        class="confirm-overlay"
+        transition:fade
+        onclick={() => (confirmJoinTarget = null)}
+    >
+        <div class="confirm-dialog" onclick={(e) => e.stopPropagation()}>
+            <h3>Join Room?</h3>
+            <p>
+                Host: <strong
+                    >{confirmJoinTarget.metadata?.hostName || "Unknown"}</strong
+                >
+            </p>
+            <p>
+                {confirmJoinTarget.clients}/{confirmJoinTarget.maxClients} players
+                • {confirmJoinTarget.metadata?.mapType || "standard"}
+            </p>
+            <div class="confirm-actions">
+                <button class="start-btn" onclick={handleConfirmJoin}>
+                    <span class="btn-glow"></span>
+                    JOIN
+                </button>
+                <button
+                    class="leave-btn"
+                    onclick={() => (confirmJoinTarget = null)}>Cancel</button
+                >
             </div>
         </div>
     </div>
@@ -1317,5 +1580,311 @@
         background: rgba(239, 68, 68, 0.08);
         color: #ff6666;
         border-color: rgba(239, 68, 68, 0.5);
+    }
+
+    /* ============================================================ */
+    /*  ROOM BROWSER                                                 */
+    /* ============================================================ */
+
+    .room-browser {
+        border-top: 1px solid rgba(100, 220, 255, 0.1);
+        padding-top: 1rem;
+        margin-top: 0.5rem;
+    }
+
+    .browser-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+
+    .browser-header h3 {
+        margin: 0;
+    }
+
+    .refresh-btn {
+        background: rgba(100, 220, 255, 0.08);
+        border: 1px solid rgba(100, 220, 255, 0.2);
+        color: #8be5ff;
+        padding: 0.25rem 0.75rem;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.75rem;
+        transition: all 0.2s;
+    }
+
+    .refresh-btn:hover:not(:disabled) {
+        background: rgba(100, 220, 255, 0.15);
+        border-color: rgba(100, 220, 255, 0.4);
+    }
+
+    .refresh-btn:disabled {
+        opacity: 0.5;
+        cursor: default;
+    }
+
+    .room-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+        max-height: 180px;
+        overflow-y: auto;
+    }
+
+    .room-card {
+        background: rgba(100, 220, 255, 0.04);
+        border: 1px solid rgba(100, 220, 255, 0.12);
+        border-radius: 8px;
+        padding: 0.5rem 0.75rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .room-card:hover {
+        background: rgba(100, 220, 255, 0.1);
+        border-color: rgba(100, 220, 255, 0.3);
+        transform: translateY(-1px);
+    }
+
+    .room-card-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.2rem;
+    }
+
+    .room-host {
+        font-weight: 600;
+        color: #cce8ff;
+        font-size: 0.85rem;
+    }
+
+    .room-phase {
+        font-size: 0.65rem;
+        padding: 2px 6px;
+        border-radius: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .room-phase.lobby {
+        background: rgba(100, 220, 255, 0.15);
+        color: #8be5ff;
+    }
+
+    .room-phase.playing {
+        background: rgba(239, 68, 68, 0.15);
+        color: #ff8888;
+    }
+
+    .room-card-bottom {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.75rem;
+        color: #88a0b8;
+    }
+
+    .room-map {
+        text-transform: capitalize;
+    }
+
+    /* ============================================================ */
+    /*  JOIN CONFIRMATION MODAL                                      */
+    /* ============================================================ */
+
+    .confirm-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 200;
+    }
+
+    .confirm-dialog {
+        background: linear-gradient(145deg, #0a1628, #0d1f38);
+        border: 1px solid rgba(100, 220, 255, 0.25);
+        border-radius: 12px;
+        padding: 1.5rem 2rem;
+        max-width: 340px;
+        text-align: center;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    }
+
+    .confirm-dialog h3 {
+        margin: 0 0 0.75rem;
+        color: #cce8ff;
+        font-size: 1.2rem;
+    }
+
+    .confirm-dialog p {
+        margin: 0.3rem 0;
+        color: #88a0b8;
+        font-size: 0.85rem;
+    }
+
+    .confirm-actions {
+        display: flex;
+        gap: 0.75rem;
+        margin-top: 1.25rem;
+        justify-content: center;
+    }
+
+    /* ============================================================ */
+    /*  PER-PLAYER CONFIG                                            */
+    /* ============================================================ */
+
+    .player-config-section {
+        border-top: 1px solid rgba(100, 220, 255, 0.08);
+        padding-top: 0.75rem;
+    }
+
+    .player-config-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .player-config-row {
+        background: rgba(100, 220, 255, 0.03);
+        border: 1px solid rgba(100, 220, 255, 0.08);
+        border-radius: 6px;
+        overflow: hidden;
+    }
+
+    .player-header {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.4rem 0.6rem;
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+
+    .player-header:hover {
+        background: rgba(100, 220, 255, 0.06);
+    }
+
+    .player-swatch {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        box-shadow: 0 0 6px rgba(100, 220, 255, 0.2);
+    }
+
+    .player-label {
+        flex: 1;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #cce8ff;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    .player-expand {
+        color: #5a7a96;
+        font-size: 0.7rem;
+    }
+
+    .player-details {
+        padding: 0.5rem 0.6rem 0.6rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        border-top: 1px solid rgba(100, 220, 255, 0.06);
+        background: rgba(0, 0, 0, 0.15);
+    }
+
+    .hue-control {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .hue-control label {
+        font-size: 0.7rem;
+        color: #5a7a96;
+        min-width: 36px;
+    }
+
+    .hue-slider {
+        flex: 1;
+        -webkit-appearance: none;
+        appearance: none;
+        height: 8px;
+        border-radius: 4px;
+        background: linear-gradient(
+            to right,
+            hsl(0, 70%, 55%),
+            hsl(60, 70%, 55%),
+            hsl(120, 70%, 55%),
+            hsl(180, 70%, 55%),
+            hsl(240, 70%, 55%),
+            hsl(300, 70%, 55%),
+            hsl(360, 70%, 55%)
+        );
+        outline: none;
+        cursor: pointer;
+    }
+
+    .hue-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: hsl(var(--hue, 210), 70%, 55%);
+        border: 2px solid #fff;
+        box-shadow: 0 0 4px rgba(0, 0, 0, 0.4);
+        cursor: pointer;
+    }
+
+    .hue-slider::-moz-range-thumb {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: hsl(var(--hue, 210), 70%, 55%);
+        border: 2px solid #fff;
+        box-shadow: 0 0 4px rgba(0, 0, 0, 0.4);
+        cursor: pointer;
+    }
+
+    .hue-preview {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .ai-setting {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .ai-setting label {
+        font-size: 0.7rem;
+        color: #5a7a96;
+        min-width: 56px;
+    }
+
+    .ai-setting select {
+        flex: 1;
+        background: rgba(5, 15, 30, 0.6);
+        border: 1px solid rgba(100, 220, 255, 0.15);
+        color: #cce8ff;
+        padding: 0.25rem 0.4rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        cursor: pointer;
+    }
+
+    .ai-setting select:focus {
+        outline: 1px solid rgba(100, 220, 255, 0.4);
     }
 </style>

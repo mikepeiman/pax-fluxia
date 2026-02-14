@@ -19,6 +19,7 @@ log.sys('Init', 'Server instance created, defining rooms...');
 
 // Define the game room with logging
 gameServer.define("game_room", GameRoom)
+    .enableRealtimeListing()
     .on("create", (room) => {
         log.sys('MatchMaker', `game_room CREATED: ${room.roomId}`);
     })

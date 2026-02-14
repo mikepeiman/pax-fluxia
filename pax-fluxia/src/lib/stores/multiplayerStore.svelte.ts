@@ -47,6 +47,10 @@ let connections = $state<StarConnection[]>([]);
 let pendingTransfers = $state<TransferEvent[]>([]);
 let gameHistory = $state<GameHistoryEntry[]>([]);
 
+// Room browser (public listing)
+let availableRooms = $state<RoomListing[]>([]);
+let isFetchingRooms = $state(false);
+
 // Client-side tick interpolation (for smooth animations in MP)
 const BASE_TICK_MS = 1200;
 let lastTickTime = 0;
@@ -193,6 +197,49 @@ function leaveRoom(): void {
 function disconnect(): void {
     leaveRoom();
     client = null;
+}
+
+// ============================================================================
+// Room Browser
+// ============================================================================
+
+export interface RoomListing {
+    roomId: string;
+    name: string;
+    clients: number;
+    maxClients: number;
+    metadata?: {
+        mapType?: string;
+        playerCount?: number;
+        maxPlayers?: number;
+        phase?: string;
+        hostName?: string;
+    };
+}
+
+async function fetchRooms(): Promise<void> {
+    isFetchingRooms = true;
+    try {
+        // Colyseus 0.17+ serves room listings via HTTP matchmaker
+        const httpBase = SERVER_URL.replace(/^ws/, 'http');
+        const res = await fetch(`${httpBase}/matchmake/game_room`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const rooms: RoomListing[] = await res.json();
+        availableRooms = rooms;
+        log.net('RoomBrowser', `Found ${rooms.length} available rooms`);
+    } catch (err) {
+        log.error('RoomBrowser', 'Failed to fetch rooms', err);
+        availableRooms = [];
+    } finally {
+        isFetchingRooms = false;
+    }
+}
+
+async function joinRoomById(targetRoomId: string): Promise<boolean> {
+    if (isConnected) {
+        leaveRoom();
+    }
+    return joinRoom(targetRoomId);
 }
 
 // ============================================================================
@@ -467,6 +514,12 @@ export const multiplayerStore = {
     joinRoom,
     leaveRoom,
     disconnect,
+
+    // Room browser
+    get availableRooms() { return availableRooms; },
+    get isFetchingRooms() { return isFetchingRooms; },
+    fetchRooms,
+    joinRoomById,
 
     // Game actions
     startGame,

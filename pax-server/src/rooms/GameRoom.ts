@@ -99,6 +99,9 @@ export class GameRoom extends Room {
             // Register message handlers
             this.registerMessageHandlers();
 
+            // Set initial metadata for room listing
+            this.updateListingMetadata();
+
             log.sys('GameRoom', `onCreate complete. Max players: ${this.maxClients}`);
         } catch (err) {
             log.error('GameRoom', 'Error in onCreate', err);
@@ -115,6 +118,7 @@ export class GameRoom extends Room {
         }
         log.net('GameRoom', `Player joined: ${client.sessionId}`);
         client.send("playerJoined", { sessionId: client.sessionId });
+        this.updateListingMetadata();
         client.send("welcome", "Default welcome message from server!")
         // First player is host
         if (this.state.players.size === 0) {
@@ -178,6 +182,7 @@ export class GameRoom extends Room {
         if (!anyHumansConnected && !this.disposeTimer) {
             log.net('GameRoom', `No human players remaining — starting ${this.DISPOSE_GRACE_MS / 1000}s dispose timer`);
             this.stopTick();
+            this.updateListingMetadata();
             this.disposeTimer = setTimeout(() => {
                 log.net('GameRoom', 'Dispose timer expired — disposing room');
                 this.disconnect();
@@ -192,6 +197,23 @@ export class GameRoom extends Room {
             clearTimeout(this.disposeTimer);
             this.disposeTimer = null;
         }
+    }
+
+    /** Update room listing metadata for public browser */
+    private updateListingMetadata() {
+        let humanCount = 0;
+        let hostName = 'Unknown';
+        this.state.players.forEach((p, sid) => {
+            if (!p.isAI) humanCount++;
+            if (sid === this.state.hostSessionId) hostName = p.name;
+        });
+        this.setMetadata({
+            mapType: this.roomOptions.mapType || 'standard',
+            playerCount: humanCount,
+            maxPlayers: this.maxClients,
+            phase: this.state.phase,
+            hostName,
+        });
     }
 
     // ========================================================================
@@ -220,6 +242,7 @@ export class GameRoom extends Room {
             }
             this.state.phase = "playing";
             this.state.isPaused = true; // Start paused, await player ready
+            this.updateListingMetadata();
         });
 
         // Restart game (host only) — reset to lobby within same room
@@ -262,6 +285,7 @@ export class GameRoom extends Room {
             this.state.winnerId = "";
 
             log.game('GameRoom', `Restart complete. ${this.state.players.size} human players retained.`);
+            this.updateListingMetadata();
         });
 
         // Unpause/resume

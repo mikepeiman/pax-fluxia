@@ -243,11 +243,13 @@
 | R-24 | Vote System for MP Settings | 🟡 |
 | R-25 | Multiple Targets / Branching Orders | 🔵 |
 | R-26 | Conditional Orders (trigger on conquest) | 🔵 |
-| R-27 | Tailwind CSS Migration (70-80% inline utility, 20% custom classes, CSS custom properties for JS interpolation) | 🟡 |
 | R-27 | Strategic Patterns (auto-behavior algorithms) | 🔵 |
-| R-28 | Last-Stand Resistance Mode | 🟢 |
-| R-29 | Captured Ship Activation Rate Slider | 🟢 |
-| R-30 | Deferred Order Arrows Overlay Priority | 🟢 |
+| R-28 | Tailwind CSS Migration (70-80% inline utility, CSS custom properties for JS interpolation) | 🟡 |
+| R-29 | Last-Stand Resistance Mode | 🟢 |
+| R-30 | Captured Ship Activation Rate Slider | 🟢 |
+| R-31 | Deferred Order Arrows Overlay Priority | 🟢 |
+| R-32 | **Public Room Browser** — list available rooms in MP tab, click-to-join with confirmation | 🟢 |
+| R-33 | **Per-Player Settings** — color, AI strength/strategy, human handicaps/buffs in main menu | 🟢 |
 | R-94 | Visual Style Packs (selectable animation & visual presets, gameplay feel variety) | 🔴 |
 | R-31 | Tick Length Control Panel Slider | 🟢 |
 | R-32 | End-Game Screen Enlargement + Better Charts | 🟡 |

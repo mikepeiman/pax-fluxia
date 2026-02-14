@@ -35,6 +35,7 @@ const gameServer = new Server({
 
 // Define rooms (identical to index.ts)
 gameServer.define("game_room", GameRoom)
+    .enableRealtimeListing()
     .on("create", (room) => log.sys("MatchMaker", `game_room CREATED: ${room.roomId}`))
     .on("join", (room, client) => log.net("MatchMaker", `Client JOINED game_room ${room.roomId}: ${client.sessionId}`))
     .on("dispose", (room) => log.sys("MatchMaker", `game_room DISPOSED: ${room.roomId}`));
