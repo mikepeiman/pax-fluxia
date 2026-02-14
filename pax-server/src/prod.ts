@@ -18,6 +18,19 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 2567;
 const CLIENT_DIR = path.resolve(__dirname, "../../client");
 
+// Startup diagnostics — log what's in the client directory
+import { readdirSync, existsSync } from "fs";
+log.sys("Init", `__dirname: ${__dirname}`);
+log.sys("Init", `CLIENT_DIR: ${CLIENT_DIR}`);
+log.sys("Init", `CLIENT_DIR exists: ${existsSync(CLIENT_DIR)}`);
+if (existsSync(CLIENT_DIR)) {
+    const files = readdirSync(CLIENT_DIR);
+    log.sys("Init", `CLIENT_DIR contents: ${files.join(", ")}`);
+    log.sys("Init", `index.html exists: ${existsSync(path.join(CLIENT_DIR, "index.html"))}`);
+} else {
+    log.error("Init", "CLIENT_DIR DOES NOT EXIST — SPA will not be served!");
+}
+
 // ============================================================================
 // Express 5 — serves static SPA files
 // ============================================================================

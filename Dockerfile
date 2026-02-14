@@ -25,6 +25,9 @@ COPY pax-fluxia/ ./pax-fluxia/
 # Build the SvelteKit SPA → output in pax-fluxia/build/
 RUN cd pax-fluxia && bun run build
 
+# Verify build output exists
+RUN ls -la pax-fluxia/build/ && test -f pax-fluxia/build/index.html
+
 # --- Stage 2: Production Server ---
 FROM oven/bun:1 AS production
 
@@ -45,6 +48,9 @@ COPY pax-server/ ./pax-server/
 
 # Copy the built SPA from stage 1
 COPY --from=client-build /app/pax-fluxia/build ./client
+
+# Verify client files are present
+RUN ls -la ./client/ && test -f ./client/index.html && echo "✅ Client build verified"
 
 # Expose single port (Express + Colyseus on same port)
 EXPOSE 2567
