@@ -1,7 +1,7 @@
 # ============================================================================
-# Pax Fluxia — Single-container production build (bun-native)
-# Stage 1: Build the SvelteKit SPA client
-# Stage 2: Production server (Express 5 + Colyseus ws-transport, single port)
+# Pax Fluxia — Single-container production build
+# Stage 1: Build the SvelteKit SPA client (Bun for speed)
+# Stage 2: Production server — Node runtime (Bun WS incompatible with ws lib)
 # ============================================================================
 
 # --- Stage 1: Build Client ---
@@ -29,18 +29,25 @@ RUN cd pax-fluxia && bun run build
 RUN ls -la pax-fluxia/build/ && test -f pax-fluxia/build/index.html
 
 # --- Stage 2: Production Server ---
-FROM oven/bun:1 AS production
+# CRITICAL: Must use Node runtime, NOT Bun.
+# Bun's WebSocket implementation is incompatible with the `ws` library
+# used by @colyseus/ws-transport (causes "seat reservation expired" / 4002).
+# This is the same issue fixed locally by using `bun run dev:node` (tsx on Node).
+FROM node:20-slim AS production
 
 WORKDIR /app
 
-# Copy workspace root + package manifests + lockfile
-COPY package.json bun.lock ./
+# Copy workspace root + package manifests
+COPY package.json ./
 COPY common/package.json ./common/
 COPY pax-fluxia/package.json ./pax-fluxia/
 COPY pax-server/package.json ./pax-server/
 
-# Install deps (bun handles workspaces natively)
-RUN bun install --production
+# Install deps with npm (needs tsx for TypeScript, so include devDeps)
+RUN npm install
+
+# Install tsx globally so CMD doesn't rely on npx
+RUN npm install -g tsx
 
 # Copy server + common source
 COPY common/ ./common/
@@ -55,5 +62,7 @@ RUN ls -la ./client/ && test -f ./client/index.html && echo "✅ Client build ve
 # Expose single port (Express + Colyseus on same port)
 EXPOSE 2567
 
-# Start the production server with bun
-CMD ["bun", "run", "pax-server/src/prod.ts"]
+# Start the production server with Node (via tsx for TypeScript support)
+CMD ["tsx", "pax-server/src/prod.ts"]
+
+
