@@ -205,6 +205,153 @@
         "ai-5": 0xff8844,
     };
 
+    // ============================================================================
+    // HSL Color Utilities — Player colors stored as { hex, h, s, l }
+    // ============================================================================
+
+    interface PlayerHSL {
+        hex: number;
+        h: number; // 0-360
+        s: number; // 0-1
+        l: number; // 0-1
+    }
+
+    const playerHSLCache: Map<string, PlayerHSL> = new Map();
+
+    /** Convert 0xRRGGBB integer to { h, s, l } */
+    function hexToHSL(hex: number): { h: number; s: number; l: number } {
+        const r = ((hex >> 16) & 0xff) / 255;
+        const g = ((hex >> 8) & 0xff) / 255;
+        const b = (hex & 0xff) / 255;
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        const l = (max + min) / 2;
+        let h = 0,
+            s = 0;
+        if (max !== min) {
+            const d = max - min;
+            s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+            if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) * 60;
+            else if (max === g) h = ((b - r) / d + 2) * 60;
+            else h = ((r - g) / d + 4) * 60;
+        }
+        return { h, s, l };
+    }
+
+    /** Convert { h, s, l } back to 0xRRGGBB integer */
+    function hslToHex(h: number, s: number, l: number): number {
+        h = ((h % 360) + 360) % 360; // Normalize hue
+        s = Math.max(0, Math.min(1, s));
+        l = Math.max(0, Math.min(1, l));
+        const c = (1 - Math.abs(2 * l - 1)) * s;
+        const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+        const m = l - c / 2;
+        let r1: number, g1: number, b1: number;
+        if (h < 60) {
+            r1 = c;
+            g1 = x;
+            b1 = 0;
+        } else if (h < 120) {
+            r1 = x;
+            g1 = c;
+            b1 = 0;
+        } else if (h < 180) {
+            r1 = 0;
+            g1 = c;
+            b1 = x;
+        } else if (h < 240) {
+            r1 = 0;
+            g1 = x;
+            b1 = c;
+        } else if (h < 300) {
+            r1 = x;
+            g1 = 0;
+            b1 = c;
+        } else {
+            r1 = c;
+            g1 = 0;
+            b1 = x;
+        }
+        const ri = Math.round((r1 + m) * 255);
+        const gi = Math.round((g1 + m) * 255);
+        const bi = Math.round((b1 + m) * 255);
+        return (ri << 16) | (gi << 8) | bi;
+    }
+
+    /** Get or create cached HSL representation of a player's color */
+    function getPlayerHSL(ownerId: string): PlayerHSL {
+        let cached = playerHSLCache.get(ownerId);
+        const currentHex = getPlayerColor(ownerId);
+        if (cached && cached.hex === currentHex) return cached;
+        const hsl = hexToHSL(currentHex);
+        cached = { hex: currentHex, h: hsl.h, s: hsl.s, l: hsl.l };
+        playerHSLCache.set(ownerId, cached);
+        return cached;
+    }
+
+    /**
+     * Compute density-tier fill and outline colors from player HSL.
+     *
+     * Tier system: each visual ship represents `multiplier` real ships.
+     * - Tier 0 (x1): raw player color
+     * - Tiers 1-N positive: shift hue clockwise, increase sat + lightness
+     * - Tiers 1-N negative: shift hue counter-clockwise, decrease sat + lightness
+     *
+     * We map multiplier to a signed tier index:
+     *   multiplier 1   → tier 0
+     *   multiplier 2-4 → tier +1
+     *   multiplier 5-9 → tier +2  (or -1 wrap)
+     *   multiplier 10+ → tier +3  (or -2 wrap)
+     *   ... alternating directions for visual variety
+     */
+    function getDensityColor(
+        playerHsl: PlayerHSL,
+        multiplier: number,
+    ): { fill: number; outline: number } {
+        if (multiplier <= 1) {
+            return { fill: playerHsl.hex, outline: playerHsl.hex };
+        }
+
+        const hueStep = GAME_CONFIG.DENSITY_HUE_STEP;
+        const satStep = GAME_CONFIG.DENSITY_SAT_STEP;
+        const lightStep = GAME_CONFIG.DENSITY_LIGHT_STEP;
+        const maxTiers = GAME_CONFIG.DENSITY_TIERS;
+
+        // Map multiplier to tier index (1-based)
+        let tierIndex: number;
+        if (multiplier < 5) tierIndex = 1;
+        else if (multiplier < 10) tierIndex = 2;
+        else if (multiplier < 25) tierIndex = 3;
+        else if (multiplier < 50) tierIndex = 4;
+        else if (multiplier < 100) tierIndex = 5;
+        else tierIndex = 6;
+
+        // Clamp to maxTiers × 2 (both directions)
+        tierIndex = Math.min(tierIndex, maxTiers * 2);
+
+        // Alternate direction: odd tiers go positive, even go negative
+        const direction = tierIndex % 2 === 1 ? 1 : -1;
+        const level = Math.ceil(tierIndex / 2); // 1, 1, 2, 2, 3, 3...
+
+        const hueShift = hueStep * level * direction;
+        const satShift = satStep * level * direction;
+        const lightShift = lightStep * level * Math.abs(direction); // Always increase lightness
+
+        const fillH = playerHsl.h + hueShift;
+        const fillS = playerHsl.s + satShift;
+        const fillL = playerHsl.l + lightShift;
+
+        // Outline goes opposite direction for contrast
+        const outlineH = playerHsl.h - hueShift * 0.5;
+        const outlineS = playerHsl.s - satShift * 0.5;
+        const outlineL = playerHsl.l + lightShift * 0.3;
+
+        return {
+            fill: hslToHex(fillH, fillS, fillL),
+            outline: hslToHex(outlineH, outlineS, outlineL),
+        };
+    }
+
     // Helper: Check if star is owned by local player
     function isLocalPlayerStar(star: StarState): boolean {
         return activeGameStore.isLocalStar(star as any);
@@ -1413,7 +1560,16 @@
                 stillTraveling.push(ship);
                 // Still draw at current position (orbit slot)
                 const color = getPlayerColor(ship.ownerId);
-                drawShip(ship.x, ship.y, color, ship.scale, ship.alpha, false);
+                drawShip(
+                    ship.x,
+                    ship.y,
+                    color,
+                    ship.scale,
+                    ship.alpha,
+                    false,
+                    1,
+                    ship.ownerId,
+                );
                 continue;
             }
 
@@ -1465,6 +1621,8 @@
                         ship.scale,
                         ship.alpha,
                         false,
+                        1,
+                        ship.ownerId,
                     );
                     stillTraveling.push(ship);
                 }
@@ -1574,6 +1732,8 @@
                             ship.scale,
                             ship.alpha,
                             false,
+                            1,
+                            ship.ownerId,
                         );
                     }
                     stillTraveling.push(ship);
@@ -2013,6 +2173,7 @@
                         ship.alpha,
                         false,
                         shipMultiplier,
+                        effectiveOwner,
                     );
                 });
             }
@@ -2083,7 +2244,16 @@
                 ship.scale = lerp(ship.scale, 0.7, 0.1);
                 ship.alpha = lerp(ship.alpha, 0.8, 0.1);
 
-                drawShip(ship.x, ship.y, color, ship.scale, ship.alpha, true);
+                drawShip(
+                    ship.x,
+                    ship.y,
+                    color,
+                    ship.scale,
+                    ship.alpha,
+                    true,
+                    1,
+                    effectiveOwner,
+                );
             });
         });
 
@@ -2125,7 +2295,16 @@
                 const jitterX = Math.sin(animationTime * 10 + i) * 5;
                 const jitterY = Math.cos(animationTime * 10 + i) * 5;
 
-                drawShip(lx + jitterX, ly + jitterY, color, 1.0, 1.0, false);
+                drawShip(
+                    lx + jitterX,
+                    ly + jitterY,
+                    color,
+                    1.0,
+                    1.0,
+                    false,
+                    1,
+                    fleet.ownerId,
+                );
             }
         });
     }
@@ -2138,6 +2317,7 @@
         alpha: number,
         isDamaged: boolean,
         multiplier: number = 1,
+        ownerId: string = "",
     ) {
         if (!shipParticleContainer || !shipCircleTexture) return;
 
@@ -2146,28 +2326,17 @@
         const pixelSize = 3 * scale * globalScale;
         const spriteScale = (pixelSize * 2) / 128;
 
-        // Hue-brighten: increase brightness within the player's own hue (not toward white)
-        // This preserves color identity while showing power level
-        let finalColor = color;
-        if (multiplier > 1) {
-            const glowIntensity = GAME_CONFIG.SHIP_GLOW_INTENSITY ?? 0.3;
-            const blendAmount = Math.min(
-                1.0,
-                Math.log2(multiplier) * glowIntensity,
-            );
-            const r = (color >> 16) & 0xff;
-            const g = (color >> 8) & 0xff;
-            const b = color & 0xff;
-            // Find the dominant channel and boost all proportionally
-            const maxC = Math.max(r, g, b, 1);
-            const boost = 1 + blendAmount * (255 / maxC - 1);
-            const newR = Math.min(255, Math.round(r * boost));
-            const newG = Math.min(255, Math.round(g * boost));
-            const newB = Math.min(255, Math.round(b * boost));
-            finalColor = (newR << 16) | (newG << 8) | newB;
+        // HSL density tier coloring (replaces old flat hue-brighten)
+        let fillColor = color;
+        let outlineColor = color;
+        if (multiplier > 1 && ownerId) {
+            const playerHsl = getPlayerHSL(ownerId);
+            const densityColors = getDensityColor(playerHsl, multiplier);
+            fillColor = densityColors.fill;
+            outlineColor = densityColors.outline;
         }
 
-        // === Outline: backing circle (same texture, slightly larger, raw player color) ===
+        // === Outline: backing circle (density-aware color) ===
         if (GAME_CONFIG.SHIP_OUTLINE_ON !== false) {
             const outlinePx = GAME_CONFIG.SHIP_OUTLINE_PX ?? 1.0;
             const outlineScale = ((pixelSize + outlinePx) * 2) / 128;
@@ -2187,12 +2356,12 @@
             outlineP.y = y;
             outlineP.scaleX = outlineScale;
             outlineP.scaleY = outlineScale;
-            outlineP.tint = color; // Always raw player color
+            outlineP.tint = outlineColor;
             outlineP.alpha = alpha;
             shipParticleIndex++;
         }
 
-        // === Fill circle (may be hue-brightened for multiplier) ===
+        // === Fill circle (density-tier HSL color) ===
         let particle: PIXI.Particle;
         if (shipParticleIndex < shipParticlePool.length) {
             particle = shipParticlePool[shipParticleIndex];
@@ -2209,7 +2378,7 @@
         particle.y = y;
         particle.scaleX = spriteScale;
         particle.scaleY = spriteScale;
-        particle.tint = finalColor;
+        particle.tint = fillColor;
         particle.alpha = alpha;
         shipParticleIndex++;
 

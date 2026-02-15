@@ -214,7 +214,9 @@
 | F-25 | Attack Surge Pause-Safe Ramp: delta-based ramp progress, amplitude-based phase offset, no surge during pause | 2026-02-12 |
 | F-26 | AI Three-Zone Attack Model: must-attack ratio (5:4), may-attack bounds (4:5), linear interpolation, stickiness-based retreat (0-1) | 2026-02-14 |
 | F-27 | Conquest Threshold Slider: max raised from 20 to 50 | 2026-02-14 |
-| F-28 | AI Bug Fixes + Strategy System: fixed stuck-on-friendly target, anti-oscillation (minAttackTicks), 4 strategies (aggressive/opportunistic/expansionist/defensive) | 2026-02-14 |
+| F-28 | Ship Density VFX: HSL-based color graduation for high ship counts. 4° hue shift ×3 tiers each direction, sat+lightness in opposing directions. No size changes. Replaces old white-wash hue-brighten. | 2026-02-14 |
+| F-29 | Debug Ship Count Slider: 0-10k range bound to selected star's activeShips. Density VFX tab in debug panel with 4 config sliders (hue step, sat step, light step, max tiers). | 2026-02-14 |
+| F-30 | AI Bug Fixes + Strategy System: fixed stuck-on-friendly target, anti-oscillation (minAttackTicks), 4 strategies (aggressive/opportunistic/expansionist/defensive) | 2026-02-14 |
 
 ## Planned Features — Not Started (R)
 
@@ -308,7 +310,7 @@
 | R-78 | Orb Travel Flash Fix: departing ships fade to full transparency before orb grouping, eliminating single-frame arc | 🟢 |
 | R-79 | Stars Panel Sorting: group/sort by owner, ship count, or star name — dropdown in Stars panel header | 🟢 |
 | R-80 | Bottom-Drawer Combat Log Panel: short bottom drawer (~6-8 lines), styled per-line combat/conquest events, full formula on one line, replaces old Combat Logs panel | 🔴 |
-| R-81 | Ship Density Color Graduation: HSL-based auxiliary colors (3 per side of player hue) replacing white-wash for high ship counts | 🔴 |
+| R-81 | Ship Density Color Graduation: HSL-based auxiliary colors (3 per side, 4° hue shift each, sat/lightness in opposing directions) replacing white-wash for high ship counts | ✅ |
 | R-82 | Timing Section: rename Game Speed → TIMING, consolidate ATTACK_SURGE_RAMP_MS + CONQUEST_LERP_DELAY_MS sliders | 🟢 |
 | R-83 | AI Pinning Strategy: intelligent pinning that ignores mere force ratio between two stars — sophisticated movement | 🔴 |
 | R-84 | AI Multi-Source Attacks: lower AI considers single star ratio, smarter AI considers all available sources | 🔴 |
@@ -336,7 +338,7 @@
 | R-107 | **Arrival Centerline Targeting**: Arrivals head to lane centerpoint (not lane-star boundary intersection). Variable scatter-offset from centerline. Arc to orbit slot within same easing function | 🟢 |
 | R-108 | **Travel Time Game Mode (1x-10x)**: Variable travel duration changes gameplay dynamics. Ships exist as fleets at intermediate points. Below 1x = cosmetic only. Above 1x = mechanical. Opposing fleets on same lane either pass or fight | 🔵 |
 | R-109 | **Lane Combat (fleet interception)**: When travel time > 1x, opposing fleets on same lane fight en-route. Branch: pass unaffected OR fight each other | 🔵 |
-| R-110 | **Ship Power Density Visual**: Visual indicator for increasing ship power density at a star. *User confirmed this is priority. See also R-39.* | 🔴 |
+| R-110 | **Ship Power Density Visual**: HSL-based density tiers in drawShip + 4 config handles (DENSITY_HUE_STEP, DENSITY_SAT_STEP, DENSITY_LIGHT_STEP, DENSITY_TIERS) + debug slider 0-10k. *See also R-39.* | ✅ |
 | R-111 | **Ship Travel Animation Handles**: More controls for flight behavior — spread in both dimensions, individual wobbles, smaller-group coherence | 🟢 |
 | R-112 | **Slider Detent at Mid**: UI sliders should have a small notch/tag at midpoint that can be clicked to center the value | 🟡 |
 | R-113 | **Animation Speed = Tick Duration Ratio**: Animation speed bound to tick duration. Control = how much of a tick duration it lasts (0-1, default 0.5) | 🟢 |

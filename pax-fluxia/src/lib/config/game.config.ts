@@ -162,6 +162,12 @@ interface GameConfigType {
     SHIP_SCALE_MULT: number;       // Global ship size multiplier (default 1.0)
     MAX_VISUAL_SHIPS: number;      // Max visual ship sprites per star (overflow → brightness, default 100)
 
+    // Ship density VFX — HSL color graduation for representing high ship counts
+    DENSITY_HUE_STEP: number;      // Degrees of hue shift per density tier (default 4)
+    DENSITY_SAT_STEP: number;      // Saturation change per tier (±, default 0.05)
+    DENSITY_LIGHT_STEP: number;    // Lightness change per tier (±, default 0.05)
+    DENSITY_TIERS: number;         // Number of tiers per direction on the color wheel (default 3)
+
     /** How far order arrows extend along the lane (0.0-1.0, 1.0 = full distance to target edge) */
     ARROW_LENGTH_FRACTION: number;
 
@@ -434,6 +440,14 @@ export const GAME_CONFIG: GameConfigType = {
     SHIP_SCALE_MULT: 0.6,
     /** Max visual ship sprites per star — overflow represented as brightness multiplier */
     MAX_VISUAL_SHIPS: 500,
+    /** Degrees of hue shift per density tier */
+    DENSITY_HUE_STEP: 4,
+    /** Saturation change per density tier (positive direction = increase, negative = decrease) */
+    DENSITY_SAT_STEP: 0.05,
+    /** Lightness change per density tier */
+    DENSITY_LIGHT_STEP: 0.05,
+    /** Number of density tiers per direction on the color wheel */
+    DENSITY_TIERS: 3,
     /** Enable orbit bias oscillation between min/max */
     ORBIT_BIAS_OSCILLATE: false,
     /** Min bias strength for oscillation */

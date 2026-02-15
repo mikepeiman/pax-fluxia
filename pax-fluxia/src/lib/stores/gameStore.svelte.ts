@@ -309,6 +309,13 @@ function toggleRetainOrderOnConquest(): void {
     GAME_CONFIG.RETAIN_ORDER_ON_CONQUEST = !GAME_CONFIG.RETAIN_ORDER_ON_CONQUEST;
 }
 
+/** Debug: set a star's activeShips to exact count (SP only) */
+function debugSetStarShips(starId: string, count: number): void {
+    if (engine) {
+        engine.debugSetStarShips(starId, count);
+    }
+}
+
 export const gameStore = {
     // Reactive getters (use these in components with gameStore.xxx)
     get currentView() { return currentView; },
@@ -343,7 +350,8 @@ export const gameStore = {
     getTick,
     updateConfig,
     beginGame,
-    toggleRetainOrderOnConquest
+    toggleRetainOrderOnConquest,
+    debugSetStarShips,
 };
 
 // ============================================================================

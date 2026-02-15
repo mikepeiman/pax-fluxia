@@ -560,6 +560,16 @@ export class GameEngine {
         }
     }
 
+    /** Debug: set a star's activeShips to an exact count (SP debug panel only) */
+    debugSetStarShips(starId: string, count: number): void {
+        const star = this.stars.get(starId);
+        if (!star) return;
+        const current = star.activeShips;
+        const diff = count - current;
+        if (diff > 0) star.addActiveShips(diff);
+        else if (diff < 0) star.removeActiveShips(Math.abs(diff));
+    }
+
     private scheduleTick(): void {
         if (this.speed === 0) return;
         const interval = Math.max(GAME_CONFIG.BASE_TICK_MS / this.speed, GAME_CONFIG.MIN_TICK_MS);

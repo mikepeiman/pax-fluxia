@@ -2,6 +2,8 @@
     import { onMount } from "svelte";
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
+    import { selectedStarStore } from "$lib/stores/selectedStarStore.svelte";
+    import { gameStore } from "$lib/stores/gameStore.svelte";
     import { log, logFlags } from "$lib/utils/logger";
 
     const STORAGE_KEY = "pax-fluxia-combat-tuning";
@@ -26,6 +28,10 @@
         AI_ATTACK_STICKINESS: 0.5,
         AI_EVALUATION_FREQUENCY: 0.5,
         AI_TACTICAL_AGGRESSION: 0.1,
+        DENSITY_HUE_STEP: 4,
+        DENSITY_SAT_STEP: 0.05,
+        DENSITY_LIGHT_STEP: 0.05,
+        DENSITY_TIERS: 3,
     };
 
     function loadFromStorage(): typeof defaultValues {
@@ -67,6 +73,10 @@
         AI_ATTACK_STICKINESS: true,
         AI_EVALUATION_FREQUENCY: true,
         AI_TACTICAL_AGGRESSION: true,
+        DENSITY_HUE_STEP: true,
+        DENSITY_SAT_STEP: true,
+        DENSITY_LIGHT_STEP: true,
+        DENSITY_TIERS: true,
     });
 
     const initialValues = loadFromStorage();
@@ -216,6 +226,71 @@
             step: 0.01,
         },
     ] as const;
+
+    const densityVariables = [
+        {
+            key: "DENSITY_HUE_STEP",
+            label: "Hue Step (°)",
+            min: 0,
+            max: 20,
+            step: 1,
+        },
+        {
+            key: "DENSITY_SAT_STEP",
+            label: "Saturation Step",
+            min: 0,
+            max: 0.2,
+            step: 0.01,
+        },
+        {
+            key: "DENSITY_LIGHT_STEP",
+            label: "Lightness Step",
+            min: 0,
+            max: 0.2,
+            step: 0.01,
+        },
+        {
+            key: "DENSITY_TIERS",
+            label: "Max Tiers",
+            min: 1,
+            max: 6,
+            step: 1,
+        },
+    ] as const;
+
+    // Debug ship count slider — direct engine manipulation
+    let debugShipCount = $state(0);
+    let lastDebugStarId = $state<string | null>(null);
+
+    function updateDebugShipCount(count: number) {
+        const starId = selectedStarStore.id;
+        if (!starId) return;
+        debugShipCount = count;
+        // Directly set activeShips on the engine star (SP only)
+        const engine = (gameStore as any).engine;
+        if (engine && engine.stars) {
+            const star = engine.stars.get(starId);
+            if (star) {
+                // Set to exact count
+                const diff = count - star.activeShips;
+                if (diff > 0) star.addActiveShips(diff);
+                else if (diff < 0) star.removeActiveShips(Math.abs(diff));
+            }
+        }
+    }
+
+    // Sync debug slider with selected star
+    $effect(() => {
+        const starId = selectedStarStore.id;
+        if (starId !== lastDebugStarId) {
+            lastDebugStarId = starId;
+            if (starId) {
+                const stars = activeGameStore.stars;
+                const star = stars.find((s: any) => s.id === starId);
+                debugShipCount = star ? star.activeShips : 0;
+            }
+        }
+    });
 
     type VarKey = keyof typeof values;
 
@@ -751,6 +826,7 @@
         { id: "battle", icon: "⚔️", label: "Battle", color: "#ff4466" },
         { id: "economy", icon: "🎛️", label: "Core / Global", color: "#44ff88" },
         { id: "ai", icon: "🤖", label: "AI Behavior", color: "#ff8844" },
+        { id: "density", icon: "🔬", label: "Density VFX", color: "#66ddff" },
         { id: "travel", icon: "🚀", label: "Ship Travel", color: "#44aaff" },
         { id: "conquest", icon: "🏰", label: "Conquest", color: "#ff66aa" },
         { id: "ships", icon: "🛸", label: "Ship Look", color: "#88ccff" },
@@ -1113,6 +1189,87 @@
                             >Adapts to game state dynamically</span
                         >
                     </div>
+
+                    <!-- 🔬 DENSITY VFX -->
+                {:else if activeSection === "density"}
+                    <h4 class="sub-heading">Color Graduation</h4>
+                    {#each densityVariables as v}
+                        <div
+                            class="var-row"
+                            class:disabled={!enabled[
+                                v.key as keyof typeof enabled
+                            ]}
+                        >
+                            <div class="row-top">
+                                <label class="toggle-label">
+                                    <input
+                                        type="checkbox"
+                                        checked={enabled[
+                                            v.key as keyof typeof enabled
+                                        ]}
+                                        onchange={() =>
+                                            toggle(
+                                                v.key as keyof typeof enabled,
+                                            )}
+                                    />
+                                    <span class="var-name">{v.label}</span>
+                                </label>
+                                <span class="val"
+                                    >{values[v.key as VarKey].toFixed(2)}</span
+                                >
+                            </div>
+                            <input
+                                type="range"
+                                min={v.min}
+                                max={v.max}
+                                step={v.step}
+                                value={values[v.key as VarKey]}
+                                oninput={(e) =>
+                                    updateValue(
+                                        v.key as VarKey,
+                                        parseFloat(
+                                            (e.target as HTMLInputElement)
+                                                .value,
+                                        ),
+                                    )}
+                                disabled={!enabled[
+                                    v.key as keyof typeof enabled
+                                ]}
+                            />
+                        </div>
+                    {/each}
+
+                    <h4 class="sub-heading">Debug: Ship Count</h4>
+                    {#if selectedStarStore.id}
+                        <div class="var-row">
+                            <div class="row-top">
+                                <span class="var-name">Active Ships</span>
+                                <span class="val"
+                                    >{debugShipCount.toLocaleString()}</span
+                                >
+                            </div>
+                            <input
+                                type="range"
+                                min={0}
+                                max={10000}
+                                step={10}
+                                value={debugShipCount}
+                                oninput={(e) =>
+                                    updateDebugShipCount(
+                                        parseInt(
+                                            (e.target as HTMLInputElement)
+                                                .value,
+                                        ),
+                                    )}
+                            />
+                        </div>
+                    {:else}
+                        <div class="var-row grayed">
+                            <span class="future-desc"
+                                >Select a star to adjust ship count</span
+                            >
+                        </div>
+                    {/if}
 
                     <!-- 🚀 SHIP TRAVEL -->
                 {:else if activeSection === "travel"}
