@@ -1,6 +1,6 @@
 # Feature & Regression Tracker
 
-**Last Updated**: 2026-02-14  
+**Last Updated**: 2026-02-15  
 **Last Verified By**: User (partial — see Status column)
 
 ---
@@ -221,6 +221,7 @@
 | F-32 | Ship Size/Spacing Decoupling: new SHIP_VISUAL_RADIUS (cosmetic circle radius) independent of SHIP_BASE_SIZE (orbit spacing). Slider in Ship Look panel. | 2026-02-14 |
 | F-33 | Star Glow: radial gradient behind ships showing fleet power. Ship Appearance panel consolidating all ship visual controls. More vivid density defaults. | 2026-02-14 |
 | F-34 | VFX Foundation (Phase A): FXClock (pausable game time), VisualStateManager (safe mutation API), FXRegistry (handler dispatch), FXOrchestrator. All 3 handlers migrated to V2. GameCanvas wired to orchestrator. | 2026-02-15 |
+| F-35 | Renderer Extraction (Phase C): `RenderContext` interface, `containerFactory` (PIXI hierarchy + textures), `colorUtils` (HSL/density-tier), `StarRenderer` (stars/labels/icons/glow), `LaneRenderer` (connections/arrows/deferred), `ShipRenderer` (orbits/travel lifecycle/orb groups/attack surge/particle pool). All extracted to `pax-fluxia/src/lib/renderers/`. Zero new type errors. Wiring (Phase D) pending. | 2026-02-15 |
 
 ## Planned Features — Not Started (R)
 
@@ -366,7 +367,9 @@
 
 | Date | Summary |
 |------|---------|
+| 2026-02-15 | **Renderer Extraction (Phase C)**: `RenderContext` interface, `containerFactory` (PIXI hierarchy + textures), `colorUtils` (HSL/density-tier), `StarRenderer` (stars/labels/icons/glow), `LaneRenderer` (connections/arrows/deferred), `ShipRenderer` (orbits/travel lifecycle/orb groups/attack surge/particle pool). All extracted to `pax-fluxia/src/lib/renderers/`. Zero new type errors. Wiring (Phase D) pending. |
 | 2026-02-14 | **4002 FIX**: Resolved Colyseus "seat reservation expired" — root cause was dual `@colyseus/core` module instances from explicit WebSocketTransport import. Fix: let `Server.getDefaultTransport()` handle it. **Multiplayer now working online!** |
+| 2026-02-14 | **Common core extraction**: `@pax/common/mapgen` module with `generateStarPositions()` + `generateConnections()`. Server `PaxRoom.initMap` wired. Client `GameEngine.initializeMap` wired. Red-team architecture review for renderer extraction. |
 | 2026-02-14 | **Feedback batch**: 4 MP bugs (B-42 through B-45: room ID display, restart desync, 2P order control, host leave), 10 settings bugs (B-46 through B-55: broken sliders, missing glow, game end), 13 features (R-101 through R-113: timing panel, HSLA controls, victory conditions, travel time game mode, lane combat, ship density VFX). |
 | 2026-02-13 | **Click input fixes**: B-38/B-39 fixed (stale drag state in `handlePointerDown`). Visual telemetry added to full click pipeline. CONTROLS.md created. B-40 logged (icon menu + devtools). R-100 documented (ownership inversion). Phase 3 FX refactor committed (travel behavior registry). |
 | 2026-02-13 | **User feedback batch**: AI passive in MP (B-35), quit buttons wrong (B-36), pause resets tick (B-37), unified game-start (R-89), per-AI settings (R-90), AI personality editor (R-91), game sounds (R-92), animation polish (R-93). Conquest naked tick reiterated (B-34). Zombie code Phase D complete. |

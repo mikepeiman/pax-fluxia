@@ -1,6 +1,6 @@
 # VIEW A: THE PHYSICAL MAP (Space)
 
-**Last Updated:** 2026-02-12  
+**Last Updated:** 2026-02-15  
 **Project:** Pax Fluxia  
 **Stack:** SvelteKit + PixiJS 8.x + TypeScript + Colyseus (MP) + Bun
 
@@ -36,6 +36,9 @@ graph TD
     FLib --> FConfig["config/"]
     FLib --> FTypes["types/"]
     FLib --> FUtils["utils/"]
+
+    FLib --> FFX["fx/"]
+    FLib --> FRenderers["renderers/"]
 
     FEngine --> FGameEngine["GameEngine.ts (stateful, SP)"]
     FEngine --> FStar["Star.ts"]
@@ -89,6 +92,8 @@ graph TD
 | `pax-fluxia/src/lib/config/` | Client-side `GAME_CONFIG` (mutable, localStorage-persisted) |
 | `pax-fluxia/src/lib/types/` | TypeScript type definitions |
 | `pax-fluxia/src/lib/utils/` | Helpers: logger, math, rendering |
+| `pax-fluxia/src/lib/fx/` | FX orchestration: FXClock, VisualStateManager, FXRegistry, handlers |
+| `pax-fluxia/src/lib/renderers/` | Extracted PixiJS renderers: StarRenderer, ShipRenderer, LaneRenderer, colorUtils |
 | `pax-server/src/rooms/` | Colyseus `GameRoom` (MP tick loop, AI, map gen) |
 | `pax-server/src/schema/` | Colyseus schema definitions (`GameRoomState`, `StarSchema`, etc.) |
 | `.atlas/` | Living architecture documentation |
@@ -114,6 +119,11 @@ graph TD
 | [`game.config.ts`](../pax-fluxia/src/lib/config/game.config.ts) | Client | Mutable `GAME_CONFIG` with localStorage persistence |
 | [`activeGameStore.svelte.ts`](../pax-fluxia/src/lib/stores/activeGameStore.svelte.ts) | Client | SP/MP facade — routes calls to either SP engine or MP Colyseus |
 | [`GameCanvas.svelte`](../pax-fluxia/src/lib/components/game/GameCanvas.svelte) | Client | PixiJS render loop, ship animation, input handling |
+| [`RenderContext.ts`](../pax-fluxia/src/lib/renderers/RenderContext.ts) | Client | Shared interface for all renderer modules |
+| [`ShipRenderer.ts`](../pax-fluxia/src/lib/renderers/ShipRenderer.ts) | Client | Ship orbits, travel lifecycle, particle pool, attack surge |
+| [`StarRenderer.ts`](../pax-fluxia/src/lib/renderers/StarRenderer.ts) | Client | Star circles, type icons, labels, glow, hex borders |
+| [`LaneRenderer.ts`](../pax-fluxia/src/lib/renderers/LaneRenderer.ts) | Client | Connection lanes, order arrows, deferred orders |
+| [`FXOrchestrator`](../pax-fluxia/src/lib/fx/orchestrator.ts) | Client | Event-driven VFX: dispatches TickEvents to handlers via FXRegistry |
 | [`GameRoom.ts`](../pax-server/src/rooms/GameRoom.ts) | Server | Colyseus room: lifecycle, message handlers, tick delegation |
 | [`GameState.schema.ts`](../pax-server/src/schema/GameState.schema.ts) | Server | Colyseus schema definitions for synced state |
 
