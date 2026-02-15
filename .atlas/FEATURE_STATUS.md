@@ -214,6 +214,7 @@
 | F-25 | Attack Surge Pause-Safe Ramp: delta-based ramp progress, amplitude-based phase offset, no surge during pause | 2026-02-12 |
 | F-26 | AI Three-Zone Attack Model: must-attack ratio (5:4), may-attack bounds (4:5), linear interpolation, stickiness-based retreat (0-1) | 2026-02-14 |
 | F-27 | Conquest Threshold Slider: max raised from 20 to 50 | 2026-02-14 |
+| F-28 | AI Bug Fixes + Strategy System: fixed stuck-on-friendly target, anti-oscillation (minAttackTicks), 4 strategies (aggressive/opportunistic/expansionist/defensive) | 2026-02-14 |
 
 ## Planned Features — Not Started (R)
 
