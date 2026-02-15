@@ -290,66 +290,58 @@
     }
 
     /**
-     * Compute density-tier fill and outline colors from player HSL.
+     * Compute density-tier FILL color from player HSL.
+     * Outline always stays raw player color (preserves identity).
      *
-     * Tier system: each visual ship represents `multiplier` real ships.
-     * - Tier 0 (x1): raw player color
-     * - Tiers 1-N positive: shift hue clockwise, increase sat + lightness
-     * - Tiers 1-N negative: shift hue counter-clockwise, decrease sat + lightness
+     * Fill shifts hue in alternating directions:
+     *   tier 1: +hueStep°  (slightly warmer/cooler)
+     *   tier 2: -hueStep°
+     *   tier 3: +2×hueStep°
+     *   tier 4: -2×hueStep°  etc.
      *
-     * We map multiplier to a signed tier index:
-     *   multiplier 1   → tier 0
-     *   multiplier 2-4 → tier +1
-     *   multiplier 5-9 → tier +2  (or -1 wrap)
-     *   multiplier 10+ → tier +3  (or -2 wrap)
-     *   ... alternating directions for visual variety
+     * Saturation stays near original. Lightness gets a small boost.
      */
-    function getDensityColor(
+    function getDensityFillColor(
         playerHsl: PlayerHSL,
         multiplier: number,
-    ): { fill: number; outline: number } {
-        if (multiplier <= 1) {
-            return { fill: playerHsl.hex, outline: playerHsl.hex };
-        }
+    ): number {
+        if (multiplier <= 1) return playerHsl.hex;
 
         const hueStep = GAME_CONFIG.DENSITY_HUE_STEP;
         const satStep = GAME_CONFIG.DENSITY_SAT_STEP;
         const lightStep = GAME_CONFIG.DENSITY_LIGHT_STEP;
         const maxTiers = GAME_CONFIG.DENSITY_TIERS;
 
-        // Map multiplier to tier index (1-based)
-        let tierIndex: number;
-        if (multiplier < 5) tierIndex = 1;
-        else if (multiplier < 10) tierIndex = 2;
-        else if (multiplier < 25) tierIndex = 3;
-        else if (multiplier < 50) tierIndex = 4;
-        else if (multiplier < 100) tierIndex = 5;
-        else tierIndex = 6;
+        // Map multiplier to tier (1-based, continuous)
+        // Use log scale so low multipliers show distinct tiers
+        const rawTier = Math.log2(multiplier); // 2→1, 4→2, 8→3, 16→4, 32→5, 64→6
+        const tier = Math.min(rawTier, maxTiers);
 
-        // Clamp to maxTiers × 2 (both directions)
-        tierIndex = Math.min(tierIndex, maxTiers * 2);
+        // Alternating direction: odd tiers go +, even go -
+        const fullTiers = Math.floor(tier);
+        const frac = tier - fullTiers;
 
-        // Alternate direction: odd tiers go positive, even go negative
-        const direction = tierIndex % 2 === 1 ? 1 : -1;
-        const level = Math.ceil(tierIndex / 2); // 1, 1, 2, 2, 3, 3...
+        // Accumulate hue shift across full tiers
+        let hueShift = 0;
+        for (let i = 1; i <= fullTiers; i++) {
+            hueShift += hueStep * (i % 2 === 1 ? 1 : -1);
+        }
+        // Add fractional part of current tier
+        if (frac > 0 && fullTiers < maxTiers) {
+            const nextDir = (fullTiers + 1) % 2 === 1 ? 1 : -1;
+            hueShift += hueStep * frac * nextDir;
+        }
 
-        const hueShift = hueStep * level * direction;
-        const satShift = satStep * level * direction;
-        const lightShift = lightStep * level * Math.abs(direction); // Always increase lightness
+        // Saturation: boost slightly (keeps colors vivid, doesn't wash out)
+        const satBoost = satStep * tier;
+        // Lightness: very subtle increase
+        const lightBoost = lightStep * tier;
 
-        const fillH = playerHsl.h + hueShift;
-        const fillS = playerHsl.s + satShift;
-        const fillL = playerHsl.l + lightShift;
-
-        // Outline goes opposite direction for contrast
-        const outlineH = playerHsl.h - hueShift * 0.5;
-        const outlineS = playerHsl.s - satShift * 0.5;
-        const outlineL = playerHsl.l + lightShift * 0.3;
-
-        return {
-            fill: hslToHex(fillH, fillS, fillL),
-            outline: hslToHex(outlineH, outlineS, outlineL),
-        };
+        return hslToHex(
+            playerHsl.h + hueShift,
+            playerHsl.s + satBoost,
+            playerHsl.l + lightBoost,
+        );
     }
 
     // Helper: Check if star is owned by local player
@@ -2326,17 +2318,14 @@
         const pixelSize = 3 * scale * globalScale;
         const spriteScale = (pixelSize * 2) / 128;
 
-        // HSL density tier coloring (replaces old flat hue-brighten)
+        // HSL density tier coloring — only fill shifts, outline stays raw player color
         let fillColor = color;
-        let outlineColor = color;
         if (multiplier > 1 && ownerId) {
             const playerHsl = getPlayerHSL(ownerId);
-            const densityColors = getDensityColor(playerHsl, multiplier);
-            fillColor = densityColors.fill;
-            outlineColor = densityColors.outline;
+            fillColor = getDensityFillColor(playerHsl, multiplier);
         }
 
-        // === Outline: backing circle (density-aware color) ===
+        // === Outline: backing circle — ALWAYS raw player color (preserves identity) ===
         if (GAME_CONFIG.SHIP_OUTLINE_ON !== false) {
             const outlinePx = GAME_CONFIG.SHIP_OUTLINE_PX ?? 1.0;
             const outlineScale = ((pixelSize + outlinePx) * 2) / 128;
@@ -2356,7 +2345,7 @@
             outlineP.y = y;
             outlineP.scaleX = outlineScale;
             outlineP.scaleY = outlineScale;
-            outlineP.tint = outlineColor;
+            outlineP.tint = color; // Always raw player color
             outlineP.alpha = alpha;
             shipParticleIndex++;
         }
