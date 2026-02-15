@@ -26,6 +26,10 @@
     import { executeConquestTransfer } from "$lib/animations/conquest";
     import { FXOrchestrator } from "$lib/fx/orchestrator";
     // DEPART_BEHAVIORS, TRAVEL_BEHAVIORS, PhaseContext — now consumed by ShipRenderer module
+    import {
+        createContainers,
+        initShipRendering,
+    } from "$lib/renderers/containerFactory";
     import type { StarType } from "@pax/common";
     import { audio } from "$lib/audio/AudioManager";
     import { selectedStarStore } from "$lib/stores/selectedStarStore.svelte";
@@ -266,97 +270,22 @@
         // Append canvas to container
         canvasContainer.appendChild(app.canvas);
 
-        // Create graphics layers
-        // Layer order (bottom to top): links → stars → ships → connections → labels → drag
-        // Connections render ABOVE ships so lanes remain visible under dense ship clusters
-        linkGraphics = new PIXI.Graphics();
-        app.stage.addChild(linkGraphics);
-
-        starsContainer = new PIXI.Container();
-        app.stage.addChild(starsContainer);
-
-        // Glow layer — between stars and ships
-        glowContainer = new PIXI.Container();
-        app.stage.addChild(glowContainer);
-
-        shipsContainer = new PIXI.Container();
-        app.stage.addChild(shipsContainer);
-
-        // Create 128px circle texture with radial gradient for anti-aliased ship rendering
-        const texSize = 128;
-        const texCanvas = document.createElement("canvas");
-        texCanvas.width = texSize;
-        texCanvas.height = texSize;
-        const ctx = texCanvas.getContext("2d")!;
-        const grad = ctx.createRadialGradient(
-            texSize / 2,
-            texSize / 2,
-            0,
-            texSize / 2,
-            texSize / 2,
-            texSize / 2,
-        );
-        grad.addColorStop(0, "rgba(255,255,255,1)");
-        grad.addColorStop(0.85, "rgba(255,255,255,1)");
-        grad.addColorStop(0.95, "rgba(255,255,255,0.6)");
-        grad.addColorStop(1, "rgba(255,255,255,0)");
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.arc(texSize / 2, texSize / 2, texSize / 2, 0, Math.PI * 2);
-        ctx.fill();
-        shipCircleTexture = PIXI.Texture.from(texCanvas);
-        shipCircleTexture.source.scaleMode = "linear";
-
-        // Create 256px soft radial gradient for star glow effect
-        const glowSize = 256;
-        const glowCanvas = document.createElement("canvas");
-        glowCanvas.width = glowSize;
-        glowCanvas.height = glowSize;
-        const glowCtx = glowCanvas.getContext("2d")!;
-        const glowGrad = glowCtx.createRadialGradient(
-            glowSize / 2,
-            glowSize / 2,
-            0,
-            glowSize / 2,
-            glowSize / 2,
-            glowSize / 2,
-        );
-        glowGrad.addColorStop(0, "rgba(255,255,255,0.6)");
-        glowGrad.addColorStop(0.3, "rgba(255,255,255,0.35)");
-        glowGrad.addColorStop(0.6, "rgba(255,255,255,0.12)");
-        glowGrad.addColorStop(1, "rgba(255,255,255,0)");
-        glowCtx.fillStyle = glowGrad;
-        glowCtx.beginPath();
-        glowCtx.arc(glowSize / 2, glowSize / 2, glowSize / 2, 0, Math.PI * 2);
-        glowCtx.fill();
-        glowTexture = PIXI.Texture.from(glowCanvas);
-        glowTexture.source.scaleMode = "linear";
-
-        // Single ParticleContainer for all ship rendering (outlines + fills + damage indicators)
-        // Outlines are backing circles drawn BEFORE fills in the same batch
-        shipParticleContainer = new PIXI.ParticleContainer({
-            texture: shipCircleTexture,
-            dynamicProperties: {
-                position: true,
-                color: true,
-                vertex: true, // needed for scale changes
-            },
-            roundPixels: true,
-        });
-        shipsContainer.addChild(shipParticleContainer);
-
-        // Orb travel effects need Graphics (variable-radius glow circles)
-        orbGraphics = new PIXI.Graphics();
-        shipsContainer.addChild(orbGraphics);
-
-        connectionGraphics = new PIXI.Graphics();
-        app.stage.addChild(connectionGraphics);
-
-        labelsContainer = new PIXI.Container();
-        app.stage.addChild(labelsContainer);
-
-        dragPreviewGraphics = new PIXI.Graphics();
-        app.stage.addChild(dragPreviewGraphics);
+        // Create container hierarchy + textures via factory
+        const containers = createContainers(app.stage);
+        ({
+            linkGraphics,
+            starsContainer,
+            glowContainer,
+            shipsContainer,
+            connectionGraphics,
+            labelsContainer,
+            dragPreviewGraphics,
+        } = containers);
+        const textures = initShipRendering(containers);
+        shipCircleTexture = textures.shipCircle;
+        glowTexture = textures.starGlow;
+        shipParticleContainer = containers.shipParticleContainer;
+        orbGraphics = containers.orbGraphics;
 
         log.success(
             "GameCanvas",
