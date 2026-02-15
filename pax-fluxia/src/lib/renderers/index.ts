@@ -43,3 +43,15 @@ export {
     renderOrderArrows,
     type OrderArrowState,
 } from './LaneRenderer';
+
+// Ship rendering
+export {
+    drawShip,
+    renderShips,
+    renderTravelingShips,
+    renderFleets,
+    applyTravelEasing,
+    easeInOutCubic,
+    type ShipRenderState,
+    type ShipRenderResources,
+} from './ShipRenderer';
