@@ -34,6 +34,7 @@
     import { audio } from "$lib/audio/AudioManager";
     import { selectedStarStore } from "$lib/stores/selectedStarStore.svelte";
     import { createColorUtils } from "$lib/renderers/colorUtils";
+    import { renderStars as renderStarsModule } from "$lib/renderers/StarRenderer";
     // animationStore is deprecated — ship animations handled via unified lifecycle
     import { ANIM_CONFIG } from "$lib/stores/animationStore";
 
@@ -685,7 +686,20 @@
         const starsById = new Map(stars.map((s) => [s.id, s]));
 
         // Render stars (static elements)
-        renderStars(stars);
+        renderStarsModule(
+            stars,
+            starsContainer!,
+            labelsContainer!,
+            { starGraphics, starLabels },
+            {
+                activeStarId,
+                dragSourceId,
+                pendingConquests,
+                conquestFlashes,
+                animationTime,
+            },
+            colorUtils,
+        );
 
         // Render connections (star network) - unified source
         const connections = activeGameStore.connections as StarConnection[];
@@ -876,199 +890,7 @@
         });
     }
 
-    function renderStars(stars: StarState[]) {
-        stars.forEach((star) => {
-            let graphics = starGraphics.get(star.id);
-            let label = starLabels.get(star.id);
-
-            if (!graphics) {
-                graphics = new PIXI.Graphics();
-                starsContainer!.addChild(graphics);
-                starGraphics.set(star.id, graphics);
-            }
-
-            if (!label) {
-                // Create container for stacked labels - OFFSET from star with leash
-                label = new PIXI.Container();
-
-                // Leash line graphics (drawn first, behind text)
-                const leashGraphics = new PIXI.Graphics();
-                leashGraphics.label = "leash";
-                label.addChild(leashGraphics);
-
-                // Star ID label (Top) - LARGER for readability
-                const idText = new PIXI.Text({
-                    text: star.id.replace("star-", "#"),
-                    style: {
-                        fontFamily: "JetBrains Mono, monospace",
-                        fontSize: 14,
-                        fontWeight: "bold",
-                        fill: 0x88aaff,
-                        align: "center",
-                        stroke: { color: 0x000000, width: 3 },
-                    },
-                    resolution: 2,
-                });
-                idText.anchor.set(0.5, 0.5);
-                idText.position.y = 0;
-                idText.label = "starId";
-                label.addChild(idText);
-
-                // Active count (Middle, Bright) - LARGER for readability
-                const activeText = new PIXI.Text({
-                    text: "0",
-                    style: {
-                        fontFamily: "JetBrains Mono, monospace",
-                        fontSize: 22,
-                        fontWeight: "bold",
-                        fill: 0xffffff,
-                        align: "center",
-                        stroke: { color: 0x000000, width: 3 },
-                    },
-                    resolution: 2,
-                });
-                activeText.anchor.set(0.5, 0.5);
-                activeText.position.y = 18;
-                activeText.label = "active";
-                label.addChild(activeText);
-
-                // Damaged count (Bottom, Dimmer) - LARGER for readability
-                const damagedText = new PIXI.Text({
-                    text: "0",
-                    style: {
-                        fontFamily: "JetBrains Mono, monospace",
-                        fontSize: 16,
-                        fontWeight: "bold",
-                        fill: 0xff8888,
-                        align: "center",
-                        stroke: { color: 0x000000, width: 2 },
-                    },
-                    resolution: 2,
-                });
-                damagedText.anchor.set(0.5, 0.5);
-                damagedText.position.y = 38;
-                damagedText.label = "damaged";
-                label.addChild(damagedText);
-
-                labelsContainer!.addChild(label);
-                starLabels.set(star.id, label);
-            }
-
-            // Clear previous drawings
-            graphics.clear();
-
-            // Delayed star color change: use previous owner until ships arrive
-            let effectiveOwner = star.ownerId;
-            const pending = pendingConquests.get(star.id);
-            if (pending) {
-                if (performance.now() < pending.transitionTime) {
-                    effectiveOwner = pending.previousOwner;
-                } else {
-                    pendingConquests.delete(star.id);
-                }
-            }
-            const color = getPlayerColor(effectiveOwner);
-            const radius = star.radius;
-            const isActive =
-                star.id === activeStarId || star.id === dragSourceId;
-
-            // Active star selection highlight (hex border)
-            if (isActive) {
-                drawHexBorder(
-                    graphics,
-                    star.x,
-                    star.y,
-                    radius + 20,
-                    0x00ffff,
-                    3,
-                );
-            }
-
-            // Outer glow ring (pulses slightly, stronger when active)
-            const glowPulse = 1 + Math.sin(animationTime * 2) * 0.1;
-            const glowAlpha = isActive ? 0.25 : 0.12;
-            graphics.circle(star.x, star.y, (radius + 8) * glowPulse);
-            graphics.fill({ color, alpha: glowAlpha });
-
-            // Main star body
-            // Base color from StarType
-            const typeStats =
-                STAR_TYPE_STATS[
-                    star.starType as import("@pax/common").StarType
-                ];
-            const typeColor = typeStats ? typeStats.color : 0xffffff;
-
-            graphics.circle(star.x, star.y, radius);
-            graphics.fill({ color: typeColor, alpha: 0.3 }); // Inner type color
-            graphics.stroke({ color, width: isActive ? 4 : 2, alpha: 1 }); // Owner border
-
-            // Conquest flash: bright white pulse overlay
-            const flash = conquestFlashes.get(star.id);
-            if (flash) {
-                const flashElapsed = performance.now() - flash.startTime;
-                if (flashElapsed >= flash.duration) {
-                    conquestFlashes.delete(star.id);
-                } else {
-                    // sin curve: 0 → 1 → 0 over the duration
-                    const flashProgress = flashElapsed / flash.duration;
-                    const flashAlpha = Math.sin(flashProgress * Math.PI);
-                    graphics.circle(star.x, star.y, radius * 1.3);
-                    graphics.fill({
-                        color: 0xffffff,
-                        alpha: flashAlpha * 0.85,
-                    });
-                }
-            }
-
-            // Inner type icon (geometric shape based on star type)
-            const iconAlpha = 0.5 + Math.sin(animationTime * 3) * 0.1;
-            const iconSize = radius * 0.35;
-            drawTypeIcon(
-                graphics,
-                star.x,
-                star.y,
-                iconSize,
-                star.starType,
-                iconAlpha,
-                typeColor,
-            );
-
-            // Update labels
-            const activeText = label.getChildByLabel("active") as PIXI.Text;
-            const damagedText = label.getChildByLabel("damaged") as PIXI.Text;
-            const leashGraphics = label.getChildByLabel(
-                "leash",
-            ) as PIXI.Graphics;
-
-            if (activeText) activeText.text = String(star.activeShips);
-
-            if (damagedText) {
-                // ALWAYS show damaged count, even if 0, per request
-                damagedText.text = String(star.damagedShips);
-                damagedText.visible = true;
-            }
-
-            // Label offset from star center (bottom-right diagonal)
-            const labelOffsetX = 45;
-            const labelOffsetY = 35;
-
-            // Position label offset from star
-            label.x = star.x + labelOffsetX;
-            label.y = star.y + labelOffsetY;
-
-            // Draw leash line from star edge to label
-            if (leashGraphics) {
-                leashGraphics.clear();
-                // Line goes from star edge (at angle) to label origin
-                // Since label is positioned at offset, the line start is relative to label
-                const starEdgeX = -labelOffsetX + radius * 0.7; // From label's perspective
-                const starEdgeY = -labelOffsetY + radius * 0.7;
-                leashGraphics.moveTo(starEdgeX, starEdgeY);
-                leashGraphics.lineTo(-5, -5); // To just before label center
-                leashGraphics.stroke({ color: 0x666688, width: 1, alpha: 0.6 });
-            }
-        });
-    }
+    // renderStars — now delegated to StarRenderer module
 
     function renderOrderArrows(
         stars: StarState[],
@@ -2303,101 +2125,7 @@
         }
     }
 
-    // Helper: Draw a polygon shape for stacked ships
-    function drawPolygon(
-        g: PIXI.Graphics,
-        x: number,
-        y: number,
-        radius: number,
-        sides: number,
-        rotation: number,
-    ) {
-        g.moveTo(
-            x + Math.cos(rotation - Math.PI / 2) * radius,
-            y + Math.sin(rotation - Math.PI / 2) * radius,
-        );
-        for (let i = 1; i <= sides; i++) {
-            const angle = rotation + (i / sides) * Math.PI * 2 - Math.PI / 2;
-            g.lineTo(
-                x + Math.cos(angle) * radius,
-                y + Math.sin(angle) * radius,
-            );
-        }
-        g.closePath();
-    }
-
-    // Draw hexagonal border around a point
-    // ============================================================================
-    // Geometric Type Icons
-    // ============================================================================
-
-    // Star type → polygon sides: green=3 (attack), red=4 (defense),
-    // yellow=5 (prod), purple=6 (repair), blue=7 (move), grey=0 (circle)
-    const TYPE_SIDES: Record<string, number> = {
-        green: 3,
-        red: 4,
-        yellow: 5,
-        purple: 6,
-        blue: 7,
-        grey: 0,
-    };
-
-    function drawTypeIcon(
-        g: PIXI.Graphics,
-        cx: number,
-        cy: number,
-        size: number,
-        starType: string,
-        alpha: number,
-        color: number,
-    ) {
-        const sides = TYPE_SIDES[starType] ?? 0;
-        if (sides === 0) {
-            // Grey = circle (default)
-            g.circle(cx, cy, size);
-            g.fill({ color: 0xffffff, alpha });
-            return;
-        }
-
-        // Draw regular polygon
-        const angleStep = (2 * Math.PI) / sides;
-        const startAngle = -Math.PI / 2; // Point up
-        g.moveTo(
-            cx + size * Math.cos(startAngle),
-            cy + size * Math.sin(startAngle),
-        );
-        for (let i = 1; i <= sides; i++) {
-            const angle = startAngle + angleStep * i;
-            g.lineTo(cx + size * Math.cos(angle), cy + size * Math.sin(angle));
-        }
-        g.fill({ color, alpha });
-        g.stroke({ color: 0xffffff, width: 1, alpha: alpha * 0.6 });
-    }
-
-    // ============================================================================
-    // Hex Border (active star indicator)
-    // ============================================================================
-
-    function drawHexBorder(
-        graphics: PIXI.Graphics,
-        cx: number,
-        cy: number,
-        radius: number,
-        color: number,
-        lineWidth: number,
-    ) {
-        const a = (2 * Math.PI) / 6;
-        // FIXED: Static border instead of distracting pulse (was out of sync with tick rate)
-
-        graphics.moveTo(cx + radius * Math.cos(0), cy + radius * Math.sin(0));
-        for (let i = 1; i <= 6; i++) {
-            graphics.lineTo(
-                cx + radius * Math.cos(a * i),
-                cy + radius * Math.sin(a * i),
-            );
-        }
-        graphics.stroke({ color, width: lineWidth, alpha: 0.9 });
-    }
+    // drawPolygon, TYPE_SIDES, drawTypeIcon, drawHexBorder — now in StarRenderer module
 
     // ============================================================================
     // Input Handling
