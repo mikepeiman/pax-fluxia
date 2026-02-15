@@ -33,6 +33,7 @@
     import type { StarType } from "@pax/common";
     import { audio } from "$lib/audio/AudioManager";
     import { selectedStarStore } from "$lib/stores/selectedStarStore.svelte";
+    import { createColorUtils } from "$lib/renderers/colorUtils";
     // animationStore is deprecated — ship animations handled via unified lifecycle
     import { ANIM_CONFIG } from "$lib/stores/animationStore";
 
@@ -201,140 +202,16 @@
         orderChainDepth++;
     }
 
-    // Player colors (must match engine)
-    const PLAYER_COLORS: Record<string, number> = {
-        "human-player": 0x4488ff,
-        "ai-1": 0xff4466,
-        "ai-2": 0x44ff88,
-        "ai-3": 0xffcc44,
-        "ai-4": 0xaa66ff,
-        "ai-5": 0xff8844,
-    };
-
     // ============================================================================
-    // HSL Color Utilities — Player colors stored as { hex, h, s, l }
+    // Color Utilities — Delegated to extracted module
     // ============================================================================
-
-    interface PlayerHSL {
-        hex: number;
-        h: number; // 0-360
-        s: number; // 0-1
-        l: number; // 0-1
-    }
-
-    const playerHSLCache: Map<string, PlayerHSL> = new Map();
-
-    /** Convert 0xRRGGBB integer to { h, s, l } */
-    function hexToHSL(hex: number): { h: number; s: number; l: number } {
-        const r = ((hex >> 16) & 0xff) / 255;
-        const g = ((hex >> 8) & 0xff) / 255;
-        const b = (hex & 0xff) / 255;
-        const max = Math.max(r, g, b);
-        const min = Math.min(r, g, b);
-        const l = (max + min) / 2;
-        let h = 0,
-            s = 0;
-        if (max !== min) {
-            const d = max - min;
-            s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-            if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) * 60;
-            else if (max === g) h = ((b - r) / d + 2) * 60;
-            else h = ((r - g) / d + 4) * 60;
-        }
-        return { h, s, l };
-    }
-
-    /** Convert { h, s, l } back to 0xRRGGBB integer */
-    function hslToHex(h: number, s: number, l: number): number {
-        h = ((h % 360) + 360) % 360; // Normalize hue
-        s = Math.max(0, Math.min(1, s));
-        l = Math.max(0, Math.min(1, l));
-        const c = (1 - Math.abs(2 * l - 1)) * s;
-        const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
-        const m = l - c / 2;
-        let r1: number, g1: number, b1: number;
-        if (h < 60) {
-            r1 = c;
-            g1 = x;
-            b1 = 0;
-        } else if (h < 120) {
-            r1 = x;
-            g1 = c;
-            b1 = 0;
-        } else if (h < 180) {
-            r1 = 0;
-            g1 = c;
-            b1 = x;
-        } else if (h < 240) {
-            r1 = 0;
-            g1 = x;
-            b1 = c;
-        } else if (h < 300) {
-            r1 = x;
-            g1 = 0;
-            b1 = c;
-        } else {
-            r1 = c;
-            g1 = 0;
-            b1 = x;
-        }
-        const ri = Math.round((r1 + m) * 255);
-        const gi = Math.round((g1 + m) * 255);
-        const bi = Math.round((b1 + m) * 255);
-        return (ri << 16) | (gi << 8) | bi;
-    }
-
-    /** Get or create cached HSL representation of a player's color */
-    function getPlayerHSL(ownerId: string): PlayerHSL {
-        let cached = playerHSLCache.get(ownerId);
-        const currentHex = getPlayerColor(ownerId);
-        if (cached && cached.hex === currentHex) return cached;
-        const hsl = hexToHSL(currentHex);
-        cached = { hex: currentHex, h: hsl.h, s: hsl.s, l: hsl.l };
-        playerHSLCache.set(ownerId, cached);
-        return cached;
-    }
-
-    /**
-     * Compute density-tier FILL color from player HSL based on orbit ring position.
-     * Inner rings = higher tier (more shifted), outermost = lowest tier.
-     * Alternating ships get darkened for contrast bead pattern.
-     *
-     * @param playerHsl - Player's base HSL color
-     * @param ringTier  - 0 = outermost/no shift, higher = more shifted (inner)
-     * @param darken    - If true, this ship gets darkened instead of lightened
-     */
-    function getDensityFillColor(
-        playerHsl: PlayerHSL,
-        ringTier: number,
-        darken: boolean = false,
-    ): number {
-        if (ringTier <= 0) return playerHsl.hex;
-
-        const hueStep = GAME_CONFIG.DENSITY_HUE_STEP;
-        const satStep = GAME_CONFIG.DENSITY_SAT_STEP;
-        const lightStep = GAME_CONFIG.DENSITY_LIGHT_STEP;
-        const maxTiers = GAME_CONFIG.DENSITY_TIERS;
-
-        const tier = Math.min(ringTier, maxTiers);
-
-        // Hue shifts alternate direction per tier for variety
-        let hueShift = 0;
-        for (let i = 1; i <= tier; i++) {
-            hueShift += hueStep * (i % 2 === 1 ? 1 : -1);
-        }
-
-        // Saturation: boost to stay vivid
-        const satBoost = satStep * tier;
-        // Lightness: lighten normally, darken for alternating ships
-        const lightBoost = darken ? -(lightStep * tier) : lightStep * tier;
-
-        return hslToHex(
-            playerHsl.h + hueShift,
-            playerHsl.s + satBoost,
-            playerHsl.l + lightBoost,
-        );
-    }
+    const colorUtils = createColorUtils(
+        (ownerId) => activeGameStore.getPlayerColor(ownerId) ?? undefined,
+    );
+    const getPlayerColor = colorUtils.getPlayerColor;
+    const getPlayerHSL = colorUtils.getPlayerHSL;
+    const getDensityFillColor = colorUtils.getDensityFillColor;
+    const parseColor = colorUtils.parseColor;
 
     // Helper: Check if star is owned by local player
     function isLocalPlayerStar(star: StarState): boolean {
@@ -707,32 +584,7 @@
         applyZoomTransform();
     }
 
-    function getPlayerColor(ownerId: string): number {
-        // Use ?? (not ||) — 0x000000 is a valid color, || would treat it as falsy
-        return (
-            activeGameStore.getPlayerColor(ownerId) ??
-            PLAYER_COLORS[ownerId] ??
-            0x888888
-        );
-    }
-
-    // Helper to safely parse color from config (string/number/object)
-    function parseColor(input: any): number {
-        if (typeof input === "number") return input;
-        if (typeof input === "string") {
-            if (input.startsWith("#")) return parseInt(input.slice(1), 16);
-            if (input.startsWith("0x")) return parseInt(input, 16);
-            return parseInt(input);
-        }
-        if (typeof input === "object" && input !== null) {
-            // Tweakpane object {r, g, b} (0-255 or 0-1?) usually 0-255 for 'pico'
-            // Assuming r,g,b are 0-255
-            if ("r" in input && "g" in input && "b" in input) {
-                return (input.r << 16) + (input.g << 8) + input.b;
-            }
-        }
-        return 0xffffff;
-    }
+    // getPlayerColor and parseColor — now provided by colorUtils (line ~211)
     function renderDebugGrid() {
         if (!starsContainer?.parent) return;
 
