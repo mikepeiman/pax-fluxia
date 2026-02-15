@@ -51,6 +51,7 @@
     let connectionGraphics: PIXI.Graphics | null = null;
     let dragPreviewGraphics: PIXI.Graphics | null = null;
     let starsContainer: PIXI.Container | null = null;
+    let glowContainer: PIXI.Container | null = null;
     let shipsContainer: PIXI.Container | null = null;
     let labelsContainer: PIXI.Container | null = null;
 
@@ -68,6 +69,10 @@
     let shipParticleContainer: PIXI.ParticleContainer | null = null;
     let shipParticlePool: PIXI.Particle[] = [];
     let shipParticleIndex = 0;
+
+    // Star glow rendering
+    let glowTexture: PIXI.Texture | null = null;
+    let glowSprites: Map<string, PIXI.Sprite> = new Map();
     let orbGraphics: PIXI.Graphics | null = null; // For orb travel glow effects (needs Graphics)
 
     // FPS tracking
@@ -390,6 +395,10 @@
         starsContainer = new PIXI.Container();
         app.stage.addChild(starsContainer);
 
+        // Glow layer — between stars and ships
+        glowContainer = new PIXI.Container();
+        app.stage.addChild(glowContainer);
+
         shipsContainer = new PIXI.Container();
         app.stage.addChild(shipsContainer);
 
@@ -417,6 +426,31 @@
         ctx.fill();
         shipCircleTexture = PIXI.Texture.from(texCanvas);
         shipCircleTexture.source.scaleMode = "linear";
+
+        // Create 256px soft radial gradient for star glow effect
+        const glowSize = 256;
+        const glowCanvas = document.createElement("canvas");
+        glowCanvas.width = glowSize;
+        glowCanvas.height = glowSize;
+        const glowCtx = glowCanvas.getContext("2d")!;
+        const glowGrad = glowCtx.createRadialGradient(
+            glowSize / 2,
+            glowSize / 2,
+            0,
+            glowSize / 2,
+            glowSize / 2,
+            glowSize / 2,
+        );
+        glowGrad.addColorStop(0, "rgba(255,255,255,0.6)");
+        glowGrad.addColorStop(0.3, "rgba(255,255,255,0.35)");
+        glowGrad.addColorStop(0.6, "rgba(255,255,255,0.12)");
+        glowGrad.addColorStop(1, "rgba(255,255,255,0)");
+        glowCtx.fillStyle = glowGrad;
+        glowCtx.beginPath();
+        glowCtx.arc(glowSize / 2, glowSize / 2, glowSize / 2, 0, Math.PI * 2);
+        glowCtx.fill();
+        glowTexture = PIXI.Texture.from(glowCanvas);
+        glowTexture.source.scaleMode = "linear";
 
         // Single ParticleContainer for all ship rendering (outlines + fills + damage indicators)
         // Outlines are backing circles drawn BEFORE fills in the same batch
@@ -489,6 +523,9 @@
         starLabels.clear();
         linkGraphics = null;
         starsContainer = null;
+        glowContainer = null;
+        glowSprites.clear();
+        glowTexture = null;
         shipsContainer = null;
         shipParticleContainer = null;
         orbGraphics = null;
@@ -1873,6 +1910,37 @@
             }
 
             visualShips.set(star.id, ships);
+
+            // === Star Glow: radial gradient behind orbiting ships ===
+            if (
+                GAME_CONFIG.STAR_GLOW_ON &&
+                glowTexture &&
+                glowContainer &&
+                star.ownerId &&
+                ships.length > 0
+            ) {
+                let glowSprite = glowSprites.get(star.id);
+                if (!glowSprite) {
+                    glowSprite = new PIXI.Sprite(glowTexture);
+                    glowSprite.anchor.set(0.5, 0.5);
+                    glowContainer.addChild(glowSprite);
+                    glowSprites.set(star.id, glowSprite);
+                }
+                const outerR = getOuterOrbitRadius(star.radius, targetCount);
+                const glowR =
+                    outerR * (GAME_CONFIG.STAR_GLOW_RADIUS_MULT ?? 1.3);
+                const glowDiameter = glowR * 2;
+                const spriteScale = glowDiameter / 256; // 256 = glowTexture size
+                glowSprite.x = star.x;
+                glowSprite.y = star.y;
+                glowSprite.scale.set(spriteScale);
+                glowSprite.tint = color;
+                glowSprite.alpha = GAME_CONFIG.STAR_GLOW_INTENSITY ?? 0.25;
+                glowSprite.visible = true;
+            } else {
+                const glowSprite = glowSprites.get(star.id);
+                if (glowSprite) glowSprite.visible = false;
+            }
 
             // 2. Physics & Render Loop for Active Ships
             if (ships.length > 0) {

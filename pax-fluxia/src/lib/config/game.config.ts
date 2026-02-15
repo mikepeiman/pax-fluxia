@@ -170,6 +170,12 @@ interface GameConfigType {
     DENSITY_DARKEN_ALT: boolean;   // Alternate ships get darkened instead of lightened (default true)
     SHIP_VISUAL_RADIUS: number;    // Cosmetic ship circle radius in px (default 3) — independent of orbit spacing
 
+    // Star glow — radial gradient behind ships showing fleet power
+    STAR_GLOW_ON: boolean;         // Enable star glow effect (default true)
+    STAR_GLOW_RADIUS_MULT: number; // Glow radius as multiplier of outermost orbit ring (default 1.3)
+    STAR_GLOW_INTENSITY: number;   // Peak glow alpha (0-1, default 0.25)
+    STAR_GLOW_LAYERS: number;      // Number of concentric gradient layers (default 4)
+
     /** How far order arrows extend along the lane (0.0-1.0, 1.0 = full distance to target edge) */
     ARROW_LENGTH_FRACTION: number;
 
@@ -443,15 +449,20 @@ export const GAME_CONFIG: GameConfigType = {
     /** Max visual ship sprites per star — overflow represented as brightness multiplier */
     MAX_VISUAL_SHIPS: 500,
     /** Degrees of hue shift per density tier */
-    DENSITY_HUE_STEP: 4,
+    DENSITY_HUE_STEP: 8,
     /** Saturation change per density tier (positive direction = increase, negative = decrease) */
-    DENSITY_SAT_STEP: 0.05,
+    DENSITY_SAT_STEP: 0.08,
     /** Lightness change per density tier */
-    DENSITY_LIGHT_STEP: 0.05,
+    DENSITY_LIGHT_STEP: 0.06,
     /** Number of density tiers per direction on the color wheel */
     DENSITY_TIERS: 3,
     DENSITY_DARKEN_ALT: true,
     SHIP_VISUAL_RADIUS: 3,
+    /** Star glow settings */
+    STAR_GLOW_ON: true,
+    STAR_GLOW_RADIUS_MULT: 1.3,
+    STAR_GLOW_INTENSITY: 0.25,
+    STAR_GLOW_LAYERS: 4,
     /** Enable orbit bias oscillation between min/max */
     ORBIT_BIAS_OSCILLATE: false,
     /** Min bias strength for oscillation */

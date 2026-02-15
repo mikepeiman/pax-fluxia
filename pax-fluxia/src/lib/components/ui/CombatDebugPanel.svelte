@@ -826,10 +826,9 @@
         { id: "battle", icon: "⚔️", label: "Battle", color: "#ff4466" },
         { id: "economy", icon: "🎛️", label: "Core / Global", color: "#44ff88" },
         { id: "ai", icon: "🤖", label: "AI Behavior", color: "#ff8844" },
-        { id: "density", icon: "🔬", label: "Density VFX", color: "#66ddff" },
+        { id: "ships", icon: "🎨", label: "Ship Appearance", color: "#88ccff" },
         { id: "travel", icon: "🚀", label: "Ship Travel", color: "#44aaff" },
         { id: "conquest", icon: "🏰", label: "Conquest", color: "#ff66aa" },
-        { id: "ships", icon: "🛸", label: "Ship Look", color: "#88ccff" },
         { id: "visuals", icon: "🎨", label: "Map Visuals", color: "#cc66ff" },
         { id: "logging", icon: "📋", label: "Logging", color: "#88aacc" },
     ];
@@ -1189,104 +1188,6 @@
                             >Adapts to game state dynamically</span
                         >
                     </div>
-
-                    <!-- 🔬 DENSITY VFX -->
-                {:else if activeSection === "density"}
-                    <h4 class="sub-heading">Color Graduation</h4>
-                    {#each densityVariables as v}
-                        <div
-                            class="var-row"
-                            class:disabled={!enabled[
-                                v.key as keyof typeof enabled
-                            ]}
-                        >
-                            <div class="row-top">
-                                <label class="toggle-label">
-                                    <input
-                                        type="checkbox"
-                                        checked={enabled[
-                                            v.key as keyof typeof enabled
-                                        ]}
-                                        onchange={() =>
-                                            toggle(
-                                                v.key as keyof typeof enabled,
-                                            )}
-                                    />
-                                    <span class="var-name">{v.label}</span>
-                                </label>
-                                <span class="val"
-                                    >{values[v.key as VarKey].toFixed(2)}</span
-                                >
-                            </div>
-                            <input
-                                type="range"
-                                min={v.min}
-                                max={v.max}
-                                step={v.step}
-                                value={values[v.key as VarKey]}
-                                oninput={(e) =>
-                                    updateValue(
-                                        v.key as VarKey,
-                                        parseFloat(
-                                            (e.target as HTMLInputElement)
-                                                .value,
-                                        ),
-                                    )}
-                                disabled={!enabled[
-                                    v.key as keyof typeof enabled
-                                ]}
-                            />
-                        </div>
-                    {/each}
-
-                    <div class="var-row">
-                        <div class="row-top">
-                            <label class="toggle-label">
-                                <input
-                                    type="checkbox"
-                                    checked={GAME_CONFIG.DENSITY_DARKEN_ALT}
-                                    onchange={() => {
-                                        GAME_CONFIG.DENSITY_DARKEN_ALT =
-                                            !GAME_CONFIG.DENSITY_DARKEN_ALT;
-                                    }}
-                                />
-                                <span class="var-name">Alternate Darkening</span
-                                >
-                            </label>
-                        </div>
-                    </div>
-
-                    <h4 class="sub-heading">Debug: Ship Count</h4>
-                    {#if selectedStarStore.id}
-                        <div class="var-row">
-                            <div class="row-top">
-                                <span class="var-name">Active Ships</span>
-                                <span class="val"
-                                    >{debugShipCount.toLocaleString()}</span
-                                >
-                            </div>
-                            <input
-                                type="range"
-                                min={0}
-                                max={10000}
-                                step={10}
-                                value={debugShipCount}
-                                oninput={(e) =>
-                                    updateDebugShipCount(
-                                        parseInt(
-                                            (e.target as HTMLInputElement)
-                                                .value,
-                                        ),
-                                    )}
-                            />
-                        </div>
-                    {:else}
-                        <div class="var-row grayed">
-                            <span class="future-desc"
-                                >Select a star to adjust ship count</span
-                            >
-                        </div>
-                    {/if}
 
                     <!-- 🚀 SHIP TRAVEL -->
                 {:else if activeSection === "travel"}
@@ -2105,9 +2006,54 @@
                         />
                     </div>
 
-                    <!-- 🛸 SHIP LOOK -->
+                    <!-- 🎨 SHIP APPEARANCE -->
                 {:else if activeSection === "ships"}
-                    <h4 class="sub-heading">Appearance</h4>
+                    <!-- ── Ship Size & Shape ── -->
+                    <h4 class="sub-heading">Ship Size & Shape</h4>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Visual Radius</span><span
+                                class="val"
+                                >{(GAME_CONFIG.SHIP_VISUAL_RADIUS ?? 3).toFixed(
+                                    1,
+                                )}</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="1"
+                            max="8"
+                            step="0.5"
+                            value={GAME_CONFIG.SHIP_VISUAL_RADIUS ?? 3}
+                            oninput={(e) => {
+                                GAME_CONFIG.SHIP_VISUAL_RADIUS = +(
+                                    e.target as HTMLInputElement
+                                ).value;
+                            }}
+                        />
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Scale Multiplier</span><span
+                                class="val"
+                                >{(panel.shipScaleMult as number).toFixed(
+                                    1,
+                                )}×</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0.3"
+                            max="3.0"
+                            step="0.1"
+                            value={panel.shipScaleMult}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.SHIP_SCALE_MULT = v;
+                                updatePanel("shipScaleMult", v);
+                            }}
+                        />
+                    </div>
                     <div class="var-row">
                         <div class="row-top">
                             <label class="toggle-label"
@@ -2172,53 +2118,13 @@
                             }}
                         />
                     </div>
-                    <div class="var-row">
-                        <div class="row-top">
-                            <span class="var-name">Ship Scale</span><span
-                                class="val"
-                                >{(panel.shipScaleMult as number).toFixed(
-                                    1,
-                                )}×</span
-                            >
-                        </div>
-                        <input
-                            type="range"
-                            min="0.3"
-                            max="3.0"
-                            step="0.1"
-                            value={panel.shipScaleMult}
-                            oninput={(e) => {
-                                const v = +(e.target as HTMLInputElement).value;
-                                GAME_CONFIG.SHIP_SCALE_MULT = v;
-                                updatePanel("shipScaleMult", v);
-                            }}
-                        />
-                    </div>
-                    <div class="var-row">
-                        <div class="row-top">
-                            <span class="var-name">Max Ships/Star</span><span
-                                class="val">{panel.maxVisualShips}</span
-                            >
-                        </div>
-                        <input
-                            type="range"
-                            min="10"
-                            max="500"
-                            step="10"
-                            value={panel.maxVisualShips}
-                            oninput={(e) => {
-                                const v = +(e.target as HTMLInputElement).value;
-                                GAME_CONFIG.MAX_VISUAL_SHIPS = v;
-                                updatePanel("maxVisualShips", v);
-                            }}
-                        />
-                    </div>
 
-                    <h4 class="sub-heading">Sizing</h4>
+                    <!-- ── Orbit Layout ── -->
+                    <h4 class="sub-heading">Orbit Layout</h4>
                     <div class="var-row">
                         <div class="row-top">
-                            <span class="var-name">Ship Size</span><span
-                                class="val"
+                            <span class="var-name">Orbit Spacing Size</span
+                            ><span class="val"
                                 >{(panel.shipBaseSize as number).toFixed(
                                     1,
                                 )}</span
@@ -2239,22 +2145,64 @@
                     </div>
                     <div class="var-row">
                         <div class="row-top">
-                            <span class="var-name">Ship Visual Radius</span
-                            ><span class="val"
-                                >{(GAME_CONFIG.SHIP_VISUAL_RADIUS ?? 3).toFixed(
+                            <span class="var-name">Ring Spacing</span><span
+                                class="val"
+                                >{(panel.orbitRingMult as number).toFixed(
+                                    1,
+                                )}×</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0.5"
+                            max="4"
+                            step="0.1"
+                            value={panel.orbitRingMult}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.ORBIT_RING_MULT = v;
+                                updatePanel("orbitRingMult", v);
+                            }}
+                        />
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Ships Per Ring</span><span
+                                class="val"
+                                >{(panel.orbitDensity as number).toFixed(
                                     1,
                                 )}</span
                             >
                         </div>
                         <input
                             type="range"
-                            min="1"
-                            max="8"
-                            step="0.5"
-                            value={GAME_CONFIG.SHIP_VISUAL_RADIUS ?? 3}
+                            min="0.5"
+                            max="4"
+                            step="0.1"
+                            value={panel.orbitDensity}
                             oninput={(e) => {
                                 const v = +(e.target as HTMLInputElement).value;
-                                GAME_CONFIG.SHIP_VISUAL_RADIUS = v;
+                                GAME_CONFIG.ORBIT_DENSITY = v;
+                                updatePanel("orbitDensity", v);
+                            }}
+                        />
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Max Ships/Star</span><span
+                                class="val">{panel.maxVisualShips}</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="10"
+                            max="500"
+                            step="10"
+                            value={panel.maxVisualShips}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.MAX_VISUAL_SHIPS = v;
+                                updatePanel("maxVisualShips", v);
                             }}
                         />
                     </div>
@@ -2280,28 +2228,166 @@
                             }}
                         />
                     </div>
+
+                    <!-- ── Density Coloring ── -->
+                    <h4 class="sub-heading">Density Coloring</h4>
+                    {#each densityVariables as v}
+                        <div
+                            class="var-row"
+                            class:disabled={!enabled[
+                                v.key as keyof typeof enabled
+                            ]}
+                        >
+                            <div class="row-top">
+                                <label class="toggle-label">
+                                    <input
+                                        type="checkbox"
+                                        checked={enabled[
+                                            v.key as keyof typeof enabled
+                                        ]}
+                                        onchange={() =>
+                                            toggle(
+                                                v.key as keyof typeof enabled,
+                                            )}
+                                    />
+                                    <span class="var-name">{v.label}</span>
+                                </label>
+                                <span class="val"
+                                    >{values[v.key as VarKey].toFixed(2)}</span
+                                >
+                            </div>
+                            <input
+                                type="range"
+                                min={v.min}
+                                max={v.max}
+                                step={v.step}
+                                value={values[v.key as VarKey]}
+                                oninput={(e) =>
+                                    updateValue(
+                                        v.key as VarKey,
+                                        parseFloat(
+                                            (e.target as HTMLInputElement)
+                                                .value,
+                                        ),
+                                    )}
+                                disabled={!enabled[
+                                    v.key as keyof typeof enabled
+                                ]}
+                            />
+                        </div>
+                    {/each}
                     <div class="var-row">
                         <div class="row-top">
-                            <span class="var-name">Orbit Spacing</span><span
+                            <label class="toggle-label">
+                                <input
+                                    type="checkbox"
+                                    checked={GAME_CONFIG.DENSITY_DARKEN_ALT}
+                                    onchange={() => {
+                                        GAME_CONFIG.DENSITY_DARKEN_ALT =
+                                            !GAME_CONFIG.DENSITY_DARKEN_ALT;
+                                    }}
+                                />
+                                <span class="var-name">Alternate Darkening</span
+                                >
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- ── Star Glow ── -->
+                    <h4 class="sub-heading">Star Glow</h4>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <label class="toggle-label">
+                                <input
+                                    type="checkbox"
+                                    checked={GAME_CONFIG.STAR_GLOW_ON}
+                                    onchange={() => {
+                                        GAME_CONFIG.STAR_GLOW_ON =
+                                            !GAME_CONFIG.STAR_GLOW_ON;
+                                    }}
+                                />
+                                <span class="var-name">Glow Enabled</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Glow Radius</span><span
                                 class="val"
-                                >{(panel.orbitRingMult as number).toFixed(
-                                    1,
-                                )}×</span
+                                >{(
+                                    GAME_CONFIG.STAR_GLOW_RADIUS_MULT ?? 1.3
+                                ).toFixed(1)}×</span
                             >
                         </div>
                         <input
                             type="range"
                             min="0.5"
-                            max="4"
+                            max="3.0"
                             step="0.1"
-                            value={panel.orbitRingMult}
+                            value={GAME_CONFIG.STAR_GLOW_RADIUS_MULT ?? 1.3}
                             oninput={(e) => {
-                                const v = +(e.target as HTMLInputElement).value;
-                                GAME_CONFIG.ORBIT_RING_MULT = v;
-                                updatePanel("orbitRingMult", v);
+                                GAME_CONFIG.STAR_GLOW_RADIUS_MULT = +(
+                                    e.target as HTMLInputElement
+                                ).value;
                             }}
                         />
                     </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Glow Intensity</span><span
+                                class="val"
+                                >{(
+                                    GAME_CONFIG.STAR_GLOW_INTENSITY ?? 0.25
+                                ).toFixed(2)}</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="1.0"
+                            step="0.02"
+                            value={GAME_CONFIG.STAR_GLOW_INTENSITY ?? 0.25}
+                            oninput={(e) => {
+                                GAME_CONFIG.STAR_GLOW_INTENSITY = +(
+                                    e.target as HTMLInputElement
+                                ).value;
+                            }}
+                        />
+                    </div>
+
+                    <!-- ── Debug ── -->
+                    <h4 class="sub-heading">Debug: Ship Count</h4>
+                    {#if selectedStarStore.id}
+                        <div class="var-row">
+                            <div class="row-top">
+                                <span class="var-name">Active Ships</span>
+                                <span class="val"
+                                    >{debugShipCount.toLocaleString()}</span
+                                >
+                            </div>
+                            <input
+                                type="range"
+                                min={0}
+                                max={10000}
+                                step={10}
+                                value={debugShipCount}
+                                oninput={(e) =>
+                                    updateDebugShipCount(
+                                        parseInt(
+                                            (e.target as HTMLInputElement)
+                                                .value,
+                                        ),
+                                    )}
+                            />
+                        </div>
+                    {:else}
+                        <div class="var-row grayed">
+                            <span class="future-desc"
+                                >Select a star to adjust ship count</span
+                            >
+                        </div>
+                    {/if}
+
                     <!-- 🎨 MAP VISUALS -->
                 {:else if activeSection === "visuals"}
                     <div class="var-row">

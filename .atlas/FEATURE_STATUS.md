@@ -219,6 +219,7 @@
 | F-30 | AI Bug Fixes + Strategy System: fixed stuck-on-friendly target, anti-oscillation (minAttackTicks), 4 strategies (aggressive/opportunistic/expansionist/defensive) | 2026-02-14 |
 | F-31 | Orbit-Ring Density Gradation: density tier based on ring position (inner=higher tier). Alternating ship darkening for contrast bead pattern. getOrbitSlot returns layer. | 2026-02-14 |
 | F-32 | Ship Size/Spacing Decoupling: new SHIP_VISUAL_RADIUS (cosmetic circle radius) independent of SHIP_BASE_SIZE (orbit spacing). Slider in Ship Look panel. | 2026-02-14 |
+| F-33 | Star Glow: radial gradient behind ships showing fleet power. Ship Appearance panel consolidating all ship visual controls. More vivid density defaults. | 2026-02-14 |
 
 ## Planned Features — Not Started (R)
 
