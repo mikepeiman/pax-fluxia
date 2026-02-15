@@ -1239,6 +1239,23 @@
                         </div>
                     {/each}
 
+                    <div class="var-row">
+                        <div class="row-top">
+                            <label class="toggle-label">
+                                <input
+                                    type="checkbox"
+                                    checked={GAME_CONFIG.DENSITY_DARKEN_ALT}
+                                    onchange={() => {
+                                        GAME_CONFIG.DENSITY_DARKEN_ALT =
+                                            !GAME_CONFIG.DENSITY_DARKEN_ALT;
+                                    }}
+                                />
+                                <span class="var-name">Alternate Darkening</span
+                                >
+                            </label>
+                        </div>
+                    </div>
+
                     <h4 class="sub-heading">Debug: Ship Count</h4>
                     {#if selectedStarStore.id}
                         <div class="var-row">
@@ -2217,6 +2234,27 @@
                                 const v = +(e.target as HTMLInputElement).value;
                                 GAME_CONFIG.SHIP_BASE_SIZE = v;
                                 updatePanel("shipBaseSize", v);
+                            }}
+                        />
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Ship Visual Radius</span
+                            ><span class="val"
+                                >{(GAME_CONFIG.SHIP_VISUAL_RADIUS ?? 3).toFixed(
+                                    1,
+                                )}</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="1"
+                            max="8"
+                            step="0.5"
+                            value={GAME_CONFIG.SHIP_VISUAL_RADIUS ?? 3}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.SHIP_VISUAL_RADIUS = v;
                             }}
                         />
                     </div>

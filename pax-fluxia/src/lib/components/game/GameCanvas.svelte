@@ -6,6 +6,7 @@
     import { GAME_CONFIG } from "$lib/config/game.config";
     import {
         getOrbitSlot,
+        getTotalOccupiedLayers,
         getOuterOrbitRadius,
         getFleetPositions,
         lerp,
@@ -290,52 +291,38 @@
     }
 
     /**
-     * Compute density-tier FILL color from player HSL.
-     * Outline always stays raw player color (preserves identity).
+     * Compute density-tier FILL color from player HSL based on orbit ring position.
+     * Inner rings = higher tier (more shifted), outermost = lowest tier.
+     * Alternating ships get darkened for contrast bead pattern.
      *
-     * Fill shifts hue in alternating directions:
-     *   tier 1: +hueStep°  (slightly warmer/cooler)
-     *   tier 2: -hueStep°
-     *   tier 3: +2×hueStep°
-     *   tier 4: -2×hueStep°  etc.
-     *
-     * Saturation stays near original. Lightness gets a small boost.
+     * @param playerHsl - Player's base HSL color
+     * @param ringTier  - 0 = outermost/no shift, higher = more shifted (inner)
+     * @param darken    - If true, this ship gets darkened instead of lightened
      */
     function getDensityFillColor(
         playerHsl: PlayerHSL,
-        multiplier: number,
+        ringTier: number,
+        darken: boolean = false,
     ): number {
-        if (multiplier <= 1) return playerHsl.hex;
+        if (ringTier <= 0) return playerHsl.hex;
 
         const hueStep = GAME_CONFIG.DENSITY_HUE_STEP;
         const satStep = GAME_CONFIG.DENSITY_SAT_STEP;
         const lightStep = GAME_CONFIG.DENSITY_LIGHT_STEP;
         const maxTiers = GAME_CONFIG.DENSITY_TIERS;
 
-        // Map multiplier to tier (1-based, continuous)
-        // Use log scale so low multipliers show distinct tiers
-        const rawTier = Math.log2(multiplier); // 2→1, 4→2, 8→3, 16→4, 32→5, 64→6
-        const tier = Math.min(rawTier, maxTiers);
+        const tier = Math.min(ringTier, maxTiers);
 
-        // Alternating direction: odd tiers go +, even go -
-        const fullTiers = Math.floor(tier);
-        const frac = tier - fullTiers;
-
-        // Accumulate hue shift across full tiers
+        // Hue shifts alternate direction per tier for variety
         let hueShift = 0;
-        for (let i = 1; i <= fullTiers; i++) {
+        for (let i = 1; i <= tier; i++) {
             hueShift += hueStep * (i % 2 === 1 ? 1 : -1);
         }
-        // Add fractional part of current tier
-        if (frac > 0 && fullTiers < maxTiers) {
-            const nextDir = (fullTiers + 1) % 2 === 1 ? 1 : -1;
-            hueShift += hueStep * frac * nextDir;
-        }
 
-        // Saturation: boost slightly (keeps colors vivid, doesn't wash out)
+        // Saturation: boost to stay vivid
         const satBoost = satStep * tier;
-        // Lightness: very subtle increase
-        const lightBoost = lightStep * tier;
+        // Lightness: lighten normally, darken for alternating ships
+        const lightBoost = darken ? -(lightStep * tier) : lightStep * tier;
 
         return hslToHex(
             playerHsl.h + hueShift,
@@ -1888,6 +1875,11 @@
             visualShips.set(star.id, ships);
 
             // 2. Physics & Render Loop for Active Ships
+            // Compute how many orbit rings are occupied for density tier calc
+            const totalOccupied = getTotalOccupiedLayers(
+                star.radius,
+                targetCount,
+            );
             if (ships.length > 0) {
                 // Determine behavior mode
                 const hasTarget = star.targetId !== null;
@@ -2157,6 +2149,12 @@
                         ship.alpha = 1;
                     }
 
+                    // Ring tier: inner rings = higher tier
+                    const ringTier = Math.max(
+                        0,
+                        totalOccupied - 1 - slot.layer,
+                    );
+
                     drawShip(
                         ship.x,
                         ship.y,
@@ -2166,6 +2164,8 @@
                         false,
                         shipMultiplier,
                         effectiveOwner,
+                        ringTier,
+                        i,
                     );
                 });
             }
@@ -2310,19 +2310,24 @@
         isDamaged: boolean,
         multiplier: number = 1,
         ownerId: string = "",
+        ringTier: number = 0,
+        shipIndex: number = 0,
     ) {
         if (!shipParticleContainer || !shipCircleTexture) return;
 
-        // Apply global ship scale multiplier
+        // Apply global ship scale multiplier + cosmetic visual radius
         const globalScale = GAME_CONFIG.SHIP_SCALE_MULT ?? 1.0;
-        const pixelSize = 3 * scale * globalScale;
+        const visualRadius = GAME_CONFIG.SHIP_VISUAL_RADIUS ?? 3;
+        const pixelSize = visualRadius * scale * globalScale;
         const spriteScale = (pixelSize * 2) / 128;
 
-        // HSL density tier coloring — only fill shifts, outline stays raw player color
+        // Ring-based density coloring — only fill shifts, outline stays raw player
         let fillColor = color;
-        if (multiplier > 1 && ownerId) {
+        if (ringTier > 0 && ownerId) {
             const playerHsl = getPlayerHSL(ownerId);
-            fillColor = getDensityFillColor(playerHsl, multiplier);
+            const darken =
+                GAME_CONFIG.DENSITY_DARKEN_ALT && shipIndex % 2 === 1;
+            fillColor = getDensityFillColor(playerHsl, ringTier, darken);
         }
 
         // === Outline: backing circle — ALWAYS raw player color (preserves identity) ===

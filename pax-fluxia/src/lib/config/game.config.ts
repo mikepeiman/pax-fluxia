@@ -167,6 +167,8 @@ interface GameConfigType {
     DENSITY_SAT_STEP: number;      // Saturation change per tier (±, default 0.05)
     DENSITY_LIGHT_STEP: number;    // Lightness change per tier (±, default 0.05)
     DENSITY_TIERS: number;         // Number of tiers per direction on the color wheel (default 3)
+    DENSITY_DARKEN_ALT: boolean;   // Alternate ships get darkened instead of lightened (default true)
+    SHIP_VISUAL_RADIUS: number;    // Cosmetic ship circle radius in px (default 3) — independent of orbit spacing
 
     /** How far order arrows extend along the lane (0.0-1.0, 1.0 = full distance to target edge) */
     ARROW_LENGTH_FRACTION: number;
@@ -448,6 +450,8 @@ export const GAME_CONFIG: GameConfigType = {
     DENSITY_LIGHT_STEP: 0.05,
     /** Number of density tiers per direction on the color wheel */
     DENSITY_TIERS: 3,
+    DENSITY_DARKEN_ALT: true,
+    SHIP_VISUAL_RADIUS: 3,
     /** Enable orbit bias oscillation between min/max */
     ORBIT_BIAS_OSCILLATE: false,
     /** Min bias strength for oscillation */

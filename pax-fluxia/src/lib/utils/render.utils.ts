@@ -131,7 +131,7 @@ export function getOrbitSlot(
     time: number,
     biasAngle?: number,
     biasStrength: number = 0
-): { x: number, y: number, multiplier: number } {
+): { x: number, y: number, multiplier: number, layer: number } {
     const BASE_SIZE = GAME_CONFIG.SHIP_BASE_SIZE || 4;
     const PADDING = 2;
     const RING_SPACING = BASE_SIZE * (GAME_CONFIG.ORBIT_RING_MULT || 1.4);
@@ -176,7 +176,8 @@ export function getOrbitSlot(
             return {
                 x: cx + Math.cos(angle) * currentRadius,
                 y: cy + Math.sin(angle) * currentRadius,
-                multiplier
+                multiplier,
+                layer
             };
         }
 
@@ -188,8 +189,24 @@ export function getOrbitSlot(
     return {
         x: cx + Math.cos(effectiveIndex) * currentRadius,
         y: cy + Math.sin(effectiveIndex) * currentRadius,
-        multiplier
+        multiplier,
+        layer: MAX_ORBIT_LAYERS - 1
     };
+}
+
+/**
+ * Get the number of occupied orbit layers for a given ship count.
+ * Used for density tier calculation (inner rings = higher tier).
+ */
+export function getTotalOccupiedLayers(starRadius: number, shipCount: number): number {
+    if (shipCount <= 0) return 0;
+    const { layerCapacities } = calculateTotalCapacity(starRadius);
+    let remaining = shipCount;
+    for (let layer = 0; layer < MAX_ORBIT_LAYERS; layer++) {
+        remaining -= layerCapacities[layer];
+        if (remaining <= 0) return layer + 1;
+    }
+    return MAX_ORBIT_LAYERS;
 }
 
 /**

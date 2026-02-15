@@ -217,6 +217,8 @@
 | F-28 | Ship Density VFX: HSL-based color graduation for high ship counts. 4° hue shift ×3 tiers each direction, sat+lightness in opposing directions. No size changes. Replaces old white-wash hue-brighten. | 2026-02-14 |
 | F-29 | Debug Ship Count Slider: 0-10k range bound to selected star's activeShips. Density VFX tab in debug panel with 4 config sliders (hue step, sat step, light step, max tiers). | 2026-02-14 |
 | F-30 | AI Bug Fixes + Strategy System: fixed stuck-on-friendly target, anti-oscillation (minAttackTicks), 4 strategies (aggressive/opportunistic/expansionist/defensive) | 2026-02-14 |
+| F-31 | Orbit-Ring Density Gradation: density tier based on ring position (inner=higher tier). Alternating ship darkening for contrast bead pattern. getOrbitSlot returns layer. | 2026-02-14 |
+| F-32 | Ship Size/Spacing Decoupling: new SHIP_VISUAL_RADIUS (cosmetic circle radius) independent of SHIP_BASE_SIZE (orbit spacing). Slider in Ship Look panel. | 2026-02-14 |
 
 ## Planned Features — Not Started (R)
 
