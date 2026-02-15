@@ -82,7 +82,7 @@
     let retainOrderOnConquest = $state(
         loadSetting("retainOrderOnConquest", true),
     );
-    let gameSpeed = $state(loadSetting("gameSpeed", 1));
+    let tickDuration = $state(loadSetting("tickDuration", 500));
 
     // MP Join state
     let joinRoomId = $state("");
@@ -242,7 +242,7 @@
         saveSetting("retainOrderOnConquest", retainOrderOnConquest);
         saveSetting("playerConfigs", playerConfigs);
         saveSetting("hueOffset", hueOffset);
-        saveSetting("gameSpeed", gameSpeed);
+        saveSetting("tickDuration", tickDuration);
     }
 
     function applyConfig() {
@@ -261,7 +261,7 @@
             minLinksPerStar: minLinks,
             maxLinksPerStar: maxLinks,
             starSpacing: starSpacing,
-            gameSpeed: gameSpeed,
+            gameSpeed: tickDuration,
             playerColors: playerConfigs.map((cfg) => hslToHex(cfg.hue)),
         });
 
@@ -629,19 +629,28 @@
                         </div>
                     </div>
 
-                    <!-- Speed + Start -->
+                    <!-- Tick Duration + Start -->
                     <div class="speed-start-row">
                         <div class="config-item speed-control">
-                            <label>SPEED</label>
-                            <div class="button-row">
-                                {#each [1, 2, 4, 10] as s}
-                                    <button
-                                        class:active={gameSpeed === s}
-                                        onclick={() => (gameSpeed = s)}
-                                        >{s}x</button
-                                    >
-                                {/each}
+                            <label>TICK DURATION</label>
+                            <div class="slider-container">
+                                <span class="mini-label">FAST</span>
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max="3000"
+                                    step="250"
+                                    bind:value={tickDuration}
+                                />
+                                <span class="mini-label">SLOW</span>
+                                <span class="value">{(tickDuration / 1000).toFixed(2)}s</span>
                             </div>
+                        </div>
+                        <button class="start-btn" onclick={startSPGame}>
+                            <span class="btn-glow"></span>
+                            START GAME
+                        </button>
+                    </div>
                         </div>
                         <button class="start-btn" onclick={startSPGame}>
                             <span class="btn-glow"></span>
@@ -2065,5 +2074,4 @@
     .speed-control .button-row {
         gap: 0;
     }
-
 </style>
