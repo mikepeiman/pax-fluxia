@@ -179,6 +179,7 @@
 | B-54 | **Star Radius never worked** | Slider has no visible effect | OPEN |
 | B-55 | **Game ends before complete conquest** | Abrupt and unsatisfying. Should show modal offering View Results or Keep Playing | OPEN |
 | B-56 | **Custom player colors not applied in MP** | `playerColors` wired through `GameEngine` (SP only). Server `GameRoom.ts` has its own hardcoded `PLAYER_COLORS` array at line 19, ignoring client hue selections. Part of broader unification gap: game init logic should import from `common/`. | OPEN |
+| B-57 | **Intermittent: active ships drop to 0 too fast when counterattacking** | Scenario: 50 active + 500 damaged, counterattack causes active to hit 0 immediately. Possibly damage applied to activeShips pool exceeds actual active count in one tick. Hard to reproduce — awaiting exact numbers from user. Custom map editor will help reproduce. | OPEN |
 
 ---
 
