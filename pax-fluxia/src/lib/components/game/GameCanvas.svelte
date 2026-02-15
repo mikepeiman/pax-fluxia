@@ -1875,11 +1875,6 @@
             visualShips.set(star.id, ships);
 
             // 2. Physics & Render Loop for Active Ships
-            // Compute how many orbit rings are occupied for density tier calc
-            const totalOccupied = getTotalOccupiedLayers(
-                star.radius,
-                targetCount,
-            );
             if (ships.length > 0) {
                 // Determine behavior mode
                 const hasTarget = star.targetId !== null;
@@ -2149,11 +2144,13 @@
                         ship.alpha = 1;
                     }
 
-                    // Ring tier: inner rings = higher tier
-                    const ringTier = Math.max(
-                        0,
-                        totalOccupied - 1 - slot.layer,
-                    );
+                    // Density tier: only activates when multiplier > 1 (orbits full)
+                    // baseTier = how many 2x doublings. Inner rings get higher tier.
+                    const baseTier =
+                        shipMultiplier > 1
+                            ? Math.floor(Math.log2(shipMultiplier))
+                            : 0;
+                    const ringTier = Math.max(0, baseTier - slot.layer);
 
                     drawShip(
                         ship.x,
