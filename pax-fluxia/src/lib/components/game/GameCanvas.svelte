@@ -24,11 +24,7 @@
     import { Star } from "$lib/engine/Star";
     import { STAR_TYPE_STATS } from "@pax/common";
     import { executeConquestTransfer } from "$lib/animations/conquest";
-    import {
-        handleTransferEvent,
-        handleCombatEvent,
-        handleConquestEvent,
-    } from "$lib/fx";
+    import { FXOrchestrator } from "$lib/fx/orchestrator";
     import {
         DEPART_BEHAVIORS,
         TRAVEL_BEHAVIORS,
@@ -86,37 +82,41 @@
     let shipSpawnTimers: Map<string, number> = new Map();
     let starShipCounts: Map<string, number> = new Map(); // Track previous counts
 
-    // Physics State
-    // Map<StarId, VisualShipState[]>
-    let visualShips: Map<string, VisualShipState[]> = new Map();
+    // ── FX Orchestrator (V2 — manages all visual ship state via VSM) ────
+    const fxOrchestrator = new FXOrchestrator();
+
+    // Physics State — backed by FXOrchestrator.vsm
+    // These aliases let the render loop use the same variable names unchanged.
+    let visualShips: Map<string, VisualShipState[]> =
+        fxOrchestrator.vsm.orbitShipsMap;
     let visualDamagedShips: Map<string, VisualShipState[]> = new Map();
     let nextShipId = 0; // Unique counter
 
-    // In-flight ships (departing, traveling, arriving)
-    let travelingShips: VisualShipState[] = [];
+    // In-flight ships — backed by VSM
+    let travelingShips: VisualShipState[] = fxOrchestrator.vsm.travelingShips;
 
     // Per-star attack ramp-in progress (0→1, advances per-frame only when unpaused)
     let attackRampProgress: Map<string, number> = new Map();
     let lastSurgeFrameTime: number = 0; // For computing per-frame delta
 
-    // Tick-synced combat tracking: stars only surge when CombatEvent confirms active combat
-    let starsInCombat: Set<string> = new Set();
+    // Tick-synced combat tracking — backed by VSM (cast for mutability)
+    let starsInCombat: Set<string> = fxOrchestrator.vsm
+        .starsInCombat as Set<string>;
     // Direction lock for mid-surge target changes: complete cycle before reorienting
     let surgeLockedDir: Map<
         string,
         { x: number; y: number; targetId: string }
     > = new Map();
 
-    // Delayed star color change: store previous owner until attacker ships arrive
-    // Key = starId, Value = { previousOwner, transitionTime (ms since epoch) }
+    // Delayed star color change — backed by VSM
     let pendingConquests: Map<
         string,
         { previousOwner: string; transitionTime: number }
-    > = new Map();
+    > = fxOrchestrator.vsm.pendingConquestsMut as any;
 
-    // Conquest flash: bright white pulse when a star is conquered
+    // Conquest flash — backed by VSM
     let conquestFlashes: Map<string, { startTime: number; duration: number }> =
-        new Map();
+        fxOrchestrator.vsm.conquestFlashesMut as any;
 
     // Animation state
     let animationTime = 0;
@@ -1455,8 +1455,10 @@
     // ============================================================================
 
     /**
-     * Process tick events to create ship travel animations.
-     * Uses explicit TransferEvent/ConquestEvent data instead of diff-based detection.
+     * Process tick events through FXOrchestrator.
+     * The orchestrator dispatches to registered handlers (core:transfer, core:combat, core:conquest)
+     * which mutate state via VisualStateManager. Since local vars alias VSM collections,
+     * the render loop sees updated state automatically.
      */
     function processTickEvents(
         stars: StarState[],
@@ -1464,28 +1466,11 @@
         connections: StarConnection[],
         starsById: Map<string, StarState>,
     ) {
-        // Build shared FX context for all handlers
-        const ctx: import("$lib/fx/types").FXContext = {
-            now: performance.now(),
+        fxOrchestrator.processEvents(
+            events,
             starsById,
-            visualShips,
-            travelingShips,
-            starsInCombat,
-            pendingConquests,
-            conquestFlashes,
-            effectiveTickMs: activeGameStore.effectiveTickMs,
-        };
-
-        // Dispatch to extracted handlers
-        for (const combat of events.combats) {
-            handleCombatEvent(combat, ctx);
-        }
-        for (const transfer of events.transfers) {
-            handleTransferEvent(transfer, ctx);
-        }
-        for (const conquest of events.conquests) {
-            handleConquestEvent(conquest, ctx);
-        }
+            activeGameStore.effectiveTickMs,
+        );
     }
 
     /**
