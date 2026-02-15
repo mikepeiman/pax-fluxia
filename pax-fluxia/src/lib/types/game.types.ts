@@ -47,7 +47,7 @@ export type ConnectionState = CommonConnection;
 
 export type GameView = 'menu' | 'game' | 'results';
 
-export type AILevel = 'easy' | 'normal' | 'hard';
+export type AILevel = 'easy' | 'normal' | 'hard' | 'expert';
 
 export interface EngineConfig {
   settings: import('@pax/common').GameSettings;

@@ -21,9 +21,10 @@
         RETREAT_DAMAGED_ACTIVATION_RATE: 0,
         DAMAGED_SHIP_EFFECTIVENESS: 0.1,
         REPAIR_RATE: 10,
-        AI_ATTACK_THRESHOLD: 1.33,
-        AI_DESIST_THRESHOLD: 1.0,
-        AI_RANDOM_AGGRESSION: 0.05,
+        AI_MUST_ATTACK_RATIO: 1.25,
+        AI_ATTACK_UPPER_BOUNDS: 0.8,
+        AI_ATTACK_STICKINESS: 0.5,
+        AI_EVALUATION_FREQUENCY: 0.5,
         AI_TACTICAL_AGGRESSION: 0.1,
     };
 
@@ -61,9 +62,10 @@
         RETREAT_DAMAGED_ACTIVATION_RATE: true,
         DAMAGED_SHIP_EFFECTIVENESS: true,
         REPAIR_RATE: true,
-        AI_ATTACK_THRESHOLD: true,
-        AI_DESIST_THRESHOLD: true,
-        AI_RANDOM_AGGRESSION: true,
+        AI_MUST_ATTACK_RATIO: true,
+        AI_ATTACK_UPPER_BOUNDS: true,
+        AI_ATTACK_STICKINESS: true,
+        AI_EVALUATION_FREQUENCY: true,
         AI_TACTICAL_AGGRESSION: true,
     });
 
@@ -130,7 +132,7 @@
             key: "CONQUEST_THRESHOLD",
             label: "Conquest Threshold",
             min: 1,
-            max: 20,
+            max: 50,
             step: 1,
         },
         {
@@ -179,25 +181,32 @@
 
     const aiVariables = [
         {
-            key: "AI_ATTACK_THRESHOLD",
-            label: "Attack Threshold",
+            key: "AI_MUST_ATTACK_RATIO",
+            label: "Must-Attack Ratio",
             min: 0.5,
             max: 3,
-            step: 0.1,
+            step: 0.05,
         },
         {
-            key: "AI_DESIST_THRESHOLD",
-            label: "Desist Threshold",
-            min: 0.1,
+            key: "AI_ATTACK_UPPER_BOUNDS",
+            label: "May-Attack Bounds",
+            min: 0.3,
             max: 2,
-            step: 0.1,
+            step: 0.05,
         },
         {
-            key: "AI_RANDOM_AGGRESSION",
-            label: "Random Aggression",
+            key: "AI_ATTACK_STICKINESS",
+            label: "Attack Stickiness",
             min: 0,
-            max: 0.5,
-            step: 0.01,
+            max: 1,
+            step: 0.05,
+        },
+        {
+            key: "AI_EVALUATION_FREQUENCY",
+            label: "Eval Frequency",
+            min: 0,
+            max: 1,
+            step: 0.05,
         },
         {
             key: "AI_TACTICAL_AGGRESSION",
@@ -296,9 +305,10 @@
                 "CONQUEST_DAMAGED_DESTROY_RATE",
             ],
             AI: [
-                "AI_ATTACK_THRESHOLD",
-                "AI_DESIST_THRESHOLD",
-                "AI_RANDOM_AGGRESSION",
+                "AI_MUST_ATTACK_RATIO",
+                "AI_ATTACK_UPPER_BOUNDS",
+                "AI_ATTACK_STICKINESS",
+                "AI_EVALUATION_FREQUENCY",
                 "AI_TACTICAL_AGGRESSION",
             ],
             Visual: [

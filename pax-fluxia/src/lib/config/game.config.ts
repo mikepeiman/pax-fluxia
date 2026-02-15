@@ -88,10 +88,11 @@ interface GameConfigType {
     STARTING_SHIPS: number;            // Ships per star at game start
 
     // AI Behavior
-    AI_ATTACK_THRESHOLD: number;       // Min ship ratio to initiate attack (e.g., 1.33 = need 33% advantage)
-    AI_DESIST_THRESHOLD: number;       // Ratio at which AI stops attacking (e.g., 1.0 = retreat at parity)
-    AI_RANDOM_AGGRESSION: number;      // Chance per tick to make a random attack (0-1)
-    AI_TACTICAL_AGGRESSION: number;    // Chance to attack weaker target to bait others (0-1)
+    AI_MUST_ATTACK_RATIO: number;      // Power ratio at which AI MUST attack (e.g. 1.25 = 5:4 advantage)
+    AI_ATTACK_UPPER_BOUNDS: number;    // Min ratio for AI to consider attacking (e.g. 0.8 = 4:5)
+    AI_ATTACK_STICKINESS: number;      // 0=disengage immediately, 1=fight until one side falls (0-1)
+    AI_EVALUATION_FREQUENCY: number;   // Chance per tick to evaluate decisions (0-1)
+    AI_TACTICAL_AGGRESSION: number;    // Chance to target weakest neighbor (0-1)
 
     // Visual
     MAX_RENDERED_SHIPS: number;
@@ -331,16 +332,19 @@ export const GAME_CONFIG: GameConfigType = {
     // AI BEHAVIOR
     // ========================================================================
 
-    /** Min ship ratio to initiate attack (1.33 = need 33% more ships than enemy) */
-    AI_ATTACK_THRESHOLD: 1.2,
+    /** Power ratio at which AI MUST attack (5:4 = 1.25) */
+    AI_MUST_ATTACK_RATIO: 1.25,
 
-    /** Ship ratio at which AI stops attacking and retreats (1.0 = retreat at parity) */
-    AI_DESIST_THRESHOLD: 0.9,
+    /** Min power ratio for AI to consider attacking (4:5 = 0.8) */
+    AI_ATTACK_UPPER_BOUNDS: 0.8,
 
-    /** Chance per tick to make a random attack even without advantage (0-1) */
-    AI_RANDOM_AGGRESSION: 0.15,
+    /** How persistent AI is with attacks: 0=disengage, 1=fight to the death (0-1) */
+    AI_ATTACK_STICKINESS: 0.5,
 
-    /** Chance to attack weaker target to bait other players (0-1) */
+    /** Chance per tick to evaluate attack decisions (0-1, difficulty-based override) */
+    AI_EVALUATION_FREQUENCY: 0.5,
+
+    /** Chance to target weakest neighbor (0-1) */
     AI_TACTICAL_AGGRESSION: 0.1,
 
     // ========================================================================
