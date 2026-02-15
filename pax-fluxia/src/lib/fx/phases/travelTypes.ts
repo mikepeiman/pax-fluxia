@@ -24,9 +24,9 @@ export interface PhaseResult {
  * Context available to all phase behaviors.
  */
 export interface PhaseContext {
-    /** Current performance.now() */
+    /** Current game time in ms (from FXClock — pausable, speed-scaled) */
     now: number;
-    /** Time elapsed since ship.departTime */
+    /** Time elapsed since ship.departTime (in game time) */
     elapsed: number;
     /** Extra easing config */
     travelEasing: string;

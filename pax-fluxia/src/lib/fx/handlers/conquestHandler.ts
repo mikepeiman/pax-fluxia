@@ -1,63 +1,68 @@
 // ============================================================================
-// FX Handler — Conquest Events
+// FX Handler — Conquest Events (V2, uses VSM + gameTime)
 // ============================================================================
 // Processes conquest events: scatter/retreat defender ships, transfer attacker
 // ships to conquered star, register delayed color change and flash effect.
+// All mutation goes through VSM, all timing uses gameTime.
 // ============================================================================
 
 import type { FXContext } from '../types';
 import type { ConquestEvent } from '@pax/common';
 import { GAME_CONFIG } from '$lib/config/game.config';
 import { executeConquestTransfer } from '$lib/animations/conquest';
+import type { FXHandler } from '../FXRegistry';
 
 /**
- * Handle a conquest event: animate defender scatter/retreat, attacker transfer,
- * delayed color change, and flash effect.
+ * Core conquest handler — animates defender scatter/retreat, attacker transfer,
+ * delayed color change, and flash effect via VSM.
  */
-export function handleConquestEvent(event: ConquestEvent, ctx: FXContext): void {
-    const conqueredStar = ctx.starsById.get(event.starId);
-    if (!conqueredStar) return;
+export const coreConquestHandler: FXHandler<ConquestEvent> = {
+    id: 'core:conquest',
+    priority: 100,
 
-    const ships = ctx.visualShips.get(event.starId) || [];
-    // Note: do NOT skip when ships.length === 0 — neutral stars still need
-    // attacker transfer animation even with no defender ships
+    handle(event: ConquestEvent, ctx: FXContext): void {
+        const conqueredStar = ctx.starsById.get(event.starId);
+        if (!conqueredStar) return;
 
-    // ── DEFENDER SHIPS: scatter/retreat/capture ──
-    processDefenderShips(event, ctx, ships, conqueredStar);
+        const ships = ctx.vsm.getOrbitShips(event.starId);
 
-    // ── ATTACKER SHIPS: Strategy-dispatched conquest transfer ──
-    processAttackerTransfer(event, ctx, conqueredStar);
+        // ── DEFENDER SHIPS: scatter/retreat/capture ──
+        processDefenderShips(event, ctx, ships, conqueredStar);
 
-    // ── DELAYED STAR COLOR ──
-    {
-        const colorDelay = GAME_CONFIG.CONQUEST_COLOR_DELAY_MS ?? 400;
-        ctx.pendingConquests.set(event.starId, {
-            previousOwner: event.previousOwner,
-            transitionTime: ctx.now + colorDelay,
-        });
-    }
+        // ── ATTACKER SHIPS: Strategy-dispatched conquest transfer ──
+        processAttackerTransfer(event, ctx, conqueredStar);
 
-    // ── CONQUEST FLASH ──
-    {
-        const flashDur = GAME_CONFIG.CONQUEST_FLASH_DURATION_MS ?? 600;
-        if (flashDur > 0) {
-            ctx.conquestFlashes.set(event.starId, {
-                startTime: ctx.now,
-                duration: flashDur,
+        // ── DELAYED STAR COLOR ──
+        {
+            const colorDelay = GAME_CONFIG.CONQUEST_COLOR_DELAY_MS ?? 400;
+            ctx.vsm.addPendingConquest(event.starId, {
+                previousOwner: event.previousOwner,
+                transitionTime: ctx.gameTime + colorDelay,
             });
         }
-    }
 
-    // ── AUTO-SLOWMO ──
-    if (GAME_CONFIG.CONQUEST_SLOWMO_ENABLED) {
-        const originalSpeed = GAME_CONFIG.ANIMATION_SPEED_MS;
-        GAME_CONFIG.ANIMATION_SPEED_MS =
-            originalSpeed * GAME_CONFIG.CONQUEST_SLOWMO_FACTOR;
-        setTimeout(() => {
-            GAME_CONFIG.ANIMATION_SPEED_MS = originalSpeed;
-        }, GAME_CONFIG.CONQUEST_SLOWMO_DURATION_MS);
-    }
-}
+        // ── CONQUEST FLASH ──
+        {
+            const flashDur = GAME_CONFIG.CONQUEST_FLASH_DURATION_MS ?? 600;
+            if (flashDur > 0) {
+                ctx.vsm.addConquestFlash(event.starId, {
+                    startTime: ctx.gameTime,
+                    duration: flashDur,
+                });
+            }
+        }
+
+        // ── AUTO-SLOWMO ──
+        if (GAME_CONFIG.CONQUEST_SLOWMO_ENABLED) {
+            const originalSpeed = GAME_CONFIG.ANIMATION_SPEED_MS;
+            GAME_CONFIG.ANIMATION_SPEED_MS =
+                originalSpeed * GAME_CONFIG.CONQUEST_SLOWMO_FACTOR;
+            setTimeout(() => {
+                GAME_CONFIG.ANIMATION_SPEED_MS = originalSpeed;
+            }, GAME_CONFIG.CONQUEST_SLOWMO_DURATION_MS);
+        }
+    },
+};
 
 // ────────────────────────────────────────────────────────────────────────────
 // Internal: Process defender ships (scatter / retreat / capture)
@@ -86,35 +91,32 @@ function processDefenderShips(
                 if (shipsAnimated >= ships.length) break;
                 const ship = ships[shipsAnimated];
                 setupDepartingShip(ship, conqueredStar, targetStar, event.starId, targetId, event.previousOwner, ctx);
-                ctx.travelingShips.push(ship);
                 shipsAnimated++;
             }
         }
-        ships.splice(0, shipsAnimated);
-        for (const s of ships) s.ownerId = event.newOwner;
-        ctx.visualShips.set(event.starId, ships);
+        // Move animated ships to travel, keep rest
+        const departing = ships.splice(0, shipsAnimated);
+        ctx.vsm.sendToTravel(departing);
+        ctx.vsm.recolorOrbit(event.starId, event.newOwner);
+        ctx.vsm.setOrbitShips(event.starId, ships);
 
     } else if (event.retreatTargetId) {
         // Single retreat target
         const retreatStar = ctx.starsById.get(event.retreatTargetId);
         if (retreatStar) {
             const escapeCount = Math.min(Math.floor(event.shipsEscaped), ships.length);
-            for (let i = 0; i < escapeCount; i++) {
-                const ship = ships.pop()!;
+            const retreating = ctx.vsm.removeFromOrbitEnd(event.starId, escapeCount);
+            for (const ship of retreating) {
                 setupDepartingShip(ship, conqueredStar, retreatStar, event.starId, event.retreatTargetId!, event.previousOwner, ctx);
-                ctx.travelingShips.push(ship);
             }
-            for (const s of ships) s.ownerId = event.newOwner;
-            ctx.visualShips.set(event.starId, ships);
+            ctx.vsm.sendToTravel(retreating);
+            ctx.vsm.recolorOrbit(event.starId, event.newOwner);
         }
     } else {
         // No escape — keep captured ships, update their owner color
         const capturedCount = Math.floor(event.shipsCaptured);
-        if (ships.length > capturedCount) {
-            ships.length = capturedCount;
-        }
-        for (const s of ships) s.ownerId = event.newOwner;
-        ctx.visualShips.set(event.starId, ships);
+        ctx.vsm.truncateOrbit(event.starId, capturedCount);
+        ctx.vsm.recolorOrbit(event.starId, event.newOwner);
     }
 }
 
@@ -142,7 +144,7 @@ function setupDepartingShip(
     ship.departFromY = ship.y;
     ship.fromStarId = fromStarId;
     ship.toStarId = toStarId;
-    ship.departTime = ctx.now + Math.random() * (GAME_CONFIG.DEPART_JITTER_MS ?? 60);
+    ship.departTime = ctx.gameTime + Math.random() * (GAME_CONFIG.DEPART_JITTER_MS ?? 60);
 
     // Scatter/retreat uses tick-synced timing (urgent — faster depart)
     const halfTick = ctx.effectiveTickMs / 2;
@@ -173,7 +175,7 @@ function processAttackerTransfer(
     const attackerStar = ctx.starsById.get(event.attackerStarId);
     if (!attackerStar) return;
 
-    const atkShips = ctx.visualShips.get(event.attackerStarId) || [];
+    const atkShips = ctx.vsm.getOrbitShips(event.attackerStarId);
     const transferCount = Math.min(event.shipsTransferred, atkShips.length);
 
     if (transferCount <= 0) return;
@@ -184,27 +186,25 @@ function processAttackerTransfer(
         conqueredStar,
         transferCount,
         newOwner: event.newOwner,
-        now: performance.now(),
+        now: ctx.gameTime,   // ← Uses game time, not performance.now()
         effectiveTickMs: ctx.effectiveTickMs,
         attackerStarId: event.attackerStarId,
         conqueredStarId: event.starId,
     });
 
-    // Departing ships enter the travel pipeline
-    for (const ship of result.departing) {
-        ctx.travelingShips.push(ship);
-    }
+    // Departing ships enter the travel pipeline via VSM
+    ctx.vsm.sendToTravel(result.departing);
 
-    // Arriving ships go directly to conquered star orbit (immediate/surge mode)
+    // Arriving ships go directly to conquered star orbit via VSM
     if (result.arriving.length > 0) {
-        const destShips = ctx.visualShips.get(event.starId) || [];
-        for (const ship of result.arriving) {
-            ship.targetIndex = destShips.length;
-            destShips.push(ship);
-        }
-        ctx.visualShips.set(event.starId, destShips);
+        ctx.vsm.addToOrbit(event.starId, result.arriving);
     }
 
-    // Update attacker star with remaining ships
-    ctx.visualShips.set(event.attackerStarId, result.remaining);
+    // Update attacker star with remaining ships via VSM
+    ctx.vsm.setOrbitShips(event.attackerStarId, result.remaining);
+}
+
+// Re-export standalone function for backward compatibility during migration
+export function handleConquestEvent(event: ConquestEvent, ctx: FXContext): void {
+    coreConquestHandler.handle(event, ctx);
 }

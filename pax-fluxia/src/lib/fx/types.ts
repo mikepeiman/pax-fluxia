@@ -1,32 +1,27 @@
 // ============================================================================
-// FX System — Shared Types
+// FX System — Shared Types (V2)
 // ============================================================================
-// Context object passed to all FX handlers so they can read/write shared
-// animation state without coupling to GameCanvas.svelte internals.
+// Context object passed to all FX handlers. Uses game time (pausable),
+// VisualStateManager for safe mutation, and read-only star access.
 // ============================================================================
 
-import type { VisualShipState } from '$lib/utils/render.utils';
+import type { VisualStateManager } from './VisualStateManager';
 import type { StarState } from '$lib/types/game.types';
 
 /**
  * Shared context passed to every FX handler.
- * Handlers read/write these maps to manage visual animation state.
+ * - Use `gameTime` instead of performance.now() for pause-safe animations.
+ * - Use `vsm.*` methods for visual state mutation instead of raw array ops.
  */
 export interface FXContext {
-    /** Current high-resolution timestamp (performance.now()) */
-    now: number;
-    /** Star lookup by ID */
+    /** Pausable game time in ms — stops when paused, scales with speed */
+    gameTime: number;
+    /** Frame delta in ms — 0 when paused */
+    dt: number;
+    /** Star lookup by ID (read-only for handlers) */
     starsById: Map<string, StarState>;
-    /** Per-star visual ship arrays (orbit ships) */
-    visualShips: Map<string, VisualShipState[]>;
-    /** Ships currently in transit (departing/traveling/arriving) */
-    travelingShips: VisualShipState[];
-    /** Stars currently engaged in combat (for surge animation) */
-    starsInCombat: Set<string>;
-    /** Pending conquest color delays (star keeps old owner color until ships arrive) */
-    pendingConquests: Map<string, { previousOwner: string; transitionTime: number }>;
-    /** Active conquest flash effects (bright white pulse on conquered star) */
-    conquestFlashes: Map<string, { startTime: number; duration: number }>;
+    /** Visual State Manager — safe mutation API */
+    vsm: VisualStateManager;
     /** Effective tick duration in ms (accounting for speed multiplier) */
     effectiveTickMs: number;
 }
