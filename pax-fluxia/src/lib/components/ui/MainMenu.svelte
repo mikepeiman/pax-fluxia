@@ -643,14 +643,10 @@
                                     bind:value={tickDuration}
                                 />
                                 <span class="mini-label">SLOW</span>
-                                <span class="value">{(tickDuration / 1000).toFixed(2)}s</span>
+                                <span class="value"
+                                    >{(tickDuration / 1000).toFixed(2)}s</span
+                                >
                             </div>
-                        </div>
-                        <button class="start-btn" onclick={startSPGame}>
-                            <span class="btn-glow"></span>
-                            START GAME
-                        </button>
-                    </div>
                         </div>
                         <button class="start-btn" onclick={startSPGame}>
                             <span class="btn-glow"></span>
