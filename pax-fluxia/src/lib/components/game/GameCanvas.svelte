@@ -35,6 +35,10 @@
     import { selectedStarStore } from "$lib/stores/selectedStarStore.svelte";
     import { createColorUtils } from "$lib/renderers/colorUtils";
     import { renderStars as renderStarsModule } from "$lib/renderers/StarRenderer";
+    import {
+        renderConnections as renderConnectionsModule,
+        renderOrderArrows as renderOrderArrowsModule,
+    } from "$lib/renderers/LaneRenderer";
     // animationStore is deprecated — ship animations handled via unified lifecycle
     import { ANIM_CONFIG } from "$lib/stores/animationStore";
 
@@ -704,11 +708,28 @@
         // Render connections (star network) - unified source
         const connections = activeGameStore.connections as StarConnection[];
         if (connections) {
-            renderConnections(stars, connections, starsById);
+            renderConnectionsModule(
+                connectionGraphics!,
+                stars,
+                connections,
+                starsById,
+                colorUtils,
+            );
         }
 
         // Render flow links
-        renderOrderArrows(stars, starsById);
+        renderOrderArrowsModule(
+            linkGraphics!,
+            stars,
+            starsById,
+            {
+                pendingOrders,
+                deferredOrders,
+                isLocalPlayerStar,
+                snapshotStars: activeGameStore.stars,
+            },
+            colorUtils,
+        );
 
         // NOTE: Pending orders cleanup is now handled in renderOrderArrows()
 
@@ -755,373 +776,7 @@
         }
     }
 
-    function renderConnections(
-        stars: StarState[],
-        connections: StarConnection[],
-        starsById: Map<string, StarState>,
-    ) {
-        if (!connectionGraphics) return;
-
-        connectionGraphics.clear();
-
-        // starsById passed in from renderFrame (no allocation needed)
-
-        // Collect all lane segments (reused for both shadow and foreground passes)
-        const segments: { x1: number; y1: number; x2: number; y2: number }[] =
-            [];
-
-        connections.forEach((conn) => {
-            const source = starsById.get(conn.sourceId);
-            const target = starsById.get(conn.targetId);
-            if (!source || !target) return;
-
-            const dx = target.x - source.x;
-            const dy = target.y - source.y;
-            const laneDist = Math.sqrt(dx * dx + dy * dy);
-            if (laneDist < 1) return;
-
-            const ndx = dx / laneDist;
-            const ndy = dy / laneDist;
-
-            // Collect gap intervals [tStart, tEnd] along the lane (0..1 parameterization)
-            const gaps: [number, number][] = [];
-
-            // Gap at source and target star edges (lanes terminate at star boundary)
-            const srcGap = source.radius / laneDist;
-            const tgtGap = target.radius / laneDist;
-            gaps.push([0, srcGap]);
-            gaps.push([1 - tgtGap, 1]);
-
-            // Check all other stars for proximity to this lane
-            for (const star of stars) {
-                if (star.id === conn.sourceId || star.id === conn.targetId)
-                    continue;
-
-                const ax = star.x - source.x;
-                const ay = star.y - source.y;
-                const t = (ax * ndx + ay * ndy) / laneDist;
-
-                if (t <= 0 || t >= 1) continue;
-
-                const projX = source.x + ndx * t * laneDist;
-                const projY = source.y + ndy * t * laneDist;
-                const perpDist = Math.sqrt(
-                    (star.x - projX) ** 2 + (star.y - projY) ** 2,
-                );
-
-                const clearance = star.radius + 6;
-                if (perpDist < clearance) {
-                    const halfChord = Math.sqrt(
-                        Math.max(
-                            0,
-                            clearance * clearance - perpDist * perpDist,
-                        ),
-                    );
-                    const gapStart = Math.max(0, t - halfChord / laneDist);
-                    const gapEnd = Math.min(1, t + halfChord / laneDist);
-                    gaps.push([gapStart, gapEnd]);
-                }
-            }
-
-            // Sort gaps by start and merge overlapping
-            gaps.sort((a, b) => a[0] - b[0]);
-            const merged: [number, number][] = [];
-            for (const gap of gaps) {
-                if (
-                    merged.length > 0 &&
-                    gap[0] <= merged[merged.length - 1][1]
-                ) {
-                    merged[merged.length - 1][1] = Math.max(
-                        merged[merged.length - 1][1],
-                        gap[1],
-                    );
-                } else {
-                    merged.push([...gap]);
-                }
-            }
-
-            // Collect segments between gaps
-            let segStart = 0;
-            for (const [gStart, gEnd] of merged) {
-                if (segStart < gStart) {
-                    segments.push({
-                        x1: source.x + ndx * segStart * laneDist,
-                        y1: source.y + ndy * segStart * laneDist,
-                        x2: source.x + ndx * gStart * laneDist,
-                        y2: source.y + ndy * gStart * laneDist,
-                    });
-                }
-                segStart = gEnd;
-            }
-            if (segStart < 1) {
-                segments.push({
-                    x1: source.x + ndx * segStart * laneDist,
-                    y1: source.y + ndy * segStart * laneDist,
-                    x2: target.x,
-                    y2: target.y,
-                });
-            }
-        });
-
-        // Pass 1: Dark shadow/border (wider, dark, semi-transparent)
-        const shadowWidth =
-            GAME_CONFIG.CONNECTION_WIDTH + GAME_CONFIG.CONNECTION_SHADOW_WIDTH;
-        for (const seg of segments) {
-            connectionGraphics.moveTo(seg.x1, seg.y1);
-            connectionGraphics.lineTo(seg.x2, seg.y2);
-        }
-        connectionGraphics.stroke({
-            color: 0x000000,
-            width: shadowWidth,
-            alpha: GAME_CONFIG.CONNECTION_SHADOW_ALPHA,
-            cap: "round",
-        });
-
-        // Pass 2: Foreground lane stroke
-        for (const seg of segments) {
-            connectionGraphics.moveTo(seg.x1, seg.y1);
-            connectionGraphics.lineTo(seg.x2, seg.y2);
-        }
-        connectionGraphics.stroke({
-            color: parseColor(GAME_CONFIG.CONNECTION_COLOR),
-            width: GAME_CONFIG.CONNECTION_WIDTH,
-            alpha: GAME_CONFIG.CONNECTION_ALPHA,
-            cap: "round",
-        });
-    }
-
-    // renderStars — now delegated to StarRenderer module
-
-    function renderOrderArrows(
-        stars: StarState[],
-        starsById: Map<string, StarState>,
-    ) {
-        if (!linkGraphics) return;
-
-        linkGraphics.clear();
-
-        // Build set of confirmed orders from star snapshot
-        const confirmedOrders = new Map<string, string>(); // sourceId -> targetId
-        stars.forEach((s) => {
-            if (s.targetId) {
-                confirmedOrders.set(s.id, s.targetId);
-            }
-        });
-
-        // Clean up stale pending orders:
-        // 1. Remove if source now has a confirmed target (snapshot overrides pending)
-        // 2. Remove if source no longer exists
-        // starsById passed in from renderFrame (no allocation needed)
-        pendingOrders.forEach((key) => {
-            const [sourceId, targetId] = key.split("|");
-            const source = starsById.get(sourceId);
-
-            // Remove if source doesn't exist or no longer owned by local player
-            if (!source || !isLocalPlayerStar(source)) {
-                pendingOrders.delete(key);
-                return;
-            }
-
-            // Remove if source now has a confirmed target (any target)
-            if (confirmedOrders.has(sourceId)) {
-                pendingOrders.delete(key);
-            }
-        });
-
-        // Draw all confirmed orders (authoritative)
-        const allLinks = new Set<string>();
-        confirmedOrders.forEach((targetId, sourceId) => {
-            allLinks.add(`${sourceId}|${targetId}`);
-        });
-
-        // Add remaining pending orders (optimistic, not yet confirmed)
-        pendingOrders.forEach((key) => allLinks.add(key));
-
-        // Render unique arrows
-        allLinks.forEach((linkKey) => {
-            const [sId, tId] = linkKey.split("|");
-            const source = stars.find((s) => s.id === sId);
-            const target = stars.find((s) => s.id === tId);
-
-            if (!source || !target) return;
-
-            // Porting canvasArrow logic to PixiJS
-            // Logic: Line from (TargetRadius + HeadLen) to (SourceRadius)
-
-            const dx = target.x - source.x;
-            const dy = target.y - source.y;
-            const angle = Math.atan2(dy, dx);
-            const dist = Math.sqrt(dx * dx + dy * dy);
-
-            const padding = 10;
-            const headLen = 30; // Length of arrowhead
-            const lineWidth = 6;
-
-            // Start: Source Edge
-            const startDist = source.radius + padding;
-            // Full extent: Target Edge
-            const fullEndDist = dist - (target.radius + padding);
-            // Apply arrow length fraction (0.5 = halfway)
-            const endDist =
-                startDist +
-                (fullEndDist - startDist) * GAME_CONFIG.ARROW_LENGTH_FRACTION;
-
-            // Calculate points
-            const startX = source.x + Math.cos(angle) * startDist;
-            const startY = source.y + Math.sin(angle) * startDist;
-
-            const endX = source.x + Math.cos(angle) * endDist;
-            const endY = source.y + Math.sin(angle) * endDist;
-
-            const arrowBaseX = source.x + Math.cos(angle) * (endDist - headLen);
-            const arrowBaseY = source.y + Math.sin(angle) * (endDist - headLen);
-
-            const color = getPlayerColor(source.ownerId);
-
-            // 1. Draw Shaft (Solid for now, gradient simulation hard in basic Graphics stroke)
-            // Ideally we'd fade it out near the target, but a solid bold line is clear.
-            linkGraphics!.moveTo(startX, startY);
-            linkGraphics!.lineTo(arrowBaseX, arrowBaseY);
-            linkGraphics!.stroke({
-                color,
-                width: lineWidth,
-                alpha: 0.6, // Slightly transparent shaft
-                cap: "round",
-            });
-
-            // 2. Draw Arrowhead (Filled Triangle) at End
-            // Vertices relative to arrow tip (endX, endY)
-            // We want the tip at 'endX', base at 'arrowBaseX' roughly?
-            // Actually, let's use the explicit geometry from reference:
-            // "headlen * Math.cos(angle - Math.PI / 6)"
-
-            // Tip
-            const tipX = endX;
-            const tipY = endY;
-
-            // Wings
-            const wing1X = tipX - headLen * Math.cos(angle - Math.PI / 6);
-            const wing1Y = tipY - headLen * Math.sin(angle - Math.PI / 6);
-
-            const wing2X = tipX - headLen * Math.cos(angle + Math.PI / 6);
-            const wing2Y = tipY - headLen * Math.sin(angle + Math.PI / 6);
-
-            // Draw Head
-            linkGraphics!.beginPath(); // Pixi Graphics doesn't need beginPath usually for shapes but poly does
-            linkGraphics!.moveTo(tipX, tipY);
-            linkGraphics!.lineTo(wing1X, wing1Y);
-            linkGraphics!.lineTo(wing2X, wing2Y);
-            linkGraphics!.closePath();
-
-            linkGraphics!.fill({ color, alpha: 1.0 }); // Solid bold head
-        });
-
-        // ============================================================================
-        // Render Deferred Orders (dashed lines, transparent)
-        // ============================================================================
-
-        // Clean up deferred orders for stars that have been captured by local player
-        deferredOrders.forEach((key) => {
-            const [sourceId] = key.split("|");
-            const source = starsById.get(sourceId);
-            // If the star is now owned by local player, the queued order has executed - remove it
-            if (source && isLocalPlayerStar(source)) {
-                deferredOrders.delete(key);
-            }
-        });
-
-        // Also sync with actual queuedOrderTargetId from snapshot
-        // Only remove if server has a DIFFERENT non-empty queued order
-        // (empty = server hasn't confirmed yet, keep our optimistic order)
-        const snapshotStars = activeGameStore.stars;
-        deferredOrders.forEach((key) => {
-            const [sourceId, targetId] = key.split("|");
-            const star = snapshotStars.find((s) => s.id === sourceId);
-            if (
-                star &&
-                star.queuedOrderTargetId &&
-                star.queuedOrderTargetId !== targetId
-            ) {
-                // Server has a different queued order for this star — remove stale local one
-                deferredOrders.delete(key);
-            }
-        });
-
-        // Render deferred orders with dashed appearance
-        deferredOrders.forEach((linkKey) => {
-            const [sId, tId] = linkKey.split("|");
-            const source = stars.find((s) => s.id === sId);
-            const target = stars.find((s) => s.id === tId);
-
-            if (!source || !target) return;
-
-            const dx = target.x - source.x;
-            const dy = target.y - source.y;
-            const angle = Math.atan2(dy, dx);
-            const dist = Math.sqrt(dx * dx + dy * dy);
-
-            const padding = 10;
-            const headLen = 20;
-            const lineWidth = 4;
-
-            const startDist = source.radius + padding;
-            const fullEndDist = dist - (target.radius + padding);
-            const endDist =
-                startDist +
-                (fullEndDist - startDist) * GAME_CONFIG.ARROW_LENGTH_FRACTION;
-
-            const startX = source.x + Math.cos(angle) * startDist;
-            const startY = source.y + Math.sin(angle) * startDist;
-            const endX = source.x + Math.cos(angle) * endDist;
-            const endY = source.y + Math.sin(angle) * endDist;
-
-            // Draw dashed line (simulate with short segments)
-            const dashLen = 15;
-            const gapLen = 10;
-            const totalLen = endDist - startDist;
-            let currentDist = 0;
-
-            const humanColor = 0x4488ff; // Human player color
-
-            while (currentDist < totalLen - headLen) {
-                const segStart = startDist + currentDist;
-                const segEnd = Math.min(
-                    segStart + dashLen,
-                    startDist + totalLen - headLen,
-                );
-
-                const x1 = source.x + Math.cos(angle) * segStart;
-                const y1 = source.y + Math.sin(angle) * segStart;
-                const x2 = source.x + Math.cos(angle) * segEnd;
-                const y2 = source.y + Math.sin(angle) * segEnd;
-
-                linkGraphics!.moveTo(x1, y1);
-                linkGraphics!.lineTo(x2, y2);
-                linkGraphics!.stroke({
-                    color: humanColor,
-                    width: lineWidth,
-                    alpha: 0.4,
-                    cap: "round",
-                });
-
-                currentDist += dashLen + gapLen;
-            }
-
-            // Draw small arrowhead
-            const tipX = endX;
-            const tipY = endY;
-            const wing1X = tipX - headLen * Math.cos(angle - Math.PI / 6);
-            const wing1Y = tipY - headLen * Math.sin(angle - Math.PI / 6);
-            const wing2X = tipX - headLen * Math.cos(angle + Math.PI / 6);
-            const wing2Y = tipY - headLen * Math.sin(angle + Math.PI / 6);
-
-            linkGraphics!.moveTo(tipX, tipY);
-            linkGraphics!.lineTo(wing1X, wing1Y);
-            linkGraphics!.lineTo(wing2X, wing2Y);
-            linkGraphics!.closePath();
-            linkGraphics!.fill({ color: humanColor, alpha: 0.5 });
-        });
-    }
+    // renderConnections + renderOrderArrows — now delegated to LaneRenderer module
 
     // ============================================================================
     // Animation System — Event-Driven Ship Lifecycle
