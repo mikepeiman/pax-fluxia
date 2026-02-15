@@ -11,6 +11,7 @@
   import SpeedControls from "$lib/components/ui/SpeedControls.svelte";
   import StarsPanel from "$lib/components/ui/StarsPanel.svelte";
   import AudioSettings from "$lib/components/ui/AudioSettings.svelte";
+  import TopBar from "$lib/components/ui/TopBar.svelte";
   import type { PlayerState } from "$lib/types/game.types";
 
   let roomIdCopied = $state(false);
@@ -53,6 +54,11 @@
 </svelte:head>
 
 <main class="app-container">
+  <TopBar
+    onSettingsClick={() => (showAudioSettings = true)}
+    onHelpClick={() => alert("Help & controls guide coming soon!")}
+  />
+
   {#if gameStore.currentView === "menu"}
     <MainMenu />
   {:else if gameStore.currentView === "results"}
