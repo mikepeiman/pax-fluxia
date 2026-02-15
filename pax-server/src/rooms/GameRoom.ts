@@ -12,6 +12,7 @@ import {
 
 // Import shared game logic from @pax/common
 import { GameEngine, STAR_TYPE_STATS, DEFAULT_ENGINE_CONFIG } from "@pax/common";
+import { generateMap } from "@pax/common/mapgen";
 import type { EngineConfig } from "@pax/common";
 import { log } from '../utils/logger';
 
@@ -448,63 +449,34 @@ export class GameRoom extends Room {
     }
 
     private initStandardMap() {
-        const width = 1600;
-        const height = 900;
-
         const playerIds = Array.from(this.state.players.values()).map(p => p.sessionId);
         const starsPerPlayer = this.roomOptions.starsPerPlayer ?? 5;
-        const totalStars = playerIds.length * starsPerPlayer;
-        const spacingMultiplier = this.roomOptions.starSpacing ?? 1.0;
 
-        // Physics-aware spacing: stars must not overlap each other's orbit layers
-        const STAR_RADIUS = 20;
-        const SHIP_BASE_SIZE = 4;
-        const RING_SPACING = SHIP_BASE_SIZE * 1.4;
-        const MAX_ORBIT_LAYERS = 5;
-        const SPACING_BUFFER = 20;
-        const physicsMinSpacing = (STAR_RADIUS * 2) + (RING_SPACING * MAX_ORBIT_LAYERS * 2) + SPACING_BUFFER;
-        let minSpacing = physicsMinSpacing * spacingMultiplier;
-        const MIN_ABSOLUTE_SPACING = 50;
+        // Delegate placement + connections to shared mapgen
+        const result = generateMap({
+            width: 1600,
+            height: 900,
+            playerCount: playerIds.length,
+            starsPerPlayer,
+            spacingMultiplier: this.roomOptions.starSpacing ?? 1.0,
+            minLinksPerStar: this.roomOptions.minLinks ?? 1,
+            maxLinksPerStar: this.roomOptions.maxLinks ?? 6,
+        });
 
-        log.sys('GameRoom', `Map: ${totalStars} stars (${starsPerPlayer}/player), spacing=${minSpacing.toFixed(0)}px (physics min: ${physicsMinSpacing.toFixed(0)})`);
+        log.sys('GameRoom', `Map: ${result.positions.length} stars, ${result.connections.length} connections (hex r=${result.hexRadius}, ${result.width}x${result.height})`);
 
-        // Dynamic padding: reduce for large star counts
-        const padding = totalStars > 50 ? 60 : totalStars > 20 ? 80 : 100;
-
-        // Generate random positions with adaptive spacing retry
-        let positions: { x: number; y: number }[] = [];
-
-        while (minSpacing >= MIN_ABSOLUTE_SPACING) {
-            positions = [];
-            for (let i = 0; i < totalStars * 10 && positions.length < totalStars; i++) {
-                const x = padding + Math.random() * (width - padding * 2);
-                const y = padding + Math.random() * (height - padding * 2);
-
-                const tooClose = positions.some(p =>
-                    Math.sqrt((p.x - x) ** 2 + (p.y - y) ** 2) < minSpacing
-                );
-
-                if (!tooClose) {
-                    positions.push({ x, y });
-                }
-            }
-
-            if (positions.length >= totalStars) break;
-            minSpacing *= 0.8; // Reduce spacing and retry
-        }
-
-        log.sys('GameRoom', `Placed ${positions.length}/${totalStars} stars (final spacing=${minSpacing.toFixed(0)}px)`);
-
-        // Create stars
-        positions.forEach((pos, i) => {
+        // Create star schemas from positions
+        const starTypes = ['grey', 'yellow', 'blue', 'purple', 'red', 'green'];
+        result.positions.forEach((pos, i) => {
             const ownerId = playerIds[i % playerIds.length];
-            const starTypes = ['grey', 'yellow', 'blue', 'purple', 'red', 'green'];
-            const starType = starTypes[Math.floor(Math.random() * starTypes.length)];
+            const starType = starTypes[i % starTypes.length];
             this.createStar(`star-${i}`, pos.x, pos.y, ownerId, starType);
         });
 
-        // Generate connections using nearest-neighbor approach
-        this.generateConnections();
+        // Create connection schemas from shared result
+        for (const conn of result.connections) {
+            this.addConnection(conn.sourceId, conn.targetId);
+        }
     }
 
     private createStar(id: string, x: number, y: number, ownerId: string, starType: string) {
@@ -562,127 +534,7 @@ export class GameRoom extends Room {
         return false;
     }
 
-    private generateConnections() {
-        const stars = Array.from(this.state.stars.values());
-        const connected = new Set<string>();
-        const linkCount = new Map<string, number>();
-        stars.forEach(s => linkCount.set(s.id, 0));
-
-        // Phase 1: Build nearest-neighbor connections
-        stars.forEach(star => {
-            const distances = stars
-                .filter(s => s.id !== star.id)
-                .map(s => ({
-                    id: s.id,
-                    distance: Math.sqrt((s.x - star.x) ** 2 + (s.y - star.y) ** 2)
-                }))
-                .sort((a, b) => a.distance - b.distance);
-
-            const connectionCount = 2 + Math.floor(Math.random() * 3); // 2-4
-            distances.slice(0, connectionCount).forEach(d => {
-                const key = [star.id, d.id].sort().join('|');
-                if (!connected.has(key)) {
-                    connected.add(key);
-                    linkCount.set(star.id, (linkCount.get(star.id) || 0) + 1);
-                    linkCount.set(d.id, (linkCount.get(d.id) || 0) + 1);
-                }
-            });
-        });
-
-        const starMap = new Map(stars.map(s => [s.id, s]));
-
-        // Phase 2: Remove near-zero angle connections (15° minimum)
-        const MIN_ANGLE_RAD = (15 * Math.PI) / 180;
-        let changed = true;
-        while (changed) {
-            changed = false;
-            for (const star of stars) {
-                const edges: { key: string; targetId: string; angle: number; dist: number }[] = [];
-                connected.forEach(key => {
-                    const [aId, bId] = key.split('|');
-                    let targetId: string | null = null;
-                    if (aId === star.id) targetId = bId;
-                    else if (bId === star.id) targetId = aId;
-                    if (!targetId) return;
-
-                    const target = starMap.get(targetId)!;
-                    const dx = target.x - star.x;
-                    const dy = target.y - star.y;
-                    edges.push({ key, targetId, angle: Math.atan2(dy, dx), dist: Math.sqrt(dx * dx + dy * dy) });
-                });
-
-                if (edges.length < 2) continue;
-                edges.sort((a, b) => a.angle - b.angle);
-
-                for (let i = 0; i < edges.length; i++) {
-                    const curr = edges[i];
-                    const next = edges[(i + 1) % edges.length];
-                    let angleDiff = next.angle - curr.angle;
-                    if (angleDiff < 0) angleDiff += 2 * Math.PI;
-
-                    if (angleDiff < MIN_ANGLE_RAD) {
-                        const toRemove = curr.dist > next.dist ? curr : next;
-                        const sCount = linkCount.get(star.id)!;
-                        const tCount = linkCount.get(toRemove.targetId)!;
-                        if (sCount > 1 && tCount > 1) {
-                            connected.delete(toRemove.key);
-                            linkCount.set(star.id, sCount - 1);
-                            linkCount.set(toRemove.targetId, tCount - 1);
-                            changed = true;
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-
-        // Phase 3: Remove connections that pass through intermediate stars
-        const CLEARANCE = 35;
-        changed = true;
-        while (changed) {
-            changed = false;
-            for (const key of Array.from(connected)) {
-                const [aId, bId] = key.split('|');
-                const a = starMap.get(aId)!;
-                const b = starMap.get(bId)!;
-
-                let passesThrough = false;
-                for (const other of stars) {
-                    if (other.id === aId || other.id === bId) continue;
-                    const dist = this.pointToSegment(other.x, other.y, a.x, a.y, b.x, b.y);
-                    if (dist < CLEARANCE) {
-                        passesThrough = true;
-                        break;
-                    }
-                }
-
-                if (passesThrough) {
-                    const ac = linkCount.get(aId)!;
-                    const bc = linkCount.get(bId)!;
-                    if (ac > 1 && bc > 1) {
-                        connected.delete(key);
-                        linkCount.set(aId, ac - 1);
-                        linkCount.set(bId, bc - 1);
-                        changed = true;
-                    }
-                }
-            }
-        }
-
-        // Create final connection schemas
-        connected.forEach(key => {
-            const [aId, bId] = key.split('|');
-            this.addConnection(aId, bId);
-        });
-    }
-
-    private pointToSegment(px: number, py: number, ax: number, ay: number, bx: number, by: number): number {
-        const dx = bx - ax, dy = by - ay;
-        const lenSq = dx * dx + dy * dy;
-        if (lenSq === 0) return Math.sqrt((px - ax) ** 2 + (py - ay) ** 2);
-        const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lenSq));
-        return Math.sqrt((px - (ax + t * dx)) ** 2 + (py - (ay + t * dy)) ** 2);
-    }
+    // generateConnections + pointToSegment removed — now handled by @pax/common/mapgen
 
     // ========================================================================
     // Tick Loop

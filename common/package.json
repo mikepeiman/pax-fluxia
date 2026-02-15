@@ -10,12 +10,17 @@
         "./combat": "./src/combat.ts",
         "./production": "./src/production.ts",
         "./orders": "./src/orders.ts",
-        "./schema": "./src/schema/GameState.ts"
+        "./schema": "./src/schema/GameState.ts",
+        "./mapgen": "./src/mapgen/index.ts"
+    },
+    "dependencies": {
+        "d3-delaunay": "^6.0.4"
     },
     "peerDependencies": {
         "@colyseus/schema": ">=2.0.0"
     },
     "devDependencies": {
+        "@types/d3-delaunay": "^6.0.4",
         "typescript": "~5.6.2"
     }
 }

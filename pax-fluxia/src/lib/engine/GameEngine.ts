@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 // GameEngine - Authoritative game state and tick loop
 // ============================================================================
 
@@ -17,16 +17,12 @@ import type {
 import { Star, createStar } from './Star';
 import { AI, createAI } from './AI';
 import { log } from '$lib/utils/logger';
-import {
-    selectRandomHexPositions,
-    generateStarConnections,
-    areConnected
-} from '$lib/utils/hex.utils';
+import { areConnected } from '$lib/utils/hex.utils';
+import { generateStarPositions, generateConnections } from '@pax/common/mapgen';
 import { GAME_CONFIG, calculateCombatV4, buildEngineConfig } from '$lib/config/game.config';
 import { applyConquest, STAR_TYPE_STATS, createEmptyTickEvents, resolveMultiSourceCombat as sharedResolveCombat } from '@pax/common';
 import type { ConquestContext, ConquestResult, EngineConfig as SharedEngineConfig, TickEvents } from '@pax/common';
 import { combatLog } from '$lib/stores/combatLogStore';
-import { HexGrid } from './HexGrid';
 import { Delaunay } from 'd3-delaunay';
 
 // ============================================================================
@@ -171,81 +167,30 @@ export class GameEngine {
     }
 
     private initializeMap(): void {
-        // Apply user spacing multiplier FIRST â€” scales the entire map
+        // Delegate hex grid generation + position selection to shared mapgen
         const spacingMultiplier = this.settings.starSpacing ?? 1.0;
-        const scaleFactor = Math.max(1, spacingMultiplier);
-        const width = Math.round(1600 * scaleFactor);
-        const height = Math.round(900 * scaleFactor);
-        let hexRadius = GAME_CONFIG.HEX_RADIUS || 60;
-
-        // Calculate total stars first to determine optimal padding
         const playerIds = Array.from(this.players.keys());
-        const starsPerPlayer = GAME_CONFIG.STARS_PER_PLAYER;
-        const totalStars = playerIds.length * starsPerPlayer;
+        const totalStars = playerIds.length * GAME_CONFIG.STARS_PER_PLAYER;
 
-        // Dynamic padding: reduce for large star counts, scale with map size
-        const basePaddingX = totalStars > 50 ? 80 : totalStars > 20 ? 120 : 150;
-        const basePaddingY = totalStars > 50 ? 60 : totalStars > 20 ? 80 : 100;
-        const paddingX = Math.round(basePaddingX * scaleFactor);
-        const paddingY = Math.round(basePaddingY * scaleFactor);
-
-        // Adaptive hex radius: shrink grid cell size to ensure enough positions
-        // Each hex occupies ~(1.5r Ã— sqrt(3)r) area; we need at least 3x positions for spacing freedom
-        const gridArea = (width - paddingX * 2) * (height - paddingY * 2);
-        const neededPositions = totalStars * 3; // 3x for physics spacing margin
-        const maxHexArea = gridArea / neededPositions;
-        const maxHexRadius = Math.sqrt(maxHexArea / (1.5 * Math.sqrt(3)));
-        hexRadius = Math.max(20, Math.min(hexRadius, Math.floor(maxHexRadius)));
-
-        const grid = new HexGrid({
-            width: width - (paddingX * 2),
-            height: height - (paddingY * 2),
-            radius: hexRadius,
-            offset: 0
+        const { positions, hexRadius, width, height } = generateStarPositions({
+            width: 1600,
+            height: 900,
+            totalStars,
+            spacingMultiplier,
+            hexRadius: GAME_CONFIG.HEX_RADIUS || 60,
         });
 
-        const offsetX = paddingX;
-        const offsetY = paddingY;
-        const rawHexes = grid.generate();
-        const hexes = rawHexes.map(h => ({
-            x: h.x + offsetX,
-            y: h.y + offsetY,
-            q: 0, r: 0
-        }));
-
-        log.sys('GameEngine', `Hex grid: radius=${hexRadius}, ${hexes.length} positions for ${totalStars} requested stars (map: ${width}x${height}, spacing: ${spacingMultiplier}x)`);
-
-        // Physics-aware spacing: stars must not overlap each other's orbit layers
-        // Formula: minSpacing = (starRadius * 2) + (orbitLayerWidth * MAX_ORBIT_LAYERS * 2) + buffer
-        const STAR_RADIUS = 20;  // Default star radius from Star.ts
-        const SHIP_BASE_SIZE = 4;
-        const RING_SPACING = SHIP_BASE_SIZE * 1.4; // Matches render.utils.ts
-        const MAX_ORBIT_LAYERS = 5;  // Max visual orbit layers (R-38)
-        const SPACING_BUFFER = 20;  // Adjustable gap between orbit envelopes
-        const physicsMinSpacing = (STAR_RADIUS * 2) + (RING_SPACING * MAX_ORBIT_LAYERS * 2) + SPACING_BUFFER;
-
-        // Apply spacing multiplier to physics minimum
-        const minSpacing = physicsMinSpacing * spacingMultiplier;
-
-        log.sys('GameEngine', `Star spacing: ${minSpacing.toFixed(0)}px (physics min: ${physicsMinSpacing.toFixed(0)}, multiplier: ${spacingMultiplier})`);
-
-        // Pass physicsMinSpacing as absolute floor â€” spacing should never go below what physics requires
-        const starPositions = selectRandomHexPositions(hexes, totalStars, minSpacing, physicsMinSpacing);
-
-        log.sys('GameEngine', `Selected ${starPositions.length} positions for stars`);
+        log.sys('GameEngine', `Map: ${positions.length} stars (hex r=${hexRadius}, ${width}x${height}, spacing: ${spacingMultiplier}x)`);
 
         let starsAssigned = 0;
-        starPositions.forEach((pos) => {
+        positions.forEach((pos) => {
             const ownerId = playerIds[starsAssigned % playerIds.length];
             const isCapital = starsAssigned < playerIds.length;
 
-            // Determine star type (color semantics)
             let starType: StarType = 'grey';
             if (isCapital) {
-                // Capital assignment
                 starType = 'grey';
             } else {
-                // Guaranteed even distribution: round-robin across all 6 types
                 const types: StarType[] = ['grey', 'yellow', 'red', 'green', 'purple', 'blue'];
                 const nonCapitalIndex = starsAssigned - playerIds.length;
                 starType = types[nonCapitalIndex % types.length];
@@ -261,21 +206,18 @@ export class GameEngine {
                 ownerId: ownerId,
                 starType: starType
             }, this.stars.size);
-            // Add starting ships
             star.addActiveShips(GAME_CONFIG.STARTING_SHIPS);
             this.stars.set(star.id, star);
         });
 
         this.updateTerritories(width, height);
 
+        // Delegate connection generation to shared mapgen (Delaunay + 4-phase pruning)
         const starArray = Array.from(this.stars.values()).map(s => ({
-            id: s.id,
-            x: s.x,
-            y: s.y,
-            ownerId: s.ownerId
+            id: s.id, x: s.x, y: s.y, ownerId: s.ownerId
         }));
 
-        this.connections = generateStarConnections(
+        this.connections = generateConnections(
             starArray,
             Infinity,
             GAME_CONFIG.MIN_LINKS_PER_STAR,

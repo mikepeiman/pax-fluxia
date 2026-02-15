@@ -30,3 +30,6 @@ export * from './schema/GameState';
 export * from './engine/GameEngine';
 export * from './engine/GameInput';
 export * from './engine/TickEvents';
+
+// Re-export map generation
+export * from './mapgen';
