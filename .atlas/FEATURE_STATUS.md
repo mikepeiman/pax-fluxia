@@ -367,6 +367,7 @@
 
 | Date | Summary |
 |------|---------|
+| 2026-02-15 | **Renderer Wiring (Phase D complete)**: Deleted inline rendering functions from `GameCanvas.svelte`, replaced with imported modules. `colorUtils` (-150 LOC), `StarRenderer` (-285 LOC), `LaneRenderer` (-366 LOC), `ShipRenderer` (-982 LOC), `containerFactory` (-80 LOC). **GameCanvas: 3020 → 1384 lines (-54%)**. Input layer stays inline (orchestrator code). D.6 skipped as design decision. |
 | 2026-02-15 | **Renderer Extraction (Phase C)**: `RenderContext` interface, `containerFactory` (PIXI hierarchy + textures), `colorUtils` (HSL/density-tier), `StarRenderer` (stars/labels/icons/glow), `LaneRenderer` (connections/arrows/deferred), `ShipRenderer` (orbits/travel lifecycle/orb groups/attack surge/particle pool). All extracted to `pax-fluxia/src/lib/renderers/`. Zero new type errors. Wiring (Phase D) pending. |
 | 2026-02-14 | **4002 FIX**: Resolved Colyseus "seat reservation expired" — root cause was dual `@colyseus/core` module instances from explicit WebSocketTransport import. Fix: let `Server.getDefaultTransport()` handle it. **Multiplayer now working online!** |
 | 2026-02-14 | **Common core extraction**: `@pax/common/mapgen` module with `generateStarPositions()` + `generateConnections()`. Server `PaxRoom.initMap` wired. Client `GameEngine.initializeMap` wired. Red-team architecture review for renderer extraction. |
