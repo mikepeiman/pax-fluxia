@@ -706,6 +706,7 @@
         shipParticleIndex = shipRes.shipParticleIndex;
         lastSurgeFrameTime = shipState.lastSurgeFrameTime;
         nextShipId = shipState.nextShipId;
+        travelingShips = shipState.travelingShips; // CRITICAL: arrived ships removed by module
 
         // Hide unused particles from pool
         for (let i = shipParticleIndex; i < shipParticlePool.length; i++) {
