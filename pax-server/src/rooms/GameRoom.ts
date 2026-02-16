@@ -60,6 +60,7 @@ export class GameRoom extends Room {
     private readonly DISPOSE_GRACE_MS = 5 * 60 * 1000; // 5 minutes
     private roomOptions: RoomOptions = {};
     private engineConfig: EngineConfig = { ...DEFAULT_ENGINE_CONFIG };
+    private restartVotes: Set<string> = new Set();
 
     // State - will be set in onCreate using this.setState() per 0.17.29 requirement
     declare state: GameRoomState;
@@ -246,46 +247,73 @@ export class GameRoom extends Room {
             this.updateListingMetadata();
         });
 
-        // Restart game (host only) — reset to lobby within same room
+        // Restart game — vote-based: any connected human can vote
+        this.onMessage("requestRestart", (client) => {
+            if (this.state.phase !== "playing" && this.state.phase !== "ended") return;
+
+            const player = this.state.players.get(client.sessionId);
+            if (!player || player.isAI) return;
+
+            this.restartVotes.add(client.sessionId);
+
+            // Count connected humans (use Room.clients, not schema)
+            const connectedIds = new Set(this.clients.map(c => c.sessionId));
+            let connectedHumans = 0;
+            this.state.players.forEach((p, sid) => {
+                if (!p.isAI && connectedIds.has(sid)) connectedHumans++;
+            });
+
+            const votesNeeded = connectedHumans;
+            const currentVotes = this.restartVotes.size;
+
+            log.game('GameRoom', `Restart vote: ${player.name} (${currentVotes}/${votesNeeded})`);
+
+            // Broadcast vote progress to all clients
+            this.broadcast("restartVote", {
+                votes: currentVotes,
+                needed: votesNeeded,
+                voters: Array.from(this.restartVotes),
+            });
+
+            // Execute restart when all connected humans agree
+            if (currentVotes >= votesNeeded) {
+                this.executeRestart();
+            }
+        });
+
+        // Legacy: old restartGame message maps to requestRestart
         this.onMessage("restartGame", (client) => {
+            // Backwards-compatible: host-only instant restart
             if (client.sessionId !== this.state.hostSessionId) {
-                log.net('GameRoom', `Non-host tried to restart: ${client.sessionId}`);
+                // Non-host? Treat as a vote
+                this.restartVotes.add(client.sessionId);
                 return;
             }
+            this.executeRestart();
+        });
 
-            log.game('GameRoom', 'Restarting game — returning to lobby');
+        // Surrender — player forfeits but stays connected as spectator
+        this.onMessage("surrender", (client) => {
+            if (this.state.phase !== "playing") return;
 
-            // Stop game loop
-            this.stopTick();
+            const player = this.state.players.get(client.sessionId);
+            if (!player || player.isEliminated) return;
 
-            // Clear map data
-            this.state.stars.clear();
-            this.state.connections.splice(0, this.state.connections.length);
+            log.game('GameRoom', `Player ${player.name} (${client.sessionId}) surrendered`);
+            player.isEliminated = true;
 
-            // Remove AI players, keep human players
-            const aiSessionIds: string[] = [];
-            this.state.players.forEach((p, sid) => {
-                if (p.isAI) {
-                    aiSessionIds.push(sid);
-                } else {
-                    // Reset human player stats
-                    p.totalShips = 0;
-                    p.starCount = 0;
-                    p.isEliminated = false;
+            // Neutralize all their stars (clear owner, cancel orders) 
+            this.state.stars.forEach((star) => {
+                if (star.ownerId === client.sessionId) {
+                    star.ownerId = "";
+                    star.targetId = "";
+                    star.queuedOrderTargetId = "";
+                    // Keep ships in place as neutral defenders
                 }
             });
-            aiSessionIds.forEach(sid => this.state.players.delete(sid));
-            this.state.playerCount = this.state.players.size;
 
-            // Reset game state
-            this.state.phase = "lobby";
-            this.state.isPaused = true;
-            this.state.tick = 0;
-            this.state.tickProgress = 0;
-            this.state.speed = 1;
-            this.state.winnerId = "";
-
-            log.game('GameRoom', `Restart complete. ${this.state.players.size} human players retained.`);
+            // Check if this creates a winner (only one non-eliminated player left)
+            this.checkForWinner();
             this.updateListingMetadata();
         });
 
@@ -649,6 +677,63 @@ export class GameRoom extends Room {
                 }
             }
         }
+    }
+
+    /** Check if only one non-eliminated player remains — declare winner */
+    private checkForWinner() {
+        const alive: string[] = [];
+        this.state.players.forEach((p, sid) => {
+            if (!p.isEliminated) alive.push(sid);
+        });
+
+        if (alive.length === 1) {
+            this.state.winnerId = alive[0];
+            this.state.phase = "ended";
+            this.stopTick();
+            const winner = this.state.players.get(alive[0]);
+            log.game('GameRoom', `Game ended via surrender. Winner: ${winner?.name ?? alive[0]}`);
+        }
+    }
+
+    /** Execute the actual restart — clear state and return to lobby */
+    private executeRestart() {
+        log.game('GameRoom', 'Executing restart — returning to lobby');
+
+        // Clear votes
+        this.restartVotes.clear();
+
+        // Stop game loop
+        this.stopTick();
+
+        // Clear map data
+        this.state.stars.clear();
+        this.state.connections.splice(0, this.state.connections.length);
+
+        // Remove AI players, keep human players
+        const aiSessionIds: string[] = [];
+        this.state.players.forEach((p, sid) => {
+            if (p.isAI) {
+                aiSessionIds.push(sid);
+            } else {
+                // Reset human player stats
+                p.totalShips = 0;
+                p.starCount = 0;
+                p.isEliminated = false;
+            }
+        });
+        aiSessionIds.forEach(sid => this.state.players.delete(sid));
+        this.state.playerCount = this.state.players.size;
+
+        // Reset game state
+        this.state.phase = "lobby";
+        this.state.isPaused = true;
+        this.state.tick = 0;
+        this.state.tickProgress = 0;
+        this.state.speed = 1;
+        this.state.winnerId = "";
+
+        log.game('GameRoom', `Restart complete. ${this.state.players.size} human players retained.`);
+        this.updateListingMetadata();
     }
 
 }

@@ -380,12 +380,34 @@ function isVictory(): boolean {
     return human != null && (w as any).id === (human as any).id;
 }
 
+/** MP: Send surrender to server, stay connected to spectate */
+function surrenderAndSpectate(): void {
+    if (isMultiplayerMode()) {
+        multiplayerStore.surrenderPlayer();
+    } else {
+        gameStore.surrender();
+    }
+}
+
+/** MP: Send surrender to server, then leave room and return to menu */
+function surrenderAndLeave(): void {
+    if (isMultiplayerMode()) {
+        multiplayerStore.surrenderPlayer();
+        // Small delay so server processes the surrender before we disconnect
+        setTimeout(() => {
+            multiplayerStore.leaveRoom();
+            gameStore.returnToMenu();
+        }, 200);
+    } else {
+        gameStore.surrender();
+        gameStore.returnToMenu();
+    }
+}
+
+/** Legacy surrender (used by elimination modal) */
 function surrender(): void {
     if (isMultiplayerMode()) {
-        // MP: leave the room and show results
-        // (server handles the game state; client just disconnects)
-        multiplayerStore.leaveRoom();
-        gameStore.returnToMenu();
+        multiplayerStore.surrenderPlayer();
     } else {
         gameStore.surrender();
     }
@@ -463,6 +485,8 @@ export const activeGameStore = {
     playAgain,
     returnToMenu,
     surrender,
+    surrenderAndSpectate,
+    surrenderAndLeave,
 
     // Results / History
     getHistory,
@@ -471,6 +495,18 @@ export const activeGameStore = {
     getHumanPlayer,
     isVictory,
     isLocalPlayerEliminated,
+
+    // Spectator mode
+    get isSpectating() {
+        if (isMultiplayerMode()) return multiplayerStore.isSpectating;
+        return false;
+    },
+
+    // Restart vote info (MP only)
+    get restartVoteInfo() {
+        if (isMultiplayerMode()) return multiplayerStore.restartVoteInfo;
+        return null;
+    },
 
     /** Update BASE_TICK_MS and reschedule engine interval (SP only) */
     updateTickInterval(ms: number) {

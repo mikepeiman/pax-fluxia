@@ -51,6 +51,9 @@ let gameHistory = $state<GameHistoryEntry[]>([]);
 let availableRooms = $state<RoomListing[]>([]);
 let isFetchingRooms = $state(false);
 
+// Restart vote tracking
+let restartVoteInfo = $state<{ votes: number; needed: number; voters: string[] } | null>(null);
+
 // Client-side tick interpolation (for smooth animations in MP)
 const BASE_TICK_MS = 1200;
 let lastTickTime = 0;
@@ -192,6 +195,7 @@ function leaveRoom(): void {
     stars = [];
     connections = [];
     gameHistory = [];
+    restartVoteInfo = null;
 }
 
 function disconnect(): void {
@@ -220,13 +224,25 @@ export interface RoomListing {
 async function fetchRooms(): Promise<void> {
     isFetchingRooms = true;
     try {
-        // Colyseus 0.17+ serves room listings via HTTP matchmaker
-        const httpBase = SERVER_URL.replace(/^ws/, 'http');
-        const res = await fetch(`${httpBase}/matchmake/game_room`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const rooms: RoomListing[] = await res.json();
-        availableRooms = rooms;
-        log.net('RoomBrowser', `Found ${rooms.length} available rooms`);
+        // Ensure client is connected
+        if (!client) await connect();
+        if (!client) {
+            availableRooms = [];
+            return;
+        }
+
+        // Colyseus 0.17 — use SDK HTTP client to query matchmaker listing
+        // The server defines game_room with .enableRealtimeListing()
+        const res = await client.http.get('/matchmake/game_room');
+        const rooms: any[] = Array.isArray(res.data) ? res.data : [];
+        availableRooms = rooms.map((r: any) => ({
+            roomId: r.roomId,
+            name: r.name || r.roomId,
+            clients: r.clients,
+            maxClients: r.maxClients,
+            metadata: r.metadata,
+        }));
+        log.net('RoomBrowser', `Found ${availableRooms.length} available rooms`);
     } catch (err) {
         log.error('RoomBrowser', 'Failed to fetch rooms', err);
         availableRooms = [];
@@ -407,6 +423,12 @@ function setupRoomListeners(): void {
         log.net('Room', `Left with code: ${code}`);
         isConnected = false;
     });
+
+    // Restart vote progress
+    room.onMessage('restartVote', (data: { votes: number; needed: number; voters: string[] }) => {
+        restartVoteInfo = data;
+        log.net('Room', `Restart vote: ${data.votes}/${data.needed}`);
+    });
 }
 
 // ============================================================================
@@ -449,8 +471,20 @@ function setDeferredOrder(enemyStarId: StarId, nextTargetId: StarId, persistAfte
 }
 
 function restartGame(): void {
-    log.net('Room', 'Sending restartGame');
-    room?.send('restartGame');
+    log.net('Room', 'Sending requestRestart (vote)');
+    room?.send('requestRestart');
+}
+
+/** Request restart (vote-based) */
+function requestRestart(): void {
+    log.net('Room', 'Sending requestRestart (vote)');
+    room?.send('requestRestart');
+}
+
+/** Surrender — mark self eliminated on server but stay connected to spectate */
+function surrenderPlayer(): void {
+    log.net('Room', 'Sending surrender');
+    room?.send('surrender');
 }
 
 // ============================================================================
@@ -530,8 +564,21 @@ export const multiplayerStore = {
     cancelOrder,
     setDeferredOrder,
     restartGame,
+    requestRestart,
+    surrenderPlayer,
+
+    // Restart vote info
+    get restartVoteInfo() { return restartVoteInfo; },
+    clearRestartVote() { restartVoteInfo = null; },
 
     // Helpers
     getLocalPlayerId,
-    isOwnStar
+    isOwnStar,
+
+    // Spectator mode
+    get isSpectating() {
+        if (!localSessionId || !isConnected) return false;
+        const me = players.find(p => (p as any).sessionId === localSessionId);
+        return me?.isEliminated === true;
+    },
 };

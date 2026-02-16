@@ -28,6 +28,7 @@
   let showSurrenderModal = $state(false);
   let showEliminatedModal = $state(false);
   let hasSeenElimination = $state(false);
+  let showStatsOverlay = $state(false);
 
   // Auto-show elimination modal when player is eliminated
   const isEliminated = $derived(activeGameStore.isLocalPlayerEliminated());
@@ -93,7 +94,12 @@
             class="btn btn--ghost btn--sm"
             onclick={() => activeGameStore.playAgain()}
           >
-            Restart
+            {#if activeGameStore.restartVoteInfo}
+              Restart ({activeGameStore.restartVoteInfo.votes}/{activeGameStore
+                .restartVoteInfo.needed})
+            {:else}
+              Restart
+            {/if}
           </button>
           <button
             class="btn btn--danger btn--sm"
@@ -113,31 +119,41 @@
     </div>
   {/if}
 
-  <!-- Surrender Confirmation Modal -->
+  <!-- Quit Game Modal (3 options) -->
   {#if showSurrenderModal}
     <div class="modal-overlay" role="dialog" aria-modal="true">
       <div class="surrender-modal glass-panel">
-        <h3 class="surrender-modal__title">Surrender?</h3>
+        <h3 class="surrender-modal__title">Quit Game?</h3>
         <p class="surrender-modal__desc">Choose how to end your campaign.</p>
-        <div class="surrender-modal__actions">
+        <div class="surrender-modal__actions quit-actions">
           <button
             class="btn btn--primary btn--md"
             onclick={() => {
               showSurrenderModal = false;
-              activeGameStore.surrender();
+              showStatsOverlay = true;
             }}
           >
-            🏁 End Game
-            <span class="btn-sub">View results & graphs</span>
+            📊 View Stats
+            <span class="btn-sub">Peek at standings</span>
           </button>
           <button
             class="btn btn--ghost btn--md"
             onclick={() => {
               showSurrenderModal = false;
-              activeGameStore.returnToMenu();
+              activeGameStore.surrenderAndSpectate();
             }}
           >
-            🚪 Abandon
+            👁 Surrender & Watch
+            <span class="btn-sub">Stay connected, spectate</span>
+          </button>
+          <button
+            class="btn btn--danger btn--md"
+            onclick={() => {
+              showSurrenderModal = false;
+              activeGameStore.surrenderAndLeave();
+            }}
+          >
+            🚪 Surrender & Leave
             <span class="btn-sub">Return to main menu</span>
           </button>
         </div>
@@ -149,6 +165,24 @@
         </button>
       </div>
     </div>
+  {/if}
+
+  <!-- Stats Overlay (peek at standings without ending game) -->
+  {#if showStatsOverlay}
+    <div class="modal-overlay" role="dialog" aria-modal="true">
+      <ResultsModal />
+      <button
+        class="close-stats-btn btn btn--ghost btn--sm"
+        onclick={() => (showStatsOverlay = false)}
+      >
+        ✕ Close
+      </button>
+    </div>
+  {/if}
+
+  <!-- Spectator Banner -->
+  {#if activeGameStore.isSpectating}
+    <div class="spectator-banner">👁 SPECTATING</div>
   {/if}
 
   <!-- Elimination Modal -->
@@ -324,5 +358,45 @@
   .surrender-modal__cancel {
     opacity: 0.5;
     font-size: var(--text-xs, 0.75rem);
+  }
+
+  .quit-actions {
+    flex-direction: column;
+  }
+
+  .close-stats-btn {
+    position: absolute;
+    top: var(--space-4, 16px);
+    right: var(--space-4, 16px);
+    z-index: 1001;
+    color: var(--color-text-primary, #fff);
+  }
+
+  .spectator-banner {
+    position: fixed;
+    top: var(--space-4, 16px);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 900;
+    background: rgba(0, 0, 0, 0.7);
+    border: 1px solid var(--color-accent-cyan, #44eeff);
+    color: var(--color-accent-cyan, #44eeff);
+    padding: var(--space-2, 8px) var(--space-5, 20px);
+    border-radius: 9999px;
+    font-size: var(--text-xs, 0.75rem);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    pointer-events: none;
+    animation: spectate-pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes spectate-pulse {
+    0%,
+    100% {
+      opacity: 0.7;
+    }
+    50% {
+      opacity: 1;
+    }
   }
 </style>
