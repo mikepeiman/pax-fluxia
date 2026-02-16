@@ -25,7 +25,6 @@
     import { STAR_TYPE_STATS } from "@pax/common";
     import { executeConquestTransfer } from "$lib/animations/conquest";
     import { FXOrchestrator } from "$lib/fx/orchestrator";
-    // DEPART_BEHAVIORS, TRAVEL_BEHAVIORS, PhaseContext — now consumed by ShipRenderer module
     import {
         createContainers,
         initShipRendering,
@@ -218,7 +217,6 @@
     const colorUtils = createColorUtils(
         (ownerId) => activeGameStore.getPlayerColor(ownerId) ?? undefined,
     );
-    // Color utility shortcuts removed — modules receive the colorUtils object directly
 
     // Helper: Check if star is owned by local player
     function isLocalPlayerStar(star: StarState): boolean {
@@ -516,7 +514,6 @@
         applyZoomTransform();
     }
 
-    // getPlayerColor and parseColor — now provided by colorUtils (line ~211)
     function renderDebugGrid() {
         if (!starsContainer?.parent) return;
 
@@ -658,8 +655,6 @@
             colorUtils,
         );
 
-        // NOTE: Pending orders cleanup is now handled in renderOrderArrows()
-
         // Reset particle pool index for this frame
         shipParticleIndex = 0;
         // Clear orb travel graphics (drawn fresh each frame)
@@ -733,8 +728,6 @@
         }
     }
 
-    // renderConnections + renderOrderArrows — now delegated to LaneRenderer module
-
     // ============================================================================
     // Animation System — Event-Driven Ship Lifecycle
     // (POST_MORTEMS.md: animations driven by TickEvents, not state diffing)
@@ -758,11 +751,6 @@
             activeGameStore.effectiveTickMs,
         );
     }
-
-    // Ship rendering functions (applyTravelEasing, renderTravelingShips, easeInOutCubic,
-    // renderShips, renderFleets, drawShip) — now delegated to ShipRenderer module
-
-    // drawPolygon, TYPE_SIDES, drawTypeIcon, drawHexBorder — now in StarRenderer module
 
     // ============================================================================
     // Input Handling
