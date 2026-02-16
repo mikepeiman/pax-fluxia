@@ -36,6 +36,7 @@ import { AI, createAI, DEFAULT_AI_CONFIG } from '@pax/common';
 import { combatLog } from '$lib/stores/combatLogStore';
 import { audio } from '$lib/audio/AudioManager';
 import { GAME_CONFIG, buildEngineConfig } from '$lib/config/game.config';
+import { animationStore } from '$lib/stores/animationStore.svelte';
 import { activeGameStore } from '$lib/stores/activeGameStore.svelte';
 
 // ============================================================================
@@ -239,7 +240,8 @@ function startProgressLoop(): void {
             return;
         }
         const elapsed = Date.now() - lastTickTime;
-        tickProgress = Math.min(elapsed / tickIntervalMs, 1);
+        const animDenom = Math.max(animationStore.speedMs / (state.speed || 1), GAME_CONFIG.MIN_TICK_MS);
+        tickProgress = Math.min(elapsed / animDenom, 1);
         progressRafId = requestAnimationFrame(updateProgress);
     }
     progressRafId = requestAnimationFrame(updateProgress);

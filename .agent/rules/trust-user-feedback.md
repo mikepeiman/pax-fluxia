@@ -24,3 +24,14 @@ AGENT: "That's unexpected. Let me investigate what could cause ships to increase
 ```
 
 The user has direct access to the running application. You do not. Their observations are more reliable than your speculation.
+
+## Language Precision
+
+Natural language grammar encodes meaning — like programming, wrong verbs produce wrong outputs.
+
+- **"User clarified"** = user added NEW information you didn't have → ONLY use when genuinely new context
+- **"User corrected"** = user told you that you were WRONG → use when you made an error
+- **"User emphasized"** = user repeated something they already said → use when you failed to act on prior input
+- **"User reported"** = user described observed behavior → use for bug reports
+
+Never use softening language ("clarified") to disguise your own errors. Be accurate about what happened.
