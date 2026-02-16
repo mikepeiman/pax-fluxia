@@ -508,10 +508,12 @@ export const activeGameStore = {
         return null;
     },
 
-    /** Update BASE_TICK_MS and reschedule engine interval (SP only) */
+    /** Update BASE_TICK_MS and reschedule engine interval (SP + MP) */
     updateTickInterval(ms: number) {
         GAME_CONFIG.BASE_TICK_MS = ms;
-        if (!isMultiplayerMode()) {
+        if (isMultiplayerMode()) {
+            multiplayerStore.setTickInterval(ms);
+        } else {
             gameStore.updateConfig();
         }
     },

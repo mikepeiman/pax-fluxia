@@ -56,6 +56,7 @@ export class GameRoom extends Room {
     maxClients = 4;
     private tickIntervalId: ReturnType<typeof setInterval> | null = null;
     private tickStartTime = 0;
+    private tickIntervalBase = 1200; // Configurable BASE_TICK_MS, default 1200
     private disposeTimer: ReturnType<typeof setTimeout> | null = null;
     private readonly DISPOSE_GRACE_MS = 5 * 60 * 1000; // 5 minutes
     private roomOptions: RoomOptions = {};
@@ -345,6 +346,17 @@ export class GameRoom extends Room {
             log.game('GameRoom', `Speed set to ${message.speed}x by ${client.sessionId}`);
         });
 
+        // Set tick interval (BASE_TICK_MS)
+        this.onMessage("setTickInterval", (client, message: { ms: number }) => {
+            if (this.state.phase !== "playing") return;
+            const ms = Math.max(100, Math.min(5000, message.ms));
+            this.tickIntervalBase = ms;
+            if (!this.state.isPaused && this.state.speed > 0) {
+                this.restartTick();
+            }
+            log.game('GameRoom', `Tick interval set to ${ms}ms by ${client.sessionId}`);
+        });
+
         // Issue order (attack/reinforce)
         this.onMessage("issueOrder", (client, message: { sourceId: string; targetId: string; persist?: boolean }) => {
             const player = this.state.players.get(client.sessionId);
@@ -571,8 +583,7 @@ export class GameRoom extends Room {
     private startTick() {
         if (this.tickIntervalId) return;
 
-        const BASE_TICK_MS = 1200;
-        const interval = Math.max(100, BASE_TICK_MS / this.state.speed);
+        const interval = Math.max(100, this.tickIntervalBase / this.state.speed);
 
         this.tickStartTime = Date.now();
         this.tickIntervalId = setInterval(() => {

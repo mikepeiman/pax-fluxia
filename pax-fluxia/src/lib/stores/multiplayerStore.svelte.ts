@@ -6,6 +6,7 @@ import { Client, Room } from '@colyseus/sdk';
 import type { EngineConfig } from '@pax/common';
 import type { PlayerState, StarState, StarConnection, StarId, GameHistoryEntry } from '$lib/types/game.types';
 import { log } from '$lib/utils/logger';
+import { GAME_CONFIG } from '$lib/config/game.config';
 import type { TickEvents, TransferEvent } from '@pax/common';
 import { activeGameStore } from '$lib/stores/activeGameStore.svelte';
 
@@ -55,7 +56,6 @@ let isFetchingRooms = $state(false);
 let restartVoteInfo = $state<{ votes: number; needed: number; voters: string[] } | null>(null);
 
 // Client-side tick interpolation (for smooth animations in MP)
-const BASE_TICK_MS = 1200;
 let lastTickTime = 0;
 let tickProgressRAF: number | null = null;
 
@@ -69,7 +69,7 @@ function startTickProgressLoop() {
             return;
         }
 
-        const tickIntervalMs = BASE_TICK_MS / speed;
+        const tickIntervalMs = GAME_CONFIG.BASE_TICK_MS / speed;
         const elapsed = performance.now() - lastTickTime;
         tickProgress = Math.min(1, elapsed / tickIntervalMs);
         tickProgressRAF = requestAnimationFrame(loop);
@@ -470,6 +470,10 @@ function setDeferredOrder(enemyStarId: StarId, nextTargetId: StarId, persistAfte
     return true;
 }
 
+function setTickInterval(ms: number): void {
+    room?.send('setTickInterval', { ms });
+}
+
 function restartGame(): void {
     log.net('Room', 'Sending requestRestart (vote)');
     room?.send('requestRestart');
@@ -560,6 +564,7 @@ export const multiplayerStore = {
     resumeGame,
     pauseGame,
     setSpeed,
+    setTickInterval,
     issueOrder,
     cancelOrder,
     setDeferredOrder,
