@@ -1,6 +1,15 @@
 ﻿<script lang="ts">
     import { onMount } from "svelte";
     import { GAME_CONFIG } from "$lib/config/game.config";
+    import {
+        applyTheme,
+        extractTheme,
+        saveTheme,
+        loadThemes,
+        exportThemeJSON,
+        type GameTheme,
+    } from "$lib/config/themes";
+    import { BUILTIN_THEMES } from "$lib/config/builtinThemes";
     import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
     import { selectedStarStore } from "$lib/stores/selectedStarStore.svelte";
     import { gameStore } from "$lib/stores/gameStore.svelte";
@@ -41,7 +50,7 @@
             const stored = localStorage.getItem(STORAGE_KEY);
             if (stored) return { ...defaultValues, ...JSON.parse(stored) };
         } catch (e) {
-            log.error("CombatDebugPanel", "Failed to load combat tuning", e);
+            log.error("GameSettingsPanel", "Failed to load combat tuning", e);
         }
         return { ...defaultValues };
     }
@@ -769,6 +778,98 @@
     }
 
     // =========================================================================
+    // Settings Tiers — basic / advanced / developer
+    // =========================================================================
+    type SettingsTier = "basic" | "advanced" | "developer";
+    const TIER_STORAGE_KEY = "pax-fluxia-settings-tier";
+
+    function loadTier(): SettingsTier {
+        if (typeof window === "undefined") return "basic";
+        const s = localStorage.getItem(TIER_STORAGE_KEY);
+        if (s === "advanced" || s === "developer") return s;
+        return "basic";
+    }
+
+    let activeTier = $state<SettingsTier>(loadTier());
+
+    function setTier(tier: SettingsTier) {
+        activeTier = tier;
+        if (typeof window !== "undefined") {
+            localStorage.setItem(TIER_STORAGE_KEY, tier);
+        }
+    }
+
+    const TIER_LABELS: Record<
+        SettingsTier,
+        { label: string; icon: string; color: string }
+    > = {
+        basic: { label: "Basic", icon: "🎮", color: "#4ade80" },
+        advanced: { label: "Advanced", icon: "⚙️", color: "#fbbf24" },
+        developer: { label: "Developer", icon: "🛠️", color: "#f87171" },
+    };
+
+    // =========================================================================
+    // Theme System
+    // =========================================================================
+    let userThemes = $state<GameTheme[]>(
+        typeof window !== "undefined" ? loadThemes() : [],
+    );
+    let allThemes = $derived([...BUILTIN_THEMES, ...userThemes]);
+    let selectedThemeName = $state<string>("");
+
+    function handleApplyTheme(name: string) {
+        const theme = allThemes.find((t) => t.name === name);
+        if (!theme) return;
+        applyTheme(theme);
+        selectedThemeName = name;
+        // Sync panel reactive state from GAME_CONFIG after theme apply
+        panel = loadPanelSettings();
+        Object.assign(panel, {
+            tickInterval: GAME_CONFIG.BASE_TICK_MS,
+            animSpeed: GAME_CONFIG.ANIMATION_SPEED_MS,
+            production: GAME_CONFIG.BASE_PRODUCTION,
+            repair: GAME_CONFIG.REPAIR_RATE,
+            defense: 1 / GAME_CONFIG.AGGRESSOR_ADVANTAGE,
+            attack: GAME_CONFIG.DAMAGE_PER_SHIP,
+        });
+        applyPanelToConfig();
+        savePanelSettings();
+        // Sync combat variables too
+        const stored = loadFromStorage();
+        for (const k of Object.keys(stored)) {
+            if (k in GAME_CONFIG) {
+                (stored as any)[k] = (GAME_CONFIG as any)[k];
+            }
+        }
+        saveToStorage(stored);
+        Object.assign(values, stored);
+        configStatus = `✅ Theme "${name}" applied`;
+        configStatusColor = "#4ade80";
+    }
+
+    function handleSaveTheme() {
+        const name = prompt("Theme name:");
+        if (!name) return;
+        const desc = prompt("Short description:") || "";
+        const theme = extractTheme(name, desc);
+        saveTheme(theme);
+        userThemes = loadThemes();
+        configStatus = `✅ Theme "${name}" saved`;
+        configStatusColor = "#4ade80";
+    }
+
+    function handleExportTheme() {
+        const theme = allThemes.find((t) => t.name === selectedThemeName);
+        if (theme) {
+            exportThemeJSON(theme);
+        } else {
+            // Export current as unnamed
+            const t = extractTheme("Custom", "Exported settings");
+            exportThemeJSON(t);
+        }
+    }
+
+    // =========================================================================
     // Icon Toolbar — sections definition
     // =========================================================================
     type SectionId =
@@ -805,23 +906,133 @@
         icon: string;
         label: string;
         color: string;
+        tier: SettingsTier;
     }[] = [
-        { id: "speed", icon: "⚡", label: "Timing", color: "#ffcc00" },
-        { id: "battle", icon: "⚔️", label: "Battle", color: "#ff4466" },
-        { id: "economy", icon: "🎛️", label: "Core / Global", color: "#44ff88" },
-        { id: "ai", icon: "🤖", label: "AI Behavior", color: "#ff8844" },
-        { id: "ships", icon: "🎨", label: "Ship Appearance", color: "#88ccff" },
-        { id: "travel", icon: "🚀", label: "Ship Travel", color: "#44aaff" },
-        { id: "conquest", icon: "🏰", label: "Conquest", color: "#ff66aa" },
-        { id: "visuals", icon: "🎨", label: "Map Visuals", color: "#cc66ff" },
-        { id: "logging", icon: "📋", label: "Logging", color: "#88aacc" },
+        {
+            id: "speed",
+            icon: "⚡",
+            label: "Timing",
+            color: "#ffcc00",
+            tier: "basic",
+        },
+        {
+            id: "economy",
+            icon: "🎛️",
+            label: "Core / Global",
+            color: "#44ff88",
+            tier: "basic",
+        },
+        {
+            id: "battle",
+            icon: "⚔️",
+            label: "Battle",
+            color: "#ff4466",
+            tier: "advanced",
+        },
+        {
+            id: "ships",
+            icon: "🎨",
+            label: "Ship Appearance",
+            color: "#88ccff",
+            tier: "advanced",
+        },
+        {
+            id: "travel",
+            icon: "🚀",
+            label: "Ship Travel",
+            color: "#44aaff",
+            tier: "advanced",
+        },
+        {
+            id: "conquest",
+            icon: "🏰",
+            label: "Conquest",
+            color: "#ff66aa",
+            tier: "advanced",
+        },
+        {
+            id: "visuals",
+            icon: "🎨",
+            label: "Map Visuals",
+            color: "#cc66ff",
+            tier: "advanced",
+        },
+        {
+            id: "ai",
+            icon: "🤖",
+            label: "AI Behavior",
+            color: "#ff8844",
+            tier: "developer",
+        },
+        {
+            id: "logging",
+            icon: "📋",
+            label: "Logging",
+            color: "#88aacc",
+            tier: "developer",
+        },
     ];
+
+    // Filter sections by active tier (basic shows basic, advanced shows basic+advanced, developer shows all)
+    const TIER_RANK: Record<SettingsTier, number> = {
+        basic: 0,
+        advanced: 1,
+        developer: 2,
+    };
+    let visibleSections = $derived(
+        sections.filter((s) => TIER_RANK[s.tier] <= TIER_RANK[activeTier]),
+    );
 </script>
 
 <div class="controls-panel">
+    <!-- Tier Toggle -->
+    <div class="tier-bar">
+        {#each ["basic", "advanced", "developer"] as const as tier}
+            <button
+                class="tier-pill"
+                class:active={activeTier === tier}
+                style="--tier-color: {TIER_LABELS[tier].color}"
+                onclick={() => setTier(tier)}
+                title="{TIER_LABELS[tier].label} settings"
+            >
+                <span class="tier-icon">{TIER_LABELS[tier].icon}</span>
+                <span class="tier-label">{TIER_LABELS[tier].label}</span>
+            </button>
+        {/each}
+    </div>
+
+    <!-- Theme Picker (always visible — basic tier feature) -->
+    <div class="theme-bar">
+        <select
+            class="theme-select"
+            value={selectedThemeName}
+            onchange={(e) => {
+                const v = (e.target as HTMLSelectElement).value;
+                if (v) handleApplyTheme(v);
+            }}
+        >
+            <option value="">🎨 Select Theme…</option>
+            {#each allThemes as theme}
+                <option value={theme.name}>
+                    {theme.name}
+                </option>
+            {/each}
+        </select>
+        <button
+            class="theme-btn"
+            onclick={handleSaveTheme}
+            title="Save current as theme">💾</button
+        >
+        <button
+            class="theme-btn"
+            onclick={handleExportTheme}
+            title="Export theme JSON">📤</button
+        >
+    </div>
+
     <!-- Icon Toolbar -->
     <div class="icon-toolbar" class:has-active={activeSection !== null}>
-        {#each sections as s}
+        {#each visibleSections as s}
             <button
                 class="icon-btn"
                 class:active={activeSection === s.id}
@@ -2894,5 +3105,90 @@
         font-size: 8px;
         color: #667;
         padding: 0 6px 2px;
+    }
+
+    /* ── Tier Toggle ── */
+    .tier-bar {
+        display: flex;
+        gap: 3px;
+        padding: 4px 6px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .tier-pill {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        padding: 4px 6px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+        background: transparent;
+        color: #667;
+        font-size: 9px;
+        font-weight: 600;
+        font-family: inherit;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+    .tier-pill:hover {
+        border-color: var(--tier-color);
+        color: var(--tier-color);
+        background: color-mix(in srgb, var(--tier-color) 8%, transparent);
+    }
+    .tier-pill.active {
+        border-color: var(--tier-color);
+        color: var(--tier-color);
+        background: color-mix(in srgb, var(--tier-color) 15%, transparent);
+        box-shadow: 0 0 8px
+            color-mix(in srgb, var(--tier-color) 20%, transparent);
+    }
+    .tier-icon {
+        font-size: 11px;
+    }
+    .tier-label {
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    /* ── Theme Picker ── */
+    .theme-bar {
+        display: flex;
+        gap: 4px;
+        padding: 4px 6px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .theme-select {
+        flex: 1;
+        background: #1a1e2a;
+        color: #ccc;
+        border: 1px solid #334;
+        border-radius: 4px;
+        padding: 4px 8px;
+        font-size: 10px;
+        font-family: inherit;
+        cursor: pointer;
+    }
+    .theme-select:focus {
+        outline: 1px solid #4ade80;
+        border-color: #4ade80;
+    }
+    .theme-btn {
+        background: transparent;
+        border: 1px solid #334;
+        border-radius: 4px;
+        color: #889;
+        font-size: 12px;
+        width: 28px;
+        cursor: pointer;
+        transition: all 0.15s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .theme-btn:hover {
+        border-color: #4ade80;
+        color: #fff;
+        background: rgba(74, 222, 128, 0.1);
     }
 </style>

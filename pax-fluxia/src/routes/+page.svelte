@@ -6,7 +6,7 @@
   import MainMenu from "$lib/components/ui/MainMenu.svelte";
   import ResultsModal from "$lib/components/ui/ResultsModal.svelte";
   import GameCanvas from "$lib/components/game/GameCanvas.svelte";
-  import CombatDebugPanel from "$lib/components/ui/CombatDebugPanel.svelte";
+  import GameSettingsPanel from "$lib/components/ui/GameSettingsPanel.svelte";
   import Leaderboard from "$lib/components/ui/Leaderboard.svelte";
   import SpeedControls from "$lib/components/ui/SpeedControls.svelte";
   import StarsPanel from "$lib/components/ui/StarsPanel.svelte";
@@ -151,9 +151,9 @@
           <Leaderboard players={leaderboardPlayers} />
         </div>
 
-        <!-- 2. Combat Tuning (fills remaining space) -->
+        <!-- 2. Game Settings & Tuning (fills remaining space) -->
         <div class="panel-section section-tuning">
-          <CombatDebugPanel />
+          <GameSettingsPanel />
         </div>
       </div>
     </div>
