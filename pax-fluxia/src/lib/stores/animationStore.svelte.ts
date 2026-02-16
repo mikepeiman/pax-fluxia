@@ -32,7 +32,8 @@ function saveSetting(key: string, value: unknown) {
 }
 
 // --- State ---
-let speedMs = $state(loadSetting('speedMs', GAME_CONFIG.ANIMATION_SPEED_MS));
+const DEFAULT_SPEED_MS = GAME_CONFIG.ANIMATION_SPEED_MS; // Snapshot default at init
+let speedMs = $state(loadSetting('speedMs', DEFAULT_SPEED_MS));
 
 // --- Actions ---
 function setAnimationSpeed(ms: number) {
@@ -43,5 +44,7 @@ function setAnimationSpeed(ms: number) {
 // --- Store Export ---
 export const animationStore = {
     get speedMs() { return speedMs; },
+    /** Speed multiplier: >1 = faster animations, <1 = slower. */
+    get speedMultiplier() { return DEFAULT_SPEED_MS / Math.max(50, speedMs); },
     setAnimationSpeed,
 };

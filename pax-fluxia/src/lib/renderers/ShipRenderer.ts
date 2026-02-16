@@ -22,6 +22,7 @@
 import * as PIXI from 'pixi.js';
 import type { StarState, FleetState } from '$lib/types/game.types';
 import { GAME_CONFIG } from '$lib/config/game.config';
+import { animationStore } from '$lib/stores/animationStore.svelte';
 import {
     getOrbitSlot,
     getOuterOrbitRadius,
@@ -242,8 +243,13 @@ export function renderTravelingShips(
         travelArcIntensity: GAME_CONFIG.TRAVEL_ARC_INTENSITY ?? 0.5,
     };
 
+    // Animation speed scaling: multiply elapsed by speedMultiplier
+    // so the slider directly controls ship travel/depart visual speed.
+    // >1 = faster animations, <1 = slower animations.
+    const animSpeedMult = animationStore.speedMultiplier;
+
     for (const ship of state.travelingShips) {
-        const elapsed = now - ship.departTime;
+        const elapsed = (now - ship.departTime) * animSpeedMult;
 
         if (elapsed < 0) {
             stillTraveling.push(ship);

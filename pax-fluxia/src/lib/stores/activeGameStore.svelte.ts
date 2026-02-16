@@ -457,7 +457,7 @@ export const activeGameStore = {
     get speed() { return getSpeed(); },
     get effectiveTickMs() {
         const speed = getSpeed() || 1;
-        return Math.max(GAME_CONFIG.MIN_TICK_MS, animationStore.speedMs / speed);
+        return Math.max(GAME_CONFIG.MIN_TICK_MS, GAME_CONFIG.BASE_TICK_MS / speed);
     },
     get tickProgress() { return getTickProgress(); },
     get currentTick() {
