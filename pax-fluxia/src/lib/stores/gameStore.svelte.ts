@@ -80,6 +80,7 @@ let progressRafId: number | null = null;
 /** Tick timing */
 let lastTickTime = 0;
 let tickIntervalMs = 1200;
+let pausedElapsed = 0;  // How far into current tick when paused (ms)
 
 /** Stats tracking */
 let startTime = 0;
@@ -206,17 +207,35 @@ function toGameState(s: GameRoomState): GameState {
 // Game Loop Helpers
 // ============================================================================
 
-function scheduleTick(): void {
+function scheduleTick(resumeOffsetMs = 0): void {
     stopTick();
     if (!state) return;
 
     tickIntervalMs = Math.max(GAME_CONFIG.MIN_TICK_MS, GAME_CONFIG.BASE_TICK_MS / (state.speed || 1));
 
-    tickIntervalId = setInterval(() => {
-        executeTick();
-    }, tickIntervalMs);
+    // On resume, lastTickTime is set BEFORE calling this so tickProgress picks up where it froze.
+    // If resuming mid-tick, schedule a shorter first tick for the remaining time,
+    // then switch to regular interval.
+    const firstDelay = resumeOffsetMs > 0 ? Math.max(1, tickIntervalMs - resumeOffsetMs) : tickIntervalMs;
 
-    lastTickTime = Date.now();
+    if (resumeOffsetMs > 0 && firstDelay < tickIntervalMs) {
+        // Resume: short first tick for remaining time
+        tickIntervalId = setTimeout(() => {
+            executeTick();
+            // Now start regular interval
+            tickIntervalId = setInterval(() => {
+                executeTick();
+            }, tickIntervalMs);
+        }, firstDelay) as unknown as ReturnType<typeof setInterval>;
+    } else {
+        tickIntervalId = setInterval(() => {
+            executeTick();
+        }, tickIntervalMs);
+    }
+
+    if (!resumeOffsetMs) {
+        lastTickTime = Date.now();
+    }
     startProgressLoop();
 }
 
@@ -537,6 +556,8 @@ async function startGame(): Promise<void> {
 
 function pauseGame(): void {
     if (state) {
+        // Save how far into the current tick we are
+        pausedElapsed = Date.now() - lastTickTime;
         state.isPaused = true;
         stopTick();
         snapshot = toGameState(state);
@@ -551,7 +572,10 @@ function resumeGame(): void {
         }
         state.isPaused = false;
         snapshot = toGameState(state);
-        scheduleTick();
+        // Restore lastTickTime so tickProgress resumes from where it froze
+        lastTickTime = Date.now() - pausedElapsed;
+        scheduleTick(pausedElapsed);
+        pausedElapsed = 0;
     }
 }
 
