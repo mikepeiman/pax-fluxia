@@ -1248,25 +1248,6 @@
                         />
                     </div>
 
-                    <h4 class="sub-heading">Timing & Motion</h4>
-                    <div class="var-row">
-                        <div class="row-top">
-                            <span class="var-name">Ship Travel Duration</span
-                            ><span class="val">{panel.travelDurationMs}ms</span>
-                        </div>
-                        <input
-                            type="range"
-                            min="200"
-                            max="5000"
-                            step="50"
-                            value={panel.travelDurationMs}
-                            oninput={(e) => {
-                                const v = +(e.target as HTMLInputElement).value;
-                                GAME_CONFIG.SHIP_TRAVEL_DURATION_MS = v;
-                                updatePanel("travelDurationMs", v);
-                            }}
-                        />
-                    </div>
                     <div class="var-row">
                         <div class="row-top">
                             <span class="var-name">Travel Duration</span><span
@@ -1431,7 +1412,6 @@
                             oninput={(e) => {
                                 const v = +(e.target as HTMLInputElement).value;
                                 GAME_CONFIG.LANE_OFFSET_PX = v;
-                                updatePanel("laneOffsetPx", v);
                             }}
                         />
                     </div>

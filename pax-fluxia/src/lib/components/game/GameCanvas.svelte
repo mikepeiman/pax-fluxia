@@ -18,12 +18,9 @@
     import type {
         StarState,
         StarConnection,
-        FleetState,
         StarId,
     } from "$lib/types/game.types";
-    import { Star } from "$lib/engine/Star";
-    import { STAR_TYPE_STATS } from "@pax/common";
-    import { executeConquestTransfer } from "$lib/animations/conquest";
+    import { STAR_TYPE_STATS, generateHexGrid } from "@pax/common";
     import { FXOrchestrator } from "$lib/fx/orchestrator";
     import {
         createContainers,
@@ -43,8 +40,6 @@
         type ShipRenderState,
         type ShipRenderResources,
     } from "$lib/renderers/ShipRenderer";
-    // animationStore is deprecated — ship animations handled via unified lifecycle
-    import { ANIM_CONFIG } from "$lib/stores/animationStore";
 
     // ============================================================================
     // PixiJS Application
@@ -60,9 +55,6 @@
     let glowContainer: PIXI.Container | null = null;
     let shipsContainer: PIXI.Container | null = null;
     let labelsContainer: PIXI.Container | null = null;
-
-    // Game logic imports
-    import { HexGrid } from "$lib/engine/HexGrid";
 
     // Graphics cache
     let starGraphics: Map<string, PIXI.Graphics> = new Map();
@@ -534,14 +526,11 @@
             const offsetX = paddingX;
             const offsetY = paddingY;
 
-            const grid = new HexGrid({
-                width: width - paddingX * 2,
-                height: height - paddingY * 2,
-                radius: hexRadius,
-                offset: 0,
-            });
-
-            const hexes = grid.generate();
+            const hexes = generateHexGrid(
+                width - paddingX * 2,
+                height - paddingY * 2,
+                hexRadius,
+            );
 
             debugGraphics.stroke({ width: 2, color: 0x00ff00, alpha: 0.5 });
 

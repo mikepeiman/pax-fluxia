@@ -407,11 +407,21 @@ function initializeState(): void {
         maxLinksPerStar: settings.maxLinksPerStar ?? 5,
     });
 
-    // Create stars from positions (mirrors server GameRoom.createStar)
+    // Shuffle positions for random player distribution (matches server pattern)
     const starTypes: StarType[] = ['grey', 'yellow', 'blue', 'purple', 'red', 'green'];
-    result.positions.forEach((pos, i) => {
+    const shuffledPositions = [...result.positions];
+    for (let i = shuffledPositions.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffledPositions[i], shuffledPositions[j]] = [shuffledPositions[j], shuffledPositions[i]];
+    }
+
+    // Create stars from positions (mirrors server GameRoom.createStar)
+    shuffledPositions.forEach((pos, i) => {
         const ownerId = playerIds[i % playerIds.length];
-        const starType = starTypes[i % starTypes.length];
+        const isCapital = i < playerIds.length;
+        const starType = isCapital
+            ? 'grey' as StarType
+            : starTypes[Math.floor(Math.random() * starTypes.length)];
         const stats = STAR_TYPE_STATS[starType] || STAR_TYPE_STATS['grey'];
 
         const star = new StarSchema();

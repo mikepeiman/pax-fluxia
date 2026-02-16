@@ -50,10 +50,7 @@ export type GameView = 'menu' | 'game' | 'results';
 
 // AILevel now re-exported from @pax/common above
 
-export interface EngineConfig {
-  settings: import('@pax/common').GameSettings;
-  humanPlayerId: string;
-}
+// EngineConfig is now imported from @pax/common
 
 // ============================================================================
 // Stats Types (for endgame charts)
