@@ -33,3 +33,6 @@ export * from './engine/TickEvents';
 
 // Re-export map generation
 export * from './mapgen';
+
+// Re-export AI
+export * from './ai';

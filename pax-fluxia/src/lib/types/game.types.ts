@@ -8,6 +8,7 @@ export type {
   PlayerId,
   StarType,
   GameSpeed,
+  AILevel,
   GameState,
   GameSettings,
   Player,
@@ -47,7 +48,7 @@ export type ConnectionState = CommonConnection;
 
 export type GameView = 'menu' | 'game' | 'results';
 
-export type AILevel = 'easy' | 'normal' | 'hard' | 'expert';
+// AILevel now re-exported from @pax/common above
 
 export interface EngineConfig {
   settings: import('@pax/common').GameSettings;

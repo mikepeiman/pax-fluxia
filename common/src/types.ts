@@ -11,6 +11,7 @@ export type StarType = 'grey' | 'yellow' | 'blue' | 'purple' | 'red' | 'green';
 
 // === Game Speed ===
 export type GameSpeed = 0 | 1 | 2 | 4 | 10;
+export type AILevel = 'easy' | 'normal' | 'hard' | 'expert';
 
 // === Application Views ===
 export type AppView = 'menu' | 'settings' | 'mapEditor' | 'lobby' | 'playing' | 'results';
