@@ -186,6 +186,7 @@
 | B-59 | **Stale ship counts visible briefly on MP restart** | Ending ship counts from prior game show in fresh game, reset after 1-2 ticks. VFX state not cleaned on restart. | OPEN |
 | B-60 | **Initial tick delay at game start** | Spare tick or delay before action starts, most visible on restart/rejoin. | OPEN |
 | B-61 | ~~**CombatDebugPanel TS errors (5)**~~ **FIXED**: Stale `travelDurationMs` slider (renamed to `travelDurationMult`), invalid `laneOffsetPx` panel key, `SHIP_TRAVEL_DURATION_MS` renamed to `TRAVEL_DURATION_MULT`. | `54683bf` |
+| B-62 | ~~**Animation Speed slider has no effect**~~ **FIXED**: `ANIMATION_SPEED_MS` was only used for visual travel duration (too short to notice). Decoupled animation speed into dedicated `animationStore.svelte.ts` with `$state` + localStorage. `FXOrchestrator.setAnimationSpeed()` converts ms → FXClock speed multiplier. Tick rate (`BASE_TICK_MS`) and animation speed are now independent. | `5fcade4` |
 
 ---
 
