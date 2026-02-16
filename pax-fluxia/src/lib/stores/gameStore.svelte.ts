@@ -209,7 +209,10 @@ function scheduleTick(): void {
     stopTick();
     if (!state) return;
 
-    tickIntervalMs = Math.max(100, GAME_CONFIG.BASE_TICK_MS / (state.speed || 1));
+    // Use ANIMATION_SPEED_MS as the master timing source — this is what the
+    // "Animation Speed" slider controls. Dividing by game speed gives the
+    // actual interval between ticks.
+    tickIntervalMs = Math.max(GAME_CONFIG.MIN_TICK_MS, GAME_CONFIG.ANIMATION_SPEED_MS / (state.speed || 1));
 
     tickIntervalId = setInterval(() => {
         executeTick();

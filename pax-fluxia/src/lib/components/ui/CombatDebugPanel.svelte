@@ -94,12 +94,17 @@
 
     function updateTickInterval(value: number) {
         tickInterval = value;
+        animationSpeed = value;
+        GAME_CONFIG.ANIMATION_SPEED_MS = value;
         activeGameStore.updateTickInterval(value);
     }
 
     function updateAnimationSpeed(value: number) {
         animationSpeed = value;
+        tickInterval = value;
         GAME_CONFIG.ANIMATION_SPEED_MS = value;
+        GAME_CONFIG.BASE_TICK_MS = value;
+        activeGameStore.updateTickInterval(value);
     }
 
     let transferRate = $state(
