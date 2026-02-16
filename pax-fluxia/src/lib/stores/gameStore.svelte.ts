@@ -667,7 +667,10 @@ function getHistory() {
 }
 
 function updateConfig(): void {
-    // Config is read live from GAME_CONFIG each tick, nothing to do here
+    // Re-schedule tick with updated GAME_CONFIG values (e.g. BASE_TICK_MS changed)
+    if (state && !state.isPaused && state.speed > 0) {
+        scheduleTick();
+    }
 }
 
 function toggleRetainOrderOnConquest(): void {

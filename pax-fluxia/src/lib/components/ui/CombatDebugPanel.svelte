@@ -266,17 +266,8 @@
         const starId = selectedStarStore.id;
         if (!starId) return;
         debugShipCount = count;
-        // Directly set activeShips on the engine star (SP only)
-        const engine = (gameStore as any).engine;
-        if (engine && engine.stars) {
-            const star = engine.stars.get(starId);
-            if (star) {
-                // Set to exact count
-                const diff = count - star.activeShips;
-                if (diff > 0) star.addActiveShips(diff);
-                else if (diff < 0) star.removeActiveShips(Math.abs(diff));
-            }
-        }
+        // Use the store's debugSetStarShips method (works on internal GameRoomState)
+        gameStore.debugSetStarShips(starId, count);
     }
 
     // Sync debug slider with selected star
