@@ -182,6 +182,10 @@
 | B-55 | **Game ends before complete conquest** | Abrupt and unsatisfying. Should show modal offering View Results or Keep Playing | OPEN |
 | B-56 | **Custom player colors not applied in MP** | `playerColors` wired through `GameEngine` (SP only). Server `GameRoom.ts` has its own hardcoded `PLAYER_COLORS` array at line 19, ignoring client hue selections. Part of broader unification gap: game init logic should import from `common/`. | OPEN |
 | B-57 | **Intermittent: active ships drop to 0 too fast when counterattacking** | Scenario: 50 active + 500 damaged, counterattack causes active to hit 0 immediately. Possibly damage applied to activeShips pool exceeds actual active count in one tick. Hard to reproduce — awaiting exact numbers from user. Custom map editor will help reproduce. | OPEN |
+| B-58 | ~~**Spider web connections after mapgen randomization**~~ **FIXED**: Shuffling positions broke star ID → coordinate mapping (connections referenced IDs that pointed to wrong spatial locations). Fix: shuffle owner indices instead of positions. | `4e408c1` |
+| B-59 | **Stale ship counts visible briefly on MP restart** | Ending ship counts from prior game show in fresh game, reset after 1-2 ticks. VFX state not cleaned on restart. | OPEN |
+| B-60 | **Initial tick delay at game start** | Spare tick or delay before action starts, most visible on restart/rejoin. | OPEN |
+| B-61 | ~~**CombatDebugPanel TS errors (5)**~~ **FIXED**: Stale `travelDurationMs` slider (renamed to `travelDurationMult`), invalid `laneOffsetPx` panel key, `SHIP_TRAVEL_DURATION_MS` renamed to `TRAVEL_DURATION_MULT`. | `54683bf` |
 
 ---
 
@@ -224,6 +228,7 @@
 | F-33 | Star Glow: radial gradient behind ships showing fleet power. Ship Appearance panel consolidating all ship visual controls. More vivid density defaults. | 2026-02-14 |
 | F-34 | VFX Foundation (Phase A): FXClock (pausable game time), VisualStateManager (safe mutation API), FXRegistry (handler dispatch), FXOrchestrator. All 3 handlers migrated to V2. GameCanvas wired to orchestrator. | 2026-02-15 |
 | F-35 | Renderer Extraction (Phase C): `RenderContext` interface, `containerFactory` (PIXI hierarchy + textures), `colorUtils` (HSL/density-tier), `StarRenderer` (stars/labels/icons/glow), `LaneRenderer` (connections/arrows/deferred), `ShipRenderer` (orbits/travel lifecycle/orb groups/attack surge/particle pool). All extracted to `pax-fluxia/src/lib/renderers/`. Zero new type errors. Wiring (Phase D) pending. | 2026-02-15 |
+| F-36 | Engine Unification Refactor: Client `GameEngine` (1340 lines) replaced with `@pax/common` shared engine. AI migrated to `@pax/common`. `gameStore` uses local `GameRoomState` + `GameEngine.tick()`. Map generation randomized (star types + owner placement). 5 dead engine files deleted (~1,900 lines). svelte-check errors 7→1. | 2026-02-15 |
 
 ## Planned Features — Not Started (R)
 
