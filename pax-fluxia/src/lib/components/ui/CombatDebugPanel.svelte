@@ -4,6 +4,7 @@
     import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
     import { selectedStarStore } from "$lib/stores/selectedStarStore.svelte";
     import { gameStore } from "$lib/stores/gameStore.svelte";
+    import { animationStore } from "$lib/stores/animationStore.svelte";
     import { log, logFlags } from "$lib/utils/logger";
 
     const STORAGE_KEY = "pax-fluxia-combat-tuning";
@@ -90,20 +91,9 @@
     });
 
     let tickInterval = $state(GAME_CONFIG.BASE_TICK_MS);
-    let animationSpeed = $state(GAME_CONFIG.ANIMATION_SPEED_MS);
 
     function updateTickInterval(value: number) {
         tickInterval = value;
-        animationSpeed = value;
-        GAME_CONFIG.ANIMATION_SPEED_MS = value;
-        activeGameStore.updateTickInterval(value);
-    }
-
-    function updateAnimationSpeed(value: number) {
-        animationSpeed = value;
-        tickInterval = value;
-        GAME_CONFIG.ANIMATION_SPEED_MS = value;
-        GAME_CONFIG.BASE_TICK_MS = value;
         activeGameStore.updateTickInterval(value);
     }
 
@@ -580,7 +570,6 @@
         GAME_CONFIG.CONNECTION_SHADOW_ALPHA = vis.shadowAlpha;
         applyPanelToConfig();
         tickInterval = panel.tickInterval;
-        animationSpeed = panel.animSpeed;
         activeGameStore.updateTickInterval(panel.tickInterval);
     });
 
@@ -588,7 +577,7 @@
     const PANEL_STORAGE_KEY = "pax-fluxia-panel-settings";
     const panelDefaults = {
         tickInterval: GAME_CONFIG.BASE_TICK_MS,
-        animSpeed: GAME_CONFIG.ANIMATION_SPEED_MS,
+        animSpeed: animationStore.speedMs,
         production: GAME_CONFIG.BASE_PRODUCTION,
         repair: GAME_CONFIG.REPAIR_RATE,
         defense: 1 / GAME_CONFIG.AGGRESSOR_ADVANTAGE,
@@ -678,7 +667,7 @@
 
     function applyPanelToConfig() {
         GAME_CONFIG.BASE_TICK_MS = panel.tickInterval as number;
-        GAME_CONFIG.ANIMATION_SPEED_MS = panel.animSpeed as number;
+        animationStore.setAnimationSpeed(panel.animSpeed as number);
         GAME_CONFIG.BASE_PRODUCTION = panel.production as number;
         GAME_CONFIG.REPAIR_RATE = panel.repair as number;
         GAME_CONFIG.AGGRESSOR_ADVANTAGE = 1 / (panel.defense as number);
@@ -776,8 +765,7 @@
         // Reset timing
         tickInterval = 1200;
         activeGameStore.updateTickInterval(1200);
-        animationSpeed = 1200;
-        GAME_CONFIG.ANIMATION_SPEED_MS = 1200;
+        animationStore.setAnimationSpeed(1200);
     }
 
     // =========================================================================
@@ -899,7 +887,7 @@
                     <div class="var-row">
                         <div class="row-top">
                             <span class="var-name">Animation Speed</span><span
-                                class="val">{animationSpeed}ms</span
+                                class="val">{animationStore.speedMs}ms</span
                             >
                         </div>
                         <input
@@ -907,12 +895,12 @@
                             min="100"
                             max="5000"
                             step="50"
-                            value={animationSpeed}
+                            value={animationStore.speedMs}
                             oninput={(e) => {
                                 const v = parseInt(
                                     (e.target as HTMLInputElement).value,
                                 );
-                                updateAnimationSpeed(v);
+                                animationStore.setAnimationSpeed(v);
                                 updatePanel("animSpeed", v);
                             }}
                         />

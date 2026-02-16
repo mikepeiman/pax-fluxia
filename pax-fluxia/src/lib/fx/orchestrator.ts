@@ -15,6 +15,7 @@ import { registerDefaults } from './registry/defaults';
 import type { FXContext } from './types';
 import type { StarState } from '$lib/types/game.types';
 import type { TickEvents } from '@pax/common';
+import { GAME_CONFIG } from '$lib/config/game.config';
 
 export class FXOrchestrator {
     readonly clock: FXClock;
@@ -88,6 +89,19 @@ export class FXOrchestrator {
     /** Set game speed multiplier. */
     setSpeed(mult: number): void {
         this.clock.setSpeed(mult);
+    }
+
+    /**
+     * Set animation speed by converting target duration (ms) to a speed multiplier.
+     * The clock's speed multiplier is relative to the game tick:
+     *   - 1.0 = animation cycle matches game tick duration
+     *   - 2.0 = animation runs twice as fast
+     *   - 0.5 = animation runs at half speed
+     */
+    setAnimationSpeed(ms: number): void {
+        const baseTick = GAME_CONFIG.BASE_TICK_MS;
+        const multiplier = baseTick / Math.max(50, ms);
+        this.clock.setSpeed(multiplier);
     }
 
     /** Reset all state for a new game. */

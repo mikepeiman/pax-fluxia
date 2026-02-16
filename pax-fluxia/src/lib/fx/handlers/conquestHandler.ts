@@ -9,6 +9,7 @@
 import type { FXContext } from '../types';
 import type { ConquestEvent } from '@pax/common';
 import { GAME_CONFIG } from '$lib/config/game.config';
+import { animationStore } from '$lib/stores/animationStore.svelte';
 import { executeConquestTransfer } from '$lib/animations/conquest';
 import type { FXHandler } from '../FXRegistry';
 
@@ -54,11 +55,11 @@ export const coreConquestHandler: FXHandler<ConquestEvent> = {
 
         // ── AUTO-SLOWMO ──
         if (GAME_CONFIG.CONQUEST_SLOWMO_ENABLED) {
-            const originalSpeed = GAME_CONFIG.ANIMATION_SPEED_MS;
-            GAME_CONFIG.ANIMATION_SPEED_MS =
-                originalSpeed * GAME_CONFIG.CONQUEST_SLOWMO_FACTOR;
+            const originalSpeed = animationStore.speedMs;
+            animationStore.setAnimationSpeed(
+                originalSpeed * GAME_CONFIG.CONQUEST_SLOWMO_FACTOR);
             setTimeout(() => {
-                GAME_CONFIG.ANIMATION_SPEED_MS = originalSpeed;
+                animationStore.setAnimationSpeed(originalSpeed);
             }, GAME_CONFIG.CONQUEST_SLOWMO_DURATION_MS);
         }
     },

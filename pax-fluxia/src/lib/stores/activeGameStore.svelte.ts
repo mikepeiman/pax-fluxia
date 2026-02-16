@@ -10,6 +10,7 @@
 
 import { multiplayerStore } from './multiplayerStore.svelte';
 import { gameStore } from './gameStore.svelte';
+import { animationStore } from './animationStore.svelte';
 import type { Star, Player, Connection, GameSpeed } from '@pax/common';
 import { validateOrder } from '@pax/common';
 import type { TickEvents } from '@pax/common';
@@ -456,7 +457,7 @@ export const activeGameStore = {
     get speed() { return getSpeed(); },
     get effectiveTickMs() {
         const speed = getSpeed() || 1;
-        return Math.max(GAME_CONFIG.MIN_TICK_MS, GAME_CONFIG.ANIMATION_SPEED_MS / speed);
+        return Math.max(GAME_CONFIG.MIN_TICK_MS, animationStore.speedMs / speed);
     },
     get tickProgress() { return getTickProgress(); },
     get currentTick() {
@@ -508,10 +509,9 @@ export const activeGameStore = {
         return null;
     },
 
-    /** Update timing and reschedule engine interval (SP + MP) */
+    /** Update BASE_TICK_MS and reschedule engine interval (SP + MP) */
     updateTickInterval(ms: number) {
         GAME_CONFIG.BASE_TICK_MS = ms;
-        GAME_CONFIG.ANIMATION_SPEED_MS = ms;
         if (isMultiplayerMode()) {
             multiplayerStore.setTickInterval(ms);
         } else {

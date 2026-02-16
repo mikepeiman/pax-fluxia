@@ -2,6 +2,7 @@
     import { onMount, onDestroy } from "svelte";
     import * as PIXI from "pixi.js";
     import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
+    import { animationStore } from "$lib/stores/animationStore.svelte";
     import { log } from "$lib/utils/logger";
     import { GAME_CONFIG } from "$lib/config/game.config";
     import {
@@ -87,6 +88,10 @@
     // ── FX Orchestrator (V2 — manages all visual ship state via VSM) ────
     const fxOrchestrator = new FXOrchestrator();
 
+    // React to animation speed changes from the UI slider
+    $effect(() => {
+        fxOrchestrator.setAnimationSpeed(animationStore.speedMs);
+    });
     // Physics State — backed by FXOrchestrator.vsm
     // These aliases let the render loop use the same variable names unchanged.
     let visualShips: Map<string, VisualShipState[]> =
