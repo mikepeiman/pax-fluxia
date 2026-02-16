@@ -665,6 +665,9 @@
         }
 
         // Render all ships: orbiting (per-star) + traveling (in-flight lifecycle)
+        // IMPORTANT: Always read from VSM to stay in sync — ShipRenderer replaces the array
+        // with a filtered `stillTraveling` copy, which would disconnect from VSM's internal array.
+        travelingShips = fxOrchestrator.vsm.travelingShips;
         const shipState: ShipRenderState = {
             visualShips,
             visualDamagedShips,
@@ -695,7 +698,8 @@
         shipParticleIndex = shipRes.shipParticleIndex;
         lastSurgeFrameTime = shipState.lastSurgeFrameTime;
         nextShipId = shipState.nextShipId;
-        travelingShips = shipState.travelingShips; // CRITICAL: arrived ships removed by module
+        // Sync filtered array back to VSM so arrived ships are removed from the canonical source
+        fxOrchestrator.vsm.syncTravelingShips(shipState.travelingShips);
 
         // Hide unused particles from pool
         for (let i = shipParticleIndex; i < shipParticlePool.length; i++) {

@@ -145,6 +145,15 @@ export class VisualStateManager {
         return arrived;
     }
 
+    /**
+     * Sync traveling ships array back from the renderer.
+     * ShipRenderer creates a new filtered `stillTraveling` array each frame;
+     * this replaces the VSM internal array to keep them in sync.
+     */
+    syncTravelingShips(ships: VisualShipState[]): void {
+        this._travelingShips = ships;
+    }
+
     // ── Combat State ─────────────────────────────────────────────────────
 
     /** Mark a star as in combat (for surge animation). */
