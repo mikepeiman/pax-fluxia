@@ -28,8 +28,6 @@ export const SMOOTH_BEZIER: GameTheme = {
         TRANSFER_RATE: 0.12,
         MIN_SHIPS_PER_TRANSFER: 0,
         MAX_SHIPS_PER_TRANSFER: 0,
-        TRANSFER_PULSE_INTERVAL: 0.25,
-        FLEET_SPEED: 25,
 
         // Combat
         AGGRESSOR_ADVANTAGE: 0.8333333333333334,
@@ -61,8 +59,6 @@ export const SMOOTH_BEZIER: GameTheme = {
         STARTING_SHIPS: 100,
 
         // Visual layout
-        MAX_RENDERED_SHIPS: 200,
-        SHIPS_PER_RING: 12,
         SHIP_BASE_SIZE: 3.5,
         STAR_RENDER_RADIUS: 20,
         ORBIT_RING_MULT: 1.6,
@@ -147,8 +143,6 @@ export const SMOOTH_BEZIER: GameTheme = {
 
         // Arrow
         ARROW_LENGTH_FRACTION: 0.5,
-        COMBAT_MODIFIER: 0.1,
-        CONQUEST_TRANSFER_MODIFIER: 1,
     },
 };
 

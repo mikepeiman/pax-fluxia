@@ -48,8 +48,6 @@ interface GameConfigType {
     TRANSFER_RATE: number;
     MIN_SHIPS_PER_TRANSFER: number;
     MAX_SHIPS_PER_TRANSFER: number;
-    TRANSFER_PULSE_INTERVAL: number;
-    FLEET_SPEED: number;
 
     // Combat V4 - Symmetric Model
     AGGRESSOR_ADVANTAGE: number;    // Tilts damage toward attacker (>1) or defender (<1)
@@ -94,8 +92,6 @@ interface GameConfigType {
     AI_TACTICAL_AGGRESSION: number;    // Chance to target weakest neighbor (0-1)
 
     // Visual
-    MAX_RENDERED_SHIPS: number;
-    SHIPS_PER_RING: number;
     SHIP_BASE_SIZE: number;
     STAR_RENDER_RADIUS: number;    // Visual radius of stars on canvas (default 20)
     ORBIT_RING_MULT: number;       // Orbit ring spacing = SHIP_BASE_SIZE * ORBIT_RING_MULT (default 1.4)
@@ -178,9 +174,7 @@ interface GameConfigType {
     /** How far order arrows extend along the lane (0.0-1.0, 1.0 = full distance to target edge) */
     ARROW_LENGTH_FRACTION: number;
 
-    // Combat Legacy (kept for compatibility)
-    COMBAT_MODIFIER: number;            // DEPRECATED - use DAMAGE_PER_SHIP
-    CONQUEST_TRANSFER_MODIFIER: number; // Post-conquest ship transfer modifier
+
 
     // Hex Grid
     HEX_RADIUS: number;
@@ -232,11 +226,7 @@ export const GAME_CONFIG: GameConfigType = {
     /** Maximum ships to transfer per tick (0 = unlimited) */
     MAX_SHIPS_PER_TRANSFER: 0,
 
-    /** Pulse interval (ticks between transfer batches, 1 = every tick) */
-    TRANSFER_PULSE_INTERVAL: .25,
 
-    /** Fleet travel speed (pixels per tick) */
-    FLEET_SPEED: 25,
 
     // ========================================================================
     // COMBAT V4 - SYMMETRIC DAMAGE MODEL
@@ -361,12 +351,6 @@ export const GAME_CONFIG: GameConfigType = {
     // ========================================================================
     // VISUAL
     // ========================================================================
-
-    /** Maximum ships to render per star */
-    MAX_RENDERED_SHIPS: 200,
-
-    /** Ships per orbital ring */
-    SHIPS_PER_RING: 12,
 
     /** Base ship render size */
     SHIP_BASE_SIZE: 3,
@@ -494,15 +478,7 @@ export const GAME_CONFIG: GameConfigType = {
     /** Order arrow length as fraction of lane distance (0.0-1.0, default 0.5 = halfway) */
     ARROW_LENGTH_FRACTION: 0.5,
 
-    // ========================================================================
-    // COMBAT V2
-    // ========================================================================
 
-    /** Global combat lethality modifier (scales damage formula) */
-    COMBAT_MODIFIER: 0.1,
-
-    /** Modifier for post-conquest ship transfer */
-    CONQUEST_TRANSFER_MODIFIER: 1.0,
 
     // ========================================================================
     // HEX GRID

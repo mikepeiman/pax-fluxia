@@ -20,8 +20,6 @@ export const THEME_KEYS = [
     'TRANSFER_RATE',
     'MIN_SHIPS_PER_TRANSFER',
     'MAX_SHIPS_PER_TRANSFER',
-    'TRANSFER_PULSE_INTERVAL',
-    'FLEET_SPEED',
 
     // Combat
     'AGGRESSOR_ADVANTAGE',
@@ -52,9 +50,6 @@ export const THEME_KEYS = [
     // Starting conditions
     'STARTING_SHIPS',
 
-    // Visual layout
-    'MAX_RENDERED_SHIPS',
-    'SHIPS_PER_RING',
     'SHIP_BASE_SIZE',
     'STAR_RENDER_RADIUS',
     'ORBIT_RING_MULT',
@@ -139,10 +134,6 @@ export const THEME_KEYS = [
 
     // Arrow
     'ARROW_LENGTH_FRACTION',
-
-    // Combat legacy
-    'COMBAT_MODIFIER',
-    'CONQUEST_TRANSFER_MODIFIER',
 ] as const;
 
 /** Keys EXCLUDED from themes (map gen, connections, AI) */
@@ -165,9 +156,6 @@ export const NON_THEME_KEYS = [
     'AI_ATTACK_STICKINESS',
     'AI_EVALUATION_FREQUENCY',
     'AI_TACTICAL_AGGRESSION',
-    'AI_ATTACK_THRESHOLD',
-    'AI_DESIST_THRESHOLD',
-    'AI_RANDOM_AGGRESSION',
 ] as const;
 
 // ── Theme Type ──────────────────────────────────────────────────────────────
