@@ -60,7 +60,6 @@ interface GameConfigType {
 
     // Production
     BASE_PRODUCTION: number;
-    TICKS_PER_SHIP: number;
 
     // Repair
     REPAIR_RATE: number;
@@ -261,7 +260,7 @@ export const GAME_CONFIG: GameConfigType = {
     // ========================================================================
 
     /** Tilts damage toward attacker (>1) or defender (<1). 1.0 = symmetric. */
-    AGGRESSOR_ADVANTAGE: 0.8333333333333334,
+    AGGRESSOR_ADVANTAGE: 0.7,
 
     /** Base damage per engaged ship per tick. Range: 0.05-2.0 */
     DAMAGE_PER_SHIP: 0.075,
@@ -275,7 +274,7 @@ export const GAME_CONFIG: GameConfigType = {
     /** Overwhelm ratio for instant conquest (need Nx enemy ships) */
     CONQUEST_THRESHOLD: 20,
 
-    /** Fraction of damaged ships that count toward defensive force (1/7 ≈ 0.14) */
+    /** percentage each damaged ship contributes to defense, as a percentage x 100 */
     DAMAGED_SHIP_EFFECTIVENESS: 0.5,
 
     // ========================================================================
@@ -285,8 +284,6 @@ export const GAME_CONFIG: GameConfigType = {
     /** Base ships produced per tick (modified by star type) */
     BASE_PRODUCTION: 0.4,
 
-    /** Production ticks required per ship at base rate */
-    TICKS_PER_SHIP: 2,
 
     // ========================================================================
     // REPAIR

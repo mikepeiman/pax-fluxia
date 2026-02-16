@@ -354,7 +354,6 @@
             ],
             "Production & Repair": [
                 "BASE_PRODUCTION",
-                "TICKS_PER_SHIP",
                 "REPAIR_RATE",
                 "MIN_REPAIR",
                 "REPAIR_COMBAT_PENALTY",

@@ -41,7 +41,6 @@ export const SMOOTH_BEZIER: GameTheme = {
 
         // Production & Repair
         BASE_PRODUCTION: 0.6,
-        TICKS_PER_SHIP: 2,
         REPAIR_RATE: 3,
         MIN_REPAIR: 1,
         REPAIR_COMBAT_PENALTY: 0.1,
