@@ -20,6 +20,7 @@ import type { StarState } from '$lib/types/game.types';
 import { STAR_TYPE_STATS } from '@pax/common';
 import type { StarType } from '@pax/common';
 import type { ColorUtils } from './RenderContext';
+import { GAME_CONFIG } from '$lib/config/game.config';
 
 // ── Star Type → Polygon Sides ───────────────────────────────────────────────
 // green=3 (attack), red=4 (defense), yellow=5 (prod),
@@ -96,7 +97,7 @@ export function renderStars(
             }
         }
         const color = colorUtils.getPlayerColor(effectiveOwner);
-        const radius = star.radius;
+        const radius = GAME_CONFIG.STAR_RENDER_RADIUS ?? star.radius;
         const isActive = star.id === state.activeStarId || star.id === state.dragSourceId;
 
         // Active star selection highlight (hex border)

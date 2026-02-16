@@ -33,6 +33,7 @@ export interface PhaseContext {
     travelEasingPower: number;
     travelDurationMult: number;
     travelArcIntensity: number;
+    wobbleAmp: number;
 }
 
 /**

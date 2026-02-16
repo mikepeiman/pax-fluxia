@@ -116,13 +116,13 @@ function computeWobble(
 export const orbTravel: TravelBehavior = {
     name: 'orb',
     interpolate(ship: VisualShipState, elapsed: number, ctx: PhaseContext): PhaseResult {
-        const travelProgress = Math.min(1, elapsed / ship.travelDuration);
+        const travelProgress = Math.min(1, elapsed / (ship.travelDuration * ctx.travelDurationMult));
         const eased = travelProgress * travelProgress * travelProgress; // easeInCubic
 
         const baseX = ship.laneStartX + (ship.laneEndX - ship.laneStartX) * eased;
         const baseY = ship.laneStartY + (ship.laneEndY - ship.laneStartY) * eased;
 
-        const { perpX, perpY, edgeFade, wobble } = computeWobble(ship, travelProgress, 12);
+        const { perpX, perpY, edgeFade, wobble } = computeWobble(ship, travelProgress, ctx.wobbleAmp);
 
         const x = baseX + perpX * (ship.laneOffset * edgeFade + wobble);
         const y = baseY + perpY * (ship.laneOffset * edgeFade + wobble);
@@ -135,13 +135,13 @@ export const orbTravel: TravelBehavior = {
 export const laneTravel: TravelBehavior = {
     name: 'lane',
     interpolate(ship: VisualShipState, elapsed: number, ctx: PhaseContext): PhaseResult {
-        const travelProgress = Math.min(1, elapsed / ship.travelDuration);
+        const travelProgress = Math.min(1, elapsed / (ship.travelDuration * ctx.travelDurationMult));
         const laneEased = applyTravelEasing(travelProgress, ctx.travelEasing as any, ctx.travelEasingPower);
 
         const baseX = ship.laneStartX + (ship.laneEndX - ship.laneStartX) * laneEased;
         const baseY = ship.laneStartY + (ship.laneEndY - ship.laneStartY) * laneEased;
 
-        const { perpX, perpY, edgeFade, wobble } = computeWobble(ship, travelProgress, 12);
+        const { perpX, perpY, edgeFade, wobble } = computeWobble(ship, travelProgress, ctx.wobbleAmp);
 
         const x = baseX + perpX * (ship.laneOffset * edgeFade + wobble);
         const y = baseY + perpY * (ship.laneOffset * edgeFade + wobble);

@@ -1,6 +1,6 @@
 # Feature & Regression Tracker
 
-**Last Updated**: 2026-02-15  
+**Last Updated**: 2026-02-16  
 **Last Verified By**: User (partial — see Status column)
 
 ---
@@ -163,13 +163,13 @@
 | B-18 | Restart button broken in MP | Routed through activeGameStore | `a91f17d` |
 | B-29 | Multi-star conquest: victor ships only transfer from one star | ConquestEvent has single `attackerStarId`, need per-star proportional transfer | OPEN |
 | B-30 | Deferred orders on enemy stars: clicking enemy star doesn't allow setting deferred orders | Need same zero-lag path as regular orders | OPEN |
-| B-31 | Attack surge activates on order, not on tick | `isAttack` checks `star.targetId` (set on order), should only surge after first combat tick. **User 2026-02-14**: "when issuing order, ships jump into attack surge before animation continues smoothly" | OPEN |
+| B-31 | ~~Attack surge activates on order, not on tick~~ **RESOLVED**: User confirmed 2026-02-16 no longer an issue. Combat starts the very next tick after order. |
 | B-32 | Mid-surge order change teleports ships | Ships should complete current surge cycle ALWAYS before reorienting. "They should adjust their destinations but not their present locations, and smoothly animate back into orbit (complete the surge always) before reorienting to the new target" | OPEN |
 | B-33 | Ships jump into attack surge before animation continues smoothly | Ramp-in not working visibly; initial frame snap | OPEN |
 | B-34 | Conquest: victor ships wait entire tick to appear | Should appear within conquest tick, not next tick | OPEN |
 | B-35 | AI passive in MP: no difficulty settings exposed, AI uses default (easy) config | Server needs AI difficulty from RoomOptions | OPEN |
 | B-36 | MP quit/abandon buttons restart game instead of returning to main menu | Should route to main menu, not restart | OPEN |
-| B-37 | MP pause resets tick counter and animations | Pause/resume loses tick progress, animations snap | OPEN |
+| B-37 | ~~MP pause resets tick counter and animations~~ **FIXED**: `pausedElapsed` saves inter-tick progress on pause, `lastTickTime` offset restored on resume, `scheduleTick()` uses `setTimeout` for remaining time before switching to regular `setInterval`. | `4dd8c3f` |
 | B-46 | **"Ship travel duration" slider does nothing** | Setting has no effect. Note: "travel duration" MULTIPLIER does work but only on Bezier mode (see B-51). Increase range to 10x for more variety | OPEN |
 | B-47 | **"Arc intensity" slider does nothing** | Setting has no effect | OPEN |
 | B-48 | **"Settle time" slider does nothing** | Setting has no visible effect | OPEN |
@@ -179,7 +179,7 @@
 | B-52 | **Outline color in Ship Look does nothing useful** | Cannot change colors. Need HSLA controls modifying player primary color for accents | OPEN |
 | B-53 | **No glow effect exists** | Ship glow was never implemented despite UI presence | OPEN |
 | B-54 | **Star Radius never worked** | Slider has no visible effect | OPEN |
-| B-55 | **Game ends before complete conquest** | Abrupt and unsatisfying. Should show modal offering View Results or Keep Playing | OPEN |
+| B-55 | **Game ends before complete conquest** | Abrupt and unsatisfying. Convert to configurable win condition: `GAME_WIN_DETERMINANT` = [ships, stars, targets], `GAME_WIN_THRESHOLD` (default 95% ships). Show modal: View Results or Keep Playing (continues to full-map conquest). |
 | B-56 | **Custom player colors not applied in MP** | `playerColors` wired through `GameEngine` (SP only). Server `GameRoom.ts` has its own hardcoded `PLAYER_COLORS` array at line 19, ignoring client hue selections. Part of broader unification gap: game init logic should import from `common/`. | OPEN |
 | B-57 | **Intermittent: active ships drop to 0 too fast when counterattacking** | Scenario: 50 active + 500 damaged, counterattack causes active to hit 0 immediately. Possibly damage applied to activeShips pool exceeds actual active count in one tick. Hard to reproduce — awaiting exact numbers from user. Custom map editor will help reproduce. | OPEN |
 | B-58 | ~~**Spider web connections after mapgen randomization**~~ **FIXED**: Shuffling positions broke star ID → coordinate mapping (connections referenced IDs that pointed to wrong spatial locations). Fix: shuffle owner indices instead of positions. | `4e408c1` |
@@ -360,6 +360,7 @@
 | R-111 | **Ship Travel Animation Handles**: More controls for flight behavior — spread in both dimensions, individual wobbles, smaller-group coherence | 🟢 |
 | R-112 | **Slider Detent at Mid**: UI sliders should have a small notch/tag at midpoint that can be clicked to center the value | 🟡 |
 | R-113 | **Animation Speed = Tick Duration Ratio**: Animation speed bound to tick duration. Control = how much of a tick duration it lasts (0-1, default 0.5) | 🟢 |
+| R-119 | **Configurable Win Conditions**: `GAME_WIN_DETERMINANT` = [ships, stars, targets] (win by ship count, star count, or specified target ownership). `GAME_WIN_THRESHOLD` (default 95% ships). Modal: View Results or Keep Playing (continues to full-map conquest). Game option in pre-game settings. | 🔴 |
 
 ---
 

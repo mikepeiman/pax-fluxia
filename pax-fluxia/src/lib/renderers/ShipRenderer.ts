@@ -241,6 +241,7 @@ export function renderTravelingShips(
         travelEasingPower: GAME_CONFIG.TRAVEL_EASING_POWER ?? 2,
         travelDurationMult: GAME_CONFIG.TRAVEL_DURATION_MULT ?? 1,
         travelArcIntensity: GAME_CONFIG.TRAVEL_ARC_INTENSITY ?? 0.5,
+        wobbleAmp: GAME_CONFIG.WOBBLE_AMP ?? 12,
     };
 
     // Animation speed scaling: multiply elapsed by speedMultiplier
