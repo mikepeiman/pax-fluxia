@@ -240,7 +240,12 @@
 | R-11 | Ship Color Fade (mid-travel) | 🟢 |
 | R-12 | Damaged Ship Overlapping Orbits | 🟢 |
 | R-13 | Scrollwheel Zoom | 🟡 |
-| R-14 | Performance Audit | 🟡 |
+| R-14 | ~~Performance Audit~~ → see R-114 through R-118 | ✅ AUDITED 2026-02-15 |
+| R-114 | **Spatial Culling: Ship Orbits**: Skip orbit physics + drawShip for off-screen stars. Still track spawn/despawn counts. Needs viewport.ts utility (getViewportBounds, isStarVisible) | 🔴 |
+| R-115 | **Spatial Culling: Traveling Ships**: Run lifecycle (arrivals must happen) but skip drawShip when ship position off-screen | 🔴 |
+| R-116 | **Spatial Culling: Stars/Labels/Glow**: Set graphics.visible=false for off-screen stars instead of redrawing every frame | 🔴 |
+| R-117 | **In-Flight Map Optimization**: renderShips scans ALL travelingShips per star O(stars×ships) — pre-build Map\<starId, count\> in O(n) | 🔴 |
+| R-118 | **starsById.get() Fix**: renderShips uses stars.find() for targetStar lookup — should use existing starsById Map | 🔴 |
 | R-15 | ~~Multiplayer Deployment~~ | ✅ RESOLVED 2026-02-14 — dual module instance fix |
 | V-3 | Territory Alpha Masks (Voronoi/gradient ownership overlays) | 🔴 |
 | V-4 | Travel Animation Polish (elegant, smooth, satisfying feel) | 🔴 |
