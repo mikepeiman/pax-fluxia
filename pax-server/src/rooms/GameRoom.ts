@@ -505,17 +505,21 @@ export class GameRoom extends Room {
 
         log.sys('GameRoom', `Map: ${result.positions.length} stars, ${result.connections.length} connections (hex r=${result.hexRadius}, ${result.width}x${result.height})`);
 
-        // Shuffle positions so player home stars are distributed randomly
+        // Randomize which position gets which owner via shuffled indices.
+        // IMPORTANT: positions must stay in original order because generateMap()
+        // assigns IDs star-0..N matching position indices, and connections reference those IDs.
         const starTypes = ['grey', 'yellow', 'blue', 'purple', 'red', 'green'];
-        const shuffledPositions = [...result.positions];
-        for (let i = shuffledPositions.length - 1; i > 0; i--) {
+        const totalStars = result.positions.length;
+        const ownerIndices = Array.from({ length: totalStars }, (_, i) => i);
+        for (let i = ownerIndices.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
-            [shuffledPositions[i], shuffledPositions[j]] = [shuffledPositions[j], shuffledPositions[i]];
+            [ownerIndices[i], ownerIndices[j]] = [ownerIndices[j], ownerIndices[i]];
         }
 
-        shuffledPositions.forEach((pos, i) => {
-            const ownerId = playerIds[i % playerIds.length];
-            const isCapital = i < playerIds.length;
+        result.positions.forEach((pos, i) => {
+            const ownerIdx = ownerIndices[i];
+            const ownerId = playerIds[ownerIdx % playerIds.length];
+            const isCapital = ownerIdx < playerIds.length;
             // Randomize star type (capitals are always grey)
             const starType = isCapital
                 ? 'grey'

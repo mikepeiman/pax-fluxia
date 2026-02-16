@@ -1,0 +1,74 @@
+﻿c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32mvite.config.js[39m:4:1
+[31mError[39m: Unused '@ts-expect-error' directive. 
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\SpeedControls.svelte[39m:25:42
+[33mWarn[39m: This reference only captures the initial value of `speed`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu.svelte[39m:431:25
+[33mWarn[39m: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu.svelte[39m:479:29
+[33mWarn[39m: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu.svelte[39m:508:29
+[33mWarn[39m: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu.svelte[39m:529:29
+[33mWarn[39m: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu.svelte[39m:541:29
+[33mWarn[39m: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu.svelte[39m:553:29
+[33mWarn[39m: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu.svelte[39m:570:29
+[33mWarn[39m: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu.svelte[39m:635:29
+[33mWarn[39m: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu.svelte[39m:1126:5
+[33mWarn[39m: Unused CSS selector ".button-row.compact button"
+https://svelte.dev/e/css_unused_selector (svelte)
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu.svelte[39m:1131:5
+[33mWarn[39m: Unused CSS selector ".button-row.compact button:last-child"
+https://svelte.dev/e/css_unused_selector (svelte)
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu.svelte[39m:2070:5
+[33mWarn[39m: Unused CSS selector ".speed-control .button-row"
+https://svelte.dev/e/css_unused_selector (svelte)
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MultiplayerLobby.svelte[39m:118:25
+[33mWarn[39m: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MultiplayerLobby.svelte[39m:130:25
+[33mWarn[39m: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MultiplayerLobby.svelte[39m:143:25
+[33mWarn[39m: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MultiplayerLobby.svelte[39m:157:29
+[33mWarn[39m: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MultiplayerLobby.svelte[39m:169:29
+[33mWarn[39m: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+
+====================================
+[31msvelte-check found 1 error and 17 warnings in 4 files
+[39m
