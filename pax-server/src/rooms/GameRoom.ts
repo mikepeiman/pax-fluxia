@@ -505,11 +505,21 @@ export class GameRoom extends Room {
 
         log.sys('GameRoom', `Map: ${result.positions.length} stars, ${result.connections.length} connections (hex r=${result.hexRadius}, ${result.width}x${result.height})`);
 
-        // Create star schemas from positions
+        // Shuffle positions so player home stars are distributed randomly
         const starTypes = ['grey', 'yellow', 'blue', 'purple', 'red', 'green'];
-        result.positions.forEach((pos, i) => {
+        const shuffledPositions = [...result.positions];
+        for (let i = shuffledPositions.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffledPositions[i], shuffledPositions[j]] = [shuffledPositions[j], shuffledPositions[i]];
+        }
+
+        shuffledPositions.forEach((pos, i) => {
             const ownerId = playerIds[i % playerIds.length];
-            const starType = starTypes[i % starTypes.length];
+            const isCapital = i < playerIds.length;
+            // Randomize star type (capitals are always grey)
+            const starType = isCapital
+                ? 'grey'
+                : starTypes[Math.floor(Math.random() * starTypes.length)];
             this.createStar(`star-${i}`, pos.x, pos.y, ownerId, starType);
         });
 

@@ -89,7 +89,7 @@ export const coreTransferHandler: FXHandler<TransferEvent> = {
             ship.fromStarId = event.sourceId;
             ship.toStarId = event.targetId;
             ship.departTime =
-                ctx.gameTime + Math.random() * Math.min(jitterMax, 300 / Math.max(1, shipsToMove));
+                performance.now() + Math.random() * Math.min(jitterMax, 300 / Math.max(1, shipsToMove));
             ship.travelDuration = travelDuration;
             ship.departDuration = departDuration;
             ship.laneStartX = laneStartX;

@@ -37,7 +37,7 @@ export const coreConquestHandler: FXHandler<ConquestEvent> = {
             const colorDelay = GAME_CONFIG.CONQUEST_COLOR_DELAY_MS ?? 400;
             ctx.vsm.addPendingConquest(event.starId, {
                 previousOwner: event.previousOwner,
-                transitionTime: ctx.gameTime + colorDelay,
+                transitionTime: performance.now() + colorDelay,
             });
         }
 
@@ -46,7 +46,7 @@ export const coreConquestHandler: FXHandler<ConquestEvent> = {
             const flashDur = GAME_CONFIG.CONQUEST_FLASH_DURATION_MS ?? 600;
             if (flashDur > 0) {
                 ctx.vsm.addConquestFlash(event.starId, {
-                    startTime: ctx.gameTime,
+                    startTime: performance.now(),
                     duration: flashDur,
                 });
             }
@@ -144,7 +144,7 @@ function setupDepartingShip(
     ship.departFromY = ship.y;
     ship.fromStarId = fromStarId;
     ship.toStarId = toStarId;
-    ship.departTime = ctx.gameTime + Math.random() * (GAME_CONFIG.DEPART_JITTER_MS ?? 60);
+    ship.departTime = performance.now() + Math.random() * (GAME_CONFIG.DEPART_JITTER_MS ?? 60);
 
     // Scatter/retreat uses tick-synced timing (urgent — faster depart)
     const halfTick = ctx.effectiveTickMs / 2;
@@ -186,7 +186,7 @@ function processAttackerTransfer(
         conqueredStar,
         transferCount,
         newOwner: event.newOwner,
-        now: ctx.gameTime,   // ← Uses game time, not performance.now()
+        now: performance.now(),   // Uses wall-clock time to match ShipRenderer
         effectiveTickMs: ctx.effectiveTickMs,
         attackerStarId: event.attackerStarId,
         conqueredStarId: event.starId,

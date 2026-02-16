@@ -118,6 +118,8 @@
 | B-39 | ~~Intermittent star unresponsiveness~~ **FIXED**: stale drag state (`d76af73`). Residual intermittent issues may have been OS-level — Windows desktop apps (Perplexity Electron, Antigravity) suspected of causing pointer event interference. |
 | B-40 | Controls Icon Menu not responding when DevTools drawer is open. Works again when DevTools closed. Likely z-index or focus/pointer-events issue with DevTools panel overlay. |
 | B-41 | Deferred orders can be set in both directions between two stars (A→B and B→A). Same exclusivity rule as active orders should apply — flow can only go one direction at a time between any pair. |
+| B-47 | ~~Animation speed slider does nothing~~ **FIXED**: FX handlers used FXClock `gameTime` for `departTime` but ShipRenderer used `performance.now()` — time domain mismatch caused instant ship arrivals regardless of animation speed setting. Fixed in `transferHandler.ts` and `conquestHandler.ts`. |
+| B-48 | ~~Players all start on same star type~~ **FIXED**: Star types were assigned via deterministic cycling (`types[i % types.length]`) and positions weren't shuffled. Players in the same index-modulo group always got the same star type. Fixed with `Math.random()` type selection and position shuffling in both client `GameEngine.ts` and server `GameRoom.ts`. |
 
 ## Open Bugs — MP (B)
 

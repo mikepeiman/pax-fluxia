@@ -183,18 +183,24 @@ export class GameEngine {
         log.sys('GameEngine', `Map: ${positions.length} stars (hex r=${hexRadius}, ${width}x${height}, spacing: ${spacingMultiplier}x)`);
 
         let starsAssigned = 0;
-        positions.forEach((pos) => {
+
+        // Shuffle positions so player home stars are distributed randomly
+        const shuffledPositions = [...positions];
+        for (let i = shuffledPositions.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffledPositions[i], shuffledPositions[j]] = [shuffledPositions[j], shuffledPositions[i]];
+        }
+
+        const starTypes: StarType[] = ['grey', 'yellow', 'red', 'green', 'purple', 'blue'];
+
+        shuffledPositions.forEach((pos) => {
             const ownerId = playerIds[starsAssigned % playerIds.length];
             const isCapital = starsAssigned < playerIds.length;
 
-            let starType: StarType = 'grey';
-            if (isCapital) {
-                starType = 'grey';
-            } else {
-                const types: StarType[] = ['grey', 'yellow', 'red', 'green', 'purple', 'blue'];
-                const nonCapitalIndex = starsAssigned - playerIds.length;
-                starType = types[nonCapitalIndex % types.length];
-            }
+            // Randomize star type (capitals are always grey)
+            const starType: StarType = isCapital
+                ? 'grey'
+                : starTypes[Math.floor(Math.random() * starTypes.length)];
 
             starsAssigned++;
 
