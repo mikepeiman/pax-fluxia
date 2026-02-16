@@ -28,7 +28,7 @@
 - Ships do NOT leave the star
 - Damage is applied remotely each tick
 - Visual: **surge/recede pulse** synced to tick heartbeat
-- Conquest happens when defender's active ships reach 0
+- Conquest triggers when the attacker:defender power ratio exceeds the `CONQUEST_THRESHOLD`, or when defender active ships reach 0
 - THEN (and only then) do ships physically transfer to the conquered star
 
 ### 2.2. Transfer (Reinforcement)
@@ -38,7 +38,8 @@
 - Ships depart orbit → travel along lane → arrive at destination
 - Visual: ship sprites moving along connection lanes with easing
 - Only between FRIENDLY stars (or on conquest)
-- Governed by `TRANSFER_RATE` (% of active ships sent per tick)
+- Governed by `TRANSFER_RATE` (% of active ships sent per tick) for friendly stars
+- Governed by `CONQUEST_TRANSFER_RATE` for a conquest (the percentage of active ships that immediately transfer to the conquered star, applies only for the first tick of conquest)
 
 ---
 
@@ -63,7 +64,7 @@ The attack surge is the primary combat animation. When a star is attacking an en
 1. **Direction**: Ships surge toward the target star (locked direction to prevent flickering)
 2. **Pulse**: `sin(tickProgress * π)` creates a sine wave pulse within each tick
 3. **Ramp-in**: New attacks ramp up from 0→1 over `ATTACK_SURGE_RAMP_MS` (default 300ms)
-4. **Facing bias**: Ships facing the target surge more than ships on the far side
+4. **Facing bias**: Only ships on the target-facing hemisphere surge; ships on the far side do NOT surge at all
 5. **Force proportionality**: Surge amplitude scales with ship ratio (optional)
 
 **Key config variables:**
