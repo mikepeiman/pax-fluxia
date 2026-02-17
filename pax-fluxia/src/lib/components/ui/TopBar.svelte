@@ -1,5 +1,11 @@
 <script lang="ts">
     import { gameStore } from "$lib/stores/gameStore.svelte";
+    import {
+        armTrace,
+        forceDownloadTrace,
+        isTraceArmed,
+        isTraceCapturing,
+    } from "$lib/debug/travelTrace";
 
     interface Props {
         onSettingsClick?: () => void;
@@ -10,6 +16,20 @@
 
     const isInGame = $derived(gameStore.currentView === "game");
     const isInMenu = $derived(gameStore.currentView === "menu");
+    let traceArmed = $state(false);
+    let traceCapturing = $state(false);
+
+    function handleArmTrace() {
+        armTrace();
+        traceArmed = true;
+        traceCapturing = false;
+    }
+
+    function handleDownloadTrace() {
+        forceDownloadTrace();
+        traceArmed = false;
+        traceCapturing = false;
+    }
 </script>
 
 <!-- Persistent top bar — always visible across all views -->
@@ -33,6 +53,28 @@
     </div>
 
     <div class="top-bar-right">
+        {#if isInGame}
+            <button
+                class="top-bar-btn trace-btn"
+                class:armed={traceArmed}
+                class:capturing={traceCapturing}
+                onclick={handleArmTrace}
+                title="Arm travel trace — captures next transfer event"
+            >
+                {traceArmed
+                    ? "🔴 ARMED"
+                    : traceCapturing
+                      ? "⏺ CAPTURING"
+                      : "🎯 Trace"}
+            </button>
+            <button
+                class="top-bar-btn trace-btn"
+                onclick={handleDownloadTrace}
+                title="Download trace data"
+            >
+                📥 DL
+            </button>
+        {/if}
         {#if onSettingsClick}
             <button
                 class="top-bar-btn icon-btn"
@@ -127,6 +169,33 @@
         color: #fff;
         border-color: rgba(255, 255, 255, 0.4);
         background: rgba(255, 255, 255, 0.05);
+    }
+
+    .trace-btn {
+        font-size: 0.6rem;
+        padding: 3px 8px;
+        margin-right: 4px;
+    }
+
+    .trace-btn.armed {
+        border-color: rgba(255, 60, 60, 0.5);
+        color: #ff6666;
+    }
+
+    .trace-btn.capturing {
+        border-color: rgba(255, 165, 0, 0.5);
+        color: #ffa500;
+        animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+        0%,
+        100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.5;
+        }
     }
 
     .icon-btn {

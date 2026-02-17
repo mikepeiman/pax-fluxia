@@ -27,6 +27,8 @@ interface TraceState {
     transferMeta: Record<string, any> | null;  // lane geometry, timing etc.
     settledCount: number;    // how many tracked ships have finished settling
     frameCount: number;      // total frames captured
+    lastPos: Map<number, { x: number; y: number; phase: string }>;  // dedup
+    phaseFrameCount: Map<string, number>;  // per-phase frame counter for sampling
 }
 
 const state: TraceState = {
@@ -37,7 +39,13 @@ const state: TraceState = {
     transferMeta: null,
     settledCount: 0,
     frameCount: 0,
+    lastPos: new Map(),
+    phaseFrameCount: new Map(),
 };
+
+// Sample every Nth frame per phase to keep output small
+const FRAME_SAMPLE_RATE = 10;  // log 1 in every 10 frames
+const MAX_ENTRIES_PER_SHIP = 200;
 
 /** Arm the trace — next transfer event will start capture */
 export function armTrace(): void {
@@ -48,6 +56,8 @@ export function armTrace(): void {
     state.transferMeta = null;
     state.settledCount = 0;
     state.frameCount = 0;
+    state.lastPos.clear();
+    state.phaseFrameCount.clear();
     console.log('[TRACE] Armed — waiting for next transfer event');
 }
 
@@ -122,10 +132,32 @@ export function traceTransferSetup(meta: {
     console.log(`[TRACE] Capturing ${meta.shipDetails.length} ships: ${meta.sourceId} → ${meta.targetId}`);
 }
 
+/** Should we sample this frame? Dedup frozen positions + sample every Nth */
+function shouldSampleFrame(shipId: number, phase: string, x: number, y: number): boolean {
+    const key = `${shipId}-${phase}`;
+    const count = (state.phaseFrameCount.get(key) || 0) + 1;
+    state.phaseFrameCount.set(key, count);
+
+    // Dedup: skip if position hasn't changed
+    const last = state.lastPos.get(shipId);
+    if (last && last.phase === phase && Math.abs(last.x - x) < 0.01 && Math.abs(last.y - y) < 0.01) {
+        return false;
+    }
+    state.lastPos.set(shipId, { x, y, phase });
+
+    // Per-ship cap
+    const shipEntryCount = state.entries.filter(e => e.shipId === shipId).length;
+    if (shipEntryCount >= MAX_ENTRIES_PER_SHIP) return false;
+
+    // Sample every Nth frame
+    return count % FRAME_SAMPLE_RATE === 1 || count <= 2; // always log first 2 frames
+}
+
 /** Called each frame a tracked ship is in 'departing' state */
 export function traceDepartFrame(shipId: number, elapsed: number, progress: number, x: number, y: number, scale: number, alpha: number): void {
     if (!state.capturing || !state.trackedShipIds.has(shipId)) return;
     state.frameCount++;
+    if (!shouldSampleFrame(shipId, 'depart', x, y)) return;
     state.entries.push({
         timestamp: performance.now(), phase: 'depart-frame', shipId, elapsed, progress, x, y, scale, alpha,
     });
@@ -144,6 +176,7 @@ export function traceDepartToTravel(shipId: number, x: number, y: number, mode: 
 export function traceTravelFrame(shipId: number, elapsed: number, progress: number, x: number, y: number, scale: number, alpha: number, extra?: Record<string, any>): void {
     if (!state.capturing || !state.trackedShipIds.has(shipId)) return;
     state.frameCount++;
+    if (!shouldSampleFrame(shipId, 'travel', x, y)) return;
     state.entries.push({
         timestamp: performance.now(), phase: 'travel-frame', shipId, elapsed, progress, x, y, scale, alpha, extra,
     });
@@ -162,6 +195,7 @@ export function traceTravelToOrbit(shipId: number, x: number, y: number, settleA
 export function traceSettleFrame(shipId: number, elapsed: number, t: number, x: number, y: number, targetX: number, targetY: number): void {
     if (!state.capturing || !state.trackedShipIds.has(shipId)) return;
     state.frameCount++;
+    if (!shouldSampleFrame(shipId, 'settle', x, y)) return;
     state.entries.push({
         timestamp: performance.now(), phase: 'settle-frame', shipId, elapsed, progress: t, x, y,
         extra: { targetX, targetY },

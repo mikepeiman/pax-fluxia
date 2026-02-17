@@ -389,34 +389,91 @@ function recordHistory(): void {
 // Map Initialization
 // ============================================================================
 
-function initializeState(): void {
-    state = new GameRoomState();
-    state.phase = 'playing'; // Will be set to paused via isPaused
-    state.isPaused = true;
-    state.speed = 1;
-    state.tick = 0;
+/** Helper: create a star and add to state */
+function createDebugStar(id: string, x: number, y: number, ownerId: string): void {
+    const stats = STAR_TYPE_STATS['grey'];
+    const star = new StarSchema();
+    star.id = id;
+    star.x = x;
+    star.y = y;
+    star.ownerId = ownerId;
+    star.starType = 'grey';
+    star.activeShips = GAME_CONFIG.STARTING_SHIPS;
+    star.damagedShips = 0;
+    star.productionRate = 1;
+    star.repairRate = stats.repairRate;
+    star.transferRate = stats.transferRate;
+    star.activationRate = stats.activationRate;
+    star.defensivePosture = stats.defensivePosture;
+    star.defenseStrength = stats.defenseStrength;
+    star.radius = 25;
+    star.icon = '🌟';
+    star.productionOverflow = 0;
+    star.repairOverflow = 0;
+    star.lastCombatTick = -1;
+    state!.stars.set(star.id, star);
+}
 
-    const playerIds: string[] = [HUMAN_PLAYER_ID];
-    for (let i = 1; i < settings.playerCount; i++) {
-        playerIds.push(`ai-${i}`);
+/** Helper: add bidirectional connection */
+function addDebugConnection(sourceId: string, targetId: string): void {
+    const source = state!.stars.get(sourceId);
+    const target = state!.stars.get(targetId);
+    if (!source || !target) return;
+    const distance = Math.sqrt((source.x - target.x) ** 2 + (source.y - target.y) ** 2);
+
+    const c1 = new ConnectionSchema();
+    c1.sourceId = sourceId;
+    c1.targetId = targetId;
+    c1.distance = distance;
+    state!.connections.push(c1);
+
+    const c2 = new ConnectionSchema();
+    c2.sourceId = targetId;
+    c2.targetId = sourceId;
+    c2.distance = distance;
+    state!.connections.push(c2);
+}
+
+/** Debug A: 4 stars in triangle + dead-end (matches server initDebugMap) */
+function initDebugMap(playerIds: string[], variant: string): void {
+    const cx = 800, cy = 450, spread = 250;
+    const humanId = playerIds[0] || 'human-player';
+    const aiId = playerIds[1] || 'ai-1';
+
+    if (variant === 'debug-b') {
+        // Debug B: linear chain of 5-6 stars
+        createDebugStar('star-0', 200, 350, humanId);
+        createDebugStar('star-1', 450, 250, aiId);
+        createDebugStar('star-2', 700, 300, 'neutral');
+        createDebugStar('star-3', 950, 400, playerIds[2] || 'neutral');
+        createDebugStar('star-4', 1200, 450, playerIds[3] || 'neutral');
+        if (playerIds.length > 4) {
+            createDebugStar('star-5', 350, 550, playerIds[4] || 'neutral');
+        }
+
+        addDebugConnection('star-0', 'star-1');
+        addDebugConnection('star-1', 'star-2');
+        addDebugConnection('star-2', 'star-3');
+        addDebugConnection('star-3', 'star-4');
+        if (playerIds.length > 4) {
+            addDebugConnection('star-0', 'star-5');
+        }
+    } else {
+        // Debug A: triangle + dead-end
+        createDebugStar('star-0', cx, cy - spread, humanId);       // Top
+        createDebugStar('star-1', cx - spread, cy + spread * 0.6, aiId);  // Bottom-left
+        createDebugStar('star-2', cx + spread, cy + spread * 0.6, 'neutral'); // Bottom-right
+        createDebugStar('star-3', cx + spread * 1.2, cy - spread * 0.8, 'neutral'); // Far top-right
+
+        addDebugConnection('star-0', 'star-1');
+        addDebugConnection('star-1', 'star-2');
+        addDebugConnection('star-2', 'star-0');
+        addDebugConnection('star-0', 'star-3');
     }
+}
 
-    // Create players
-    playerIds.forEach((id, i) => {
-        const player = new PlayerSchema();
-        player.sessionId = id;
-        player.name = i === 0 ? 'You' : `AI ${i}`;
-        player.color = settings.playerColors?.[i] ?? PLAYER_COLORS[i % PLAYER_COLORS.length];
-        player.isAI = i > 0;
-        player.isEliminated = false;
-        player.starCount = 0;
-        player.totalShips = 0;
-        player.activeShips = 0;
-        player.damagedShips = 0;
-        state!.players.set(id, player);
-    });
-
-    // Generate map
+/** Standard random map via generateMap() */
+function initStandardMap(playerIds: string[]): void {
     const result = generateMap({
         width: 1600,
         height: 900,
@@ -435,9 +492,7 @@ function initializeState(): void {
     GAME_CONFIG._MAP_PADDING_X = result.paddingX;
     GAME_CONFIG._MAP_PADDING_Y = result.paddingY;
 
-    // Randomize which position gets which owner via shuffled indices.
-    // IMPORTANT: positions must stay in original order because generateMap()
-    // assigns IDs star-0..N matching position indices, and connections reference those IDs.
+    // Randomize which position gets which owner via shuffled indices
     const starTypes: StarType[] = ['grey', 'yellow', 'blue', 'purple', 'red', 'green'];
     const totalStars = result.positions.length;
     const ownerIndices = Array.from({ length: totalStars }, (_, i) => i);
@@ -446,7 +501,6 @@ function initializeState(): void {
         [ownerIndices[i], ownerIndices[j]] = [ownerIndices[j], ownerIndices[i]];
     }
 
-    // Create stars from positions (mirrors server GameRoom.createStar)
     result.positions.forEach((pos, i) => {
         const ownerIdx = ownerIndices[i];
         const ownerId = playerIds[ownerIdx % playerIds.length];
@@ -478,25 +532,46 @@ function initializeState(): void {
         state!.stars.set(star.id, star);
     });
 
-    // Create connections (bidirectional, mirrors server GameRoom.addConnection)
+    // Create connections (bidirectional)
     for (const conn of result.connections) {
-        const source = state!.stars.get(conn.sourceId);
-        const target = state!.stars.get(conn.targetId);
-        if (!source || !target) continue;
+        addDebugConnection(conn.sourceId, conn.targetId);
+    }
+}
+function initializeState(): void {
+    state = new GameRoomState();
+    state.phase = 'playing'; // Will be set to paused via isPaused
+    state.isPaused = true;
+    state.speed = 1;
+    state.tick = 0;
 
-        const distance = Math.sqrt((source.x - target.x) ** 2 + (source.y - target.y) ** 2);
+    const playerIds: string[] = [HUMAN_PLAYER_ID];
+    for (let i = 1; i < settings.playerCount; i++) {
+        playerIds.push(`ai-${i}`);
+    }
 
-        const conn1 = new ConnectionSchema();
-        conn1.sourceId = conn.sourceId;
-        conn1.targetId = conn.targetId;
-        conn1.distance = distance;
-        state!.connections.push(conn1);
+    // Create players
+    playerIds.forEach((id, i) => {
+        const player = new PlayerSchema();
+        player.sessionId = id;
+        player.name = i === 0 ? 'You' : `AI ${i}`;
+        player.color = settings.playerColors?.[i] ?? PLAYER_COLORS[i % PLAYER_COLORS.length];
+        player.isAI = i > 0;
+        player.isEliminated = false;
+        player.starCount = 0;
+        player.totalShips = 0;
+        player.activeShips = 0;
+        player.damagedShips = 0;
+        state!.players.set(id, player);
+    });
 
-        const conn2 = new ConnectionSchema();
-        conn2.sourceId = conn.targetId;
-        conn2.targetId = conn.sourceId;
-        conn2.distance = distance;
-        state!.connections.push(conn2);
+    // Generate map based on mapType
+    const mapType = settings.mapType || 'standard';
+
+    if (mapType === 'debug' || mapType === 'debug-b') {
+        // Fixed debug maps — deterministic positions for testing
+        initDebugMap(playerIds, mapType);
+    } else {
+        initStandardMap(playerIds);
     }
 
     // Initialize AI players

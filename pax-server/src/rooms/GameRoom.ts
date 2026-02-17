@@ -30,7 +30,7 @@ const PLAYER_COLORS = [
 // Room options passed from client (shared between SP MainMenu and MP Lobby)
 interface RoomOptions {
     playerCount?: number;
-    mapType?: 'standard' | 'debug';
+    mapType?: 'standard' | 'debug' | 'debug-b';
     starsPerPlayer?: number;
     shipsPerStar?: number;
     starSpacing?: number;
@@ -620,7 +620,8 @@ export class GameRoom extends Room {
         this.state.playerCount = this.state.players.size;
 
         // Generate map based on mapType
-        if (this.roomOptions.mapType === 'debug') {
+        const mt = this.roomOptions.mapType || 'standard';
+        if (mt === 'debug' || mt === 'debug-b') {
             this.initDebugMap();
         } else {
             this.initStandardMap();
