@@ -7,7 +7,7 @@
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
-import { Server, matchMaker } from "colyseus";
+import { Server, LobbyRoom } from "colyseus";
 // NOTE: Do NOT import WebSocketTransport here!
 // Letting Server.getDefaultTransport() handle it via dynamicImport ensures
 // a single @colyseus/core module instance. Importing ws-transport explicitly
@@ -27,30 +27,16 @@ const CLIENT_DIR = path.resolve(__dirname, "../../client");
 
 const gameServer = new Server({
     express: (app: any) => {
-        // Custom API: list available rooms
-        app.get("/api/rooms", async (_req: any, res: any) => {
-            try {
-                const rooms = await matchMaker.query({ name: "game_room", private: false, locked: false });
-                res.json(rooms.map((r: any) => ({
-                    roomId: r.roomId,
-                    name: r.name || r.roomId,
-                    clients: r.clients,
-                    maxClients: r.maxClients,
-                    metadata: r.metadata,
-                })));
-            } catch (err: any) {
-                log.error("API", "Failed to query rooms", err);
-                res.json([]);
-            }
-        });
-
         // Serve built SPA static files
         app.use(express.static(CLIENT_DIR));
         log.sys("Init", `Serving static files from ${CLIENT_DIR}`);
     },
 });
 
-// Define rooms (identical to index.ts)
+// Built-in Lobby Room — provides realtime room listing to clients
+gameServer.define("lobby", LobbyRoom);
+
+// Define rooms
 gameServer.define("game_room", GameRoom)
     .enableRealtimeListing()
     .on("create", (room) => log.sys("MatchMaker", `game_room CREATED: ${room.roomId}`))

@@ -220,47 +220,93 @@ export interface RoomListing {
         hostName?: string;
     };
 }
+// ────────────────────────────────────────────────────────────────────────────
+// Lobby Room — built-in Colyseus LobbyRoom for realtime room listing
+// See: https://docs.colyseus.io/room/built-in/lobby
+// ────────────────────────────────────────────────────────────────────────────
 
-async function fetchRooms(): Promise<void> {
+let lobbyRoom: Room | null = null;
+
+async function joinLobby(): Promise<void> {
+    if (lobbyRoom) return; // Already connected
     isFetchingRooms = true;
     try {
-        // Server-side /api/rooms endpoint (Colyseus 0.17 removed client.getAvailableRooms)
-        const httpUrl = SERVER_URL.replace(/^ws/, 'http');
-        const res = await fetch(`${httpUrl}/api/rooms`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const rooms: any[] = await res.json();
-        availableRooms = rooms.map((r: any) => ({
-            roomId: r.roomId,
-            name: r.name || r.roomId,
-            clients: r.clients,
-            maxClients: r.maxClients,
-            metadata: r.metadata,
-        }));
-        log.net('RoomBrowser', `Found ${availableRooms.length} available rooms`);
+        if (!client) await connect();
+        if (!client) {
+            availableRooms = [];
+            isFetchingRooms = false;
+            return;
+        }
+
+        lobbyRoom = await client.joinOrCreate("lobby", {
+            filter: { name: "game_room" }
+        });
+
+        // Full room list on initial join
+        lobbyRoom.onMessage("rooms", (rooms: any[]) => {
+            availableRooms = rooms.map((r: any) => ({
+                roomId: r.roomId,
+                name: r.name || r.roomId,
+                clients: r.clients,
+                maxClients: r.maxClients,
+                metadata: r.metadata,
+            }));
+            log.net('RoomBrowser', `Lobby: received ${availableRooms.length} rooms`);
+            isFetchingRooms = false;
+        });
+
+        // Room added or updated
+        lobbyRoom.onMessage("+", ([roomId, room]: [string, any]) => {
+            const idx = availableRooms.findIndex(r => r.roomId === roomId);
+            const entry: RoomListing = {
+                roomId: room.roomId,
+                name: room.name || room.roomId,
+                clients: room.clients,
+                maxClients: room.maxClients,
+                metadata: room.metadata,
+            };
+            if (idx !== -1) {
+                availableRooms[idx] = entry;
+            } else {
+                availableRooms = [...availableRooms, entry];
+            }
+            log.net('RoomBrowser', `Lobby: room updated/added ${roomId} (${availableRooms.length} total)`);
+        });
+
+        // Room removed
+        lobbyRoom.onMessage("-", (roomId: string) => {
+            availableRooms = availableRooms.filter(r => r.roomId !== roomId);
+            log.net('RoomBrowser', `Lobby: room removed ${roomId} (${availableRooms.length} total)`);
+        });
+
+        lobbyRoom.onLeave(() => {
+            lobbyRoom = null;
+            log.net('RoomBrowser', 'Left lobby room');
+        });
+
+        log.net('RoomBrowser', 'Joined lobby room for realtime room listing');
     } catch (err) {
-        log.error('RoomBrowser', 'Failed to fetch rooms', err);
+        log.error('RoomBrowser', 'Failed to join lobby room', err);
         availableRooms = [];
-    } finally {
+        lobbyRoom = null;
         isFetchingRooms = false;
     }
 }
 
-// Auto-refresh room list (polling)
-let roomPollInterval: ReturnType<typeof setInterval> | null = null;
-
-function startRoomPolling() {
-    if (roomPollInterval) return;
-    fetchRooms(); // Immediate fetch
-    roomPollInterval = setInterval(() => {
-        if (!isConnected) fetchRooms();
-    }, 5000);
+function leaveLobby(): void {
+    if (lobbyRoom) {
+        lobbyRoom.leave();
+        lobbyRoom = null;
+    }
 }
 
-function stopRoomPolling() {
-    if (roomPollInterval) {
-        clearInterval(roomPollInterval);
-        roomPollInterval = null;
-    }
+// Legacy aliases for backward compat with MainMenu
+function startRoomPolling() { joinLobby(); }
+function stopRoomPolling() { leaveLobby(); }
+
+async function fetchRooms(): Promise<void> {
+    // If lobby is connected, it auto-updates. Otherwise, join it.
+    if (!lobbyRoom) await joinLobby();
 }
 
 async function joinRoomById(targetRoomId: string): Promise<boolean> {

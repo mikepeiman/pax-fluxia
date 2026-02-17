@@ -196,38 +196,47 @@ function processAttackerTransfer(
     ctx: FXContext,
     conqueredStar: StarRef & { id?: string },
 ): void {
-    if (!event.attackerStarId || event.shipsTransferred <= 0) return;
+    if (event.shipsTransferred <= 0) return;
 
-    const attackerStar = ctx.starsById.get(event.attackerStarId);
-    if (!attackerStar) return;
+    // Multi-star transfer: loop over all contributing attacker stars
+    const starIds = event.attackerStarIds?.length ? event.attackerStarIds : [event.attackerStarId];
+    const shipCounts = event.attackerShipTransfers?.length ? event.attackerShipTransfers : [event.shipsTransferred];
 
-    const atkShips = ctx.vsm.getOrbitShips(event.attackerStarId);
-    const transferCount = Math.min(event.shipsTransferred, atkShips.length);
+    for (let i = 0; i < starIds.length; i++) {
+        const atkStarId = starIds[i];
+        const transferForThisStar = shipCounts[i] ?? 0;
+        if (!atkStarId || transferForThisStar <= 0) continue;
 
-    if (transferCount <= 0) return;
+        const attackerStar = ctx.starsById.get(atkStarId);
+        if (!attackerStar) continue;
 
-    const result = executeConquestTransfer({
-        ships: atkShips,
-        attackerStar,
-        conqueredStar,
-        transferCount,
-        newOwner: event.newOwner,
-        now: performance.now(),   // Uses wall-clock time to match ShipRenderer
-        effectiveTickMs: ctx.effectiveTickMs,
-        attackerStarId: event.attackerStarId,
-        conqueredStarId: event.starId,
-    });
+        const atkShips = ctx.vsm.getOrbitShips(atkStarId);
+        const transferCount = Math.min(transferForThisStar, atkShips.length);
+        if (transferCount <= 0) continue;
 
-    // Departing ships enter the travel pipeline via VSM
-    ctx.vsm.sendToTravel(result.departing);
+        const result = executeConquestTransfer({
+            ships: atkShips,
+            attackerStar,
+            conqueredStar,
+            transferCount,
+            newOwner: event.newOwner,
+            now: performance.now(),
+            effectiveTickMs: ctx.effectiveTickMs,
+            attackerStarId: atkStarId,
+            conqueredStarId: event.starId,
+        });
 
-    // Arriving ships go directly to conquered star orbit via VSM
-    if (result.arriving.length > 0) {
-        ctx.vsm.addToOrbit(event.starId, result.arriving);
+        // Departing ships enter the travel pipeline via VSM
+        ctx.vsm.sendToTravel(result.departing);
+
+        // Arriving ships go directly to conquered star orbit via VSM
+        if (result.arriving.length > 0) {
+            ctx.vsm.addToOrbit(event.starId, result.arriving);
+        }
+
+        // Update attacker star with remaining ships via VSM
+        ctx.vsm.setOrbitShips(atkStarId, result.remaining);
     }
-
-    // Update attacker star with remaining ships via VSM
-    ctx.vsm.setOrbitShips(event.attackerStarId, result.remaining);
 }
 
 // Re-export standalone function for backward compatibility during migration

@@ -29,7 +29,12 @@ export interface CombatEvent {
 export interface ConquestEvent {
     tick: number;
     starId: string;
+    /** @deprecated Use attackerStarIds[0] — kept for backward compat */
     attackerStarId: string;
+    /** All attacker star IDs contributing ships to the conquest */
+    attackerStarIds: string[];
+    /** Ships transferred from each attacker star (parallel to attackerStarIds) */
+    attackerShipTransfers: number[];
     previousOwner: string;
     newOwner: string;
     shipsCaptured: number;

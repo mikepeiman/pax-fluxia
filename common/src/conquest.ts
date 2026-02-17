@@ -34,8 +34,10 @@ export interface ConquestResult {
     scatterTargetIds?: string[];
     /** Per-route ship counts for scatter visualization */
     scatterShipCounts?: number[];
-    /** Number of attacker ships transferred to conquered star */
+    /** Total number of attacker ships transferred to conquered star */
     shipsTransferred: number;
+    /** Per-star transfer breakdown: { starId, shipsTransferred } */
+    perStarTransfers: { starId: string; shipsTransferred: number }[];
 }
 
 // ============================================================================
@@ -52,12 +54,19 @@ export interface ConquestResult {
  * 
  * Mutates attacker and defender star objects directly.
  * Returns ConquestResult for logging/animation.
+ * 
+ * @param attacker Primary victor star (determines new ownership)
+ * @param defender The conquered star
+ * @param ctx Conquest context for neighbor lookups
+ * @param cfg Engine config
+ * @param allAttackers All attacking stars of the winning player (for proportional transfer)
  */
 export function applyConquest(
     attacker: Star,
     defender: Star,
     ctx: ConquestContext,
-    cfg: EngineConfig
+    cfg: EngineConfig,
+    allAttackers?: Star[]
 ): ConquestResult {
     const previousOwner = defender.ownerId;
     const defenderActive = Math.floor(defender.activeShips ?? 0);
@@ -103,6 +112,7 @@ export function applyConquest(
         shipsDestroyed: 0,
         defenderTotalAtConquest: defenderTotal,
         shipsTransferred: 0,
+        perStarTransfers: [],
     };
 
     if (isRetreating && retreatTarget) {
@@ -206,17 +216,24 @@ export function applyConquest(
     defender.activeShips = capturedActive;
     defender.damagedShips = damagedOnStar;
 
-    // Transfer attacker ships to newly conquered star
+    // Transfer attacker ships to newly conquered star — proportional across all attackers
     const transferPercentage = cfg.CONQUEST_TRANSFER_PERCENTAGE / 100;
-    const shipsToTransfer = Math.floor((attacker.activeShips ?? 0) * transferPercentage);
+    const transferStars = allAttackers ?? [attacker];
+    let totalTransferred = 0;
+    const perStarTransfers: { starId: string; shipsTransferred: number }[] = [];
 
-    if (shipsToTransfer > 0) {
-        attacker.activeShips = (attacker.activeShips ?? 0) - shipsToTransfer;
-        defender.activeShips += shipsToTransfer;
+    for (const atkStar of transferStars) {
+        const toTransfer = Math.floor((atkStar.activeShips ?? 0) * transferPercentage);
+        if (toTransfer > 0) {
+            atkStar.activeShips = (atkStar.activeShips ?? 0) - toTransfer;
+            defender.activeShips += toTransfer;
+            totalTransferred += toTransfer;
+            perStarTransfers.push({ starId: atkStar.id, shipsTransferred: toTransfer });
+        }
     }
 
-    // Add transfer count to result for animation
-    result.shipsTransferred = shipsToTransfer;
+    result.shipsTransferred = totalTransferred;
+    result.perStarTransfers = perStarTransfers;
 
     // Handle queued orders (only if orders persist after conquest)
     if (cfg.ORDERS_PERSIST_AFTER_CONQUEST && defender.queuedOrderTargetId) {
@@ -229,7 +246,9 @@ export function applyConquest(
 
     // Handle order retention
     if (!cfg.RETAIN_ORDER_ON_CONQUEST) {
-        attacker.targetId = '';
+        for (const atkStar of transferStars) {
+            atkStar.targetId = '';
+        }
     }
 
     return result;

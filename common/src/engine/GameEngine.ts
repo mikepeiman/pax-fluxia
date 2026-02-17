@@ -275,6 +275,8 @@ export class GameEngine {
                 tick: state.tick,
                 starId: defender.id,
                 attackerStarId: result.victorStarId,
+                attackerStarIds: result.conquest.perStarTransfers.map(t => t.starId),
+                attackerShipTransfers: result.conquest.perStarTransfers.map(t => t.shipsTransferred),
                 previousOwner: result.conquest.previousOwner,
                 newOwner: victor?.ownerId ?? '',
                 shipsCaptured: result.conquest.shipsCaptured,

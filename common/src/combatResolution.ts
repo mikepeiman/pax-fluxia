@@ -162,7 +162,7 @@ export function resolveMultiSourceCombat(
         const winnerStars = validAttackers.filter(a => winnerStarIds.includes(a.id));
         const victor = winnerStars.reduce((a, b) => a.activeShips > b.activeShips ? a : b);
 
-        const conquestResult = applyConquest(victor, defender, ctx, cfg);
+        const conquestResult = applyConquest(victor, defender, ctx, cfg, winnerStars);
 
         return {
             occurred: true,
@@ -263,7 +263,7 @@ export function resolveMultiSourceCombat(
         const winnerStars = validAttackers.filter(a => winnerStarIds.includes(a.id));
         const victor = winnerStars.reduce((a, b) => a.activeShips > b.activeShips ? a : b);
 
-        conquest = applyConquest(victor, defender, ctx, cfg);
+        conquest = applyConquest(victor, defender, ctx, cfg, winnerStars);
         victorStarId = victor.id;
     }
 
