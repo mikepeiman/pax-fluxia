@@ -35,10 +35,22 @@ export const coreTransferHandler: FXHandler<TransferEvent> = {
         const ndx = dx / dist;
         const ndy = dy / dist;
 
-        const laneStartX = source.x + ndx * (source.radius + 5);
-        const laneStartY = source.y + ndy * (source.radius + 5);
-        const laneEndX = target.x - ndx * (target.radius + 5);
-        const laneEndY = target.y - ndy * (target.radius + 5);
+        // Lane convergence: how tightly ships converge to the lane
+        const convergence = GAME_CONFIG.LANE_CONVERGENCE ?? 1.0;
+        const convergencePoint = (GAME_CONFIG.LANE_CONVERGENCE_POINT ?? 0) / 100; // 0-1
+
+        // Compute convergence start position (lerp from source center to target center)
+        const convStartX = source.x + (target.x - source.x) * convergencePoint;
+        const convStartY = source.y + (target.y - source.y) * convergencePoint;
+        // Convergence end = target circumference (baseline lane endpoint)
+        const baseLaneEndX = target.x - ndx * (target.radius + 5);
+        const baseLaneEndY = target.y - ndy * (target.radius + 5);
+
+        // When convergencePoint > 0, shift laneStart toward the convergence point
+        const baseLaneStartX = source.x + ndx * (source.radius + 5);
+        const baseLaneStartY = source.y + ndy * (source.radius + 5);
+        const effectiveLaneStartX = baseLaneStartX + (convStartX - baseLaneStartX) * convergencePoint;
+        const effectiveLaneStartY = baseLaneStartY + (convStartY - baseLaneStartY) * convergencePoint;
 
         // Tick-synchronized timing
         const halfTick = ctx.effectiveTickMs / 2;
@@ -92,10 +104,29 @@ export const coreTransferHandler: FXHandler<TransferEvent> = {
                 performance.now() + Math.random() * Math.min(jitterMax, 300 / Math.max(1, shipsToMove));
             ship.travelDuration = travelDuration;
             ship.departDuration = departDuration;
-            ship.laneStartX = laneStartX;
-            ship.laneStartY = laneStartY;
-            ship.laneEndX = laneEndX;
-            ship.laneEndY = laneEndY;
+
+            // Apply convergence: blend between lane point and per-ship spread
+            if (convergence >= 1) {
+                // Full convergence (default) — standard lane behavior
+                ship.laneStartX = effectiveLaneStartX;
+                ship.laneStartY = effectiveLaneStartY;
+                ship.laneEndX = baseLaneEndX;
+                ship.laneEndY = baseLaneEndY;
+            } else {
+                // Partial convergence: ships spread out proportionally
+                // Per-ship "spread" target = point on target circumference based on ship's slot
+                const spreadAngle = ((ship.id % 12) / 12) * Math.PI * 2;
+                const spreadEndX = target.x + Math.cos(spreadAngle) * (target.radius + 5);
+                const spreadEndY = target.y + Math.sin(spreadAngle) * (target.radius + 5);
+
+                // Start: blend between lane start and ship's current orbit position
+                ship.laneStartX = effectiveLaneStartX * convergence + ship.departFromX * (1 - convergence);
+                ship.laneStartY = effectiveLaneStartY * convergence + ship.departFromY * (1 - convergence);
+                // End: blend between lane end and spread destination
+                ship.laneEndX = baseLaneEndX * convergence + spreadEndX * (1 - convergence);
+                ship.laneEndY = baseLaneEndY * convergence + spreadEndY * (1 - convergence);
+            }
+
             ship.laneOffset = (Math.random() - 0.5) * laneOffsetPx * 2;
             ship.staggerDelay = 0;
             ship.ownerId = event.ownerId;

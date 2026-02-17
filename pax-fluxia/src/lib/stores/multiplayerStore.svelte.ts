@@ -231,10 +231,9 @@ async function fetchRooms(): Promise<void> {
             return;
         }
 
-        // Colyseus 0.17 — use SDK HTTP client to query matchmaker listing
-        // The server defines game_room with .enableRealtimeListing()
-        const res = await client.http.get('/matchmake/game_room');
-        const rooms: any[] = Array.isArray(res.data) ? res.data : [];
+        // Colyseus getAvailableRooms() — standard API for listing public rooms
+        // Cast through any because @colyseus/sdk 0.17 types don't declare it
+        const rooms: any[] = await (client as any).getAvailableRooms('game_room');
         availableRooms = rooms.map((r: any) => ({
             roomId: r.roomId,
             name: r.name || r.roomId,
@@ -248,6 +247,24 @@ async function fetchRooms(): Promise<void> {
         availableRooms = [];
     } finally {
         isFetchingRooms = false;
+    }
+}
+
+// Auto-refresh room list (polling)
+let roomPollInterval: ReturnType<typeof setInterval> | null = null;
+
+function startRoomPolling() {
+    if (roomPollInterval) return;
+    fetchRooms(); // Immediate fetch
+    roomPollInterval = setInterval(() => {
+        if (!isConnected) fetchRooms();
+    }, 5000);
+}
+
+function stopRoomPolling() {
+    if (roomPollInterval) {
+        clearInterval(roomPollInterval);
+        roomPollInterval = null;
     }
 }
 
@@ -557,6 +574,8 @@ export const multiplayerStore = {
     get availableRooms() { return availableRooms; },
     get isFetchingRooms() { return isFetchingRooms; },
     fetchRooms,
+    startRoomPolling,
+    stopRoomPolling,
     joinRoomById,
 
     // Game actions

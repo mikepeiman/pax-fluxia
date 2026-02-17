@@ -164,10 +164,19 @@ function conquestTravel(ctx: ConquestTransferContext): ConquestTransferResult {
     reindexShips(ships);
 
     // Step 6: Animate from exact present coordinates
-    const laneStartX = attackerStar.x + ndx * (attackerStar.radius + 5);
-    const laneStartY = attackerStar.y + ndy * (attackerStar.radius + 5);
-    const laneEndX = conqueredStar.x - ndx * (conqueredStar.radius + 5);
-    const laneEndY = conqueredStar.y - ndy * (conqueredStar.radius + 5);
+    // Lane convergence
+    const convergence = GAME_CONFIG.LANE_CONVERGENCE ?? 1.0;
+    const convergencePointFrac = (GAME_CONFIG.LANE_CONVERGENCE_POINT ?? 0) / 100;
+
+    const baseLaneStartX = attackerStar.x + ndx * (attackerStar.radius + 5);
+    const baseLaneStartY = attackerStar.y + ndy * (attackerStar.radius + 5);
+    const baseLaneEndX = conqueredStar.x - ndx * (conqueredStar.radius + 5);
+    const baseLaneEndY = conqueredStar.y - ndy * (conqueredStar.radius + 5);
+
+    const convStartX = attackerStar.x + (conqueredStar.x - attackerStar.x) * convergencePointFrac;
+    const convStartY = attackerStar.y + (conqueredStar.y - attackerStar.y) * convergencePointFrac;
+    const effectiveLaneStartX = baseLaneStartX + (convStartX - baseLaneStartX) * convergencePointFrac;
+    const effectiveLaneStartY = baseLaneStartY + (convStartY - baseLaneStartY) * convergencePointFrac;
 
     const halfTick = effectiveTickMs / 2;
     const departFraction = GAME_CONFIG.DEPART_FRACTION ?? 0.3;
@@ -186,10 +195,22 @@ function conquestTravel(ctx: ConquestTransferContext): ConquestTransferResult {
         ship.departTime = now + Math.random() * Math.min(jitterMax, 300 / Math.max(1, conquestShips.length));
         ship.travelDuration = travelDuration;
         ship.departDuration = departDuration;
-        ship.laneStartX = laneStartX;
-        ship.laneStartY = laneStartY;
-        ship.laneEndX = laneEndX;
-        ship.laneEndY = laneEndY;
+
+        if (convergence >= 1) {
+            ship.laneStartX = effectiveLaneStartX;
+            ship.laneStartY = effectiveLaneStartY;
+            ship.laneEndX = baseLaneEndX;
+            ship.laneEndY = baseLaneEndY;
+        } else {
+            const spreadAngle = ((ship.id % 12) / 12) * Math.PI * 2;
+            const spreadEndX = conqueredStar.x + Math.cos(spreadAngle) * (conqueredStar.radius + 5);
+            const spreadEndY = conqueredStar.y + Math.sin(spreadAngle) * (conqueredStar.radius + 5);
+            ship.laneStartX = effectiveLaneStartX * convergence + ship.departFromX * (1 - convergence);
+            ship.laneStartY = effectiveLaneStartY * convergence + ship.departFromY * (1 - convergence);
+            ship.laneEndX = baseLaneEndX * convergence + spreadEndX * (1 - convergence);
+            ship.laneEndY = baseLaneEndY * convergence + spreadEndY * (1 - convergence);
+        }
+
         ship.laneOffset = (Math.random() - 0.5) * laneOffsetPx * 2;
         ship.staggerDelay = 0;
         ship.ownerId = newOwner;

@@ -90,10 +90,13 @@
     // Room browser state
     let confirmJoinTarget = $state<RoomListing | null>(null);
 
-    // Auto-fetch rooms when switching to MP mode
+    // Auto-refresh room list when MP tab is visible
     $effect(() => {
         if (gameMode === "mp" && !multiplayerStore.isConnected) {
-            multiplayerStore.fetchRooms();
+            multiplayerStore.startRoomPolling();
+            return () => multiplayerStore.stopRoomPolling();
+        } else {
+            multiplayerStore.stopRoomPolling();
         }
     });
 

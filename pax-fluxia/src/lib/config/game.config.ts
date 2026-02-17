@@ -116,6 +116,9 @@ interface GameConfigType {
     TRAVEL_EASING_POWER: number;    // Easing curve steepness (1=gentle, 3=aggressive, default 2)
     TRAVEL_DURATION_MULT: number;   // Multiplier on total travel time (1=one tick, 2=two ticks, default 1)
     TRAVEL_ARC_INTENSITY: number;   // How much curvature in the bezier arc (0=straight, 1=max, default 0.5)
+    // Lane convergence controls
+    LANE_CONVERGENCE: number;       // How tightly ships converge to lane (0=straight to orbit slot, 1=full lane, default 1)
+    LANE_CONVERGENCE_POINT: number; // Where along origin→dest center the convergence point sits (0-100, default 0)
     ORBIT_DENSITY: number;         // Ship spacing factor per ring: circumference / (BASE_SIZE * ORBIT_DENSITY). Higher = fewer per ring (default 1.5)
     ATTACK_SURGE_MULT: number;     // Attack surge displacement as fraction of star radius (default 0.4)
     ATTACK_SURGE_PROPORTIONAL: boolean; // Scale surge by force disparity ratio (default true)
@@ -401,6 +404,10 @@ export const GAME_CONFIG: GameConfigType = {
     TRAVEL_EASING_POWER: 2,
     TRAVEL_DURATION_MULT: 1,
     TRAVEL_ARC_INTENSITY: 0.5,
+    /** How tightly ships converge to lane (0=straight to orbit slot, 1=full lane convergence) */
+    LANE_CONVERGENCE: 1.0,
+    /** Where along origin→dest center the convergence point sits (0=origin, 100=dest) */
+    LANE_CONVERGENCE_POINT: 0,
     /** Ship spacing factor per ring: higher = fewer ships per ring = more spread out (default 1.5) */
     ORBIT_DENSITY: 1.7,
     /** Attack surge displacement as fraction of star radius (default 0.4) */

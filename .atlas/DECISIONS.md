@@ -488,3 +488,40 @@ User observed that setting `TRAVEL_DURATION` to 10× transforms gameplay fundame
   - **Intercept mode**: Fleets fight each other along the lane
 - **Above 10x / sub-tick**: Would require pure RTS game loop (separate game mode, deferred)
 - This does NOT replace the current "No Mechanical Travel" rule — it extends it with a new game mode toggle
+
+---
+
+# Decision: Terminology — Destination vs Target
+
+**Date:** 2026-02-17
+**Status:** Active
+
+## Context
+User clarified that "destination" and "target" are distinct concepts in the game.
+
+## Decision
+- **Destination**: A friendly star. Ships travel from one friendly star to another friendly star (transfer/reinforce).
+- **Target**: A hostile star. Ships attack a target — remote engagement from their current star.
+- Code should use these terms consistently: `targetId` for attack targets, `destinationId` or `toStarId` for travel destinations.
+
+---
+
+# Decision: Lane Convergence Control Variables
+
+**Date:** 2026-02-17
+**Status:** Active
+
+## Context
+User requested adjustable variables to control how ships converge onto and along travel lanes, with control over both the amount of convergence and where the convergence point sits along the origin→destination axis.
+
+## Decision
+- **`LANE_CONVERGENCE`** (0–1, default 1.0): Controls how tightly ships converge to the main lane line.
+  - 0 = ships fly straight from orbit slot to destination orbit slot (no convergence)
+  - 1 = ships fully converge to the lane centerline (default behavior)
+  - Values between 0–1 blend between spread and converged flight paths
+- **`LANE_CONVERGENCE_POINT`** (0–100, default 0): Controls where along the origin→destination axis the convergence point sits.
+  - 0 = convergence at origin star circumference
+  - 100 = convergence at destination star circumference
+- Both variables are exposed in the GameSettingsPanel "Path & Easing" section
+- Applied consistently across `transferHandler.ts`, `conquestHandler.ts`, and `strategies.ts`
+

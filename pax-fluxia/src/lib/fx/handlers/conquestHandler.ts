@@ -153,10 +153,35 @@ function setupDepartingShip(
     ship.departDuration = halfTick * departFrac;
     ship.travelDuration = halfTick * (1 - departFrac);
 
-    ship.laneStartX = fromStar.x + ndx * (fromStar.radius + 5);
-    ship.laneStartY = fromStar.y + ndy * (fromStar.radius + 5);
-    ship.laneEndX = toStar.x - ndx * (toStar.radius + 5);
-    ship.laneEndY = toStar.y - ndy * (toStar.radius + 5);
+    // Lane convergence
+    const convergence = GAME_CONFIG.LANE_CONVERGENCE ?? 1.0;
+    const convergencePoint = (GAME_CONFIG.LANE_CONVERGENCE_POINT ?? 0) / 100;
+
+    const baseLaneStartX = fromStar.x + ndx * (fromStar.radius + 5);
+    const baseLaneStartY = fromStar.y + ndy * (fromStar.radius + 5);
+    const baseLaneEndX = toStar.x - ndx * (toStar.radius + 5);
+    const baseLaneEndY = toStar.y - ndy * (toStar.radius + 5);
+
+    // Shift start toward convergence point along the lane
+    const convStartX = fromStar.x + (toStar.x - fromStar.x) * convergencePoint;
+    const convStartY = fromStar.y + (toStar.y - fromStar.y) * convergencePoint;
+    const effectiveLaneStartX = baseLaneStartX + (convStartX - baseLaneStartX) * convergencePoint;
+    const effectiveLaneStartY = baseLaneStartY + (convStartY - baseLaneStartY) * convergencePoint;
+
+    if (convergence >= 1) {
+        ship.laneStartX = effectiveLaneStartX;
+        ship.laneStartY = effectiveLaneStartY;
+        ship.laneEndX = baseLaneEndX;
+        ship.laneEndY = baseLaneEndY;
+    } else {
+        const spreadAngle = ((ship.id % 12) / 12) * Math.PI * 2;
+        const spreadEndX = toStar.x + Math.cos(spreadAngle) * (toStar.radius + 5);
+        const spreadEndY = toStar.y + Math.sin(spreadAngle) * (toStar.radius + 5);
+        ship.laneStartX = effectiveLaneStartX * convergence + ship.departFromX * (1 - convergence);
+        ship.laneStartY = effectiveLaneStartY * convergence + ship.departFromY * (1 - convergence);
+        ship.laneEndX = baseLaneEndX * convergence + spreadEndX * (1 - convergence);
+        ship.laneEndY = baseLaneEndY * convergence + spreadEndY * (1 - convergence);
+    }
     ship.laneOffset = (Math.random() - 0.5) * (GAME_CONFIG.LANE_OFFSET_PX ?? 8) * 2;
     ship.staggerDelay = 0;
     ship.ownerId = ownerId;

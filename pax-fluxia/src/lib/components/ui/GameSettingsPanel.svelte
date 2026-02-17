@@ -1638,6 +1638,47 @@
                     </div>
                     <div class="var-row">
                         <div class="row-top">
+                            <span class="var-name">Lane Convergence</span><span
+                                class="val"
+                                >{Math.round(
+                                    (GAME_CONFIG.LANE_CONVERGENCE ?? 1) * 100,
+                                )}%</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="1"
+                            step="0.05"
+                            value={GAME_CONFIG.LANE_CONVERGENCE ?? 1}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.LANE_CONVERGENCE = v;
+                            }}
+                        />
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Convergence Point</span><span
+                                class="val"
+                                >{GAME_CONFIG.LANE_CONVERGENCE_POINT ??
+                                    0}%</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            step="5"
+                            value={GAME_CONFIG.LANE_CONVERGENCE_POINT ?? 0}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.LANE_CONVERGENCE_POINT = v;
+                            }}
+                        />
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
                             <span class="var-name">Orbit Density</span><span
                                 class="val"
                                 >{(panel.orbitDensity as number).toFixed(
