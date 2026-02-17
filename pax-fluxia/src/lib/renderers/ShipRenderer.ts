@@ -253,7 +253,7 @@ export function renderTravelingShips(
     const animSpeedMult = animationStore.speedMultiplier;
 
     for (const ship of state.travelingShips) {
-        const elapsed = (now - ship.departTime) * animSpeedMult;
+        const elapsed = now - ship.departTime;
 
         if (elapsed < 0) {
             stillTraveling.push(ship);
@@ -666,8 +666,8 @@ export function renderShips(
                     ship.x = star.x + Math.cos(curAngle) * curRadius;
                     ship.y = star.y + Math.sin(curAngle) * curRadius;
                     if (isTrackedShip(ship.id)) traceSettleFrame(ship.id, elapsed, t, ship.x, ship.y, targetX, targetY);
-                    ship.scale = 0.8;
-                    ship.alpha = 1.0;
+                    ship.scale = 0.3 + 0.5 * ease;
+                    ship.alpha = 0.5 + 0.5 * ease;
                 } else {
                     ship.x = targetX;
                     ship.y = targetY;

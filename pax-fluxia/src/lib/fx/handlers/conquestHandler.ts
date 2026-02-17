@@ -13,6 +13,9 @@ import { animationStore } from '$lib/stores/animationStore.svelte';
 import { executeConquestTransfer } from '$lib/animations/conquest';
 import type { FXHandler } from '../FXRegistry';
 
+/** Guard: prevent compounding slowmo when multiple conquests fire rapidly */
+let conquestSlowmoActive = false;
+
 /**
  * Core conquest handler — animates defender scatter/retreat, attacker transfer,
  * delayed color change, and flash effect via VSM.
@@ -53,13 +56,15 @@ export const coreConquestHandler: FXHandler<ConquestEvent> = {
             }
         }
 
-        // ── AUTO-SLOWMO ──
-        if (GAME_CONFIG.CONQUEST_SLOWMO_ENABLED) {
+        // ── AUTO-SLOWMO (guarded against compounding) ──
+        if (GAME_CONFIG.CONQUEST_SLOWMO_ENABLED && !conquestSlowmoActive) {
+            conquestSlowmoActive = true;
             const originalSpeed = animationStore.speedMs;
             animationStore.setAnimationSpeed(
                 originalSpeed * GAME_CONFIG.CONQUEST_SLOWMO_FACTOR);
             setTimeout(() => {
                 animationStore.setAnimationSpeed(originalSpeed);
+                conquestSlowmoActive = false;
             }, GAME_CONFIG.CONQUEST_SLOWMO_DURATION_MS);
         }
     },
