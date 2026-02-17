@@ -112,12 +112,13 @@ function computeWobble(
     return { perpX, perpY, edgeFade, wobble };
 }
 
-/** ORB travel: straight lane interpolation with easeInCubic + wobble */
+/** ORB travel: straight lane interpolation with configurable easing + wobble */
 export const orbTravel: TravelBehavior = {
     name: 'orb',
     interpolate(ship: VisualShipState, elapsed: number, ctx: PhaseContext): PhaseResult {
         const travelProgress = Math.min(1, elapsed / (ship.travelDuration * ctx.travelDurationMult));
-        const eased = travelProgress * travelProgress * travelProgress; // easeInCubic
+        // Use configurable easing (same as lane travel) instead of hardcoded cubic
+        const eased = applyTravelEasing(travelProgress, ctx.travelEasing as any, ctx.travelEasingPower);
 
         const baseX = ship.laneStartX + (ship.laneEndX - ship.laneStartX) * eased;
         const baseY = ship.laneStartY + (ship.laneEndY - ship.laneStartY) * eased;

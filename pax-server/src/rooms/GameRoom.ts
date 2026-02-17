@@ -533,6 +533,9 @@ export class GameRoom extends Room {
         }
 
         log.sys('GameRoom', `Map initialized: ${this.state.stars.size} stars, ${this.state.connections.length} connections`);
+
+        // Tally initial player stats so leaderboard shows correct values immediately
+        GameEngine.updatePlayerStats(this.state);
     }
 
     private initDebugMap() {

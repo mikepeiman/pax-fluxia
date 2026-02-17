@@ -326,8 +326,10 @@ export function renderTravelingShips(
                     ship.fromStarId = null;
                     ship.toStarId = null;
                     ship.arriveStarId = null;
-                    ship.alpha = 0.5;
-                    ship.scale = 0.3;
+                    // Keep travel-phase visuals — orbit settle will interpolate to final values
+                    // (previously hard-jumped to alpha:0.5, scale:0.3 causing visual disjoint)
+                    ship.alpha = 1;
+                    ship.scale = 0.9;
                     ship.targetIndex = destShips.length;
 
                     const arrAngle = Math.atan2(ship.y - destStar.y, ship.x - destStar.x);
@@ -645,8 +647,9 @@ export function renderShips(
 
                     ship.x = star.x + Math.cos(curAngle) * curRadius;
                     ship.y = star.y + Math.sin(curAngle) * curRadius;
-                    ship.scale = 0.3 + 0.5 * ease;
-                    ship.alpha = 0.5 + 0.5 * ease;
+                    // Smooth settle: lerp from arrival visuals (0.9/1.0) to final orbit (0.8/1.0)
+                    ship.scale = 0.9 + (0.8 - 0.9) * ease;
+                    ship.alpha = 1.0;
                 } else {
                     ship.x = targetX;
                     ship.y = targetY;

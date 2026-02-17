@@ -311,7 +311,7 @@ export class GameEngine {
     // PLAYER STATS
     // ════════════════════════════════════════════════════════════════════════
 
-    private static updatePlayerStats(state: GameRoomState): void {
+    public static updatePlayerStats(state: GameRoomState): void {
         // Reset all player stats
         state.players.forEach(player => {
             player.starCount = 0;
