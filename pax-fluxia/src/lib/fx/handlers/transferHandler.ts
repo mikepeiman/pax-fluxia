@@ -11,6 +11,7 @@ import type { TransferEvent } from '@pax/common';
 import { GAME_CONFIG } from '$lib/config/game.config';
 import { getOrbitSlot } from '$lib/utils/render.utils';
 import type { FXHandler } from '../FXRegistry';
+import { isTraceArmed, traceTransferSetup } from '$lib/debug/travelTrace';
 
 /**
  * Core transfer handler — selects ships from source orbit, configures departure,
@@ -142,6 +143,29 @@ export const coreTransferHandler: FXHandler<TransferEvent> = {
             ship.laneOffset = (Math.random() - 0.5) * laneOffsetPx * 2;
             ship.staggerDelay = 0;
             ship.ownerId = event.ownerId;
+        }
+
+        // Trace instrumentation — capture full transfer setup when armed
+        if (isTraceArmed()) {
+            traceTransferSetup({
+                sourceId: event.sourceId,
+                targetId: event.targetId,
+                sourceX: source.x, sourceY: source.y, sourceRadius: source.radius,
+                targetX: target.x, targetY: target.y, targetRadius: target.radius,
+                laneStartX: effectiveLaneStartX, laneStartY: effectiveLaneStartY,
+                laneEndX: baseLaneEndX, laneEndY: baseLaneEndY,
+                halfTick, departDuration, travelDuration, departFraction,
+                convergencePoint, convergence,
+                shipsToMove, streamMode, streamInterval,
+                shipDetails: departingShips.map(s => ({
+                    id: s.id,
+                    departFromX: s.departFromX, departFromY: s.departFromY,
+                    laneStartX: s.laneStartX, laneStartY: s.laneStartY,
+                    laneEndX: s.laneEndX, laneEndY: s.laneEndY,
+                    laneOffset: s.laneOffset,
+                    departTime: s.departTime,
+                })),
+            });
         }
 
         // Send to travel pipeline via VSM

@@ -6,9 +6,10 @@
 | B-74 | Click-to-join room — z-index fix | Fixed (2026-02-17) |
 | B-75 | Room ID badge obscured by Top Bar (z-index/CSS) | Open |
 | B-76 | Leaderboard shows 0/0 at game start in SP | Fixed (2026-02-17) |
-| B-77 | Name/color enforcement missing for takeover path | Open |
+| B-77 | Name/color enforcement missing for takeover path | Fixed (2026-02-17) |
 | B-78 | Per-phase arc values (DEPART_ARC, ARRIVAL_ARC) not wired into behaviors | Open |
-| B-79 | Convergence point effect too subtle to see | Open |
+| B-79 | Convergence point effect too subtle to see | Fixed (2026-02-17) |
+| B-83 | Arrival disjoint/rewind — ships jump back near destination | Investigating |
 
 ## Planned Features
 | ID | Description | Priority | Status |
@@ -21,6 +22,7 @@
 | F-45 | GAME_CONFIG auto-persist via Proxy | High | Done (2026-02-17) |
 | R-124 | Spectator-first takeover: join as spectator, observe game, click player to take over | High | Planned |
 | F-47 | Territory alpha overlay | Low | Planned |
+| F-48 | Per-player VFX themes: each player has own visual/GX settings without affecting others in MP | High | Planned |
 
 ## Known Regressions
 | ID | Description | Since |

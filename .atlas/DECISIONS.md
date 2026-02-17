@@ -23,4 +23,8 @@
 
 ### D-14: Spectator-First Takeover (Planned)
 - **Decision**: R-124 — players joining in-progress games should enter as spectators first, observe the game, then click a player to take over
+
+### D-15: Per-Player VFX Themes (Planned)
+- **Decision**: F-48 — every player MUST be able to have their own VFX/animation theme settings (UX/GX) without affecting other players in multiplayer
+- **Rationale**: VFX settings are currently global via `GAME_CONFIG` + localStorage. In MP, each client already has its own local `GAME_CONFIG`, so settings are inherently per-client. Need to verify this holds true and no VFX settings leak through the server state
 - **Rationale**: Current takeover dialog shows stale/wrong metadata. Spectator mode provides accurate live-state information before committing to a player

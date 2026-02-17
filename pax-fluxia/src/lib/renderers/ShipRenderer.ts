@@ -1,6 +1,7 @@
 // ============================================================================
 // ShipRenderer — Orbiting ships, traveling ships, fleets, particle management
 // ============================================================================
+import { isTrackedShip, traceDepartFrame, traceDepartToTravel, traceTravelFrame, traceTravelToOrbit, traceSettleFrame } from '$lib/debug/travelTrace';
 //
 // Extracted from GameCanvas.svelte ~lines 1452-2452.
 // This is the largest renderer module (~900 LOC in source).
@@ -273,6 +274,12 @@ export function renderTravelingShips(
             ship.scale = result.scale;
             ship.alpha = result.alpha;
 
+            // Trace: depart frame
+            if (isTrackedShip(ship.id)) {
+                const dp = Math.min(1, elapsed / (ship.departDuration || 150));
+                traceDepartFrame(ship.id, elapsed, dp, ship.x, ship.y, ship.scale, ship.alpha);
+            }
+
             if (result.done) {
                 if (departMode === 'bezier') {
                     // Bezier covers full journey in depart phase — snap to end
@@ -282,6 +289,7 @@ export function renderTravelingShips(
                     // Set departTime so elapsed immediately exceeds scaled duration
                     const scaledDur = ship.travelDuration * (phaseCtx.travelDurationMult ?? 1);
                     ship.departTime = now - scaledDur - 1;
+                    if (isTrackedShip(ship.id)) traceDepartToTravel(ship.id, ship.x, ship.y, 'bezier', { scaledDur });
                 } else {
                     ship.x = ship.laneStartX;
                     ship.y = ship.laneStartY;
@@ -291,6 +299,7 @@ export function renderTravelingShips(
                     }
                     ship.state = 'traveling';
                     ship.departTime = now;
+                    if (isTrackedShip(ship.id)) traceDepartToTravel(ship.id, ship.x, ship.y, departMode);
                 }
             }
 
@@ -309,6 +318,15 @@ export function renderTravelingShips(
             ship.y = result.y;
             ship.scale = result.scale;
             ship.alpha = result.alpha;
+
+            // Trace: travel frame
+            if (isTrackedShip(ship.id)) {
+                const tp = Math.min(1, elapsed / (ship.travelDuration * (phaseCtx.travelDurationMult ?? 1)));
+                traceTravelFrame(ship.id, elapsed, tp, ship.x, ship.y, ship.scale, ship.alpha, {
+                    laneOffset: ship.laneOffset,
+                    edgeFade: Math.min(tp * 4, (1 - tp) * 4, 1),
+                });
+            }
 
             // Use the behavior's own completion signal — it accounts for travelDurationMult
             if (result.done) {
@@ -342,6 +360,7 @@ export function renderTravelingShips(
                     ship.settleStartTime = performance.now() + staggerOffset;
                     ship.settleStartAngle = arrAngle;
                     ship.settleStartRadius = arrR;
+                    if (isTrackedShip(ship.id)) traceTravelToOrbit(ship.id, ship.x, ship.y, arrAngle, arrR, destStar.x, destStar.y);
                     destShips.push(ship);
                     state.visualShips.set(destStar.id, destShips);
                 } else {
@@ -646,6 +665,7 @@ export function renderShips(
 
                     ship.x = star.x + Math.cos(curAngle) * curRadius;
                     ship.y = star.y + Math.sin(curAngle) * curRadius;
+                    if (isTrackedShip(ship.id)) traceSettleFrame(ship.id, elapsed, t, ship.x, ship.y, targetX, targetY);
                     ship.scale = 0.8;
                     ship.alpha = 1.0;
                 } else {
