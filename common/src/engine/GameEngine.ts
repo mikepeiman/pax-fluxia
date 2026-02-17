@@ -126,6 +126,12 @@ export class GameEngine {
         const connected = this.areConnected(state, input.sourceId, input.targetId);
         if (!connected) return;
 
+        // Prevent opposing orders: if target is already sending to source, cancel it
+        const target = state.stars.get(input.targetId);
+        if (target && target.targetId === input.sourceId) {
+            target.targetId = '';
+        }
+
         // Set order
         source.targetId = input.targetId;
     }
