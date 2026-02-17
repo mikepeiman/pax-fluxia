@@ -299,9 +299,7 @@
             playerColors: playerConfigs.map((cfg) => hslToHex(cfg.hue)),
         });
 
-        if (selectedMap.mapType === "debug-b") {
-            GAME_CONFIG.CONQUEST_SLOWMO_ENABLED = true;
-        }
+        GAME_CONFIG.CONQUEST_SLOWMO_ENABLED = selectedMap.mapType === "debug-b";
     }
 
     function startSPGame() {

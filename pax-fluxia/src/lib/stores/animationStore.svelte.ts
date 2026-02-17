@@ -7,6 +7,7 @@
 // ============================================================================
 
 import { GAME_CONFIG } from '$lib/config/game.config';
+import { log } from '$lib/utils/logger';
 
 const ANIMATION_STORAGE_KEY = 'pax-animation-settings';
 
@@ -37,6 +38,9 @@ let speedMs = $state(loadSetting('speedMs', DEFAULT_SPEED_MS));
 
 // --- Actions ---
 function setAnimationSpeed(ms: number) {
+    if (ms !== speedMs) {
+        log.state('AnimStore', `speedMs changed: ${speedMs} → ${ms}`, new Error().stack);
+    }
     speedMs = ms;
     saveSetting('speedMs', ms);
 }
