@@ -139,6 +139,9 @@ interface GameConfigType {
     CONQUEST_SLOWMO_FACTOR: number;      // How much to slow (multiplier on ANIMATION_SPEED_MS, default 5)
     CONQUEST_SLOWMO_DURATION_MS: number; // How long slowmo lasts (ms, default 5000)
     // Orbit bias oscillation
+    DEPART_STAGGER: boolean;       // Stream departure mode: ships depart at even intervals across tick (default false)
+    DEPART_ARC_INTENSITY: number;  // Arc intensity during departure phase (0–1, default 0)
+    ARRIVAL_ARC_INTENSITY: number; // Arc intensity during arrival phase (0–1, default 0)
     ORBIT_BIAS_OSCILLATE: boolean; // Enable oscillation between min/max bias (default false)
     ORBIT_BIAS_MIN: number;        // Min bias strength for oscillation (default 0.0)
     ORBIT_BIAS_MAX: number;        // Max bias strength for oscillation (default 1.0)
@@ -428,6 +431,13 @@ const _rawConfig: GameConfigType = {
     ARRIVAL_SPREAD: 0,
     /** Amplitude of sinusoidal wobble on travel path (px) */
     WOBBLE_AMP: 12,
+
+    /** Stream departure: ships depart at even intervals (tickMs / shipsToTransfer) instead of jittered burst */
+    DEPART_STAGGER: false,
+    /** Arc intensity during departure phase (0=straight, 1=max arc) */
+    DEPART_ARC_INTENSITY: 0,
+    /** Arc intensity during arrival phase (0=straight, 1=max arc) */
+    ARRIVAL_ARC_INTENSITY: 0,
 
     // Travel easing controls
     // Travel animation mode

@@ -610,6 +610,9 @@
         travelEasingPower: GAME_CONFIG.TRAVEL_EASING_POWER,
         travelDurationMult: GAME_CONFIG.TRAVEL_DURATION_MULT,
         travelArcIntensity: GAME_CONFIG.TRAVEL_ARC_INTENSITY,
+        departStagger: GAME_CONFIG.DEPART_STAGGER,
+        departArcIntensity: GAME_CONFIG.DEPART_ARC_INTENSITY,
+        arrivalArcIntensity: GAME_CONFIG.ARRIVAL_ARC_INTENSITY,
         orbitDensity: GAME_CONFIG.ORBIT_DENSITY,
         attackSurgeMult: GAME_CONFIG.ATTACK_SURGE_MULT,
         attackSurgeProportional: GAME_CONFIG.ATTACK_SURGE_PROPORTIONAL,
@@ -707,6 +710,9 @@
         GAME_CONFIG.TRAVEL_EASING_POWER = panel.travelEasingPower as number;
         GAME_CONFIG.TRAVEL_DURATION_MULT = panel.travelDurationMult as number;
         GAME_CONFIG.TRAVEL_ARC_INTENSITY = panel.travelArcIntensity as number;
+        GAME_CONFIG.DEPART_STAGGER = panel.departStagger as boolean;
+        GAME_CONFIG.DEPART_ARC_INTENSITY = panel.departArcIntensity as number;
+        GAME_CONFIG.ARRIVAL_ARC_INTENSITY = panel.arrivalArcIntensity as number;
         GAME_CONFIG.ORBIT_DENSITY = panel.orbitDensity as number;
         GAME_CONFIG.ATTACK_SURGE_MULT = panel.attackSurgeMult as number;
         GAME_CONFIG.ATTACK_SURGE_PROPORTIONAL =
@@ -1537,6 +1543,65 @@
                                 </select>
                             </label>
                         </div>
+                    </div>
+                    <label class="toggle-row" style="margin-top:2px;">
+                        <input
+                            type="checkbox"
+                            checked={panel.departStagger}
+                            onchange={(e) => {
+                                const v = (e.target as HTMLInputElement)
+                                    .checked;
+                                GAME_CONFIG.DEPART_STAGGER = v;
+                                updatePanel("departStagger", v);
+                            }}
+                        />
+                        <span class="log-label" style="font-size:9px;"
+                            >Stream Departure (even spacing)</span
+                        >
+                    </label>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Depart Arc</span><span
+                                class="val"
+                                >{(panel.departArcIntensity as number).toFixed(
+                                    2,
+                                )}</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="2"
+                            step="0.05"
+                            value={panel.departArcIntensity}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.DEPART_ARC_INTENSITY = v;
+                                updatePanel("departArcIntensity", v);
+                            }}
+                        />
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Arrive Arc</span><span
+                                class="val"
+                                >{(panel.arrivalArcIntensity as number).toFixed(
+                                    2,
+                                )}</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="2"
+                            step="0.05"
+                            value={panel.arrivalArcIntensity}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.ARRIVAL_ARC_INTENSITY = v;
+                                updatePanel("arrivalArcIntensity", v);
+                            }}
+                        />
                     </div>
                     <div class="var-row">
                         <div class="row-top">

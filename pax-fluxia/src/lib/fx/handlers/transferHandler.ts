@@ -94,14 +94,27 @@ export const coreTransferHandler: FXHandler<TransferEvent> = {
         const departingShips = ctx.vsm.removeFromOrbit(event.sourceId, shipsToMove);
 
         // Configure departure state on each ship
-        for (const ship of departingShips) {
+        const streamMode = GAME_CONFIG.DEPART_STAGGER ?? false;
+        const streamInterval = streamMode && shipsToMove > 1
+            ? ctx.effectiveTickMs / shipsToMove
+            : 0;
+
+        for (let idx = 0; idx < departingShips.length; idx++) {
+            const ship = departingShips[idx];
             ship.departFromX = ship.x;
             ship.departFromY = ship.y;
             ship.state = 'departing';
             ship.fromStarId = event.sourceId;
             ship.toStarId = event.targetId;
-            ship.departTime =
-                performance.now() + Math.random() * Math.min(jitterMax, 300 / Math.max(1, shipsToMove));
+
+            if (streamMode) {
+                // Stream: evenly-spaced departure across the tick window
+                ship.departTime = performance.now() + idx * streamInterval;
+            } else {
+                // Burst (legacy): random jitter
+                ship.departTime =
+                    performance.now() + Math.random() * Math.min(jitterMax, 300 / Math.max(1, shipsToMove));
+            }
             ship.travelDuration = travelDuration;
             ship.departDuration = departDuration;
 
