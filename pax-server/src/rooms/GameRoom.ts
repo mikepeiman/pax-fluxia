@@ -319,8 +319,7 @@ export class GameRoom extends Room {
                 return;
             }
             this.state.phase = "playing";
-            this.state.isPaused = false;
-            this.startTick();
+            this.state.isPaused = true;  // Start paused so players can see the board
             this.updateListingMetadata();
         });
 
@@ -675,7 +674,10 @@ export class GameRoom extends Room {
 
         const interval = Math.max(100, this.tickIntervalBase / this.state.speed);
 
+        // Fire the first tick immediately (no delay)
         this.tickStartTime = Date.now();
+        this.executeTick();
+
         this.tickIntervalId = setInterval(() => {
             this.executeTick();
         }, interval);
