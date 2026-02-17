@@ -32,6 +32,13 @@
       localStorage.getItem("pax-show-star-info") === "true",
   );
 
+  // Listen for StarInfoPanel toggle from GameSettingsPanel
+  if (typeof window !== "undefined") {
+    window.addEventListener("pax-star-info-toggle", ((e: CustomEvent) => {
+      showStarInfoPanel = e.detail;
+    }) as EventListener);
+  }
+
   // Derived leaderboard - use activeGameStore for unified access
   const leaderboardPlayers = $derived.by(() => {
     const players = activeGameStore.players as PlayerState[];
@@ -100,9 +107,8 @@
           </div>
         {/if}
 
-        <!-- TOP LEFT: Stars Panel (was Combat Logs, then StarInfoPanel) -->
+        <!-- TOP LEFT: Optional debugging panels -->
         <div class="overlay-top-left">
-          <StarsPanel />
           {#if showStarInfoPanel}
             <StarInfoPanel />
           {/if}

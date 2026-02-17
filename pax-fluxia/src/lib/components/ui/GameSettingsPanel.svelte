@@ -887,6 +887,7 @@
         | "economy"
         | "ai"
         | "travel"
+        | "surge"
         | "conquest"
         | "ships"
         | "visuals"
@@ -948,8 +949,15 @@
         {
             id: "travel",
             icon: "🚀",
-            label: "Ship Travel",
+            label: "Path & Easing",
             color: "#44aaff",
+            tier: "advanced",
+        },
+        {
+            id: "surge",
+            icon: "💥",
+            label: "Surge & Orbs",
+            color: "#ff6644",
             tier: "advanced",
         },
         {
@@ -961,10 +969,10 @@
         },
         {
             id: "visuals",
-            icon: "🎨",
-            label: "Map Visuals",
+            icon: "🗺️",
+            label: "Map & Grid",
             color: "#cc66ff",
-            tier: "advanced",
+            tier: "basic",
         },
         {
             id: "ai",
@@ -1651,6 +1659,8 @@
                         />
                     </div>
 
+                    <!-- 💥 SURGE & ORBS -->
+                {:else if activeSection === "surge"}
                     <h4 class="sub-heading">Attack Surge</h4>
                     <div class="var-row">
                         <div class="row-top">
@@ -2574,6 +2584,46 @@
 
                     <!-- 🎨 MAP VISUALS -->
                 {:else if activeSection === "visuals"}
+                    <h4 class="sub-heading">Overlays</h4>
+                    <label class="toggle-row"
+                        ><input
+                            type="checkbox"
+                            checked={GAME_CONFIG.SHOW_HEX_GRID}
+                            onchange={(e) => {
+                                GAME_CONFIG.SHOW_HEX_GRID = (
+                                    e.target as HTMLInputElement
+                                ).checked;
+                            }}
+                        />
+                        <span class="var-name">🔷 Show Hex Grid</span></label
+                    >
+                    <label class="toggle-row"
+                        ><input
+                            type="checkbox"
+                            checked={typeof localStorage !== "undefined" &&
+                                localStorage.getItem("pax-show-star-info") ===
+                                    "true"}
+                            onchange={(e) => {
+                                const v = (e.target as HTMLInputElement)
+                                    .checked;
+                                localStorage.setItem(
+                                    "pax-show-star-info",
+                                    v ? "true" : "false",
+                                );
+                                window.dispatchEvent(
+                                    new CustomEvent("pax-star-info-toggle", {
+                                        detail: v,
+                                    }),
+                                );
+                            }}
+                        />
+                        <span class="var-name">🔍 Star Inspector</span><span
+                            class="val"
+                            style="font-size:9px;opacity:0.6"
+                            >click star to inspect</span
+                        ></label
+                    >
+                    <h4 class="sub-heading">Connections</h4>
                     <div class="var-row">
                         <div class="row-top">
                             <span class="var-name">➡️ Arrow Length</span><span
