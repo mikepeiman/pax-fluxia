@@ -12,8 +12,18 @@
     // â”€â”€ Game Mode â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Auto-switch to MP when connected
     let gameMode = $state<"sp" | "mp">(
-        multiplayerStore.isConnected ? "mp" : "sp",
+        multiplayerStore.isConnected
+            ? "mp"
+            : typeof localStorage !== "undefined" &&
+                localStorage.getItem("pax_gameMode") === "mp"
+              ? "mp"
+              : "sp",
     );
+
+    // Persist gameMode so MP tab survives reload
+    $effect(() => {
+        localStorage.setItem("pax_gameMode", gameMode);
+    });
 
     // Watch multiplayer phase and transition to game when it starts
     $effect(() => {
@@ -754,6 +764,34 @@
                                 <p>Connecting...</p>
                             </div>
                         {:else}
+                            <!-- Player Identity -->
+                            <div class="mp-section player-identity">
+                                <h3>Your Identity</h3>
+                                <div class="identity-row">
+                                    <input
+                                        type="text"
+                                        placeholder="Player Name"
+                                        class="mp-input"
+                                        value={multiplayerStore.playerName}
+                                        oninput={(e) =>
+                                            (multiplayerStore.playerName = (
+                                                e.target as HTMLInputElement
+                                            ).value)}
+                                    />
+                                    <input
+                                        type="color"
+                                        class="color-picker"
+                                        value={multiplayerStore.playerColor ||
+                                            "#4488ff"}
+                                        oninput={(e) =>
+                                            (multiplayerStore.playerColor = (
+                                                e.target as HTMLInputElement
+                                            ).value)}
+                                        title="Your player color"
+                                    />
+                                </div>
+                            </div>
+
                             <!-- Create Room -->
                             <div class="mp-section">
                                 <h3>Create Game</h3>
@@ -841,17 +879,46 @@
                                                             "lobby"}
                                                     </span>
                                                 </div>
-                                                <div class="room-card-bottom">
+                                                <div class="room-card-mid">
                                                     <span class="room-map"
                                                         >{room.metadata
                                                             ?.mapType ||
                                                             "?"}</span
                                                     >
+                                                    <span class="room-detail"
+                                                        >⭐ {room.metadata
+                                                            ?.starsPerPlayer ||
+                                                            "?"}/p</span
+                                                    >
+                                                    <span class="room-detail"
+                                                        >🚀 {room.metadata
+                                                            ?.shipsPerStar ||
+                                                            "?"}/star</span
+                                                    >
+                                                    {#if room.metadata?.phase === "playing" && room.metadata?.tick}
+                                                        <span
+                                                            class="room-detail tick-badge"
+                                                            >T{room.metadata
+                                                                .tick}</span
+                                                        >
+                                                    {/if}
+                                                </div>
+                                                <div class="room-card-bottom">
                                                     <span class="room-slots">
                                                         {room.clients}/{room.maxClients}
                                                         players
                                                     </span>
                                                 </div>
+                                                {#if room.metadata?.playerNames?.length}
+                                                    <div class="room-players">
+                                                        {#each room.metadata.playerNames as pname}
+                                                            <span
+                                                                class="player-chip"
+                                                                >{pname}</span
+                                                            >
+                                                        {/each}
+                                                    </div>
+                                                {/if}
                                             </div>
                                         {/each}
                                     </div>
@@ -1835,6 +1902,75 @@
 
     .room-map {
         text-transform: capitalize;
+    }
+
+    /* Player identity inputs */
+    .player-identity {
+        margin-bottom: 0.25rem;
+    }
+    .identity-row {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+    }
+    .mp-input {
+        flex: 1;
+        background: rgba(100, 220, 255, 0.06);
+        border: 1px solid rgba(100, 220, 255, 0.15);
+        border-radius: 6px;
+        padding: 0.4rem 0.6rem;
+        color: #cce8ff;
+        font-size: 0.85rem;
+        outline: none;
+        transition: border-color 0.2s;
+    }
+    .mp-input:focus {
+        border-color: rgba(100, 220, 255, 0.4);
+    }
+    .mp-input::placeholder {
+        color: #5a7a90;
+    }
+    .color-picker {
+        width: 36px;
+        height: 36px;
+        border: 1px solid rgba(100, 220, 255, 0.15);
+        border-radius: 6px;
+        background: transparent;
+        cursor: pointer;
+        padding: 2px;
+    }
+
+    /* Room card - mid row with details */
+    .room-card-mid {
+        display: flex;
+        gap: 0.5rem;
+        font-size: 0.7rem;
+        color: #7a9ab8;
+        margin-bottom: 0.25rem;
+        flex-wrap: wrap;
+    }
+    .room-detail {
+        opacity: 0.8;
+    }
+    .tick-badge {
+        color: #ff8888;
+        font-weight: 600;
+    }
+
+    /* Player name chips */
+    .room-players {
+        display: flex;
+        gap: 0.25rem;
+        flex-wrap: wrap;
+        margin-top: 0.25rem;
+    }
+    .player-chip {
+        font-size: 0.6rem;
+        background: rgba(100, 220, 255, 0.08);
+        border: 1px solid rgba(100, 220, 255, 0.1);
+        border-radius: 3px;
+        padding: 1px 5px;
+        color: #8aafcc;
     }
 
     /* ============================================================ */

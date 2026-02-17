@@ -188,7 +188,9 @@
 | B-61 | ~~**CombatDebugPanel TS errors (5)**~~ **FIXED**: Stale `travelDurationMs` slider (renamed to `travelDurationMult`), invalid `laneOffsetPx` panel key, `SHIP_TRAVEL_DURATION_MS` renamed to `TRAVEL_DURATION_MULT`. | `54683bf` |
 | B-62 | ~~**Animation Speed slider has no effect**~~ **FIXED**: `ANIMATION_SPEED_MS` was only used for visual travel duration (too short to notice). Decoupled animation speed into dedicated `animationStore.svelte.ts` with `$state` + localStorage. `FXOrchestrator.setAnimationSpeed()` converts ms → FXClock speed multiplier. Tick rate (`BASE_TICK_MS`) and animation speed are now independent. | `5fcade4` |
 | B-63 | **Convergence arrival pause & ship sizing** | Ships arrive at destination as small dots, pause statically, then settle into orbit. Two sub-issues: (1) size/scale not matching full ship size during arrival, (2) static gap between travel and settle animations needs blending variables | OPEN |
-| B-64 | ~~**MP lobby `getAvailableRooms` not a function**~~ **FIXED**: `getAvailableRooms()` removed in Colyseus 0.17. Added custom `/api/rooms` GET endpoint on server using `matchMaker.query()`, client uses `fetch()`. | 2026-02-17 |
+| B-64 | ~~**MP lobby `getAvailableRooms` not a function**~~ **FIXED**: `getAvailableRooms()` removed in Colyseus 0.17. Switched to built-in `LobbyRoom` per [official docs](https://docs.colyseus.io/room/built-in/lobby). Server defines `lobby` room, client joins via WebSocket and receives realtime `rooms`/`+`/`-` messages. | 2026-02-17 |
+| B-65 | ~~**MP rooms not auto-fetched on reload**~~ **FIXED**: `gameMode` defaulted to 'sp' on reload, so lobby auto-join never triggered. Persisted `gameMode` to localStorage. | 2026-02-17 |
+| B-66 | ~~**Can't join room from browser listing**~~ **FIXED**: Added `leaveLobby()` before `joinRoom()` to avoid Colyseus connection conflicts. | 2026-02-17 |
 
 ---
 

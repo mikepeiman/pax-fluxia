@@ -55,6 +55,10 @@ let isFetchingRooms = $state(false);
 // Restart vote tracking
 let restartVoteInfo = $state<{ votes: number; needed: number; voters: string[] } | null>(null);
 
+// Player identity settings (persisted to localStorage)
+let playerName = $state(typeof localStorage !== 'undefined' ? localStorage.getItem('pax_playerName') || '' : '');
+let playerColor = $state(typeof localStorage !== 'undefined' ? localStorage.getItem('pax_playerColor') || '' : '');
+
 // Client-side tick interpolation (for smooth animations in MP)
 let lastTickTime = 0;
 let tickProgressRAF: number | null = null;
@@ -132,7 +136,13 @@ async function createRoom(options: {
         // Use $state.snapshot() to strip Svelte 5 Proxy - proper method for Svelte 5
         const plainOptions = $state.snapshot(options);
         log.net('Room', 'Creating room with options', plainOptions);
-        room = await client.create('game_room', plainOptions);
+        // Attach player identity to room options
+        const joinOpts = {
+            ...plainOptions,
+            ...(playerName ? { name: playerName } : {}),
+            ...(playerColor ? { color: playerColor } : {}),
+        };
+        room = await client.create('game_room', joinOpts);
 
         log.net('Room', `Created: id=${room?.roomId} session=${room?.sessionId}`);
 
@@ -161,7 +171,10 @@ async function joinRoom(targetRoomId: string): Promise<boolean> {
 
     try {
         log.net('Room', `Joining room: ${targetRoomId}`);
-        room = await client.joinById(targetRoomId);
+        const joinOpts: Record<string, string> = {};
+        if (playerName) joinOpts.name = playerName;
+        if (playerColor) joinOpts.color = playerColor;
+        room = await client.joinById(targetRoomId, joinOpts);
         roomId = room.roomId;
         localSessionId = room.sessionId;
         isConnected = true;
@@ -218,6 +231,10 @@ export interface RoomListing {
         maxPlayers?: number;
         phase?: string;
         hostName?: string;
+        starsPerPlayer?: number;
+        shipsPerStar?: number;
+        tick?: number;
+        playerNames?: string[];
     };
 }
 // ────────────────────────────────────────────────────────────────────────────
@@ -313,6 +330,8 @@ async function joinRoomById(targetRoomId: string): Promise<boolean> {
     if (isConnected) {
         leaveRoom();
     }
+    // Leave lobby connection to avoid conflicts
+    leaveLobby();
     return joinRoom(targetRoomId);
 }
 
@@ -639,6 +658,12 @@ export const multiplayerStore = {
     // Helpers
     getLocalPlayerId,
     isOwnStar,
+
+    // Player identity (persisted to localStorage)
+    get playerName() { return playerName; },
+    set playerName(v: string) { playerName = v; localStorage.setItem('pax_playerName', v); },
+    get playerColor() { return playerColor; },
+    set playerColor(v: string) { playerColor = v; localStorage.setItem('pax_playerColor', v); },
 
     // Spectator mode
     get isSpectating() {

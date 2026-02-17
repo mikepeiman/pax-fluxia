@@ -135,7 +135,10 @@ export class GameRoom extends Room {
         player.id = `player-${playerIndex}`;
         player.sessionId = client.sessionId;
         player.name = options.name || `Player ${playerIndex + 1}`;
-        player.color = PLAYER_COLORS[playerIndex % PLAYER_COLORS.length];
+        // Use client-provided color if valid, otherwise assign from palette
+        player.color = (options.color && /^#[0-9a-fA-F]{6}$/.test(options.color))
+            ? options.color
+            : PLAYER_COLORS[playerIndex % PLAYER_COLORS.length];
         player.isAI = false;
         player.isEliminated = false;
         player.isConnected = true;
@@ -206,9 +209,11 @@ export class GameRoom extends Room {
     private updateListingMetadata() {
         let humanCount = 0;
         let hostName = 'Unknown';
+        const playerNames: string[] = [];
         this.state.players.forEach((p, sid) => {
             if (!p.isAI) humanCount++;
             if (sid === this.state.hostSessionId) hostName = p.name;
+            playerNames.push(p.name + (p.isAI ? ' (AI)' : ''));
         });
         this.setMetadata({
             mapType: this.roomOptions.mapType || 'standard',
@@ -216,6 +221,10 @@ export class GameRoom extends Room {
             maxPlayers: this.maxClients,
             phase: this.state.phase,
             hostName,
+            starsPerPlayer: this.roomOptions.starsPerPlayer || 3,
+            shipsPerStar: this.roomOptions.shipsPerStar || 10,
+            tick: this.state.tick,
+            playerNames,
         });
     }
 
@@ -646,6 +655,11 @@ export class GameRoom extends Room {
 
             // 5. Reset tick progress for interpolation
             this.state.tickProgress = 0;
+
+            // 6. Update lobby listing metadata periodically (every 10 ticks)
+            if (this.state.tick % 10 === 0) {
+                this.updateListingMetadata();
+            }
         } catch (err) {
             log.error('GameRoom', 'executeTick CRASHED:', err);
             console.error('Full tick error:', err);
