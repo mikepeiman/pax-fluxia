@@ -273,8 +273,13 @@ export function renderTravelingShips(
 
             if (result.done) {
                 if (departMode === 'bezier') {
+                    // Bezier covers full journey in depart phase — snap to end
+                    ship.x = ship.laneEndX;
+                    ship.y = ship.laneEndY;
                     ship.state = 'traveling';
-                    ship.departTime = now - ship.travelDuration;
+                    // Set departTime so elapsed immediately exceeds scaled duration
+                    const scaledDur = ship.travelDuration * (phaseCtx.travelDurationMult ?? 1);
+                    ship.departTime = now - scaledDur - 1;
                 } else {
                     ship.x = ship.laneStartX;
                     ship.y = ship.laneStartY;
@@ -303,8 +308,8 @@ export function renderTravelingShips(
             ship.scale = result.scale;
             ship.alpha = result.alpha;
 
-            const travelProgress = Math.min(1, elapsed / ship.travelDuration);
-            if (travelProgress >= 1) {
+            // Use the behavior's own completion signal — it accounts for travelDurationMult
+            if (result.done) {
                 // Arrive at destination
                 const destStar = starsById.get(ship.toStarId!);
                 if (destStar) {
