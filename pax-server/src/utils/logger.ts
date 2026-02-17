@@ -15,6 +15,8 @@ const COLORS = {
     combat: '\x1b[31m',  // Red
     net: '\x1b[33m',     // Yellow
     error: '\x1b[91m',   // Bright Red
+    success: '\x1b[92m', // Bright Green
+    data: '\x1b[35m',    // Magenta
     reset: '\x1b[0m',
     dim: '\x1b[2m',
 };
@@ -49,4 +51,12 @@ export const log = {
     /** Error events */
     error: (context: string, message: string, data?: unknown) =>
         formatLog('ERROR', COLORS.error, context, message, data),
+
+    /** Success / verification events */
+    success: (context: string, message: string, data?: unknown) =>
+        formatLog('OK', COLORS.success, context, message, data),
+
+    /** Data flow events */
+    data: (context: string, message: string, data?: unknown) =>
+        formatLog('DATA', COLORS.data, context, message, data),
 };

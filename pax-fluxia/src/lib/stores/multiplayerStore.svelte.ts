@@ -162,7 +162,7 @@ async function createRoom(options: {
     }
 }
 
-async function joinRoom(targetRoomId: string): Promise<boolean> {
+async function joinRoom(targetRoomId: string, takeOverId?: string): Promise<boolean> {
     if (!client) await connect();
     if (!client) return false;
 
@@ -170,10 +170,11 @@ async function joinRoom(targetRoomId: string): Promise<boolean> {
     connectionError = null;
 
     try {
-        log.net('Room', `Joining room: ${targetRoomId}`);
+        log.net('Room', `Joining room: ${targetRoomId}${takeOverId ? ` (takeover: ${takeOverId})` : ''}`);
         const joinOpts: Record<string, string> = {};
         if (playerName) joinOpts.name = playerName;
         if (playerColor) joinOpts.color = playerColor;
+        if (takeOverId) joinOpts.takeOverId = takeOverId;
         room = await client.joinById(targetRoomId, joinOpts);
         roomId = room.roomId;
         localSessionId = room.sessionId;
@@ -235,6 +236,7 @@ export interface RoomListing {
         shipsPerStar?: number;
         tick?: number;
         playerNames?: string[];
+        aiPlayers?: { sessionId: string; name: string; color: string }[];
     };
 }
 // ────────────────────────────────────────────────────────────────────────────
@@ -326,13 +328,14 @@ async function fetchRooms(): Promise<void> {
     if (!lobbyRoom) await joinLobby();
 }
 
-async function joinRoomById(targetRoomId: string): Promise<boolean> {
+async function joinRoomById(targetRoomId: string, takeOverId?: string): Promise<boolean> {
     if (isConnected) {
         leaveRoom();
     }
     // Leave lobby connection to avoid conflicts
     leaveLobby();
-    return joinRoom(targetRoomId);
+    // Pass takeOverId for AI takeover in playing phase
+    return joinRoom(targetRoomId, takeOverId);
 }
 
 // ============================================================================

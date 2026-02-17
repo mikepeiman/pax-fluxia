@@ -99,6 +99,7 @@
 
     // Room browser state
     let confirmJoinTarget = $state<RoomListing | null>(null);
+    let selectedTakeOverId = $state<string | null>(null);
 
     // Auto-refresh room list when MP tab is visible
     $effect(() => {
@@ -330,8 +331,14 @@
 
     async function handleConfirmJoin() {
         if (!confirmJoinTarget) return;
-        await multiplayerStore.joinRoomById(confirmJoinTarget.roomId);
+        // Pass takeOverId for in-progress games (AI takeover)
+        const takeOver =
+            confirmJoinTarget.metadata?.phase === "playing"
+                ? selectedTakeOverId || undefined
+                : undefined;
+        await multiplayerStore.joinRoomById(confirmJoinTarget.roomId, takeOver);
         confirmJoinTarget = null;
+        selectedTakeOverId = null;
     }
 </script>
 
@@ -945,7 +952,10 @@
     <div
         class="confirm-overlay"
         transition:fade
-        onclick={() => (confirmJoinTarget = null)}
+        onclick={() => {
+            confirmJoinTarget = null;
+            selectedTakeOverId = null;
+        }}
     >
         <div class="confirm-dialog" onclick={(e) => e.stopPropagation()}>
             <h3>Join Room?</h3>
@@ -956,16 +966,56 @@
             </p>
             <p>
                 {confirmJoinTarget.clients}/{confirmJoinTarget.maxClients} players
-                â€¢ {confirmJoinTarget.metadata?.mapType || "standard"}
+                • {confirmJoinTarget.metadata?.mapType || "standard"}
             </p>
+
+            {#if confirmJoinTarget.metadata?.phase === "playing" && confirmJoinTarget.metadata?.aiPlayers?.length}
+                <div class="ai-select">
+                    <p class="ai-label">Take over an AI player:</p>
+                    <div class="ai-list">
+                        {#each confirmJoinTarget.metadata.aiPlayers as ai}
+                            <!-- svelte-ignore a11y_click_events_have_key_events -->
+                            <!-- svelte-ignore a11y_no_static_element_interactions -->
+                            <div
+                                class="ai-chip"
+                                class:selected={selectedTakeOverId ===
+                                    ai.sessionId}
+                                onclick={() =>
+                                    (selectedTakeOverId = ai.sessionId)}
+                            >
+                                <span
+                                    class="ai-color"
+                                    style="background: {ai.color}"
+                                ></span>
+                                {ai.name}
+                            </div>
+                        {/each}
+                    </div>
+                </div>
+            {:else if confirmJoinTarget.metadata?.phase === "playing"}
+                <p class="error-msg" style="margin-top:0.5rem;">
+                    No AI players available to take over
+                </p>
+            {/if}
+
             <div class="confirm-actions">
-                <button class="start-btn" onclick={handleConfirmJoin}>
+                <button
+                    class="start-btn"
+                    onclick={handleConfirmJoin}
+                    disabled={confirmJoinTarget.metadata?.phase === "playing" &&
+                        !confirmJoinTarget.metadata?.aiPlayers?.length}
+                >
                     <span class="btn-glow"></span>
-                    JOIN
+                    {confirmJoinTarget.metadata?.phase === "playing"
+                        ? "TAKE OVER"
+                        : "JOIN"}
                 </button>
                 <button
                     class="leave-btn"
-                    onclick={() => (confirmJoinTarget = null)}>Cancel</button
+                    onclick={() => {
+                        confirmJoinTarget = null;
+                        selectedTakeOverId = null;
+                    }}>Cancel</button
                 >
             </div>
         </div>
@@ -2014,6 +2064,49 @@
         gap: 0.75rem;
         margin-top: 1.25rem;
         justify-content: center;
+    }
+
+    /* AI takeover selection */
+    .ai-select {
+        margin-top: 0.75rem;
+    }
+    .ai-label {
+        font-size: 0.75rem;
+        color: #8a9db0;
+        margin-bottom: 0.4rem;
+    }
+    .ai-list {
+        display: flex;
+        gap: 0.4rem;
+        flex-wrap: wrap;
+    }
+    .ai-chip {
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+        padding: 0.25rem 0.6rem;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        background: rgba(100, 220, 255, 0.06);
+        border: 1px solid rgba(100, 220, 255, 0.12);
+        color: #8aafcc;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+    .ai-chip:hover {
+        border-color: rgba(100, 220, 255, 0.3);
+        background: rgba(100, 220, 255, 0.1);
+    }
+    .ai-chip.selected {
+        border-color: rgba(100, 220, 255, 0.5);
+        background: rgba(100, 220, 255, 0.15);
+        color: #cce8ff;
+    }
+    .ai-color {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
     }
 
     /* ============================================================ */

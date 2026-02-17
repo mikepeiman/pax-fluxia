@@ -119,34 +119,96 @@ export class GameRoom extends Room {
             this.disposeTimer = null;
             log.net('GameRoom', 'Dispose timer cancelled — player joined during grace period');
         }
-        log.net('GameRoom', `Player joined: ${client.sessionId}`);
-        client.send("playerJoined", { sessionId: client.sessionId });
-        this.updateListingMetadata();
-        client.send("welcome", "Default welcome message from server!")
-        // First player is host
-        if (this.state.players.size === 0) {
-            this.state.hostSessionId = client.sessionId;
-            log.net('GameRoom', `Host assigned: ${client.sessionId}`);
+
+        log.net('GameRoom', `onJoin: session=${client.sessionId}, phase=${this.state.phase}, players=${this.state.players.size}/${this.maxClients}`);
+
+        // ── LOBBY PHASE: add as new player ──
+        if (this.state.phase === 'lobby') {
+            if (this.state.players.size >= this.maxClients) {
+                log.error('GameRoom', `Join rejected: room full (${this.state.players.size}/${this.maxClients})`);
+                client.leave(4000); // code 4000 = room full
+                return;
+            }
+
+            // First player is host
+            if (this.state.players.size === 0) {
+                this.state.hostSessionId = client.sessionId;
+                log.net('GameRoom', `Host assigned: ${client.sessionId}`);
+            }
+
+            const playerIndex = this.state.players.size;
+            const player = new PlayerSchema();
+            player.id = `player-${playerIndex}`;
+            player.sessionId = client.sessionId;
+            player.name = options.name || `Player ${playerIndex + 1}`;
+            player.color = (options.color && /^#[0-9a-fA-F]{6}$/.test(options.color))
+                ? options.color
+                : PLAYER_COLORS[playerIndex % PLAYER_COLORS.length];
+            player.isAI = false;
+            player.isEliminated = false;
+            player.isConnected = true;
+
+            this.state.players.set(client.sessionId, player);
+            this.state.playerCount = this.state.players.size;
+
+            log.success('GameRoom', `Player ${player.id} (${player.name}) joined lobby as ${player.color}`);
+            client.send("playerJoined", { sessionId: client.sessionId });
+
+            // ── PLAYING/ENDED PHASE: take over an AI slot ──
+        } else {
+            // Find target AI to take over
+            const takeOverId = options.takeOverId; // optional: specific AI session to take over
+
+            // Find an available AI player to take over
+            const aiEntries = Array.from(this.state.players.entries())
+                .filter(([sid, p]: [string, any]) => p.isAI && !p.isEliminated)
+                .filter(([sid]: [string, any]) => !takeOverId || sid === takeOverId);
+            const found = aiEntries[0]; // first match
+
+            if (!found) {
+                log.error('GameRoom', `Join rejected: no available AI slots for takeover (takeOverId=${takeOverId || 'any'})`);
+                client.send("joinError", { reason: "No AI players available to take over" });
+                client.leave(4001); // code 4001 = no AI slots
+                return;
+            }
+
+            const [oldSessionId, aiPlayer] = found as [string, any];
+            const newName = options.name || aiPlayer.name;
+            const newColor = (options.color && /^#[0-9a-fA-F]{6}$/.test(options.color))
+                ? options.color
+                : aiPlayer.color;
+
+            log.net('GameRoom', `AI takeover: ${oldSessionId} → ${client.sessionId} (${newName})`);
+
+            // 1. Transfer star ownership from AI session to human session
+            let starsTransferred = 0;
+            this.state.stars.forEach((star: any) => {
+                if (star.ownerId === oldSessionId) {
+                    star.ownerId = client.sessionId;
+                    starsTransferred++;
+                }
+            });
+            log.data('GameRoom', `Transferred ${starsTransferred} stars from ${oldSessionId} to ${client.sessionId}`);
+
+            // 2. Remove old AI player entry, create new human entry with same game state
+            const takenPlayer = new PlayerSchema();
+            takenPlayer.id = aiPlayer.id; // keep same player id (player-2, etc.)
+            takenPlayer.sessionId = client.sessionId;
+            takenPlayer.name = newName;
+            takenPlayer.color = newColor;
+            takenPlayer.isAI = false;
+            takenPlayer.isEliminated = aiPlayer.isEliminated;
+            takenPlayer.isConnected = true;
+
+            this.state.players.delete(oldSessionId);
+            this.state.players.set(client.sessionId, takenPlayer);
+
+            log.success('GameRoom', `AI takeover complete: ${takenPlayer.id} (${takenPlayer.name}) now controls ${starsTransferred} stars`);
+            client.send("playerJoined", { sessionId: client.sessionId, takenOver: oldSessionId });
         }
 
-        // Create player schema
-        const playerIndex = this.state.players.size;
-        const player = new PlayerSchema();
-        player.id = `player-${playerIndex}`;
-        player.sessionId = client.sessionId;
-        player.name = options.name || `Player ${playerIndex + 1}`;
-        // Use client-provided color if valid, otherwise assign from palette
-        player.color = (options.color && /^#[0-9a-fA-F]{6}$/.test(options.color))
-            ? options.color
-            : PLAYER_COLORS[playerIndex % PLAYER_COLORS.length];
-        player.isAI = false;
-        player.isEliminated = false;
-        player.isConnected = true;
-
-        this.state.players.set(client.sessionId, player);
-        this.state.playerCount = this.state.players.size;
-
-        log.net('GameRoom', `Player ${player.id} (${player.name}) joined as ${player.color}`);
+        this.updateListingMetadata();
+        client.send("welcome", "Default welcome message from server!");
     }
 
     onLeave(client: Client, code?: number) {
@@ -210,8 +272,10 @@ export class GameRoom extends Room {
         let humanCount = 0;
         let hostName = 'Unknown';
         const playerNames: string[] = [];
+        const aiPlayers: { sessionId: string; name: string; color: string }[] = [];
         this.state.players.forEach((p, sid) => {
             if (!p.isAI) humanCount++;
+            else if (!p.isEliminated) aiPlayers.push({ sessionId: sid, name: p.name, color: p.color });
             if (sid === this.state.hostSessionId) hostName = p.name;
             playerNames.push(p.name + (p.isAI ? ' (AI)' : ''));
         });
@@ -225,6 +289,7 @@ export class GameRoom extends Room {
             shipsPerStar: this.roomOptions.shipsPerStar || 10,
             tick: this.state.tick,
             playerNames,
+            aiPlayers,
         });
     }
 

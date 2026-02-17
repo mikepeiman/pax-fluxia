@@ -191,6 +191,8 @@
 | B-64 | ~~**MP lobby `getAvailableRooms` not a function**~~ **FIXED**: `getAvailableRooms()` removed in Colyseus 0.17. Switched to built-in `LobbyRoom` per [official docs](https://docs.colyseus.io/room/built-in/lobby). Server defines `lobby` room, client joins via WebSocket and receives realtime `rooms`/`+`/`-` messages. | 2026-02-17 |
 | B-65 | ~~**MP rooms not auto-fetched on reload**~~ **FIXED**: `gameMode` defaulted to 'sp' on reload, so lobby auto-join never triggered. Persisted `gameMode` to localStorage. | 2026-02-17 |
 | B-66 | ~~**Can't join room from browser listing**~~ **FIXED**: Added `leaveLobby()` before `joinRoom()` to avoid Colyseus connection conflicts. | 2026-02-17 |
+| B-67 | ~~**Joins in-progress game as player 7/6 (overflow)**~~ **FIXED**: `onJoin` always created new player at `players.size` regardless of phase. Rewrote to be phase-aware: lobby adds normally with capacity guard, playing phase routes to AI takeover. | 2026-02-17 |
+| B-68 | ~~**No AI takeover for mid-game joins**~~ **FIXED**: Added AI takeover mechanic — joining an in-progress game finds an available AI slot, transfers star ownership (`ownerId`) to the new human session, replaces the AI player entry. Client modal shows AI players with color dots for selection. | 2026-02-17 |
 
 ---
 
