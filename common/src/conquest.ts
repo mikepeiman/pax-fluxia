@@ -218,12 +218,13 @@ export function applyConquest(
     // Add transfer count to result for animation
     result.shipsTransferred = shipsToTransfer;
 
-    // Handle queued orders
-    if (defender.queuedOrderTargetId) {
+    // Handle queued orders (only if orders persist after conquest)
+    if (cfg.ORDERS_PERSIST_AFTER_CONQUEST && defender.queuedOrderTargetId) {
         defender.targetId = defender.queuedOrderTargetId;
         defender.queuedOrderTargetId = '';
     } else {
         defender.targetId = '';
+        defender.queuedOrderTargetId = '';
     }
 
     // Handle order retention

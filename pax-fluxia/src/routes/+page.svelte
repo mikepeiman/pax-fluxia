@@ -10,6 +10,7 @@
   import Leaderboard from "$lib/components/ui/Leaderboard.svelte";
   import SpeedControls from "$lib/components/ui/SpeedControls.svelte";
   import StarsPanel from "$lib/components/ui/StarsPanel.svelte";
+  import StarInfoPanel from "$lib/components/ui/StarInfoPanel.svelte";
   import AudioSettings from "$lib/components/ui/AudioSettings.svelte";
   import TopBar from "$lib/components/ui/TopBar.svelte";
   import type { PlayerState } from "$lib/types/game.types";
@@ -26,6 +27,10 @@
   // Panel visibility states
   let showAudioSettings = $state(false);
   let showSurrenderModal = $state(false);
+  let showStarInfoPanel = $state(
+    typeof localStorage !== "undefined" &&
+      localStorage.getItem("pax-show-star-info") === "true",
+  );
 
   // Derived leaderboard - use activeGameStore for unified access
   const leaderboardPlayers = $derived.by(() => {
@@ -98,6 +103,9 @@
         <!-- TOP LEFT: Stars Panel (was Combat Logs, then StarInfoPanel) -->
         <div class="overlay-top-left">
           <StarsPanel />
+          {#if showStarInfoPanel}
+            <StarInfoPanel />
+          {/if}
         </div>
 
         {#if gameStore.winner || activeGameStore.phase === "results"}

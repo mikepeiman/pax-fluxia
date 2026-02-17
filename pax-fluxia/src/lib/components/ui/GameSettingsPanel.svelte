@@ -38,6 +38,7 @@
         AI_ATTACK_STICKINESS: 0.5,
         AI_EVALUATION_FREQUENCY: 0.5,
         AI_TACTICAL_AGGRESSION: 0.1,
+        AI_RANDOM_AGGRESSION: 0.05,
         DENSITY_HUE_STEP: 4,
         DENSITY_SAT_STEP: 0.05,
         DENSITY_LIGHT_STEP: 0.05,
@@ -83,6 +84,7 @@
         AI_ATTACK_STICKINESS: true,
         AI_EVALUATION_FREQUENCY: true,
         AI_TACTICAL_AGGRESSION: true,
+        AI_RANDOM_AGGRESSION: true,
         DENSITY_HUE_STEP: true,
         DENSITY_SAT_STEP: true,
         DENSITY_LIGHT_STEP: true,
@@ -225,6 +227,13 @@
         {
             key: "AI_TACTICAL_AGGRESSION",
             label: "Tactical Aggression",
+            min: 0,
+            max: 0.5,
+            step: 0.01,
+        },
+        {
+            key: "AI_RANDOM_AGGRESSION",
+            label: "Random Aggression",
             min: 0,
             max: 0.5,
             step: 0.01,
@@ -379,6 +388,7 @@
                 "AI_ATTACK_STICKINESS",
                 "AI_EVALUATION_FREQUENCY",
                 "AI_TACTICAL_AGGRESSION",
+                "AI_RANDOM_AGGRESSION",
             ],
             Visual: [
                 "SHIP_BASE_SIZE",

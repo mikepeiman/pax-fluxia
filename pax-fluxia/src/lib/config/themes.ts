@@ -156,6 +156,7 @@ export const NON_THEME_KEYS = [
     'AI_ATTACK_STICKINESS',
     'AI_EVALUATION_FREQUENCY',
     'AI_TACTICAL_AGGRESSION',
+    'AI_RANDOM_AGGRESSION',
 ] as const;
 
 // ── Theme Type ──────────────────────────────────────────────────────────────

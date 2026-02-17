@@ -24,6 +24,8 @@ export interface AIConfig {
     AI_ATTACK_STICKINESS: number;
     AI_EVALUATION_FREQUENCY: number;
     AI_TACTICAL_AGGRESSION: number;
+    /** Chance per evaluation to ignore ratio rules and attack anyway (0-1, default 0.05) */
+    AI_RANDOM_AGGRESSION: number;
 }
 
 export const DEFAULT_AI_CONFIG: AIConfig = {
@@ -32,6 +34,7 @@ export const DEFAULT_AI_CONFIG: AIConfig = {
     AI_ATTACK_STICKINESS: 0.5,
     AI_EVALUATION_FREQUENCY: 0.5,
     AI_TACTICAL_AGGRESSION: 0.1,
+    AI_RANDOM_AGGRESSION: 0.05,
 };
 
 // ============================================================================
@@ -117,6 +120,7 @@ export class AI {
         const stickiness = config.AI_ATTACK_STICKINESS;
         const evalFreq = config.AI_EVALUATION_FREQUENCY * this.evalFreqMult;
         const tacticalAggression = config.AI_TACTICAL_AGGRESSION;
+        const randomAggression = config.AI_RANDOM_AGGRESSION ?? 0;
 
         myStars.forEach(star => {
             // Evaluation frequency gate
@@ -146,6 +150,9 @@ export class AI {
                     // Stickiness-based retreat
                     if (stickiness >= 1.0) return; // Never retreat
 
+                    // Random aggression: chance to persist even when losing
+                    if (randomAggression > 0 && Math.random() < randomAggression) return;
+
                     if (ratio < upperBounds) {
                         const retreatChance = 1.0 - stickiness;
                         if (Math.random() < retreatChance) {
@@ -173,8 +180,8 @@ export class AI {
 
             if (connectedTargets.length === 0) return;
 
-            // Strategy-based target selection
-            const target = this.selectTarget(star, connectedTargets, mustAttackRatio, upperBounds, tacticalAggression);
+            // Strategy-based target selection (randomAggression may bypass ratio checks)
+            const target = this.selectTarget(star, connectedTargets, mustAttackRatio, upperBounds, tacticalAggression, randomAggression);
             if (target) {
                 decisions.push({ sourceId: star.id, targetId: target });
                 this.attackTicks.set(star.id, 0);
@@ -193,7 +200,10 @@ export class AI {
         mustAttackRatio: number,
         upperBounds: number,
         tacticalAggression: number,
+        randomAggression: number = 0,
     ): StarId | null {
+        // Random aggression wildcard: bypass ratio checks entirely
+        const bypassRatios = randomAggression > 0 && Math.random() < randomAggression;
         // Strategy-specific pre-filter and sorting
         let sortedTargets: Star[];
 
@@ -251,7 +261,9 @@ export class AI {
 
             let probability: number;
 
-            if (ratio >= mustAttackRatio) {
+            if (bypassRatios) {
+                probability = 1.0; // Random aggression: attack regardless of ratio
+            } else if (ratio >= mustAttackRatio) {
                 probability = 1.0;
             } else if (ratio < upperBounds) {
                 probability = 0;

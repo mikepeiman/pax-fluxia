@@ -22,6 +22,7 @@ export function buildEngineConfig(): EngineConfig {
         CONQUEST_DAMAGED_CAPTURE_RATE: GAME_CONFIG.CONQUEST_DAMAGED_CAPTURE_RATE,
         CONQUEST_DAMAGED_DESTROY_RATE: GAME_CONFIG.CONQUEST_DAMAGED_DESTROY_RATE,
         RETAIN_ORDER_ON_CONQUEST: GAME_CONFIG.RETAIN_ORDER_ON_CONQUEST,
+        ORDERS_PERSIST_AFTER_CONQUEST: GAME_CONFIG.ORDERS_PERSIST_AFTER_CONQUEST,
         RETREAT_CAPTURE_RATE: GAME_CONFIG.RETREAT_CAPTURE_RATE,
         SCATTER_CAPTURE_RATE: GAME_CONFIG.SCATTER_CAPTURE_RATE,
         SCATTER_DESTROY_RATE: GAME_CONFIG.SCATTER_DESTROY_RATE,
@@ -90,6 +91,7 @@ interface GameConfigType {
     AI_ATTACK_STICKINESS: number;      // 0=disengage immediately, 1=fight until one side falls (0-1)
     AI_EVALUATION_FREQUENCY: number;   // Chance per tick to evaluate decisions (0-1)
     AI_TACTICAL_AGGRESSION: number;    // Chance to target weakest neighbor (0-1)
+    AI_RANDOM_AGGRESSION: number;      // Chance to ignore ratio rules and attack anyway (0-1)
 
     // Visual
     SHIP_BASE_SIZE: number;
@@ -347,6 +349,9 @@ export const GAME_CONFIG: GameConfigType = {
 
     /** Chance to target weakest neighbor (0-1) */
     AI_TACTICAL_AGGRESSION: 0.1,
+
+    /** Chance per evaluation to ignore ratio rules and attack anyway (0-1) */
+    AI_RANDOM_AGGRESSION: 0.05,
 
     // ========================================================================
     // VISUAL
