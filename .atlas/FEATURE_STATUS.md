@@ -371,6 +371,9 @@
 | R-113 | **Animation Speed = Tick Duration Ratio**: Animation speed bound to tick duration. Control = how much of a tick duration it lasts (0-1, default 0.5) | 🟢 |
 | R-119 | **Configurable Win Conditions**: `GAME_WIN_DETERMINANT` = [ships, stars, targets] (win by ship count, star count, or specified target ownership). `GAME_WIN_THRESHOLD` (default 95% ships). Modal: View Results or Keep Playing (continues to full-map conquest). Game option in pre-game settings. | 🔴 |
 | R-120 | **Color Adjustment Toggle**: toggle between adjusting player colors independently vs locking current hue offset and adjusting all together | 🟢 |
+| R-121 | **Color Merge on Star Capture** (idea: Kaya): When you capture a star, you merge colors with the defeated enemy — triggers effects: (1) spawns a new AI player of that merged color, (2) captured star becomes hybrid/mixed color. Evocative of Elemental thinking where each color is fundamentally distinct. | 🔵 |
+| R-122 | **Custom Game Themes**: saveable/loadable theme presets (visual style, color palette, game settings) persisted to localStorage. Users can name, save, switch between themes. | 🟡 |
+| R-123 | **Community Content Hub**: project directory for storing/sharing custom themes and maps. Three tiers: official maps (from dev), public user-contributed maps, and user themes. Infrastructure for future sharing/import/export of rich game config presets. | 🔵 |
 
 ---
 
