@@ -39,18 +39,17 @@ export const coreTransferHandler: FXHandler<TransferEvent> = {
         const convergence = GAME_CONFIG.LANE_CONVERGENCE ?? 1.0;
         const convergencePoint = (GAME_CONFIG.LANE_CONVERGENCE_POINT ?? 0) / 100; // 0-1
 
-        // Compute convergence start position (lerp from source center to target center)
-        const convStartX = source.x + (target.x - source.x) * convergencePoint;
-        const convStartY = source.y + (target.y - source.y) * convergencePoint;
-        // Convergence end = target circumference (baseline lane endpoint)
+        // Base lane endpoints
+        const baseLaneStartX = source.x + ndx * (source.radius + 5);
+        const baseLaneStartY = source.y + ndy * (source.radius + 5);
         const baseLaneEndX = target.x - ndx * (target.radius + 5);
         const baseLaneEndY = target.y - ndy * (target.radius + 5);
 
-        // When convergencePoint > 0, shift laneStart toward the convergence point
-        const baseLaneStartX = source.x + ndx * (source.radius + 5);
-        const baseLaneStartY = source.y + ndy * (source.radius + 5);
-        const effectiveLaneStartX = baseLaneStartX + (convStartX - baseLaneStartX) * convergencePoint;
-        const effectiveLaneStartY = baseLaneStartY + (convStartY - baseLaneStartY) * convergencePoint;
+        // Convergence point: a position along baseLaneStart→baseLaneEnd
+        // When convergencePoint > 0, laneStart moves forward along the path,
+        // so the depart phase animates from orbit → convergence position (visible funnel fan-in)
+        const effectiveLaneStartX = baseLaneStartX + (baseLaneEndX - baseLaneStartX) * convergencePoint;
+        const effectiveLaneStartY = baseLaneStartY + (baseLaneEndY - baseLaneStartY) * convergencePoint;
 
         // Tick-synchronized timing
         const halfTick = ctx.effectiveTickMs / 2;
