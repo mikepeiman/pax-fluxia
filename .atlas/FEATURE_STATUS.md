@@ -187,6 +187,8 @@
 | B-60 | **Initial tick delay at game start** | Spare tick or delay before action starts, most visible on restart/rejoin. | OPEN |
 | B-61 | ~~**CombatDebugPanel TS errors (5)**~~ **FIXED**: Stale `travelDurationMs` slider (renamed to `travelDurationMult`), invalid `laneOffsetPx` panel key, `SHIP_TRAVEL_DURATION_MS` renamed to `TRAVEL_DURATION_MULT`. | `54683bf` |
 | B-62 | ~~**Animation Speed slider has no effect**~~ **FIXED**: `ANIMATION_SPEED_MS` was only used for visual travel duration (too short to notice). Decoupled animation speed into dedicated `animationStore.svelte.ts` with `$state` + localStorage. `FXOrchestrator.setAnimationSpeed()` converts ms → FXClock speed multiplier. Tick rate (`BASE_TICK_MS`) and animation speed are now independent. | `5fcade4` |
+| B-63 | **Convergence arrival pause & ship sizing** | Ships arrive at destination as small dots, pause statically, then settle into orbit. Two sub-issues: (1) size/scale not matching full ship size during arrival, (2) static gap between travel and settle animations needs blending variables | OPEN |
+| B-64 | ~~**MP lobby `getAvailableRooms` not a function**~~ **FIXED**: `getAvailableRooms()` removed in Colyseus 0.17. Added custom `/api/rooms` GET endpoint on server using `matchMaker.query()`, client uses `fetch()`. | 2026-02-17 |
 
 ---
 
@@ -364,6 +366,7 @@
 | R-112 | **Slider Detent at Mid**: UI sliders should have a small notch/tag at midpoint that can be clicked to center the value | 🟡 |
 | R-113 | **Animation Speed = Tick Duration Ratio**: Animation speed bound to tick duration. Control = how much of a tick duration it lasts (0-1, default 0.5) | 🟢 |
 | R-119 | **Configurable Win Conditions**: `GAME_WIN_DETERMINANT` = [ships, stars, targets] (win by ship count, star count, or specified target ownership). `GAME_WIN_THRESHOLD` (default 95% ships). Modal: View Results or Keep Playing (continues to full-map conquest). Game option in pre-game settings. | 🔴 |
+| R-120 | **Color Adjustment Toggle**: toggle between adjusting player colors independently vs locking current hue offset and adjusting all together | 🟢 |
 
 ---
 

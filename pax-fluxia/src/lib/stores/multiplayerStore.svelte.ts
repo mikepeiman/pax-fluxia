@@ -224,16 +224,11 @@ export interface RoomListing {
 async function fetchRooms(): Promise<void> {
     isFetchingRooms = true;
     try {
-        // Ensure client is connected
-        if (!client) await connect();
-        if (!client) {
-            availableRooms = [];
-            return;
-        }
-
-        // Colyseus getAvailableRooms() — standard API for listing public rooms
-        // Cast through any because @colyseus/sdk 0.17 types don't declare it
-        const rooms: any[] = await (client as any).getAvailableRooms('game_room');
+        // Server-side /api/rooms endpoint (Colyseus 0.17 removed client.getAvailableRooms)
+        const httpUrl = SERVER_URL.replace(/^ws/, 'http');
+        const res = await fetch(`${httpUrl}/api/rooms`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const rooms: any[] = await res.json();
         availableRooms = rooms.map((r: any) => ({
             roomId: r.roomId,
             name: r.name || r.roomId,
