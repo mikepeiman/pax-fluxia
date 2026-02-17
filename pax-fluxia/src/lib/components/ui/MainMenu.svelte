@@ -259,7 +259,27 @@
         saveSetting("tickDuration", tickDuration);
     }
 
+    /** Enforce minimum 30° hue difference between all players */
+    const MIN_HUE_GAP = 30;
+    function enforceHueSpacing() {
+        const hues = playerConfigs.map((c) => c.hue);
+        for (let i = 1; i < hues.length; i++) {
+            for (let j = 0; j < i; j++) {
+                const diff = Math.abs(hues[i] - hues[j]);
+                const circDiff = Math.min(diff, 360 - diff);
+                if (circDiff < MIN_HUE_GAP) {
+                    // Shift this player's hue forward
+                    hues[i] = (hues[j] + MIN_HUE_GAP) % 360;
+                    playerConfigs[i].hue = hues[i];
+                }
+            }
+        }
+    }
+
     function applyConfig() {
+        // Enforce min hue spacing before applying colors
+        enforceHueSpacing();
+
         GAME_CONFIG.STARS_PER_PLAYER = starsPerPlayer;
         GAME_CONFIG.STARTING_SHIPS = shipsPerStar;
         GAME_CONFIG.MIN_LINKS_PER_STAR = minLinks;
@@ -2034,7 +2054,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        z-index: 200;
+        z-index: 10000;
     }
 
     .confirm-dialog {
