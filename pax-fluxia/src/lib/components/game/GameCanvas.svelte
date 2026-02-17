@@ -77,8 +77,8 @@
     // FPS tracking
     let fpsFrameCount = 0;
     let fpsLastTime = performance.now();
-    let currentFps = 0;
-    let totalVisualShips = 0;
+    let currentFps = $state(0);
+    let totalVisualShips = $state(0);
 
     // Ship Spawn Animation Tracking
     // Key: `${starId}-${shipIndex}`, Value: spawnTimestamp
@@ -537,13 +537,13 @@
                 hexRadius,
             );
 
-            debugGraphics.stroke({ width: 2, color: 0x00ff00, alpha: 0.5 });
-
             hexes.forEach((h) => {
                 const cx = h.x + offsetX;
                 const cy = h.y + offsetY;
                 drawHex(debugGraphics!, cx, cy, hexRadius * 0.95); // Slightly smaller to see gaps
             });
+
+            debugGraphics.stroke({ width: 2, color: 0x00ff00, alpha: 0.5 });
         }
     }
 
@@ -1331,8 +1331,7 @@
 
 <!-- FPS / Ship Count Overlay -->
 <div class="fps-overlay">
-    {currentFps} FPS · {totalVisualShips.toLocaleString()} ships · {shipParticleIndex}
-    sprites
+    {currentFps} FPS · {totalVisualShips.toLocaleString()} ships
 </div>
 
 <style>
