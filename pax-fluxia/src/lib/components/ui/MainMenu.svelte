@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
     import { gameStore } from "$lib/stores/gameStore.svelte";
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { fade, fly } from "svelte/transition";
@@ -678,7 +678,7 @@
                 <!--  Col 3: Multiplayer (visually distinct)  -->
                 <section class="panel mp-panel">
                     <h2 class="panel-title">
-                        ï¿½ï¿½ MULTIPLAYER
+                        🌐 MULTIPLAYER
                         {#if multiplayerStore.isConnected}
                             <span class="connected-dot"></span>
                         {/if}
@@ -2303,4 +2303,3 @@
         gap: 0;
     }
 </style>
-
