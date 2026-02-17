@@ -508,9 +508,9 @@ function initializeState(): void {
         }
     });
 
-    // Update initial player stats
-    SharedEngine.tick(state!, buildEngineConfig()); // Tick 0 updates player stats
-    state!.tick = 0; // Reset tick since we only wanted the side-effect
+    // Tally initial player stats (starCount, activeShips, etc.) for leaderboard
+    // Cannot use SharedEngine.tick() — it returns early when isPaused=true
+    SharedEngine.updatePlayerStats(state!);
     state!.isPaused = true;
 }
 
