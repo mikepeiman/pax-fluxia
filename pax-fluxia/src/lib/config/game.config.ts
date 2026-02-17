@@ -207,10 +207,42 @@ interface GameConfigType {
 }
 
 /**
- * All tunable game variables in one place.
- * These are exposed via Tweakpane for real-time balancing.
+ * Auto-persistence for GAME_CONFIG.
+ * Every property write is debounce-saved to localStorage.
+ * Runtime fields (_MAP_*) are excluded.
  */
-export const GAME_CONFIG: GameConfigType = {
+const CONFIG_STORAGE_KEY = 'pax-fluxia-game-config';
+
+function loadSavedConfig(): Partial<GameConfigType> {
+    if (typeof window === 'undefined') return {};
+    try {
+        const raw = localStorage.getItem(CONFIG_STORAGE_KEY);
+        if (raw) return JSON.parse(raw);
+    } catch { /* ignore corrupt data */ }
+    return {};
+}
+
+let _saveTimer: ReturnType<typeof setTimeout> | null = null;
+function debouncedSave(config: GameConfigType) {
+    if (typeof window === 'undefined') return;
+    if (_saveTimer) clearTimeout(_saveTimer);
+    _saveTimer = setTimeout(() => {
+        try {
+            // Save only non-runtime keys
+            const toSave: Record<string, unknown> = {};
+            for (const [k, v] of Object.entries(config)) {
+                if (!k.startsWith('_')) toSave[k] = v;
+            }
+            localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(toSave));
+        } catch { /* quota exceeded etc */ }
+    }, 300);
+}
+
+/**
+ * All tunable game variables in one place.
+ * Wrapped in a Proxy for automatic localStorage persistence.
+ */
+const _rawConfig: GameConfigType = {
     // ========================================================================
     // TIMING
     // ========================================================================
@@ -553,6 +585,23 @@ export const GAME_CONFIG: GameConfigType = {
     /** Maximum connections per star (4-8 typical) */
     MAX_LINKS_PER_STAR: 5,
 };
+
+// Apply saved settings on top of defaults
+const _savedOverrides = loadSavedConfig();
+for (const [k, v] of Object.entries(_savedOverrides)) {
+    if (k in _rawConfig && !k.startsWith('_')) {
+        (_rawConfig as any)[k] = v;
+    }
+}
+
+// Export as Proxy — auto-saves to localStorage on any property change
+export const GAME_CONFIG: GameConfigType = new Proxy(_rawConfig, {
+    set(target, prop, value) {
+        (target as any)[prop as string] = value;
+        debouncedSave(target);
+        return true;
+    },
+});
 
 /**
  * Get the current tick interval based on speed multiplier

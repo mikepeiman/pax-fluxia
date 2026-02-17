@@ -334,12 +334,14 @@ export function renderTravelingShips(
 
                     const arrAngle = Math.atan2(ship.y - destStar.y, ship.x - destStar.x);
                     const arrR = Math.sqrt((ship.x - destStar.x) ** 2 + (ship.y - destStar.y) ** 2);
-                    const arrivalSpread = GAME_CONFIG.ARRIVAL_SPREAD ?? 1.0;
-                    const tickMs = state.effectiveTickMs || 1000;
-                    const staggerWindow = tickMs * arrivalSpread;
-                    const staggerOffset = destShips.length > 0
-                        ? (destShips.length / Math.max(1, destShips.length + 1)) * staggerWindow
-                        : 0;
+                    // ARRIVAL_SPREAD=0: settle immediately, >0: stagger settle over fraction of tick
+                    const arrivalSpread = GAME_CONFIG.ARRIVAL_SPREAD ?? 0;
+                    let staggerOffset = 0;
+                    if (arrivalSpread > 0 && destShips.length > 0) {
+                        const tickMs = state.effectiveTickMs || 1000;
+                        const staggerWindow = tickMs * arrivalSpread;
+                        staggerOffset = (destShips.length / Math.max(1, destShips.length + 1)) * staggerWindow;
+                    }
                     ship.settleStartTime = performance.now() + staggerOffset;
                     ship.settleStartAngle = arrAngle;
                     ship.settleStartRadius = arrR;
@@ -647,8 +649,7 @@ export function renderShips(
 
                     ship.x = star.x + Math.cos(curAngle) * curRadius;
                     ship.y = star.y + Math.sin(curAngle) * curRadius;
-                    // Smooth settle: lerp from arrival visuals (0.9/1.0) to final orbit (0.8/1.0)
-                    ship.scale = 0.9 + (0.8 - 0.9) * ease;
+                    ship.scale = 0.8;
                     ship.alpha = 1.0;
                 } else {
                     ship.x = targetX;
