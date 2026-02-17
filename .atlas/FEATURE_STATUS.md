@@ -193,6 +193,11 @@
 | B-66 | ~~**Can't join room from browser listing**~~ **FIXED**: Added `leaveLobby()` before `joinRoom()` to avoid Colyseus connection conflicts. | 2026-02-17 |
 | B-67 | ~~**Joins in-progress game as player 7/6 (overflow)**~~ **FIXED**: `onJoin` always created new player at `players.size` regardless of phase. Rewrote to be phase-aware: lobby adds normally with capacity guard, playing phase routes to AI takeover. | 2026-02-17 |
 | B-68 | ~~**No AI takeover for mid-game joins**~~ **FIXED**: Added AI takeover mechanic — joining an in-progress game finds an available AI slot, transfers star ownership (`ownerId`) to the new human session, replaces the AI player entry. Client modal shows AI players with color dots for selection. | 2026-02-17 |
+| B-69 | ~~**Garbled unicode in MainMenu.svelte**~~ **FIXED**: UTF-8 box-drawing chars `─` rendered as mojibake `€â"€`. Replaced with ASCII dashes. | 2026-02-17 |
+| B-70 | ~~**Click-to-join room card doesn't join**~~ **FIXED**: Lobby `'+'` handler used `room.roomId` (undefined in Colyseus LobbyRoom schema) instead of destructured `roomId` from `[roomId, room]` tuple. | 2026-02-17 |
+| B-71 | ~~**AI name used on takeover**~~ **FIXED**: `onJoin` AI takeover fell back to `aiPlayer.name` when client name was empty. Now uses `Player X` fallback. | 2026-02-17 |
+| B-72 | ~~**Tick delay at game start**~~ **FIXED**: Game started paused (`isPaused = true`) requiring manual resume. Changed to start ticking immediately. | 2026-02-17 |
+| B-73 | **Leaderboard shows 0/0 at game start** — Player ship counts not tallied until first engine tick. Self-corrects after first tick (~1200ms). | OPEN |
 
 ---
 
@@ -374,6 +379,7 @@
 | R-121 | **Color Merge on Star Capture** (idea: Kaya): When you capture a star, you merge colors with the defeated enemy — triggers effects: (1) spawns a new AI player of that merged color, (2) captured star becomes hybrid/mixed color. Evocative of Elemental thinking where each color is fundamentally distinct. | 🔵 |
 | R-122 | **Custom Game Themes**: saveable/loadable theme presets (visual style, color palette, game settings) persisted to localStorage. Users can name, save, switch between themes. | 🟡 |
 | R-123 | **Community Content Hub**: project directory for storing/sharing custom themes and maps. Three tiers: official maps (from dev), public user-contributed maps, and user themes. Infrastructure for future sharing/import/export of rich game config presets. | 🔵 |
+| R-124 | **Spectator Mode on Mid-Game Join**: New players joining in-progress games enter as spectators (observers). Can choose to take over an AI player, or request takeover of a human player (with consent). UI shows "Spectating" player list. | 🔴 |
 
 ---
 

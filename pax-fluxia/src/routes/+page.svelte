@@ -96,7 +96,7 @@
         {#if multiplayerStore.isConnected && multiplayerStore.roomId}
           <div class="overlay-top-center">
             <button
-              class="room-id-badge glass-panel"
+              class="room-id-badge glass-panel w-full h-full"
               onclick={copyRoomId}
               title="Click to copy Room ID"
             >
@@ -328,6 +328,7 @@
 
   .room-id-badge {
     display: flex;
+    z-index: 10;
     align-items: center;
     gap: 8px;
     padding: 6px 12px;
@@ -336,6 +337,8 @@
     transition: all 0.2s ease;
     font-family: inherit;
     color: #fff;
+    width: 100%;
+    height: 100%;
   }
   .room-id-badge:hover {
     border-color: rgba(0, 255, 255, 0.5);

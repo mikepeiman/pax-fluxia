@@ -173,7 +173,8 @@ export class GameRoom extends Room {
             }
 
             const [oldSessionId, aiPlayer] = found as [string, any];
-            const newName = options.name || aiPlayer.name;
+            // Always prefer client-provided name; never inherit AI name
+            const newName = options.name || `Player ${this.state.players.size + 1}`;
             const newColor = (options.color && /^#[0-9a-fA-F]{6}$/.test(options.color))
                 ? options.color
                 : aiPlayer.color;
@@ -318,7 +319,8 @@ export class GameRoom extends Room {
                 return;
             }
             this.state.phase = "playing";
-            this.state.isPaused = true; // Start paused, await player ready
+            this.state.isPaused = false;
+            this.startTick();
             this.updateListingMetadata();
         });
 

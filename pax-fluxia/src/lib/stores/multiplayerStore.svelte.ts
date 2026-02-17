@@ -278,8 +278,8 @@ async function joinLobby(): Promise<void> {
         lobbyRoom.onMessage("+", ([roomId, room]: [string, any]) => {
             const idx = availableRooms.findIndex(r => r.roomId === roomId);
             const entry: RoomListing = {
-                roomId: room.roomId,
-                name: room.name || room.roomId,
+                roomId,  // use the tuple key, NOT room.roomId
+                name: room.name || roomId,
                 clients: room.clients,
                 maxClients: room.maxClients,
                 metadata: room.metadata,
