@@ -96,7 +96,7 @@ export const coreTransferHandler: FXHandler<TransferEvent> = {
         // Configure departure state on each ship
         const streamMode = GAME_CONFIG.DEPART_STAGGER ?? false;
         const streamInterval = streamMode && shipsToMove > 1
-            ? ctx.effectiveTickMs / shipsToMove
+            ? halfTick / shipsToMove
             : 0;
 
         for (let idx = 0; idx < departingShips.length; idx++) {

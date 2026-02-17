@@ -1561,50 +1561,6 @@
                     </label>
                     <div class="var-row">
                         <div class="row-top">
-                            <span class="var-name">Depart Arc</span><span
-                                class="val"
-                                >{(panel.departArcIntensity as number).toFixed(
-                                    2,
-                                )}</span
-                            >
-                        </div>
-                        <input
-                            type="range"
-                            min="0"
-                            max="2"
-                            step="0.05"
-                            value={panel.departArcIntensity}
-                            oninput={(e) => {
-                                const v = +(e.target as HTMLInputElement).value;
-                                GAME_CONFIG.DEPART_ARC_INTENSITY = v;
-                                updatePanel("departArcIntensity", v);
-                            }}
-                        />
-                    </div>
-                    <div class="var-row">
-                        <div class="row-top">
-                            <span class="var-name">Arrive Arc</span><span
-                                class="val"
-                                >{(panel.arrivalArcIntensity as number).toFixed(
-                                    2,
-                                )}</span
-                            >
-                        </div>
-                        <input
-                            type="range"
-                            min="0"
-                            max="2"
-                            step="0.05"
-                            value={panel.arrivalArcIntensity}
-                            oninput={(e) => {
-                                const v = +(e.target as HTMLInputElement).value;
-                                GAME_CONFIG.ARRIVAL_ARC_INTENSITY = v;
-                                updatePanel("arrivalArcIntensity", v);
-                            }}
-                        />
-                    </div>
-                    <div class="var-row">
-                        <div class="row-top">
                             <span class="var-name">Settle Time</span><span
                                 class="val">{panel.settleDuration}ms</span
                             >

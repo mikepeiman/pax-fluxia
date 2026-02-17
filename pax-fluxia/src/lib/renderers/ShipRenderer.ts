@@ -316,13 +316,8 @@ export function renderTravelingShips(
                 const destStar = starsById.get(ship.toStarId!);
                 if (destStar) {
                     const destShips = state.visualShips.get(destStar.id) || [];
-                    const outerR = getOuterOrbitRadius(destStar.radius, destShips.length + 1);
-                    const fragBoundary = outerR + 8;
-                    const arrDx = ship.laneEndX - destStar.x;
-                    const arrDy = ship.laneEndY - destStar.y;
-                    const arrDist = Math.sqrt(arrDx * arrDx + arrDy * arrDy) || 1;
-                    ship.x = destStar.x + (arrDx / arrDist) * fragBoundary;
-                    ship.y = destStar.y + (arrDy / arrDist) * fragBoundary;
+                    // Ship is already at its travel-end position (laneEndX/Y on star edge).
+                    // Don't reposition — let the settle animation handle the transition to orbit slot.
 
                     ship.state = 'orbiting';
                     ship.fromStarId = null;
