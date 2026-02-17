@@ -21,7 +21,7 @@ import { generateConnections } from './connections';
 export function generateMap(config: MapGenConfig): MapGenResult {
     const totalStars = config.playerCount * config.starsPerPlayer;
 
-    const { positions, hexRadius, width, height } = generateStarPositions({
+    const { positions, hexRadius, width, height, paddingX, paddingY } = generateStarPositions({
         width: config.width,
         height: config.height,
         totalStars,
@@ -43,5 +43,5 @@ export function generateMap(config: MapGenConfig): MapGenResult {
         config.maxLinksPerStar ?? 6,
     );
 
-    return { positions, connections, hexRadius, width, height };
+    return { positions, connections, hexRadius, width, height, paddingX, paddingY };
 }

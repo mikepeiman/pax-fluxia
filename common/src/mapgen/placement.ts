@@ -130,7 +130,7 @@ export function generateStarPositions(config: {
     totalStars: number;
     spacingMultiplier?: number;
     hexRadius?: number;
-}): { positions: MapPosition[]; hexRadius: number; width: number; height: number } {
+}): { positions: MapPosition[]; hexRadius: number; width: number; height: number; paddingX: number; paddingY: number } {
     const { totalStars, spacingMultiplier = 1.0 } = config;
     const scaleFactor = Math.max(1, spacingMultiplier);
     const width = Math.round(config.width * scaleFactor);
@@ -162,5 +162,5 @@ export function generateStarPositions(config: {
 
     const positions = selectPositions(hexes, totalStars, minSpacing, physicsMinSpacing);
 
-    return { positions, hexRadius, width, height };
+    return { positions, hexRadius, width, height, paddingX, paddingY };
 }

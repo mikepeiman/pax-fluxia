@@ -428,6 +428,13 @@ function initializeState(): void {
         maxLinksPerStar: settings.maxLinksPerStar ?? 5,
     });
 
+    // Store map gen metadata for debug grid overlay
+    GAME_CONFIG._MAP_HEX_RADIUS = result.hexRadius;
+    GAME_CONFIG._MAP_WIDTH = result.width;
+    GAME_CONFIG._MAP_HEIGHT = result.height;
+    GAME_CONFIG._MAP_PADDING_X = result.paddingX;
+    GAME_CONFIG._MAP_PADDING_Y = result.paddingY;
+
     // Randomize which position gets which owner via shuffled indices.
     // IMPORTANT: positions must stay in original order because generateMap()
     // assigns IDs star-0..N matching position indices, and connections reference those IDs.

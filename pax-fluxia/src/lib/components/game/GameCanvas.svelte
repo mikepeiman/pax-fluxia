@@ -521,29 +521,23 @@
 
         debugGraphics.clear();
 
-        if (GAME_CONFIG.SHOW_HEX_GRID) {
-            // Replicate Engine Grid Config
-            const width = 1600;
-            const height = 900;
-            const hexRadius = GAME_CONFIG.HEX_RADIUS || 60;
-            const paddingX = 250;
-            const paddingY = 120;
-            const offsetX = paddingX;
-            const offsetY = paddingY;
+        if (GAME_CONFIG.SHOW_HEX_GRID && GAME_CONFIG._MAP_HEX_RADIUS > 0) {
+            // Use exact same parameters that generated the map
+            const hexRadius = GAME_CONFIG._MAP_HEX_RADIUS;
+            const paddingX = GAME_CONFIG._MAP_PADDING_X;
+            const paddingY = GAME_CONFIG._MAP_PADDING_Y;
+            const gridWidth = GAME_CONFIG._MAP_WIDTH - paddingX * 2;
+            const gridHeight = GAME_CONFIG._MAP_HEIGHT - paddingY * 2;
 
-            const hexes = generateHexGrid(
-                width - paddingX * 2,
-                height - paddingY * 2,
-                hexRadius,
-            );
+            const hexes = generateHexGrid(gridWidth, gridHeight, hexRadius);
 
             hexes.forEach((h) => {
-                const cx = h.x + offsetX;
-                const cy = h.y + offsetY;
-                drawHex(debugGraphics!, cx, cy, hexRadius * 0.95); // Slightly smaller to see gaps
+                const cx = h.x + paddingX;
+                const cy = h.y + paddingY;
+                drawHex(debugGraphics!, cx, cy, hexRadius * 0.95);
             });
 
-            debugGraphics.stroke({ width: 2, color: 0x00ff00, alpha: 0.5 });
+            debugGraphics.stroke({ width: 1, color: 0x00ff00, alpha: 0.3 });
         }
     }
 

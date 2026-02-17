@@ -191,6 +191,13 @@ interface GameConfigType {
     SHOW_HEX_GRID: boolean;
     STARS_PER_PLAYER: number;
 
+    // Map gen metadata (populated at runtime, used by debug hex grid overlay)
+    _MAP_HEX_RADIUS: number;
+    _MAP_WIDTH: number;
+    _MAP_HEIGHT: number;
+    _MAP_PADDING_X: number;
+    _MAP_PADDING_Y: number;
+
     // Link Connectivity
     MIN_LINKS_PER_STAR: number;
     MAX_LINKS_PER_STAR: number;
@@ -521,6 +528,13 @@ export const GAME_CONFIG: GameConfigType = {
 
     /** Stars per player (Map Size) */
     STARS_PER_PLAYER: 3,
+
+    // Runtime: populated by map generation (do not save to localStorage)
+    _MAP_HEX_RADIUS: 0,
+    _MAP_WIDTH: 0,
+    _MAP_HEIGHT: 0,
+    _MAP_PADDING_X: 0,
+    _MAP_PADDING_Y: 0,
 
     // ========================================================================
     // LINK CONNECTIVITY

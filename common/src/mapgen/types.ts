@@ -66,4 +66,7 @@ export interface MapGenResult {
     /** Map dimensions used */
     width: number;
     height: number;
+    /** Padding used during generation (for debug grid alignment) */
+    paddingX: number;
+    paddingY: number;
 }
