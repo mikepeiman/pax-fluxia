@@ -20,7 +20,6 @@ import type { StarState } from '$lib/types/game.types';
 import { STAR_TYPE_STATS } from '@pax/common';
 import type { StarType } from '@pax/common';
 import type { ColorUtils } from './RenderContext';
-import { hslToHex } from './colorUtils';
 import { GAME_CONFIG } from '$lib/config/game.config';
 
 // ── Star Type → Polygon Sides ───────────────────────────────────────────────
@@ -103,11 +102,9 @@ export function renderStars(
         const radius = GAME_CONFIG.STAR_RENDER_RADIUS ?? star.radius;
         const isActive = star.id === state.activeStarId || star.id === state.dragSourceId;
 
-        // Active star selection highlight (hex border) — player color, bright + full saturation
+        // Active star selection highlight (hex border) — white
         if (isActive) {
-            const hsl = colorUtils.hexToHSL(color);
-            const selectionColor = hslToHex(hsl.h, 1, 0.7);
-            drawHexBorder(graphics, star.x, star.y, radius + 20, selectionColor, 3);
+            drawHexBorder(graphics, star.x, star.y, radius + 20, 0xffffff, 3);
         }
 
         // Outer glow ring (pulses slightly, stronger when active)
@@ -123,7 +120,13 @@ export function renderStars(
 
         graphics.circle(star.x, star.y, radius);
         graphics.fill({ color: typeColor, alpha: 0.3 });
-        graphics.stroke({ color, width: isActive ? 4 : 2, alpha: 1 });
+        graphics.stroke({ color: isActive ? 0xffffff : color, width: isActive ? 4 : 2, alpha: 1 });
+
+        // Active star white fill overlay
+        if (isActive) {
+            graphics.circle(star.x, star.y, radius);
+            graphics.fill({ color: 0xffffff, alpha: 0.3 });
+        }
 
         // Conquest flash: bright white pulse overlay
         const flash = state.conquestFlashes.get(star.id);
