@@ -856,15 +856,6 @@
         },
         // Surge
         {
-            key: "ATTACK_SURGE_MULT",
-            label: "Attack Surge",
-            min: 0,
-            max: 10,
-            step: 0.1,
-            unit: "×",
-            group: "Attack Surge",
-        },
-        {
             key: "ATTACK_SURGE_RAMP_MS",
             label: "Surge Ramp",
             min: 0,
@@ -1088,7 +1079,6 @@
             TRAVEL_DURATION_MULT: "travelDurationMult",
             DEPART_JITTER_MS: "departJitter",
             ATTACK_SURGE_RAMP_MS: "attackSurgeRampMs",
-            ATTACK_SURGE_MULT: "attackSurgeMult",
             CONQUEST_TRAVEL_SPEED: "conquestTravelSpeed",
             CONQUEST_LERP_DELAY_MS: "conquestLerpDelayMs",
             CONQUEST_COLOR_DELAY_MS: "conquestColorDelayMs",
