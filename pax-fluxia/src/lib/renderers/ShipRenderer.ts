@@ -654,41 +654,54 @@ export function renderShips(
                     : (ship as any).conquestSettle
                         ? (GAME_CONFIG.CONQUEST_SETTLE_MS ?? 500)
                         : GAME_CONFIG.SETTLE_DURATION_MS || 150;
-                const t = Math.max(0, Math.min(1, elapsed / settleDur));
-                const ease = 1 - Math.pow(1 - t, 3);
 
-                if (t < 1) {
-                    const targetAngle = Math.atan2(targetY - star.y, targetX - star.x);
-                    const targetRadius = Math.sqrt((targetX - star.x) ** 2 + (targetY - star.y) ** 2);
-                    const curRadius = ship.settleStartRadius + (targetRadius - ship.settleStartRadius) * ease;
-                    let angleDelta = targetAngle - ship.settleStartAngle;
-                    while (angleDelta > Math.PI) angleDelta -= 2 * Math.PI;
-                    while (angleDelta < -Math.PI) angleDelta += 2 * Math.PI;
-
-                    // Spiral revolutions: add extra rotations beyond shortest arc
-                    if (isArrowSettle) {
-                        const extraRad = (ship.arrowSpiralDeg! * Math.PI) / 180;
-                        angleDelta += extraRad;
-                    }
-
-                    const curAngle = ship.settleStartAngle + angleDelta * ease;
-
-                    ship.x = star.x + Math.cos(curAngle) * curRadius;
-                    ship.y = star.y + Math.sin(curAngle) * curRadius;
-                    if (isTrackedShip(ship.id)) traceSettleFrame(ship.id, elapsed, t, ship.x, ship.y, targetX, targetY);
-                    ship.scale = 0.8;
-                    ship.alpha = 1.0;
-                } else {
+                // Duration 0 = instant snap to orbit
+                if (settleDur <= 0) {
                     ship.x = targetX;
                     ship.y = targetY;
                     ship.scale = 0.8;
                     ship.alpha = 1;
-                    // Clear arrowhead metadata after settle completes
                     if (isArrowSettle) {
                         ship.arrowSpiralDeg = undefined;
                         ship.arrowWedgeOffset = undefined;
                     }
-                }
+                } else {
+                    const t = Math.max(0, Math.min(1, elapsed / settleDur));
+                    const ease = 1 - Math.pow(1 - t, 3);
+
+                    if (t < 1) {
+                        const targetAngle = Math.atan2(targetY - star.y, targetX - star.x);
+                        const targetRadius = Math.sqrt((targetX - star.x) ** 2 + (targetY - star.y) ** 2);
+                        const curRadius = ship.settleStartRadius + (targetRadius - ship.settleStartRadius) * ease;
+                        let angleDelta = targetAngle - ship.settleStartAngle;
+                        while (angleDelta > Math.PI) angleDelta -= 2 * Math.PI;
+                        while (angleDelta < -Math.PI) angleDelta += 2 * Math.PI;
+
+                        // Spiral revolutions: add extra rotations beyond shortest arc
+                        if (isArrowSettle) {
+                            const extraRad = (ship.arrowSpiralDeg! * Math.PI) / 180;
+                            angleDelta += extraRad;
+                        }
+
+                        const curAngle = ship.settleStartAngle + angleDelta * ease;
+
+                        ship.x = star.x + Math.cos(curAngle) * curRadius;
+                        ship.y = star.y + Math.sin(curAngle) * curRadius;
+                        if (isTrackedShip(ship.id)) traceSettleFrame(ship.id, elapsed, t, ship.x, ship.y, targetX, targetY);
+                        ship.scale = 0.8;
+                        ship.alpha = 1.0;
+                    } else {
+                        ship.x = targetX;
+                        ship.y = targetY;
+                        ship.scale = 0.8;
+                        ship.alpha = 1;
+                        // Clear arrowhead metadata after settle completes
+                        if (isArrowSettle) {
+                            ship.arrowSpiralDeg = undefined;
+                            ship.arrowWedgeOffset = undefined;
+                        }
+                    }
+                } // close the else block for settleDur > 0
 
                 const baseTier = shipMultiplier > 1 ? Math.floor(Math.log2(shipMultiplier)) : 0;
                 const ringTier = Math.max(0, baseTier - slot.layer);

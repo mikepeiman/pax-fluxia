@@ -2390,7 +2390,7 @@
                             </div>
                             <input
                                 type="range"
-                                min="100"
+                                min="0"
                                 max="3000"
                                 step="50"
                                 value={panel.arrowSpiralDurationMs}
