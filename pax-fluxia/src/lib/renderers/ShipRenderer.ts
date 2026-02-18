@@ -639,10 +639,12 @@ export function renderShips(
                     const facingFactor = shipNormX * useDirX + shipNormY * useDirY;
                     const surgeFactor = Math.max(0, facingFactor) ** 1.5;
 
-                    // Surge pulse: game clock → scales with game speed; wall clock → constant rate
-                    const surgeProgress = GAME_CONFIG.USE_WALL_CLOCK_SURGE_PULSE
-                        ? state.tickProgress
-                        : (state.effectiveTickMs > 0 ? (state.gameNowMs % state.effectiveTickMs) / state.effectiveTickMs : 0);
+                    // Surge pulse: independent cycle driven by SURGE_PULSE_DURATION_MS
+                    const pulseDur = GAME_CONFIG.SURGE_PULSE_DURATION_MS || GAME_CONFIG.BASE_TICK_MS;
+                    const pulseTime = GAME_CONFIG.USE_WALL_CLOCK_SURGE_PULSE
+                        ? state.wallNowMs
+                        : state.gameNowMs;
+                    const surgeProgress = pulseDur > 0 ? (pulseTime % pulseDur) / pulseDur : 0;
                     const rawPulse = Math.sin(surgeProgress * Math.PI);
                     const surgeShape = GAME_CONFIG.ATTACK_SURGE_SHAPE ?? 1;
                     const surgePulse = surgeShape === 1 ? rawPulse : Math.pow(rawPulse, surgeShape);

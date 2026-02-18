@@ -129,6 +129,7 @@ interface GameConfigType {
     ATTACK_SURGE_FORCE_COFACTOR: number; // How much force ratio amplifies surge (0=none, 1=full, default 0.5)
     ATTACK_SURGE_RAMP_MS: number;        // Ramp-in duration for attack surge (ms, 0=instant/old behavior, default 300)
     ATTACK_SURGE_SHAPE: number;          // Surge pulse shape power (1=sine, 2=sharper peak, 0.5=flatter, default 1)
+    SURGE_PULSE_DURATION_MS: number;     // Duration of one surge sine cycle (ms, default = BASE_TICK_MS)
     // Conquest animation
     CONQUEST_ANIMATION_MODE: 'immediate' | 'surge' | 'travel' | 'arrowhead'; // Strategy for transferring attacker ships to conquered star
     CONQUEST_SETTLE_MS: number;          // How long conquest ships take to settle into orbit in surge mode (ms, default 500)
@@ -496,6 +497,8 @@ const _rawConfig: GameConfigType = {
     ATTACK_SURGE_RAMP_MS: 300,
     /** Surge pulse shape power (1=sine, 2=sharper peak, 0.5=flatter) */
     ATTACK_SURGE_SHAPE: 1,
+    /** Duration of one surge sine pulse cycle (ms, default = BASE_TICK_MS) */
+    SURGE_PULSE_DURATION_MS: 1200,
     /** Conquest animation strategy: 'immediate' = pop, 'surge' = settle from above, 'travel' = fly through lane */
     CONQUEST_ANIMATION_MODE: 'travel' as const,
     /** How long conquest ships settle into orbit in surge mode (ms) */
