@@ -1404,23 +1404,44 @@
         | "visuals"
         | "logging";
 
-    const ACTIVE_SECTION_KEY = "pax-fluxia-active-section";
-    function loadActiveSection(): SectionId | null {
-        if (typeof window === "undefined") return null;
-        const s = localStorage.getItem(ACTIVE_SECTION_KEY);
-        return s as SectionId | null;
+    const ACTIVE_SECTION_KEY = "pax-fluxia-open-sections";
+    function loadOpenSections(): Set<SectionId> {
+        if (typeof window === "undefined") return new Set();
+        try {
+            const s = localStorage.getItem(ACTIVE_SECTION_KEY);
+            if (s) {
+                const arr = JSON.parse(s) as SectionId[];
+                return new Set(arr);
+            }
+        } catch {
+            /* ignore */
+        }
+        return new Set();
     }
 
-    let activeSection = $state<SectionId | null>(loadActiveSection());
+    let openSections = $state<Set<SectionId>>(loadOpenSections());
 
     function toggleSection(id: SectionId) {
-        activeSection = activeSection === id ? null : id;
+        const next = new Set(openSections);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        openSections = next;
         if (typeof window !== "undefined") {
-            if (activeSection)
-                localStorage.setItem(ACTIVE_SECTION_KEY, activeSection);
-            else localStorage.removeItem(ACTIVE_SECTION_KEY);
+            localStorage.setItem(
+                ACTIVE_SECTION_KEY,
+                JSON.stringify([...openSections]),
+            );
         }
     }
+
+    function isSectionOpen(id: SectionId): boolean {
+        return openSections.has(id);
+    }
+
+    // Backwards compat: activeSection as derived for places that still read it
+    let activeSection = $derived<SectionId | null>(
+        openSections.size > 0 ? [...openSections][openSections.size - 1] : null,
+    );
 
     const sections: {
         id: SectionId;
@@ -1566,17 +1587,17 @@
     </div>
 
     <!-- Icon Toolbar -->
-    <div class="icon-toolbar" class:has-active={activeSection !== null}>
+    <div class="icon-toolbar" class:has-active={openSections.size > 0}>
         {#each visibleSections as s}
             <button
                 class="icon-btn"
-                class:active={activeSection === s.id}
+                class:active={openSections.has(s.id)}
                 style="--accent: {s.color}"
                 onclick={() => toggleSection(s.id)}
                 title={s.label}
             >
                 <span class="icon-emoji">{s.icon}</span>
-                {#if activeSection === null}
+                {#if openSections.size === 0}
                     <span class="icon-label">{s.label}</span>
                 {/if}
             </button>
@@ -1587,28 +1608,24 @@
             onclick={resetToDefaults}
         >
             <span class="icon-emoji">↺</span>
-            {#if activeSection === null}
+            {#if openSections.size === 0}
                 <span class="icon-label">Reset</span>
             {/if}
         </button>
     </div>
 
-    <!-- Active Section Content -->
-    {#if activeSection !== null}
-        {@const sec = sections.find((s) => s.id === activeSection)}
-        <div class="section-panel" style="--accent: {sec?.color ?? '#fff'}">
-            <button
-                class="section-head"
-                onclick={() => toggleSection(activeSection!)}
-            >
-                <span class="head-icon">{sec?.icon}</span>
-                <span class="head-label">{sec?.label}</span>
+    <!-- Stacked Section Panels -->
+    {#each visibleSections.filter( (s) => openSections.has(s.id), ) as sec (sec.id)}
+        <div class="section-panel" style="--accent: {sec.color}">
+            <button class="section-head" onclick={() => toggleSection(sec.id)}>
+                <span class="head-icon">{sec.icon}</span>
+                <span class="head-label">{sec.label}</span>
                 <span class="head-close">✕</span>
             </button>
 
             <div class="section-body">
                 <!-- ⚡ TIMING -->
-                {#if activeSection === "speed"}
+                {#if sec.id === "speed"}
                     <div class="var-row">
                         <div class="row-top">
                             <span class="var-name">Tick Interval</span><span
@@ -1762,7 +1779,7 @@
                     {/each}
 
                     <!-- ⚔️ BATTLE -->
-                {:else if activeSection === "battle"}
+                {:else if sec.id === "battle"}
                     {#each variables as v}
                         <div
                             class="var-row"
@@ -1810,7 +1827,7 @@
                     {/each}
 
                     <!-- 🏭 ECONOMY -->
-                {:else if activeSection === "economy"}
+                {:else if sec.id === "economy"}
                     <div class="var-row">
                         <div class="row-top">
                             <span class="var-name">⚙️ Production</span><span
@@ -1920,7 +1937,7 @@
                     </div>
 
                     <!-- 🤖 AI BEHAVIOR -->
-                {:else if activeSection === "ai"}
+                {:else if sec.id === "ai"}
                     {#each aiVariables as v}
                         <div
                             class="var-row"
@@ -2029,7 +2046,7 @@
                     </div>
 
                     <!-- 🚀 SHIP TRAVEL -->
-                {:else if activeSection === "travel"}
+                {:else if sec.id === "travel"}
                     <h4 class="sub-heading">Mode & Easing</h4>
                     <!-- Travel Animation Mode -->
                     <div class="var-row">
@@ -2343,7 +2360,7 @@
                     </div>
 
                     <!-- 💥 SURGE & ORBS -->
-                {:else if activeSection === "surge"}
+                {:else if sec.id === "surge"}
                     <h4 class="sub-heading">Attack Surge</h4>
                     <div class="var-row">
                         <div class="row-top">
@@ -2720,7 +2737,7 @@
                     {/if}
 
                     <!-- 🏰 CONQUEST -->
-                {:else if activeSection === "conquest"}
+                {:else if sec.id === "conquest"}
                     <h4 class="sub-heading">Animation</h4>
                     <div class="var-row">
                         <div class="row-top">
@@ -2991,7 +3008,7 @@
                          are in the ⚡ Timing panel (ANIM_SLIDERS) to avoid duplication -->
 
                     <!-- 🎨 SHIP APPEARANCE -->
-                {:else if activeSection === "ships"}
+                {:else if sec.id === "ships"}
                     <!-- ── Ship Size & Shape ── -->
                     <h4 class="sub-heading">Ship Size & Shape</h4>
                     <div class="var-row">
@@ -3373,7 +3390,7 @@
                     {/if}
 
                     <!-- 🎨 MAP VISUALS -->
-                {:else if activeSection === "visuals"}
+                {:else if sec.id === "visuals"}
                     <h4 class="sub-heading">Overlays</h4>
                     <label class="toggle-row"
                         ><input
@@ -3556,7 +3573,7 @@
                     </div>
 
                     <!-- 📜 RULES -->
-                {:else if activeSection === "rules"}
+                {:else if sec.id === "rules"}
                     <label class="toggle-row">
                         <input
                             type="checkbox"
@@ -3597,7 +3614,7 @@
                     </div>
 
                     <!-- 📋 LOGGING -->
-                {:else if activeSection === "logging"}
+                {:else if sec.id === "logging"}
                     <div class="log-actions">
                         <button
                             class="btn-xs"
@@ -3681,7 +3698,7 @@
                 {/if}
             </div>
         </div>
-    {/if}
+    {/each}
 </div>
 
 <style>
