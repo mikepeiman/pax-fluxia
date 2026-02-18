@@ -133,7 +133,8 @@ export function getOrbitSlot(
     starRadius: number,
     time: number,
     biasAngle?: number,
-    biasStrength: number = 0
+    biasStrength: number = 0,
+    totalShips?: number
 ): { x: number, y: number, multiplier: number, layer: number } {
     const BASE_SIZE = GAME_CONFIG.SHIP_BASE_SIZE || 4;
     const PADDING = 2;
@@ -158,7 +159,19 @@ export function getOrbitSlot(
         if (effectiveIndex < countInInnerLayers + capacity) {
             // It's in this layer
             const indexInRing = effectiveIndex - countInInnerLayers;
-            const angleStep = (2 * Math.PI) / capacity;
+
+            // When totalShips is provided, distribute evenly around full 2π
+            // instead of using ring capacity (which leaves a gap when partially filled)
+            let actualInRing = capacity;
+            if (totalShips !== undefined) {
+                const totalEffective = totalShips > totalCapacity
+                    ? totalCapacity
+                    : totalShips;
+                const shipsBeforeThisRing = Math.min(totalEffective, countInInnerLayers);
+                actualInRing = Math.min(totalEffective - shipsBeforeThisRing, capacity);
+                actualInRing = Math.max(actualInRing, 1);
+            }
+            const angleStep = (2 * Math.PI) / actualInRing;
 
             // Rotate rings slowly, alternating direction
             const ringRotation = time * (0.2 / (layer + 1)) * (layer % 2 === 0 ? 1 : -1);

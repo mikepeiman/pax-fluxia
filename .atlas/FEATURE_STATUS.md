@@ -10,6 +10,9 @@
 | B-78 | Per-phase arc values (DEPART_ARC, ARRIVAL_ARC) not wired into behaviors | Open |
 | B-79 | Convergence point effect too subtle to see | Fixed (2026-02-17) |
 | B-83 | Arrival disjoint/rewind — ships jump back near destination | Investigating |
+| B-86 | No attacker attrition: attacking ships not destroyed proportional to received damage × Lethality | Investigating |
+| B-87 | Conquest settlement ring has a gap — should form a perfect circle | Fixed (2026-02-18) |
+| B-88 | Conquest ships fly to star AS a ring instead of arrow/wedge formation | Fixed (2026-02-18) |
 
 ## Planned Features
 | ID | Description | Priority | Status |

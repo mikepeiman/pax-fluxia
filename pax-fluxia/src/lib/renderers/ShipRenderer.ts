@@ -589,7 +589,7 @@ export function renderShips(
 
                 const slot = getOrbitSlot(
                     ship.targetIndex, star.x, star.y, star.radius,
-                    orbitTime, biasAngle, biasStrength,
+                    orbitTime, biasAngle, biasStrength, ships.length,
                 );
                 let targetX = slot.x;
                 let targetY = slot.y;

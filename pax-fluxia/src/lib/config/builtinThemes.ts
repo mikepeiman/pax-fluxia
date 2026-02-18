@@ -92,7 +92,7 @@ export const SMOOTH_BEZIER: GameTheme = {
         ATTACK_SURGE_SHAPE: 1,
 
         // Conquest animation
-        CONQUEST_ANIMATION_MODE: 'surge',
+        CONQUEST_ANIMATION_MODE: 'travel',
         CONQUEST_SETTLE_MS: 1350,
         CONQUEST_SURGE_RADIUS: 40,
         CONQUEST_SURGE_STAGGER_MS: 0,
