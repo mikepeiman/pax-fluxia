@@ -33,3 +33,8 @@
 - **Decision**: Ships arriving into orbit MUST appear at full orbit scale (`0.8`) and full alpha (`1.0`) immediately. **Never** start at small scale/low alpha and bloom up.
 - **Rationale**: The "tiny dots that bloom" effect (scale 0.3→0.8, alpha 0.5→1.0) was universally disliked. Reverted twice (2026-02-17). This is a hard constraint.
 - **Code**: `ShipRenderer.ts` settle block — `ship.scale = 0.8; ship.alpha = 1.0;` (both during and after settle)
+
+### D-17: All Animation Timing Uses FXClock Game Time
+- **Decision**: Zero `performance.now()` in renderers or FX handlers. All timestamps use `state.gameNowMs` (renderers) or `ctx.gameTime` (handlers), both sourced from `FXClock`.
+- **Rationale**: Wall-clock timing caused 3 bug classes: animations ignoring pause, persisting across game restart, and ignoring speed settings. FXClock (already in `clock.ts`) is pause-aware, speed-scaled, and resets on new game.
+- **Code**: `FXClock.tick()` called per-frame from `GameCanvas.svelte`; `gameNowMs` field on both `ShipRenderState` and `StarRenderState`
