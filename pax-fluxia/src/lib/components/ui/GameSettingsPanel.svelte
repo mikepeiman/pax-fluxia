@@ -994,8 +994,8 @@
         }
     }
 
-    // Lock modes: 'pinned' = value always equals tickDuration, 'ratio' = preserves current ratio to tick
-    type AnimLockMode = "pinned" | "ratio" | null;
+    // Lock modes: 'pinned' = value always equals tickDuration, 'ratio' = preserves ratio to tick, 'animSpeed' = preserves ratio to animation speed
+    type AnimLockMode = "pinned" | "ratio" | "animSpeed" | null;
 
     let animLockRatios =
         $state<Record<string, number | null>>(loadAnimLockRatios());
@@ -1072,21 +1072,63 @@
 
     /** Recalculate all locked/pinned animation values when tick interval changes */
     function recalcAnimLocksOnTickChange(newTickMs: number) {
-        for (const [key, ratio] of Object.entries(animLockRatios)) {
-            if (ratio != null) {
-                const def = ANIM_SLIDERS.find((s) => s.key === key);
-                let newVal = ratio * newTickMs;
-                // Clamp to slider range
-                if (def && def.min != null && def.max != null) {
-                    newVal = Math.max(def.min, Math.min(def.max, newVal));
+        for (const [key, mode] of Object.entries(animLockModes)) {
+            if (mode === "pinned" || mode === "ratio") {
+                const ratio = animLockRatios[key];
+                if (ratio != null) {
+                    const def = ANIM_SLIDERS.find((s) => s.key === key);
+                    let newVal = ratio * newTickMs;
+                    if (def && def.min != null && def.max != null) {
+                        newVal = Math.max(def.min, Math.min(def.max, newVal));
+                    }
+                    newVal =
+                        def?.unit === "ms"
+                            ? Math.round(newVal)
+                            : Math.round(newVal * 100) / 100;
+                    (GAME_CONFIG as any)[key] = newVal;
+                    syncPanelKey(key, newVal);
                 }
-                // Round ms values, keep multipliers precise
-                newVal =
-                    def?.unit === "ms"
-                        ? Math.round(newVal)
-                        : Math.round(newVal * 100) / 100;
-                (GAME_CONFIG as any)[key] = newVal;
-                syncPanelKey(key, newVal);
+            }
+        }
+    }
+
+    /** 🎚️ Lock current ratio relative to animation speed (value scales when anim speed changes) */
+    function lockRatioToAnimSpeed(key: string) {
+        const currentMode = animLockModes[key];
+        if (currentMode === "animSpeed") {
+            // Unlock
+            animLockModes[key] = null;
+            animLockRatios[key] = null;
+        } else {
+            const currentVal = (GAME_CONFIG as any)[key] as number;
+            const animSpeed = animationStore.speedMs;
+            animLockModes[key] = "animSpeed";
+            animLockRatios[key] = currentVal / animSpeed;
+        }
+        animLockModes = { ...animLockModes };
+        animLockRatios = { ...animLockRatios };
+        saveAnimLockRatios();
+        saveAnimLockModes();
+    }
+
+    /** Recalculate animSpeed-locked values when animation speed changes */
+    function recalcAnimLocksOnAnimSpeedChange(newAnimMs: number) {
+        for (const [key, mode] of Object.entries(animLockModes)) {
+            if (mode === "animSpeed") {
+                const ratio = animLockRatios[key];
+                if (ratio != null) {
+                    const def = ANIM_SLIDERS.find((s) => s.key === key);
+                    let newVal = ratio * newAnimMs;
+                    if (def && def.min != null && def.max != null) {
+                        newVal = Math.max(def.min, Math.min(def.max, newVal));
+                    }
+                    newVal =
+                        def?.unit === "ms"
+                            ? Math.round(newVal)
+                            : Math.round(newVal * 100) / 100;
+                    (GAME_CONFIG as any)[key] = newVal;
+                    syncPanelKey(key, newVal);
+                }
             }
         }
     }
@@ -1524,6 +1566,7 @@
                                 );
                                 animationStore.setAnimationSpeed(v);
                                 updatePanel("animSpeed", v);
+                                recalcAnimLocksOnAnimSpeedChange(v);
                             }}
                         />
                     </div>
@@ -1599,6 +1642,20 @@
                                             onclick={() =>
                                                 lockRatioToTick(slider.key)}
                                             >🔗</button
+                                        >
+                                        <button
+                                            class="lock-btn"
+                                            class:active={animLockModes[
+                                                slider.key
+                                            ] === "animSpeed"}
+                                            title={animLockModes[slider.key] ===
+                                            "animSpeed"
+                                                ? `Locked at ${(animLockRatios[slider.key] ?? 0).toFixed(3)}×anim — click to unlock`
+                                                : "Lock current ratio to animation speed"}
+                                            onclick={() =>
+                                                lockRatioToAnimSpeed(
+                                                    slider.key,
+                                                )}>🎚️</button
                                         >
                                     </span>
                                 </div>
@@ -3736,7 +3793,7 @@
         font-size: 16px;
     }
     .icon-label {
-        font-size: 9px;
+        font-size: 10px;
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.5px;
@@ -3796,7 +3853,7 @@
     }
     .head-label {
         flex: 1;
-        font-size: 11px;
+        font-size: 13px;
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 1px;
@@ -3815,7 +3872,7 @@
         padding: 8px;
         display: flex;
         flex-direction: column;
-        gap: 6px;
+        gap: 5px;
         flex: 1;
         overflow-y: auto;
         min-height: 0;
@@ -3845,7 +3902,7 @@
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid rgba(255, 255, 255, 0.05);
         border-radius: 4px;
-        padding: 5px 6px;
+        padding: 4px 8px;
         display: flex;
         flex-direction: column;
         gap: 3px;
@@ -3862,13 +3919,13 @@
         align-items: center;
     }
     .var-name {
-        font-size: 10.5px;
+        font-size: 12px;
         font-weight: 600;
-        color: #ddd;
+        color: #eee;
     }
     .val {
         font-family: "Exo", sans-serif;
-        font-size: 10.5px;
+        font-size: 12px;
         color: var(--accent, #00e0ff);
     }
     .toggle-label {
@@ -3876,16 +3933,16 @@
         align-items: center;
         gap: 5px;
         cursor: pointer;
-        font-size: 10.5px;
+        font-size: 12px;
         font-weight: 600;
-        color: #ddd;
+        color: #eee;
     }
     input[type="range"] {
         width: 100%;
         accent-color: var(--accent, #00e0ff);
-        height: 3px;
+        height: 6px;
         background: #334;
-        border-radius: 2px;
+        border-radius: 3px;
         cursor: pointer;
     }
     input[type="checkbox"] {
@@ -3913,7 +3970,7 @@
         font-size: 9px;
         text-transform: uppercase;
         letter-spacing: 1px;
-        color: var(--accent, #99bbdd);
+        color: var(--accent, #aabbcc);
         margin: 4px 0 2px;
         padding-top: 4px;
         border-top: 1px solid rgba(255, 255, 255, 0.06);
@@ -3952,10 +4009,10 @@
         border: 1px solid rgba(100, 120, 160, 0.2);
         border-radius: 3px;
         cursor: pointer;
-        font-size: 10px;
-        padding: 0 2px;
+        font-size: 11px;
+        padding: 1px 4px;
         line-height: 1.2;
-        opacity: 0.4;
+        opacity: 0.5;
         transition:
             opacity 0.15s,
             background 0.15s;
@@ -3982,7 +4039,7 @@
         gap: 6px;
         padding: 2px 4px;
         cursor: pointer;
-        font-size: 10.5px;
+        font-size: 12px;
         border-radius: 3px;
     }
     .toggle-row:hover {
@@ -4000,7 +4057,7 @@
     .sub-heading {
         font-size: 10px;
         font-weight: 700;
-        color: #8899aa;
+        color: #aabbcc;
         text-transform: uppercase;
         letter-spacing: 0.5px;
         border-top: 1px solid rgba(255, 255, 255, 0.06);
@@ -4055,7 +4112,7 @@
         border-radius: 4px;
         background: transparent;
         color: #667;
-        font-size: 9px;
+        font-size: 10px;
         font-weight: 600;
         font-family: inherit;
         cursor: pointer;

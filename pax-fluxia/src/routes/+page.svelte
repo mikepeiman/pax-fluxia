@@ -39,6 +39,50 @@
     }) as EventListener);
   }
 
+  // ── Resizable sidebar (F-53) ──
+  const SIDEBAR_STORAGE_KEY = "pax-sidebar-width";
+  const SIDEBAR_MIN = 280;
+  const SIDEBAR_MAX = 600;
+  const SIDEBAR_DEFAULT = 380;
+
+  function loadSidebarWidth(): number {
+    if (typeof localStorage === "undefined") return SIDEBAR_DEFAULT;
+    const v = localStorage.getItem(SIDEBAR_STORAGE_KEY);
+    if (v) {
+      const n = parseInt(v);
+      if (!isNaN(n)) return Math.max(SIDEBAR_MIN, Math.min(SIDEBAR_MAX, n));
+    }
+    return SIDEBAR_DEFAULT;
+  }
+
+  let sidebarWidth = $state(loadSidebarWidth());
+  let isResizing = $state(false);
+
+  function startResize(e: PointerEvent) {
+    e.preventDefault();
+    isResizing = true;
+    const startX = e.clientX;
+    const startWidth = sidebarWidth;
+
+    function onMove(ev: PointerEvent) {
+      const delta = startX - ev.clientX; // dragging left = wider
+      sidebarWidth = Math.max(
+        SIDEBAR_MIN,
+        Math.min(SIDEBAR_MAX, startWidth + delta),
+      );
+    }
+
+    function onUp() {
+      isResizing = false;
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      localStorage.setItem(SIDEBAR_STORAGE_KEY, String(sidebarWidth));
+    }
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }
+
   // Derived leaderboard - use activeGameStore for unified access
   const leaderboardPlayers = $derived.by(() => {
     const players = activeGameStore.players as PlayerState[];
@@ -159,7 +203,16 @@
       </div>
 
       <!-- RIGHT SIDEBAR -->
-      <div class="area-right">
+      <div class="area-right" style="width: {sidebarWidth}px;">
+        <!-- Resize handle -->
+        <div
+          class="resize-handle"
+          class:active={isResizing}
+          onpointerdown={startResize}
+          role="separator"
+          aria-orientation="vertical"
+          title="Drag to resize"
+        ></div>
         <!-- 1. Commanders -->
         <div class="panel-section section-commanders">
           <Leaderboard players={leaderboardPlayers} />
@@ -244,7 +297,7 @@
   /* GRID LAYOUT V6 - Fully Responsive */
   .game-layout {
     display: grid;
-    grid-template-columns: 1fr minmax(250px, 320px); /* Canvas | Right Sidebar */
+    grid-template-columns: 1fr auto; /* Canvas | Right Sidebar (auto = driven by width style) */
     grid-template-areas: "canvas right";
     height: 100vh;
     width: 100vw;
@@ -256,13 +309,13 @@
   /* Responsive: narrower sidebar on smaller viewports */
   @media (max-width: 1400px) {
     .game-layout {
-      grid-template-columns: 1fr 280px;
+      grid-template-columns: 1fr auto;
     }
   }
 
   @media (max-width: 1100px) {
     .game-layout {
-      grid-template-columns: 1fr 240px;
+      grid-template-columns: 1fr auto;
     }
   }
 
@@ -291,6 +344,7 @@
   /* AREA: Right Sidebar */
   .area-right {
     grid-area: right;
+    position: relative;
     background: rgba(10, 10, 15, 0.95);
     border-left: 1px solid #334;
     display: flex;
@@ -300,8 +354,24 @@
     z-index: 20;
     box-shadow: -5px 0 20px rgba(0, 0, 0, 0.5);
     overflow-y: auto;
-    /* Prevent sidebar from growing too wide */
-    max-width: 320px;
+    flex-shrink: 0;
+  }
+
+  /* Drag-to-resize handle */
+  .resize-handle {
+    position: absolute;
+    top: 0;
+    left: -3px;
+    width: 6px;
+    height: 100%;
+    cursor: col-resize;
+    z-index: 25;
+    background: transparent;
+    transition: background 0.15s;
+  }
+  .resize-handle:hover,
+  .resize-handle.active {
+    background: rgba(0, 224, 255, 0.3);
   }
 
   .panel-section {
