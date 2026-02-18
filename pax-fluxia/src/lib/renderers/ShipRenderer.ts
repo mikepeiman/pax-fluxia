@@ -499,7 +499,7 @@ export function renderShips(
                     arriveStarId: null,
                     laneOffset: 0, staggerDelay: 0,
                     ownerId: star.ownerId,
-                    settleStartTime: now,
+                    settleStartTime: -1e9,  // Already settled — no animation for initial spawns
                     settleStartAngle: spawnAngle,
                     settleStartRadius: spawnR,
                 });
