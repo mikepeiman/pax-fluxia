@@ -12,6 +12,10 @@ git push origin master
 
 Remote origin: `https://github.com/mikepeiman/pax-galaxia-redux.git`
 
+**Branches:**
+- `master` — development branch
+- `live` — production branch (merge master → live for releases)
+
 ## Branching Strategy
 Default: commit directly to `master`. Branch (`feat/`, `fix/`, `refactor/`) only for risky experiments or multi-day epics. Merge & delete promptly. No long-lived dev branches.
 
