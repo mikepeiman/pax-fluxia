@@ -259,8 +259,7 @@ function startProgressLoop(): void {
             return;
         }
         const elapsed = Date.now() - lastTickTime;
-        const animDenom = Math.max(animationStore.speedMs / (state.speed || 1), GAME_CONFIG.MIN_TICK_MS);
-        tickProgress = Math.min(elapsed / animDenom, 1);
+        tickProgress = Math.min(elapsed / tickIntervalMs, 1);
         progressRafId = requestAnimationFrame(updateProgress);
     }
     progressRafId = requestAnimationFrame(updateProgress);
