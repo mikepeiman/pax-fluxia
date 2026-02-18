@@ -20,6 +20,7 @@ import type { StarState } from '$lib/types/game.types';
 import { STAR_TYPE_STATS } from '@pax/common';
 import type { StarType } from '@pax/common';
 import type { ColorUtils } from './RenderContext';
+import { hslToHex } from './colorUtils';
 import { GAME_CONFIG } from '$lib/config/game.config';
 
 // ── Star Type → Polygon Sides ───────────────────────────────────────────────
@@ -102,9 +103,11 @@ export function renderStars(
         const radius = GAME_CONFIG.STAR_RENDER_RADIUS ?? star.radius;
         const isActive = star.id === state.activeStarId || star.id === state.dragSourceId;
 
-        // Active star selection highlight (hex border)
+        // Active star selection highlight (hex border) — player color, bright + full saturation
         if (isActive) {
-            drawHexBorder(graphics, star.x, star.y, radius + 20, 0x00ffff, 3);
+            const hsl = colorUtils.hexToHSL(color);
+            const selectionColor = hslToHex(hsl.h, 1, 0.7);
+            drawHexBorder(graphics, star.x, star.y, radius + 20, selectionColor, 3);
         }
 
         // Outer glow ring (pulses slightly, stronger when active)
