@@ -58,9 +58,7 @@ export interface ShipRenderState {
     lastSurgeFrameTime: number;
     /** Unique ship ID counter */
     nextShipId: number;
-    /** Animation time (seconds, monotonic) */
-    animationTime: number;
-    /** Game clock in ms (= animationTime * 1000). Use instead of performance.now(). */
+    /** Game clock in ms — pause-aware, from FXClock. Use instead of performance.now(). */
     gameNowMs: number;
 
     /** Whether game is paused */
@@ -827,12 +825,13 @@ export function renderFleets(
     stars: StarState[],
     fleets: FleetState[],
     tickProgress: number,
-    animationTime: number,
+    gameNowMs: number,
     res: ShipRenderResources,
     colorUtils: ColorUtils,
 ): void {
     if (!res.shipParticleContainer) return;
 
+    const animTime = gameNowMs / 1000; // Derive seconds from canonical clock
     fleets.forEach((fleet) => {
         const source = stars.find((s) => s.id === fleet.sourceId);
         const target = stars.find((s) => s.id === fleet.targetId);
@@ -847,8 +846,8 @@ export function renderFleets(
             const localProgress = Math.max(0, Math.min(1, tickProgress - lag));
             const lx = lerp(source.x, target.x, localProgress);
             const ly = lerp(source.y, target.y, localProgress);
-            const jitterX = Math.sin(animationTime * 10 + i) * 5;
-            const jitterY = Math.cos(animationTime * 10 + i) * 5;
+            const jitterX = Math.sin(animTime * 10 + i) * 5;
+            const jitterY = Math.cos(animTime * 10 + i) * 5;
 
             drawShip(res, colorUtils, lx + jitterX, ly + jitterY, color, 1.0, 1.0, false, 1, fleet.ownerId);
         }

@@ -51,9 +51,7 @@ export interface StarRenderState {
     pendingConquests: Map<string, { previousOwner: string; transitionTime: number }>;
     /** Conquest flash effects */
     conquestFlashes: Map<string, { startTime: number; duration: number }>;
-    /** Animation time (seconds) */
-    animationTime: number;
-    /** Game clock in ms — use instead of performance.now() */
+    /** Game clock in ms — pause-aware, from FXClock. Use instead of performance.now(). */
     gameNowMs: number;
 
 }

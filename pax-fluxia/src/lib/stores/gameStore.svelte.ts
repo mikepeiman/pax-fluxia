@@ -74,8 +74,6 @@ let aiPlayers: Map<string, AI> = new Map();
 /** Tick loop interval */
 let tickIntervalId: ReturnType<typeof setInterval> | null = null;
 
-/** Progress animation frame */
-let progressRafId: number | null = null;
 
 /** Tick timing */
 let lastTickTime = 0;
@@ -103,8 +101,12 @@ let settings = $state<GameSettings>({ ...DEFAULT_SETTINGS });
 /** Latest game state snapshot (plain objects, consumed by UI) */
 let snapshot = $state<GameState | null>(null);
 
-/** Tick progress for metronome (0-1) */
-let tickProgress = $state<number>(0);
+/** Tick progress — pull-based getter, computed on read from performance.now() */
+function getTickProgress(): number {
+    if (!state || state.isPaused) return 0;
+    const elapsed = performance.now() - lastTickTime;
+    return Math.min(elapsed / tickIntervalMs, 1);
+}
 
 /** Session ID to force component remounts */
 let sessionId = $state(0);
@@ -234,9 +236,8 @@ function scheduleTick(resumeOffsetMs = 0): void {
     }
 
     if (!resumeOffsetMs) {
-        lastTickTime = Date.now();
+        lastTickTime = performance.now();
     }
-    startProgressLoop();
 }
 
 function stopTick(): void {
@@ -244,26 +245,9 @@ function stopTick(): void {
         clearInterval(tickIntervalId);
         tickIntervalId = null;
     }
-    if (progressRafId) {
-        cancelAnimationFrame(progressRafId);
-        progressRafId = null;
-    }
 }
 
-function startProgressLoop(): void {
-    if (progressRafId) cancelAnimationFrame(progressRafId);
 
-    function updateProgress() {
-        if (!state || state.isPaused) {
-            tickProgress = 0;
-            return;
-        }
-        const elapsed = Date.now() - lastTickTime;
-        tickProgress = Math.min(elapsed / tickIntervalMs, 1);
-        progressRafId = requestAnimationFrame(updateProgress);
-    }
-    progressRafId = requestAnimationFrame(updateProgress);
-}
 
 function executeTick(): void {
     if (!state) return;
@@ -303,7 +287,7 @@ function executeTick(): void {
         currentView = 'results';
     }
 
-    lastTickTime = Date.now();
+    lastTickTime = performance.now();
 }
 
 function runAI(engineCfg: EngineConfig): void {
@@ -639,7 +623,7 @@ async function startGame(): Promise<void> {
 function pauseGame(): void {
     if (state) {
         // Save how far into the current tick we are
-        pausedElapsed = Date.now() - lastTickTime;
+        pausedElapsed = performance.now() - lastTickTime;
         state.isPaused = true;
         stopTick();
         snapshot = toGameState(state);
@@ -655,7 +639,7 @@ function resumeGame(): void {
         state.isPaused = false;
         snapshot = toGameState(state);
         // Restore lastTickTime so tickProgress resumes from where it froze
-        lastTickTime = Date.now() - pausedElapsed;
+        lastTickTime = performance.now() - pausedElapsed;
         scheduleTick(pausedElapsed);
         pausedElapsed = 0;
     }
@@ -766,7 +750,7 @@ function playAgain(): void {
 function returnToMenu(): void {
     destroyGame();
     snapshot = null;
-    tickProgress = 0;
+
     hasStarted = false;
     currentView = 'menu';
 }
@@ -821,7 +805,7 @@ export const gameStore = {
     get currentView() { return currentView; },
     get settings() { return settings; },
     get snapshot() { return snapshot; },
-    get tickProgress() { return tickProgress; },
+    get tickProgress() { return getTickProgress(); },
     get speed() { return speed; },
     get isPaused() { return isPaused; },
     get winner() { return winner; },

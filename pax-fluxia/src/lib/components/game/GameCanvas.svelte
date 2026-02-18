@@ -126,9 +126,13 @@
         fxOrchestrator.vsm.conquestFlashesMut as any;
 
     // Animation state
-    let animationTime = 0;
     let animationFrameId: number | null = null;
+    const emptyStarsMap = new Map<string, StarState>(); // Cached empty map — avoid per-frame allocation
     let resizeObserver: ResizeObserver | null = null;
+
+    // starsById cache — rebuilt only when star array identity changes (on tick events)
+    const cachedStarsById = new Map<string, StarState>();
+    let cachedStarsSource: StarState[] | null = null;
 
     // Previous frame cache removed — animations are event-driven (see POST_MORTEMS.md)
 
@@ -346,23 +350,17 @@
         let lastTime = performance.now();
 
         const loop = (currentTime: number) => {
-            const deltaTime = (currentTime - lastTime) / 1000; // in seconds
             lastTime = currentTime;
 
-            // Freeze all animations when paused (orbits, glow, ship positions)
-            const isPaused = activeGameStore.isPaused;
-            if (!isPaused) {
-                animationTime += deltaTime;
-            }
-
             // Tick FXClock per-frame (pause-aware game time for all ship animations)
+            const isPaused = activeGameStore.isPaused;
             if (isPaused && !fxOrchestrator.clock.isPaused)
                 fxOrchestrator.pause();
             if (!isPaused && fxOrchestrator.clock.isPaused)
                 fxOrchestrator.resume();
             fxOrchestrator.update(
                 currentTime,
-                new Map(),
+                emptyStarsMap,
                 activeGameStore.effectiveTickMs,
             );
 
@@ -585,7 +583,6 @@
             visualShips.clear();
             visualDamagedShips.clear();
             fxOrchestrator.reset();
-            animationTime = 0;
             attackRampProgress.clear();
             surgeLockedDir.clear();
             lastSurgeFrameTime = 0;
@@ -619,8 +616,13 @@
             }
         });
 
-        // Build star lookup ONCE per frame (was built 4x per frame = major GC pressure)
-        const starsById = new Map(stars.map((s) => [s.id, s]));
+        // Cache starsById between frames — only rebuild when star array identity changes (tick events)
+        if (stars !== cachedStarsSource) {
+            cachedStarsById.clear();
+            for (const s of stars) cachedStarsById.set(s.id, s);
+            cachedStarsSource = stars;
+        }
+        const starsById = cachedStarsById;
 
         // Render stars (static elements)
         renderStarsModule(
@@ -633,7 +635,6 @@
                 dragSourceId,
                 pendingConquests,
                 conquestFlashes,
-                animationTime,
                 gameNowMs: fxOrchestrator.gameTime,
             },
             colorUtils,
@@ -694,7 +695,6 @@
             surgeLockedDir,
             lastSurgeFrameTime,
             nextShipId,
-            animationTime,
             gameNowMs: fxOrchestrator.gameTime,
             isPaused: activeGameStore.isPaused,
             effectiveTickMs: activeGameStore.effectiveTickMs,
