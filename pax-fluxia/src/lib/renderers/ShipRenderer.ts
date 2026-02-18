@@ -665,7 +665,10 @@ export function renderShips(
                     if (t < 1) {
                         const targetAngle = Math.atan2(targetY - star.y, targetX - star.x);
                         const targetRadius = Math.sqrt((targetX - star.x) ** 2 + (targetY - star.y) ** 2);
-                        const curRadius = ship.settleStartRadius + (targetRadius - ship.settleStartRadius) * ease;
+                        // Arrowhead: spiral radius in over duration. Normal: snap radius, animate angle only.
+                        const curRadius = isArrowSettle
+                            ? ship.settleStartRadius + (targetRadius - ship.settleStartRadius) * ease
+                            : targetRadius;
                         let angleDelta = targetAngle - ship.settleStartAngle;
                         while (angleDelta > Math.PI) angleDelta -= 2 * Math.PI;
                         while (angleDelta < -Math.PI) angleDelta += 2 * Math.PI;
