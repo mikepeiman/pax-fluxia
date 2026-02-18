@@ -21,14 +21,18 @@
 | F-44 | Lane convergence point UX improvement | Medium | Planned |
 | F-45 | GAME_CONFIG auto-persist via Proxy | High | Done (2026-02-17) |
 | R-124 | Spectator-first takeover: join as spectator, observe game, click player to take over | High | Planned |
-| F-47 | Territory alpha overlay | Low | Planned |
+| F-47 | Territory alpha overlay (Voronoi-based player control mask) | High | Planned (today) |
 | F-48 | Per-player VFX themes: each player has own visual/GX settings without affecting others in MP | High | Planned |
 | F-49 | Arrowhead conquest animation: wedge formation → lane travel → engulf → spiral settle w/ full tuning UI | High | Done (2026-02-17) |
 | F-50 | Split repair suppression: independent attacker (default 50%) and defender (default 90%) sliders for pinning tactics | High | Planned |
-| F-51 | Controls UI readability pass: brighter/larger fonts, denser layout, improved scannability | High | Planned (today) |
+| F-51 | Controls UI readability pass: brighter/larger fonts, denser layout, improved scannability | High | Done (2026-02-18) |
 | F-52 | Tick progress indicator independent of Animation Speed — only uses game tick duration | High | Planned (today) |
-| F-53 | Resizable controls drawer + side-by-side control layout when width permits | Medium | Planned |
+| F-53 | Resizable controls drawer + drag-to-resize handle (280-600px, persisted) | Medium | Done (2026-02-18) |
 | F-54 | Single-clock refactor: remove wall-time system, all VFX use game clock | High | Done (2026-02-18) |
+| F-55 | Multiplayer rejoin game: reconnect to in-progress game after disconnect | High | Planned (today) |
+| F-56 | Server chat & lobby chat: in-game and pre-game text communication | High | Planned (today) |
+| F-57 | Game notifications: email/app/SMS alerts when someone creates a game | Medium | Planned |
+| F-58 | Game host wait timer: host sets duration to wait before starting, allowing players to join | Medium | Planned |
 
 ## Known Regressions
 | ID | Description | Since |
