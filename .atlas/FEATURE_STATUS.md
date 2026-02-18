@@ -24,8 +24,13 @@
 | F-47 | Territory alpha overlay | Low | Planned |
 | F-48 | Per-player VFX themes: each player has own visual/GX settings without affecting others in MP | High | Planned |
 | F-49 | Arrowhead conquest animation: wedge formation → lane travel → engulf → spiral settle w/ full tuning UI | High | Done (2026-02-17) |
+| F-50 | Split repair suppression: independent attacker (default 50%) and defender (default 90%) sliders for pinning tactics | High | Planned |
+| F-51 | Controls UI readability pass: brighter/larger fonts, denser layout, improved scannability | High | Planned (today) |
+| F-52 | Tick progress indicator independent of Animation Speed — only uses game tick duration | High | Planned (today) |
+| F-53 | Resizable controls drawer + side-by-side control layout when width permits | Medium | Planned |
 
 ## Known Regressions
 | ID | Description | Since |
 |----|-------------|-------|
-| (none) | | |
+| B-84 | ALLOW_OPPOSING_ORDERS: deferred orders still create opposing flows on conquest even when flag is off | 2026-02-18 |
+| B-85 | Toggling USE_WALL_CLOCK_TRAVEL mid-game freezes traveling ships for several ticks (time discontinuity) | 2026-02-18 |

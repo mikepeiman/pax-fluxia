@@ -793,6 +793,346 @@
         GAME_CONFIG.MAX_VISUAL_SHIPS = panel.maxVisualShips as number;
     }
 
+    // =========================================================================
+    // Tick-Ratio Locking — bind animation durations proportionally to tick
+    // =========================================================================
+    interface AnimSliderDef {
+        key: string; // GAME_CONFIG key
+        label: string;
+        min: number;
+        max: number;
+        step: number;
+        unit: string; // 'ms', '×', '×tick', etc.
+        group: string; // group heading
+    }
+
+    const ANIM_SLIDERS: AnimSliderDef[] = [
+        // Travel & Departure
+        {
+            key: "TRANSFER_ANIMATION_MS",
+            label: "Transfer Anim",
+            min: 0,
+            max: 5000,
+            step: 10,
+            unit: "ms",
+            group: "Travel & Departure",
+        },
+        {
+            key: "TRAVEL_DURATION_MULT",
+            label: "Travel Duration",
+            min: 0.1,
+            max: 10,
+            step: 0.1,
+            unit: "×tick",
+            group: "Travel & Departure",
+        },
+        {
+            key: "DEPART_JITTER_MS",
+            label: "Depart Jitter",
+            min: 0,
+            max: 5000,
+            step: 5,
+            unit: "ms",
+            group: "Travel & Departure",
+        },
+        // Settle & Orbit
+        {
+            key: "SETTLE_DURATION_MS",
+            label: "Settle Duration",
+            min: 0,
+            max: 5000,
+            step: 10,
+            unit: "ms",
+            group: "Settle & Orbit",
+        },
+        {
+            key: "ARRIVAL_SPREAD",
+            label: "Arrival Stagger",
+            min: 0,
+            max: 2,
+            step: 0.05,
+            unit: "×tick",
+            group: "Settle & Orbit",
+        },
+        // Surge
+        {
+            key: "ATTACK_SURGE_MULT",
+            label: "Attack Surge",
+            min: 0,
+            max: 10,
+            step: 0.1,
+            unit: "×",
+            group: "Attack Surge",
+        },
+        {
+            key: "ATTACK_SURGE_RAMP_MS",
+            label: "Surge Ramp",
+            min: 0,
+            max: 5000,
+            step: 10,
+            unit: "ms",
+            group: "Attack Surge",
+        },
+        // Conquest
+        {
+            key: "CONQUEST_SETTLE_MS",
+            label: "Conquest Settle",
+            min: 0,
+            max: 5000,
+            step: 10,
+            unit: "ms",
+            group: "Conquest",
+        },
+        {
+            key: "CONQUEST_SURGE_STAGGER_MS",
+            label: "Surge Stagger",
+            min: 0,
+            max: 5000,
+            step: 1,
+            unit: "ms",
+            group: "Conquest",
+        },
+        {
+            key: "CONQUEST_TRAVEL_SPEED",
+            label: "Conquest Speed",
+            min: 0.1,
+            max: 10,
+            step: 0.1,
+            unit: "×",
+            group: "Conquest",
+        },
+        {
+            key: "CONQUEST_LERP_DELAY_MS",
+            label: "Lerp Delay",
+            min: 0,
+            max: 5000,
+            step: 10,
+            unit: "ms",
+            group: "Conquest",
+        },
+        {
+            key: "CONQUEST_COLOR_DELAY_MS",
+            label: "Color Delay",
+            min: 0,
+            max: 5000,
+            step: 10,
+            unit: "ms",
+            group: "Conquest",
+        },
+        {
+            key: "CONQUEST_FLASH_DURATION_MS",
+            label: "Flash Duration",
+            min: 0,
+            max: 5000,
+            step: 10,
+            unit: "ms",
+            group: "Conquest",
+        },
+        // Arrow
+        {
+            key: "ARROW_SPEED",
+            label: "Arrow Speed",
+            min: 0.1,
+            max: 10,
+            step: 0.05,
+            unit: "×",
+            group: "Arrow Formation",
+        },
+        {
+            key: "ARROW_SPIRAL_DURATION_MS",
+            label: "Spiral Duration",
+            min: 0,
+            max: 5000,
+            step: 10,
+            unit: "ms",
+            group: "Arrow Formation",
+        },
+        {
+            key: "ARROW_STAGGER_MS",
+            label: "Arrow Stagger",
+            min: 0,
+            max: 5000,
+            step: 1,
+            unit: "ms",
+            group: "Arrow Formation",
+        },
+    ];
+
+    // Animation lock storage keys
+    const ANIM_LOCK_STORAGE_KEY = "pax-anim-lock-ratios";
+
+    function loadAnimLockRatios(): Record<string, number | null> {
+        if (typeof window === "undefined") return {};
+        try {
+            const s = localStorage.getItem(ANIM_LOCK_STORAGE_KEY);
+            return s ? JSON.parse(s) : {};
+        } catch {
+            return {};
+        }
+    }
+
+    function saveAnimLockRatios() {
+        if (typeof window === "undefined") return;
+        try {
+            localStorage.setItem(
+                ANIM_LOCK_STORAGE_KEY,
+                JSON.stringify(animLockRatios),
+            );
+        } catch {
+            /* ignore */
+        }
+    }
+
+    // Lock modes: 'pinned' = value always equals tickDuration, 'ratio' = preserves current ratio to tick
+    type AnimLockMode = "pinned" | "ratio" | null;
+
+    let animLockRatios =
+        $state<Record<string, number | null>>(loadAnimLockRatios());
+    let animLockModes =
+        $state<Record<string, AnimLockMode>>(loadAnimLockModes());
+
+    function loadAnimLockModes(): Record<string, AnimLockMode> {
+        if (typeof window === "undefined") return {};
+        try {
+            const s = localStorage.getItem(ANIM_LOCK_STORAGE_KEY + "-modes");
+            return s ? JSON.parse(s) : {};
+        } catch {
+            return {};
+        }
+    }
+
+    function saveAnimLockModes() {
+        if (typeof window === "undefined") return;
+        try {
+            localStorage.setItem(
+                ANIM_LOCK_STORAGE_KEY + "-modes",
+                JSON.stringify(animLockModes),
+            );
+        } catch {
+            /* ignore */
+        }
+    }
+
+    /** 📌 Pin value exactly to tick duration (ms → BASE_TICK_MS, multipliers → 1.0) */
+    function pinValueToTickDuration(key: string) {
+        const currentMode = animLockModes[key];
+        if (currentMode === "pinned") {
+            // Unpin
+            animLockModes[key] = null;
+            animLockRatios[key] = null;
+        } else {
+            // Pin: ms values → BASE_TICK_MS, multipliers → 1.0
+            const def = ANIM_SLIDERS.find((s) => s.key === key);
+            const isMultiplier = def?.unit === "×tick" || def?.unit === "×";
+            const pinnedValue = isMultiplier ? 1.0 : GAME_CONFIG.BASE_TICK_MS;
+            const pinnedRatio = isMultiplier
+                ? 1.0 / GAME_CONFIG.BASE_TICK_MS
+                : 1;
+            animLockModes[key] = "pinned";
+            animLockRatios[key] = pinnedRatio;
+            (GAME_CONFIG as any)[key] = pinnedValue;
+            syncPanelKey(key, pinnedValue);
+        }
+        animLockModes = { ...animLockModes };
+        animLockRatios = { ...animLockRatios };
+        saveAnimLockRatios();
+        saveAnimLockModes();
+    }
+
+    /** 🔗 Lock current ratio relative to tick (value scales proportionally when tick changes) */
+    function lockRatioToTick(key: string) {
+        const currentMode = animLockModes[key];
+        if (currentMode === "ratio") {
+            // Unlock
+            animLockModes[key] = null;
+            animLockRatios[key] = null;
+        } else {
+            // Lock ratio: capture current value / tickDuration
+            const currentVal = (GAME_CONFIG as any)[key] as number;
+            const currentTick = GAME_CONFIG.BASE_TICK_MS;
+            animLockModes[key] = "ratio";
+            animLockRatios[key] = currentVal / currentTick;
+        }
+        animLockModes = { ...animLockModes };
+        animLockRatios = { ...animLockRatios };
+        saveAnimLockRatios();
+        saveAnimLockModes();
+    }
+
+    /** Recalculate all locked/pinned animation values when tick interval changes */
+    function recalcAnimLocksOnTickChange(newTickMs: number) {
+        for (const [key, ratio] of Object.entries(animLockRatios)) {
+            if (ratio != null) {
+                const def = ANIM_SLIDERS.find((s) => s.key === key);
+                let newVal = ratio * newTickMs;
+                // Clamp to slider range
+                if (def) {
+                    newVal = Math.max(def.min, Math.min(def.max, newVal));
+                }
+                // Round ms values, keep multipliers precise
+                newVal =
+                    def?.unit === "ms"
+                        ? Math.round(newVal)
+                        : Math.round(newVal * 100) / 100;
+                (GAME_CONFIG as any)[key] = newVal;
+                syncPanelKey(key, newVal);
+            }
+        }
+    }
+
+    // Map GAME_CONFIG keys to panel keys (many already exist)
+    function animSliderToPanelKey(configKey: string): string | null {
+        const map: Record<string, string> = {
+            SETTLE_DURATION_MS: "settleDuration",
+            ARRIVAL_SPREAD: "arrivalSpread",
+            TRAVEL_DURATION_MULT: "travelDurationMult",
+            DEPART_JITTER_MS: "departJitter",
+            ATTACK_SURGE_RAMP_MS: "attackSurgeRampMs",
+            ATTACK_SURGE_MULT: "attackSurgeMult",
+            CONQUEST_TRAVEL_SPEED: "conquestTravelSpeed",
+            CONQUEST_LERP_DELAY_MS: "conquestLerpDelayMs",
+            CONQUEST_COLOR_DELAY_MS: "conquestColorDelayMs",
+            CONQUEST_FLASH_DURATION_MS: "conquestFlashDurationMs",
+            ARROW_SPEED: "arrowSpeed",
+        };
+        return map[configKey] ?? null;
+    }
+
+    // Reactive mirror of animation slider values — GAME_CONFIG is not $state,
+    // so we maintain a reactive copy that triggers Svelte 5 re-renders.
+    function initAnimValues(): Record<string, number> {
+        const vals: Record<string, number> = {};
+        for (const s of ANIM_SLIDERS) {
+            vals[s.key] = (GAME_CONFIG as any)[s.key] as number;
+        }
+        return vals;
+    }
+    let animValues = $state<Record<string, number>>(initAnimValues());
+
+    function getAnimValue(key: string): number {
+        return animValues[key] ?? ((GAME_CONFIG as any)[key] as number);
+    }
+
+    function syncPanelKey(configKey: string, val: number) {
+        const panelKey = animSliderToPanelKey(configKey);
+        if (panelKey && panelKey in panel) {
+            panel = { ...panel, [panelKey]: val };
+            savePanelSettings();
+        }
+        // Always update reactive mirror
+        animValues = { ...animValues, [configKey]: val };
+    }
+
+    function setAnimValue(key: string, val: number) {
+        (GAME_CONFIG as any)[key] = val;
+        syncPanelKey(key, val);
+    }
+
+    function formatAnimValue(val: number, unit: string): string {
+        if (unit === "ms") return `${Math.round(val)}${unit}`;
+        return `${val.toFixed(2)}${unit}`;
+    }
+
     function resetToDefaults() {
         panel = { ...panelDefaults };
         applyPanelToConfig();
@@ -1152,6 +1492,7 @@
                                 );
                                 updateTickInterval(v);
                                 updatePanel("tickInterval", v);
+                                recalcAnimLocksOnTickChange(v);
                             }}
                         />
                     </div>
@@ -1176,6 +1517,74 @@
                             }}
                         />
                     </div>
+
+                    <!-- Animation Duration Sliders with Tick-Lock -->
+                    {#each ANIM_SLIDERS as slider, i}
+                        {#if i === 0 || ANIM_SLIDERS[i - 1].group !== slider.group}
+                            <div
+                                class="var-row grayed"
+                                style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"
+                            >
+                                🎬 {slider.group}
+                            </div>
+                        {/if}
+                        <div
+                            class="var-row"
+                            class:locked={animLockModes[slider.key] != null}
+                        >
+                            <div class="row-top">
+                                <span class="var-name">{slider.label}</span>
+                                <span class="val-group">
+                                    <span class="val"
+                                        >{formatAnimValue(
+                                            getAnimValue(slider.key),
+                                            slider.unit,
+                                        )}</span
+                                    >
+                                    <button
+                                        class="lock-btn"
+                                        class:active={animLockModes[
+                                            slider.key
+                                        ] === "pinned"}
+                                        title={animLockModes[slider.key] ===
+                                        "pinned"
+                                            ? "Pinned to tick duration — click to unpin"
+                                            : "Pin value = tick duration"}
+                                        onclick={() =>
+                                            pinValueToTickDuration(slider.key)}
+                                        >📌</button
+                                    >
+                                    <button
+                                        class="lock-btn"
+                                        class:active={animLockModes[
+                                            slider.key
+                                        ] === "ratio"}
+                                        title={animLockModes[slider.key] ===
+                                        "ratio"
+                                            ? `Locked at ${(animLockRatios[slider.key] ?? 0).toFixed(3)}×tick — click to unlock`
+                                            : "Lock current ratio to tick"}
+                                        onclick={() =>
+                                            lockRatioToTick(slider.key)}
+                                        >🔗</button
+                                    >
+                                </span>
+                            </div>
+                            <input
+                                type="range"
+                                min={slider.min}
+                                max={slider.max}
+                                step={slider.step}
+                                value={getAnimValue(slider.key)}
+                                disabled={animLockModes[slider.key] != null}
+                                oninput={(e) => {
+                                    const v = parseFloat(
+                                        (e.target as HTMLInputElement).value,
+                                    );
+                                    setAnimValue(slider.key, v);
+                                }}
+                            />
+                        </div>
+                    {/each}
 
                     <!-- Clock Source Toggles (debug) -->
                     <div
@@ -3627,6 +4036,41 @@
     .btn-xs:hover {
         border-color: #fff;
         color: #fff;
+    }
+    /* Lock buttons for tick-ratio locking */
+    .val-group {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+    }
+    .lock-btn {
+        background: none;
+        border: 1px solid rgba(100, 120, 160, 0.2);
+        border-radius: 3px;
+        cursor: pointer;
+        font-size: 10px;
+        padding: 0 2px;
+        line-height: 1.2;
+        opacity: 0.4;
+        transition:
+            opacity 0.15s,
+            background 0.15s;
+    }
+    .lock-btn:hover {
+        opacity: 0.8;
+        background: rgba(100, 120, 160, 0.15);
+    }
+    .lock-btn.active {
+        opacity: 1;
+        background: rgba(80, 180, 255, 0.2);
+        border-color: rgba(80, 180, 255, 0.5);
+    }
+    .var-row.locked input[type="range"] {
+        opacity: 0.35;
+        pointer-events: none;
+    }
+    .var-row.locked .var-name {
+        color: rgba(120, 180, 255, 0.9);
     }
     .toggle-row {
         display: flex;
