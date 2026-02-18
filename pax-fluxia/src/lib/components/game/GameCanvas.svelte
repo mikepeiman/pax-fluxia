@@ -582,6 +582,14 @@
             activeStarId = null;
             visualShips.clear();
             visualDamagedShips.clear();
+            fxOrchestrator.reset();
+            animationTime = 0;
+            attackRampProgress.clear();
+            surgeLockedDir.clear();
+            lastSurgeFrameTime = 0;
+            nextShipId = 0;
+            starShipCounts.clear();
+            shipSpawnTimers.clear();
             log.sys(
                 "GameCanvas",
                 `Session changed to ${currentSessionId}, state reset`,
@@ -686,6 +694,7 @@
             nextShipId,
             animationTime,
             gameNowMs: fxOrchestrator.gameTime,
+            wallNowMs: animationTime * 1000,
             isPaused: activeGameStore.isPaused,
             effectiveTickMs: activeGameStore.effectiveTickMs,
             tickProgress,

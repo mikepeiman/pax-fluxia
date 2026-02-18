@@ -62,6 +62,8 @@ export interface ShipRenderState {
     animationTime: number;
     /** Game clock in ms (= animationTime * 1000). Use instead of performance.now(). */
     gameNowMs: number;
+    /** Wall clock in ms, pause-aware but NOT speed-scaled (for settle/spawn with raw ms durations) */
+    wallNowMs: number;
     /** Whether game is paused */
     isPaused: boolean;
     /** Effective tick duration in ms */
@@ -348,7 +350,7 @@ export function renderTravelingShips(
                         const staggerWindow = tickMs * arrivalSpread;
                         staggerOffset = (destShips.length / Math.max(1, destShips.length + 1)) * staggerWindow;
                     }
-                    ship.settleStartTime = now + staggerOffset;
+                    ship.settleStartTime = state.wallNowMs + staggerOffset;
                     ship.settleStartAngle = arrAngle;
                     ship.settleStartRadius = arrR;
                     if (isTrackedShip(ship.id)) traceTravelToOrbit(ship.id, ship.x, ship.y, arrAngle, arrR, destStar.x, destStar.y);
@@ -459,7 +461,7 @@ export function renderShips(
                 const spawnIndex = ships.length;
                 const spawnAngle = Math.random() * Math.PI * 2;
                 const spawnR = star.radius + 8;
-                const now = state.gameNowMs;
+                const now = state.wallNowMs;
                 ships.push({
                     id: state.nextShipId++,
                     x: star.x + Math.cos(spawnAngle) * spawnR,
@@ -535,7 +537,7 @@ export function renderShips(
 
             ships.forEach((ship, i) => {
                 if (ship.targetIndex !== i) {
-                    ship.settleStartTime = state.gameNowMs;
+                    ship.settleStartTime = state.wallNowMs;
                     ship.settleStartAngle = Math.atan2(ship.y - star.y, ship.x - star.x);
                     ship.settleStartRadius = Math.sqrt((ship.x - star.x) ** 2 + (ship.y - star.y) ** 2);
                 }
@@ -637,7 +639,7 @@ export function renderShips(
                 }
 
                 // Time-based polar arc interpolation
-                const now = state.gameNowMs;
+                const now = state.wallNowMs;
                 const elapsed = now - ship.settleStartTime;
                 const isArrowSettle = ship.arrowSpiralDeg !== undefined && ship.arrowSpiralDeg !== 0;
                 const settleDur = isArrowSettle
@@ -710,7 +712,7 @@ export function renderShips(
             for (let i = 0; i < diff; i++) {
                 const spawnAngle = Math.random() * Math.PI * 2;
                 const spawnR = star.radius + 6;
-                const now = state.gameNowMs;
+                const now = state.wallNowMs;
                 damagedShips.push({
                     id: state.nextShipId++,
                     x: star.x + Math.cos(spawnAngle) * spawnR,
