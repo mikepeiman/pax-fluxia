@@ -219,6 +219,9 @@ export function renderTravelingShips(
     const stillTraveling: VisualShipState[] = [];
     state._arrivalBatchCount = 0; // Reset per-frame batch counter
 
+    // Track conquest ship arrivals per star for post-pass engulf ring distribution
+    const conquestArrivals = new Map<string, { ships: VisualShipState[], star: { x: number; y: number } }>();
+
     // Orb grouping
     const orbGroups: Map<string, {
         ships: VisualShipState[];
@@ -358,22 +361,23 @@ export function renderTravelingShips(
                         staggerOffset = batchIdx * batchSpacing;
                     }
                     ship.settleStartTime = state.gameNowMs + staggerOffset;
-                    // Distribute arriving ships evenly around full circle for perfect engulf ring
-                    const isConquest = ship.arrowSpiralDeg !== undefined;
-                    const batchCount: number = state._arrivalBatchCount ?? 1;
-                    if (isConquest && batchCount > 1) {
-                        // Even spacing around 2π, offset by arrival direction
-                        ship.settleStartAngle = arrAngle + ((batchCount - 1) * (2 * Math.PI)) / Math.max(1, batchCount);
-                    } else {
-                        ship.settleStartAngle = arrAngle;
-                    }
+                    ship.settleStartAngle = arrAngle;
                     ship.settleStartRadius = arrR;
-                    // Reposition ship to its distributed angle at engulf radius
                     ship.x = destStar.x + Math.cos(ship.settleStartAngle) * arrR;
                     ship.y = destStar.y + Math.sin(ship.settleStartAngle) * arrR;
                     if (isTrackedShip(ship.id)) traceTravelToOrbit(ship.id, ship.x, ship.y, arrAngle, arrR, destStar.x, destStar.y);
                     destShips.push(ship);
                     state.visualShips.set(destStar.id, destShips);
+
+                    // Track conquest arrivals for post-pass engulf ring distribution
+                    if ((ship as any).conquestSettle) {
+                        let list = conquestArrivals.get(destStar.id);
+                        if (!list) {
+                            list = { ships: [], star: destStar };
+                            conquestArrivals.set(destStar.id, list);
+                        }
+                        list.ships.push(ship);
+                    }
                 } else {
                     ship.x = ship.laneEndX;
                     ship.y = ship.laneEndY;
@@ -396,6 +400,23 @@ export function renderTravelingShips(
                 }
                 stillTraveling.push(ship);
             }
+        }
+    }
+
+    // ── Post-pass: distribute conquest arrivals evenly around engulf ring ──
+    // This runs AFTER all ships have arrived, so we know the exact count
+    // and can use a consistent denominator for even 2π distribution.
+    for (const [starId, { ships: cShips, star: cStar }] of conquestArrivals) {
+        const n = cShips.length;
+        if (n <= 1) continue;
+        // Base angle: direction from first ship's arrival (preserved from arrAngle)
+        const baseAngle = cShips[0].settleStartAngle;
+        for (let i = 0; i < n; i++) {
+            const angle = baseAngle + (i / n) * (2 * Math.PI);
+            const r = cShips[i].settleStartRadius;
+            cShips[i].settleStartAngle = angle;
+            cShips[i].x = cStar.x + Math.cos(angle) * r;
+            cShips[i].y = cStar.y + Math.sin(angle) * r;
         }
     }
 
@@ -589,7 +610,7 @@ export function renderShips(
 
                 const slot = getOrbitSlot(
                     ship.targetIndex, star.x, star.y, star.radius,
-                    orbitTime, biasAngle, biasStrength, ships.length,
+                    orbitTime, biasAngle, biasStrength,
                 );
                 let targetX = slot.x;
                 let targetY = slot.y;

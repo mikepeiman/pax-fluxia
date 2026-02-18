@@ -36,6 +36,7 @@
 | F-56 | Server chat & lobby chat: in-game and pre-game text communication | High | Planned (today) |
 | F-57 | Game notifications: email/app/SMS alerts when someone creates a game | Medium | Planned |
 | F-58 | Game host wait timer: host sets duration to wait before starting, allowing players to join | Medium | Planned |
+| F-59 | Settings panel: icons beside sliders on right, larger+brighter icons, 2-per-row at wide width | Medium | Planned |
 
 ## Known Regressions
 | ID | Description | Since |
