@@ -864,6 +864,15 @@
             unit: "ms",
             group: "Attack Surge",
         },
+        {
+            key: "ATTACK_SURGE_MULT",
+            label: "Surge Displacement",
+            min: 0,
+            max: 2,
+            step: 0.05,
+            unit: "×",
+            group: "Attack Surge",
+        },
         // Conquest
         {
             key: "CONQUEST_SETTLE_MS",
