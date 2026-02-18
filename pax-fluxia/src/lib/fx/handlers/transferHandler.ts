@@ -109,11 +109,11 @@ export const coreTransferHandler: FXHandler<TransferEvent> = {
 
             if (streamMode) {
                 // Stream: evenly-spaced departure across the tick window
-                ship.departTime = performance.now() + idx * streamInterval;
+                ship.departTime = ctx.gameTime + idx * streamInterval;
             } else {
                 // Burst (legacy): random jitter
                 ship.departTime =
-                    performance.now() + Math.random() * Math.min(jitterMax, 300 / Math.max(1, shipsToMove));
+                    ctx.gameTime + Math.random() * Math.min(jitterMax, 300 / Math.max(1, shipsToMove));
             }
             ship.travelDuration = travelDuration;
             ship.departDuration = departDuration;

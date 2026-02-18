@@ -353,6 +353,17 @@
                 animationTime += deltaTime;
             }
 
+            // Tick FXClock per-frame (pause-aware game time for all ship animations)
+            if (isPaused && !fxOrchestrator.clock.isPaused)
+                fxOrchestrator.pause();
+            if (!isPaused && fxOrchestrator.clock.isPaused)
+                fxOrchestrator.resume();
+            fxOrchestrator.update(
+                currentTime,
+                new Map(),
+                activeGameStore.effectiveTickMs,
+            );
+
             // Render the current frame from unified store
             const stars = activeGameStore.stars as StarState[];
             if (stars.length > 0 && app) {
@@ -613,6 +624,7 @@
                 pendingConquests,
                 conquestFlashes,
                 animationTime,
+                gameNowMs: fxOrchestrator.gameTime,
             },
             colorUtils,
         );
@@ -673,6 +685,7 @@
             lastSurgeFrameTime,
             nextShipId,
             animationTime,
+            gameNowMs: fxOrchestrator.gameTime,
             isPaused: activeGameStore.isPaused,
             effectiveTickMs: activeGameStore.effectiveTickMs,
             tickProgress,

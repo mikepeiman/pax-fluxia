@@ -53,6 +53,8 @@ export interface StarRenderState {
     conquestFlashes: Map<string, { startTime: number; duration: number }>;
     /** Animation time (seconds) */
     animationTime: number;
+    /** Game clock in ms — use instead of performance.now() */
+    gameNowMs: number;
 }
 
 // ── Rendering Functions ─────────────────────────────────────────────────────
@@ -90,7 +92,7 @@ export function renderStars(
         let effectiveOwner = star.ownerId;
         const pending = state.pendingConquests.get(star.id);
         if (pending) {
-            if (performance.now() < pending.transitionTime) {
+            if (state.gameNowMs < pending.transitionTime) {
                 effectiveOwner = pending.previousOwner;
             } else {
                 state.pendingConquests.delete(star.id);
@@ -122,7 +124,7 @@ export function renderStars(
         // Conquest flash: bright white pulse overlay
         const flash = state.conquestFlashes.get(star.id);
         if (flash) {
-            const flashElapsed = performance.now() - flash.startTime;
+            const flashElapsed = state.gameNowMs - flash.startTime;
             if (flashElapsed >= flash.duration) {
                 state.conquestFlashes.delete(star.id);
             } else {
