@@ -1258,29 +1258,112 @@
         if (!theme) return;
         applyTheme(theme);
         selectedThemeName = name;
-        // Sync panel reactive state from GAME_CONFIG after theme apply
-        panel = loadPanelSettings();
-        Object.assign(panel, {
+        syncAllFromConfig();
+        configStatus = `✅ Theme "${name}" applied`;
+        configStatusColor = "#4ade80";
+    }
+
+    /** After applyTheme writes to GAME_CONFIG, sync all reactive layers back */
+    function syncAllFromConfig() {
+        // 1. Sync panel (all fields read back from GAME_CONFIG)
+        panel = {
+            ...panel,
             tickInterval: GAME_CONFIG.BASE_TICK_MS,
             animSpeed: GAME_CONFIG.ANIMATION_SPEED_MS,
             production: GAME_CONFIG.BASE_PRODUCTION,
             repair: GAME_CONFIG.REPAIR_RATE,
             defense: 1 / GAME_CONFIG.AGGRESSOR_ADVANTAGE,
             attack: GAME_CONFIG.DAMAGE_PER_SHIP,
-        });
-        applyPanelToConfig();
+            arrowLength: GAME_CONFIG.ARROW_LENGTH_FRACTION,
+            departMode: GAME_CONFIG.DEPART_MODE,
+            settleDuration: GAME_CONFIG.SETTLE_DURATION_MS,
+            arrivalSpread: GAME_CONFIG.ARRIVAL_SPREAD,
+            wobbleAmp: GAME_CONFIG.WOBBLE_AMP,
+            travelEasing: GAME_CONFIG.TRAVEL_EASING,
+            travelMode: GAME_CONFIG.TRAVEL_MODE,
+            travelEasingPower: GAME_CONFIG.TRAVEL_EASING_POWER,
+            travelDurationMult: GAME_CONFIG.TRAVEL_DURATION_MULT,
+            travelArcIntensity: GAME_CONFIG.TRAVEL_ARC_INTENSITY,
+            departStagger: GAME_CONFIG.DEPART_STAGGER,
+            departArcIntensity: GAME_CONFIG.DEPART_ARC_INTENSITY,
+            arrivalArcIntensity: GAME_CONFIG.ARRIVAL_ARC_INTENSITY,
+            orbitDensity: GAME_CONFIG.ORBIT_DENSITY,
+            attackSurgeMult: GAME_CONFIG.ATTACK_SURGE_MULT,
+            attackSurgeProportional: GAME_CONFIG.ATTACK_SURGE_PROPORTIONAL,
+            attackSurgeForceCofactor: GAME_CONFIG.ATTACK_SURGE_FORCE_COFACTOR,
+            attackSurgeRampMs: GAME_CONFIG.ATTACK_SURGE_RAMP_MS,
+            attackSurgeShape: GAME_CONFIG.ATTACK_SURGE_SHAPE,
+            conquestTravelSpeed: GAME_CONFIG.CONQUEST_TRAVEL_SPEED,
+            conquestLerpDelayMs: GAME_CONFIG.CONQUEST_LERP_DELAY_MS,
+            conquestColorDelayMs: GAME_CONFIG.CONQUEST_COLOR_DELAY_MS,
+            conquestFlashDurationMs: GAME_CONFIG.CONQUEST_FLASH_DURATION_MS,
+            conquestAnimMode: GAME_CONFIG.CONQUEST_ANIMATION_MODE,
+            conquestSettleMs: GAME_CONFIG.CONQUEST_SETTLE_MS,
+            conquestSurgeRadius: GAME_CONFIG.CONQUEST_SURGE_RADIUS,
+            conquestSurgeStaggerMs: GAME_CONFIG.CONQUEST_SURGE_STAGGER_MS,
+            arrowTaper: GAME_CONFIG.ARROW_TAPER,
+            arrowWidth: GAME_CONFIG.ARROW_WIDTH,
+            arrowSpeed: GAME_CONFIG.ARROW_SPEED,
+            arrowEasing: GAME_CONFIG.ARROW_EASING,
+            arrowEngulfMode: GAME_CONFIG.ARROW_ENGULF_MODE,
+            arrowEngulfRadius: GAME_CONFIG.ARROW_ENGULF_RADIUS,
+            arrowSpiralMinDeg: GAME_CONFIG.ARROW_SPIRAL_MIN_DEG,
+            arrowSpiralMaxDeg: GAME_CONFIG.ARROW_SPIRAL_MAX_DEG,
+            arrowSpiralRandom: GAME_CONFIG.ARROW_SPIRAL_RANDOM,
+            arrowSpiralDurationMs: GAME_CONFIG.ARROW_SPIRAL_DURATION_MS,
+            arrowStaggerMs: GAME_CONFIG.ARROW_STAGGER_MS,
+            orbTravel: GAME_CONFIG.ORB_TRAVEL,
+            orbitBias: GAME_CONFIG.ORBIT_BIAS_STRENGTH,
+            oscillate: GAME_CONFIG.ORBIT_BIAS_OSCILLATE,
+            oscMin: GAME_CONFIG.ORBIT_BIAS_MIN,
+            oscMax: GAME_CONFIG.ORBIT_BIAS_MAX,
+            oscFreq: GAME_CONFIG.ORBIT_BIAS_FREQ,
+            departFraction: GAME_CONFIG.DEPART_FRACTION,
+            departJitter: GAME_CONFIG.DEPART_JITTER_MS,
+            orbBaseRadius: GAME_CONFIG.ORB_BASE_RADIUS,
+            orbRadiusScale: GAME_CONFIG.ORB_RADIUS_SCALE,
+            orbGlowMult: GAME_CONFIG.ORB_GLOW_MULT,
+            orbOuterAlpha: GAME_CONFIG.ORB_OUTER_ALPHA,
+            orbMidAlpha: GAME_CONFIG.ORB_MID_ALPHA,
+            orbCoreAlpha: GAME_CONFIG.ORB_CORE_ALPHA,
+            orbCenterAlpha: GAME_CONFIG.ORB_CENTER_ALPHA,
+            orbOuterScale: GAME_CONFIG.ORB_OUTER_SCALE,
+            orbMidScale: GAME_CONFIG.ORB_MID_SCALE,
+            orbCoreScale: GAME_CONFIG.ORB_CORE_SCALE,
+            shipBaseSize: GAME_CONFIG.SHIP_BASE_SIZE,
+            starRenderRadius: GAME_CONFIG.STAR_RENDER_RADIUS,
+            orbitRingMult: GAME_CONFIG.ORBIT_RING_MULT,
+            shipOutlineOn: GAME_CONFIG.SHIP_OUTLINE_ON,
+            shipOutlinePx: GAME_CONFIG.SHIP_OUTLINE_PX,
+            shipGlowIntensity: GAME_CONFIG.SHIP_GLOW_INTENSITY,
+            shipScaleMult: GAME_CONFIG.SHIP_SCALE_MULT,
+            maxVisualShips: GAME_CONFIG.MAX_VISUAL_SHIPS,
+        };
         savePanelSettings();
-        // Sync combat variables too
-        const stored = loadFromStorage();
-        for (const k of Object.keys(stored)) {
+
+        // 2. Sync vis (connection visuals)
+        vis = {
+            ...vis,
+            laneWidth: GAME_CONFIG.CONNECTION_WIDTH,
+            laneAlpha: GAME_CONFIG.CONNECTION_ALPHA,
+            shadowWidth: GAME_CONFIG.CONNECTION_SHADOW_WIDTH,
+            shadowAlpha: GAME_CONFIG.CONNECTION_SHADOW_ALPHA,
+        };
+        saveVisuals();
+
+        // 3. Sync values (combat tuning state)
+        const freshValues = { ...values };
+        for (const k of Object.keys(freshValues)) {
             if (k in GAME_CONFIG) {
-                (stored as any)[k] = (GAME_CONFIG as any)[k];
+                (freshValues as any)[k] = (GAME_CONFIG as any)[k];
             }
         }
-        saveToStorage(stored);
-        Object.assign(values, stored);
-        configStatus = `✅ Theme "${name}" applied`;
-        configStatusColor = "#4ade80";
+        values = freshValues;
+        saveToStorage(values);
+
+        // 4. Sync tick interval display
+        tickInterval = GAME_CONFIG.BASE_TICK_MS;
+        activeGameStore.updateTickInterval(GAME_CONFIG.BASE_TICK_MS);
     }
 
     function handleSaveTheme() {
