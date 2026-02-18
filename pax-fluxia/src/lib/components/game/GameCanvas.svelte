@@ -129,6 +129,7 @@
     let animationFrameId: number | null = null;
     const emptyStarsMap = new Map<string, StarState>(); // Cached empty map — avoid per-frame allocation
     let resizeObserver: ResizeObserver | null = null;
+    let lastTickGameTimeMs = 0; // Game-clock time at last tick (for tickProgress)
 
     // starsById cache — rebuilt only when star array identity changes (on tick events)
     const cachedStarsById = new Map<string, StarState>();
@@ -367,7 +368,16 @@
             // Render the current frame from unified store
             const stars = activeGameStore.stars as StarState[];
             if (stars.length > 0 && app) {
-                renderFrame(stars, activeGameStore.tickProgress);
+                // Compute tickProgress from game time (NOT wall clock)
+                const gameNowMs = fxOrchestrator.gameTime;
+                const tickProgress = isPaused
+                    ? 0
+                    : Math.min(
+                          (gameNowMs - lastTickGameTimeMs) /
+                              activeGameStore.effectiveTickMs,
+                          1,
+                      );
+                renderFrame(stars, tickProgress);
             }
 
             animationFrameId = requestAnimationFrame(loop);
@@ -679,6 +689,8 @@
         if (tickEvents) {
             starsInCombat.clear();
             processTickEvents(stars, tickEvents, connections || [], starsById);
+            // Record game-time at tick boundary for tickProgress computation
+            lastTickGameTimeMs = fxOrchestrator.gameTime;
         }
 
         // Render all ships: orbiting (per-star) + traveling (in-flight lifecycle)

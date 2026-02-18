@@ -127,13 +127,19 @@ export class GameEngine {
         const connected = this.areConnected(state, input.sourceId, input.targetId);
         if (!connected) return;
 
-        // Prevent opposing orders between SAME-OWNER stars only:
-        // Block self-contradictory loops (A→B and B→A by same player),
-        // but allow cross-player mutual combat (your A→enemy B while enemy B→your A).
+        // Prevent opposing orders (A→B while B→A):
+        // Same owner: cancel existing → let player change their mind
+        // Different owner: REJECT the new order → first-mover advantage, AI can't override player
         if (!cfg.ALLOW_OPPOSING_ORDERS) {
             const target = state.stars.get(input.targetId);
-            if (target && target.targetId === input.sourceId && target.ownerId === source.ownerId) {
-                target.targetId = '';
+            if (target && target.targetId === input.sourceId) {
+                if (target.ownerId === source.ownerId) {
+                    // Same owner changing mind: cancel existing, allow new
+                    target.targetId = '';
+                } else {
+                    // Cross-owner: reject the new order entirely
+                    return;
+                }
             }
         }
 

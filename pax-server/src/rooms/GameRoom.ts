@@ -549,15 +549,23 @@ export class GameRoom extends Room {
                 return;
             }
 
+            // Prevent opposing orders (A→B while B→A):
+            // Same owner: cancel existing → let player change their mind
+            // Different owner: REJECT the new order → first-mover advantage
+            if (target.targetId === message.sourceId) {
+                if (target.ownerId === source.ownerId) {
+                    // Same owner changing mind: cancel existing, allow new
+                    target.targetId = "";
+                    log.game('GameRoom', `Opposing order cancelled: ${message.targetId} → ${message.sourceId}`);
+                } else {
+                    // Cross-owner: reject the new order entirely
+                    log.game('GameRoom', `Opposing order rejected: ${message.sourceId} → ${message.targetId} (cross-owner)`);
+                    return;
+                }
+            }
+
             // Set order
             source.targetId = message.targetId;
-
-            // Prevent same-owner opposing orders: A→B and B→A by same player is self-contradictory.
-            // Cross-player mutual combat (your A→enemy B while enemy B→your A) is allowed.
-            if (target.targetId === message.sourceId && target.ownerId === source.ownerId) {
-                target.targetId = "";
-                log.game('GameRoom', `Opposing order cancelled: ${message.targetId} → ${message.sourceId}`);
-            }
 
             log.game('GameRoom', `Order: ${message.sourceId} → ${message.targetId} by ${player.sessionId}`);
         });

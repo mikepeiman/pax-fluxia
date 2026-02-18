@@ -77,6 +77,7 @@ let tickIntervalId: ReturnType<typeof setInterval> | null = null;
 
 /** Tick timing */
 let lastTickTime = 0;
+let lastTickGameTime = 0;  // Game-clock time at last tick (for tickProgress)
 let tickIntervalMs = 1200;
 let pausedElapsed = 0;  // How far into current tick when paused (ms)
 
@@ -101,7 +102,8 @@ let settings = $state<GameSettings>({ ...DEFAULT_SETTINGS });
 /** Latest game state snapshot (plain objects, consumed by UI) */
 let snapshot = $state<GameState | null>(null);
 
-/** Tick progress — pull-based getter, computed on read from performance.now() */
+/** Tick progress — for UI-only consumers (Leaderboard progress bar).
+ *  Animation code in GameCanvas uses its own game-time-based computation. */
 function getTickProgress(): number {
     if (!state || state.isPaused) return 0;
     const elapsed = performance.now() - lastTickTime;
