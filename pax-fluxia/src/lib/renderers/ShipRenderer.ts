@@ -616,7 +616,11 @@ export function renderShips(
                 let targetY = slot.y;
                 const shipMultiplier = slot.multiplier * starMultiplier;
 
-                // ATTACK SURGE
+                // ATTACK SURGE — computed as render-only offset, NOT baked into targetX/targetY
+                // This prevents the first-tick teleport glitch (B-89) where settle animations
+                // would capture a surged starting position and snap on tick boundaries.
+                let surgeOffsetX = 0;
+                let surgeOffsetY = 0;
                 if (isAttack && targetStar && state.starsInCombat.has(star.id)) {
                     const gamePaused = state.isPaused;
 
@@ -679,8 +683,8 @@ export function renderShips(
                         surgeMax *= Math.max(0.2, forceBoost);
                     }
 
-                    targetX += useDirX * surgePulse * phaseAmplitude * surgeMax * surgeFactor * rampFactor;
-                    targetY += useDirY * surgePulse * phaseAmplitude * surgeMax * surgeFactor * rampFactor;
+                    surgeOffsetX = useDirX * surgePulse * phaseAmplitude * surgeMax * surgeFactor * rampFactor;
+                    surgeOffsetY = useDirY * surgePulse * phaseAmplitude * surgeMax * surgeFactor * rampFactor;
                 } else {
                     state.attackRampProgress.delete(star.id);
                     state.surgeLockedDir.delete(star.id);
@@ -747,7 +751,8 @@ export function renderShips(
                 const baseTier = shipMultiplier > 1 ? Math.floor(Math.log2(shipMultiplier)) : 0;
                 const ringTier = Math.max(0, baseTier - slot.layer);
 
-                drawShip(res, colorUtils, ship.x, ship.y, color, ship.scale, ship.alpha, false, shipMultiplier, effectiveOwner, ringTier, i);
+                // Apply surge offset at render time only — ship.x/ship.y remain at clean orbit position
+                drawShip(res, colorUtils, ship.x + surgeOffsetX, ship.y + surgeOffsetY, color, ship.scale, ship.alpha, false, shipMultiplier, effectiveOwner, ringTier, i);
             });
         }
 
