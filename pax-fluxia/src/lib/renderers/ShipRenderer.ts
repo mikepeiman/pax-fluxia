@@ -62,8 +62,7 @@ export interface ShipRenderState {
     animationTime: number;
     /** Game clock in ms (= animationTime * 1000). Use instead of performance.now(). */
     gameNowMs: number;
-    /** Wall clock in ms, pause-aware but NOT speed-scaled (for settle/spawn with raw ms durations) */
-    wallNowMs: number;
+
     /** Whether game is paused */
     isPaused: boolean;
     /** Effective tick duration in ms */
@@ -215,7 +214,7 @@ export function renderTravelingShips(
 ): void {
     if (!res.shipParticleContainer) return;
 
-    const now = GAME_CONFIG.USE_WALL_CLOCK_TRAVEL ? state.wallNowMs : state.gameNowMs;
+    const now = state.gameNowMs;
 
     const stillTraveling: VisualShipState[] = [];
     state._arrivalBatchCount = 0; // Reset per-frame batch counter
@@ -358,7 +357,7 @@ export function renderTravelingShips(
                         const batchSpacing = Math.min(staggerWindow / Math.max(1, batchIdx + 1), 50);
                         staggerOffset = batchIdx * batchSpacing;
                     }
-                    ship.settleStartTime = state.wallNowMs + staggerOffset;
+                    ship.settleStartTime = state.gameNowMs + staggerOffset;
                     // Distribute arriving ships evenly around full circle for perfect engulf ring
                     const isConquest = ship.arrowSpiralDeg !== undefined;
                     const batchCount: number = state._arrivalBatchCount ?? 1;
@@ -454,7 +453,7 @@ export function renderShips(
         let effectiveOwner = star.ownerId;
         const pending = state.pendingConquests.get(star.id);
         if (pending) {
-            const conquestCheckNow = GAME_CONFIG.USE_WALL_CLOCK_CONQUEST ? state.wallNowMs : state.gameNowMs;
+            const conquestCheckNow = state.gameNowMs;
             if (conquestCheckNow < pending.transitionTime) {
                 effectiveOwner = pending.previousOwner;
             } else {
@@ -481,7 +480,7 @@ export function renderShips(
                 const spawnIndex = ships.length;
                 const spawnAngle = Math.random() * Math.PI * 2;
                 const spawnR = star.radius + 8;
-                const now = state.wallNowMs;
+                const now = state.gameNowMs;
                 ships.push({
                     id: state.nextShipId++,
                     x: star.x + Math.cos(spawnAngle) * spawnR,
@@ -557,7 +556,7 @@ export function renderShips(
 
             ships.forEach((ship, i) => {
                 if (ship.targetIndex !== i) {
-                    ship.settleStartTime = state.wallNowMs;
+                    ship.settleStartTime = state.gameNowMs;
                     ship.settleStartAngle = Math.atan2(ship.y - star.y, ship.x - star.x);
                     ship.settleStartRadius = Math.sqrt((ship.x - star.x) ** 2 + (ship.y - star.y) ** 2);
                 }
@@ -567,7 +566,7 @@ export function renderShips(
 
                 // Orbit slot
                 const orbitTime = GAME_CONFIG.STATIC_ORBITS ? 0
-                    : (GAME_CONFIG.USE_WALL_CLOCK_ORBIT ? state.animationTime : state.gameNowMs / 1000);
+                    : (state.gameNowMs / 1000);
                 const biasAngle = targetStar
                     ? Math.atan2(targetStar.y - star.y, targetStar.x - star.x)
                     : undefined;
@@ -579,7 +578,7 @@ export function renderShips(
                     const freq = GAME_CONFIG.ORBIT_BIAS_FREQ ?? 1.0;
                     const effectiveTick = state.effectiveTickMs;
                     const orbitFxTime = GAME_CONFIG.STATIC_ORBITS ? 0
-                        : (GAME_CONFIG.USE_WALL_CLOCK_ORBIT ? state.animationTime : state.gameNowMs / 1000);
+                        : (state.gameNowMs / 1000);
                     const phase = Math.sin((orbitFxTime / effectiveTick) * freq * Math.PI * 2);
                     const min = GAME_CONFIG.ORBIT_BIAS_MIN ?? 0;
                     const max = GAME_CONFIG.ORBIT_BIAS_MAX ?? 1;
@@ -623,7 +622,7 @@ export function renderShips(
                     if (rampDuration > 0) {
                         let rampVal = state.attackRampProgress.get(star.id)!;
                         if (!gamePaused && state.lastSurgeFrameTime > 0) {
-                            const surgeNow = GAME_CONFIG.USE_WALL_CLOCK_SURGE_RAMP ? state.wallNowMs : state.gameNowMs;
+                            const surgeNow = state.gameNowMs;
                             const frameDelta = surgeNow - state.lastSurgeFrameTime;
                             rampVal = Math.min(1, rampVal + frameDelta / rampDuration);
                             state.attackRampProgress.set(star.id, rampVal);
@@ -641,9 +640,7 @@ export function renderShips(
 
                     // Surge pulse: independent cycle driven by SURGE_PULSE_DURATION_MS
                     const pulseDur = GAME_CONFIG.SURGE_PULSE_DURATION_MS || GAME_CONFIG.BASE_TICK_MS;
-                    const pulseTime = GAME_CONFIG.USE_WALL_CLOCK_SURGE_PULSE
-                        ? state.wallNowMs
-                        : state.gameNowMs;
+                    const pulseTime = state.gameNowMs;
                     const surgeProgress = pulseDur > 0 ? (pulseTime % pulseDur) / pulseDur : 0;
                     const rawPulse = Math.sin(surgeProgress * Math.PI);
                     const surgeShape = GAME_CONFIG.ATTACK_SURGE_SHAPE ?? 1;
@@ -669,7 +666,7 @@ export function renderShips(
                 }
 
                 // Time-based polar arc interpolation
-                const now = GAME_CONFIG.USE_WALL_CLOCK_SETTLE ? state.wallNowMs : state.gameNowMs;
+                const now = state.gameNowMs;
                 const elapsed = now - ship.settleStartTime;
                 const isArrowSettle = ship.arrowSpiralDeg !== undefined && ship.arrowSpiralDeg !== 0;
                 const settleDur = isArrowSettle
@@ -742,7 +739,7 @@ export function renderShips(
             for (let i = 0; i < diff; i++) {
                 const spawnAngle = Math.random() * Math.PI * 2;
                 const spawnR = star.radius + 6;
-                const now = state.wallNowMs;
+                const now = state.gameNowMs;
                 damagedShips.push({
                     id: state.nextShipId++,
                     x: star.x + Math.cos(spawnAngle) * spawnR,
@@ -773,7 +770,7 @@ export function renderShips(
 
         damagedShips.forEach((ship, i) => {
             const damageTime = GAME_CONFIG.STATIC_ORBITS ? 0
-                : (GAME_CONFIG.USE_WALL_CLOCK_ORBIT ? state.animationTime : state.gameNowMs / 1000);
+                : (state.gameNowMs / 1000);
             const angle = damageTime * 0.5 + (i * Math.PI * 2) / Math.max(damagedShips.length, 1);
             const radius = 15;
             const tx = star.x + Math.cos(angle) * radius;
@@ -792,7 +789,7 @@ export function renderShips(
     renderTravelingShips(stars, starsById, state, res, colorUtils);
 
     // Update frame timestamp for surge ramp delta
-    state.lastSurgeFrameTime = GAME_CONFIG.USE_WALL_CLOCK_SURGE_RAMP ? state.wallNowMs : state.gameNowMs;
+    state.lastSurgeFrameTime = state.gameNowMs;
 }
 
 // ── renderFleets — Legacy fleet overlay ─────────────────────────────────────

@@ -107,7 +107,7 @@ export const coreTransferHandler: FXHandler<TransferEvent> = {
             ship.fromStarId = event.sourceId;
             ship.toStarId = event.targetId;
 
-            const travelNow = GAME_CONFIG.USE_WALL_CLOCK_TRAVEL ? ctx.wallTime : ctx.gameTime;
+            const travelNow = ctx.gameTime;
             if (streamMode) {
                 // Stream: evenly-spaced departure across the tick window
                 ship.departTime = travelNow + idx * streamInterval;

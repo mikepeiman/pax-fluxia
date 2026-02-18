@@ -55,8 +55,7 @@ export interface StarRenderState {
     animationTime: number;
     /** Game clock in ms — use instead of performance.now() */
     gameNowMs: number;
-    /** Wall clock in ms — pause-aware but NOT speed-scaled */
-    wallNowMs: number;
+
 }
 
 // ── Rendering Functions ─────────────────────────────────────────────────────
@@ -94,7 +93,7 @@ export function renderStars(
         let effectiveOwner = star.ownerId;
         const pending = state.pendingConquests.get(star.id);
         if (pending) {
-            const conquestCheckNow = GAME_CONFIG.USE_WALL_CLOCK_CONQUEST ? state.wallNowMs : state.gameNowMs;
+            const conquestCheckNow = state.gameNowMs;
             if (conquestCheckNow < pending.transitionTime) {
                 effectiveOwner = pending.previousOwner;
             } else {
@@ -111,7 +110,7 @@ export function renderStars(
         }
 
         // Outer glow ring (pulses slightly, stronger when active)
-        const starFxTime = GAME_CONFIG.USE_WALL_CLOCK_STAR_FX ? state.animationTime : state.gameNowMs / 1000;
+        const starFxTime = state.gameNowMs / 1000;
         const glowPulse = 1 + Math.sin(starFxTime * 2) * 0.1;
         const glowAlpha = isActive ? 0.25 : 0.12;
         graphics.circle(star.x, star.y, (radius + 8) * glowPulse);
@@ -128,7 +127,7 @@ export function renderStars(
         // Conquest flash: bright white pulse overlay
         const flash = state.conquestFlashes.get(star.id);
         if (flash) {
-            const flashCheckNow = GAME_CONFIG.USE_WALL_CLOCK_CONQUEST ? state.wallNowMs : state.gameNowMs;
+            const flashCheckNow = state.gameNowMs;
             const flashElapsed = flashCheckNow - flash.startTime;
             if (flashElapsed >= flash.duration) {
                 state.conquestFlashes.delete(star.id);
@@ -141,7 +140,7 @@ export function renderStars(
         }
 
         // Inner type icon (geometric shape)
-        const iconTime = GAME_CONFIG.USE_WALL_CLOCK_STAR_FX ? state.animationTime : state.gameNowMs / 1000;
+        const iconTime = state.gameNowMs / 1000;
         const iconAlpha = 0.5 + Math.sin(iconTime * 3) * 0.1;
         const iconSize = radius * 0.35;
         drawTypeIcon(graphics, star.x, star.y, iconSize, star.starType, iconAlpha, typeColor);

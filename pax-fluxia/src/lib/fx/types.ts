@@ -24,6 +24,5 @@ export interface FXContext {
     vsm: VisualStateManager;
     /** Effective tick duration in ms (accounting for speed multiplier) */
     effectiveTickMs: number;
-    /** Unscaled wall time in ms (pause-aware but not speed-scaled) */
-    wallTime: number;
+
 }

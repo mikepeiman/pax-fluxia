@@ -83,14 +83,6 @@ export const THEME_KEYS = [
     'ATTACK_SURGE_RAMP_MS',
     'ATTACK_SURGE_SHAPE',
 
-    // Clock source toggles (debug)
-    'USE_WALL_CLOCK_TRAVEL',
-    'USE_WALL_CLOCK_SETTLE',
-    'USE_WALL_CLOCK_SURGE_PULSE',
-    'USE_WALL_CLOCK_SURGE_RAMP',
-    'USE_WALL_CLOCK_CONQUEST',
-    'USE_WALL_CLOCK_ORBIT',
-    'USE_WALL_CLOCK_STAR_FX',
 
     // Conquest animation
     'CONQUEST_ANIMATION_MODE',

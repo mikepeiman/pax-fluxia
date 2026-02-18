@@ -14,7 +14,7 @@
  */
 export class FXClock {
     private _gameTime = 0;
-    private _wallTime = 0;  // pause-aware but NOT speed-scaled
+
     private _lastWall = 0;
     private _dt = 0;
     private _paused = false;
@@ -36,7 +36,7 @@ export class FXClock {
         const clampedDt = Math.min(rawDt, 200);
         this._dt = clampedDt * this._speedMult;
         this._gameTime += this._dt;
-        this._wallTime += clampedDt;  // unscaled wall time accumulator
+
         this._lastWall = wallNow;
     }
 
@@ -62,10 +62,7 @@ export class FXClock {
         return this._gameTime;
     }
 
-    /** Wall time in ms — stops when paused, NOT speed-scaled */
-    get wallNow(): number {
-        return this._wallTime;
-    }
+
 
     /** Frame delta in ms — 0 when paused */
     get dt(): number {
@@ -85,7 +82,6 @@ export class FXClock {
     /** Reset clock to zero (for new game) */
     reset(): void {
         this._gameTime = 0;
-        this._wallTime = 0;
         this._lastWall = 0;
         this._dt = 0;
         this._paused = false;

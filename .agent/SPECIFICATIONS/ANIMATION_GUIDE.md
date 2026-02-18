@@ -37,12 +37,15 @@ There are **two time domains**. Using the wrong one is the #1 animation bug sour
 | Field | Source | Scales with speed? | Pauses? | Use for |
 |-------|--------|--------------------|---------|---------|
 | `state.gameNowMs` | `fxOrchestrator.gameTime` (= `FXClock.now`) | ✅ Yes | ✅ Yes | **Travel** — must match game ticks |
-| `state.wallNowMs` | `animationTime * 1000` | ❌ No | ✅ Yes | **Settle, spawn** — raw ms config values |
+| `state.gameNowMs` | `fxOrchestrator.gameTime` | ✅ Yes | ✅ Yes | **All VFX** — travel, settle, surge, orbit, conquest |
 
-### Why two domains?
+### Single-Clock Axiom
 
-- **Travel duration** uses `TRAVEL_DURATION_MULT * effectiveTickMs` — it's defined relative to game ticks, so it must use speed-scaled time (`gameNowMs`).
-- **Settle duration** uses `SETTLE_DURATION_MS = 190ms` — a raw millisecond value. If you compare this against speed-scaled time, a 190ms settle becomes 170ms or 220ms depending on the speed multiplier. Use `wallNowMs`.
+All in-game VFX timing uses **one clock: game time** (`gameNowMs`). This clock is speed-scaled and pause-aware. All animation durations (even raw ms values like `SETTLE_DURATION_MS`) scale coherently with the speed multiplier.
+
+Wall time (`performance.now()`) is used only as the **input** to `FXClock.tick()` for computing frame deltas — never by renderers directly.
+
+See [VFX_TIMING_MODEL.md](file:///c:/Users/mikep/Desktop/WebDev/PRISM-Atlas-DART%20v1/.agent/SPECIFICATIONS/VFX_TIMING_MODEL.md) for the full rationale.
 
 ### The FXClock
 
@@ -74,7 +77,7 @@ SPAWN → ORBITING → DEPART → TRAVELING → ARRIVE → SETTLE → ORBITING
 | `departTime` | Handler creates ship | Travel start timestamp (`gameNowMs` domain) |
 | `travelDuration` | Handler creates ship | Total travel time in game-ms |
 | `departDuration` | Handler creates ship | Initial departure phase (leave orbit) |
-| `settleStartTime` | Ship arrives at dest | Settle animation start (`wallNowMs` domain) |
+| `settleStartTime` | Ship arrives at dest | Settle animation start (`gameNowMs` domain) |
 | `settleStartAngle` | Ship arrives at dest | Starting angle for settle arc |
 | `settleStartRadius` | Ship arrives at dest | Starting radius for settle spiral |
 | `targetIndex` | Ship arrives / re-indexed | Orbit slot index |

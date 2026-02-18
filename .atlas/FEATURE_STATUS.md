@@ -28,9 +28,10 @@
 | F-51 | Controls UI readability pass: brighter/larger fonts, denser layout, improved scannability | High | Planned (today) |
 | F-52 | Tick progress indicator independent of Animation Speed — only uses game tick duration | High | Planned (today) |
 | F-53 | Resizable controls drawer + side-by-side control layout when width permits | Medium | Planned |
+| F-54 | Single-clock refactor: remove wall-time system, all VFX use game clock | High | Done (2026-02-18) |
 
 ## Known Regressions
 | ID | Description | Since |
 |----|-------------|-------|
 | B-84 | ALLOW_OPPOSING_ORDERS: deferred orders still create opposing flows on conquest even when flag is off | 2026-02-18 |
-| B-85 | Toggling USE_WALL_CLOCK_TRAVEL mid-game freezes traveling ships for several ticks (time discontinuity) | 2026-02-18 |
+| B-85 | ~~Toggling USE_WALL_CLOCK_TRAVEL mid-game freezes traveling ships~~ | Resolved — wall-clock system removed (F-54) |

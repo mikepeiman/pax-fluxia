@@ -635,7 +635,6 @@
                 conquestFlashes,
                 animationTime,
                 gameNowMs: fxOrchestrator.gameTime,
-                wallNowMs: animationTime * 1000,
             },
             colorUtils,
         );
@@ -697,7 +696,6 @@
             nextShipId,
             animationTime,
             gameNowMs: fxOrchestrator.gameTime,
-            wallNowMs: animationTime * 1000,
             isPaused: activeGameStore.isPaused,
             effectiveTickMs: activeGameStore.effectiveTickMs,
             tickProgress,
