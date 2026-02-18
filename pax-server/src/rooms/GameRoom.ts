@@ -552,8 +552,9 @@ export class GameRoom extends Room {
             // Set order
             source.targetId = message.targetId;
 
-            // Prevent opposing orders: if target has order back to source, cancel it (universal)
-            if (target.targetId === message.sourceId) {
+            // Prevent same-owner opposing orders: A→B and B→A by same player is self-contradictory.
+            // Cross-player mutual combat (your A→enemy B while enemy B→your A) is allowed.
+            if (target.targetId === message.sourceId && target.ownerId === source.ownerId) {
                 target.targetId = "";
                 log.game('GameRoom', `Opposing order cancelled: ${message.targetId} → ${message.sourceId}`);
             }

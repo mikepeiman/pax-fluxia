@@ -16,7 +16,7 @@
 | B-89 | Attack surge timing hiccup — ships teleport into surge position on new tick before easing back | Fixed (2026-02-18) |
 | B-90 | Orb travel glitching — too many orbs spawned, need one per travel_duration with tick-bind toggle | Open |
 | B-91 | Game-wide subtle animation hiccup — possibly related to tick boundary timing | Fixed (2026-02-18) |
-| B-92 | Player orders randomly cancelled — several iterations old | Open |
+| B-92 | Player orders randomly cancelled — several iterations old | Fixed (2026-02-18) |
 
 ## Planned Features
 | ID | Description | Priority | Status |

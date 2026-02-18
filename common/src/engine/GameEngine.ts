@@ -127,11 +127,12 @@ export class GameEngine {
         const connected = this.areConnected(state, input.sourceId, input.targetId);
         if (!connected) return;
 
-        // Prevent opposing orders: if target is already sending to source, cancel it
-        // (unless ALLOW_OPPOSING_ORDERS is enabled)
+        // Prevent opposing orders between SAME-OWNER stars only:
+        // Block self-contradictory loops (A→B and B→A by same player),
+        // but allow cross-player mutual combat (your A→enemy B while enemy B→your A).
         if (!cfg.ALLOW_OPPOSING_ORDERS) {
             const target = state.stars.get(input.targetId);
-            if (target && target.targetId === input.sourceId) {
+            if (target && target.targetId === input.sourceId && target.ownerId === source.ownerId) {
                 target.targetId = '';
             }
         }
