@@ -1628,7 +1628,7 @@
                                             onclick={() =>
                                                 pinValueToTickDuration(
                                                     slider.key,
-                                                )}>📌</button
+                                                )}>🕐</button
                                         >
                                         <button
                                             class="lock-btn"
@@ -1641,7 +1641,7 @@
                                                 : "Lock current ratio to tick"}
                                             onclick={() =>
                                                 lockRatioToTick(slider.key)}
-                                            >🔗</button
+                                            >◆</button
                                         >
                                         <button
                                             class="lock-btn"
@@ -1655,7 +1655,7 @@
                                             onclick={() =>
                                                 lockRatioToAnimSpeed(
                                                     slider.key,
-                                                )}>🎚️</button
+                                                )}>⚡</button
                                         >
                                     </span>
                                 </div>
