@@ -1223,19 +1223,36 @@
                     <label class="toggle-row">
                         <input
                             type="checkbox"
-                            checked={GAME_CONFIG.USE_WALL_CLOCK_SURGE}
+                            checked={GAME_CONFIG.USE_WALL_CLOCK_SURGE_PULSE}
                             onchange={() => {
-                                GAME_CONFIG.USE_WALL_CLOCK_SURGE =
-                                    !GAME_CONFIG.USE_WALL_CLOCK_SURGE;
+                                GAME_CONFIG.USE_WALL_CLOCK_SURGE_PULSE =
+                                    !GAME_CONFIG.USE_WALL_CLOCK_SURGE_PULSE;
                             }}
                         />
-                        <span class="var-name">Surge → Wall Clock</span>
+                        <span class="var-name">Surge Pulse → Wall Clock</span>
                     </label>
                     <div
                         class="var-row grayed"
                         style="font-size: 9px; padding: 0 4px 4px; margin-top: -6px; opacity: 0.6;"
                     >
-                        Attack surge ramp-in timing (default: off = game clock)
+                        Surge sine wave oscillation (default: on = wall clock)
+                    </div>
+                    <label class="toggle-row">
+                        <input
+                            type="checkbox"
+                            checked={GAME_CONFIG.USE_WALL_CLOCK_SURGE_RAMP}
+                            onchange={() => {
+                                GAME_CONFIG.USE_WALL_CLOCK_SURGE_RAMP =
+                                    !GAME_CONFIG.USE_WALL_CLOCK_SURGE_RAMP;
+                            }}
+                        />
+                        <span class="var-name">Surge Ramp → Wall Clock</span>
+                    </label>
+                    <div
+                        class="var-row grayed"
+                        style="font-size: 9px; padding: 0 4px 4px; margin-top: -6px; opacity: 0.6;"
+                    >
+                        Surge ramp-in delta timing (default: on = wall clock)
                     </div>
                     <label class="toggle-row">
                         <input
@@ -1252,7 +1269,42 @@
                         class="var-row grayed"
                         style="font-size: 9px; padding: 0 4px 4px; margin-top: -6px; opacity: 0.6;"
                     >
-                        Conquest flash + color delay timing (default: off = game
+                        Conquest flash + color delay (default: off = game clock)
+                    </div>
+                    <label class="toggle-row">
+                        <input
+                            type="checkbox"
+                            checked={GAME_CONFIG.USE_WALL_CLOCK_ORBIT}
+                            onchange={() => {
+                                GAME_CONFIG.USE_WALL_CLOCK_ORBIT =
+                                    !GAME_CONFIG.USE_WALL_CLOCK_ORBIT;
+                            }}
+                        />
+                        <span class="var-name">Orbit → Wall Clock</span>
+                    </label>
+                    <div
+                        class="var-row grayed"
+                        style="font-size: 9px; padding: 0 4px 4px; margin-top: -6px; opacity: 0.6;"
+                    >
+                        Orbit rotation, bias oscillation, damage orbit (default:
+                        on = wall clock)
+                    </div>
+                    <label class="toggle-row">
+                        <input
+                            type="checkbox"
+                            checked={GAME_CONFIG.USE_WALL_CLOCK_STAR_FX}
+                            onchange={() => {
+                                GAME_CONFIG.USE_WALL_CLOCK_STAR_FX =
+                                    !GAME_CONFIG.USE_WALL_CLOCK_STAR_FX;
+                            }}
+                        />
+                        <span class="var-name">Star FX → Wall Clock</span>
+                    </label>
+                    <div
+                        class="var-row grayed"
+                        style="font-size: 9px; padding: 0 4px 4px; margin-top: -6px; opacity: 0.6;"
+                    >
+                        Star glow pulse + icon shimmer (default: on = wall
                         clock)
                     </div>
 

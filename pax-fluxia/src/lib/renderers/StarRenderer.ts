@@ -111,7 +111,8 @@ export function renderStars(
         }
 
         // Outer glow ring (pulses slightly, stronger when active)
-        const glowPulse = 1 + Math.sin(state.animationTime * 2) * 0.1;
+        const starFxTime = GAME_CONFIG.USE_WALL_CLOCK_STAR_FX ? state.animationTime : state.gameNowMs / 1000;
+        const glowPulse = 1 + Math.sin(starFxTime * 2) * 0.1;
         const glowAlpha = isActive ? 0.25 : 0.12;
         graphics.circle(star.x, star.y, (radius + 8) * glowPulse);
         graphics.fill({ color, alpha: glowAlpha });
@@ -140,7 +141,8 @@ export function renderStars(
         }
 
         // Inner type icon (geometric shape)
-        const iconAlpha = 0.5 + Math.sin(state.animationTime * 3) * 0.1;
+        const iconTime = GAME_CONFIG.USE_WALL_CLOCK_STAR_FX ? state.animationTime : state.gameNowMs / 1000;
+        const iconAlpha = 0.5 + Math.sin(iconTime * 3) * 0.1;
         const iconSize = radius * 0.35;
         drawTypeIcon(graphics, star.x, star.y, iconSize, star.starType, iconAlpha, typeColor);
 

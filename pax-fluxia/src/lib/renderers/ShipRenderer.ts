@@ -566,7 +566,8 @@ export function renderShips(
                 const shipPhase = (ship.id % 17) / 17;
 
                 // Orbit slot
-                const orbitTime = GAME_CONFIG.STATIC_ORBITS ? 0 : state.animationTime;
+                const orbitTime = GAME_CONFIG.STATIC_ORBITS ? 0
+                    : (GAME_CONFIG.USE_WALL_CLOCK_ORBIT ? state.animationTime : state.gameNowMs / 1000);
                 const biasAngle = targetStar
                     ? Math.atan2(targetStar.y - star.y, targetStar.x - star.x)
                     : undefined;
@@ -577,7 +578,9 @@ export function renderShips(
                 } else if (GAME_CONFIG.ORBIT_BIAS_OSCILLATE) {
                     const freq = GAME_CONFIG.ORBIT_BIAS_FREQ ?? 1.0;
                     const effectiveTick = state.effectiveTickMs;
-                    const phase = Math.sin((state.animationTime / effectiveTick) * freq * Math.PI * 2);
+                    const orbitFxTime = GAME_CONFIG.STATIC_ORBITS ? 0
+                        : (GAME_CONFIG.USE_WALL_CLOCK_ORBIT ? state.animationTime : state.gameNowMs / 1000);
+                    const phase = Math.sin((orbitFxTime / effectiveTick) * freq * Math.PI * 2);
                     const min = GAME_CONFIG.ORBIT_BIAS_MIN ?? 0;
                     const max = GAME_CONFIG.ORBIT_BIAS_MAX ?? 1;
                     biasStrength = min + (max - min) * (phase * 0.5 + 0.5);
@@ -620,7 +623,7 @@ export function renderShips(
                     if (rampDuration > 0) {
                         let rampVal = state.attackRampProgress.get(star.id)!;
                         if (!gamePaused && state.lastSurgeFrameTime > 0) {
-                            const surgeNow = GAME_CONFIG.USE_WALL_CLOCK_SURGE ? state.wallNowMs : state.gameNowMs;
+                            const surgeNow = GAME_CONFIG.USE_WALL_CLOCK_SURGE_RAMP ? state.wallNowMs : state.gameNowMs;
                             const frameDelta = surgeNow - state.lastSurgeFrameTime;
                             rampVal = Math.min(1, rampVal + frameDelta / rampDuration);
                             state.attackRampProgress.set(star.id, rampVal);
@@ -637,7 +640,7 @@ export function renderShips(
                     const surgeFactor = Math.max(0, facingFactor) ** 1.5;
 
                     // Surge pulse: game clock → scales with game speed; wall clock → constant rate
-                    const surgeProgress = GAME_CONFIG.USE_WALL_CLOCK_SURGE
+                    const surgeProgress = GAME_CONFIG.USE_WALL_CLOCK_SURGE_PULSE
                         ? state.tickProgress
                         : (state.effectiveTickMs > 0 ? (state.gameNowMs % state.effectiveTickMs) / state.effectiveTickMs : 0);
                     const rawPulse = Math.sin(surgeProgress * Math.PI);
@@ -767,7 +770,8 @@ export function renderShips(
         state.visualDamagedShips.set(star.id, damagedShips);
 
         damagedShips.forEach((ship, i) => {
-            const damageTime = GAME_CONFIG.STATIC_ORBITS ? 0 : state.animationTime;
+            const damageTime = GAME_CONFIG.STATIC_ORBITS ? 0
+                : (GAME_CONFIG.USE_WALL_CLOCK_ORBIT ? state.animationTime : state.gameNowMs / 1000);
             const angle = damageTime * 0.5 + (i * Math.PI * 2) / Math.max(damagedShips.length, 1);
             const radius = 15;
             const tx = star.x + Math.cos(angle) * radius;
@@ -786,7 +790,7 @@ export function renderShips(
     renderTravelingShips(stars, starsById, state, res, colorUtils);
 
     // Update frame timestamp for surge ramp delta
-    state.lastSurgeFrameTime = GAME_CONFIG.USE_WALL_CLOCK_SURGE ? state.wallNowMs : state.gameNowMs;
+    state.lastSurgeFrameTime = GAME_CONFIG.USE_WALL_CLOCK_SURGE_RAMP ? state.wallNowMs : state.gameNowMs;
 }
 
 // ── renderFleets — Legacy fleet overlay ─────────────────────────────────────
