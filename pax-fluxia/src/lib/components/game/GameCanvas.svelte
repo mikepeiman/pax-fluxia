@@ -41,6 +41,8 @@
     } from "$lib/renderers/LaneRenderer";
     import {
         renderShips as renderShipsModule,
+        captureSurgeSnapshot,
+        type SurgeSnapshot,
         type ShipRenderState,
         type ShipRenderResources,
     } from "$lib/renderers/ShipRenderer";
@@ -134,6 +136,8 @@
     const emptyStarsMap = new Map<string, StarState>(); // Cached empty map — avoid per-frame allocation
     let resizeObserver: ResizeObserver | null = null;
     let lastTickGameTimeMs = 0; // Game-clock time at last tick (for tickProgress)
+    let tickTickMs = 0; // Tick interval snapshotted at tick boundary (stable divisor)
+    let surgeSnapshot: SurgeSnapshot = captureSurgeSnapshot(); // Surge config snapshot
 
     // starsById cache — rebuilt only when star array identity changes (on tick events)
     const cachedStarsById = new Map<string, StarState>();
@@ -383,7 +387,7 @@
                     ? 0
                     : Math.min(
                           (gameNowMs - lastTickGameTimeMs) /
-                              activeGameStore.effectiveTickMs,
+                              (tickTickMs || activeGameStore.effectiveTickMs),
                           1,
                       );
                 renderFrame(stars, tickProgress);
@@ -696,9 +700,11 @@
         // Clear combat tracking before processing new tick events
         // (starsInCombat is rebuilt each tick from CombatEvents)
         if (tickEvents) {
-            // Record game-time BEFORE processing events so tickProgress ≈ 0
-            // at tick boundary (enables surge direction-lock at tickProgress < 0.1)
+            // Snapshot timing + surge config at tick boundary
+            // These values stay stable for the entire tick, preventing mid-tick jumps
             lastTickGameTimeMs = fxOrchestrator.gameTime;
+            tickTickMs = activeGameStore.effectiveTickMs;
+            surgeSnapshot = captureSurgeSnapshot();
             starsInCombat.clear();
             processTickEvents(stars, tickEvents, connections || [], starsById);
         }
@@ -721,6 +727,8 @@
             isPaused: activeGameStore.isPaused,
             effectiveTickMs: activeGameStore.effectiveTickMs,
             tickProgress,
+            tickTickMs: tickTickMs || activeGameStore.effectiveTickMs,
+            surgeSnapshot,
         };
         const shipRes: ShipRenderResources = {
             shipCircleTexture: shipCircleTexture!,

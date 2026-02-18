@@ -39,6 +39,29 @@ import type { ColorUtils } from './RenderContext';
 
 // ── Ship Render State ───────────────────────────────────────────────────────
 
+/** Surge config values captured at tick boundary — prevents mid-tick jumps */
+export interface SurgeSnapshot {
+    rampMs: number;
+    pulseDurationMs: number;
+    baseTickMs: number;
+    mult: number;
+    shape: number;
+    proportional: boolean;
+    forceCofactor: number;
+}
+
+export function captureSurgeSnapshot(): SurgeSnapshot {
+    return {
+        rampMs: GAME_CONFIG.ATTACK_SURGE_RAMP_MS ?? 300,
+        pulseDurationMs: GAME_CONFIG.SURGE_PULSE_DURATION_MS || GAME_CONFIG.BASE_TICK_MS,
+        baseTickMs: GAME_CONFIG.BASE_TICK_MS,
+        mult: GAME_CONFIG.ATTACK_SURGE_MULT ?? 0.4,
+        shape: GAME_CONFIG.ATTACK_SURGE_SHAPE ?? 1,
+        proportional: GAME_CONFIG.ATTACK_SURGE_PROPORTIONAL ?? false,
+        forceCofactor: GAME_CONFIG.ATTACK_SURGE_FORCE_COFACTOR ?? 0.5,
+    };
+}
+
 export interface ShipRenderState {
     /** Ship orbit state per star (mutable — managed by VSM) */
     visualShips: Map<string, VisualShipState[]>;
@@ -67,6 +90,10 @@ export interface ShipRenderState {
     effectiveTickMs: number;
     /** Tick progress within current tick (0-1) */
     tickProgress: number;
+    /** Tick interval snapshotted at tick boundary — stable divisor for tickProgress */
+    tickTickMs: number;
+    /** Surge config snapshot — captured at tick boundary to prevent mid-tick jumps */
+    surgeSnapshot: SurgeSnapshot;
     /** Per-frame counter for arrival batch stagger (reset each frame) */
     _arrivalBatchCount?: number;
 }
@@ -640,7 +667,8 @@ export function renderShips(
                         state.attackRampProgress.set(star.id, 0);
                     }
 
-                    const rampDuration = GAME_CONFIG.ATTACK_SURGE_RAMP_MS ?? 300;
+                    const ss = state.surgeSnapshot;
+                    const rampDuration = ss.rampMs;
                     let rampFactor = 1;
                     if (rampDuration > 0) {
                         let rampVal = state.attackRampProgress.get(star.id)!;
@@ -661,23 +689,21 @@ export function renderShips(
                     const facingFactor = shipNormX * useDirX + shipNormY * useDirY;
                     const surgeFactor = Math.max(0, facingFactor) ** 1.5;
 
-                    // Surge pulse: independent cycle driven by SURGE_PULSE_DURATION_MS
-                    const pulseDur = GAME_CONFIG.SURGE_PULSE_DURATION_MS || GAME_CONFIG.BASE_TICK_MS;
+                    // Surge pulse: independent cycle driven by snapshot pulseDurationMs
+                    const pulseDur = ss.pulseDurationMs;
                     const pulseTime = state.gameNowMs;
                     const surgeProgress = pulseDur > 0 ? (pulseTime % pulseDur) / pulseDur : 0;
                     const rawPulse = Math.sin(surgeProgress * Math.PI);
-                    const surgeShape = GAME_CONFIG.ATTACK_SURGE_SHAPE ?? 1;
-                    const surgePulse = surgeShape === 1 ? rawPulse : Math.pow(rawPulse, surgeShape);
+                    const surgePulse = ss.shape === 1 ? rawPulse : Math.pow(rawPulse, ss.shape);
                     const phaseAmplitude = 0.75 + 0.25 * Math.sin(shipPhase * Math.PI * 2);
 
-                    let surgeMax = star.radius * (GAME_CONFIG.ATTACK_SURGE_MULT ?? 0.4);
+                    let surgeMax = star.radius * ss.mult;
 
-                    if (GAME_CONFIG.ATTACK_SURGE_PROPORTIONAL && targetStar) {
+                    if (ss.proportional && targetStar) {
                         const myShips = star.activeShips || 1;
                         const theirShips = targetStar.activeShips || 1;
                         const ratio = myShips / theirShips;
-                        const cofactor = GAME_CONFIG.ATTACK_SURGE_FORCE_COFACTOR ?? 0.5;
-                        const forceBoost = 1 + Math.log2(Math.max(0.25, ratio)) * cofactor;
+                        const forceBoost = 1 + Math.log2(Math.max(0.25, ratio)) * ss.forceCofactor;
                         surgeMax *= Math.max(0.2, forceBoost);
                     }
 
