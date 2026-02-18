@@ -359,8 +359,19 @@ export function renderTravelingShips(
                         staggerOffset = batchIdx * batchSpacing;
                     }
                     ship.settleStartTime = state.wallNowMs + staggerOffset;
-                    ship.settleStartAngle = arrAngle;
+                    // Distribute arriving ships evenly around full circle for perfect engulf ring
+                    const isConquest = ship.arrowSpiralDeg !== undefined;
+                    const batchCount: number = state._arrivalBatchCount ?? 1;
+                    if (isConquest && batchCount > 1) {
+                        // Even spacing around 2π, offset by arrival direction
+                        ship.settleStartAngle = arrAngle + ((batchCount - 1) * (2 * Math.PI)) / Math.max(1, batchCount);
+                    } else {
+                        ship.settleStartAngle = arrAngle;
+                    }
                     ship.settleStartRadius = arrR;
+                    // Reposition ship to its distributed angle at engulf radius
+                    ship.x = destStar.x + Math.cos(ship.settleStartAngle) * arrR;
+                    ship.y = destStar.y + Math.sin(ship.settleStartAngle) * arrR;
                     if (isTrackedShip(ship.id)) traceTravelToOrbit(ship.id, ship.x, ship.y, arrAngle, arrR, destStar.x, destStar.y);
                     destShips.push(ship);
                     state.visualShips.set(destStar.id, destShips);

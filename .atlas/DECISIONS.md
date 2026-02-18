@@ -38,3 +38,12 @@
 - **Decision**: Zero `performance.now()` in renderers or FX handlers. All timestamps use `state.gameNowMs` (renderers) or `ctx.gameTime` (handlers), both sourced from `FXClock`.
 - **Rationale**: Wall-clock timing caused 3 bug classes: animations ignoring pause, persisting across game restart, and ignoring speed settings. FXClock (already in `clock.ts`) is pause-aware, speed-scaled, and resets on new game.
 - **Code**: `FXClock.tick()` called per-frame from `GameCanvas.svelte`; `gameNowMs` field on both `ShipRenderState` and `StarRenderState`
+
+### D-18: No Opaque Animation Timing — Everything Must Be Tunable
+- **Decision**: Every animation delay, stagger, and duration MUST be exposed as a `GAME_CONFIG` slider or at minimum documented with its formula. No hidden timing math that the user can't inspect or tune.
+- **Lesson**: `ARRIVAL_SPREAD` stagger formula used `destShips.length / (destShips.length+1) * staggerWindow`, silently creating 2000ms+ delays at stars with 100+ ships. The fix was trivial (use batch index instead), but the bug persisted across dozens of iterations because the formula was opaque. **If `settleStartTime` had been exposed with a slider or set to 0 on conquest, the user could have diagnosed this in seconds.**
+- **Anti-pattern**: Never write an integral animation function that is opaque, unexposed, and unspecified. When the user insists on tunability, that means ALL timing parameters, not just the ones that seem important.
+
+### D-19: Engulf Ring — Perfect Circle Distribution
+- **Decision**: Arriving conquest ships distribute their `settleStartAngle` evenly around 2π using batch index, not clustered at arrival direction.
+- **Rationale**: All ships from the same source star arrive at the same angle, creating a gap. Even distribution creates a perfect engulf ring.
