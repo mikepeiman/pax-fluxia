@@ -14,6 +14,7 @@
 | B-87 | Conquest settlement ring has a gap — should form a perfect circle | Fixed (2026-02-18) |
 | B-88 | Conquest ships fly to star AS a ring instead of arrow/wedge formation | Fixed (2026-02-18) |
 | B-89 | Attack surge timing hiccup — ships teleport into surge position on new tick before easing back | Open |
+| B-90 | Orb travel glitching — too many orbs spawned, need one per travel_duration with tick-bind toggle | Open |
 
 ## Planned Features
 | ID | Description | Priority | Status |
