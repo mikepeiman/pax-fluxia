@@ -202,7 +202,14 @@
         </div>
       </div>
 
-      <!-- RIGHT SIDEBAR -->
+      <!-- LEFT CONTROLS COLUMN (settings panels) -->
+      <div class="area-controls">
+        <div class="panel-section section-tuning">
+          <GameSettingsPanel />
+        </div>
+      </div>
+
+      <!-- RIGHT SIDEBAR (leaderboard + info) -->
       <div class="area-right" style="width: {sidebarWidth}px;">
         <!-- Resize handle -->
         <div
@@ -216,11 +223,6 @@
         <!-- 1. Commanders -->
         <div class="panel-section section-commanders">
           <Leaderboard players={leaderboardPlayers} />
-        </div>
-
-        <!-- 2. Game Settings & Tuning (fills remaining space) -->
-        <div class="panel-section section-tuning">
-          <GameSettingsPanel />
         </div>
       </div>
     </div>
@@ -294,11 +296,11 @@
     justify-content: center;
   }
 
-  /* GRID LAYOUT V6 - Fully Responsive */
+  /* GRID LAYOUT V7 - Two-Column Right Side */
   .game-layout {
     display: grid;
-    grid-template-columns: 1fr auto; /* Canvas | Right Sidebar (auto = driven by width style) */
-    grid-template-areas: "canvas right";
+    grid-template-columns: 1fr auto auto; /* Canvas | Controls | Right Sidebar */
+    grid-template-areas: "canvas controls right";
     height: 100vh;
     width: 100vw;
     transition:
@@ -319,15 +321,31 @@
     }
   }
 
-  /* Very narrow: hide sidebar, full canvas */
+  /* Very narrow: hide sidebars, full canvas */
   @media (max-width: 800px) {
     .game-layout {
       grid-template-columns: 1fr;
       grid-template-areas: "canvas";
     }
-    .area-right {
+    .area-right,
+    .area-controls {
       display: none;
     }
+  }
+
+  /* AREA: Controls Column */
+  .area-controls {
+    grid-area: controls;
+    background: rgba(10, 10, 15, 0.95);
+    border-left: 1px solid #223;
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+    gap: 10px;
+    z-index: 20;
+    overflow-y: auto;
+    width: 340px;
+    min-width: 280px;
   }
 
   /* AREA: Canvas */

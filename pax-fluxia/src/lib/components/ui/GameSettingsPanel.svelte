@@ -2866,135 +2866,126 @@
                                 }}
                             />
                         </div>
-
-                        <h4 class="sub-heading">Engulf</h4>
-                        <div class="var-row">
-                            <div class="row-top">
-                                <span class="var-name">Engulf Mode</span><span
-                                    class="val">{panel.arrowEngulfMode}</span
-                                >
-                            </div>
-                            <select
-                                class="mode-select"
-                                value={panel.arrowEngulfMode}
-                                onchange={(e) => {
-                                    const v = (e.target as HTMLSelectElement)
-                                        .value as "fan" | "collapse";
-                                    GAME_CONFIG.ARROW_ENGULF_MODE = v;
-                                    updatePanel("arrowEngulfMode", v);
-                                }}
-                            >
-                                <option value="fan">Fan (surround)</option>
-                                <option value="collapse"
-                                    >Collapse (pile on)</option
-                                >
-                            </select>
-                        </div>
-                        <div class="var-row">
-                            <div class="row-top">
-                                <span class="var-name">Engulf Radius</span><span
-                                    class="val"
-                                    >{panel.arrowEngulfRadius}px</span
-                                >
-                            </div>
-                            <input
-                                type="range"
-                                min="10"
-                                max="200"
-                                step="5"
-                                value={panel.arrowEngulfRadius}
-                                oninput={(e) => {
-                                    const v = +(e.target as HTMLInputElement)
-                                        .value;
-                                    GAME_CONFIG.ARROW_ENGULF_RADIUS = v;
-                                    updatePanel("arrowEngulfRadius", v);
-                                }}
-                            />
-                        </div>
-
-                        <h4 class="sub-heading">Spiral Settle</h4>
-                        <div class="var-row">
-                            <div class="row-top">
-                                <span class="var-name">Min Degrees</span><span
-                                    class="val">{panel.arrowSpiralMinDeg}°</span
-                                >
-                            </div>
-                            <input
-                                type="range"
-                                min="0"
-                                max="1080"
-                                step="30"
-                                value={panel.arrowSpiralMinDeg}
-                                oninput={(e) => {
-                                    const v = +(e.target as HTMLInputElement)
-                                        .value;
-                                    GAME_CONFIG.ARROW_SPIRAL_MIN_DEG = v;
-                                    updatePanel("arrowSpiralMinDeg", v);
-                                }}
-                            />
-                        </div>
-                        <div class="var-row">
-                            <div class="row-top">
-                                <span class="var-name">Max Degrees</span><span
-                                    class="val">{panel.arrowSpiralMaxDeg}°</span
-                                >
-                            </div>
-                            <input
-                                type="range"
-                                min="0"
-                                max="1080"
-                                step="30"
-                                value={panel.arrowSpiralMaxDeg}
-                                oninput={(e) => {
-                                    const v = +(e.target as HTMLInputElement)
-                                        .value;
-                                    GAME_CONFIG.ARROW_SPIRAL_MAX_DEG = v;
-                                    updatePanel("arrowSpiralMaxDeg", v);
-                                }}
-                            />
-                        </div>
-                        <div class="var-row">
-                            <div class="row-top">
-                                <span class="var-name">Random Spiral</span><span
-                                    class="val"
-                                    >{panel.arrowSpiralRandom
-                                        ? "On"
-                                        : "Off"}</span
-                                >
-                            </div>
-                            <input
-                                type="checkbox"
-                                checked={panel.arrowSpiralRandom as boolean}
-                                onchange={(e) => {
-                                    const v = (e.target as HTMLInputElement)
-                                        .checked;
-                                    GAME_CONFIG.ARROW_SPIRAL_RANDOM = v;
-                                    updatePanel("arrowSpiralRandom", v);
-                                }}
-                            />
-                        </div>
-                        <div class="var-row">
-                            <div class="row-top">
-                                <span class="var-name">Spiral Duration</span
-                                ><span class="val"
-                                    >{panel.arrowSpiralDurationMs}ms</span
-                                >
-                            </div>
-                            <input
-                                type="range"
-                                min="0"
-                                max="3000"
-                                step="50"
-                                value={panel.arrowSpiralDurationMs}
-                                oninput={(e) => {
-                                    const v = +(e.target as HTMLInputElement)
-                                        .value;
-                                    GAME_CONFIG.ARROW_SPIRAL_DURATION_MS = v;
-                                    updatePanel("arrowSpiralDurationMs", v);
-                                }}
-                            />
-                        </div>
                     {/if}
+
+                    <h4 class="sub-heading">Engulf</h4>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Engulf Mode</span><span
+                                class="val">{panel.arrowEngulfMode}</span
+                            >
+                        </div>
+                        <select
+                            class="mode-select"
+                            value={panel.arrowEngulfMode}
+                            onchange={(e) => {
+                                const v = (e.target as HTMLSelectElement)
+                                    .value as "fan" | "collapse";
+                                GAME_CONFIG.ARROW_ENGULF_MODE = v;
+                                updatePanel("arrowEngulfMode", v);
+                            }}
+                        >
+                            <option value="fan">Fan (surround)</option>
+                            <option value="collapse">Collapse (pile on)</option>
+                        </select>
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Engulf Radius</span><span
+                                class="val">{panel.arrowEngulfRadius}px</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="10"
+                            max="200"
+                            step="5"
+                            value={panel.arrowEngulfRadius}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.ARROW_ENGULF_RADIUS = v;
+                                updatePanel("arrowEngulfRadius", v);
+                            }}
+                        />
+                    </div>
+
+                    <h4 class="sub-heading">Spiral Settle</h4>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Min Degrees</span><span
+                                class="val">{panel.arrowSpiralMinDeg}°</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="1080"
+                            step="30"
+                            value={panel.arrowSpiralMinDeg}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.ARROW_SPIRAL_MIN_DEG = v;
+                                updatePanel("arrowSpiralMinDeg", v);
+                            }}
+                        />
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Max Degrees</span><span
+                                class="val">{panel.arrowSpiralMaxDeg}°</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="1080"
+                            step="30"
+                            value={panel.arrowSpiralMaxDeg}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.ARROW_SPIRAL_MAX_DEG = v;
+                                updatePanel("arrowSpiralMaxDeg", v);
+                            }}
+                        />
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Random Spiral</span><span
+                                class="val"
+                                >{panel.arrowSpiralRandom ? "On" : "Off"}</span
+                            >
+                        </div>
+                        <input
+                            type="checkbox"
+                            checked={panel.arrowSpiralRandom as boolean}
+                            onchange={(e) => {
+                                const v = (e.target as HTMLInputElement)
+                                    .checked;
+                                GAME_CONFIG.ARROW_SPIRAL_RANDOM = v;
+                                updatePanel("arrowSpiralRandom", v);
+                            }}
+                        />
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Spiral Duration</span><span
+                                class="val"
+                                >{panel.arrowSpiralDurationMs}ms</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="3000"
+                            step="50"
+                            value={panel.arrowSpiralDurationMs}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.ARROW_SPIRAL_DURATION_MS = v;
+                                updatePanel("arrowSpiralDurationMs", v);
+                            }}
+                        />
+                    </div>
 
                     <!-- ℹ️ All conquest timing sliders (Speed, Settle, Delay, etc.)
                          are in the ⚡ Timing panel (ANIM_SLIDERS) to avoid duplication -->
