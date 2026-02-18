@@ -666,8 +666,8 @@ export function renderShips(
                     ship.x = star.x + Math.cos(curAngle) * curRadius;
                     ship.y = star.y + Math.sin(curAngle) * curRadius;
                     if (isTrackedShip(ship.id)) traceSettleFrame(ship.id, elapsed, t, ship.x, ship.y, targetX, targetY);
-                    ship.scale = 0.3 + 0.5 * ease;
-                    ship.alpha = 0.5 + 0.5 * ease;
+                    ship.scale = 0.8;
+                    ship.alpha = 1.0;
                 } else {
                     ship.x = targetX;
                     ship.y = targetY;
