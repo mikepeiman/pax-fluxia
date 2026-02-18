@@ -186,34 +186,42 @@ function conquestTravel(ctx: ConquestTransferContext): ConquestTransferResult {
     const laneOffsetPx = GAME_CONFIG.LANE_OFFSET_PX ?? 8;
 
     const departing: VisualShipState[] = [];
-    for (const ship of conquestShips) {
+    const n = conquestShips.length;
+    for (let i = 0; i < n; i++) {
+        const ship = conquestShips[i];
+
+        // Compute this ship's orbit slot at the conquered star (evenly distributed)
+        const slot = getOrbitSlot(i, conqueredStar.x, conqueredStar.y,
+            conqueredStar.radius, 0, undefined, 0, n);
+        const slotEndX = slot.x;
+        const slotEndY = slot.y;
+
         ship.departFromX = ship.x;
         ship.departFromY = ship.y;
         ship.state = 'departing';
         ship.fromStarId = attackerStarId;
         ship.toStarId = conqueredStarId;
-        ship.departTime = now + Math.random() * Math.min(jitterMax, 300 / Math.max(1, conquestShips.length));
+        // Minimal stagger for orderly arrival (not random jitter)
+        ship.departTime = now + i * Math.min(20, 300 / Math.max(1, n));
         ship.travelDuration = travelDuration;
         ship.departDuration = departDuration;
 
         if (convergence >= 1) {
             ship.laneStartX = effectiveLaneStartX;
             ship.laneStartY = effectiveLaneStartY;
-            ship.laneEndX = baseLaneEndX;
-            ship.laneEndY = baseLaneEndY;
         } else {
-            const spreadAngle = ((ship.id % 12) / 12) * Math.PI * 2;
-            const spreadEndX = conqueredStar.x + Math.cos(spreadAngle) * (conqueredStar.radius + 5);
-            const spreadEndY = conqueredStar.y + Math.sin(spreadAngle) * (conqueredStar.radius + 5);
             ship.laneStartX = effectiveLaneStartX * convergence + ship.departFromX * (1 - convergence);
             ship.laneStartY = effectiveLaneStartY * convergence + ship.departFromY * (1 - convergence);
-            ship.laneEndX = baseLaneEndX * convergence + spreadEndX * (1 - convergence);
-            ship.laneEndY = baseLaneEndY * convergence + spreadEndY * (1 - convergence);
         }
 
-        ship.laneOffset = (Math.random() - 0.5) * laneOffsetPx * 2;
+        // Lane end = this ship's unique orbit slot at the conquered star
+        ship.laneEndX = slotEndX;
+        ship.laneEndY = slotEndY;
+
+        ship.laneOffset = 0; // No random offset — slots handle distribution
         ship.staggerDelay = 0;
         ship.ownerId = newOwner;
+        ship.targetIndex = i; // Pre-assign orbit index for direct landing
         (ship as any).conquestSettle = true;
         departing.push(ship);
     }

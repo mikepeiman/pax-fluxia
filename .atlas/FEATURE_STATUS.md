@@ -13,6 +13,7 @@
 | B-86 | No attacker attrition: attacking ships not destroyed proportional to received damage × Lethality | Investigating |
 | B-87 | Conquest settlement ring has a gap — should form a perfect circle | Fixed (2026-02-18) |
 | B-88 | Conquest ships fly to star AS a ring instead of arrow/wedge formation | Fixed (2026-02-18) |
+| B-89 | Attack surge timing hiccup — ships teleport into surge position on new tick before easing back | Open |
 
 ## Planned Features
 | ID | Description | Priority | Status |
