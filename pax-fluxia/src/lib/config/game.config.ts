@@ -103,6 +103,7 @@ interface GameConfigType {
     ORBIT_RING_MULT: number;       // Orbit ring spacing = SHIP_BASE_SIZE * ORBIT_RING_MULT (default 1.4)
     TRANSFER_ANIMATION_MS: number;
     STATIC_ORBITS: boolean;  // When true, ships don't rotate around stars (performance)
+    SHOW_SELECTION_HEX: boolean;  // Show hex border on selected star (above ships)
 
     // Animation tuning
     ORBIT_BIAS_STRENGTH: number;   // How much ships cluster toward target (0=none, 1=max, default 0.6)
@@ -428,6 +429,9 @@ const _rawConfig: GameConfigType = {
 
     /** Visual radius of stars on canvas */
     STAR_RENDER_RADIUS: 25,
+
+    /** Show hex selection border on active star (renders above ships) */
+    SHOW_SELECTION_HEX: true,
 
     /** Orbit ring spacing multiplier (ringSpacing = shipBaseSize * this) */
     ORBIT_RING_MULT: 1.6,

@@ -102,10 +102,7 @@ export function renderStars(
         const radius = GAME_CONFIG.STAR_RENDER_RADIUS ?? star.radius;
         const isActive = star.id === state.activeStarId || star.id === state.dragSourceId;
 
-        // Active star selection highlight (hex border) — white
-        if (isActive) {
-            drawHexBorder(graphics, star.x, star.y, radius + 20, 0xffffff, 3);
-        }
+
 
         // Outer glow ring (pulses slightly, stronger when active)
         const starFxTime = state.gameNowMs / 1000;
@@ -312,4 +309,27 @@ function drawHexBorder(
         graphics.lineTo(cx + radius * Math.cos(a * i), cy + radius * Math.sin(a * i));
     }
     graphics.stroke({ color, width: lineWidth, alpha: 0.9 });
+}
+
+/**
+ * Render selection hex overlay on the active star (above ships layer).
+ * Respects GAME_CONFIG.SHOW_SELECTION_HEX toggle.
+ */
+export function renderSelectionOverlay(
+    stars: StarState[],
+    overlayGraphics: PIXI.Graphics,
+    activeStarId: string | null,
+    dragSourceId: string | null,
+): void {
+    overlayGraphics.clear();
+    if (!GAME_CONFIG.SHOW_SELECTION_HEX) return;
+
+    const targetId = activeStarId || dragSourceId;
+    if (!targetId) return;
+
+    const star = stars.find(s => s.id === targetId);
+    if (!star) return;
+
+    const radius = GAME_CONFIG.STAR_RENDER_RADIUS ?? star.radius;
+    drawHexBorder(overlayGraphics, star.x, star.y, radius + 20, 0xffffff, 3);
 }

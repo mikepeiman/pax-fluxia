@@ -25,6 +25,8 @@ export interface RenderContainers {
     shipParticleContainer: PIXI.ParticleContainer;
     /** Orb travel glow effects (needs Graphics for variable-radius) */
     orbGraphics: PIXI.Graphics;
+    /** Selection highlight overlay (above ships) */
+    selectionOverlayGraphics: PIXI.Graphics;
     /** Lane connection graphics (above ships) */
     connectionGraphics: PIXI.Graphics;
     /** Star labels (ship counts, star IDs) */

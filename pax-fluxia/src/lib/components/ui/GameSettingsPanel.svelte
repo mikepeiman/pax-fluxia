@@ -3380,6 +3380,22 @@
                             style="font-size:9px;opacity:0.6">No rotation</span
                         ></label
                     >
+                    <label class="toggle-row"
+                        ><input
+                            type="checkbox"
+                            checked={GAME_CONFIG.SHOW_SELECTION_HEX}
+                            onchange={(e) => {
+                                GAME_CONFIG.SHOW_SELECTION_HEX = (
+                                    e.target as HTMLInputElement
+                                ).checked;
+                            }}
+                        />
+                        <span class="var-name">⬡ Selection Hex</span><span
+                            class="val"
+                            style="font-size:9px;opacity:0.6"
+                            >Hex border on active star</span
+                        ></label
+                    >
                     <div class="var-row">
                         <div class="row-top">
                             <span class="var-name">Lane Width</span><span

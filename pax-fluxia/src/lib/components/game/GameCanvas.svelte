@@ -31,7 +31,10 @@
     import { audio } from "$lib/audio/AudioManager";
     import { selectedStarStore } from "$lib/stores/selectedStarStore.svelte";
     import { createColorUtils } from "$lib/renderers/colorUtils";
-    import { renderStars as renderStarsModule } from "$lib/renderers/StarRenderer";
+    import {
+        renderStars as renderStarsModule,
+        renderSelectionOverlay,
+    } from "$lib/renderers/StarRenderer";
     import {
         renderConnections as renderConnectionsModule,
         renderOrderArrows as renderOrderArrowsModule,
@@ -51,7 +54,8 @@
 
     // Graphics layers
     let connectionGraphics: PIXI.Graphics | null = null;
-    let dragPreviewGraphics: PIXI.Graphics | null = null;
+    let dragPreviewGraphics: PIXI.Graphics;
+    let selectionOverlayGraphics: PIXI.Graphics | null = null;
     let starsContainer: PIXI.Container | null = null;
     let glowContainer: PIXI.Container | null = null;
     let shipsContainer: PIXI.Container | null = null;
@@ -280,6 +284,7 @@
             glowContainer,
             shipsContainer,
             connectionGraphics,
+            selectionOverlayGraphics,
             labelsContainer,
             dragPreviewGraphics,
         } = containers);
@@ -735,6 +740,16 @@
             shipParticlePool[i].alpha = 0;
         }
         if (shipParticleContainer) shipParticleContainer.update();
+
+        // Selection hex overlay (above ships)
+        if (selectionOverlayGraphics) {
+            renderSelectionOverlay(
+                stars,
+                selectionOverlayGraphics,
+                activeStarId,
+                dragSourceId,
+            );
+        }
 
         // Count total visual ships for HUD
         let shipCount = 0;

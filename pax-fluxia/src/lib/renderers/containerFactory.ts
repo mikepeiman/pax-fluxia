@@ -39,6 +39,10 @@ export function createContainers(stage: PIXI.Container): RenderContainers {
     const shipParticleContainer = null as unknown as PIXI.ParticleContainer;
     const orbGraphics = null as unknown as PIXI.Graphics;
 
+    // Selection overlay (hex highlight — above ships so it's visible)
+    const selectionOverlayGraphics = new PIXI.Graphics();
+    stage.addChild(selectionOverlayGraphics);
+
     // Connections (above ships so lanes stay visible under dense clusters)
     const connectionGraphics = new PIXI.Graphics();
     stage.addChild(connectionGraphics);
@@ -58,6 +62,7 @@ export function createContainers(stage: PIXI.Container): RenderContainers {
         shipsContainer,
         shipParticleContainer,
         orbGraphics,
+        selectionOverlayGraphics,
         connectionGraphics,
         labelsContainer,
         dragPreviewGraphics,
