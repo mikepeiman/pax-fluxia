@@ -55,6 +55,8 @@ export interface StarRenderState {
     animationTime: number;
     /** Game clock in ms — use instead of performance.now() */
     gameNowMs: number;
+    /** Wall clock in ms — pause-aware but NOT speed-scaled */
+    wallNowMs: number;
 }
 
 // ── Rendering Functions ─────────────────────────────────────────────────────
@@ -92,7 +94,8 @@ export function renderStars(
         let effectiveOwner = star.ownerId;
         const pending = state.pendingConquests.get(star.id);
         if (pending) {
-            if (state.gameNowMs < pending.transitionTime) {
+            const conquestCheckNow = GAME_CONFIG.USE_WALL_CLOCK_CONQUEST ? state.wallNowMs : state.gameNowMs;
+            if (conquestCheckNow < pending.transitionTime) {
                 effectiveOwner = pending.previousOwner;
             } else {
                 state.pendingConquests.delete(star.id);
@@ -124,7 +127,8 @@ export function renderStars(
         // Conquest flash: bright white pulse overlay
         const flash = state.conquestFlashes.get(star.id);
         if (flash) {
-            const flashElapsed = state.gameNowMs - flash.startTime;
+            const flashCheckNow = GAME_CONFIG.USE_WALL_CLOCK_CONQUEST ? state.wallNowMs : state.gameNowMs;
+            const flashElapsed = flashCheckNow - flash.startTime;
             if (flashElapsed >= flash.duration) {
                 state.conquestFlashes.delete(star.id);
             } else {

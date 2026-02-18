@@ -162,6 +162,11 @@ interface GameConfigType {
     ORBIT_BIAS_MAX: number;        // Max bias strength for oscillation (default 1.0)
     ORBIT_BIAS_FREQ: number;       // Oscillation frequency relative to ticks (default 1.0)
     ORB_TRAVEL: boolean;           // Ships merge into glowing orb during travel, fragment on arrival (default true)
+    // Clock source toggles (debug) — switch animations between game clock (speed-scaled) and wall clock (raw ms)
+    USE_WALL_CLOCK_TRAVEL: boolean;   // Travel elapsed uses wallNowMs instead of gameNowMs (default false = game clock)
+    USE_WALL_CLOCK_SETTLE: boolean;   // Settle elapsed uses wallNowMs (default true = wall clock — current behavior)
+    USE_WALL_CLOCK_SURGE: boolean;    // Attack surge ramp uses wallNowMs (default true = wall clock — current behavior)
+    USE_WALL_CLOCK_CONQUEST: boolean; // Conquest flash/color delay uses wallNowMs (default false = game clock)
     ORB_BASE_RADIUS: number;       // Base orb radius in px before ship count scaling (default 4)
     ORB_RADIUS_SCALE: number;      // Sqrt multiplier for ship count → radius (default 1.6)
     ORB_GLOW_MULT: number;         // Overall glow multiplier for orb layers (default 1.0)
@@ -455,6 +460,12 @@ const _rawConfig: GameConfigType = {
     /** Arc intensity during departure phase (0=straight, 1=max arc) */
     DEPART_ARC_INTENSITY: 0,
     /** Arc intensity during arrival phase (0=straight, 1=max arc) */
+
+    // Clock source toggles (debug)
+    USE_WALL_CLOCK_TRAVEL: false,
+    USE_WALL_CLOCK_SETTLE: true,
+    USE_WALL_CLOCK_SURGE: true,
+    USE_WALL_CLOCK_CONQUEST: false,
     ARRIVAL_ARC_INTENSITY: 0,
 
     // Travel easing controls

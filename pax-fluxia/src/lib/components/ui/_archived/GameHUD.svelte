@@ -1,9 +1,9 @@
 <script lang="ts">
   import { gameStore } from "$lib/stores/gameStore.svelte";
   import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
-  import SpeedControls from "./SpeedControls.svelte";
-  import Leaderboard from "./Leaderboard.svelte";
-  import ResultsModal from "./ResultsModal.svelte";
+  import SpeedControls from "$lib/components/ui/SpeedControls.svelte";
+  import Leaderboard from "$lib/components/ui/Leaderboard.svelte";
+  import ResultsModal from "$lib/components/ui/ResultsModal.svelte";
   import { GAME_CONFIG } from "$lib/config/game.config";
   import { browser } from "$app/environment";
 

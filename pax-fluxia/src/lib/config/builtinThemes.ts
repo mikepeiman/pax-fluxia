@@ -49,6 +49,11 @@ export const SMOOTH_BEZIER: GameTheme = {
         ORDERS_PERSIST_AFTER_CONQUEST: true,
         RETAIN_ORDER_ON_CONQUEST: true,
         ALLOW_OPPOSING_ORDERS: false,
+        // Clock source toggles
+        USE_WALL_CLOCK_TRAVEL: false,
+        USE_WALL_CLOCK_SETTLE: true,
+        USE_WALL_CLOCK_SURGE: true,
+        USE_WALL_CLOCK_CONQUEST: false,
         CONQUEST_DAMAGED_CAPTURE_RATE: 1,
         CONQUEST_DAMAGED_DESTROY_RATE: 0,
         RETREAT_CAPTURE_RATE: 0.1,

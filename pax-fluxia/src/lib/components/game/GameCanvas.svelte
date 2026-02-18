@@ -635,6 +635,7 @@
                 conquestFlashes,
                 animationTime,
                 gameNowMs: fxOrchestrator.gameTime,
+                wallNowMs: animationTime * 1000,
             },
             colorUtils,
         );

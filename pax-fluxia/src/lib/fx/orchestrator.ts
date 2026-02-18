@@ -133,6 +133,7 @@ export class FXOrchestrator {
             starsById,
             vsm: this.vsm,
             effectiveTickMs,
+            wallTime: this.clock.wallNow,
         };
     }
 }

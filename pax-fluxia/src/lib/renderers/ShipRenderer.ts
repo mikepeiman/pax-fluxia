@@ -215,7 +215,7 @@ export function renderTravelingShips(
 ): void {
     if (!res.shipParticleContainer) return;
 
-    const now = state.gameNowMs;
+    const now = GAME_CONFIG.USE_WALL_CLOCK_TRAVEL ? state.wallNowMs : state.gameNowMs;
 
     const stillTraveling: VisualShipState[] = [];
     state._arrivalBatchCount = 0; // Reset per-frame batch counter
@@ -454,7 +454,8 @@ export function renderShips(
         let effectiveOwner = star.ownerId;
         const pending = state.pendingConquests.get(star.id);
         if (pending) {
-            if (state.gameNowMs < pending.transitionTime) {
+            const conquestCheckNow = GAME_CONFIG.USE_WALL_CLOCK_CONQUEST ? state.wallNowMs : state.gameNowMs;
+            if (conquestCheckNow < pending.transitionTime) {
                 effectiveOwner = pending.previousOwner;
             } else {
                 state.pendingConquests.delete(star.id);
@@ -619,7 +620,8 @@ export function renderShips(
                     if (rampDuration > 0) {
                         let rampVal = state.attackRampProgress.get(star.id)!;
                         if (!gamePaused && state.lastSurgeFrameTime > 0) {
-                            const frameDelta = state.gameNowMs - state.lastSurgeFrameTime;
+                            const surgeNow = GAME_CONFIG.USE_WALL_CLOCK_SURGE ? state.wallNowMs : state.gameNowMs;
+                            const frameDelta = surgeNow - state.lastSurgeFrameTime;
                             rampVal = Math.min(1, rampVal + frameDelta / rampDuration);
                             state.attackRampProgress.set(star.id, rampVal);
                         }
@@ -634,7 +636,11 @@ export function renderShips(
                     const facingFactor = shipNormX * useDirX + shipNormY * useDirY;
                     const surgeFactor = Math.max(0, facingFactor) ** 1.5;
 
-                    const rawPulse = Math.sin(state.tickProgress * Math.PI);
+                    // Surge pulse: game clock → scales with game speed; wall clock → constant rate
+                    const surgeProgress = GAME_CONFIG.USE_WALL_CLOCK_SURGE
+                        ? state.tickProgress
+                        : (state.effectiveTickMs > 0 ? (state.gameNowMs % state.effectiveTickMs) / state.effectiveTickMs : 0);
+                    const rawPulse = Math.sin(surgeProgress * Math.PI);
                     const surgeShape = GAME_CONFIG.ATTACK_SURGE_SHAPE ?? 1;
                     const surgePulse = surgeShape === 1 ? rawPulse : Math.pow(rawPulse, surgeShape);
                     const phaseAmplitude = 0.75 + 0.25 * Math.sin(shipPhase * Math.PI * 2);
@@ -658,7 +664,7 @@ export function renderShips(
                 }
 
                 // Time-based polar arc interpolation
-                const now = state.wallNowMs;
+                const now = GAME_CONFIG.USE_WALL_CLOCK_SETTLE ? state.wallNowMs : state.gameNowMs;
                 const elapsed = now - ship.settleStartTime;
                 const isArrowSettle = ship.arrowSpiralDeg !== undefined && ship.arrowSpiralDeg !== 0;
                 const settleDur = isArrowSettle
@@ -780,7 +786,7 @@ export function renderShips(
     renderTravelingShips(stars, starsById, state, res, colorUtils);
 
     // Update frame timestamp for surge ramp delta
-    state.lastSurgeFrameTime = state.gameNowMs;
+    state.lastSurgeFrameTime = GAME_CONFIG.USE_WALL_CLOCK_SURGE ? state.wallNowMs : state.gameNowMs;
 }
 
 // ── renderFleets — Legacy fleet overlay ─────────────────────────────────────

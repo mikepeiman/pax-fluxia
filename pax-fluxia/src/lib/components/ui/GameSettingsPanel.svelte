@@ -1177,6 +1177,85 @@
                         />
                     </div>
 
+                    <!-- Clock Source Toggles (debug) -->
+                    <div
+                        class="var-row grayed"
+                        style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"
+                    >
+                        ⏱️ Clock Source — switch between game clock
+                        (speed-scaled) and wall clock (raw ms)
+                    </div>
+                    <label class="toggle-row">
+                        <input
+                            type="checkbox"
+                            checked={GAME_CONFIG.USE_WALL_CLOCK_TRAVEL}
+                            onchange={() => {
+                                GAME_CONFIG.USE_WALL_CLOCK_TRAVEL =
+                                    !GAME_CONFIG.USE_WALL_CLOCK_TRAVEL;
+                            }}
+                        />
+                        <span class="var-name">Travel → Wall Clock</span>
+                    </label>
+                    <div
+                        class="var-row grayed"
+                        style="font-size: 9px; padding: 0 4px 4px; margin-top: -6px; opacity: 0.6;"
+                    >
+                        Ship travel elapsed + departTime stamps (default: off =
+                        game clock)
+                    </div>
+                    <label class="toggle-row">
+                        <input
+                            type="checkbox"
+                            checked={GAME_CONFIG.USE_WALL_CLOCK_SETTLE}
+                            onchange={() => {
+                                GAME_CONFIG.USE_WALL_CLOCK_SETTLE =
+                                    !GAME_CONFIG.USE_WALL_CLOCK_SETTLE;
+                            }}
+                        />
+                        <span class="var-name">Settle → Wall Clock</span>
+                    </label>
+                    <div
+                        class="var-row grayed"
+                        style="font-size: 9px; padding: 0 4px 4px; margin-top: -6px; opacity: 0.6;"
+                    >
+                        Orbit settle-in animation (default: on = wall clock)
+                    </div>
+                    <label class="toggle-row">
+                        <input
+                            type="checkbox"
+                            checked={GAME_CONFIG.USE_WALL_CLOCK_SURGE}
+                            onchange={() => {
+                                GAME_CONFIG.USE_WALL_CLOCK_SURGE =
+                                    !GAME_CONFIG.USE_WALL_CLOCK_SURGE;
+                            }}
+                        />
+                        <span class="var-name">Surge → Wall Clock</span>
+                    </label>
+                    <div
+                        class="var-row grayed"
+                        style="font-size: 9px; padding: 0 4px 4px; margin-top: -6px; opacity: 0.6;"
+                    >
+                        Attack surge ramp-in timing (default: off = game clock)
+                    </div>
+                    <label class="toggle-row">
+                        <input
+                            type="checkbox"
+                            checked={GAME_CONFIG.USE_WALL_CLOCK_CONQUEST}
+                            onchange={() => {
+                                GAME_CONFIG.USE_WALL_CLOCK_CONQUEST =
+                                    !GAME_CONFIG.USE_WALL_CLOCK_CONQUEST;
+                            }}
+                        />
+                        <span class="var-name">Conquest → Wall Clock</span>
+                    </label>
+                    <div
+                        class="var-row grayed"
+                        style="font-size: 9px; padding: 0 4px 4px; margin-top: -6px; opacity: 0.6;"
+                    >
+                        Conquest flash + color delay timing (default: off = game
+                        clock)
+                    </div>
+
                     <!-- ⚔️ BATTLE -->
                 {:else if activeSection === "battle"}
                     {#each variables as v}
