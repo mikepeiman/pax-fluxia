@@ -70,6 +70,8 @@ export interface ShipRenderState {
     effectiveTickMs: number;
     /** Tick progress within current tick (0-1) */
     tickProgress: number;
+    /** Per-frame counter for arrival batch stagger (reset each frame) */
+    _arrivalBatchCount?: number;
 }
 
 export interface ShipRenderResources {
@@ -216,6 +218,7 @@ export function renderTravelingShips(
     const now = state.gameNowMs;
 
     const stillTraveling: VisualShipState[] = [];
+    state._arrivalBatchCount = 0; // Reset per-frame batch counter
 
     // Orb grouping
     const orbGroups: Map<string, {
@@ -345,10 +348,15 @@ export function renderTravelingShips(
                     // ARRIVAL_SPREAD=0: settle immediately, >0: stagger settle over fraction of tick
                     const arrivalSpread = GAME_CONFIG.ARRIVAL_SPREAD ?? 0;
                     let staggerOffset = 0;
-                    if (arrivalSpread > 0 && destShips.length > 0) {
+                    if (arrivalSpread > 0) {
                         const tickMs = state.effectiveTickMs || 1000;
                         const staggerWindow = tickMs * arrivalSpread;
-                        staggerOffset = (destShips.length / Math.max(1, destShips.length + 1)) * staggerWindow;
+                        // Use ship's arrival index within THIS batch (not total orbit count)
+                        // to spread settle starts across the stagger window
+                        const batchIdx: number = state._arrivalBatchCount ?? 0;
+                        state._arrivalBatchCount = (batchIdx + 1);
+                        const batchSpacing = Math.min(staggerWindow / Math.max(1, batchIdx + 1), 50);
+                        staggerOffset = batchIdx * batchSpacing;
                     }
                     ship.settleStartTime = state.wallNowMs + staggerOffset;
                     ship.settleStartAngle = arrAngle;
