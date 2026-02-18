@@ -243,6 +243,7 @@
 | F-36 | Engine Unification Refactor: Client `GameEngine` (1340 lines) replaced with `@pax/common` shared engine. AI migrated to `@pax/common`. `gameStore` uses local `GameRoomState` + `GameEngine.tick()`. Map generation randomized (star types + owner placement). 5 dead engine files deleted (~1,900 lines). svelte-check errors 7→1. | 2026-02-15 |
 | F-37 | Lane Convergence Variables: `LANE_CONVERGENCE` (0-1, how tightly ships converge to lane) and `LANE_CONVERGENCE_POINT` (0-100, where convergence point sits along origin→dest). Sliders in GameSettingsPanel. Applied to transferHandler, conquestHandler, and strategies.ts. | 2026-02-17 |
 | F-38 | MP Lobby Discoverability Fix: `fetchRooms()` switched from `client.http.get` to `getAvailableRooms('game_room')`. 5s auto-refresh polling with `startRoomPolling`/`stopRoomPolling`. | 2026-02-17 |
+| F-39 | Opposing Orders Flag: `ALLOW_OPPOSING_ORDERS` config (default false). When off, A→B cancels B→A. When on, both coexist. Pre-game toggle in MainMenu, in-game toggle in GameSettingsPanel "Rules" section. GameCanvas `addPendingOrder` conditionally cancels. | 2026-02-18 |
 
 ## Planned Features — Not Started (R)
 
@@ -380,6 +381,7 @@
 | R-122 | **Custom Game Themes**: saveable/loadable theme presets (visual style, color palette, game settings) persisted to localStorage. Users can name, save, switch between themes. | 🟡 |
 | R-123 | **Community Content Hub**: project directory for storing/sharing custom themes and maps. Three tiers: official maps (from dev), public user-contributed maps, and user themes. Infrastructure for future sharing/import/export of rich game config presets. | 🔵 |
 | R-124 | **Spectator Mode on Mid-Game Join**: New players joining in-progress games enter as spectators (observers). Can choose to take over an AI player, or request takeover of a human player (with consent). UI shows "Spectating" player list. | 🔴 |
+| R-125 | **Conquest Reactivation Delay**: Newly conquered stars have a cooldown before production/orders activate. Config: `CONQUEST_REACTIVATION_ENABLED` (bool), `CONQUEST_REACTIVATION_TICKS` (int, default 2-3). Adds strategic cost to conquest — prevents instant counter-attack from captured star. | 🟢 |
 
 ---
 

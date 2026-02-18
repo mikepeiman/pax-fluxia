@@ -197,8 +197,10 @@
                     pendingOrders.delete(k);
                 }
             });
-            // Remove opposite flow for same-owner stars (A→B cancels B→A)
-            pendingOrders.delete(`${targetId}|${sourceId}`);
+            // Remove opposite flow for same-owner stars (A→B cancels B→A) unless opposing allowed
+            if (!GAME_CONFIG.ALLOW_OPPOSING_ORDERS) {
+                pendingOrders.delete(`${targetId}|${sourceId}`);
+            }
             // Add new order
             pendingOrders.add(key);
         }

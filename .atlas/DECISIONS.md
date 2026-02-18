@@ -44,6 +44,10 @@
 - **Lesson**: `ARRIVAL_SPREAD` stagger formula used `destShips.length / (destShips.length+1) * staggerWindow`, silently creating 2000ms+ delays at stars with 100+ ships. The fix was trivial (use batch index instead), but the bug persisted across dozens of iterations because the formula was opaque. **If `settleStartTime` had been exposed with a slider or set to 0 on conquest, the user could have diagnosed this in seconds.**
 - **Anti-pattern**: Never write an integral animation function that is opaque, unexposed, and unspecified. When the user insists on tunability, that means ALL timing parameters, not just the ones that seem important.
 
+### D-20: Opposing Orders — Client-Only Game Rule
+- **Decision**: `ALLOW_OPPOSING_ORDERS` is a client-only boolean (not syncd to server). When `false` (default), issuing A→B cancels any existing B→A order. When `true`, both coexist.
+- **Rationale**: Order management is handled entirely in `GameCanvas.addPendingOrder()` (client-side `pendingOrders` Set). No server logic needed — the server just processes whatever orders arrive. Exposed in both pre-game MainMenu and in-game GameSettingsPanel "Rules" section.
+
 ### D-19: Engulf Ring — Perfect Circle Distribution
 - **Decision**: Arriving conquest ships distribute their `settleStartAngle` evenly around 2π using batch index, not clustered at arrival direction.
 - **Rationale**: All ships from the same source star arrive at the same angle, creating a gap. Even distribution creates a perfect engulf ring.

@@ -92,6 +92,7 @@
     let retainOrderOnConquest = $state(
         loadSetting("retainOrderOnConquest", true),
     );
+    let allowOpposingOrders = $state(loadSetting("allowOpposingOrders", false));
     let tickDuration = $state(loadSetting("tickDuration", 500));
 
     // MP Join state
@@ -254,6 +255,7 @@
         saveSetting("maxLinks", maxLinks);
         saveSetting("starSpacing", starSpacing);
         saveSetting("retainOrderOnConquest", retainOrderOnConquest);
+        saveSetting("allowOpposingOrders", allowOpposingOrders);
         saveSetting("playerConfigs", playerConfigs);
         saveSetting("hueOffset", hueOffset);
         saveSetting("tickDuration", tickDuration);
@@ -285,6 +287,7 @@
         GAME_CONFIG.MIN_LINKS_PER_STAR = minLinks;
         GAME_CONFIG.MAX_LINKS_PER_STAR = maxLinks;
         GAME_CONFIG.RETAIN_ORDER_ON_CONQUEST = retainOrderOnConquest;
+        GAME_CONFIG.ALLOW_OPPOSING_ORDERS = allowOpposingOrders;
 
         const selectedMap =
             MAP_DEFS.find((m) => m.id === mapType) ?? MAP_DEFS[0];
@@ -411,6 +414,17 @@
                             <span class="tooltip"
                                 >Attack orders become movement orders when
                                 target is captured</span
+                            >
+                        </label>
+                        <label class="checkbox-label">
+                            <input
+                                type="checkbox"
+                                bind:checked={allowOpposingOrders}
+                            />
+                            <span>Allow opposing orders</span>
+                            <span class="tooltip"
+                                >A→B and B→A movement orders can coexist
+                                (default: off = opposing cancels)</span
                             >
                         </label>
                         <label class="checkbox-label">

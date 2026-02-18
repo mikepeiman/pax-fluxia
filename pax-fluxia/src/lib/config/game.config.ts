@@ -77,6 +77,9 @@ interface GameConfigType {
     /** When attacker conquers defender, retain attack order as movement order */
     RETAIN_ORDER_ON_CONQUEST: boolean;
 
+    /** Allow A→B and B→A movement orders to coexist (default: false = opposing cancels) */
+    ALLOW_OPPOSING_ORDERS: boolean;
+
     // Scatter/Retreat (on conquest)
     RETREAT_CAPTURE_RATE: number;      // % captured when defender is retreating (default 0.35)
     SCATTER_CAPTURE_RATE: number;      // % captured when escape routes exist (default 0.50)
@@ -362,6 +365,9 @@ const _rawConfig: GameConfigType = {
 
     /** When attacker conquers defender, retain attack order as movement order (default: true) */
     RETAIN_ORDER_ON_CONQUEST: true,
+
+    /** Allow A→B and B→A movement orders to coexist (default: false) */
+    ALLOW_OPPOSING_ORDERS: false,
 
     /** % of damaged ships captured (transferred to new owner) at conquest (0-1) */
     CONQUEST_DAMAGED_CAPTURE_RATE: 1.0,

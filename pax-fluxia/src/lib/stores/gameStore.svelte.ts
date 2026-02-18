@@ -799,6 +799,10 @@ function toggleRetainOrderOnConquest(): void {
     GAME_CONFIG.RETAIN_ORDER_ON_CONQUEST = !GAME_CONFIG.RETAIN_ORDER_ON_CONQUEST;
 }
 
+function toggleAllowOpposingOrders(): void {
+    GAME_CONFIG.ALLOW_OPPOSING_ORDERS = !GAME_CONFIG.ALLOW_OPPOSING_ORDERS;
+}
+
 function debugSetStarShips(starId: string, count: number): void {
     if (!state) return;
     const star = state.stars.get(starId);
@@ -826,6 +830,7 @@ export const gameStore = {
     get sessionId() { return sessionId; },
     get hasStarted() { return hasStarted; },
     get retainOrderOnConquest() { return GAME_CONFIG.RETAIN_ORDER_ON_CONQUEST; },
+    get allowOpposingOrders() { return GAME_CONFIG.ALLOW_OPPOSING_ORDERS; },
 
     // Actions
     setView,
@@ -847,6 +852,7 @@ export const gameStore = {
     updateConfig,
     beginGame,
     toggleRetainOrderOnConquest,
+    toggleAllowOpposingOrders,
     debugSetStarShips,
 };
 
