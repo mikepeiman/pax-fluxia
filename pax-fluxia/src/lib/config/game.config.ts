@@ -126,7 +126,7 @@ interface GameConfigType {
     ATTACK_SURGE_RAMP_MS: number;        // Ramp-in duration for attack surge (ms, 0=instant/old behavior, default 300)
     ATTACK_SURGE_SHAPE: number;          // Surge pulse shape power (1=sine, 2=sharper peak, 0.5=flatter, default 1)
     // Conquest animation
-    CONQUEST_ANIMATION_MODE: 'immediate' | 'surge' | 'travel'; // Strategy for transferring attacker ships to conquered star
+    CONQUEST_ANIMATION_MODE: 'immediate' | 'surge' | 'travel' | 'arrowhead'; // Strategy for transferring attacker ships to conquered star
     CONQUEST_SETTLE_MS: number;          // How long conquest ships take to settle into orbit in surge mode (ms, default 500)
     CONQUEST_SURGE_RADIUS: number;       // Initial spawn radius above orbit for surge mode (px, default 40)
     CONQUEST_SURGE_STAGGER_MS: number;   // Per-ship stagger delay for organic arrival spread (ms, default 30)
@@ -134,6 +134,18 @@ interface GameConfigType {
     CONQUEST_LERP_DELAY_MS: number;      // Delay before conquest ships start moving (ms, default 200)
     CONQUEST_COLOR_DELAY_MS: number;     // Delay before conquered star changes to new owner color (ms, default 400)
     CONQUEST_FLASH_DURATION_MS: number;  // Duration of bright conquest flash on star (ms, 0=disabled, default 600)
+    // Arrowhead conquest animation
+    ARROW_TAPER: number;                 // Wedge shape: 0=column, 1=sharp V (default 0.7)
+    ARROW_WIDTH: number;                 // Base width in px (0=auto from star+orbit diameter, default 0)
+    ARROW_SPEED: number;                 // Duration multiplier (lower=faster, default 0.6)
+    ARROW_EASING: 'easeIn' | 'easeInOut' | 'linear'; // Travel easing (default 'easeIn' = accelerating)
+    ARROW_ENGULF_MODE: 'fan' | 'collapse'; // 'fan'=surround, 'collapse'=pile on (default 'fan')
+    ARROW_ENGULF_RADIUS: number;         // Initial radius around target at engulf (px, default 50)
+    ARROW_SPIRAL_MIN_DEG: number;        // Min spiral degrees per ship (default 180)
+    ARROW_SPIRAL_MAX_DEG: number;        // Max spiral degrees per ship (default 720)
+    ARROW_SPIRAL_RANDOM: boolean;        // Random vs orderly spiral amount (default true)
+    ARROW_SPIRAL_DURATION_MS: number;    // How long spiral settle lasts (ms, default 800)
+    ARROW_STAGGER_MS: number;            // Per-ship delay entering formation (ms, default 20)
     // Conquest slowmo
     CONQUEST_SLOWMO_ENABLED: boolean;    // Auto-slow game when conquest fires (default true)
     CONQUEST_SLOWMO_FACTOR: number;      // How much to slow (multiplier on ANIMATION_SPEED_MS, default 5)
@@ -474,6 +486,18 @@ const _rawConfig: GameConfigType = {
     CONQUEST_LERP_DELAY_MS: 200,
     CONQUEST_COLOR_DELAY_MS: 400,
     CONQUEST_FLASH_DURATION_MS: 600,
+    // ── Arrowhead conquest animation ──
+    ARROW_TAPER: 0.7,
+    ARROW_WIDTH: 0,
+    ARROW_SPEED: 0.6,
+    ARROW_EASING: 'easeIn' as const,
+    ARROW_ENGULF_MODE: 'fan' as const,
+    ARROW_ENGULF_RADIUS: 50,
+    ARROW_SPIRAL_MIN_DEG: 180,
+    ARROW_SPIRAL_MAX_DEG: 720,
+    ARROW_SPIRAL_RANDOM: true,
+    ARROW_SPIRAL_DURATION_MS: 800,
+    ARROW_STAGGER_MS: 20,
     /** Auto-slow game when conquest fires (for tuning/debugging) */
     CONQUEST_SLOWMO_ENABLED: false,
     /** How much to slow animation on conquest (multiplier on tick duration) */

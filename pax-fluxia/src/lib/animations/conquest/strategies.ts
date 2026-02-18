@@ -13,7 +13,7 @@
  */
 
 import type { VisualShipState } from '$lib/utils/render.utils';
-import { getOrbitSlot } from '$lib/utils/render.utils';
+import { getOrbitSlot, getOuterOrbitRadius } from '$lib/utils/render.utils';
 import { GAME_CONFIG } from '$lib/config/game.config';
 
 // ============================================================================
@@ -222,6 +222,123 @@ function conquestTravel(ctx: ConquestTransferContext): ConquestTransferResult {
 }
 
 // ============================================================================
+// Strategy: Arrowhead (wedge formation → accelerating lane → engulf → spiral settle)
+// ============================================================================
+
+function conquestArrowhead(ctx: ConquestTransferContext): ConquestTransferResult {
+    const {
+        ships, attackerStar, conqueredStar, transferCount, newOwner, now,
+        effectiveTickMs, attackerStarId, conqueredStarId,
+    } = ctx;
+
+    // ── Sort and splice fleet ──
+    const dx = conqueredStar.x - attackerStar.x;
+    const dy = conqueredStar.y - attackerStar.y;
+    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+    const ndx = dx / dist;
+    const ndy = dy / dist;
+
+    sortByActualPosition(ships, attackerStar, ndx, ndy);
+    const conquestShips = ships.splice(0, transferCount);
+    reindexShips(ships);
+
+    // ── Config ──
+    const taper = GAME_CONFIG.ARROW_TAPER ?? 0.7;
+    const autoWidth = getOuterOrbitRadius(attackerStar.radius, conquestShips.length) * 2;
+    const baseWidth = (GAME_CONFIG.ARROW_WIDTH ?? 0) > 0 ? GAME_CONFIG.ARROW_WIDTH : autoWidth;
+    const speed = GAME_CONFIG.ARROW_SPEED ?? 0.6;
+    const staggerMs = GAME_CONFIG.ARROW_STAGGER_MS ?? 20;
+    const engulfMode = GAME_CONFIG.ARROW_ENGULF_MODE ?? 'fan';
+    const engulfRadius = GAME_CONFIG.ARROW_ENGULF_RADIUS ?? 50;
+    const spiralMin = GAME_CONFIG.ARROW_SPIRAL_MIN_DEG ?? 180;
+    const spiralMax = GAME_CONFIG.ARROW_SPIRAL_MAX_DEG ?? 720;
+    const spiralRandom = GAME_CONFIG.ARROW_SPIRAL_RANDOM ?? true;
+
+    // ── Perpendicular axis for wedge spread ──
+    const perpX = -ndy;
+    const perpY = ndx;
+
+    // ── Timing ──
+    const halfTick = effectiveTickMs / 2;
+    const departFraction = GAME_CONFIG.DEPART_FRACTION ?? 0.3;
+    const departDuration = halfTick * departFraction;
+    const travelDuration = (halfTick * (1 - departFraction)) * speed;
+
+    // ── Lane endpoints ──
+    const laneStartX = attackerStar.x + ndx * (attackerStar.radius + 5);
+    const laneStartY = attackerStar.y + ndy * (attackerStar.radius + 5);
+    const laneEndX = conqueredStar.x - ndx * (conqueredStar.radius + 5);
+    const laneEndY = conqueredStar.y - ndy * (conqueredStar.radius + 5);
+
+    const departing: VisualShipState[] = [];
+    const n = conquestShips.length;
+
+    for (let i = 0; i < n; i++) {
+        const ship = conquestShips[i];
+
+        // ── Wedge position assignment ──
+        // Index 0 = leader (center), subsequent ships fan outward
+        // fracInFormation: 0 at center, ±1 at edges
+        const fracInFormation = n > 1
+            ? ((i % 2 === 0 ? 1 : -1) * Math.ceil(i / 2)) / Math.ceil(n / 2)
+            : 0;
+
+        // Perpendicular offset scales with taper: 0 = column, 1 = full V
+        const wedgeOffset = fracInFormation * (baseWidth / 2) * taper;
+        ship.arrowWedgeOffset = wedgeOffset;
+
+        // ── Per-ship spiral degrees ──
+        if (spiralRandom) {
+            ship.arrowSpiralDeg = spiralMin + Math.random() * (spiralMax - spiralMin);
+        } else {
+            // Orderly: evenly distribute across range
+            ship.arrowSpiralDeg = n > 1
+                ? spiralMin + (i / (n - 1)) * (spiralMax - spiralMin)
+                : (spiralMin + spiralMax) / 2;
+        }
+        // Random direction (CW or CCW)
+        if (Math.random() < 0.5) {
+            ship.arrowSpiralDeg = -ship.arrowSpiralDeg;
+        }
+
+        // ── Lane endpoints with wedge offset ──
+        // Leader converges to lane center; trailing ships have perpendicular spread
+        // Depth stagger: trailing ships start slightly behind the leader
+        const depthOffset = Math.abs(fracInFormation) * taper;
+        ship.laneStartX = laneStartX + perpX * wedgeOffset - ndx * depthOffset * 20;
+        ship.laneStartY = laneStartY + perpY * wedgeOffset - ndy * depthOffset * 20;
+
+        // End positions depend on engulf mode
+        if (engulfMode === 'fan') {
+            // Fan: ships arrive surrounding the target at engulfRadius
+            const arrivalAngle = Math.atan2(-ndy, -ndx) + fracInFormation * Math.PI * 0.8;
+            ship.laneEndX = conqueredStar.x + Math.cos(arrivalAngle) * engulfRadius;
+            ship.laneEndY = conqueredStar.y + Math.sin(arrivalAngle) * engulfRadius;
+        } else {
+            // Collapse: all converge to the star edge from the lane direction
+            ship.laneEndX = laneEndX + perpX * wedgeOffset * 0.3; // slight spread retained
+            ship.laneEndY = laneEndY + perpY * wedgeOffset * 0.3;
+        }
+
+        ship.laneOffset = wedgeOffset * 0.5; // Minor wobble around wedge position
+        ship.departFromX = ship.x;
+        ship.departFromY = ship.y;
+        ship.state = 'departing';
+        ship.fromStarId = attackerStarId;
+        ship.toStarId = conqueredStarId;
+        ship.departTime = now + i * staggerMs;
+        ship.travelDuration = travelDuration;
+        ship.departDuration = departDuration;
+        ship.staggerDelay = 0;
+        ship.ownerId = newOwner;
+        (ship as any).conquestSettle = true;
+        departing.push(ship);
+    }
+
+    return { departing, arriving: [], remaining: ships };
+}
+
+// ============================================================================
 // Shared Helpers
 // ============================================================================
 
@@ -288,6 +405,7 @@ export const CONQUEST_STRATEGIES: Record<string, ConquestTransferStrategy> = {
     'immediate': conquestImmediate,
     'surge': conquestSurge,
     'travel': conquestTravel,
+    'arrowhead': conquestArrowhead,
 };
 
 /**

@@ -23,6 +23,7 @@
 | R-124 | Spectator-first takeover: join as spectator, observe game, click player to take over | High | Planned |
 | F-47 | Territory alpha overlay | Low | Planned |
 | F-48 | Per-player VFX themes: each player has own visual/GX settings without affecting others in MP | High | Planned |
+| F-49 | Arrowhead conquest animation: wedge formation → lane travel → engulf → spiral settle w/ full tuning UI | High | Done (2026-02-17) |
 
 ## Known Regressions
 | ID | Description | Since |

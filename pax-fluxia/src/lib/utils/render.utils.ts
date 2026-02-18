@@ -65,6 +65,9 @@ export interface VisualShipState {
     settleStartTime: number;       // performance.now() when orbiting started
     settleStartAngle: number;      // Initial polar angle relative to star center
     settleStartRadius: number;     // Initial radius from star center
+    // Arrowhead conquest animation (optional — set by conquestArrowhead strategy)
+    arrowWedgeOffset?: number;     // Perpendicular offset in wedge formation (px)
+    arrowSpiralDeg?: number;       // Degrees to spiral on arrival (per-ship, can exceed 360)
 }
 
 /**
