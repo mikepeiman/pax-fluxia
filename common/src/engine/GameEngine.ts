@@ -82,10 +82,11 @@ export class GameEngine {
      * @param state - The game state
      * @param input - The input to process
      */
-    static processInput(state: GameRoomState, input: GameInput): void {
+    static processInput(state: GameRoomState, input: GameInput, config: Partial<EngineConfig> = {}): void {
+        const cfg: EngineConfig = { ...DEFAULT_ENGINE_CONFIG, ...config };
         switch (input.type) {
             case "ISSUE_ORDER":
-                this.issueOrder(state, input);
+                this.issueOrder(state, input, cfg);
                 break;
             case "CANCEL_ORDER":
                 this.cancelOrder(state, input);
@@ -115,7 +116,7 @@ export class GameEngine {
     // ORDER LOGIC
     // ════════════════════════════════════════════════════════════════════════
 
-    private static issueOrder(state: GameRoomState, input: IssueOrderInput): void {
+    private static issueOrder(state: GameRoomState, input: IssueOrderInput, cfg: EngineConfig): void {
         const source = state.stars.get(input.sourceId);
         if (!source) return;
 
@@ -127,9 +128,12 @@ export class GameEngine {
         if (!connected) return;
 
         // Prevent opposing orders: if target is already sending to source, cancel it
-        const target = state.stars.get(input.targetId);
-        if (target && target.targetId === input.sourceId) {
-            target.targetId = '';
+        // (unless ALLOW_OPPOSING_ORDERS is enabled)
+        if (!cfg.ALLOW_OPPOSING_ORDERS) {
+            const target = state.stars.get(input.targetId);
+            if (target && target.targetId === input.sourceId) {
+                target.targetId = '';
+            }
         }
 
         // Set order

@@ -73,6 +73,9 @@ export interface EngineConfig {
     FORCE_RATIO_EFFECT: number;            // How much numerical superiority matters
     CONQUEST_THRESHOLD: number;            // Overwhelm ratio for instant capture
     MINIMUM_DAMAGE: number;                // Floor damage per combat tick
+
+    // Orders
+    ALLOW_OPPOSING_ORDERS: boolean;    // Allow A→B and B→A simultaneously (default false)
 }
 
 export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
@@ -98,4 +101,5 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
     FORCE_RATIO_EFFECT: 0,
     CONQUEST_THRESHOLD: 20,
     MINIMUM_DAMAGE: 1,
+    ALLOW_OPPOSING_ORDERS: false,
 };

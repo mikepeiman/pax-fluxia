@@ -698,7 +698,7 @@ function issueOrder(sourceId: StarId, targetId: StarId, persistAfterConquest?: b
         playerId: HUMAN_PLAYER_ID,
         persist: persistAfterConquest,
     };
-    SharedEngine.processInput(state, input);
+    SharedEngine.processInput(state, input, { ALLOW_OPPOSING_ORDERS: GAME_CONFIG.ALLOW_OPPOSING_ORDERS });
 
     // Instant UI update
     snapshot = toGameState(state);
