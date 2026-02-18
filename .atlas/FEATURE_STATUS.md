@@ -17,6 +17,7 @@
 | B-90 | Orb travel glitching — too many orbs spawned, need one per travel_duration with tick-bind toggle | Open |
 | B-91 | Game-wide subtle animation hiccup — possibly related to tick boundary timing | Fixed (2026-02-18) |
 | B-92 | Player orders randomly cancelled — several iterations old | Fixed (2026-02-18) |
+| B-93 | Deferred order chains not preserved — cannot reproduce, may be fixed by B-92 | Monitoring |
 
 ## Planned Features
 | ID | Description | Priority | Status |
