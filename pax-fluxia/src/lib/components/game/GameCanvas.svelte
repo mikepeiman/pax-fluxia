@@ -360,6 +360,10 @@
 
             // Tick FXClock per-frame (pause-aware game time for all ship animations)
             const isPaused = activeGameStore.isPaused;
+
+            // Initialize lastTickGameTimeMs on first frame so tickProgress starts at 0
+            if (lastTickGameTimeMs === 0)
+                lastTickGameTimeMs = fxOrchestrator.gameTime;
             if (isPaused && !fxOrchestrator.clock.isPaused)
                 fxOrchestrator.pause();
             if (!isPaused && fxOrchestrator.clock.isPaused)
@@ -692,10 +696,11 @@
         // Clear combat tracking before processing new tick events
         // (starsInCombat is rebuilt each tick from CombatEvents)
         if (tickEvents) {
+            // Record game-time BEFORE processing events so tickProgress ≈ 0
+            // at tick boundary (enables surge direction-lock at tickProgress < 0.1)
+            lastTickGameTimeMs = fxOrchestrator.gameTime;
             starsInCombat.clear();
             processTickEvents(stars, tickEvents, connections || [], starsById);
-            // Record game-time at tick boundary for tickProgress computation
-            lastTickGameTimeMs = fxOrchestrator.gameTime;
         }
 
         // Render all ships: orbiting (per-star) + traveling (in-flight lifecycle)

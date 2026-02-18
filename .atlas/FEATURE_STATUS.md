@@ -18,8 +18,13 @@
 | B-91 | Game-wide subtle animation hiccup — possibly related to tick boundary timing | Fixed (2026-02-18) |
 | B-92 | Player orders randomly cancelled / opposing orders not enforced | Fixed (2026-02-18, refined) |
 | B-93 | Deferred order chains not preserved — cannot reproduce, may be fixed by B-92 | Monitoring |
+| B-94 | Conquest animation disjoint/jump — intermittent visual glitch | Open |
 
 ## Planned Features
+| ID | Feature | Status |
+|----|---------|--------|
+| F-60 | Two-column control panel layout (timing panel in second column) | In Progress |
+| F-61 | Drag-and-drop control panel reordering library | Roadmap |
 | ID | Description | Priority | Status |
 |----|-------------|----------|--------|
 | F-39 | Player color enforcement: min 30° hue difference | High | Done (SP + MP lobby) |
