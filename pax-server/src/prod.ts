@@ -25,10 +25,24 @@ const CLIENT_DIR = path.resolve(__dirname, "../../client");
 // Server — identical pattern to index.ts, plus express.static for SPA serving
 // ============================================================================
 
+const NO_CACHE_HEADERS = {
+    "Cache-Control": "no-cache, no-store, must-revalidate",
+    "Pragma": "no-cache",
+    "Expires": "0",
+};
+
 const gameServer = new Server({
     express: (app: any) => {
-        // Serve built SPA static files
+        // Serve built SPA static files (hashed chunks cache forever by default)
         app.use(express.static(CLIENT_DIR));
+
+        // SPA fallback — serve index.html for all unmatched routes,
+        // with no-cache headers so browsers always fetch the latest after deploys
+        app.get("*", (_req: any, res: any) => {
+            Object.entries(NO_CACHE_HEADERS).forEach(([k, v]) => res.setHeader(k, v));
+            res.sendFile(path.join(CLIENT_DIR, "index.html"));
+        });
+
         log.sys("Init", `Serving static files from ${CLIENT_DIR}`);
     },
 });

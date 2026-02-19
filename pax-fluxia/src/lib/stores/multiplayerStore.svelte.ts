@@ -51,6 +51,7 @@ let gameHistory = $state<GameHistoryEntry[]>([]);
 // Room browser (public listing)
 let availableRooms = $state<RoomListing[]>([]);
 let isFetchingRooms = $state(false);
+let lobbyStatus = $state<string | null>(null);
 
 // Restart vote tracking
 let restartVoteInfo = $state<{ votes: number; needed: number; voters: string[] } | null>(null);
@@ -246,69 +247,98 @@ export interface RoomListing {
 
 let lobbyRoom: Room | null = null;
 
+const LOBBY_MAX_RETRIES = 5;
+const LOBBY_BASE_DELAY_MS = 1000;
+
 async function joinLobby(): Promise<void> {
     if (lobbyRoom) return; // Already connected
     isFetchingRooms = true;
-    try {
-        if (!client) await connect();
-        if (!client) {
+    lobbyStatus = null;
+
+    for (let attempt = 0; attempt <= LOBBY_MAX_RETRIES; attempt++) {
+        try {
+            if (!client) await connect();
+            if (!client) {
+                availableRooms = [];
+                isFetchingRooms = false;
+                lobbyStatus = null;
+                return;
+            }
+
+            lobbyRoom = await client.joinOrCreate("lobby", {
+                filter: { name: "game_room" }
+            });
+
+            // Success — clear retry status
+            lobbyStatus = null;
+
+            // Full room list on initial join
+            lobbyRoom.onMessage("rooms", (rooms: any[]) => {
+                availableRooms = rooms.map((r: any) => ({
+                    roomId: r.roomId,
+                    name: r.name || r.roomId,
+                    clients: r.clients,
+                    maxClients: r.maxClients,
+                    metadata: r.metadata,
+                }));
+                log.net('RoomBrowser', `Lobby: received ${availableRooms.length} rooms`);
+                isFetchingRooms = false;
+            });
+
+            // Room added or updated
+            lobbyRoom.onMessage("+", ([roomId, room]: [string, any]) => {
+                const idx = availableRooms.findIndex(r => r.roomId === roomId);
+                const entry: RoomListing = {
+                    roomId,  // use the tuple key, NOT room.roomId
+                    name: room.name || roomId,
+                    clients: room.clients,
+                    maxClients: room.maxClients,
+                    metadata: room.metadata,
+                };
+                if (idx !== -1) {
+                    availableRooms[idx] = entry;
+                } else {
+                    availableRooms = [...availableRooms, entry];
+                }
+                log.net('RoomBrowser', `Lobby: room updated/added ${roomId} (${availableRooms.length} total)`);
+            });
+
+            // Room removed
+            lobbyRoom.onMessage("-", (roomId: string) => {
+                availableRooms = availableRooms.filter(r => r.roomId !== roomId);
+                log.net('RoomBrowser', `Lobby: room removed ${roomId} (${availableRooms.length} total)`);
+            });
+
+            lobbyRoom.onLeave(() => {
+                lobbyRoom = null;
+                log.net('RoomBrowser', 'Left lobby room');
+            });
+
+            log.net('RoomBrowser', 'Joined lobby room for realtime room listing');
+            return; // Connected successfully — exit retry loop
+
+        } catch (err: any) {
+            const status = err?.code ?? err?.status ?? err?.statusCode;
+            const isRetryable = status === 503 || String(err).includes('503');
+
+            if (isRetryable && attempt < LOBBY_MAX_RETRIES) {
+                const delayMs = LOBBY_BASE_DELAY_MS * Math.pow(2, attempt);
+                lobbyStatus = `Server restarting, retrying... (${attempt + 1}/${LOBBY_MAX_RETRIES})`;
+                log.net('RoomBrowser', `503 — retry ${attempt + 1}/${LOBBY_MAX_RETRIES} in ${delayMs}ms`);
+                await new Promise(resolve => setTimeout(resolve, delayMs));
+                continue;
+            }
+
+            // Non-retryable or max retries exhausted
+            log.error('RoomBrowser', 'Failed to join lobby room', err);
+            lobbyStatus = isRetryable
+                ? 'Server unavailable — please try again later.'
+                : null;
             availableRooms = [];
+            lobbyRoom = null;
             isFetchingRooms = false;
             return;
         }
-
-        lobbyRoom = await client.joinOrCreate("lobby", {
-            filter: { name: "game_room" }
-        });
-
-        // Full room list on initial join
-        lobbyRoom.onMessage("rooms", (rooms: any[]) => {
-            availableRooms = rooms.map((r: any) => ({
-                roomId: r.roomId,
-                name: r.name || r.roomId,
-                clients: r.clients,
-                maxClients: r.maxClients,
-                metadata: r.metadata,
-            }));
-            log.net('RoomBrowser', `Lobby: received ${availableRooms.length} rooms`);
-            isFetchingRooms = false;
-        });
-
-        // Room added or updated
-        lobbyRoom.onMessage("+", ([roomId, room]: [string, any]) => {
-            const idx = availableRooms.findIndex(r => r.roomId === roomId);
-            const entry: RoomListing = {
-                roomId,  // use the tuple key, NOT room.roomId
-                name: room.name || roomId,
-                clients: room.clients,
-                maxClients: room.maxClients,
-                metadata: room.metadata,
-            };
-            if (idx !== -1) {
-                availableRooms[idx] = entry;
-            } else {
-                availableRooms = [...availableRooms, entry];
-            }
-            log.net('RoomBrowser', `Lobby: room updated/added ${roomId} (${availableRooms.length} total)`);
-        });
-
-        // Room removed
-        lobbyRoom.onMessage("-", (roomId: string) => {
-            availableRooms = availableRooms.filter(r => r.roomId !== roomId);
-            log.net('RoomBrowser', `Lobby: room removed ${roomId} (${availableRooms.length} total)`);
-        });
-
-        lobbyRoom.onLeave(() => {
-            lobbyRoom = null;
-            log.net('RoomBrowser', 'Left lobby room');
-        });
-
-        log.net('RoomBrowser', 'Joined lobby room for realtime room listing');
-    } catch (err) {
-        log.error('RoomBrowser', 'Failed to join lobby room', err);
-        availableRooms = [];
-        lobbyRoom = null;
-        isFetchingRooms = false;
     }
 }
 
@@ -636,6 +666,7 @@ export const multiplayerStore = {
     // Room browser
     get availableRooms() { return availableRooms; },
     get isFetchingRooms() { return isFetchingRooms; },
+    get lobbyStatus() { return lobbyStatus; },
     fetchRooms,
     startRoomPolling,
     stopRoomPolling,

@@ -964,6 +964,11 @@
                                 {/if}
                             </div>
 
+                            {#if multiplayerStore.lobbyStatus}
+                                <div class="lobby-status-msg">
+                                    ⏳ {multiplayerStore.lobbyStatus}
+                                </div>
+                            {/if}
                             {#if multiplayerStore.connectionError}
                                 <div class="error-msg">
                                     {multiplayerStore.connectionError}
@@ -1716,6 +1721,27 @@
         color: #ff6666;
         font-size: 0.75rem;
         font-family: "JetBrains Mono", monospace;
+    }
+
+    .lobby-status-msg {
+        padding: 10px 14px;
+        background: rgba(255, 180, 40, 0.08);
+        border: 1px solid rgba(255, 180, 40, 0.2);
+        border-radius: 6px;
+        color: #ffb428;
+        font-size: 0.75rem;
+        font-family: "JetBrains Mono", monospace;
+        animation: pulse-status 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-status {
+        0%,
+        100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.6;
+        }
     }
 
     /* â”€â”€ Lobby (Connected) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
