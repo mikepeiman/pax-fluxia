@@ -434,10 +434,7 @@
             <!--  3-Column Layout  -->
             <div class="content-grid-3col">
                 <!--  Col 1: Options  -->
-                <section
-                    class="panel menu-sidebar"
-                    class:panel-dimmed={gameMode === "mp"}
-                >
+                <section class="panel menu-sidebar">
                     <h2 class="panel-title">OPTIONS</h2>
 
                     <div class="options-list">
@@ -511,10 +508,7 @@
                 </section>
 
                 <!--  Col 2: Game Setup  -->
-                <section
-                    class="panel config-panel"
-                    class:panel-dimmed={gameMode === "mp"}
-                >
+                <section class="panel config-panel">
                     <h2 class="panel-title">GAME SETUP</h2>
 
                     <!-- Map Selection -->
@@ -656,31 +650,6 @@
                                 <span class="value">{shipsPerStar}</span>
                             </div>
                         </div>
-                    </div>
-
-                    <!-- Tick Duration + Start -->
-                    <div class="speed-start-row">
-                        <div class="config-item speed-control">
-                            <label>TICK DURATION</label>
-                            <div class="slider-container">
-                                <span class="mini-label">FAST</span>
-                                <input
-                                    type="range"
-                                    min="0"
-                                    max="3000"
-                                    step="250"
-                                    bind:value={tickDuration}
-                                />
-                                <span class="mini-label">SLOW</span>
-                                <span class="value"
-                                    >{(tickDuration / 1000).toFixed(2)}s</span
-                                >
-                            </div>
-                        </div>
-                        <button class="start-btn" onclick={startSPGame}>
-                            <span class="btn-glow"></span>
-                            START GAME
-                        </button>
                     </div>
 
                     <!-- ─── Section: Forces ─── -->
@@ -834,6 +803,35 @@
                             {/each}
                         </div>
                     </div>
+
+                    <!-- ─── Tick Duration + Start ─── -->
+                    <div class="section-divider"></div>
+                    <div class="speed-start-row">
+                        <div class="config-item speed-control">
+                            <label>TICK DURATION</label>
+                            <div class="slider-container">
+                                <span class="mini-label">FAST</span>
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max="3000"
+                                    step="250"
+                                    bind:value={tickDuration}
+                                />
+                                <span class="mini-label">SLOW</span>
+                                <span class="value"
+                                    >{(tickDuration / 1000).toFixed(2)}s</span
+                                >
+                            </div>
+                        </div>
+                    </div>
+                    <button
+                        class="start-btn start-btn-primary"
+                        onclick={startSPGame}
+                    >
+                        <span class="btn-glow"></span>
+                        START GAME
+                    </button>
                 </section>
 
                 <!--  Col 3: Multiplayer (visually distinct)  -->
@@ -925,7 +923,7 @@
                             </button>
                         </div>
                     {:else}
-                        <!--  Not Connected  -->
+                        <!-- Not Connected -->
                         {#if multiplayerStore.isConnecting}
                             <div class="mp-loading">
                                 <div class="spinner"></div>
@@ -939,10 +937,9 @@
                                     Host a new room with your game settings.
                                 </p>
                                 <button
-                                    class="start-btn mp-btn"
+                                    class="mp-action-btn mp-create-btn"
                                     onclick={handleCreateRoom}
                                 >
-                                    <span class="btn-glow"></span>
                                     CREATE ROOM
                                 </button>
                             </div>
@@ -954,19 +951,19 @@
                             <!-- Join Room -->
                             <div class="mp-section">
                                 <h3>Join Game</h3>
-                                <div class="join-row">
+                                <div class="join-col">
                                     <input
                                         type="text"
-                                        placeholder="Room ID"
+                                        placeholder="Enter Room ID..."
                                         bind:value={joinRoomId}
                                         class="room-input"
                                     />
                                     <button
-                                        class="join-btn"
+                                        class="mp-action-btn mp-join-btn"
                                         onclick={handleJoinRoom}
                                         disabled={!joinRoomId.trim()}
                                     >
-                                        JOIN
+                                        JOIN ROOM
                                     </button>
                                 </div>
                             </div>
@@ -1176,29 +1173,23 @@
         inset: 0;
         width: 100vw;
         height: 100vh;
-        background:
-            /* Hex grid overlay */
-            repeating-linear-gradient(
-                0deg,
-                transparent,
-                transparent 40px,
-                rgba(0, 255, 255, 0.015) 40px,
-                rgba(0, 255, 255, 0.015) 41px
+        /* Subtle nebula gradient as deepest layer */
+        background: radial-gradient(
+                ellipse at 30% 25%,
+                rgba(40, 10, 60, 0.15) 0%,
+                transparent 50%
             ),
-            repeating-linear-gradient(
-                90deg,
-                transparent,
-                transparent 40px,
-                rgba(0, 255, 255, 0.015) 40px,
-                rgba(0, 255, 255, 0.015) 41px
+            radial-gradient(
+                ellipse at 70% 75%,
+                rgba(10, 30, 60, 0.15) 0%,
+                transparent 50%
             ),
-            /* Main radial gradient */
-                radial-gradient(
-                    ellipse at 50% 20%,
-                    rgba(0, 40, 60, 0.35) 0%,
-                    rgba(5, 10, 25, 0.95) 60%,
-                    #050510 100%
-                );
+            radial-gradient(
+                ellipse at 50% 20%,
+                rgba(0, 40, 60, 0.35) 0%,
+                rgba(5, 10, 25, 0.95) 60%,
+                #050510 100%
+            );
         display: flex;
         align-items: center;
         justify-content: center;
@@ -1206,7 +1197,54 @@
         font-family: "Orbitron", sans-serif;
     }
 
+    /* Hex grid overlay with animated scintillating colors */
+    .menu-fullscreen::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100' viewBox='0 0 56 100'%3E%3Cpath d='M28 66L0 50L0 16L28 0L56 16L56 50L28 66L28 100' fill='none' stroke='rgba(0,255,255,0.04)' stroke-width='0.5'/%3E%3Cpath d='M28 0L28 34L0 50L0 84L28 100L56 84L56 50L28 34' fill='none' stroke='rgba(0,255,255,0.04)' stroke-width='0.5'/%3E%3C/svg%3E");
+        background-size: 56px 100px;
+        opacity: 0.7;
+        animation: hex-shift 12s ease-in-out infinite;
+        /* Vignette fade on corners */
+        mask-image: radial-gradient(
+            ellipse 70% 65% at 50% 50%,
+            rgba(0, 0, 0, 1) 30%,
+            rgba(0, 0, 0, 0) 100%
+        );
+        -webkit-mask-image: radial-gradient(
+            ellipse 70% 65% at 50% 50%,
+            rgba(0, 0, 0, 1) 30%,
+            rgba(0, 0, 0, 0) 100%
+        );
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    @keyframes hex-shift {
+        0%,
+        100% {
+            filter: hue-rotate(0deg) brightness(0.7);
+            opacity: 0.5;
+        }
+        25% {
+            filter: hue-rotate(40deg) brightness(1);
+            opacity: 0.8;
+        }
+        50% {
+            filter: hue-rotate(120deg) brightness(0.8);
+            opacity: 0.6;
+        }
+        75% {
+            filter: hue-rotate(200deg) brightness(1.1);
+            opacity: 0.9;
+        }
+    }
+
+    /* Ensure content sits above the hex overlay */
     .menu-container {
+        position: relative;
+        z-index: 1;
         width: 95vw;
         max-width: 1200px;
         max-height: 90vh;
@@ -1323,7 +1361,7 @@
     /* -- 3-Column Grid (Named Areas) -- */
     .content-grid-3col {
         display: grid;
-        grid-template-columns: 180px 1fr 280px;
+        grid-template-columns: 180px 1fr minmax(280px, 22vw);
         grid-template-areas: "menu config multiplayer";
         gap: 20px;
     }
@@ -1410,27 +1448,83 @@
 
     /* -- MP Panel (visually distinct) -- */
     .mp-panel {
-        background: rgba(8, 16, 32, 0.9);
-        border: 1px solid rgba(100, 220, 255, 0.15);
-        border-left: 3px solid rgba(100, 220, 255, 0.25);
-        border-radius: 12px;
+        background: rgba(12, 8, 24, 0.9);
+        border: 1px solid rgba(200, 80, 255, 0.18);
+        border-left: 3px solid rgba(200, 80, 255, 0.3);
+        border-radius: 4px;
+        clip-path: polygon(
+            12px 0%,
+            calc(100% - 12px) 0%,
+            100% 12px,
+            100% calc(100% - 12px),
+            calc(100% - 12px) 100%,
+            12px 100%,
+            0% calc(100% - 12px),
+            0% 12px
+        );
         padding: 24px;
         display: flex;
         flex-direction: column;
         gap: 18px;
         box-shadow:
-            -4px 0 20px rgba(100, 220, 255, 0.04),
-            inset 0 0 30px rgba(100, 220, 255, 0.02);
+            -4px 0 20px rgba(200, 80, 255, 0.04),
+            inset 0 0 30px rgba(200, 80, 255, 0.02);
     }
 
     .mp-panel .panel-title {
-        color: #64dcff;
-        border-bottom-color: rgba(100, 220, 255, 0.12);
+        color: #cc66ff;
+        border-bottom-color: rgba(200, 80, 255, 0.15);
+        text-shadow: 0 0 8px rgba(200, 80, 255, 0.15);
     }
 
     .mp-btn {
         font-size: 0.85rem;
         padding: 12px;
+    }
+
+    /* MP Action Buttons — equal emphasis, fuchsia palette */
+    .mp-action-btn {
+        width: 100%;
+        padding: 12px 16px;
+        border: 1px solid rgba(200, 80, 255, 0.25);
+        border-radius: 4px;
+        background: rgba(200, 80, 255, 0.08);
+        color: #cc88ff;
+        font-family: "Orbitron", sans-serif;
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 2px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .mp-action-btn:hover:not(:disabled) {
+        background: rgba(200, 80, 255, 0.18);
+        color: #dd99ff;
+        box-shadow: 0 0 16px rgba(200, 80, 255, 0.15);
+    }
+    .mp-action-btn:disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
+    }
+
+    .join-col {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .join-col .room-input {
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    /* Start button primary emphasis */
+    .start-btn-primary {
+        width: 100%;
+        padding: 16px 24px;
+        font-size: 1rem;
+        letter-spacing: 3px;
+        margin-top: 4px;
     }
 
     /* ── Phase B: Section Dividers ──────── */
@@ -1634,6 +1728,11 @@
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 16px;
+        align-items: start;
+    }
+
+    .config-dual-row.compact {
+        gap: 8px;
     }
 
     .config-item {
