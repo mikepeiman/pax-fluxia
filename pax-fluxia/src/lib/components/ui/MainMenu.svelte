@@ -95,6 +95,9 @@
     let allowOpposingOrders = $state(loadSetting("allowOpposingOrders", false));
     let tickDuration = $state(loadSetting("tickDuration", 500));
 
+    // Player identity (persisted)
+    let playerName = $state(loadSetting("playerName", "Commander"));
+
     // MP Join state
     let joinRoomId = $state("");
 
@@ -259,6 +262,7 @@
         saveSetting("playerConfigs", playerConfigs);
         saveSetting("hueOffset", hueOffset);
         saveSetting("tickDuration", tickDuration);
+        saveSetting("playerName", playerName);
     }
 
     /** Enforce minimum 30° hue difference between all players */
@@ -616,10 +620,46 @@
                         </div>
                     </div>
 
-                    <!-- Player Configuration (inline AI settings) -->
+                    <!-- Player Configuration -->
                     <div class="control-group player-config-section">
+                        <!-- YOUR COMMANDER identity widget -->
+                        <div class="identity-widget">
+                            <div class="identity-swatch-wrap">
+                                <span
+                                    class="identity-swatch"
+                                    style:background-color="hsl({playerConfigs[0]
+                                        ?.hue ?? 210}, 70%, 55%)"
+                                ></span>
+                            </div>
+                            <div class="identity-fields">
+                                <label class="identity-label"
+                                    >YOUR COMMANDER</label
+                                >
+                                <input
+                                    type="text"
+                                    class="identity-name-input"
+                                    bind:value={playerName}
+                                    placeholder="Enter name..."
+                                    maxlength="20"
+                                />
+                                <div class="identity-hue-row">
+                                    <span class="mini-label">COLOR</span>
+                                    <input
+                                        type="range"
+                                        class="hue-slider identity-hue"
+                                        min="0"
+                                        max="360"
+                                        bind:value={playerConfigs[0].hue}
+                                        style:--hue={playerConfigs[0]?.hue ??
+                                            210}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- AI Players -->
                         <div class="player-config-header">
-                            <label>PLAYERS</label>
+                            <label>AI OPPONENTS</label>
                             <div class="hue-offset-inline">
                                 <span class="mini-label">Hue offset</span>
                                 <input
@@ -633,24 +673,24 @@
                         </div>
                         <div class="player-config-list">
                             {#each playerConfigs as cfg, i}
-                                <div class="player-config-row inline-row">
-                                    <span
-                                        class="player-swatch"
-                                        style:background-color="hsl({cfg.hue},
-                                        70%, 55%)"
-                                    ></span>
-                                    <span class="player-label-inline">
-                                        {i === 0 ? "YOU" : `P${i + 1}`}
-                                    </span>
-                                    <input
-                                        type="range"
-                                        class="hue-slider compact"
-                                        min="0"
-                                        max="360"
-                                        bind:value={playerConfigs[i].hue}
-                                        style:--hue={cfg.hue}
-                                    />
-                                    {#if i > 0}
+                                {#if i > 0}
+                                    <div class="player-config-row inline-row">
+                                        <span
+                                            class="player-swatch"
+                                            style:background-color="hsl({cfg.hue},
+                                            70%, 55%)"
+                                        ></span>
+                                        <span class="player-label-inline">
+                                            P{i + 1}
+                                        </span>
+                                        <input
+                                            type="range"
+                                            class="hue-slider compact"
+                                            min="0"
+                                            max="360"
+                                            bind:value={playerConfigs[i].hue}
+                                            style:--hue={cfg.hue}
+                                        />
                                         <select
                                             class="inline-select"
                                             bind:value={
@@ -673,10 +713,8 @@
                                                 >
                                             {/each}
                                         </select>
-                                    {:else}
-                                        <span class="human-badge">HUMAN</span>
-                                    {/if}
-                                </div>
+                                    </div>
+                                {/if}
                             {/each}
                         </div>
                     </div>
@@ -1588,6 +1626,79 @@
         100% {
             transform: translateX(100%);
         }
+    }
+
+    /* ── Identity Widget ──────────────────── */
+    .identity-widget {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        padding: 10px 12px;
+        background: rgba(0, 255, 255, 0.03);
+        border: 1px solid rgba(0, 255, 255, 0.12);
+        border-radius: 8px;
+        margin-bottom: 10px;
+    }
+
+    .identity-swatch-wrap {
+        flex-shrink: 0;
+    }
+
+    .identity-swatch {
+        display: block;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        box-shadow:
+            0 0 12px rgba(0, 0, 0, 0.4),
+            inset 0 0 6px rgba(255, 255, 255, 0.1);
+        border: 2px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .identity-fields {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .identity-label {
+        font-family: "Exo", sans-serif;
+        font-size: 0.6rem;
+        font-weight: 800;
+        letter-spacing: 0.15em;
+        color: rgba(0, 255, 255, 0.6);
+        text-transform: uppercase;
+    }
+
+    .identity-name-input {
+        width: 100%;
+        padding: 5px 8px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+        color: #ddeeff;
+        font-family: "Montserrat", sans-serif;
+        font-size: 0.85rem;
+        font-weight: 600;
+        outline: none;
+        transition: border-color 0.15s;
+    }
+    .identity-name-input:focus {
+        border-color: rgba(0, 255, 255, 0.3);
+    }
+    .identity-name-input::placeholder {
+        color: #334455;
+    }
+
+    .identity-hue-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .identity-hue {
+        flex: 1;
     }
 
     .spacer {
