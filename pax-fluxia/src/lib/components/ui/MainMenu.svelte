@@ -1398,8 +1398,9 @@
 
     label {
         font-size: 0.65rem;
-        color: #667788;
+        color: #778899;
         letter-spacing: 1.5px;
+        font-weight: 700;
     }
 
     .map-card-row {
@@ -1513,14 +1514,16 @@
 
     .mini-label {
         font-size: 0.55rem;
-        color: #445566;
+        color: #334455;
         letter-spacing: 1px;
+        text-transform: uppercase;
     }
 
     .slider-container {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 8px;
+        min-height: 28px;
     }
 
     input[type="range"] {
@@ -1545,9 +1548,10 @@
     .value {
         color: #00ffff;
         font-family: "JetBrains Mono", monospace;
-        font-size: 0.8rem;
-        width: 28px;
+        font-size: 0.75rem;
+        min-width: 32px;
         text-align: right;
+        white-space: nowrap;
     }
 
     .checkbox-label {
@@ -1555,8 +1559,9 @@
         align-items: center;
         gap: 8px;
         cursor: pointer;
-        font-size: 0.75rem;
-        color: #8899aa;
+        font-size: 0.8rem;
+        font-weight: 500;
+        color: #99aabb;
         position: relative;
     }
 
