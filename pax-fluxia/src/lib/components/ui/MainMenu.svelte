@@ -118,6 +118,10 @@
     let colorSat = $state(loadSetting("colorSat", 70)); // 40-100
     let colorLig = $state(loadSetting("colorLig", 55)); // 30-70
 
+    // AI details toggle
+    let showAIDetails = $state(false);
+    let showColorPalette = $state(false);
+
     // MP Join state
     let joinRoomId = $state("");
 
@@ -430,7 +434,10 @@
             <!--  3-Column Layout  -->
             <div class="content-grid-3col">
                 <!--  Col 1: Options  -->
-                <section class="panel menu-sidebar">
+                <section
+                    class="panel menu-sidebar"
+                    class:panel-dimmed={gameMode === "mp"}
+                >
                     <h2 class="panel-title">OPTIONS</h2>
 
                     <div class="options-list">
@@ -504,7 +511,10 @@
                 </section>
 
                 <!--  Col 2: Game Setup  -->
-                <section class="panel config-panel">
+                <section
+                    class="panel config-panel"
+                    class:panel-dimmed={gameMode === "mp"}
+                >
                     <h2 class="panel-title">GAME SETUP</h2>
 
                     <!-- Map Selection -->
@@ -604,6 +614,9 @@
                         </div>
                     </div>
 
+                    <!-- ─── Section: Match Rules ─── -->
+                    <div class="section-divider"></div>
+
                     <!-- Players + Stars + Ships (one row) -->
                     <div class="config-triple-row">
                         <div class="control-group">
@@ -645,6 +658,34 @@
                         </div>
                     </div>
 
+                    <!-- Tick Duration + Start -->
+                    <div class="speed-start-row">
+                        <div class="config-item speed-control">
+                            <label>TICK DURATION</label>
+                            <div class="slider-container">
+                                <span class="mini-label">FAST</span>
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max="3000"
+                                    step="250"
+                                    bind:value={tickDuration}
+                                />
+                                <span class="mini-label">SLOW</span>
+                                <span class="value"
+                                    >{(tickDuration / 1000).toFixed(2)}s</span
+                                >
+                            </div>
+                        </div>
+                        <button class="start-btn" onclick={startSPGame}>
+                            <span class="btn-glow"></span>
+                            START GAME
+                        </button>
+                    </div>
+
+                    <!-- ─── Section: Forces ─── -->
+                    <div class="section-divider"></div>
+
                     <!-- Player Configuration -->
                     <div class="control-group player-config-section">
                         <!-- YOUR COMMANDER identity widget -->
@@ -685,37 +726,63 @@
                         <!-- AI Players -->
                         <div class="player-config-header">
                             <label>AI OPPONENTS</label>
-                            <div class="hue-offset-inline">
-                                <span class="mini-label">Hue</span>
-                                <input
-                                    type="range"
-                                    min="10"
-                                    max="120"
-                                    bind:value={hueOffset}
-                                />
-                                <span class="value">{hueOffset}</span>
-                            </div>
-                            <div class="hue-offset-inline">
-                                <span class="mini-label">Sat</span>
-                                <input
-                                    type="range"
-                                    min="40"
-                                    max="100"
-                                    bind:value={colorSat}
-                                />
-                                <span class="value">{colorSat}%</span>
-                            </div>
-                            <div class="hue-offset-inline">
-                                <span class="mini-label">Lum</span>
-                                <input
-                                    type="range"
-                                    min="30"
-                                    max="70"
-                                    bind:value={colorLig}
-                                />
-                                <span class="value">{colorLig}%</span>
-                            </div>
+                            <button
+                                class="toggle-details-btn"
+                                onclick={() =>
+                                    (showColorPalette = !showColorPalette)}
+                                title="Color palette"
+                            >
+                                🎨
+                            </button>
+                            <button
+                                class="toggle-details-btn"
+                                onclick={() => (showAIDetails = !showAIDetails)}
+                                title={showAIDetails
+                                    ? "Hide advanced"
+                                    : "Show advanced"}
+                            >
+                                {showAIDetails ? "▾ Advanced" : "▸ Advanced"}
+                            </button>
                         </div>
+
+                        {#if showColorPalette}
+                            <div
+                                class="color-palette-row"
+                                transition:fly={{ y: -8, duration: 150 }}
+                            >
+                                <div class="hue-offset-inline">
+                                    <span class="mini-label">HUE</span>
+                                    <input
+                                        type="range"
+                                        min="10"
+                                        max="120"
+                                        bind:value={hueOffset}
+                                    />
+                                    <span class="value">{hueOffset}</span>
+                                </div>
+                                <div class="hue-offset-inline">
+                                    <span class="mini-label">SAT</span>
+                                    <input
+                                        type="range"
+                                        min="40"
+                                        max="100"
+                                        bind:value={colorSat}
+                                    />
+                                    <span class="value">{colorSat}%</span>
+                                </div>
+                                <div class="hue-offset-inline">
+                                    <span class="mini-label">LUM</span>
+                                    <input
+                                        type="range"
+                                        min="30"
+                                        max="70"
+                                        bind:value={colorLig}
+                                    />
+                                    <span class="value">{colorLig}%</span>
+                                </div>
+                            </div>
+                        {/if}
+
                         <div class="player-config-list">
                             {#each playerConfigs as cfg, i}
                                 {#if i > 0}
@@ -728,14 +795,6 @@
                                         <span class="player-label-inline">
                                             P{i + 1}
                                         </span>
-                                        <input
-                                            type="range"
-                                            class="hue-slider compact"
-                                            min="0"
-                                            max="360"
-                                            bind:value={playerConfigs[i].hue}
-                                            style:--hue={cfg.hue}
-                                        />
                                         <select
                                             class="inline-select"
                                             bind:value={
@@ -746,47 +805,34 @@
                                                 <option value={d}>{d}</option>
                                             {/each}
                                         </select>
-                                        <select
-                                            class="inline-select"
-                                            bind:value={
-                                                playerConfigs[i].strategy
-                                            }
-                                        >
-                                            {#each AI_STRATEGIES as s}
-                                                <option value={s.id}
-                                                    >{s.label}</option
-                                                >
-                                            {/each}
-                                        </select>
+                                        {#if showAIDetails}
+                                            <input
+                                                type="range"
+                                                class="hue-slider compact"
+                                                min="0"
+                                                max="360"
+                                                bind:value={
+                                                    playerConfigs[i].hue
+                                                }
+                                                style:--hue={cfg.hue}
+                                            />
+                                            <select
+                                                class="inline-select"
+                                                bind:value={
+                                                    playerConfigs[i].strategy
+                                                }
+                                            >
+                                                {#each AI_STRATEGIES as s}
+                                                    <option value={s.id}
+                                                        >{s.label}</option
+                                                    >
+                                                {/each}
+                                            </select>
+                                        {/if}
                                     </div>
                                 {/if}
                             {/each}
                         </div>
-                    </div>
-
-                    <!-- Tick Duration + Start -->
-                    <div class="speed-start-row">
-                        <div class="config-item speed-control">
-                            <label>TICK DURATION</label>
-                            <div class="slider-container">
-                                <span class="mini-label">FAST</span>
-                                <input
-                                    type="range"
-                                    min="0"
-                                    max="3000"
-                                    step="250"
-                                    bind:value={tickDuration}
-                                />
-                                <span class="mini-label">SLOW</span>
-                                <span class="value"
-                                    >{(tickDuration / 1000).toFixed(2)}s</span
-                                >
-                            </div>
-                        </div>
-                        <button class="start-btn" onclick={startSPGame}>
-                            <span class="btn-glow"></span>
-                            START GAME
-                        </button>
                     </div>
                 </section>
 
@@ -1367,6 +1413,54 @@
     .mp-btn {
         font-size: 0.85rem;
         padding: 12px;
+    }
+
+    /* ── Phase B: Section Dividers ──────── */
+    .section-divider {
+        height: 1px;
+        background: linear-gradient(
+            90deg,
+            transparent,
+            rgba(0, 255, 255, 0.12),
+            transparent
+        );
+        margin: 4px 0;
+    }
+
+    .panel-dimmed {
+        opacity: 0.35;
+        pointer-events: none;
+        filter: saturate(0.3);
+        transition:
+            opacity 0.3s,
+            filter 0.3s;
+    }
+
+    .toggle-details-btn {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 4px;
+        color: #667788;
+        font-size: 0.6rem;
+        padding: 2px 8px;
+        cursor: pointer;
+        transition: all 0.15s;
+        font-family: "Exo", sans-serif;
+        letter-spacing: 0.5px;
+    }
+    .toggle-details-btn:hover {
+        background: rgba(0, 255, 255, 0.06);
+        color: #00cccc;
+        border-color: rgba(0, 255, 255, 0.15);
+    }
+
+    .color-palette-row {
+        display: flex;
+        gap: 12px;
+        padding: 8px 10px;
+        background: rgba(0, 255, 255, 0.02);
+        border: 1px solid rgba(0, 255, 255, 0.06);
+        border-radius: 6px;
     }
 
     /* â”€â”€ Panels â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
