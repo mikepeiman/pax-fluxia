@@ -29,6 +29,16 @@
         localStorage.setItem("pax_gameMode", gameMode);
     });
 
+    // Auto-save player identity and sync to multiplayerStore
+    $effect(() => {
+        saveSetting("playerName", playerName);
+        multiplayerStore.playerName = playerName || "Commander";
+    });
+    $effect(() => {
+        const hex = hslToHex(playerConfigs[0]?.hue ?? 210);
+        multiplayerStore.playerColor = hex;
+    });
+
     // Watch multiplayer phase and transition to game when it starts
     $effect(() => {
         if (multiplayerStore.phase === "playing") {
@@ -876,34 +886,6 @@
                                 <p>Connecting...</p>
                             </div>
                         {:else}
-                            <!-- Player Identity -->
-                            <div class="mp-section player-identity">
-                                <h3>Your Identity</h3>
-                                <div class="identity-row">
-                                    <input
-                                        type="text"
-                                        placeholder="Player Name"
-                                        class="mp-input"
-                                        value={multiplayerStore.playerName}
-                                        oninput={(e) =>
-                                            (multiplayerStore.playerName = (
-                                                e.target as HTMLInputElement
-                                            ).value)}
-                                    />
-                                    <input
-                                        type="color"
-                                        class="color-picker"
-                                        value={multiplayerStore.playerColor ||
-                                            "#4488ff"}
-                                        oninput={(e) =>
-                                            (multiplayerStore.playerColor = (
-                                                e.target as HTMLInputElement
-                                            ).value)}
-                                        title="Your player color"
-                                    />
-                                </div>
-                            </div>
-
                             <!-- Create Room -->
                             <div class="mp-section">
                                 <h3>Create Game</h3>
