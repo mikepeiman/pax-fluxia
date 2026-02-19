@@ -56,6 +56,8 @@
 | F-67 | In-game AI takeover: join existing room mid-game, take over AI player, require player name | High | Planned |
 | F-68 | Color conflict checking at init: enforce perceptual distance (CIEDE2000 ΔE≥30 or min 30° hue) between all players | High | Planned |
 | F-69 | Main menu player identity widget: consolidate name + color into single widget above AI selections, persist to localStorage | High | Planned |
+| F-70 | Save & Load Maps: save maps (including randomly-generated) to user local collection in localStorage | High | Planned |
+| F-71 | Restart modal: prompt reuse map or generate new + same starting positions or new (default: reuse same map setup) | High | Planned |
 
 ## Known Regressions
 | ID | Description | Since |
