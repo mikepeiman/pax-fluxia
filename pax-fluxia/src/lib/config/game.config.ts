@@ -156,6 +156,8 @@ interface GameConfigType {
     CONQUEST_SLOWMO_ENABLED: boolean;    // Auto-slow game when conquest fires (default true)
     CONQUEST_SLOWMO_FACTOR: number;      // How much to slow (multiplier on ANIMATION_SPEED_MS, default 5)
     CONQUEST_SLOWMO_DURATION_MS: number; // How long slowmo lasts (ms, default 5000)
+    CONQUEST_FORCE_GLOW: boolean;        // Scale glow intensity by conquering force size (default true)
+    CONQUEST_FORCE_GLOW_MULT: number;    // Log₂ coefficient for force glow scaling (default 0.15)
     // Orbit bias oscillation
     DEPART_STAGGER: boolean;       // Stream departure mode: ships depart at even intervals across tick (default false)
     DEPART_ARC_INTENSITY: number;  // Arc intensity during departure phase (0–1, default 0)
@@ -523,6 +525,10 @@ const _rawConfig: GameConfigType = {
     CONQUEST_SLOWMO_FACTOR: 5,
     /** How long conquest slowmo lasts (ms) */
     CONQUEST_SLOWMO_DURATION_MS: 5000,
+    /** Scale glow intensity by conquering force size */
+    CONQUEST_FORCE_GLOW: true,
+    /** Log₂ coefficient for force glow scaling (higher = more dramatic) */
+    CONQUEST_FORCE_GLOW_MULT: 0.15,
     /** Show player-color outline behind each ship */
     SHIP_OUTLINE_ON: true,
     /** Outline thickness in px */

@@ -308,7 +308,11 @@ export function renderTravelingShips(
             if (GAME_CONFIG.ORB_TRAVEL && ship.alpha <= 0.01) {
                 stillTraveling.push(ship);
             } else {
-                drawShip(res, colorUtils, ship.x, ship.y, color, ship.scale, ship.alpha, false, 1, ship.ownerId);
+                // Apply force-proportional glow for conquest ships
+                const cfs = (ship as any).conquestForceScale ?? 1;
+                const drawAlpha = Math.min(1, ship.alpha * cfs);
+                const drawScale = ship.scale * (1 + (cfs - 1) * 0.3); // subtle size boost
+                drawShip(res, colorUtils, ship.x, ship.y, color, drawScale, drawAlpha, false, cfs, ship.ownerId);
                 stillTraveling.push(ship);
             }
         } else if (ship.state === 'traveling') {
@@ -400,7 +404,10 @@ export function renderTravelingShips(
                     group.sumY += ship.y;
                     group.count++;
                 } else {
-                    drawShip(res, colorUtils, ship.x, ship.y, color, ship.scale, ship.alpha, false, 1, ship.ownerId);
+                    const cfs = (ship as any).conquestForceScale ?? 1;
+                    const drawAlpha = Math.min(1, ship.alpha * cfs);
+                    const drawScale = ship.scale * (1 + (cfs - 1) * 0.3);
+                    drawShip(res, colorUtils, ship.x, ship.y, color, drawScale, drawAlpha, false, cfs, ship.ownerId);
                 }
                 stillTraveling.push(ship);
             }

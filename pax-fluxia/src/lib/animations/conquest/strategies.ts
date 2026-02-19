@@ -39,7 +39,7 @@ export interface ConquestTransferContext {
     transferCount: number;
     /** New owner player ID */
     newOwner: string;
-    /** performance.now() at time of conquest */
+    /** Game clock time at conquest (from FXClock, pause-aware) */
     now: number;
     /** Effective tick duration in ms (for timing calculations) */
     effectiveTickMs: number;
@@ -262,6 +262,13 @@ function conquestArrowhead(ctx: ConquestTransferContext): ConquestTransferResult
     const spiralMax = GAME_CONFIG.ARROW_SPIRAL_MAX_DEG ?? 720;
     const spiralRandom = GAME_CONFIG.ARROW_SPIRAL_RANDOM ?? true;
 
+    // Force-proportional glow: larger forces appear brighter/more intense
+    const forceGlow = GAME_CONFIG.CONQUEST_FORCE_GLOW ?? true;
+    const forceGlowMult = GAME_CONFIG.CONQUEST_FORCE_GLOW_MULT ?? 0.15;
+    const forceScale = forceGlow
+        ? Math.min(2.0, 1 + Math.log2(Math.max(1, conquestShips.length)) * forceGlowMult)
+        : 1;
+
     // ── Perpendicular axis for wedge spread ──
     const perpX = -ndy;
     const perpY = ndx;
@@ -280,6 +287,12 @@ function conquestArrowhead(ctx: ConquestTransferContext): ConquestTransferResult
 
     const departing: VisualShipState[] = [];
     const n = conquestShips.length;
+
+    // Tick-bound stagger: all ships depart within one tick
+    // ARROW_STAGGER_MS > 0 = manual override; 0 = auto-proportional to tick
+    const perShipStagger = staggerMs > 0
+        ? staggerMs
+        : n > 1 ? (effectiveTickMs * 0.4) / (n - 1) : 0;
 
     for (let i = 0; i < n; i++) {
         const ship = conquestShips[i];
@@ -334,12 +347,13 @@ function conquestArrowhead(ctx: ConquestTransferContext): ConquestTransferResult
         ship.state = 'departing';
         ship.fromStarId = attackerStarId;
         ship.toStarId = conqueredStarId;
-        ship.departTime = now + i * staggerMs;
+        ship.departTime = now + i * perShipStagger;
         ship.travelDuration = travelDuration;
         ship.departDuration = departDuration;
         ship.staggerDelay = 0;
         ship.ownerId = newOwner;
         (ship as any).conquestSettle = true;
+        (ship as any).conquestForceScale = forceScale;
         departing.push(ship);
     }
 
