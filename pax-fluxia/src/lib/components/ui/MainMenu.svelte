@@ -3,6 +3,10 @@
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { fade, fly } from "svelte/transition";
     import type { GameSettings } from "$lib/types/game.types";
+    import {
+        enforcePerceptualSpacing,
+        MIN_DELTA_E,
+    } from "$lib/utils/colorDistance";
     import { multiplayerStore } from "$lib/stores/multiplayerStore.svelte";
     import type { RoomListing } from "$lib/stores/multiplayerStore.svelte";
     import { log } from "$lib/utils/logger";
@@ -63,10 +67,12 @@
         localStorage.setItem(`pax-fluxia-${key}`, JSON.stringify(value));
     }
 
-    /** Convert HSL hue (0-360) at fixed S/L to hex string */
-    function hslToHex(hue: number): string {
-        const s = 0.7,
-            l = 0.55;
+    /** Convert HSL hue (0-360) with configurable S/L to hex string */
+    function hslToHex(
+        hue: number,
+        s = colorSat / 100,
+        l = colorLig / 100,
+    ): string {
         const a = s * Math.min(l, 1 - l);
         const f = (n: number) => {
             const k = (n + hue / 30) % 12;
@@ -97,6 +103,10 @@
 
     // Player identity (persisted)
     let playerName = $state(loadSetting("playerName", "Commander"));
+
+    // Global color palette controls (persisted)
+    let colorSat = $state(loadSetting("colorSat", 70)); // 40-100
+    let colorLig = $state(loadSetting("colorLig", 55)); // 30-70
 
     // MP Join state
     let joinRoomId = $state("");
@@ -263,22 +273,16 @@
         saveSetting("hueOffset", hueOffset);
         saveSetting("tickDuration", tickDuration);
         saveSetting("playerName", playerName);
+        saveSetting("colorSat", colorSat);
+        saveSetting("colorLig", colorLig);
     }
 
-    /** Enforce minimum 30° hue difference between all players */
-    const MIN_HUE_GAP = 30;
+    /** Enforce perceptual color spacing (CIEDE2000) between all players */
     function enforceHueSpacing() {
         const hues = playerConfigs.map((c) => c.hue);
-        for (let i = 1; i < hues.length; i++) {
-            for (let j = 0; j < i; j++) {
-                const diff = Math.abs(hues[i] - hues[j]);
-                const circDiff = Math.min(diff, 360 - diff);
-                if (circDiff < MIN_HUE_GAP) {
-                    // Shift this player's hue forward
-                    hues[i] = (hues[j] + MIN_HUE_GAP) % 360;
-                    playerConfigs[i].hue = hues[i];
-                }
-            }
+        const corrected = enforcePerceptualSpacing(hues);
+        for (let i = 0; i < corrected.length; i++) {
+            playerConfigs[i].hue = corrected[i];
         }
     }
 
@@ -628,7 +632,7 @@
                                 <span
                                     class="identity-swatch"
                                     style:background-color="hsl({playerConfigs[0]
-                                        ?.hue ?? 210}, 70%, 55%)"
+                                        ?.hue ?? 210}, {colorSat}%, {colorLig}%)"
                                 ></span>
                             </div>
                             <div class="identity-fields">
@@ -661,7 +665,7 @@
                         <div class="player-config-header">
                             <label>AI OPPONENTS</label>
                             <div class="hue-offset-inline">
-                                <span class="mini-label">Hue offset</span>
+                                <span class="mini-label">Hue</span>
                                 <input
                                     type="range"
                                     min="10"
@@ -669,6 +673,26 @@
                                     bind:value={hueOffset}
                                 />
                                 <span class="value">{hueOffset}</span>
+                            </div>
+                            <div class="hue-offset-inline">
+                                <span class="mini-label">Sat</span>
+                                <input
+                                    type="range"
+                                    min="40"
+                                    max="100"
+                                    bind:value={colorSat}
+                                />
+                                <span class="value">{colorSat}%</span>
+                            </div>
+                            <div class="hue-offset-inline">
+                                <span class="mini-label">Lum</span>
+                                <input
+                                    type="range"
+                                    min="30"
+                                    max="70"
+                                    bind:value={colorLig}
+                                />
+                                <span class="value">{colorLig}%</span>
                             </div>
                         </div>
                         <div class="player-config-list">
@@ -678,7 +702,7 @@
                                         <span
                                             class="player-swatch"
                                             style:background-color="hsl({cfg.hue},
-                                            70%, 55%)"
+                                            {colorSat}%, {colorLig}%)"
                                         ></span>
                                         <span class="player-label-inline">
                                             P{i + 1}
