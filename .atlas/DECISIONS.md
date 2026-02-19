@@ -57,3 +57,7 @@
 ### D-21: Orders Immediate, Attacks Tick-Gated
 - **Decision**: Orders (player drag A→B) take effect immediately on the client. Attack surge animation waits for the next tick boundary to begin rendering.
 - **Mechanism**: `starsInCombat` set is populated from `CombatEvent` at tick boundary. Surge only renders when `starsInCombat.has(star.id)` — i.e., when the tick has confirmed this star is in combat.
+
+### D-23: Orb Modes Are Full Visual Packages
+- **Decision**: An orb mode controls the ENTIRE travel visual — both the orb draw style AND whether individual ships are visible during travel. "Orb Mode 1" specifically preserves the ships+orbs combo (individual ships visible alongside orb power effects at destination). When B-90 is fixed (proper one-orb-per-transfer), Mode 1 must re-enable the dual-render behavior.
+- **Key**: Selecting an orb mode is a single UI choice that configures multiple rendering behaviors, not just the orb shape.

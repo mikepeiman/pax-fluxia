@@ -18,9 +18,11 @@ export interface OrbGroup {
     ownerId: string;
 }
 
-/** A named orb draw mode — how the orb visual is rendered */
+/** A named orb draw mode — controls the FULL travel visual (D-23) */
 export interface OrbDrawMode {
     name: string;
+    /** If true, individual ships are still drawn alongside orbs (Mode 1 glitchy combo) */
+    showIndividualShips: boolean;
     draw(group: OrbGroup, graphics: PIXI.Graphics, config: typeof GAME_CONFIG): void;
 }
 
@@ -32,6 +34,7 @@ export interface OrbDrawMode {
 
 export const orbMode1: OrbDrawMode = {
     name: 'mode1',
+    showIndividualShips: true, // Ships + orbs visible together (the glitchy power-effect look)
     draw(group: OrbGroup, g: PIXI.Graphics, cfg: typeof GAME_CONFIG): void {
         const { cx, cy, count, color } = group;
 
