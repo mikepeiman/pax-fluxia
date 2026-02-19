@@ -60,6 +60,7 @@
 | F-71 | Restart modal: prompt reuse map or generate new + same starting positions or new (default: reuse same map setup) | High | Planned |
 | F-72 | Composable conquest modes: TRAVEL_MODE × CLAIM_MODE — mix any travel animation with any claim animation | High | Planned |
 | F-73 | Save & load custom themes: user can save current theme config to named presets and load from UI | Medium | Planned |
+| F-74 | Neutral stars in random maps: toggle neutral stars, players get 1 starting star, all players start on same star type (star type = menu option) | High | Planned |
 
 ## Known Regressions
 | ID | Description | Since |

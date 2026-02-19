@@ -109,7 +109,7 @@
         loadSetting("retainOrderOnConquest", true),
     );
     let allowOpposingOrders = $state(loadSetting("allowOpposingOrders", false));
-    let tickDuration = $state(loadSetting("tickDuration", 500));
+    let tickDuration = $state(loadSetting("tickDuration", 1250));
 
     // Player identity (persisted)
     let playerName = $state(loadSetting("playerName", "Commander"));
@@ -560,51 +560,44 @@
 
                     <!-- Links + Spacing (side by side) -->
                     <div class="config-dual-row">
-                        <div class="control-group">
-                            <label>LINKS</label>
-                            <div class="config-dual-row compact">
-                                <div class="config-item">
-                                    <span class="mini-label">MIN</span>
-                                    <div class="slider-container">
-                                        <input
-                                            type="range"
-                                            min="1"
-                                            max="4"
-                                            bind:value={minLinks}
-                                        />
-                                        <span class="value">{minLinks}</span>
-                                    </div>
-                                </div>
-                                <div class="config-item">
-                                    <span class="mini-label">MAX</span>
-                                    <div class="slider-container">
-                                        <input
-                                            type="range"
-                                            min="2"
-                                            max="8"
-                                            bind:value={maxLinks}
-                                        />
-                                        <span class="value">{maxLinks}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="control-group">
-                            <label>SPACING</label>
+                        <div class="config-item">
+                            <label>Links min</label>
                             <div class="slider-container">
-                                <span class="mini-label">DENSE</span>
                                 <input
                                     type="range"
-                                    min="0.5"
-                                    max="5.0"
-                                    step="0.1"
-                                    bind:value={starSpacing}
+                                    min="1"
+                                    max="4"
+                                    bind:value={minLinks}
                                 />
-                                <span class="mini-label">SPARSE</span>
-                                <span class="value"
-                                    >{starSpacing.toFixed(1)}x</span
-                                >
+                                <span class="value">{minLinks}</span>
                             </div>
+                        </div>
+                        <div class="config-item">
+                            <label>Links max</label>
+                            <div class="slider-container">
+                                <input
+                                    type="range"
+                                    min="2"
+                                    max="8"
+                                    bind:value={maxLinks}
+                                />
+                                <span class="value">{maxLinks}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="config-item">
+                        <label>Spacing</label>
+                        <div class="slider-container">
+                            <span class="mini-label">DENSE</span>
+                            <input
+                                type="range"
+                                min="0.5"
+                                max="5.0"
+                                step="0.1"
+                                bind:value={starSpacing}
+                            />
+                            <span class="mini-label">SPARSE</span>
+                            <span class="value">{starSpacing.toFixed(1)}x</span>
                         </div>
                     </div>
 
@@ -626,7 +619,7 @@
                             </div>
                         </div>
                         <div class="config-item">
-                            <label>STARS/P</label>
+                            <label>Stars per player</label>
                             <div class="slider-container">
                                 <input
                                     type="range"
@@ -638,7 +631,7 @@
                             </div>
                         </div>
                         <div class="config-item">
-                            <label>SHIPS/S</label>
+                            <label>Ships per star</label>
                             <div class="slider-container">
                                 <input
                                     type="range"
@@ -720,7 +713,7 @@
                                 transition:fly={{ y: -8, duration: 150 }}
                             >
                                 <div class="hue-offset-inline">
-                                    <span class="mini-label">HUE</span>
+                                    <span class="mini-label">MIN OFFSET</span>
                                     <input
                                         type="range"
                                         min="10"
