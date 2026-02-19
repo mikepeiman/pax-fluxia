@@ -121,6 +121,7 @@
     // AI details toggle
     let showAIDetails = $state(false);
     let showColorPalette = $state(false);
+    let showPlayerHuePicker = $state(false);
 
     // MP Join state
     let joinRoomId = $state("");
@@ -400,7 +401,36 @@
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div class="menu-fullscreen" transition:fade>
-        <div class="hex-grid-overlay"></div>
+        <!-- Hex grid overlay — inline SVG with pattern -->
+        <svg
+            class="hex-grid-overlay"
+            xmlns="http://www.w3.org/2000/svg"
+            width="100%"
+            height="100%"
+        >
+            <defs>
+                <pattern
+                    id="hexPattern"
+                    width="56"
+                    height="100"
+                    patternUnits="userSpaceOnUse"
+                >
+                    <path
+                        d="M28 66L0 50L0 16L28 0L56 16L56 50L28 66L28 100"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="0.5"
+                    />
+                    <path
+                        d="M28 0L28 34L0 50L0 84L28 100L56 84L56 50L28 34"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="0.5"
+                    />
+                </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#hexPattern)" />
+        </svg>
         <div class="menu-container" transition:fly={{ y: 20, duration: 400 }}>
             <!-- ═══ Title ═══ -->
             <header class="title-block">
@@ -654,11 +684,32 @@
                         <!-- YOUR COMMANDER identity widget -->
                         <div class="identity-widget">
                             <div class="identity-swatch-wrap">
+                                <!-- svelte-ignore a11y_no_static_element_interactions -->
                                 <span
                                     class="identity-swatch"
                                     style:background-color="hsl({playerConfigs[0]
                                         ?.hue ?? 210}, {colorSat}%, {colorLig}%)"
+                                    onclick={() =>
+                                        (showPlayerHuePicker =
+                                            !showPlayerHuePicker)}
+                                    role="button"
+                                    tabindex="0"
+                                    title="Click to pick color"
                                 ></span>
+                                {#if showPlayerHuePicker}
+                                    <!-- svelte-ignore a11y_no_static_element_interactions -->
+                                    <div class="hue-popup">
+                                        <input
+                                            type="range"
+                                            class="hue-slider hue-popup-slider"
+                                            min="0"
+                                            max="360"
+                                            bind:value={playerConfigs[0].hue}
+                                            style:--hue={playerConfigs[0]
+                                                ?.hue ?? 210}
+                                        />
+                                    </div>
+                                {/if}
                             </div>
                             <div class="identity-fields">
                                 <label class="identity-label"
@@ -671,18 +722,6 @@
                                     placeholder="Enter name..."
                                     maxlength="20"
                                 />
-                                <div class="identity-hue-row">
-                                    <span class="mini-label">COLOR</span>
-                                    <input
-                                        type="range"
-                                        class="hue-slider identity-hue"
-                                        min="0"
-                                        max="360"
-                                        bind:value={playerConfigs[0].hue}
-                                        style:--hue={playerConfigs[0]?.hue ??
-                                            210}
-                                    />
-                                </div>
                             </div>
                         </div>
 
@@ -1191,12 +1230,13 @@
         font-family: "Orbitron", sans-serif;
     }
 
-    /* Hex grid overlay — actual DOM element for Svelte scoped CSS compatibility */
+    /* Hex grid overlay — inline SVG element */
     .hex-grid-overlay {
         position: absolute;
         inset: 0;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100' viewBox='0 0 56 100'%3E%3Cpath d='M28 66L0 50L0 16L28 0L56 16L56 50L28 66L28 100' fill='none' stroke='rgba(0,255,255,0.05)' stroke-width='0.6'/%3E%3Cpath d='M28 0L28 34L0 50L0 84L28 100L56 84L56 50L28 34' fill='none' stroke='rgba(0,255,255,0.05)' stroke-width='0.6'/%3E%3C/svg%3E");
-        background-size: 56px 100px;
+        width: 100%;
+        height: 100%;
+        color: rgba(0, 255, 255, 0.06);
         animation: hex-shift 12s ease-in-out infinite;
         mask-image: radial-gradient(
             ellipse 70% 65% at 50% 50%,
@@ -1902,6 +1942,7 @@
 
     .identity-swatch-wrap {
         flex-shrink: 0;
+        position: relative;
     }
 
     .identity-swatch {
@@ -1913,6 +1954,34 @@
             0 0 12px rgba(0, 0, 0, 0.4),
             inset 0 0 6px rgba(255, 255, 255, 0.1);
         border: 2px solid rgba(255, 255, 255, 0.15);
+        cursor: pointer;
+        transition:
+            transform 0.15s,
+            box-shadow 0.15s;
+    }
+    .identity-swatch:hover {
+        transform: scale(1.1);
+        box-shadow:
+            0 0 18px rgba(0, 255, 255, 0.2),
+            inset 0 0 6px rgba(255, 255, 255, 0.15);
+    }
+
+    .hue-popup {
+        position: absolute;
+        top: 50%;
+        left: calc(100% + 12px);
+        transform: translateY(-50%);
+        background: rgba(8, 12, 24, 0.95);
+        border: 1px solid rgba(0, 255, 255, 0.15);
+        border-radius: 6px;
+        padding: 8px 12px;
+        z-index: 10;
+        min-width: 200px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    }
+
+    .hue-popup-slider {
+        width: 100%;
     }
 
     .identity-fields {
