@@ -595,6 +595,25 @@ export class GameRoom extends Room {
             enemyStar.queuedOrderTargetId = message.nextTargetId;
             log.game('GameRoom', `Deferred order: ${message.enemyStarId} → ${message.nextTargetId} by ${player.sessionId}`);
         });
+
+        // Dispose room (host only, lobby phase, no other humans)
+        this.onMessage("disposeRoom", (client) => {
+            if (client.sessionId !== this.state.hostSessionId) {
+                client.send("disposeError", { reason: "Only the host can dispose the room" });
+                return;
+            }
+            // Count connected humans other than the host
+            let otherHumans = 0;
+            this.state.players.forEach((p, sid) => {
+                if (!p.isAI && p.isConnected && sid !== client.sessionId) otherHumans++;
+            });
+            if (otherHumans > 0) {
+                client.send("disposeError", { reason: "Cannot dispose — other players are still connected" });
+                return;
+            }
+            log.net('GameRoom', `Host ${client.sessionId} disposed room`);
+            this.disconnect();
+        });
     }
 
     // ========================================================================

@@ -601,6 +601,14 @@ function surrenderPlayer(): void {
     room?.send('surrender');
 }
 
+/** Dispose room (host only, no other humans connected) */
+function disposeRoom(): void {
+    log.net('Room', 'Sending disposeRoom');
+    room?.send('disposeRoom');
+    // Leave the room after a short delay to let the server process
+    setTimeout(() => leaveRoom(), 500);
+}
+
 // ============================================================================
 // Helpers
 // ============================================================================
@@ -684,6 +692,7 @@ export const multiplayerStore = {
     restartGame,
     requestRestart,
     surrenderPlayer,
+    disposeRoom,
 
     // Restart vote info
     get restartVoteInfo() { return restartVoteInfo; },

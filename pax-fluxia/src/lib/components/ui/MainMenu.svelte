@@ -954,6 +954,15 @@
                             <button class="leave-btn" onclick={handleLeaveRoom}>
                                 Leave Room
                             </button>
+                            {#if multiplayerStore.isHost}
+                                <button
+                                    class="leave-btn dispose-btn"
+                                    onclick={() =>
+                                        multiplayerStore.disposeRoom()}
+                                >
+                                    Dispose Room
+                                </button>
+                            {/if}
                         </div>
                     {:else}
                         <!-- Not Connected -->
@@ -2343,6 +2352,16 @@
         background: rgba(239, 68, 68, 0.08);
         color: #ff6666;
         border-color: rgba(239, 68, 68, 0.5);
+    }
+
+    .dispose-btn {
+        border-color: rgba(255, 100, 50, 0.3);
+        color: #aa6644;
+    }
+    .dispose-btn:hover {
+        background: rgba(255, 100, 50, 0.08);
+        color: #ff8855;
+        border-color: rgba(255, 100, 50, 0.5);
     }
 
     /* ============================================================ */
