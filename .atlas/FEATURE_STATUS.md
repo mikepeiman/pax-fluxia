@@ -19,7 +19,7 @@
 | B-92 | Player orders randomly cancelled / opposing orders not enforced | Fixed (2026-02-18, refined) |
 | B-93 | Deferred order chains not preserved — cannot reproduce, may be fixed by B-92 | Monitoring |
 | B-94 | Conquest animation disjoint/jump — intermittent visual glitch | Open |
-| B-95 | Leaderboard production stat always shows 0 in SP — not computed in updatePlayerStats | Open |
+| B-95 | Leaderboard production stat always shows 0 in SP — not computed in updatePlayerStats | Fixed (2026-02-19) |
 
 ## Planned Features
 | ID | Feature | Status |
@@ -48,9 +48,14 @@
 | F-57 | Game notifications: email/app/SMS alerts when someone creates a game | Medium | Planned |
 | F-58 | Game host wait timer: host sets duration to wait before starting, allowing players to join | Medium | Planned |
 | F-59 | Settings panel: icons beside sliders on right, larger+brighter icons, 2-per-row at wide width | Medium | Planned |
-| F-62 | Game end overlay: keep map visible under results modal, allow closing modal to see ended game | High | Planned |
-| F-63 | Theme selector: improve display/discoverability in UI | Medium | Planned |
+| F-62 | Game end overlay: keep map visible under results modal, allow closing modal to see ended game | High | Done (2026-02-19) |
+| F-63 | Theme selector: improve display/discoverability in UI | Medium | Done (2026-02-19) |
 | F-64 | Surrender-to-AI: on surrender, transfer ships to new AI, player stays as spectator | High | Planned |
+| F-65 | MP setup variables: wire all game settings (map, difficulty, AI config) to MP room creation — currently only # players works | High | Planned |
+| F-66 | MP room disposal: creator can dispose room only if unoccupied | Medium | Planned |
+| F-67 | In-game AI takeover: join existing room mid-game, take over AI player, require player name | High | Planned |
+| F-68 | Color conflict checking at init: enforce perceptual distance (CIEDE2000 ΔE≥30 or min 30° hue) between all players | High | Planned |
+| F-69 | Main menu player identity widget: consolidate name + color into single widget above AI selections, persist to localStorage | High | Planned |
 
 ## Known Regressions
 | ID | Description | Since |
