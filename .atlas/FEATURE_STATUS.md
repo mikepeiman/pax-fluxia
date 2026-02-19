@@ -58,6 +58,8 @@
 | F-69 | Main menu player identity widget: consolidate name + color into single widget above AI selections, persist to localStorage | High | Planned |
 | F-70 | Save & Load Maps: save maps (including randomly-generated) to user local collection in localStorage | High | Planned |
 | F-71 | Restart modal: prompt reuse map or generate new + same starting positions or new (default: reuse same map setup) | High | Planned |
+| F-72 | Composable conquest modes: TRAVEL_MODE × CLAIM_MODE — mix any travel animation with any claim animation | High | Planned |
+| F-73 | Save & load custom themes: user can save current theme config to named presets and load from UI | Medium | Planned |
 
 ## Known Regressions
 | ID | Description | Since |
