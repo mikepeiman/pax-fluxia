@@ -400,6 +400,7 @@
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div class="menu-fullscreen" transition:fade>
+        <div class="hex-grid-overlay"></div>
         <div class="menu-container" transition:fly={{ y: 20, duration: 400 }}>
             <!-- ═══ Title ═══ -->
             <header class="title-block">
@@ -558,8 +559,8 @@
                         </div>
                     </div>
 
-                    <!-- Links + Spacing (side by side) -->
-                    <div class="config-dual-row">
+                    <!-- Links + Spacing (3-column horizontal row) -->
+                    <div class="config-triple-row">
                         <div class="config-item">
                             <label>Links min</label>
                             <div class="slider-container">
@@ -584,20 +585,20 @@
                                 <span class="value">{maxLinks}</span>
                             </div>
                         </div>
-                    </div>
-                    <div class="config-item">
-                        <label>Spacing</label>
-                        <div class="slider-container">
-                            <span class="mini-label">DENSE</span>
-                            <input
-                                type="range"
-                                min="0.5"
-                                max="5.0"
-                                step="0.1"
-                                bind:value={starSpacing}
-                            />
-                            <span class="mini-label">SPARSE</span>
-                            <span class="value">{starSpacing.toFixed(1)}x</span>
+                        <div class="config-item">
+                            <label>Spacing</label>
+                            <div class="slider-container">
+                                <input
+                                    type="range"
+                                    min="0.5"
+                                    max="5.0"
+                                    step="0.1"
+                                    bind:value={starSpacing}
+                                />
+                                <span class="value"
+                                    >{starSpacing.toFixed(1)}x</span
+                                >
+                            </div>
                         </div>
                     </div>
 
@@ -1190,24 +1191,21 @@
         font-family: "Orbitron", sans-serif;
     }
 
-    /* Hex grid overlay with animated scintillating colors */
-    .menu-fullscreen::before {
-        content: "";
+    /* Hex grid overlay — actual DOM element for Svelte scoped CSS compatibility */
+    .hex-grid-overlay {
         position: absolute;
         inset: 0;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100' viewBox='0 0 56 100'%3E%3Cpath d='M28 66L0 50L0 16L28 0L56 16L56 50L28 66L28 100' fill='none' stroke='rgba(0,255,255,0.04)' stroke-width='0.5'/%3E%3Cpath d='M28 0L28 34L0 50L0 84L28 100L56 84L56 50L28 34' fill='none' stroke='rgba(0,255,255,0.04)' stroke-width='0.5'/%3E%3C/svg%3E");
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100' viewBox='0 0 56 100'%3E%3Cpath d='M28 66L0 50L0 16L28 0L56 16L56 50L28 66L28 100' fill='none' stroke='rgba(0,255,255,0.05)' stroke-width='0.6'/%3E%3Cpath d='M28 0L28 34L0 50L0 84L28 100L56 84L56 50L28 34' fill='none' stroke='rgba(0,255,255,0.05)' stroke-width='0.6'/%3E%3C/svg%3E");
         background-size: 56px 100px;
-        opacity: 0.7;
         animation: hex-shift 12s ease-in-out infinite;
-        /* Vignette fade on corners */
         mask-image: radial-gradient(
             ellipse 70% 65% at 50% 50%,
-            rgba(0, 0, 0, 1) 30%,
+            rgba(0, 0, 0, 1) 20%,
             rgba(0, 0, 0, 0) 100%
         );
         -webkit-mask-image: radial-gradient(
             ellipse 70% 65% at 50% 50%,
-            rgba(0, 0, 0, 1) 30%,
+            rgba(0, 0, 0, 1) 20%,
             rgba(0, 0, 0, 0) 100%
         );
         pointer-events: none;
@@ -1217,20 +1215,20 @@
     @keyframes hex-shift {
         0%,
         100% {
-            filter: hue-rotate(0deg) brightness(0.7);
-            opacity: 0.5;
-        }
-        25% {
-            filter: hue-rotate(40deg) brightness(1);
-            opacity: 0.8;
-        }
-        50% {
-            filter: hue-rotate(120deg) brightness(0.8);
+            filter: hue-rotate(0deg) brightness(0.8);
             opacity: 0.6;
         }
-        75% {
-            filter: hue-rotate(200deg) brightness(1.1);
+        25% {
+            filter: hue-rotate(50deg) brightness(1.1);
             opacity: 0.9;
+        }
+        50% {
+            filter: hue-rotate(140deg) brightness(0.9);
+            opacity: 0.7;
+        }
+        75% {
+            filter: hue-rotate(220deg) brightness(1.2);
+            opacity: 1;
         }
     }
 
@@ -1238,14 +1236,14 @@
     .menu-container {
         position: relative;
         z-index: 1;
-        width: 95vw;
-        max-width: 1200px;
-        max-height: 90vh;
-        overflow-y: auto;
+        width: 98vw;
+        max-width: 1400px;
+        max-height: 100vh;
+        overflow: hidden;
         display: flex;
         flex-direction: column;
-        gap: 28px;
-        padding: 32px 0;
+        gap: 24px;
+        padding: 24px 0;
     }
 
     /* Scrollbar */
@@ -1257,7 +1255,7 @@
         border-radius: 2px;
     }
 
-    /* â”€â”€ Title â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+    /* â”€â”€ Title â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
     .title-block {
         text-align: center;
     }
@@ -1568,7 +1566,7 @@
         border-radius: 6px;
     }
 
-    /* â”€â”€ Panels â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+    /* â”€â”€ Panels â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
     .panel {
         background: linear-gradient(
             165deg,
