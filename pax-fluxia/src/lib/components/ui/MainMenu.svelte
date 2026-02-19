@@ -332,11 +332,22 @@
 
         const gameplayConfig = buildEngineConfig();
 
+        // Wire ALL setup variables to MP room (F-65)
         await multiplayerStore.createRoom({
             playerCount,
             mapType: selectedMap.mapType,
+            starsPerPlayer,
+            shipsPerStar,
+            starSpacing,
+            minLinks,
+            maxLinks,
+            retainOrderOnConquest,
             gameplayConfig,
         });
+
+        // Also set player identity on the store
+        multiplayerStore.playerName = playerName || "Commander";
+        multiplayerStore.playerColor = hslToHex(playerConfigs[0]?.hue ?? 210);
     }
 
     async function handleJoinRoom() {
