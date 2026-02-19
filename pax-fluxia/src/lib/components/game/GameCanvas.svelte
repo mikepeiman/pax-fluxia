@@ -41,8 +41,6 @@
     } from "$lib/renderers/LaneRenderer";
     import {
         renderShips as renderShipsModule,
-        captureSurgeSnapshot,
-        type SurgeSnapshot,
         type ShipRenderState,
         type ShipRenderResources,
     } from "$lib/renderers/ShipRenderer";
@@ -116,8 +114,6 @@
     let starsInCombat: Set<string> = fxOrchestrator.vsm
         .starsInCombat as Set<string>;
     // Direction lock for mid-surge target changes: complete cycle before reorienting
-    // Combat targets at tick boundary — surge only fires if star.targetId matches
-    let combatTargets: Map<string, string> = new Map();
     let surgeLockedDir: Map<
         string,
         { x: number; y: number; targetId: string }
@@ -138,8 +134,6 @@
     const emptyStarsMap = new Map<string, StarState>(); // Cached empty map — avoid per-frame allocation
     let resizeObserver: ResizeObserver | null = null;
     let lastTickGameTimeMs = 0; // Game-clock time at last tick (for tickProgress)
-    let tickTickMs = 0; // Tick interval snapshotted at tick boundary (stable divisor)
-    let surgeSnapshot: SurgeSnapshot = captureSurgeSnapshot(); // Surge config snapshot
 
     // starsById cache — rebuilt only when star array identity changes (on tick events)
     const cachedStarsById = new Map<string, StarState>();
@@ -389,7 +383,7 @@
                     ? 0
                     : Math.min(
                           (gameNowMs - lastTickGameTimeMs) /
-                              (tickTickMs || activeGameStore.effectiveTickMs),
+                              activeGameStore.effectiveTickMs,
                           1,
                       );
                 renderFrame(stars, tickProgress);
@@ -702,20 +696,10 @@
         // Clear combat tracking before processing new tick events
         // (starsInCombat is rebuilt each tick from CombatEvents)
         if (tickEvents) {
-            // Snapshot timing + surge config at tick boundary
-            // These values stay stable for the entire tick, preventing mid-tick jumps
-            lastTickGameTimeMs = fxOrchestrator.gameTime;
-            tickTickMs = activeGameStore.effectiveTickMs;
-            surgeSnapshot = captureSurgeSnapshot();
             starsInCombat.clear();
             processTickEvents(stars, tickEvents, connections || [], starsById);
-            // Record each combat star's targetId at tick boundary
-            // Surge only fires if star.targetId still matches this snapshot
-            combatTargets.clear();
-            for (const starId of starsInCombat) {
-                const star = starsById.get(starId);
-                if (star?.targetId) combatTargets.set(starId, star.targetId);
-            }
+            // Record game-time at tick boundary for tickProgress computation
+            lastTickGameTimeMs = fxOrchestrator.gameTime;
         }
 
         // Render all ships: orbiting (per-star) + traveling (in-flight lifecycle)
@@ -727,7 +711,6 @@
             visualDamagedShips,
             travelingShips,
             starsInCombat,
-            combatTargets,
             pendingConquests,
             attackRampProgress,
             surgeLockedDir,
@@ -737,8 +720,6 @@
             isPaused: activeGameStore.isPaused,
             effectiveTickMs: activeGameStore.effectiveTickMs,
             tickProgress,
-            tickTickMs: tickTickMs || activeGameStore.effectiveTickMs,
-            surgeSnapshot,
         };
         const shipRes: ShipRenderResources = {
             shipCircleTexture: shipCircleTexture!,
