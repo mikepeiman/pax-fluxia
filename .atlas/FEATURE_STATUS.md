@@ -47,6 +47,8 @@
 | F-57 | Game notifications: email/app/SMS alerts when someone creates a game | Medium | Planned |
 | F-58 | Game host wait timer: host sets duration to wait before starting, allowing players to join | Medium | Planned |
 | F-59 | Settings panel: icons beside sliders on right, larger+brighter icons, 2-per-row at wide width | Medium | Planned |
+| F-62 | Game end overlay: keep map visible under results modal, allow closing modal to see ended game | High | Planned |
+| F-63 | Theme selector: improve display/discoverability in UI | Medium | Planned |
 
 ## Known Regressions
 | ID | Description | Since |
