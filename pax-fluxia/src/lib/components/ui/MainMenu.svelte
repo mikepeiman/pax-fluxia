@@ -1176,11 +1176,29 @@
         inset: 0;
         width: 100vw;
         height: 100vh;
-        background: radial-gradient(
-            ellipse at 50% 20%,
-            rgba(0, 40, 60, 0.3) 0%,
-            #050510 70%
-        );
+        background:
+            /* Hex grid overlay */
+            repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 40px,
+                rgba(0, 255, 255, 0.015) 40px,
+                rgba(0, 255, 255, 0.015) 41px
+            ),
+            repeating-linear-gradient(
+                90deg,
+                transparent,
+                transparent 40px,
+                rgba(0, 255, 255, 0.015) 40px,
+                rgba(0, 255, 255, 0.015) 41px
+            ),
+            /* Main radial gradient */
+                radial-gradient(
+                    ellipse at 50% 20%,
+                    rgba(0, 40, 60, 0.35) 0%,
+                    rgba(5, 10, 25, 0.95) 60%,
+                    #050510 100%
+                );
         display: flex;
         align-items: center;
         justify-content: center;
@@ -1465,22 +1483,40 @@
 
     /* â”€â”€ Panels â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
     .panel {
-        background: rgba(8, 12, 24, 0.85);
+        background: linear-gradient(
+            165deg,
+            rgba(10, 18, 35, 0.92) 0%,
+            rgba(6, 10, 22, 0.88) 100%
+        );
         border: 1px solid rgba(255, 255, 255, 0.06);
-        border-radius: 12px;
+        border-radius: 4px;
+        clip-path: polygon(
+            12px 0%,
+            calc(100% - 12px) 0%,
+            100% 12px,
+            100% calc(100% - 12px),
+            calc(100% - 12px) 100%,
+            12px 100%,
+            0% calc(100% - 12px),
+            0% 12px
+        );
         padding: 24px;
         display: flex;
         flex-direction: column;
         gap: 18px;
+        box-shadow:
+            inset 0 1px 0 rgba(0, 255, 255, 0.04),
+            inset 0 0 40px rgba(0, 20, 40, 0.3);
     }
 
     .panel-title {
         font-size: 0.75rem;
-        color: #556677;
+        color: #668899;
         letter-spacing: 3px;
         margin: 0;
         padding-bottom: 8px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        border-bottom: 1px solid rgba(0, 255, 255, 0.06);
+        text-shadow: 0 0 8px rgba(0, 255, 255, 0.1);
     }
 
     /* â”€â”€ Controls â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
@@ -1637,6 +1673,24 @@
         border-radius: 50%;
         cursor: pointer;
         box-shadow: 0 0 8px rgba(0, 255, 255, 0.5);
+    }
+
+    /* Rainbow hue slider track */
+    .hue-slider {
+        background: linear-gradient(
+            to right,
+            hsl(0, 80%, 55%),
+            hsl(30, 80%, 55%),
+            hsl(60, 80%, 55%),
+            hsl(120, 80%, 55%),
+            hsl(180, 80%, 55%),
+            hsl(210, 80%, 55%),
+            hsl(270, 80%, 55%),
+            hsl(330, 80%, 55%),
+            hsl(360, 80%, 55%)
+        ) !important;
+        height: 6px !important;
+        border-radius: 3px !important;
     }
 
     .value {
