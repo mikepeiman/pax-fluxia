@@ -141,6 +141,17 @@ const leaderboard = $derived(
  * This is the bridge between the shared engine's schema and the UI layer.
  */
 function toGameState(s: GameRoomState): GameState {
+    // Pre-compute per-player production from owned stars
+    const productionByPlayer = new Map<string, number>();
+    s.stars.forEach((star) => {
+        if (star.ownerId) {
+            productionByPlayer.set(
+                star.ownerId,
+                (productionByPlayer.get(star.ownerId) ?? 0) + (star.productionRate ?? 0),
+            );
+        }
+    });
+
     const players: PlayerState[] = [];
     s.players.forEach((p: PlayerSchema) => {
         players.push({
@@ -153,6 +164,7 @@ function toGameState(s: GameRoomState): GameState {
             totalShips: p.totalShips,
             activeShips: p.activeShips,
             damagedShips: p.damagedShips,
+            production: productionByPlayer.get(p.sessionId) ?? 0,
         });
     });
 
@@ -286,7 +298,7 @@ function executeTick(): void {
     if (state.phase === 'ended') {
         snapshot = toGameState(state);
         stopTick();
-        currentView = 'results';
+        // F-62: keep view as 'game' — overlay ResultsModal shows over the map
     }
 
     lastTickTime = performance.now();
@@ -742,7 +754,7 @@ function surrender(): void {
         state.phase = 'ended';
         snapshot = toGameState(state);
     }
-    currentView = 'results';
+    // F-62: keep view as 'game' — overlay shows results
 }
 
 function playAgain(): void {

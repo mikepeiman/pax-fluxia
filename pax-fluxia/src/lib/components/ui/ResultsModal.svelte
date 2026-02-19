@@ -2,6 +2,9 @@
     import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
     import type { GameHistoryEntry } from "$lib/types/game.types";
 
+    // Props
+    let { onClose }: { onClose?: () => void } = $props();
+
     // Tab state
     let activeTab = $state<"overview" | "power" | "territory" | "activity">(
         "power",
@@ -196,6 +199,13 @@
     <div class="results-modal animate-slide-up">
         <!-- Ambient glow behind title -->
         <div class="ambient-glow" class:victory class:defeat={!victory}></div>
+
+        <!-- Close button -->
+        {#if onClose}
+            <button class="results-close" onclick={onClose} title="Close"
+                >✕</button
+            >
+        {/if}
 
         <!-- Header -->
         <header class="results-header">
@@ -701,14 +711,38 @@
     /* ═══════════════════════════════════════ */
 
     .modal-backdrop {
-        position: fixed;
+        position: absolute;
         inset: 0;
-        z-index: 9999;
+        z-index: 100;
         display: flex;
         align-items: center;
         justify-content: center;
-        background: rgba(0, 0, 0, 0.85);
-        backdrop-filter: blur(12px);
+        background: rgba(0, 0, 0, var(--results-overlay-alpha, 0.75));
+        backdrop-filter: blur(8px);
+    }
+
+    .results-close {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        width: 36px;
+        height: 36px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 50%;
+        color: rgba(255, 255, 255, 0.6);
+        font-size: 16px;
+        cursor: pointer;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.15s;
+    }
+    .results-close:hover {
+        background: rgba(255, 80, 80, 0.2);
+        color: #ff6666;
+        border-color: rgba(255, 80, 80, 0.3);
     }
 
     .results-modal {

@@ -32,6 +32,23 @@
       localStorage.getItem("pax-show-star-info") === "true",
   );
 
+  // Controls column collapse
+  let controlsCollapsed = $state(
+    typeof localStorage !== "undefined" &&
+      localStorage.getItem("pax-controls-collapsed") === "true",
+  );
+  function toggleControls() {
+    controlsCollapsed = !controlsCollapsed;
+    localStorage.setItem("pax-controls-collapsed", String(controlsCollapsed));
+  }
+
+  // F-62: Results overlay dismiss
+  let resultsDismissed = $state(false);
+  const showResults = $derived(
+    !resultsDismissed &&
+      (gameStore.winner != null || activeGameStore.phase === "results"),
+  );
+
   // Listen for StarInfoPanel toggle from GameSettingsPanel
   if (typeof window !== "undefined") {
     window.addEventListener("pax-star-info-toggle", ((e: CustomEvent) => {
@@ -117,11 +134,6 @@
 
   {#if gameStore.currentView === "menu"}
     <MainMenu />
-  {:else if gameStore.currentView === "results"}
-    <!-- GAME OVER SCREEN -->
-    <div class="results-view">
-      <ResultsModal />
-    </div>
   {:else if gameStore.currentView === "game"}
     <!-- Audio Settings Modal -->
     <AudioSettings
@@ -158,9 +170,9 @@
           {/if}
         </div>
 
-        {#if gameStore.winner || activeGameStore.phase === "results"}
+        {#if showResults}
           <div class="modal-overlay">
-            <ResultsModal />
+            <ResultsModal onClose={() => (resultsDismissed = true)} />
           </div>
         {/if}
 
@@ -202,11 +214,20 @@
         </div>
       </div>
 
-      <!-- LEFT CONTROLS COLUMN (settings panels) -->
-      <div class="area-controls">
-        <div class="panel-section section-tuning">
-          <GameSettingsPanel />
-        </div>
+      <!-- CONTROLS COLUMN (collapsible) -->
+      <div class="area-controls" class:collapsed={controlsCollapsed}>
+        <button
+          class="controls-toggle"
+          onclick={toggleControls}
+          title={controlsCollapsed ? "Show Controls" : "Hide Controls"}
+        >
+          {controlsCollapsed ? "◀" : "▶"}
+        </button>
+        {#if !controlsCollapsed}
+          <div class="panel-section section-tuning">
+            <GameSettingsPanel />
+          </div>
+        {/if}
       </div>
 
       <!-- RIGHT SIDEBAR (leaderboard + info) -->
@@ -336,6 +357,7 @@
   /* AREA: Controls Column */
   .area-controls {
     grid-area: controls;
+    position: relative;
     background: rgba(10, 10, 15, 0.95);
     border-left: 1px solid #223;
     display: flex;
@@ -346,6 +368,42 @@
     overflow-y: auto;
     width: 340px;
     min-width: 280px;
+    transition:
+      width 0.25s ease,
+      min-width 0.25s ease,
+      padding 0.25s ease;
+  }
+
+  .area-controls.collapsed {
+    width: 32px;
+    min-width: 32px;
+    padding: 10px 2px;
+    overflow: hidden;
+  }
+
+  .controls-toggle {
+    position: absolute;
+    top: 8px;
+    left: 4px;
+    width: 24px;
+    height: 24px;
+    background: rgba(30, 30, 50, 0.9);
+    border: 1px solid rgba(100, 120, 200, 0.3);
+    border-radius: 4px;
+    color: rgba(150, 170, 255, 0.8);
+    font-size: 10px;
+    cursor: pointer;
+    z-index: 25;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition:
+      background 0.15s,
+      color 0.15s;
+  }
+  .controls-toggle:hover {
+    background: rgba(50, 50, 80, 0.95);
+    color: #fff;
   }
 
   /* AREA: Canvas */

@@ -19,6 +19,7 @@
 | B-92 | Player orders randomly cancelled / opposing orders not enforced | Fixed (2026-02-18, refined) |
 | B-93 | Deferred order chains not preserved — cannot reproduce, may be fixed by B-92 | Monitoring |
 | B-94 | Conquest animation disjoint/jump — intermittent visual glitch | Open |
+| B-95 | Leaderboard production stat always shows 0 in SP — not computed in updatePlayerStats | Open |
 
 ## Planned Features
 | ID | Feature | Status |
@@ -49,6 +50,7 @@
 | F-59 | Settings panel: icons beside sliders on right, larger+brighter icons, 2-per-row at wide width | Medium | Planned |
 | F-62 | Game end overlay: keep map visible under results modal, allow closing modal to see ended game | High | Planned |
 | F-63 | Theme selector: improve display/discoverability in UI | Medium | Planned |
+| F-64 | Surrender-to-AI: on surrender, transfer ships to new AI, player stays as spectator | High | Planned |
 
 ## Known Regressions
 | ID | Description | Since |
