@@ -36,6 +36,7 @@ import {
 } from '$lib/fx/phases/behaviors';
 import type { PhaseContext } from '$lib/fx/phases/travelTypes';
 import type { ColorUtils } from './RenderContext';
+import { ORB_DRAW_MODES, type OrbGroup } from './orbModes';
 
 // ── Ship Render State ───────────────────────────────────────────────────────
 
@@ -423,35 +424,18 @@ export function renderTravelingShips(
         }
     }
 
-    // Draw orbs for grouped traveling ships
+    // Draw orbs using the selected draw mode
     if (GAME_CONFIG.ORB_TRAVEL && orbGroups.size > 0 && res.orbGraphics) {
-        const G = GAME_CONFIG;
+        const drawMode = ORB_DRAW_MODES[GAME_CONFIG.ORB_DRAW_MODE] || ORB_DRAW_MODES.mode1;
         for (const [, group] of orbGroups) {
-            const cx = group.sumX / group.count;
-            const cy = group.sumY / group.count;
-            const shipCount = group.count;
-
-            const baseRadius = G.ORB_BASE_RADIUS + Math.sqrt(shipCount) * G.ORB_RADIUS_SCALE;
-            const intensity = Math.min(1.0, 0.4 + Math.sqrt(shipCount) * 0.06) * G.ORB_GLOW_MULT;
-
-            const glowRadius = baseRadius * G.ORB_OUTER_SCALE;
-            res.orbGraphics.circle(cx, cy, glowRadius);
-            res.orbGraphics.fill({ color: group.color, alpha: intensity * G.ORB_OUTER_ALPHA });
-
-            const midRadius = baseRadius * G.ORB_MID_SCALE;
-            res.orbGraphics.circle(cx, cy, midRadius);
-            res.orbGraphics.fill({ color: group.color, alpha: intensity * G.ORB_MID_ALPHA });
-
-            res.orbGraphics.circle(cx, cy, baseRadius);
-            res.orbGraphics.fill({ color: 0xffffff, alpha: intensity * G.ORB_CORE_ALPHA });
-
-            const coreRadius = baseRadius * G.ORB_CORE_SCALE;
-            res.orbGraphics.circle(cx, cy, coreRadius);
-            res.orbGraphics.fill({ color: group.color, alpha: intensity * 0.9 });
-
-            const dotRadius = Math.max(1.5, baseRadius * 0.3);
-            res.orbGraphics.circle(cx, cy, dotRadius);
-            res.orbGraphics.fill({ color: 0xffffff, alpha: Math.min(1, intensity * G.ORB_CENTER_ALPHA) });
+            const orbGroup: OrbGroup = {
+                cx: group.sumX / group.count,
+                cy: group.sumY / group.count,
+                count: group.count,
+                color: group.color,
+                ownerId: group.ownerId,
+            };
+            drawMode.draw(orbGroup, res.orbGraphics, GAME_CONFIG);
         }
     }
 

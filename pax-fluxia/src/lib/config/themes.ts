@@ -68,6 +68,9 @@ export const THEME_KEYS = [
     'SETTLE_DURATION_MS',
     'ARRIVAL_SPREAD',
     'WOBBLE_AMP',
+    'DEPART_STAGGER',
+    'DEPART_ARC_INTENSITY',
+    'ARRIVAL_ARC_INTENSITY',
     'TRAVEL_MODE',
     'TRAVEL_EASING',
     'TRAVEL_EASING_POWER',
@@ -82,7 +85,7 @@ export const THEME_KEYS = [
     'ATTACK_SURGE_FORCE_COFACTOR',
     'ATTACK_SURGE_RAMP_MS',
     'ATTACK_SURGE_SHAPE',
-
+    'SURGE_PULSE_DURATION_MS',
 
     // Conquest animation
     'CONQUEST_ANIMATION_MODE',
@@ -138,6 +141,20 @@ export const THEME_KEYS = [
 
     // Arrow
     'ARROW_LENGTH_FRACTION',
+    'ARROW_TAPER',
+    'ARROW_WIDTH',
+    'ARROW_SPEED',
+    'ARROW_EASING',
+    'ARROW_ENGULF_MODE',
+    'ARROW_ENGULF_RADIUS',
+    'ARROW_SPIRAL_MIN_DEG',
+    'ARROW_SPIRAL_MAX_DEG',
+    'ARROW_SPIRAL_RANDOM',
+    'ARROW_SPIRAL_DURATION_MS',
+    'ARROW_STAGGER_MS',
+
+    // Orb draw mode
+    'ORB_DRAW_MODE',
 ] as const;
 
 /** Keys EXCLUDED from themes (map gen, connections, AI) */

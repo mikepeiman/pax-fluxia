@@ -165,6 +165,7 @@ interface GameConfigType {
     ORBIT_BIAS_MAX: number;        // Max bias strength for oscillation (default 1.0)
     ORBIT_BIAS_FREQ: number;       // Oscillation frequency relative to ticks (default 1.0)
     ORB_TRAVEL: boolean;           // Ships merge into glowing orb during travel, fragment on arrival (default true)
+    ORB_DRAW_MODE: string;          // Which orb draw mode to use: 'mode1' etc. (default 'mode1')
 
     ORB_BASE_RADIUS: number;       // Base orb radius in px before ship count scaling (default 4)
     ORB_RADIUS_SCALE: number;      // Sqrt multiplier for ship count → radius (default 1.6)
@@ -557,6 +558,8 @@ const _rawConfig: GameConfigType = {
     ORBIT_BIAS_FREQ: 0.25,
     /** Ships merge into single glowing orb during travel, fragment into ships on arrival */
     ORB_TRAVEL: false,
+    /** Which orb draw mode visual to use */
+    ORB_DRAW_MODE: 'mode1' as string,
     /** Base orb radius in px before ship count scaling */
     ORB_BASE_RADIUS: 1.5,
     /** Sqrt multiplier for ship count → radius */
