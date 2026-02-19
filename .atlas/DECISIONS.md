@@ -51,3 +51,13 @@
 ### D-19: Engulf Ring — Perfect Circle Distribution
 - **Decision**: Arriving conquest ships distribute their `settleStartAngle` evenly around 2π using batch index, not clustered at arrival direction.
 - **Rationale**: All ships from the same source star arrive at the same angle, creating a gap. Even distribution creates a perfect engulf ring.
+
+## 2026-02-18
+
+### D-21: Orders Immediate, Attacks Tick-Gated
+- **Decision**: Orders (player drag A→B) take effect immediately on the client. Attack surge animation waits for the next tick boundary to begin rendering.
+- **Mechanism**: `combatTargets: Map<starId, targetId>` recorded at tick boundary. Surge only renders if `star.targetId === combatTargets.get(star.id)`. If user changes target mid-tick, `star.targetId` updates immediately but `combatTargets` stays stale → surge suppressed until next tick.
+
+### D-22: Surge Config Snapshot at Tick Boundary
+- **Decision**: All surge rendering reads from `SurgeSnapshot` (rampMs, pulseDurationMs, mult, shape, proportional, forceCofactor) captured once per tick boundary, NOT live from `GAME_CONFIG`.
+- **Rationale**: Changing surge sliders mid-tick caused modulo discontinuities, ramp snaps, and amplitude jumps. Snapshot ensures stable values for the entire tick duration.
