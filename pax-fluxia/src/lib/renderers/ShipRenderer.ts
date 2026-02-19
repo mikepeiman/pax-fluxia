@@ -39,6 +39,15 @@ import type { ColorUtils } from './RenderContext';
 
 // ── Ship Render State ───────────────────────────────────────────────────────
 
+/** Per-star surge animation state — created from CombatEvent at tick boundary */
+export interface SurgeState {
+    /** Game time when this surge pulse started */
+    startTime: number;
+    /** Normalized direction toward target (captured at surge start) */
+    dirX: number;
+    dirY: number;
+}
+
 export interface ShipRenderState {
     /** Ship orbit state per star (mutable — managed by VSM) */
     visualShips: Map<string, VisualShipState[]>;
@@ -46,16 +55,12 @@ export interface ShipRenderState {
     visualDamagedShips: Map<string, VisualShipState[]>;
     /** Ships in flight (mutable array) */
     travelingShips: VisualShipState[];
-    /** Stars currently in tick-synced combat */
+    /** Stars currently in tick-synced combat (used by VSM, NOT by surge) */
     starsInCombat: Set<string>;
     /** Pending conquest color transitions */
     pendingConquests: Map<string, { previousOwner: string; transitionTime: number }>;
-    /** Per-star attack ramp-in progress (0→1) */
-    attackRampProgress: Map<string, number>;
-    /** Direction lock for mid-surge target changes */
-    surgeLockedDir: Map<string, { x: number; y: number; targetId: string }>;
-    /** Last frame time for surge delta calc */
-    lastSurgeFrameTime: number;
+    /** Active surge animations — one per star, created from CombatEvent at tick boundary */
+    activeSurges: Map<string, SurgeState>;
     /** Unique ship ID counter */
     nextShipId: number;
     /** Game clock in ms — pause-aware, from FXClock. Use instead of performance.now(). */
@@ -614,78 +619,55 @@ export function renderShips(
                 let targetY = slot.y;
                 const shipMultiplier = slot.multiplier * starMultiplier;
 
-                // ATTACK SURGE — computed as render-only offset, NOT baked into targetX/targetY
-                // This prevents the first-tick teleport glitch (B-89) where settle animations
-                // would capture a surged starting position and snap on tick boundaries.
+                // ATTACK SURGE V2 — per-tick event-driven discrete pulse
+                // Triggered by CombatEvent at tick boundary, plays for SURGE_DURATION_MS,
+                // always completes. Render-only offset (not baked into ship.x/ship.y).
                 let surgeOffsetX = 0;
                 let surgeOffsetY = 0;
-                if (isAttack && targetStar && state.starsInCombat.has(star.id)) {
-                    const gamePaused = state.isPaused;
+                const surge = state.activeSurges.get(star.id);
+                if (surge && isAttack && targetStar) {
+                    // Progress: 0 → 1 over SURGE_DURATION_MS
+                    const surgeDur = GAME_CONFIG.SURGE_PULSE_DURATION_MS || GAME_CONFIG.BASE_TICK_MS;
+                    const elapsed = state.gameNowMs - surge.startTime;
+                    const progress = Math.min(1, elapsed / surgeDur);
 
-                    let useDirX = dirX, useDirY = dirY;
-                    const lockedDir = state.surgeLockedDir.get(star.id);
+                    // Ramp: first N ms ramp from 0→1 (cubic ease-out)
+                    const rampMs = GAME_CONFIG.ATTACK_SURGE_RAMP_MS ?? 300;
+                    const rampFactor = rampMs > 0
+                        ? 1 - Math.pow(1 - Math.min(1, elapsed / rampMs), 3)
+                        : 1;
 
-                    if (lockedDir && lockedDir.targetId !== star.targetId) {
-                        if (state.tickProgress < 0.1) {
-                            state.surgeLockedDir.set(star.id, { x: dirX, y: dirY, targetId: star.targetId! });
-                        } else {
-                            useDirX = lockedDir.x;
-                            useDirY = lockedDir.y;
-                        }
-                    } else if (!lockedDir) {
-                        state.surgeLockedDir.set(star.id, { x: dirX, y: dirY, targetId: star.targetId! });
-                    }
+                    // Pulse: single sine half-wave (0→1→0)
+                    const rawPulse = Math.sin(progress * Math.PI);
+                    const surgeShape = GAME_CONFIG.ATTACK_SURGE_SHAPE ?? 1;
+                    const surgePulse = surgeShape === 1 ? rawPulse : Math.pow(rawPulse, surgeShape);
 
-                    if (!state.attackRampProgress.has(star.id)) {
-                        state.attackRampProgress.set(star.id, 0);
-                    }
-
-                    const rampDuration = GAME_CONFIG.ATTACK_SURGE_RAMP_MS ?? 300;
-                    let rampFactor = 1;
-                    if (rampDuration > 0) {
-                        let rampVal = state.attackRampProgress.get(star.id)!;
-                        if (!gamePaused && state.lastSurgeFrameTime > 0) {
-                            const surgeNow = state.gameNowMs;
-                            const frameDelta = surgeNow - state.lastSurgeFrameTime;
-                            rampVal = Math.min(1, rampVal + frameDelta / rampDuration);
-                            state.attackRampProgress.set(star.id, rampVal);
-                        }
-                        rampFactor = 1 - Math.pow(1 - rampVal, 3);
-                    }
-
+                    // Per-ship facing factor: ships facing enemy pulse more
                     const shipDx = slot.x - star.x;
                     const shipDy = slot.y - star.y;
                     const shipDist = Math.sqrt(shipDx * shipDx + shipDy * shipDy) || 1;
-                    const shipNormX = shipDx / shipDist;
-                    const shipNormY = shipDy / shipDist;
-                    const facingFactor = shipNormX * useDirX + shipNormY * useDirY;
+                    const facingFactor = (shipDx / shipDist) * surge.dirX + (shipDy / shipDist) * surge.dirY;
                     const surgeFactor = Math.max(0, facingFactor) ** 1.5;
 
-                    // Surge pulse: independent cycle driven by SURGE_PULSE_DURATION_MS
-                    const pulseDur = GAME_CONFIG.SURGE_PULSE_DURATION_MS || GAME_CONFIG.BASE_TICK_MS;
-                    const pulseTime = state.gameNowMs;
-                    const surgeProgress = pulseDur > 0 ? (pulseTime % pulseDur) / pulseDur : 0;
-                    const rawPulse = Math.sin(surgeProgress * Math.PI);
-                    const surgeShape = GAME_CONFIG.ATTACK_SURGE_SHAPE ?? 1;
-                    const surgePulse = surgeShape === 1 ? rawPulse : Math.pow(rawPulse, surgeShape);
+                    // Per-ship phase variation: ±25% amplitude
                     const phaseAmplitude = 0.75 + 0.25 * Math.sin(shipPhase * Math.PI * 2);
 
+                    // Amplitude
                     let surgeMax = star.radius * (GAME_CONFIG.ATTACK_SURGE_MULT ?? 0.4);
-
                     if (GAME_CONFIG.ATTACK_SURGE_PROPORTIONAL && targetStar) {
-                        const myShips = star.activeShips || 1;
-                        const theirShips = targetStar.activeShips || 1;
-                        const ratio = myShips / theirShips;
+                        const ratio = (star.activeShips || 1) / (targetStar.activeShips || 1);
                         const cofactor = GAME_CONFIG.ATTACK_SURGE_FORCE_COFACTOR ?? 0.5;
                         const forceBoost = 1 + Math.log2(Math.max(0.25, ratio)) * cofactor;
                         surgeMax *= Math.max(0.2, forceBoost);
                     }
 
-                    surgeOffsetX = useDirX * surgePulse * phaseAmplitude * surgeMax * surgeFactor * rampFactor;
-                    surgeOffsetY = useDirY * surgePulse * phaseAmplitude * surgeMax * surgeFactor * rampFactor;
-                } else {
-                    state.attackRampProgress.delete(star.id);
-                    state.surgeLockedDir.delete(star.id);
+                    surgeOffsetX = surge.dirX * surgePulse * phaseAmplitude * surgeMax * surgeFactor * rampFactor;
+                    surgeOffsetY = surge.dirY * surgePulse * phaseAmplitude * surgeMax * surgeFactor * rampFactor;
+
+                    // Clean up completed surges (only need to check once per star, not per ship)
+                    if (progress >= 1 && i === 0) {
+                        state.activeSurges.delete(star.id);
+                    }
                 }
 
                 // Time-based polar arc interpolation
@@ -812,8 +794,6 @@ export function renderShips(
     // Render in-flight ships
     renderTravelingShips(stars, starsById, state, res, colorUtils);
 
-    // Update frame timestamp for surge ramp delta
-    state.lastSurgeFrameTime = state.gameNowMs;
 }
 
 // ── renderFleets — Legacy fleet overlay ─────────────────────────────────────

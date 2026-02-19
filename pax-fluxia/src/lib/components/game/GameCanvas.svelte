@@ -41,6 +41,7 @@
     } from "$lib/renderers/LaneRenderer";
     import {
         renderShips as renderShipsModule,
+        type SurgeState,
         type ShipRenderState,
         type ShipRenderResources,
     } from "$lib/renderers/ShipRenderer";
@@ -106,18 +107,12 @@
     // In-flight ships — backed by VSM
     let travelingShips: VisualShipState[] = fxOrchestrator.vsm.travelingShips;
 
-    // Per-star attack ramp-in progress (0→1, advances per-frame only when unpaused)
-    let attackRampProgress: Map<string, number> = new Map();
-    let lastSurgeFrameTime: number = 0; // For computing per-frame delta
+    // Active surge animations — one per star, created from CombatEvents at tick boundary
+    let activeSurges: Map<string, SurgeState> = new Map();
 
-    // Tick-synced combat tracking — backed by VSM (cast for mutability)
+    // Tick-synced combat tracking — backed by VSM (used by handlers, NOT by surge V2)
     let starsInCombat: Set<string> = fxOrchestrator.vsm
         .starsInCombat as Set<string>;
-    // Direction lock for mid-surge target changes: complete cycle before reorienting
-    let surgeLockedDir: Map<
-        string,
-        { x: number; y: number; targetId: string }
-    > = new Map();
 
     // Delayed star color change — backed by VSM
     let pendingConquests: Map<
@@ -602,9 +597,7 @@
             visualShips.clear();
             visualDamagedShips.clear();
             fxOrchestrator.reset();
-            attackRampProgress.clear();
-            surgeLockedDir.clear();
-            lastSurgeFrameTime = 0;
+            activeSurges.clear();
             nextShipId = 0;
             starShipCounts.clear();
             shipSpawnTimers.clear();
@@ -696,10 +689,32 @@
         // Clear combat tracking before processing new tick events
         // (starsInCombat is rebuilt each tick from CombatEvents)
         if (tickEvents) {
+            // Existing event processing (transfers, conquests, combat log, etc.)
             starsInCombat.clear();
             processTickEvents(stars, tickEvents, connections || [], starsById);
             // Record game-time at tick boundary for tickProgress computation
             lastTickGameTimeMs = fxOrchestrator.gameTime;
+
+            // V2 SURGE: Create surge animations from CombatEvents
+            // Each combat tick starts one pulse per attacker star
+            for (const combat of tickEvents.combats) {
+                if (!combat.conquered) {
+                    for (const attackerId of combat.attackerIds) {
+                        const aStar = starsById.get(attackerId);
+                        const dStar = starsById.get(combat.defenderId);
+                        if (aStar && dStar) {
+                            const dx = dStar.x - aStar.x;
+                            const dy = dStar.y - aStar.y;
+                            const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                            activeSurges.set(attackerId, {
+                                startTime: fxOrchestrator.gameTime,
+                                dirX: dx / dist,
+                                dirY: dy / dist,
+                            });
+                        }
+                    }
+                }
+            }
         }
 
         // Render all ships: orbiting (per-star) + traveling (in-flight lifecycle)
@@ -712,9 +727,7 @@
             travelingShips,
             starsInCombat,
             pendingConquests,
-            attackRampProgress,
-            surgeLockedDir,
-            lastSurgeFrameTime,
+            activeSurges,
             nextShipId,
             gameNowMs: fxOrchestrator.gameTime,
             isPaused: activeGameStore.isPaused,
@@ -733,9 +746,8 @@
         };
         renderShipsModule(stars, starsById, shipState, shipRes, colorUtils);
         // Read back mutable state modified by the module
-        shipParticleIndex = shipRes.shipParticleIndex;
-        lastSurgeFrameTime = shipState.lastSurgeFrameTime;
         nextShipId = shipState.nextShipId;
+        shipParticleIndex = shipRes.shipParticleIndex;
         // Sync filtered array back to VSM so arrived ships are removed from the canonical source
         fxOrchestrator.vsm.syncTravelingShips(shipState.travelingShips);
 
