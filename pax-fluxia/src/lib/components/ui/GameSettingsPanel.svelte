@@ -15,6 +15,19 @@
     import { gameStore } from "$lib/stores/gameStore.svelte";
     import { animationStore } from "$lib/stores/animationStore.svelte";
     import { log, logFlags } from "$lib/utils/logger";
+    import {
+        COMBAT_VARIABLES,
+        AI_VARIABLES,
+        DENSITY_VARIABLES,
+        LOG_CATEGORIES,
+    } from "./settingsDefs";
+    // panelSync.ts module ready for sub-component extraction (pure TS versions of sync/persistence)
+
+    // Aliases for the imported arrays (matches existing template references)
+    const variables = COMBAT_VARIABLES;
+    const aiVariables = AI_VARIABLES;
+    const densityVariables = DENSITY_VARIABLES;
+    const logCategories = LOG_CATEGORIES;
 
     const STORAGE_KEY = "pax-fluxia-combat-tuning";
 
@@ -120,157 +133,6 @@
         saveToStorage(values as typeof defaultValues);
     }
 
-    // Combat variable metadata
-    const variables = [
-        {
-            key: "AGGRESSOR_ADVANTAGE",
-            label: "Aggressor Advantage",
-            min: 0,
-            max: 3,
-            step: 0.1,
-        },
-        {
-            key: "DAMAGE_PER_SHIP",
-            label: "Damage Per Ship",
-            min: 0,
-            max: 1,
-            step: 0.01,
-        },
-        { key: "LETHALITY", label: "Lethality", min: 0, max: 1, step: 0.05 },
-        {
-            key: "FORCE_RATIO_EFFECT",
-            label: "Force Ratio Effect",
-            min: 0,
-            max: 1,
-            step: 0.1,
-        },
-        {
-            key: "CONQUEST_THRESHOLD",
-            label: "Conquest Threshold",
-            min: 1,
-            max: 50,
-            step: 1,
-        },
-        {
-            key: "CONQUEST_TRANSFER_PERCENTAGE",
-            label: "Transfer %",
-            min: 0,
-            max: 100,
-            step: 10,
-        },
-        {
-            key: "RETREAT_CAPTURE_RATE",
-            label: "Retreat Capture",
-            min: 0,
-            max: 1,
-            step: 0.05,
-        },
-        {
-            key: "SCATTER_CAPTURE_RATE",
-            label: "Scatter Capture",
-            min: 0,
-            max: 1,
-            step: 0.05,
-        },
-        {
-            key: "SCATTER_DESTROY_RATE",
-            label: "Scatter Destroy",
-            min: 0,
-            max: 1,
-            step: 0.05,
-        },
-        {
-            key: "RETREAT_DAMAGED_ACTIVATION_RATE",
-            label: "🔄 Damaged Activation",
-            min: 0,
-            max: 1,
-            step: 0.05,
-        },
-        {
-            key: "DAMAGED_SHIP_EFFECTIVENESS",
-            label: "Damaged Ship Defense",
-            min: 0,
-            max: 1,
-            step: 0.01,
-        },
-    ] as const;
-
-    const aiVariables = [
-        {
-            key: "AI_MUST_ATTACK_RATIO",
-            label: "Must-Attack Ratio",
-            min: 0.5,
-            max: 3,
-            step: 0.05,
-        },
-        {
-            key: "AI_ATTACK_UPPER_BOUNDS",
-            label: "May-Attack Bounds",
-            min: 0.3,
-            max: 2,
-            step: 0.05,
-        },
-        {
-            key: "AI_ATTACK_STICKINESS",
-            label: "Attack Stickiness",
-            min: 0,
-            max: 1,
-            step: 0.05,
-        },
-        {
-            key: "AI_EVALUATION_FREQUENCY",
-            label: "Eval Frequency",
-            min: 0,
-            max: 1,
-            step: 0.05,
-        },
-        {
-            key: "AI_TACTICAL_AGGRESSION",
-            label: "Tactical Aggression",
-            min: 0,
-            max: 0.5,
-            step: 0.01,
-        },
-        {
-            key: "AI_RANDOM_AGGRESSION",
-            label: "Random Aggression",
-            min: 0,
-            max: 0.5,
-            step: 0.01,
-        },
-    ] as const;
-
-    const densityVariables = [
-        {
-            key: "DENSITY_HUE_STEP",
-            label: "Hue Step (°)",
-            min: 0,
-            max: 20,
-            step: 1,
-        },
-        {
-            key: "DENSITY_SAT_STEP",
-            label: "Saturation Step",
-            min: 0,
-            max: 0.2,
-            step: 0.01,
-        },
-        {
-            key: "DENSITY_LIGHT_STEP",
-            label: "Lightness Step",
-            min: 0,
-            max: 0.2,
-            step: 0.01,
-        },
-        {
-            key: "DENSITY_TIERS",
-            label: "Max Tiers",
-            min: 1,
-            max: 6,
-            step: 1,
-        },
-    ] as const;
-
     // Debug ship count slider — direct engine manipulation
     let debugShipCount = $state(0);
     let lastDebugStarId = $state<string | null>(null);
@@ -319,18 +181,6 @@
         saveToStorage(values as typeof defaultValues);
     }
 
-    const logCategories = [
-        { key: "sys", label: "🔵 System", desc: "Lifecycle, init" },
-        { key: "state", label: "🟣 State", desc: "Logic, transitions" },
-        { key: "data", label: "🟢 Data", desc: "Data flow" },
-        { key: "net", label: "🟡 Network", desc: "API, IO" },
-        { key: "error", label: "🔴 Error", desc: "Errors (keep ON)" },
-        { key: "success", label: "✅ Success", desc: "Verifications" },
-        { key: "combat", label: "⚔️ Combat", desc: "Battle events" },
-        { key: "conquest", label: "🏰 Conquest", desc: "Capture details" },
-        { key: "input", label: "🖱️ Input", desc: "User clicks" },
-        { key: "repair", label: "🔧 Repair", desc: "Ship repair" },
-    ] as const;
     let logRefresh = $state(0);
 
     // ── Config Import/Export ──
