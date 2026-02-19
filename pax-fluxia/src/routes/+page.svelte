@@ -14,6 +14,8 @@
   import AudioSettings from "$lib/components/ui/AudioSettings.svelte";
   import TopBar from "$lib/components/ui/TopBar.svelte";
   import type { PlayerState } from "$lib/types/game.types";
+  import { applyTheme, loadThemes, type GameTheme } from "$lib/config/themes";
+  import { BUILTIN_THEMES } from "$lib/config/builtinThemes";
 
   let roomIdCopied = $state(false);
   function copyRoomId() {
@@ -24,7 +26,7 @@
     }
   }
 
-  // Panel visibility states
+  // ── Panel visibility states ──
   let showAudioSettings = $state(false);
   let showSurrenderModal = $state(false);
   let showStarInfoPanel = $state(
@@ -32,22 +34,45 @@
       localStorage.getItem("pax-show-star-info") === "true",
   );
 
-  // Controls column collapse
-  let controlsCollapsed = $state(
+  // ── Settings panel toggle (secondary column) ──
+  let showSettingsPanel = $state(
     typeof localStorage !== "undefined" &&
-      localStorage.getItem("pax-controls-collapsed") === "true",
+      localStorage.getItem("pax-settings-open") === "true",
   );
-  function toggleControls() {
-    controlsCollapsed = !controlsCollapsed;
-    localStorage.setItem("pax-controls-collapsed", String(controlsCollapsed));
+  function toggleSettingsPanel() {
+    showSettingsPanel = !showSettingsPanel;
+    localStorage.setItem("pax-settings-open", String(showSettingsPanel));
   }
 
-  // F-62: Results overlay dismiss
+  // ── In-game menu collapse ──
+  let menuExpanded = $state(true);
+
+  // ── F-62: Results overlay dismiss ──
   let resultsDismissed = $state(false);
   const showResults = $derived(
     !resultsDismissed &&
       (gameStore.winner != null || activeGameStore.phase === "results"),
   );
+
+  // ── Theme system (in right sidebar) ──
+  let userThemes = $state<GameTheme[]>(
+    typeof window !== "undefined" ? loadThemes() : [],
+  );
+  let allThemes = $derived([...BUILTIN_THEMES, ...userThemes]);
+  let selectedThemeName = $state<string>("");
+
+  function handleApplyTheme(name: string) {
+    const theme = allThemes.find((t) => t.name === name);
+    if (!theme) return;
+    applyTheme(theme);
+    selectedThemeName = name;
+    // Dispatch event so GameSettingsPanel can sync its reactive state
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("pax-theme-applied", { detail: name }),
+      );
+    }
+  }
 
   // Listen for StarInfoPanel toggle from GameSettingsPanel
   if (typeof window !== "undefined") {
@@ -60,7 +85,7 @@
   const SIDEBAR_STORAGE_KEY = "pax-sidebar-width";
   const SIDEBAR_MIN = 280;
   const SIDEBAR_MAX = 600;
-  const SIDEBAR_DEFAULT = 380;
+  const SIDEBAR_DEFAULT = 320;
 
   function loadSidebarWidth(): number {
     if (typeof localStorage === "undefined") return SIDEBAR_DEFAULT;
@@ -82,7 +107,7 @@
     const startWidth = sidebarWidth;
 
     function onMove(ev: PointerEvent) {
-      const delta = startX - ev.clientX; // dragging left = wider
+      const delta = startX - ev.clientX;
       sidebarWidth = Math.max(
         SIDEBAR_MIN,
         Math.min(SIDEBAR_MAX, startWidth + delta),
@@ -100,7 +125,7 @@
     window.addEventListener("pointerup", onUp);
   }
 
-  // Derived leaderboard - use activeGameStore for unified access
+  // Derived leaderboard
   const leaderboardPlayers = $derived.by(() => {
     const players = activeGameStore.players as PlayerState[];
     return [...players]
@@ -128,7 +153,9 @@
 
 <main class="app-container">
   <TopBar
-    onSettingsClick={() => (showAudioSettings = true)}
+    onSettingsClick={gameStore.currentView !== "game"
+      ? () => (showAudioSettings = true)
+      : undefined}
     onHelpClick={() => alert("Help & controls guide coming soon!")}
   />
 
@@ -141,12 +168,10 @@
       onClose={() => (showAudioSettings = false)}
     />
 
-    <div class="game-layout">
-      <!-- MAIN CANVAS AREA -->
+    <div class="game-layout" class:settings-open={showSettingsPanel}>
+      <!-- CANVAS AREA -->
       <div class="area-canvas">
         <GameCanvas />
-
-        <!-- Overlays -->
 
         <!-- TOP CENTER: Room ID Badge (MP only) -->
         {#if multiplayerStore.isConnected && multiplayerStore.roomId}
@@ -163,20 +188,21 @@
           </div>
         {/if}
 
-        <!-- TOP LEFT: Optional debugging panels -->
+        <!-- TOP LEFT: debug panels -->
         <div class="overlay-top-left">
           {#if showStarInfoPanel}
             <StarInfoPanel />
           {/if}
         </div>
 
+        <!-- F-62: Results overlay -->
         {#if showResults}
           <div class="modal-overlay">
             <ResultsModal onClose={() => (resultsDismissed = true)} />
           </div>
         {/if}
 
-        <!-- BOTTOM LEFT OVERLAY: Game Controls -->
+        <!-- BOTTOM LEFT: Speed & quick actions -->
         <div class="overlay-bottom-left">
           <div class="controls-wrapper glass-panel">
             <SpeedControls
@@ -214,23 +240,16 @@
         </div>
       </div>
 
-      <!-- CONTROLS COLUMN (collapsible) -->
-      <div class="area-controls" class:collapsed={controlsCollapsed}>
-        <button
-          class="controls-toggle"
-          onclick={toggleControls}
-          title={controlsCollapsed ? "Show Controls" : "Hide Controls"}
-        >
-          {controlsCollapsed ? "◀" : "▶"}
-        </button>
-        {#if !controlsCollapsed}
+      <!-- SECONDARY CONTROLS COLUMN (toggled by gear icon) -->
+      {#if showSettingsPanel}
+        <div class="area-controls">
           <div class="panel-section section-tuning">
             <GameSettingsPanel />
           </div>
-        {/if}
-      </div>
+        </div>
+      {/if}
 
-      <!-- RIGHT SIDEBAR (leaderboard + info) -->
+      <!-- RIGHT SIDEBAR (always visible) -->
       <div class="area-right" style="width: {sidebarWidth}px;">
         <!-- Resize handle -->
         <div
@@ -241,16 +260,92 @@
           aria-orientation="vertical"
           title="Drag to resize"
         ></div>
-        <!-- 1. Commanders -->
-        <div class="panel-section section-commanders">
+
+        <!-- 1. LEADERBOARD (standalone, visual gap below) -->
+        <div class="sidebar-leaderboard">
           <Leaderboard players={leaderboardPlayers} />
+        </div>
+
+        <!-- 2. THEME SELECTOR (bold, prominent) -->
+        <div class="sidebar-theme">
+          <label class="theme-label" for="theme-select">🎨 THEME</label>
+          <select
+            id="theme-select"
+            class="theme-select"
+            value={selectedThemeName}
+            onchange={(e) => {
+              const v = (e.target as HTMLSelectElement).value;
+              if (v) handleApplyTheme(v);
+            }}
+          >
+            <option value="">Select Theme…</option>
+            {#each allThemes as theme}
+              <option value={theme.name}>{theme.name}</option>
+            {/each}
+          </select>
+        </div>
+
+        <!-- 3. IN-GAME MENU -->
+        <div class="sidebar-menu">
+          <button
+            class="menu-header"
+            onclick={() => (menuExpanded = !menuExpanded)}
+          >
+            <span>MENU</span>
+            <span class="menu-chevron">{menuExpanded ? "▾" : "▸"}</span>
+          </button>
+
+          {#if menuExpanded}
+            <div class="menu-items">
+              <button
+                class="menu-item"
+                class:active={showSettingsPanel}
+                onclick={toggleSettingsPanel}
+              >
+                <span class="mi-icon">⚙</span>
+                <span class="mi-label">Settings</span>
+              </button>
+              <button
+                class="menu-item"
+                onclick={() => (showAudioSettings = true)}
+              >
+                <span class="mi-icon">🔊</span>
+                <span class="mi-label">Audio</span>
+              </button>
+              <button
+                class="menu-item"
+                onclick={() => alert("Screenshot coming soon")}
+              >
+                <span class="mi-icon">📸</span>
+                <span class="mi-label">Screenshot</span>
+              </button>
+              <button
+                class="menu-item"
+                onclick={() => alert("Shortcuts coming soon")}
+              >
+                <span class="mi-icon">⌨</span>
+                <span class="mi-label">Keyboard Shortcuts</span>
+              </button>
+              <button
+                class="menu-item"
+                onclick={() => alert("Chat coming soon")}
+              >
+                <span class="mi-icon">💬</span>
+                <span class="mi-label">Chat</span>
+              </button>
+            </div>
+          {/if}
         </div>
       </div>
     </div>
 
     <!-- Surrender Confirmation Modal -->
     {#if showSurrenderModal}
-      <div class="modal-overlay" role="dialog" aria-modal="true">
+      <div
+        class="modal-overlay modal-overlay--fixed"
+        role="dialog"
+        aria-modal="true"
+      >
         <div class="surrender-modal glass-panel">
           <h3 class="surrender-modal__title">Surrender?</h3>
           <p class="surrender-modal__desc">Choose how to end your campaign.</p>
@@ -307,42 +402,22 @@
     height: 100vh;
   }
 
-  /* RESULTS VIEW - Full screen centered results */
-  .results-view {
-    width: 100vw;
-    height: 100vh;
-    background: linear-gradient(180deg, #050510 0%, #0a0a1a 50%, #050510 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  /* GRID LAYOUT V7 - Two-Column Right Side */
+  /* ═══ GRID LAYOUT V8 ═══ */
+  /* Default: Canvas | Right sidebar */
+  /* Settings open: Canvas | Secondary (controls) | Right sidebar */
   .game-layout {
     display: grid;
-    grid-template-columns: 1fr auto auto; /* Canvas | Controls | Right Sidebar */
-    grid-template-areas: "canvas controls right";
+    grid-template-columns: 1fr auto;
+    grid-template-areas: "canvas right";
     height: 100vh;
     width: 100vw;
-    transition:
-      margin-left 0.2s ease,
-      width 0.2s ease;
   }
 
-  /* Responsive: narrower sidebar on smaller viewports */
-  @media (max-width: 1400px) {
-    .game-layout {
-      grid-template-columns: 1fr auto;
-    }
+  .game-layout.settings-open {
+    grid-template-columns: 1fr auto auto;
+    grid-template-areas: "canvas controls right";
   }
 
-  @media (max-width: 1100px) {
-    .game-layout {
-      grid-template-columns: 1fr auto;
-    }
-  }
-
-  /* Very narrow: hide sidebars, full canvas */
   @media (max-width: 800px) {
     .game-layout {
       grid-template-columns: 1fr;
@@ -354,12 +429,22 @@
     }
   }
 
-  /* AREA: Controls Column */
+  /* ═══ CANVAS ═══ */
+  .area-canvas {
+    grid-area: canvas;
+    position: relative;
+    background: #050510;
+    overflow: hidden;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  /* ═══ SECONDARY CONTROLS COLUMN ═══ */
   .area-controls {
     grid-area: controls;
-    position: relative;
     background: rgba(10, 10, 15, 0.95);
     border-left: 1px solid #223;
+    border-right: 1px solid #223;
     display: flex;
     flex-direction: column;
     padding: 10px;
@@ -368,56 +453,17 @@
     overflow-y: auto;
     width: 340px;
     min-width: 280px;
-    transition:
-      width 0.25s ease,
-      min-width 0.25s ease,
-      padding 0.25s ease;
   }
 
-  .area-controls.collapsed {
-    width: 32px;
-    min-width: 32px;
-    padding: 10px 2px;
+  .section-tuning {
+    flex: 1;
     overflow: hidden;
-  }
-
-  .controls-toggle {
-    position: absolute;
-    top: 8px;
-    left: 4px;
-    width: 24px;
-    height: 24px;
-    background: rgba(30, 30, 50, 0.9);
-    border: 1px solid rgba(100, 120, 200, 0.3);
-    border-radius: 4px;
-    color: rgba(150, 170, 255, 0.8);
-    font-size: 10px;
-    cursor: pointer;
-    z-index: 25;
+    min-height: 200px;
     display: flex;
-    align-items: center;
-    justify-content: center;
-    transition:
-      background 0.15s,
-      color 0.15s;
-  }
-  .controls-toggle:hover {
-    background: rgba(50, 50, 80, 0.95);
-    color: #fff;
+    flex-direction: column;
   }
 
-  /* AREA: Canvas */
-  .area-canvas {
-    grid-area: canvas;
-    position: relative; /* Anchor for absolute overlays */
-    background: #050510;
-    overflow: hidden;
-    /* Ensure canvas fills available space */
-    min-width: 0;
-    min-height: 0;
-  }
-
-  /* AREA: Right Sidebar */
+  /* ═══ RIGHT SIDEBAR ═══ */
   .area-right {
     grid-area: right;
     position: relative;
@@ -426,14 +472,13 @@
     display: flex;
     flex-direction: column;
     padding: 10px;
-    gap: 10px;
+    gap: 0;
     z-index: 20;
     box-shadow: -5px 0 20px rgba(0, 0, 0, 0.5);
     overflow-y: auto;
     flex-shrink: 0;
   }
 
-  /* Drag-to-resize handle */
   .resize-handle {
     position: absolute;
     top: 0;
@@ -450,19 +495,130 @@
     background: rgba(0, 224, 255, 0.3);
   }
 
-  .panel-section {
-    flex-shrink: 0; /* Prevent sections from collapsing weirdly */
+  /* Leaderboard: standalone with gap below */
+  .sidebar-leaderboard {
+    flex-shrink: 0;
+    padding-bottom: 8px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   }
 
-  .section-tuning {
-    flex: 1; /* Fill remaining space */
-    overflow: hidden; /* Inner section-body handles scroll */
-    min-height: 200px;
+  /* Theme selector: bold and prominent */
+  .sidebar-theme {
+    flex-shrink: 0;
+    padding: 8px 4px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .theme-label {
+    display: block;
+    font-family: "Exo", sans-serif;
+    font-size: 0.8rem;
+    font-weight: 900;
+    letter-spacing: 0.15em;
+    color: rgba(255, 200, 60, 0.9);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .theme-select {
+    width: 100%;
+    padding: 8px 10px;
+    background: rgba(20, 20, 35, 0.9);
+    border: 1px solid rgba(255, 200, 60, 0.3);
+    border-radius: 6px;
+    color: #fff;
+    font-family: "Montserrat", sans-serif;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .theme-select:hover,
+  .theme-select:focus {
+    border-color: rgba(255, 200, 60, 0.6);
+    outline: none;
+  }
+
+  /* In-game menu */
+  .sidebar-menu {
+    flex-shrink: 0;
+    padding: 4px 0;
+  }
+
+  .menu-header {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 8px;
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.45);
+    font-family: "Exo", sans-serif;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: color 0.15s;
+  }
+  .menu-header:hover {
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  .menu-chevron {
+    font-size: 0.7rem;
+  }
+
+  .menu-items {
     display: flex;
     flex-direction: column;
+    gap: 2px;
+    padding: 4px 0;
   }
 
-  /* OVERLAYS (Floating above Canvas) */
+  .menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 8px 12px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    color: rgba(255, 255, 255, 0.6);
+    font-family: "Montserrat", sans-serif;
+    font-size: 0.78rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: left;
+  }
+  .menu-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.08);
+    color: #fff;
+  }
+  .menu-item.active {
+    background: rgba(80, 120, 255, 0.12);
+    border-color: rgba(80, 120, 255, 0.3);
+    color: #93c5fd;
+  }
+
+  .mi-icon {
+    font-size: 1rem;
+    width: 20px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+
+  .mi-label {
+    flex: 1;
+  }
+
+  /* ═══ OVERLAYS ═══ */
   .overlay-top-center {
     position: absolute;
     top: 12px;
@@ -522,12 +678,17 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.7);
+    background: transparent;
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 100;
     pointer-events: auto;
+  }
+
+  .modal-overlay--fixed {
+    position: fixed;
+    z-index: 9999;
   }
 
   .overlay-bottom-left {
@@ -539,7 +700,7 @@
     gap: 10px;
     width: 280px;
     z-index: 50;
-    pointer-events: none; /* Let clicks pass through gaps */
+    pointer-events: none;
   }
   .overlay-bottom-left > * {
     pointer-events: auto;
@@ -557,7 +718,7 @@
     gap: 8px;
   }
 
-  /* Utilities */
+  /* ═══ UTILITIES ═══ */
   .glass-panel {
     background: rgba(20, 20, 30, 0.8);
     backdrop-filter: blur(8px);

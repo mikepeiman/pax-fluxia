@@ -717,8 +717,8 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        background: rgba(0, 0, 0, var(--results-overlay-alpha, 0.75));
-        backdrop-filter: blur(8px);
+        background: transparent;
+        backdrop-filter: none;
     }
 
     .results-close {

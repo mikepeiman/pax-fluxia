@@ -54,6 +54,7 @@
 
     <div class="top-bar-right">
         {#if isInGame}
+            <!-- Hidden 2026-02-19: developer debug tool, not user-facing
             <button
                 class="top-bar-btn trace-btn"
                 class:armed={traceArmed}
@@ -74,6 +75,7 @@
             >
                 📥 DL
             </button>
+            -->
         {/if}
         {#if onSettingsClick}
             <button
