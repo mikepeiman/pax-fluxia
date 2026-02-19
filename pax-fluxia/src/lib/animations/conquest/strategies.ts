@@ -101,7 +101,7 @@ function conquestImmediate(ctx: ConquestTransferContext): ConquestTransferResult
 // ============================================================================
 
 function conquestSurge(ctx: ConquestTransferContext): ConquestTransferResult {
-    const { ships, attackerStar, conqueredStar, transferCount, newOwner, now } = ctx;
+    const { ships, attackerStar, conqueredStar, transferCount, newOwner, now, effectiveTickMs } = ctx;
 
     const sorted = sortByProjection(ships, attackerStar, conqueredStar);
     const conquestShips = sorted.splice(0, transferCount);
@@ -116,9 +116,16 @@ function conquestSurge(ctx: ConquestTransferContext): ConquestTransferResult {
     const fanSpread = Math.PI * 0.6;
 
     const arriving: VisualShipState[] = [];
-    for (let i = 0; i < conquestShips.length; i++) {
+    const n = conquestShips.length;
+
+    // Tick-bound stagger: CONQUEST_SURGE_STAGGER_MS > 0 = manual; 0 = auto-proportional
+    const perShipStagger = staggerMs > 0
+        ? staggerMs
+        : n > 1 ? (effectiveTickMs * 0.4) / (n - 1) : 0;
+
+    for (let i = 0; i < n; i++) {
         const ship = conquestShips[i];
-        const fanT = conquestShips.length > 1 ? i / (conquestShips.length - 1) - 0.5 : 0;
+        const fanT = n > 1 ? i / (n - 1) - 0.5 : 0;
         const spawnAngle = arrivalAngle + fanT * fanSpread + (Math.random() - 0.5) * 0.15;
 
         ship.x = conqueredStar.x + Math.cos(spawnAngle) * surgeRadius;
@@ -128,7 +135,7 @@ function conquestSurge(ctx: ConquestTransferContext): ConquestTransferResult {
         ship.fromStarId = null;
         ship.toStarId = null;
         ship.ownerId = newOwner;
-        ship.settleStartTime = now + i * staggerMs;
+        ship.settleStartTime = now + i * perShipStagger;
         ship.settleStartAngle = spawnAngle;
         ship.settleStartRadius = surgeRadius;
         (ship as any).conquestSettle = true;
@@ -201,8 +208,9 @@ function conquestTravel(ctx: ConquestTransferContext): ConquestTransferResult {
         ship.state = 'departing';
         ship.fromStarId = attackerStarId;
         ship.toStarId = conqueredStarId;
-        // Minimal stagger for orderly arrival (not random jitter)
-        ship.departTime = now + i * Math.min(20, 300 / Math.max(1, n));
+        // Tick-bound stagger: all ships depart within 40% of tick
+        const perShipStagger = n > 1 ? (effectiveTickMs * 0.4) / (n - 1) : 0;
+        ship.departTime = now + i * perShipStagger;
         ship.travelDuration = travelDuration;
         ship.departDuration = departDuration;
 
