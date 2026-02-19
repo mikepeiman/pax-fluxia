@@ -38,7 +38,7 @@ const gameServer = new Server({
 
         // SPA fallback — serve index.html for all unmatched routes,
         // with no-cache headers so browsers always fetch the latest after deploys
-        app.get("*", (_req: any, res: any) => {
+        app.get("/*splat", (_req: any, res: any) => {
             Object.entries(NO_CACHE_HEADERS).forEach(([k, v]) => res.setHeader(k, v));
             res.sendFile(path.join(CLIENT_DIR, "index.html"));
         });

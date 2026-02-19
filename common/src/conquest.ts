@@ -141,7 +141,11 @@ export function applyConquest(
     } else if (escapeRoutes.length > 0) {
         // Scatter: some captured, some destroyed, some escape
         captureRate = cfg.SCATTER_CAPTURE_RATE;
+        // First, capture a percentage of all defender ships (active+damaged) at the moment of capture 
+        // (capture = when the attacking forces exceed 24:1 power ratio)
         const shipsCaptured = Math.floor(defenderTotal * captureRate);
+        // remaining ships are either destroyed or escape. How many of each is determined by SCATTER_DESTROY_RATE
+        // 
         const remaining = defenderTotal - shipsCaptured;
         shipsDestroyed = Math.floor(remaining * cfg.SCATTER_DESTROY_RATE);
         shipsEscaping = remaining - shipsDestroyed;
