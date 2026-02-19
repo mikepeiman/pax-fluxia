@@ -71,6 +71,8 @@ export interface ShipRenderState {
     travelingShips: VisualShipState[];
     /** Stars currently in tick-synced combat */
     starsInCombat: Set<string>;
+    /** Combat target at tick boundary — surge only fires if star.targetId matches */
+    combatTargets: Map<string, string>;
     /** Pending conquest color transitions */
     pendingConquests: Map<string, { previousOwner: string; transitionTime: number }>;
     /** Per-star attack ramp-in progress (0→1) */
@@ -646,7 +648,8 @@ export function renderShips(
                 // would capture a surged starting position and snap on tick boundaries.
                 let surgeOffsetX = 0;
                 let surgeOffsetY = 0;
-                if (isAttack && targetStar && state.starsInCombat.has(star.id)) {
+                if (isAttack && targetStar && state.starsInCombat.has(star.id)
+                    && state.combatTargets.get(star.id) === star.targetId) {
                     const gamePaused = state.isPaused;
 
                     let useDirX = dirX, useDirY = dirY;

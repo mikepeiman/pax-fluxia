@@ -116,6 +116,8 @@
     let starsInCombat: Set<string> = fxOrchestrator.vsm
         .starsInCombat as Set<string>;
     // Direction lock for mid-surge target changes: complete cycle before reorienting
+    // Combat targets at tick boundary — surge only fires if star.targetId matches
+    let combatTargets: Map<string, string> = new Map();
     let surgeLockedDir: Map<
         string,
         { x: number; y: number; targetId: string }
@@ -707,6 +709,13 @@
             surgeSnapshot = captureSurgeSnapshot();
             starsInCombat.clear();
             processTickEvents(stars, tickEvents, connections || [], starsById);
+            // Record each combat star's targetId at tick boundary
+            // Surge only fires if star.targetId still matches this snapshot
+            combatTargets.clear();
+            for (const starId of starsInCombat) {
+                const star = starsById.get(starId);
+                if (star?.targetId) combatTargets.set(starId, star.targetId);
+            }
         }
 
         // Render all ships: orbiting (per-star) + traveling (in-flight lifecycle)
@@ -718,6 +727,7 @@
             visualDamagedShips,
             travelingShips,
             starsInCombat,
+            combatTargets,
             pendingConquests,
             attackRampProgress,
             surgeLockedDir,
