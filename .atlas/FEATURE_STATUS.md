@@ -63,6 +63,7 @@
 | F-74 | Neutral stars in random maps: toggle neutral stars, players get 1 starting star, all players start on same star type (star type = menu option) | High | Planned |
 | F-75 | Player color contrast check: ensure min luminance vs dark background, auto-lighten dark colors, glow outline for ship visibility | High | Done (2026-02-19) |
 | F-76 | Arrow formation speed slider: control how fast conquest arrowhead ships reach target (tick-relative duration) | Medium | Planned |
+| F-77 | Theme sub-modules: split themes into composable categories — Map Theme (star/Voronoi/halo visuals), Travel Theme (ship motion/curves/speed), Conquest Theme (animations/surge/settle), Static Theme (colors/sizes/scaling) — mix & match | High | Planned |
 
 ## Known Regressions
 | ID | Description | Since |
