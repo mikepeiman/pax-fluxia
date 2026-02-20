@@ -527,6 +527,8 @@
         voronoiEdgeBlend: GAME_CONFIG.VORONOI_EDGE_BLEND,
         voronoiBorderWidth: GAME_CONFIG.VORONOI_BORDER_WIDTH,
         voronoiBorderAlpha: GAME_CONFIG.VORONOI_BORDER_ALPHA,
+        voronoiSaturation: GAME_CONFIG.VORONOI_SATURATION,
+        voronoiLightness: GAME_CONFIG.VORONOI_LIGHTNESS,
     };
 
     function loadPanelSettings(): typeof panelDefaults {
@@ -667,6 +669,8 @@
         GAME_CONFIG.VORONOI_EDGE_BLEND = panel.voronoiEdgeBlend as number;
         GAME_CONFIG.VORONOI_BORDER_WIDTH = panel.voronoiBorderWidth as number;
         GAME_CONFIG.VORONOI_BORDER_ALPHA = panel.voronoiBorderAlpha as number;
+        GAME_CONFIG.VORONOI_SATURATION = panel.voronoiSaturation as number;
+        GAME_CONFIG.VORONOI_LIGHTNESS = panel.voronoiLightness as number;
     }
 
     // =========================================================================
@@ -1227,6 +1231,8 @@
             voronoiEdgeBlend: GAME_CONFIG.VORONOI_EDGE_BLEND,
             voronoiBorderWidth: GAME_CONFIG.VORONOI_BORDER_WIDTH,
             voronoiBorderAlpha: GAME_CONFIG.VORONOI_BORDER_ALPHA,
+            voronoiSaturation: GAME_CONFIG.VORONOI_SATURATION,
+            voronoiLightness: GAME_CONFIG.VORONOI_LIGHTNESS,
         };
         savePanelSettings();
 
@@ -3294,6 +3300,52 @@
                                         .value;
                                     GAME_CONFIG.VORONOI_BORDER_ALPHA = v;
                                     updatePanel("voronoiBorderAlpha", v);
+                                }}
+                            />
+                        </div>
+                        <div class="var-row">
+                            <div class="row-top">
+                                <span class="var-name">Saturation</span><span
+                                    class="val"
+                                    >{(
+                                        panel.voronoiSaturation as number
+                                    ).toFixed(2)}</span
+                                >
+                            </div>
+                            <input
+                                type="range"
+                                min="0"
+                                max="2"
+                                step="0.05"
+                                value={panel.voronoiSaturation}
+                                oninput={(e) => {
+                                    const v = +(e.target as HTMLInputElement)
+                                        .value;
+                                    GAME_CONFIG.VORONOI_SATURATION = v;
+                                    updatePanel("voronoiSaturation", v);
+                                }}
+                            />
+                        </div>
+                        <div class="var-row">
+                            <div class="row-top">
+                                <span class="var-name">Lightness</span><span
+                                    class="val"
+                                    >{(
+                                        panel.voronoiLightness as number
+                                    ).toFixed(2)}</span
+                                >
+                            </div>
+                            <input
+                                type="range"
+                                min="0"
+                                max="2"
+                                step="0.05"
+                                value={panel.voronoiLightness}
+                                oninput={(e) => {
+                                    const v = +(e.target as HTMLInputElement)
+                                        .value;
+                                    GAME_CONFIG.VORONOI_LIGHTNESS = v;
+                                    updatePanel("voronoiLightness", v);
                                 }}
                             />
                         </div>

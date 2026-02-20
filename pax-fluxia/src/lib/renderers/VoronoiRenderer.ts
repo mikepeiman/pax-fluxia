@@ -30,6 +30,7 @@ function buildFingerprint(stars: StarState[]): string {
     }
     fp += `${GAME_CONFIG.VORONOI_ALPHA}:${GAME_CONFIG.VORONOI_RESOLUTION}:${GAME_CONFIG.VORONOI_EDGE_BLEND}`;
     fp += `:${GAME_CONFIG.VORONOI_BORDER_WIDTH}:${GAME_CONFIG.VORONOI_BORDER_ALPHA}`;
+    fp += `:${GAME_CONFIG.VORONOI_SATURATION}:${GAME_CONFIG.VORONOI_LIGHTNESS}`;
     return fp;
 }
 
@@ -42,6 +43,62 @@ function hexToRGB(hex: number): [number, number, number] {
         (hex >> 8) & 0xff,
         hex & 0xff,
     ];
+}
+
+/**
+ * Convert RGB (0-255) to HSL (h:0-360, s:0-1, l:0-1).
+ */
+function rgbToHSL(r: number, g: number, b: number): [number, number, number] {
+    r /= 255; g /= 255; b /= 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    const l = (max + min) / 2;
+    if (max === min) return [0, 0, l];
+    const d = max - min;
+    const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    let h = 0;
+    if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+    else if (max === g) h = ((b - r) / d + 2) / 6;
+    else h = ((r - g) / d + 4) / 6;
+    return [h * 360, s, l];
+}
+
+/**
+ * Convert HSL (h:0-360, s:0-1, l:0-1) back to RGB (0-255).
+ */
+function hslToRGB(h: number, s: number, l: number): [number, number, number] {
+    h /= 360;
+    if (s === 0) {
+        const v = Math.round(l * 255);
+        return [v, v, v];
+    }
+    const hue2rgb = (p: number, q: number, t: number) => {
+        if (t < 0) t += 1;
+        if (t > 1) t -= 1;
+        if (t < 1 / 6) return p + (q - p) * 6 * t;
+        if (t < 1 / 2) return q;
+        if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+        return p;
+    };
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const p = 2 * l - q;
+    return [
+        Math.round(hue2rgb(p, q, h + 1 / 3) * 255),
+        Math.round(hue2rgb(p, q, h) * 255),
+        Math.round(hue2rgb(p, q, h - 1 / 3) * 255),
+    ];
+}
+
+/**
+ * Adjust RGB color by saturation and lightness multipliers.
+ */
+function adjustColorHSL(
+    r: number, g: number, b: number,
+    satMult: number, lightMult: number,
+): [number, number, number] {
+    const [h, s, l] = rgbToHSL(r, g, b);
+    const newS = Math.min(1, Math.max(0, s * satMult));
+    const newL = Math.min(1, Math.max(0, l * lightMult));
+    return hslToRGB(h, newS, newL);
 }
 
 /**
@@ -86,6 +143,8 @@ export function renderVoronoi(
     const edgeBlend = GAME_CONFIG.VORONOI_EDGE_BLEND ?? 0;
     const borderWidth = Math.round((GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 2) / resolution);
     const borderAlpha = GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.4;
+    const satMult = GAME_CONFIG.VORONOI_SATURATION ?? 1.0;
+    const lightMult = GAME_CONFIG.VORONOI_LIGHTNESS ?? 0.7;
 
     // Create offscreen canvas
     const canvas = document.createElement('canvas');
@@ -93,13 +152,17 @@ export function renderVoronoi(
     canvas.height = canvasH;
     const ctx = canvas.getContext('2d')!;
 
-    // Pre-compute star data at canvas scale
-    const starData = ownedStars.map(s => ({
-        x: s.x / resolution,
-        y: s.y / resolution,
-        rgb: hexToRGB(colorUtils.getPlayerColor(s.ownerId!)),
-        ownerId: s.ownerId!,
-    }));
+    // Pre-compute star data at canvas scale with HSL adjustments
+    const starData = ownedStars.map(s => {
+        const rawRgb = hexToRGB(colorUtils.getPlayerColor(s.ownerId!));
+        const rgb = adjustColorHSL(rawRgb[0], rawRgb[1], rawRgb[2], satMult, lightMult);
+        return {
+            x: s.x / resolution,
+            y: s.y / resolution,
+            rgb,
+            ownerId: s.ownerId!,
+        };
+    });
 
     // Create ImageData for direct pixel manipulation
     const imageData = ctx.createImageData(canvasW, canvasH);
