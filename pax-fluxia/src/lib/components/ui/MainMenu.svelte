@@ -10,6 +10,13 @@
     import { multiplayerStore } from "$lib/stores/multiplayerStore.svelte";
     import type { RoomListing } from "$lib/stores/multiplayerStore.svelte";
     import { log } from "$lib/utils/logger";
+    import {
+        listThemePresets,
+        saveThemePreset,
+        loadThemePreset,
+        deleteThemePreset,
+    } from "$lib/utils/themePresets";
+    import type { ThemePreset } from "$lib/utils/themePresets";
 
     let visible = $state(true);
 
@@ -118,9 +125,10 @@
     let colorSat = $state(loadSetting("colorSat", 70)); // 40-100
     let colorLig = $state(loadSetting("colorLig", 55)); // 30-70
 
-    // AI details toggle
     let showAIDetails = $state(false);
     let showColorPalette = $state(false);
+    let selectedTheme = $state("");
+    let newThemeName = $state("");
     let showPlayerHuePicker = $state(false);
 
     // MP Join state
@@ -892,6 +900,58 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- ─── Theme Presets (F-73) ─── -->
+                    <div class="section-divider"></div>
+                    <div class="config-item">
+                        <label>THEME PRESETS</label>
+                        <div class="theme-presets-row">
+                            <select
+                                class="theme-select"
+                                bind:value={selectedTheme}
+                                onchange={() => {
+                                    if (selectedTheme)
+                                        loadThemePreset(selectedTheme);
+                                }}
+                            >
+                                <option value="">— Choose preset —</option>
+                                {#each listThemePresets() as preset}
+                                    <option value={preset.name}
+                                        >{preset.name}{preset.builtIn
+                                            ? " ★"
+                                            : ""}</option
+                                    >
+                                {/each}
+                            </select>
+                            <input
+                                type="text"
+                                class="theme-name-input"
+                                placeholder="Name..."
+                                bind:value={newThemeName}
+                                maxlength="24"
+                            />
+                            <button
+                                class="saved-map-btn load"
+                                onclick={() => {
+                                    if (newThemeName.trim()) {
+                                        saveThemePreset(newThemeName.trim());
+                                        newThemeName = "";
+                                    }
+                                }}
+                                disabled={!newThemeName.trim()}>💾</button
+                            >
+                            {#if selectedTheme && !listThemePresets().find((p) => p.name === selectedTheme)?.builtIn}
+                                <button
+                                    class="saved-map-btn del"
+                                    onclick={() => {
+                                        deleteThemePreset(selectedTheme);
+                                        selectedTheme = "";
+                                    }}>✕</button
+                                >
+                            {/if}
+                        </div>
+                    </div>
+
                     <button
                         class="start-btn start-btn-primary"
                         onclick={startSPGame}
