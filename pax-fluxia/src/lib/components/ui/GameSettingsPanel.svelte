@@ -519,6 +519,8 @@
         showTerritory: GAME_CONFIG.SHOW_TERRITORY,
         territoryAlpha: GAME_CONFIG.TERRITORY_ALPHA,
         territoryRadiusMult: GAME_CONFIG.TERRITORY_RADIUS_MULT,
+        haloFleetScale: GAME_CONFIG.HALO_FLEET_SCALE,
+        haloFleetIntensity: GAME_CONFIG.HALO_FLEET_INTENSITY,
         showVoronoi: GAME_CONFIG.SHOW_VORONOI,
         voronoiAlpha: GAME_CONFIG.VORONOI_ALPHA,
         voronoiResolution: GAME_CONFIG.VORONOI_RESOLUTION,
@@ -657,6 +659,8 @@
         GAME_CONFIG.SHOW_TERRITORY = panel.showTerritory as boolean;
         GAME_CONFIG.TERRITORY_ALPHA = panel.territoryAlpha as number;
         GAME_CONFIG.TERRITORY_RADIUS_MULT = panel.territoryRadiusMult as number;
+        GAME_CONFIG.HALO_FLEET_SCALE = panel.haloFleetScale as boolean;
+        GAME_CONFIG.HALO_FLEET_INTENSITY = panel.haloFleetIntensity as number;
         GAME_CONFIG.SHOW_VORONOI = panel.showVoronoi as boolean;
         GAME_CONFIG.VORONOI_ALPHA = panel.voronoiAlpha as number;
         GAME_CONFIG.VORONOI_RESOLUTION = panel.voronoiResolution as number;
@@ -1215,6 +1219,8 @@
             showTerritory: GAME_CONFIG.SHOW_TERRITORY,
             territoryAlpha: GAME_CONFIG.TERRITORY_ALPHA,
             territoryRadiusMult: GAME_CONFIG.TERRITORY_RADIUS_MULT,
+            haloFleetScale: GAME_CONFIG.HALO_FLEET_SCALE,
+            haloFleetIntensity: GAME_CONFIG.HALO_FLEET_INTENSITY,
             showVoronoi: GAME_CONFIG.SHOW_VORONOI,
             voronoiAlpha: GAME_CONFIG.VORONOI_ALPHA,
             voronoiResolution: GAME_CONFIG.VORONOI_RESOLUTION,
@@ -3114,6 +3120,51 @@
                                 }}
                             />
                         </div>
+                        <div class="var-row">
+                            <div class="row-top">
+                                <span class="var-name">Fleet Glow</span>
+                                <label class="toggle-switch">
+                                    <input
+                                        type="checkbox"
+                                        checked={panel.haloFleetScale}
+                                        onchange={(e) => {
+                                            const v = (
+                                                e.target as HTMLInputElement
+                                            ).checked;
+                                            GAME_CONFIG.HALO_FLEET_SCALE = v;
+                                            updatePanel("haloFleetScale", v);
+                                        }}
+                                    />
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                        {#if panel.haloFleetScale}
+                            <div class="var-row">
+                                <div class="row-top">
+                                    <span class="var-name">Fleet Intensity</span
+                                    ><span class="val"
+                                        >{(
+                                            panel.haloFleetIntensity as number
+                                        ).toFixed(3)}</span
+                                    >
+                                </div>
+                                <input
+                                    type="range"
+                                    min="0.005"
+                                    max="0.1"
+                                    step="0.005"
+                                    value={panel.haloFleetIntensity}
+                                    oninput={(e) => {
+                                        const v = +(
+                                            e.target as HTMLInputElement
+                                        ).value;
+                                        GAME_CONFIG.HALO_FLEET_INTENSITY = v;
+                                        updatePanel("haloFleetIntensity", v);
+                                    }}
+                                />
+                            </div>
+                        {/if}
                     {/if}
 
                     <!-- ── Voronoi Territory ── -->

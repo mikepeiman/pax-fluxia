@@ -193,6 +193,8 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'showTerritory', configKey: 'SHOW_TERRITORY' },
     { panelKey: 'territoryAlpha', configKey: 'TERRITORY_ALPHA' },
     { panelKey: 'territoryRadiusMult', configKey: 'TERRITORY_RADIUS_MULT' },
+    { panelKey: 'haloFleetScale', configKey: 'HALO_FLEET_SCALE' },
+    { panelKey: 'haloFleetIntensity', configKey: 'HALO_FLEET_INTENSITY' },
     { panelKey: 'showVoronoi', configKey: 'SHOW_VORONOI' },
     { panelKey: 'voronoiAlpha', configKey: 'VORONOI_ALPHA' },
     { panelKey: 'voronoiResolution', configKey: 'VORONOI_RESOLUTION' },

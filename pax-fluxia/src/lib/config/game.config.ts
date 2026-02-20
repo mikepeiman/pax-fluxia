@@ -223,6 +223,8 @@ interface GameConfigType {
     SHOW_TERRITORY: boolean;       // Show territory alpha overlay behind stars (default true)
     TERRITORY_ALPHA: number;       // Alpha for territory overlay (default 0.08)
     TERRITORY_RADIUS_MULT: number; // Radius multiplier for territory circles (default 3.0)
+    HALO_FLEET_SCALE: boolean;     // Scale halo alpha with fleet size (default true)
+    HALO_FLEET_INTENSITY: number;  // Alpha added per 500 ships (default 0.03)
 
     // ── Voronoi Territory ───────────────────────────────────────────────────
     SHOW_VORONOI: boolean;         // Show contiguous Voronoi territory fill (default true)
@@ -648,6 +650,10 @@ const _rawConfig: GameConfigType = {
     TERRITORY_ALPHA: 0.08,
     /** Territory radius multiplier relative to star radius */
     TERRITORY_RADIUS_MULT: 3.0,
+    /** Scale halo alpha with fleet size */
+    HALO_FLEET_SCALE: true,
+    /** Alpha added per 500 ships */
+    HALO_FLEET_INTENSITY: 0.03,
 
     /** Show contiguous Voronoi territory fill */
     SHOW_VORONOI: true,

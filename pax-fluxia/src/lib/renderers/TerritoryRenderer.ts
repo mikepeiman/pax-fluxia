@@ -36,12 +36,25 @@ export function renderTerritory(
         const color = colorUtils.getPlayerColor(star.ownerId);
         const radius = star.radius * radiusMult;
 
+        // Fleet-size alpha boost: larger fleets = brighter halos
+        let starAlpha = alpha;
+        if (GAME_CONFIG.HALO_FLEET_SCALE) {
+            const totalShips = star.activeShips + star.damagedShips;
+            if (totalShips > 0) {
+                const fleetIntensity = GAME_CONFIG.HALO_FLEET_INTENSITY ?? 0.03;
+                const fleetBoost = Math.floor(totalShips / 500) * fleetIntensity;
+                starAlpha = alpha + fleetBoost;
+            }
+        }
+
+        if (starAlpha <= 0) continue;
+
         // Draw radial gradient as concentric circles with decreasing alpha
         // 3 layers for smooth falloff
         const layers = 4;
         for (let i = layers; i >= 1; i--) {
             const layerR = radius * (i / layers);
-            const layerAlpha = alpha * (1 - (i - 1) / layers);
+            const layerAlpha = starAlpha * (1 - (i - 1) / layers);
             territoryGraphics.circle(star.x, star.y, layerR);
             territoryGraphics.fill({ color, alpha: layerAlpha });
         }
