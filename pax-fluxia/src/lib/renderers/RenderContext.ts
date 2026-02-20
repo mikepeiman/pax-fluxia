@@ -35,6 +35,8 @@ export interface RenderContainers {
     dragPreviewGraphics: PIXI.Graphics;
     /** Territory alpha overlay (bottommost layer) */
     territoryGraphics: PIXI.Graphics;
+    /** Voronoi contiguous territory container */
+    voronoiContainer: PIXI.Container;
 }
 
 // ── Shared Textures ─────────────────────────────────────────────────────────

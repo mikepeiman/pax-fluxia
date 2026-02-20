@@ -519,6 +519,10 @@
         showTerritory: GAME_CONFIG.SHOW_TERRITORY,
         territoryAlpha: GAME_CONFIG.TERRITORY_ALPHA,
         territoryRadiusMult: GAME_CONFIG.TERRITORY_RADIUS_MULT,
+        showVoronoi: GAME_CONFIG.SHOW_VORONOI,
+        voronoiAlpha: GAME_CONFIG.VORONOI_ALPHA,
+        voronoiResolution: GAME_CONFIG.VORONOI_RESOLUTION,
+        voronoiEdgeBlend: GAME_CONFIG.VORONOI_EDGE_BLEND,
     };
 
     function loadPanelSettings(): typeof panelDefaults {
@@ -651,6 +655,10 @@
         GAME_CONFIG.SHOW_TERRITORY = panel.showTerritory as boolean;
         GAME_CONFIG.TERRITORY_ALPHA = panel.territoryAlpha as number;
         GAME_CONFIG.TERRITORY_RADIUS_MULT = panel.territoryRadiusMult as number;
+        GAME_CONFIG.SHOW_VORONOI = panel.showVoronoi as boolean;
+        GAME_CONFIG.VORONOI_ALPHA = panel.voronoiAlpha as number;
+        GAME_CONFIG.VORONOI_RESOLUTION = panel.voronoiResolution as number;
+        GAME_CONFIG.VORONOI_EDGE_BLEND = panel.voronoiEdgeBlend as number;
     }
 
     // =========================================================================
@@ -1203,6 +1211,10 @@
             showTerritory: GAME_CONFIG.SHOW_TERRITORY,
             territoryAlpha: GAME_CONFIG.TERRITORY_ALPHA,
             territoryRadiusMult: GAME_CONFIG.TERRITORY_RADIUS_MULT,
+            showVoronoi: GAME_CONFIG.SHOW_VORONOI,
+            voronoiAlpha: GAME_CONFIG.VORONOI_ALPHA,
+            voronoiResolution: GAME_CONFIG.VORONOI_RESOLUTION,
+            voronoiEdgeBlend: GAME_CONFIG.VORONOI_EDGE_BLEND,
         };
         savePanelSettings();
 
@@ -3093,6 +3105,95 @@
                                         .value;
                                     GAME_CONFIG.TERRITORY_RADIUS_MULT = v;
                                     updatePanel("territoryRadiusMult", v);
+                                }}
+                            />
+                        </div>
+                    {/if}
+
+                    <!-- ── Voronoi Territory ── -->
+                    <h4 class="sub-heading">Voronoi Territory</h4>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Show Voronoi</span>
+                            <label class="toggle-switch">
+                                <input
+                                    type="checkbox"
+                                    checked={panel.showVoronoi}
+                                    onchange={(e) => {
+                                        const v = (e.target as HTMLInputElement)
+                                            .checked;
+                                        GAME_CONFIG.SHOW_VORONOI = v;
+                                        updatePanel("showVoronoi", v);
+                                    }}
+                                />
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                    {#if panel.showVoronoi}
+                        <div class="var-row">
+                            <div class="row-top">
+                                <span class="var-name">Voronoi Alpha</span><span
+                                    class="val"
+                                    >{(panel.voronoiAlpha as number).toFixed(
+                                        2,
+                                    )}</span
+                                >
+                            </div>
+                            <input
+                                type="range"
+                                min="0.02"
+                                max="0.4"
+                                step="0.01"
+                                value={panel.voronoiAlpha}
+                                oninput={(e) => {
+                                    const v = +(e.target as HTMLInputElement)
+                                        .value;
+                                    GAME_CONFIG.VORONOI_ALPHA = v;
+                                    updatePanel("voronoiAlpha", v);
+                                }}
+                            />
+                        </div>
+                        <div class="var-row">
+                            <div class="row-top">
+                                <span class="var-name">Resolution</span><span
+                                    class="val">{panel.voronoiResolution}</span
+                                >
+                            </div>
+                            <input
+                                type="range"
+                                min="1"
+                                max="8"
+                                step="1"
+                                value={panel.voronoiResolution}
+                                oninput={(e) => {
+                                    const v = +(e.target as HTMLInputElement)
+                                        .value;
+                                    GAME_CONFIG.VORONOI_RESOLUTION = v;
+                                    updatePanel("voronoiResolution", v);
+                                }}
+                            />
+                        </div>
+                        <div class="var-row">
+                            <div class="row-top">
+                                <span class="var-name">Edge Blend</span><span
+                                    class="val"
+                                    >{(
+                                        panel.voronoiEdgeBlend as number
+                                    ).toFixed(1)}</span
+                                >
+                            </div>
+                            <input
+                                type="range"
+                                min="0"
+                                max="3"
+                                step="0.1"
+                                value={panel.voronoiEdgeBlend}
+                                oninput={(e) => {
+                                    const v = +(e.target as HTMLInputElement)
+                                        .value;
+                                    GAME_CONFIG.VORONOI_EDGE_BLEND = v;
+                                    updatePanel("voronoiEdgeBlend", v);
                                 }}
                             />
                         </div>

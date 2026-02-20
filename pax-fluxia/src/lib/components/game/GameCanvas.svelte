@@ -46,6 +46,10 @@
         type ShipRenderResources,
     } from "$lib/renderers/ShipRenderer";
     import { renderTerritory as renderTerritoryModule } from "$lib/renderers/TerritoryRenderer";
+    import {
+        renderVoronoi as renderVoronoiModule,
+        resetVoronoiCache,
+    } from "$lib/renderers/VoronoiRenderer";
 
     // ============================================================================
     // PixiJS Application
@@ -68,6 +72,7 @@
     let starLabels: Map<string, PIXI.Container> = new Map();
     let linkGraphics: PIXI.Graphics | null = null;
     let territoryGraphics: PIXI.Graphics | null = null;
+    let voronoiContainer: PIXI.Container | null = null;
     let debugGraphics: PIXI.Graphics | null = null; // New debug layer
 
     // ParticleContainer ship rendering (high-perf batched sprites)
@@ -285,6 +290,7 @@
             labelsContainer,
             dragPreviewGraphics,
             territoryGraphics,
+            voronoiContainer,
         } = containers);
         const textures = initShipRendering(containers);
         shipCircleTexture = textures.shipCircle;
@@ -600,6 +606,7 @@
             visualShips.clear();
             visualDamagedShips.clear();
             fxOrchestrator.reset();
+            resetVoronoiCache();
             activeSurges.clear();
             nextShipId = 0;
             starShipCounts.clear();
@@ -639,9 +646,20 @@
         }
         const starsById = cachedStarsById;
 
-        // Render territory overlay (bottommost layer — F-47)
+        // Render territory overlay (bottommost layer — F-47 halos)
         if (territoryGraphics) {
             renderTerritoryModule(stars, territoryGraphics, colorUtils);
+        }
+
+        // Render Voronoi territory (contiguous fill above halos)
+        if (voronoiContainer) {
+            renderVoronoiModule(
+                stars,
+                voronoiContainer,
+                colorUtils,
+                GAME_WIDTH,
+                GAME_HEIGHT,
+            );
         }
 
         // Render stars (static elements)

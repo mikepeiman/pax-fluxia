@@ -62,6 +62,7 @@
 | F-73 | Save & load custom themes: user can save current theme config to named presets and load from in-game settings | Medium | Done (2026-02-19) |
 | F-74 | Neutral stars in random maps: toggle neutral stars, players get 1 starting star, all players start on same star type (star type = menu option) | High | Planned |
 | F-75 | Player color contrast check: ensure min luminance vs dark background, auto-lighten dark colors, glow outline for ship visibility | High | Done (2026-02-19) |
+| F-76 | Arrow formation speed slider: control how fast conquest arrowhead ships reach target (tick-relative duration) | Medium | Planned |
 
 ## Known Regressions
 | ID | Description | Since |

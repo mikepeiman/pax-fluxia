@@ -193,6 +193,10 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'showTerritory', configKey: 'SHOW_TERRITORY' },
     { panelKey: 'territoryAlpha', configKey: 'TERRITORY_ALPHA' },
     { panelKey: 'territoryRadiusMult', configKey: 'TERRITORY_RADIUS_MULT' },
+    { panelKey: 'showVoronoi', configKey: 'SHOW_VORONOI' },
+    { panelKey: 'voronoiAlpha', configKey: 'VORONOI_ALPHA' },
+    { panelKey: 'voronoiResolution', configKey: 'VORONOI_RESOLUTION' },
+    { panelKey: 'voronoiEdgeBlend', configKey: 'VORONOI_EDGE_BLEND' },
 ];
 
 // ── ConfigKey → PanelKey lookup (for animSliderToPanelKey) ──────────────────

@@ -56,3 +56,9 @@ export {
 export {
     renderTerritory,
 } from './TerritoryRenderer';
+
+// Voronoi territory rendering
+export {
+    renderVoronoi,
+    resetVoronoiCache,
+} from './VoronoiRenderer';

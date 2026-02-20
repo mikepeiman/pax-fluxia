@@ -21,6 +21,10 @@ export function createContainers(stage: PIXI.Container): RenderContainers {
     const territoryGraphics = new PIXI.Graphics();
     stage.addChild(territoryGraphics);
 
+    // Voronoi contiguous territory (above halos, below link arrows)
+    const voronoiContainer = new PIXI.Container();
+    stage.addChild(voronoiContainer);
+
     // Order arrows (below stars)
     const linkGraphics = new PIXI.Graphics();
     stage.addChild(linkGraphics);
@@ -71,6 +75,7 @@ export function createContainers(stage: PIXI.Container): RenderContainers {
         labelsContainer,
         dragPreviewGraphics,
         territoryGraphics,
+        voronoiContainer,
     };
 }
 
