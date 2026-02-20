@@ -229,6 +229,8 @@ interface GameConfigType {
     VORONOI_ALPHA: number;         // Alpha for Voronoi territory (default 0.15)
     VORONOI_RESOLUTION: number;    // Downscale factor for Voronoi canvas (default 4, higher = faster/blockier)
     VORONOI_EDGE_BLEND: number;    // Edge blend factor (0=hard edges, 1+=soft, default 0)
+    VORONOI_BORDER_WIDTH: number;  // Border line width between territories in pixels (0=off, default 2)
+    VORONOI_BORDER_ALPHA: number;  // Alpha for territory border lines (default 0.4)
     SHOW_HEX_GRID: boolean;
     STARS_PER_PLAYER: number;
 
@@ -655,6 +657,10 @@ const _rawConfig: GameConfigType = {
     VORONOI_RESOLUTION: 4,
     /** Voronoi edge blend (0=hard edges, higher=softer) */
     VORONOI_EDGE_BLEND: 0,
+    /** Voronoi border line width between territories (0=off) */
+    VORONOI_BORDER_WIDTH: 2,
+    /** Voronoi border alpha */
+    VORONOI_BORDER_ALPHA: 0.4,
 
     /** Show hex grid (debug) */
     SHOW_HEX_GRID: false,

@@ -22,7 +22,6 @@ let cachedTexture: PIXI.Texture | null = null;
 
 /**
  * Build ownership fingerprint — only regenerate when this changes.
- * Includes star positions + ownership so territory updates on conquest.
  */
 function buildFingerprint(stars: StarState[]): string {
     let fp = '';
@@ -30,6 +29,7 @@ function buildFingerprint(stars: StarState[]): string {
         fp += `${s.id}:${s.ownerId ?? ''}|`;
     }
     fp += `${GAME_CONFIG.VORONOI_ALPHA}:${GAME_CONFIG.VORONOI_RESOLUTION}:${GAME_CONFIG.VORONOI_EDGE_BLEND}`;
+    fp += `:${GAME_CONFIG.VORONOI_BORDER_WIDTH}:${GAME_CONFIG.VORONOI_BORDER_ALPHA}`;
     return fp;
 }
 
@@ -56,7 +56,6 @@ export function renderVoronoi(
     worldHeight: number,
 ): void {
     if (!GAME_CONFIG.SHOW_VORONOI) {
-        // Hide existing sprite
         if (cachedSprite && cachedSprite.parent) {
             cachedSprite.visible = false;
         }
@@ -80,12 +79,13 @@ export function renderVoronoi(
         return;
     }
 
-    // Resolution: lower = faster, higher = sharper edges
     const resolution = GAME_CONFIG.VORONOI_RESOLUTION ?? 4;
     const canvasW = Math.ceil(worldWidth / resolution);
     const canvasH = Math.ceil(worldHeight / resolution);
     const alpha = GAME_CONFIG.VORONOI_ALPHA ?? 0.15;
     const edgeBlend = GAME_CONFIG.VORONOI_EDGE_BLEND ?? 0;
+    const borderWidth = Math.round((GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 2) / resolution);
+    const borderAlpha = GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.4;
 
     // Create offscreen canvas
     const canvas = document.createElement('canvas');
@@ -101,56 +101,95 @@ export function renderVoronoi(
         ownerId: s.ownerId!,
     }));
 
-    // Create ImageData for direct pixel manipulation (fast)
+    // Create ImageData for direct pixel manipulation
     const imageData = ctx.createImageData(canvasW, canvasH);
     const pixels = imageData.data;
 
-    // For each pixel, find nearest owned star and color it
+    // Build ownership map (which star index owns each pixel)
+    const ownerMap = new Int16Array(canvasW * canvasH);
+
+    // Pass 1: Assign nearest star to each pixel
     for (let py = 0; py < canvasH; py++) {
         for (let px = 0; px < canvasW; px++) {
             let minDist = Infinity;
             let nearestIdx = 0;
 
-            // Find nearest star
             for (let i = 0; i < starData.length; i++) {
                 const dx = px - starData[i].x;
                 const dy = py - starData[i].y;
-                const dist = dx * dx + dy * dy; // squared distance (no sqrt needed for comparison)
+                const dist = dx * dx + dy * dy;
                 if (dist < minDist) {
                     minDist = dist;
                     nearestIdx = i;
                 }
             }
 
+            ownerMap[py * canvasW + px] = nearestIdx;
+        }
+    }
+
+    // Pass 2: Fill pixels with color + optional edge blend + borders
+    for (let py = 0; py < canvasH; py++) {
+        for (let px = 0; px < canvasW; px++) {
+            const mapIdx = py * canvasW + px;
+            const nearestIdx = ownerMap[mapIdx];
             const [r, g, b] = starData[nearestIdx].rgb;
             let pixelAlpha = alpha;
 
-            // Optional edge blend: reduce alpha near territory boundaries
+            // Edge blend: reduce alpha near territory boundaries
             if (edgeBlend > 0) {
-                // Find second-nearest star of different owner
                 let secondMinDist = Infinity;
+                const myDist = (() => {
+                    const dx = px - starData[nearestIdx].x;
+                    const dy = py - starData[nearestIdx].y;
+                    return Math.sqrt(dx * dx + dy * dy);
+                })();
                 for (let i = 0; i < starData.length; i++) {
                     if (starData[i].ownerId === starData[nearestIdx].ownerId) continue;
                     const dx = px - starData[i].x;
                     const dy = py - starData[i].y;
-                    const dist = dx * dx + dy * dy;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
                     if (dist < secondMinDist) secondMinDist = dist;
                 }
                 if (secondMinDist < Infinity) {
-                    const nearest = Math.sqrt(minDist);
-                    const secondNearest = Math.sqrt(secondMinDist);
-                    const edgeDist = (secondNearest - nearest) / (nearest + secondNearest + 0.001);
-                    // edgeDist is 0 at boundary, ~1 deep inside territory
+                    const edgeDist = (secondMinDist - myDist) / (myDist + secondMinDist + 0.001);
                     const blendFactor = Math.min(1, edgeDist / (edgeBlend * 0.1));
                     pixelAlpha *= blendFactor;
                 }
             }
 
-            const idx = (py * canvasW + px) * 4;
-            pixels[idx] = r;
-            pixels[idx + 1] = g;
-            pixels[idx + 2] = b;
-            pixels[idx + 3] = Math.round(pixelAlpha * 255);
+            // Check if this pixel is on a territory border
+            let isBorder = false;
+            if (borderWidth > 0 && borderAlpha > 0) {
+                const myOwner = starData[nearestIdx].ownerId;
+                // Check neighbors within border width
+                for (let dy = -borderWidth; dy <= borderWidth && !isBorder; dy++) {
+                    for (let dx = -borderWidth; dx <= borderWidth && !isBorder; dx++) {
+                        if (dx === 0 && dy === 0) continue;
+                        const nx = px + dx;
+                        const ny = py + dy;
+                        if (nx < 0 || nx >= canvasW || ny < 0 || ny >= canvasH) continue;
+                        const neighborIdx = ownerMap[ny * canvasW + nx];
+                        if (starData[neighborIdx].ownerId !== myOwner) {
+                            isBorder = true;
+                        }
+                    }
+                }
+            }
+
+            const idx = mapIdx * 4;
+            if (isBorder) {
+                // Border pixels: bright white/light at higher alpha
+                pixels[idx] = Math.min(255, r + 100);
+                pixels[idx + 1] = Math.min(255, g + 100);
+                pixels[idx + 2] = Math.min(255, b + 100);
+                pixels[idx + 3] = Math.round(borderAlpha * 255);
+            } else {
+                pixels[idx] = r;
+                pixels[idx + 1] = g;
+                pixels[idx + 2] = b;
+                pixels[idx + 3] = Math.round(pixelAlpha * 255);
+            }
         }
     }
 

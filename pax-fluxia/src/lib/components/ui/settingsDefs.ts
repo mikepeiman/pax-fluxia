@@ -197,6 +197,8 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'voronoiAlpha', configKey: 'VORONOI_ALPHA' },
     { panelKey: 'voronoiResolution', configKey: 'VORONOI_RESOLUTION' },
     { panelKey: 'voronoiEdgeBlend', configKey: 'VORONOI_EDGE_BLEND' },
+    { panelKey: 'voronoiBorderWidth', configKey: 'VORONOI_BORDER_WIDTH' },
+    { panelKey: 'voronoiBorderAlpha', configKey: 'VORONOI_BORDER_ALPHA' },
 ];
 
 // ── ConfigKey → PanelKey lookup (for animSliderToPanelKey) ──────────────────

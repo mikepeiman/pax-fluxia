@@ -523,6 +523,8 @@
         voronoiAlpha: GAME_CONFIG.VORONOI_ALPHA,
         voronoiResolution: GAME_CONFIG.VORONOI_RESOLUTION,
         voronoiEdgeBlend: GAME_CONFIG.VORONOI_EDGE_BLEND,
+        voronoiBorderWidth: GAME_CONFIG.VORONOI_BORDER_WIDTH,
+        voronoiBorderAlpha: GAME_CONFIG.VORONOI_BORDER_ALPHA,
     };
 
     function loadPanelSettings(): typeof panelDefaults {
@@ -659,6 +661,8 @@
         GAME_CONFIG.VORONOI_ALPHA = panel.voronoiAlpha as number;
         GAME_CONFIG.VORONOI_RESOLUTION = panel.voronoiResolution as number;
         GAME_CONFIG.VORONOI_EDGE_BLEND = panel.voronoiEdgeBlend as number;
+        GAME_CONFIG.VORONOI_BORDER_WIDTH = panel.voronoiBorderWidth as number;
+        GAME_CONFIG.VORONOI_BORDER_ALPHA = panel.voronoiBorderAlpha as number;
     }
 
     // =========================================================================
@@ -1215,6 +1219,8 @@
             voronoiAlpha: GAME_CONFIG.VORONOI_ALPHA,
             voronoiResolution: GAME_CONFIG.VORONOI_RESOLUTION,
             voronoiEdgeBlend: GAME_CONFIG.VORONOI_EDGE_BLEND,
+            voronoiBorderWidth: GAME_CONFIG.VORONOI_BORDER_WIDTH,
+            voronoiBorderAlpha: GAME_CONFIG.VORONOI_BORDER_ALPHA,
         };
         savePanelSettings();
 
@@ -3041,11 +3047,11 @@
                         />
                     </div>
 
-                    <!-- ── Territory Overlay (F-47) ── -->
-                    <h4 class="sub-heading">Territory Overlay</h4>
+                    <!-- ── Star Halos (F-47) ── -->
+                    <h4 class="sub-heading">Star Halos</h4>
                     <div class="var-row">
                         <div class="row-top">
-                            <span class="var-name">Show Territory</span>
+                            <span class="var-name">Show Halos</span>
                             <label class="toggle-switch">
                                 <input
                                     type="checkbox"
@@ -3064,8 +3070,8 @@
                     {#if panel.showTerritory}
                         <div class="var-row">
                             <div class="row-top">
-                                <span class="var-name">Territory Alpha</span
-                                ><span class="val"
+                                <span class="var-name">Halo Alpha</span><span
+                                    class="val"
                                     >{(panel.territoryAlpha as number).toFixed(
                                         2,
                                     )}</span
@@ -3087,8 +3093,8 @@
                         </div>
                         <div class="var-row">
                             <div class="row-top">
-                                <span class="var-name">Territory Radius</span
-                                ><span class="val"
+                                <span class="var-name">Halo Radius</span><span
+                                    class="val"
                                     >{(
                                         panel.territoryRadiusMult as number
                                     ).toFixed(1)}</span
@@ -3194,6 +3200,49 @@
                                         .value;
                                     GAME_CONFIG.VORONOI_EDGE_BLEND = v;
                                     updatePanel("voronoiEdgeBlend", v);
+                                }}
+                            />
+                        </div>
+                        <div class="var-row">
+                            <div class="row-top">
+                                <span class="var-name">Border Width</span><span
+                                    class="val">{panel.voronoiBorderWidth}</span
+                                >
+                            </div>
+                            <input
+                                type="range"
+                                min="0"
+                                max="6"
+                                step="1"
+                                value={panel.voronoiBorderWidth}
+                                oninput={(e) => {
+                                    const v = +(e.target as HTMLInputElement)
+                                        .value;
+                                    GAME_CONFIG.VORONOI_BORDER_WIDTH = v;
+                                    updatePanel("voronoiBorderWidth", v);
+                                }}
+                            />
+                        </div>
+                        <div class="var-row">
+                            <div class="row-top">
+                                <span class="var-name">Border Alpha</span><span
+                                    class="val"
+                                    >{(
+                                        panel.voronoiBorderAlpha as number
+                                    ).toFixed(2)}</span
+                                >
+                            </div>
+                            <input
+                                type="range"
+                                min="0"
+                                max="1"
+                                step="0.05"
+                                value={panel.voronoiBorderAlpha}
+                                oninput={(e) => {
+                                    const v = +(e.target as HTMLInputElement)
+                                        .value;
+                                    GAME_CONFIG.VORONOI_BORDER_ALPHA = v;
+                                    updatePanel("voronoiBorderAlpha", v);
                                 }}
                             />
                         </div>
