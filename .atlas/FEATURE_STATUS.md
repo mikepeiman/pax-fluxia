@@ -52,15 +52,16 @@
 | F-63 | Theme selector: improve display/discoverability in UI | Medium | Done (2026-02-19) |
 | F-64 | Surrender-to-AI: on surrender, transfer ships to new AI, player stays as spectator | High | Planned |
 | F-65 | MP setup variables: wire all game settings (map, difficulty, AI config) to MP room creation — currently only # players works | High | Planned |
-| F-66 | MP room disposal: creator can dispose room only if unoccupied | Medium | Planned |
+| F-66 | MP room disposal: creator can dispose room only if unoccupied | Medium | Done (2026-02-19) |
 | F-67 | In-game AI takeover: join existing room mid-game, take over AI player, require player name | High | Planned |
 | F-68 | Color conflict checking at init: enforce perceptual distance (CIEDE2000 ΔE≥30 or min 30° hue) between all players | High | Planned |
 | F-69 | Main menu player identity widget: consolidate name + color into single widget above AI selections, persist to localStorage | High | Planned |
-| F-70 | Save & Load Maps: save maps (including randomly-generated) to user local collection in localStorage | High | Planned |
-| F-71 | Restart modal: prompt reuse map or generate new + same starting positions or new (default: reuse same map setup) | High | Planned |
+| F-70 | Save & Load Maps: save maps (including randomly-generated) to user local collection in localStorage | High | Done (2026-02-19) |
+| F-71 | Restart modal: prompt reuse map or generate new + same starting positions or new (default: reuse same map setup) | High | Done (2026-02-19) |
 | F-72 | Composable conquest modes: TRAVEL_MODE × CLAIM_MODE — mix any travel animation with any claim animation | High | Planned |
-| F-73 | Save & load custom themes: user can save current theme config to named presets and load from UI | Medium | Planned |
+| F-73 | Save & load custom themes: user can save current theme config to named presets and load from UI | Medium | Done (2026-02-19) |
 | F-74 | Neutral stars in random maps: toggle neutral stars, players get 1 starting star, all players start on same star type (star type = menu option) | High | Planned |
+| F-75 | Player color contrast check: ensure min luminance vs dark background, auto-lighten dark colors, glow outline for ship visibility | High | Planned |
 
 ## Known Regressions
 | ID | Description | Since |

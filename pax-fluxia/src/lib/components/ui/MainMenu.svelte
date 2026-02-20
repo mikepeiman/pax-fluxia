@@ -1690,6 +1690,39 @@
         border-color: rgba(255, 80, 80, 0.3);
     }
 
+    /* ── Theme Presets (F-73) ── */
+    .theme-presets-row {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        margin-top: 6px;
+        flex-wrap: wrap;
+    }
+    .theme-select {
+        flex: 1;
+        min-width: 120px;
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid rgba(0, 255, 255, 0.12);
+        border-radius: 4px;
+        padding: 4px 6px;
+        color: #b0c4de;
+        font-family: "Orbitron", sans-serif;
+        font-size: 0.65rem;
+    }
+    .theme-name-input {
+        width: 80px;
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid rgba(0, 255, 255, 0.12);
+        border-radius: 4px;
+        padding: 4px 6px;
+        color: #b0c4de;
+        font-family: "Orbitron", sans-serif;
+        font-size: 0.65rem;
+    }
+    .theme-name-input::placeholder {
+        color: rgba(255, 255, 255, 0.2);
+    }
+
     .join-col {
         display: flex;
         flex-direction: column;
