@@ -132,10 +132,42 @@ export function drawShip(
         fillColor = colorUtils.getDensityFillColor(playerHsl, ringTier, darken);
     }
 
-    // === Outline: backing circle ===
+    // === Radial glow sprite (F-75 Option 3) ===
+    const glowRadius = GAME_CONFIG.SHIP_GLOW_RADIUS ?? 0;
+    const glowIntensity = GAME_CONFIG.SHIP_GLOW_INTENSITY ?? 0;
+    if (glowRadius > 0 && glowIntensity > 0) {
+        const glowPixels = pixelSize * glowRadius * 0.5;
+        const glowScale = (glowPixels * 2) / 128;
+        const glowColor = colorUtils.getLightenedColor(color, glowIntensity);
+        let glowP: PIXI.Particle;
+        if (res.shipParticleIndex < shipParticlePool.length) {
+            glowP = shipParticlePool[res.shipParticleIndex];
+        } else {
+            glowP = new PIXI.Particle({
+                texture: shipCircleTexture,
+                anchorX: 0.5,
+                anchorY: 0.5,
+            });
+            shipParticlePool.push(glowP);
+            shipParticleContainer.addParticle(glowP);
+        }
+        glowP.x = x;
+        glowP.y = y;
+        glowP.scaleX = glowScale;
+        glowP.scaleY = glowScale;
+        glowP.tint = glowColor;
+        glowP.alpha = alpha * glowIntensity * 0.15; // subtle halo
+        res.shipParticleIndex++;
+    }
+
+    // === Outline: backing circle (F-75 Option 2: brightened outline) ===
     if (GAME_CONFIG.SHIP_OUTLINE_ON !== false) {
         const outlinePx = GAME_CONFIG.SHIP_OUTLINE_PX ?? 1.0;
         const outlineScale = ((pixelSize + outlinePx) * 2) / 128;
+        // F-75: Lighten outline color by SHIP_GLOW_INTENSITY
+        const outlineColor = glowIntensity > 0
+            ? colorUtils.getLightenedColor(color, glowIntensity)
+            : color;
         let outlineP: PIXI.Particle;
         if (res.shipParticleIndex < shipParticlePool.length) {
             outlineP = shipParticlePool[res.shipParticleIndex];
@@ -152,7 +184,7 @@ export function drawShip(
         outlineP.y = y;
         outlineP.scaleX = outlineScale;
         outlineP.scaleY = outlineScale;
-        outlineP.tint = color;
+        outlineP.tint = outlineColor;
         outlineP.alpha = alpha;
         res.shipParticleIndex++;
     }

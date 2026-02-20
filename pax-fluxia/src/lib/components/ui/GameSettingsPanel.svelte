@@ -512,6 +512,8 @@
         shipOutlineOn: GAME_CONFIG.SHIP_OUTLINE_ON,
         shipOutlinePx: GAME_CONFIG.SHIP_OUTLINE_PX,
         shipGlowIntensity: GAME_CONFIG.SHIP_GLOW_INTENSITY,
+        shipGlowRadius: GAME_CONFIG.SHIP_GLOW_RADIUS,
+        minColorLightness: GAME_CONFIG.MIN_COLOR_LIGHTNESS,
         shipScaleMult: GAME_CONFIG.SHIP_SCALE_MULT,
         maxVisualShips: GAME_CONFIG.MAX_VISUAL_SHIPS,
     };
@@ -639,6 +641,8 @@
         GAME_CONFIG.SHIP_OUTLINE_ON = panel.shipOutlineOn as boolean;
         GAME_CONFIG.SHIP_OUTLINE_PX = panel.shipOutlinePx as number;
         GAME_CONFIG.SHIP_GLOW_INTENSITY = panel.shipGlowIntensity as number;
+        GAME_CONFIG.SHIP_GLOW_RADIUS = panel.shipGlowRadius as number;
+        GAME_CONFIG.MIN_COLOR_LIGHTNESS = panel.minColorLightness as number;
         GAME_CONFIG.SHIP_SCALE_MULT = panel.shipScaleMult as number;
         GAME_CONFIG.MAX_VISUAL_SHIPS = panel.maxVisualShips as number;
     }
@@ -1186,6 +1190,8 @@
             shipOutlineOn: GAME_CONFIG.SHIP_OUTLINE_ON,
             shipOutlinePx: GAME_CONFIG.SHIP_OUTLINE_PX,
             shipGlowIntensity: GAME_CONFIG.SHIP_GLOW_INTENSITY,
+            shipGlowRadius: GAME_CONFIG.SHIP_GLOW_RADIUS,
+            minColorLightness: GAME_CONFIG.MIN_COLOR_LIGHTNESS,
             shipScaleMult: GAME_CONFIG.SHIP_SCALE_MULT,
             maxVisualShips: GAME_CONFIG.MAX_VISUAL_SHIPS,
         };
@@ -2966,6 +2972,50 @@
                                 const v = +(e.target as HTMLInputElement).value;
                                 GAME_CONFIG.SHIP_GLOW_INTENSITY = v;
                                 updatePanel("shipGlowIntensity", v);
+                            }}
+                        />
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Glow Radius</span><span
+                                class="val"
+                                >{(panel.shipGlowRadius as number).toFixed(
+                                    1,
+                                )}</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="15"
+                            step="0.5"
+                            value={panel.shipGlowRadius}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.SHIP_GLOW_RADIUS = v;
+                                updatePanel("shipGlowRadius", v);
+                            }}
+                        />
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Min Contrast</span><span
+                                class="val"
+                                >{(panel.minColorLightness as number).toFixed(
+                                    2,
+                                )}</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="0.6"
+                            step="0.01"
+                            value={panel.minColorLightness}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.MIN_COLOR_LIGHTNESS = v;
+                                updatePanel("minColorLightness", v);
                             }}
                         />
                     </div>

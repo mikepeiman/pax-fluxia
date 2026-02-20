@@ -90,7 +90,16 @@ export function createColorUtils(
 ): ColorUtils {
 
     function getPlayerColor(ownerId: string): number {
-        return resolvePlayerColor(ownerId) ?? PLAYER_COLORS[ownerId] ?? 0x888888;
+        let hex = resolvePlayerColor(ownerId) ?? PLAYER_COLORS[ownerId] ?? 0x888888;
+        // F-75: Apply minimum lightness floor so dark colors don't vanish on dark bg
+        const minL = GAME_CONFIG.MIN_COLOR_LIGHTNESS ?? 0;
+        if (minL > 0) {
+            const hsl = hexToHSL(hex);
+            if (hsl.l < minL) {
+                hex = hslToHex(hsl.h, hsl.s, minL);
+            }
+        }
+        return hex;
     }
 
     function getPlayerHSL(ownerId: string): PlayerHSL {
@@ -131,10 +140,21 @@ export function createColorUtils(
         );
     }
 
+    /** F-75: Lighten a hex color by intensity (0-1). Used for glow outline. */
+    function getLightenedColor(hex: number, intensity: number): number {
+        if (intensity <= 0) return hex;
+        const hsl = hexToHSL(hex);
+        // Boost lightness: at intensity=1, push to 0.85; at 0.5, halfway there
+        const targetL = 0.85;
+        const newL = hsl.l + (targetL - hsl.l) * intensity;
+        return hslToHex(hsl.h, hsl.s * (1 - intensity * 0.3), newL);
+    }
+
     return {
         getPlayerColor,
         getPlayerHSL,
         getDensityFillColor,
+        getLightenedColor,
         parseColor,
         hexToHSL,
         hslToHex,

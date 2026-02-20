@@ -58,6 +58,7 @@ export interface ColorUtils {
     getPlayerColor(ownerId: string): number;
     getPlayerHSL(ownerId: string): PlayerHSL;
     getDensityFillColor(playerHsl: PlayerHSL, ringTier: number, darken?: boolean): number;
+    getLightenedColor(hex: number, intensity: number): number;
     parseColor(colorValue: string | number | { r: number; g: number; b: number }): number;
     hexToHSL(hex: number): { h: number; s: number; l: number };
     hslToHex(h: number, s: number, l: number): number;

@@ -184,6 +184,8 @@ interface GameConfigType {
     SHIP_OUTLINE_ON: boolean;      // Show player-color outline behind each ship (default true)
     SHIP_OUTLINE_PX: number;       // Outline thickness in px (default 1.0)
     SHIP_GLOW_INTENSITY: number;   // Multiplier brightness glow (0=none, 1=max hue-brighten, default 0.3)
+    SHIP_GLOW_RADIUS: number;      // Radial glow sprite radius multiplier per ship (0=off, default 6)
+    MIN_COLOR_LIGHTNESS: number;   // Minimum HSL lightness for player colors (0-1, default 0.35)
     SHIP_SCALE_MULT: number;       // Global ship size multiplier (default 1.0)
     MAX_VISUAL_SHIPS: number;      // Max visual ship sprites per star (overflow → brightness, default 100)
 
@@ -535,6 +537,10 @@ const _rawConfig: GameConfigType = {
     SHIP_OUTLINE_PX: 0.4,
     /** Multiplier brightness glow: 0 = none, 1 = max (brightens within hue, not toward white) */
     SHIP_GLOW_INTENSITY: 1,
+    /** Radial glow sprite radius multiplier per ship */
+    SHIP_GLOW_RADIUS: 6,
+    /** Minimum HSL lightness for player colors — prevents dark colors vanishing on dark bg */
+    MIN_COLOR_LIGHTNESS: 0.35,
     /** Global ship size multiplier */
     SHIP_SCALE_MULT: 0.6,
     /** Max visual ship sprites per star — overflow represented as brightness multiplier */

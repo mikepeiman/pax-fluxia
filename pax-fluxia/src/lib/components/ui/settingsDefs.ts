@@ -186,6 +186,8 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'shipOutlineOn', configKey: 'SHIP_OUTLINE_ON' },
     { panelKey: 'shipOutlinePx', configKey: 'SHIP_OUTLINE_PX' },
     { panelKey: 'shipGlowIntensity', configKey: 'SHIP_GLOW_INTENSITY' },
+    { panelKey: 'shipGlowRadius', configKey: 'SHIP_GLOW_RADIUS' },
+    { panelKey: 'minColorLightness', configKey: 'MIN_COLOR_LIGHTNESS' },
     { panelKey: 'shipScaleMult', configKey: 'SHIP_SCALE_MULT' },
     { panelKey: 'maxVisualShips', configKey: 'MAX_VISUAL_SHIPS' },
 ];

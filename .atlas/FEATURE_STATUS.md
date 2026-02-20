@@ -59,9 +59,9 @@
 | F-70 | Save & Load Maps: save maps (including randomly-generated) to user local collection in localStorage | High | Done (2026-02-19) |
 | F-71 | Restart modal: prompt reuse map or generate new + same starting positions or new (default: reuse same map setup) | High | Done (2026-02-19) |
 | F-72 | Composable conquest modes: TRAVEL_MODE × CLAIM_MODE — mix any travel animation with any claim animation | High | Planned |
-| F-73 | Save & load custom themes: user can save current theme config to named presets and load from UI | Medium | Done (2026-02-19) |
+| F-73 | Save & load custom themes: user can save current theme config to named presets and load from in-game settings | Medium | Partial — utility done, needs GameSettingsPanel UI |
 | F-74 | Neutral stars in random maps: toggle neutral stars, players get 1 starting star, all players start on same star type (star type = menu option) | High | Planned |
-| F-75 | Player color contrast check: ensure min luminance vs dark background, auto-lighten dark colors, glow outline for ship visibility | High | Planned |
+| F-75 | Player color contrast check: ensure min luminance vs dark background, auto-lighten dark colors, glow outline for ship visibility | High | Done (2026-02-19) |
 
 ## Known Regressions
 | ID | Description | Since |

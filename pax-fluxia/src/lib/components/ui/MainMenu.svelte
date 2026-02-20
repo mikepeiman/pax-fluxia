@@ -10,13 +10,6 @@
     import { multiplayerStore } from "$lib/stores/multiplayerStore.svelte";
     import type { RoomListing } from "$lib/stores/multiplayerStore.svelte";
     import { log } from "$lib/utils/logger";
-    import {
-        listThemePresets,
-        saveThemePreset,
-        loadThemePreset,
-        deleteThemePreset,
-    } from "$lib/utils/themePresets";
-    import type { ThemePreset } from "$lib/utils/themePresets";
 
     let visible = $state(true);
 
@@ -127,8 +120,6 @@
 
     let showAIDetails = $state(false);
     let showColorPalette = $state(false);
-    let selectedTheme = $state("");
-    let newThemeName = $state("");
     let showPlayerHuePicker = $state(false);
 
     // MP Join state
@@ -901,57 +892,6 @@
                         </div>
                     </div>
 
-                    <!-- ─── Theme Presets (F-73) ─── -->
-                    <div class="section-divider"></div>
-                    <div class="config-item">
-                        <label>THEME PRESETS</label>
-                        <div class="theme-presets-row">
-                            <select
-                                class="theme-select"
-                                bind:value={selectedTheme}
-                                onchange={() => {
-                                    if (selectedTheme)
-                                        loadThemePreset(selectedTheme);
-                                }}
-                            >
-                                <option value="">— Choose preset —</option>
-                                {#each listThemePresets() as preset}
-                                    <option value={preset.name}
-                                        >{preset.name}{preset.builtIn
-                                            ? " ★"
-                                            : ""}</option
-                                    >
-                                {/each}
-                            </select>
-                            <input
-                                type="text"
-                                class="theme-name-input"
-                                placeholder="Name..."
-                                bind:value={newThemeName}
-                                maxlength="24"
-                            />
-                            <button
-                                class="saved-map-btn load"
-                                onclick={() => {
-                                    if (newThemeName.trim()) {
-                                        saveThemePreset(newThemeName.trim());
-                                        newThemeName = "";
-                                    }
-                                }}
-                                disabled={!newThemeName.trim()}>💾</button
-                            >
-                            {#if selectedTheme && !listThemePresets().find((p) => p.name === selectedTheme)?.builtIn}
-                                <button
-                                    class="saved-map-btn del"
-                                    onclick={() => {
-                                        deleteThemePreset(selectedTheme);
-                                        selectedTheme = "";
-                                    }}>✕</button
-                                >
-                            {/if}
-                        </div>
-                    </div>
-
                     <button
                         class="start-btn start-btn-primary"
                         onclick={startSPGame}
@@ -1688,39 +1628,6 @@
         background: rgba(255, 80, 80, 0.08);
         color: #ff6666;
         border-color: rgba(255, 80, 80, 0.3);
-    }
-
-    /* ── Theme Presets (F-73) ── */
-    .theme-presets-row {
-        display: flex;
-        gap: 6px;
-        align-items: center;
-        margin-top: 6px;
-        flex-wrap: wrap;
-    }
-    .theme-select {
-        flex: 1;
-        min-width: 120px;
-        background: rgba(0, 0, 0, 0.3);
-        border: 1px solid rgba(0, 255, 255, 0.12);
-        border-radius: 4px;
-        padding: 4px 6px;
-        color: #b0c4de;
-        font-family: "Orbitron", sans-serif;
-        font-size: 0.65rem;
-    }
-    .theme-name-input {
-        width: 80px;
-        background: rgba(0, 0, 0, 0.3);
-        border: 1px solid rgba(0, 255, 255, 0.12);
-        border-radius: 4px;
-        padding: 4px 6px;
-        color: #b0c4de;
-        font-family: "Orbitron", sans-serif;
-        font-size: 0.65rem;
-    }
-    .theme-name-input::placeholder {
-        color: rgba(255, 255, 255, 0.2);
     }
 
     .join-col {
