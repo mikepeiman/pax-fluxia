@@ -292,14 +292,14 @@ const _rawConfig: GameConfigType = {
     // ========================================================================
 
     /** Base tick interval at 1x speed (ms) - slower = more strategic */
-    BASE_TICK_MS: 1400,
+    BASE_TICK_MS: 1250,
 
     /** Minimum tick interval at max speed (ms) */
     MIN_TICK_MS: 100,
 
     /** Animation interpolation speed (ms) - controls visual smoothness of tick progress.
      *  Lower = faster visual transitions. Separate from actual tick rate. */
-    ANIMATION_SPEED_MS: 1150,
+    ANIMATION_SPEED_MS: 1250,
 
     // ========================================================================
     // TRANSFER MECHANICS
@@ -368,7 +368,7 @@ const _rawConfig: GameConfigType = {
     // ========================================================================
 
     /** Percentage of damaged ships repaired per tick (0-100 integer) */
-    REPAIR_RATE: 31,
+    REPAIR_RATE: 7,
 
     /** Minimum ships repaired per tick */
     MIN_REPAIR: 1,
@@ -405,13 +405,13 @@ const _rawConfig: GameConfigType = {
     // ========================================================================
 
     /** % of ships captured when defender is actively retreating to friendly star */
-    RETREAT_CAPTURE_RATE: 0.1,
+    RETREAT_CAPTURE_RATE: 0.15,
 
     /** % of ships captured when defender has escape routes but not retreating */
-    SCATTER_CAPTURE_RATE: 0.2,
+    SCATTER_CAPTURE_RATE: 0.3,
 
     /** % of non-captured ships destroyed during scatter (rest escape) */
-    SCATTER_DESTROY_RATE: 0.50,
+    SCATTER_DESTROY_RATE: 0.45,
 
     /** % of damaged ships converted to active on retreat/scatter (0=stay damaged, 1=all activate) */
     RETREAT_DAMAGED_ACTIVATION_RATE: 0.1,
@@ -459,7 +459,7 @@ const _rawConfig: GameConfigType = {
     ORBIT_RING_MULT: 1.6,
 
     /** Ship transfer animation duration (ms) */
-    TRANSFER_ANIMATION_MS: 2880,
+    TRANSFER_ANIMATION_MS: 1250,
     STATIC_ORBITS: false,
 
     /** How much ships cluster toward target (0=none, 1=max) */
