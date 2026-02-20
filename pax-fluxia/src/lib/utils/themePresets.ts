@@ -1,53 +1,39 @@
 // ============================================================================
-// Theme Presets — Save/load named snapshots of GAME_CONFIG visual settings
+// Theme Presets — Save/load named snapshots of GAME_CONFIG settings
 // F-73
 // ============================================================================
 
 import { GAME_CONFIG } from '$lib/config/game.config';
 
-/** Keys that constitute a "theme" — all visual/animation keys, no gameplay */
-const THEME_KEYS: string[] = [
-    // Visual basics
-    'SHIP_BASE_SIZE', 'STAR_RENDER_RADIUS', 'SHOW_SELECTION_HEX', 'ORBIT_RING_MULT',
-    'TRANSFER_ANIMATION_MS', 'STATIC_ORBITS',
-    // Animation tuning
-    'ORBIT_BIAS_STRENGTH', 'DEPART_FRACTION', 'DEPART_JITTER_MS', 'LANE_OFFSET_PX',
-    'DEPART_MODE', 'SETTLE_DURATION_MS', 'ARRIVAL_SPREAD', 'WOBBLE_AMP',
-    'DEPART_STAGGER', 'DEPART_ARC_INTENSITY', 'ARRIVAL_ARC_INTENSITY',
-    // Travel
-    'TRAVEL_MODE', 'TRAVEL_EASING', 'TRAVEL_EASING_POWER', 'TRAVEL_DURATION_MULT',
-    'TRAVEL_ARC_INTENSITY', 'LANE_CONVERGENCE', 'LANE_CONVERGENCE_POINT',
-    // Orbit & density
-    'ORBIT_DENSITY', 'ORBIT_BIAS_OSCILLATE', 'ORBIT_BIAS_MIN', 'ORBIT_BIAS_MAX', 'ORBIT_BIAS_FREQ',
-    // Attack surge
-    'ATTACK_SURGE_MULT', 'ATTACK_SURGE_PROPORTIONAL', 'ATTACK_SURGE_FORCE_COFACTOR',
-    'ATTACK_SURGE_RAMP_MS', 'ATTACK_SURGE_SHAPE', 'SURGE_PULSE_DURATION_MS',
-    // Conquest animation
-    'CONQUEST_ANIMATION_MODE', 'CONQUEST_SETTLE_MS', 'CONQUEST_SURGE_RADIUS',
-    'CONQUEST_SURGE_STAGGER_MS', 'CONQUEST_TRAVEL_SPEED', 'CONQUEST_LERP_DELAY_MS',
-    'CONQUEST_COLOR_DELAY_MS', 'CONQUEST_FLASH_DURATION_MS',
-    'CONQUEST_SLOWMO_ENABLED', 'CONQUEST_SLOWMO_FACTOR', 'CONQUEST_SLOWMO_DURATION_MS',
-    'CONQUEST_FORCE_GLOW', 'CONQUEST_FORCE_GLOW_MULT',
-    // Arrow
-    'ARROW_TAPER', 'ARROW_WIDTH', 'ARROW_SPEED', 'ARROW_EASING',
-    'ARROW_ENGULF_MODE', 'ARROW_ENGULF_RADIUS',
-    'ARROW_SPIRAL_MIN_DEG', 'ARROW_SPIRAL_MAX_DEG', 'ARROW_SPIRAL_RANDOM',
-    'ARROW_SPIRAL_DURATION_MS', 'ARROW_STAGGER_MS', 'ARROW_LENGTH_FRACTION',
-    // Ship appearance
-    'SHIP_OUTLINE_ON', 'SHIP_OUTLINE_PX', 'SHIP_GLOW_INTENSITY', 'SHIP_SCALE_MULT',
-    'MAX_VISUAL_SHIPS', 'SHIP_VISUAL_RADIUS',
-    // Density VFX
-    'DENSITY_HUE_STEP', 'DENSITY_SAT_STEP', 'DENSITY_LIGHT_STEP', 'DENSITY_TIERS', 'DENSITY_DARKEN_ALT',
-    // Star glow
-    'STAR_GLOW_ON', 'STAR_GLOW_RADIUS_MULT', 'STAR_GLOW_INTENSITY', 'STAR_GLOW_LAYERS',
-    // Orb travel
-    'ORB_TRAVEL', 'ORB_DRAW_MODE', 'ORB_BASE_RADIUS', 'ORB_RADIUS_SCALE',
-    'ORB_GLOW_MULT', 'ORB_OUTER_ALPHA', 'ORB_MID_ALPHA', 'ORB_CORE_ALPHA',
-    'ORB_CENTER_ALPHA', 'ORB_OUTER_SCALE', 'ORB_MID_SCALE', 'ORB_CORE_SCALE',
-    // Connections
-    'CONNECTION_WIDTH', 'CONNECTION_ALPHA', 'CONNECTION_SHADOW_WIDTH', 'CONNECTION_SHADOW_ALPHA',
-    'SHOW_CONNECTIONS',
-];
+/**
+ * Keys to EXCLUDE from theme snapshots.
+ * These are map-specific, internal, or identity-level keys that shouldn't
+ * be part of a visual/animation theme.
+ */
+const DENYLIST: Set<string> = new Set([
+    // Map generation internals
+    '_MAP_HEX_RADIUS', '_MAP_PADDING_X', '_MAP_PADDING_Y',
+    '_MAP_WIDTH', '_MAP_HEIGHT',
+    // Game setup (not visual)
+    'STARS_PER_PLAYER', 'MAX_LINKS_PER_STAR', 'BASE_TICK_MS', 'MIN_TICK_MS',
+    // Map structure
+    'SHOW_HEX_GRID',
+    // Player count / AI setup
+    'AI_MUST_ATTACK_RATIO', 'AI_ATTACK_UPPER_BOUNDS', 'AI_ATTACK_STICKINESS',
+    'AI_EVALUATION_FREQUENCY', 'AI_TACTICAL_AGGRESSION', 'AI_RANDOM_AGGRESSION',
+    // Gameplay balance (not visual)
+    'BASE_PRODUCTION', 'REPAIR_RATE', 'MIN_REPAIR', 'REPAIR_COMBAT_PENALTY',
+    'AGGRESSOR_ADVANTAGE', 'DAMAGE_PER_SHIP', 'LETHALITY', 'FORCE_RATIO_EFFECT',
+    'CONQUEST_THRESHOLD', 'CONQUEST_TRANSFER_PERCENTAGE',
+    'OVERWHELM_THRESHOLD', 'RETREAT_CAPTURE_RATE', 'SCATTER_CAPTURE_RATE',
+    'SCATTER_DESTROY_RATE', 'RETREAT_DAMAGED_ACTIVATION_RATE',
+    'CONQUEST_DAMAGED_CAPTURE_RATE', 'CONQUEST_DAMAGED_DESTROY_RATE',
+    'DAMAGED_SHIP_EFFECTIVENESS',
+    'TRANSFER_RATE', 'MIN_SHIPS_PER_TRANSFER', 'MAX_SHIPS_PER_TRANSFER',
+    'ALLOW_OPPOSING_ORDERS',
+    // Multiplayer/server
+    'ANIMATION_SPEED_MS',
+]);
 
 export interface ThemePreset {
     name: string;
@@ -73,17 +59,28 @@ function persistUserPresets(presets: ThemePreset[]): void {
 
 // ── Snapshot / Apply ─────────────────────────────────────────────────────────
 
+/**
+ * Snapshot ALL GAME_CONFIG keys except the denylist.
+ * This ensures themes are always complete and never fall behind new config keys.
+ */
 function snapshotTheme(): Record<string, unknown> {
     const snap: Record<string, unknown> = {};
-    for (const key of THEME_KEYS) {
-        snap[key] = (GAME_CONFIG as any)[key];
+    for (const key of Object.keys(GAME_CONFIG)) {
+        if (!DENYLIST.has(key)) {
+            snap[key] = (GAME_CONFIG as any)[key];
+        }
     }
     return snap;
 }
 
-function applyTheme(values: Record<string, unknown>): void {
-    for (const [key, val] of Object.entries(values)) {
-        if (THEME_KEYS.includes(key)) {
+/**
+ * Apply theme values to GAME_CONFIG.
+ * Only applies keys that are present in the theme snapshot AND exist in GAME_CONFIG.
+ * Denylist keys are never applied even if present in old data.
+ */
+export function applyTheme(preset: ThemePreset): void {
+    for (const [key, val] of Object.entries(preset.values)) {
+        if (!DENYLIST.has(key) && key in GAME_CONFIG) {
             (GAME_CONFIG as any)[key] = val;
         }
     }
@@ -98,12 +95,15 @@ const BUILTIN_PRESETS: ThemePreset[] = [
         builtIn: true,
         values: {
             SHIP_BASE_SIZE: 3, STAR_RENDER_RADIUS: 25, ORBIT_RING_MULT: 1.6,
-            SHIP_SCALE_MULT: 0.6, SHIP_GLOW_INTENSITY: 1, SHIP_OUTLINE_ON: true, SHIP_OUTLINE_PX: 0.4,
+            SHIP_SCALE_MULT: 0.6, SHIP_GLOW_INTENSITY: 1, SHIP_GLOW_RADIUS: 6,
+            MIN_COLOR_LIGHTNESS: 0.35,
+            SHIP_OUTLINE_ON: true, SHIP_OUTLINE_PX: 0.4,
             STAR_GLOW_ON: true, STAR_GLOW_INTENSITY: 0.25, STAR_GLOW_LAYERS: 4,
             ORB_TRAVEL: false, TRAVEL_MODE: 'bezier', TRAVEL_ARC_INTENSITY: 0.5,
             CONNECTION_WIDTH: 3.5, CONNECTION_ALPHA: 0.3, SHOW_CONNECTIONS: true,
             DENSITY_HUE_STEP: 8, DENSITY_TIERS: 3,
             CONQUEST_ANIMATION_MODE: 'travel', CONQUEST_FLASH_DURATION_MS: 600,
+            SHOW_TERRITORY: true, TERRITORY_ALPHA: 0.08, TERRITORY_RADIUS_MULT: 3.0,
         },
     },
     {
@@ -112,7 +112,9 @@ const BUILTIN_PRESETS: ThemePreset[] = [
         builtIn: true,
         values: {
             SHIP_BASE_SIZE: 4, STAR_RENDER_RADIUS: 22, ORBIT_RING_MULT: 1.4,
-            SHIP_SCALE_MULT: 0.8, SHIP_GLOW_INTENSITY: 1, SHIP_OUTLINE_ON: true, SHIP_OUTLINE_PX: 0.8,
+            SHIP_SCALE_MULT: 0.8, SHIP_GLOW_INTENSITY: 1, SHIP_GLOW_RADIUS: 10,
+            MIN_COLOR_LIGHTNESS: 0.4,
+            SHIP_OUTLINE_ON: true, SHIP_OUTLINE_PX: 0.8,
             STAR_GLOW_ON: true, STAR_GLOW_INTENSITY: 0.5, STAR_GLOW_LAYERS: 6,
             ORB_TRAVEL: true, ORB_GLOW_MULT: 1.8, ORB_OUTER_ALPHA: 0.2, ORB_MID_ALPHA: 0.5,
             TRAVEL_MODE: 'bezier', TRAVEL_ARC_INTENSITY: 0.8,
@@ -121,6 +123,25 @@ const BUILTIN_PRESETS: ThemePreset[] = [
             CONQUEST_ANIMATION_MODE: 'arrowhead', CONQUEST_FLASH_DURATION_MS: 900,
             CONQUEST_SLOWMO_ENABLED: true, CONQUEST_SLOWMO_FACTOR: 3,
             ATTACK_SURGE_MULT: 0.9, ATTACK_SURGE_PROPORTIONAL: true,
+            SHOW_TERRITORY: true, TERRITORY_ALPHA: 0.12, TERRITORY_RADIUS_MULT: 4.0,
+        },
+    },
+    {
+        name: 'Arrow Capture',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        builtIn: true,
+        values: {
+            CONQUEST_ANIMATION_MODE: 'arrowhead',
+            ARROW_TAPER: 0.6, ARROW_WIDTH: 1.2, ARROW_SPEED: 2.0,
+            ARROW_EASING: 'easeInOut',
+            ARROW_ENGULF_MODE: 'collapse', ARROW_ENGULF_RADIUS: 0.8,
+            ARROW_SPIRAL_MIN_DEG: 180, ARROW_SPIRAL_MAX_DEG: 720,
+            ARROW_SPIRAL_RANDOM: true,
+            ARROW_SPIRAL_DURATION_MS: 800, ARROW_STAGGER_MS: 30,
+            ARROW_LENGTH_FRACTION: 0.8,
+            CONQUEST_FLASH_DURATION_MS: 800,
+            CONQUEST_TRAVEL_SPEED: 3.0,
+            CONQUEST_SLOWMO_ENABLED: true, CONQUEST_SLOWMO_FACTOR: 2,
         },
     },
     {
@@ -129,7 +150,9 @@ const BUILTIN_PRESETS: ThemePreset[] = [
         builtIn: true,
         values: {
             SHIP_BASE_SIZE: 2, STAR_RENDER_RADIUS: 18, ORBIT_RING_MULT: 1.3,
-            SHIP_SCALE_MULT: 0.5, SHIP_GLOW_INTENSITY: 0, SHIP_OUTLINE_ON: false, SHIP_OUTLINE_PX: 0,
+            SHIP_SCALE_MULT: 0.5, SHIP_GLOW_INTENSITY: 0, SHIP_GLOW_RADIUS: 0,
+            MIN_COLOR_LIGHTNESS: 0.3,
+            SHIP_OUTLINE_ON: false, SHIP_OUTLINE_PX: 0,
             STAR_GLOW_ON: false, STAR_GLOW_INTENSITY: 0, STAR_GLOW_LAYERS: 0,
             ORB_TRAVEL: false, TRAVEL_MODE: 'lane', TRAVEL_ARC_INTENSITY: 0,
             CONNECTION_WIDTH: 1.5, CONNECTION_ALPHA: 0.12, SHOW_CONNECTIONS: true,
@@ -137,6 +160,7 @@ const BUILTIN_PRESETS: ThemePreset[] = [
             CONQUEST_ANIMATION_MODE: 'immediate', CONQUEST_FLASH_DURATION_MS: 0,
             CONQUEST_SLOWMO_ENABLED: false,
             ATTACK_SURGE_MULT: 0, ATTACK_SURGE_PROPORTIONAL: false,
+            SHOW_TERRITORY: false, TERRITORY_ALPHA: 0, TERRITORY_RADIUS_MULT: 1.0,
         },
     },
 ];
@@ -165,10 +189,18 @@ export function saveThemePreset(name: string): void {
     persistUserPresets(presets);
 }
 
-export function loadThemePreset(name: string): void {
+/**
+ * Load a theme preset by name — applies values to GAME_CONFIG.
+ * Returns the preset if found (caller should call syncAllFromConfig).
+ */
+export function loadThemePreset(name: string): ThemePreset | null {
     const all = listThemePresets();
     const preset = all.find(p => p.name === name);
-    if (preset) applyTheme(preset.values);
+    if (preset) {
+        applyTheme(preset);
+        return preset;
+    }
+    return null;
 }
 
 export function deleteThemePreset(name: string): void {
