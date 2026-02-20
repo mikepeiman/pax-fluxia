@@ -45,6 +45,7 @@
         type ShipRenderState,
         type ShipRenderResources,
     } from "$lib/renderers/ShipRenderer";
+    import { renderTerritory as renderTerritoryModule } from "$lib/renderers/TerritoryRenderer";
 
     // ============================================================================
     // PixiJS Application
@@ -66,6 +67,7 @@
     let starGraphics: Map<string, PIXI.Graphics> = new Map();
     let starLabels: Map<string, PIXI.Container> = new Map();
     let linkGraphics: PIXI.Graphics | null = null;
+    let territoryGraphics: PIXI.Graphics | null = null;
     let debugGraphics: PIXI.Graphics | null = null; // New debug layer
 
     // ParticleContainer ship rendering (high-perf batched sprites)
@@ -282,6 +284,7 @@
             selectionOverlayGraphics,
             labelsContainer,
             dragPreviewGraphics,
+            territoryGraphics,
         } = containers);
         const textures = initShipRendering(containers);
         shipCircleTexture = textures.shipCircle;
@@ -635,6 +638,11 @@
             cachedStarsSource = stars;
         }
         const starsById = cachedStarsById;
+
+        // Render territory overlay (bottommost layer — F-47)
+        if (territoryGraphics) {
+            renderTerritoryModule(stars, territoryGraphics, colorUtils);
+        }
 
         // Render stars (static elements)
         renderStarsModule(

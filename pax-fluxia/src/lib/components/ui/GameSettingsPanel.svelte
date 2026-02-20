@@ -516,6 +516,9 @@
         minColorLightness: GAME_CONFIG.MIN_COLOR_LIGHTNESS,
         shipScaleMult: GAME_CONFIG.SHIP_SCALE_MULT,
         maxVisualShips: GAME_CONFIG.MAX_VISUAL_SHIPS,
+        showTerritory: GAME_CONFIG.SHOW_TERRITORY,
+        territoryAlpha: GAME_CONFIG.TERRITORY_ALPHA,
+        territoryRadiusMult: GAME_CONFIG.TERRITORY_RADIUS_MULT,
     };
 
     function loadPanelSettings(): typeof panelDefaults {
@@ -645,6 +648,9 @@
         GAME_CONFIG.MIN_COLOR_LIGHTNESS = panel.minColorLightness as number;
         GAME_CONFIG.SHIP_SCALE_MULT = panel.shipScaleMult as number;
         GAME_CONFIG.MAX_VISUAL_SHIPS = panel.maxVisualShips as number;
+        GAME_CONFIG.SHOW_TERRITORY = panel.showTerritory as boolean;
+        GAME_CONFIG.TERRITORY_ALPHA = panel.territoryAlpha as number;
+        GAME_CONFIG.TERRITORY_RADIUS_MULT = panel.territoryRadiusMult as number;
     }
 
     // =========================================================================
@@ -1194,6 +1200,9 @@
             minColorLightness: GAME_CONFIG.MIN_COLOR_LIGHTNESS,
             shipScaleMult: GAME_CONFIG.SHIP_SCALE_MULT,
             maxVisualShips: GAME_CONFIG.MAX_VISUAL_SHIPS,
+            showTerritory: GAME_CONFIG.SHOW_TERRITORY,
+            territoryAlpha: GAME_CONFIG.TERRITORY_ALPHA,
+            territoryRadiusMult: GAME_CONFIG.TERRITORY_RADIUS_MULT,
         };
         savePanelSettings();
 
@@ -3019,6 +3028,75 @@
                             }}
                         />
                     </div>
+
+                    <!-- ── Territory Overlay (F-47) ── -->
+                    <h4 class="sub-heading">Territory Overlay</h4>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Show Territory</span>
+                            <label class="toggle-switch">
+                                <input
+                                    type="checkbox"
+                                    checked={panel.showTerritory}
+                                    onchange={(e) => {
+                                        const v = (e.target as HTMLInputElement)
+                                            .checked;
+                                        GAME_CONFIG.SHOW_TERRITORY = v;
+                                        updatePanel("showTerritory", v);
+                                    }}
+                                />
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                    {#if panel.showTerritory}
+                        <div class="var-row">
+                            <div class="row-top">
+                                <span class="var-name">Territory Alpha</span
+                                ><span class="val"
+                                    >{(panel.territoryAlpha as number).toFixed(
+                                        2,
+                                    )}</span
+                                >
+                            </div>
+                            <input
+                                type="range"
+                                min="0"
+                                max="0.3"
+                                step="0.005"
+                                value={panel.territoryAlpha}
+                                oninput={(e) => {
+                                    const v = +(e.target as HTMLInputElement)
+                                        .value;
+                                    GAME_CONFIG.TERRITORY_ALPHA = v;
+                                    updatePanel("territoryAlpha", v);
+                                }}
+                            />
+                        </div>
+                        <div class="var-row">
+                            <div class="row-top">
+                                <span class="var-name">Territory Radius</span
+                                ><span class="val"
+                                    >{(
+                                        panel.territoryRadiusMult as number
+                                    ).toFixed(1)}</span
+                                >
+                            </div>
+                            <input
+                                type="range"
+                                min="1"
+                                max="8"
+                                step="0.5"
+                                value={panel.territoryRadiusMult}
+                                oninput={(e) => {
+                                    const v = +(e.target as HTMLInputElement)
+                                        .value;
+                                    GAME_CONFIG.TERRITORY_RADIUS_MULT = v;
+                                    updatePanel("territoryRadiusMult", v);
+                                }}
+                            />
+                        </div>
+                    {/if}
 
                     <!-- ── Orbit Layout ── -->
                     <h4 class="sub-heading">Orbit Layout</h4>

@@ -218,6 +218,11 @@ interface GameConfigType {
     CONNECTION_SHADOW_WIDTH: number;
     CONNECTION_SHADOW_ALPHA: number;
     SHOW_CONNECTIONS: boolean;
+
+    // ── Territory Overlay ────────────────────────────────────────────────────
+    SHOW_TERRITORY: boolean;       // Show territory alpha overlay behind stars (default true)
+    TERRITORY_ALPHA: number;       // Alpha for territory overlay (default 0.08)
+    TERRITORY_RADIUS_MULT: number; // Radius multiplier for territory circles (default 3.0)
     SHOW_HEX_GRID: boolean;
     STARS_PER_PLAYER: number;
 
@@ -628,6 +633,13 @@ const _rawConfig: GameConfigType = {
 
     /** Show connection lines */
     SHOW_CONNECTIONS: true,
+
+    /** Show territory alpha overlay behind stars (F-47) */
+    SHOW_TERRITORY: true,
+    /** Territory overlay alpha (0-1) */
+    TERRITORY_ALPHA: 0.08,
+    /** Territory radius multiplier relative to star radius */
+    TERRITORY_RADIUS_MULT: 3.0,
 
     /** Show hex grid (debug) */
     SHOW_HEX_GRID: false,

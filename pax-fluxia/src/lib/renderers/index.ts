@@ -51,3 +51,8 @@ export {
     type ShipRenderState,
     type ShipRenderResources,
 } from './ShipRenderer';
+
+// Territory rendering
+export {
+    renderTerritory,
+} from './TerritoryRenderer';

@@ -190,6 +190,9 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'minColorLightness', configKey: 'MIN_COLOR_LIGHTNESS' },
     { panelKey: 'shipScaleMult', configKey: 'SHIP_SCALE_MULT' },
     { panelKey: 'maxVisualShips', configKey: 'MAX_VISUAL_SHIPS' },
+    { panelKey: 'showTerritory', configKey: 'SHOW_TERRITORY' },
+    { panelKey: 'territoryAlpha', configKey: 'TERRITORY_ALPHA' },
+    { panelKey: 'territoryRadiusMult', configKey: 'TERRITORY_RADIUS_MULT' },
 ];
 
 // ── ConfigKey → PanelKey lookup (for animSliderToPanelKey) ──────────────────

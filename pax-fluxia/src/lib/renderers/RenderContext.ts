@@ -33,6 +33,8 @@ export interface RenderContainers {
     labelsContainer: PIXI.Container;
     /** Drag preview line + target highlight */
     dragPreviewGraphics: PIXI.Graphics;
+    /** Territory alpha overlay (bottommost layer) */
+    territoryGraphics: PIXI.Graphics;
 }
 
 // ── Shared Textures ─────────────────────────────────────────────────────────

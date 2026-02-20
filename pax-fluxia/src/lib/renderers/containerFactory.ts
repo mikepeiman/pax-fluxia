@@ -17,7 +17,11 @@ import type { RenderContainers, RenderTextures } from './RenderContext';
  *   → connectionGraphics → labelsContainer → dragPreviewGraphics
  */
 export function createContainers(stage: PIXI.Container): RenderContainers {
-    // Order arrows (below everything)
+    // Territory alpha overlay (bottommost — below everything)
+    const territoryGraphics = new PIXI.Graphics();
+    stage.addChild(territoryGraphics);
+
+    // Order arrows (below stars)
     const linkGraphics = new PIXI.Graphics();
     stage.addChild(linkGraphics);
 
@@ -66,6 +70,7 @@ export function createContainers(stage: PIXI.Container): RenderContainers {
         connectionGraphics,
         labelsContainer,
         dragPreviewGraphics,
+        territoryGraphics,
     };
 }
 
