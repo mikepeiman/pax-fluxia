@@ -553,7 +553,7 @@ const _rawConfig: GameConfigType = {
     /** Outline thickness in px */
     SHIP_OUTLINE_PX: 1,
     /** Multiplier brightness glow: 0 = none, 1 = max (brightens within hue, not toward white) */
-    SHIP_GLOW_INTENSITY: 0.44,
+    SHIP_GLOW_INTENSITY: 0.3,
     /** Radial glow sprite radius multiplier per ship */
     SHIP_GLOW_RADIUS: 8,
     /** Minimum HSL lightness for player colors — prevents dark colors vanishing on dark bg */
