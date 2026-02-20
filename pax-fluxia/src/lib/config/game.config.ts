@@ -292,7 +292,7 @@ const _rawConfig: GameConfigType = {
     // ========================================================================
 
     /** Base tick interval at 1x speed (ms) - slower = more strategic */
-    BASE_TICK_MS: 1300,
+    BASE_TICK_MS: 1400,
 
     /** Minimum tick interval at max speed (ms) */
     MIN_TICK_MS: 100,
@@ -306,7 +306,7 @@ const _rawConfig: GameConfigType = {
     // ========================================================================
 
     /** Percentage of ships that transfer per tick (0.0 - 1.0) */
-    TRANSFER_RATE: 0.1,
+    TRANSFER_RATE: 0.07,
 
     /** Minimum ships to transfer per tick */
     MIN_SHIPS_PER_TRANSFER: 0,
@@ -338,19 +338,19 @@ const _rawConfig: GameConfigType = {
     // ========================================================================
 
     /** Tilts damage toward attacker (>1) or defender (<1). 1.0 = symmetric. */
-    AGGRESSOR_ADVANTAGE: 0.7,
+    AGGRESSOR_ADVANTAGE: 0.8333333333333334,
 
     /** Base damage per engaged ship per tick. Range: 0.05-2.0 */
     DAMAGE_PER_SHIP: 0.075,
 
     /** Fraction of damage that destroys ships (rest disables). Range: 0-1 */
-    LETHALITY: 0.25,
+    LETHALITY: 0.35,
 
     /** How much numerical superiority matters. 0 = none, 1 = dominant */
     FORCE_RATIO_EFFECT: 0,
 
     /** Overwhelm ratio for instant conquest (need Nx enemy ships) */
-    CONQUEST_THRESHOLD: 20,
+    CONQUEST_THRESHOLD: 25,
 
     /** percentage each damaged ship contributes to defense, as a percentage x 100 */
     DAMAGED_SHIP_EFFECTIVENESS: 0.5,
@@ -360,7 +360,7 @@ const _rawConfig: GameConfigType = {
     // ========================================================================
 
     /** Base ships produced per tick (modified by star type) */
-    BASE_PRODUCTION: 0.4,
+    BASE_PRODUCTION: 0.6,
 
 
     // ========================================================================
@@ -368,7 +368,7 @@ const _rawConfig: GameConfigType = {
     // ========================================================================
 
     /** Percentage of damaged ships repaired per tick (0-100 integer) */
-    REPAIR_RATE: 5,
+    REPAIR_RATE: 31,
 
     /** Minimum ships repaired per tick */
     MIN_REPAIR: 1,
@@ -381,7 +381,7 @@ const _rawConfig: GameConfigType = {
     // ========================================================================
 
     /** Percentage of remaining ships that transfer on capture */
-    CONQUEST_TRANSFER_PERCENTAGE: 50,
+    CONQUEST_TRANSFER_PERCENTAGE: 60,
 
     /** Defender strength ratio below which they are instantly overwhelmed (e.g. 0.1 = 10% of attackers) */
     OVERWHELM_THRESHOLD: 0.1,
@@ -405,10 +405,10 @@ const _rawConfig: GameConfigType = {
     // ========================================================================
 
     /** % of ships captured when defender is actively retreating to friendly star */
-    RETREAT_CAPTURE_RATE: 0.2,
+    RETREAT_CAPTURE_RATE: 0.1,
 
     /** % of ships captured when defender has escape routes but not retreating */
-    SCATTER_CAPTURE_RATE: 0.4,
+    SCATTER_CAPTURE_RATE: 0.2,
 
     /** % of non-captured ships destroyed during scatter (rest escape) */
     SCATTER_DESTROY_RATE: 0.50,
@@ -418,7 +418,7 @@ const _rawConfig: GameConfigType = {
 
 
     /** Starting ships per star at game start */
-    STARTING_SHIPS: 200,
+    STARTING_SHIPS: 50,
 
     // ========================================================================
     // AI BEHAVIOR
@@ -459,7 +459,7 @@ const _rawConfig: GameConfigType = {
     ORBIT_RING_MULT: 1.6,
 
     /** Ship transfer animation duration (ms) */
-    TRANSFER_ANIMATION_MS: 600,
+    TRANSFER_ANIMATION_MS: 2880,
     STATIC_ORBITS: false,
 
     /** How much ships cluster toward target (0=none, 1=max) */
@@ -469,75 +469,75 @@ const _rawConfig: GameConfigType = {
     /** Max random departure jitter (ms) */
     DEPART_JITTER_MS: 0,
     /** Max perpendicular lane offset (px per side) */
-    LANE_OFFSET_PX: 8,
+    LANE_OFFSET_PX: 12,
     /** Ship departure mode: lifo (newest first), fifo (oldest first), nearside (closest to target) */
-    DEPART_MODE: 'lifo' as const,
+    DEPART_MODE: 'fifo' as const,
     /** How fast ships settle into orbit slot (ms) */
-    SETTLE_DURATION_MS: 830,
+    SETTLE_DURATION_MS: 100,
     /** Fraction of tick used to stagger arrival settle (0=instant, 1=full tick spread) */
-    ARRIVAL_SPREAD: 0,
+    ARRIVAL_SPREAD: 0.65,
     /** Amplitude of sinusoidal wobble on travel path (px) */
-    WOBBLE_AMP: 12,
+    WOBBLE_AMP: 0,
 
     /** Stream departure: ships depart at even intervals (tickMs / shipsToTransfer) instead of jittered burst */
-    DEPART_STAGGER: false,
+    DEPART_STAGGER: true,
     /** Arc intensity during departure phase (0=straight, 1=max arc) */
-    DEPART_ARC_INTENSITY: 0,
+    DEPART_ARC_INTENSITY: 0.1,
     /** Arc intensity during arrival phase (0=straight, 1=max arc) */
 
 
 
-    ARRIVAL_ARC_INTENSITY: 0,
+    ARRIVAL_ARC_INTENSITY: 0.1,
 
     // Travel easing controls
     // Travel animation mode
-    TRAVEL_MODE: 'bezier' as const,
+    TRAVEL_MODE: 'lane' as const,
     TRAVEL_EASING: 'easeInOut' as const,
-    TRAVEL_EASING_POWER: 2,
-    TRAVEL_DURATION_MULT: 1,
-    TRAVEL_ARC_INTENSITY: 0.5,
+    TRAVEL_EASING_POWER: 0.5,
+    TRAVEL_DURATION_MULT: 1.6,
+    TRAVEL_ARC_INTENSITY: 0.75,
     /** How tightly ships converge to lane (0=straight to orbit slot, 1=full lane convergence) */
-    LANE_CONVERGENCE: 1.0,
+    LANE_CONVERGENCE: 0.85,
     /** Where along origin→dest center the convergence point sits (0=origin, 100=dest) */
-    LANE_CONVERGENCE_POINT: 0,
+    LANE_CONVERGENCE_POINT: 100,
     /** Ship spacing factor per ring: higher = fewer ships per ring = more spread out (default 1.5) */
     ORBIT_DENSITY: 1.7,
     /** Attack surge displacement as fraction of star radius (default 0.4) */
-    ATTACK_SURGE_MULT: 0.65,
+    ATTACK_SURGE_MULT: 0.6,
     ATTACK_SURGE_PROPORTIONAL: true,
-    ATTACK_SURGE_FORCE_COFACTOR: 0.5,
+    ATTACK_SURGE_FORCE_COFACTOR: 0.6,
     /** Ramp-in duration for attack surge (ms, 0=instant/old behavior) */
-    ATTACK_SURGE_RAMP_MS: 300,
+    ATTACK_SURGE_RAMP_MS: 2600,
     /** Surge pulse shape power (1=sine, 2=sharper peak, 0.5=flatter) */
     ATTACK_SURGE_SHAPE: 1,
     /** Duration of one surge sine pulse cycle (ms, default = BASE_TICK_MS) */
-    SURGE_PULSE_DURATION_MS: 1200,
+    SURGE_PULSE_DURATION_MS: 1150,
     /** Conquest animation strategy: 'immediate' = pop, 'surge' = settle from above, 'travel' = fly through lane */
     CONQUEST_ANIMATION_MODE: 'travel' as const,
     /** How long conquest ships settle into orbit in surge mode (ms) */
     CONQUEST_SETTLE_MS: 500,
     /** Initial spawn radius above orbit for surge mode (px above star edge) */
-    CONQUEST_SURGE_RADIUS: 40,
+    CONQUEST_SURGE_RADIUS: 50,
     /** Per-ship stagger delay for organic arrival spread in surge mode (ms) */
-    CONQUEST_SURGE_STAGGER_MS: 30,
+    CONQUEST_SURGE_STAGGER_MS: 70,
     /** Conquest travel speed multiplier (>1 = faster, <1 = slower, 1 = normal) */
-    CONQUEST_TRAVEL_SPEED: 1.3,
+    CONQUEST_TRAVEL_SPEED: 0.1,
     /** Delay before conquest ships start moving (ms) — ships hold surged position */
-    CONQUEST_LERP_DELAY_MS: 200,
+    CONQUEST_LERP_DELAY_MS: 0,
     CONQUEST_COLOR_DELAY_MS: 400,
     CONQUEST_FLASH_DURATION_MS: 600,
     // ── Arrowhead conquest animation ──
-    ARROW_TAPER: 0.7,
-    ARROW_WIDTH: 0,
-    ARROW_SPEED: 0.6,
+    ARROW_TAPER: 0.35,
+    ARROW_WIDTH: 115,
+    ARROW_SPEED: 2.8,
     ARROW_EASING: 'easeIn' as const,
-    ARROW_ENGULF_MODE: 'fan' as const,
-    ARROW_ENGULF_RADIUS: 50,
-    ARROW_SPIRAL_MIN_DEG: 180,
-    ARROW_SPIRAL_MAX_DEG: 720,
+    ARROW_ENGULF_MODE: 'collapse' as const,
+    ARROW_ENGULF_RADIUS: 85,
+    ARROW_SPIRAL_MIN_DEG: 60,
+    ARROW_SPIRAL_MAX_DEG: 300,
     ARROW_SPIRAL_RANDOM: true,
-    ARROW_SPIRAL_DURATION_MS: 800,
-    ARROW_STAGGER_MS: 20,
+    ARROW_SPIRAL_DURATION_MS: 250,
+    ARROW_STAGGER_MS: 60,
     /** Auto-slow game when conquest fires (for tuning/debugging) */
     CONQUEST_SLOWMO_ENABLED: false,
     /** How much to slow animation on conquest (multiplier on tick duration) */
@@ -551,25 +551,25 @@ const _rawConfig: GameConfigType = {
     /** Show player-color outline behind each ship */
     SHIP_OUTLINE_ON: true,
     /** Outline thickness in px */
-    SHIP_OUTLINE_PX: 0.4,
+    SHIP_OUTLINE_PX: 1,
     /** Multiplier brightness glow: 0 = none, 1 = max (brightens within hue, not toward white) */
-    SHIP_GLOW_INTENSITY: 1,
+    SHIP_GLOW_INTENSITY: 0.44,
     /** Radial glow sprite radius multiplier per ship */
-    SHIP_GLOW_RADIUS: 6,
+    SHIP_GLOW_RADIUS: 8,
     /** Minimum HSL lightness for player colors — prevents dark colors vanishing on dark bg */
-    MIN_COLOR_LIGHTNESS: 0.35,
+    MIN_COLOR_LIGHTNESS: 0.5,
     /** Global ship size multiplier */
-    SHIP_SCALE_MULT: 0.6,
+    SHIP_SCALE_MULT: 0.4,
     /** Max visual ship sprites per star — overflow represented as brightness multiplier */
     MAX_VISUAL_SHIPS: 500,
     /** Degrees of hue shift per density tier */
-    DENSITY_HUE_STEP: 8,
+    DENSITY_HUE_STEP: 20,
     /** Saturation change per density tier (positive direction = increase, negative = decrease) */
-    DENSITY_SAT_STEP: 0.08,
+    DENSITY_SAT_STEP: 0.13,
     /** Lightness change per density tier */
     DENSITY_LIGHT_STEP: 0.06,
     /** Number of density tiers per direction on the color wheel */
-    DENSITY_TIERS: 3,
+    DENSITY_TIERS: 6,
     DENSITY_DARKEN_ALT: true,
     SHIP_VISUAL_RADIUS: 3,
     /** Star glow settings */
@@ -586,7 +586,7 @@ const _rawConfig: GameConfigType = {
     /** Oscillation frequency relative to ticks (0.25 = once per 4 ticks, 2.0 = twice per tick) */
     ORBIT_BIAS_FREQ: 0.25,
     /** Ships merge into single glowing orb during travel, fragment into ships on arrival */
-    ORB_TRAVEL: false,
+    ORB_TRAVEL: true,
     /** Which orb draw mode visual to use */
     ORB_DRAW_MODE: 'mode1' as string,
     /** Base orb radius in px before ship count scaling */
@@ -596,7 +596,7 @@ const _rawConfig: GameConfigType = {
     /** Overall glow multiplier for orb layers */
     ORB_GLOW_MULT: 1.3,
     /** Outer glow ring alpha */
-    ORB_OUTER_ALPHA: 0.06,
+    ORB_OUTER_ALPHA: 0.32,
     /** Middle glow ring alpha */
     ORB_MID_ALPHA: 0.34,
     /** Inner core alpha */
@@ -632,16 +632,16 @@ const _rawConfig: GameConfigType = {
     CONNECTION_COLOR: '0xffffff',
 
     /** Connection line width */
-    CONNECTION_WIDTH: 3.5,
+    CONNECTION_WIDTH: 3,
 
     /** Connection line alpha */
     CONNECTION_ALPHA: 0.3,
 
     /** Connection shadow/border width (added to CONNECTION_WIDTH) */
-    CONNECTION_SHADOW_WIDTH: 5,
+    CONNECTION_SHADOW_WIDTH: 3,
 
     /** Connection shadow alpha */
-    CONNECTION_SHADOW_ALPHA: 0.2,
+    CONNECTION_SHADOW_ALPHA: 0.3,
 
     /** Show connection lines */
     SHOW_CONNECTIONS: true,
@@ -649,9 +649,9 @@ const _rawConfig: GameConfigType = {
     /** Show territory alpha overlay behind stars (F-47) */
     SHOW_TERRITORY: true,
     /** Territory overlay alpha (0-1) */
-    TERRITORY_ALPHA: 0.08,
+    TERRITORY_ALPHA: 0.07,
     /** Territory radius multiplier relative to star radius */
-    TERRITORY_RADIUS_MULT: 3.0,
+    TERRITORY_RADIUS_MULT: 3,
     /** Scale halo alpha with fleet size */
     HALO_FLEET_SCALE: true,
     /** Alpha added per 500 ships */
@@ -660,15 +660,15 @@ const _rawConfig: GameConfigType = {
     /** Show contiguous Voronoi territory fill */
     SHOW_VORONOI: true,
     /** Voronoi territory alpha (0-1) */
-    VORONOI_ALPHA: 0.15,
+    VORONOI_ALPHA: 0.1,
     /** Voronoi canvas downscale factor (higher = faster/blockier) */
-    VORONOI_RESOLUTION: 4,
+    VORONOI_RESOLUTION: 1,
     /** Voronoi edge blend (0=hard edges, higher=softer) */
-    VORONOI_EDGE_BLEND: 0,
+    VORONOI_EDGE_BLEND: 2.3,
     /** Voronoi border line width between territories (0=off) */
-    VORONOI_BORDER_WIDTH: 2,
+    VORONOI_BORDER_WIDTH: 0,
     /** Voronoi border alpha */
-    VORONOI_BORDER_ALPHA: 0.4,
+    VORONOI_BORDER_ALPHA: 0.15,
     /** Voronoi color saturation multiplier (0=grey, 1=original, 2=vivid) */
     VORONOI_SATURATION: 1.0,
     /** Voronoi color lightness multiplier (0=dark, 1=original, 2=bright) */
