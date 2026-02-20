@@ -1,5 +1,6 @@
 <script lang="ts">
     import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
+    import { gameStore } from "$lib/stores/gameStore.svelte";
     import type { GameHistoryEntry } from "$lib/types/game.types";
 
     // Props
@@ -184,6 +185,27 @@
 
     function handleReturnToMenu() {
         activeGameStore.returnToMenu();
+    }
+
+    // F-70: Save map
+    let saveMapName = $state("");
+    let showSaveMapDone = $state(false);
+    function handleSaveMap() {
+        if (!saveMapName.trim()) return;
+        gameStore.saveCurrentMap(saveMapName.trim());
+        showSaveMapDone = true;
+        setTimeout(() => (showSaveMapDone = false), 2000);
+    }
+
+    // F-71: Restart options
+    let showRestartOptions = $state(false);
+    let reuseMap = $state(true);
+    let samePositions = $state(true);
+    function handleRestart() {
+        if (reuseMap && gameStore.lastMapDefinition) {
+            gameStore.loadSavedMap(gameStore.lastMapDefinition);
+        }
+        activeGameStore.playAgain();
     }
 
     // Get final scoreboard from last history entry
@@ -694,10 +716,46 @@
 
         <!-- Actions -->
         <section class="results-actions">
-            <button class="btn btn--primary" onclick={handlePlayAgain}>
-                <span class="btn-glow"></span>
-                Play Again
-            </button>
+            {#if !showRestartOptions}
+                <button
+                    class="btn btn--primary"
+                    onclick={() => (showRestartOptions = true)}
+                >
+                    <span class="btn-glow"></span>
+                    Play Again
+                </button>
+            {:else}
+                <div class="restart-options">
+                    <!-- Save Map (F-70) -->
+                    <div class="restart-row">
+                        <input
+                            type="text"
+                            class="save-map-input"
+                            placeholder="Map name..."
+                            bind:value={saveMapName}
+                            maxlength="30"
+                        />
+                        <button
+                            class="btn btn--small"
+                            onclick={handleSaveMap}
+                            disabled={!saveMapName.trim()}
+                        >
+                            {showSaveMapDone ? "✓ Saved" : "💾 Save Map"}
+                        </button>
+                    </div>
+                    <!-- Restart Options (F-71) -->
+                    <div class="restart-row">
+                        <label class="restart-toggle">
+                            <input type="checkbox" bind:checked={reuseMap} />
+                            <span>Reuse this map</span>
+                        </label>
+                    </div>
+                    <button class="btn btn--primary" onclick={handleRestart}>
+                        <span class="btn-glow"></span>
+                        RESTART
+                    </button>
+                </div>
+            {/if}
             <button class="btn btn--secondary" onclick={handleReturnToMenu}>
                 Main Menu
             </button>
@@ -1094,6 +1152,68 @@
         gap: 14px;
         justify-content: center;
         margin-top: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+    .restart-options {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        align-items: center;
+        padding: 12px 16px;
+        border: 1px solid rgba(0, 255, 255, 0.1);
+        border-radius: 10px;
+        background: rgba(0, 20, 30, 0.3);
+    }
+    .restart-row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        width: 100%;
+    }
+    .save-map-input {
+        flex: 1;
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid rgba(0, 255, 255, 0.12);
+        border-radius: 6px;
+        padding: 6px 10px;
+        color: #b0c4de;
+        font-family: "Orbitron", sans-serif;
+        font-size: 0.7rem;
+    }
+    .save-map-input::placeholder {
+        color: rgba(255, 255, 255, 0.2);
+    }
+    .btn--small {
+        padding: 6px 14px;
+        font-size: 0.65rem;
+        border-radius: 6px;
+        background: rgba(0, 255, 255, 0.08);
+        border: 1px solid rgba(0, 255, 255, 0.2);
+        color: #88ccdd;
+        cursor: pointer;
+        font-family: "Orbitron", sans-serif;
+        letter-spacing: 0.5px;
+    }
+    .btn--small:hover:not(:disabled) {
+        background: rgba(0, 255, 255, 0.15);
+        color: #aaeeff;
+    }
+    .btn--small:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+    }
+    .restart-toggle {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        color: #88aacc;
+        font-family: "Orbitron", sans-serif;
+        font-size: 0.7rem;
+        cursor: pointer;
+    }
+    .restart-toggle input[type="checkbox"] {
+        accent-color: #00ccbb;
     }
     .btn {
         padding: 16px 40px;

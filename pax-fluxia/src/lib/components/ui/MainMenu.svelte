@@ -837,6 +837,40 @@
                         </div>
                     </div>
 
+                    <!-- ─── Saved Maps (F-70) ─── -->
+                    {#if gameStore.savedMaps.length > 0}
+                        <div class="section-divider"></div>
+                        <div class="config-item">
+                            <label>SAVED MAPS</label>
+                            <div class="saved-maps-list">
+                                {#each gameStore.savedMaps as m}
+                                    <div class="saved-map-row">
+                                        <span class="saved-map-name"
+                                            >{m.metadata.name}</span
+                                        >
+                                        <span class="saved-map-info"
+                                            >{m.stars.length}★</span
+                                        >
+                                        <button
+                                            class="saved-map-btn load"
+                                            onclick={() => {
+                                                gameStore.loadSavedMap(m);
+                                                startSPGame();
+                                            }}>▶</button
+                                        >
+                                        <button
+                                            class="saved-map-btn del"
+                                            onclick={() =>
+                                                gameStore.deleteSavedMap(
+                                                    m.metadata.name,
+                                                )}>✕</button
+                                        >
+                                    </div>
+                                {/each}
+                            </div>
+                        </div>
+                    {/if}
+
                     <!-- ─── Tick Duration + Start ─── -->
                     <div class="section-divider"></div>
                     <div class="speed-start-row">
@@ -1545,6 +1579,55 @@
     .mp-action-btn:disabled {
         opacity: 0.35;
         cursor: not-allowed;
+    }
+
+    /* ── Saved Maps (F-70) ── */
+    .saved-maps-list {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin-top: 6px;
+    }
+    .saved-map-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 6px;
+        border: 1px solid rgba(0, 255, 255, 0.08);
+        border-radius: 4px;
+        font-size: 0.7rem;
+    }
+    .saved-map-name {
+        flex: 1;
+        color: #b0c4de;
+        font-family: "Orbitron", sans-serif;
+        letter-spacing: 0.5px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .saved-map-info {
+        color: rgba(0, 255, 255, 0.4);
+        font-size: 0.65rem;
+    }
+    .saved-map-btn {
+        background: transparent;
+        border: 1px solid rgba(0, 255, 255, 0.15);
+        color: #77aacc;
+        padding: 2px 6px;
+        font-size: 0.65rem;
+        cursor: pointer;
+        border-radius: 3px;
+        transition: all 0.15s;
+    }
+    .saved-map-btn.load:hover {
+        background: rgba(0, 255, 255, 0.08);
+        color: #88ffcc;
+    }
+    .saved-map-btn.del:hover {
+        background: rgba(255, 80, 80, 0.08);
+        color: #ff6666;
+        border-color: rgba(255, 80, 80, 0.3);
     }
 
     .join-col {

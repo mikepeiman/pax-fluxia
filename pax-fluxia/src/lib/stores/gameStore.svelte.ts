@@ -12,6 +12,7 @@ import type {
     PlayerState,
     GameHistoryEntry
 } from '$lib/types/game.types';
+import type { MapDefinition } from '$lib/types/map.types';
 import type {
     GameInput,
     IssueOrderInput,
@@ -535,6 +536,108 @@ function initStandardMap(playerIds: string[]): void {
         addDebugConnection(conn.sourceId, conn.targetId);
     }
 }
+
+// ============================================================================
+// Map Save/Load (F-70)
+// ============================================================================
+
+let lastMapDefinition: MapDefinition | null = null;
+let pendingSavedMap: MapDefinition | null = null;
+let savedMaps: MapDefinition[] = $state(loadSavedMaps());
+
+function loadSavedMaps(): MapDefinition[] {
+    try {
+        const raw = localStorage.getItem('pax_savedMaps');
+        return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+}
+
+function persistSavedMaps(): void {
+    localStorage.setItem('pax_savedMaps', JSON.stringify(savedMaps));
+}
+
+/** Export current game state as a MapDefinition */
+function exportMapDefinition(): MapDefinition | null {
+    if (!state) return null;
+    const stars: MapDefinition['stars'] = [];
+    state.stars.forEach((s) => {
+        stars.push({
+            id: s.id, x: s.x, y: s.y,
+            ownerId: s.ownerId,
+            starType: s.starType as StarType,
+            activeShips: s.activeShips,
+        });
+    });
+    const connSet = new Set<string>();
+    const connections: MapDefinition['connections'] = [];
+    for (let i = 0; i < state.connections.length; i++) {
+        const c = state.connections[i];
+        const key = [c.sourceId, c.targetId].sort().join('|');
+        if (!connSet.has(key)) {
+            connSet.add(key);
+            connections.push({ sourceId: c.sourceId, targetId: c.targetId, distance: c.distance });
+        }
+    }
+    return {
+        metadata: { name: 'Untitled', createdAt: new Date().toISOString() },
+        stars, connections,
+    };
+}
+
+/** Save current map with a name */
+function saveCurrentMap(name: string): void {
+    const map = exportMapDefinition();
+    if (!map) return;
+    map.metadata.name = name;
+    // Replace if same name exists
+    savedMaps = savedMaps.filter(m => m.metadata.name !== name);
+    savedMaps = [map, ...savedMaps];
+    persistSavedMaps();
+}
+
+/** Delete a saved map by name */
+function deleteSavedMap(name: string): void {
+    savedMaps = savedMaps.filter(m => m.metadata.name !== name);
+    persistSavedMaps();
+}
+
+/** Set a saved map to be loaded on next startGame() */
+function loadSavedMap(map: MapDefinition): void {
+    pendingSavedMap = map;
+}
+
+/** Initialize from a saved MapDefinition */
+function initSavedMap(playerIds: string[], map: MapDefinition): void {
+    const starTypes: StarType[] = ['grey', 'yellow', 'blue', 'purple', 'red', 'green'];
+    map.stars.forEach((s: MapDefinition['stars'][0], i: number) => {
+        const ownerId = playerIds[i % playerIds.length] ?? playerIds[0];
+        const starType = s.starType || starTypes[Math.floor(Math.random() * starTypes.length)];
+        const stats = STAR_TYPE_STATS[starType] || STAR_TYPE_STATS['grey'];
+        const star = new StarSchema();
+        star.id = s.id;
+        star.x = s.x;
+        star.y = s.y;
+        star.ownerId = s.ownerId || ownerId;
+        star.starType = starType;
+        star.activeShips = s.activeShips ?? GAME_CONFIG.STARTING_SHIPS;
+        star.damagedShips = 0;
+        star.productionRate = 1;
+        star.repairRate = stats.repairRate;
+        star.transferRate = stats.transferRate;
+        star.activationRate = stats.activationRate;
+        star.defensivePosture = stats.defensivePosture;
+        star.defenseStrength = stats.defenseStrength;
+        star.radius = 25;
+        star.icon = '🌟';
+        star.productionOverflow = 0;
+        star.repairOverflow = 0;
+        star.lastCombatTick = -1;
+        state!.stars.set(star.id, star);
+    });
+    for (const conn of map.connections) {
+        addDebugConnection(conn.sourceId, conn.targetId);
+    }
+}
 function initializeState(): void {
     state = new GameRoomState();
     state.phase = 'playing'; // Will be set to paused via isPaused
@@ -568,9 +671,16 @@ function initializeState(): void {
     if (mapType === 'debug' || mapType === 'debug-b') {
         // Fixed debug maps — deterministic positions for testing
         initDebugMap(playerIds, mapType);
+    } else if (pendingSavedMap) {
+        // Load saved map definition
+        initSavedMap(playerIds, pendingSavedMap);
+        pendingSavedMap = null;
     } else {
         initStandardMap(playerIds);
     }
+
+    // Snapshot map for restart (F-71)
+    lastMapDefinition = exportMapDefinition();
 
     // Initialize AI players
     aiPlayers.clear();
@@ -852,6 +962,13 @@ export const gameStore = {
     toggleRetainOrderOnConquest,
     toggleAllowOpposingOrders,
     debugSetStarShips,
+
+    // Map save/load (F-70)
+    get savedMaps() { return savedMaps; },
+    get lastMapDefinition() { return lastMapDefinition; },
+    saveCurrentMap,
+    deleteSavedMap,
+    loadSavedMap,
 };
 
 // ============================================================================
