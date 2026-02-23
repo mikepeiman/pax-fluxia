@@ -96,6 +96,7 @@
 
     // Config state
     let showMobileOptions = $state(false);
+    let gameSetupOpen = $state(false);
     let mapType = $state(loadSetting("mapType", "standard"));
     let playerCount = $state<GameSettings["playerCount"]>(
         loadSetting("playerCount", 6),
@@ -611,370 +612,409 @@
                 </section>
 
                 <!--  Col 2: Game Setup  -->
-                <section
-                    class="panel config-panel"
-                    class:mobile-hidden={gameMode === "mp"}
-                >
-                    <h2 class="panel-title">GAME SETUP</h2>
+                <section class="panel config-panel">
+                    <!-- Collapsible Game Setup accordion (mobile) -->
+                    <button
+                        class="game-setup-toggle"
+                        onclick={() => (gameSetupOpen = !gameSetupOpen)}
+                    >
+                        <h2
+                            class="panel-title"
+                            style="margin:0;border:none;padding:0;"
+                        >
+                            GAME SETUP
+                        </h2>
+                        <span class="accordion-arrow" class:open={gameSetupOpen}
+                            >{gameSetupOpen ? "▾" : "▸"}</span
+                        >
+                    </button>
 
-                    <!-- Map Selection -->
-                    <div class="control-group">
-                        <label>MAP</label>
-                        <div class="map-card-row">
-                            {#each MAP_DEFS as m}
-                                <button
-                                    class="map-card"
-                                    class:active={mapType === m.id}
-                                    class:debug={m.id.startsWith("debug")}
-                                    onclick={() => (mapType = m.id)}
-                                >
-                                    <svg
-                                        class="map-thumb"
-                                        viewBox="0 0 64 48"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                    >
-                                        {#each m.connections as [a, b]}
-                                            <line
-                                                x1={m.stars[a].x}
-                                                y1={m.stars[a].y}
-                                                x2={m.stars[b].x}
-                                                y2={m.stars[b].y}
-                                                stroke={mapType === m.id
-                                                    ? "#4488ff44"
-                                                    : "#334466"}
-                                                stroke-width="1"
-                                            />
-                                        {/each}
-                                        {#each m.stars as star}
-                                            <circle
-                                                cx={star.x}
-                                                cy={star.y}
-                                                r="3"
-                                                fill={star.color}
-                                                opacity={mapType === m.id
-                                                    ? 1
-                                                    : 0.6}
-                                            />
-                                        {/each}
-                                    </svg>
-                                    <span class="map-card-label">{m.label}</span
-                                    >
-                                </button>
-                            {/each}
-                        </div>
-                    </div>
-
-                    <!-- Links + Spacing (3-column horizontal row) -->
-                    <div class="config-triple-row">
-                        <div class="config-item">
-                            <label>Links min</label>
-                            <div class="slider-container">
-                                <input
-                                    type="range"
-                                    min="1"
-                                    max="4"
-                                    bind:value={minLinks}
-                                />
-                                <span class="value">{minLinks}</span>
-                            </div>
-                        </div>
-                        <div class="config-item">
-                            <label>Links max</label>
-                            <div class="slider-container">
-                                <input
-                                    type="range"
-                                    min="2"
-                                    max="8"
-                                    bind:value={maxLinks}
-                                />
-                                <span class="value">{maxLinks}</span>
-                            </div>
-                        </div>
-                        <div class="config-item">
-                            <label>Spacing</label>
-                            <div class="slider-container">
-                                <input
-                                    type="range"
-                                    min="0.5"
-                                    max="5.0"
-                                    step="0.1"
-                                    bind:value={starSpacing}
-                                />
-                                <span class="value"
-                                    >{starSpacing.toFixed(1)}x</span
-                                >
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- ─── Section: Match Rules ─── -->
-                    <div class="section-divider"></div>
-
-                    <!-- Players + Stars + Ships (one row) -->
-                    <div class="config-triple-row">
+                    <div
+                        class="game-setup-shared"
+                        class:collapsed={!gameSetupOpen}
+                    >
+                        <!-- Map Selection -->
                         <div class="control-group">
-                            <label>PLAYERS</label>
-                            <div class="button-row">
-                                {#each PLAYERS as p}
+                            <label>MAP</label>
+                            <div class="map-card-row">
+                                {#each MAP_DEFS as m}
                                     <button
-                                        class:active={playerCount === p}
-                                        onclick={() => (playerCount = p)}
-                                        >{p}</button
+                                        class="map-card"
+                                        class:active={mapType === m.id}
+                                        class:debug={m.id.startsWith("debug")}
+                                        onclick={() => (mapType = m.id)}
                                     >
+                                        <svg
+                                            class="map-thumb"
+                                            viewBox="0 0 64 48"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                        >
+                                            {#each m.connections as [a, b]}
+                                                <line
+                                                    x1={m.stars[a].x}
+                                                    y1={m.stars[a].y}
+                                                    x2={m.stars[b].x}
+                                                    y2={m.stars[b].y}
+                                                    stroke={mapType === m.id
+                                                        ? "#4488ff44"
+                                                        : "#334466"}
+                                                    stroke-width="1"
+                                                />
+                                            {/each}
+                                            {#each m.stars as star}
+                                                <circle
+                                                    cx={star.x}
+                                                    cy={star.y}
+                                                    r="3"
+                                                    fill={star.color}
+                                                    opacity={mapType === m.id
+                                                        ? 1
+                                                        : 0.6}
+                                                />
+                                            {/each}
+                                        </svg>
+                                        <span class="map-card-label"
+                                            >{m.label}</span
+                                        >
+                                    </button>
                                 {/each}
                             </div>
                         </div>
-                        <div class="config-item">
-                            <label>Stars per player</label>
-                            <div class="slider-container">
-                                <input
-                                    type="range"
-                                    min="1"
-                                    max="20"
-                                    bind:value={starsPerPlayer}
-                                />
-                                <span class="value">{starsPerPlayer}</span>
-                            </div>
-                        </div>
-                        <div class="config-item">
-                            <label>Ships per star</label>
-                            <div class="slider-container">
-                                <input
-                                    type="range"
-                                    min="10"
-                                    max="200"
-                                    step="10"
-                                    bind:value={shipsPerStar}
-                                />
-                                <span class="value">{shipsPerStar}</span>
-                            </div>
-                        </div>
-                    </div>
 
-                    <!-- ─── Section: Forces ─── -->
-                    <div class="section-divider"></div>
-
-                    <!-- Player Configuration -->
-                    <div class="control-group player-config-section">
-                        <!-- YOUR COMMANDER identity widget -->
-                        <div class="identity-widget">
-                            <div class="identity-swatch-wrap">
-                                <!-- svelte-ignore a11y_no_static_element_interactions -->
-                                <span
-                                    class="identity-swatch"
-                                    style:background-color="hsl({playerConfigs[0]
-                                        ?.hue ?? 210}, {colorSat}%, {colorLig}%)"
-                                    onclick={() =>
-                                        (showPlayerHuePicker =
-                                            !showPlayerHuePicker)}
-                                    role="button"
-                                    tabindex="0"
-                                    title="Click to pick color"
-                                ></span>
-                                {#if showPlayerHuePicker}
-                                    <!-- svelte-ignore a11y_no_static_element_interactions -->
-                                    <div class="hue-popup">
-                                        <input
-                                            type="range"
-                                            class="hue-slider hue-popup-slider"
-                                            min="0"
-                                            max="360"
-                                            bind:value={playerConfigs[0].hue}
-                                            style:--hue={playerConfigs[0]
-                                                ?.hue ?? 210}
-                                        />
-                                    </div>
-                                {/if}
+                        <!-- Links + Spacing (3-column horizontal row) -->
+                        <div class="config-triple-row">
+                            <div class="config-item">
+                                <label>Links min</label>
+                                <div class="slider-container">
+                                    <input
+                                        type="range"
+                                        min="1"
+                                        max="4"
+                                        bind:value={minLinks}
+                                    />
+                                    <span class="value">{minLinks}</span>
+                                </div>
                             </div>
-                            <div class="identity-fields">
-                                <label class="identity-label"
-                                    >YOUR COMMANDER</label
-                                >
-                                <input
-                                    type="text"
-                                    class="identity-name-input"
-                                    bind:value={playerName}
-                                    placeholder="Enter name..."
-                                    maxlength="20"
-                                />
+                            <div class="config-item">
+                                <label>Links max</label>
+                                <div class="slider-container">
+                                    <input
+                                        type="range"
+                                        min="2"
+                                        max="8"
+                                        bind:value={maxLinks}
+                                    />
+                                    <span class="value">{maxLinks}</span>
+                                </div>
+                            </div>
+                            <div class="config-item">
+                                <label>Spacing</label>
+                                <div class="slider-container">
+                                    <input
+                                        type="range"
+                                        min="0.5"
+                                        max="5.0"
+                                        step="0.1"
+                                        bind:value={starSpacing}
+                                    />
+                                    <span class="value"
+                                        >{starSpacing.toFixed(1)}x</span
+                                    >
+                                </div>
                             </div>
                         </div>
 
-                        <!-- AI Players -->
-                        <div class="player-config-header">
-                            <label>AI OPPONENTS</label>
-                            <button
-                                class="toggle-details-btn"
-                                onclick={() =>
-                                    (showColorPalette = !showColorPalette)}
-                                title="Color palette"
-                            >
-                                🎨
-                            </button>
-                            <button
-                                class="toggle-details-btn"
-                                onclick={() => (showAIDetails = !showAIDetails)}
-                                title={showAIDetails
-                                    ? "Hide advanced"
-                                    : "Show advanced"}
-                            >
-                                {showAIDetails ? "▾ Advanced" : "▸ Advanced"}
-                            </button>
-                        </div>
+                        <!-- ─── Section: Match Rules ─── -->
+                        <div class="section-divider"></div>
 
-                        {#if showColorPalette}
-                            <div
-                                class="color-palette-row"
-                                transition:fly={{ y: -8, duration: 150 }}
-                            >
-                                <div class="hue-offset-inline">
-                                    <span class="mini-label">MIN OFFSET</span>
+                        <!-- Players + Stars + Ships (one row) -->
+                        <div class="config-triple-row">
+                            <div class="control-group">
+                                <label>PLAYERS</label>
+                                <div class="button-row">
+                                    {#each PLAYERS as p}
+                                        <button
+                                            class:active={playerCount === p}
+                                            onclick={() => (playerCount = p)}
+                                            >{p}</button
+                                        >
+                                    {/each}
+                                </div>
+                            </div>
+                            <div class="config-item">
+                                <label>Stars per player</label>
+                                <div class="slider-container">
+                                    <input
+                                        type="range"
+                                        min="1"
+                                        max="20"
+                                        bind:value={starsPerPlayer}
+                                    />
+                                    <span class="value">{starsPerPlayer}</span>
+                                </div>
+                            </div>
+                            <div class="config-item">
+                                <label>Ships per star</label>
+                                <div class="slider-container">
                                     <input
                                         type="range"
                                         min="10"
-                                        max="120"
-                                        bind:value={hueOffset}
+                                        max="200"
+                                        step="10"
+                                        bind:value={shipsPerStar}
                                     />
-                                    <span class="value">{hueOffset}</span>
+                                    <span class="value">{shipsPerStar}</span>
                                 </div>
-                                <div class="hue-offset-inline">
-                                    <span class="mini-label">SAT</span>
-                                    <input
-                                        type="range"
-                                        min="40"
-                                        max="100"
-                                        bind:value={colorSat}
-                                    />
-                                    <span class="value">{colorSat}%</span>
+                            </div>
+                        </div>
+
+                        <!-- ─── Section: Forces ─── -->
+                        <div class="section-divider"></div>
+
+                        <!-- Player Configuration -->
+                        <div class="control-group player-config-section">
+                            <!-- YOUR COMMANDER identity widget -->
+                            <div class="identity-widget">
+                                <div class="identity-swatch-wrap">
+                                    <!-- svelte-ignore a11y_no_static_element_interactions -->
+                                    <span
+                                        class="identity-swatch"
+                                        style:background-color="hsl({playerConfigs[0]
+                                            ?.hue ?? 210}, {colorSat}%, {colorLig}%)"
+                                        onclick={() =>
+                                            (showPlayerHuePicker =
+                                                !showPlayerHuePicker)}
+                                        role="button"
+                                        tabindex="0"
+                                        title="Click to pick color"
+                                    ></span>
+                                    {#if showPlayerHuePicker}
+                                        <!-- svelte-ignore a11y_no_static_element_interactions -->
+                                        <div class="hue-popup">
+                                            <input
+                                                type="range"
+                                                class="hue-slider hue-popup-slider"
+                                                min="0"
+                                                max="360"
+                                                bind:value={
+                                                    playerConfigs[0].hue
+                                                }
+                                                style:--hue={playerConfigs[0]
+                                                    ?.hue ?? 210}
+                                            />
+                                        </div>
+                                    {/if}
                                 </div>
-                                <div class="hue-offset-inline">
-                                    <span class="mini-label">LUM</span>
+                                <div class="identity-fields">
+                                    <label class="identity-label"
+                                        >YOUR COMMANDER</label
+                                    >
                                     <input
-                                        type="range"
-                                        min="30"
-                                        max="70"
-                                        bind:value={colorLig}
+                                        type="text"
+                                        class="identity-name-input"
+                                        bind:value={playerName}
+                                        placeholder="Enter name..."
+                                        maxlength="20"
                                     />
-                                    <span class="value">{colorLig}%</span>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- /.game-setup-shared -->
+
+                        <!-- SP-specific: AI Opponents -->
+                        <div
+                            class="sp-content"
+                            class:mobile-hidden={gameMode === "mp"}
+                        >
+                            <!-- AI Players -->
+                            <div class="player-config-header">
+                                <label>AI OPPONENTS</label>
+                                <button
+                                    class="toggle-details-btn"
+                                    onclick={() =>
+                                        (showColorPalette = !showColorPalette)}
+                                    title="Color palette"
+                                >
+                                    🎨
+                                </button>
+                                <button
+                                    class="toggle-details-btn"
+                                    onclick={() =>
+                                        (showAIDetails = !showAIDetails)}
+                                    title={showAIDetails
+                                        ? "Hide advanced"
+                                        : "Show advanced"}
+                                >
+                                    {showAIDetails
+                                        ? "▾ Advanced"
+                                        : "▸ Advanced"}
+                                </button>
+                            </div>
+
+                            {#if showColorPalette}
+                                <div
+                                    class="color-palette-row"
+                                    transition:fly={{ y: -8, duration: 150 }}
+                                >
+                                    <div class="hue-offset-inline">
+                                        <span class="mini-label"
+                                            >MIN OFFSET</span
+                                        >
+                                        <input
+                                            type="range"
+                                            min="10"
+                                            max="120"
+                                            bind:value={hueOffset}
+                                        />
+                                        <span class="value">{hueOffset}</span>
+                                    </div>
+                                    <div class="hue-offset-inline">
+                                        <span class="mini-label">SAT</span>
+                                        <input
+                                            type="range"
+                                            min="40"
+                                            max="100"
+                                            bind:value={colorSat}
+                                        />
+                                        <span class="value">{colorSat}%</span>
+                                    </div>
+                                    <div class="hue-offset-inline">
+                                        <span class="mini-label">LUM</span>
+                                        <input
+                                            type="range"
+                                            min="30"
+                                            max="70"
+                                            bind:value={colorLig}
+                                        />
+                                        <span class="value">{colorLig}%</span>
+                                    </div>
+                                </div>
+                            {/if}
+
+                            <div class="player-config-list">
+                                {#each playerConfigs as cfg, i}
+                                    {#if i > 0}
+                                        <div
+                                            class="player-config-row inline-row"
+                                        >
+                                            <span
+                                                class="player-swatch"
+                                                style:background-color="hsl({cfg.hue},
+                                                {colorSat}%, {colorLig}%)"
+                                            ></span>
+                                            <span class="player-label-inline">
+                                                P{i + 1}
+                                            </span>
+                                            <select
+                                                class="inline-select"
+                                                bind:value={
+                                                    playerConfigs[i].difficulty
+                                                }
+                                            >
+                                                {#each DIFFICULTIES as d}
+                                                    <option value={d}
+                                                        >{d}</option
+                                                    >
+                                                {/each}
+                                            </select>
+                                            {#if showAIDetails}
+                                                <input
+                                                    type="range"
+                                                    class="hue-slider compact"
+                                                    min="0"
+                                                    max="360"
+                                                    bind:value={
+                                                        playerConfigs[i].hue
+                                                    }
+                                                    style:--hue={cfg.hue}
+                                                />
+                                                <select
+                                                    class="inline-select"
+                                                    bind:value={
+                                                        playerConfigs[i]
+                                                            .strategy
+                                                    }
+                                                >
+                                                    {#each AI_STRATEGIES as s}
+                                                        <option value={s.id}
+                                                            >{s.label}</option
+                                                        >
+                                                    {/each}
+                                                </select>
+                                            {/if}
+                                        </div>
+                                    {/if}
+                                {/each}
+                            </div>
+                        </div>
+
+                        <!-- ─── Saved Maps (F-70) ─── -->
+                        {#if gameStore.savedMaps.length > 0}
+                            <div class="section-divider"></div>
+                            <div class="config-item">
+                                <label>SAVED MAPS</label>
+                                <div class="saved-maps-list">
+                                    {#each gameStore.savedMaps as m}
+                                        <div class="saved-map-row">
+                                            <span class="saved-map-name"
+                                                >{m.metadata.name}</span
+                                            >
+                                            <span class="saved-map-info"
+                                                >{m.stars.length}★</span
+                                            >
+                                            <button
+                                                class="saved-map-btn load"
+                                                onclick={() => {
+                                                    gameStore.loadSavedMap(m);
+                                                    startSPGame();
+                                                }}>▶</button
+                                            >
+                                            <button
+                                                class="saved-map-btn del"
+                                                onclick={() =>
+                                                    gameStore.deleteSavedMap(
+                                                        m.metadata.name,
+                                                    )}>✕</button
+                                            >
+                                        </div>
+                                    {/each}
                                 </div>
                             </div>
                         {/if}
 
-                        <div class="player-config-list">
-                            {#each playerConfigs as cfg, i}
-                                {#if i > 0}
-                                    <div class="player-config-row inline-row">
-                                        <span
-                                            class="player-swatch"
-                                            style:background-color="hsl({cfg.hue},
-                                            {colorSat}%, {colorLig}%)"
-                                        ></span>
-                                        <span class="player-label-inline">
-                                            P{i + 1}
-                                        </span>
-                                        <select
-                                            class="inline-select"
-                                            bind:value={
-                                                playerConfigs[i].difficulty
-                                            }
-                                        >
-                                            {#each DIFFICULTIES as d}
-                                                <option value={d}>{d}</option>
-                                            {/each}
-                                        </select>
-                                        {#if showAIDetails}
-                                            <input
-                                                type="range"
-                                                class="hue-slider compact"
-                                                min="0"
-                                                max="360"
-                                                bind:value={
-                                                    playerConfigs[i].hue
-                                                }
-                                                style:--hue={cfg.hue}
-                                            />
-                                            <select
-                                                class="inline-select"
-                                                bind:value={
-                                                    playerConfigs[i].strategy
-                                                }
-                                            >
-                                                {#each AI_STRATEGIES as s}
-                                                    <option value={s.id}
-                                                        >{s.label}</option
-                                                    >
-                                                {/each}
-                                            </select>
-                                        {/if}
-                                    </div>
-                                {/if}
-                            {/each}
-                        </div>
-                    </div>
-
-                    <!-- ─── Saved Maps (F-70) ─── -->
-                    {#if gameStore.savedMaps.length > 0}
+                        <!-- ─── Tick Duration + Start ─── -->
                         <div class="section-divider"></div>
-                        <div class="config-item">
-                            <label>SAVED MAPS</label>
-                            <div class="saved-maps-list">
-                                {#each gameStore.savedMaps as m}
-                                    <div class="saved-map-row">
-                                        <span class="saved-map-name"
-                                            >{m.metadata.name}</span
-                                        >
-                                        <span class="saved-map-info"
-                                            >{m.stars.length}★</span
-                                        >
-                                        <button
-                                            class="saved-map-btn load"
-                                            onclick={() => {
-                                                gameStore.loadSavedMap(m);
-                                                startSPGame();
-                                            }}>▶</button
-                                        >
-                                        <button
-                                            class="saved-map-btn del"
-                                            onclick={() =>
-                                                gameStore.deleteSavedMap(
-                                                    m.metadata.name,
-                                                )}>✕</button
-                                        >
-                                    </div>
-                                {/each}
+                        <div class="speed-start-row">
+                            <div class="config-item speed-control">
+                                <label>TICK DURATION</label>
+                                <div class="slider-container">
+                                    <span class="mini-label">FAST</span>
+                                    <input
+                                        type="range"
+                                        min="0"
+                                        max="3000"
+                                        step="250"
+                                        bind:value={tickDuration}
+                                    />
+                                    <span class="mini-label">SLOW</span>
+                                    <span class="value"
+                                        >{(tickDuration / 1000).toFixed(
+                                            2,
+                                        )}s</span
+                                    >
+                                </div>
                             </div>
                         </div>
-                    {/if}
 
-                    <!-- ─── Tick Duration + Start ─── -->
-                    <div class="section-divider"></div>
-                    <div class="speed-start-row">
-                        <div class="config-item speed-control">
-                            <label>TICK DURATION</label>
-                            <div class="slider-container">
-                                <span class="mini-label">FAST</span>
-                                <input
-                                    type="range"
-                                    min="0"
-                                    max="3000"
-                                    step="250"
-                                    bind:value={tickDuration}
-                                />
-                                <span class="mini-label">SLOW</span>
-                                <span class="value"
-                                    >{(tickDuration / 1000).toFixed(2)}s</span
-                                >
-                            </div>
-                        </div>
+                        <button
+                            class="start-btn start-btn-primary"
+                            onclick={startSPGame}
+                        >
+                            <span class="btn-glow"></span>
+                            START GAME
+                        </button>
                     </div>
-
-                    <button
-                        class="start-btn start-btn-primary"
-                        onclick={startSPGame}
-                    >
-                        <span class="btn-glow"></span>
-                        START GAME
-                    </button>
+                    <!-- /.sp-content -->
                 </section>
 
                 <!--  Col 3: Multiplayer (visually distinct)  -->
@@ -1514,6 +1554,50 @@
     /* Options sidebar: always hidden — use gear icon */
     .menu-sidebar {
         display: none !important;
+    }
+
+    /* Accordion: desktop = always open, toggle hidden */
+    .game-setup-toggle {
+        display: none; /* hidden on desktop */
+    }
+    .game-setup-shared {
+        /* always visible on desktop */
+    }
+    .sp-content {
+        /* always visible on desktop */
+    }
+
+    @media (max-width: 900px) {
+        /* Show accordion toggle on mobile */
+        .game-setup-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            padding: 12px 0;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            color: inherit;
+            font-family: inherit;
+        }
+        .accordion-arrow {
+            color: #556677;
+            font-size: 1rem;
+            transition: transform 0.2s;
+        }
+        /* Collapsed state on mobile */
+        .game-setup-shared.collapsed {
+            max-height: 0;
+            overflow: hidden;
+            opacity: 0;
+            margin: 0;
+            padding: 0;
+        }
+        .game-setup-shared:not(.collapsed) {
+            max-height: none;
+            opacity: 1;
+        }
     }
 
     /* -- 2-Column Flex Layout -- */
