@@ -64,6 +64,7 @@
 | F-75 | Player color contrast check: ensure min luminance vs dark background, auto-lighten dark colors, glow outline for ship visibility | High | Done (2026-02-19) |
 | F-76 | Arrow formation speed slider: control how fast conquest arrowhead ships reach target (tick-relative duration) | Medium | Planned |
 | F-77 | Theme sub-modules: split themes into composable categories — Map Theme (star/Voronoi/halo visuals), Travel Theme (ship motion/curves/speed), Conquest Theme (animations/surge/settle), Static Theme (colors/sizes/scaling) — mix & match | High | Planned |
+| F-78 | Mobile responsive main menu: remove overflow:hidden scroll blockers, clamp() responsive title, 480px/900px breakpoints, grid stacking | High | Done (2026-02-22) |
 
 ## Known Regressions
 | ID | Description | Since |
