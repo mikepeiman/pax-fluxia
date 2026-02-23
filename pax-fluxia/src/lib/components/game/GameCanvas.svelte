@@ -1452,6 +1452,7 @@
         overflow: hidden;
         cursor: crosshair;
         touch-action: none;
+        z-index: 2;
     }
 
     .game-canvas :global(canvas) {

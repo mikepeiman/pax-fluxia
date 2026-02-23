@@ -473,92 +473,75 @@
   .area-canvas {
     grid-area: canvas;
     position: relative;
-    /* L1: CSS nebula gradients — deep space depth */
-    background: radial-gradient(
-        ellipse at 15% 25%,
-        rgba(0, 80, 130, 0.09),
-        transparent 45%
-      ),
+    /* L1+L4: All background depth in one property — strong enough to be visible */
+    background:
+      /* L4: Nebula texture at low opacity via color-burn */
+      url("/assets/nebula-bg.png") center/cover,
+      /* L1: Nebula radial gradients — boosted intensity */
+        radial-gradient(
+          ellipse at 15% 25%,
+          rgba(0, 100, 160, 0.2),
+          transparent 50%
+        ),
       radial-gradient(
         ellipse at 85% 75%,
-        rgba(70, 10, 90, 0.07),
-        transparent 45%
+        rgba(90, 15, 120, 0.15),
+        transparent 50%
       ),
       radial-gradient(
         ellipse at 50% 10%,
-        rgba(0, 60, 80, 0.06),
-        transparent 55%
+        rgba(0, 80, 100, 0.12),
+        transparent 60%
       ),
       radial-gradient(
         ellipse at 70% 40%,
-        rgba(10, 40, 80, 0.05),
+        rgba(15, 50, 100, 0.1),
         transparent 50%
       ),
+      radial-gradient(
+        ellipse at 30% 80%,
+        rgba(0, 60, 90, 0.12),
+        transparent 55%
+      ),
+      radial-gradient(
+        ellipse at 60% 60%,
+        rgba(50, 10, 70, 0.08),
+        transparent 45%
+      ),
       #050510;
+    /* L4: blend nebula image subtly into gradients */
+    background-blend-mode: soft-light, normal, normal, normal, normal, normal,
+      normal, normal;
     overflow: hidden;
     min-width: 0;
     min-height: 0;
   }
 
-  /* L2: Animated nebula drift — subtle life */
-  .area-canvas::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(
-        ellipse at 30% 60%,
-        rgba(0, 100, 140, 0.07),
-        transparent 50%
-      ),
-      radial-gradient(
-        ellipse at 75% 20%,
-        rgba(80, 20, 100, 0.05),
-        transparent 50%
-      ),
-      radial-gradient(
-        ellipse at 50% 80%,
-        rgba(0, 50, 70, 0.06),
-        transparent 55%
-      );
-    animation: nebula-drift 90s ease-in-out infinite;
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  /* L3: SVG starfield — repeating star speckle */
+  /* L3: SVG starfield — above canvas for visibility */
   .starfield-bg {
     position: absolute;
     inset: 0;
     width: 100%;
     height: 100%;
     pointer-events: none;
-    z-index: 0;
-    opacity: 0.7;
-  }
-
-  /* L4: Generated nebula texture — subtle richness */
-  .area-canvas::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: url("/assets/nebula-bg.png") center/cover;
-    opacity: 0.08;
-    pointer-events: none;
-    z-index: 0;
+    z-index: 1;
+    opacity: 0.8;
+    /* L2: slow drift animation on starfield */
+    animation: nebula-drift 90s ease-in-out infinite;
   }
 
   @keyframes nebula-drift {
     0%,
     100% {
       filter: hue-rotate(0deg);
-      opacity: 0.6;
+      opacity: 0.8;
     }
     33% {
-      filter: hue-rotate(35deg);
-      opacity: 0.85;
+      filter: hue-rotate(30deg);
+      opacity: 0.9;
     }
     66% {
-      filter: hue-rotate(-25deg);
+      filter: hue-rotate(-20deg);
       opacity: 0.7;
     }
   }
