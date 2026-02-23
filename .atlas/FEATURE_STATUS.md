@@ -66,6 +66,7 @@
 | F-77 | Theme sub-modules: split themes into composable categories — Map Theme (star/Voronoi/halo visuals), Travel Theme (ship motion/curves/speed), Conquest Theme (animations/surge/settle), Static Theme (colors/sizes/scaling) — mix & match | High | Planned |
 | F-78 | Mobile responsive main menu: remove overflow:hidden scroll blockers, clamp() responsive title, 480px/900px breakpoints, grid stacking | High | Done (2026-02-22) |
 | F-79 | Mobile landscape game mode: full-canvas layout, floating HUD bar, bottom speed bar, slide-out drawer, touch gestures | Critical | Planning |
+| F-80 | Fullscreen background: 6-layer system (CSS nebula gradients, animated drift, SVG starfield, AI nebula texture, PIXI procedural starfield, territory glow bleed) + hex grid fix | High | Done (2026-02-23) |
 
 ## Known Regressions
 | ID | Description | Since |
