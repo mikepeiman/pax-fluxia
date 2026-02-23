@@ -1513,7 +1513,7 @@
 
     /* Options sidebar: always hidden — use gear icon */
     .menu-sidebar {
-        display: none;
+        display: none !important;
     }
 
     /* -- 2-Column Flex Layout -- */
