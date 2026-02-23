@@ -442,34 +442,6 @@
                 <div class="subtitle">TERRITORY CONTROL STRATEGY</div>
             </header>
 
-            <!-- ═══ Responsive tabs (small screens only)  -->
-            <div class="responsive-tabs">
-                <button
-                    class="tab-btn"
-                    class:active={gameMode === "sp"}
-                    onclick={() => (gameMode = "sp")}
-                >
-                    🎮 GAME
-                </button>
-                <button
-                    class="tab-btn"
-                    class:active={gameMode === "mp"}
-                    onclick={() => (gameMode = "mp")}
-                >
-                    🌐 MULTIPLAYER
-                    {#if multiplayerStore.isConnected}
-                        <span class="connected-dot"></span>
-                    {/if}
-                </button>
-                <button
-                    class="tab-btn options-gear"
-                    class:active={showMobileOptions}
-                    onclick={() => (showMobileOptions = !showMobileOptions)}
-                >
-                    ⚙
-                </button>
-            </div>
-
             <!-- M6: Slide-up options sheet (mobile only) -->
             {#if showMobileOptions}
                 <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -819,133 +791,144 @@
                                 </div>
                             </div>
                         </div>
-                        <!-- /.game-setup-shared -->
+                    </div>
+                    <!-- /.game-setup-shared -->
 
-                        <!-- SP-specific: AI Opponents -->
-                        <div
-                            class="sp-content"
-                            class:mobile-hidden={gameMode === "mp"}
+                    <!-- SP / MP tabs (mobile only, 2 tabs) -->
+                    <div class="responsive-tabs">
+                        <button
+                            class="tab-btn"
+                            class:active={gameMode === "sp"}
+                            onclick={() => (gameMode = "sp")}
                         >
-                            <!-- AI Players -->
-                            <div class="player-config-header">
-                                <label>AI OPPONENTS</label>
-                                <button
-                                    class="toggle-details-btn"
-                                    onclick={() =>
-                                        (showColorPalette = !showColorPalette)}
-                                    title="Color palette"
-                                >
-                                    🎨
-                                </button>
-                                <button
-                                    class="toggle-details-btn"
-                                    onclick={() =>
-                                        (showAIDetails = !showAIDetails)}
-                                    title={showAIDetails
-                                        ? "Hide advanced"
-                                        : "Show advanced"}
-                                >
-                                    {showAIDetails
-                                        ? "▾ Advanced"
-                                        : "▸ Advanced"}
-                                </button>
-                            </div>
-
-                            {#if showColorPalette}
-                                <div
-                                    class="color-palette-row"
-                                    transition:fly={{ y: -8, duration: 150 }}
-                                >
-                                    <div class="hue-offset-inline">
-                                        <span class="mini-label"
-                                            >MIN OFFSET</span
-                                        >
-                                        <input
-                                            type="range"
-                                            min="10"
-                                            max="120"
-                                            bind:value={hueOffset}
-                                        />
-                                        <span class="value">{hueOffset}</span>
-                                    </div>
-                                    <div class="hue-offset-inline">
-                                        <span class="mini-label">SAT</span>
-                                        <input
-                                            type="range"
-                                            min="40"
-                                            max="100"
-                                            bind:value={colorSat}
-                                        />
-                                        <span class="value">{colorSat}%</span>
-                                    </div>
-                                    <div class="hue-offset-inline">
-                                        <span class="mini-label">LUM</span>
-                                        <input
-                                            type="range"
-                                            min="30"
-                                            max="70"
-                                            bind:value={colorLig}
-                                        />
-                                        <span class="value">{colorLig}%</span>
-                                    </div>
-                                </div>
+                            🎮 SINGLE PLAYER
+                        </button>
+                        <button
+                            class="tab-btn"
+                            class:active={gameMode === "mp"}
+                            onclick={() => (gameMode = "mp")}
+                        >
+                            🌐 MULTIPLAYER
+                            {#if multiplayerStore.isConnected}
+                                <span class="connected-dot"></span>
                             {/if}
+                        </button>
+                    </div>
 
-                            <div class="player-config-list">
-                                {#each playerConfigs as cfg, i}
-                                    {#if i > 0}
-                                        <div
-                                            class="player-config-row inline-row"
+                    <!-- SP-specific: AI Opponents -->
+                    <div
+                        class="sp-content"
+                        class:mobile-hidden={gameMode === "mp"}
+                    >
+                        <!-- AI Players -->
+                        <div class="player-config-header">
+                            <label>AI OPPONENTS</label>
+                            <button
+                                class="toggle-details-btn"
+                                onclick={() =>
+                                    (showColorPalette = !showColorPalette)}
+                                title="Color palette"
+                            >
+                                🎨
+                            </button>
+                            <button
+                                class="toggle-details-btn"
+                                onclick={() => (showAIDetails = !showAIDetails)}
+                                title={showAIDetails
+                                    ? "Hide advanced"
+                                    : "Show advanced"}
+                            >
+                                {showAIDetails ? "▾ Advanced" : "▸ Advanced"}
+                            </button>
+                        </div>
+
+                        {#if showColorPalette}
+                            <div
+                                class="color-palette-row"
+                                transition:fly={{ y: -8, duration: 150 }}
+                            >
+                                <div class="hue-offset-inline">
+                                    <span class="mini-label">MIN OFFSET</span>
+                                    <input
+                                        type="range"
+                                        min="10"
+                                        max="120"
+                                        bind:value={hueOffset}
+                                    />
+                                    <span class="value">{hueOffset}</span>
+                                </div>
+                                <div class="hue-offset-inline">
+                                    <span class="mini-label">SAT</span>
+                                    <input
+                                        type="range"
+                                        min="40"
+                                        max="100"
+                                        bind:value={colorSat}
+                                    />
+                                    <span class="value">{colorSat}%</span>
+                                </div>
+                                <div class="hue-offset-inline">
+                                    <span class="mini-label">LUM</span>
+                                    <input
+                                        type="range"
+                                        min="30"
+                                        max="70"
+                                        bind:value={colorLig}
+                                    />
+                                    <span class="value">{colorLig}%</span>
+                                </div>
+                            </div>
+                        {/if}
+
+                        <div class="player-config-list">
+                            {#each playerConfigs as cfg, i}
+                                {#if i > 0}
+                                    <div class="player-config-row inline-row">
+                                        <span
+                                            class="player-swatch"
+                                            style:background-color="hsl({cfg.hue},
+                                            {colorSat}%, {colorLig}%)"
+                                        ></span>
+                                        <span class="player-label-inline">
+                                            P{i + 1}
+                                        </span>
+                                        <select
+                                            class="inline-select"
+                                            bind:value={
+                                                playerConfigs[i].difficulty
+                                            }
                                         >
-                                            <span
-                                                class="player-swatch"
-                                                style:background-color="hsl({cfg.hue},
-                                                {colorSat}%, {colorLig}%)"
-                                            ></span>
-                                            <span class="player-label-inline">
-                                                P{i + 1}
-                                            </span>
+                                            {#each DIFFICULTIES as d}
+                                                <option value={d}>{d}</option>
+                                            {/each}
+                                        </select>
+                                        {#if showAIDetails}
+                                            <input
+                                                type="range"
+                                                class="hue-slider compact"
+                                                min="0"
+                                                max="360"
+                                                bind:value={
+                                                    playerConfigs[i].hue
+                                                }
+                                                style:--hue={cfg.hue}
+                                            />
                                             <select
                                                 class="inline-select"
                                                 bind:value={
-                                                    playerConfigs[i].difficulty
+                                                    playerConfigs[i].strategy
                                                 }
                                             >
-                                                {#each DIFFICULTIES as d}
-                                                    <option value={d}
-                                                        >{d}</option
+                                                {#each AI_STRATEGIES as s}
+                                                    <option value={s.id}
+                                                        >{s.label}</option
                                                     >
                                                 {/each}
                                             </select>
-                                            {#if showAIDetails}
-                                                <input
-                                                    type="range"
-                                                    class="hue-slider compact"
-                                                    min="0"
-                                                    max="360"
-                                                    bind:value={
-                                                        playerConfigs[i].hue
-                                                    }
-                                                    style:--hue={cfg.hue}
-                                                />
-                                                <select
-                                                    class="inline-select"
-                                                    bind:value={
-                                                        playerConfigs[i]
-                                                            .strategy
-                                                    }
-                                                >
-                                                    {#each AI_STRATEGIES as s}
-                                                        <option value={s.id}
-                                                            >{s.label}</option
-                                                        >
-                                                    {/each}
-                                                </select>
-                                            {/if}
-                                        </div>
-                                    {/if}
-                                {/each}
-                            </div>
+                                        {/if}
+                                    </div>
+                                {/if}
+                            {/each}
                         </div>
 
                         <!-- ─── Saved Maps (F-70) ─── -->
