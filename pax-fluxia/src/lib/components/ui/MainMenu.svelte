@@ -611,7 +611,10 @@
                 </section>
 
                 <!--  Col 2: Game Setup  -->
-                <section class="panel config-panel">
+                <section
+                    class="panel config-panel"
+                    class:mobile-hidden={gameMode === "mp"}
+                >
                     <h2 class="panel-title">GAME SETUP</h2>
 
                     <!-- Map Selection -->
@@ -975,7 +978,10 @@
                 </section>
 
                 <!--  Col 3: Multiplayer (visually distinct)  -->
-                <section class="panel mp-panel">
+                <section
+                    class="panel mp-panel"
+                    class:mobile-hidden={gameMode === "sp"}
+                >
                     <h2 class="panel-title">
                         🌐 MULTIPLAYER
                         {#if multiplayerStore.isConnected}
@@ -1527,6 +1533,10 @@
         .responsive-tabs {
             display: flex;
             flex-wrap: wrap;
+        }
+        /* Tab-driven panel switching — only active panel visible */
+        .mobile-hidden {
+            display: none !important;
         }
         /* M4: Reorder — Game Setup first, Options hidden */
         .content-grid-3col {
