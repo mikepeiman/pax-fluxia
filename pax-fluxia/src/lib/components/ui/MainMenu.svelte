@@ -534,8 +534,8 @@
                 </div>
             {/if}
 
-            <!--  3-Column Layout  -->
-            <div class="content-grid-3col">
+            <!--  2-Column Flex Layout (Config + Multiplayer)  -->
+            <div class="content-flex">
                 <!--  Col 1: Options  -->
                 <section class="panel menu-sidebar">
                     <h2 class="panel-title">OPTIONS</h2>
@@ -1511,22 +1511,23 @@
         }
     }
 
-    /* -- 3-Column Grid (Named Areas) -- */
-    .content-grid-3col {
-        display: grid;
-        grid-template-columns: 180px 1fr minmax(280px, 22vw);
-        grid-template-areas: "menu config multiplayer";
-        gap: 20px;
+    /* Options sidebar: always hidden — use gear icon */
+    .menu-sidebar {
+        display: none;
     }
 
-    .menu-sidebar {
-        grid-area: menu;
+    /* -- 2-Column Flex Layout -- */
+    .content-flex {
+        display: flex;
+        gap: 20px;
     }
     .config-panel {
-        grid-area: config;
+        flex: 1;
+        min-width: 0;
     }
     .mp-panel {
-        grid-area: multiplayer;
+        flex: 0 0 clamp(280px, 22vw, 380px);
+        min-width: 0;
     }
 
     @media (max-width: 900px) {
@@ -1534,18 +1535,17 @@
             display: flex;
             flex-wrap: wrap;
         }
-        /* Tab-driven panel switching — only active panel visible */
+        /* Tab-driven panel switching */
         .mobile-hidden {
             display: none !important;
         }
-        /* M4: Reorder — Game Setup first, Options hidden */
-        .content-grid-3col {
-            grid-template-columns: 1fr;
-            grid-template-areas: "config" "multiplayer";
+        /* Stack to single column */
+        .content-flex {
+            flex-direction: column;
         }
-        /* M6: Hide options sidebar */
-        .menu-sidebar {
-            display: none;
+        .mp-panel {
+            flex: none;
+            width: 100%;
         }
 
         /* ══ GLOBAL OVERFLOW FIX ══ */
