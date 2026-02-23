@@ -298,6 +298,28 @@
         shipParticleContainer = containers.shipParticleContainer;
         orbGraphics = containers.orbGraphics;
 
+        // L5: Procedural starfield — background dots rendered once, cached
+        const starfieldGfx = new PIXI.Graphics();
+        app.stage.addChildAt(starfieldGfx, 0); // Bottom-most layer
+        // Simple seeded PRNG for consistent starfield
+        let seed = 42;
+        const rng = () => {
+            seed = (seed * 16807 + 0) % 2147483647;
+            return seed / 2147483647;
+        };
+        const extendX = GAME_WIDTH * 0.25;
+        const extendY = GAME_HEIGHT * 0.25;
+        for (let i = 0; i < 300; i++) {
+            const x = rng() * (GAME_WIDTH + extendX * 2) - extendX;
+            const y = rng() * (GAME_HEIGHT + extendY * 2) - extendY;
+            const r = 0.3 + rng() * 1.2;
+            const alpha = 0.02 + rng() * 0.06;
+            // Occasional warm/cool tint
+            const tint =
+                rng() > 0.9 ? (rng() > 0.5 ? 0xaaddff : 0xffddaa) : 0xffffff;
+            starfieldGfx.circle(x, y, r).fill({ color: tint, alpha });
+        }
+
         log.success(
             "GameCanvas",
             `PixiJS initialized (${app.screen.width}x${app.screen.height})`,

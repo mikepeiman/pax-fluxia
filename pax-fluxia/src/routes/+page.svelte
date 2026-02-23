@@ -171,6 +171,47 @@
     <div class="game-layout" class:settings-open={showSettingsPanel}>
       <!-- CANVAS AREA -->
       <div class="area-canvas">
+        <!-- L3: SVG star speckle background -->
+        <svg
+          class="starfield-bg"
+          xmlns="http://www.w3.org/2000/svg"
+          width="100%"
+          height="100%"
+        >
+          <defs>
+            <pattern
+              id="starfield"
+              width="200"
+              height="200"
+              patternUnits="userSpaceOnUse"
+            >
+              <circle cx="12" cy="45" r="0.6" fill="white" opacity="0.12" />
+              <circle cx="67" cy="12" r="0.9" fill="white" opacity="0.07" />
+              <circle cx="134" cy="78" r="0.4" fill="white" opacity="0.18" />
+              <circle cx="45" cy="156" r="0.7" fill="white" opacity="0.09" />
+              <circle cx="178" cy="34" r="0.5" fill="white" opacity="0.14" />
+              <circle cx="89" cy="189" r="0.8" fill="white" opacity="0.06" />
+              <circle cx="156" cy="123" r="0.3" fill="white" opacity="0.2" />
+              <circle cx="23" cy="89" r="0.6" fill="white" opacity="0.1" />
+              <circle cx="112" cy="167" r="0.5" fill="white" opacity="0.13" />
+              <circle cx="167" cy="178" r="0.7" fill="white" opacity="0.08" />
+              <circle cx="78" cy="67" r="0.4" fill="white" opacity="0.16" />
+              <circle cx="145" cy="45" r="0.6" fill="white" opacity="0.11" />
+              <circle cx="34" cy="134" r="0.5" fill="white" opacity="0.09" />
+              <circle cx="189" cy="89" r="0.8" fill="white" opacity="0.05" />
+              <circle cx="56" cy="23" r="0.3" fill="white" opacity="0.17" />
+              <circle cx="123" cy="112" r="0.7" fill="white" opacity="0.07" />
+              <circle cx="90" cy="145" r="0.4" fill="white" opacity="0.15" />
+              <circle cx="178" cy="156" r="0.6" fill="white" opacity="0.1" />
+              <circle cx="12" cy="178" r="0.5" fill="white" opacity="0.12" />
+              <circle cx="145" cy="12" r="0.9" fill="white" opacity="0.06" />
+              <circle cx="67" cy="100" r="0.3" fill="#aaddff" opacity="0.08" />
+              <circle cx="100" cy="34" r="0.4" fill="#ffddaa" opacity="0.06" />
+              <circle cx="156" cy="89" r="0.5" fill="#aaffdd" opacity="0.05" />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#starfield)" />
+        </svg>
         <GameCanvas />
 
         <!-- TOP CENTER: Room ID Badge (MP only) -->
@@ -432,10 +473,94 @@
   .area-canvas {
     grid-area: canvas;
     position: relative;
-    background: #050510;
+    /* L1: CSS nebula gradients — deep space depth */
+    background: radial-gradient(
+        ellipse at 15% 25%,
+        rgba(0, 80, 130, 0.09),
+        transparent 45%
+      ),
+      radial-gradient(
+        ellipse at 85% 75%,
+        rgba(70, 10, 90, 0.07),
+        transparent 45%
+      ),
+      radial-gradient(
+        ellipse at 50% 10%,
+        rgba(0, 60, 80, 0.06),
+        transparent 55%
+      ),
+      radial-gradient(
+        ellipse at 70% 40%,
+        rgba(10, 40, 80, 0.05),
+        transparent 50%
+      ),
+      #050510;
     overflow: hidden;
     min-width: 0;
     min-height: 0;
+  }
+
+  /* L2: Animated nebula drift — subtle life */
+  .area-canvas::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+        ellipse at 30% 60%,
+        rgba(0, 100, 140, 0.07),
+        transparent 50%
+      ),
+      radial-gradient(
+        ellipse at 75% 20%,
+        rgba(80, 20, 100, 0.05),
+        transparent 50%
+      ),
+      radial-gradient(
+        ellipse at 50% 80%,
+        rgba(0, 50, 70, 0.06),
+        transparent 55%
+      );
+    animation: nebula-drift 90s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* L3: SVG starfield — repeating star speckle */
+  .starfield-bg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.7;
+  }
+
+  /* L4: Generated nebula texture — subtle richness */
+  .area-canvas::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: url("/assets/nebula-bg.png") center/cover;
+    opacity: 0.08;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  @keyframes nebula-drift {
+    0%,
+    100% {
+      filter: hue-rotate(0deg);
+      opacity: 0.6;
+    }
+    33% {
+      filter: hue-rotate(35deg);
+      opacity: 0.85;
+    }
+    66% {
+      filter: hue-rotate(-25deg);
+      opacity: 0.7;
+    }
   }
 
   /* ═══ SECONDARY CONTROLS COLUMN ═══ */

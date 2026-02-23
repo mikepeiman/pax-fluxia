@@ -418,13 +418,13 @@
                         d="M28 66L0 50L0 16L28 0L56 16L56 50L28 66L28 100"
                         fill="none"
                         stroke="currentColor"
-                        stroke-width="0.5"
+                        stroke-width="1.0"
                     />
                     <path
                         d="M28 0L28 34L0 50L0 84L28 100L56 84L56 50L28 34"
                         fill="none"
                         stroke="currentColor"
-                        stroke-width="0.5"
+                        stroke-width="1.0"
                     />
                 </pattern>
             </defs>
@@ -1279,7 +1279,7 @@
         inset: 0;
         width: 100%;
         height: 100%;
-        color: rgba(0, 255, 255, 0.06);
+        color: rgba(0, 255, 255, 0.12);
         animation: hex-shift 12s ease-in-out infinite;
         mask-image: radial-gradient(
             ellipse 70% 65% at 50% 50%,

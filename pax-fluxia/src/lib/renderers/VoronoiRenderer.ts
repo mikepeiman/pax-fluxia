@@ -258,6 +258,31 @@ export function renderVoronoi(
 
     ctx.putImageData(imageData, 0, 0);
 
+    // L6: Territory glow bleed — faint per-player radial glows extending beyond map
+    // Group stars by owner to compute territory centroids
+    const ownerGroups = new Map<string, { xs: number[]; ys: number[]; rgb: [number, number, number] }>();
+    for (const sd of starData) {
+        let group = ownerGroups.get(sd.ownerId);
+        if (!group) {
+            group = { xs: [], ys: [], rgb: sd.rgb };
+            ownerGroups.set(sd.ownerId, group);
+        }
+        group.xs.push(sd.x);
+        group.ys.push(sd.y);
+    }
+    for (const [, group] of ownerGroups) {
+        const cx = group.xs.reduce((a, b) => a + b, 0) / group.xs.length;
+        const cy = group.ys.reduce((a, b) => a + b, 0) / group.ys.length;
+        const [r, g, b] = group.rgb;
+        const glowRadius = Math.max(canvasW, canvasH) * 0.4; // Large bleed radius
+        const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, glowRadius);
+        grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.04)`);
+        grad.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, 0.015)`);
+        grad.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, canvasW, canvasH);
+    }
+
     // Create PIXI texture from canvas
     if (cachedTexture) cachedTexture.destroy(true);
     cachedTexture = PIXI.Texture.from(canvas);

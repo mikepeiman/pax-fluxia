@@ -65,6 +65,7 @@
 | F-76 | Arrow formation speed slider: control how fast conquest arrowhead ships reach target (tick-relative duration) | Medium | Planned |
 | F-77 | Theme sub-modules: split themes into composable categories — Map Theme (star/Voronoi/halo visuals), Travel Theme (ship motion/curves/speed), Conquest Theme (animations/surge/settle), Static Theme (colors/sizes/scaling) — mix & match | High | Planned |
 | F-78 | Mobile responsive main menu: remove overflow:hidden scroll blockers, clamp() responsive title, 480px/900px breakpoints, grid stacking | High | Done (2026-02-22) |
+| F-79 | Mobile landscape game mode: full-canvas layout, floating HUD bar, bottom speed bar, slide-out drawer, touch gestures | Critical | Planning |
 
 ## Known Regressions
 | ID | Description | Since |
