@@ -137,8 +137,16 @@ export function renderVoronoi(
     }
 
     const resolution = GAME_CONFIG.VORONOI_RESOLUTION ?? 4;
-    const canvasW = Math.ceil(worldWidth / resolution);
-    const canvasH = Math.ceil(worldHeight / resolution);
+    // Extend render area 50% beyond map in each direction so territory bleeds to edges
+    const extendFrac = 0.5;
+    const extX = Math.round(worldWidth * extendFrac);
+    const extY = Math.round(worldHeight * extendFrac);
+    const renderW = worldWidth + extX * 2;
+    const renderH = worldHeight + extY * 2;
+    const canvasW = Math.ceil(renderW / resolution);
+    const canvasH = Math.ceil(renderH / resolution);
+    const canvasExtX = Math.round(extX / resolution);
+    const canvasExtY = Math.round(extY / resolution);
     const alpha = GAME_CONFIG.VORONOI_ALPHA ?? 0.15;
     const edgeBlend = GAME_CONFIG.VORONOI_EDGE_BLEND ?? 0;
     const borderWidth = Math.round((GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 2) / resolution);
@@ -153,12 +161,13 @@ export function renderVoronoi(
     const ctx = canvas.getContext('2d')!;
 
     // Pre-compute star data at canvas scale with HSL adjustments
+    // Shift star positions by extension offset so they're centered in the larger canvas
     const starData = ownedStars.map(s => {
         const rawRgb = hexToRGB(colorUtils.getPlayerColor(s.ownerId!));
         const rgb = adjustColorHSL(rawRgb[0], rawRgb[1], rawRgb[2], satMult, lightMult);
         return {
-            x: s.x / resolution,
-            y: s.y / resolution,
+            x: s.x / resolution + canvasExtX,
+            y: s.y / resolution + canvasExtY,
             rgb,
             ownerId: s.ownerId!,
         };
@@ -296,8 +305,11 @@ export function renderVoronoi(
         cachedSprite.texture = cachedTexture;
     }
 
-    cachedSprite.width = worldWidth;
-    cachedSprite.height = worldHeight;
+    // Position sprite to account for the extension offset
+    cachedSprite.x = -extX;
+    cachedSprite.y = -extY;
+    cachedSprite.width = renderW;
+    cachedSprite.height = renderH;
     cachedSprite.visible = true;
 }
 

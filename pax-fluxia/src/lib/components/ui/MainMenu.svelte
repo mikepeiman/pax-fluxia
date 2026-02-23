@@ -95,6 +95,7 @@
     }
 
     // Config state
+    let showMobileOptions = $state(false);
     let mapType = $state(loadSetting("mapType", "standard"));
     let playerCount = $state<GameSettings["playerCount"]>(
         loadSetting("playerCount", 6),
@@ -459,7 +460,79 @@
                         <span class="connected-dot"></span>
                     {/if}
                 </button>
+                <button
+                    class="tab-btn options-gear"
+                    class:active={showMobileOptions}
+                    onclick={() => (showMobileOptions = !showMobileOptions)}
+                >
+                    ⚙
+                </button>
             </div>
+
+            <!-- M6: Slide-up options sheet (mobile only) -->
+            {#if showMobileOptions}
+                <!-- svelte-ignore a11y_click_events_have_key_events -->
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                <div
+                    class="options-sheet-backdrop"
+                    onclick={() => (showMobileOptions = false)}
+                ></div>
+                <div class="options-sheet">
+                    <div class="options-sheet-header">
+                        <h3
+                            class="panel-title"
+                            style="margin:0; border:none; padding:0;"
+                        >
+                            OPTIONS
+                        </h3>
+                        <button
+                            class="options-sheet-close"
+                            onclick={() => (showMobileOptions = false)}
+                            >✕</button
+                        >
+                    </div>
+                    <div class="options-list">
+                        <label class="checkbox-label">
+                            <input
+                                type="checkbox"
+                                bind:checked={retainOrderOnConquest}
+                            />
+                            <span>Retain orders after conquest</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input
+                                type="checkbox"
+                                bind:checked={allowOpposingOrders}
+                            />
+                            <span>Allow opposing orders</span>
+                        </label>
+                        <label class="checkbox-label"
+                            ><input type="checkbox" checked disabled />
+                            <span>Auto-select new conquests</span></label
+                        >
+                        <label class="checkbox-label"
+                            ><input type="checkbox" disabled />
+                            <span>Fog of war</span></label
+                        >
+                        <label class="checkbox-label"
+                            ><input type="checkbox" disabled />
+                            <span>Show production rates</span></label
+                        >
+                        <label class="checkbox-label"
+                            ><input type="checkbox" disabled />
+                            <span>Show movement trails</span></label
+                        >
+                        <label class="checkbox-label"
+                            ><input type="checkbox" disabled />
+                            <span>Auto-pause on combat</span></label
+                        >
+                        <label class="checkbox-label"
+                            ><input type="checkbox" disabled />
+                            <span>Surrender when hopeless</span></label
+                        >
+                    </div>
+                </div>
+            {/if}
 
             <!--  3-Column Layout  -->
             <div class="content-grid-3col">
@@ -1453,31 +1526,77 @@
         .responsive-tabs {
             display: flex;
         }
+        /* M4: Reorder — Game Setup first, Options hidden on mobile */
         .content-grid-3col {
             grid-template-columns: 1fr;
-            grid-template-areas: "menu" "config" "multiplayer";
+            grid-template-areas: "config" "multiplayer";
         }
+        /* M6: Hide options sidebar — shown via gear icon slide-up */
+        .menu-sidebar {
+            display: none;
+        }
+        /* M7: Prevent horizontal overflow */
         .menu-container {
             gap: 16px;
-            padding: 16px 0;
+            padding: 16px 8px;
+            max-width: 100vw;
+            box-sizing: border-box;
+            overflow-x: hidden;
         }
         .panel {
             padding: 16px;
             gap: 12px;
+            max-width: 100%;
+            box-sizing: border-box;
         }
+        /* M2: Config rows fit — use flexible columns */
         .config-triple-row {
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: minmax(0, auto) minmax(0, 1fr) minmax(0, 1fr);
+            gap: 8px;
+        }
+        .config-dual-row {
+            gap: 10px;
         }
         .color-palette-row {
             flex-wrap: wrap;
+        }
+        /* M1: Map cards wrap */
+        .map-card-row {
+            flex-wrap: wrap;
+        }
+        .map-card {
+            min-width: 70px;
+        }
+        /* M3: Touch targets — 44px min */
+        .button-row button {
+            min-height: 44px;
+            min-width: 44px;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            width: 20px;
+            height: 20px;
+        }
+        /* M5: Subtitle readable */
+        .subtitle {
+            color: #5a7a8a;
+            font-size: 0.6rem;
+        }
+        /* Inline row (player config) — fit width */
+        .inline-row {
+            grid-template-columns: 20px 32px 1fr auto auto;
+            gap: 6px;
+            padding: 6px 8px;
+        }
+        .inline-select {
+            min-width: 50px;
+            font-size: 0.6rem;
         }
     }
 
     @media (max-width: 480px) {
         .menu-container {
             gap: 12px;
-            padding: 12px 8px;
-            width: 100vw;
+            padding: 12px 6px;
         }
         .panel {
             padding: 12px;
@@ -1490,8 +1609,8 @@
             border-radius: 8px;
         }
         .tab-btn {
-            padding: 10px 16px;
-            font-size: 0.7rem;
+            padding: 10px 12px;
+            font-size: 0.65rem;
             letter-spacing: 1px;
         }
         .config-triple-row {
@@ -1499,13 +1618,11 @@
         }
         .inline-row {
             grid-template-columns: 20px 28px 1fr;
-            gap: 6px;
+            gap: 4px;
+            padding: 4px 6px;
         }
         .color-palette-row {
             flex-direction: column;
-        }
-        .map-card-row {
-            flex-wrap: wrap;
         }
         .identity-widget {
             flex-direction: column;
@@ -1519,6 +1636,62 @@
         .speed-start-row {
             grid-template-columns: 1fr;
         }
+    }
+
+    /* M6: Slide-up options sheet (mobile) */
+    .options-gear {
+        display: none;
+    }
+    @media (max-width: 900px) {
+        .options-gear {
+            display: flex;
+            padding: 12px 16px;
+        }
+    }
+
+    .options-sheet-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 100;
+    }
+    .options-sheet {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 101;
+        background: rgba(8, 12, 24, 0.97);
+        border-top: 1px solid rgba(0, 255, 255, 0.15);
+        border-radius: 16px 16px 0 0;
+        padding: 16px 20px 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        max-height: 60vh;
+        overflow-y: auto;
+    }
+    .options-sheet-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .options-sheet-close {
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #667788;
+        font-size: 1rem;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .options-sheet-close:hover {
+        color: #ff6666;
+        border-color: rgba(255, 80, 80, 0.3);
     }
 
     /* -- Menu Sidebar -- */

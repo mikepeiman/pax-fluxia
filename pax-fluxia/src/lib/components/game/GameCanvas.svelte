@@ -268,7 +268,8 @@
         app = new PIXI.Application();
 
         await app.init({
-            background: 0x0a0a12,
+            background: 0x000000,
+            backgroundAlpha: 0,
             resizeTo: canvasContainer,
             antialias: true,
             resolution: window.devicePixelRatio || 1,
