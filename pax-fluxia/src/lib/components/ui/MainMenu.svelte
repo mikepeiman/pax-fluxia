@@ -1394,6 +1394,7 @@
         z-index: 1;
         width: 98vw;
         max-width: 1400px;
+        box-sizing: border-box;
         overflow-y: auto;
         display: flex;
         flex-direction: column;
@@ -1525,71 +1526,143 @@
     @media (max-width: 900px) {
         .responsive-tabs {
             display: flex;
+            flex-wrap: wrap;
         }
-        /* M4: Reorder — Game Setup first, Options hidden on mobile */
+        /* M4: Reorder — Game Setup first, Options hidden */
         .content-grid-3col {
             grid-template-columns: 1fr;
             grid-template-areas: "config" "multiplayer";
         }
-        /* M6: Hide options sidebar — shown via gear icon slide-up */
+        /* M6: Hide options sidebar */
         .menu-sidebar {
             display: none;
         }
-        /* M7: Prevent horizontal overflow */
+
+        /* ══ GLOBAL OVERFLOW FIX ══ */
         .menu-container {
-            gap: 16px;
-            padding: 16px 8px;
+            width: 100vw;
             max-width: 100vw;
+            padding: 16px 10px;
+            gap: 14px;
             box-sizing: border-box;
             overflow-x: hidden;
         }
-        .panel {
-            padding: 16px;
-            gap: 12px;
+
+        /* Every panel: constrain to parent */
+        .panel,
+        .mp-panel {
             max-width: 100%;
             box-sizing: border-box;
+            padding: 14px 12px;
+            gap: 12px;
+            overflow: hidden;
         }
-        /* M2: Config rows fit — use flexible columns */
+
+        /* Every control-group, row, and container */
+        .control-group,
+        .config-dual-row,
+        .config-triple-row,
+        .speed-start-row,
+        .map-card-row,
+        .inline-row,
+        .button-row,
+        .identity-widget,
+        .color-palette-row,
+        .player-config-list,
+        .player-config-row,
+        .saved-maps-list,
+        .lobby-list {
+            max-width: 100%;
+            box-sizing: border-box;
+            min-width: 0;
+        }
+
+        /* Grid children must shrink */
+        .config-dual-row {
+            grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+            gap: 8px;
+        }
         .config-triple-row {
             grid-template-columns: minmax(0, auto) minmax(0, 1fr) minmax(0, 1fr);
             gap: 8px;
         }
-        .config-dual-row {
-            gap: 10px;
-        }
-        .color-palette-row {
-            flex-wrap: wrap;
-        }
-        /* M1: Map cards wrap */
+
+        /* Map cards wrap */
         .map-card-row {
             flex-wrap: wrap;
+            gap: 8px;
         }
         .map-card {
             min-width: 70px;
+            flex: 1 1 70px;
         }
-        /* M3: Touch targets — 44px min */
-        .button-row button {
-            min-height: 44px;
-            min-width: 44px;
-        }
-        input[type="range"]::-webkit-slider-thumb {
-            width: 20px;
-            height: 20px;
-        }
-        /* M5: Subtitle readable */
-        .subtitle {
-            color: #5a7a8a;
-            font-size: 0.6rem;
-        }
-        /* Inline row (player config) — fit width */
+
+        /* Player inline rows fit */
         .inline-row {
-            grid-template-columns: 20px 32px 1fr auto auto;
+            grid-template-columns: 18px 30px 1fr auto auto;
             gap: 6px;
             padding: 6px 8px;
         }
         .inline-select {
-            min-width: 50px;
+            min-width: 0;
+            width: auto;
+            max-width: 100%;
             font-size: 0.6rem;
+        }
+
+        /* Inputs, selects, sliders constrained */
+        input[type="text"],
+        input[type="number"],
+        input[type="range"],
+        select,
+        .room-input {
+            max-width: 100%;
+            box-sizing: border-box;
+            min-width: 0;
+        }
+
+        /* Mp-panel clip-path causes overflow on mobile */
+        .mp-panel {
+            clip-path: none;
+            border-radius: 8px;
+            padding: 14px 12px;
+        }
+
+        /* Touch targets */
+        .button-row button {
+            min-height: 44px;
+            min-width: 44px;
+        }
+
+        /* Subtitle readable */
+        .subtitle {
+            color: #5a7a8a;
+            font-size: 0.55rem;
+        }
+
+        /* Color palette wraps */
+        .color-palette-row {
+            flex-wrap: wrap;
+        }
+
+        /* Lobby items */
+        .lobby-item,
+        .lobby-row {
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Speed/start row stacks */
+        .speed-start-row {
+            grid-template-columns: 1fr;
+        }
+
+        /* Tab buttons shrink */
+        .tab-btn {
+            padding: 10px 16px;
+            font-size: 0.7rem;
+            letter-spacing: 1px;
+            flex: 1;
         }
     }
 
