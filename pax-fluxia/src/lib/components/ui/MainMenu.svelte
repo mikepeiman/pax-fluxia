@@ -1241,14 +1241,13 @@
     :global(body) {
         margin: 0;
         background: #050510;
-        overflow: hidden;
     }
 
     .menu-fullscreen {
-        position: absolute;
+        position: fixed;
         inset: 0;
         width: 100vw;
-        height: 100vh;
+        min-height: 100vh;
         /* Subtle nebula gradient as deepest layer */
         background: radial-gradient(
                 ellipse at 30% 25%,
@@ -1267,8 +1266,9 @@
                 #050510 100%
             );
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         justify-content: center;
+        overflow-y: auto;
         z-index: 9999;
         font-family: "Orbitron", sans-serif;
     }
@@ -1321,11 +1321,10 @@
         z-index: 1;
         width: 98vw;
         max-width: 1400px;
-        max-height: 100vh;
-        overflow: hidden;
+        overflow-y: auto;
         display: flex;
         flex-direction: column;
-        gap: 24px;
+        gap: var(--panel-gap, 24px);
         padding: 24px 0;
     }
 
@@ -1344,7 +1343,7 @@
     }
 
     .title {
-        font-size: 3.2rem;
+        font-size: clamp(1.6rem, 5vw, 3.2rem);
         margin: 0;
         line-height: 1.1;
         display: flex;
@@ -1355,20 +1354,20 @@
 
     .pax {
         color: #00ffff;
-        letter-spacing: 6px;
+        letter-spacing: clamp(2px, 0.5vw, 6px);
         font-weight: 300;
     }
     .fluxia {
         color: #00ffff;
-        letter-spacing: 10px;
+        letter-spacing: clamp(3px, 0.8vw, 10px);
         font-weight: 900;
     }
 
     .subtitle {
         color: #4a5a6a;
         font-family: "JetBrains Mono", monospace;
-        font-size: 0.65rem;
-        letter-spacing: 4px;
+        font-size: clamp(0.5rem, 1.2vw, 0.65rem);
+        letter-spacing: clamp(1px, 0.3vw, 4px);
         margin-top: 6px;
     }
 
@@ -1457,6 +1456,68 @@
         .content-grid-3col {
             grid-template-columns: 1fr;
             grid-template-areas: "menu" "config" "multiplayer";
+        }
+        .menu-container {
+            gap: 16px;
+            padding: 16px 0;
+        }
+        .panel {
+            padding: 16px;
+            gap: 12px;
+        }
+        .config-triple-row {
+            grid-template-columns: 1fr 1fr;
+        }
+        .color-palette-row {
+            flex-wrap: wrap;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .menu-container {
+            gap: 12px;
+            padding: 12px 8px;
+            width: 100vw;
+        }
+        .panel {
+            padding: 12px;
+            gap: 10px;
+            clip-path: none;
+            border-radius: 8px;
+        }
+        .mp-panel {
+            clip-path: none;
+            border-radius: 8px;
+        }
+        .tab-btn {
+            padding: 10px 16px;
+            font-size: 0.7rem;
+            letter-spacing: 1px;
+        }
+        .config-triple-row {
+            grid-template-columns: 1fr;
+        }
+        .inline-row {
+            grid-template-columns: 20px 28px 1fr;
+            gap: 6px;
+        }
+        .color-palette-row {
+            flex-direction: column;
+        }
+        .map-card-row {
+            flex-wrap: wrap;
+        }
+        .identity-widget {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .hue-popup {
+            left: 0;
+            top: calc(100% + 8px);
+            transform: none;
+        }
+        .speed-start-row {
+            grid-template-columns: 1fr;
         }
     }
 
