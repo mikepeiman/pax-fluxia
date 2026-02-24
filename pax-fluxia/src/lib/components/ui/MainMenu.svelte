@@ -507,513 +507,413 @@
                 </div>
             {/if}
 
-            <!--  2-Column Flex Layout (Config + Multiplayer)  -->
-            <div class="content-flex">
-                <!--  Col 1: Options  -->
-                <section class="panel menu-sidebar">
-                    <h2 class="panel-title">OPTIONS</h2>
+            <!-- ═══ SP / MP Tabs ═══ -->
+            <nav class="responsive-tabs" role="tablist">
+                <button
+                    class="tab-btn"
+                    role="tab"
+                    aria-selected={gameMode === "sp"}
+                    class:active={gameMode === "sp"}
+                    onclick={() => (gameMode = "sp")}
+                >
+                    <span class="tab-icon">🎮</span>
+                    <span class="tab-label">SINGLE PLAYER</span>
+                </button>
+                <button
+                    class="tab-btn"
+                    role="tab"
+                    aria-selected={gameMode === "mp"}
+                    class:active={gameMode === "mp"}
+                    onclick={() => (gameMode = "mp")}
+                >
+                    <span class="tab-icon">🌐</span>
+                    <span class="tab-label">MULTIPLAYER</span>
+                    {#if multiplayerStore.isConnected}
+                        <span class="connected-dot"></span>
+                    {/if}
+                </button>
+            </nav>
 
-                    <div class="options-list">
-                        <label class="checkbox-label">
-                            <input
-                                type="checkbox"
-                                bind:checked={retainOrderOnConquest}
-                            />
-                            <span>Retain orders after conquest</span>
-                            <span class="tooltip"
-                                >Attack orders become movement orders when
-                                target is captured</span
-                            >
-                        </label>
-                        <label class="checkbox-label">
-                            <input
-                                type="checkbox"
-                                bind:checked={allowOpposingOrders}
-                            />
-                            <span>Allow opposing orders</span>
-                            <span class="tooltip"
-                                >A→B and B→A movement orders can coexist
-                                (default: off = opposing cancels)</span
-                            >
-                        </label>
-                        <label class="checkbox-label">
-                            <input type="checkbox" checked disabled />
-                            <span>Auto-select new conquests</span>
-                            <span class="tooltip"
-                                >Automatically select newly captured stars</span
-                            >
-                        </label>
-                        <label class="checkbox-label">
-                            <input type="checkbox" disabled />
-                            <span>Fog of war</span>
-                            <span class="tooltip"
-                                >Only see stars within sensor range (coming
-                                soon)</span
-                            >
-                        </label>
-                        <label class="checkbox-label">
-                            <input type="checkbox" disabled />
-                            <span>Show production rates</span>
-                            <span class="tooltip"
-                                >Display ship production numbers on each star</span
-                            >
-                        </label>
-                        <label class="checkbox-label">
-                            <input type="checkbox" disabled />
-                            <span>Show movement trails</span>
-                            <span class="tooltip"
-                                >Visualize ship movement paths between stars</span
-                            >
-                        </label>
-                        <label class="checkbox-label">
-                            <input type="checkbox" disabled />
-                            <span>Auto-pause on combat</span>
-                            <span class="tooltip"
-                                >Pause game speed when battles occur</span
-                            >
-                        </label>
-                        <label class="checkbox-label">
-                            <input type="checkbox" disabled />
-                            <span>Surrender when hopeless</span>
-                            <span class="tooltip"
-                                >AI declares surrender when defeat is certain
-                                (coming soon)</span
-                            >
-                        </label>
-                    </div>
-                </section>
+            <!-- ═══ Main Content ═══ -->
+            <div class="menu-content">
+                <!-- ── Shared Game Setup (always visible) ── -->
+                <section class="panel shared-setup">
+                    <h2 class="section-heading">GAME SETUP</h2>
 
-                <!--  Col 2: Game Setup  -->
-                <section class="panel config-panel">
-                    <!-- Collapsible Game Setup accordion (mobile) -->
-                    <button
-                        class="game-setup-toggle"
-                        onclick={() => (gameSetupOpen = !gameSetupOpen)}
-                    >
-                        <h2
-                            class="panel-title"
-                            style="margin:0;border:none;padding:0;"
-                        >
-                            GAME SETUP
-                        </h2>
-                        <span class="accordion-arrow" class:open={gameSetupOpen}
-                            >{gameSetupOpen ? "▾" : "▸"}</span
-                        >
-                    </button>
-
-                    <div
-                        class="game-setup-shared"
-                        class:collapsed={!gameSetupOpen}
-                    >
-                        <!-- Map Selection -->
-                        <div class="control-group">
-                            <label>MAP</label>
-                            <div class="map-card-row">
-                                {#each MAP_DEFS as m}
-                                    <button
-                                        class="map-card"
-                                        class:active={mapType === m.id}
-                                        class:debug={m.id.startsWith("debug")}
-                                        onclick={() => (mapType = m.id)}
+                    <!-- Map Selection -->
+                    <div class="control-group">
+                        <label>MAP</label>
+                        <div class="map-card-row">
+                            {#each MAP_DEFS as m}
+                                <button
+                                    class="map-card"
+                                    class:active={mapType === m.id}
+                                    class:debug={m.id.startsWith("debug")}
+                                    onclick={() => (mapType = m.id)}
+                                >
+                                    <svg
+                                        class="map-thumb"
+                                        viewBox="0 0 64 48"
+                                        xmlns="http://www.w3.org/2000/svg"
                                     >
-                                        <svg
-                                            class="map-thumb"
-                                            viewBox="0 0 64 48"
-                                            xmlns="http://www.w3.org/2000/svg"
-                                        >
-                                            {#each m.connections as [a, b]}
+                                        {#each m.connections as [a, b]}
+                                            {@const sa = m.stars[a]}
+                                            {@const sb = m.stars[b]}
+                                            {#if sa && sb}
                                                 <line
-                                                    x1={m.stars[a].x}
-                                                    y1={m.stars[a].y}
-                                                    x2={m.stars[b].x}
-                                                    y2={m.stars[b].y}
+                                                    x1={sa.x}
+                                                    y1={sa.y}
+                                                    x2={sb.x}
+                                                    y2={sb.y}
                                                     stroke={mapType === m.id
                                                         ? "#4488ff44"
                                                         : "#334466"}
                                                     stroke-width="1"
                                                 />
-                                            {/each}
-                                            {#each m.stars as star}
-                                                <circle
-                                                    cx={star.x}
-                                                    cy={star.y}
-                                                    r="3"
-                                                    fill={star.color}
-                                                    opacity={mapType === m.id
-                                                        ? 1
-                                                        : 0.6}
-                                                />
-                                            {/each}
-                                        </svg>
-                                        <span class="map-card-label"
-                                            >{m.label}</span
-                                        >
-                                    </button>
+                                            {/if}
+                                        {/each}
+                                        {#each m.stars as star}
+                                            <circle
+                                                cx={star.x}
+                                                cy={star.y}
+                                                r="3"
+                                                fill={star.color}
+                                                opacity={mapType === m.id
+                                                    ? 1
+                                                    : 0.6}
+                                            />
+                                        {/each}
+                                    </svg>
+                                    <span class="map-card-label">{m.label}</span
+                                    >
+                                </button>
+                            {/each}
+                        </div>
+                    </div>
+
+                    <!-- Links + Spacing -->
+                    <div class="config-triple-row">
+                        <div class="config-item">
+                            <label>Links min</label>
+                            <div class="slider-container">
+                                <input
+                                    type="range"
+                                    min="1"
+                                    max="4"
+                                    bind:value={minLinks}
+                                />
+                                <span class="value">{minLinks}</span>
+                            </div>
+                        </div>
+                        <div class="config-item">
+                            <label>Links max</label>
+                            <div class="slider-container">
+                                <input
+                                    type="range"
+                                    min="2"
+                                    max="8"
+                                    bind:value={maxLinks}
+                                />
+                                <span class="value">{maxLinks}</span>
+                            </div>
+                        </div>
+                        <div class="config-item">
+                            <label>Spacing</label>
+                            <div class="slider-container">
+                                <input
+                                    type="range"
+                                    min="0.5"
+                                    max="5.0"
+                                    step="0.1"
+                                    bind:value={starSpacing}
+                                />
+                                <span class="value"
+                                    >{starSpacing.toFixed(1)}x</span
+                                >
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section-divider"></div>
+
+                    <!-- Players + Stars + Ships -->
+                    <div class="config-triple-row">
+                        <div class="control-group">
+                            <label>PLAYERS</label>
+                            <div class="button-row">
+                                {#each PLAYERS as p}
+                                    <button
+                                        class:active={playerCount === p}
+                                        onclick={() => (playerCount = p)}
+                                        >{p}</button
+                                    >
                                 {/each}
                             </div>
                         </div>
-
-                        <!-- Links + Spacing (3-column horizontal row) -->
-                        <div class="config-triple-row">
-                            <div class="config-item">
-                                <label>Links min</label>
-                                <div class="slider-container">
-                                    <input
-                                        type="range"
-                                        min="1"
-                                        max="4"
-                                        bind:value={minLinks}
-                                    />
-                                    <span class="value">{minLinks}</span>
-                                </div>
-                            </div>
-                            <div class="config-item">
-                                <label>Links max</label>
-                                <div class="slider-container">
-                                    <input
-                                        type="range"
-                                        min="2"
-                                        max="8"
-                                        bind:value={maxLinks}
-                                    />
-                                    <span class="value">{maxLinks}</span>
-                                </div>
-                            </div>
-                            <div class="config-item">
-                                <label>Spacing</label>
-                                <div class="slider-container">
-                                    <input
-                                        type="range"
-                                        min="0.5"
-                                        max="5.0"
-                                        step="0.1"
-                                        bind:value={starSpacing}
-                                    />
-                                    <span class="value"
-                                        >{starSpacing.toFixed(1)}x</span
-                                    >
-                                </div>
+                        <div class="config-item">
+                            <label>Stars per player</label>
+                            <div class="slider-container">
+                                <input
+                                    type="range"
+                                    min="1"
+                                    max="20"
+                                    bind:value={starsPerPlayer}
+                                />
+                                <span class="value">{starsPerPlayer}</span>
                             </div>
                         </div>
-
-                        <!-- ─── Section: Match Rules ─── -->
-                        <div class="section-divider"></div>
-
-                        <!-- Players + Stars + Ships (one row) -->
-                        <div class="config-triple-row">
-                            <div class="control-group">
-                                <label>PLAYERS</label>
-                                <div class="button-row">
-                                    {#each PLAYERS as p}
-                                        <button
-                                            class:active={playerCount === p}
-                                            onclick={() => (playerCount = p)}
-                                            >{p}</button
-                                        >
-                                    {/each}
-                                </div>
-                            </div>
-                            <div class="config-item">
-                                <label>Stars per player</label>
-                                <div class="slider-container">
-                                    <input
-                                        type="range"
-                                        min="1"
-                                        max="20"
-                                        bind:value={starsPerPlayer}
-                                    />
-                                    <span class="value">{starsPerPlayer}</span>
-                                </div>
-                            </div>
-                            <div class="config-item">
-                                <label>Ships per star</label>
-                                <div class="slider-container">
-                                    <input
-                                        type="range"
-                                        min="10"
-                                        max="200"
-                                        step="10"
-                                        bind:value={shipsPerStar}
-                                    />
-                                    <span class="value">{shipsPerStar}</span>
-                                </div>
+                        <div class="config-item">
+                            <label>Ships per star</label>
+                            <div class="slider-container">
+                                <input
+                                    type="range"
+                                    min="10"
+                                    max="200"
+                                    step="10"
+                                    bind:value={shipsPerStar}
+                                />
+                                <span class="value">{shipsPerStar}</span>
                             </div>
                         </div>
+                    </div>
 
-                        <!-- ─── Section: Forces ─── -->
-                        <div class="section-divider"></div>
+                    <div class="section-divider"></div>
 
-                        <!-- Player Configuration -->
-                        <div class="control-group player-config-section">
-                            <!-- YOUR COMMANDER identity widget -->
-                            <div class="identity-widget">
-                                <div class="identity-swatch-wrap">
+                    <!-- Commander Identity -->
+                    <div class="control-group">
+                        <div class="identity-widget">
+                            <div class="identity-swatch-wrap">
+                                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                                <span
+                                    class="identity-swatch"
+                                    style:background-color="hsl({playerConfigs[0]
+                                        ?.hue ?? 210}, {colorSat}%, {colorLig}%)"
+                                    onclick={() =>
+                                        (showPlayerHuePicker =
+                                            !showPlayerHuePicker)}
+                                    role="button"
+                                    tabindex="0"
+                                    title="Click to pick color"
+                                ></span>
+                                {#if showPlayerHuePicker}
                                     <!-- svelte-ignore a11y_no_static_element_interactions -->
+                                    <div class="hue-popup">
+                                        <input
+                                            type="range"
+                                            class="hue-slider hue-popup-slider"
+                                            min="0"
+                                            max="360"
+                                            bind:value={playerConfigs[0].hue}
+                                            style:--hue={playerConfigs[0]
+                                                ?.hue ?? 210}
+                                        />
+                                    </div>
+                                {/if}
+                            </div>
+                            <div class="identity-fields">
+                                <label class="identity-label"
+                                    >YOUR COMMANDER</label
+                                >
+                                <input
+                                    type="text"
+                                    class="identity-name-input"
+                                    bind:value={playerName}
+                                    placeholder="Enter name..."
+                                    maxlength="20"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ═══ SP Tab Panel (keep-mounted, toggle with hidden) ═══ -->
+                <section
+                    class="panel sp-panel"
+                    role="tabpanel"
+                    hidden={gameMode !== "sp"}
+                >
+                    <h2 class="section-heading">SINGLE PLAYER</h2>
+
+                    <div class="player-config-header">
+                        <label>AI OPPONENTS</label>
+                        <button
+                            class="toggle-details-btn"
+                            onclick={() =>
+                                (showColorPalette = !showColorPalette)}
+                            title="Color palette">🎨</button
+                        >
+                        <button
+                            class="toggle-details-btn"
+                            onclick={() => (showAIDetails = !showAIDetails)}
+                            title={showAIDetails
+                                ? "Hide advanced"
+                                : "Show advanced"}
+                        >
+                            {showAIDetails ? "▾ Advanced" : "▸ Advanced"}
+                        </button>
+                    </div>
+
+                    {#if showColorPalette}
+                        <div
+                            class="color-palette-row"
+                            transition:fly={{ y: -8, duration: 150 }}
+                        >
+                            <div class="hue-offset-inline">
+                                <span class="mini-label">MIN OFFSET</span>
+                                <input
+                                    type="range"
+                                    min="10"
+                                    max="120"
+                                    bind:value={hueOffset}
+                                />
+                                <span class="value">{hueOffset}</span>
+                            </div>
+                            <div class="hue-offset-inline">
+                                <span class="mini-label">SAT</span>
+                                <input
+                                    type="range"
+                                    min="40"
+                                    max="100"
+                                    bind:value={colorSat}
+                                />
+                                <span class="value">{colorSat}%</span>
+                            </div>
+                            <div class="hue-offset-inline">
+                                <span class="mini-label">LUM</span>
+                                <input
+                                    type="range"
+                                    min="30"
+                                    max="70"
+                                    bind:value={colorLig}
+                                />
+                                <span class="value">{colorLig}%</span>
+                            </div>
+                        </div>
+                    {/if}
+
+                    <div class="player-config-list">
+                        {#each playerConfigs as cfg, i}
+                            {#if i > 0}
+                                <div class="player-config-row inline-row">
                                     <span
-                                        class="identity-swatch"
-                                        style:background-color="hsl({playerConfigs[0]
-                                            ?.hue ?? 210}, {colorSat}%, {colorLig}%)"
-                                        onclick={() =>
-                                            (showPlayerHuePicker =
-                                                !showPlayerHuePicker)}
-                                        role="button"
-                                        tabindex="0"
-                                        title="Click to pick color"
+                                        class="player-swatch"
+                                        style:background-color="hsl({cfg.hue}, {colorSat}%,
+                                        {colorLig}%)"
                                     ></span>
-                                    {#if showPlayerHuePicker}
-                                        <!-- svelte-ignore a11y_no_static_element_interactions -->
-                                        <div class="hue-popup">
-                                            <input
-                                                type="range"
-                                                class="hue-slider hue-popup-slider"
-                                                min="0"
-                                                max="360"
-                                                bind:value={
-                                                    playerConfigs[0].hue
-                                                }
-                                                style:--hue={playerConfigs[0]
-                                                    ?.hue ?? 210}
-                                            />
-                                        </div>
-                                    {/if}
-                                </div>
-                                <div class="identity-fields">
-                                    <label class="identity-label"
-                                        >YOUR COMMANDER</label
+                                    <span class="player-label-inline"
+                                        >P{i + 1}</span
                                     >
-                                    <input
-                                        type="text"
-                                        class="identity-name-input"
-                                        bind:value={playerName}
-                                        placeholder="Enter name..."
-                                        maxlength="20"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- /.game-setup-shared -->
-
-                    <!-- SP / MP tabs (mobile only, 2 tabs) -->
-                    <div class="responsive-tabs">
-                        <button
-                            class="tab-btn"
-                            class:active={gameMode === "sp"}
-                            onclick={() => (gameMode = "sp")}
-                        >
-                            🎮 SINGLE PLAYER
-                        </button>
-                        <button
-                            class="tab-btn"
-                            class:active={gameMode === "mp"}
-                            onclick={() => (gameMode = "mp")}
-                        >
-                            🌐 MULTIPLAYER
-                            {#if multiplayerStore.isConnected}
-                                <span class="connected-dot"></span>
-                            {/if}
-                        </button>
-                    </div>
-
-                    <!-- SP-specific: AI Opponents -->
-                    <div
-                        class="sp-content"
-                        class:mobile-hidden={gameMode === "mp"}
-                    >
-                        <!-- AI Players -->
-                        <div class="player-config-header">
-                            <label>AI OPPONENTS</label>
-                            <button
-                                class="toggle-details-btn"
-                                onclick={() =>
-                                    (showColorPalette = !showColorPalette)}
-                                title="Color palette"
-                            >
-                                🎨
-                            </button>
-                            <button
-                                class="toggle-details-btn"
-                                onclick={() => (showAIDetails = !showAIDetails)}
-                                title={showAIDetails
-                                    ? "Hide advanced"
-                                    : "Show advanced"}
-                            >
-                                {showAIDetails ? "▾ Advanced" : "▸ Advanced"}
-                            </button>
-                        </div>
-
-                        {#if showColorPalette}
-                            <div
-                                class="color-palette-row"
-                                transition:fly={{ y: -8, duration: 150 }}
-                            >
-                                <div class="hue-offset-inline">
-                                    <span class="mini-label">MIN OFFSET</span>
-                                    <input
-                                        type="range"
-                                        min="10"
-                                        max="120"
-                                        bind:value={hueOffset}
-                                    />
-                                    <span class="value">{hueOffset}</span>
-                                </div>
-                                <div class="hue-offset-inline">
-                                    <span class="mini-label">SAT</span>
-                                    <input
-                                        type="range"
-                                        min="40"
-                                        max="100"
-                                        bind:value={colorSat}
-                                    />
-                                    <span class="value">{colorSat}%</span>
-                                </div>
-                                <div class="hue-offset-inline">
-                                    <span class="mini-label">LUM</span>
-                                    <input
-                                        type="range"
-                                        min="30"
-                                        max="70"
-                                        bind:value={colorLig}
-                                    />
-                                    <span class="value">{colorLig}%</span>
-                                </div>
-                            </div>
-                        {/if}
-
-                        <div class="player-config-list">
-                            {#each playerConfigs as cfg, i}
-                                {#if i > 0}
-                                    <div class="player-config-row inline-row">
-                                        <span
-                                            class="player-swatch"
-                                            style:background-color="hsl({cfg.hue},
-                                            {colorSat}%, {colorLig}%)"
-                                        ></span>
-                                        <span class="player-label-inline">
-                                            P{i + 1}
-                                        </span>
+                                    <select
+                                        class="inline-select"
+                                        bind:value={playerConfigs[i].difficulty}
+                                    >
+                                        {#each DIFFICULTIES as d}<option
+                                                value={d}>{d}</option
+                                            >{/each}
+                                    </select>
+                                    {#if showAIDetails}
+                                        <input
+                                            type="range"
+                                            class="hue-slider compact"
+                                            min="0"
+                                            max="360"
+                                            bind:value={playerConfigs[i].hue}
+                                            style:--hue={cfg.hue}
+                                        />
                                         <select
                                             class="inline-select"
                                             bind:value={
-                                                playerConfigs[i].difficulty
+                                                playerConfigs[i].strategy
                                             }
                                         >
-                                            {#each DIFFICULTIES as d}
-                                                <option value={d}>{d}</option>
-                                            {/each}
+                                            {#each AI_STRATEGIES as s}<option
+                                                    value={s.id}
+                                                    >{s.label}</option
+                                                >{/each}
                                         </select>
-                                        {#if showAIDetails}
-                                            <input
-                                                type="range"
-                                                class="hue-slider compact"
-                                                min="0"
-                                                max="360"
-                                                bind:value={
-                                                    playerConfigs[i].hue
-                                                }
-                                                style:--hue={cfg.hue}
-                                            />
-                                            <select
-                                                class="inline-select"
-                                                bind:value={
-                                                    playerConfigs[i].strategy
-                                                }
-                                            >
-                                                {#each AI_STRATEGIES as s}
-                                                    <option value={s.id}
-                                                        >{s.label}</option
-                                                    >
-                                                {/each}
-                                            </select>
-                                        {/if}
-                                    </div>
-                                {/if}
-                            {/each}
-                        </div>
-
-                        <!-- ─── Saved Maps (F-70) ─── -->
-                        {#if gameStore.savedMaps.length > 0}
-                            <div class="section-divider"></div>
-                            <div class="config-item">
-                                <label>SAVED MAPS</label>
-                                <div class="saved-maps-list">
-                                    {#each gameStore.savedMaps as m}
-                                        <div class="saved-map-row">
-                                            <span class="saved-map-name"
-                                                >{m.metadata.name}</span
-                                            >
-                                            <span class="saved-map-info"
-                                                >{m.stars.length}★</span
-                                            >
-                                            <button
-                                                class="saved-map-btn load"
-                                                onclick={() => {
-                                                    gameStore.loadSavedMap(m);
-                                                    startSPGame();
-                                                }}>▶</button
-                                            >
-                                            <button
-                                                class="saved-map-btn del"
-                                                onclick={() =>
-                                                    gameStore.deleteSavedMap(
-                                                        m.metadata.name,
-                                                    )}>✕</button
-                                            >
-                                        </div>
-                                    {/each}
+                                    {/if}
                                 </div>
-                            </div>
-                        {/if}
-
-                        <!-- ─── Tick Duration + Start ─── -->
-                        <div class="section-divider"></div>
-                        <div class="speed-start-row">
-                            <div class="config-item speed-control">
-                                <label>TICK DURATION</label>
-                                <div class="slider-container">
-                                    <span class="mini-label">FAST</span>
-                                    <input
-                                        type="range"
-                                        min="0"
-                                        max="3000"
-                                        step="250"
-                                        bind:value={tickDuration}
-                                    />
-                                    <span class="mini-label">SLOW</span>
-                                    <span class="value"
-                                        >{(tickDuration / 1000).toFixed(
-                                            2,
-                                        )}s</span
-                                    >
-                                </div>
-                            </div>
-                        </div>
-
-                        <button
-                            class="start-btn start-btn-primary"
-                            onclick={startSPGame}
-                        >
-                            <span class="btn-glow"></span>
-                            START GAME
-                        </button>
+                            {/if}
+                        {/each}
                     </div>
-                    <!-- /.sp-content -->
+
+                    {#if gameStore.savedMaps.length > 0}
+                        <div class="section-divider"></div>
+                        <div class="config-item">
+                            <label>SAVED MAPS</label>
+                            <div class="saved-maps-list">
+                                {#each gameStore.savedMaps as m}
+                                    <div class="saved-map-row">
+                                        <span class="saved-map-name"
+                                            >{m.metadata.name}</span
+                                        >
+                                        <span class="saved-map-info"
+                                            >{m.stars.length}★</span
+                                        >
+                                        <button
+                                            class="saved-map-btn load"
+                                            onclick={() => {
+                                                gameStore.loadSavedMap(m);
+                                                startSPGame();
+                                            }}>▶</button
+                                        >
+                                        <button
+                                            class="saved-map-btn del"
+                                            onclick={() =>
+                                                gameStore.deleteSavedMap(
+                                                    m.metadata.name,
+                                                )}>✕</button
+                                        >
+                                    </div>
+                                {/each}
+                            </div>
+                        </div>
+                    {/if}
+
+                    <div class="section-divider"></div>
+                    <div class="speed-start-row">
+                        <div class="config-item speed-control">
+                            <label>TICK DURATION</label>
+                            <div class="slider-container">
+                                <span class="mini-label">FAST</span>
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max="3000"
+                                    step="250"
+                                    bind:value={tickDuration}
+                                />
+                                <span class="mini-label">SLOW</span>
+                                <span class="value"
+                                    >{(tickDuration / 1000).toFixed(2)}s</span
+                                >
+                            </div>
+                        </div>
+                    </div>
+
+                    <button
+                        class="start-btn start-btn-primary"
+                        onclick={startSPGame}
+                    >
+                        <span class="btn-glow"></span>
+                        START GAME
+                    </button>
                 </section>
 
-                <!--  Col 3: Multiplayer (visually distinct)  -->
+                <!-- ═══ MP Tab Panel (keep-mounted, toggle with hidden) ═══ -->
                 <section
                     class="panel mp-panel"
-                    class:mobile-hidden={gameMode === "sp"}
+                    role="tabpanel"
+                    hidden={gameMode !== "mp"}
                 >
-                    <h2 class="panel-title">
-                        🌐 MULTIPLAYER
-                        {#if multiplayerStore.isConnected}
-                            <span class="connected-dot"></span>
-                        {/if}
+                    <h2 class="section-heading">
+                        MULTIPLAYER
+                        {#if multiplayerStore.isConnected}<span
+                                class="connected-dot"
+                            ></span>{/if}
                     </h2>
 
                     {#if multiplayerStore.isConnected}
-                        <!--  Connected Lobby  -->
                         <div class="room-info-bar">
                             <div class="room-id-block">
                                 <span class="room-label">ROOM</span>
@@ -1024,24 +924,19 @@
                                     class="copy-btn"
                                     onclick={copyRoomId}
                                     title="Copy Room ID"
-                                >
-                                </button>
+                                ></button>
                             </div>
                             <div class="player-count-badge">
                                 {multiplayerStore.playerCount} / {multiplayerStore.maxPlayers}
                             </div>
                         </div>
-
-                        <!-- Players List -->
                         <div class="players-list">
-                            <h3>
-                                Players ({multiplayerStore.players.length})
-                            </h3>
-                            {#if multiplayerStore.players.length === 0}
-                                <p class="waiting-text">
+                            <h3>Players ({multiplayerStore.players.length})</h3>
+                            {#if multiplayerStore.players.length === 0}<p
+                                    class="waiting-text"
+                                >
                                     Waiting for players...
-                                </p>
-                            {/if}
+                                </p>{/if}
                             <ul>
                                 {#each multiplayerStore.players as player}
                                     <li class="player-row">
@@ -1051,206 +946,176 @@
                                         ></span>
                                         <span class="player-name">
                                             {player.name}
-                                            {#if player.sessionId === multiplayerStore.hostSessionId}
-                                                <span class="badge host"
+                                            {#if player.sessionId === multiplayerStore.hostSessionId}<span
+                                                    class="badge host"
                                                     >HOST</span
-                                                >
-                                            {/if}
-                                            {#if player.sessionId === multiplayerStore.localSessionId}
-                                                <span class="badge you"
-                                                    >YOU</span
-                                                >
-                                            {/if}
-                                            {#if player.isAI}
-                                                <span class="badge ai">AI</span>
-                                            {/if}
+                                                >{/if}
+                                            {#if player.sessionId === multiplayerStore.localSessionId}<span
+                                                    class="badge you">YOU</span
+                                                >{/if}
+                                            {#if player.isAI}<span
+                                                    class="badge ai">AI</span
+                                                >{/if}
                                         </span>
                                     </li>
                                 {/each}
                             </ul>
                         </div>
-
                         <div class="spacer"></div>
-
-                        <!-- Lobby Actions -->
                         <div class="lobby-actions">
                             {#if multiplayerStore.isHost}
                                 <button
                                     class="start-btn"
                                     onclick={handleStartGame}
+                                    ><span class="btn-glow"></span>START GAME</button
                                 >
-                                    <span class="btn-glow"></span>
-                                    START GAME
-                                </button>
                             {:else}
                                 <p class="waiting-text">
                                     Waiting for host to start...
                                 </p>
                             {/if}
-                            <button class="leave-btn" onclick={handleLeaveRoom}>
-                                Leave Room
-                            </button>
+                            <button class="leave-btn" onclick={handleLeaveRoom}
+                                >Leave Room</button
+                            >
                             {#if multiplayerStore.isHost}
                                 <button
                                     class="leave-btn dispose-btn"
                                     onclick={() =>
                                         multiplayerStore.disposeRoom()}
+                                    >Dispose Room</button
                                 >
-                                    Dispose Room
-                                </button>
                             {/if}
                         </div>
+                    {:else if multiplayerStore.isConnecting}
+                        <div class="mp-loading">
+                            <div class="spinner"></div>
+                            <p>Connecting...</p>
+                        </div>
                     {:else}
-                        <!-- Not Connected -->
-                        {#if multiplayerStore.isConnecting}
-                            <div class="mp-loading">
-                                <div class="spinner"></div>
-                                <p>Connecting...</p>
-                            </div>
-                        {:else}
-                            <!-- Create Room -->
-                            <div class="mp-section">
-                                <h3>Create Game</h3>
-                                <p class="mp-desc">
-                                    Host a new room with your game settings.
-                                </p>
+                        <div class="mp-section">
+                            <h3>Create Game</h3>
+                            <p class="mp-desc">
+                                Host a new room with your game settings.
+                            </p>
+                            <button
+                                class="mp-action-btn mp-create-btn"
+                                onclick={handleCreateRoom}>CREATE ROOM</button
+                            >
+                        </div>
+                        <div class="divider"><span>OR</span></div>
+                        <div class="mp-section">
+                            <h3>Join Game</h3>
+                            <div class="join-col">
+                                <input
+                                    type="text"
+                                    placeholder="Enter Room ID..."
+                                    bind:value={joinRoomId}
+                                    class="room-input"
+                                />
                                 <button
-                                    class="mp-action-btn mp-create-btn"
-                                    onclick={handleCreateRoom}
+                                    class="mp-action-btn mp-join-btn"
+                                    onclick={handleJoinRoom}
+                                    disabled={!joinRoomId.trim()}
+                                    >JOIN ROOM</button
                                 >
-                                    CREATE ROOM
+                            </div>
+                        </div>
+                        <div class="mp-section room-browser">
+                            <div class="browser-header">
+                                <h3>Browse Games</h3>
+                                <button
+                                    class="refresh-btn"
+                                    onclick={() =>
+                                        multiplayerStore.fetchRooms()}
+                                    disabled={multiplayerStore.isFetchingRooms}
+                                >
+                                    {multiplayerStore.isFetchingRooms ? "" : ""}
+                                    Refresh
                                 </button>
                             </div>
-
-                            <div class="divider">
-                                <span>OR</span>
-                            </div>
-
-                            <!-- Join Room -->
-                            <div class="mp-section">
-                                <h3>Join Game</h3>
-                                <div class="join-col">
-                                    <input
-                                        type="text"
-                                        placeholder="Enter Room ID..."
-                                        bind:value={joinRoomId}
-                                        class="room-input"
-                                    />
-                                    <button
-                                        class="mp-action-btn mp-join-btn"
-                                        onclick={handleJoinRoom}
-                                        disabled={!joinRoomId.trim()}
-                                    >
-                                        JOIN ROOM
-                                    </button>
-                                </div>
-                            </div>
-
-                            <!-- Room Browser -->
-                            <div class="mp-section room-browser">
-                                <div class="browser-header">
-                                    <h3>Browse Games</h3>
-                                    <button
-                                        class="refresh-btn"
-                                        onclick={() =>
-                                            multiplayerStore.fetchRooms()}
-                                        disabled={multiplayerStore.isFetchingRooms}
-                                    >
-                                        {multiplayerStore.isFetchingRooms
-                                            ? ""
-                                            : ""} Refresh
-                                    </button>
-                                </div>
-                                {#if multiplayerStore.isFetchingRooms}
-                                    <p class="waiting-text">
-                                        Scanning for rooms...
-                                    </p>
-                                {:else if multiplayerStore.availableRooms.length === 0}
-                                    <p class="waiting-text">
-                                        No public rooms available
-                                    </p>
-                                {:else}
-                                    <div class="room-list">
-                                        {#each multiplayerStore.availableRooms as room}
-                                            <!-- svelte-ignore a11y_click_events_have_key_events -->
-                                            <!-- svelte-ignore a11y_no_static_element_interactions -->
-                                            <div
-                                                class="room-card"
-                                                onclick={() =>
-                                                    (confirmJoinTarget = room)}
-                                            >
-                                                <div class="room-card-top">
-                                                    <span class="room-host"
-                                                        >{room.metadata
-                                                            ?.hostName ||
-                                                            "Unknown"}</span
-                                                    >
+                            {#if multiplayerStore.isFetchingRooms}
+                                <p class="waiting-text">
+                                    Scanning for rooms...
+                                </p>
+                            {:else if multiplayerStore.availableRooms.length === 0}
+                                <p class="waiting-text">
+                                    No public rooms available
+                                </p>
+                            {:else}
+                                <div class="room-list">
+                                    {#each multiplayerStore.availableRooms as room}
+                                        <!-- svelte-ignore a11y_click_events_have_key_events -->
+                                        <!-- svelte-ignore a11y_no_static_element_interactions -->
+                                        <div
+                                            class="room-card"
+                                            onclick={() =>
+                                                (confirmJoinTarget = room)}
+                                        >
+                                            <div class="room-card-top">
+                                                <span class="room-host"
+                                                    >{room.metadata?.hostName ||
+                                                        "Unknown"}</span
+                                                >
+                                                <span
+                                                    class="room-phase badge {room
+                                                        .metadata?.phase ||
+                                                        'lobby'}"
+                                                    >{room.metadata?.phase ||
+                                                        "lobby"}</span
+                                                >
+                                            </div>
+                                            <div class="room-card-mid">
+                                                <span class="room-map"
+                                                    >{room.metadata?.mapType ||
+                                                        "?"}</span
+                                                >
+                                                <span class="room-detail"
+                                                    >⭐ {room.metadata
+                                                        ?.starsPerPlayer ||
+                                                        "?"}/p</span
+                                                >
+                                                <span class="room-detail"
+                                                    >🚀 {room.metadata
+                                                        ?.shipsPerStar ||
+                                                        "?"}/star</span
+                                                >
+                                                {#if room.metadata?.phase === "playing" && room.metadata?.tick}
                                                     <span
-                                                        class="room-phase badge {room
-                                                            .metadata?.phase ||
-                                                            'lobby'}"
+                                                        class="room-detail tick-badge"
+                                                        >T{room.metadata
+                                                            .tick}</span
                                                     >
-                                                        {room.metadata?.phase ||
-                                                            "lobby"}
-                                                    </span>
-                                                </div>
-                                                <div class="room-card-mid">
-                                                    <span class="room-map"
-                                                        >{room.metadata
-                                                            ?.mapType ||
-                                                            "?"}</span
-                                                    >
-                                                    <span class="room-detail"
-                                                        >⭐ {room.metadata
-                                                            ?.starsPerPlayer ||
-                                                            "?"}/p</span
-                                                    >
-                                                    <span class="room-detail"
-                                                        >🚀 {room.metadata
-                                                            ?.shipsPerStar ||
-                                                            "?"}/star</span
-                                                    >
-                                                    {#if room.metadata?.phase === "playing" && room.metadata?.tick}
-                                                        <span
-                                                            class="room-detail tick-badge"
-                                                            >T{room.metadata
-                                                                .tick}</span
-                                                        >
-                                                    {/if}
-                                                </div>
-                                                <div class="room-card-bottom">
-                                                    <span class="room-slots">
-                                                        {room.clients}/{room.maxClients}
-                                                        players
-                                                    </span>
-                                                </div>
-                                                {#if room.metadata?.playerNames?.length}
-                                                    <div class="room-players">
-                                                        {#each room.metadata.playerNames as pname}
-                                                            <span
-                                                                class="player-chip"
-                                                                >{pname}</span
-                                                            >
-                                                        {/each}
-                                                    </div>
                                                 {/if}
                                             </div>
-                                        {/each}
-                                    </div>
-                                {/if}
-                            </div>
-
-                            {#if multiplayerStore.lobbyStatus}
-                                <div class="lobby-status-msg">
-                                    ⏳ {multiplayerStore.lobbyStatus}
+                                            <div class="room-card-bottom">
+                                                <span class="room-slots"
+                                                    >{room.clients}/{room.maxClients}
+                                                    players</span
+                                                >
+                                            </div>
+                                            {#if room.metadata?.playerNames?.length}
+                                                <div class="room-players">
+                                                    {#each room.metadata.playerNames as pname}<span
+                                                            class="player-chip"
+                                                            >{pname}</span
+                                                        >{/each}
+                                                </div>
+                                            {/if}
+                                        </div>
+                                    {/each}
                                 </div>
                             {/if}
-                            {#if multiplayerStore.connectionError}
-                                <div class="error-msg">
-                                    {multiplayerStore.connectionError}
-                                </div>
-                            {/if}
-                        {/if}
+                        </div>
+                        {#if multiplayerStore.lobbyStatus}<div
+                                class="lobby-status-msg"
+                            >
+                                ⏳ {multiplayerStore.lobbyStatus}
+                            </div>{/if}
+                        {#if multiplayerStore.connectionError}<div
+                                class="error-msg"
+                            >
+                                {multiplayerStore.connectionError}
+                            </div>{/if}
                     {/if}
                 </section>
             </div>
@@ -1474,14 +1339,17 @@
         margin-top: 6px;
     }
 
-    /* â”€â”€ Mode Toggle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-    /* -- Responsive Tabs (small screens only) -- */
+    /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+    /*  TABS                                          */
+    /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+
+    /* Hidden on desktop, shown on mobile */
     .responsive-tabs {
         display: none;
         gap: 4px;
-        background: rgba(0, 255, 255, 0.03);
-        border: 1px solid rgba(0, 255, 255, 0.1);
-        border-radius: 12px;
+        background: rgba(0, 255, 255, 0.04);
+        border: 1px solid rgba(0, 255, 255, 0.12);
+        border-radius: 14px;
         padding: 5px;
         width: 100%;
         box-sizing: border-box;
@@ -1493,38 +1361,46 @@
         justify-content: center;
         gap: 10px;
         flex: 1;
-        padding: 14px 20px;
+        padding: 16px 20px;
         border: none;
         background: transparent;
-        color: #556677;
+        color: rgba(136, 170, 204, 0.5);
         font-family: "Orbitron", sans-serif;
-        font-size: 1rem;
+        font-size: 1.05rem;
         font-weight: 700;
-        letter-spacing: 2px;
+        letter-spacing: 3px;
         cursor: pointer;
-        border-radius: 8px;
-        transition: all 0.25s;
-        min-height: 48px;
+        border-radius: 10px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        min-height: 52px;
+    }
+    .tab-icon {
+        font-size: 1.2rem;
+    }
+    .tab-label {
+        white-space: nowrap;
     }
 
     .tab-btn:hover {
-        color: #99bbcc;
-        background: rgba(255, 255, 255, 0.04);
+        color: #aaccdd;
+        background: rgba(0, 255, 255, 0.04);
     }
 
     .tab-btn.active {
         color: #00ffff;
-        background: rgba(0, 255, 255, 0.1);
-        box-shadow: 0 0 20px rgba(0, 255, 255, 0.1);
-        text-shadow: 0 0 12px rgba(0, 255, 255, 0.3);
+        background: rgba(0, 255, 255, 0.12);
+        box-shadow:
+            0 0 24px rgba(0, 255, 255, 0.08),
+            inset 0 1px 0 rgba(0, 255, 255, 0.15);
+        text-shadow: 0 0 14px rgba(0, 255, 255, 0.35);
     }
 
     .connected-dot {
-        width: 6px;
-        height: 6px;
+        width: 7px;
+        height: 7px;
         border-radius: 50%;
         background: #22cc66;
-        box-shadow: 0 0 6px #22cc66;
+        box-shadow: 0 0 8px #22cc66;
         display: inline-block;
         animation: pulse-dot 2s infinite;
     }
@@ -1539,93 +1415,76 @@
         }
     }
 
-    /* Options sidebar: always hidden — use gear icon */
-    .menu-sidebar {
-        display: none !important;
+    /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+    /*  CONTENT LAYOUT                                */
+    /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+
+    .section-heading {
+        font-family: "Orbitron", sans-serif;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 5px;
+        color: rgba(0, 255, 255, 0.55);
+        text-transform: uppercase;
+        margin: 0 0 16px 0;
+        padding-bottom: 10px;
+        border-bottom: 1px solid rgba(0, 255, 255, 0.08);
     }
 
-    /* Accordion: desktop = always open, toggle hidden */
-    .game-setup-toggle {
-        display: none; /* hidden on desktop */
-    }
-    .game-setup-shared {
-        /* always visible on desktop */
-    }
-    .sp-content {
-        /* always visible on desktop */
-    }
-
-    @media (max-width: 900px) {
-        /* Show accordion toggle on mobile */
-        .game-setup-toggle {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            width: 100%;
-            padding: 14px 4px;
-            border: none;
-            background: rgba(0, 255, 255, 0.03);
-            border-bottom: 1px solid rgba(0, 255, 255, 0.08);
-            cursor: pointer;
-            color: inherit;
-            font-family: inherit;
-            min-height: 52px;
-        }
-        .game-setup-toggle .panel-title {
-            font-size: 0.9rem;
-            letter-spacing: 4px;
-            color: #88aacc;
-        }
-        .accordion-arrow {
-            color: #00cccc;
-            font-size: 1.4rem;
-            font-weight: 900;
-            transition: transform 0.2s;
-            text-shadow: 0 0 8px rgba(0, 255, 255, 0.3);
-        }
-        /* Collapsed state on mobile */
-        .game-setup-shared.collapsed {
-            max-height: 0;
-            overflow: hidden;
-            opacity: 0;
-            margin: 0;
-            padding: 0;
-        }
-        .game-setup-shared:not(.collapsed) {
-            max-height: none;
-            opacity: 1;
-        }
+    .section-divider {
+        height: 1px;
+        margin: 14px 0;
+        background: linear-gradient(
+            90deg,
+            transparent,
+            rgba(0, 255, 255, 0.12) 30%,
+            rgba(0, 255, 255, 0.12) 70%,
+            transparent
+        );
     }
 
-    /* -- 2-Column Flex Layout -- */
-    .content-flex {
-        display: flex;
+    /* Desktop: 2-column grid, both panels visible */
+    .menu-content {
+        display: grid;
+        grid-template-columns: 1fr clamp(280px, 22vw, 380px);
+        grid-template-areas:
+            "setup setup"
+            "sp    mp";
         gap: 20px;
+        width: 100%;
     }
-    .config-panel {
-        flex: 1;
-        min-width: 0;
+    .shared-setup {
+        grid-area: setup;
+    }
+    .sp-panel {
+        grid-area: sp;
     }
     .mp-panel {
-        flex: 0 0 clamp(280px, 22vw, 380px);
-        min-width: 0;
+        grid-area: mp;
     }
 
+    /* Desktop: override hidden so BOTH panels show side-by-side */
+    .menu-content [hidden] {
+        display: flex !important;
+        flex-direction: column;
+    }
+
+    /* Mobile: single column, tabs visible, hidden attr works normally */
     @media (max-width: 900px) {
         .responsive-tabs {
             display: flex;
-            flex-wrap: wrap;
         }
-        /* Tab-driven panel switching */
-        .mobile-hidden {
+
+        .menu-content {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .menu-content [hidden] {
             display: none !important;
         }
-        /* Stack to single column */
-        .content-flex {
-            flex-direction: column;
-        }
+        .sp-panel,
         .mp-panel {
-            flex: none;
             width: 100%;
         }
 
