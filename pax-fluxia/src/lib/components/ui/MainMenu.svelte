@@ -18,8 +18,8 @@
     let bgOpen = $state(false);
     let bgImage = $state(
         typeof localStorage !== "undefined"
-            ? localStorage.getItem("pax_bgImage") || ""
-            : "",
+            ? localStorage.getItem("pax_bgImage") || "pax-fluxia-bg-4.jpg"
+            : "pax-fluxia-bg-4.jpg",
     );
     $effect(() => {
         localStorage.setItem("pax_bgImage", bgImage);
@@ -634,14 +634,12 @@
                                         xmlns="http://www.w3.org/2000/svg"
                                     >
                                         {#each m.connections as [a, b]}
-                                            {@const sa = m.stars[a]}
-                                            {@const sb = m.stars[b]}
-                                            {#if sa && sb}
+                                            {#if m.stars[a] && m.stars[b]}
                                                 <line
-                                                    x1={sa.x}
-                                                    y1={sa.y}
-                                                    x2={sb.x}
-                                                    y2={sb.y}
+                                                    x1={m.stars[a].x}
+                                                    y1={m.stars[a].y}
+                                                    x2={m.stars[b].x}
+                                                    y2={m.stars[b].y}
                                                     stroke={mapType === m.id
                                                         ? "#4488ff44"
                                                         : "#334466"}
