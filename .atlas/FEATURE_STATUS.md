@@ -67,6 +67,11 @@
 | F-78 | Mobile responsive main menu: remove overflow:hidden scroll blockers, clamp() responsive title, 480px/900px breakpoints, grid stacking | High | Done (2026-02-22) |
 | F-79 | Mobile landscape game mode: full-canvas layout, floating HUD bar, bottom speed bar, slide-out drawer, touch gestures | Critical | Planning |
 | F-80 | Fullscreen background: 6-layer system (CSS nebula gradients, animated drift, SVG starfield, AI nebula texture, PIXI procedural starfield, territory glow bleed) + hex grid fix | High | Done (2026-02-23) |
+| F-81 | Mobile menu tab redesign: keep-mounted SP/MP tabs with `hidden` attr, CSS Grid desktop layout, shared-setup section | High | Done (2026-02-24) |
+| F-82 | Background switcher: dropdown with thumbnails, reads `static/assets/`, localStorage persistence, floating picker button | Medium | Done (2026-02-24) |
+| F-83 | Performance investigation: lag stutters ~1s intervals, needs profiling/triage | Critical | Open |
+| F-84 | Responsive game UI: in-game layout adaptation for mobile/tablet viewports | Critical | Planned |
+| F-85 | Map editor: visual editor for creating and editing game maps | High | Planned |
 
 ## Known Regressions
 | ID | Description | Since |
