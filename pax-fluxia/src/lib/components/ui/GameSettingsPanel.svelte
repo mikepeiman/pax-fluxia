@@ -527,8 +527,13 @@
         voronoiEdgeBlend: GAME_CONFIG.VORONOI_EDGE_BLEND,
         voronoiBorderWidth: GAME_CONFIG.VORONOI_BORDER_WIDTH,
         voronoiBorderAlpha: GAME_CONFIG.VORONOI_BORDER_ALPHA,
+        voronoiBorderBrighten: GAME_CONFIG.VORONOI_BORDER_BRIGHTEN,
         voronoiSaturation: GAME_CONFIG.VORONOI_SATURATION,
         voronoiLightness: GAME_CONFIG.VORONOI_LIGHTNESS,
+        voronoiGlowRadius: GAME_CONFIG.VORONOI_GLOW_RADIUS,
+        voronoiGlowAlpha: GAME_CONFIG.VORONOI_GLOW_ALPHA,
+        voronoiGlowLayers: GAME_CONFIG.VORONOI_GLOW_LAYERS,
+        bindAnimToTick: GAME_CONFIG.BIND_ANIMATION_TO_TICK,
     };
 
     function loadPanelSettings(): typeof panelDefaults {
@@ -669,8 +674,14 @@
         GAME_CONFIG.VORONOI_EDGE_BLEND = panel.voronoiEdgeBlend as number;
         GAME_CONFIG.VORONOI_BORDER_WIDTH = panel.voronoiBorderWidth as number;
         GAME_CONFIG.VORONOI_BORDER_ALPHA = panel.voronoiBorderAlpha as number;
+        GAME_CONFIG.VORONOI_BORDER_BRIGHTEN =
+            panel.voronoiBorderBrighten as number;
         GAME_CONFIG.VORONOI_SATURATION = panel.voronoiSaturation as number;
         GAME_CONFIG.VORONOI_LIGHTNESS = panel.voronoiLightness as number;
+        GAME_CONFIG.VORONOI_GLOW_RADIUS = panel.voronoiGlowRadius as number;
+        GAME_CONFIG.VORONOI_GLOW_ALPHA = panel.voronoiGlowAlpha as number;
+        GAME_CONFIG.VORONOI_GLOW_LAYERS = panel.voronoiGlowLayers as number;
+        GAME_CONFIG.BIND_ANIMATION_TO_TICK = panel.bindAnimToTick as boolean;
     }
 
     // =========================================================================
@@ -1231,8 +1242,13 @@
             voronoiEdgeBlend: GAME_CONFIG.VORONOI_EDGE_BLEND,
             voronoiBorderWidth: GAME_CONFIG.VORONOI_BORDER_WIDTH,
             voronoiBorderAlpha: GAME_CONFIG.VORONOI_BORDER_ALPHA,
+            voronoiBorderBrighten: GAME_CONFIG.VORONOI_BORDER_BRIGHTEN,
             voronoiSaturation: GAME_CONFIG.VORONOI_SATURATION,
             voronoiLightness: GAME_CONFIG.VORONOI_LIGHTNESS,
+            voronoiGlowRadius: GAME_CONFIG.VORONOI_GLOW_RADIUS,
+            voronoiGlowAlpha: GAME_CONFIG.VORONOI_GLOW_ALPHA,
+            voronoiGlowLayers: GAME_CONFIG.VORONOI_GLOW_LAYERS,
+            bindAnimToTick: GAME_CONFIG.BIND_ANIMATION_TO_TICK,
         };
         savePanelSettings();
 
@@ -1540,8 +1556,44 @@
                                 updateTickInterval(v);
                                 updatePanel("tickInterval", v);
                                 recalcAnimLocksOnTickChange(v);
+                                // Auto-sync animation speed when bound
+                                if (panel.bindAnimToTick) {
+                                    animationStore.setAnimationSpeed(v);
+                                    GAME_CONFIG.ANIMATION_SPEED_MS = v;
+                                    updatePanel("animSpeed", v);
+                                }
                             }}
                         />
+                    </div>
+                    <!-- Bind Animation to Tick Toggle -->
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Bind Anim → Tick</span>
+                            <label class="toggle-switch">
+                                <input
+                                    type="checkbox"
+                                    checked={panel.bindAnimToTick}
+                                    onchange={(e) => {
+                                        const v = (e.target as HTMLInputElement)
+                                            .checked;
+                                        GAME_CONFIG.BIND_ANIMATION_TO_TICK = v;
+                                        updatePanel("bindAnimToTick", v);
+                                        if (v) {
+                                            // Immediately sync animation speed to current tick interval
+                                            const tick =
+                                                GAME_CONFIG.BASE_TICK_MS;
+                                            animationStore.setAnimationSpeed(
+                                                tick,
+                                            );
+                                            GAME_CONFIG.ANIMATION_SPEED_MS =
+                                                tick;
+                                            updatePanel("animSpeed", tick);
+                                        }
+                                    }}
+                                />
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
                     </div>
                     <div class="var-row">
                         <div class="row-top">
@@ -1555,6 +1607,7 @@
                             max="5000"
                             step="50"
                             value={animationStore.speedMs}
+                            disabled={panel.bindAnimToTick as boolean}
                             oninput={(e) => {
                                 const v = parseInt(
                                     (e.target as HTMLInputElement).value,
@@ -3217,60 +3270,25 @@
                                 }}
                             />
                         </div>
-                        <div class="var-row">
-                            <div class="row-top">
-                                <span class="var-name">Resolution</span><span
-                                    class="val">{panel.voronoiResolution}</span
-                                >
-                            </div>
-                            <input
-                                type="range"
-                                min="1"
-                                max="8"
-                                step="1"
-                                value={panel.voronoiResolution}
-                                oninput={(e) => {
-                                    const v = +(e.target as HTMLInputElement)
-                                        .value;
-                                    GAME_CONFIG.VORONOI_RESOLUTION = v;
-                                    updatePanel("voronoiResolution", v);
-                                }}
-                            />
-                        </div>
-                        <div class="var-row">
-                            <div class="row-top">
-                                <span class="var-name">Edge Blend</span><span
-                                    class="val"
-                                    >{(
-                                        panel.voronoiEdgeBlend as number
-                                    ).toFixed(1)}</span
-                                >
-                            </div>
-                            <input
-                                type="range"
-                                min="0"
-                                max="3"
-                                step="0.1"
-                                value={panel.voronoiEdgeBlend}
-                                oninput={(e) => {
-                                    const v = +(e.target as HTMLInputElement)
-                                        .value;
-                                    GAME_CONFIG.VORONOI_EDGE_BLEND = v;
-                                    updatePanel("voronoiEdgeBlend", v);
-                                }}
-                            />
+                        <!-- Territory Borders -->
+                        <div
+                            class="var-row grayed"
+                            style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"
+                        >
+                            🔲 Borders
                         </div>
                         <div class="var-row">
                             <div class="row-top">
                                 <span class="var-name">Border Width</span><span
-                                    class="val">{panel.voronoiBorderWidth}</span
+                                    class="val"
+                                    >{panel.voronoiBorderWidth}px</span
                                 >
                             </div>
                             <input
                                 type="range"
                                 min="0"
-                                max="6"
-                                step="1"
+                                max="8"
+                                step="0.5"
                                 value={panel.voronoiBorderWidth}
                                 oninput={(e) => {
                                     const v = +(e.target as HTMLInputElement)
@@ -3302,6 +3320,34 @@
                                     updatePanel("voronoiBorderAlpha", v);
                                 }}
                             />
+                        </div>
+                        <div class="var-row">
+                            <div class="row-top">
+                                <span class="var-name">Border Brighten</span
+                                ><span class="val"
+                                    >{panel.voronoiBorderBrighten}</span
+                                >
+                            </div>
+                            <input
+                                type="range"
+                                min="0"
+                                max="255"
+                                step="5"
+                                value={panel.voronoiBorderBrighten}
+                                oninput={(e) => {
+                                    const v = +(e.target as HTMLInputElement)
+                                        .value;
+                                    GAME_CONFIG.VORONOI_BORDER_BRIGHTEN = v;
+                                    updatePanel("voronoiBorderBrighten", v);
+                                }}
+                            />
+                        </div>
+                        <!-- Color -->
+                        <div
+                            class="var-row grayed"
+                            style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"
+                        >
+                            🎨 Color
                         </div>
                         <div class="var-row">
                             <div class="row-top">
@@ -3346,6 +3392,79 @@
                                         .value;
                                     GAME_CONFIG.VORONOI_LIGHTNESS = v;
                                     updatePanel("voronoiLightness", v);
+                                }}
+                            />
+                        </div>
+                        <!-- Territory Glow -->
+                        <div
+                            class="var-row grayed"
+                            style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"
+                        >
+                            ✨ Territory Glow
+                        </div>
+                        <div class="var-row">
+                            <div class="row-top">
+                                <span class="var-name">Glow Radius</span><span
+                                    class="val"
+                                    >{(
+                                        panel.voronoiGlowRadius as number
+                                    ).toFixed(2)}</span
+                                >
+                            </div>
+                            <input
+                                type="range"
+                                min="0"
+                                max="1.0"
+                                step="0.05"
+                                value={panel.voronoiGlowRadius}
+                                oninput={(e) => {
+                                    const v = +(e.target as HTMLInputElement)
+                                        .value;
+                                    GAME_CONFIG.VORONOI_GLOW_RADIUS = v;
+                                    updatePanel("voronoiGlowRadius", v);
+                                }}
+                            />
+                        </div>
+                        <div class="var-row">
+                            <div class="row-top">
+                                <span class="var-name">Glow Alpha</span><span
+                                    class="val"
+                                    >{(
+                                        panel.voronoiGlowAlpha as number
+                                    ).toFixed(3)}</span
+                                >
+                            </div>
+                            <input
+                                type="range"
+                                min="0"
+                                max="0.2"
+                                step="0.005"
+                                value={panel.voronoiGlowAlpha}
+                                oninput={(e) => {
+                                    const v = +(e.target as HTMLInputElement)
+                                        .value;
+                                    GAME_CONFIG.VORONOI_GLOW_ALPHA = v;
+                                    updatePanel("voronoiGlowAlpha", v);
+                                }}
+                            />
+                        </div>
+                        <div class="var-row">
+                            <div class="row-top">
+                                <span class="var-name">Glow Layers</span><span
+                                    class="val">{panel.voronoiGlowLayers}</span
+                                >
+                            </div>
+                            <input
+                                type="range"
+                                min="1"
+                                max="8"
+                                step="1"
+                                value={panel.voronoiGlowLayers}
+                                oninput={(e) => {
+                                    const v = +(e.target as HTMLInputElement)
+                                        .value;
+                                    GAME_CONFIG.VORONOI_GLOW_LAYERS = v;
+                                    updatePanel("voronoiGlowLayers", v);
                                 }}
                             />
                         </div>

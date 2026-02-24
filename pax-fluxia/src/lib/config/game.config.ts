@@ -46,6 +46,9 @@ interface GameConfigType {
     MIN_TICK_MS: number;
     ANIMATION_SPEED_MS: number;
 
+    /** Bind animation speed to tick duration (default true) */
+    BIND_ANIMATION_TO_TICK: boolean;
+
     // Transfer
     TRANSFER_RATE: number;
     MIN_SHIPS_PER_TRANSFER: number;
@@ -229,12 +232,16 @@ interface GameConfigType {
     // ── Voronoi Territory ───────────────────────────────────────────────────
     SHOW_VORONOI: boolean;         // Show contiguous Voronoi territory fill (default true)
     VORONOI_ALPHA: number;         // Alpha for Voronoi territory (default 0.15)
-    VORONOI_RESOLUTION: number;    // Downscale factor for Voronoi canvas (default 4, higher = faster/blockier)
-    VORONOI_EDGE_BLEND: number;    // Edge blend factor (0=hard edges, 1+=soft, default 0)
+    VORONOI_RESOLUTION: number;    // Legacy (unused with d3-delaunay, kept for compat)
+    VORONOI_EDGE_BLEND: number;    // Legacy (unused with d3-delaunay, kept for compat)
     VORONOI_BORDER_WIDTH: number;  // Border line width between territories in pixels (0=off, default 2)
     VORONOI_BORDER_ALPHA: number;  // Alpha for territory border lines (default 0.4)
+    VORONOI_BORDER_BRIGHTEN: number; // How much to brighten border color (0-255, default 80)
     VORONOI_SATURATION: number;    // Saturation multiplier for Voronoi colors (0=grey, 1=normal, 2=vivid, default 1.0)
     VORONOI_LIGHTNESS: number;     // Lightness multiplier for Voronoi colors (0=dark, 1=normal, 2=bright, default 0.7)
+    VORONOI_GLOW_RADIUS: number;   // Territory glow bleed radius as fraction of map size (0-1, default 0.3)
+    VORONOI_GLOW_ALPHA: number;    // Peak glow alpha (0-0.2, default 0.04)
+    VORONOI_GLOW_LAYERS: number;   // Number of concentric glow layers (1-8, default 4)
     SHOW_HEX_GRID: boolean;
     STARS_PER_PLAYER: number;
 
@@ -300,6 +307,9 @@ const _rawConfig: GameConfigType = {
     /** Animation interpolation speed (ms) - controls visual smoothness of tick progress.
      *  Lower = faster visual transitions. Separate from actual tick rate. */
     ANIMATION_SPEED_MS: 1250,
+
+    /** Bind animation speed to tick duration */
+    BIND_ANIMATION_TO_TICK: true,
 
     // ========================================================================
     // TRANSFER MECHANICS
@@ -663,16 +673,24 @@ const _rawConfig: GameConfigType = {
     VORONOI_ALPHA: 0.1,
     /** Voronoi canvas downscale factor (higher = faster/blockier) */
     VORONOI_RESOLUTION: 4,
-    /** Voronoi edge blend (0=hard edges, higher=softer) */
-    VORONOI_EDGE_BLEND: 2.3,
+    /** Legacy (unused with d3-delaunay) */
+    VORONOI_EDGE_BLEND: 0,
     /** Voronoi border line width between territories (0=off) */
-    VORONOI_BORDER_WIDTH: 0,
+    VORONOI_BORDER_WIDTH: 2,
     /** Voronoi border alpha */
-    VORONOI_BORDER_ALPHA: 0.15,
+    VORONOI_BORDER_ALPHA: 0.4,
+    /** How much to brighten border color (0-255) */
+    VORONOI_BORDER_BRIGHTEN: 80,
     /** Voronoi color saturation multiplier (0=grey, 1=original, 2=vivid) */
     VORONOI_SATURATION: 1.0,
     /** Voronoi color lightness multiplier (0=dark, 1=original, 2=bright) */
     VORONOI_LIGHTNESS: 0.7,
+    /** Territory glow bleed radius as fraction of map size */
+    VORONOI_GLOW_RADIUS: 0.3,
+    /** Peak glow alpha per layer */
+    VORONOI_GLOW_ALPHA: 0.04,
+    /** Number of concentric glow layers */
+    VORONOI_GLOW_LAYERS: 4,
 
     /** Show hex grid (debug) */
     SHOW_HEX_GRID: false,

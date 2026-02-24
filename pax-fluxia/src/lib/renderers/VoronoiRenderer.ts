@@ -31,8 +31,9 @@ function buildFingerprint(stars: StarState[]): string {
         fp += `${s.id}:${s.ownerId ?? ''}|`;
     }
     fp += `${GAME_CONFIG.VORONOI_ALPHA}:${GAME_CONFIG.VORONOI_BORDER_WIDTH}`;
-    fp += `:${GAME_CONFIG.VORONOI_BORDER_ALPHA}`;
+    fp += `:${GAME_CONFIG.VORONOI_BORDER_ALPHA}:${GAME_CONFIG.VORONOI_BORDER_BRIGHTEN}`;
     fp += `:${GAME_CONFIG.VORONOI_SATURATION}:${GAME_CONFIG.VORONOI_LIGHTNESS}`;
+    fp += `:${GAME_CONFIG.VORONOI_GLOW_RADIUS}:${GAME_CONFIG.VORONOI_GLOW_ALPHA}:${GAME_CONFIG.VORONOI_GLOW_LAYERS}`;
     return fp;
 }
 
@@ -139,8 +140,12 @@ export function renderVoronoi(
     const alpha = GAME_CONFIG.VORONOI_ALPHA ?? 0.15;
     const borderWidth = GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 2;
     const borderAlpha = GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.4;
+    const borderBrighten = GAME_CONFIG.VORONOI_BORDER_BRIGHTEN ?? 80;
     const satMult = GAME_CONFIG.VORONOI_SATURATION ?? 1.0;
     const lightMult = GAME_CONFIG.VORONOI_LIGHTNESS ?? 0.7;
+    const glowRadius = GAME_CONFIG.VORONOI_GLOW_RADIUS ?? 0.3;
+    const glowAlpha = GAME_CONFIG.VORONOI_GLOW_ALPHA ?? 0.04;
+    const glowLayers = GAME_CONFIG.VORONOI_GLOW_LAYERS ?? 4;
 
     // Extend bounds so territory bleeds past map edges
     const pad = Math.max(worldWidth, worldHeight) * 0.5;
@@ -217,9 +222,9 @@ export function renderVoronoi(
                     if (ownerN !== ownerI) {
                         // This is a border between different owners
                         const borderColor = rgbToHex(
-                            Math.min(255, starColors[i].rgb[0] + 80),
-                            Math.min(255, starColors[i].rgb[1] + 80),
-                            Math.min(255, starColors[i].rgb[2] + 80),
+                            Math.min(255, starColors[i].rgb[0] + borderBrighten),
+                            Math.min(255, starColors[i].rgb[1] + borderBrighten),
+                            Math.min(255, starColors[i].rgb[2] + borderBrighten),
                         );
                         borderGraphics.moveTo(x1, y1);
                         borderGraphics.lineTo(x2, y2);
@@ -255,16 +260,15 @@ export function renderVoronoi(
     for (const [, group] of ownerGroups) {
         const cx = group.xs.reduce((a, b) => a + b, 0) / group.xs.length;
         const cy = group.ys.reduce((a, b) => a + b, 0) / group.ys.length;
-        const glowRadius = Math.max(worldWidth, worldHeight) * 0.3;
+        const glowR = Math.max(worldWidth, worldHeight) * glowRadius;
         const [r, g, b] = group.rgb;
         const color = rgbToHex(r, g, b);
 
-        // Draw concentric circles with decreasing alpha (approximates radial gradient)
-        const layers = 4;
-        for (let l = layers; l >= 1; l--) {
-            const frac = l / layers;
-            const layerAlpha = 0.03 * (1 - frac + 0.2);
-            glowGraphics.circle(cx, cy, glowRadius * frac);
+        // Draw concentric circles with decreasing alpha
+        for (let l = glowLayers; l >= 1; l--) {
+            const frac = l / glowLayers;
+            const layerAlpha = glowAlpha * (1 - frac + 0.2);
+            glowGraphics.circle(cx, cy, glowR * frac);
             glowGraphics.fill({ color, alpha: layerAlpha });
         }
     }
