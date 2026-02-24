@@ -1,42 +1,42 @@
 // ============================================================================
-// VoronoiRenderer — Contiguous territory fill by nearest star ownership
+// VoronoiRenderer — Contiguous territory fill via d3-delaunay polygons
 // ============================================================================
 //
-// Renders a full-map territory overlay where every pixel is colored by the
-// nearest owned star's player color. Creates contiguous territory regions
-// similar to the original Pax Solaris.
+// Renders per-star Voronoi cells as filled PixiJS polygons, colored by owner.
+// Uses d3-delaunay for O(n log n) Voronoi computation (~1ms for 20 stars).
 //
-// Performance: renders to a low-res offscreen canvas, only regenerates when
-// star ownership fingerprint changes. Displayed as a single PIXI.Sprite.
+// Performance: Voronoi diagram is only recomputed when ownership fingerprint
+// changes (typically once per tick when a conquest occurs).
 // ============================================================================
 
 import * as PIXI from 'pixi.js';
+import { Delaunay } from 'd3-delaunay';
 import { GAME_CONFIG } from '$lib/config/game.config';
 import type { StarState } from '$lib/types/game.types';
 import type { ColorUtils } from './RenderContext';
 
-/** Cached state to avoid unnecessary regeneration */
-let cachedFingerprint = '';
-let cachedSprite: PIXI.Sprite | null = null;
-let cachedTexture: PIXI.Texture | null = null;
+// ── Cache ──────────────────────────────────────────────────────────────────
 
-/**
- * Build ownership fingerprint — only regenerate when this changes.
- */
+let cachedFingerprint = '';
+let cellGraphics: PIXI.Graphics | null = null;
+let borderGraphics: PIXI.Graphics | null = null;
+let glowGraphics: PIXI.Graphics | null = null;
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+/** Build ownership fingerprint — only regenerate when this changes. */
 function buildFingerprint(stars: StarState[]): string {
     let fp = '';
     for (const s of stars) {
         fp += `${s.id}:${s.ownerId ?? ''}|`;
     }
-    fp += `${GAME_CONFIG.VORONOI_ALPHA}:${GAME_CONFIG.VORONOI_RESOLUTION}:${GAME_CONFIG.VORONOI_EDGE_BLEND}`;
-    fp += `:${GAME_CONFIG.VORONOI_BORDER_WIDTH}:${GAME_CONFIG.VORONOI_BORDER_ALPHA}`;
+    fp += `${GAME_CONFIG.VORONOI_ALPHA}:${GAME_CONFIG.VORONOI_BORDER_WIDTH}`;
+    fp += `:${GAME_CONFIG.VORONOI_BORDER_ALPHA}`;
     fp += `:${GAME_CONFIG.VORONOI_SATURATION}:${GAME_CONFIG.VORONOI_LIGHTNESS}`;
     return fp;
 }
 
-/**
- * Convert a numeric hex color (0xRRGGBB) to r,g,b components.
- */
+/** Convert a numeric hex color (0xRRGGBB) to r,g,b components. */
 function hexToRGB(hex: number): [number, number, number] {
     return [
         (hex >> 16) & 0xff,
@@ -45,9 +45,7 @@ function hexToRGB(hex: number): [number, number, number] {
     ];
 }
 
-/**
- * Convert RGB (0-255) to HSL (h:0-360, s:0-1, l:0-1).
- */
+/** Convert RGB (0-255) to HSL (h:0-360, s:0-1, l:0-1). */
 function rgbToHSL(r: number, g: number, b: number): [number, number, number] {
     r /= 255; g /= 255; b /= 255;
     const max = Math.max(r, g, b), min = Math.min(r, g, b);
@@ -62,9 +60,7 @@ function rgbToHSL(r: number, g: number, b: number): [number, number, number] {
     return [h * 360, s, l];
 }
 
-/**
- * Convert HSL (h:0-360, s:0-1, l:0-1) back to RGB (0-255).
- */
+/** Convert HSL (h:0-360, s:0-1, l:0-1) back to RGB (0-255). */
 function hslToRGB(h: number, s: number, l: number): [number, number, number] {
     h /= 360;
     if (s === 0) {
@@ -88,9 +84,7 @@ function hslToRGB(h: number, s: number, l: number): [number, number, number] {
     ];
 }
 
-/**
- * Adjust RGB color by saturation and lightness multipliers.
- */
+/** Adjust RGB color via HSL saturation + lightness multipliers. */
 function adjustColorHSL(
     r: number, g: number, b: number,
     satMult: number, lightMult: number,
@@ -101,9 +95,16 @@ function adjustColorHSL(
     return hslToRGB(h, newS, newL);
 }
 
+/** Pack r,g,b (0-255) into 0xRRGGBB. */
+function rgbToHex(r: number, g: number, b: number): number {
+    return (r << 16) | (g << 8) | b;
+}
+
+// ── Main Renderer ──────────────────────────────────────────────────────────
+
 /**
- * Render Voronoi territory overlay.
- * Only regenerates the offscreen canvas when ownership changes.
+ * Render Voronoi territory overlay using d3-delaunay polygon cells.
+ * Only regenerates when star ownership changes.
  */
 export function renderVoronoi(
     stars: StarState[],
@@ -113,17 +114,16 @@ export function renderVoronoi(
     worldHeight: number,
 ): void {
     if (!GAME_CONFIG.SHOW_VORONOI) {
-        if (cachedSprite && cachedSprite.parent) {
-            cachedSprite.visible = false;
-        }
+        voronoiContainer.visible = false;
         return;
     }
+
+    voronoiContainer.visible = true;
 
     const fingerprint = buildFingerprint(stars);
 
     // Skip regeneration if nothing changed
-    if (fingerprint === cachedFingerprint && cachedSprite) {
-        cachedSprite.visible = true;
+    if (fingerprint === cachedFingerprint && cellGraphics) {
         return;
     }
 
@@ -132,199 +132,162 @@ export function renderVoronoi(
     // Only consider owned stars for territory
     const ownedStars = stars.filter(s => s.ownerId);
     if (ownedStars.length === 0) {
-        if (cachedSprite) cachedSprite.visible = false;
+        voronoiContainer.visible = false;
         return;
     }
 
-    const resolution = Math.max(3, GAME_CONFIG.VORONOI_RESOLUTION ?? 4);
-    // Extend render area 50% beyond map in each direction so territory bleeds to edges
-    const extendFrac = 0.5;
-    const extX = Math.round(worldWidth * extendFrac);
-    const extY = Math.round(worldHeight * extendFrac);
-    const renderW = worldWidth + extX * 2;
-    const renderH = worldHeight + extY * 2;
-    const canvasW = Math.ceil(renderW / resolution);
-    const canvasH = Math.ceil(renderH / resolution);
-    const canvasExtX = Math.round(extX / resolution);
-    const canvasExtY = Math.round(extY / resolution);
     const alpha = GAME_CONFIG.VORONOI_ALPHA ?? 0.15;
-    const edgeBlend = GAME_CONFIG.VORONOI_EDGE_BLEND ?? 0;
-    const borderWidth = Math.round((GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 2) / resolution);
+    const borderWidth = GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 2;
     const borderAlpha = GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.4;
     const satMult = GAME_CONFIG.VORONOI_SATURATION ?? 1.0;
     const lightMult = GAME_CONFIG.VORONOI_LIGHTNESS ?? 0.7;
 
-    // Create offscreen canvas
-    const canvas = document.createElement('canvas');
-    canvas.width = canvasW;
-    canvas.height = canvasH;
-    const ctx = canvas.getContext('2d')!;
+    // Extend bounds so territory bleeds past map edges
+    const pad = Math.max(worldWidth, worldHeight) * 0.5;
+    const bounds: [number, number, number, number] = [
+        -pad, -pad,
+        worldWidth + pad, worldHeight + pad,
+    ];
 
-    // Pre-compute star data at canvas scale with HSL adjustments
-    // Shift star positions by extension offset so they're centered in the larger canvas
-    const starData = ownedStars.map(s => {
+    // ── Compute Voronoi diagram via d3-delaunay ──
+    const points = ownedStars.map(s => [s.x, s.y] as [number, number]);
+    const delaunay = Delaunay.from(points);
+    const voronoi = delaunay.voronoi(bounds);
+
+    // Pre-compute adjusted colors per star
+    const starColors: { hex: number; rgb: [number, number, number] }[] = ownedStars.map(s => {
         const rawRgb = hexToRGB(colorUtils.getPlayerColor(s.ownerId!));
         const rgb = adjustColorHSL(rawRgb[0], rawRgb[1], rawRgb[2], satMult, lightMult);
-        return {
-            x: s.x / resolution + canvasExtX,
-            y: s.y / resolution + canvasExtY,
-            rgb,
-            ownerId: s.ownerId!,
-        };
+        return { hex: rgbToHex(rgb[0], rgb[1], rgb[2]), rgb };
     });
 
-    // Create ImageData for direct pixel manipulation
-    const imageData = ctx.createImageData(canvasW, canvasH);
-    const pixels = imageData.data;
+    // ── Draw filled cells ──
+    if (!cellGraphics) {
+        cellGraphics = new PIXI.Graphics();
+        voronoiContainer.addChild(cellGraphics);
+    }
+    cellGraphics.clear();
 
-    // Build ownership map (which star index owns each pixel)
-    const ownerMap = new Int16Array(canvasW * canvasH);
+    for (let i = 0; i < ownedStars.length; i++) {
+        const cell = voronoi.cellPolygon(i);
+        if (!cell || cell.length < 3) continue;
 
-    // Pass 1: Assign nearest star to each pixel
-    for (let py = 0; py < canvasH; py++) {
-        for (let px = 0; px < canvasW; px++) {
-            let minDist = Infinity;
-            let nearestIdx = 0;
-
-            for (let i = 0; i < starData.length; i++) {
-                const dx = px - starData[i].x;
-                const dy = py - starData[i].y;
-                const dist = dx * dx + dy * dy;
-                if (dist < minDist) {
-                    minDist = dist;
-                    nearestIdx = i;
-                }
-            }
-
-            ownerMap[py * canvasW + px] = nearestIdx;
-        }
+        const color = starColors[i];
+        cellGraphics.poly(cell.flat());
+        cellGraphics.fill({ color: color.hex, alpha });
     }
 
-    // Pass 2: Fill pixels with color + optional edge blend + borders
-    for (let py = 0; py < canvasH; py++) {
-        for (let px = 0; px < canvasW; px++) {
-            const mapIdx = py * canvasW + px;
-            const nearestIdx = ownerMap[mapIdx];
-            const [r, g, b] = starData[nearestIdx].rgb;
-            let pixelAlpha = alpha;
+    // ── Draw territory borders ──
+    if (borderWidth > 0 && borderAlpha > 0) {
+        if (!borderGraphics) {
+            borderGraphics = new PIXI.Graphics();
+            voronoiContainer.addChild(borderGraphics);
+        }
+        borderGraphics.clear();
 
-            // Edge blend: reduce alpha near territory boundaries
-            if (edgeBlend > 0) {
-                // Use squared distances (avoid Math.sqrt per pixel)
-                let secondMinDistSq = Infinity;
-                const dxMe = px - starData[nearestIdx].x;
-                const dyMe = py - starData[nearestIdx].y;
-                const myDistSq = dxMe * dxMe + dyMe * dyMe;
-                for (let i = 0; i < starData.length; i++) {
-                    if (starData[i].ownerId === starData[nearestIdx].ownerId) continue;
-                    const dx = px - starData[i].x;
-                    const dy = py - starData[i].y;
-                    const distSq = dx * dx + dy * dy;
-                    if (distSq < secondMinDistSq) secondMinDistSq = distSq;
-                }
-                if (secondMinDistSq < Infinity) {
-                    // Approximate blend using squared distances
-                    const edgeDist = (secondMinDistSq - myDistSq) / (myDistSq + secondMinDistSq + 0.001);
-                    const blendFactor = Math.min(1, edgeDist / (edgeBlend * 0.1));
-                    pixelAlpha *= Math.max(0, blendFactor);
-                }
-            }
+        // Find edges between cells of different owners
+        for (let i = 0; i < ownedStars.length; i++) {
+            const cell = voronoi.cellPolygon(i);
+            if (!cell || cell.length < 3) continue;
 
-            // Check if this pixel is on a territory border
-            let isBorder = false;
-            if (borderWidth > 0 && borderAlpha > 0) {
-                const myOwner = starData[nearestIdx].ownerId;
-                // Check neighbors within border width
-                for (let dy = -borderWidth; dy <= borderWidth && !isBorder; dy++) {
-                    for (let dx = -borderWidth; dx <= borderWidth && !isBorder; dx++) {
-                        if (dx === 0 && dy === 0) continue;
-                        const nx = px + dx;
-                        const ny = py + dy;
-                        if (nx < 0 || nx >= canvasW || ny < 0 || ny >= canvasH) continue;
-                        const neighborIdx = ownerMap[ny * canvasW + nx];
-                        if (starData[neighborIdx].ownerId !== myOwner) {
-                            isBorder = true;
-                        }
+            const ownerI = ownedStars[i].ownerId;
+
+            // Check each edge of this cell against neighbors
+            for (let j = 0; j < cell.length - 1; j++) {
+                const [x1, y1] = cell[j];
+                const [x2, y2] = cell[j + 1];
+
+                // Find which neighbor shares this edge (midpoint test)
+                const mx = (x1 + x2) / 2;
+                const my = (y1 + y2) / 2;
+
+                // Nudge midpoint slightly toward the neighboring cell to find its owner
+                const dx = x2 - x1;
+                const dy = y2 - y1;
+                // Normal to edge, pointing outward from cell center
+                const nx = dy;
+                const ny = -dx;
+                const len = Math.sqrt(nx * nx + ny * ny) || 1;
+                const probeX = mx + (nx / len) * 0.5;
+                const probeY = my + (ny / len) * 0.5;
+
+                const neighborIdx = delaunay.find(probeX, probeY);
+                if (neighborIdx !== i && neighborIdx < ownedStars.length) {
+                    const ownerN = ownedStars[neighborIdx].ownerId;
+                    if (ownerN !== ownerI) {
+                        // This is a border between different owners
+                        const borderColor = rgbToHex(
+                            Math.min(255, starColors[i].rgb[0] + 80),
+                            Math.min(255, starColors[i].rgb[1] + 80),
+                            Math.min(255, starColors[i].rgb[2] + 80),
+                        );
+                        borderGraphics.moveTo(x1, y1);
+                        borderGraphics.lineTo(x2, y2);
+                        borderGraphics.stroke({ width: borderWidth, color: borderColor, alpha: borderAlpha });
                     }
                 }
             }
-
-            const idx = mapIdx * 4;
-            if (isBorder) {
-                // Border pixels: bright white/light at higher alpha
-                pixels[idx] = Math.min(255, r + 100);
-                pixels[idx + 1] = Math.min(255, g + 100);
-                pixels[idx + 2] = Math.min(255, b + 100);
-                pixels[idx + 3] = Math.round(borderAlpha * 255);
-            } else {
-                pixels[idx] = r;
-                pixels[idx + 1] = g;
-                pixels[idx + 2] = b;
-                pixels[idx + 3] = Math.round(pixelAlpha * 255);
-            }
         }
+    } else if (borderGraphics) {
+        borderGraphics.clear();
     }
 
-    ctx.putImageData(imageData, 0, 0);
+    // ── Territory glow bleed (faint radial per-player centroid) ──
+    if (!glowGraphics) {
+        glowGraphics = new PIXI.Graphics();
+        voronoiContainer.addChild(glowGraphics);
+    }
+    glowGraphics.clear();
 
-    // L6: Territory glow bleed — faint per-player radial glows extending beyond map
-    // Group stars by owner to compute territory centroids
+    // Group stars by owner for centroid glow
     const ownerGroups = new Map<string, { xs: number[]; ys: number[]; rgb: [number, number, number] }>();
-    for (const sd of starData) {
-        let group = ownerGroups.get(sd.ownerId);
-        if (!group) {
-            group = { xs: [], ys: [], rgb: sd.rgb };
-            ownerGroups.set(sd.ownerId, group);
+    for (let i = 0; i < ownedStars.length; i++) {
+        const oid = ownedStars[i].ownerId!;
+        let g = ownerGroups.get(oid);
+        if (!g) {
+            g = { xs: [], ys: [], rgb: starColors[i].rgb };
+            ownerGroups.set(oid, g);
         }
-        group.xs.push(sd.x);
-        group.ys.push(sd.y);
+        g.xs.push(ownedStars[i].x);
+        g.ys.push(ownedStars[i].y);
     }
+
     for (const [, group] of ownerGroups) {
         const cx = group.xs.reduce((a, b) => a + b, 0) / group.xs.length;
         const cy = group.ys.reduce((a, b) => a + b, 0) / group.ys.length;
+        const glowRadius = Math.max(worldWidth, worldHeight) * 0.3;
         const [r, g, b] = group.rgb;
-        const glowRadius = Math.max(canvasW, canvasH) * 0.4; // Large bleed radius
-        const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, glowRadius);
-        grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.04)`);
-        grad.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, 0.015)`);
-        grad.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, canvasW, canvasH);
+        const color = rgbToHex(r, g, b);
+
+        // Draw concentric circles with decreasing alpha (approximates radial gradient)
+        const layers = 4;
+        for (let l = layers; l >= 1; l--) {
+            const frac = l / layers;
+            const layerAlpha = 0.03 * (1 - frac + 0.2);
+            glowGraphics.circle(cx, cy, glowRadius * frac);
+            glowGraphics.fill({ color, alpha: layerAlpha });
+        }
     }
-
-    // Create PIXI texture from canvas
-    if (cachedTexture) cachedTexture.destroy(true);
-    cachedTexture = PIXI.Texture.from(canvas);
-    cachedTexture.source.scaleMode = 'linear';
-
-    // Create or update sprite
-    if (!cachedSprite) {
-        cachedSprite = new PIXI.Sprite(cachedTexture);
-        voronoiContainer.addChild(cachedSprite);
-    } else {
-        cachedSprite.texture = cachedTexture;
-    }
-
-    // Position sprite to account for the extension offset
-    cachedSprite.x = -extX;
-    cachedSprite.y = -extY;
-    cachedSprite.width = renderW;
-    cachedSprite.height = renderH;
-    cachedSprite.visible = true;
 }
 
-/**
- * Reset cached data (call on game session change).
- */
+// ── Cache Reset ────────────────────────────────────────────────────────────
+
+/** Reset cached data (call on game session change). */
 export function resetVoronoiCache(): void {
     cachedFingerprint = '';
-    if (cachedSprite) {
-        if (cachedSprite.parent) cachedSprite.parent.removeChild(cachedSprite);
-        cachedSprite.destroy();
-        cachedSprite = null;
+    if (cellGraphics) {
+        if (cellGraphics.parent) cellGraphics.parent.removeChild(cellGraphics);
+        cellGraphics.destroy();
+        cellGraphics = null;
     }
-    if (cachedTexture) {
-        cachedTexture.destroy(true);
-        cachedTexture = null;
+    if (borderGraphics) {
+        if (borderGraphics.parent) borderGraphics.parent.removeChild(borderGraphics);
+        borderGraphics.destroy();
+        borderGraphics = null;
+    }
+    if (glowGraphics) {
+        if (glowGraphics.parent) glowGraphics.parent.removeChild(glowGraphics);
+        glowGraphics.destroy();
+        glowGraphics = null;
     }
 }
