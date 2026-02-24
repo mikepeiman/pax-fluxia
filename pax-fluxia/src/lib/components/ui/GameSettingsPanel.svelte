@@ -521,6 +521,8 @@
         territoryRadiusMult: GAME_CONFIG.TERRITORY_RADIUS_MULT,
         haloFleetScale: GAME_CONFIG.HALO_FLEET_SCALE,
         haloFleetIntensity: GAME_CONFIG.HALO_FLEET_INTENSITY,
+        haloFleetMode: GAME_CONFIG.HALO_FLEET_MODE,
+        haloFleetStepSize: GAME_CONFIG.HALO_FLEET_STEP_SIZE,
         showVoronoi: GAME_CONFIG.SHOW_VORONOI,
         voronoiAlpha: GAME_CONFIG.VORONOI_ALPHA,
         voronoiResolution: GAME_CONFIG.VORONOI_RESOLUTION,
@@ -669,6 +671,8 @@
         GAME_CONFIG.TERRITORY_RADIUS_MULT = panel.territoryRadiusMult as number;
         GAME_CONFIG.HALO_FLEET_SCALE = panel.haloFleetScale as boolean;
         GAME_CONFIG.HALO_FLEET_INTENSITY = panel.haloFleetIntensity as number;
+        GAME_CONFIG.HALO_FLEET_MODE = panel.haloFleetMode as string;
+        GAME_CONFIG.HALO_FLEET_STEP_SIZE = panel.haloFleetStepSize as number;
         GAME_CONFIG.SHOW_VORONOI = panel.showVoronoi as boolean;
         GAME_CONFIG.VORONOI_ALPHA = panel.voronoiAlpha as number;
         GAME_CONFIG.VORONOI_RESOLUTION = panel.voronoiResolution as number;
@@ -1238,6 +1242,8 @@
             territoryRadiusMult: GAME_CONFIG.TERRITORY_RADIUS_MULT,
             haloFleetScale: GAME_CONFIG.HALO_FLEET_SCALE,
             haloFleetIntensity: GAME_CONFIG.HALO_FLEET_INTENSITY,
+            haloFleetMode: GAME_CONFIG.HALO_FLEET_MODE,
+            haloFleetStepSize: GAME_CONFIG.HALO_FLEET_STEP_SIZE,
             showVoronoi: GAME_CONFIG.SHOW_VORONOI,
             voronoiAlpha: GAME_CONFIG.VORONOI_ALPHA,
             voronoiResolution: GAME_CONFIG.VORONOI_RESOLUTION,
@@ -3226,6 +3232,64 @@
                                     }}
                                 />
                             </div>
+                            <div class="var-row">
+                                <div class="row-top">
+                                    <span class="var-name">Fleet Mode</span>
+                                    <div style="display: flex; gap: 4px;">
+                                        <button
+                                            class="mode-btn"
+                                            class:active={panel.haloFleetMode ===
+                                                "stepped"}
+                                            onclick={() => {
+                                                GAME_CONFIG.HALO_FLEET_MODE =
+                                                    "stepped";
+                                                updatePanel(
+                                                    "haloFleetMode",
+                                                    "stepped",
+                                                );
+                                            }}>Stepped</button
+                                        >
+                                        <button
+                                            class="mode-btn"
+                                            class:active={panel.haloFleetMode ===
+                                                "linear"}
+                                            onclick={() => {
+                                                GAME_CONFIG.HALO_FLEET_MODE =
+                                                    "linear";
+                                                updatePanel(
+                                                    "haloFleetMode",
+                                                    "linear",
+                                                );
+                                            }}>Linear</button
+                                        >
+                                    </div>
+                                </div>
+                            </div>
+                            {#if panel.haloFleetMode === "stepped"}
+                                <div class="var-row">
+                                    <div class="row-top">
+                                        <span class="var-name">Step Size</span
+                                        ><span class="val"
+                                            >{panel.haloFleetStepSize} ships</span
+                                        >
+                                    </div>
+                                    <input
+                                        type="range"
+                                        min="100"
+                                        max="2000"
+                                        step="100"
+                                        value={panel.haloFleetStepSize}
+                                        oninput={(e) => {
+                                            const v = +(
+                                                e.target as HTMLInputElement
+                                            ).value;
+                                            GAME_CONFIG.HALO_FLEET_STEP_SIZE =
+                                                v;
+                                            updatePanel("haloFleetStepSize", v);
+                                        }}
+                                    />
+                                </div>
+                            {/if}
                         {/if}
                     {/if}
 

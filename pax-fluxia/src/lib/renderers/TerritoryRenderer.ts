@@ -36,14 +36,23 @@ export function renderTerritory(
         const color = colorUtils.getPlayerColor(star.ownerId);
         const radius = star.radius * radiusMult;
 
-        // Fleet-size alpha boost: larger fleets = brighter halos (smooth linear)
+        // Fleet-size alpha boost (two modes available)
         let starAlpha = alpha;
         if (GAME_CONFIG.HALO_FLEET_SCALE) {
             const totalShips = star.activeShips + star.damagedShips;
             const intensity = GAME_CONFIG.HALO_FLEET_INTENSITY ?? 1.0;
-            // Linear from alpha → alpha+0.2 over 0→10k ships, scaled by intensity
-            const t = Math.min(totalShips / 10000, 1);
-            starAlpha = alpha + (t * 0.2 * intensity);
+            const mode = GAME_CONFIG.HALO_FLEET_MODE ?? 'linear';
+
+            if (mode === 'stepped') {
+                // Original: discrete boost per step (e.g. +0.03 per 500 ships)
+                const stepSize = GAME_CONFIG.HALO_FLEET_STEP_SIZE ?? 500;
+                const stepBoost = Math.floor(totalShips / stepSize) * 0.03 * intensity;
+                starAlpha = alpha + stepBoost;
+            } else {
+                // Linear: smooth from alpha → alpha+0.2 over 0→10k ships
+                const t = Math.min(totalShips / 10000, 1);
+                starAlpha = alpha + (t * 0.2 * intensity);
+            }
         }
 
         if (starAlpha <= 0) continue;

@@ -196,6 +196,8 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'territoryRadiusMult', configKey: 'TERRITORY_RADIUS_MULT' },
     { panelKey: 'haloFleetScale', configKey: 'HALO_FLEET_SCALE' },
     { panelKey: 'haloFleetIntensity', configKey: 'HALO_FLEET_INTENSITY' },
+    { panelKey: 'haloFleetMode', configKey: 'HALO_FLEET_MODE' },
+    { panelKey: 'haloFleetStepSize', configKey: 'HALO_FLEET_STEP_SIZE' },
     { panelKey: 'showVoronoi', configKey: 'SHOW_VORONOI' },
     { panelKey: 'voronoiAlpha', configKey: 'VORONOI_ALPHA' },
     { panelKey: 'voronoiResolution', configKey: 'VORONOI_RESOLUTION' },
