@@ -3208,14 +3208,14 @@
                                     ><span class="val"
                                         >{(
                                             panel.haloFleetIntensity as number
-                                        ).toFixed(3)}</span
+                                        ).toFixed(1)}×</span
                                     >
                                 </div>
                                 <input
                                     type="range"
-                                    min="0.005"
-                                    max="0.1"
-                                    step="0.005"
+                                    min="0"
+                                    max="2"
+                                    step="0.1"
                                     value={panel.haloFleetIntensity}
                                     oninput={(e) => {
                                         const v = +(
@@ -3418,79 +3418,6 @@
                                         .value;
                                     GAME_CONFIG.VORONOI_LIGHTNESS = v;
                                     updatePanel("voronoiLightness", v);
-                                }}
-                            />
-                        </div>
-                        <!-- Territory Glow -->
-                        <div
-                            class="var-row grayed"
-                            style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"
-                        >
-                            ✨ Territory Glow
-                        </div>
-                        <div class="var-row">
-                            <div class="row-top">
-                                <span class="var-name">Glow Radius</span><span
-                                    class="val"
-                                    >{(
-                                        panel.voronoiGlowRadius as number
-                                    ).toFixed(2)}</span
-                                >
-                            </div>
-                            <input
-                                type="range"
-                                min="0"
-                                max="1.0"
-                                step="0.05"
-                                value={panel.voronoiGlowRadius}
-                                oninput={(e) => {
-                                    const v = +(e.target as HTMLInputElement)
-                                        .value;
-                                    GAME_CONFIG.VORONOI_GLOW_RADIUS = v;
-                                    updatePanel("voronoiGlowRadius", v);
-                                }}
-                            />
-                        </div>
-                        <div class="var-row">
-                            <div class="row-top">
-                                <span class="var-name">Glow Alpha</span><span
-                                    class="val"
-                                    >{(
-                                        panel.voronoiGlowAlpha as number
-                                    ).toFixed(3)}</span
-                                >
-                            </div>
-                            <input
-                                type="range"
-                                min="0"
-                                max="0.2"
-                                step="0.005"
-                                value={panel.voronoiGlowAlpha}
-                                oninput={(e) => {
-                                    const v = +(e.target as HTMLInputElement)
-                                        .value;
-                                    GAME_CONFIG.VORONOI_GLOW_ALPHA = v;
-                                    updatePanel("voronoiGlowAlpha", v);
-                                }}
-                            />
-                        </div>
-                        <div class="var-row">
-                            <div class="row-top">
-                                <span class="var-name">Glow Layers</span><span
-                                    class="val">{panel.voronoiGlowLayers}</span
-                                >
-                            </div>
-                            <input
-                                type="range"
-                                min="1"
-                                max="8"
-                                step="1"
-                                value={panel.voronoiGlowLayers}
-                                oninput={(e) => {
-                                    const v = +(e.target as HTMLInputElement)
-                                        .value;
-                                    GAME_CONFIG.VORONOI_GLOW_LAYERS = v;
-                                    updatePanel("voronoiGlowLayers", v);
                                 }}
                             />
                         </div>
