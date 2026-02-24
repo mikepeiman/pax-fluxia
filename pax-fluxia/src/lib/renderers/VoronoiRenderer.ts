@@ -20,7 +20,6 @@ import type { ColorUtils } from './RenderContext';
 let cachedFingerprint = '';
 let cellGraphics: PIXI.Graphics | null = null;
 let borderGraphics: PIXI.Graphics | null = null;
-let glowGraphics: PIXI.Graphics | null = null;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -144,9 +143,6 @@ export function renderVoronoi(
     const borderBrighten = GAME_CONFIG.VORONOI_BORDER_BRIGHTEN ?? 80;
     const satMult = GAME_CONFIG.VORONOI_SATURATION ?? 1.0;
     const lightMult = GAME_CONFIG.VORONOI_LIGHTNESS ?? 0.7;
-    const glowRadius = GAME_CONFIG.VORONOI_GLOW_RADIUS ?? 0.3;
-    const glowAlpha = GAME_CONFIG.VORONOI_GLOW_ALPHA ?? 0.04;
-    const glowLayers = GAME_CONFIG.VORONOI_GLOW_LAYERS ?? 4;
 
     // Extend bounds so territory bleeds past map edges
     const pad = Math.max(worldWidth, worldHeight) * 0.5;
@@ -238,42 +234,6 @@ export function renderVoronoi(
         borderGraphics.clear();
     }
 
-    // ── Territory glow bleed (faint radial per-player centroid) ──
-    if (!glowGraphics) {
-        glowGraphics = new PIXI.Graphics();
-        voronoiContainer.addChild(glowGraphics);
-    }
-    glowGraphics.clear();
-
-    // Group stars by owner for centroid glow
-    const ownerGroups = new Map<string, { xs: number[]; ys: number[]; rgb: [number, number, number] }>();
-    for (let i = 0; i < ownedStars.length; i++) {
-        const oid = ownedStars[i].ownerId!;
-        let g = ownerGroups.get(oid);
-        if (!g) {
-            g = { xs: [], ys: [], rgb: starColors[i].rgb };
-            ownerGroups.set(oid, g);
-        }
-        g.xs.push(ownedStars[i].x);
-        g.ys.push(ownedStars[i].y);
-    }
-
-    for (const [, group] of ownerGroups) {
-        const cx = group.xs.reduce((a, b) => a + b, 0) / group.xs.length;
-        const cy = group.ys.reduce((a, b) => a + b, 0) / group.ys.length;
-        const glowR = Math.max(worldWidth, worldHeight) * glowRadius;
-        const [r, g, b] = group.rgb;
-        const color = rgbToHex(r, g, b);
-
-        // Draw concentric circles with decreasing alpha
-        for (let l = glowLayers; l >= 1; l--) {
-            const frac = l / glowLayers;
-            const layerAlpha = glowAlpha * (1 - frac + 0.2);
-            glowGraphics.circle(cx, cy, glowR * frac);
-            glowGraphics.fill({ color, alpha: layerAlpha });
-        }
-    }
-
     // ── Apply GPU blur for smooth territory edges ──
     const blurStrength = GAME_CONFIG.VORONOI_BLUR ?? 8;
     if (blurStrength > 0) {
@@ -298,10 +258,5 @@ export function resetVoronoiCache(): void {
         if (borderGraphics.parent) borderGraphics.parent.removeChild(borderGraphics);
         borderGraphics.destroy();
         borderGraphics = null;
-    }
-    if (glowGraphics) {
-        if (glowGraphics.parent) glowGraphics.parent.removeChild(glowGraphics);
-        glowGraphics.destroy();
-        glowGraphics = null;
     }
 }
