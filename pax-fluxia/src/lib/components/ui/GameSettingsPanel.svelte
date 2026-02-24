@@ -533,6 +533,7 @@
         voronoiGlowRadius: GAME_CONFIG.VORONOI_GLOW_RADIUS,
         voronoiGlowAlpha: GAME_CONFIG.VORONOI_GLOW_ALPHA,
         voronoiGlowLayers: GAME_CONFIG.VORONOI_GLOW_LAYERS,
+        voronoiBlur: GAME_CONFIG.VORONOI_BLUR,
         bindAnimToTick: GAME_CONFIG.BIND_ANIMATION_TO_TICK,
     };
 
@@ -681,6 +682,7 @@
         GAME_CONFIG.VORONOI_GLOW_RADIUS = panel.voronoiGlowRadius as number;
         GAME_CONFIG.VORONOI_GLOW_ALPHA = panel.voronoiGlowAlpha as number;
         GAME_CONFIG.VORONOI_GLOW_LAYERS = panel.voronoiGlowLayers as number;
+        GAME_CONFIG.VORONOI_BLUR = panel.voronoiBlur as number;
         GAME_CONFIG.BIND_ANIMATION_TO_TICK = panel.bindAnimToTick as boolean;
     }
 
@@ -1248,6 +1250,7 @@
             voronoiGlowRadius: GAME_CONFIG.VORONOI_GLOW_RADIUS,
             voronoiGlowAlpha: GAME_CONFIG.VORONOI_GLOW_ALPHA,
             voronoiGlowLayers: GAME_CONFIG.VORONOI_GLOW_LAYERS,
+            voronoiBlur: GAME_CONFIG.VORONOI_BLUR,
             bindAnimToTick: GAME_CONFIG.BIND_ANIMATION_TO_TICK,
         };
         savePanelSettings();
@@ -3267,6 +3270,29 @@
                                         .value;
                                     GAME_CONFIG.VORONOI_ALPHA = v;
                                     updatePanel("voronoiAlpha", v);
+                                }}
+                            />
+                        </div>
+                        <div class="var-row">
+                            <div class="row-top">
+                                <span class="var-name">Edge Blur</span><span
+                                    class="val"
+                                    >{(panel.voronoiBlur as number).toFixed(
+                                        0,
+                                    )}px</span
+                                >
+                            </div>
+                            <input
+                                type="range"
+                                min="0"
+                                max="30"
+                                step="1"
+                                value={panel.voronoiBlur}
+                                oninput={(e) => {
+                                    const v = +(e.target as HTMLInputElement)
+                                        .value;
+                                    GAME_CONFIG.VORONOI_BLUR = v;
+                                    updatePanel("voronoiBlur", v);
                                 }}
                             />
                         </div>

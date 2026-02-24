@@ -208,6 +208,7 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'voronoiGlowRadius', configKey: 'VORONOI_GLOW_RADIUS' },
     { panelKey: 'voronoiGlowAlpha', configKey: 'VORONOI_GLOW_ALPHA' },
     { panelKey: 'voronoiGlowLayers', configKey: 'VORONOI_GLOW_LAYERS' },
+    { panelKey: 'voronoiBlur', configKey: 'VORONOI_BLUR' },
 ];
 
 // ── ConfigKey → PanelKey lookup (for animSliderToPanelKey) ──────────────────

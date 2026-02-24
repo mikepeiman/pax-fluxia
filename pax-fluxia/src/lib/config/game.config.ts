@@ -242,6 +242,7 @@ interface GameConfigType {
     VORONOI_GLOW_RADIUS: number;   // Territory glow bleed radius as fraction of map size (0-1, default 0.3)
     VORONOI_GLOW_ALPHA: number;    // Peak glow alpha (0-0.2, default 0.04)
     VORONOI_GLOW_LAYERS: number;   // Number of concentric glow layers (1-8, default 4)
+    VORONOI_BLUR: number;          // GPU blur strength for smooth territory edges (0=sharp, 8=soft, default 8)
     SHOW_HEX_GRID: boolean;
     STARS_PER_PLAYER: number;
 
@@ -691,6 +692,8 @@ const _rawConfig: GameConfigType = {
     VORONOI_GLOW_ALPHA: 0.04,
     /** Number of concentric glow layers */
     VORONOI_GLOW_LAYERS: 4,
+    /** GPU blur for smooth territory edges (0=sharp, higher=softer) */
+    VORONOI_BLUR: 8,
 
     /** Show hex grid (debug) */
     SHOW_HEX_GRID: false,

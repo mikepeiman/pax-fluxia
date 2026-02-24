@@ -34,6 +34,7 @@ function buildFingerprint(stars: StarState[]): string {
     fp += `:${GAME_CONFIG.VORONOI_BORDER_ALPHA}:${GAME_CONFIG.VORONOI_BORDER_BRIGHTEN}`;
     fp += `:${GAME_CONFIG.VORONOI_SATURATION}:${GAME_CONFIG.VORONOI_LIGHTNESS}`;
     fp += `:${GAME_CONFIG.VORONOI_GLOW_RADIUS}:${GAME_CONFIG.VORONOI_GLOW_ALPHA}:${GAME_CONFIG.VORONOI_GLOW_LAYERS}`;
+    fp += `:${GAME_CONFIG.VORONOI_BLUR}`;
     return fp;
 }
 
@@ -271,6 +272,15 @@ export function renderVoronoi(
             glowGraphics.circle(cx, cy, glowR * frac);
             glowGraphics.fill({ color, alpha: layerAlpha });
         }
+    }
+
+    // ── Apply GPU blur for smooth territory edges ──
+    const blurStrength = GAME_CONFIG.VORONOI_BLUR ?? 8;
+    if (blurStrength > 0) {
+        const blur = new PIXI.BlurFilter({ strength: blurStrength, quality: 4 });
+        voronoiContainer.filters = [blur];
+    } else {
+        voronoiContainer.filters = [];
     }
 }
 
