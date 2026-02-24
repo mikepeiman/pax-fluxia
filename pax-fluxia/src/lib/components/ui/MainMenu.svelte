@@ -13,6 +13,26 @@
 
     let visible = $state(true);
 
+    // ── Background Switcher ──
+    let bgImages = $state<string[]>([]);
+    let bgOpen = $state(false);
+    let bgImage = $state(
+        typeof localStorage !== "undefined"
+            ? localStorage.getItem("pax_bgImage") || ""
+            : "",
+    );
+    $effect(() => {
+        localStorage.setItem("pax_bgImage", bgImage);
+    });
+    $effect(() => {
+        fetch("/api/backgrounds")
+            .then((r) => r.json())
+            .then((imgs: string[]) => {
+                bgImages = imgs;
+            })
+            .catch(() => {});
+    });
+
     // â”€â”€ Game Mode â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Auto-switch to MP when connected
     let gameMode = $state<"sp" | "mp">(
@@ -401,7 +421,13 @@
 {#if visible}
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="menu-fullscreen" transition:fade>
+    <div
+        class="menu-fullscreen"
+        transition:fade
+        style:background-image={bgImage ? `url(/assets/${bgImage})` : "none"}
+        style:background-size={bgImage ? "cover" : "auto"}
+        style:background-position={bgImage ? "center" : "auto"}
+    >
         <!-- Hex grid overlay — inline SVG with pattern -->
         <svg
             class="hex-grid-overlay"
@@ -432,6 +458,57 @@
             </defs>
             <rect width="100%" height="100%" fill="url(#hexPattern)" />
         </svg>
+
+        <!-- Background picker (floating top-right) -->
+        <div class="bg-picker">
+            <button
+                class="bg-picker-toggle"
+                onclick={() => (bgOpen = !bgOpen)}
+                title="Change background"
+            >
+                🖼️
+            </button>
+            {#if bgOpen}
+                <div
+                    class="bg-picker-dropdown"
+                    transition:fly={{ y: -8, duration: 150 }}
+                >
+                    <button
+                        class="bg-thumb-btn"
+                        class:active={!bgImage}
+                        onclick={() => {
+                            bgImage = "";
+                            bgOpen = false;
+                        }}
+                    >
+                        <span class="bg-thumb-none">∅</span>
+                        <span class="bg-thumb-label">Default</span>
+                    </button>
+                    {#each bgImages as img}
+                        <button
+                            class="bg-thumb-btn"
+                            class:active={bgImage === img}
+                            onclick={() => {
+                                bgImage = img;
+                                bgOpen = false;
+                            }}
+                        >
+                            <img
+                                src="/assets/{img}"
+                                alt={img}
+                                class="bg-thumb-img"
+                                loading="lazy"
+                            />
+                            <span class="bg-thumb-label"
+                                >{img
+                                    .replace(/\.(png|jpe?g|webp|avif)$/i, "")
+                                    .replace(/^pax-fluxia-/, "")}</span
+                            >
+                        </button>
+                    {/each}
+                </div>
+            {/if}
+        </div>
         <div class="menu-container" transition:fly={{ y: 20, duration: 400 }}>
             <!-- ═══ Title ═══ -->
             <header class="title-block">
@@ -1280,6 +1357,106 @@
             filter: hue-rotate(220deg) brightness(1.2);
             opacity: 1;
         }
+    }
+
+    /* ── Background Picker ── */
+    .bg-picker {
+        position: fixed;
+        top: 12px;
+        right: 12px;
+        z-index: 10002;
+    }
+    .bg-picker-toggle {
+        width: 40px;
+        height: 40px;
+        border: 1px solid rgba(0, 255, 255, 0.15);
+        border-radius: 10px;
+        background: rgba(5, 10, 25, 0.8);
+        backdrop-filter: blur(8px);
+        font-size: 1.2rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+    }
+    .bg-picker-toggle:hover {
+        border-color: rgba(0, 255, 255, 0.35);
+        background: rgba(0, 255, 255, 0.08);
+    }
+    .bg-picker-dropdown {
+        position: absolute;
+        top: 48px;
+        right: 0;
+        width: 260px;
+        max-height: 380px;
+        overflow-y: auto;
+        background: rgba(5, 10, 25, 0.95);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(0, 255, 255, 0.12);
+        border-radius: 12px;
+        padding: 6px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4px;
+    }
+    .bg-picker-dropdown::-webkit-scrollbar {
+        width: 3px;
+    }
+    .bg-picker-dropdown::-webkit-scrollbar-thumb {
+        background: rgba(0, 255, 255, 0.15);
+        border-radius: 2px;
+    }
+    .bg-thumb-btn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        padding: 6px;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        background: transparent;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .bg-thumb-btn:hover {
+        background: rgba(0, 255, 255, 0.06);
+        border-color: rgba(0, 255, 255, 0.15);
+    }
+    .bg-thumb-btn.active {
+        border-color: rgba(0, 255, 255, 0.4);
+        background: rgba(0, 255, 255, 0.1);
+    }
+    .bg-thumb-img {
+        width: 100%;
+        height: 55px;
+        object-fit: cover;
+        border-radius: 6px;
+    }
+    .bg-thumb-none {
+        width: 100%;
+        height: 55px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: radial-gradient(
+            ellipse at 50% 40%,
+            rgba(0, 40, 60, 0.5),
+            rgba(5, 10, 25, 0.9)
+        );
+        border-radius: 6px;
+        font-size: 1.4rem;
+        color: rgba(0, 255, 255, 0.3);
+    }
+    .bg-thumb-label {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.55rem;
+        color: rgba(136, 170, 204, 0.6);
+        letter-spacing: 0.5px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
     }
 
     /* Ensure content sits above the hex overlay */
