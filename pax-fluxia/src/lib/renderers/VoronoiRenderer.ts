@@ -136,7 +136,7 @@ export function renderVoronoi(
         return;
     }
 
-    const resolution = GAME_CONFIG.VORONOI_RESOLUTION ?? 4;
+    const resolution = Math.max(2, GAME_CONFIG.VORONOI_RESOLUTION ?? 4);
     // Extend render area 50% beyond map in each direction so territory bleeds to edges
     const extendFrac = 0.5;
     const extX = Math.round(worldWidth * extendFrac);
@@ -210,23 +210,23 @@ export function renderVoronoi(
 
             // Edge blend: reduce alpha near territory boundaries
             if (edgeBlend > 0) {
-                let secondMinDist = Infinity;
-                const myDist = (() => {
-                    const dx = px - starData[nearestIdx].x;
-                    const dy = py - starData[nearestIdx].y;
-                    return Math.sqrt(dx * dx + dy * dy);
-                })();
+                // Use squared distances (avoid Math.sqrt per pixel)
+                let secondMinDistSq = Infinity;
+                const dxMe = px - starData[nearestIdx].x;
+                const dyMe = py - starData[nearestIdx].y;
+                const myDistSq = dxMe * dxMe + dyMe * dyMe;
                 for (let i = 0; i < starData.length; i++) {
                     if (starData[i].ownerId === starData[nearestIdx].ownerId) continue;
                     const dx = px - starData[i].x;
                     const dy = py - starData[i].y;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-                    if (dist < secondMinDist) secondMinDist = dist;
+                    const distSq = dx * dx + dy * dy;
+                    if (distSq < secondMinDistSq) secondMinDistSq = distSq;
                 }
-                if (secondMinDist < Infinity) {
-                    const edgeDist = (secondMinDist - myDist) / (myDist + secondMinDist + 0.001);
+                if (secondMinDistSq < Infinity) {
+                    // Approximate blend using squared distances
+                    const edgeDist = (secondMinDistSq - myDistSq) / (myDistSq + secondMinDistSq + 0.001);
                     const blendFactor = Math.min(1, edgeDist / (edgeBlend * 0.1));
-                    pixelAlpha *= blendFactor;
+                    pixelAlpha *= Math.max(0, blendFactor);
                 }
             }
 

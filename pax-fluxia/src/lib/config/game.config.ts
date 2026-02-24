@@ -662,7 +662,7 @@ const _rawConfig: GameConfigType = {
     /** Voronoi territory alpha (0-1) */
     VORONOI_ALPHA: 0.1,
     /** Voronoi canvas downscale factor (higher = faster/blockier) */
-    VORONOI_RESOLUTION: 1,
+    VORONOI_RESOLUTION: 4,
     /** Voronoi edge blend (0=hard edges, higher=softer) */
     VORONOI_EDGE_BLEND: 2.3,
     /** Voronoi border line width between territories (0=off) */
