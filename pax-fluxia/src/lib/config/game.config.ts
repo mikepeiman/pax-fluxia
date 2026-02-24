@@ -381,7 +381,7 @@ const _rawConfig: GameConfigType = {
     // ========================================================================
 
     /** Percentage of remaining ships that transfer on capture */
-    CONQUEST_TRANSFER_PERCENTAGE: 60,
+    CONQUEST_TRANSFER_PERCENTAGE: 50,
 
     /** Defender strength ratio below which they are instantly overwhelmed (e.g. 0.1 = 10% of attackers) */
     OVERWHELM_THRESHOLD: 0.1,

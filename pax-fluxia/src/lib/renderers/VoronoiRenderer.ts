@@ -136,7 +136,7 @@ export function renderVoronoi(
         return;
     }
 
-    const resolution = Math.max(2, GAME_CONFIG.VORONOI_RESOLUTION ?? 4);
+    const resolution = Math.max(3, GAME_CONFIG.VORONOI_RESOLUTION ?? 4);
     // Extend render area 50% beyond map in each direction so territory bleeds to edges
     const extendFrac = 0.5;
     const extX = Math.round(worldWidth * extendFrac);
