@@ -18,7 +18,7 @@
 | B-91 | Game-wide subtle animation hiccup — possibly related to tick boundary timing | Fixed (2026-02-18) |
 | B-92 | Player orders randomly cancelled / opposing orders not enforced | Fixed (2026-02-18, refined) |
 | B-93 | Deferred order chains not preserved — cannot reproduce, may be fixed by B-92 | Monitoring |
-| B-94 | Conquest animation disjoint/jump — intermittent visual glitch | Open |
+| B-94 | Conquest animation disjoint/jump — intermittent visual glitch | Fixed (2026-02-24) |
 | B-95 | Leaderboard production stat always shows 0 in SP — not computed in updatePlayerStats | Fixed (2026-02-19) |
 
 ## Planned Features

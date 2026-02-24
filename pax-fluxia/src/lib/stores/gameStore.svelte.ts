@@ -100,8 +100,10 @@ let currentView = $state<GameView>('menu');
 /** Game settings from menu */
 let settings = $state<GameSettings>({ ...DEFAULT_SETTINGS });
 
-/** Latest game state snapshot (plain objects, consumed by UI) */
-let snapshot = $state<GameState | null>(null);
+/** Latest game state snapshot (plain objects, consumed by UI).
+ *  Uses $state.raw to avoid deep-proxying the entire GameState tree.
+ *  Reactivity triggers on reassignment (each tick), not on deep property access. */
+let snapshot = $state.raw<GameState | null>(null);
 
 /** Tick progress — for UI-only consumers (Leaderboard progress bar).
  *  Animation code in GameCanvas uses its own game-time-based computation. */

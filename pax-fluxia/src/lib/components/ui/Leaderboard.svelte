@@ -2,7 +2,6 @@
     import type { PlayerState } from "$lib/types/game.types";
     import { browser } from "$app/environment";
     import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
-    import { onMount, onDestroy } from "svelte";
 
     interface Props {
         players: PlayerState[];
@@ -46,22 +45,13 @@
         return { active, damaged, total: active + damaged };
     });
 
-    // Smoothly animated tick progress (0-100%) via rAF polling
-    let tickProgressPct = $state(0);
-    let rafId: number | null = null;
-
-    function updateTickProgress() {
-        tickProgressPct = (activeGameStore.tickProgress ?? 0) * 100;
-        rafId = requestAnimationFrame(updateTickProgress);
-    }
-
-    onMount(() => {
-        rafId = requestAnimationFrame(updateTickProgress);
-    });
-
-    onDestroy(() => {
-        if (rafId !== null) cancelAnimationFrame(rafId);
-    });
+    // Tick progress: driven by CSS animation keyed on tick number
+    // No rAF loop needed — CSS handles smooth 0→100% fill over tickDuration
+    const tickDurationMs = $derived(activeGameStore.effectiveTickMs ?? 1000);
+    const tickKey = $derived(activeGameStore.currentTick ?? 0);
+    const isRunning = $derived(
+        !activeGameStore.isPaused && activeGameStore.currentTick > 0,
+    );
 </script>
 
 <div class="leaderboard glass-panel">
@@ -87,13 +77,16 @@
                 <span class="tick-value">{activeGameStore.currentTick}</span>
             </div>
         </div>
-        <!-- Tick progress bar -->
-        <div class="tick-progress-bar">
-            <div
-                class="tick-progress-fill"
-                style="width: {tickProgressPct}%"
-            ></div>
-        </div>
+        <!-- Tick progress bar (CSS-animated, no JS rAF needed) -->
+        {#key tickKey}
+            <div class="tick-progress-bar">
+                <div
+                    class="tick-progress-fill"
+                    class:running={isRunning}
+                    style="animation-duration: {tickDurationMs}ms"
+                ></div>
+            </div>
+        {/key}
 
         <ul class="leaderboard__list">
             {#each sortedPlayers as player, index}
@@ -324,9 +317,22 @@
     }
     .tick-progress-fill {
         height: 100%;
+        width: 0%;
         background: linear-gradient(90deg, #4fd1c5, #63b3ed);
         border-radius: 2px;
         box-shadow: 0 0 6px rgba(79, 209, 197, 0.5);
-        transition: width 16ms linear;
+    }
+    .tick-progress-fill.running {
+        animation-name: tick-fill;
+        animation-timing-function: linear;
+        animation-fill-mode: forwards;
+    }
+    @keyframes tick-fill {
+        from {
+            width: 0%;
+        }
+        to {
+            width: 100%;
+        }
     }
 </style>
