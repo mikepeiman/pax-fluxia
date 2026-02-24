@@ -1,6 +1,0 @@
-﻿Loading svelte-check in workspace: c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia
-Getting Svelte diagnostics...
-
-====================================
-[33msvelte-check found 0 errors and 26 warnings in 4 files
-[39m

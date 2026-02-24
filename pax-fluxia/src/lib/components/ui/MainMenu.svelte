@@ -1478,40 +1478,45 @@
     /* -- Responsive Tabs (small screens only) -- */
     .responsive-tabs {
         display: none;
-        gap: 2px;
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid rgba(255, 255, 255, 0.06);
-        border-radius: 10px;
-        padding: 4px;
-        align-self: center;
+        gap: 4px;
+        background: rgba(0, 255, 255, 0.03);
+        border: 1px solid rgba(0, 255, 255, 0.1);
+        border-radius: 12px;
+        padding: 5px;
+        width: 100%;
+        box-sizing: border-box;
     }
 
     .tab-btn {
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 12px 32px;
+        justify-content: center;
+        gap: 10px;
+        flex: 1;
+        padding: 14px 20px;
         border: none;
         background: transparent;
         color: #556677;
         font-family: "Orbitron", sans-serif;
-        font-size: 0.85rem;
+        font-size: 1rem;
         font-weight: 700;
         letter-spacing: 2px;
         cursor: pointer;
         border-radius: 8px;
         transition: all 0.25s;
+        min-height: 48px;
     }
 
     .tab-btn:hover {
-        color: #8899aa;
-        background: rgba(255, 255, 255, 0.03);
+        color: #99bbcc;
+        background: rgba(255, 255, 255, 0.04);
     }
 
     .tab-btn.active {
         color: #00ffff;
-        background: rgba(0, 255, 255, 0.06);
-        box-shadow: 0 0 20px rgba(0, 255, 255, 0.06);
+        background: rgba(0, 255, 255, 0.1);
+        box-shadow: 0 0 20px rgba(0, 255, 255, 0.1);
+        text-shadow: 0 0 12px rgba(0, 255, 255, 0.3);
     }
 
     .connected-dot {
@@ -1557,17 +1562,26 @@
             align-items: center;
             justify-content: space-between;
             width: 100%;
-            padding: 12px 0;
+            padding: 14px 4px;
             border: none;
-            background: transparent;
+            background: rgba(0, 255, 255, 0.03);
+            border-bottom: 1px solid rgba(0, 255, 255, 0.08);
             cursor: pointer;
             color: inherit;
             font-family: inherit;
+            min-height: 52px;
+        }
+        .game-setup-toggle .panel-title {
+            font-size: 0.9rem;
+            letter-spacing: 4px;
+            color: #88aacc;
         }
         .accordion-arrow {
-            color: #556677;
-            font-size: 1rem;
+            color: #00cccc;
+            font-size: 1.4rem;
+            font-weight: 900;
             transition: transform 0.2s;
+            text-shadow: 0 0 8px rgba(0, 255, 255, 0.3);
         }
         /* Collapsed state on mobile */
         .game-setup-shared.collapsed {
