@@ -413,14 +413,6 @@
         reader.readAsText(file);
     }
 
-    // Visuals state
-    const VISUALS_STORAGE_KEY = "pax-fluxia-visuals";
-    const visualDefaults = {
-        laneWidth: GAME_CONFIG.CONNECTION_WIDTH,
-        laneAlpha: GAME_CONFIG.CONNECTION_ALPHA,
-        shadowWidth: GAME_CONFIG.CONNECTION_SHADOW_WIDTH,
-        shadowAlpha: GAME_CONFIG.CONNECTION_SHADOW_ALPHA,
-    };
     onMount(() => {
         GAME_CONFIG.CONNECTION_WIDTH = vis.laneWidth;
         GAME_CONFIG.CONNECTION_ALPHA = vis.laneAlpha;
@@ -431,16 +423,11 @@
         activeGameStore.updateTickInterval(panel.tickInterval);
     });
 
-    // Unified Panel Settings
-    const PANEL_STORAGE_KEY = "pax-fluxia-panel-settings";
 
 
     // =========================================================================
     // Tick-Ratio Locking — bind animation durations proportionally to tick
     // =========================================================================
-            /* ignore */
-        }
-    }
 
     /** 📌 Pin value exactly to tick duration (ms → BASE_TICK_MS, multipliers → 1.0) */
     function pinValueToTickDuration(key: string) {
