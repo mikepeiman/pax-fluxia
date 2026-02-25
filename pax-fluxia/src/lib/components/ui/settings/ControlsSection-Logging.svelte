@@ -1,16 +1,22 @@
 ﻿<script lang="ts">
     import { GAME_CONFIG } from "$lib/config/game.config";
+    import { logFlags } from "$lib/utils/logger";
+    import { exportConfigJSON as exportConfigJSONBase } from "../panelSync";
 
-    // ControlsSection-LOGGING â€” In-Game Settings Controls: Logging
-    // Extracted from GameSettingsPanel.svelte
+    // ControlsSection-LOGGING -- Logging controls (extracted from GameSettingsPanel.svelte)
 
     interface Props {
         panel: Record<string, any>;
         updatePanel: (key: string, value: any) => void;
         logCategories: any[];
         logRefresh: number;
+        exportConfigMD: () => void;
+        importConfigJSON: (e: Event) => void;
+        configStatus: string;
+        configStatusColor: string;
     }
-    let { panel, updatePanel, logCategories, logRefresh } = ($props() as Props);
+    let { panel, updatePanel, logCategories, logRefresh,
+          exportConfigMD, importConfigJSON, configStatus, configStatusColor } = ($props() as Props);
 </script>
 
 <div class="log-actions">

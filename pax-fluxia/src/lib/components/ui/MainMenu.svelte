@@ -136,6 +136,7 @@
     // Global color palette controls (persisted)
     let colorSat = $state(loadSetting("colorSat", 70)); // 40-100
     let colorLig = $state(loadSetting("colorLig", 55)); // 30-70
+    let hueOffset = $state(loadSetting("hueOffset", 0)); // global hue rotation offset
 
     let showAIDetails = $state(false);
     let showColorPalette = $state(false);
