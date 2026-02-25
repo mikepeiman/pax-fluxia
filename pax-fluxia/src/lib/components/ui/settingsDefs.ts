@@ -163,6 +163,7 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'arrowSpiralRandom', configKey: 'ARROW_SPIRAL_RANDOM' },
     { panelKey: 'arrowSpiralDurationMs', configKey: 'ARROW_SPIRAL_DURATION_MS' },
     { panelKey: 'arrowStaggerMs', configKey: 'ARROW_STAGGER_MS' },
+    { panelKey: 'arrowStaggerAuto', configKey: 'ARROW_STAGGER_AUTO' },
     { panelKey: 'orbTravel', configKey: 'ORB_TRAVEL' },
     { panelKey: 'orbitBias', configKey: 'ORBIT_BIAS_STRENGTH' },
     { panelKey: 'oscillate', configKey: 'ORBIT_BIAS_OSCILLATE' },

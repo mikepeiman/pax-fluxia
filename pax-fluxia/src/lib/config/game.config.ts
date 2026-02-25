@@ -155,6 +155,7 @@ interface GameConfigType {
     ARROW_SPIRAL_RANDOM: boolean;        // Random vs orderly spiral amount (default true)
     ARROW_SPIRAL_DURATION_MS: number;    // How long spiral settle lasts (ms, default 800)
     ARROW_STAGGER_MS: number;            // Per-ship delay entering formation (ms, default 20)
+    ARROW_STAGGER_AUTO: boolean;         // Auto-calculate stagger to fit departures within one tick (default true)
     // Conquest slowmo
     CONQUEST_SLOWMO_ENABLED: boolean;    // Auto-slow game when conquest fires (default true)
     CONQUEST_SLOWMO_FACTOR: number;      // How much to slow (multiplier on ANIMATION_SPEED_MS, default 5)
@@ -554,6 +555,7 @@ const _rawConfig: GameConfigType = {
     ARROW_SPIRAL_RANDOM: true,
     ARROW_SPIRAL_DURATION_MS: 250,
     ARROW_STAGGER_MS: 60,
+    ARROW_STAGGER_AUTO: true,
     /** Auto-slow game when conquest fires (for tuning/debugging) */
     CONQUEST_SLOWMO_ENABLED: false,
     /** How much to slow animation on conquest (multiplier on tick duration) */

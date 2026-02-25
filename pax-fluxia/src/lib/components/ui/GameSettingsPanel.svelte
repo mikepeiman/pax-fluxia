@@ -488,6 +488,7 @@
         arrowSpiralRandom: GAME_CONFIG.ARROW_SPIRAL_RANDOM,
         arrowSpiralDurationMs: GAME_CONFIG.ARROW_SPIRAL_DURATION_MS,
         arrowStaggerMs: GAME_CONFIG.ARROW_STAGGER_MS,
+        arrowStaggerAuto: GAME_CONFIG.ARROW_STAGGER_AUTO,
         orbTravel: GAME_CONFIG.ORB_TRAVEL,
         orbitBias: GAME_CONFIG.ORBIT_BIAS_STRENGTH,
         oscillate: GAME_CONFIG.ORBIT_BIAS_OSCILLATE,
@@ -637,6 +638,7 @@
         GAME_CONFIG.ARROW_SPIRAL_DURATION_MS =
             panel.arrowSpiralDurationMs as number;
         GAME_CONFIG.ARROW_STAGGER_MS = panel.arrowStaggerMs as number;
+        GAME_CONFIG.ARROW_STAGGER_AUTO = panel.arrowStaggerAuto as boolean;
         GAME_CONFIG.CONQUEST_SETTLE_MS = panel.conquestSettleMs as number;
         GAME_CONFIG.CONQUEST_SURGE_RADIUS = panel.conquestSurgeRadius as number;
         GAME_CONFIG.CONQUEST_SURGE_STAGGER_MS =
@@ -1215,6 +1217,7 @@
             arrowSpiralRandom: GAME_CONFIG.ARROW_SPIRAL_RANDOM,
             arrowSpiralDurationMs: GAME_CONFIG.ARROW_SPIRAL_DURATION_MS,
             arrowStaggerMs: GAME_CONFIG.ARROW_STAGGER_MS,
+            arrowStaggerAuto: GAME_CONFIG.ARROW_STAGGER_AUTO,
             orbTravel: GAME_CONFIG.ORB_TRAVEL,
             orbitBias: GAME_CONFIG.ORBIT_BIAS_STRENGTH,
             oscillate: GAME_CONFIG.ORBIT_BIAS_OSCILLATE,
@@ -2831,15 +2834,37 @@
                         </div>
                         <div class="var-row">
                             <div class="row-top">
+                                <span class="var-name">Tick-Bound</span>
+                                <label class="toggle-switch">
+                                    <input
+                                        type="checkbox"
+                                        checked={panel.arrowStaggerAuto}
+                                        onchange={(e) => {
+                                            const v = (
+                                                e.target as HTMLInputElement
+                                            ).checked;
+                                            GAME_CONFIG.ARROW_STAGGER_AUTO = v;
+                                            updatePanel("arrowStaggerAuto", v);
+                                        }}
+                                    />
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="var-row">
+                            <div class="row-top">
                                 <span class="var-name">Stagger</span><span
-                                    class="val">{panel.arrowStaggerMs}ms</span
+                                    class="val"
+                                    >{panel.arrowStaggerAuto
+                                        ? "auto"
+                                        : `${panel.arrowStaggerMs}ms`}</span
                                 >
                             </div>
                             <input
                                 type="range"
                                 min="0"
-                                max="200"
-                                step="5"
+                                max="100"
+                                step="1"
                                 value={panel.arrowStaggerMs}
                                 oninput={(e) => {
                                     const v = +(e.target as HTMLInputElement)

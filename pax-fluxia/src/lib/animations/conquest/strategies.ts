@@ -118,10 +118,11 @@ function conquestSurge(ctx: ConquestTransferContext): ConquestTransferResult {
     const arriving: VisualShipState[] = [];
     const n = conquestShips.length;
 
-    // Tick-bound stagger: CONQUEST_SURGE_STAGGER_MS > 0 = manual; 0 = auto-proportional
-    const perShipStagger = staggerMs > 0
-        ? staggerMs
-        : n > 1 ? (effectiveTickMs * 0.4) / (n - 1) : 0;
+    // Tick-bound stagger: CONQUEST_SURGE_STAGGER_MS manual; auto = proportional to tick
+    const autoStagger = GAME_CONFIG.ARROW_STAGGER_AUTO ?? true;
+    const perShipStagger = autoStagger
+        ? (n > 1 ? (effectiveTickMs * 0.4) / (n - 1) : 0)
+        : staggerMs;
 
     for (let i = 0; i < n; i++) {
         const ship = conquestShips[i];
@@ -209,7 +210,11 @@ function conquestTravel(ctx: ConquestTransferContext): ConquestTransferResult {
         ship.fromStarId = attackerStarId;
         ship.toStarId = conqueredStarId;
         // Tick-bound stagger: all ships depart within 40% of tick
-        const perShipStagger = n > 1 ? (effectiveTickMs * 0.4) / (n - 1) : 0;
+        const autoStagger = GAME_CONFIG.ARROW_STAGGER_AUTO ?? true;
+        const staggerMs = GAME_CONFIG.ARROW_STAGGER_MS ?? 20;
+        const perShipStagger = autoStagger
+            ? (n > 1 ? (effectiveTickMs * 0.4) / (n - 1) : 0)
+            : staggerMs;
         ship.departTime = now + i * perShipStagger;
         ship.travelDuration = travelDuration;
         ship.departDuration = departDuration;
@@ -296,11 +301,11 @@ function conquestArrowhead(ctx: ConquestTransferContext): ConquestTransferResult
     const departing: VisualShipState[] = [];
     const n = conquestShips.length;
 
-    // Tick-bound stagger: all ships depart within one tick
-    // ARROW_STAGGER_MS > 0 = manual override; 0 = auto-proportional to tick
-    const perShipStagger = staggerMs > 0
-        ? staggerMs
-        : n > 1 ? (effectiveTickMs * 0.4) / (n - 1) : 0;
+    // Tick-bound stagger: auto = proportional to tick; manual = ARROW_STAGGER_MS
+    const autoStagger = GAME_CONFIG.ARROW_STAGGER_AUTO ?? true;
+    const perShipStagger = autoStagger
+        ? (n > 1 ? (effectiveTickMs * 0.4) / (n - 1) : 0)
+        : staggerMs;
 
     for (let i = 0; i < n; i++) {
         const ship = conquestShips[i];
