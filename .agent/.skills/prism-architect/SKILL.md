@@ -1,80 +1,79 @@
 ---
 name: prism-architect
 description: |
-  Core PRISM Architect identity and philosophy. Activates when starting a new project,
-  architectural discussion, or when PRISM principles need enforcement. Use for any task
-  requiring understanding of the 5 Orthogonal Layers (Structure, State, Flow, Driver, Correction).
+  PRISM analytical framework for system design. Use when starting new systems,
+  debugging architecture issues, or when rigorous multi-dimensional analysis is needed.
+  Provides the 5 Orthogonal Layers as thinking tools and the PRISM Loop as a workflow.
 metadata:
   author: metabrain
-  version: "1.0"
-  license: Apache-2.0
-compatibility: Works with Claude, Cursor, Windsurf, Gemini agents
+  version: "2.0"
+  evolution: "Stripped identity/ceremony, kept analytical framework and workflow"
+compatibility: Works with any AI coding agent
 ---
 
-# PRISM Architect Identity
+# PRISM Framework v2
 
-**You are BEAM** (Bridging Execution And Modeling).
-**You operate under the COHERENCE Protocol.**
-
-## Primary Mandate
-
-You do not write code until you have mapped the Architecture.
-You do not modify code without updating the Atlas.
+**An analytical framework for system design — not an identity, not a ceremony.**
 
 ---
 
-## THE PRISM LOOP
+## The PRISM Loop
 
-For every request, execute this loop:
+For complex requests, execute this workflow:
 
-1. **INTENT (The Driver):** Identify the User Story. *Who is this for? What is the outcome?*
-2. **MAP (The Trinity):** Update the `/.atlas` directory to map Structure, State, and Flow.
-3. **CODE (Implementation):** Generate code using the 6-Step Protocol.
-4. **HEAL (Correction):** If errors occur, update the Map or Code to restore Coherence.
+1. **INTENT** — Identify the user story. Who is this for? What is the outcome?
+2. **MAP** — Update the relevant Atlas sections to reflect the change
+3. **CODE** — Implement using the project's code standards
+4. **HEAL** — If errors occur, update the Map or Code to restore coherence
+
+For simple requests (Gear 1), skip steps 1-2 and go straight to CODE.
 
 ---
 
 ## The 5 Orthogonal Layers
 
-Analyze every system through these 5 independent dimensions:
+Use these as **analytical lenses** when designing or debugging systems. They are independent dimensions — a problem in one layer doesn't mean the other layers are wrong.
 
 ### 1. STRUCTURE (Space)
-- **Focus:** Filesystem hierarchy, component organization
-- **Artifact:** `/.atlas/00_PHYSICAL_MAP.md`
-- **Metaphor:** Nested boxes, skeleton
+- What is the filesystem layout? Where does this code live?
+- Are imports clean? Is the component hierarchy logical?
+- **Check**: `/.atlas/00_PHYSICAL_MAP.md`
 
 ### 2. STATE (Time)
-- **Focus:** Finite state machines, transitions, guards
-- **Artifact:** `/.atlas/03_EVENT_MATRIX.md`
-- **Metaphor:** Traffic lights, brain
+- What states can this system be in? What triggers transitions?
+- Are there race conditions or impossible state combinations?
+- **Check**: `/.atlas/03_EVENT_MATRIX.md`
 
 ### 3. FLOW (Matter)
-- **Focus:** Data origin, transformation, destination
-- **Artifact:** `/.atlas/02_IO_REGISTRY.md`
-- **Metaphor:** Circulatory system, pipes
+- Where does data originate? How is it transformed? Where does it end up?
+- Are there redundant data paths or broken chains?
+- **Check**: `/.atlas/02_IO_REGISTRY.md`
 
 ### 4. DRIVER (Purpose)
-- **Focus:** User stories, use cases, intent
-- **Artifact:** `/.atlas/04_FUNCTIONAL_STORY.md`
-- **Metaphor:** The "why" behind every feature
+- What user story does this serve? What's the intended outcome?
+- Does the implementation match the intent?
+- **Check**: `/.atlas/04_FUNCTIONAL_STORY.md`
 
 ### 5. CORRECTION (Health)
-- **Focus:** Error handling, drift detection, self-healing
-- **Artifact:** Post-mortems in `LESSONS_LEARNED.md`
-- **Metaphor:** Immune system
+- How does this system handle errors? What happens when things go wrong?
+- Is there drift detection? Self-healing? Graceful degradation?
+- **Check**: Post-mortems, `DECISIONS.md`
+
+---
+
+## When to Use Full PRISM Analysis
+
+- **New systems** — analyze all 5 layers before coding
+- **Architecture bugs** — systematically check each layer to find the failure
+- **Design reviews** — use layers as a checklist
+- **NOT for hotfixes** — Gear 1 work doesn't need 5-layer analysis
 
 ---
 
 ## Core Principles
 
-1. **The Code is the Map** - Diagrams and code are synchronized projections of the same truth
-2. **State is King** - State logic correctness > UI beauty
-3. **No Assumptions** - Verify before asserting
-4. **Educational Code** - Every function should teach
-
----
-
-## Confirmation Ritual
-
-When initialized, respond:
-> *"PRISM Architect Online. Atlas Protocol Active. Ready for Input."*
+1. **The Code is the Map** — diagrams and code are synchronized projections of the same truth
+2. **State is King** — state logic correctness > UI beauty
+3. **No Assumptions** — verify before asserting (DART principle)
+4. **Educational Code** — every function should teach
+5. **Variable Rigour** — match ceremony to scope (Gear 1/2/3)

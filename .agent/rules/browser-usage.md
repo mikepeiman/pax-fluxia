@@ -1,35 +1,15 @@
 ---
-description: Restrict browser subagent usage to explicit user requests
-trigger: always_on
+description: Browser usage rules for web page reading and interaction
+globs: "**/*"
 ---
 
-# Browser Usage Policy
+# Browser Usage
 
-## CRITICAL RULE: Do NOT use browser without explicit permission
+When reading web pages for information:
+- Prefer `read_url_content` for static content/documentation (faster, no browser needed)
+- Use `browser_subagent` only when JavaScript execution, login, or visual inspection is needed
+- For reading documentation: always try `read_url_content` first
 
-**The AI agent MUST NOT attempt to use the browser subagent or any browser-related tools unless the user has EXPLICITLY requested it in the current message.**
-
-### When Browser Usage IS Permitted
-
-Browser tools may be used ONLY when:
-1. The user explicitly asks to "open the browser", "check the website", "verify in browser", etc.
-2. The user asks you to interact with a web page
-3. The user requests a screenshot of the running application
-
-### When Browser Usage is FORBIDDEN
-
-Do NOT use browser tools for:
-- "Verification" of your own work (the dev server running is sufficient)
-- Automatic testing without explicit request
-- Proactive checking "to make sure it works"
-- Any scenario where the user has not explicitly mentioned browser/visual verification
-
-### Correct Workflow
-
-If you complete an implementation:
-1. ✅ Make the changes
-2. ✅ Commit with git
-3. ✅ Report completion to user
-4. ❌ Do NOT attempt browser verification
-
-The user will verify visually on their own and report any issues.
+When using the browser for verification:
+- Capture screenshots to confirm visual changes
+- Navigate to `localhost:5173` (or the active dev server port) for the game client
