@@ -646,6 +646,9 @@
         GAME_CONFIG.CONQUEST_SURGE_RADIUS = panel.conquestSurgeRadius as number;
         GAME_CONFIG.CONQUEST_SURGE_STAGGER_MS =
             panel.conquestSurgeStaggerMs as number;
+        GAME_CONFIG.CONQUEST_SLOWMO_ENABLED =
+            panel.conquestSlowmoEnabled as boolean;
+        GAME_CONFIG.CONQUEST_FORCE_GLOW = panel.conquestForceGlow as boolean;
         GAME_CONFIG.ORB_TRAVEL = panel.orbTravel as boolean;
         GAME_CONFIG.ORBIT_BIAS_STRENGTH = panel.orbitBias as number;
         GAME_CONFIG.ORBIT_BIAS_OSCILLATE = panel.oscillate as boolean;
