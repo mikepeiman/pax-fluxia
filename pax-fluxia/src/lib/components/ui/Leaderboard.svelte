@@ -82,10 +82,8 @@
             <div class="tick-progress-bar">
                 <div
                     class="tick-progress-fill"
-                    style:animation-duration="{tickDurationMs}ms"
-                    style:animation-play-state={isRunning
-                        ? "running"
-                        : "paused"}
+                    class:running={isRunning}
+                    style="animation-duration: {tickDurationMs}ms"
                 ></div>
             </div>
         {/key}
@@ -323,6 +321,8 @@
         background: linear-gradient(90deg, #4fd1c5, #63b3ed);
         border-radius: 2px;
         box-shadow: 0 0 6px rgba(79, 209, 197, 0.5);
+    }
+    .tick-progress-fill.running {
         animation-name: tick-fill;
         animation-timing-function: linear;
         animation-fill-mode: forwards;
