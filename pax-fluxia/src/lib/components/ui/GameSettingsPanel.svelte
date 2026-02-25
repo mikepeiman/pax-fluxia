@@ -540,6 +540,9 @@
         voronoiGlowAlpha: GAME_CONFIG.VORONOI_GLOW_ALPHA,
         voronoiGlowLayers: GAME_CONFIG.VORONOI_GLOW_LAYERS,
         voronoiBlur: GAME_CONFIG.VORONOI_BLUR,
+        voronoiSmoothing: GAME_CONFIG.VORONOI_SMOOTHING,
+        voronoiGradientBlend: GAME_CONFIG.VORONOI_GRADIENT_BLEND,
+        voronoiBlendWidth: GAME_CONFIG.VORONOI_BLEND_WIDTH,
         bindAnimToTick: GAME_CONFIG.BIND_ANIMATION_TO_TICK,
     };
 
@@ -673,7 +676,8 @@
         GAME_CONFIG.MAX_VISUAL_SHIPS = panel.maxVisualShips as number;
         GAME_CONFIG.SHOW_STAR_POWER = panel.showStarPower as boolean;
         GAME_CONFIG.STAR_POWER_ALPHA = panel.starPowerAlpha as number;
-        GAME_CONFIG.STAR_POWER_RADIUS_MULT = panel.starPowerRadiusMult as number;
+        GAME_CONFIG.STAR_POWER_RADIUS_MULT =
+            panel.starPowerRadiusMult as number;
         GAME_CONFIG.STAR_POWER_LAYERS = panel.starPowerLayers as number;
         GAME_CONFIG.STAR_POWER_BLUR = panel.starPowerBlur as number;
         GAME_CONFIG.HALO_FLEET_SCALE = panel.haloFleetScale as boolean;
@@ -695,6 +699,10 @@
         GAME_CONFIG.VORONOI_GLOW_ALPHA = panel.voronoiGlowAlpha as number;
         GAME_CONFIG.VORONOI_GLOW_LAYERS = panel.voronoiGlowLayers as number;
         GAME_CONFIG.VORONOI_BLUR = panel.voronoiBlur as number;
+        GAME_CONFIG.VORONOI_SMOOTHING = panel.voronoiSmoothing as number;
+        GAME_CONFIG.VORONOI_GRADIENT_BLEND =
+            panel.voronoiGradientBlend as boolean;
+        GAME_CONFIG.VORONOI_BLEND_WIDTH = panel.voronoiBlendWidth as number;
         GAME_CONFIG.BIND_ANIMATION_TO_TICK = panel.bindAnimToTick as boolean;
     }
 
@@ -1269,6 +1277,9 @@
             voronoiGlowAlpha: GAME_CONFIG.VORONOI_GLOW_ALPHA,
             voronoiGlowLayers: GAME_CONFIG.VORONOI_GLOW_LAYERS,
             voronoiBlur: GAME_CONFIG.VORONOI_BLUR,
+            voronoiSmoothing: GAME_CONFIG.VORONOI_SMOOTHING,
+            voronoiGradientBlend: GAME_CONFIG.VORONOI_GRADIENT_BLEND,
+            voronoiBlendWidth: GAME_CONFIG.VORONOI_BLEND_WIDTH,
             bindAnimToTick: GAME_CONFIG.BIND_ANIMATION_TO_TICK,
         };
         savePanelSettings();
@@ -3465,6 +3476,71 @@
                                         .value;
                                     GAME_CONFIG.VORONOI_BLUR = v;
                                     updatePanel("voronoiBlur", v);
+                                }}
+                            />
+                        </div>
+                        <div class="var-row">
+                            <div class="row-top">
+                                <span class="var-name">Smoothing</span><span
+                                    class="val">{panel.voronoiSmoothing}</span
+                                >
+                            </div>
+                            <input
+                                type="range"
+                                min="0"
+                                max="4"
+                                step="1"
+                                value={panel.voronoiSmoothing}
+                                oninput={(e) => {
+                                    const v = +(e.target as HTMLInputElement)
+                                        .value;
+                                    GAME_CONFIG.VORONOI_SMOOTHING = v;
+                                    updatePanel("voronoiSmoothing", v);
+                                }}
+                            />
+                        </div>
+                        <div class="var-row">
+                            <div class="row-top">
+                                <span class="var-name">Gradient Blend</span>
+                                <label class="toggle-switch">
+                                    <input
+                                        type="checkbox"
+                                        checked={panel.voronoiGradientBlend}
+                                        onchange={(e) => {
+                                            const v = (
+                                                e.target as HTMLInputElement
+                                            ).checked;
+                                            GAME_CONFIG.VORONOI_GRADIENT_BLEND =
+                                                v;
+                                            updatePanel(
+                                                "voronoiGradientBlend",
+                                                v,
+                                            );
+                                        }}
+                                    />
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="var-row">
+                            <div class="row-top">
+                                <span class="var-name">Blend Width</span><span
+                                    class="val"
+                                    >{panel.voronoiBlendWidth}px</span
+                                >
+                            </div>
+                            <input
+                                type="range"
+                                min="0"
+                                max="80"
+                                step="5"
+                                value={panel.voronoiBlendWidth}
+                                disabled={!panel.voronoiGradientBlend}
+                                oninput={(e) => {
+                                    const v = +(e.target as HTMLInputElement)
+                                        .value;
+                                    GAME_CONFIG.VORONOI_BLEND_WIDTH = v;
+                                    updatePanel("voronoiBlendWidth", v);
                                 }}
                             />
                         </div>

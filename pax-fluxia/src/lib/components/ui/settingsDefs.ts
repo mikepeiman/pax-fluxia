@@ -215,6 +215,9 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'voronoiGlowAlpha', configKey: 'VORONOI_GLOW_ALPHA' },
     { panelKey: 'voronoiGlowLayers', configKey: 'VORONOI_GLOW_LAYERS' },
     { panelKey: 'voronoiBlur', configKey: 'VORONOI_BLUR' },
+    { panelKey: 'voronoiSmoothing', configKey: 'VORONOI_SMOOTHING' },
+    { panelKey: 'voronoiGradientBlend', configKey: 'VORONOI_GRADIENT_BLEND' },
+    { panelKey: 'voronoiBlendWidth', configKey: 'VORONOI_BLEND_WIDTH' },
 ];
 
 // ── ConfigKey → PanelKey lookup (for animSliderToPanelKey) ──────────────────

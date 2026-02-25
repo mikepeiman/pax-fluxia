@@ -249,6 +249,9 @@ interface GameConfigType {
     VORONOI_GLOW_ALPHA: number;    // Peak glow alpha (0-0.2, default 0.04)
     VORONOI_GLOW_LAYERS: number;   // Number of concentric glow layers (1-8, default 4)
     VORONOI_BLUR: number;          // GPU blur strength for smooth territory edges (0=sharp, 8=soft, default 8)
+    VORONOI_SMOOTHING: number;     // Chaikin smoothing iterations (0=angular, 1-4=rounded, default 2)
+    VORONOI_GRADIENT_BLEND: boolean; // Enable gradient blending at territory borders (default true)
+    VORONOI_BLEND_WIDTH: number;   // Gradient blend strip width in px (default 30)
     SHOW_HEX_GRID: boolean;
     STARS_PER_PLAYER: number;
 
@@ -710,6 +713,12 @@ const _rawConfig: GameConfigType = {
     VORONOI_GLOW_LAYERS: 4,
     /** GPU blur for smooth territory edges (0=sharp, higher=softer) */
     VORONOI_BLUR: 8,
+    /** Chaikin smoothing iterations (0=angular polygons, 2=rounded, 4=very smooth) */
+    VORONOI_SMOOTHING: 2,
+    /** Enable gradient blending at territory borders */
+    VORONOI_GRADIENT_BLEND: true,
+    /** Gradient blend strip width in px */
+    VORONOI_BLEND_WIDTH: 30,
 
     /** Show hex grid (debug) */
     SHOW_HEX_GRID: false,
