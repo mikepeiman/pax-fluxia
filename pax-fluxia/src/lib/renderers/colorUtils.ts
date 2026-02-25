@@ -125,10 +125,8 @@ export function createColorUtils(
         const maxTiers = GAME_CONFIG.DENSITY_TIERS;
         const tier = Math.min(ringTier, maxTiers);
 
-        let hueShift = 0;
-        for (let i = 1; i <= tier; i++) {
-            hueShift += hueStep * (i % 2 === 1 ? 1 : -1);
-        }
+        // Cumulative hue shift: each tier shifts further from base
+        const hueShift = hueStep * tier;
 
         const satBoost = satStep * tier;
         const lightBoost = darken ? -(lightStep * tier) : lightStep * tier;

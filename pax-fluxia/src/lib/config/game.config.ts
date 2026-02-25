@@ -226,10 +226,13 @@ interface GameConfigType {
     SHOW_TERRITORY: boolean;       // Show territory alpha overlay behind stars (default true)
     TERRITORY_ALPHA: number;       // Alpha for territory overlay (default 0.08)
     TERRITORY_RADIUS_MULT: number; // Radius multiplier for territory circles (default 3.0)
+    TERRITORY_LAYERS: number;      // Number of concentric gradient layers (1-12, default 4)
+    TERRITORY_BLUR: number;        // GPU blur on halos (0=off, default 4)
     HALO_FLEET_SCALE: boolean;     // Bind halo alpha to ship count (default true)
-    HALO_FLEET_MODE: string;       // 'stepped' (original: +intensity per step) or 'linear' (smooth 0→10k)
+    HALO_FLEET_MODE: string;       // 'stepped' (original: +intensity per step) or 'linear' (smooth)
     HALO_FLEET_INTENSITY: number;  // Intensity multiplier for ship-count binding (0-2, default 1.0)
     HALO_FLEET_STEP_SIZE: number;  // Ships per step for 'stepped' mode (default 500)
+    HALO_FLEET_MAX_SHIPS: number;  // Ship count for full alpha in 'linear' mode (default 500)
 
     // ── Voronoi Territory ───────────────────────────────────────────────────
     SHOW_VORONOI: boolean;         // Show contiguous Voronoi territory fill (default true)
@@ -665,13 +668,19 @@ const _rawConfig: GameConfigType = {
     TERRITORY_ALPHA: 0.07,
     /** Territory radius multiplier relative to star radius */
     TERRITORY_RADIUS_MULT: 3,
+    /** Number of concentric gradient layers */
+    TERRITORY_LAYERS: 4,
+    /** GPU blur on territory halos (0=off) */
+    TERRITORY_BLUR: 4,
     HALO_FLEET_SCALE: true,
-    /** Fleet halo mode: 'stepped' = original (per-step boost), 'linear' = smooth 0→10k */
+    /** Fleet halo mode: 'stepped' or 'linear' */
     HALO_FLEET_MODE: 'linear',
     /** Fleet halo intensity multiplier (0=off, 1=default, 2=strong) */
     HALO_FLEET_INTENSITY: 1.0,
     /** Ships per step for stepped mode */
     HALO_FLEET_STEP_SIZE: 500,
+    /** Ship count for full alpha in linear mode */
+    HALO_FLEET_MAX_SHIPS: 500,
 
     /** Show contiguous Voronoi territory fill */
     SHOW_VORONOI: true,

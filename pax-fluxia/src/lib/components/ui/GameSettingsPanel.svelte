@@ -519,10 +519,13 @@
         showTerritory: GAME_CONFIG.SHOW_TERRITORY,
         territoryAlpha: GAME_CONFIG.TERRITORY_ALPHA,
         territoryRadiusMult: GAME_CONFIG.TERRITORY_RADIUS_MULT,
+        territoryLayers: GAME_CONFIG.TERRITORY_LAYERS,
+        territoryBlur: GAME_CONFIG.TERRITORY_BLUR,
         haloFleetScale: GAME_CONFIG.HALO_FLEET_SCALE,
         haloFleetIntensity: GAME_CONFIG.HALO_FLEET_INTENSITY,
         haloFleetMode: GAME_CONFIG.HALO_FLEET_MODE,
         haloFleetStepSize: GAME_CONFIG.HALO_FLEET_STEP_SIZE,
+        haloFleetMaxShips: GAME_CONFIG.HALO_FLEET_MAX_SHIPS,
         showVoronoi: GAME_CONFIG.SHOW_VORONOI,
         voronoiAlpha: GAME_CONFIG.VORONOI_ALPHA,
         voronoiResolution: GAME_CONFIG.VORONOI_RESOLUTION,
@@ -669,10 +672,13 @@
         GAME_CONFIG.SHOW_TERRITORY = panel.showTerritory as boolean;
         GAME_CONFIG.TERRITORY_ALPHA = panel.territoryAlpha as number;
         GAME_CONFIG.TERRITORY_RADIUS_MULT = panel.territoryRadiusMult as number;
+        GAME_CONFIG.TERRITORY_LAYERS = panel.territoryLayers as number;
+        GAME_CONFIG.TERRITORY_BLUR = panel.territoryBlur as number;
         GAME_CONFIG.HALO_FLEET_SCALE = panel.haloFleetScale as boolean;
         GAME_CONFIG.HALO_FLEET_INTENSITY = panel.haloFleetIntensity as number;
         GAME_CONFIG.HALO_FLEET_MODE = panel.haloFleetMode as string;
         GAME_CONFIG.HALO_FLEET_STEP_SIZE = panel.haloFleetStepSize as number;
+        GAME_CONFIG.HALO_FLEET_MAX_SHIPS = panel.haloFleetMaxShips as number;
         GAME_CONFIG.SHOW_VORONOI = panel.showVoronoi as boolean;
         GAME_CONFIG.VORONOI_ALPHA = panel.voronoiAlpha as number;
         GAME_CONFIG.VORONOI_RESOLUTION = panel.voronoiResolution as number;
@@ -1240,10 +1246,13 @@
             showTerritory: GAME_CONFIG.SHOW_TERRITORY,
             territoryAlpha: GAME_CONFIG.TERRITORY_ALPHA,
             territoryRadiusMult: GAME_CONFIG.TERRITORY_RADIUS_MULT,
+            territoryLayers: GAME_CONFIG.TERRITORY_LAYERS,
+            territoryBlur: GAME_CONFIG.TERRITORY_BLUR,
             haloFleetScale: GAME_CONFIG.HALO_FLEET_SCALE,
             haloFleetIntensity: GAME_CONFIG.HALO_FLEET_INTENSITY,
             haloFleetMode: GAME_CONFIG.HALO_FLEET_MODE,
             haloFleetStepSize: GAME_CONFIG.HALO_FLEET_STEP_SIZE,
+            haloFleetMaxShips: GAME_CONFIG.HALO_FLEET_MAX_SHIPS,
             showVoronoi: GAME_CONFIG.SHOW_VORONOI,
             voronoiAlpha: GAME_CONFIG.VORONOI_ALPHA,
             voronoiResolution: GAME_CONFIG.VORONOI_RESOLUTION,
@@ -3190,6 +3199,49 @@
                         </div>
                         <div class="var-row">
                             <div class="row-top">
+                                <span class="var-name">Halo Layers</span><span
+                                    class="val">{panel.territoryLayers}</span
+                                >
+                            </div>
+                            <input
+                                type="range"
+                                min="1"
+                                max="12"
+                                step="1"
+                                value={panel.territoryLayers}
+                                oninput={(e) => {
+                                    const v = +(e.target as HTMLInputElement)
+                                        .value;
+                                    GAME_CONFIG.TERRITORY_LAYERS = v;
+                                    updatePanel("territoryLayers", v);
+                                }}
+                            />
+                        </div>
+                        <div class="var-row">
+                            <div class="row-top">
+                                <span class="var-name">Halo Blur</span><span
+                                    class="val"
+                                    >{(panel.territoryBlur as number).toFixed(
+                                        0,
+                                    )}px</span
+                                >
+                            </div>
+                            <input
+                                type="range"
+                                min="0"
+                                max="20"
+                                step="1"
+                                value={panel.territoryBlur}
+                                oninput={(e) => {
+                                    const v = +(e.target as HTMLInputElement)
+                                        .value;
+                                    GAME_CONFIG.TERRITORY_BLUR = v;
+                                    updatePanel("territoryBlur", v);
+                                }}
+                            />
+                        </div>
+                        <div class="var-row">
+                            <div class="row-top">
                                 <span class="var-name">Fleet Glow</span>
                                 <label class="toggle-switch">
                                     <input
@@ -3286,6 +3338,31 @@
                                             GAME_CONFIG.HALO_FLEET_STEP_SIZE =
                                                 v;
                                             updatePanel("haloFleetStepSize", v);
+                                        }}
+                                    />
+                                </div>
+                            {/if}
+                            {#if panel.haloFleetMode === "linear"}
+                                <div class="var-row">
+                                    <div class="row-top">
+                                        <span class="var-name">Max Ships</span
+                                        ><span class="val"
+                                            >{panel.haloFleetMaxShips}</span
+                                        >
+                                    </div>
+                                    <input
+                                        type="range"
+                                        min="50"
+                                        max="5000"
+                                        step="50"
+                                        value={panel.haloFleetMaxShips}
+                                        oninput={(e) => {
+                                            const v = +(
+                                                e.target as HTMLInputElement
+                                            ).value;
+                                            GAME_CONFIG.HALO_FLEET_MAX_SHIPS =
+                                                v;
+                                            updatePanel("haloFleetMaxShips", v);
                                         }}
                                     />
                                 </div>
