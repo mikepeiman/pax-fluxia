@@ -28,6 +28,10 @@ export const coreConquestHandler: FXHandler<ConquestEvent> = {
         const conqueredStar = ctx.starsById.get(event.starId);
         if (!conqueredStar) return;
 
+        // Speed-scale factor: compress animation timing proportionally with game speed.
+        // At 1x → 1.0, at 2x → 0.5, at 4x → 0.25, etc.
+        const speedScale = ctx.effectiveTickMs / GAME_CONFIG.BASE_TICK_MS;
+
         const ships = ctx.vsm.getOrbitShips(event.starId);
 
         // ── DEFENDER SHIPS: scatter/retreat/capture ──
@@ -38,7 +42,7 @@ export const coreConquestHandler: FXHandler<ConquestEvent> = {
 
         // ── DELAYED STAR COLOR ──
         {
-            const colorDelay = GAME_CONFIG.CONQUEST_COLOR_DELAY_MS ?? 400;
+            const colorDelay = (GAME_CONFIG.CONQUEST_COLOR_DELAY_MS ?? 400) * speedScale;
             const conquestNow = ctx.gameTime;
             ctx.vsm.addPendingConquest(event.starId, {
                 previousOwner: event.previousOwner,
@@ -48,7 +52,7 @@ export const coreConquestHandler: FXHandler<ConquestEvent> = {
 
         // ── CONQUEST FLASH ──
         {
-            const flashDur = GAME_CONFIG.CONQUEST_FLASH_DURATION_MS ?? 600;
+            const flashDur = (GAME_CONFIG.CONQUEST_FLASH_DURATION_MS ?? 600) * speedScale;
             if (flashDur > 0) {
                 const conquestNow = ctx.gameTime;
                 ctx.vsm.addConquestFlash(event.starId, {
@@ -67,7 +71,7 @@ export const coreConquestHandler: FXHandler<ConquestEvent> = {
             setTimeout(() => {
                 animationStore.setAnimationSpeed(originalSpeed);
                 conquestSlowmoActive = false;
-            }, GAME_CONFIG.CONQUEST_SLOWMO_DURATION_MS);
+            }, (GAME_CONFIG.CONQUEST_SLOWMO_DURATION_MS) * speedScale);
         }
     },
 };
@@ -153,7 +157,7 @@ function setupDepartingShip(
     ship.fromStarId = fromStarId;
     ship.toStarId = toStarId;
     const travelNow = ctx.gameTime;
-    ship.departTime = travelNow + Math.random() * (GAME_CONFIG.DEPART_JITTER_MS ?? 60);
+    ship.departTime = travelNow + Math.random() * ((GAME_CONFIG.DEPART_JITTER_MS ?? 60) * (ctx.effectiveTickMs / GAME_CONFIG.BASE_TICK_MS));
 
     // Scatter/retreat uses tick-synced timing (urgent — faster depart)
     const halfTick = ctx.effectiveTickMs / 2;

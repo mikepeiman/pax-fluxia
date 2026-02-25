@@ -649,13 +649,14 @@ export function renderShips(
                 let surgeOffsetY = 0;
                 const surge = state.activeSurges.get(star.id);
                 if (surge && isAttack && targetStar) {
-                    // Progress: 0 → 1 over SURGE_DURATION_MS
-                    const surgeDur = GAME_CONFIG.SURGE_PULSE_DURATION_MS || GAME_CONFIG.BASE_TICK_MS;
+                    // Speed-scale surge timing
+                    const surgeSpeedScale = (state.effectiveTickMs || GAME_CONFIG.BASE_TICK_MS) / GAME_CONFIG.BASE_TICK_MS;
+                    const surgeDur = (GAME_CONFIG.SURGE_PULSE_DURATION_MS || GAME_CONFIG.BASE_TICK_MS) * surgeSpeedScale;
                     const elapsed = state.gameNowMs - surge.startTime;
                     const progress = Math.min(1, elapsed / surgeDur);
 
                     // Ramp: first N ms ramp from 0→1 (cubic ease-out)
-                    const rampMs = GAME_CONFIG.ATTACK_SURGE_RAMP_MS ?? 300;
+                    const rampMs = (GAME_CONFIG.ATTACK_SURGE_RAMP_MS ?? 300) * surgeSpeedScale;
                     const rampFactor = rampMs > 0
                         ? 1 - Math.pow(1 - Math.min(1, elapsed / rampMs), 3)
                         : 1;
@@ -697,11 +698,13 @@ export function renderShips(
                 const now = state.gameNowMs;
                 const elapsed = now - ship.settleStartTime;
                 const isArrowSettle = ship.arrowSpiralDeg !== undefined && ship.arrowSpiralDeg !== 0;
-                const settleDur = isArrowSettle
+                // Speed-scale: compress settle/spiral durations by game speed
+                const speedScale = (state.effectiveTickMs || GAME_CONFIG.BASE_TICK_MS) / GAME_CONFIG.BASE_TICK_MS;
+                const settleDur = (isArrowSettle
                     ? (GAME_CONFIG.ARROW_SPIRAL_DURATION_MS ?? 800)
                     : (ship as any).conquestSettle
                         ? (GAME_CONFIG.CONQUEST_SETTLE_MS ?? 500)
-                        : GAME_CONFIG.SETTLE_DURATION_MS || 150;
+                        : GAME_CONFIG.SETTLE_DURATION_MS || 150) * speedScale;
 
                 // Duration 0 = instant snap to orbit
                 if (settleDur <= 0) {
