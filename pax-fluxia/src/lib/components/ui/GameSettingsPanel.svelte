@@ -21,7 +21,41 @@
         DENSITY_VARIABLES,
         LOG_CATEGORIES,
     } from "./settingsDefs";
-    // panelSync.ts module ready for sub-component extraction (pure TS versions of sync/persistence)
+    import {
+        STORAGE_KEY,
+        PANEL_STORAGE_KEY,
+        VISUALS_STORAGE_KEY,
+        ANIM_LOCK_STORAGE_KEY,
+        TIER_STORAGE_KEY,
+        loadCombatTuning,
+        saveCombatTuning,
+        VISUAL_DEFAULTS,
+        loadVisuals,
+        saveVisuals,
+        applyVisuals,
+        loadPanelSettings,
+        savePanelSettings,
+        applyPanelToConfig,
+        syncPanelFromConfig,
+        loadAnimLockRatios,
+        saveAnimLockRatios,
+        loadAnimLockModes,
+        saveAnimLockModes,
+        recalcAnimLocksOnTickChange,
+        recalcAnimLocksOnAnimSpeedChange,
+        loadTier,
+        saveTier,
+        exportConfigJSON as exportConfigJSONBase,
+        type AnimLockMode,
+    } from './panelSync';
+    import {
+        ANIM_SLIDERS,
+        type AnimSliderDef,
+        type SettingsTier,
+        TIER_LABELS,
+        MD_EXPORT_SECTIONS,
+        formatAnimValue,
+    } from './settingsDefs';
 
     // Aliases for the imported arrays (matches existing template references)
     const variables = COMBAT_VARIABLES;
@@ -29,9 +63,7 @@
     const densityVariables = DENSITY_VARIABLES;
     const logCategories = LOG_CATEGORIES;
 
-    const STORAGE_KEY = "pax-fluxia-combat-tuning";
-
-    // Default values — single source of truth for reset + disabled toggle state
+    // ── Combat tuning defaults (single source of truth for reset + disabled state)
     const defaultValues = {
         TRANSFER_RATE: 0.1,
         AGGRESSOR_ADVANTAGE: 0.7,
@@ -58,25 +90,8 @@
         DENSITY_TIERS: 3,
     };
 
-    function loadFromStorage(): typeof defaultValues {
-        if (typeof window === "undefined") return { ...defaultValues };
-        try {
-            const stored = localStorage.getItem(STORAGE_KEY);
-            if (stored) return { ...defaultValues, ...JSON.parse(stored) };
-        } catch (e) {
-            log.error("GameSettingsPanel", "Failed to load combat tuning", e);
-        }
-        return { ...defaultValues };
-    }
 
-    function saveToStorage(vals: typeof defaultValues) {
-        if (typeof window === "undefined") return;
-        try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(vals));
-        } catch {
-            /* ignore */
-        }
-    }
+    // Default values — single source of truth for reset + disabled toggle state
 
     let enabled = $state({
         TRANSFER_RATE: true,
@@ -104,7 +119,7 @@
         DENSITY_TIERS: true,
     });
 
-    const initialValues = loadFromStorage();
+    const initialValues = loadCombatTuning(defaultValues);
     let values = $state({ ...initialValues });
     let savedValues = $state({ ...initialValues });
 
@@ -130,7 +145,7 @@
         const decimal = value / 100;
         values = { ...values, TRANSFER_RATE: decimal };
         GAME_CONFIG.TRANSFER_RATE = decimal;
-        saveToStorage(values as typeof defaultValues);
+        saveCombatTuning(values);
     }
 
     // Debug ship count slider — direct engine manipulation
@@ -178,7 +193,7 @@
         values = { ...values, [key]: newValue };
         savedValues = { ...savedValues, [key]: newValue };
         (GAME_CONFIG as any)[key] = newValue;
-        saveToStorage(values as typeof defaultValues);
+        saveCombatTuning(values);
     }
 
     let logRefresh = $state(0);
@@ -187,19 +202,6 @@
     let configStatus = $state("");
     let configStatusColor = $state("#4ade80");
 
-    function exportConfigJSON() {
-        const data = JSON.stringify(GAME_CONFIG, null, 2);
-        const blob = new Blob([data], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-        a.href = url;
-        a.download = `pax-config-${ts}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-        configStatus = `✅ Exported ${Object.keys(GAME_CONFIG).length} settings`;
-        configStatusColor = "#4ade80";
-    }
 
     function exportConfigMD() {
         const sections: Record<string, string[]> = {
@@ -347,7 +349,7 @@
                 }
 
                 // Sync combat tuning values to localStorage + reactive state
-                const stored = loadFromStorage();
+                const stored = loadCombatTuning(defaultValues);
                 for (const k of Object.keys(stored)) {
                     if (
                         k in incoming &&
@@ -356,7 +358,7 @@
                         (stored as any)[k] = incoming[k];
                     }
                 }
-                saveToStorage(stored);
+                saveCombatTuning(stored);
                 // Refresh reactive slider values
                 Object.assign(values, stored);
 
@@ -408,531 +410,23 @@
         shadowWidth: GAME_CONFIG.CONNECTION_SHADOW_WIDTH,
         shadowAlpha: GAME_CONFIG.CONNECTION_SHADOW_ALPHA,
     };
-    function loadVisuals() {
-        if (typeof window === "undefined") return { ...visualDefaults };
-        try {
-            const s = localStorage.getItem(VISUALS_STORAGE_KEY);
-            if (s) return { ...visualDefaults, ...JSON.parse(s) };
-        } catch {
-            /* ignore */
-        }
-        return { ...visualDefaults };
-    }
-    let vis = $state(loadVisuals());
-    function saveVisuals() {
-        if (typeof window === "undefined") return;
-        localStorage.setItem(VISUALS_STORAGE_KEY, JSON.stringify(vis));
-    }
-    function updateVisual(key: keyof typeof vis, value: number) {
-        vis = { ...vis, [key]: value };
-        GAME_CONFIG.CONNECTION_WIDTH = vis.laneWidth;
-        GAME_CONFIG.CONNECTION_ALPHA = vis.laneAlpha;
-        GAME_CONFIG.CONNECTION_SHADOW_WIDTH = vis.shadowWidth;
-        GAME_CONFIG.CONNECTION_SHADOW_ALPHA = vis.shadowAlpha;
-        saveVisuals();
-    }
     onMount(() => {
         GAME_CONFIG.CONNECTION_WIDTH = vis.laneWidth;
         GAME_CONFIG.CONNECTION_ALPHA = vis.laneAlpha;
         GAME_CONFIG.CONNECTION_SHADOW_WIDTH = vis.shadowWidth;
         GAME_CONFIG.CONNECTION_SHADOW_ALPHA = vis.shadowAlpha;
-        applyPanelToConfig();
+        applyPanelToConfig(panel);
         tickInterval = panel.tickInterval;
         activeGameStore.updateTickInterval(panel.tickInterval);
     });
 
     // Unified Panel Settings
     const PANEL_STORAGE_KEY = "pax-fluxia-panel-settings";
-    const panelDefaults = {
-        tickInterval: GAME_CONFIG.BASE_TICK_MS,
-        animSpeed: animationStore.speedMs,
-        production: GAME_CONFIG.BASE_PRODUCTION,
-        repair: GAME_CONFIG.REPAIR_RATE,
-        defense: 1 / GAME_CONFIG.AGGRESSOR_ADVANTAGE,
-        attack: GAME_CONFIG.DAMAGE_PER_SHIP,
-        arrowLength: GAME_CONFIG.ARROW_LENGTH_FRACTION,
-        departMode: GAME_CONFIG.DEPART_MODE,
-        settleDuration: GAME_CONFIG.SETTLE_DURATION_MS,
-        arrivalSpread: GAME_CONFIG.ARRIVAL_SPREAD,
-        wobbleAmp: GAME_CONFIG.WOBBLE_AMP,
-        travelEasing: GAME_CONFIG.TRAVEL_EASING,
-        travelMode: GAME_CONFIG.TRAVEL_MODE,
-        travelEasingPower: GAME_CONFIG.TRAVEL_EASING_POWER,
-        travelDurationMult: GAME_CONFIG.TRAVEL_DURATION_MULT,
-        travelArcIntensity: GAME_CONFIG.TRAVEL_ARC_INTENSITY,
-        departStagger: GAME_CONFIG.DEPART_STAGGER,
-        departArcIntensity: GAME_CONFIG.DEPART_ARC_INTENSITY,
-        arrivalArcIntensity: GAME_CONFIG.ARRIVAL_ARC_INTENSITY,
-        orbitDensity: GAME_CONFIG.ORBIT_DENSITY,
-        attackSurgeMult: GAME_CONFIG.ATTACK_SURGE_MULT,
-        attackSurgeProportional: GAME_CONFIG.ATTACK_SURGE_PROPORTIONAL,
-        attackSurgeForceCofactor: GAME_CONFIG.ATTACK_SURGE_FORCE_COFACTOR,
-        attackSurgeRampMs: GAME_CONFIG.ATTACK_SURGE_RAMP_MS,
-        attackSurgeShape: GAME_CONFIG.ATTACK_SURGE_SHAPE,
-        conquestTravelSpeed: GAME_CONFIG.CONQUEST_TRAVEL_SPEED,
-        conquestLerpDelayMs: GAME_CONFIG.CONQUEST_LERP_DELAY_MS,
-        conquestColorDelayMs: GAME_CONFIG.CONQUEST_COLOR_DELAY_MS,
-        conquestFlashDurationMs: GAME_CONFIG.CONQUEST_FLASH_DURATION_MS,
-        conquestAnimMode: GAME_CONFIG.CONQUEST_ANIMATION_MODE,
-        conquestSettleMs: GAME_CONFIG.CONQUEST_SETTLE_MS,
-        conquestSurgeRadius: GAME_CONFIG.CONQUEST_SURGE_RADIUS,
-        conquestSurgeStaggerMs: GAME_CONFIG.CONQUEST_SURGE_STAGGER_MS,
-        arrowTaper: GAME_CONFIG.ARROW_TAPER,
-        arrowWidth: GAME_CONFIG.ARROW_WIDTH,
-        arrowSpeed: GAME_CONFIG.ARROW_SPEED,
-        arrowEasing: GAME_CONFIG.ARROW_EASING,
-        arrowEngulfMode: GAME_CONFIG.ARROW_ENGULF_MODE,
-        arrowEngulfRadius: GAME_CONFIG.ARROW_ENGULF_RADIUS,
-        arrowSpiralMinDeg: GAME_CONFIG.ARROW_SPIRAL_MIN_DEG,
-        arrowSpiralMaxDeg: GAME_CONFIG.ARROW_SPIRAL_MAX_DEG,
-        arrowSpiralRandom: GAME_CONFIG.ARROW_SPIRAL_RANDOM,
-        arrowSpiralDurationMs: GAME_CONFIG.ARROW_SPIRAL_DURATION_MS,
-        arrowStaggerMs: GAME_CONFIG.ARROW_STAGGER_MS,
-        arrowStaggerAuto: GAME_CONFIG.ARROW_STAGGER_AUTO,
-        orbTravel: GAME_CONFIG.ORB_TRAVEL,
-        orbitBias: GAME_CONFIG.ORBIT_BIAS_STRENGTH,
-        oscillate: GAME_CONFIG.ORBIT_BIAS_OSCILLATE,
-        oscMin: GAME_CONFIG.ORBIT_BIAS_MIN,
-        oscMax: GAME_CONFIG.ORBIT_BIAS_MAX,
-        oscFreq: GAME_CONFIG.ORBIT_BIAS_FREQ,
-        departFraction: GAME_CONFIG.DEPART_FRACTION,
-        departJitter: GAME_CONFIG.DEPART_JITTER_MS,
-        orbBaseRadius: GAME_CONFIG.ORB_BASE_RADIUS,
-        orbRadiusScale: GAME_CONFIG.ORB_RADIUS_SCALE,
-        orbGlowMult: GAME_CONFIG.ORB_GLOW_MULT,
-        orbOuterAlpha: GAME_CONFIG.ORB_OUTER_ALPHA,
-        orbMidAlpha: GAME_CONFIG.ORB_MID_ALPHA,
-        orbCoreAlpha: GAME_CONFIG.ORB_CORE_ALPHA,
-        orbCenterAlpha: GAME_CONFIG.ORB_CENTER_ALPHA,
-        orbOuterScale: GAME_CONFIG.ORB_OUTER_SCALE,
-        orbMidScale: GAME_CONFIG.ORB_MID_SCALE,
-        orbCoreScale: GAME_CONFIG.ORB_CORE_SCALE,
-        shipBaseSize: GAME_CONFIG.SHIP_BASE_SIZE,
-        starRenderRadius: GAME_CONFIG.STAR_RENDER_RADIUS,
-        orbitRingMult: GAME_CONFIG.ORBIT_RING_MULT,
-        shipOutlineOn: GAME_CONFIG.SHIP_OUTLINE_ON,
-        shipOutlinePx: GAME_CONFIG.SHIP_OUTLINE_PX,
-        shipGlowIntensity: GAME_CONFIG.SHIP_GLOW_INTENSITY,
-        shipGlowRadius: GAME_CONFIG.SHIP_GLOW_RADIUS,
-        minColorLightness: GAME_CONFIG.MIN_COLOR_LIGHTNESS,
-        shipScaleMult: GAME_CONFIG.SHIP_SCALE_MULT,
-        maxVisualShips: GAME_CONFIG.MAX_VISUAL_SHIPS,
-        showStarPower: GAME_CONFIG.SHOW_STAR_POWER,
-        starPowerAlpha: GAME_CONFIG.STAR_POWER_ALPHA,
-        starPowerRadiusMult: GAME_CONFIG.STAR_POWER_RADIUS_MULT,
-        starPowerLayers: GAME_CONFIG.STAR_POWER_LAYERS,
-        starPowerBlur: GAME_CONFIG.STAR_POWER_BLUR,
-        haloFleetScale: GAME_CONFIG.HALO_FLEET_SCALE,
-        haloFleetIntensity: GAME_CONFIG.HALO_FLEET_INTENSITY,
-        haloFleetMode: GAME_CONFIG.HALO_FLEET_MODE,
-        haloFleetStepSize: GAME_CONFIG.HALO_FLEET_STEP_SIZE,
-        haloFleetMaxShips: GAME_CONFIG.HALO_FLEET_MAX_SHIPS,
-        showVoronoi: GAME_CONFIG.SHOW_VORONOI,
-        voronoiAlpha: GAME_CONFIG.VORONOI_ALPHA,
-        voronoiResolution: GAME_CONFIG.VORONOI_RESOLUTION,
-        voronoiEdgeBlend: GAME_CONFIG.VORONOI_EDGE_BLEND,
-        voronoiBorderWidth: GAME_CONFIG.VORONOI_BORDER_WIDTH,
-        voronoiBorderAlpha: GAME_CONFIG.VORONOI_BORDER_ALPHA,
-        voronoiBorderBrighten: GAME_CONFIG.VORONOI_BORDER_BRIGHTEN,
-        voronoiSaturation: GAME_CONFIG.VORONOI_SATURATION,
-        voronoiLightness: GAME_CONFIG.VORONOI_LIGHTNESS,
-        voronoiGlowRadius: GAME_CONFIG.VORONOI_GLOW_RADIUS,
-        voronoiGlowAlpha: GAME_CONFIG.VORONOI_GLOW_ALPHA,
-        voronoiGlowLayers: GAME_CONFIG.VORONOI_GLOW_LAYERS,
-        voronoiBlur: GAME_CONFIG.VORONOI_BLUR,
-        voronoiSmoothing: GAME_CONFIG.VORONOI_SMOOTHING,
-        voronoiGradientBlend: GAME_CONFIG.VORONOI_GRADIENT_BLEND,
-        voronoiBlendWidth: GAME_CONFIG.VORONOI_BLEND_WIDTH,
-        bindAnimToTick: GAME_CONFIG.BIND_ANIMATION_TO_TICK,
-    };
 
-    function loadPanelSettings(): typeof panelDefaults {
-        if (typeof window === "undefined") return { ...panelDefaults };
-        try {
-            const s = localStorage.getItem(PANEL_STORAGE_KEY);
-            if (s) return { ...panelDefaults, ...JSON.parse(s) };
-        } catch {
-            /* ignore */
-        }
-        return { ...panelDefaults };
-    }
-
-    let panel = $state(loadPanelSettings());
-
-    function savePanelSettings() {
-        if (typeof window === "undefined") return;
-        try {
-            localStorage.setItem(PANEL_STORAGE_KEY, JSON.stringify(panel));
-        } catch {
-            /* ignore */
-        }
-    }
-
-    function updatePanel(
-        key: keyof typeof panel,
-        value: number | boolean | string,
-    ) {
-        panel = { ...panel, [key]: value };
-        applyPanelToConfig();
-        savePanelSettings();
-    }
-
-    function applyPanelToConfig() {
-        GAME_CONFIG.BASE_TICK_MS = panel.tickInterval as number;
-        animationStore.setAnimationSpeed(panel.animSpeed as number);
-        GAME_CONFIG.BASE_PRODUCTION = panel.production as number;
-        GAME_CONFIG.REPAIR_RATE = panel.repair as number;
-        GAME_CONFIG.AGGRESSOR_ADVANTAGE = 1 / (panel.defense as number);
-        GAME_CONFIG.DAMAGE_PER_SHIP = panel.attack as number;
-        GAME_CONFIG.ARROW_LENGTH_FRACTION = panel.arrowLength as number;
-        GAME_CONFIG.DEPART_MODE = panel.departMode as
-            | "lifo"
-            | "fifo"
-            | "nearside";
-        GAME_CONFIG.SETTLE_DURATION_MS = panel.settleDuration as number;
-        GAME_CONFIG.ARRIVAL_SPREAD = panel.arrivalSpread as number;
-        GAME_CONFIG.WOBBLE_AMP = panel.wobbleAmp as number;
-        GAME_CONFIG.TRAVEL_EASING = panel.travelEasing as
-            | "easeInOut"
-            | "easeIn"
-            | "easeOut"
-            | "linear";
-        GAME_CONFIG.TRAVEL_MODE = panel.travelMode as "bezier" | "lane";
-        GAME_CONFIG.TRAVEL_EASING_POWER = panel.travelEasingPower as number;
-        GAME_CONFIG.TRAVEL_DURATION_MULT = panel.travelDurationMult as number;
-        GAME_CONFIG.TRAVEL_ARC_INTENSITY = panel.travelArcIntensity as number;
-        GAME_CONFIG.DEPART_STAGGER = panel.departStagger as boolean;
-        GAME_CONFIG.DEPART_ARC_INTENSITY = panel.departArcIntensity as number;
-        GAME_CONFIG.ARRIVAL_ARC_INTENSITY = panel.arrivalArcIntensity as number;
-        GAME_CONFIG.ORBIT_DENSITY = panel.orbitDensity as number;
-        GAME_CONFIG.ATTACK_SURGE_MULT = panel.attackSurgeMult as number;
-        GAME_CONFIG.ATTACK_SURGE_PROPORTIONAL =
-            panel.attackSurgeProportional as boolean;
-        GAME_CONFIG.ATTACK_SURGE_FORCE_COFACTOR =
-            panel.attackSurgeForceCofactor as number;
-        GAME_CONFIG.ATTACK_SURGE_RAMP_MS = panel.attackSurgeRampMs as number;
-        GAME_CONFIG.ATTACK_SURGE_SHAPE = panel.attackSurgeShape as number;
-        GAME_CONFIG.CONQUEST_TRAVEL_SPEED = panel.conquestTravelSpeed as number;
-        GAME_CONFIG.CONQUEST_LERP_DELAY_MS =
-            panel.conquestLerpDelayMs as number;
-        GAME_CONFIG.CONQUEST_COLOR_DELAY_MS =
-            panel.conquestColorDelayMs as number;
-        GAME_CONFIG.CONQUEST_FLASH_DURATION_MS =
-            panel.conquestFlashDurationMs as number;
-        GAME_CONFIG.CONQUEST_ANIMATION_MODE = panel.conquestAnimMode as
-            | "immediate"
-            | "surge"
-            | "travel"
-            | "arrowhead";
-        GAME_CONFIG.ARROW_TAPER = panel.arrowTaper as number;
-        GAME_CONFIG.ARROW_WIDTH = panel.arrowWidth as number;
-        GAME_CONFIG.ARROW_SPEED = panel.arrowSpeed as number;
-        GAME_CONFIG.ARROW_EASING = panel.arrowEasing as
-            | "easeIn"
-            | "easeInOut"
-            | "linear";
-        GAME_CONFIG.ARROW_ENGULF_MODE = panel.arrowEngulfMode as
-            | "fan"
-            | "collapse";
-        GAME_CONFIG.ARROW_ENGULF_RADIUS = panel.arrowEngulfRadius as number;
-        GAME_CONFIG.ARROW_SPIRAL_MIN_DEG = panel.arrowSpiralMinDeg as number;
-        GAME_CONFIG.ARROW_SPIRAL_MAX_DEG = panel.arrowSpiralMaxDeg as number;
-        GAME_CONFIG.ARROW_SPIRAL_RANDOM = panel.arrowSpiralRandom as boolean;
-        GAME_CONFIG.ARROW_SPIRAL_DURATION_MS =
-            panel.arrowSpiralDurationMs as number;
-        GAME_CONFIG.ARROW_STAGGER_MS = panel.arrowStaggerMs as number;
-        GAME_CONFIG.ARROW_STAGGER_AUTO = panel.arrowStaggerAuto as boolean;
-        GAME_CONFIG.CONQUEST_SETTLE_MS = panel.conquestSettleMs as number;
-        GAME_CONFIG.CONQUEST_SURGE_RADIUS = panel.conquestSurgeRadius as number;
-        GAME_CONFIG.CONQUEST_SURGE_STAGGER_MS =
-            panel.conquestSurgeStaggerMs as number;
-        GAME_CONFIG.ORB_TRAVEL = panel.orbTravel as boolean;
-        GAME_CONFIG.ORBIT_BIAS_STRENGTH = panel.orbitBias as number;
-        GAME_CONFIG.ORBIT_BIAS_OSCILLATE = panel.oscillate as boolean;
-        GAME_CONFIG.ORBIT_BIAS_MIN = panel.oscMin as number;
-        GAME_CONFIG.ORBIT_BIAS_MAX = panel.oscMax as number;
-        GAME_CONFIG.ORBIT_BIAS_FREQ = panel.oscFreq as number;
-        GAME_CONFIG.DEPART_FRACTION = panel.departFraction as number;
-        GAME_CONFIG.DEPART_JITTER_MS = panel.departJitter as number;
-        GAME_CONFIG.ORB_BASE_RADIUS = panel.orbBaseRadius as number;
-        GAME_CONFIG.ORB_RADIUS_SCALE = panel.orbRadiusScale as number;
-        GAME_CONFIG.ORB_GLOW_MULT = panel.orbGlowMult as number;
-        GAME_CONFIG.ORB_OUTER_ALPHA = panel.orbOuterAlpha as number;
-        GAME_CONFIG.ORB_MID_ALPHA = panel.orbMidAlpha as number;
-        GAME_CONFIG.ORB_CORE_ALPHA = panel.orbCoreAlpha as number;
-        GAME_CONFIG.ORB_CENTER_ALPHA = panel.orbCenterAlpha as number;
-        GAME_CONFIG.ORB_OUTER_SCALE = panel.orbOuterScale as number;
-        GAME_CONFIG.ORB_MID_SCALE = panel.orbMidScale as number;
-        GAME_CONFIG.ORB_CORE_SCALE = panel.orbCoreScale as number;
-        GAME_CONFIG.SHIP_BASE_SIZE = panel.shipBaseSize as number;
-        GAME_CONFIG.STAR_RENDER_RADIUS = panel.starRenderRadius as number;
-        GAME_CONFIG.ORBIT_RING_MULT = panel.orbitRingMult as number;
-        GAME_CONFIG.SHIP_OUTLINE_ON = panel.shipOutlineOn as boolean;
-        GAME_CONFIG.SHIP_OUTLINE_PX = panel.shipOutlinePx as number;
-        GAME_CONFIG.SHIP_GLOW_INTENSITY = panel.shipGlowIntensity as number;
-        GAME_CONFIG.SHIP_GLOW_RADIUS = panel.shipGlowRadius as number;
-        GAME_CONFIG.MIN_COLOR_LIGHTNESS = panel.minColorLightness as number;
-        GAME_CONFIG.SHIP_SCALE_MULT = panel.shipScaleMult as number;
-        GAME_CONFIG.MAX_VISUAL_SHIPS = panel.maxVisualShips as number;
-        GAME_CONFIG.SHOW_STAR_POWER = panel.showStarPower as boolean;
-        GAME_CONFIG.STAR_POWER_ALPHA = panel.starPowerAlpha as number;
-        GAME_CONFIG.STAR_POWER_RADIUS_MULT =
-            panel.starPowerRadiusMult as number;
-        GAME_CONFIG.STAR_POWER_LAYERS = panel.starPowerLayers as number;
-        GAME_CONFIG.STAR_POWER_BLUR = panel.starPowerBlur as number;
-        GAME_CONFIG.HALO_FLEET_SCALE = panel.haloFleetScale as boolean;
-        GAME_CONFIG.HALO_FLEET_INTENSITY = panel.haloFleetIntensity as number;
-        GAME_CONFIG.HALO_FLEET_MODE = panel.haloFleetMode as string;
-        GAME_CONFIG.HALO_FLEET_STEP_SIZE = panel.haloFleetStepSize as number;
-        GAME_CONFIG.HALO_FLEET_MAX_SHIPS = panel.haloFleetMaxShips as number;
-        GAME_CONFIG.SHOW_VORONOI = panel.showVoronoi as boolean;
-        GAME_CONFIG.VORONOI_ALPHA = panel.voronoiAlpha as number;
-        GAME_CONFIG.VORONOI_RESOLUTION = panel.voronoiResolution as number;
-        GAME_CONFIG.VORONOI_EDGE_BLEND = panel.voronoiEdgeBlend as number;
-        GAME_CONFIG.VORONOI_BORDER_WIDTH = panel.voronoiBorderWidth as number;
-        GAME_CONFIG.VORONOI_BORDER_ALPHA = panel.voronoiBorderAlpha as number;
-        GAME_CONFIG.VORONOI_BORDER_BRIGHTEN =
-            panel.voronoiBorderBrighten as number;
-        GAME_CONFIG.VORONOI_SATURATION = panel.voronoiSaturation as number;
-        GAME_CONFIG.VORONOI_LIGHTNESS = panel.voronoiLightness as number;
-        GAME_CONFIG.VORONOI_GLOW_RADIUS = panel.voronoiGlowRadius as number;
-        GAME_CONFIG.VORONOI_GLOW_ALPHA = panel.voronoiGlowAlpha as number;
-        GAME_CONFIG.VORONOI_GLOW_LAYERS = panel.voronoiGlowLayers as number;
-        GAME_CONFIG.VORONOI_BLUR = panel.voronoiBlur as number;
-        GAME_CONFIG.VORONOI_SMOOTHING = panel.voronoiSmoothing as number;
-        GAME_CONFIG.VORONOI_GRADIENT_BLEND =
-            panel.voronoiGradientBlend as boolean;
-        GAME_CONFIG.VORONOI_BLEND_WIDTH = panel.voronoiBlendWidth as number;
-        GAME_CONFIG.BIND_ANIMATION_TO_TICK = panel.bindAnimToTick as boolean;
-    }
 
     // =========================================================================
     // Tick-Ratio Locking — bind animation durations proportionally to tick
     // =========================================================================
-    interface AnimSliderDef {
-        key: string; // GAME_CONFIG key
-        label: string;
-        type?: "slider" | "toggle"; // default 'slider'
-        min?: number;
-        max?: number;
-        step?: number;
-        unit?: string; // 'ms', '×', '×tick', etc.
-        group: string; // group heading
-        desc?: string; // tooltip/description for toggles
-    }
-
-    const ANIM_SLIDERS: AnimSliderDef[] = [
-        // Travel & Departure
-        {
-            key: "TRANSFER_ANIMATION_MS",
-            label: "Transfer Anim",
-            min: 0,
-            max: 5000,
-            step: 10,
-            unit: "ms",
-            group: "Travel & Departure",
-        },
-        {
-            key: "TRAVEL_DURATION_MULT",
-            label: "Travel Duration",
-            min: 0.1,
-            max: 10,
-            step: 0.1,
-            unit: "×tick",
-            group: "Travel & Departure",
-        },
-        {
-            key: "DEPART_JITTER_MS",
-            label: "Depart Jitter",
-            min: 0,
-            max: 5000,
-            step: 5,
-            unit: "ms",
-            group: "Travel & Departure",
-        },
-        // Settle & Orbit
-        {
-            key: "SETTLE_DURATION_MS",
-            label: "Settle Duration",
-            min: 0,
-            max: 5000,
-            step: 10,
-            unit: "ms",
-            group: "Settle & Orbit",
-        },
-        {
-            key: "ARRIVAL_SPREAD",
-            label: "Arrival Stagger",
-            min: 0,
-            max: 2,
-            step: 0.05,
-            unit: "×tick",
-            group: "Settle & Orbit",
-        },
-        // Surge
-        {
-            key: "SURGE_PULSE_DURATION_MS",
-            label: "Surge Pulse Cycle",
-            min: 0,
-            max: 5000,
-            step: 10,
-            unit: "ms",
-            group: "Attack Surge",
-        },
-        {
-            key: "ATTACK_SURGE_RAMP_MS",
-            label: "Surge Ramp",
-            min: 0,
-            max: 5000,
-            step: 10,
-            unit: "ms",
-            group: "Attack Surge",
-        },
-        {
-            key: "ATTACK_SURGE_MULT",
-            label: "Surge Displacement",
-            min: 0,
-            max: 2,
-            step: 0.05,
-            unit: "×",
-            group: "Attack Surge",
-        },
-        // Conquest
-        {
-            key: "CONQUEST_SETTLE_MS",
-            label: "Conquest Settle",
-            min: 0,
-            max: 5000,
-            step: 10,
-            unit: "ms",
-            group: "Conquest",
-        },
-        {
-            key: "CONQUEST_SURGE_STAGGER_MS",
-            label: "Surge Stagger",
-            min: 0,
-            max: 5000,
-            step: 1,
-            unit: "ms",
-            group: "Conquest",
-        },
-        {
-            key: "CONQUEST_TRAVEL_SPEED",
-            label: "Conquest Speed",
-            min: 0.1,
-            max: 10,
-            step: 0.1,
-            unit: "×",
-            group: "Conquest",
-        },
-        {
-            key: "CONQUEST_LERP_DELAY_MS",
-            label: "Lerp Delay",
-            min: 0,
-            max: 5000,
-            step: 10,
-            unit: "ms",
-            group: "Conquest",
-        },
-        {
-            key: "CONQUEST_COLOR_DELAY_MS",
-            label: "Color Delay",
-            min: 0,
-            max: 5000,
-            step: 10,
-            unit: "ms",
-            group: "Conquest",
-        },
-        {
-            key: "CONQUEST_FLASH_DURATION_MS",
-            label: "Flash Duration",
-            min: 0,
-            max: 5000,
-            step: 10,
-            unit: "ms",
-            group: "Conquest",
-        },
-        // Arrow
-        {
-            key: "ARROW_SPEED",
-            label: "Arrow Speed",
-            min: 0.1,
-            max: 10,
-            step: 0.05,
-            unit: "×",
-            group: "Arrow Formation",
-        },
-        {
-            key: "ARROW_SPIRAL_DURATION_MS",
-            label: "Spiral Duration",
-            min: 0,
-            max: 5000,
-            step: 10,
-            unit: "ms",
-            group: "Arrow Formation",
-        },
-        {
-            key: "ARROW_STAGGER_MS",
-            label: "Arrow Stagger",
-            min: 0,
-            max: 5000,
-            step: 1,
-            unit: "ms",
-            group: "Arrow Formation",
-        },
-    ];
-
-    // Animation lock storage keys
-    const ANIM_LOCK_STORAGE_KEY = "pax-anim-lock-ratios";
-
-    function loadAnimLockRatios(): Record<string, number | null> {
-        if (typeof window === "undefined") return {};
-        try {
-            const s = localStorage.getItem(ANIM_LOCK_STORAGE_KEY);
-            return s ? JSON.parse(s) : {};
-        } catch {
-            return {};
-        }
-    }
-
-    function saveAnimLockRatios() {
-        if (typeof window === "undefined") return;
-        try {
-            localStorage.setItem(
-                ANIM_LOCK_STORAGE_KEY,
-                JSON.stringify(animLockRatios),
-            );
-        } catch {
-            /* ignore */
-        }
-    }
-
-    // Lock modes: 'pinned' = value always equals tickDuration, 'ratio' = preserves ratio to tick, 'animSpeed' = preserves ratio to animation speed
-    type AnimLockMode = "pinned" | "ratio" | "animSpeed" | null;
-
-    let animLockRatios =
-        $state<Record<string, number | null>>(loadAnimLockRatios());
-    let animLockModes =
-        $state<Record<string, AnimLockMode>>(loadAnimLockModes());
-
-    function loadAnimLockModes(): Record<string, AnimLockMode> {
-        if (typeof window === "undefined") return {};
-        try {
-            const s = localStorage.getItem(ANIM_LOCK_STORAGE_KEY + "-modes");
-            return s ? JSON.parse(s) : {};
-        } catch {
-            return {};
-        }
-    }
-
-    function saveAnimLockModes() {
-        if (typeof window === "undefined") return;
-        try {
-            localStorage.setItem(
-                ANIM_LOCK_STORAGE_KEY + "-modes",
-                JSON.stringify(animLockModes),
-            );
-        } catch {
             /* ignore */
         }
     }
@@ -959,8 +453,8 @@
         }
         animLockModes = { ...animLockModes };
         animLockRatios = { ...animLockRatios };
-        saveAnimLockRatios();
-        saveAnimLockModes();
+        saveAnimLockRatios(animLockRatios);
+        saveAnimLockModes(animLockModes);
     }
 
     /** 🔗 Lock current ratio relative to tick (value scales proportionally when tick changes) */
@@ -979,8 +473,8 @@
         }
         animLockModes = { ...animLockModes };
         animLockRatios = { ...animLockRatios };
-        saveAnimLockRatios();
-        saveAnimLockModes();
+        saveAnimLockRatios(animLockRatios);
+        saveAnimLockModes(animLockModes);
     }
 
     /** Recalculate all locked/pinned animation values when tick interval changes */
@@ -1020,8 +514,8 @@
         }
         animLockModes = { ...animLockModes };
         animLockRatios = { ...animLockRatios };
-        saveAnimLockRatios();
-        saveAnimLockModes();
+        saveAnimLockRatios(animLockRatios);
+        saveAnimLockModes(animLockModes);
     }
 
     /** Recalculate animSpeed-locked values when animation speed changes */
@@ -1082,7 +576,7 @@
         const panelKey = animSliderToPanelKey(configKey);
         if (panelKey && panelKey in panel) {
             panel = { ...panel, [panelKey]: val };
-            savePanelSettings();
+            savePanelSettings(panel);
         }
         // Always update reactive mirror
         animValues = { ...animValues, [configKey]: val };
@@ -1100,7 +594,7 @@
 
     function resetToDefaults() {
         panel = { ...panelDefaults };
-        applyPanelToConfig();
+        applyPanelToConfig(panel);
         localStorage.removeItem(PANEL_STORAGE_KEY);
         // Reset combat vars
         variables.forEach((v) => {
@@ -1119,7 +613,7 @@
             savedValues = { ...savedValues, [key]: defaultValues[key] };
             (GAME_CONFIG as any)[key] = defaultValues[key];
         });
-        saveToStorage(values as typeof defaultValues);
+        saveCombatTuning(values);
         // Reset timing
         tickInterval = 1200;
         activeGameStore.updateTickInterval(1200);
@@ -1127,35 +621,6 @@
     }
 
     // =========================================================================
-    // Settings Tiers — basic / advanced / developer
-    // =========================================================================
-    type SettingsTier = "basic" | "advanced" | "developer";
-    const TIER_STORAGE_KEY = "pax-fluxia-settings-tier";
-
-    function loadTier(): SettingsTier {
-        if (typeof window === "undefined") return "basic";
-        const s = localStorage.getItem(TIER_STORAGE_KEY);
-        if (s === "advanced" || s === "developer") return s;
-        return "basic";
-    }
-
-    let activeTier = $state<SettingsTier>(loadTier());
-
-    function setTier(tier: SettingsTier) {
-        activeTier = tier;
-        if (typeof window !== "undefined") {
-            localStorage.setItem(TIER_STORAGE_KEY, tier);
-        }
-    }
-
-    const TIER_LABELS: Record<
-        SettingsTier,
-        { label: string; icon: string; color: string }
-    > = {
-        basic: { label: "Basic", icon: "🎮", color: "#4ade80" },
-        advanced: { label: "Advanced", icon: "⚙️", color: "#fbbf24" },
-        developer: { label: "Developer", icon: "🛠️", color: "#f87171" },
-    };
 
     // =========================================================================
     // Theme System
@@ -1282,7 +747,7 @@
             voronoiBlendWidth: GAME_CONFIG.VORONOI_BLEND_WIDTH,
             bindAnimToTick: GAME_CONFIG.BIND_ANIMATION_TO_TICK,
         };
-        savePanelSettings();
+        savePanelSettings(panel);
 
         // 2. Sync vis (connection visuals)
         vis = {
@@ -1292,7 +757,7 @@
             shadowWidth: GAME_CONFIG.CONNECTION_SHADOW_WIDTH,
             shadowAlpha: GAME_CONFIG.CONNECTION_SHADOW_ALPHA,
         };
-        saveVisuals();
+        saveVisuals(vis);
 
         // 3. Sync values (combat tuning state)
         const freshValues = { ...values };
@@ -1302,7 +767,7 @@
             }
         }
         values = freshValues;
-        saveToStorage(values);
+        saveCombatTuning(values);
 
         // 4. Sync tick interval display
         tickInterval = GAME_CONFIG.BASE_TICK_MS;
@@ -1587,7 +1052,7 @@
                                 );
                                 updateTickInterval(v);
                                 updatePanel("tickInterval", v);
-                                recalcAnimLocksOnTickChange(v);
+                                Object.assign(animValues, recalcAnimLocksOnTickChange(v, animLockModes, animLockRatios, ANIM_SLIDERS));
                                 // Auto-sync animation speed when bound
                                 if (panel.bindAnimToTick) {
                                     animationStore.setAnimationSpeed(v);
@@ -4332,7 +3797,7 @@
                     <div class="log-actions" style="flex-wrap: wrap;">
                         <button
                             class="btn-xs btn-export"
-                            onclick={() => exportConfigJSON()}
+                            onclick={() => exportConfigJSONBase(); configStatus = ` Exported ${Object.keys(GAME_CONFIG).length} settings`; configStatusColor = "#4ade80"}
                             >📥 Export JSON</button
                         >
                         <button
@@ -4820,3 +4285,4 @@
         background: rgba(74, 222, 128, 0.1);
     }
 </style>
+
