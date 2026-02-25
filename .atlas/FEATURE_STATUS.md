@@ -75,6 +75,9 @@
 | F-86 | Territory halo overhaul: alpha clamp (0.6 max), linear tuning (500 ships/+0.5), configurable TERRITORY_LAYERS (1-12), TERRITORY_BLUR (GPU blur), stepped/linear mode selector | High | Done (2026-02-24) |
 | F-87 | Density coloring hue fix: alternating +/- hue pattern → cumulative monotonic shift | Medium | Done (2026-02-24) |
 | F-88 | Nebula game board background: replaced procedural starfield specks with faint menu nebula sprite (0.12 alpha, covers game world) | Medium | Done (2026-02-24) |
+| F-89 | Pulsing corona ring: thicker glowing ring around star, pulse rate/size increases with ship count — heartbeat effect for powerful stars | Medium | Planned |
+| F-90 | Gravitational lensing: PixiJS displacement filter warps nearby space around powerful stars, conveying mass/threat | Medium | Planned |
+| F-91 | Particle aura: tiny fast-orbiting light motes (distinct from ship dots), count scales with ship power, player-colored | Medium | Planned |
 
 ## Known Regressions
 | ID | Description | Since |
