@@ -585,13 +585,9 @@
         syncPanelKey(key, val);
     }
 
-    function formatAnimValue(val: number, unit: string): string {
-        if (unit === "ms") return `${Math.round(val)}${unit}`;
-        return `${val.toFixed(2)}${unit}`;
-    }
 
     function resetToDefaults() {
-        panel = { ...panelDefaults };
+        panel = syncPanelFromConfig(panel);
         applyPanelToConfig(panel);
         localStorage.removeItem(PANEL_STORAGE_KEY);
         // Reset combat vars
