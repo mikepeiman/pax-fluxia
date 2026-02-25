@@ -292,3 +292,4 @@ For detailed guidance on any topic, load the corresponding file from `.agent/con
 | `architecture.md` | Shared engine details, convergence plan, Colyseus, schemas |
 | `workflow.md` | Git workflow, task discipline, session docs, theme versioning |
 | `tech-gotchas.md` | Colyseus module resolution, PowerShell syntax, Bun quirks |
+| `model-selection.md` | Which Antigravity model to use for which task type |
