@@ -788,11 +788,35 @@ function beginGame(): void {
 
 function setSpeed(newSpeed: GameSpeed): void {
     if (state) {
+        // Preserve tick progress across speed change to avoid visual disjoint.
+        // Calculate how far into the current tick we are (0-1), then map that
+        // same progress ratio to the new tick interval.
+        const now = performance.now();
+        const elapsed = now - lastTickTime;
+        const oldTickMs = tickIntervalMs;
+        const progress = Math.min(1, elapsed / oldTickMs);
+
         state.speed = newSpeed;
         snapshot = toGameState(state);
-        // Re-schedule tick at new interval
-        if (!state.isPaused) {
-            scheduleTick();
+
+        if (!state.isPaused && hasStarted) {
+            // Compute new interval
+            const newTickMs = Math.max(GAME_CONFIG.MIN_TICK_MS, GAME_CONFIG.BASE_TICK_MS / (newSpeed || 1));
+            tickIntervalMs = newTickMs;
+
+            // Map progress to new interval: pretend we started (progress * newTickMs) ago
+            const newElapsed = progress * newTickMs;
+            lastTickTime = now - newElapsed;
+            const remaining = Math.max(1, newTickMs - newElapsed);
+
+            // Reschedule: fire next tick after the remaining time, then regular interval
+            stopTick();
+            tickIntervalId = setTimeout(() => {
+                executeTick();
+                tickIntervalId = setInterval(() => {
+                    executeTick();
+                }, tickIntervalMs);
+            }, remaining) as unknown as ReturnType<typeof setInterval>;
         }
     }
 }
