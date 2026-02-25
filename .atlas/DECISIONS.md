@@ -61,3 +61,10 @@
 ### D-23: Orb Modes Are Full Visual Packages
 - **Decision**: An orb mode controls the ENTIRE travel visual — both the orb draw style AND whether individual ships are visible during travel. "Orb Mode 1" specifically preserves the ships+orbs combo (individual ships visible alongside orb power effects at destination). When B-90 is fixed (proper one-orb-per-transfer), Mode 1 must re-enable the dual-render behavior.
 - **Key**: Selecting an orb mode is a single UI choice that configures multiple rendering behaviors, not just the orb shape.
+
+## 2026-02-24
+
+### D-24: Visual Layer Semantic Naming — Star Power vs Territory
+- **Decision**: Rename `TerritoryRenderer` → `StarPowerRenderer`, `SHOW_TERRITORY` → `SHOW_STAR_POWER`. Per-star radial halos represent fleet strength/power, not ownership geometry.
+- **Rationale**: "Territory" describes ownership boundaries (Voronoi cells, metaball fields). Per-star halos that scale with ship count are "star power" — a visual indicator of strength radiating from individual stars. Naming must describe what the visual *represents*, not the rendering technique.
+- **Rule**: Added to `.agent/memory/semantic-naming.md` (Visual Layer Naming section)

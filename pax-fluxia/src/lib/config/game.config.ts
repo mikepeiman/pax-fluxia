@@ -148,7 +148,7 @@ interface GameConfigType {
     ARROW_WIDTH: number;                 // Base width in px (0=auto from star+orbit diameter, default 0)
     ARROW_SPEED: number;                 // Duration multiplier (lower=faster, default 0.6)
     ARROW_EASING: 'easeIn' | 'easeInOut' | 'linear'; // Travel easing (default 'easeIn' = accelerating)
-    ARROW_ENGULF_MODE: 'fan' | 'collapse'; // 'fan'=surround, 'collapse'=pile on (default 'fan')
+    ARROW_ENGULF_MODE: 'fan' | 'collapse' | 'ring' | 'swarm'; // Engulf arrival pattern (default 'fan')
     ARROW_ENGULF_RADIUS: number;         // Initial radius around target at engulf (px, default 50)
     ARROW_SPIRAL_MIN_DEG: number;        // Min spiral degrees per ship (default 180)
     ARROW_SPIRAL_MAX_DEG: number;        // Max spiral degrees per ship (default 720)

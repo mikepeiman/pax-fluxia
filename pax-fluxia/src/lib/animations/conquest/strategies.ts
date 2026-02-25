@@ -227,9 +227,30 @@ function conquestTravel(ctx: ConquestTransferContext): ConquestTransferResult {
             ship.laneStartY = effectiveLaneStartY * convergence + ship.departFromY * (1 - convergence);
         }
 
-        // Lane end = this ship's unique orbit slot at the conquered star
-        ship.laneEndX = slotEndX;
-        ship.laneEndY = slotEndY;
+        // Lane end depends on engulf mode
+        const engulfMode = GAME_CONFIG.ARROW_ENGULF_MODE ?? 'fan';
+        const engulfRadius = GAME_CONFIG.ARROW_ENGULF_RADIUS ?? 50;
+        if (engulfMode === 'fan') {
+            // Fan: ships arrive surrounding target, spread out from approach angle
+            const arrivalAngle = Math.atan2(-ndy, -ndx) + ((i / Math.max(n - 1, 1)) - 0.5) * Math.PI * 1.6;
+            ship.laneEndX = conqueredStar.x + Math.cos(arrivalAngle) * engulfRadius;
+            ship.laneEndY = conqueredStar.y + Math.sin(arrivalAngle) * engulfRadius;
+        } else if (engulfMode === 'ring') {
+            // Ring: evenly distributed around the full circle
+            const arrivalAngle = (i / n) * Math.PI * 2;
+            ship.laneEndX = conqueredStar.x + Math.cos(arrivalAngle) * engulfRadius;
+            ship.laneEndY = conqueredStar.y + Math.sin(arrivalAngle) * engulfRadius;
+        } else if (engulfMode === 'swarm') {
+            // Swarm: random scattered positions around the target
+            const rAngle = Math.random() * Math.PI * 2;
+            const rDist = (0.4 + Math.random() * 0.6) * engulfRadius;
+            ship.laneEndX = conqueredStar.x + Math.cos(rAngle) * rDist;
+            ship.laneEndY = conqueredStar.y + Math.sin(rAngle) * rDist;
+        } else {
+            // Collapse: all converge to the star edge from the lane direction
+            ship.laneEndX = slotEndX;
+            ship.laneEndY = slotEndY;
+        }
 
         ship.laneOffset = 0; // No random offset — slots handle distribution
         ship.staggerDelay = 0;
@@ -348,9 +369,20 @@ function conquestArrowhead(ctx: ConquestTransferContext): ConquestTransferResult
             const arrivalAngle = Math.atan2(-ndy, -ndx) + fracInFormation * Math.PI * 0.8;
             ship.laneEndX = conqueredStar.x + Math.cos(arrivalAngle) * engulfRadius;
             ship.laneEndY = conqueredStar.y + Math.sin(arrivalAngle) * engulfRadius;
+        } else if (engulfMode === 'ring') {
+            // Ring: evenly distributed around the full circle
+            const arrivalAngle = (i / n) * Math.PI * 2;
+            ship.laneEndX = conqueredStar.x + Math.cos(arrivalAngle) * engulfRadius;
+            ship.laneEndY = conqueredStar.y + Math.sin(arrivalAngle) * engulfRadius;
+        } else if (engulfMode === 'swarm') {
+            // Swarm: random scattered positions around the target
+            const rAngle = Math.random() * Math.PI * 2;
+            const rDist = (0.4 + Math.random() * 0.6) * engulfRadius;
+            ship.laneEndX = conqueredStar.x + Math.cos(rAngle) * rDist;
+            ship.laneEndY = conqueredStar.y + Math.sin(rAngle) * rDist;
         } else {
             // Collapse: all converge to the star edge from the lane direction
-            ship.laneEndX = laneEndX + perpX * wedgeOffset * 0.3; // slight spread retained
+            ship.laneEndX = laneEndX + perpX * wedgeOffset * 0.3;
             ship.laneEndY = laneEndY + perpY * wedgeOffset * 0.3;
         }
 

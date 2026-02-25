@@ -2888,13 +2888,19 @@
                             value={panel.arrowEngulfMode}
                             onchange={(e) => {
                                 const v = (e.target as HTMLSelectElement)
-                                    .value as "fan" | "collapse";
+                                    .value as
+                                    | "fan"
+                                    | "collapse"
+                                    | "ring"
+                                    | "swarm";
                                 GAME_CONFIG.ARROW_ENGULF_MODE = v;
                                 updatePanel("arrowEngulfMode", v);
                             }}
                         >
                             <option value="fan">Fan (surround)</option>
                             <option value="collapse">Collapse (pile on)</option>
+                            <option value="ring">Ring (encircle)</option>
+                            <option value="swarm">Swarm (scatter)</option>
                         </select>
                     </div>
                     <div class="var-row">
