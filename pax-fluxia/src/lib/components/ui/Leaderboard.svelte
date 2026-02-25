@@ -82,9 +82,10 @@
             <div class="tick-progress-bar">
                 <div
                     class="tick-progress-fill"
-                    style="animation-duration: {tickDurationMs}ms; animation-play-state: {isRunning
-                        ? 'running'
-                        : 'paused'}"
+                    style:animation-duration="{tickDurationMs}ms"
+                    style:animation-play-state={isRunning
+                        ? "running"
+                        : "paused"}
                 ></div>
             </div>
         {/key}
