@@ -7,21 +7,22 @@
     // ControlsSection-SPEED â€” In-Game Settings Controls: Timing
     // Extracted from GameSettingsPanel.svelte
 
-    let {
-    panel: Record<string, any>,
-    updatePanel: (key: string, value: any) => void,
-    tickInterval: number,
-    updateTickInterval: (v: number) => void,
-    animLockModes: Record<string, any>,
-    animLockRatios: Record<string, any>,
-    animValues: Record<string, number>,
-    getAnimValue: (key: string) => number,
-    setAnimValue: (key: string, val: number) => void,
-    formatAnimValue: (val: number, unit: string) => string,
-    pinValueToTickDuration: (key: string) => void,
-    lockRatioToTick: (key: string) => void,
-    lockRatioToAnimSpeed: (key: string) => void,
-    } = $props();
+    interface Props {
+        panel: Record<string, any>;
+        updatePanel: (key: string, value: any) => void;
+        tickInterval: number;
+        updateTickInterval: (v: number) => void;
+        animLockModes: Record<string, any>;
+        animLockRatios: Record<string, any>;
+        animValues: Record<string, number>;
+        getAnimValue: (key: string) => number;
+        setAnimValue: (key: string, val: number) => void;
+        formatAnimValue: (val: number, unit: string) => string;
+        pinValueToTickDuration: (key: string) => void;
+        lockRatioToTick: (key: string) => void;
+        lockRatioToAnimSpeed: (key: string) => void;
+    }
+    let { panel, updatePanel, tickInterval, updateTickInterval, animLockModes, animLockRatios, animValues, getAnimValue, setAnimValue, formatAnimValue, pinValueToTickDuration, lockRatioToTick, lockRatioToAnimSpeed } = ($props() as Props);
 </script>
 
 <div class="var-row">
@@ -101,7 +102,7 @@
             );
             animationStore.setAnimationSpeed(v);
             updatePanel("animSpeed", v);
-            recalcAnimLocksOnAnimSpeedChange(v);
+            Object.assign(animValues, recalcAnimLocksOnAnimSpeedChange(v, animLockModes, animLockRatios, ANIM_SLIDERS));
         }}
     />
 </div>
@@ -212,5 +213,3 @@
         </div>
     {/if}
 {/each}
-
-<!-- ⚔️ BATTLE -->

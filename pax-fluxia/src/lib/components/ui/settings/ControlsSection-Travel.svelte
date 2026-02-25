@@ -4,11 +4,11 @@
     // ControlsSection-TRAVEL â€” In-Game Settings Controls: Path & Easing
     // Extracted from GameSettingsPanel.svelte
 
-    let {
-    panel: Record<string, any>,
-    updatePanel: (key: string, value: any) => void,
-
-    } = $props();
+    interface Props {
+        panel: Record<string, any>;
+        updatePanel: (key: string, value: any) => void;
+    }
+    let { panel, updatePanel } = ($props() as Props);
 </script>
 
 <h4 class="sub-heading">Mode & Easing</h4>
@@ -322,5 +322,3 @@
         }}
     />
 </div>
-
-<!-- 💥 SURGE & ORBS -->

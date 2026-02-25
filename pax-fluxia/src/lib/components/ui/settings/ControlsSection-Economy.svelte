@@ -4,12 +4,13 @@
     // ControlsSection-ECONOMY â€” In-Game Settings Controls: Core / Economy
     // Extracted from GameSettingsPanel.svelte
 
-    let {
-    panel: Record<string, any>,
-    updatePanel: (key: string, value: any) => void,
-    transferRate: number,
-    updateTransferRate: (v: number) => void,
-    } = $props();
+    interface Props {
+        panel: Record<string, any>;
+        updatePanel: (key: string, value: any) => void;
+        transferRate: number;
+        updateTransferRate: (v: number) => void;
+    }
+    let { panel, updatePanel, transferRate, updateTransferRate } = ($props() as Props);
 </script>
 
 <div class="var-row">
@@ -119,5 +120,3 @@
         }}
     />
 </div>
-
-<!-- 🤖 AI BEHAVIOR -->

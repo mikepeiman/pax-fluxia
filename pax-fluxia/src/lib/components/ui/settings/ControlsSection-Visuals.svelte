@@ -4,13 +4,14 @@
     // ControlsSection-VISUALS â€” In-Game Settings Controls: Map & Grid
     // Extracted from GameSettingsPanel.svelte
 
-    let {
-    panel: Record<string, any>,
-    updatePanel: (key: string, value: any) => void,
-    vis: Record<string, any>,
-    updateVisual: (key: string, val: any) => void,
-    densityVariables: any[],
-    } = $props();
+    interface Props {
+        panel: Record<string, any>;
+        updatePanel: (key: string, value: any) => void;
+        vis: Record<string, any>;
+        updateVisual: (key: string, val: any) => void;
+        densityVariables: any[];
+    }
+    let { panel, updatePanel, vis, updateVisual, densityVariables } = ($props() as Props);
 </script>
 
 <h4 class="sub-heading">Overlays</h4>
@@ -193,5 +194,3 @@
             )}
     />
 </div>
-
-<!-- 📜 RULES -->

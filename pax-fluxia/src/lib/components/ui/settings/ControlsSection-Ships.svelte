@@ -1,14 +1,34 @@
 ﻿<script lang="ts">
     import { GAME_CONFIG } from "$lib/config/game.config";
+    import { DENSITY_VARIABLES } from "../settingsDefs";
+    import { selectedStarStore } from "$lib/stores/selectedStarStore.svelte";
+    import { logFlags } from "$lib/utils/logger";
+    import { exportConfigJSON as exportConfigJSONBase } from "../panelSync";
 
-    // ControlsSection-SHIPS â€” In-Game Settings Controls: Ship Appearance
-    // Extracted from GameSettingsPanel.svelte
+    // ControlsSection-SHIPS -- Ship Appearance (extracted from GameSettingsPanel.svelte)
 
-    let {
-    panel: Record<string, any>,
-    updatePanel: (key: string, value: any) => void,
+    interface Props {
+        panel: Record<string, any>;
+        updatePanel: (key: string, value: any) => void;
+        values: Record<string, number>;
+        enabled: Record<string, boolean>;
+        updateValue: (key: string, val: number) => void;
+        toggle: (key: string) => void;
+        exportConfigMD: () => void;
+        importConfigJSON: (e: Event) => void;
+        configStatus: string;
+        configStatusColor: string;
+    }
+    let { panel, updatePanel, values, enabled, updateValue, toggle,
+          exportConfigMD, importConfigJSON, configStatus, configStatusColor } = ($props() as Props);
 
-    } = $props();
+    type VarKey = string;
+    const densityVariables = DENSITY_VARIABLES;
+    let debugShipCount = $state(0);
+    function updateDebugShipCount(count: number) {
+        const starId = selectedStarStore.id;
+        if (starId) debugShipCount = count;
+    }
 </script>
 
 <!-- ── Ship Size & Shape ── -->
@@ -933,5 +953,3 @@
         >
     </div>
 {/if}
-
-<!-- 🎨 MAP VISUALS -->

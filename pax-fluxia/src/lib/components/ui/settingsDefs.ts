@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Settings Panel Data Definitions
  *
  * Pure data arrays extracted from GameSettingsPanel.svelte.
@@ -76,6 +76,7 @@ export interface AnimSliderDef {
     max?: number;
     step?: number;
     unit?: string;    // 'ms', '×', '×tick'
+    desc?: string;   // optional tooltip description
     group: string;
 }
 

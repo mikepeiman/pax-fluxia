@@ -41,8 +41,6 @@
         saveAnimLockRatios,
         loadAnimLockModes,
         saveAnimLockModes,
-        recalcAnimLocksOnTickChange,
-        recalcAnimLocksOnAnimSpeedChange,
         loadTier,
         saveTier,
         exportConfigJSON as exportConfigJSONBase,
@@ -1043,104 +1041,6 @@
                         {lockRatioToTick}
                         {lockRatioToAnimSpeed}
                     />
-                
-                        {/if}
-                        {#if slider.type === "toggle"}
-                            <label class="toggle-row">
-                                <input
-                                    type="checkbox"
-                                    checked={(GAME_CONFIG as any)[slider.key]}
-                                    onchange={() => {
-                                        (GAME_CONFIG as any)[slider.key] = !(
-                                            GAME_CONFIG as any
-                                        )[slider.key];
-                                    }}
-                                />
-                                <span class="var-name">{slider.label}</span>
-                            </label>
-                            {#if slider.desc}
-                                <div
-                                    class="var-row grayed"
-                                    style="font-size: 9px; padding: 0 4px 4px; margin-top: -6px; opacity: 0.6;"
-                                >
-                                    {slider.desc}
-                                </div>
-                            {/if}
-                        {:else}
-                            <div
-                                class="var-row"
-                                class:locked={animLockModes[slider.key] != null}
-                            >
-                                <div class="row-top">
-                                    <span class="var-name">{slider.label}</span>
-                                    <span class="val-group">
-                                        <span class="val"
-                                            >{formatAnimValue(
-                                                getAnimValue(slider.key),
-                                                slider.unit ?? "",
-                                            )}</span
-                                        >
-                                        <button
-                                            class="lock-btn"
-                                            class:active={animLockModes[
-                                                slider.key
-                                            ] === "pinned"}
-                                            title={animLockModes[slider.key] ===
-                                            "pinned"
-                                                ? "Pinned to tick duration — click to unpin"
-                                                : "Pin value = tick duration"}
-                                            onclick={() =>
-                                                pinValueToTickDuration(
-                                                    slider.key,
-                                                )}>🕐</button
-                                        >
-                                        <button
-                                            class="lock-btn"
-                                            class:active={animLockModes[
-                                                slider.key
-                                            ] === "ratio"}
-                                            title={animLockModes[slider.key] ===
-                                            "ratio"
-                                                ? `Locked at ${(animLockRatios[slider.key] ?? 0).toFixed(3)}×tick — click to unlock`
-                                                : "Lock current ratio to tick"}
-                                            onclick={() =>
-                                                lockRatioToTick(slider.key)}
-                                            >◆</button
-                                        >
-                                        <button
-                                            class="lock-btn"
-                                            class:active={animLockModes[
-                                                slider.key
-                                            ] === "animSpeed"}
-                                            title={animLockModes[slider.key] ===
-                                            "animSpeed"
-                                                ? `Locked at ${(animLockRatios[slider.key] ?? 0).toFixed(3)}×anim — click to unlock`
-                                                : "Lock current ratio to animation speed"}
-                                            onclick={() =>
-                                                lockRatioToAnimSpeed(
-                                                    slider.key,
-                                                )}>⚡</button
-                                        >
-                                    </span>
-                                </div>
-                                <input
-                                    type="range"
-                                    min={slider.min}
-                                    max={slider.max}
-                                    step={slider.step}
-                                    value={getAnimValue(slider.key)}
-                                    disabled={animLockModes[slider.key] != null}
-                                    oninput={(e) => {
-                                        const v = parseFloat(
-                                            (e.target as HTMLInputElement)
-                                                .value,
-                                        );
-                                        setAnimValue(slider.key, v);
-                                    }}
-                                />
-                            </div>
-                        {/if}
-                    {/each}
 
                     <!-- ⚔️ BATTLE -->
                 {:else if sec.id === "battle"}

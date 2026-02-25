@@ -4,11 +4,11 @@
     // ControlsSection-RULES â€” In-Game Settings Controls: Rules
     // Extracted from GameSettingsPanel.svelte
 
-    let {
-    panel: Record<string, any>,
-    updatePanel: (key: string, value: any) => void,
-
-    } = $props();
+    interface Props {
+        panel: Record<string, any>;
+        updatePanel: (key: string, value: any) => void;
+    }
+    let { panel, updatePanel } = ($props() as Props);
 </script>
 
 <label class="toggle-row">
@@ -49,5 +49,3 @@
     A→B and B→A movement orders can coexist (default: off =
     opposing cancels)
 </div>
-
-<!-- 📋 LOGGING -->

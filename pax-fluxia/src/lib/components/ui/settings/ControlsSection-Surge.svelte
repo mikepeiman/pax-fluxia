@@ -4,11 +4,11 @@
     // ControlsSection-SURGE â€” In-Game Settings Controls: Surge & Orbs
     // Extracted from GameSettingsPanel.svelte
 
-    let {
-    panel: Record<string, any>,
-    updatePanel: (key: string, value: any) => void,
-
-    } = $props();
+    interface Props {
+        panel: Record<string, any>;
+        updatePanel: (key: string, value: any) => void;
+    }
+    let { panel, updatePanel } = ($props() as Props);
 </script>
 
 <h4 class="sub-heading">Attack Surge</h4>
@@ -385,5 +385,3 @@
         />
     </div>
 {/if}
-
-<!-- 🏰 CONQUEST -->

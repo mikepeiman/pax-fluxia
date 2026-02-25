@@ -4,12 +4,13 @@
     // ControlsSection-LOGGING â€” In-Game Settings Controls: Logging
     // Extracted from GameSettingsPanel.svelte
 
-    let {
-    panel: Record<string, any>,
-    updatePanel: (key: string, value: any) => void,
-    logCategories: any[],
-    logRefresh: number,
-    } = $props();
+    interface Props {
+        panel: Record<string, any>;
+        updatePanel: (key: string, value: any) => void;
+        logCategories: any[];
+        logRefresh: number;
+    }
+    let { panel, updatePanel, logCategories, logRefresh } = ($props() as Props);
 </script>
 
 <div class="log-actions">
@@ -59,7 +60,7 @@
 <div class="log-actions" style="flex-wrap: wrap;">
     <button
         class="btn-xs btn-export"
-        onclick={() => exportConfigJSONBase(); configStatus = ` Exported ${Object.keys(GAME_CONFIG).length} settings`; configStatusColor = "#4ade80"}
+        onclick={() => { exportConfigJSONBase(); }}
         >📥 Export JSON</button
     >
     <button
@@ -91,3 +92,4 @@
     >
         {configStatus}
     </div>
+{/if}
