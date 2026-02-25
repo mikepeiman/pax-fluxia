@@ -891,7 +891,7 @@ function getStats() {
 }
 
 function getTick(): number {
-    return state?.tick ?? 0;
+    return snapshot?.tick ?? 0;
 }
 
 function getHistory() {
