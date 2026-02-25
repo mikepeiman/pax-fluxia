@@ -8,6 +8,7 @@
 
 import { GAME_CONFIG } from '$lib/config/game.config';
 import { PANEL_CONFIG_MAP, CONFIG_TO_PANEL_KEY, type AnimSliderDef } from './settingsDefs';
+import { dumpSettings } from '$lib/utils/settingsDump';
 
 // ── Storage Keys ────────────────────────────────────────────────────────────
 
@@ -37,6 +38,7 @@ export function saveCombatTuning(vals: Record<string, any>): void {
     } catch {
         /* ignore */
     }
+    dumpSettings();
 }
 
 // ── Visual Persistence ──────────────────────────────────────────────────────
@@ -62,6 +64,7 @@ export function loadVisuals(): typeof VISUAL_DEFAULTS {
 export function saveVisuals(vis: typeof VISUAL_DEFAULTS): void {
     if (typeof window === 'undefined') return;
     localStorage.setItem(VISUALS_STORAGE_KEY, JSON.stringify(vis));
+    dumpSettings();
 }
 
 export function applyVisuals(vis: typeof VISUAL_DEFAULTS): void {
@@ -91,6 +94,7 @@ export function savePanelSettings(panel: Record<string, any>): void {
     } catch {
         /* ignore */
     }
+    dumpSettings();
 }
 
 // ── Panel → Config Sync ─────────────────────────────────────────────────────
