@@ -143,9 +143,7 @@
     // Panel settings (persisted via panelSync)
     let panel = $state(loadPanelSettings({} as Record<string, any>));
     // Visuals state (persisted via panelSync)
-    let vis = $state(
-        loadVisuals(),
-    );
+    let vis = $state(loadVisuals());
     // Animation lock state (persisted via panelSync)
     let animLockRatios = $state(loadAnimLockRatios());
     let animLockModes = $state(loadAnimLockModes());
@@ -162,10 +160,9 @@
         applyVisuals(vis);
     }
 
-    function formatAnimValue(val: number, unit: string): string {
-        if (unit === "ms") return `${Math.round(val)}ms`;
-        if (unit === "s") return `${(val / 1000).toFixed(2)}s`;
-        return `${val.toFixed(2)}×`;
+    function setTier(tier: SettingsTier) {
+        activeTier = tier;
+        saveTier(tier);
     }
 
     function updateTickInterval(value: number) {
