@@ -8,7 +8,7 @@
     interface Props {
         panel: Record<string, any>;
         updatePanel: (key: string, value: any) => void;
-        logCategories: any[];
+        logCategories: readonly any[] | any[];
         logRefresh: number;
         exportConfigMD: () => void;
         importConfigJSON: (e: Event) => void;

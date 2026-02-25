@@ -12,8 +12,8 @@
         updatePanel: (key: string, value: any) => void;
         values: Record<string, number>;
         enabled: Record<string, boolean>;
-        updateValue: (key: string, val: number) => void;
-        toggle: (key: string) => void;
+        updateValue: (key: any, val: number) => void;
+        toggle: (key: any) => void;
         exportConfigMD: () => void;
         importConfigJSON: (e: Event) => void;
         configStatus: string;

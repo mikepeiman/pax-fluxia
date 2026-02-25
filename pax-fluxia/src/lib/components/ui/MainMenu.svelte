@@ -129,7 +129,10 @@
     );
     let allowOpposingOrders = $state(loadSetting("allowOpposingOrders", false));
     let playerConfigs = $state(
-        loadSetting("playerConfigs", makeDefaultPlayerConfigs()),
+        loadSetting(
+            "playerConfigs",
+            makeDefaultPlayerConfigs(loadSetting("playerCount", 6)),
+        ),
     );
     let tickDuration = $state(loadSetting("tickDuration", 1250));
 

@@ -138,6 +138,7 @@
     });
 
     let tickInterval = $state(GAME_CONFIG.BASE_TICK_MS);
+    let activeTier = $state<SettingsTier>(loadTier());
 
     function updateTickInterval(value: number) {
         tickInterval = value;
