@@ -646,9 +646,6 @@
         GAME_CONFIG.CONQUEST_SURGE_RADIUS = panel.conquestSurgeRadius as number;
         GAME_CONFIG.CONQUEST_SURGE_STAGGER_MS =
             panel.conquestSurgeStaggerMs as number;
-        GAME_CONFIG.CONQUEST_SLOWMO_ENABLED =
-            panel.conquestSlowmoEnabled as boolean;
-        GAME_CONFIG.CONQUEST_FORCE_GLOW = panel.conquestForceGlow as boolean;
         GAME_CONFIG.ORB_TRAVEL = panel.orbTravel as boolean;
         GAME_CONFIG.ORBIT_BIAS_STRENGTH = panel.orbitBias as number;
         GAME_CONFIG.ORBIT_BIAS_OSCILLATE = panel.oscillate as boolean;
@@ -3015,8 +3012,127 @@
                         />
                     </div>
 
-                    <!-- ℹ️ All conquest timing sliders (Speed, Settle, Delay, etc.)
-                         are in the ⚡ Timing panel (ANIM_SLIDERS) to avoid duplication -->
+                    <!-- ── Conquest Timing ── -->
+                    <h4 class="sub-heading">Timing</h4>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Color Delay</span><span
+                                class="val">{panel.conquestColorDelayMs}ms</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="5000"
+                            step="10"
+                            value={panel.conquestColorDelayMs}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.CONQUEST_COLOR_DELAY_MS = v;
+                                updatePanel("conquestColorDelayMs", v);
+                            }}
+                        />
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Flash Duration</span><span
+                                class="val"
+                                >{panel.conquestFlashDurationMs}ms</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="5000"
+                            step="10"
+                            value={panel.conquestFlashDurationMs}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.CONQUEST_FLASH_DURATION_MS = v;
+                                updatePanel("conquestFlashDurationMs", v);
+                            }}
+                        />
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Lerp Delay</span><span
+                                class="val">{panel.conquestLerpDelayMs}ms</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="5000"
+                            step="10"
+                            value={panel.conquestLerpDelayMs}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.CONQUEST_LERP_DELAY_MS = v;
+                                updatePanel("conquestLerpDelayMs", v);
+                            }}
+                        />
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Travel Speed</span><span
+                                class="val"
+                                >{(panel.conquestTravelSpeed as number).toFixed(
+                                    2,
+                                )}×</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0.01"
+                            max="2"
+                            step="0.01"
+                            value={panel.conquestTravelSpeed}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.CONQUEST_TRAVEL_SPEED = v;
+                                updatePanel("conquestTravelSpeed", v);
+                            }}
+                        />
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Settle Duration</span><span
+                                class="val">{panel.conquestSettleMs}ms</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="5000"
+                            step="10"
+                            value={panel.conquestSettleMs}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.CONQUEST_SETTLE_MS = v;
+                                updatePanel("conquestSettleMs", v);
+                            }}
+                        />
+                    </div>
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">Surge Stagger</span><span
+                                class="val"
+                                >{panel.conquestSurgeStaggerMs}ms</span
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="200"
+                            step="5"
+                            value={panel.conquestSurgeStaggerMs}
+                            oninput={(e) => {
+                                const v = +(e.target as HTMLInputElement).value;
+                                GAME_CONFIG.CONQUEST_SURGE_STAGGER_MS = v;
+                                updatePanel("conquestSurgeStaggerMs", v);
+                            }}
+                        />
+                    </div>
 
                     <!-- 🎨 SHIP APPEARANCE -->
                 {:else if sec.id === "ships"}
