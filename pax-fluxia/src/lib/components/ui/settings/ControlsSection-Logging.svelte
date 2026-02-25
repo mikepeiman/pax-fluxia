@@ -16,7 +16,7 @@
         configStatusColor: string;
     }
     let { panel, updatePanel, logCategories, logRefresh,
-          exportConfigMD, importConfigJSON, configStatus, configStatusColor } = ($props() as Props);
+          exportConfigMD, importConfigJSON, configStatus, configStatusColor }: Props = $props();
 </script>
 
 <div class="log-actions">

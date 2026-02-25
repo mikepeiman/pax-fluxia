@@ -8,7 +8,7 @@
         panel: Record<string, any>;
         updatePanel: (key: string, value: any) => void;
     }
-    let { panel, updatePanel } = ($props() as Props);
+    let { panel, updatePanel }: Props = $props();
 </script>
 
 <label class="toggle-row">

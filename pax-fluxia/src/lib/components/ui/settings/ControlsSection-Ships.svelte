@@ -20,7 +20,7 @@
         configStatusColor: string;
     }
     let { panel, updatePanel, values, enabled, updateValue, toggle,
-          exportConfigMD, importConfigJSON, configStatus, configStatusColor } = ($props() as Props);
+          exportConfigMD, importConfigJSON, configStatus, configStatusColor }: Props = $props();
 
     type VarKey = string;
     const densityVariables = DENSITY_VARIABLES;

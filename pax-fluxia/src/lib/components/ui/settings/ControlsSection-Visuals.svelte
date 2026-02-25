@@ -11,7 +11,7 @@
         updateVisual: (key: string, val: any) => void;
         densityVariables: any[];
     }
-    let { panel, updatePanel, vis, updateVisual, densityVariables } = ($props() as Props);
+    let { panel, updatePanel, vis, updateVisual, densityVariables }: Props = $props();
 </script>
 
 <h4 class="sub-heading">Overlays</h4>

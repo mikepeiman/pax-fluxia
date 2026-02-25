@@ -22,7 +22,7 @@
         lockRatioToTick: (key: string) => void;
         lockRatioToAnimSpeed: (key: string) => void;
     }
-    let { panel, updatePanel, tickInterval, updateTickInterval, animLockModes, animLockRatios, animValues, getAnimValue, setAnimValue, formatAnimValue, pinValueToTickDuration, lockRatioToTick, lockRatioToAnimSpeed } = ($props() as Props);
+    let { panel, updatePanel, tickInterval, updateTickInterval, animLockModes, animLockRatios, animValues, getAnimValue, setAnimValue, formatAnimValue, pinValueToTickDuration, lockRatioToTick, lockRatioToAnimSpeed }: Props = $props();
 </script>
 
 <div class="var-row">

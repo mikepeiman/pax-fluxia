@@ -128,6 +128,9 @@
         loadSetting("retainOrderOnConquest", true),
     );
     let allowOpposingOrders = $state(loadSetting("allowOpposingOrders", false));
+    let playerConfigs = $state(
+        loadSetting("playerConfigs", makeDefaultPlayerConfigs()),
+    );
     let tickDuration = $state(loadSetting("tickDuration", 1250));
 
     // Player identity (persisted)

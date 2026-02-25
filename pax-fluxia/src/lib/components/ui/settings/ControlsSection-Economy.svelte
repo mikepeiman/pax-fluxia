@@ -10,7 +10,7 @@
         transferRate: number;
         updateTransferRate: (v: number) => void;
     }
-    let { panel, updatePanel, transferRate, updateTransferRate } = ($props() as Props);
+    let { panel, updatePanel, transferRate, updateTransferRate }: Props = $props();
 </script>
 
 <div class="var-row">
