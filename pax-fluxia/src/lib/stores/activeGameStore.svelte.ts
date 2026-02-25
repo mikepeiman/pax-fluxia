@@ -35,15 +35,18 @@ function isMultiplayerMode(): boolean {
 // Event Pipeline State
 // ============================================================================
 
-// Pending tick events — fed by SP or MP, consumed by canvas
-let pendingTickEvents: TickEvents | null = $state(null);
+// Pending tick events queue — accumulates across multiple ticks between rAF frames.
+// At high game speeds (4x-10x), multiple ticks can fire between animation frames.
+// Using a queue ensures NO events are silently dropped.
+let pendingTickEventsQueue: TickEvents[] = [];
 
 /**
  * Push tick events from either SP engine or MP server.
+ * Events are queued (not overwritten) so they survive high-speed multi-tick batches.
  * Also feeds combat log from events.
  */
 function pushTickEvents(events: TickEvents): void {
-    pendingTickEvents = events;
+    pendingTickEventsQueue.push(events);
 
     // Feed combat log from events (unified — no longer done separately in each store)
     for (const combat of events.combats) {
@@ -72,13 +75,31 @@ function pushTickEvents(events: TickEvents): void {
 }
 
 /**
- * Consume pending tick events (returns them and clears).
- * Called by canvas each frame.
+ * Consume all pending tick events (merges queued events and clears).
+ * Called by canvas each frame. If multiple ticks fired between frames,
+ * all their events are merged into a single TickEvents batch.
  */
 function consumeTickEvents(): TickEvents | null {
-    const events = pendingTickEvents;
-    pendingTickEvents = null;
-    return events;
+    if (pendingTickEventsQueue.length === 0) return null;
+
+    if (pendingTickEventsQueue.length === 1) {
+        // Fast path: single tick, no merge needed
+        return pendingTickEventsQueue.pop()!;
+    }
+
+    // Merge all queued events into one batch
+    const merged: TickEvents = {
+        transfers: [],
+        combats: [],
+        conquests: [],
+    };
+    for (const batch of pendingTickEventsQueue) {
+        merged.transfers.push(...batch.transfers);
+        merged.combats.push(...batch.combats);
+        merged.conquests.push(...batch.conquests);
+    }
+    pendingTickEventsQueue.length = 0;
+    return merged;
 }
 
 // ============================================================================
