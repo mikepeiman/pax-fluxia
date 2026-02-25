@@ -140,6 +140,34 @@
     let tickInterval = $state(GAME_CONFIG.BASE_TICK_MS);
     let activeTier = $state<SettingsTier>(loadTier());
 
+    // Panel settings (persisted via panelSync)
+    let panel = $state(loadPanelSettings({} as Record<string, any>));
+    // Visuals state (persisted via panelSync)
+    let vis = $state(
+        loadVisuals(),
+    );
+    // Animation lock state (persisted via panelSync)
+    let animLockRatios = $state(loadAnimLockRatios());
+    let animLockModes = $state(loadAnimLockModes());
+
+    function updatePanel(key: string, value: any) {
+        (panel as any)[key] = value;
+        savePanelSettings(panel);
+        applyPanelToConfig(panel);
+    }
+
+    function updateVisual(key: string, value: any) {
+        (vis as any)[key] = value;
+        saveVisuals(vis);
+        applyVisuals(vis);
+    }
+
+    function formatAnimValue(val: number, unit: string): string {
+        if (unit === "ms") return `${Math.round(val)}ms`;
+        if (unit === "s") return `${(val / 1000).toFixed(2)}s`;
+        return `${val.toFixed(2)}×`;
+    }
+
     function updateTickInterval(value: number) {
         tickInterval = value;
         activeGameStore.updateTickInterval(value);
