@@ -52,10 +52,10 @@ export {
     type ShipRenderResources,
 } from './ShipRenderer';
 
-// Territory rendering
+// Star power rendering
 export {
-    renderTerritory,
-} from './TerritoryRenderer';
+    renderStarPower,
+} from './StarPowerRenderer';
 
 // Voronoi territory rendering
 export {

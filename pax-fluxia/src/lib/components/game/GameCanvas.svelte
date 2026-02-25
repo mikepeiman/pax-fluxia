@@ -45,7 +45,7 @@
         type ShipRenderState,
         type ShipRenderResources,
     } from "$lib/renderers/ShipRenderer";
-    import { renderTerritory as renderTerritoryModule } from "$lib/renderers/TerritoryRenderer";
+    import { renderStarPower as renderStarPowerModule } from "$lib/renderers/StarPowerRenderer";
     import {
         renderVoronoi as renderVoronoiModule,
         resetVoronoiCache,
@@ -676,7 +676,7 @@
 
         // Render territory overlay (bottommost layer — F-47 halos)
         if (territoryGraphics) {
-            renderTerritoryModule(stars, territoryGraphics, colorUtils);
+            renderStarPowerModule(stars, territoryGraphics, colorUtils);
         }
 
         // Render Voronoi territory (contiguous fill above halos)

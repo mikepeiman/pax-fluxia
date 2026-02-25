@@ -224,11 +224,11 @@ interface GameConfigType {
     SHOW_CONNECTIONS: boolean;
 
     // ── Territory Overlay ────────────────────────────────────────────────────
-    SHOW_TERRITORY: boolean;       // Show territory alpha overlay behind stars (default true)
-    TERRITORY_ALPHA: number;       // Alpha for territory overlay (default 0.08)
-    TERRITORY_RADIUS_MULT: number; // Radius multiplier for territory circles (default 3.0)
-    TERRITORY_LAYERS: number;      // Number of concentric gradient layers (1-12, default 4)
-    TERRITORY_BLUR: number;        // GPU blur on halos (0=off, default 4)
+    SHOW_STAR_POWER: boolean;       // Show star power alpha overlay behind stars (default true)
+    STAR_POWER_ALPHA: number;       // Alpha for star power overlay (default 0.08)
+    STAR_POWER_RADIUS_MULT: number; // Radius multiplier for star power circles (default 3.0)
+    STAR_POWER_LAYERS: number;      // Number of concentric gradient layers (1-12, default 4)
+    STAR_POWER_BLUR: number;        // GPU blur on halos (0=off, default 4)
     HALO_FLEET_SCALE: boolean;     // Bind halo alpha to ship count (default true)
     HALO_FLEET_MODE: string;       // 'stepped' (original: +intensity per step) or 'linear' (smooth)
     HALO_FLEET_INTENSITY: number;  // Intensity multiplier for ship-count binding (0-2, default 1.0)
@@ -664,16 +664,16 @@ const _rawConfig: GameConfigType = {
     /** Show connection lines */
     SHOW_CONNECTIONS: true,
 
-    /** Show territory alpha overlay behind stars (F-47) */
-    SHOW_TERRITORY: true,
-    /** Territory overlay alpha (0-1) */
-    TERRITORY_ALPHA: 0.07,
-    /** Territory radius multiplier relative to star radius */
-    TERRITORY_RADIUS_MULT: 3,
+    /** Show star power alpha overlay behind stars (F-47) */
+    SHOW_STAR_POWER: true,
+    /** Star power overlay alpha (0-1) */
+    STAR_POWER_ALPHA: 0.07,
+    /** Star power radius multiplier relative to star radius */
+    STAR_POWER_RADIUS_MULT: 3,
     /** Number of concentric gradient layers */
-    TERRITORY_LAYERS: 4,
-    /** GPU blur on territory halos (0=off) */
-    TERRITORY_BLUR: 4,
+    STAR_POWER_LAYERS: 4,
+    /** GPU blur on star power halos (0=off) */
+    STAR_POWER_BLUR: 4,
     HALO_FLEET_SCALE: true,
     /** Fleet halo mode: 'stepped' or 'linear' */
     HALO_FLEET_MODE: 'linear',

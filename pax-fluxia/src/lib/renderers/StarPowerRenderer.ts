@@ -1,9 +1,9 @@
 // ============================================================================
-// TerritoryRenderer — Radial gradient territory overlay per star
+// StarPowerRenderer — Radial gradient star power overlay per star
 // ============================================================================
 //
 // F-47: Draws a semi-transparent radial gradient circle behind each owned star
-// in the player's color. Overlapping gradients naturally show territory boundaries.
+// in the player's color. Overlapping gradients naturally show star power.
 // Inserted as the bottommost layer in the rendering pipeline.
 // ============================================================================
 
@@ -19,18 +19,18 @@ const MAX_HALO_ALPHA = 0.6;
  * Render territory overlay — large, faint colored circles behind each owned star.
  * Must be called each frame before other renderers.
  */
-export function renderTerritory(
+export function renderStarPower(
     stars: StarState[],
     territoryGraphics: PIXI.Graphics,
     colorUtils: ColorUtils,
 ): void {
     territoryGraphics.clear();
 
-    if (!GAME_CONFIG.SHOW_TERRITORY) return;
+    if (!GAME_CONFIG.SHOW_STAR_POWER) return;
 
-    const alpha = GAME_CONFIG.TERRITORY_ALPHA ?? 0.08;
-    const radiusMult = GAME_CONFIG.TERRITORY_RADIUS_MULT ?? 3.0;
-    const layers = Math.max(1, GAME_CONFIG.TERRITORY_LAYERS ?? 4);
+    const alpha = GAME_CONFIG.STAR_POWER_ALPHA ?? 0.08;
+    const radiusMult = GAME_CONFIG.STAR_POWER_RADIUS_MULT ?? 3.0;
+    const layers = Math.max(1, GAME_CONFIG.STAR_POWER_LAYERS ?? 4);
 
     if (alpha <= 0) return;
 
@@ -75,7 +75,7 @@ export function renderTerritory(
     }
 
     // Apply optional GPU blur for soft territory edges
-    const blurStrength = GAME_CONFIG.TERRITORY_BLUR ?? 4;
+    const blurStrength = GAME_CONFIG.STAR_POWER_BLUR ?? 4;
     if (blurStrength > 0) {
         const blur = new PIXI.BlurFilter({ strength: blurStrength, quality: 3 });
         territoryGraphics.filters = [blur];

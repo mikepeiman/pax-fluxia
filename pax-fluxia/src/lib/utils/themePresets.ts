@@ -1,5 +1,5 @@
-// ============================================================================
-// Theme Presets — Save/load named snapshots of GAME_CONFIG settings
+﻿// ============================================================================
+// Theme Presets â€” Save/load named snapshots of GAME_CONFIG settings
 // F-73
 // ============================================================================
 
@@ -44,7 +44,7 @@ export interface ThemePreset {
 
 const STORAGE_KEY = 'pax_themePresets';
 
-// ── Persistence ──────────────────────────────────────────────────────────────
+// â”€â”€ Persistence â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function loadUserPresets(): ThemePreset[] {
     try {
@@ -57,7 +57,7 @@ function persistUserPresets(presets: ThemePreset[]): void {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(presets));
 }
 
-// ── Snapshot / Apply ─────────────────────────────────────────────────────────
+// â”€â”€ Snapshot / Apply â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /**
  * Snapshot ALL GAME_CONFIG keys except the denylist.
@@ -86,7 +86,7 @@ export function applyTheme(preset: ThemePreset): void {
     }
 }
 
-// ── Built-in Presets ─────────────────────────────────────────────────────────
+// â”€â”€ Built-in Presets â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const BUILTIN_PRESETS: ThemePreset[] = [
     {
@@ -103,7 +103,7 @@ const BUILTIN_PRESETS: ThemePreset[] = [
             CONNECTION_WIDTH: 3.5, CONNECTION_ALPHA: 0.3, SHOW_CONNECTIONS: true,
             DENSITY_HUE_STEP: 8, DENSITY_TIERS: 3,
             CONQUEST_ANIMATION_MODE: 'travel', CONQUEST_FLASH_DURATION_MS: 600,
-            SHOW_TERRITORY: true, TERRITORY_ALPHA: 0.08, TERRITORY_RADIUS_MULT: 3.0,
+            SHOW_STAR_POWER: true, STAR_POWER_ALPHA: 0.08, STAR_POWER_RADIUS_MULT: 3.0,
         },
     },
     {
@@ -123,7 +123,7 @@ const BUILTIN_PRESETS: ThemePreset[] = [
             CONQUEST_ANIMATION_MODE: 'arrowhead', CONQUEST_FLASH_DURATION_MS: 900,
             CONQUEST_SLOWMO_ENABLED: true, CONQUEST_SLOWMO_FACTOR: 3,
             ATTACK_SURGE_MULT: 0.9, ATTACK_SURGE_PROPORTIONAL: true,
-            SHOW_TERRITORY: true, TERRITORY_ALPHA: 0.12, TERRITORY_RADIUS_MULT: 4.0,
+            SHOW_STAR_POWER: true, STAR_POWER_ALPHA: 0.12, STAR_POWER_RADIUS_MULT: 4.0,
         },
     },
     {
@@ -160,12 +160,12 @@ const BUILTIN_PRESETS: ThemePreset[] = [
             CONQUEST_ANIMATION_MODE: 'immediate', CONQUEST_FLASH_DURATION_MS: 0,
             CONQUEST_SLOWMO_ENABLED: false,
             ATTACK_SURGE_MULT: 0, ATTACK_SURGE_PROPORTIONAL: false,
-            SHOW_TERRITORY: false, TERRITORY_ALPHA: 0, TERRITORY_RADIUS_MULT: 1.0,
+            SHOW_STAR_POWER: false, STAR_POWER_ALPHA: 0, STAR_POWER_RADIUS_MULT: 1.0,
         },
     },
 ];
 
-// ── Public API ───────────────────────────────────────────────────────────────
+// â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 let _userPresets: ThemePreset[] | null = null;
 function getUserPresets(): ThemePreset[] {
@@ -190,7 +190,7 @@ export function saveThemePreset(name: string): void {
 }
 
 /**
- * Load a theme preset by name — applies values to GAME_CONFIG.
+ * Load a theme preset by name â€” applies values to GAME_CONFIG.
  * Returns the preset if found (caller should call syncAllFromConfig).
  */
 export function loadThemePreset(name: string): ThemePreset | null {

@@ -517,11 +517,11 @@
         minColorLightness: GAME_CONFIG.MIN_COLOR_LIGHTNESS,
         shipScaleMult: GAME_CONFIG.SHIP_SCALE_MULT,
         maxVisualShips: GAME_CONFIG.MAX_VISUAL_SHIPS,
-        showTerritory: GAME_CONFIG.SHOW_TERRITORY,
-        territoryAlpha: GAME_CONFIG.TERRITORY_ALPHA,
-        territoryRadiusMult: GAME_CONFIG.TERRITORY_RADIUS_MULT,
-        territoryLayers: GAME_CONFIG.TERRITORY_LAYERS,
-        territoryBlur: GAME_CONFIG.TERRITORY_BLUR,
+        showStarPower: GAME_CONFIG.SHOW_STAR_POWER,
+        starPowerAlpha: GAME_CONFIG.STAR_POWER_ALPHA,
+        starPowerRadiusMult: GAME_CONFIG.STAR_POWER_RADIUS_MULT,
+        starPowerLayers: GAME_CONFIG.STAR_POWER_LAYERS,
+        starPowerBlur: GAME_CONFIG.STAR_POWER_BLUR,
         haloFleetScale: GAME_CONFIG.HALO_FLEET_SCALE,
         haloFleetIntensity: GAME_CONFIG.HALO_FLEET_INTENSITY,
         haloFleetMode: GAME_CONFIG.HALO_FLEET_MODE,
@@ -671,11 +671,11 @@
         GAME_CONFIG.MIN_COLOR_LIGHTNESS = panel.minColorLightness as number;
         GAME_CONFIG.SHIP_SCALE_MULT = panel.shipScaleMult as number;
         GAME_CONFIG.MAX_VISUAL_SHIPS = panel.maxVisualShips as number;
-        GAME_CONFIG.SHOW_TERRITORY = panel.showTerritory as boolean;
-        GAME_CONFIG.TERRITORY_ALPHA = panel.territoryAlpha as number;
-        GAME_CONFIG.TERRITORY_RADIUS_MULT = panel.territoryRadiusMult as number;
-        GAME_CONFIG.TERRITORY_LAYERS = panel.territoryLayers as number;
-        GAME_CONFIG.TERRITORY_BLUR = panel.territoryBlur as number;
+        GAME_CONFIG.SHOW_STAR_POWER = panel.showStarPower as boolean;
+        GAME_CONFIG.STAR_POWER_ALPHA = panel.starPowerAlpha as number;
+        GAME_CONFIG.STAR_POWER_RADIUS_MULT = panel.starPowerRadiusMult as number;
+        GAME_CONFIG.STAR_POWER_LAYERS = panel.starPowerLayers as number;
+        GAME_CONFIG.STAR_POWER_BLUR = panel.starPowerBlur as number;
         GAME_CONFIG.HALO_FLEET_SCALE = panel.haloFleetScale as boolean;
         GAME_CONFIG.HALO_FLEET_INTENSITY = panel.haloFleetIntensity as number;
         GAME_CONFIG.HALO_FLEET_MODE = panel.haloFleetMode as string;
@@ -1246,11 +1246,11 @@
             minColorLightness: GAME_CONFIG.MIN_COLOR_LIGHTNESS,
             shipScaleMult: GAME_CONFIG.SHIP_SCALE_MULT,
             maxVisualShips: GAME_CONFIG.MAX_VISUAL_SHIPS,
-            showTerritory: GAME_CONFIG.SHOW_TERRITORY,
-            territoryAlpha: GAME_CONFIG.TERRITORY_ALPHA,
-            territoryRadiusMult: GAME_CONFIG.TERRITORY_RADIUS_MULT,
-            territoryLayers: GAME_CONFIG.TERRITORY_LAYERS,
-            territoryBlur: GAME_CONFIG.TERRITORY_BLUR,
+            showStarPower: GAME_CONFIG.SHOW_STAR_POWER,
+            starPowerAlpha: GAME_CONFIG.STAR_POWER_ALPHA,
+            starPowerRadiusMult: GAME_CONFIG.STAR_POWER_RADIUS_MULT,
+            starPowerLayers: GAME_CONFIG.STAR_POWER_LAYERS,
+            starPowerBlur: GAME_CONFIG.STAR_POWER_BLUR,
             haloFleetScale: GAME_CONFIG.HALO_FLEET_SCALE,
             haloFleetIntensity: GAME_CONFIG.HALO_FLEET_INTENSITY,
             haloFleetMode: GAME_CONFIG.HALO_FLEET_MODE,
@@ -3169,24 +3169,24 @@
                             <label class="toggle-switch">
                                 <input
                                     type="checkbox"
-                                    checked={panel.showTerritory}
+                                    checked={panel.showStarPower}
                                     onchange={(e) => {
                                         const v = (e.target as HTMLInputElement)
                                             .checked;
-                                        GAME_CONFIG.SHOW_TERRITORY = v;
-                                        updatePanel("showTerritory", v);
+                                        GAME_CONFIG.SHOW_STAR_POWER = v;
+                                        updatePanel("showStarPower", v);
                                     }}
                                 />
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>
                     </div>
-                    {#if panel.showTerritory}
+                    {#if panel.showStarPower}
                         <div class="var-row">
                             <div class="row-top">
                                 <span class="var-name">Halo Alpha</span><span
                                     class="val"
-                                    >{(panel.territoryAlpha as number).toFixed(
+                                    >{(panel.starPowerAlpha as number).toFixed(
                                         2,
                                     )}</span
                                 >
@@ -3196,12 +3196,12 @@
                                 min="0"
                                 max="0.3"
                                 step="0.005"
-                                value={panel.territoryAlpha}
+                                value={panel.starPowerAlpha}
                                 oninput={(e) => {
                                     const v = +(e.target as HTMLInputElement)
                                         .value;
-                                    GAME_CONFIG.TERRITORY_ALPHA = v;
-                                    updatePanel("territoryAlpha", v);
+                                    GAME_CONFIG.STAR_POWER_ALPHA = v;
+                                    updatePanel("starPowerAlpha", v);
                                 }}
                             />
                         </div>
@@ -3210,7 +3210,7 @@
                                 <span class="var-name">Halo Radius</span><span
                                     class="val"
                                     >{(
-                                        panel.territoryRadiusMult as number
+                                        panel.starPowerRadiusMult as number
                                     ).toFixed(1)}</span
                                 >
                             </div>
@@ -3219,19 +3219,19 @@
                                 min="1"
                                 max="8"
                                 step="0.5"
-                                value={panel.territoryRadiusMult}
+                                value={panel.starPowerRadiusMult}
                                 oninput={(e) => {
                                     const v = +(e.target as HTMLInputElement)
                                         .value;
-                                    GAME_CONFIG.TERRITORY_RADIUS_MULT = v;
-                                    updatePanel("territoryRadiusMult", v);
+                                    GAME_CONFIG.STAR_POWER_RADIUS_MULT = v;
+                                    updatePanel("starPowerRadiusMult", v);
                                 }}
                             />
                         </div>
                         <div class="var-row">
                             <div class="row-top">
                                 <span class="var-name">Halo Layers</span><span
-                                    class="val">{panel.territoryLayers}</span
+                                    class="val">{panel.starPowerLayers}</span
                                 >
                             </div>
                             <input
@@ -3239,12 +3239,12 @@
                                 min="1"
                                 max="12"
                                 step="1"
-                                value={panel.territoryLayers}
+                                value={panel.starPowerLayers}
                                 oninput={(e) => {
                                     const v = +(e.target as HTMLInputElement)
                                         .value;
-                                    GAME_CONFIG.TERRITORY_LAYERS = v;
-                                    updatePanel("territoryLayers", v);
+                                    GAME_CONFIG.STAR_POWER_LAYERS = v;
+                                    updatePanel("starPowerLayers", v);
                                 }}
                             />
                         </div>
@@ -3252,7 +3252,7 @@
                             <div class="row-top">
                                 <span class="var-name">Halo Blur</span><span
                                     class="val"
-                                    >{(panel.territoryBlur as number).toFixed(
+                                    >{(panel.starPowerBlur as number).toFixed(
                                         0,
                                     )}px</span
                                 >
@@ -3262,12 +3262,12 @@
                                 min="0"
                                 max="20"
                                 step="1"
-                                value={panel.territoryBlur}
+                                value={panel.starPowerBlur}
                                 oninput={(e) => {
                                     const v = +(e.target as HTMLInputElement)
                                         .value;
-                                    GAME_CONFIG.TERRITORY_BLUR = v;
-                                    updatePanel("territoryBlur", v);
+                                    GAME_CONFIG.STAR_POWER_BLUR = v;
+                                    updatePanel("starPowerBlur", v);
                                 }}
                             />
                         </div>
