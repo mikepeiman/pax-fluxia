@@ -152,7 +152,7 @@
     let zoomLevel = 1; // User zoom multiplier (1.0 = default fit)
     let panOffsetX = 0; // Pan offset in world coordinates
     let panOffsetY = 0;
-    const ZOOM_MIN = 0.1; // Allow zooming far out for large maps
+    const ZOOM_MIN = 0.5; // Max zoom-out: 200% of gameboard visible
     const ZOOM_MAX = 5.0;
     const ZOOM_STEP = 0.1; // Per scroll notch
     let isPanning = false; // Middle-mouse-button or spacebar pan

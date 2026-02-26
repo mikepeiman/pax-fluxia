@@ -157,11 +157,18 @@ export function renderMetaball(
         pid => hexToRGB(colorUtils.getPlayerColor(pid))
     );
 
-    // Coarse grid
-    const cols = Math.ceil(worldWidth / cellSize);
-    const rows = Math.ceil(worldHeight / cellSize);
+    // Extend grid to cover viewport at max zoom-out (50% padding each side)
+    const pad = Math.max(worldWidth, worldHeight) * 0.3;
+    const gridOriginX = -pad;
+    const gridOriginY = -pad;
+    const gridW = worldWidth + pad * 2;
+    const gridH = worldHeight + pad * 2;
 
-    // Precompute star data
+    // Coarse grid
+    const cols = Math.ceil(gridW / cellSize);
+    const rows = Math.ceil(gridH / cellSize);
+
+    // Precompute star data (positions relative to grid origin)
     const starData = ownedStars.map(s => ({
         x: s.x,
         y: s.y,
@@ -180,9 +187,9 @@ export function renderMetaball(
 
     // ── Grid computation (only runs on fingerprint change = tick) ──
     for (let row = 0; row < rows; row++) {
-        const py = (row + 0.5) * cellSize;
+        const py = gridOriginY + (row + 0.5) * cellSize;
         for (let col = 0; col < cols; col++) {
-            const px = (col + 0.5) * cellSize;
+            const px = gridOriginX + (col + 0.5) * cellSize;
 
             // Accumulate influence per player
             const inf = new Float32Array(numPlayers);
@@ -238,7 +245,7 @@ export function renderMetaball(
             const fadeAlpha = Math.min(1, maxInf * edgeFade) * alpha;
             if (fadeAlpha < 0.01) continue;
 
-            territoryGraphics.rect(col * cellSize, row * cellSize, cellSize, cellSize);
+            territoryGraphics.rect(gridOriginX + col * cellSize, gridOriginY + row * cellSize, cellSize, cellSize);
             territoryGraphics.fill({ color: rgbToHex(r, g, b), alpha: fadeAlpha });
         }
     }
@@ -261,9 +268,9 @@ export function renderMetaball(
                 if (col + 1 < cols) {
                     const rOwner = ownerGrid[row * cols + col + 1];
                     if (rOwner >= 0 && rOwner !== owner) {
-                        const bx = (col + 1) * cellSize;
-                        borderGraphics.moveTo(bx, row * cellSize);
-                        borderGraphics.lineTo(bx, (row + 1) * cellSize);
+                        const bx = gridOriginX + (col + 1) * cellSize;
+                        borderGraphics.moveTo(bx, gridOriginY + row * cellSize);
+                        borderGraphics.lineTo(bx, gridOriginY + (row + 1) * cellSize);
                         borderGraphics.stroke({ width: borderWidth, color: borderColor, alpha: borderAlpha });
                     }
                 }
@@ -272,9 +279,9 @@ export function renderMetaball(
                 if (row + 1 < rows) {
                     const bOwner = ownerGrid[(row + 1) * cols + col];
                     if (bOwner >= 0 && bOwner !== owner) {
-                        const by = (row + 1) * cellSize;
-                        borderGraphics.moveTo(col * cellSize, by);
-                        borderGraphics.lineTo((col + 1) * cellSize, by);
+                        const by = gridOriginY + (row + 1) * cellSize;
+                        borderGraphics.moveTo(gridOriginX + col * cellSize, by);
+                        borderGraphics.lineTo(gridOriginX + (col + 1) * cellSize, by);
                         borderGraphics.stroke({ width: borderWidth, color: borderColor, alpha: borderAlpha });
                     }
                 }
