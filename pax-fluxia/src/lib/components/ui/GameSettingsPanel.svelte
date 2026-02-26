@@ -660,12 +660,6 @@
 
     /** After applyTheme writes to GAME_CONFIG, sync all reactive layers back */
     function syncAllFromConfig() {
-        console.log(
-            "[syncAllFromConfig] Called! BASE_TICK_MS =",
-            GAME_CONFIG.BASE_TICK_MS,
-            "ANIMATION_SPEED_MS =",
-            GAME_CONFIG.ANIMATION_SPEED_MS,
-        );
         // 1. Sync panel (all fields read back from GAME_CONFIG)
         panel = {
             ...panel,

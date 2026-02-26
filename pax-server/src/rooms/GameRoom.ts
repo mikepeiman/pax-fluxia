@@ -401,6 +401,34 @@ export class GameRoom extends Room {
             this.updateListingMetadata();
         });
 
+        // Update gameplay config (host only, lobby phase)
+        this.onMessage("updateConfig", (client, message: { config: Partial<EngineConfig> }) => {
+            if (client.sessionId !== this.state.hostSessionId) return;
+            if (this.state.phase !== "lobby") return;
+            if (!message.config || typeof message.config !== 'object') return;
+
+            this.engineConfig = { ...this.engineConfig, ...message.config };
+            log.game('GameRoom', `Config updated by host: ${Object.keys(message.config).join(', ')}`);
+        });
+
+        // Update room options (host only, lobby phase)
+        this.onMessage("updateRoomOptions", (client, message: Partial<RoomOptions>) => {
+            if (client.sessionId !== this.state.hostSessionId) return;
+            if (this.state.phase !== "lobby") return;
+
+            if (message.playerCount && message.playerCount !== this.maxClients) {
+                this.maxClients = message.playerCount;
+                this.state.maxPlayers = message.playerCount;
+            }
+            if (message.mapType) this.roomOptions.mapType = message.mapType;
+            if (message.starsPerPlayer) this.roomOptions.starsPerPlayer = message.starsPerPlayer;
+            if (message.shipsPerStar) this.roomOptions.shipsPerStar = message.shipsPerStar;
+            if (message.starSpacing) this.roomOptions.starSpacing = message.starSpacing;
+
+            this.updateListingMetadata();
+            log.game('GameRoom', `Room options updated by host`);
+        });
+
         // Restart game — vote-based: any connected human can vote
         this.onMessage("requestRestart", (client) => {
             if (this.state.phase !== "playing" && this.state.phase !== "ended") return;
