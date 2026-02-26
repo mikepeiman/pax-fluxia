@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
     import { GAME_CONFIG } from "$lib/config/game.config";
 
     // ControlsSection-SURGE â€” In-Game Settings Controls: Surge & Orbs
@@ -21,7 +21,7 @@
     <div class="row-top">
         <span class="var-name">Attack Surge ×</span><span
             class="val"
-            >{(panel.attackSurgeMult as number).toFixed(
+            >{((panel.attackSurgeMult ?? 0) as number).toFixed(
                 2,
             )}×</span
         >
@@ -102,7 +102,7 @@
     <div class="row-top">
         <span class="var-name">Surge Shape</span><span
             class="val"
-            >{(panel.attackSurgeShape as number).toFixed(
+            >{((panel.attackSurgeShape ?? 0) as number).toFixed(
                 1,
             )}</span
         >
@@ -149,7 +149,7 @@
         <div class="row-top">
             <span class="var-name">Base R</span><span
                 class="val"
-                >{(panel.orbBaseRadius as number).toFixed(
+                >{((panel.orbBaseRadius ?? 0) as number).toFixed(
                     0,
                 )}px</span
             >
@@ -172,7 +172,7 @@
         <div class="row-top">
             <span class="var-name">R Scale</span><span
                 class="val"
-                >{(panel.orbRadiusScale as number).toFixed(
+                >{((panel.orbRadiusScale ?? 0) as number).toFixed(
                     2,
                 )}</span
             >
@@ -196,7 +196,7 @@
         <div class="row-top">
             <span class="var-name">Glow Mult</span><span
                 class="val"
-                >{(panel.orbGlowMult as number).toFixed(
+                >{((panel.orbGlowMult ?? 0) as number).toFixed(
                     2,
                 )}</span
             >
@@ -270,7 +270,7 @@
             <div class="row-top">
                 <span class="var-name">Mid α</span><span
                     class="val"
-                    >{(panel.orbMidAlpha as number).toFixed(
+                    >{((panel.orbMidAlpha ?? 0) as number).toFixed(
                         2,
                     )}</span
                 >
@@ -294,7 +294,7 @@
             <div class="row-top">
                 <span class="var-name">Mid ×</span><span
                     class="val"
-                    >{(panel.orbMidScale as number).toFixed(
+                    >{((panel.orbMidScale ?? 0) as number).toFixed(
                         1,
                     )}</span
                 >
@@ -370,7 +370,7 @@
         <div class="row-top">
             <span class="var-name">Center α</span><span
                 class="val"
-                >{(panel.orbCenterAlpha as number).toFixed(
+                >{((panel.orbCenterAlpha ?? 0) as number).toFixed(
                     2,
                 )}</span
             >

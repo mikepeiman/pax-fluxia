@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
     import { GAME_CONFIG } from "$lib/config/game.config";
 
     // ControlsSection-VISUALS â€” In-Game Settings Controls: Map & Grid

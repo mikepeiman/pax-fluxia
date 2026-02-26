@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
     import { COMBAT_VARIABLES, AI_VARIABLES } from "../settingsDefs";
     type VarKey = string;
     const variables = COMBAT_VARIABLES;

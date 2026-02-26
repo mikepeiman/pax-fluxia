@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { animationStore } from "$lib/stores/animationStore.svelte";
     import { ANIM_SLIDERS } from "../settingsDefs";

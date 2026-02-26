@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
     import { GAME_CONFIG } from "$lib/config/game.config";
 
     // ControlsSection-CONQUEST â€” In-Game Settings Controls: Conquest
@@ -50,7 +50,7 @@
         <div class="row-top">
             <span class="var-name">Taper</span><span
                 class="val"
-                >{(panel.arrowTaper as number).toFixed(
+                >{((panel.arrowTaper ?? 0) as number).toFixed(
                     2,
                 )}</span
             >
@@ -96,7 +96,7 @@
         <div class="row-top">
             <span class="var-name">Speed</span><span
                 class="val"
-                >{(panel.arrowSpeed as number).toFixed(
+                >{((panel.arrowSpeed ?? 0) as number).toFixed(
                     2,
                 )}</span
             >
@@ -374,7 +374,7 @@
     <div class="row-top">
         <span class="var-name">Travel Speed</span><span
             class="val"
-            >{(panel.conquestTravelSpeed as number).toFixed(
+            >{((panel.conquestTravelSpeed ?? 0) as number).toFixed(
                 2,
             )}×</span
         >

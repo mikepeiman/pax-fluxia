@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { DENSITY_VARIABLES } from "../settingsDefs";
     import { selectedStarStore } from "$lib/stores/selectedStarStore.svelte";
@@ -69,7 +69,7 @@
 <div class="var-row">
     <div class="row-top">
         <span class="var-name">Scale Multiplier</span><span class="val"
-            >{(panel.shipScaleMult as number).toFixed(1)}×</span
+            >{((panel.shipScaleMult ?? 0) as number).toFixed(1)}×</span
         >
     </div>
     <input
@@ -104,7 +104,7 @@
 <div class="var-row">
     <div class="row-top">
         <span class="var-name">Outline px</span><span class="val"
-            >{(panel.shipOutlinePx as number).toFixed(1)}</span
+            >{((panel.shipOutlinePx ?? 0) as number).toFixed(1)}</span
         >
     </div>
     <input
@@ -123,7 +123,7 @@
 <div class="var-row">
     <div class="row-top">
         <span class="var-name">Glow Intensity</span><span class="val"
-            >{(panel.shipGlowIntensity as number).toFixed(2)}</span
+            >{((panel.shipGlowIntensity ?? 0) as number).toFixed(2)}</span
         >
     </div>
     <input
@@ -142,7 +142,7 @@
 <div class="var-row">
     <div class="row-top">
         <span class="var-name">Glow Radius</span><span class="val"
-            >{(panel.shipGlowRadius as number).toFixed(1)}</span
+            >{((panel.shipGlowRadius ?? 0) as number).toFixed(1)}</span
         >
     </div>
     <input
@@ -161,7 +161,7 @@
 <div class="var-row">
     <div class="row-top">
         <span class="var-name">Min Contrast</span><span class="val"
-            >{(panel.minColorLightness as number).toFixed(2)}</span
+            >{((panel.minColorLightness ?? 0) as number).toFixed(2)}</span
         >
     </div>
     <input
@@ -201,7 +201,7 @@
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Halo Alpha</span><span class="val"
-                >{(panel.starPowerAlpha as number).toFixed(2)}</span
+                >{((panel.starPowerAlpha ?? 0) as number).toFixed(2)}</span
             >
         </div>
         <input
@@ -220,7 +220,7 @@
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Halo Radius</span><span class="val"
-                >{(panel.starPowerRadiusMult as number).toFixed(1)}</span
+                >{((panel.starPowerRadiusMult ?? 0) as number).toFixed(1)}</span
             >
         </div>
         <input
@@ -258,7 +258,7 @@
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Halo Blur</span><span class="val"
-                >{(panel.starPowerBlur as number).toFixed(0)}px</span
+                >{((panel.starPowerBlur ?? 0) as number).toFixed(0)}px</span
             >
         </div>
         <input
@@ -295,7 +295,7 @@
         <div class="var-row">
             <div class="row-top">
                 <span class="var-name">Fleet Intensity</span><span class="val"
-                    >{(panel.haloFleetIntensity as number).toFixed(1)}×</span
+                    >{((panel.haloFleetIntensity ?? 0) as number).toFixed(1)}×</span
                 >
             </div>
             <input
@@ -384,7 +384,7 @@
 <div class="var-row">
     <div class="row-top">
         <span class="var-name">Orbit Spacing Size</span><span class="val"
-            >{(panel.shipBaseSize as number).toFixed(1)}</span
+            >{((panel.shipBaseSize ?? 0) as number).toFixed(1)}</span
         >
     </div>
     <input
@@ -403,7 +403,7 @@
 <div class="var-row">
     <div class="row-top">
         <span class="var-name">Ring Spacing</span><span class="val"
-            >{(panel.orbitRingMult as number).toFixed(1)}×</span
+            >{((panel.orbitRingMult ?? 0) as number).toFixed(1)}×</span
         >
     </div>
     <input
@@ -422,7 +422,7 @@
 <div class="var-row">
     <div class="row-top">
         <span class="var-name">Ships Per Ring</span><span class="val"
-            >{(panel.orbitDensity as number).toFixed(1)}</span
+            >{((panel.orbitDensity ?? 0) as number).toFixed(1)}</span
         >
     </div>
     <input
@@ -460,7 +460,7 @@
 <div class="var-row">
     <div class="row-top">
         <span class="var-name">Star Radius</span><span class="val"
-            >{(panel.starRenderRadius as number).toFixed(0)}</span
+            >{((panel.starRenderRadius ?? 0) as number).toFixed(0)}</span
         >
     </div>
     <input

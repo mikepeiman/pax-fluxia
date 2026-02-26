@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
     import { GAME_CONFIG } from "$lib/config/game.config";
 
     // ControlsSection-RULES â€” In-Game Settings Controls: Rules

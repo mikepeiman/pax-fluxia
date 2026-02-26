@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
     import { GAME_CONFIG } from "$lib/config/game.config";
 
     // ControlsSection-ECONOMY â€” In-Game Settings Controls: Core / Economy
@@ -22,7 +22,7 @@
     <div class="row-top">
         <span class="var-name">⚙️ Production</span><span
             class="val"
-            >{(panel.production as number).toFixed(2)}</span
+            >{((panel.production ?? 0) as number).toFixed(2)}</span
         >
     </div>
     <input
@@ -85,7 +85,7 @@
     <div class="row-top">
         <span class="var-name">🛡️ Defense</span><span
             class="val"
-            >{(panel.defense as number).toFixed(2)}×</span
+            >{((panel.defense ?? 0) as number).toFixed(2)}×</span
         >
     </div>
     <input
@@ -107,7 +107,7 @@
     <div class="row-top">
         <span class="var-name">⚔️ Attack</span><span
             class="val"
-            >{(panel.attack as number).toFixed(3)}</span
+            >{((panel.attack ?? 0) as number).toFixed(3)}</span
         >
     </div>
     <input

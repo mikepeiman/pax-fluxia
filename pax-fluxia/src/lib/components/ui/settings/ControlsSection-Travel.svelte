@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
     import { GAME_CONFIG } from "$lib/config/game.config";
 
     // ControlsSection-TRAVEL â€” In-Game Settings Controls: Path & Easing
@@ -63,7 +63,7 @@
     <div class="row-top">
         <span class="var-name">Easing Power</span><span
             class="val"
-            >{(panel.travelEasingPower as number).toFixed(
+            >{((panel.travelEasingPower ?? 0) as number).toFixed(
                 1,
             )}</span
         >
@@ -86,7 +86,7 @@
     <div class="row-top">
         <span class="var-name">Travel Duration</span><span
             class="val"
-            >{(panel.travelDurationMult as number).toFixed(
+            >{((panel.travelDurationMult ?? 0) as number).toFixed(
                 1,
             )}×</span
         >
@@ -108,7 +108,7 @@
     <div class="row-top">
         <span class="var-name">Arc Intensity</span><span
             class="val"
-            >{(panel.travelArcIntensity as number).toFixed(
+            >{((panel.travelArcIntensity ?? 0) as number).toFixed(
                 2,
             )}</span
         >
@@ -189,7 +189,7 @@
     <div class="row-top">
         <span class="var-name">Arrival Spread</span><span
             class="val"
-            >{(panel.arrivalSpread as number).toFixed(
+            >{((panel.arrivalSpread ?? 0) as number).toFixed(
                 1,
             )}×</span
         >
@@ -309,7 +309,7 @@
     <div class="row-top">
         <span class="var-name">Orbit Density</span><span
             class="val"
-            >{(panel.orbitDensity as number).toFixed(
+            >{((panel.orbitDensity ?? 0) as number).toFixed(
                 1,
             )}×</span
         >
