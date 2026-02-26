@@ -229,6 +229,7 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'pixelEdgeBlend', configKey: 'PIXEL_EDGE_BLEND' },
     { panelKey: 'pixelBlur', configKey: 'PIXEL_BLUR' },
     { panelKey: 'pixelBlendPower', configKey: 'PIXEL_BLEND_POWER' },
+    { panelKey: 'pixelCorridorBoost', configKey: 'PIXEL_CORRIDOR_BOOST' },
     // Metaball params
     { panelKey: 'metaballRadius', configKey: 'METABALL_INFLUENCE_RADIUS' },
     { panelKey: 'metaballFalloff', configKey: 'METABALL_FALLOFF' },

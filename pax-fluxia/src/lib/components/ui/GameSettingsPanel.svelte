@@ -770,6 +770,7 @@
             pixelEdgeBlend: GAME_CONFIG.PIXEL_EDGE_BLEND,
             pixelBlur: GAME_CONFIG.PIXEL_BLUR,
             pixelBlendPower: GAME_CONFIG.PIXEL_BLEND_POWER,
+            pixelCorridorBoost: GAME_CONFIG.PIXEL_CORRIDOR_BOOST,
             metaballRadius: GAME_CONFIG.METABALL_INFLUENCE_RADIUS,
             metaballFalloff: GAME_CONFIG.METABALL_FALLOFF,
             metaballSharpness: GAME_CONFIG.METABALL_BLEND_SHARPNESS,

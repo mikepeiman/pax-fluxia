@@ -354,27 +354,29 @@
     </div>
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name">Blend Power</span><span class="val"
-                >{panel.pixelBlendPower ?? 4}
-                {(panel.pixelBlendPower ?? 4) === 0
-                    ? "(hard)"
-                    : (panel.pixelBlendPower ?? 4) <= 3
-                      ? "(soft)"
-                      : (panel.pixelBlendPower ?? 4) <= 6
-                        ? "(rounded)"
-                        : "(sharp)"}</span
+            <span class="var-name">Corridor Boost</span><span class="val"
+                >{(panel.pixelCorridorBoost ?? 0.3).toFixed(2)}
+                {(panel.pixelCorridorBoost ?? 0.3) === 0
+                    ? "(off)"
+                    : (panel.pixelCorridorBoost ?? 0.3) <= 0.15
+                      ? "(light)"
+                      : (panel.pixelCorridorBoost ?? 0.3) <= 0.35
+                        ? "(natural)"
+                        : (panel.pixelCorridorBoost ?? 0.3) <= 0.6
+                          ? "(strong)"
+                          : "(extreme)"}</span
             >
         </div>
         <input
             type="range"
             min="0"
-            max="12"
-            step="0.5"
-            value={panel.pixelBlendPower ?? 4}
+            max="0.9"
+            step="0.05"
+            value={panel.pixelCorridorBoost ?? 0.3}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.PIXEL_BLEND_POWER = v;
-                updatePanel("pixelBlendPower", v);
+                GAME_CONFIG.PIXEL_CORRIDOR_BOOST = v;
+                updatePanel("pixelCorridorBoost", v);
             }}
         />
     </div>
