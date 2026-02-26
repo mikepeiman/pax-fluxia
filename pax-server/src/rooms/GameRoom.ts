@@ -157,42 +157,8 @@ export class GameRoom extends Room {
                 player.name = `${player.name} ${suffix}`;
             }
 
-            // Enforce min 30deg hue separation
-            const hexToHue = (hex: string): number => {
-                const r = parseInt(hex.slice(1, 3), 16) / 255;
-                const g = parseInt(hex.slice(3, 5), 16) / 255;
-                const b = parseInt(hex.slice(5, 7), 16) / 255;
-                const max = Math.max(r, g, b), min = Math.min(r, g, b);
-                if (max === min) return 0;
-                let h = 0;
-                const d = max - min;
-                if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) * 60;
-                else if (max === g) h = ((b - r) / d + 2) * 60;
-                else h = ((r - g) / d + 4) * 60;
-                return h;
-            };
-            const hueToHex = (hue: number): string => {
-                const s = 0.7, l = 0.55;
-                const a = s * Math.min(l, 1 - l);
-                const f = (n: number) => {
-                    const k = (n + hue / 30) % 12;
-                    const c = l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
-                    return Math.round(c * 255).toString(16).padStart(2, '0');
-                };
-                return `#${f(0)}${f(8)}${f(4)}`;
-            };
-            let myHue = hexToHue(player.color);
-            let shifted = false;
-            this.state.players.forEach((p: any) => {
-                const otherHue = hexToHue(p.color);
-                const diff = Math.abs(myHue - otherHue);
-                const circDiff = Math.min(diff, 360 - diff);
-                if (circDiff < 30) {
-                    myHue = (otherHue + 30) % 360;
-                    shifted = true;
-                }
-            });
-            if (shifted) player.color = hueToHex(myHue);
+            // Enforce min 30deg hue separation against existing players
+            player.color = this.enforceHueSeparation(player.color);
 
             this.state.players.set(client.sessionId, player);
             this.state.playerCount = this.state.players.size;
@@ -253,43 +219,8 @@ export class GameRoom extends Room {
                 takenPlayer.name = `${takenPlayer.name} ${suffix}`;
             }
 
-            // Enforce min 30deg hue separation (same as lobby path)
-            const hexToHue = (hex: string): number => {
-                const r = parseInt(hex.slice(1, 3), 16) / 255;
-                const g = parseInt(hex.slice(3, 5), 16) / 255;
-                const b = parseInt(hex.slice(5, 7), 16) / 255;
-                const max = Math.max(r, g, b), min = Math.min(r, g, b);
-                if (max === min) return 0;
-                let h = 0;
-                const d = max - min;
-                if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) * 60;
-                else if (max === g) h = ((b - r) / d + 2) * 60;
-                else h = ((r - g) / d + 4) * 60;
-                return h;
-            };
-            const hueToHex = (hue: number): string => {
-                const s = 0.7, l = 0.55;
-                const a = s * Math.min(l, 1 - l);
-                const f = (n: number) => {
-                    const k = (n + hue / 30) % 12;
-                    const c = l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
-                    return Math.round(c * 255).toString(16).padStart(2, '0');
-                };
-                return `#${f(0)}${f(8)}${f(4)}`;
-            };
-            let myHue = hexToHue(takenPlayer.color);
-            let shifted = false;
-            this.state.players.forEach((p: any) => {
-                if (p.sessionId === oldSessionId) return; // skip the AI being replaced
-                const otherHue = hexToHue(p.color);
-                const diff = Math.abs(myHue - otherHue);
-                const circDiff = Math.min(diff, 360 - diff);
-                if (circDiff < 30) {
-                    myHue = (otherHue + 30) % 360;
-                    shifted = true;
-                }
-            });
-            if (shifted) takenPlayer.color = hueToHex(myHue);
+            // Enforce min 30deg hue separation (skip the AI being replaced)
+            takenPlayer.color = this.enforceHueSeparation(takenPlayer.color, oldSessionId);
 
             takenPlayer.isAI = false;
             takenPlayer.isEliminated = aiPlayer.isEliminated;
@@ -360,6 +291,59 @@ export class GameRoom extends Room {
             clearTimeout(this.disposeTimer);
             this.disposeTimer = null;
         }
+    }
+
+    // ========================================================================
+    // Color Helpers
+    // ========================================================================
+
+    /** Convert hex color to hue (0-360) */
+    private hexToHue(hex: string): number {
+        const r = parseInt(hex.slice(1, 3), 16) / 255;
+        const g = parseInt(hex.slice(3, 5), 16) / 255;
+        const b = parseInt(hex.slice(5, 7), 16) / 255;
+        const max = Math.max(r, g, b), min = Math.min(r, g, b);
+        if (max === min) return 0;
+        let h = 0;
+        const d = max - min;
+        if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) * 60;
+        else if (max === g) h = ((b - r) / d + 2) * 60;
+        else h = ((r - g) / d + 4) * 60;
+        return h;
+    }
+
+    /** Convert hue (0-360) to hex color with fixed S=0.7, L=0.55 */
+    private hueToHex(hue: number): string {
+        const s = 0.7, l = 0.55;
+        const a = s * Math.min(l, 1 - l);
+        const f = (n: number) => {
+            const k = (n + hue / 30) % 12;
+            const c = l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+            return Math.round(c * 255).toString(16).padStart(2, '0');
+        };
+        return `#${f(0)}${f(8)}${f(4)}`;
+    }
+
+    /**
+     * Enforce minimum 30° hue separation against all existing players.
+     * @param hex - The candidate color
+     * @param skipSessionId - Optional session ID to exclude from comparison (e.g. AI being replaced)
+     * @returns The (possibly shifted) hex color
+     */
+    private enforceHueSeparation(hex: string, skipSessionId?: string): string {
+        let myHue = this.hexToHue(hex);
+        let shifted = false;
+        this.state.players.forEach((p: any, sid: string) => {
+            if (skipSessionId && sid === skipSessionId) return;
+            const otherHue = this.hexToHue(p.color);
+            const diff = Math.abs(myHue - otherHue);
+            const circDiff = Math.min(diff, 360 - diff);
+            if (circDiff < 30) {
+                myHue = (otherHue + 30) % 360;
+                shifted = true;
+            }
+        });
+        return shifted ? this.hueToHex(myHue) : hex;
     }
 
     /** Update room listing metadata for public browser */
@@ -635,6 +619,9 @@ export class GameRoom extends Room {
             aiPlayer.isEliminated = false;
             aiPlayer.isConnected = true;
             this.state.players.set(aiPlayer.sessionId, aiPlayer);
+
+            // Enforce min 30deg hue separation against humans and other AIs
+            aiPlayer.color = this.enforceHueSeparation(aiPlayer.color);
         }
 
         this.state.playerCount = this.state.players.size;

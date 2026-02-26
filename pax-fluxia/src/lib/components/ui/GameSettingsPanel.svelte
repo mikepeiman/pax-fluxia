@@ -644,6 +644,9 @@
     );
     let allThemes = $derived([...BUILTIN_THEMES, ...userThemes]);
     let selectedThemeName = $state<string>("");
+    let showFullSaveInput = $state(false);
+    let fullSaveName = $state("");
+    let fullSaveFlash = $state(false);
 
     function handleApplyTheme(name: string) {
         const theme = allThemes.find((t) => t.name === name);
@@ -809,14 +812,21 @@
     }
 
     function handleSaveTheme() {
-        const name = prompt("Theme name:");
+        const name = fullSaveName.trim();
         if (!name) return;
-        const desc = prompt("Short description:") || "";
+        const desc = "";
         const theme = extractTheme(name, desc);
         saveTheme(theme);
         userThemes = loadThemes();
-        configStatus = `✅ Theme "${name}" saved`;
+        fullSaveName = "";
+        showFullSaveInput = false;
+        selectedThemeName = name;
+        configStatus = `\u2705 Theme \"${name}\" saved`;
         configStatusColor = "#4ade80";
+        fullSaveFlash = true;
+        setTimeout(() => (fullSaveFlash = false), 600);
+        // Download theme JSON
+        exportThemeJSON(theme);
     }
 
     function handleExportTheme() {
@@ -824,10 +834,20 @@
         if (theme) {
             exportThemeJSON(theme);
         } else {
-            // Export current as unnamed
             const t = extractTheme("Custom", "Exported settings");
             exportThemeJSON(t);
         }
+    }
+
+    function handleDeleteFullTheme(name: string) {
+        userThemes = userThemes.filter((t) => t.name !== name);
+        if (typeof window !== "undefined") {
+            localStorage.setItem(
+                "pax-fluxia-themes",
+                JSON.stringify(userThemes),
+            );
+        }
+        if (selectedThemeName === name) selectedThemeName = "";
     }
 
     // =========================================================================
@@ -1019,33 +1039,86 @@
         {/each}
     </div>
 
-    <!-- Theme Picker (always visible — basic tier feature) -->
-    <div class="theme-bar">
-        <select
-            class="theme-select"
-            value={selectedThemeName}
-            onchange={(e) => {
-                const v = (e.target as HTMLSelectElement).value;
-                if (v) handleApplyTheme(v);
-            }}
-        >
-            <option value="">🎨 Select Theme…</option>
-            {#each allThemes as theme}
-                <option value={theme.name}>
-                    {theme.name}
-                </option>
-            {/each}
-        </select>
-        <button
-            class="theme-btn"
-            onclick={handleSaveTheme}
-            title="Save current as theme">💾</button
-        >
-        <button
-            class="theme-btn"
-            onclick={handleExportTheme}
-            title="Export theme JSON">📤</button
-        >
+    <!-- Theme Picker (always visible — full-theme-bar with drawer) -->
+    <div class="full-theme-bar">
+        <div class="full-top-row">
+            <div class="full-action-buttons" class:hidden={showFullSaveInput}>
+                <select
+                    class="full-theme-select full-action-half"
+                    bind:value={selectedThemeName}
+                    onchange={() => {
+                        if (selectedThemeName)
+                            handleApplyTheme(selectedThemeName);
+                    }}
+                >
+                    <option value="">🎨 Select theme…</option>
+                    {#each allThemes as theme}
+                        <option value={theme.name}>
+                            {theme.name}
+                        </option>
+                    {/each}
+                </select>
+                <button
+                    class="full-action-btn full-action-half"
+                    onclick={() => {
+                        showFullSaveInput = true;
+                    }}
+                >
+                    <span class="full-plus-icon">+</span> Create theme
+                </button>
+            </div>
+            <div class="full-save-drawer" class:open={showFullSaveInput}>
+                <input
+                    class="full-save-input"
+                    type="text"
+                    placeholder="Theme name…"
+                    bind:value={fullSaveName}
+                    onkeydown={(e) => {
+                        if (e.key === "Enter") handleSaveTheme();
+                        if (e.key === "Escape") {
+                            showFullSaveInput = false;
+                            fullSaveName = "";
+                        }
+                    }}
+                />
+                <button
+                    class="full-drawer-btn cancel"
+                    onclick={() => {
+                        showFullSaveInput = false;
+                        fullSaveName = "";
+                    }}
+                    title="Cancel">✕</button
+                >
+                <button
+                    class="full-drawer-btn confirm"
+                    class:flash={fullSaveFlash}
+                    onclick={handleSaveTheme}
+                    title="Save theme">✓</button
+                >
+            </div>
+        </div>
+        {#if allThemes.length > 0}
+            <div class="full-chips-row">
+                {#each allThemes as t}
+                    <button
+                        class="full-chip"
+                        class:active={selectedThemeName === t.name}
+                        onclick={() => handleApplyTheme(t.name)}
+                    >
+                        {t.name}
+                        {#if userThemes.some((u) => u.name === t.name)}
+                            <span
+                                class="full-chip-delete"
+                                onclick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteFullTheme(t.name);
+                                }}>×</span
+                            >
+                        {/if}
+                    </button>
+                {/each}
+            </div>
+        {/if}
     </div>
 
     <!-- Icon Toolbar -->
@@ -1613,44 +1686,211 @@
         letter-spacing: 0.5px;
     }
 
-    /* ── Theme Picker ── */
-    .theme-bar {
+    /* ── Full Theme Picker (large) ── */
+    .full-theme-bar {
         display: flex;
-        gap: 4px;
-        padding: 4px 6px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        flex-direction: column;
+        gap: 6px;
+        padding: 6px 8px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     }
-    .theme-select {
+    .full-top-row {
+        position: relative;
+        height: 36px;
+        overflow: hidden;
+    }
+    .full-action-buttons {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        gap: 5px;
+        transition:
+            transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
+            opacity 0.25s;
+    }
+    .full-action-buttons.hidden {
+        transform: translateX(-100%);
+        opacity: 0;
+        pointer-events: none;
+    }
+    .full-action-half {
         flex: 1;
-        background: #1a1e2a;
+        height: 100%;
+    }
+    .full-theme-select {
+        background: rgba(255, 255, 255, 0.06);
         color: #ccc;
-        border: 1px solid #334;
-        border-radius: 4px;
-        padding: 4px 8px;
-        font-size: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 6px;
+        padding: 0 28px 0 12px;
+        font-size: 13px;
         font-family: inherit;
         cursor: pointer;
+        outline: none;
+        appearance: none;
+        -webkit-appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 10px center;
+        transition:
+            border-color 0.2s,
+            background 0.2s;
     }
-    .theme-select:focus {
-        outline: 1px solid #4ade80;
+    .full-theme-select:hover {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: rgba(255, 255, 255, 0.25);
+    }
+    .full-theme-select:focus {
         border-color: #4ade80;
     }
-    .theme-btn {
-        background: transparent;
-        border: 1px solid #334;
-        border-radius: 4px;
-        color: #889;
-        font-size: 12px;
-        width: 28px;
+    .full-theme-select option {
+        background: #151a25;
+        color: #eee;
+    }
+    .full-action-btn {
+        background: rgba(255, 255, 255, 0.04);
+        color: #aaa;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 6px;
+        font-size: 13px;
+        font-family: inherit;
         cursor: pointer;
-        transition: all 0.15s;
         display: flex;
         align-items: center;
         justify-content: center;
+        gap: 6px;
+        transition: all 0.2s;
     }
-    .theme-btn:hover {
-        border-color: #4ade80;
+    .full-action-btn:hover {
+        background: rgba(255, 255, 255, 0.08);
         color: #fff;
+        border-color: rgba(255, 255, 255, 0.25);
+    }
+    .full-plus-icon {
+        font-size: 16px;
+        font-weight: bold;
+        color: #888;
+        transition: color 0.2s;
+    }
+    .full-action-btn:hover .full-plus-icon {
+        color: #4ade80;
+    }
+    .full-save-drawer {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        gap: 5px;
+        transform: translateX(100%);
+        opacity: 0;
+        transition:
+            transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
+            opacity 0.25s;
+        pointer-events: none;
+        background: #111520;
+        z-index: 2;
+    }
+    .full-save-drawer.open {
+        transform: translateX(0);
+        opacity: 1;
+        pointer-events: auto;
+    }
+    .full-save-input {
+        flex: 1;
+        background: rgba(0, 0, 0, 0.2);
+        color: #fff;
+        border: 1px solid rgba(74, 222, 128, 0.3);
+        border-radius: 6px;
+        padding: 0 12px;
+        font-size: 13px;
+        font-family: inherit;
+        outline: none;
+        transition: border-color 0.2s;
+    }
+    .full-save-input:focus {
+        border-color: #4ade80;
+        box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.2) inset;
+    }
+    .full-save-input::placeholder {
+        color: #666;
+    }
+    .full-drawer-btn {
+        width: 36px;
+        height: 100%;
+        border: 1px solid;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .full-drawer-btn.cancel {
+        background: rgba(255, 255, 255, 0.05);
+        color: #999;
+        border-color: rgba(255, 255, 255, 0.15);
+    }
+    .full-drawer-btn.cancel:hover {
+        background: rgba(255, 55, 55, 0.15);
+        color: #ff5555;
+        border-color: rgba(255, 55, 55, 0.4);
+    }
+    .full-drawer-btn.confirm {
         background: rgba(74, 222, 128, 0.1);
+        color: #4ade80;
+        border-color: rgba(74, 222, 128, 0.3);
+    }
+    .full-drawer-btn.confirm:hover {
+        background: rgba(74, 222, 128, 0.2);
+        color: #4ade80;
+        border-color: #4ade80;
+    }
+    .full-drawer-btn.confirm.flash {
+        background: #4ade80;
+        color: #000;
+        transform: scale(0.95);
+    }
+    .full-chips-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+        width: 100%;
+    }
+    .full-chip {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.04);
+        color: #bbb;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .full-chip:hover {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: rgba(255, 255, 255, 0.25);
+        color: #fff;
+    }
+    .full-chip.active {
+        background: rgba(74, 222, 128, 0.12);
+        border-color: rgba(74, 222, 128, 0.4);
+        color: #4ade80;
+    }
+    .full-chip-delete {
+        font-size: 14px;
+        line-height: 1;
+        opacity: 0.3;
+        cursor: pointer;
+        padding-left: 2px;
+    }
+    .full-chip-delete:hover {
+        opacity: 1;
+        color: #ff5555;
     }
 </style>
