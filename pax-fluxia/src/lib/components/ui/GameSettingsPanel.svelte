@@ -764,6 +764,7 @@
             voronoiBlendWidth: GAME_CONFIG.VORONOI_BLEND_WIDTH,
             territoryVoronoi: GAME_CONFIG.TERRITORY_VORONOI,
             territoryMetaball: GAME_CONFIG.TERRITORY_METABALL,
+            territoryPixel: GAME_CONFIG.TERRITORY_PIXEL,
             metaballRadius: GAME_CONFIG.METABALL_INFLUENCE_RADIUS,
             metaballFalloff: GAME_CONFIG.METABALL_FALLOFF,
             metaballSharpness: GAME_CONFIG.METABALL_BLEND_SHARPNESS,

@@ -239,13 +239,14 @@ interface GameConfigType {
     // ── Territory Toggles ──────────────────────────────────────────────────────
     TERRITORY_VORONOI: boolean;    // Enable Voronoi territory renderer (default true)
     TERRITORY_METABALL: boolean;   // Enable Metaball territory renderer (default false)
+    TERRITORY_PIXEL: boolean;      // Enable Pixel (nearest-neighbor) territory renderer (default false)
     TERRITORY_MODE: 'voronoi' | 'metaball' | 'off';  // LEGACY — kept for compat
 
     // ── Voronoi Territory ───────────────────────────────────────────────────
     SHOW_VORONOI: boolean;         // Show contiguous Voronoi territory fill (default true)
     VORONOI_ALPHA: number;         // Alpha for Voronoi territory (default 0.15)
-    VORONOI_RESOLUTION: number;    // Legacy (unused with d3-delaunay, kept for compat)
-    VORONOI_EDGE_BLEND: number;    // Legacy (unused with d3-delaunay, kept for compat)
+    VORONOI_RESOLUTION: number;    // Pixel territory downscale factor (4=fastest, 1=sharpest)
+    VORONOI_EDGE_BLEND: number;    // Edge blend radius for pixel territory (0=off)
     VORONOI_BORDER_WIDTH: number;  // Border line width between territories in pixels (0=off, default 2)
     VORONOI_BORDER_ALPHA: number;  // Alpha for territory border lines (default 0.4)
     VORONOI_BORDER_BRIGHTEN: number; // How much to brighten border color (0-255, default 80)
@@ -712,6 +713,8 @@ const _rawConfig: GameConfigType = {
     TERRITORY_VORONOI: true,
     /** Enable Metaball territory renderer */
     TERRITORY_METABALL: false,
+    /** Enable Pixel (nearest-neighbor) territory renderer */
+    TERRITORY_PIXEL: false,
     /** LEGACY territory mode — kept for compat */
     TERRITORY_MODE: 'voronoi' as 'voronoi' | 'metaball' | 'off',
 

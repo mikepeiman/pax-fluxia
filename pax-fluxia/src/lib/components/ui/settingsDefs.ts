@@ -222,6 +222,7 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     // Territory toggles
     { panelKey: 'territoryVoronoi', configKey: 'TERRITORY_VORONOI' },
     { panelKey: 'territoryMetaball', configKey: 'TERRITORY_METABALL' },
+    { panelKey: 'territoryPixel', configKey: 'TERRITORY_PIXEL' },
     // Metaball params
     { panelKey: 'metaballRadius', configKey: 'METABALL_INFLUENCE_RADIUS' },
     { panelKey: 'metaballFalloff', configKey: 'METABALL_FALLOFF' },

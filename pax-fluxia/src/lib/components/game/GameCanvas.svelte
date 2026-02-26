@@ -54,6 +54,10 @@
         renderMetaball as renderMetaballModule,
         resetMetaballCache,
     } from "$lib/renderers/MetaballRenderer";
+    import {
+        renderPixelTerritory as renderPixelTerritoryModule,
+        resetPixelTerritoryCache,
+    } from "$lib/renderers/PixelTerritoryRenderer";
 
     // ============================================================================
     // PixiJS Application
@@ -660,6 +664,7 @@
             fxOrchestrator.reset();
             resetVoronoiCache();
             resetMetaballCache();
+            resetPixelTerritoryCache();
             activeSurges.clear();
             nextShipId = 0;
             starShipCounts.clear();
@@ -719,6 +724,15 @@
 
             // Metaball renderer (checks TERRITORY_METABALL internally)
             renderMetaballModule(
+                stars,
+                voronoiContainer,
+                colorUtils,
+                GAME_WIDTH,
+                GAME_HEIGHT,
+            );
+
+            // Pixel territory renderer (checks TERRITORY_PIXEL internally)
+            renderPixelTerritoryModule(
                 stars,
                 voronoiContainer,
                 colorUtils,

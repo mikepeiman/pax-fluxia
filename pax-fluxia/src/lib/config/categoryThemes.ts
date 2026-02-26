@@ -165,6 +165,7 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
         // Territory toggles
         'TERRITORY_VORONOI',
         'TERRITORY_METABALL',
+        'TERRITORY_PIXEL',
         'TERRITORY_MODE',
         // Star power / halos
         'SHOW_STAR_POWER',
