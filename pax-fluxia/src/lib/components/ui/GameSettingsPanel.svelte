@@ -772,6 +772,7 @@
             metaballBlur: GAME_CONFIG.METABALL_BLUR,
             metaballBorderWidth: GAME_CONFIG.METABALL_BORDER_WIDTH,
             metaballBorderAlpha: GAME_CONFIG.METABALL_BORDER_ALPHA,
+                numberTransitionMs: GAME_CONFIG.NUMBER_TRANSITION_MS,
             bindAnimToTick: GAME_CONFIG.BIND_ANIMATION_TO_TICK,
         };
         savePanelSettings(panel);

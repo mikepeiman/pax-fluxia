@@ -42,6 +42,16 @@ export interface StarRenderCaches {
     starLabels: Map<string, PIXI.Container>;
 }
 
+// Per-star interpolation cache for smooth number transitions
+interface LabelLerp {
+    activeDisplay: number;
+    damagedDisplay: number;
+    activeTarget: number;
+    damagedTarget: number;
+    lastUpdateMs: number;
+}
+const labelLerps = new Map<string, LabelLerp>();
+
 export interface StarRenderState {
     /** Currently selected star */
     activeStarId: string | null;
@@ -146,15 +156,48 @@ export function renderStars(
         const iconSize = radius * 0.35;
         drawTypeIcon(graphics, star.x, star.y, iconSize, star.starType, iconAlpha, typeColor);
 
-        // Update labels
+        // Get label elements
         const activeText = label.getChildByLabel('active') as PIXI.Text;
         const damagedText = label.getChildByLabel('damaged') as PIXI.Text;
         const leashGraphics = label.getChildByLabel('leash') as PIXI.Graphics;
 
-        if (activeText) activeText.text = String(star.activeShips);
+        // --- Smooth number transitions ---
+        const transMs = GAME_CONFIG.NUMBER_TRANSITION_MS ?? 120;
+        const active = star.activeShips;
+        const damaged = star.damagedShips;
+
+        let lerp = labelLerps.get(star.id);
+        if (!lerp) {
+            lerp = { activeDisplay: active, damagedDisplay: damaged, activeTarget: active, damagedTarget: damaged, lastUpdateMs: state.gameNowMs };
+            labelLerps.set(star.id, lerp);
+        }
+
+        // Update targets when actual values change
+        if (lerp.activeTarget !== active) {
+            lerp.activeTarget = active;
+            if (transMs <= 0) lerp.activeDisplay = active;
+        }
+        if (lerp.damagedTarget !== damaged) {
+            lerp.damagedTarget = damaged;
+            if (transMs <= 0) lerp.damagedDisplay = damaged;
+        }
+
+        // Lerp toward target
+        if (transMs > 0) {
+            const dt = Math.max(1, state.gameNowMs - lerp.lastUpdateMs);
+            const t = Math.min(1, dt / transMs * 3); // exponential-ish approach
+            lerp.activeDisplay += (lerp.activeTarget - lerp.activeDisplay) * t;
+            lerp.damagedDisplay += (lerp.damagedTarget - lerp.damagedDisplay) * t;
+            // Snap when very close
+            if (Math.abs(lerp.activeDisplay - lerp.activeTarget) < 0.5) lerp.activeDisplay = lerp.activeTarget;
+            if (Math.abs(lerp.damagedDisplay - lerp.damagedTarget) < 0.5) lerp.damagedDisplay = lerp.damagedTarget;
+        }
+        lerp.lastUpdateMs = state.gameNowMs;
+
+        if (activeText) activeText.text = String(Math.round(lerp.activeDisplay));
 
         if (damagedText) {
-            damagedText.text = String(star.damagedShips);
+            damagedText.text = String(Math.round(lerp.damagedDisplay));
             damagedText.visible = true;
         }
 

@@ -48,6 +48,7 @@ interface GameConfigType {
 
     /** Bind animation speed to tick duration (default true) */
     BIND_ANIMATION_TO_TICK: boolean;
+    NUMBER_TRANSITION_MS: number;     // Smooth transition duration for ship count labels (ms, 0=instant, default 120)
 
     // Transfer
     TRANSFER_RATE: number;
