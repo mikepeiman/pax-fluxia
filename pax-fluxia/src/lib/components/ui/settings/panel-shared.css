@@ -1,0 +1,319 @@
+/* ── Shared Panel Styles ──────────────────────────────────────────────────
+ * Common CSS for all ControlsSection-*.svelte sub-components.
+ * Import via: @import './panel-shared.css';
+ * ─────────────────────────────────────────────────────────────────────── */
+
+/* ── Sub-headings ── */
+.sub-heading {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #8ab;
+    margin: 6px 0 2px;
+    padding-bottom: 3px;
+}
+
+/* ── Variable Row ── */
+.var-row {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 3px 4px;
+}
+
+.var-row.disabled {
+    opacity: 0.35;
+    pointer-events: none;
+}
+
+.var-row.indent {
+    padding-left: 20px;
+}
+
+.var-row.grayed {
+    color: #888;
+}
+
+/* ── Row Label + Value ── */
+.row-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.var-name {
+    font-size: 12px;
+    color: #ccc;
+}
+
+.val {
+    font-size: 11px;
+    color: #889;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+.val-group {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+/* ── Toggle Label (checkbox + label) ── */
+.toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+/* ── Toggle Switch (ON/OFF slider) ── */
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 30px;
+    height: 15px;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.15);
+    border-radius: 14px;
+    transition: 0.2s;
+}
+
+.toggle-slider::before {
+    position: absolute;
+    content: "";
+    height: 11px;
+    width: 11px;
+    left: 2px;
+    bottom: 2px;
+    background-color: white;
+    border-radius: 50%;
+    transition: 0.2s;
+}
+
+.toggle-switch input:checked+.toggle-slider {
+    background-color: #4ade80;
+}
+
+.toggle-switch input:checked+.toggle-slider::before {
+    transform: translateX(15px);
+}
+
+/* ── Toggle Row (inline toggle with label) ── */
+.toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 4px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.toggle-row:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+/* ── Range Slider ── */
+input[type="range"] {
+    width: 100%;
+    height: 5px;
+    appearance: none;
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 2px;
+    outline: none;
+    margin: 2px 0;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    appearance: none;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: #4ade80;
+    cursor: pointer;
+}
+
+input[type="range"]::-moz-range-thumb {
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    border: none;
+    background: #4ade80;
+    cursor: pointer;
+}
+
+/* ── Checkbox ── */
+input[type="checkbox"] {
+    accent-color: #4ade80;
+    cursor: pointer;
+    width: 14px;
+    height: 14px;
+}
+
+/* ── Styled Select (dropdown) ── */
+.mode-select {
+    background: rgba(255, 255, 255, 0.06);
+    color: #ddd;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 5px;
+    font-size: 11px;
+    padding: 3px 8px;
+    cursor: pointer;
+    font-family: inherit;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 6px center;
+    padding-right: 20px;
+}
+
+.mode-select:focus {
+    outline: 1px solid rgba(100, 180, 255, 0.5);
+    border-color: rgba(100, 180, 255, 0.5);
+}
+
+.mode-select option {
+    background: #1a1e2a;
+    color: #ddd;
+}
+
+/* ── Action Buttons ── */
+.btn-xs {
+    padding: 3px 8px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.05);
+    color: #aab;
+    font-size: 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.btn-xs:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: #4ade80;
+    color: #fff;
+}
+
+/* ── Lock Button ── */
+.lock-btn {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 14px;
+    opacity: 0.4;
+    transition: opacity 0.15s;
+}
+
+.lock-btn:hover {
+    opacity: 0.8;
+}
+
+.lock-btn.active {
+    opacity: 1;
+    color: #4ade80;
+}
+
+.var-row.locked input[type="range"] {
+    opacity: 0.3;
+}
+
+.var-row.locked .var-name {
+    opacity: 0.5;
+}
+
+/* ── Log Controls ── */
+.log-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.log-label {
+    font-size: 12px;
+    color: #ccc;
+}
+
+.log-desc {
+    font-size: 9px;
+    color: #667;
+}
+
+/* ── Export/Import ── */
+.btn-export {
+    padding: 4px 8px;
+    border: 1px solid rgba(74, 222, 128, 0.3);
+    border-radius: 4px;
+    background: rgba(74, 222, 128, 0.1);
+    color: #4ade80;
+    font-size: 10px;
+    cursor: pointer;
+}
+
+.btn-export:hover {
+    background: rgba(74, 222, 128, 0.2);
+}
+
+.btn-import {
+    padding: 4px 8px;
+    border: 1px solid rgba(100, 180, 255, 0.3);
+    border-radius: 4px;
+    background: rgba(100, 180, 255, 0.1);
+    color: #88bbff;
+    font-size: 10px;
+    cursor: pointer;
+}
+
+.btn-import:hover {
+    background: rgba(100, 180, 255, 0.2);
+}
+
+/* ── Future/Placeholder ── */
+.future-desc {
+    font-size: 9px;
+    color: #667;
+    padding: 0 6px 2px;
+}
+
+/* ── Compact variant ── */
+.var-row.compact {
+    padding: 1px 4px;
+}
+
+.var-row.compact .row-top {
+    gap: 4px;
+}
+
+.var-row.compact .var-name {
+    font-size: 11px;
+}
+
+.var-row.compact .val {
+    font-size: 10px;
+}
+
+/* ── Orb Pair ── */
+.orb-pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+}

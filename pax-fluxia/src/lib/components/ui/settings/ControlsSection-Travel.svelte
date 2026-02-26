@@ -322,3 +322,7 @@
         }}
     />
 </div>
+
+<style>
+    @import './panel-shared.css';
+</style>

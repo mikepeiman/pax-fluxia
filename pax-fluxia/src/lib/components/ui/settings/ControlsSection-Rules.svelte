@@ -49,3 +49,7 @@
     A→B and B→A movement orders can coexist (default: off =
     opposing cancels)
 </div>
+
+<style>
+    @import './panel-shared.css';
+</style>

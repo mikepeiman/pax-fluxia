@@ -841,34 +841,46 @@
         | "logging";
 
     const ACTIVE_SECTION_KEY = "pax-fluxia-open-sections";
-    function loadOpenSections(): Set<SectionId> {
-        if (typeof window === "undefined") return new Set();
+    function loadOpenSections(): SectionId[] {
+        if (typeof window === "undefined") return [];
         try {
             const s = localStorage.getItem(ACTIVE_SECTION_KEY);
-            if (s) {
-                const arr = JSON.parse(s) as SectionId[];
-                return new Set(arr);
-            }
+            if (s) return JSON.parse(s) as SectionId[];
         } catch {
             /* ignore */
         }
-        return new Set();
+        return [];
     }
 
-    let openSections = $state<Set<SectionId>>(loadOpenSections());
+    // Ordered array: last element = most recently opened (shown first in render)
+    let sectionOrder = $state<SectionId[]>(loadOpenSections());
+    // Set for O(1) membership checks
+    let openSections = $derived(new Set(sectionOrder));
 
     function toggleSection(id: SectionId) {
-        const next = new Set(openSections);
-        if (next.has(id)) next.delete(id);
-        else next.add(id);
-        openSections = next;
+        const idx = sectionOrder.indexOf(id);
+        if (idx >= 0) {
+            // Already open — close it
+            sectionOrder = sectionOrder.filter((s) => s !== id);
+        } else {
+            // Open — add to end (most recent = rendered first)
+            sectionOrder = [...sectionOrder, id];
+        }
         if (typeof window !== "undefined") {
             localStorage.setItem(
                 ACTIVE_SECTION_KEY,
-                JSON.stringify([...openSections]),
+                JSON.stringify(sectionOrder),
             );
         }
     }
+
+    // Most recently opened sections first
+    let orderedOpenSections = $derived(
+        [...sectionOrder]
+            .reverse()
+            .map((id) => sections.find((s) => s.id === id))
+            .filter(Boolean) as typeof sections,
+    );
 
     function isSectionOpen(id: SectionId): boolean {
         return openSections.has(id);
@@ -1058,7 +1070,7 @@
     </div>
 
     <!-- Stacked Section Panels -->
-    {#each visibleSections.filter( (s) => openSections.has(s.id), ) as sec (sec.id)}
+    {#each orderedOpenSections as sec (sec.id)}
         <div class="section-panel" style="--accent: {sec.color}">
             <button class="section-head" onclick={() => toggleSection(sec.id)}>
                 <span class="head-icon">{sec.icon}</span>

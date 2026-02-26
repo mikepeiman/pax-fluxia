@@ -88,3 +88,7 @@
     </div>
     <span class="future-desc">Adapts to game state dynamically</span>
 </div>
+
+<style>
+    @import './panel-shared.css';
+</style>

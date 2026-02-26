@@ -599,3 +599,7 @@
         <span class="future-desc">Select a star to adjust ship count</span>
     </div>
 {/if}
+
+<style>
+    @import './panel-shared.css';
+</style>

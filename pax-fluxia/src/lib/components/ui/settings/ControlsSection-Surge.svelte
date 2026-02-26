@@ -385,3 +385,7 @@
         />
     </div>
 {/if}
+
+<style>
+    @import './panel-shared.css';
+</style>

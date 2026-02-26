@@ -213,3 +213,7 @@
         </div>
     {/if}
 {/each}
+
+<style>
+    @import './panel-shared.css';
+</style>

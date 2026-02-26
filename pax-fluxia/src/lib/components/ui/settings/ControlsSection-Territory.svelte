@@ -489,6 +489,7 @@
 </div>
 
 <style>
+    @import './panel-shared.css';
     .sub-heading {
         font-size: 11px;
         text-transform: uppercase;
