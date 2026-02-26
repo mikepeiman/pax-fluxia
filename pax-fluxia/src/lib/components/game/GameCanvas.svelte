@@ -50,6 +50,10 @@
         renderVoronoi as renderVoronoiModule,
         resetVoronoiCache,
     } from "$lib/renderers/VoronoiRenderer";
+    import {
+        renderMetaball as renderMetaballModule,
+        resetMetaballCache,
+    } from "$lib/renderers/MetaballRenderer";
 
     // ============================================================================
     // PixiJS Application
@@ -635,6 +639,7 @@
             visualDamagedShips.clear();
             fxOrchestrator.reset();
             resetVoronoiCache();
+            resetMetaballCache();
             activeSurges.clear();
             nextShipId = 0;
             starShipCounts.clear();
@@ -681,7 +686,24 @@
 
         // Render Voronoi territory (contiguous fill above halos)
         if (voronoiContainer) {
-            renderVoronoiModule(
+            const mode = GAME_CONFIG.TERRITORY_MODE ?? "voronoi";
+
+            // Voronoi mode
+            if (mode === "voronoi") {
+                renderVoronoiModule(
+                    stars,
+                    voronoiContainer,
+                    colorUtils,
+                    GAME_WIDTH,
+                    GAME_HEIGHT,
+                );
+            } else {
+                // Hide voronoi when in another mode
+                voronoiContainer.visible = false;
+            }
+
+            // Metaball mode (renders into same container)
+            renderMetaballModule(
                 stars,
                 voronoiContainer,
                 colorUtils,

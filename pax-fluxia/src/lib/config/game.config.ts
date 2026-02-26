@@ -235,6 +235,9 @@ interface GameConfigType {
     HALO_FLEET_STEP_SIZE: number;  // Ships per step for 'stepped' mode (default 500)
     HALO_FLEET_MAX_SHIPS: number;  // Ship count for full alpha in 'linear' mode (default 500)
 
+    // ── Territory Mode ────────────────────────────────────────────────────────
+    TERRITORY_MODE: 'voronoi' | 'metaball' | 'off';  // Which territory renderer to use (default 'voronoi')
+
     // ── Voronoi Territory ───────────────────────────────────────────────────
     SHOW_VORONOI: boolean;         // Show contiguous Voronoi territory fill (default true)
     VORONOI_ALPHA: number;         // Alpha for Voronoi territory (default 0.15)
@@ -252,6 +255,13 @@ interface GameConfigType {
     VORONOI_SMOOTHING: number;     // Chaikin smoothing iterations (0=angular, 1-4=rounded, default 2)
     VORONOI_GRADIENT_BLEND: boolean; // Enable gradient blending at territory borders (default true)
     VORONOI_BLEND_WIDTH: number;   // Gradient blend strip width in px (default 30)
+
+    // ── Metaball Territory ──────────────────────────────────────────────────
+    METABALL_INFLUENCE_RADIUS: number;  // How far each star's field extends in px (default 120)
+    METABALL_FALLOFF: 'inverse-square' | 'gaussian' | 'smoothstep';  // Falloff curve (default 'inverse-square')
+    METABALL_BLEND_SHARPNESS: number;   // Higher = sharper faction boundaries (default 3.0)
+    METABALL_ALPHA: number;             // Overall territory transparency (default 0.5)
+
     SHOW_HEX_GRID: boolean;
     STARS_PER_PLAYER: number;
 
@@ -687,6 +697,9 @@ const _rawConfig: GameConfigType = {
     /** Ship count for full alpha in linear mode */
     HALO_FLEET_MAX_SHIPS: 500,
 
+    /** Territory rendering mode: 'voronoi' (polygon smoothing), 'metaball' (GPU influence fields), 'off' */
+    TERRITORY_MODE: 'voronoi' as 'voronoi' | 'metaball' | 'off',
+
     /** Show contiguous Voronoi territory fill */
     SHOW_VORONOI: true,
     /** Voronoi territory alpha (0-1) */
@@ -719,6 +732,16 @@ const _rawConfig: GameConfigType = {
     VORONOI_GRADIENT_BLEND: true,
     /** Gradient blend strip width in px */
     VORONOI_BLEND_WIDTH: 30,
+
+    // ── Metaball Territory ──
+    /** How far each star's influence field extends (px) */
+    METABALL_INFLUENCE_RADIUS: 120,
+    /** Falloff curve for influence: 'inverse-square' (organic), 'gaussian' (fluid), 'smoothstep' (defined edges) */
+    METABALL_FALLOFF: 'inverse-square' as 'inverse-square' | 'gaussian' | 'smoothstep',
+    /** Faction boundary sharpness (higher = crisper borders, lower = softer blend) */
+    METABALL_BLEND_SHARPNESS: 3.0,
+    /** Overall metaball territory alpha (0-1) */
+    METABALL_ALPHA: 0.5,
 
     /** Show hex grid (debug) */
     SHOW_HEX_GRID: false,

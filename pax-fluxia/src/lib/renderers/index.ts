@@ -62,3 +62,9 @@ export {
     renderVoronoi,
     resetVoronoiCache,
 } from './VoronoiRenderer';
+
+// Metaball territory rendering
+export {
+    renderMetaball,
+    resetMetaballCache,
+} from './MetaballRenderer';
