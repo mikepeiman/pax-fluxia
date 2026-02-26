@@ -331,17 +331,20 @@ const _rawConfig: GameConfigType = {
     // ========================================================================
 
     /** Base tick interval at 1x speed (ms) - slower = more strategic */
-    BASE_TICK_MS: 1250,
+    BASE_TICK_MS: 1050,
 
     /** Minimum tick interval at max speed (ms) */
     MIN_TICK_MS: 100,
 
     /** Animation interpolation speed (ms) - controls visual smoothness of tick progress.
      *  Lower = faster visual transitions. Separate from actual tick rate. */
-    ANIMATION_SPEED_MS: 1250,
+    ANIMATION_SPEED_MS: 1050,
 
     /** Bind animation speed to tick duration */
     BIND_ANIMATION_TO_TICK: true,
+
+    /** Smooth transition duration for ship count labels (ms, 0=instant) */
+    NUMBER_TRANSITION_MS: 120,
 
     // ========================================================================
     // TRANSFER MECHANICS
@@ -383,7 +386,7 @@ const _rawConfig: GameConfigType = {
     AGGRESSOR_ADVANTAGE: 0.8333333333333334,
 
     /** Base damage per engaged ship per tick. Range: 0.05-2.0 */
-    DAMAGE_PER_SHIP: 0.075,
+    DAMAGE_PER_SHIP: 0.105,
 
     /** Fraction of damage that destroys ships (rest disables). Range: 0-1 */
     LETHALITY: 0.35,
@@ -423,7 +426,7 @@ const _rawConfig: GameConfigType = {
     // ========================================================================
 
     /** Percentage of remaining ships that transfer on capture */
-    CONQUEST_TRANSFER_PERCENTAGE: 50,
+    CONQUEST_TRANSFER_PERCENTAGE: 60,
 
     /** Defender strength ratio below which they are instantly overwhelmed (e.g. 0.1 = 10% of attackers) */
     OVERWHELM_THRESHOLD: 0.1,
@@ -447,20 +450,20 @@ const _rawConfig: GameConfigType = {
     // ========================================================================
 
     /** % of ships captured when defender is actively retreating to friendly star */
-    RETREAT_CAPTURE_RATE: 0.15,
+    RETREAT_CAPTURE_RATE: 0.1,
 
     /** % of ships captured when defender has escape routes but not retreating */
-    SCATTER_CAPTURE_RATE: 0.3,
+    SCATTER_CAPTURE_RATE: 0.2,
 
     /** % of non-captured ships destroyed during scatter (rest escape) */
-    SCATTER_DESTROY_RATE: 0.45,
+    SCATTER_DESTROY_RATE: 0.5,
 
     /** % of damaged ships converted to active on retreat/scatter (0=stay damaged, 1=all activate) */
     RETREAT_DAMAGED_ACTIVATION_RATE: 0.1,
 
 
     /** Starting ships per star at game start */
-    STARTING_SHIPS: 50,
+    STARTING_SHIPS: 70,
 
     // ========================================================================
     // AI BEHAVIOR
@@ -479,10 +482,10 @@ const _rawConfig: GameConfigType = {
     AI_EVALUATION_FREQUENCY: 0.5,
 
     /** Chance to target weakest neighbor (0-1) */
-    AI_TACTICAL_AGGRESSION: 0.1,
+    AI_TACTICAL_AGGRESSION: 0.29,
 
     /** Chance per evaluation to ignore ratio rules and attack anyway (0-1) */
-    AI_RANDOM_AGGRESSION: 0.05,
+    AI_RANDOM_AGGRESSION: 0.24,
 
     // ========================================================================
     // VISUAL
@@ -501,7 +504,7 @@ const _rawConfig: GameConfigType = {
     ORBIT_RING_MULT: 1.6,
 
     /** Ship transfer animation duration (ms) */
-    TRANSFER_ANIMATION_MS: 1250,
+    TRANSFER_ANIMATION_MS: 1100,
     STATIC_ORBITS: false,
 
     /** How much ships cluster toward target (0=none, 1=max) */
@@ -515,9 +518,9 @@ const _rawConfig: GameConfigType = {
     /** Ship departure mode: lifo (newest first), fifo (oldest first), nearside (closest to target) */
     DEPART_MODE: 'fifo' as const,
     /** How fast ships settle into orbit slot (ms) */
-    SETTLE_DURATION_MS: 100,
+    SETTLE_DURATION_MS: 1740,
     /** Fraction of tick used to stagger arrival settle (0=instant, 1=full tick spread) */
-    ARRIVAL_SPREAD: 0.65,
+    ARRIVAL_SPREAD: 1,
     /** Amplitude of sinusoidal wobble on travel path (px) */
     WOBBLE_AMP: 0,
 
@@ -536,7 +539,7 @@ const _rawConfig: GameConfigType = {
     TRAVEL_MODE: 'lane' as const,
     TRAVEL_EASING: 'easeInOut' as const,
     TRAVEL_EASING_POWER: 0.5,
-    TRAVEL_DURATION_MULT: 1.6,
+    TRAVEL_DURATION_MULT: 1,
     TRAVEL_ARC_INTENSITY: 0.75,
     /** How tightly ships converge to lane (0=straight to orbit slot, 1=full lane convergence) */
     LANE_CONVERGENCE: 0.85,
@@ -549,11 +552,11 @@ const _rawConfig: GameConfigType = {
     ATTACK_SURGE_PROPORTIONAL: true,
     ATTACK_SURGE_FORCE_COFACTOR: 0.6,
     /** Ramp-in duration for attack surge (ms, 0=instant/old behavior) */
-    ATTACK_SURGE_RAMP_MS: 2600,
+    ATTACK_SURGE_RAMP_MS: 1100,
     /** Surge pulse shape power (1=sine, 2=sharper peak, 0.5=flatter) */
     ATTACK_SURGE_SHAPE: 1,
     /** Duration of one surge sine pulse cycle (ms, default = BASE_TICK_MS) */
-    SURGE_PULSE_DURATION_MS: 1150,
+    SURGE_PULSE_DURATION_MS: 1050,
     /** Conquest animation strategy: 'immediate' = pop, 'surge' = settle from above, 'travel' = fly through lane */
     CONQUEST_ANIMATION_MODE: 'travel' as const,
     /** How long conquest ships settle into orbit in surge mode (ms) */
@@ -592,7 +595,7 @@ const _rawConfig: GameConfigType = {
     /** Log₂ coefficient for force glow scaling (higher = more dramatic) */
     CONQUEST_FORCE_GLOW_MULT: 0.15,
     /** Show player-color outline behind each ship */
-    SHIP_OUTLINE_ON: true,
+    SHIP_OUTLINE_ON: false,
     /** Outline thickness in px */
     SHIP_OUTLINE_PX: 1,
     /** Multiplier brightness glow: 0 = none, 1 = max (brightens within hue, not toward white) */
@@ -614,7 +617,7 @@ const _rawConfig: GameConfigType = {
     /** Number of density tiers per direction on the color wheel */
     DENSITY_TIERS: 6,
     DENSITY_DARKEN_ALT: true,
-    SHIP_VISUAL_RADIUS: 3,
+    SHIP_VISUAL_RADIUS: 5,
     /** Star glow settings */
     STAR_GLOW_ON: true,
     STAR_GLOW_RADIUS_MULT: 1.3,
@@ -735,7 +738,7 @@ const _rawConfig: GameConfigType = {
     /** Voronoi color saturation multiplier (0=grey, 1=original, 2=vivid) */
     VORONOI_SATURATION: 1.0,
     /** Voronoi color lightness multiplier (0=dark, 1=original, 2=bright) */
-    VORONOI_LIGHTNESS: 0.7,
+    VORONOI_LIGHTNESS: 0.4,
     /** Territory glow bleed radius as fraction of map size */
     VORONOI_GLOW_RADIUS: 0.3,
     /** Peak glow alpha per layer */
@@ -759,7 +762,7 @@ const _rawConfig: GameConfigType = {
     /** Faction boundary sharpness (higher = crisper borders, lower = softer blend) */
     METABALL_BLEND_SHARPNESS: 3.0,
     /** Overall metaball territory alpha (0-1) */
-    METABALL_ALPHA: 0.5,
+    METABALL_ALPHA: 0.1,
     /** Grid resolution in px per cell (lower = sharper but slower, 4-16 typical) */
     METABALL_CELL_SIZE: 8,
     /** Minimum influence to draw (lower = more coverage, 0.01-0.2 typical) */
@@ -774,12 +777,14 @@ const _rawConfig: GameConfigType = {
     METABALL_BORDER_WIDTH: 1.5,
     /** Border line alpha */
     METABALL_BORDER_ALPHA: 0.6,
+    /** Grid padding factor (0=compact, 0.3=extended) */
+    METABALL_COVERAGE: 0.3,
 
     /** Show hex grid (debug) */
     SHOW_HEX_GRID: false,
 
     /** Stars per player (Map Size) */
-    STARS_PER_PLAYER: 3,
+    STARS_PER_PLAYER: 14,
 
     // Runtime: populated by map generation (do not save to localStorage)
     _MAP_HEX_RADIUS: 0,
@@ -796,7 +801,7 @@ const _rawConfig: GameConfigType = {
     MIN_LINKS_PER_STAR: 1,
 
     /** Maximum connections per star (4-8 typical) */
-    MAX_LINKS_PER_STAR: 5,
+    MAX_LINKS_PER_STAR: 8,
 };
 
 // Apply saved settings on top of defaults
