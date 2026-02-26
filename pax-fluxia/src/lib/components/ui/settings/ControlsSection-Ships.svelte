@@ -39,7 +39,11 @@
         const starId = selectedStarStore.id;
         if (starId) debugShipCount = count;
     }
+    import CategoryThemeBar from './CategoryThemeBar.svelte';
 </script>
+
+<CategoryThemeBar category="ships" onApply={() => {}} />
+
 
 <!-- ── Ship Size & Shape ── -->
 <h4 class="sub-heading">Ship Size & Shape</h4>

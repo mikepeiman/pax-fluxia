@@ -11,7 +11,11 @@
         updateTransferRate: (v: number) => void;
     }
     let { panel, updatePanel, transferRate, updateTransferRate }: Props = $props();
+    import CategoryThemeBar from './CategoryThemeBar.svelte';
 </script>
+
+<CategoryThemeBar category="economy" onApply={() => {}} />
+
 
 <div class="var-row">
     <div class="row-top">

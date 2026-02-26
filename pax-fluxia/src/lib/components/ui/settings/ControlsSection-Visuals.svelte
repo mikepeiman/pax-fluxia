@@ -12,7 +12,11 @@
         densityVariables: any[];
     }
     let { panel, updatePanel, vis, updateVisual, densityVariables }: Props = $props();
+    import CategoryThemeBar from './CategoryThemeBar.svelte';
 </script>
+
+<CategoryThemeBar category="visuals" onApply={() => {}} />
+
 
 <h4 class="sub-heading">Overlays</h4>
 <label class="toggle-row"

@@ -9,7 +9,11 @@
     }
 
     let { panel, updatePanel }: Props = $props();
+    import CategoryThemeBar from './CategoryThemeBar.svelte';
 </script>
+
+<CategoryThemeBar category="territory" onApply={() => {}} />
+
 
 <!-- ── Territory Toggles ── -->
 <h4 class="sub-heading">Active Layers</h4>

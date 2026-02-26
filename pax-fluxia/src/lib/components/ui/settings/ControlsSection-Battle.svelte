@@ -17,7 +17,11 @@
     }
     let { panel, updatePanel, values, enabled, updateValue, toggle } =
         $props() as Props;
+    import CategoryThemeBar from './CategoryThemeBar.svelte';
 </script>
+
+<CategoryThemeBar category="combat" onApply={() => {}} />
+
 
 {#each variables as v}
     <div

@@ -9,7 +9,11 @@
         updatePanel: (key: string, value: any) => void;
     }
     let { panel, updatePanel }: Props = $props();
+    import CategoryThemeBar from './CategoryThemeBar.svelte';
 </script>
+
+<CategoryThemeBar category="surge" onApply={() => {}} />
+
 
 <h4 class="sub-heading">Attack Surge</h4>
 <div class="var-row">

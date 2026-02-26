@@ -9,7 +9,11 @@
         updatePanel: (key: string, value: any) => void;
     }
     let { panel, updatePanel }: Props = $props();
+    import CategoryThemeBar from './CategoryThemeBar.svelte';
 </script>
+
+<CategoryThemeBar category="rules" onApply={() => {}} />
+
 
 <label class="toggle-row">
     <input

@@ -40,7 +40,11 @@
         lockRatioToTick,
         lockRatioToAnimSpeed,
     }: Props = $props();
+    import CategoryThemeBar from './CategoryThemeBar.svelte';
 </script>
+
+<CategoryThemeBar category="timing" onApply={() => {}} />
+
 
 <div class="var-row">
     <div class="row-top">

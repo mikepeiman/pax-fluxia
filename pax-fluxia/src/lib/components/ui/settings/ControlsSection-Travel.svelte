@@ -9,7 +9,11 @@
         updatePanel: (key: string, value: any) => void;
     }
     let { panel, updatePanel }: Props = $props();
+    import CategoryThemeBar from './CategoryThemeBar.svelte';
 </script>
+
+<CategoryThemeBar category="travel" onApply={() => {}} />
+
 
 <h4 class="sub-heading">Mode & Easing</h4>
 <!-- Travel Animation Mode -->

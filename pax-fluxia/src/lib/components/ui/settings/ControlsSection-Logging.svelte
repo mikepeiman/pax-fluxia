@@ -17,7 +17,11 @@
     }
     let { panel, updatePanel, logCategories, logRefresh,
           exportConfigMD, importConfigJSON, configStatus, configStatusColor }: Props = $props();
+    import CategoryThemeBar from './CategoryThemeBar.svelte';
 </script>
+
+<CategoryThemeBar category="logging" onApply={() => {}} />
+
 
 <div class="log-actions">
     <button
