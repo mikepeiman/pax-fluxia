@@ -14,13 +14,14 @@
         enabled: Record<string, boolean>;
         updateValue: (key: string, val: number) => void;
         toggle: (key: string) => void;
+        syncFromConfig?: () => void;
     }
     let { panel, updatePanel, values, enabled, updateValue, toggle } =
         $props() as Props;
     import CategoryThemeBar from './CategoryThemeBar.svelte';
 </script>
 
-<CategoryThemeBar category="combat" onApply={() => {}} />
+<CategoryThemeBar category="combat" onApply={() => syncFromConfig?.()} />
 
 
 {#each variables as v}

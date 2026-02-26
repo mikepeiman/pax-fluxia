@@ -14,13 +14,14 @@
         importConfigJSON: (e: Event) => void;
         configStatus: string;
         configStatusColor: string;
+        syncFromConfig?: () => void;
     }
     let { panel, updatePanel, logCategories, logRefresh,
-          exportConfigMD, importConfigJSON, configStatus, configStatusColor }: Props = $props();
+          exportConfigMD, importConfigJSON, configStatus, configStatusColor, syncFromConfig }: Props = $props();
     import CategoryThemeBar from './CategoryThemeBar.svelte';
 </script>
 
-<CategoryThemeBar category="logging" onApply={() => {}} />
+<CategoryThemeBar category="logging" onApply={() => syncFromConfig?.()} />
 
 
 <div class="log-actions">

@@ -7,12 +7,13 @@
     interface Props {
         panel: Record<string, any>;
         updatePanel: (key: string, value: any) => void;
+        syncFromConfig?: () => void;
     }
-    let { panel, updatePanel }: Props = $props();
+    let { panel, updatePanel, syncFromConfig }: Props = $props();
     import CategoryThemeBar from './CategoryThemeBar.svelte';
 </script>
 
-<CategoryThemeBar category="rules" onApply={() => {}} />
+<CategoryThemeBar category="rules" onApply={() => syncFromConfig?.()} />
 
 
 <label class="toggle-row">

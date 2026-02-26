@@ -10,12 +10,13 @@
         vis: Record<string, any>;
         updateVisual: (key: string, val: any) => void;
         densityVariables: any[];
+        syncFromConfig?: () => void;
     }
-    let { panel, updatePanel, vis, updateVisual, densityVariables }: Props = $props();
+    let { panel, updatePanel, vis, updateVisual, densityVariables, syncFromConfig }: Props = $props();
     import CategoryThemeBar from './CategoryThemeBar.svelte';
 </script>
 
-<CategoryThemeBar category="visuals" onApply={() => {}} />
+<CategoryThemeBar category="visuals" onApply={() => syncFromConfig?.()} />
 
 
 <h4 class="sub-heading">Overlays</h4>

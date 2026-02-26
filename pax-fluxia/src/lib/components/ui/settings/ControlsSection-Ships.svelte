@@ -18,6 +18,7 @@
         importConfigJSON: (e: Event) => void;
         configStatus: string;
         configStatusColor: string;
+        syncFromConfig?: () => void;
     }
     let {
         panel,
@@ -42,7 +43,7 @@
     import CategoryThemeBar from './CategoryThemeBar.svelte';
 </script>
 
-<CategoryThemeBar category="ships" onApply={() => {}} />
+<CategoryThemeBar category="ships" onApply={() => syncFromConfig?.()} />
 
 
 <!-- ── Ship Size & Shape ── -->

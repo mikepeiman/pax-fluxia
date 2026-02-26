@@ -9,12 +9,13 @@
         updatePanel: (key: string, value: any) => void;
         transferRate: number;
         updateTransferRate: (v: number) => void;
+        syncFromConfig?: () => void;
     }
-    let { panel, updatePanel, transferRate, updateTransferRate }: Props = $props();
+    let { panel, updatePanel, transferRate, updateTransferRate, syncFromConfig }: Props = $props();
     import CategoryThemeBar from './CategoryThemeBar.svelte';
 </script>
 
-<CategoryThemeBar category="economy" onApply={() => {}} />
+<CategoryThemeBar category="economy" onApply={() => syncFromConfig?.()} />
 
 
 <div class="var-row">

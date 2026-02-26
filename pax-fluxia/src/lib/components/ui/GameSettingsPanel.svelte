@@ -1096,6 +1096,7 @@
                         {pinValueToTickDuration}
                         {lockRatioToTick}
                         {lockRatioToAnimSpeed}
+                        syncFromConfig={syncAllFromConfig}
                     />
 
                     <!-- ⚔️ BATTLE -->
@@ -1107,6 +1108,7 @@
                         {enabled}
                         {updateValue}
                         {toggle}
+                        syncFromConfig={syncAllFromConfig}
                     />
                 {:else if sec.id === "economy"}
                     <ControlsSectionEconomy
@@ -1114,6 +1116,7 @@
                         {updatePanel}
                         {transferRate}
                         {updateTransferRate}
+                        syncFromConfig={syncAllFromConfig}
                     />
                 {:else if sec.id === "ai"}
                     <ControlsSectionAI
@@ -1123,15 +1126,16 @@
                         {enabled}
                         {updateValue}
                         {toggle}
+                        syncFromConfig={syncAllFromConfig}
                     />
                 {:else if sec.id === "travel"}
-                    <ControlsSectionTravel {panel} {updatePanel} />
+                    <ControlsSectionTravel {panel} {updatePanel} syncFromConfig={syncAllFromConfig} />
                 {:else if sec.id === "surge"}
-                    <ControlsSectionSurge {panel} {updatePanel} />
+                    <ControlsSectionSurge {panel} {updatePanel} syncFromConfig={syncAllFromConfig} />
                 {:else if sec.id === "conquest"}
-                    <ControlsSectionConquest {panel} {updatePanel} />
+                    <ControlsSectionConquest {panel} {updatePanel} syncFromConfig={syncAllFromConfig} />
                 {:else if sec.id === "territory"}
-                    <ControlsSectionTerritory {panel} {updatePanel} />
+                    <ControlsSectionTerritory {panel} {updatePanel} syncFromConfig={syncAllFromConfig} />
                 {:else if sec.id === "ships"}
                     <ControlsSectionShips
                         {panel}
@@ -1144,6 +1148,7 @@
                         {importConfigJSON}
                         {configStatus}
                         {configStatusColor}
+                        syncFromConfig={syncAllFromConfig}
                     />
                 {:else if sec.id === "visuals"}
                     <ControlsSectionVisuals
@@ -1152,9 +1157,10 @@
                         {vis}
                         {updateVisual}
                         {densityVariables}
+                        syncFromConfig={syncAllFromConfig}
                     />
                 {:else if sec.id === "rules"}
-                    <ControlsSectionRules {panel} {updatePanel} />
+                    <ControlsSectionRules {panel} {updatePanel} syncFromConfig={syncAllFromConfig} />
                 {:else if sec.id === "logging"}
                     <ControlsSectionLogging
                         {panel}
@@ -1165,6 +1171,7 @@
                         {importConfigJSON}
                         {configStatus}
                         {configStatusColor}
+                        syncFromConfig={syncAllFromConfig}
                     />
                 {/if}
             </div>

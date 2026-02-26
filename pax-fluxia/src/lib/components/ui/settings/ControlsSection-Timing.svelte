@@ -24,6 +24,7 @@
         pinValueToTickDuration: (key: string) => void;
         lockRatioToTick: (key: string) => void;
         lockRatioToAnimSpeed: (key: string) => void;
+        syncFromConfig?: () => void;
     }
     let {
         panel,
@@ -43,7 +44,7 @@
     import CategoryThemeBar from './CategoryThemeBar.svelte';
 </script>
 
-<CategoryThemeBar category="timing" onApply={() => {}} />
+<CategoryThemeBar category="timing" onApply={() => syncFromConfig?.()} />
 
 
 <div class="var-row">
