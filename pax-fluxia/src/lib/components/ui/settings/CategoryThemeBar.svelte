@@ -27,11 +27,30 @@
     let saveFlash = $state(false);
 
     function handleApply(name: string) {
+        console.log(
+            `[CategoryThemeBar] handleApply("${name}") for category="${category}"`,
+        );
         const preset = presets.find((p) => p.name === name);
         if (preset) {
+            console.log(
+                `[CategoryThemeBar] Found preset, ${Object.keys(preset.values).length} keys. Applying...`,
+            );
             applyCategoryPreset(preset);
+            console.log(
+                `[CategoryThemeBar] Applied. Calling onApply callback...`,
+                !!onApply,
+            );
             selectedName = name;
             onApply?.();
+            console.log(
+                `[CategoryThemeBar] Done. GAME_CONFIG.BASE_TICK_MS =`,
+                (window as any).__GAME_CONFIG_REF?.BASE_TICK_MS,
+            );
+        } else {
+            console.warn(
+                `[CategoryThemeBar] Preset "${name}" NOT FOUND in presets:`,
+                presets.map((p) => p.name),
+            );
         }
     }
 
@@ -79,10 +98,12 @@
             <div class="action-buttons" class:hidden={showSaveInput}>
                 <select
                     class="theme-select action-half"
-                    value={selectedName}
-                    onchange={(e) => {
-                        const v = (e.target as HTMLSelectElement).value;
-                        if (v) handleApply(v);
+                    bind:value={selectedName}
+                    onchange={() => {
+                        console.log(
+                            `[CategoryThemeBar] <select> onchange → selectedName="${selectedName}"`,
+                        );
+                        if (selectedName) handleApply(selectedName);
                     }}
                 >
                     <option value="">{meta.icon} Select theme…</option>

@@ -657,6 +657,12 @@
 
     /** After applyTheme writes to GAME_CONFIG, sync all reactive layers back */
     function syncAllFromConfig() {
+        console.log(
+            "[syncAllFromConfig] Called! BASE_TICK_MS =",
+            GAME_CONFIG.BASE_TICK_MS,
+            "ANIMATION_SPEED_MS =",
+            GAME_CONFIG.ANIMATION_SPEED_MS,
+        );
         // 1. Sync panel (all fields read back from GAME_CONFIG)
         panel = {
             ...panel,
@@ -772,7 +778,7 @@
             metaballBlur: GAME_CONFIG.METABALL_BLUR,
             metaballBorderWidth: GAME_CONFIG.METABALL_BORDER_WIDTH,
             metaballBorderAlpha: GAME_CONFIG.METABALL_BORDER_ALPHA,
-                numberTransitionMs: GAME_CONFIG.NUMBER_TRANSITION_MS,
+            numberTransitionMs: GAME_CONFIG.NUMBER_TRANSITION_MS,
             bindAnimToTick: GAME_CONFIG.BIND_ANIMATION_TO_TICK,
         };
         savePanelSettings(panel);
@@ -1129,13 +1135,29 @@
                         syncFromConfig={syncAllFromConfig}
                     />
                 {:else if sec.id === "travel"}
-                    <ControlsSectionTravel {panel} {updatePanel} syncFromConfig={syncAllFromConfig} />
+                    <ControlsSectionTravel
+                        {panel}
+                        {updatePanel}
+                        syncFromConfig={syncAllFromConfig}
+                    />
                 {:else if sec.id === "surge"}
-                    <ControlsSectionSurge {panel} {updatePanel} syncFromConfig={syncAllFromConfig} />
+                    <ControlsSectionSurge
+                        {panel}
+                        {updatePanel}
+                        syncFromConfig={syncAllFromConfig}
+                    />
                 {:else if sec.id === "conquest"}
-                    <ControlsSectionConquest {panel} {updatePanel} syncFromConfig={syncAllFromConfig} />
+                    <ControlsSectionConquest
+                        {panel}
+                        {updatePanel}
+                        syncFromConfig={syncAllFromConfig}
+                    />
                 {:else if sec.id === "territory"}
-                    <ControlsSectionTerritory {panel} {updatePanel} syncFromConfig={syncAllFromConfig} />
+                    <ControlsSectionTerritory
+                        {panel}
+                        {updatePanel}
+                        syncFromConfig={syncAllFromConfig}
+                    />
                 {:else if sec.id === "ships"}
                     <ControlsSectionShips
                         {panel}
@@ -1160,7 +1182,11 @@
                         syncFromConfig={syncAllFromConfig}
                     />
                 {:else if sec.id === "rules"}
-                    <ControlsSectionRules {panel} {updatePanel} syncFromConfig={syncAllFromConfig} />
+                    <ControlsSectionRules
+                        {panel}
+                        {updatePanel}
+                        syncFromConfig={syncAllFromConfig}
+                    />
                 {:else if sec.id === "logging"}
                     <ControlsSectionLogging
                         {panel}
