@@ -274,6 +274,12 @@ interface GameConfigType {
     METABALL_BORDER_ALPHA: number;       // Border line alpha (default 0.6)
     METABALL_COVERAGE: number;           // Grid padding factor (0=compact, 0.3=extended, default 0.3)
 
+    // ── Pixel Territory ────────────────────────────────────────────────────
+    PIXEL_ALPHA: number;             // Pixel territory alpha (0-1, default 0.15)
+    PIXEL_RESOLUTION: number;        // Downscale factor (1=sharpest, 8=fastest, default 4)
+    PIXEL_EDGE_BLEND: number;        // Edge blend softness (0=off, 1-10, default 0)
+    PIXEL_BLUR: number;              // GPU blur strength (0=sharp, default 4)
+
     SHOW_HEX_GRID: boolean;
     STARS_PER_PLAYER: number;
 
@@ -779,6 +785,16 @@ const _rawConfig: GameConfigType = {
     METABALL_BORDER_ALPHA: 0.6,
     /** Grid padding factor (0=compact, 0.3=extended) */
     METABALL_COVERAGE: 0.3,
+
+    // ── Pixel Territory ──
+    /** Pixel territory alpha (0-1, lower = more transparent) */
+    PIXEL_ALPHA: 0.15,
+    /** Downscale factor (1=full res/slow, 4=balanced, 8=fast/blocky) */
+    PIXEL_RESOLUTION: 4,
+    /** Edge blend softness at territory boundaries (0=hard edges, 1-10=soft) */
+    PIXEL_EDGE_BLEND: 0,
+    /** GPU blur strength (0=sharp pixel edges, 4+=smooth) */
+    PIXEL_BLUR: 4,
 
     /** Show hex grid (debug) */
     SHOW_HEX_GRID: false,

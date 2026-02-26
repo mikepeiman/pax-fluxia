@@ -223,6 +223,11 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'territoryVoronoi', configKey: 'TERRITORY_VORONOI' },
     { panelKey: 'territoryMetaball', configKey: 'TERRITORY_METABALL' },
     { panelKey: 'territoryPixel', configKey: 'TERRITORY_PIXEL' },
+    // Pixel params
+    { panelKey: 'pixelAlpha', configKey: 'PIXEL_ALPHA' },
+    { panelKey: 'pixelResolution', configKey: 'PIXEL_RESOLUTION' },
+    { panelKey: 'pixelEdgeBlend', configKey: 'PIXEL_EDGE_BLEND' },
+    { panelKey: 'pixelBlur', configKey: 'PIXEL_BLUR' },
     // Metaball params
     { panelKey: 'metaballRadius', configKey: 'METABALL_INFLUENCE_RADIUS' },
     { panelKey: 'metaballFalloff', configKey: 'METABALL_FALLOFF' },

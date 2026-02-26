@@ -230,60 +230,75 @@
             }}
         />
     </div>
-    <!-- Color -->
-    <div
-        class="var-row grayed"
-        style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"
-    >
-        🎨 Color
-    </div>
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Saturation</span><span class="val"
-                >{((panel.voronoiSaturation ?? 0) as number).toFixed(2)}</span
-            >
-        </div>
-        <input
-            type="range"
-            min="0"
-            max="2"
-            step="0.05"
-            value={panel.voronoiSaturation}
-            oninput={(e) => {
-                const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.VORONOI_SATURATION = v;
-                updatePanel("voronoiSaturation", v);
-            }}
-        />
-    </div>
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Lightness</span><span class="val"
-                >{((panel.voronoiLightness ?? 0) as number).toFixed(2)}</span
-            >
-        </div>
-        <input
-            type="range"
-            min="0"
-            max="2"
-            step="0.05"
-            value={panel.voronoiLightness}
-            oninput={(e) => {
-                const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.VORONOI_LIGHTNESS = v;
-                updatePanel("voronoiLightness", v);
-            }}
-        />
-    </div>
 {/if}
+
+<!-- ── Shared Color Controls (always visible) ── -->
+<h4 class="sub-heading">🎨 Territory Color</h4>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Saturation</span><span class="val"
+            >{((panel.voronoiSaturation ?? 0) as number).toFixed(2)}</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="2"
+        step="0.05"
+        value={panel.voronoiSaturation}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.VORONOI_SATURATION = v;
+            updatePanel("voronoiSaturation", v);
+        }}
+    />
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Lightness</span><span class="val"
+            >{((panel.voronoiLightness ?? 0) as number).toFixed(2)}</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="2"
+        step="0.05"
+        value={panel.voronoiLightness}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.VORONOI_LIGHTNESS = v;
+            updatePanel("voronoiLightness", v);
+        }}
+    />
+</div>
 
 {#if panel.territoryPixel}
     <!-- ── Pixel (Classic) Controls ── -->
     <h4 class="sub-heading">Pixel (Classic) Settings</h4>
     <div class="var-row">
         <div class="row-top">
+            <span class="var-name">Alpha</span><span class="val"
+                >{(panel.pixelAlpha ?? 0.15).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0.02"
+            max="0.5"
+            step="0.01"
+            value={panel.pixelAlpha ?? 0.15}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.PIXEL_ALPHA = v;
+                updatePanel("pixelAlpha", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
             <span class="var-name">Resolution</span><span class="val"
-                >{panel.voronoiResolution ?? 4}× downsample</span
+                >{panel.pixelResolution ?? 4}× downsample</span
             >
         </div>
         <input
@@ -291,18 +306,18 @@
             min="1"
             max="8"
             step="1"
-            value={panel.voronoiResolution ?? 4}
+            value={panel.pixelResolution ?? 4}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.VORONOI_RESOLUTION = v;
-                updatePanel("voronoiResolution", v);
+                GAME_CONFIG.PIXEL_RESOLUTION = v;
+                updatePanel("pixelResolution", v);
             }}
         />
     </div>
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Edge Blend</span><span class="val"
-                >{panel.voronoiEdgeBlend ?? 0}</span
+                >{panel.pixelEdgeBlend ?? 0}</span
             >
         </div>
         <input
@@ -310,11 +325,30 @@
             min="0"
             max="10"
             step="1"
-            value={panel.voronoiEdgeBlend ?? 0}
+            value={panel.pixelEdgeBlend ?? 0}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.VORONOI_EDGE_BLEND = v;
-                updatePanel("voronoiEdgeBlend", v);
+                GAME_CONFIG.PIXEL_EDGE_BLEND = v;
+                updatePanel("pixelEdgeBlend", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Blur</span><span class="val"
+                >{panel.pixelBlur ?? 4}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="20"
+            step="1"
+            value={panel.pixelBlur ?? 4}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.PIXEL_BLUR = v;
+                updatePanel("pixelBlur", v);
             }}
         />
     </div>
