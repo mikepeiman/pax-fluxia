@@ -20,9 +20,19 @@ import type { ColorUtils } from './RenderContext';
 
 let cachedFingerprint = '';
 let territoryGraphics: PIXI.Graphics | null = null;
+let borderGraphics: PIXI.Graphics | null = null;
+let cachedBlurFilter: PIXI.BlurFilter | null = null;
+let cachedBlurStrength = -1;
 let cachedPlayerMap: Map<string, number> = new Map();
 
+// ── Ownership grid cache (for border detection) ──
+let ownerGrid: Int8Array | null = null;
+let gridCols = 0;
+let gridRows = 0;
+
 // ── Falloff Functions ──────────────────────────────────────────────────────
+// All functions are calibrated so that at dist=radius they return ~0.2,
+// giving visually equivalent coverage across modes.
 
 function falloffInverseSquare(dist: number, radius: number): number {
     const d = dist / radius;
@@ -30,12 +40,17 @@ function falloffInverseSquare(dist: number, radius: number): number {
 }
 
 function falloffGaussian(dist: number, radius: number): number {
-    const d = dist / radius;
-    return Math.exp(-d * d);
+    // Standard gaussian drops too fast. Use sigma = radius/1.2 so that
+    // falloff at dist=radius ≈ 0.24 (similar to inverse-square's 0.5 * coverage)
+    const sigma = radius / 1.2;
+    const d = dist / sigma;
+    return Math.exp(-0.5 * d * d);
 }
 
 function falloffSmoothstep(dist: number, radius: number): number {
-    const t = Math.max(0, Math.min(1, 1 - dist / radius));
+    // Extend effective range to 1.5× radius so it doesn't hard-clip
+    const effectiveRadius = radius * 1.5;
+    const t = Math.max(0, Math.min(1, 1 - dist / effectiveRadius));
     return t * t * (3 - 2 * t);
 }
 
@@ -70,7 +85,7 @@ function buildFingerprint(stars: StarState[]): string {
     fp += `:${GAME_CONFIG.METABALL_BLEND_SHARPNESS}:${GAME_CONFIG.METABALL_ALPHA}`;
     fp += `:${GAME_CONFIG.METABALL_CELL_SIZE}:${GAME_CONFIG.METABALL_THRESHOLD}`;
     fp += `:${GAME_CONFIG.METABALL_STRENGTH_MULT}:${GAME_CONFIG.METABALL_EDGE_FADE}`;
-    fp += `:${GAME_CONFIG.TERRITORY_METABALL}`;
+    fp += `:${GAME_CONFIG.METABALL_BLUR}:${GAME_CONFIG.TERRITORY_METABALL}`;
     return fp;
 }
 
@@ -79,7 +94,7 @@ function buildFingerprint(stars: StarState[]): string {
 /**
  * Render metaball territory overlay using CPU-computed influence grid.
  * Computes per-cell influence from all owned stars, determines winning
- * player per cell, and renders colored rectangles.
+ * player per cell, and renders colored rectangles + border lines.
  */
 export function renderMetaball(
     stars: StarState[],
@@ -92,26 +107,37 @@ export function renderMetaball(
 
     if (!show) {
         if (territoryGraphics) territoryGraphics.visible = false;
+        if (borderGraphics) borderGraphics.visible = false;
         return;
     }
 
-    // Ensure graphics exists
+    // Ensure graphics exist
     if (!territoryGraphics) {
         territoryGraphics = new PIXI.Graphics();
         container.addChild(territoryGraphics);
     }
+    if (!borderGraphics) {
+        borderGraphics = new PIXI.Graphics();
+        container.addChild(borderGraphics);
+    }
     territoryGraphics.visible = true;
+    borderGraphics.visible = true;
 
     // Only consider owned stars
     const ownedStars = stars.filter(s => s.ownerId);
     if (ownedStars.length === 0) {
         territoryGraphics.visible = false;
+        borderGraphics.visible = false;
         return;
     }
 
     // Check fingerprint — skip if nothing changed
     const fingerprint = buildFingerprint(stars);
-    if (fingerprint === cachedFingerprint) return;
+    if (fingerprint === cachedFingerprint) {
+        // Still apply blur filter even if grid unchanged
+        applyBlurFilter(container);
+        return;
+    }
     cachedFingerprint = fingerprint;
 
     // Config
@@ -143,6 +169,8 @@ export function renderMetaball(
     // Coarse grid
     const cols = Math.ceil(worldWidth / cellSize);
     const rows = Math.ceil(worldHeight / cellSize);
+    gridCols = cols;
+    gridRows = rows;
 
     // Precompute star data
     const starData = ownedStars.map(s => ({
@@ -152,12 +180,16 @@ export function renderMetaball(
         strength: (0.5 + Math.min(2.0, Math.log2(Math.max(1, s.activeShips + s.damagedShips)) * 0.2)) * strengthMult,
     }));
 
+    // Allocate ownership grid for border detection
+    ownerGrid = new Int8Array(cols * rows).fill(-1);
+
     // Clear and redraw
     territoryGraphics.clear();
+    borderGraphics.clear();
 
     const numPlayers = playerIds.length;
 
-    // Per-pixel computation on the coarse grid
+    // Per-cell computation on the coarse grid
     for (let row = 0; row < rows; row++) {
         const py = (row + 0.5) * cellSize;
         for (let col = 0; col < cols; col++) {
@@ -172,7 +204,7 @@ export function renderMetaball(
                 inf[star.playerIdx] += falloffFn(dist, radius) * star.strength;
             }
 
-            // Find top player
+            // Find top two players
             let maxInf = 0;
             let maxPlayer = -1;
             let secondInf = 0;
@@ -188,22 +220,21 @@ export function renderMetaball(
 
             if (maxPlayer < 0 || maxInf < threshold) continue;
 
+            // Store ownership for border detection
+            ownerGrid[row * cols + col] = maxPlayer;
+
             // Compute color (blend with second if close)
             let r: number, g: number, b: number;
             const topColor = playerColors[maxPlayer];
             r = topColor[0]; g = topColor[1]; b = topColor[2];
 
             if (secondInf > threshold) {
-                // Sharpen the blend factor
                 const total = maxInf + secondInf;
                 let bf = maxInf / total;
-                // Smoothstep-like sharpening
                 const lo = 0.5 - 0.5 / sharpness;
                 const hi = 0.5 + 0.5 / sharpness;
                 bf = Math.max(0, Math.min(1, (bf - lo) / (hi - lo)));
-                // Only blend if not fully dominant
                 if (bf < 0.99) {
-                    // Find second player
                     let secPlayer = -1;
                     for (let p = 0; p < numPlayers; p++) {
                         if (p !== maxPlayer && inf[p] === secondInf) {
@@ -229,15 +260,92 @@ export function renderMetaball(
             territoryGraphics.fill({ color, alpha: fadeAlpha });
         }
     }
+
+    // ── Border pass: draw lines where adjacent cells have different owners ──
+    for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+            const owner = ownerGrid[row * cols + col];
+            if (owner < 0) continue;
+
+            // Check right neighbor
+            if (col + 1 < cols) {
+                const rOwner = ownerGrid[row * cols + col + 1];
+                if (rOwner >= 0 && rOwner !== owner) {
+                    const bx = (col + 1) * cellSize;
+                    const by = row * cellSize;
+                    // Brighten the border color
+                    const bc = playerColors[owner];
+                    const borderColor = rgbToHex(
+                        Math.min(255, bc[0] + 100),
+                        Math.min(255, bc[1] + 100),
+                        Math.min(255, bc[2] + 100),
+                    );
+                    borderGraphics.moveTo(bx, by);
+                    borderGraphics.lineTo(bx, by + cellSize);
+                    borderGraphics.stroke({ width: 1.5, color: borderColor, alpha: 0.6 });
+                }
+            }
+
+            // Check bottom neighbor
+            if (row + 1 < rows) {
+                const bOwner = ownerGrid[(row + 1) * cols + col];
+                if (bOwner >= 0 && bOwner !== owner) {
+                    const bx = col * cellSize;
+                    const by = (row + 1) * cellSize;
+                    const bc = playerColors[owner];
+                    const borderColor = rgbToHex(
+                        Math.min(255, bc[0] + 100),
+                        Math.min(255, bc[1] + 100),
+                        Math.min(255, bc[2] + 100),
+                    );
+                    borderGraphics.moveTo(bx, by);
+                    borderGraphics.lineTo(bx + cellSize, by);
+                    borderGraphics.stroke({ width: 1.5, color: borderColor, alpha: 0.6 });
+                }
+            }
+        }
+    }
+
+    // Apply GPU blur
+    applyBlurFilter(container);
 }
+
+// ── GPU Blur ───────────────────────────────────────────────────────────────
+
+function applyBlurFilter(container: PIXI.Container): void {
+    const blurStrength = GAME_CONFIG.METABALL_BLUR ?? 4;
+    if (blurStrength > 0 && territoryGraphics) {
+        if (!cachedBlurFilter || cachedBlurStrength !== blurStrength) {
+            cachedBlurFilter = new PIXI.BlurFilter({ strength: blurStrength, quality: 4 });
+            cachedBlurStrength = blurStrength;
+        }
+        territoryGraphics.filters = [cachedBlurFilter];
+    } else if (territoryGraphics) {
+        territoryGraphics.filters = [];
+        cachedBlurFilter = null;
+        cachedBlurStrength = -1;
+    }
+}
+
+// ── Cache Reset ────────────────────────────────────────────────────────────
 
 /** Reset cached state (call on game session change). */
 export function resetMetaballCache(): void {
     cachedFingerprint = '';
     cachedPlayerMap.clear();
+    ownerGrid = null;
+    gridCols = 0;
+    gridRows = 0;
+    cachedBlurFilter = null;
+    cachedBlurStrength = -1;
     if (territoryGraphics) {
         if (territoryGraphics.parent) territoryGraphics.parent.removeChild(territoryGraphics);
         territoryGraphics.destroy();
         territoryGraphics = null;
+    }
+    if (borderGraphics) {
+        if (borderGraphics.parent) borderGraphics.parent.removeChild(borderGraphics);
+        borderGraphics.destroy();
+        borderGraphics = null;
     }
 }

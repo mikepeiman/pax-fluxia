@@ -449,20 +449,6 @@
         // Recompute world bounds from star positions
         updateWorldBounds();
 
-        // Size nebula background to cover game world
-        const bgSprite = (app as any)._nebulaBgSprite as
-            | PIXI.Sprite
-            | undefined;
-        if (bgSprite && bgSprite.texture) {
-            bgSprite.x = GAME_WIDTH / 2;
-            bgSprite.y = GAME_HEIGHT / 2;
-            // Cover: scale to fill world bounds
-            const texW = bgSprite.texture.width;
-            const texH = bgSprite.texture.height;
-            const coverScale = Math.max(GAME_WIDTH / texW, GAME_HEIGHT / texH);
-            bgSprite.scale.set(coverScale);
-        }
-
         // Calculate base scale to fit game world in container
         const containerWidth = app.screen.width;
         const containerHeight = app.screen.height;
@@ -470,6 +456,26 @@
         const scaleX = containerWidth / GAME_WIDTH;
         const scaleY = containerHeight / GAME_HEIGHT;
         baseScale = Math.min(scaleX, scaleY); // Fit (not fill)
+
+        // Size nebula background to cover visible viewport (not just game world)
+        const bgSprite = (app as any)._nebulaBgSprite as
+            | PIXI.Sprite
+            | undefined;
+        if (bgSprite && bgSprite.texture) {
+            const effectiveScale = baseScale * zoomLevel;
+            // Visible area in world coordinates (larger than game world when zoomed out)
+            const viewWorldW = containerWidth / effectiveScale;
+            const viewWorldH = containerHeight / effectiveScale;
+            // Cover whichever is larger: game world or visible viewport (with 20% bleed)
+            const coverW = Math.max(GAME_WIDTH, viewWorldW) * 1.2;
+            const coverH = Math.max(GAME_HEIGHT, viewWorldH) * 1.2;
+            bgSprite.x = GAME_WIDTH / 2;
+            bgSprite.y = GAME_HEIGHT / 2;
+            const texW = bgSprite.texture.width;
+            const texH = bgSprite.texture.height;
+            const coverScale = Math.max(coverW / texW, coverH / texH);
+            bgSprite.scale.set(coverScale);
+        }
 
         // Apply combined scale + zoom
         applyZoomTransform();
@@ -492,6 +498,20 @@
 
         app.stage.x = centerX - panOffsetX * effectiveScale;
         app.stage.y = centerY - panOffsetY * effectiveScale;
+
+        // Update bg sprite to cover visible viewport at current zoom
+        const bgSprite = (app as any)._nebulaBgSprite as
+            | PIXI.Sprite
+            | undefined;
+        if (bgSprite && bgSprite.texture) {
+            const viewWorldW = containerWidth / effectiveScale;
+            const viewWorldH = containerHeight / effectiveScale;
+            const coverW = Math.max(GAME_WIDTH, viewWorldW) * 1.2;
+            const coverH = Math.max(GAME_HEIGHT, viewWorldH) * 1.2;
+            const texW = bgSprite.texture.width;
+            const texH = bgSprite.texture.height;
+            bgSprite.scale.set(Math.max(coverW / texW, coverH / texH));
+        }
 
         // Clamp pan so map edges stay roughly visible
         clampPan();
