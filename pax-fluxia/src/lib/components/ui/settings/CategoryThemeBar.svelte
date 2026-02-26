@@ -16,14 +16,15 @@
     let { category, onApply }: Props = $props();
 
     const meta = $derived(CATEGORY_META[category]);
-    let presets = $derived(listCategoryPresets(category));
+    let _version = $state(0); // bumped on save/delete to trigger $derived
+    let presets = $derived.by(() => {
+        _version; // reactive dependency
+        return listCategoryPresets(category);
+    });
     let selectedName = $state("");
     let showSaveInput = $state(false);
     let saveName = $state("");
-
-    function refresh() {
-        // Force reactivity by touching category — $derived handles this
-    }
+    let saveFlash = $state(false);
 
     function handleApply(name: string) {
         const preset = presets.find((p) => p.name === name);
@@ -41,13 +42,16 @@
         saveName = "";
         showSaveInput = false;
         selectedName = name;
-        refresh();
+        _version++; // trigger preset list refresh
+        // Brief flash feedback
+        saveFlash = true;
+        setTimeout(() => (saveFlash = false), 600);
     }
 
     function handleDelete(name: string) {
         deleteCategoryPreset(category, name);
         if (selectedName === name) selectedName = "";
-        refresh();
+        _version++; // trigger preset list refresh
     }
 </script>
 
