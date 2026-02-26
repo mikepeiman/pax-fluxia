@@ -283,15 +283,26 @@ export function renderVoronoi(
                 if (neighborIdx !== i && neighborIdx < ownedStars.length) {
                     const ownerN = ownedStars[neighborIdx].ownerId;
                     if (ownerN !== ownerI) {
+                        // ── Hard border line (always draws when borderWidth > 0) ──
+                        if (borderWidth > 0 && borderAlpha > 0) {
+                            const borderColor = rgbToHex(
+                                Math.min(255, starColors[i].rgb[0] + borderBrighten),
+                                Math.min(255, starColors[i].rgb[1] + borderBrighten),
+                                Math.min(255, starColors[i].rgb[2] + borderBrighten),
+                            );
+                            borderGraphics.moveTo(x1, y1);
+                            borderGraphics.lineTo(x2, y2);
+                            borderGraphics.stroke({ width: borderWidth, color: borderColor, alpha: borderAlpha });
+                        }
+
+                        // ── Gradient blend strips (independent of border) ──
                         if (gradientBlend) {
-                            // Gradient blend: draw multiple thin strips perpendicular to the border,
-                            // fading from one player color to the other
                             const strips = 6;
                             const halfWidth = blendWidth / 2;
                             for (let s = 0; s < strips; s++) {
-                                const t = (s + 0.5) / strips; // 0→1 across blend width
+                                const t = (s + 0.5) / strips;
                                 const offset = -halfWidth + t * blendWidth;
-                                const blendT = t; // 0 = owner I side, 1 = neighbor side
+                                const blendT = t;
                                 const blended = blendRGB(starColors[i].rgb, starColors[neighborIdx].rgb, blendT);
                                 const blendColor = rgbToHex(blended[0], blended[1], blended[2]);
                                 const stripAlpha = borderAlpha * (1 - Math.abs(t - 0.5) * 2) * 0.6;
@@ -310,16 +321,6 @@ export function renderVoronoi(
                                     alpha: stripAlpha,
                                 });
                             }
-                        } else {
-                            // Hard border line (original behavior)
-                            const borderColor = rgbToHex(
-                                Math.min(255, starColors[i].rgb[0] + borderBrighten),
-                                Math.min(255, starColors[i].rgb[1] + borderBrighten),
-                                Math.min(255, starColors[i].rgb[2] + borderBrighten),
-                            );
-                            borderGraphics.moveTo(x1, y1);
-                            borderGraphics.lineTo(x2, y2);
-                            borderGraphics.stroke({ width: borderWidth, color: borderColor, alpha: borderAlpha });
                         }
                     }
                 }

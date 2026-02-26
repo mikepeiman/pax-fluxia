@@ -684,9 +684,12 @@
             renderStarPowerModule(stars, territoryGraphics, colorUtils);
         }
 
-        // Render Voronoi territory (contiguous fill above halos)
+        // Render territory overlay (contiguous fill above halos)
         if (voronoiContainer) {
             const mode = GAME_CONFIG.TERRITORY_MODE ?? "voronoi";
+
+            // Always keep container visible — each renderer manages its own children
+            voronoiContainer.visible = true;
 
             // Voronoi mode
             if (mode === "voronoi") {
@@ -697,12 +700,9 @@
                     GAME_WIDTH,
                     GAME_HEIGHT,
                 );
-            } else {
-                // Hide voronoi when in another mode
-                voronoiContainer.visible = false;
             }
 
-            // Metaball mode (renders into same container)
+            // Metaball mode
             renderMetaballModule(
                 stars,
                 voronoiContainer,
