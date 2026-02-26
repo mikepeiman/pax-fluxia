@@ -57,7 +57,7 @@
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Alpha</span><span class="val"
-                >{(panel.voronoiAlpha as number).toFixed(2)}</span
+                >{((panel.voronoiAlpha ?? 0) as number).toFixed(2)}</span
             >
         </div>
         <input
@@ -76,7 +76,7 @@
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Edge Blur</span><span class="val"
-                >{(panel.voronoiBlur as number).toFixed(0)}px</span
+                >{((panel.voronoiBlur ?? 0) as number).toFixed(0)}px</span
             >
         </div>
         <input
@@ -177,7 +177,7 @@
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Border Alpha</span><span class="val"
-                >{(panel.voronoiBorderAlpha as number).toFixed(2)}</span
+                >{((panel.voronoiBorderAlpha ?? 0) as number).toFixed(2)}</span
             >
         </div>
         <input
@@ -222,7 +222,7 @@
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Saturation</span><span class="val"
-                >{(panel.voronoiSaturation as number).toFixed(2)}</span
+                >{((panel.voronoiSaturation ?? 0) as number).toFixed(2)}</span
             >
         </div>
         <input
@@ -241,7 +241,7 @@
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Lightness</span><span class="val"
-                >{(panel.voronoiLightness as number).toFixed(2)}</span
+                >{((panel.voronoiLightness ?? 0) as number).toFixed(2)}</span
             >
         </div>
         <input
