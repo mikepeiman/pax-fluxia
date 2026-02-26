@@ -219,6 +219,19 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'voronoiSmoothing', configKey: 'VORONOI_SMOOTHING' },
     { panelKey: 'voronoiGradientBlend', configKey: 'VORONOI_GRADIENT_BLEND' },
     { panelKey: 'voronoiBlendWidth', configKey: 'VORONOI_BLEND_WIDTH' },
+    // Territory toggles
+    { panelKey: 'territoryVoronoi', configKey: 'TERRITORY_VORONOI' },
+    { panelKey: 'territoryMetaball', configKey: 'TERRITORY_METABALL' },
+    // Metaball params
+    { panelKey: 'metaballRadius', configKey: 'METABALL_INFLUENCE_RADIUS' },
+    { panelKey: 'metaballFalloff', configKey: 'METABALL_FALLOFF' },
+    { panelKey: 'metaballSharpness', configKey: 'METABALL_BLEND_SHARPNESS' },
+    { panelKey: 'metaballAlpha', configKey: 'METABALL_ALPHA' },
+    { panelKey: 'metaballCellSize', configKey: 'METABALL_CELL_SIZE' },
+    { panelKey: 'metaballThreshold', configKey: 'METABALL_THRESHOLD' },
+    { panelKey: 'metaballStrength', configKey: 'METABALL_STRENGTH_MULT' },
+    { panelKey: 'metaballEdgeFade', configKey: 'METABALL_EDGE_FADE' },
+    { panelKey: 'metaballBlur', configKey: 'METABALL_BLUR' },
 ];
 
 // ── ConfigKey → PanelKey lookup (for animSliderToPanelKey) ──────────────────

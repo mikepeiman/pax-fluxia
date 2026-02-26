@@ -175,11 +175,14 @@ export function renderVoronoi(
     worldHeight: number,
 ): void {
     if (!GAME_CONFIG.SHOW_VORONOI || !GAME_CONFIG.TERRITORY_VORONOI) {
-        voronoiContainer.visible = false;
+        if (cellGraphics) cellGraphics.visible = false;
+        if (borderGraphics) borderGraphics.visible = false;
         return;
     }
 
-    voronoiContainer.visible = true;
+    // Ensure own children are visible (don't touch shared container)
+    if (cellGraphics) cellGraphics.visible = true;
+    if (borderGraphics) borderGraphics.visible = true;
 
     const fingerprint = buildFingerprint(stars);
 
@@ -193,7 +196,8 @@ export function renderVoronoi(
     // Only consider owned stars for territory
     const ownedStars = stars.filter(s => s.ownerId);
     if (ownedStars.length === 0) {
-        voronoiContainer.visible = false;
+        if (cellGraphics) cellGraphics.visible = false;
+        if (borderGraphics) borderGraphics.visible = false;
         return;
     }
 
