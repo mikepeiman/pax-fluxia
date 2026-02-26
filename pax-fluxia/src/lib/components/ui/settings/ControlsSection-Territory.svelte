@@ -352,6 +352,32 @@
             }}
         />
     </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Blend Power</span><span class="val"
+                >{panel.pixelBlendPower ?? 4}
+                {(panel.pixelBlendPower ?? 4) === 0
+                    ? "(hard)"
+                    : (panel.pixelBlendPower ?? 4) <= 3
+                      ? "(soft)"
+                      : (panel.pixelBlendPower ?? 4) <= 6
+                        ? "(rounded)"
+                        : "(sharp)"}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="12"
+            step="0.5"
+            value={panel.pixelBlendPower ?? 4}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.PIXEL_BLEND_POWER = v;
+                updatePanel("pixelBlendPower", v);
+            }}
+        />
+    </div>
 {/if}
 
 {#if panel.territoryMetaball}

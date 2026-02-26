@@ -279,6 +279,7 @@ interface GameConfigType {
     PIXEL_RESOLUTION: number;        // Downscale factor (1=sharpest, 8=fastest, default 4)
     PIXEL_EDGE_BLEND: number;        // Edge blend softness (0=off, 1-10, default 0)
     PIXEL_BLUR: number;              // GPU blur strength (0=sharp, default 4)
+    PIXEL_BLEND_POWER: number;       // Power for weighted color blending (0=hard Voronoi, 2-8=rounded borders, default 4)
 
     SHOW_HEX_GRID: boolean;
     STARS_PER_PLAYER: number;
@@ -730,7 +731,7 @@ const _rawConfig: GameConfigType = {
     /** Show contiguous Voronoi territory fill */
     SHOW_VORONOI: true,
     /** Voronoi territory alpha (0-1) */
-    VORONOI_ALPHA: 0.1,
+    VORONOI_ALPHA: 0.05,
     /** Voronoi canvas downscale factor (higher = faster/blockier) */
     VORONOI_RESOLUTION: 4,
     /** Legacy (unused with d3-delaunay) */
@@ -738,13 +739,13 @@ const _rawConfig: GameConfigType = {
     /** Voronoi border line width between territories (0=off) */
     VORONOI_BORDER_WIDTH: 2,
     /** Voronoi border alpha */
-    VORONOI_BORDER_ALPHA: 0.4,
+    VORONOI_BORDER_ALPHA: 0.1,
     /** How much to brighten border color (0-255) */
     VORONOI_BORDER_BRIGHTEN: 80,
     /** Voronoi color saturation multiplier (0=grey, 1=original, 2=vivid) */
-    VORONOI_SATURATION: 1.0,
+    VORONOI_SATURATION: 0.2,
     /** Voronoi color lightness multiplier (0=dark, 1=original, 2=bright) */
-    VORONOI_LIGHTNESS: 0.4,
+    VORONOI_LIGHTNESS: 1.3,
     /** Territory glow bleed radius as fraction of map size */
     VORONOI_GLOW_RADIUS: 0.3,
     /** Peak glow alpha per layer */
@@ -790,11 +791,13 @@ const _rawConfig: GameConfigType = {
     /** Pixel territory alpha (0-1, lower = more transparent) */
     PIXEL_ALPHA: 0.15,
     /** Downscale factor (1=full res/slow, 4=balanced, 8=fast/blocky) */
-    PIXEL_RESOLUTION: 4,
+    PIXEL_RESOLUTION: 8,
     /** Edge blend softness at territory boundaries (0=hard edges, 1-10=soft) */
-    PIXEL_EDGE_BLEND: 0,
+    PIXEL_EDGE_BLEND: 1,
     /** GPU blur strength (0=sharp pixel edges, 4+=smooth) */
-    PIXEL_BLUR: 4,
+    PIXEL_BLUR: 0,
+    /** Power-weighted blend exponent (0=hard Voronoi, 2=very soft, 4=balanced rounded, 8+=sharp edges) */
+    PIXEL_BLEND_POWER: 4,
 
     /** Show hex grid (debug) */
     SHOW_HEX_GRID: false,

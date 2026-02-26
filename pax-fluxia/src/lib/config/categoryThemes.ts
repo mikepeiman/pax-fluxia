@@ -170,6 +170,7 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
         'PIXEL_RESOLUTION',
         'PIXEL_EDGE_BLEND',
         'PIXEL_BLUR',
+        'PIXEL_BLEND_POWER',
         'TERRITORY_MODE',
         // Star power / halos
         'SHOW_STAR_POWER',

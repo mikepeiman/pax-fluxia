@@ -228,6 +228,7 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'pixelResolution', configKey: 'PIXEL_RESOLUTION' },
     { panelKey: 'pixelEdgeBlend', configKey: 'PIXEL_EDGE_BLEND' },
     { panelKey: 'pixelBlur', configKey: 'PIXEL_BLUR' },
+    { panelKey: 'pixelBlendPower', configKey: 'PIXEL_BLEND_POWER' },
     // Metaball params
     { panelKey: 'metaballRadius', configKey: 'METABALL_INFLUENCE_RADIUS' },
     { panelKey: 'metaballFalloff', configKey: 'METABALL_FALLOFF' },
