@@ -157,8 +157,9 @@ export function renderMetaball(
         pid => hexToRGB(colorUtils.getPlayerColor(pid))
     );
 
-    // Extend grid to cover viewport at max zoom-out (50% padding each side)
-    const pad = Math.max(worldWidth, worldHeight) * 0.3;
+    // Grid padding: 0=compact (exact world), 0.3=extended (fills viewport at zoom-out)
+    const coverage = GAME_CONFIG.METABALL_COVERAGE ?? 0.3;
+    const pad = Math.max(worldWidth, worldHeight) * coverage;
     const gridOriginX = -pad;
     const gridOriginY = -pad;
     const gridW = worldWidth + pad * 2;

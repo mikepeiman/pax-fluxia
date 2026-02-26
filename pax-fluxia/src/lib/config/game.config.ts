@@ -270,6 +270,7 @@ interface GameConfigType {
     METABALL_BLUR: number;              // GPU blur on metaball container (0=sharp, default 4)
     METABALL_BORDER_WIDTH: number;       // Border line width between territories (default 1.5)
     METABALL_BORDER_ALPHA: number;       // Border line alpha (default 0.6)
+    METABALL_COVERAGE: number;           // Grid padding factor (0=compact, 0.3=extended, default 0.3)
 
     SHOW_HEX_GRID: boolean;
     STARS_PER_PLAYER: number;

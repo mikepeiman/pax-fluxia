@@ -234,6 +234,7 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'metaballBorderWidth', configKey: 'METABALL_BORDER_WIDTH' },
     { panelKey: 'metaballBorderAlpha', configKey: 'METABALL_BORDER_ALPHA' },
     { panelKey: 'metaballBlur', configKey: 'METABALL_BLUR' },
+    { panelKey: 'metaballCoverage', configKey: 'METABALL_COVERAGE' },
 ];
 
 // ── ConfigKey → PanelKey lookup (for animSliderToPanelKey) ──────────────────

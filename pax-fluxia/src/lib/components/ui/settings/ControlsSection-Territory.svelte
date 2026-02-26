@@ -50,24 +50,6 @@
 
 <!-- ── Voronoi Controls (always visible) ── -->
 <h4 class="sub-heading">Voronoi Settings</h4>
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Show Voronoi</span>
-        <label class="toggle-switch">
-            <input
-                type="checkbox"
-                checked={panel.showVoronoi}
-                onchange={(e) => {
-                    const v = (e.target as HTMLInputElement).checked;
-                    GAME_CONFIG.SHOW_VORONOI = v;
-                    updatePanel("showVoronoi", v);
-                }}
-            />
-            <span class="toggle-slider"></span>
-        </label>
-    </div>
-</div>
-{#if panel.showVoronoi}
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Alpha</span><span class="val"
@@ -271,8 +253,6 @@
             }}
         />
     </div>
-{/if}
-
 <!-- ── Metaball Controls (always visible) ── -->
 <h4 class="sub-heading">Metaball Settings</h4>
 <div class="var-row">
@@ -431,6 +411,16 @@
             GAME_CONFIG.METABALL_EDGE_FADE = v;
             updatePanel("metaballEdgeFade", v);
         }}
+    />
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Coverage</span><span class="val">{(panel.metaballCoverage ?? 0.3).toFixed(2)}</span>
+    </div>
+    <input
+        type="range" min="0" max="0.5" step="0.05"
+        value={panel.metaballCoverage ?? 0.3}
+        oninput={(e) => { const v = +(e.target as HTMLInputElement).value; GAME_CONFIG.METABALL_COVERAGE = v; updatePanel("metaballCoverage", v); }}
     />
 </div>
 <div class="var-row">
