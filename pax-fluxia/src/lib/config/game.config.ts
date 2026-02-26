@@ -331,14 +331,14 @@ const _rawConfig: GameConfigType = {
     // ========================================================================
 
     /** Base tick interval at 1x speed (ms) - slower = more strategic */
-    BASE_TICK_MS: 1050,
+    BASE_TICK_MS: 1200,
 
     /** Minimum tick interval at max speed (ms) */
     MIN_TICK_MS: 100,
 
     /** Animation interpolation speed (ms) - controls visual smoothness of tick progress.
      *  Lower = faster visual transitions. Separate from actual tick rate. */
-    ANIMATION_SPEED_MS: 1050,
+    ANIMATION_SPEED_MS: 1200,
 
     /** Bind animation speed to tick duration */
     BIND_ANIMATION_TO_TICK: true,
@@ -504,7 +504,7 @@ const _rawConfig: GameConfigType = {
     ORBIT_RING_MULT: 1.6,
 
     /** Ship transfer animation duration (ms) */
-    TRANSFER_ANIMATION_MS: 1100,
+    TRANSFER_ANIMATION_MS: 1200,
     STATIC_ORBITS: false,
 
     /** How much ships cluster toward target (0=none, 1=max) */
@@ -556,7 +556,7 @@ const _rawConfig: GameConfigType = {
     /** Surge pulse shape power (1=sine, 2=sharper peak, 0.5=flatter) */
     ATTACK_SURGE_SHAPE: 1,
     /** Duration of one surge sine pulse cycle (ms, default = BASE_TICK_MS) */
-    SURGE_PULSE_DURATION_MS: 1050,
+    SURGE_PULSE_DURATION_MS: 1200,
     /** Conquest animation strategy: 'immediate' = pop, 'surge' = settle from above, 'travel' = fly through lane */
     CONQUEST_ANIMATION_MODE: 'travel' as const,
     /** How long conquest ships settle into orbit in surge mode (ms) */
@@ -617,7 +617,7 @@ const _rawConfig: GameConfigType = {
     /** Number of density tiers per direction on the color wheel */
     DENSITY_TIERS: 6,
     DENSITY_DARKEN_ALT: true,
-    SHIP_VISUAL_RADIUS: 5,
+    SHIP_VISUAL_RADIUS: 6,
     /** Star glow settings */
     STAR_GLOW_ON: true,
     STAR_GLOW_RADIUS_MULT: 1.3,
@@ -713,11 +713,11 @@ const _rawConfig: GameConfigType = {
     HALO_FLEET_MAX_SHIPS: 500,
 
     /** Enable Voronoi territory renderer */
-    TERRITORY_VORONOI: true,
+    TERRITORY_VORONOI: false,
     /** Enable Metaball territory renderer */
     TERRITORY_METABALL: false,
     /** Enable Pixel (nearest-neighbor) territory renderer */
-    TERRITORY_PIXEL: false,
+    TERRITORY_PIXEL: true,
     /** LEGACY territory mode — kept for compat */
     TERRITORY_MODE: 'voronoi' as 'voronoi' | 'metaball' | 'off',
 
