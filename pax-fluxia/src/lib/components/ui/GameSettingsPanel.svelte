@@ -764,6 +764,11 @@
             metaballFalloff: GAME_CONFIG.METABALL_FALLOFF,
             metaballSharpness: GAME_CONFIG.METABALL_BLEND_SHARPNESS,
             metaballAlpha: GAME_CONFIG.METABALL_ALPHA,
+            metaballCellSize: GAME_CONFIG.METABALL_CELL_SIZE,
+            metaballThreshold: GAME_CONFIG.METABALL_THRESHOLD,
+            metaballStrength: GAME_CONFIG.METABALL_STRENGTH_MULT,
+            metaballEdgeFade: GAME_CONFIG.METABALL_EDGE_FADE,
+            metaballBlur: GAME_CONFIG.METABALL_BLUR,
             bindAnimToTick: GAME_CONFIG.BIND_ANIMATION_TO_TICK,
         };
         savePanelSettings(panel);

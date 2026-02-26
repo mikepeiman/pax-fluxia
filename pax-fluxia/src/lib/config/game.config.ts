@@ -261,6 +261,11 @@ interface GameConfigType {
     METABALL_FALLOFF: 'inverse-square' | 'gaussian' | 'smoothstep';  // Falloff curve (default 'inverse-square')
     METABALL_BLEND_SHARPNESS: number;   // Higher = sharper faction boundaries (default 3.0)
     METABALL_ALPHA: number;             // Overall territory transparency (default 0.5)
+    METABALL_CELL_SIZE: number;         // Grid cell size in px — lower = higher res but slower (default 8)
+    METABALL_THRESHOLD: number;         // Minimum influence to draw (0-1, default 0.05)
+    METABALL_STRENGTH_MULT: number;     // Star strength multiplier (default 1.0)
+    METABALL_EDGE_FADE: number;         // Edge alpha falloff multiplier (default 3.0)
+    METABALL_BLUR: number;              // GPU blur on metaball container (0=sharp, default 4)
 
     SHOW_HEX_GRID: boolean;
     STARS_PER_PLAYER: number;
@@ -742,6 +747,16 @@ const _rawConfig: GameConfigType = {
     METABALL_BLEND_SHARPNESS: 3.0,
     /** Overall metaball territory alpha (0-1) */
     METABALL_ALPHA: 0.5,
+    /** Grid resolution in px per cell (lower = sharper but slower, 4-16 typical) */
+    METABALL_CELL_SIZE: 8,
+    /** Minimum influence to draw (lower = more coverage, 0.01-0.2 typical) */
+    METABALL_THRESHOLD: 0.05,
+    /** Star strength multiplier (scales all influence, default 1.0) */
+    METABALL_STRENGTH_MULT: 1.0,
+    /** Edge alpha falloff steepness (higher = sharper edges, default 3.0) */
+    METABALL_EDGE_FADE: 3.0,
+    /** GPU blur on metaball output (0=pixelated, 4=smooth, higher=very soft) */
+    METABALL_BLUR: 4,
 
     /** Show hex grid (debug) */
     SHOW_HEX_GRID: false,

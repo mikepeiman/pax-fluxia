@@ -68,6 +68,8 @@ function buildFingerprint(stars: StarState[]): string {
     }
     fp += `${GAME_CONFIG.METABALL_INFLUENCE_RADIUS}:${GAME_CONFIG.METABALL_FALLOFF}`;
     fp += `:${GAME_CONFIG.METABALL_BLEND_SHARPNESS}:${GAME_CONFIG.METABALL_ALPHA}`;
+    fp += `:${GAME_CONFIG.METABALL_CELL_SIZE}:${GAME_CONFIG.METABALL_THRESHOLD}`;
+    fp += `:${GAME_CONFIG.METABALL_STRENGTH_MULT}:${GAME_CONFIG.METABALL_EDGE_FADE}`;
     fp += `:${GAME_CONFIG.TERRITORY_MODE}`;
     return fp;
 }
@@ -117,6 +119,10 @@ export function renderMetaball(
     const falloffType = GAME_CONFIG.METABALL_FALLOFF ?? 'inverse-square';
     const sharpness = GAME_CONFIG.METABALL_BLEND_SHARPNESS ?? 3.0;
     const alpha = GAME_CONFIG.METABALL_ALPHA ?? 0.5;
+    const cellSize = GAME_CONFIG.METABALL_CELL_SIZE ?? 8;
+    const threshold = GAME_CONFIG.METABALL_THRESHOLD ?? 0.05;
+    const strengthMult = GAME_CONFIG.METABALL_STRENGTH_MULT ?? 1.0;
+    const edgeFade = GAME_CONFIG.METABALL_EDGE_FADE ?? 3.0;
     const falloffFn = FALLOFF_MAP[falloffType] ?? falloffInverseSquare;
 
     // Build player index map
@@ -134,8 +140,7 @@ export function renderMetaball(
         pid => hexToRGB(colorUtils.getPlayerColor(pid))
     );
 
-    // Coarse grid — 8px cells for performance
-    const cellSize = 8;
+    // Coarse grid
     const cols = Math.ceil(worldWidth / cellSize);
     const rows = Math.ceil(worldHeight / cellSize);
 
@@ -144,11 +149,8 @@ export function renderMetaball(
         x: s.x,
         y: s.y,
         playerIdx: cachedPlayerMap.get(s.ownerId!) ?? 0,
-        strength: 0.5 + Math.min(2.0, Math.log2(Math.max(1, s.activeShips + s.damagedShips)) * 0.2),
+        strength: (0.5 + Math.min(2.0, Math.log2(Math.max(1, s.activeShips + s.damagedShips)) * 0.2)) * strengthMult,
     }));
-
-    // Threshold below which we consider "no influence"
-    const threshold = 0.05;
 
     // Clear and redraw
     territoryGraphics.clear();
@@ -219,7 +221,7 @@ export function renderMetaball(
             }
 
             // Alpha falloff at edges
-            const fadeAlpha = Math.min(1, maxInf * 3) * alpha;
+            const fadeAlpha = Math.min(1, maxInf * edgeFade) * alpha;
             if (fadeAlpha < 0.01) continue;
 
             const color = rgbToHex(r, g, b);

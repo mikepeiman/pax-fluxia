@@ -340,6 +340,108 @@
             }}
         />
     </div>
+    <!-- Advanced -->
+    <div
+        class="var-row grayed"
+        style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"
+    >
+        ⚙️ Advanced
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Cell Size</span><span class="val"
+                >{panel.metaballCellSize ?? 8}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="2"
+            max="20"
+            step="1"
+            value={panel.metaballCellSize ?? 8}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.METABALL_CELL_SIZE = v;
+                updatePanel("metaballCellSize", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Threshold</span><span class="val"
+                >{(panel.metaballThreshold ?? 0.05).toFixed(3)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0.005"
+            max="0.3"
+            step="0.005"
+            value={panel.metaballThreshold ?? 0.05}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.METABALL_THRESHOLD = v;
+                updatePanel("metaballThreshold", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Strength</span><span class="val"
+                >{(panel.metaballStrength ?? 1.0).toFixed(1)}×</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0.1"
+            max="5.0"
+            step="0.1"
+            value={panel.metaballStrength ?? 1.0}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.METABALL_STRENGTH_MULT = v;
+                updatePanel("metaballStrength", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Edge Fade</span><span class="val"
+                >{(panel.metaballEdgeFade ?? 3.0).toFixed(1)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0.5"
+            max="10"
+            step="0.5"
+            value={panel.metaballEdgeFade ?? 3.0}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.METABALL_EDGE_FADE = v;
+                updatePanel("metaballEdgeFade", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Blur</span><span class="val"
+                >{panel.metaballBlur ?? 4}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="20"
+            step="1"
+            value={panel.metaballBlur ?? 4}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.METABALL_BLUR = v;
+                updatePanel("metaballBlur", v);
+            }}
+        />
+    </div>
 {/if}
 
 <style>
