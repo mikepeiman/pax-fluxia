@@ -53,6 +53,7 @@
     import ControlsSectionTravel from "./settings/ControlsSection-Travel.svelte";
     import ControlsSectionSurge from "./settings/ControlsSection-Surge.svelte";
     import ControlsSectionConquest from "./settings/ControlsSection-Conquest.svelte";
+    import ControlsSectionTerritory from "./settings/ControlsSection-Territory.svelte";
     import ControlsSectionShips from "./settings/ControlsSection-Ships.svelte";
     import ControlsSectionVisuals from "./settings/ControlsSection-Visuals.svelte";
     import ControlsSectionRules from "./settings/ControlsSection-Rules.svelte";
@@ -758,6 +759,11 @@
             voronoiSmoothing: GAME_CONFIG.VORONOI_SMOOTHING,
             voronoiGradientBlend: GAME_CONFIG.VORONOI_GRADIENT_BLEND,
             voronoiBlendWidth: GAME_CONFIG.VORONOI_BLEND_WIDTH,
+            territoryMode: GAME_CONFIG.TERRITORY_MODE,
+            metaballRadius: GAME_CONFIG.METABALL_INFLUENCE_RADIUS,
+            metaballFalloff: GAME_CONFIG.METABALL_FALLOFF,
+            metaballSharpness: GAME_CONFIG.METABALL_BLEND_SHARPNESS,
+            metaballAlpha: GAME_CONFIG.METABALL_ALPHA,
             bindAnimToTick: GAME_CONFIG.BIND_ANIMATION_TO_TICK,
         };
         savePanelSettings(panel);
@@ -821,6 +827,7 @@
         | "travel"
         | "surge"
         | "conquest"
+        | "territory"
         | "ships"
         | "visuals"
         | "logging";
@@ -926,6 +933,13 @@
             label: "Conquest",
             color: "#ff66aa",
             tier: "advanced",
+        },
+        {
+            id: "territory",
+            icon: "🌍",
+            label: "Territory",
+            color: "#66ccaa",
+            tier: "basic",
         },
         {
             id: "visuals",
@@ -1095,6 +1109,8 @@
                     <ControlsSectionSurge {panel} {updatePanel} />
                 {:else if sec.id === "conquest"}
                     <ControlsSectionConquest {panel} {updatePanel} />
+                {:else if sec.id === "territory"}
+                    <ControlsSectionTerritory {panel} {updatePanel} />
                 {:else if sec.id === "ships"}
                     <ControlsSectionShips
                         {panel}
