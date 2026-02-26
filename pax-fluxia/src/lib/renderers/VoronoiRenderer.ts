@@ -20,6 +20,8 @@ import type { ColorUtils } from './RenderContext';
 let cachedFingerprint = '';
 let cellGraphics: PIXI.Graphics | null = null;
 let borderGraphics: PIXI.Graphics | null = null;
+let cachedBlurFilter: PIXI.BlurFilter | null = null;
+let cachedBlurStrength = -1;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -327,12 +329,17 @@ export function renderVoronoi(
         borderGraphics.clear();
     }
 
-    // ── Apply GPU blur for smooth territory edges ──
+    // ── Apply GPU blur for smooth territory edges (cached) ──
     const blurStrength = GAME_CONFIG.VORONOI_BLUR ?? 8;
     if (blurStrength > 0) {
-        const blur = new PIXI.BlurFilter({ strength: blurStrength, quality: 4 });
-        voronoiContainer.filters = [blur];
+        if (!cachedBlurFilter || cachedBlurStrength !== blurStrength) {
+            cachedBlurFilter = new PIXI.BlurFilter({ strength: blurStrength, quality: 4 });
+            cachedBlurStrength = blurStrength;
+        }
+        voronoiContainer.filters = [cachedBlurFilter];
     } else {
+        cachedBlurFilter = null;
+        cachedBlurStrength = -1;
         voronoiContainer.filters = [];
     }
 }
@@ -352,4 +359,6 @@ export function resetVoronoiCache(): void {
         borderGraphics.destroy();
         borderGraphics = null;
     }
+    cachedBlurFilter = null;
+    cachedBlurStrength = -1;
 }
