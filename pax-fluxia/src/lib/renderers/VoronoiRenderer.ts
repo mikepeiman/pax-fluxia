@@ -174,7 +174,7 @@ export function renderVoronoi(
     worldWidth: number,
     worldHeight: number,
 ): void {
-    if (!GAME_CONFIG.SHOW_VORONOI) {
+    if (!GAME_CONFIG.SHOW_VORONOI || !GAME_CONFIG.TERRITORY_VORONOI) {
         voronoiContainer.visible = false;
         return;
     }

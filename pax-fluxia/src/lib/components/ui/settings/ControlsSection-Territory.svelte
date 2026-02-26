@@ -11,438 +11,447 @@
     let { panel, updatePanel }: Props = $props();
 </script>
 
-<!-- ── Territory Mode ── -->
-<h4 class="sub-heading">Territory Mode</h4>
+<!-- ── Territory Toggles ── -->
+<h4 class="sub-heading">Active Layers</h4>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Renderer</span>
-        <select
-            class="mode-select"
-            value={panel.territoryMode ?? "voronoi"}
-            onchange={(e) => {
-                const v = (e.target as HTMLSelectElement).value as
-                    | "voronoi"
-                    | "metaball"
-                    | "off";
-                GAME_CONFIG.TERRITORY_MODE = v;
-                updatePanel("territoryMode", v);
-            }}
-        >
-            <option value="voronoi">Voronoi</option>
-            <option value="metaball">Metaball</option>
-            <option value="off">Off</option>
-        </select>
+        <span class="var-name">🔷 Voronoi</span>
+        <label class="toggle-switch">
+            <input
+                type="checkbox"
+                checked={panel.territoryVoronoi ?? true}
+                onchange={(e) => {
+                    const v = (e.target as HTMLInputElement).checked;
+                    GAME_CONFIG.TERRITORY_VORONOI = v;
+                    updatePanel("territoryVoronoi", v);
+                }}
+            />
+            <span class="toggle-slider"></span>
+        </label>
+    </div>
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">🫧 Metaball</span>
+        <label class="toggle-switch">
+            <input
+                type="checkbox"
+                checked={panel.territoryMetaball ?? false}
+                onchange={(e) => {
+                    const v = (e.target as HTMLInputElement).checked;
+                    GAME_CONFIG.TERRITORY_METABALL = v;
+                    updatePanel("territoryMetaball", v);
+                }}
+            />
+            <span class="toggle-slider"></span>
+        </label>
     </div>
 </div>
 
-<!-- ── Voronoi Controls ── -->
-{#if (panel.territoryMode ?? "voronoi") === "voronoi"}
-    <h4 class="sub-heading">Voronoi Settings</h4>
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Show Voronoi</span>
-            <label class="toggle-switch">
-                <input
-                    type="checkbox"
-                    checked={panel.showVoronoi}
-                    onchange={(e) => {
-                        const v = (e.target as HTMLInputElement).checked;
-                        GAME_CONFIG.SHOW_VORONOI = v;
-                        updatePanel("showVoronoi", v);
-                    }}
-                />
-                <span class="toggle-slider"></span>
-            </label>
-        </div>
-    </div>
-    {#if panel.showVoronoi}
-        <div class="var-row">
-            <div class="row-top">
-                <span class="var-name">Alpha</span><span class="val"
-                    >{(panel.voronoiAlpha as number).toFixed(2)}</span
-                >
-            </div>
+<!-- ── Voronoi Controls (always visible) ── -->
+<h4 class="sub-heading">Voronoi Settings</h4>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Show Voronoi</span>
+        <label class="toggle-switch">
             <input
-                type="range"
-                min="0.02"
-                max="0.4"
-                step="0.01"
-                value={panel.voronoiAlpha}
-                oninput={(e) => {
-                    const v = +(e.target as HTMLInputElement).value;
-                    GAME_CONFIG.VORONOI_ALPHA = v;
-                    updatePanel("voronoiAlpha", v);
-                }}
-            />
-        </div>
-        <div class="var-row">
-            <div class="row-top">
-                <span class="var-name">Edge Blur</span><span class="val"
-                    >{(panel.voronoiBlur as number).toFixed(0)}px</span
-                >
-            </div>
-            <input
-                type="range"
-                min="0"
-                max="30"
-                step="1"
-                value={panel.voronoiBlur}
-                oninput={(e) => {
-                    const v = +(e.target as HTMLInputElement).value;
-                    GAME_CONFIG.VORONOI_BLUR = v;
-                    updatePanel("voronoiBlur", v);
-                }}
-            />
-        </div>
-        <div class="var-row">
-            <div class="row-top">
-                <span class="var-name">Smoothing</span><span class="val"
-                    >{panel.voronoiSmoothing}</span
-                >
-            </div>
-            <input
-                type="range"
-                min="0"
-                max="4"
-                step="1"
-                value={panel.voronoiSmoothing}
-                oninput={(e) => {
-                    const v = +(e.target as HTMLInputElement).value;
-                    GAME_CONFIG.VORONOI_SMOOTHING = v;
-                    updatePanel("voronoiSmoothing", v);
-                }}
-            />
-        </div>
-        <div class="var-row">
-            <div class="row-top">
-                <span class="var-name">Gradient Blend</span>
-                <label class="toggle-switch">
-                    <input
-                        type="checkbox"
-                        checked={panel.voronoiGradientBlend}
-                        onchange={(e) => {
-                            const v = (e.target as HTMLInputElement).checked;
-                            GAME_CONFIG.VORONOI_GRADIENT_BLEND = v;
-                            updatePanel("voronoiGradientBlend", v);
-                        }}
-                    />
-                    <span class="slider"></span>
-                </label>
-            </div>
-        </div>
-        <div class="var-row">
-            <div class="row-top">
-                <span class="var-name">Blend Width</span><span class="val"
-                    >{panel.voronoiBlendWidth}px</span
-                >
-            </div>
-            <input
-                type="range"
-                min="0"
-                max="80"
-                step="5"
-                value={panel.voronoiBlendWidth}
-                disabled={!panel.voronoiGradientBlend}
-                oninput={(e) => {
-                    const v = +(e.target as HTMLInputElement).value;
-                    GAME_CONFIG.VORONOI_BLEND_WIDTH = v;
-                    updatePanel("voronoiBlendWidth", v);
-                }}
-            />
-        </div>
-        <!-- Borders -->
-        <div
-            class="var-row grayed"
-            style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"
-        >
-            🔲 Borders
-        </div>
-        <div class="var-row">
-            <div class="row-top">
-                <span class="var-name">Border Width</span><span class="val"
-                    >{panel.voronoiBorderWidth}px</span
-                >
-            </div>
-            <input
-                type="range"
-                min="0"
-                max="8"
-                step="0.5"
-                value={panel.voronoiBorderWidth}
-                oninput={(e) => {
-                    const v = +(e.target as HTMLInputElement).value;
-                    GAME_CONFIG.VORONOI_BORDER_WIDTH = v;
-                    updatePanel("voronoiBorderWidth", v);
-                }}
-            />
-        </div>
-        <div class="var-row">
-            <div class="row-top">
-                <span class="var-name">Border Alpha</span><span class="val"
-                    >{(panel.voronoiBorderAlpha as number).toFixed(2)}</span
-                >
-            </div>
-            <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
-                value={panel.voronoiBorderAlpha}
-                oninput={(e) => {
-                    const v = +(e.target as HTMLInputElement).value;
-                    GAME_CONFIG.VORONOI_BORDER_ALPHA = v;
-                    updatePanel("voronoiBorderAlpha", v);
-                }}
-            />
-        </div>
-        <div class="var-row">
-            <div class="row-top">
-                <span class="var-name">Border Brighten</span><span class="val"
-                    >{panel.voronoiBorderBrighten}</span
-                >
-            </div>
-            <input
-                type="range"
-                min="0"
-                max="255"
-                step="5"
-                value={panel.voronoiBorderBrighten}
-                oninput={(e) => {
-                    const v = +(e.target as HTMLInputElement).value;
-                    GAME_CONFIG.VORONOI_BORDER_BRIGHTEN = v;
-                    updatePanel("voronoiBorderBrighten", v);
-                }}
-            />
-        </div>
-        <!-- Color -->
-        <div
-            class="var-row grayed"
-            style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"
-        >
-            🎨 Color
-        </div>
-        <div class="var-row">
-            <div class="row-top">
-                <span class="var-name">Saturation</span><span class="val"
-                    >{(panel.voronoiSaturation as number).toFixed(2)}</span
-                >
-            </div>
-            <input
-                type="range"
-                min="0"
-                max="2"
-                step="0.05"
-                value={panel.voronoiSaturation}
-                oninput={(e) => {
-                    const v = +(e.target as HTMLInputElement).value;
-                    GAME_CONFIG.VORONOI_SATURATION = v;
-                    updatePanel("voronoiSaturation", v);
-                }}
-            />
-        </div>
-        <div class="var-row">
-            <div class="row-top">
-                <span class="var-name">Lightness</span><span class="val"
-                    >{(panel.voronoiLightness as number).toFixed(2)}</span
-                >
-            </div>
-            <input
-                type="range"
-                min="0"
-                max="2"
-                step="0.05"
-                value={panel.voronoiLightness}
-                oninput={(e) => {
-                    const v = +(e.target as HTMLInputElement).value;
-                    GAME_CONFIG.VORONOI_LIGHTNESS = v;
-                    updatePanel("voronoiLightness", v);
-                }}
-            />
-        </div>
-    {/if}
-{/if}
-
-<!-- ── Metaball Controls ── -->
-{#if (panel.territoryMode ?? "voronoi") === "metaball"}
-    <h4 class="sub-heading">Metaball Settings</h4>
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Influence Radius</span><span class="val"
-                >{panel.metaballRadius ?? 120}px</span
-            >
-        </div>
-        <input
-            type="range"
-            min="30"
-            max="400"
-            step="5"
-            value={panel.metaballRadius ?? 120}
-            oninput={(e) => {
-                const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.METABALL_INFLUENCE_RADIUS = v;
-                updatePanel("metaballRadius", v);
-            }}
-        />
-    </div>
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Falloff</span>
-            <select
-                class="mode-select"
-                value={panel.metaballFalloff ?? "inverse-square"}
+                type="checkbox"
+                checked={panel.showVoronoi}
                 onchange={(e) => {
-                    const v = (e.target as HTMLSelectElement).value as any;
-                    GAME_CONFIG.METABALL_FALLOFF = v;
-                    updatePanel("metaballFalloff", v);
+                    const v = (e.target as HTMLInputElement).checked;
+                    GAME_CONFIG.SHOW_VORONOI = v;
+                    updatePanel("showVoronoi", v);
                 }}
-            >
-                <option value="inverse-square">Inverse Square</option>
-                <option value="gaussian">Gaussian</option>
-                <option value="smoothstep">Smoothstep</option>
-            </select>
-        </div>
+            />
+            <span class="toggle-slider"></span>
+        </label>
     </div>
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Blend Sharpness</span><span class="val"
-                >{(panel.metaballSharpness ?? 3.0).toFixed(1)}</span
-            >
-        </div>
-        <input
-            type="range"
-            min="1"
-            max="20"
-            step="0.5"
-            value={panel.metaballSharpness ?? 3.0}
-            oninput={(e) => {
-                const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.METABALL_BLEND_SHARPNESS = v;
-                updatePanel("metaballSharpness", v);
-            }}
-        />
-    </div>
+</div>
+{#if panel.showVoronoi}
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Alpha</span><span class="val"
-                >{(panel.metaballAlpha ?? 0.5).toFixed(2)}</span
+                >{(panel.voronoiAlpha as number).toFixed(2)}</span
             >
         </div>
         <input
             type="range"
-            min="0.05"
-            max="1.0"
-            step="0.05"
-            value={panel.metaballAlpha ?? 0.5}
+            min="0.02"
+            max="0.4"
+            step="0.01"
+            value={panel.voronoiAlpha}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.METABALL_ALPHA = v;
-                updatePanel("metaballAlpha", v);
-            }}
-        />
-    </div>
-    <!-- Advanced -->
-    <div
-        class="var-row grayed"
-        style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"
-    >
-        ⚙️ Advanced
-    </div>
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Cell Size</span><span class="val"
-                >{panel.metaballCellSize ?? 8}px</span
-            >
-        </div>
-        <input
-            type="range"
-            min="2"
-            max="20"
-            step="1"
-            value={panel.metaballCellSize ?? 8}
-            oninput={(e) => {
-                const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.METABALL_CELL_SIZE = v;
-                updatePanel("metaballCellSize", v);
+                GAME_CONFIG.VORONOI_ALPHA = v;
+                updatePanel("voronoiAlpha", v);
             }}
         />
     </div>
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name">Threshold</span><span class="val"
-                >{(panel.metaballThreshold ?? 0.05).toFixed(3)}</span
-            >
-        </div>
-        <input
-            type="range"
-            min="0.005"
-            max="0.3"
-            step="0.005"
-            value={panel.metaballThreshold ?? 0.05}
-            oninput={(e) => {
-                const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.METABALL_THRESHOLD = v;
-                updatePanel("metaballThreshold", v);
-            }}
-        />
-    </div>
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Strength</span><span class="val"
-                >{(panel.metaballStrength ?? 1.0).toFixed(1)}×</span
-            >
-        </div>
-        <input
-            type="range"
-            min="0.1"
-            max="5.0"
-            step="0.1"
-            value={panel.metaballStrength ?? 1.0}
-            oninput={(e) => {
-                const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.METABALL_STRENGTH_MULT = v;
-                updatePanel("metaballStrength", v);
-            }}
-        />
-    </div>
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Edge Fade</span><span class="val"
-                >{(panel.metaballEdgeFade ?? 3.0).toFixed(1)}</span
-            >
-        </div>
-        <input
-            type="range"
-            min="0.5"
-            max="10"
-            step="0.5"
-            value={panel.metaballEdgeFade ?? 3.0}
-            oninput={(e) => {
-                const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.METABALL_EDGE_FADE = v;
-                updatePanel("metaballEdgeFade", v);
-            }}
-        />
-    </div>
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Blur</span><span class="val"
-                >{panel.metaballBlur ?? 4}px</span
+            <span class="var-name">Edge Blur</span><span class="val"
+                >{(panel.voronoiBlur as number).toFixed(0)}px</span
             >
         </div>
         <input
             type="range"
             min="0"
-            max="20"
+            max="30"
             step="1"
-            value={panel.metaballBlur ?? 4}
+            value={panel.voronoiBlur}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.METABALL_BLUR = v;
-                updatePanel("metaballBlur", v);
+                GAME_CONFIG.VORONOI_BLUR = v;
+                updatePanel("voronoiBlur", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Smoothing</span><span class="val"
+                >{panel.voronoiSmoothing}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="4"
+            step="1"
+            value={panel.voronoiSmoothing}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.VORONOI_SMOOTHING = v;
+                updatePanel("voronoiSmoothing", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Gradient Blend</span>
+            <label class="toggle-switch">
+                <input
+                    type="checkbox"
+                    checked={panel.voronoiGradientBlend}
+                    onchange={(e) => {
+                        const v = (e.target as HTMLInputElement).checked;
+                        GAME_CONFIG.VORONOI_GRADIENT_BLEND = v;
+                        updatePanel("voronoiGradientBlend", v);
+                    }}
+                />
+                <span class="slider"></span>
+            </label>
+        </div>
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Blend Width</span><span class="val"
+                >{panel.voronoiBlendWidth}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="80"
+            step="5"
+            value={panel.voronoiBlendWidth}
+            disabled={!panel.voronoiGradientBlend}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.VORONOI_BLEND_WIDTH = v;
+                updatePanel("voronoiBlendWidth", v);
+            }}
+        />
+    </div>
+    <!-- Borders -->
+    <div
+        class="var-row grayed"
+        style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"
+    >
+        🔲 Borders
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Border Width</span><span class="val"
+                >{panel.voronoiBorderWidth}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="8"
+            step="0.5"
+            value={panel.voronoiBorderWidth}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.VORONOI_BORDER_WIDTH = v;
+                updatePanel("voronoiBorderWidth", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Border Alpha</span><span class="val"
+                >{(panel.voronoiBorderAlpha as number).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={panel.voronoiBorderAlpha}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.VORONOI_BORDER_ALPHA = v;
+                updatePanel("voronoiBorderAlpha", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Border Brighten</span><span class="val"
+                >{panel.voronoiBorderBrighten}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="255"
+            step="5"
+            value={panel.voronoiBorderBrighten}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.VORONOI_BORDER_BRIGHTEN = v;
+                updatePanel("voronoiBorderBrighten", v);
+            }}
+        />
+    </div>
+    <!-- Color -->
+    <div
+        class="var-row grayed"
+        style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"
+    >
+        🎨 Color
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Saturation</span><span class="val"
+                >{(panel.voronoiSaturation as number).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="2"
+            step="0.05"
+            value={panel.voronoiSaturation}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.VORONOI_SATURATION = v;
+                updatePanel("voronoiSaturation", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Lightness</span><span class="val"
+                >{(panel.voronoiLightness as number).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="2"
+            step="0.05"
+            value={panel.voronoiLightness}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.VORONOI_LIGHTNESS = v;
+                updatePanel("voronoiLightness", v);
             }}
         />
     </div>
 {/if}
+
+<!-- ── Metaball Controls (always visible) ── -->
+<h4 class="sub-heading">Metaball Settings</h4>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Influence Radius</span><span class="val"
+            >{panel.metaballRadius ?? 120}px</span
+        >
+    </div>
+    <input
+        type="range"
+        min="30"
+        max="400"
+        step="5"
+        value={panel.metaballRadius ?? 120}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.METABALL_INFLUENCE_RADIUS = v;
+            updatePanel("metaballRadius", v);
+        }}
+    />
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Falloff</span>
+        <select
+            class="mode-select"
+            value={panel.metaballFalloff ?? "inverse-square"}
+            onchange={(e) => {
+                const v = (e.target as HTMLSelectElement).value as any;
+                GAME_CONFIG.METABALL_FALLOFF = v;
+                updatePanel("metaballFalloff", v);
+            }}
+        >
+            <option value="inverse-square">Inverse Square</option>
+            <option value="gaussian">Gaussian</option>
+            <option value="smoothstep">Smoothstep</option>
+        </select>
+    </div>
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Blend Sharpness</span><span class="val"
+            >{(panel.metaballSharpness ?? 3.0).toFixed(1)}</span
+        >
+    </div>
+    <input
+        type="range"
+        min="1"
+        max="20"
+        step="0.5"
+        value={panel.metaballSharpness ?? 3.0}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.METABALL_BLEND_SHARPNESS = v;
+            updatePanel("metaballSharpness", v);
+        }}
+    />
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Alpha</span><span class="val"
+            >{(panel.metaballAlpha ?? 0.5).toFixed(2)}</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0.05"
+        max="1.0"
+        step="0.05"
+        value={panel.metaballAlpha ?? 0.5}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.METABALL_ALPHA = v;
+            updatePanel("metaballAlpha", v);
+        }}
+    />
+</div>
+<!-- Advanced -->
+<div
+    class="var-row grayed"
+    style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"
+>
+    ⚙️ Advanced
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Cell Size</span><span class="val"
+            >{panel.metaballCellSize ?? 8}px</span
+        >
+    </div>
+    <input
+        type="range"
+        min="2"
+        max="20"
+        step="1"
+        value={panel.metaballCellSize ?? 8}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.METABALL_CELL_SIZE = v;
+            updatePanel("metaballCellSize", v);
+        }}
+    />
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Threshold</span><span class="val"
+            >{(panel.metaballThreshold ?? 0.05).toFixed(3)}</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0.005"
+        max="0.3"
+        step="0.005"
+        value={panel.metaballThreshold ?? 0.05}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.METABALL_THRESHOLD = v;
+            updatePanel("metaballThreshold", v);
+        }}
+    />
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Strength</span><span class="val"
+            >{(panel.metaballStrength ?? 1.0).toFixed(1)}×</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0.1"
+        max="5.0"
+        step="0.1"
+        value={panel.metaballStrength ?? 1.0}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.METABALL_STRENGTH_MULT = v;
+            updatePanel("metaballStrength", v);
+        }}
+    />
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Edge Fade</span><span class="val"
+            >{(panel.metaballEdgeFade ?? 3.0).toFixed(1)}</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0.5"
+        max="10"
+        step="0.5"
+        value={panel.metaballEdgeFade ?? 3.0}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.METABALL_EDGE_FADE = v;
+            updatePanel("metaballEdgeFade", v);
+        }}
+    />
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Blur</span><span class="val"
+            >{panel.metaballBlur ?? 4}px</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="20"
+        step="1"
+        value={panel.metaballBlur ?? 4}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.METABALL_BLUR = v;
+            updatePanel("metaballBlur", v);
+        }}
+    />
+</div>
 
 <style>
     .sub-heading {

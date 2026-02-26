@@ -235,8 +235,10 @@ interface GameConfigType {
     HALO_FLEET_STEP_SIZE: number;  // Ships per step for 'stepped' mode (default 500)
     HALO_FLEET_MAX_SHIPS: number;  // Ship count for full alpha in 'linear' mode (default 500)
 
-    // ── Territory Mode ────────────────────────────────────────────────────────
-    TERRITORY_MODE: 'voronoi' | 'metaball' | 'off';  // Which territory renderer to use (default 'voronoi')
+    // ── Territory Toggles ──────────────────────────────────────────────────────
+    TERRITORY_VORONOI: boolean;    // Enable Voronoi territory renderer (default true)
+    TERRITORY_METABALL: boolean;   // Enable Metaball territory renderer (default false)
+    TERRITORY_MODE: 'voronoi' | 'metaball' | 'off';  // LEGACY — kept for compat
 
     // ── Voronoi Territory ───────────────────────────────────────────────────
     SHOW_VORONOI: boolean;         // Show contiguous Voronoi territory fill (default true)
@@ -702,7 +704,11 @@ const _rawConfig: GameConfigType = {
     /** Ship count for full alpha in linear mode */
     HALO_FLEET_MAX_SHIPS: 500,
 
-    /** Territory rendering mode: 'voronoi' (polygon smoothing), 'metaball' (GPU influence fields), 'off' */
+    /** Enable Voronoi territory renderer */
+    TERRITORY_VORONOI: true,
+    /** Enable Metaball territory renderer */
+    TERRITORY_METABALL: false,
+    /** LEGACY territory mode — kept for compat */
     TERRITORY_MODE: 'voronoi' as 'voronoi' | 'metaball' | 'off',
 
     /** Show contiguous Voronoi territory fill */

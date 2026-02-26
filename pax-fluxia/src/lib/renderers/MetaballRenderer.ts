@@ -70,7 +70,7 @@ function buildFingerprint(stars: StarState[]): string {
     fp += `:${GAME_CONFIG.METABALL_BLEND_SHARPNESS}:${GAME_CONFIG.METABALL_ALPHA}`;
     fp += `:${GAME_CONFIG.METABALL_CELL_SIZE}:${GAME_CONFIG.METABALL_THRESHOLD}`;
     fp += `:${GAME_CONFIG.METABALL_STRENGTH_MULT}:${GAME_CONFIG.METABALL_EDGE_FADE}`;
-    fp += `:${GAME_CONFIG.TERRITORY_MODE}`;
+    fp += `:${GAME_CONFIG.TERRITORY_METABALL}`;
     return fp;
 }
 
@@ -88,7 +88,7 @@ export function renderMetaball(
     worldWidth: number,
     worldHeight: number,
 ): void {
-    const show = GAME_CONFIG.TERRITORY_MODE === 'metaball';
+    const show = GAME_CONFIG.TERRITORY_METABALL;
 
     if (!show) {
         if (territoryGraphics) territoryGraphics.visible = false;
