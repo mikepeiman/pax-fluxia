@@ -341,11 +341,11 @@ export function renderVoronoi(
             cachedBlurFilter = new PIXI.BlurFilter({ strength: blurStrength, quality: 4 });
             cachedBlurStrength = blurStrength;
         }
-        voronoiContainer.filters = [cachedBlurFilter];
+        cellGraphics.filters = [cachedBlurFilter];
     } else {
         cachedBlurFilter = null;
         cachedBlurStrength = -1;
-        voronoiContainer.filters = [];
+        if (cellGraphics) cellGraphics.filters = [];
     }
 }
 

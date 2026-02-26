@@ -452,6 +452,51 @@
         }}
     />
 </div>
+<!-- Borders -->
+<div
+    class="var-row grayed"
+    style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"
+>
+    🔲 Borders
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Border Width</span><span class="val"
+            >{(panel.metaballBorderWidth ?? 1.5).toFixed(1)}px</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="6"
+        step="0.5"
+        value={panel.metaballBorderWidth ?? 1.5}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.METABALL_BORDER_WIDTH = v;
+            updatePanel("metaballBorderWidth", v);
+        }}
+    />
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Border Alpha</span><span class="val"
+            >{(panel.metaballBorderAlpha ?? 0.6).toFixed(2)}</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="1"
+        step="0.05"
+        value={panel.metaballBorderAlpha ?? 0.6}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.METABALL_BORDER_ALPHA = v;
+            updatePanel("metaballBorderAlpha", v);
+        }}
+    />
+</div>
 
 <style>
     .sub-heading {

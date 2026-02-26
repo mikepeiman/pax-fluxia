@@ -231,6 +231,8 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'metaballThreshold', configKey: 'METABALL_THRESHOLD' },
     { panelKey: 'metaballStrength', configKey: 'METABALL_STRENGTH_MULT' },
     { panelKey: 'metaballEdgeFade', configKey: 'METABALL_EDGE_FADE' },
+    { panelKey: 'metaballBorderWidth', configKey: 'METABALL_BORDER_WIDTH' },
+    { panelKey: 'metaballBorderAlpha', configKey: 'METABALL_BORDER_ALPHA' },
     { panelKey: 'metaballBlur', configKey: 'METABALL_BLUR' },
 ];
 

@@ -770,6 +770,8 @@
             metaballStrength: GAME_CONFIG.METABALL_STRENGTH_MULT,
             metaballEdgeFade: GAME_CONFIG.METABALL_EDGE_FADE,
             metaballBlur: GAME_CONFIG.METABALL_BLUR,
+            metaballBorderWidth: GAME_CONFIG.METABALL_BORDER_WIDTH,
+            metaballBorderAlpha: GAME_CONFIG.METABALL_BORDER_ALPHA,
             bindAnimToTick: GAME_CONFIG.BIND_ANIMATION_TO_TICK,
         };
         savePanelSettings(panel);

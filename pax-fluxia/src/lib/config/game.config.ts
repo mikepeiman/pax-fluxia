@@ -268,6 +268,8 @@ interface GameConfigType {
     METABALL_STRENGTH_MULT: number;     // Star strength multiplier (default 1.0)
     METABALL_EDGE_FADE: number;         // Edge alpha falloff multiplier (default 3.0)
     METABALL_BLUR: number;              // GPU blur on metaball container (0=sharp, default 4)
+    METABALL_BORDER_WIDTH: number;       // Border line width between territories (default 1.5)
+    METABALL_BORDER_ALPHA: number;       // Border line alpha (default 0.6)
 
     SHOW_HEX_GRID: boolean;
     STARS_PER_PLAYER: number;
@@ -763,6 +765,10 @@ const _rawConfig: GameConfigType = {
     METABALL_EDGE_FADE: 3.0,
     /** GPU blur on metaball output (0=pixelated, 4=smooth, higher=very soft) */
     METABALL_BLUR: 4,
+    /** Border line width between metaball territories */
+    METABALL_BORDER_WIDTH: 1.5,
+    /** Border line alpha */
+    METABALL_BORDER_ALPHA: 0.6,
 
     /** Show hex grid (debug) */
     SHOW_HEX_GRID: false,
