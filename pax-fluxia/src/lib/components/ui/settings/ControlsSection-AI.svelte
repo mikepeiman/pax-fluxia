@@ -4,7 +4,7 @@
     const aiVariables = AI_VARIABLES;
     import { GAME_CONFIG } from "$lib/config/game.config";
 
-    // ControlsSection-AI â€” In-Game Settings Controls: AI Behavior
+    // ControlsSection-AI — In-Game Settings Controls: AI Behavior
     // Extracted from GameSettingsPanel.svelte
 
     interface Props {
@@ -16,13 +16,19 @@
         toggle: (key: string) => void;
         syncFromConfig?: () => void;
     }
-    let { panel, updatePanel, values, enabled, updateValue, toggle } =
-        $props() as Props;
-    import CategoryThemeBar from './CategoryThemeBar.svelte';
+    let {
+        panel,
+        updatePanel,
+        values,
+        enabled,
+        updateValue,
+        toggle,
+        syncFromConfig,
+    } = $props() as Props;
+    import CategoryThemeBar from "./CategoryThemeBar.svelte";
 </script>
 
 <CategoryThemeBar category="ai" onApply={() => syncFromConfig?.()} />
-
 
 {#each aiVariables as v}
     <div
@@ -95,5 +101,5 @@
 </div>
 
 <style>
-    @import './panel-shared.css';
+    @import "./panel-shared.css";
 </style>

@@ -4,7 +4,7 @@
     const variables = COMBAT_VARIABLES;
     import { GAME_CONFIG } from "$lib/config/game.config";
 
-    // ControlsSection-BATTLE â€” In-Game Settings Controls: Battle
+    // ControlsSection-BATTLE — In-Game Settings Controls: Battle
     // Extracted from GameSettingsPanel.svelte
 
     interface Props {
@@ -16,13 +16,19 @@
         toggle: (key: string) => void;
         syncFromConfig?: () => void;
     }
-    let { panel, updatePanel, values, enabled, updateValue, toggle } =
-        $props() as Props;
-    import CategoryThemeBar from './CategoryThemeBar.svelte';
+    let {
+        panel,
+        updatePanel,
+        values,
+        enabled,
+        updateValue,
+        toggle,
+        syncFromConfig,
+    } = $props() as Props;
+    import CategoryThemeBar from "./CategoryThemeBar.svelte";
 </script>
 
 <CategoryThemeBar category="combat" onApply={() => syncFromConfig?.()} />
-
 
 {#each variables as v}
     <div
@@ -57,5 +63,5 @@
 {/each}
 
 <style>
-    @import './panel-shared.css';
+    @import "./panel-shared.css";
 </style>

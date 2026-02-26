@@ -40,6 +40,7 @@
         pinValueToTickDuration,
         lockRatioToTick,
         lockRatioToAnimSpeed,
+    syncFromConfig,
     }: Props = $props();
     import CategoryThemeBar from './CategoryThemeBar.svelte';
 </script>

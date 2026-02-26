@@ -31,6 +31,7 @@
         importConfigJSON,
         configStatus,
         configStatusColor,
+    syncFromConfig,
     }: Props = $props();
 
     type VarKey = string;
