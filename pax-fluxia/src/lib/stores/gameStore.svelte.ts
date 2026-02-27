@@ -54,32 +54,33 @@ const BASE_SATURATION = 0.75;
 const BASE_LIGHTNESS = 0.55;
 const MIN_HUE_SEPARATION = 40; // degrees minimum between any two players
 
-/**
- * Generate N player colors with guaranteed hue separation.
- * Human player always gets blue (hue 220).
- * AI players are distributed evenly across the remaining hue space.
- */
-function generatePlayerColors(count: number): string[] {
-    const colors: string[] = [];
-    // Human always gets blue
-    colors.push(hslToCssHex(HUMAN_HUE, BASE_SATURATION, BASE_LIGHTNESS));
+// ── RGB → CIELAB conversion for perceptual color distance ──
 
-    if (count <= 1) return colors;
-
-    // Distribute AI hues evenly across 360°, avoiding the human hue zone
-    const aiCount = count - 1;
-    const step = 360 / count; // even spacing across full wheel
-
-    for (let i = 1; i <= aiCount; i++) {
-        // Golden-ratio-like distribution for perceptual distinctness
-        const hue = (HUMAN_HUE + step * i) % 360;
-        colors.push(hslToCssHex(hue, BASE_SATURATION, BASE_LIGHTNESS));
-    }
-
-    return colors;
+function srgbToLinear(c: number): number {
+    return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
 }
 
-function hslToCssHex(h: number, s: number, l: number): string {
+function rgbToLab(r: number, g: number, b: number): [number, number, number] {
+    // sRGB → linear → XYZ (D65)
+    const rl = srgbToLinear(r / 255);
+    const gl = srgbToLinear(g / 255);
+    const bl = srgbToLinear(b / 255);
+    let x = (rl * 0.4124564 + gl * 0.3575761 + bl * 0.1804375) / 0.95047;
+    let y = (rl * 0.2126729 + gl * 0.7151522 + bl * 0.0721750) / 1.00000;
+    let z = (rl * 0.0193339 + gl * 0.1191920 + bl * 0.9503041) / 1.08883;
+    const f = (t: number) => t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116;
+    x = f(x); y = f(y); z = f(z);
+    return [116 * y - 16, 500 * (x - y), 200 * (y - z)];
+}
+
+/** CIE76 ΔE: Euclidean distance in Lab space */
+function deltaE(lab1: [number, number, number], lab2: [number, number, number]): number {
+    return Math.sqrt(
+        (lab1[0] - lab2[0]) ** 2 + (lab1[1] - lab2[1]) ** 2 + (lab1[2] - lab2[2]) ** 2,
+    );
+}
+
+function hslToRgb(h: number, s: number, l: number): [number, number, number] {
     h = ((h % 360) + 360) % 360;
     const c = (1 - Math.abs(2 * l - 1)) * s;
     const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
@@ -91,11 +92,69 @@ function hslToCssHex(h: number, s: number, l: number): string {
     else if (h < 240) { r1 = 0; g1 = x; b1 = c; }
     else if (h < 300) { r1 = x; g1 = 0; b1 = c; }
     else { r1 = c; g1 = 0; b1 = x; }
-    const ri = Math.round((r1 + m) * 255);
-    const gi = Math.round((g1 + m) * 255);
-    const bi = Math.round((b1 + m) * 255);
-    return '#' + ((1 << 24) | (ri << 16) | (gi << 8) | bi).toString(16).slice(1);
+    return [
+        Math.round((r1 + m) * 255),
+        Math.round((g1 + m) * 255),
+        Math.round((b1 + m) * 255),
+    ];
 }
+
+/**
+ * Generate N player colors with guaranteed perceptual separation.
+ * Uses CIELAB ΔE (CIE76) to measure perceptual distance.
+ * Human player always gets blue (hue 220).
+ * AI colors are greedily selected to maximize minimum ΔE from all existing colors.
+ */
+function generatePlayerColors(count: number): string[] {
+    const colors: string[] = [];
+    const labs: [number, number, number][] = [];
+
+    // Human always gets blue
+    const humanRgb = hslToRgb(HUMAN_HUE, BASE_SATURATION, BASE_LIGHTNESS);
+    colors.push(`#${humanRgb.map(c => c.toString(16).padStart(2, '0')).join('')}`);
+    labs.push(rgbToLab(...humanRgb));
+
+    if (count <= 1) return colors;
+
+    // Generate candidate pool: 72 hues at 5° intervals (skip near-human zone ±25°)
+    const candidates: { hue: number; rgb: [number, number, number]; lab: [number, number, number] }[] = [];
+    for (let h = 0; h < 360; h += 5) {
+        // Skip hues too close to human hue (within MIN_HUE_SEPARATION)
+        const dist = Math.min(Math.abs(h - HUMAN_HUE), 360 - Math.abs(h - HUMAN_HUE));
+        if (dist < MIN_HUE_SEPARATION) continue;
+        const rgb = hslToRgb(h, BASE_SATURATION, BASE_LIGHTNESS);
+        candidates.push({ hue: h, rgb, lab: rgbToLab(...rgb) });
+    }
+
+    // Greedy selection: pick candidate with max minimum ΔE to all chosen colors
+    for (let pick = 1; pick < count; pick++) {
+        let bestIdx = 0;
+        let bestMinDE = -1;
+
+        for (let c = 0; c < candidates.length; c++) {
+            let minDE = Infinity;
+            for (const chosen of labs) {
+                const de = deltaE(candidates[c].lab, chosen);
+                if (de < minDE) minDE = de;
+            }
+            if (minDE > bestMinDE) {
+                bestMinDE = minDE;
+                bestIdx = c;
+            }
+        }
+
+        const winner = candidates[bestIdx];
+        colors.push(`#${winner.rgb.map(c => c.toString(16).padStart(2, '0')).join('')}`);
+        labs.push(winner.lab);
+        // Remove winner from candidates so it can't be picked again
+        candidates.splice(bestIdx, 1);
+    }
+
+    return colors;
+}
+
+
+
 
 // Legacy fixed palette — kept as fallback only
 const PLAYER_COLORS_LEGACY = [
