@@ -568,7 +568,7 @@ const _rawConfig: GameConfigType = {
     ATTACK_SURGE_PROPORTIONAL: true,
     ATTACK_SURGE_FORCE_COFACTOR: 0.6,
     /** Ramp-in duration for attack surge (ms, 0=instant/old behavior) */
-    ATTACK_SURGE_RAMP_MS: 1100,
+    ATTACK_SURGE_RAMP_MS: 0,
     /** Surge pulse shape power (1=sine, 2=sharper peak, 0.5=flatter) */
     ATTACK_SURGE_SHAPE: 1,
     /** Duration of one surge sine pulse cycle (ms, default = BASE_TICK_MS) */
@@ -585,8 +585,8 @@ const _rawConfig: GameConfigType = {
     CONQUEST_TRAVEL_SPEED: 0.1,
     /** Delay before conquest ships start moving (ms) — ships hold surged position */
     CONQUEST_LERP_DELAY_MS: 0,
-    CONQUEST_COLOR_DELAY_TICKS: 2,
-    CONQUEST_FLASH_TICKS: 3,
+    CONQUEST_COLOR_DELAY_TICKS: 0,
+    CONQUEST_FLASH_TICKS: 2.5,
     // ── Arrowhead conquest animation ──
     ARROW_TAPER: 0.35,
     ARROW_WIDTH: 115,
@@ -802,7 +802,7 @@ const _rawConfig: GameConfigType = {
     /** Downscale factor (1=full res/slow, 4=balanced, 8=fast/blocky) */
     PIXEL_RESOLUTION: 1,
     /** Edge blend softness at territory boundaries (0=hard edges, 1-10=soft) */
-    PIXEL_EDGE_BLEND: 4,
+    PIXEL_EDGE_BLEND: 1.5,
     /** GPU blur strength (0=sharp pixel edges, 4+=smooth) */
     PIXEL_BLUR: 0,
     /** DEPRECATED — kept for compat */
@@ -818,19 +818,19 @@ const _rawConfig: GameConfigType = {
     /** How much to brighten border color (0-255) */
     PIXEL_BORDER_BRIGHTEN: 50,
     /** Pattern overlay on territory ('none' | 'stripes' | 'crosshatch' | 'dots') */
-    PIXEL_PATTERN: 'stripes' as const,
+    PIXEL_PATTERN: 'crosshatch' as const,
     /** Pattern density (1=fine, 10=coarse) */
-    PIXEL_PATTERN_SCALE: 12,
+    PIXEL_PATTERN_SCALE: 17,
     /** Per-player pattern rotation amount (0=same for all, 1=max golden angle separation) */
-    PIXEL_PATTERN_ROTATION: 1,
+    PIXEL_PATTERN_ROTATION: 0,
     /** Edge fade: how far past the gameboard edges territory extends (px, 0=off) */
-    PIXEL_EDGE_FADE: 200,
+    PIXEL_EDGE_FADE: 120,
 
     /** Show hex grid (debug) */
     SHOW_HEX_GRID: false,
 
     /** Stars per player (Map Size) */
-    STARS_PER_PLAYER: 14,
+    STARS_PER_PLAYER: 7,
 
     // Runtime: populated by map generation (do not save to localStorage)
     _MAP_HEX_RADIUS: 0,
