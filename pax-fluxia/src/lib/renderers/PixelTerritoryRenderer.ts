@@ -184,72 +184,110 @@ export function renderPixelTerritory(
     const imageData = ctx.createImageData(canvasW, canvasH);
     const pixels = imageData.data;
     const numStars = starData.length;
+    // Build unique owner list for faction-based influence
+    const ownerSet = new Set<string>();
+    for (const s of starData) ownerSet.add(s.ownerId);
+    const owners = Array.from(ownerSet);
+    const numOwners = owners.length;
 
-    // Corridor boost: same-owner distance multiplier = 1 - boost
-    // boost=0 → multiplier=1.0 (no effect, pure Voronoi)
-    // boost=0.3 → multiplier=0.7 (friendly stars 30% "closer")
-    // boost=0.6 → multiplier=0.4 (strong corridor guarantee)
-    // boost=0.9 → multiplier=0.1 (extreme, almost faction-only)
-    const friendlyMult = Math.max(0.05, 1.0 - corridorBoost);
+    // Pre-group stars by owner for fast lookup
+    const starsByOwner: Map<string, number[]> = new Map();
+    for (const owner of owners) starsByOwner.set(owner, []);
+    for (let i = 0; i < numStars; i++) {
+        starsByOwner.get(starData[i].ownerId)!.push(i);
+    }
+
+    // Pre-compute per-owner RGB (first star of that owner — they share colors)
+    const ownerRGB: Map<string, [number, number, number]> = new Map();
+    for (const owner of owners) {
+        ownerRGB.set(owner, starData[starsByOwner.get(owner)![0]].rgb);
+    }
 
     for (let py = 0; py < canvasH; py++) {
         for (let px = 0; px < canvasW; px++) {
-            // PASS 1: Find the true nearest star (unmodified distances)
-            let minDist = Infinity;
-            let nearestIdx = 0;
+            let winnerOwner: string;
+            let winnerRgb: [number, number, number];
+            let nearestDistSq = Infinity;
 
-            for (let i = 0; i < numStars; i++) {
-                const dx = px - starData[i].x;
-                const dy = py - starData[i].y;
-                const dist = dx * dx + dy * dy;
-                if (dist < minDist) {
-                    minDist = dist;
-                    nearestIdx = i;
+            if (corridorBoost > 0 && numOwners > 1) {
+                // ── FACTION INFLUENCE MODE ──
+                // For each owner, compute combined influence = sum(1/dist²)
+                // Owners with multiple nearby stars accumulate more influence,
+                // naturally creating corridors between their stars.
+                let bestInfluence = -1;
+                let bestOwner = owners[0];
+                let bestNearestDistSq = Infinity;
+
+                for (let oi = 0; oi < numOwners; oi++) {
+                    const owner = owners[oi];
+                    const indices = starsByOwner.get(owner)!;
+                    let influence = 0;
+                    let ownerMinDist = Infinity;
+
+                    for (const si of indices) {
+                        const dx = px - starData[si].x;
+                        const dy = py - starData[si].y;
+                        const distSq = dx * dx + dy * dy;
+                        if (distSq < ownerMinDist) ownerMinDist = distSq;
+
+                        // Influence = 1/dist², avoid div by zero
+                        if (distSq < 1) {
+                            influence = 1e12; // pixel right on star
+                        } else {
+                            influence += 1.0 / distSq;
+                        }
+                    }
+
+                    // Blend between nearest-neighbor and influence sum:
+                    // boost=0 → pure nearest (min dist wins)
+                    // boost=1 → pure influence sum (multi-star owners dominate)
+                    // We use: score = influence^boost / minDist^(1-boost)
+                    // Higher score = this owner claims the pixel
+                    const score = Math.pow(influence, corridorBoost) *
+                        Math.pow(ownerMinDist < 1 ? 1e-12 : 1.0 / ownerMinDist, 1.0 - corridorBoost);
+
+                    if (score > bestInfluence) {
+                        bestInfluence = score;
+                        bestOwner = owner;
+                        bestNearestDistSq = ownerMinDist;
+                    }
                 }
-            }
 
-            // PASS 2: If corridor boost enabled, re-evaluate with discount
-            // Same-owner stars get their distances reduced, potentially
-            // pulling the pixel into friendly territory
-            if (corridorBoost > 0) {
-                const nearestOwner = starData[nearestIdx].ownerId;
-                let bestDist = minDist;
-                let bestIdx = nearestIdx;
-
+                winnerOwner = bestOwner;
+                winnerRgb = ownerRGB.get(bestOwner)!;
+                nearestDistSq = bestNearestDistSq;
+            } else {
+                // ── CLASSIC NEAREST-NEIGHBOR ──
+                let nearestIdx = 0;
                 for (let i = 0; i < numStars; i++) {
                     const dx = px - starData[i].x;
                     const dy = py - starData[i].y;
-                    let dist = dx * dx + dy * dy;
-
-                    // Apply same-owner discount
-                    if (starData[i].ownerId === nearestOwner) {
-                        dist *= friendlyMult * friendlyMult; // squared because dist is squared
-                    }
-
-                    if (dist < bestDist) {
-                        bestDist = dist;
-                        bestIdx = i;
+                    const dist = dx * dx + dy * dy;
+                    if (dist < nearestDistSq) {
+                        nearestDistSq = dist;
+                        nearestIdx = i;
                     }
                 }
-
-                nearestIdx = bestIdx;
+                winnerOwner = starData[nearestIdx].ownerId;
+                winnerRgb = starData[nearestIdx].rgb;
             }
 
-            const [r, g, b] = starData[nearestIdx].rgb;
+            const [r, g, b] = winnerRgb;
             let pixelAlpha = alpha;
 
             // Optional edge blend: reduce alpha near territory boundaries
             if (edgeBlend > 0) {
+                // Find nearest enemy star distance
                 let secondMinDist = Infinity;
                 for (let i = 0; i < numStars; i++) {
-                    if (starData[i].ownerId === starData[nearestIdx].ownerId) continue;
+                    if (starData[i].ownerId === winnerOwner) continue;
                     const dx = px - starData[i].x;
                     const dy = py - starData[i].y;
                     const dist = dx * dx + dy * dy;
                     if (dist < secondMinDist) secondMinDist = dist;
                 }
                 if (secondMinDist < Infinity) {
-                    const d1 = Math.sqrt(minDist);
+                    const d1 = Math.sqrt(nearestDistSq);
                     const d2 = Math.sqrt(secondMinDist);
                     const edgeDist = (d2 - d1) / (d1 + d2 + 0.001);
                     const blendFactor = Math.min(1, edgeDist / (edgeBlend * 0.1));

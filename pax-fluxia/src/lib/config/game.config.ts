@@ -744,9 +744,9 @@ const _rawConfig: GameConfigType = {
     /** How much to brighten border color (0-255) */
     VORONOI_BORDER_BRIGHTEN: 80,
     /** Voronoi color saturation multiplier (0=grey, 1=original, 2=vivid) */
-    VORONOI_SATURATION: 1.2,
+    VORONOI_SATURATION: 0.8,
     /** Voronoi color lightness multiplier (0=dark, 1=original, 2=bright) */
-    VORONOI_LIGHTNESS: 0.5,
+    VORONOI_LIGHTNESS: 0.4,
     /** Territory glow bleed radius as fraction of map size */
     VORONOI_GLOW_RADIUS: 0.3,
     /** Peak glow alpha per layer */
@@ -790,17 +790,17 @@ const _rawConfig: GameConfigType = {
 
     // ── Pixel Territory ──
     /** Pixel territory alpha (0-1, lower = more transparent) */
-    PIXEL_ALPHA: 0.14,
+    PIXEL_ALPHA: 0.29,
     /** Downscale factor (1=full res/slow, 4=balanced, 8=fast/blocky) */
     PIXEL_RESOLUTION: 8,
     /** Edge blend softness at territory boundaries (0=hard edges, 1-10=soft) */
-    PIXEL_EDGE_BLEND: 3,
+    PIXEL_EDGE_BLEND: 1,
     /** GPU blur strength (0=sharp pixel edges, 4+=smooth) */
     PIXEL_BLUR: 3,
     /** DEPRECATED — kept for compat */
     PIXEL_BLEND_POWER: 4,
     /** Same-owner distance discount for corridor guarantee (0=off, 0.3=natural, 0.6=strong) */
-    PIXEL_CORRIDOR_BOOST: 0.3,
+    PIXEL_CORRIDOR_BOOST: 0.85,
 
     /** Show hex grid (debug) */
     SHOW_HEX_GRID: false,
