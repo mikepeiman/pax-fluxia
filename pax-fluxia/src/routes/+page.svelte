@@ -14,8 +14,7 @@
   import AudioSettings from "$lib/components/ui/AudioSettings.svelte";
   import TopBar from "$lib/components/ui/TopBar.svelte";
   import type { PlayerState } from "$lib/types/game.types";
-  import { applyTheme, loadThemes, type GameTheme } from "$lib/config/themes";
-  import { BUILTIN_THEMES } from "$lib/config/builtinThemes";
+  import { themeStore } from "$lib/stores/themeStore.svelte";
 
   let roomIdCopied = $state(false);
   function copyRoomId() {
@@ -55,24 +54,7 @@
   );
 
   // ── Theme system (in right sidebar) ──
-  let userThemes = $state<GameTheme[]>(
-    typeof window !== "undefined" ? loadThemes() : [],
-  );
-  let allThemes = $derived([...BUILTIN_THEMES, ...userThemes]);
-  let selectedThemeName = $state<string>("");
-
-  function handleApplyTheme(name: string) {
-    const theme = allThemes.find((t) => t.name === name);
-    if (!theme) return;
-    applyTheme(theme);
-    selectedThemeName = name;
-    // Dispatch event so GameSettingsPanel can sync its reactive state
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(
-        new CustomEvent("pax-theme-applied", { detail: name }),
-      );
-    }
-  }
+  // All theme state is now in the shared themeStore
 
   // Listen for StarInfoPanel toggle from GameSettingsPanel
   if (typeof window !== "undefined") {
@@ -313,14 +295,14 @@
           <select
             id="theme-select"
             class="theme-select"
-            value={selectedThemeName}
+            value={themeStore.selectedThemeName}
             onchange={(e) => {
               const v = (e.target as HTMLSelectElement).value;
-              if (v) handleApplyTheme(v);
+              if (v) themeStore.applyTheme(v);
             }}
           >
             <option value="">Select Theme…</option>
-            {#each allThemes as theme}
+            {#each themeStore.allThemes as theme}
               <option value={theme.name}>{theme.name}</option>
             {/each}
           </select>

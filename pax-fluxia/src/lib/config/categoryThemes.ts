@@ -245,6 +245,10 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
         'STAR_GLOW_RADIUS_MULT',
         'STAR_GLOW_INTENSITY',
         'STAR_GLOW_LAYERS',
+        // Star shape (polygon body)
+        'STAR_SHAPE_MODE',
+        'STAR_ICON_SCALE',
+        'STAR_CORNER_RADIUS',
     ],
 
     visuals: [

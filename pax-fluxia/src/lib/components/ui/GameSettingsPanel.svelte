@@ -1,16 +1,8 @@
 ﻿<script lang="ts">
     import { onMount } from "svelte";
     import { GAME_CONFIG } from "$lib/config/game.config";
-    import {
-        applyTheme,
-        extractTheme,
-        saveTheme,
-        loadThemes,
-        deleteTheme,
-        exportThemeJSON,
-        type GameTheme,
-    } from "$lib/config/themes";
-    import { BUILTIN_THEMES } from "$lib/config/builtinThemes";
+    import { type GameTheme } from "$lib/config/themes";
+    import { themeStore } from "$lib/stores/themeStore.svelte";
     import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
     import { selectedStarStore } from "$lib/stores/selectedStarStore.svelte";
     import { gameStore } from "$lib/stores/gameStore.svelte";
@@ -638,24 +630,20 @@
     // =========================================================================
 
     // =========================================================================
-    // Theme System
+    // Theme System — now uses shared themeStore
     // =========================================================================
-    let userThemes = $state<GameTheme[]>(
-        typeof window !== "undefined" ? loadThemes() : [],
-    );
-    let allThemes = $derived([...BUILTIN_THEMES, ...userThemes]);
-    let selectedThemeName = $state<string>("");
     let showFullSaveInput = $state(false);
     let fullSaveName = $state("");
     let fullSaveFlash = $state(false);
 
+    // Register syncAllFromConfig so the store can trigger it after theme apply
+    $effect(() => {
+        themeStore.registerSyncCallback(syncAllFromConfig);
+    });
+
     function handleApplyTheme(name: string) {
-        const theme = allThemes.find((t) => t.name === name);
-        if (!theme) return;
-        applyTheme(theme);
-        selectedThemeName = name;
-        syncAllFromConfig();
-        configStatus = `✅ Theme "${name}" applied`;
+        themeStore.applyTheme(name);
+        configStatus = `\u2705 Theme \"${name}\" applied`;
         configStatusColor = "#4ade80";
     }
 
@@ -822,35 +810,23 @@
     function handleSaveTheme() {
         const name = fullSaveName.trim();
         if (!name) return;
-        const desc = "";
-        const theme = extractTheme(name, desc);
-        saveTheme(theme);
-        userThemes = loadThemes();
+        themeStore.saveTheme(name);
         fullSaveName = "";
         showFullSaveInput = false;
-        selectedThemeName = name;
         configStatus = `\u2705 Theme \"${name}\" saved`;
         configStatusColor = "#4ade80";
         fullSaveFlash = true;
         setTimeout(() => (fullSaveFlash = false), 600);
         // Download theme JSON
-        exportThemeJSON(theme);
+        themeStore.exportTheme(name);
     }
 
     function handleExportTheme() {
-        const theme = allThemes.find((t) => t.name === selectedThemeName);
-        if (theme) {
-            exportThemeJSON(theme);
-        } else {
-            const t = extractTheme("Custom", "Exported settings");
-            exportThemeJSON(t);
-        }
+        themeStore.exportTheme(themeStore.selectedThemeName || undefined);
     }
 
     function handleDeleteFullTheme(name: string) {
-        deleteTheme(name);
-        userThemes = loadThemes();
-        if (selectedThemeName === name) selectedThemeName = "";
+        themeStore.deleteTheme(name);
     }
 
     function handleImportTheme() {
@@ -863,24 +839,15 @@
             try {
                 const text = await file.text();
                 const theme = JSON.parse(text) as GameTheme;
-                if (
-                    !theme.name ||
-                    !theme.values ||
-                    typeof theme.values !== "object"
-                ) {
-                    configStatus = "❌ Invalid theme file";
+                if (themeStore.importTheme(theme)) {
+                    configStatus = `\u2705 Theme \"${theme.name}\" imported`;
+                    configStatusColor = "#4ade80";
+                } else {
+                    configStatus = "\u274C Invalid theme file";
                     configStatusColor = "#f87171";
-                    return;
                 }
-                saveTheme(theme);
-                applyTheme(theme);
-                userThemes = loadThemes();
-                selectedThemeName = theme.name;
-                syncAllFromConfig();
-                configStatus = `✅ Theme "${theme.name}" imported`;
-                configStatusColor = "#4ade80";
             } catch {
-                configStatus = "❌ Failed to parse theme file";
+                configStatus = "\u274C Failed to parse theme file";
                 configStatusColor = "#f87171";
             }
         };
@@ -1082,14 +1049,14 @@
             <div class="full-action-buttons" class:hidden={showFullSaveInput}>
                 <select
                     class="full-theme-select full-action-half"
-                    bind:value={selectedThemeName}
-                    onchange={() => {
-                        if (selectedThemeName)
-                            handleApplyTheme(selectedThemeName);
+                    value={themeStore.selectedThemeName}
+                    onchange={(e) => {
+                        const v = (e.target as HTMLSelectElement).value;
+                        if (v) handleApplyTheme(v);
                     }}
                 >
                     <option value="">🎨 Select theme…</option>
-                    {#each allThemes as theme}
+                    {#each themeStore.allThemes as theme}
                         <option value={theme.name}>
                             {theme.name}
                         </option>
@@ -1134,16 +1101,16 @@
                 >
             </div>
         </div>
-        {#if allThemes.length > 0}
+        {#if themeStore.allThemes.length > 0}
             <div class="full-chips-row">
-                {#each allThemes as t}
+                {#each themeStore.allThemes as t}
                     <button
                         class="full-chip"
-                        class:active={selectedThemeName === t.name}
+                        class:active={themeStore.selectedThemeName === t.name}
                         onclick={() => handleApplyTheme(t.name)}
                     >
                         {t.name}
-                        {#if userThemes.some((u) => u.name === t.name)}
+                        {#if themeStore.isUserTheme(t.name)}
                             <span
                                 class="full-chip-delete"
                                 onclick={(e) => {
