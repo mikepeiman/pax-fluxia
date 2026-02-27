@@ -214,6 +214,7 @@ export function renderPixelTerritory(
     const imageData = ctx.createImageData(canvasW, canvasH);
     const pixels = imageData.data;
     const numStars = starData.length;
+
     // Build unique owner list for faction-based influence
     const ownerSet = new Set<string>();
     for (const s of starData) ownerSet.add(s.ownerId);
@@ -229,7 +230,6 @@ export function renderPixelTerritory(
 
     // Pre-compute per-owner RGB (first star of that owner — they share colors)
     const ownerRGB: Map<string, [number, number, number]> = new Map();
-    // Map owner strings to numeric indices for the ownership grid
     const ownerIndex: Map<string, number> = new Map();
     for (let oi = 0; oi < owners.length; oi++) {
         const owner = owners[oi];
@@ -237,137 +237,236 @@ export function renderPixelTerritory(
         ownerIndex.set(owner, oi);
     }
 
-    // Ownership grid for border detection (owner index per pixel)
-    const ownerGrid = borderWidth > 0 ? new Uint8Array(canvasW * canvasH) : null;
+    // =====================================================================
+    // HIERARCHICAL ADAPTIVE RESOLUTION
+    // =====================================================================
+    // Instead of computing expensive faction influence for every pixel:
+    // 1. Coarse pass: determine ownership at low res (cheap)
+    // 2. Detect boundary tiles: coarse cells with different-owner neighbors
+    // 3. Interior tiles: flood-fill with owner color (instant)
+    // 4. Boundary tiles: expensive per-pixel computation only here (~10-15%)
+    // =====================================================================
 
-    for (let py = 0; py < canvasH; py++) {
-        for (let px = 0; px < canvasW; px++) {
+    const TILE_SIZE = 8; // coarse tile size in output pixels
+    const tilesW = Math.ceil(canvasW / TILE_SIZE);
+    const tilesH = Math.ceil(canvasH / TILE_SIZE);
+
+    // ── Pass 1: Coarse ownership (center of each tile) ──
+    const tileOwner = new Uint8Array(tilesW * tilesH);
+    const tileRGB = new Uint8Array(tilesW * tilesH * 3);
+
+    for (let ty = 0; ty < tilesH; ty++) {
+        const centerY = (ty + 0.5) * TILE_SIZE;
+        for (let tx = 0; tx < tilesW; tx++) {
+            const centerX = (tx + 0.5) * TILE_SIZE;
+            const tIdx = ty * tilesW + tx;
+
+            let winnerIdx = 0;
             let winnerOwner: string;
-            let winnerRgb: [number, number, number];
-            let nearestDistSq = Infinity;
 
             if (corridorBoost > 0 && numOwners > 1) {
-                // ── FACTION INFLUENCE MODE ──
-                // For each owner, compute combined influence = sum(1/dist²)
-                // Owners with multiple nearby stars accumulate more influence,
-                // naturally creating corridors between their stars.
                 let bestInfluence = -1;
                 let bestOwner = owners[0];
-                let bestNearestDistSq = Infinity;
-
                 for (let oi = 0; oi < numOwners; oi++) {
                     const owner = owners[oi];
                     const indices = starsByOwner.get(owner)!;
                     let influence = 0;
                     let ownerMinDist = Infinity;
-
                     for (const si of indices) {
-                        const dx = px - starData[si].x;
-                        const dy = py - starData[si].y;
+                        const dx = centerX - starData[si].x;
+                        const dy = centerY - starData[si].y;
                         const distSq = dx * dx + dy * dy;
                         if (distSq < ownerMinDist) ownerMinDist = distSq;
-
-                        // Influence = 1/dist², avoid div by zero
-                        if (distSq < 1) {
-                            influence = 1e12; // pixel right on star
-                        } else {
-                            influence += 1.0 / distSq;
-                        }
+                        influence += distSq < 1 ? 1e12 : 1.0 / distSq;
                     }
-
-                    // Blend between nearest-neighbor and influence sum:
-                    // boost=0 → pure nearest (min dist wins)
-                    // boost=1 → pure influence sum (multi-star owners dominate)
-                    // We use: score = influence^boost / minDist^(1-boost)
-                    // Higher score = this owner claims the pixel
                     const score = Math.pow(influence, corridorBoost) *
                         Math.pow(ownerMinDist < 1 ? 1e-12 : 1.0 / ownerMinDist, 1.0 - corridorBoost);
-
                     if (score > bestInfluence) {
                         bestInfluence = score;
                         bestOwner = owner;
-                        bestNearestDistSq = ownerMinDist;
                     }
                 }
-
                 winnerOwner = bestOwner;
-                winnerRgb = ownerRGB.get(bestOwner)!;
-                nearestDistSq = bestNearestDistSq;
             } else {
-                // ── CLASSIC NEAREST-NEIGHBOR ──
-                let nearestIdx = 0;
+                let nearestDistSq = Infinity;
                 for (let i = 0; i < numStars; i++) {
-                    const dx = px - starData[i].x;
-                    const dy = py - starData[i].y;
+                    const dx = centerX - starData[i].x;
+                    const dy = centerY - starData[i].y;
                     const dist = dx * dx + dy * dy;
                     if (dist < nearestDistSq) {
                         nearestDistSq = dist;
-                        nearestIdx = i;
+                        winnerIdx = i;
                     }
                 }
-                winnerOwner = starData[nearestIdx].ownerId;
-                winnerRgb = starData[nearestIdx].rgb;
+                winnerOwner = starData[winnerIdx].ownerId;
             }
 
-            const [r, g, b] = winnerRgb;
-            let pixelAlpha = alpha;
+            tileOwner[tIdx] = ownerIndex.get(winnerOwner)!;
+            const rgb = ownerRGB.get(winnerOwner)!;
+            tileRGB[tIdx * 3] = rgb[0];
+            tileRGB[tIdx * 3 + 1] = rgb[1];
+            tileRGB[tIdx * 3 + 2] = rgb[2];
+        }
+    }
 
-            // Edge blend: fade alpha near ENEMY boundaries only
-            // (same-owner boundaries are invisible — no blend needed)
-            if (edgeBlend > 0) {
-                let secondMinDist = Infinity;
-                for (let i = 0; i < numStars; i++) {
-                    if (starData[i].ownerId === winnerOwner) continue; // skip friendly
-                    const dx = px - starData[i].x;
-                    const dy = py - starData[i].y;
-                    const dist = dx * dx + dy * dy;
-                    if (dist < secondMinDist) secondMinDist = dist;
+    // ── Pass 2: Detect boundary tiles ──
+    const isBoundaryTile = new Uint8Array(tilesW * tilesH);
+    for (let ty = 0; ty < tilesH; ty++) {
+        for (let tx = 0; tx < tilesW; tx++) {
+            const tIdx = ty * tilesW + tx;
+            const myOwner = tileOwner[tIdx];
+            // Check 4-neighbors
+            if (tx > 0 && tileOwner[tIdx - 1] !== myOwner) { isBoundaryTile[tIdx] = 1; continue; }
+            if (tx < tilesW - 1 && tileOwner[tIdx + 1] !== myOwner) { isBoundaryTile[tIdx] = 1; continue; }
+            if (ty > 0 && tileOwner[tIdx - tilesW] !== myOwner) { isBoundaryTile[tIdx] = 1; continue; }
+            if (ty < tilesH - 1 && tileOwner[tIdx + tilesW] !== myOwner) { isBoundaryTile[tIdx] = 1; continue; }
+        }
+    }
+
+    // ── Pass 3 & 4: Fill pixels ──
+    // Ownership grid for border detection
+    const ownerGrid = borderWidth > 0 ? new Uint8Array(canvasW * canvasH) : null;
+
+    for (let ty = 0; ty < tilesH; ty++) {
+        for (let tx = 0; tx < tilesW; tx++) {
+            const tIdx = ty * tilesW + tx;
+            const startX = tx * TILE_SIZE;
+            const startY = ty * TILE_SIZE;
+            const endX = Math.min(startX + TILE_SIZE, canvasW);
+            const endY = Math.min(startY + TILE_SIZE, canvasH);
+
+            if (!isBoundaryTile[tIdx]) {
+                // ── INTERIOR TILE: flood fill with single color ──
+                const r = tileRGB[tIdx * 3];
+                const g = tileRGB[tIdx * 3 + 1];
+                const b = tileRGB[tIdx * 3 + 2];
+                const oi = tileOwner[tIdx];
+
+                for (let py = startY; py < endY; py++) {
+                    for (let px = startX; px < endX; px++) {
+                        let pa = alpha;
+
+                        // Pattern modulation (cheap, always applied)
+                        if (pattern !== 'none') {
+                            const ps = patternScale;
+                            if (pattern === 'stripes') {
+                                pa *= ((Math.floor((px + py) / ps)) % 2 === 0) ? 1.0 : 0.35;
+                            } else if (pattern === 'crosshatch') {
+                                pa *= ((px % ps) < 1 || (py % ps) < 1) ? 1.0 : 0.3;
+                            } else if (pattern === 'dots') {
+                                const gx = ((px % ps) - ps / 2);
+                                const gy = ((py % ps) - ps / 2);
+                                pa *= (Math.sqrt(gx * gx + gy * gy) / (ps / 2)) < 0.5 ? 1.0 : 0.25;
+                            }
+                        }
+
+                        const idx = (py * canvasW + px) * 4;
+                        pixels[idx] = r;
+                        pixels[idx + 1] = g;
+                        pixels[idx + 2] = b;
+                        pixels[idx + 3] = Math.round(pa * 255);
+                        if (ownerGrid) ownerGrid[py * canvasW + px] = oi;
+                    }
                 }
-                if (secondMinDist < Infinity) {
-                    const d1 = Math.sqrt(nearestDistSq);
-                    const d2 = Math.sqrt(secondMinDist);
-                    const edgeDist = (d2 - d1) / (d1 + d2 + 0.001);
-                    const blendFactor = Math.min(1, edgeDist / (edgeBlend * 0.05));
-                    pixelAlpha *= blendFactor;
+            } else {
+                // ── BOUNDARY TILE: full per-pixel computation ──
+                for (let py = startY; py < endY; py++) {
+                    for (let px = startX; px < endX; px++) {
+                        let winnerOwner: string;
+                        let winnerRgb: [number, number, number];
+                        let nearestDistSq = Infinity;
+
+                        if (corridorBoost > 0 && numOwners > 1) {
+                            let bestInfluence = -1;
+                            let bestOwner = owners[0];
+                            let bestNearestDistSq = Infinity;
+                            for (let oi = 0; oi < numOwners; oi++) {
+                                const owner = owners[oi];
+                                const indices = starsByOwner.get(owner)!;
+                                let influence = 0;
+                                let ownerMinDist = Infinity;
+                                for (const si of indices) {
+                                    const dx = px - starData[si].x;
+                                    const dy = py - starData[si].y;
+                                    const distSq = dx * dx + dy * dy;
+                                    if (distSq < ownerMinDist) ownerMinDist = distSq;
+                                    influence += distSq < 1 ? 1e12 : 1.0 / distSq;
+                                }
+                                const score = Math.pow(influence, corridorBoost) *
+                                    Math.pow(ownerMinDist < 1 ? 1e-12 : 1.0 / ownerMinDist, 1.0 - corridorBoost);
+                                if (score > bestInfluence) {
+                                    bestInfluence = score;
+                                    bestOwner = owner;
+                                    bestNearestDistSq = ownerMinDist;
+                                }
+                            }
+                            winnerOwner = bestOwner;
+                            winnerRgb = ownerRGB.get(bestOwner)!;
+                            nearestDistSq = bestNearestDistSq;
+                        } else {
+                            let nearestIdx = 0;
+                            for (let i = 0; i < numStars; i++) {
+                                const dx = px - starData[i].x;
+                                const dy = py - starData[i].y;
+                                const dist = dx * dx + dy * dy;
+                                if (dist < nearestDistSq) {
+                                    nearestDistSq = dist;
+                                    nearestIdx = i;
+                                }
+                            }
+                            winnerOwner = starData[nearestIdx].ownerId;
+                            winnerRgb = starData[nearestIdx].rgb;
+                        }
+
+                        const [r, g, b] = winnerRgb;
+                        let pixelAlpha = alpha;
+
+                        // Edge blend (only at boundaries, only between enemies)
+                        if (edgeBlend > 0) {
+                            let secondMinDist = Infinity;
+                            for (let i = 0; i < numStars; i++) {
+                                if (starData[i].ownerId === winnerOwner) continue;
+                                const dx = px - starData[i].x;
+                                const dy = py - starData[i].y;
+                                const dist = dx * dx + dy * dy;
+                                if (dist < secondMinDist) secondMinDist = dist;
+                            }
+                            if (secondMinDist < Infinity) {
+                                const d1 = Math.sqrt(nearestDistSq);
+                                const d2 = Math.sqrt(secondMinDist);
+                                const edgeDist = (d2 - d1) / (d1 + d2 + 0.001);
+                                const blendFactor = Math.min(1, edgeDist / (edgeBlend * 0.05));
+                                pixelAlpha *= blendFactor;
+                            }
+                        }
+
+                        // Pattern modulation
+                        if (pattern !== 'none') {
+                            const ps = patternScale;
+                            if (pattern === 'stripes') {
+                                pixelAlpha *= ((Math.floor((px + py) / ps)) % 2 === 0) ? 1.0 : 0.35;
+                            } else if (pattern === 'crosshatch') {
+                                pixelAlpha *= ((px % ps) < 1 || (py % ps) < 1) ? 1.0 : 0.3;
+                            } else if (pattern === 'dots') {
+                                const gx = ((px % ps) - ps / 2);
+                                const gy = ((py % ps) - ps / 2);
+                                pixelAlpha *= (Math.sqrt(gx * gx + gy * gy) / (ps / 2)) < 0.5 ? 1.0 : 0.25;
+                            }
+                        }
+
+                        const idx = (py * canvasW + px) * 4;
+                        pixels[idx] = r;
+                        pixels[idx + 1] = g;
+                        pixels[idx + 2] = b;
+                        pixels[idx + 3] = Math.round(pixelAlpha * 255);
+                        if (ownerGrid) ownerGrid[py * canvasW + px] = ownerIndex.get(winnerOwner)!;
+                    }
                 }
-            }
-
-            // ── Pattern modulation ──
-            if (pattern !== 'none') {
-                let patternMask = 1.0;
-                const ps = patternScale;
-                if (pattern === 'stripes') {
-                    // Diagonal stripes
-                    patternMask = ((Math.floor((px + py) / ps)) % 2 === 0) ? 1.0 : 0.35;
-                } else if (pattern === 'crosshatch') {
-                    // Grid crosshatch
-                    const xLine = (px % ps) < 1;
-                    const yLine = (py % ps) < 1;
-                    patternMask = (xLine || yLine) ? 1.0 : 0.3;
-                } else if (pattern === 'dots') {
-                    // Dot grid
-                    const gx = ((px % ps) - ps / 2);
-                    const gy = ((py % ps) - ps / 2);
-                    const dotDist = Math.sqrt(gx * gx + gy * gy) / (ps / 2);
-                    patternMask = dotDist < 0.5 ? 1.0 : 0.25;
-                }
-                pixelAlpha *= patternMask;
-            }
-
-            const idx = (py * canvasW + px) * 4;
-            pixels[idx] = r;
-            pixels[idx + 1] = g;
-            pixels[idx + 2] = b;
-            pixels[idx + 3] = Math.round(pixelAlpha * 255);
-
-            // Store owner index for border detection
-            if (ownerGrid) {
-                ownerGrid[py * canvasW + px] = ownerIndex.get(winnerOwner)!;
             }
         }
     }
 
-    // ── Border detection pass (ownership-based, not RGB) ──
+    // ── Border detection pass (ownership-based) ──
     if (borderWidth > 0 && ownerGrid) {
         const bw = Math.max(1, Math.round(borderWidth));
         for (let py = bw; py < canvasH - bw; py++) {
@@ -375,7 +474,6 @@ export function renderPixelTerritory(
                 const gridIdx = py * canvasW + px;
                 const myOwner = ownerGrid[gridIdx];
 
-                // Check neighbors for DIFFERENT owner
                 let isBorder = false;
                 for (let d = 1; d <= bw && !isBorder; d++) {
                     if (px + d < canvasW && ownerGrid[gridIdx + d] !== myOwner) isBorder = true;
