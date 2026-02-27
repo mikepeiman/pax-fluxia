@@ -10,18 +10,17 @@
         syncFromConfig?: () => void;
     }
     let { panel, updatePanel, syncFromConfig }: Props = $props();
-    import CategoryThemeBar from './CategoryThemeBar.svelte';
+    import CategoryThemeBar from "./CategoryThemeBar.svelte";
 </script>
 
 <CategoryThemeBar category="travel" onApply={() => syncFromConfig?.()} />
-
 
 <h4 class="sub-heading">Mode & Easing</h4>
 <!-- Travel Animation Mode -->
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Travel Mode</span><span
-            class="val">{panel.travelMode}</span
+        <span class="var-name">Travel Mode</span><span class="val"
+            >{panel.travelMode}</span
         >
     </div>
     <select
@@ -40,8 +39,8 @@
 <!-- Travel Easing Controls -->
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Travel Easing</span><span
-            class="val">{panel.travelEasing}</span
+        <span class="var-name">Travel Easing</span><span class="val"
+            >{panel.travelEasing}</span
         >
     </div>
     <select
@@ -61,11 +60,8 @@
 </div>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Easing Power</span><span
-            class="val"
-            >{((panel.travelEasingPower ?? 0) as number).toFixed(
-                1,
-            )}</span
+        <span class="var-name">Easing Power</span><span class="val"
+            >{((panel.travelEasingPower ?? 0) as number).toFixed(1)}</span
         >
     </div>
     <input
@@ -84,11 +80,8 @@
 
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Travel Duration</span><span
-            class="val"
-            >{((panel.travelDurationMult ?? 0) as number).toFixed(
-                1,
-            )}×</span
+        <span class="var-name">Travel Duration</span><span class="val"
+            >{((panel.travelDurationMult ?? 0) as number).toFixed(1)}×</span
         >
     </div>
     <input
@@ -106,11 +99,8 @@
 </div>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Arc Intensity</span><span
-            class="val"
-            >{((panel.travelArcIntensity ?? 0) as number).toFixed(
-                2,
-            )}</span
+        <span class="var-name">Arc Intensity</span><span class="val"
+            >{((panel.travelArcIntensity ?? 0) as number).toFixed(2)}</span
         >
     </div>
     <input
@@ -133,9 +123,7 @@
             <select
                 value={panel.departMode}
                 onchange={(e) => {
-                    const val = (
-                        e.target as HTMLSelectElement
-                    ).value;
+                    const val = (e.target as HTMLSelectElement).value;
                     GAME_CONFIG.DEPART_MODE = val as
                         | "lifo"
                         | "fifo"
@@ -156,8 +144,7 @@
         type="checkbox"
         checked={panel.departStagger}
         onchange={(e) => {
-            const v = (e.target as HTMLInputElement)
-                .checked;
+            const v = (e.target as HTMLInputElement).checked;
             GAME_CONFIG.DEPART_STAGGER = v;
             updatePanel("departStagger", v);
         }}
@@ -168,8 +155,8 @@
 </label>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Settle Time</span><span
-            class="val">{panel.settleDuration}ms</span
+        <span class="var-name">Settle Time</span><span class="val"
+            >{panel.settleDuration}ms</span
         >
     </div>
     <input
@@ -187,11 +174,8 @@
 </div>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Arrival Spread</span><span
-            class="val"
-            >{((panel.arrivalSpread ?? 0) as number).toFixed(
-                1,
-            )}×</span
+        <span class="var-name">Arrival Spread</span><span class="val"
+            >{((panel.arrivalSpread ?? 0) as number).toFixed(1)}×</span
         >
     </div>
     <input
@@ -209,8 +193,8 @@
 </div>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Wobble Amp</span><span
-            class="val">{panel.wobbleAmp}px</span
+        <span class="var-name">Wobble Amp</span><span class="val"
+            >{panel.wobbleAmp}px</span
         >
     </div>
     <input
@@ -228,8 +212,8 @@
 </div>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Depart Jitter</span><span
-            class="val">{panel.departJitter}ms</span
+        <span class="var-name">Depart Jitter</span><span class="val"
+            >{panel.departJitter}ms</span
         >
     </div>
     <input
@@ -247,9 +231,8 @@
 </div>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Lane Offset</span><span
-            class="val"
-            >{GAME_CONFIG.LANE_OFFSET_PX ?? 8}px</span
+        <span class="var-name">Lane Offset</span><span class="val"
+            >{panel.laneOffsetPx ?? 8}px</span
         >
     </div>
     <input
@@ -257,20 +240,18 @@
         min="0"
         max="30"
         step="1"
-        value={GAME_CONFIG.LANE_OFFSET_PX ?? 8}
+        value={panel.laneOffsetPx ?? 8}
         oninput={(e) => {
             const v = +(e.target as HTMLInputElement).value;
             GAME_CONFIG.LANE_OFFSET_PX = v;
+            updatePanel("laneOffsetPx", v);
         }}
     />
 </div>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Lane Convergence</span><span
-            class="val"
-            >{Math.round(
-                (GAME_CONFIG.LANE_CONVERGENCE ?? 1) * 100,
-            )}%</span
+        <span class="var-name">Lane Convergence</span><span class="val"
+            >{Math.round(((panel.laneConvergence ?? 1) as number) * 100)}%</span
         >
     </div>
     <input
@@ -278,19 +259,18 @@
         min="0"
         max="1"
         step="0.05"
-        value={GAME_CONFIG.LANE_CONVERGENCE ?? 1}
+        value={panel.laneConvergence ?? 1}
         oninput={(e) => {
             const v = +(e.target as HTMLInputElement).value;
             GAME_CONFIG.LANE_CONVERGENCE = v;
+            updatePanel("laneConvergence", v);
         }}
     />
 </div>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Convergence Point</span><span
-            class="val"
-            >{GAME_CONFIG.LANE_CONVERGENCE_POINT ??
-                0}%</span
+        <span class="var-name">Convergence Point</span><span class="val"
+            >{panel.laneConvergencePoint ?? 0}%</span
         >
     </div>
     <input
@@ -298,20 +278,18 @@
         min="0"
         max="100"
         step="5"
-        value={GAME_CONFIG.LANE_CONVERGENCE_POINT ?? 0}
+        value={panel.laneConvergencePoint ?? 0}
         oninput={(e) => {
             const v = +(e.target as HTMLInputElement).value;
             GAME_CONFIG.LANE_CONVERGENCE_POINT = v;
+            updatePanel("laneConvergencePoint", v);
         }}
     />
 </div>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Orbit Density</span><span
-            class="val"
-            >{((panel.orbitDensity ?? 0) as number).toFixed(
-                1,
-            )}×</span
+        <span class="var-name">Orbit Density</span><span class="val"
+            >{((panel.orbitDensity ?? 0) as number).toFixed(1)}×</span
         >
     </div>
     <input
@@ -329,5 +307,5 @@
 </div>
 
 <style>
-    @import './panel-shared.css';
+    @import "./panel-shared.css";
 </style>

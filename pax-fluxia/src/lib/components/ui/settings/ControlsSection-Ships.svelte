@@ -31,7 +31,7 @@
         importConfigJSON,
         configStatus,
         configStatusColor,
-    syncFromConfig,
+        syncFromConfig,
     }: Props = $props();
 
     type VarKey = string;
@@ -41,18 +41,17 @@
         const starId = selectedStarStore.id;
         if (starId) debugShipCount = count;
     }
-    import CategoryThemeBar from './CategoryThemeBar.svelte';
+    import CategoryThemeBar from "./CategoryThemeBar.svelte";
 </script>
 
 <CategoryThemeBar category="ships" onApply={() => syncFromConfig?.()} />
-
 
 <!-- ── Ship Size & Shape ── -->
 <h4 class="sub-heading">Ship Size & Shape</h4>
 <div class="var-row">
     <div class="row-top">
         <span class="var-name">Visual Radius</span><span class="val"
-            >{(GAME_CONFIG.SHIP_VISUAL_RADIUS ?? 3).toFixed(1)}</span
+            >{((panel.shipVisualRadius ?? 3) as number).toFixed(1)}</span
         >
     </div>
     <input
@@ -60,10 +59,11 @@
         min="1"
         max="8"
         step="0.5"
-        value={GAME_CONFIG.SHIP_VISUAL_RADIUS ?? 3}
+        value={panel.shipVisualRadius ?? 3}
         oninput={(e) => {
-            GAME_CONFIG.SHIP_VISUAL_RADIUS = +(e.target as HTMLInputElement)
-                .value;
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.SHIP_VISUAL_RADIUS = v;
+            updatePanel("shipVisualRadius", v);
         }}
     />
 </div>
@@ -296,7 +296,9 @@
         <div class="var-row">
             <div class="row-top">
                 <span class="var-name">Fleet Intensity</span><span class="val"
-                    >{((panel.haloFleetIntensity ?? 0) as number).toFixed(1)}×</span
+                    >{((panel.haloFleetIntensity ?? 0) as number).toFixed(
+                        1,
+                    )}×</span
                 >
             </div>
             <input
@@ -546,7 +548,7 @@
 <div class="var-row">
     <div class="row-top">
         <span class="var-name">Glow Radius</span><span class="val"
-            >{(GAME_CONFIG.STAR_GLOW_RADIUS_MULT ?? 1.3).toFixed(1)}×</span
+            >{((panel.starGlowRadiusMult ?? 1.3) as number).toFixed(1)}×</span
         >
     </div>
     <input
@@ -554,17 +556,18 @@
         min="0.5"
         max="3.0"
         step="0.1"
-        value={GAME_CONFIG.STAR_GLOW_RADIUS_MULT ?? 1.3}
+        value={panel.starGlowRadiusMult ?? 1.3}
         oninput={(e) => {
-            GAME_CONFIG.STAR_GLOW_RADIUS_MULT = +(e.target as HTMLInputElement)
-                .value;
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.STAR_GLOW_RADIUS_MULT = v;
+            updatePanel("starGlowRadiusMult", v);
         }}
     />
 </div>
 <div class="var-row">
     <div class="row-top">
         <span class="var-name">Glow Intensity</span><span class="val"
-            >{(GAME_CONFIG.STAR_GLOW_INTENSITY ?? 0.25).toFixed(2)}</span
+            >{((panel.starGlowIntensity ?? 0.25) as number).toFixed(2)}</span
         >
     </div>
     <input
@@ -572,10 +575,11 @@
         min="0"
         max="1.0"
         step="0.02"
-        value={GAME_CONFIG.STAR_GLOW_INTENSITY ?? 0.25}
+        value={panel.starGlowIntensity ?? 0.25}
         oninput={(e) => {
-            GAME_CONFIG.STAR_GLOW_INTENSITY = +(e.target as HTMLInputElement)
-                .value;
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.STAR_GLOW_INTENSITY = v;
+            updatePanel("starGlowIntensity", v);
         }}
     />
 </div>
@@ -607,5 +611,5 @@
 {/if}
 
 <style>
-    @import './panel-shared.css';
+    @import "./panel-shared.css";
 </style>
