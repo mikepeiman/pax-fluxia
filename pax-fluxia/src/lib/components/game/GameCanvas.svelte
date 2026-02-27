@@ -58,6 +58,10 @@
         renderPixelTerritory as renderPixelTerritoryModule,
         resetPixelTerritoryCache,
     } from "$lib/renderers/PixelTerritoryRenderer";
+    import {
+        renderLaneTerritory as renderLaneTerritoryModule,
+        resetLaneTerritoryCache,
+    } from "$lib/renderers/LaneTerritoryRenderer";
 
     // ============================================================================
     // PixiJS Application
@@ -713,6 +717,7 @@
             resetVoronoiCache();
             resetMetaballCache();
             resetPixelTerritoryCache();
+            resetLaneTerritoryCache();
             activeSurges.clear();
             nextShipId = 0;
             starShipCounts.clear();
@@ -781,6 +786,16 @@
 
             // Pixel territory renderer (checks TERRITORY_PIXEL internally)
             renderPixelTerritoryModule(
+                stars,
+                voronoiContainer,
+                colorUtils,
+                GAME_WIDTH,
+                GAME_HEIGHT,
+                activeGameStore.connections as StarConnection[],
+            );
+
+            // Lane territory renderer (checks TERRITORY_GRAPH internally)
+            renderLaneTerritoryModule(
                 stars,
                 voronoiContainer,
                 colorUtils,

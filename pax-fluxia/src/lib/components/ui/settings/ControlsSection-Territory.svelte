@@ -68,6 +68,235 @@
         </label>
     </div>
 </div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">🔗 Lane Territory</span>
+        <label class="toggle-switch">
+            <input
+                type="checkbox"
+                checked={panel.territoryGraph ?? false}
+                onchange={(e) => {
+                    const v = (e.target as HTMLInputElement).checked;
+                    GAME_CONFIG.TERRITORY_GRAPH = v;
+                    updatePanel("territoryGraph", v);
+                }}
+            />
+            <span class="toggle-slider"></span>
+        </label>
+    </div>
+</div>
+
+{#if panel.territoryGraph}
+    <!-- ── Lane Territory Controls ── -->
+    <h4 class="sub-heading">Lane Territory Settings</h4>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Alpha</span><span class="val"
+                >{(panel.graphAlpha ?? 0.15).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0.02"
+            max="0.5"
+            step="0.01"
+            value={panel.graphAlpha ?? 0.15}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.GRAPH_ALPHA = v;
+                updatePanel("graphAlpha", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Lane Influence</span><span class="val"
+                >{(panel.laneInfluence ?? 5).toFixed(1)}×
+                {(panel.laneInfluence ?? 5) <= 2
+                    ? "(subtle)"
+                    : (panel.laneInfluence ?? 5) <= 5
+                      ? "(moderate)"
+                      : "(strong)"}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="1"
+            max="10"
+            step="0.5"
+            value={panel.laneInfluence ?? 5}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.LANE_INFLUENCE = v;
+                updatePanel("laneInfluence", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Lane Width</span><span class="val"
+                >{panel.laneWidth ?? 60}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="20"
+            max="200"
+            step="5"
+            value={panel.laneWidth ?? 60}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.LANE_WIDTH = v;
+                updatePanel("laneWidth", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Direct Falloff</span><span class="val"
+                >{(panel.laneDirectFalloff ?? 1.0).toFixed(1)}
+                {(panel.laneDirectFalloff ?? 1.0) <= 0.5
+                    ? "(far reach)"
+                    : (panel.laneDirectFalloff ?? 1.0) <= 1.5
+                      ? "(natural)"
+                      : "(tight)"}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0.1"
+            max="5"
+            step="0.1"
+            value={panel.laneDirectFalloff ?? 1.0}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.LANE_DIRECT_FALLOFF = v;
+                updatePanel("laneDirectFalloff", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Resolution</span><span class="val"
+                >{panel.graphResolution ?? 4}× downsample</span
+            >
+        </div>
+        <input
+            type="range"
+            min="1"
+            max="8"
+            step="1"
+            value={panel.graphResolution ?? 4}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.GRAPH_RESOLUTION = v;
+                updatePanel("graphResolution", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Blur</span><span class="val"
+                >{panel.graphBlur ?? 4}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="20"
+            step="1"
+            value={panel.graphBlur ?? 4}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.GRAPH_BLUR = v;
+                updatePanel("graphBlur", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Pressure</span><span class="val"
+                >{(panel.graphPressure ?? 0).toFixed(2)}
+                {(panel.graphPressure ?? 0) === 0 ? "(off)" : ""}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={panel.graphPressure ?? 0}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.GRAPH_PRESSURE = v;
+                updatePanel("graphPressure", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Edge Fade</span><span class="val"
+                >{panel.graphEdgeFade ?? 120}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="500"
+            step="10"
+            value={panel.graphEdgeFade ?? 120}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.GRAPH_EDGE_FADE = v;
+                updatePanel("graphEdgeFade", v);
+            }}
+        />
+    </div>
+    <div
+        class="var-row grayed"
+        style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"
+    >
+        🔲 Borders
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Border Width</span><span class="val"
+                >{panel.graphBorderWidth ?? 1}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="4"
+            step="1"
+            value={panel.graphBorderWidth ?? 1}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.GRAPH_BORDER_WIDTH = v;
+                updatePanel("graphBorderWidth", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Border Alpha</span><span class="val"
+                >{(panel.graphBorderAlpha ?? 0.6).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={panel.graphBorderAlpha ?? 0.6}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.GRAPH_BORDER_ALPHA = v;
+                updatePanel("graphBorderAlpha", v);
+            }}
+        />
+    </div>
+{/if}
 
 {#if panel.territoryVoronoi}
     <!-- ── Voronoi Controls ── -->
@@ -380,6 +609,58 @@
                 const v = +(e.target as HTMLInputElement).value;
                 GAME_CONFIG.PIXEL_CORRIDOR_BOOST = v;
                 updatePanel("pixelCorridorBoost", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Lane Constrain</span><span class="val"
+                >{(panel.pixelLaneConstrain ?? 0.5).toFixed(2)}
+                {(panel.pixelLaneConstrain ?? 0.5) === 0
+                    ? "(off)"
+                    : (panel.pixelLaneConstrain ?? 0.5) <= 0.3
+                      ? "(light)"
+                      : (panel.pixelLaneConstrain ?? 0.5) <= 0.6
+                        ? "(moderate)"
+                        : "(strict)"}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={panel.pixelLaneConstrain ?? 0.5}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.PIXEL_LANE_CONSTRAIN = v;
+                updatePanel("pixelLaneConstrain", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Pressure</span><span class="val"
+                >{(panel.pixelPressure ?? 0).toFixed(2)}
+                {(panel.pixelPressure ?? 0) === 0
+                    ? "(off)"
+                    : (panel.pixelPressure ?? 0) <= 0.3
+                      ? "(subtle)"
+                      : (panel.pixelPressure ?? 0) <= 0.6
+                        ? "(moderate)"
+                        : "(strong)"}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={panel.pixelPressure ?? 0}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.PIXEL_PRESSURE = v;
+                updatePanel("pixelPressure", v);
             }}
         />
     </div>
