@@ -237,6 +237,15 @@ export function renderPixelTerritory(
         ownerIndex.set(owner, oi);
     }
 
+    // Pre-compute per-owner pattern rotation (golden angle for max separation)
+    const ownerCos = new Float64Array(owners.length);
+    const ownerSin = new Float64Array(owners.length);
+    for (let oi = 0; oi < owners.length; oi++) {
+        const angle = (oi * 137.508 * Math.PI) / 180; // golden angle in radians
+        ownerCos[oi] = Math.cos(angle);
+        ownerSin[oi] = Math.sin(angle);
+    }
+
     // =====================================================================
     // HIERARCHICAL ADAPTIVE RESOLUTION
     // =====================================================================
@@ -346,16 +355,19 @@ export function renderPixelTerritory(
                     for (let px = startX; px < endX; px++) {
                         let pa = alpha;
 
-                        // Pattern modulation (cheap, always applied)
+                        // Pattern modulation with per-owner rotation
                         if (pattern !== 'none') {
                             const ps = patternScale;
+                            // Rotate coordinates by owner's angle
+                            const rpx = px * ownerCos[oi] - py * ownerSin[oi];
+                            const rpy = px * ownerSin[oi] + py * ownerCos[oi];
                             if (pattern === 'stripes') {
-                                pa *= ((Math.floor((px + py) / ps)) % 2 === 0) ? 1.0 : 0.35;
+                                pa *= ((Math.floor((rpx + rpy) / ps)) % 2 === 0) ? 1.0 : 0.35;
                             } else if (pattern === 'crosshatch') {
-                                pa *= ((px % ps) < 1 || (py % ps) < 1) ? 1.0 : 0.3;
+                                pa *= ((((rpx % ps) + ps) % ps) < 1 || (((rpy % ps) + ps) % ps) < 1) ? 1.0 : 0.3;
                             } else if (pattern === 'dots') {
-                                const gx = ((px % ps) - ps / 2);
-                                const gy = ((py % ps) - ps / 2);
+                                const gx = ((((rpx % ps) + ps) % ps) - ps / 2);
+                                const gy = ((((rpy % ps) + ps) % ps) - ps / 2);
                                 pa *= (Math.sqrt(gx * gx + gy * gy) / (ps / 2)) < 0.5 ? 1.0 : 0.25;
                             }
                         }
@@ -440,16 +452,19 @@ export function renderPixelTerritory(
                             }
                         }
 
-                        // Pattern modulation
+                        // Pattern modulation with per-owner rotation
                         if (pattern !== 'none') {
                             const ps = patternScale;
+                            const woIdx = ownerIndex.get(winnerOwner)!;
+                            const rpx = px * ownerCos[woIdx] - py * ownerSin[woIdx];
+                            const rpy = px * ownerSin[woIdx] + py * ownerCos[woIdx];
                             if (pattern === 'stripes') {
-                                pixelAlpha *= ((Math.floor((px + py) / ps)) % 2 === 0) ? 1.0 : 0.35;
+                                pixelAlpha *= ((Math.floor((rpx + rpy) / ps)) % 2 === 0) ? 1.0 : 0.35;
                             } else if (pattern === 'crosshatch') {
-                                pixelAlpha *= ((px % ps) < 1 || (py % ps) < 1) ? 1.0 : 0.3;
+                                pixelAlpha *= ((((rpx % ps) + ps) % ps) < 1 || (((rpy % ps) + ps) % ps) < 1) ? 1.0 : 0.3;
                             } else if (pattern === 'dots') {
-                                const gx = ((px % ps) - ps / 2);
-                                const gy = ((py % ps) - ps / 2);
+                                const gx = ((((rpx % ps) + ps) % ps) - ps / 2);
+                                const gy = ((((rpy % ps) + ps) % ps) - ps / 2);
                                 pixelAlpha *= (Math.sqrt(gx * gx + gy * gy) / (ps / 2)) < 0.5 ? 1.0 : 0.25;
                             }
                         }

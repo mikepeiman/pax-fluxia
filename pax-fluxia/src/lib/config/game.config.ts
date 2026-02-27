@@ -750,9 +750,9 @@ const _rawConfig: GameConfigType = {
     /** How much to brighten border color (0-255) */
     VORONOI_BORDER_BRIGHTEN: 80,
     /** Voronoi color saturation multiplier (0=grey, 1=original, 2=vivid) */
-    VORONOI_SATURATION: 1.25,
+    VORONOI_SATURATION: 2,
     /** Voronoi color lightness multiplier (0=dark, 1=original, 2=bright) */
-    VORONOI_LIGHTNESS: 0.95,
+    VORONOI_LIGHTNESS: 0.8,
     /** Territory glow bleed radius as fraction of map size */
     VORONOI_GLOW_RADIUS: 0.3,
     /** Peak glow alpha per layer */
@@ -816,9 +816,9 @@ const _rawConfig: GameConfigType = {
     /** How much to brighten border color (0-255) */
     PIXEL_BORDER_BRIGHTEN: 50,
     /** Pattern overlay on territory ('none' | 'stripes' | 'crosshatch' | 'dots') */
-    PIXEL_PATTERN: 'crosshatch' as const,
+    PIXEL_PATTERN: 'stripes' as const,
     /** Pattern density (1=fine, 10=coarse) */
-    PIXEL_PATTERN_SCALE: 10,
+    PIXEL_PATTERN_SCALE: 12,
 
     /** Show hex grid (debug) */
     SHOW_HEX_GRID: false,
