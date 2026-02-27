@@ -70,10 +70,28 @@
 
   .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: 1fr;
     gap: var(--space-6);
-    max-width: 1200px;
+    max-width: 1400px;
     margin: 0 auto;
+  }
+
+  @media (min-width: 600px) {
+    .grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (min-width: 900px) {
+    .grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  @media (min-width: 1400px) {
+    .grid {
+      grid-template-columns: repeat(6, 1fr);
+    }
   }
 
   .star-card {
