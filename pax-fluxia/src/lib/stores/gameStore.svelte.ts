@@ -46,7 +46,59 @@ import { activeGameStore } from '$lib/stores/activeGameStore.svelte';
 
 const HUMAN_PLAYER_ID = 'human-player';
 
-const PLAYER_COLORS = [
+// ── Guaranteed hue-separated player colors ──
+// Instead of a fixed palette that can have close hues, 
+// generate colors with maximum hue separation for N players.
+const HUMAN_HUE = 220; // Blue — always the human's hue
+const BASE_SATURATION = 0.75;
+const BASE_LIGHTNESS = 0.55;
+const MIN_HUE_SEPARATION = 40; // degrees minimum between any two players
+
+/**
+ * Generate N player colors with guaranteed hue separation.
+ * Human player always gets blue (hue 220).
+ * AI players are distributed evenly across the remaining hue space.
+ */
+function generatePlayerColors(count: number): string[] {
+    const colors: string[] = [];
+    // Human always gets blue
+    colors.push(hslToCssHex(HUMAN_HUE, BASE_SATURATION, BASE_LIGHTNESS));
+
+    if (count <= 1) return colors;
+
+    // Distribute AI hues evenly across 360°, avoiding the human hue zone
+    const aiCount = count - 1;
+    const step = 360 / count; // even spacing across full wheel
+
+    for (let i = 1; i <= aiCount; i++) {
+        // Golden-ratio-like distribution for perceptual distinctness
+        const hue = (HUMAN_HUE + step * i) % 360;
+        colors.push(hslToCssHex(hue, BASE_SATURATION, BASE_LIGHTNESS));
+    }
+
+    return colors;
+}
+
+function hslToCssHex(h: number, s: number, l: number): string {
+    h = ((h % 360) + 360) % 360;
+    const c = (1 - Math.abs(2 * l - 1)) * s;
+    const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+    const m = l - c / 2;
+    let r1: number, g1: number, b1: number;
+    if (h < 60) { r1 = c; g1 = x; b1 = 0; }
+    else if (h < 120) { r1 = x; g1 = c; b1 = 0; }
+    else if (h < 180) { r1 = 0; g1 = c; b1 = x; }
+    else if (h < 240) { r1 = 0; g1 = x; b1 = c; }
+    else if (h < 300) { r1 = x; g1 = 0; b1 = c; }
+    else { r1 = c; g1 = 0; b1 = x; }
+    const ri = Math.round((r1 + m) * 255);
+    const gi = Math.round((g1 + m) * 255);
+    const bi = Math.round((b1 + m) * 255);
+    return '#' + ((1 << 24) | (ri << 16) | (gi << 8) | bi).toString(16).slice(1);
+}
+
+// Legacy fixed palette — kept as fallback only
+const PLAYER_COLORS_LEGACY = [
     '#4488ff', // Blue (human)
     '#ff4466', // Red
     '#44ff88', // Green
@@ -652,12 +704,15 @@ function initializeState(): void {
         playerIds.push(`ai-${i}`);
     }
 
+    // Generate hue-separated colors for all players
+    const generatedColors = generatePlayerColors(settings.playerCount);
+
     // Create players
     playerIds.forEach((id, i) => {
         const player = new PlayerSchema();
         player.sessionId = id;
         player.name = i === 0 ? 'You' : `AI ${i}`;
-        player.color = settings.playerColors?.[i] ?? PLAYER_COLORS[i % PLAYER_COLORS.length];
+        player.color = settings.playerColors?.[i] ?? generatedColors[i] ?? '#888888';
         player.isAI = i > 0;
         player.isEliminated = false;
         player.starCount = 0;
