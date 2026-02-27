@@ -569,8 +569,8 @@
             ATTACK_SURGE_RAMP_MS: "attackSurgeRampMs",
             CONQUEST_TRAVEL_SPEED: "conquestTravelSpeed",
             CONQUEST_LERP_DELAY_MS: "conquestLerpDelayMs",
-            CONQUEST_COLOR_DELAY_MS: "conquestColorDelayMs",
-            CONQUEST_FLASH_DURATION_MS: "conquestFlashDurationMs",
+            CONQUEST_COLOR_DELAY_TICKS: "conquestColorDelayTicks",
+            CONQUEST_FLASH_TICKS: "conquestFlashTicks",
             ARROW_SPEED: "arrowSpeed",
         };
         return map[configKey] ?? null;
@@ -690,8 +690,8 @@
             attackSurgeShape: GAME_CONFIG.ATTACK_SURGE_SHAPE,
             conquestTravelSpeed: GAME_CONFIG.CONQUEST_TRAVEL_SPEED,
             conquestLerpDelayMs: GAME_CONFIG.CONQUEST_LERP_DELAY_MS,
-            conquestColorDelayMs: GAME_CONFIG.CONQUEST_COLOR_DELAY_MS,
-            conquestFlashDurationMs: GAME_CONFIG.CONQUEST_FLASH_DURATION_MS,
+            conquestColorDelayTicks: GAME_CONFIG.CONQUEST_COLOR_DELAY_TICKS,
+            conquestFlashTicks: GAME_CONFIG.CONQUEST_FLASH_TICKS,
             conquestAnimMode: GAME_CONFIG.CONQUEST_ANIMATION_MODE,
             conquestSettleMs: GAME_CONFIG.CONQUEST_SETTLE_MS,
             conquestSurgeRadius: GAME_CONFIG.CONQUEST_SURGE_RADIUS,

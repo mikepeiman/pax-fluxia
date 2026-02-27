@@ -41,8 +41,9 @@ export const coreConquestHandler: FXHandler<ConquestEvent> = {
         processAttackerTransfer(event, ctx, conqueredStar);
 
         // ── DELAYED STAR COLOR ──
+        // Duration in ticks × effectiveTickMs auto-scales with game speed
         {
-            const colorDelay = (GAME_CONFIG.CONQUEST_COLOR_DELAY_MS ?? 400) * speedScale;
+            const colorDelay = (GAME_CONFIG.CONQUEST_COLOR_DELAY_TICKS ?? 2) * ctx.effectiveTickMs;
             const conquestNow = ctx.gameTime;
             ctx.vsm.addPendingConquest(event.starId, {
                 previousOwner: event.previousOwner,
@@ -51,8 +52,9 @@ export const coreConquestHandler: FXHandler<ConquestEvent> = {
         }
 
         // ── CONQUEST FLASH ──
+        // Duration in ticks × effectiveTickMs auto-scales with game speed
         {
-            const flashDur = (GAME_CONFIG.CONQUEST_FLASH_DURATION_MS ?? 600) * speedScale;
+            const flashDur = (GAME_CONFIG.CONQUEST_FLASH_TICKS ?? 3) * ctx.effectiveTickMs;
             if (flashDur > 0) {
                 const conquestNow = ctx.gameTime;
                 ctx.vsm.addConquestFlash(event.starId, {

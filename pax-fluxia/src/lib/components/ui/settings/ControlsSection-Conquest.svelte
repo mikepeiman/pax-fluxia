@@ -10,25 +10,23 @@
         syncFromConfig?: () => void;
     }
     let { panel, updatePanel, syncFromConfig }: Props = $props();
-    import CategoryThemeBar from './CategoryThemeBar.svelte';
+    import CategoryThemeBar from "./CategoryThemeBar.svelte";
 </script>
 
 <CategoryThemeBar category="conquest" onApply={() => syncFromConfig?.()} />
 
-
 <h4 class="sub-heading">Animation</h4>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Conquest Mode</span><span
-            class="val">{panel.conquestAnimMode}</span
+        <span class="var-name">Conquest Mode</span><span class="val"
+            >{panel.conquestAnimMode}</span
         >
     </div>
     <select
         class="mode-select"
         value={panel.conquestAnimMode}
         onchange={(e) => {
-            const v = (e.target as HTMLSelectElement)
-                .value as
+            const v = (e.target as HTMLSelectElement).value as
                 | "immediate"
                 | "surge"
                 | "travel"
@@ -48,11 +46,8 @@
     <h4 class="sub-heading">Arrowhead Formation</h4>
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name">Taper</span><span
-                class="val"
-                >{((panel.arrowTaper ?? 0) as number).toFixed(
-                    2,
-                )}</span
+            <span class="var-name">Taper</span><span class="val"
+                >{((panel.arrowTaper ?? 0) as number).toFixed(2)}</span
             >
         </div>
         <input
@@ -62,8 +57,7 @@
             step="0.05"
             value={panel.arrowTaper}
             oninput={(e) => {
-                const v = +(e.target as HTMLInputElement)
-                    .value;
+                const v = +(e.target as HTMLInputElement).value;
                 GAME_CONFIG.ARROW_TAPER = v;
                 updatePanel("arrowTaper", v);
             }}
@@ -71,8 +65,7 @@
     </div>
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name">Width</span><span
-                class="val"
+            <span class="var-name">Width</span><span class="val"
                 >{panel.arrowWidth === 0
                     ? "auto"
                     : `${panel.arrowWidth}px`}</span
@@ -85,8 +78,7 @@
             step="5"
             value={panel.arrowWidth}
             oninput={(e) => {
-                const v = +(e.target as HTMLInputElement)
-                    .value;
+                const v = +(e.target as HTMLInputElement).value;
                 GAME_CONFIG.ARROW_WIDTH = v;
                 updatePanel("arrowWidth", v);
             }}
@@ -94,11 +86,8 @@
     </div>
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name">Speed</span><span
-                class="val"
-                >{((panel.arrowSpeed ?? 0) as number).toFixed(
-                    2,
-                )}</span
+            <span class="var-name">Speed</span><span class="val"
+                >{((panel.arrowSpeed ?? 0) as number).toFixed(2)}</span
             >
         </div>
         <input
@@ -108,8 +97,7 @@
             step="0.1"
             value={panel.arrowSpeed}
             oninput={(e) => {
-                const v = +(e.target as HTMLInputElement)
-                    .value;
+                const v = +(e.target as HTMLInputElement).value;
                 GAME_CONFIG.ARROW_SPEED = v;
                 updatePanel("arrowSpeed", v);
             }}
@@ -117,16 +105,15 @@
     </div>
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name">Easing</span><span
-                class="val">{panel.arrowEasing}</span
+            <span class="var-name">Easing</span><span class="val"
+                >{panel.arrowEasing}</span
             >
         </div>
         <select
             class="mode-select"
             value={panel.arrowEasing}
             onchange={(e) => {
-                const v = (e.target as HTMLSelectElement)
-                    .value as
+                const v = (e.target as HTMLSelectElement).value as
                     | "easeIn"
                     | "easeInOut"
                     | "linear";
@@ -134,9 +121,7 @@
                 updatePanel("arrowEasing", v);
             }}
         >
-            <option value="easeIn"
-                >Ease In (accelerate)</option
-            >
+            <option value="easeIn">Ease In (accelerate)</option>
             <option value="easeInOut">Ease In/Out</option>
             <option value="linear">Linear</option>
         </select>
@@ -149,9 +134,7 @@
                     type="checkbox"
                     checked={panel.arrowStaggerAuto}
                     onchange={(e) => {
-                        const v = (
-                            e.target as HTMLInputElement
-                        ).checked;
+                        const v = (e.target as HTMLInputElement).checked;
                         GAME_CONFIG.ARROW_STAGGER_AUTO = v;
                         updatePanel("arrowStaggerAuto", v);
                     }}
@@ -162,8 +145,7 @@
     </div>
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name">Stagger</span><span
-                class="val"
+            <span class="var-name">Stagger</span><span class="val"
                 >{panel.arrowStaggerAuto
                     ? "auto"
                     : `${panel.arrowStaggerMs}ms`}</span
@@ -176,8 +158,7 @@
             step="1"
             value={panel.arrowStaggerMs}
             oninput={(e) => {
-                const v = +(e.target as HTMLInputElement)
-                    .value;
+                const v = +(e.target as HTMLInputElement).value;
                 GAME_CONFIG.ARROW_STAGGER_MS = v;
                 updatePanel("arrowStaggerMs", v);
             }}
@@ -188,16 +169,15 @@
 <h4 class="sub-heading">Engulf</h4>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Engulf Mode</span><span
-            class="val">{panel.arrowEngulfMode}</span
+        <span class="var-name">Engulf Mode</span><span class="val"
+            >{panel.arrowEngulfMode}</span
         >
     </div>
     <select
         class="mode-select"
         value={panel.arrowEngulfMode}
         onchange={(e) => {
-            const v = (e.target as HTMLSelectElement)
-                .value as
+            const v = (e.target as HTMLSelectElement).value as
                 | "fan"
                 | "collapse"
                 | "ring"
@@ -214,8 +194,8 @@
 </div>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Engulf Radius</span><span
-            class="val">{panel.arrowEngulfRadius}px</span
+        <span class="var-name">Engulf Radius</span><span class="val"
+            >{panel.arrowEngulfRadius}px</span
         >
     </div>
     <input
@@ -235,8 +215,8 @@
 <h4 class="sub-heading">Spiral Settle</h4>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Min Degrees</span><span
-            class="val">{panel.arrowSpiralMinDeg}°</span
+        <span class="var-name">Min Degrees</span><span class="val"
+            >{panel.arrowSpiralMinDeg}°</span
         >
     </div>
     <input
@@ -254,8 +234,8 @@
 </div>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Max Degrees</span><span
-            class="val">{panel.arrowSpiralMaxDeg}°</span
+        <span class="var-name">Max Degrees</span><span class="val"
+            >{panel.arrowSpiralMaxDeg}°</span
         >
     </div>
     <input
@@ -273,8 +253,7 @@
 </div>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Random Spiral</span><span
-            class="val"
+        <span class="var-name">Random Spiral</span><span class="val"
             >{panel.arrowSpiralRandom ? "On" : "Off"}</span
         >
     </div>
@@ -282,8 +261,7 @@
         type="checkbox"
         checked={panel.arrowSpiralRandom as boolean}
         onchange={(e) => {
-            const v = (e.target as HTMLInputElement)
-                .checked;
+            const v = (e.target as HTMLInputElement).checked;
             GAME_CONFIG.ARROW_SPIRAL_RANDOM = v;
             updatePanel("arrowSpiralRandom", v);
         }}
@@ -291,8 +269,7 @@
 </div>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Spiral Duration</span><span
-            class="val"
+        <span class="var-name">Spiral Duration</span><span class="val"
             >{panel.arrowSpiralDurationMs}ms</span
         >
     </div>
@@ -314,47 +291,46 @@
 <h4 class="sub-heading">Timing</h4>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Color Delay</span><span
-            class="val">{panel.conquestColorDelayMs}ms</span
+        <span class="var-name">Color Delay</span><span class="val"
+            >{panel.conquestColorDelayTicks} ticks</span
         >
     </div>
     <input
         type="range"
         min="0"
-        max="5000"
-        step="10"
-        value={panel.conquestColorDelayMs}
+        max="10"
+        step="0.5"
+        value={panel.conquestColorDelayTicks}
         oninput={(e) => {
             const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.CONQUEST_COLOR_DELAY_MS = v;
-            updatePanel("conquestColorDelayMs", v);
+            GAME_CONFIG.CONQUEST_COLOR_DELAY_TICKS = v;
+            updatePanel("conquestColorDelayTicks", v);
         }}
     />
 </div>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Flash Duration</span><span
-            class="val"
-            >{panel.conquestFlashDurationMs}ms</span
+        <span class="var-name">Flash Duration</span><span class="val"
+            >{panel.conquestFlashTicks} ticks</span
         >
     </div>
     <input
         type="range"
         min="0"
-        max="5000"
-        step="10"
-        value={panel.conquestFlashDurationMs}
+        max="10"
+        step="0.5"
+        value={panel.conquestFlashTicks}
         oninput={(e) => {
             const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.CONQUEST_FLASH_DURATION_MS = v;
-            updatePanel("conquestFlashDurationMs", v);
+            GAME_CONFIG.CONQUEST_FLASH_TICKS = v;
+            updatePanel("conquestFlashTicks", v);
         }}
     />
 </div>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Lerp Delay</span><span
-            class="val">{panel.conquestLerpDelayMs}ms</span
+        <span class="var-name">Lerp Delay</span><span class="val"
+            >{panel.conquestLerpDelayMs}ms</span
         >
     </div>
     <input
@@ -372,11 +348,8 @@
 </div>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Travel Speed</span><span
-            class="val"
-            >{((panel.conquestTravelSpeed ?? 0) as number).toFixed(
-                2,
-            )}×</span
+        <span class="var-name">Travel Speed</span><span class="val"
+            >{((panel.conquestTravelSpeed ?? 0) as number).toFixed(2)}×</span
         >
     </div>
     <input
@@ -394,8 +367,8 @@
 </div>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Settle Duration</span><span
-            class="val">{panel.conquestSettleMs}ms</span
+        <span class="var-name">Settle Duration</span><span class="val"
+            >{panel.conquestSettleMs}ms</span
         >
     </div>
     <input
@@ -413,8 +386,7 @@
 </div>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Surge Stagger</span><span
-            class="val"
+        <span class="var-name">Surge Stagger</span><span class="val"
             >{panel.conquestSurgeStaggerMs}ms</span
         >
     </div>
@@ -433,5 +405,5 @@
 </div>
 
 <style>
-    @import './panel-shared.css';
+    @import "./panel-shared.css";
 </style>

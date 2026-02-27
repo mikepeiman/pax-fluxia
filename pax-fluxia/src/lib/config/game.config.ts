@@ -142,8 +142,8 @@ interface GameConfigType {
     CONQUEST_SURGE_STAGGER_MS: number;   // Per-ship stagger delay for organic arrival spread (ms, default 30)
     CONQUEST_TRAVEL_SPEED: number;       // Duration multiplier vs normal transfer (lower = faster, default 0.7)
     CONQUEST_LERP_DELAY_MS: number;      // Delay before conquest ships start moving (ms, default 200)
-    CONQUEST_COLOR_DELAY_MS: number;     // Delay before conquered star changes to new owner color (ms, default 400)
-    CONQUEST_FLASH_DURATION_MS: number;  // Duration of bright conquest flash on star (ms, 0=disabled, default 600)
+    CONQUEST_COLOR_DELAY_TICKS: number;  // Delay before color change, in ticks (auto-scales with game speed, default 2)
+    CONQUEST_FLASH_TICKS: number;        // Duration of flash in ticks (auto-scales with game speed, 0=disabled, default 3)
     // Arrowhead conquest animation
     ARROW_TAPER: number;                 // Wedge shape: 0=column, 1=sharp V (default 0.7)
     ARROW_WIDTH: number;                 // Base width in px (0=auto from star+orbit diameter, default 0)
@@ -585,8 +585,8 @@ const _rawConfig: GameConfigType = {
     CONQUEST_TRAVEL_SPEED: 0.1,
     /** Delay before conquest ships start moving (ms) — ships hold surged position */
     CONQUEST_LERP_DELAY_MS: 0,
-    CONQUEST_COLOR_DELAY_MS: 400,
-    CONQUEST_FLASH_DURATION_MS: 600,
+    CONQUEST_COLOR_DELAY_TICKS: 2,
+    CONQUEST_FLASH_TICKS: 3,
     // ── Arrowhead conquest animation ──
     ARROW_TAPER: 0.35,
     ARROW_WIDTH: 115,
