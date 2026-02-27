@@ -103,11 +103,14 @@ interface GameConfigType {
 
     // Visual
     SHIP_BASE_SIZE: number;
+    ORBIT_BASE_RADIUS: number;     // Inner orbit offset to clear player color ring (0-20)
     STAR_RENDER_RADIUS: number;    // Visual radius of stars on canvas (default 20)
     STAR_SHAPE_MODE: 'polygon' | 'circle';  // Star body shape: 'polygon' = type-specific shape, 'circle' = classic (default 'polygon')
     STAR_ICON_SCALE: number;       // Type icon size as fraction of star radius (0.2-0.8, default 0.55)
     STAR_CORNER_RADIUS: number;    // Polygon corner rounding (0=sharp, 1=fully round like circle, default 0.3)
     ORBIT_RING_MULT: number;       // Orbit ring spacing = SHIP_BASE_SIZE * ORBIT_RING_MULT (default 1.4)
+    DAMAGED_ORBIT_RADIUS: number;  // Radius where damaged ships orbit (default 15)
+    DAMAGED_ORBIT_EVADE: boolean;  // Whether damaged ships cluster away from combat (default true)
     TRANSFER_ANIMATION_MS: number;
     STATIC_ORBITS: boolean;  // When true, ships don't rotate around stars (performance)
     SHOW_SELECTION_HEX: boolean;  // Show hex border on selected star (above ships)
@@ -262,6 +265,9 @@ interface GameConfigType {
     VORONOI_SMOOTHING: number;     // Chaikin smoothing iterations (0=angular, 1-4=rounded, default 2)
     VORONOI_GRADIENT_BLEND: boolean; // Enable gradient blending at territory borders (default true)
     VORONOI_BLEND_WIDTH: number;   // Gradient blend strip width in px (default 30)
+
+    // ── Visual Overrides ────────────────────────────────────────────────────────────
+    BG_IMAGE_URL: string;          // Background image url relative to /assets/
 
     // ── Metaball Territory ──────────────────────────────────────────────────
     METABALL_INFLUENCE_RADIUS: number;  // How far each star's field extends in px (default 120)
@@ -516,6 +522,9 @@ const _rawConfig: GameConfigType = {
     /** Visual radius of stars on canvas */
     STAR_RENDER_RADIUS: 25,
 
+    /** Background Image */
+    BG_IMAGE_URL: "pax-fluxia-bg-4.jpg",
+
     /** Star body shape: 'polygon' = type-specific shape, 'circle' = classic */
     STAR_SHAPE_MODE: 'polygon' as 'polygon' | 'circle',
     /** Type icon size as fraction of star radius */
@@ -526,8 +535,13 @@ const _rawConfig: GameConfigType = {
     /** Show hex selection border on active star (renders above ships) */
     SHOW_SELECTION_HEX: true,
 
+    /** Inner orbit radius offset */
+    ORBIT_BASE_RADIUS: 5,
+
     /** Orbit ring spacing multiplier (ringSpacing = shipBaseSize * this) */
     ORBIT_RING_MULT: 1.6,
+    DAMAGED_ORBIT_RADIUS: 15,
+    DAMAGED_ORBIT_EVADE: false,
 
     /** Ship transfer animation duration (ms) */
     TRANSFER_ANIMATION_MS: 1200,

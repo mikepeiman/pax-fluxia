@@ -1,0 +1,1475 @@
+{
+  "version": "2.8",
+  "children": [
+    {
+      "type": "frame",
+      "id": "O9u4z",
+      "x": 0,
+      "y": 0,
+      "name": "Pax Fluxia Website",
+      "width": 1440,
+      "fill": [
+        "$bgDeepVoid",
+        {
+          "type": "image",
+          "opacity": 0.3,
+          "enabled": true,
+          "url": "./images/generated-1772219711984.png",
+          "mode": "stretch"
+        }
+      ],
+      "layout": "vertical",
+      "children": [
+        {
+          "type": "frame",
+          "id": "j6huq",
+          "name": "Navbar",
+          "width": "fill_container",
+          "height": 80,
+          "fill": "rgba(0, 0, 0, 0.8)",
+          "effect": {
+            "type": "background_blur",
+            "radius": 20
+          },
+          "padding": [
+            0,
+            40
+          ],
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "gQhxE",
+              "name": "logo",
+              "fill": "$textPrimary",
+              "content": "PAX FLUXIA",
+              "fontFamily": "$fontHead",
+              "fontSize": 24,
+              "fontWeight": "900",
+              "letterSpacing": 2
+            },
+            {
+              "type": "frame",
+              "id": "Mro8m",
+              "name": "links",
+              "gap": 32,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "eWNBZ",
+                  "name": "l1",
+                  "fill": "$textSecondary",
+                  "content": "FEATURES",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 14,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "text",
+                  "id": "eH2WR",
+                  "name": "l2",
+                  "fill": "$textSecondary",
+                  "content": "FACTIONS",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 14,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "text",
+                  "id": "ubUST",
+                  "name": "l3",
+                  "fill": "$textSecondary",
+                  "content": "COMMUNITY",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 14,
+                  "fontWeight": "600"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "pVzyL",
+              "name": "ctaNav",
+              "fill": "rgba(0, 255, 255, 0.1)",
+              "cornerRadius": 4,
+              "stroke": {
+                "thickness": 1,
+                "fill": "$accentCyan"
+              },
+              "padding": [
+                10,
+                24
+              ],
+              "children": [
+                {
+                  "type": "text",
+                  "id": "qWzyP",
+                  "name": "ctaNavText",
+                  "fill": "$accentCyan",
+                  "content": "JOIN ALPHA",
+                  "fontFamily": "$fontHead",
+                  "fontSize": 14,
+                  "fontWeight": "700"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "5fEG7",
+          "name": "Hero",
+          "width": "fill_container",
+          "height": 900,
+          "fill": {
+            "type": "gradient",
+            "gradientType": "radial",
+            "enabled": true,
+            "rotation": 0,
+            "size": {
+              "width": 1,
+              "height": 1
+            },
+            "colors": [
+              {
+                "color": "#1e1b4b",
+                "position": 0
+              },
+              {
+                "color": "#0a0a12",
+                "position": 0.8
+              }
+            ]
+          },
+          "layout": "vertical",
+          "gap": 32,
+          "padding": [
+            120,
+            20
+          ],
+          "justifyContent": "center",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "xcPhF",
+              "name": "hTitle",
+              "fill": "$textPrimary",
+              "content": "COMMAND THE FLOW.\nCONQUER THE GALAXY.",
+              "lineHeight": 1.1,
+              "textAlign": "center",
+              "fontFamily": "$fontHead",
+              "fontSize": 72,
+              "fontWeight": "900"
+            },
+            {
+              "type": "text",
+              "id": "y1PKm",
+              "name": "hSub",
+              "fill": "$textSecondary",
+              "textGrowth": "fixed-width",
+              "width": 700,
+              "content": "Pax Fluxia is the real-time galactic conquest game where you command flowing rivers of ships between stars.\nFight for total domination across a procedurally generated star map. All in your browser.",
+              "lineHeight": 1.6,
+              "textAlign": "center",
+              "fontFamily": "$fontBody",
+              "fontSize": 18,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "frame",
+              "id": "oucoU",
+              "name": "hActions",
+              "gap": 24,
+              "padding": [
+                32,
+                0,
+                0,
+                0
+              ],
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "HMzry",
+                  "name": "btn1",
+                  "fill": "$accentCyan",
+                  "cornerRadius": 4,
+                  "effect": {
+                    "type": "shadow",
+                    "shadowType": "outer",
+                    "color": "$accentCyan",
+                    "blur": 20
+                  },
+                  "padding": [
+                    16,
+                    48
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "o8hnZ",
+                      "name": "btn1Text",
+                      "fill": "#000000",
+                      "content": "PLAY NOW",
+                      "fontFamily": "$fontHead",
+                      "fontSize": 18,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "VqNjn",
+                  "name": "btn2",
+                  "cornerRadius": 4,
+                  "stroke": {
+                    "thickness": 1,
+                    "fill": "$textPrimary"
+                  },
+                  "padding": [
+                    16,
+                    48
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "RFcQu",
+                      "name": "btn2Text",
+                      "fill": "$textPrimary",
+                      "content": "WATCH TRAILER",
+                      "fontFamily": "$fontHead",
+                      "fontSize": 18,
+                      "fontWeight": "700"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "J2iGH",
+          "name": "USP Triptych",
+          "width": "fill_container",
+          "gap": 40,
+          "padding": 80,
+          "justifyContent": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "2cfWj",
+              "name": "c1",
+              "width": "fill_container",
+              "height": 300,
+              "fill": "rgba(255, 255, 255, 0.05)",
+              "cornerRadius": 16,
+              "stroke": {
+                "thickness": 1,
+                "fill": "rgba(0, 255, 255, 0.3)"
+              },
+              "layout": "vertical",
+              "gap": 16,
+              "padding": 32,
+              "children": [
+                {
+                  "type": "ellipse",
+                  "id": "rHan0",
+                  "name": "i1",
+                  "fill": "rgba(0, 255, 255, 0.2)",
+                  "width": 48,
+                  "height": 48,
+                  "stroke": {
+                    "thickness": 2,
+                    "fill": "$accentCyan"
+                  },
+                  "effect": {
+                    "type": "shadow",
+                    "shadowType": "outer",
+                    "color": "$accentCyan",
+                    "blur": 10
+                  }
+                },
+                {
+                  "type": "text",
+                  "id": "P1NWv",
+                  "name": "t1",
+                  "fill": "$textPrimary",
+                  "content": "Flow-Based Combat",
+                  "fontFamily": "$fontHead",
+                  "fontSize": 24,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "CnUyr",
+                  "name": "d1",
+                  "fill": "$textSecondary",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Ships don't warp; they stream between stars in visible rivers of force. A living battlefield you can read at a glance.",
+                  "lineHeight": 1.5,
+                  "fontFamily": "$fontBody",
+                  "fontSize": 16,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "y9LyD",
+              "name": "c2",
+              "width": "fill_container",
+              "height": 300,
+              "fill": "rgba(255, 255, 255, 0.05)",
+              "cornerRadius": 16,
+              "stroke": {
+                "thickness": 1,
+                "fill": "rgba(251, 191, 36, 0.3)"
+              },
+              "layout": "vertical",
+              "gap": 16,
+              "padding": 32,
+              "children": [
+                {
+                  "type": "polygon",
+                  "polygonCount": 6,
+                  "id": "Sib3y",
+                  "name": "i2",
+                  "fill": "rgba(251, 191, 36, 0.2)",
+                  "width": 48,
+                  "height": 48,
+                  "stroke": {
+                    "thickness": 2,
+                    "fill": "$accentGold"
+                  },
+                  "effect": {
+                    "type": "shadow",
+                    "shadowType": "outer",
+                    "color": "$accentGold",
+                    "blur": 10
+                  }
+                },
+                {
+                  "type": "text",
+                  "id": "fLJ7X",
+                  "name": "t2",
+                  "fill": "$textPrimary",
+                  "content": "Topology IS Terrain",
+                  "fontFamily": "$fontHead",
+                  "fontSize": 24,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "eaPRD",
+                  "name": "d2",
+                  "fill": "$textSecondary",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "No open-world map. Every star is a node connected by fixed stellar lanes. Topology drives strategy.",
+                  "lineHeight": 1.5,
+                  "fontFamily": "$fontBody",
+                  "fontSize": 16,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "Ss3TZ",
+              "name": "c3",
+              "width": "fill_container",
+              "height": 300,
+              "fill": "rgba(255, 255, 255, 0.05)",
+              "cornerRadius": 16,
+              "stroke": {
+                "thickness": 1,
+                "fill": "rgba(168, 85, 247, 0.3)"
+              },
+              "layout": "vertical",
+              "gap": 16,
+              "padding": 32,
+              "children": [
+                {
+                  "type": "rectangle",
+                  "cornerRadius": 8,
+                  "id": "4Zlf8",
+                  "name": "i3",
+                  "fill": "rgba(168, 85, 247, 0.2)",
+                  "width": 48,
+                  "height": 48,
+                  "stroke": {
+                    "thickness": 2,
+                    "fill": "$accentMagenta"
+                  },
+                  "effect": {
+                    "type": "shadow",
+                    "shadowType": "outer",
+                    "color": "$accentMagenta",
+                    "blur": 10
+                  }
+                },
+                {
+                  "type": "text",
+                  "id": "3LG9f",
+                  "name": "t3",
+                  "fill": "$textPrimary",
+                  "content": "Infinitely Tunable",
+                  "fontFamily": "$fontHead",
+                  "fontSize": 24,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "KQxkU",
+                  "name": "d3",
+                  "fill": "$textSecondary",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Make the game yours. Over 100 live-configurable parameters allow you to sculpt every aspect of the experience.",
+                  "lineHeight": 1.5,
+                  "fontFamily": "$fontBody",
+                  "fontSize": 16,
+                  "fontWeight": "normal"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "GhRnD",
+          "name": "Deep Dive",
+          "width": "fill_container",
+          "layout": "vertical",
+          "gap": 40,
+          "padding": 80,
+          "children": [
+            {
+              "type": "frame",
+              "id": "py5m6",
+              "name": "tabs",
+              "width": "fill_container",
+              "stroke": {
+                "thickness": 1,
+                "fill": "rgba(255,255,255,0.1)"
+              },
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "niINV",
+                  "name": "tab1",
+                  "fill": "rgba(255, 255, 255, 0.05)",
+                  "stroke": {
+                    "thickness": 2,
+                    "fill": "$accentCyan"
+                  },
+                  "padding": [
+                    16,
+                    32
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "XO8Dq",
+                      "name": "tab1Text",
+                      "fill": "$accentCyan",
+                      "content": "VISIBLE STRATEGY",
+                      "fontFamily": "$fontHead",
+                      "fontSize": 14,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "CmKLZ",
+                  "name": "tab2",
+                  "padding": [
+                    16,
+                    32
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "o75VZ",
+                      "name": "tab2Text",
+                      "fill": "$textSecondary",
+                      "content": "ATTRITION",
+                      "fontFamily": "$fontHead",
+                      "fontSize": 14,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "KLbYW",
+                  "name": "tab3",
+                  "padding": [
+                    16,
+                    32
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "OZxpN",
+                      "name": "tab3Text",
+                      "fill": "$textSecondary",
+                      "content": "PINNING",
+                      "fontFamily": "$fontHead",
+                      "fontSize": 14,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "Rnok0",
+                  "name": "tab4",
+                  "padding": [
+                    16,
+                    32
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "45DgH",
+                      "name": "tab4Text",
+                      "fill": "$textSecondary",
+                      "content": "OVERWHELM",
+                      "fontFamily": "$fontHead",
+                      "fontSize": 14,
+                      "fontWeight": "700"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "CBARj",
+              "name": "content",
+              "width": "fill_container",
+              "gap": 60,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "Kv9I5",
+                  "name": "visual",
+                  "width": "fill_container",
+                  "height": 400,
+                  "fill": {
+                    "type": "image",
+                    "enabled": true,
+                    "url": "./images/generated-1772219929867.png",
+                    "mode": "fill"
+                  },
+                  "cornerRadius": 16,
+                  "stroke": {
+                    "thickness": 1,
+                    "fill": "$accentCyan"
+                  }
+                },
+                {
+                  "type": "frame",
+                  "id": "5wKXU",
+                  "name": "copy",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 24,
+                  "justifyContent": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "EGNjp",
+                      "name": "h",
+                      "fill": "$textPrimary",
+                      "content": "Visible Strategy, Critical Decisions",
+                      "fontFamily": "$fontHead",
+                      "fontSize": 32,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "u9fZj",
+                      "name": "p1",
+                      "fill": "$textSecondary",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "Symmetric Attrition: Both attacker and defender take simultaneous damage each tick. Every assault has a cost.",
+                      "lineHeight": 1.6,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 16,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "text",
+                      "id": "Xp8z2",
+                      "name": "p2",
+                      "fill": "$textSecondary",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "Pinning Mechanic: Suppress a defender's repair rate by 90% with even a single attacking ship.",
+                      "lineHeight": 1.6,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 16,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "text",
+                      "id": "KSYLP",
+                      "name": "p3",
+                      "fill": "$textSecondary",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "Overwhelm Surrender: Achieve massive force advantage to trigger immediate conquest without combat rolls.",
+                      "lineHeight": 1.6,
+                      "fontFamily": "$fontBody",
+                      "fontSize": 16,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "9zuj8",
+          "name": "Star Types",
+          "width": "fill_container",
+          "layout": "vertical",
+          "gap": 40,
+          "padding": 80,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "HZ25F",
+              "name": "sHeader",
+              "width": 800,
+              "layout": "vertical",
+              "gap": 16,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "stbvX",
+                  "name": "sh1",
+                  "fill": "$textPrimary",
+                  "content": "VISUALIZING STAR POWER",
+                  "fontFamily": "$fontHead",
+                  "fontSize": 32,
+                  "fontWeight": "900",
+                  "letterSpacing": 2
+                },
+                {
+                  "type": "text",
+                  "id": "OgST4",
+                  "name": "sh2",
+                  "fill": "$textSecondary",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Every star is a distinct strategic asset, identified instantly by its unique polygon shape and color aura. The glowing corona scales with fleet strength—read power from a distance.",
+                  "lineHeight": 1.6,
+                  "textAlign": "center",
+                  "fontFamily": "$fontBody",
+                  "fontSize": 16,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "RIzMr",
+              "name": "grid",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 24,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "jHAa5",
+                  "name": "row1",
+                  "width": "fill_container",
+                  "gap": 24,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "yPmK9",
+                      "name": "st1",
+                      "width": "fill_container",
+                      "height": 200,
+                      "fill": "rgba(255, 255, 255, 0.05)",
+                      "cornerRadius": 12,
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "rgba(239, 68, 68, 0.3)"
+                      },
+                      "layout": "vertical",
+                      "gap": 12,
+                      "padding": 24,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "polygon",
+                          "polygonCount": 3,
+                          "id": "RWin7",
+                          "name": "i1",
+                          "fill": "rgba(239, 68, 68, 0.2)",
+                          "width": 40,
+                          "height": 40,
+                          "stroke": {
+                            "thickness": 2,
+                            "fill": "#ef4444"
+                          },
+                          "effect": {
+                            "type": "shadow",
+                            "shadowType": "outer",
+                            "color": "#ef4444",
+                            "blur": 10
+                          }
+                        },
+                        {
+                          "type": "text",
+                          "id": "ZoRpd",
+                          "name": "t1",
+                          "fill": "#ef4444",
+                          "content": "Offense",
+                          "fontFamily": "$fontHead",
+                          "fontSize": 18,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "qsun1",
+                          "name": "d1",
+                          "fill": "$textSecondary",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Maximizes offensive fleet strength.",
+                          "textAlign": "center",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 14,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "b1waJ",
+                      "name": "st2",
+                      "width": "fill_container",
+                      "height": 200,
+                      "fill": "rgba(255, 255, 255, 0.05)",
+                      "cornerRadius": 12,
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "rgba(59, 130, 246, 0.3)"
+                      },
+                      "layout": "vertical",
+                      "gap": 12,
+                      "padding": 24,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "rectangle",
+                          "id": "D1eAO",
+                          "name": "i2",
+                          "fill": "rgba(59, 130, 246, 0.2)",
+                          "width": 40,
+                          "height": 40,
+                          "stroke": {
+                            "thickness": 2,
+                            "fill": "#3b82f6"
+                          },
+                          "effect": {
+                            "type": "shadow",
+                            "shadowType": "outer",
+                            "color": "#3b82f6",
+                            "blur": 10
+                          }
+                        },
+                        {
+                          "type": "text",
+                          "id": "tC4ej",
+                          "name": "t2",
+                          "fill": "#3b82f6",
+                          "content": "Defense",
+                          "fontFamily": "$fontHead",
+                          "fontSize": 18,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "27UxV",
+                          "name": "d2",
+                          "fill": "$textSecondary",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Increases defensive capabilities.",
+                          "textAlign": "center",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 14,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "0VHsP",
+                      "name": "st3",
+                      "width": "fill_container",
+                      "height": 200,
+                      "fill": "rgba(255, 255, 255, 0.05)",
+                      "cornerRadius": 12,
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "rgba(234, 179, 8, 0.3)"
+                      },
+                      "layout": "vertical",
+                      "gap": 12,
+                      "padding": 24,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "polygon",
+                          "polygonCount": 5,
+                          "id": "c7YB6",
+                          "name": "i3",
+                          "fill": "rgba(234, 179, 8, 0.2)",
+                          "width": 40,
+                          "height": 40,
+                          "stroke": {
+                            "thickness": 2,
+                            "fill": "#eab308"
+                          },
+                          "effect": {
+                            "type": "shadow",
+                            "shadowType": "outer",
+                            "color": "#eab308",
+                            "blur": 10
+                          }
+                        },
+                        {
+                          "type": "text",
+                          "id": "QZ9S3",
+                          "name": "t3",
+                          "fill": "#eab308",
+                          "content": "Production",
+                          "fontFamily": "$fontHead",
+                          "fontSize": 18,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "EZ1qh",
+                          "name": "d3",
+                          "fill": "$textSecondary",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Boosts new ship creation rate.",
+                          "textAlign": "center",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 14,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "LgQDm",
+                  "name": "row2",
+                  "width": "fill_container",
+                  "gap": 24,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "hI2O6",
+                      "name": "st4",
+                      "width": "fill_container",
+                      "height": 200,
+                      "fill": "rgba(255, 255, 255, 0.05)",
+                      "cornerRadius": 12,
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "rgba(168, 85, 247, 0.3)"
+                      },
+                      "layout": "vertical",
+                      "gap": 12,
+                      "padding": 24,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "polygon",
+                          "polygonCount": 6,
+                          "id": "H0Jl4",
+                          "name": "i4",
+                          "fill": "rgba(168, 85, 247, 0.2)",
+                          "width": 40,
+                          "height": 40,
+                          "stroke": {
+                            "thickness": 2,
+                            "fill": "#a855f7"
+                          },
+                          "effect": {
+                            "type": "shadow",
+                            "shadowType": "outer",
+                            "color": "#a855f7",
+                            "blur": 10
+                          }
+                        },
+                        {
+                          "type": "text",
+                          "id": "zYhjK",
+                          "name": "t4",
+                          "fill": "#a855f7",
+                          "content": "Repair",
+                          "fontFamily": "$fontHead",
+                          "fontSize": 18,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "mUAOL",
+                          "name": "d4",
+                          "fill": "$textSecondary",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Accelerates self-repair rate.",
+                          "textAlign": "center",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 14,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "dmebp",
+                      "name": "st5",
+                      "width": "fill_container",
+                      "height": 200,
+                      "fill": "rgba(255, 255, 255, 0.05)",
+                      "cornerRadius": 12,
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "rgba(34, 197, 94, 0.3)"
+                      },
+                      "layout": "vertical",
+                      "gap": 12,
+                      "padding": 24,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "polygon",
+                          "polygonCount": 7,
+                          "id": "aWfsZ",
+                          "name": "i5",
+                          "fill": "rgba(34, 197, 94, 0.2)",
+                          "width": 40,
+                          "height": 40,
+                          "stroke": {
+                            "thickness": 2,
+                            "fill": "#22c55e"
+                          },
+                          "effect": {
+                            "type": "shadow",
+                            "shadowType": "outer",
+                            "color": "#22c55e",
+                            "blur": 10
+                          }
+                        },
+                        {
+                          "type": "text",
+                          "id": "nBHXR",
+                          "name": "t5",
+                          "fill": "#22c55e",
+                          "content": "Speed",
+                          "fontFamily": "$fontHead",
+                          "fontSize": 18,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "GFKbp",
+                          "name": "d5",
+                          "fill": "$textSecondary",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Increases ship velocity.",
+                          "textAlign": "center",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 14,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "ZWG4U",
+                      "name": "st6",
+                      "width": "fill_container",
+                      "height": 200,
+                      "fill": "rgba(255, 255, 255, 0.05)",
+                      "cornerRadius": 12,
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "rgba(255, 255, 255, 0.3)"
+                      },
+                      "layout": "vertical",
+                      "gap": 12,
+                      "padding": 24,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "ellipse",
+                          "id": "zAzia",
+                          "name": "i6",
+                          "fill": "rgba(255, 255, 255, 0.2)",
+                          "width": 40,
+                          "height": 40,
+                          "stroke": {
+                            "thickness": 2,
+                            "fill": "#ffffff"
+                          },
+                          "effect": {
+                            "type": "shadow",
+                            "shadowType": "outer",
+                            "color": "#ffffff",
+                            "blur": 10
+                          }
+                        },
+                        {
+                          "type": "text",
+                          "id": "IxPh8",
+                          "name": "t6",
+                          "fill": "#ffffff",
+                          "content": "Standard",
+                          "fontFamily": "$fontHead",
+                          "fontSize": 18,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "WvHlm",
+                          "name": "d6",
+                          "fill": "$textSecondary",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Balanced node with no specialization.",
+                          "textAlign": "center",
+                          "fontFamily": "$fontBody",
+                          "fontSize": 14,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "16v9Z",
+          "name": "Faction Story",
+          "width": "fill_container",
+          "height": 600,
+          "fill": {
+            "type": "image",
+            "enabled": true,
+            "url": "./images/generated-1772219965762.png",
+            "mode": "fill"
+          },
+          "padding": 80,
+          "justifyContent": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "ADM7T",
+              "name": "panel",
+              "width": 500,
+              "fill": "rgba(10, 10, 18, 0.8)",
+              "cornerRadius": 8,
+              "stroke": {
+                "thickness": 1,
+                "fill": "rgba(255, 255, 255, 0.1)"
+              },
+              "effect": {
+                "type": "background_blur",
+                "radius": 20
+              },
+              "layout": "vertical",
+              "gap": 24,
+              "padding": 40,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "tEtyT",
+                  "name": "ft1",
+                  "fill": "$textPrimary",
+                  "content": "INHERIT THE STARS,\nSECURE DOMINION",
+                  "lineHeight": 1.2,
+                  "fontFamily": "$fontHead",
+                  "fontSize": 32,
+                  "fontWeight": "900"
+                },
+                {
+                  "type": "text",
+                  "id": "WqxLw",
+                  "name": "ft2",
+                  "fill": "$textSecondary",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "The fragile peace between star-faring factions has collapsed. Every system is now a prize.\nYou inherit command of a small cluster of stars. Your mandate is clear: Expand. Fight. Be the last commander standing.",
+                  "lineHeight": 1.6,
+                  "fontFamily": "$fontBody",
+                  "fontSize": 16,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "frame",
+                  "id": "RUvnv",
+                  "name": "fBtn",
+                  "cornerRadius": 4,
+                  "stroke": {
+                    "thickness": 1,
+                    "fill": "$accentGold"
+                  },
+                  "effect": {
+                    "type": "shadow",
+                    "shadowType": "outer",
+                    "color": "$accentGold",
+                    "blur": 10
+                  },
+                  "padding": [
+                    12,
+                    32
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "efJo8",
+                      "name": "fBtnText",
+                      "fill": "$accentGold",
+                      "content": "MASTER THE FLOW",
+                      "fontFamily": "$fontHead",
+                      "fontSize": 14,
+                      "fontWeight": "700"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "XM7pP",
+          "name": "Developer Vision",
+          "width": "fill_container",
+          "fill": "#0a0a12",
+          "gap": 60,
+          "padding": 80,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "9wm4O",
+              "name": "devLeft",
+              "width": 300,
+              "layout": "vertical",
+              "gap": 24,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "r0A9B",
+                  "name": "devImg",
+                  "width": 200,
+                  "height": 200,
+                  "fill": {
+                    "type": "image",
+                    "enabled": true,
+                    "url": "./images/generated-1772220003437.png",
+                    "mode": "fill"
+                  },
+                  "cornerRadius": 100,
+                  "stroke": {
+                    "thickness": 2,
+                    "fill": "$textSecondary"
+                  }
+                },
+                {
+                  "type": "text",
+                  "id": "d1nhr",
+                  "name": "devName",
+                  "fill": "$textPrimary",
+                  "content": "Fatherlion Studios",
+                  "fontFamily": "$fontHead",
+                  "fontSize": 18,
+                  "fontWeight": "700"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "DoTzi",
+              "name": "devRight",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 24,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "Xx66t",
+                  "name": "dh",
+                  "fill": "$textPrimary",
+                  "content": "Visible Strategy: A Solo Developer’s Labor of Love",
+                  "lineHeight": 1.2,
+                  "fontFamily": "$fontHead",
+                  "fontSize": 32,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "q1leY",
+                  "name": "dp",
+                  "fill": "$textSecondary",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Pax Fluxia is the result of my passion for \"visible strategy\"—the belief that you should be able to see the flow of war at a glance. Every ship is an individual dot. Every flow is a visible river of force.\n\nInspired by classics like Galcon and TradeWars 2002, this game is built for the modern browser, combining deep, cerebral tactics with immediate playability.",
+                  "lineHeight": 1.6,
+                  "fontFamily": "$fontBody",
+                  "fontSize": 16,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "frame",
+                  "id": "PeQ2d",
+                  "name": "tech",
+                  "gap": 16,
+                  "padding": [
+                    16,
+                    0,
+                    0,
+                    0
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "gsWT9",
+                      "name": "t1",
+                      "opacity": 0.7,
+                      "fill": "$textSecondary",
+                      "content": "Svelte",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 14,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "text",
+                      "id": "oApD3",
+                      "name": "t2",
+                      "opacity": 0.7,
+                      "fill": "$textSecondary",
+                      "content": "TypeScript",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 14,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "text",
+                      "id": "eQUCo",
+                      "name": "t3",
+                      "opacity": 0.7,
+                      "fill": "$textSecondary",
+                      "content": "WebGPU",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 14,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "psgLA",
+          "name": "Footer",
+          "width": "fill_container",
+          "fill": "#050508",
+          "layout": "vertical",
+          "gap": 40,
+          "padding": 80,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "7omhB",
+              "name": "fh",
+              "fill": "$textPrimary",
+              "content": "BE THE FIRST TO CONQUER THE FLOW.",
+              "textAlign": "center",
+              "fontFamily": "$fontHead",
+              "fontSize": 32,
+              "fontWeight": "900",
+              "letterSpacing": 1
+            },
+            {
+              "type": "text",
+              "id": "gn4vf",
+              "name": "fp",
+              "fill": "$textSecondary",
+              "textGrowth": "fixed-width",
+              "width": 600,
+              "content": "Sign up for the private alpha waitlist and newsletter to receive exclusive development updates and launch announcements.",
+              "lineHeight": 1.6,
+              "textAlign": "center",
+              "fontFamily": "$fontBody",
+              "fontSize": 16,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "frame",
+              "id": "j0a2b",
+              "name": "news",
+              "width": 500,
+              "height": 50,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "m5KgI",
+                  "name": "inp",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "rgba(255, 255, 255, 0.05)",
+                  "cornerRadius": [
+                    4,
+                    0,
+                    0,
+                    4
+                  ],
+                  "stroke": {
+                    "thickness": 1,
+                    "fill": "$textSecondary"
+                  },
+                  "padding": [
+                    0,
+                    24
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "bW5MJ",
+                      "name": "inpText",
+                      "fill": "rgba(255, 255, 255, 0.5)",
+                      "content": "Enter your email...",
+                      "fontFamily": "$fontBody",
+                      "fontSize": 14,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "3o3Of",
+                  "name": "subBtn",
+                  "width": 150,
+                  "height": "fill_container",
+                  "fill": "$accentCyan",
+                  "cornerRadius": [
+                    0,
+                    4,
+                    4,
+                    0
+                  ],
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "cZ0bR",
+                      "name": "subText",
+                      "fill": "#000000",
+                      "content": "SIGN UP",
+                      "fontFamily": "$fontHead",
+                      "fontSize": 14,
+                      "fontWeight": "700"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "rj4PB",
+              "name": "copy",
+              "fill": "rgba(255, 255, 255, 0.3)",
+              "content": "© 2024 Fatherlion Studios. All rights reserved. Built with 🌌 by @mikepeiman.",
+              "fontFamily": "$fontBody",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variables": {
+    "accentCyan": {
+      "type": "color",
+      "value": "#00ffff"
+    },
+    "accentGold": {
+      "type": "color",
+      "value": "#fbbf24"
+    },
+    "accentMagenta": {
+      "type": "color",
+      "value": "#a855f7"
+    },
+    "bgDeepVoid": {
+      "type": "color",
+      "value": "#0a0a12"
+    },
+    "fontBody": {
+      "type": "string",
+      "value": "Montserrat"
+    },
+    "fontHead": {
+      "type": "string",
+      "value": "Exo"
+    },
+    "glassBorder": {
+      "type": "color",
+      "value": "rgba(255, 255, 255, 0.1)"
+    },
+    "glassFill": {
+      "type": "color",
+      "value": "rgba(255, 255, 255, 0.05)"
+    },
+    "textPrimary": {
+      "type": "color",
+      "value": "#ffffff"
+    },
+    "textSecondary": {
+      "type": "color",
+      "value": "#cbd5e1"
+    }
+  }
+}

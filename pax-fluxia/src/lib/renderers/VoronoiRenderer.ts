@@ -208,8 +208,8 @@ export function renderVoronoi(
     const satMult = GAME_CONFIG.VORONOI_SATURATION ?? 1.0;
     const lightMult = GAME_CONFIG.VORONOI_LIGHTNESS ?? 0.7;
 
-    // Extend bounds so territory bleeds past map edges
-    const pad = Math.max(worldWidth, worldHeight) * 0.5;
+    // Extend bounds so territory bleeds past map edges (huge padding to bypass blur filter limits)
+    const pad = Math.max(worldWidth, worldHeight) * 2.5;
     const bounds: [number, number, number, number] = [
         -pad, -pad,
         worldWidth + pad, worldHeight + pad,

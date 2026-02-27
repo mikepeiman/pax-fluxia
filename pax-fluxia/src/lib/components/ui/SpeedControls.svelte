@@ -9,6 +9,7 @@
         onPause: () => void;
         onResume: () => void;
         onStart: () => void;
+        onCenterFit?: () => void;
     }
 
     let {
@@ -19,6 +20,7 @@
         onPause,
         onResume,
         onStart,
+        onCenterFit,
     }: Props = $props();
 
     // Local state to track current speed for UI highlighting
@@ -58,6 +60,18 @@
     {/if}
 
     <div class="speed-controls">
+        <!-- Center & Fit Button -->
+        {#if onCenterFit}
+            <button
+                class="speed-btn center-btn"
+                onclick={onCenterFit}
+                title="Center & Fit Gameboard"
+            >
+                ⌖
+            </button>
+            <div class="divider"></div>
+        {/if}
+
         <!-- Pause Button -->
         <button
             class="speed-btn"
@@ -141,6 +155,16 @@
     .speed-btn:hover {
         color: var(--color-text-primary);
         background: rgba(255, 255, 255, 0.05);
+    }
+
+    .center-btn {
+        color: var(--color-accent-cyan);
+    }
+
+    .divider {
+        width: 1px;
+        background: rgba(255, 255, 255, 0.1);
+        margin: 4px 2px;
     }
 
     .speed-btn--active {

@@ -25,11 +25,6 @@
 
     // ── Background Image Picker ──
     let bgImages = $state<string[]>([]);
-    let currentBg = $state(
-        typeof localStorage !== "undefined"
-            ? localStorage.getItem("pax_bgImage") || "pax-fluxia-bg-4.jpg"
-            : "pax-fluxia-bg-4.jpg",
-    );
 
     onMount(() => {
         fetch("/api/backgrounds")
@@ -40,10 +35,9 @@
             .catch(() => {});
     });
 
+    // Background change uses updateVisual to sync immediately
     function changeBg(img: string) {
-        currentBg = img;
-        localStorage.setItem("pax_bgImage", img);
-        window.dispatchEvent(new CustomEvent("pax-bg-change", { detail: img }));
+        updateVisual("bgImage", img);
     }
 </script>
 
@@ -53,7 +47,7 @@
 <div class="bg-grid">
     <button
         class="bg-thumb"
-        class:active={!currentBg}
+        class:active={!vis.bgImage}
         onclick={() => changeBg("")}
         title="No background"
     >
@@ -62,7 +56,7 @@
     {#each bgImages as img}
         <button
             class="bg-thumb"
-            class:active={currentBg === img}
+            class:active={vis.bgImage === img}
             onclick={() => changeBg(img)}
             title={img
                 .replace(/\.(png|jpe?g|webp|avif)$/i, "")

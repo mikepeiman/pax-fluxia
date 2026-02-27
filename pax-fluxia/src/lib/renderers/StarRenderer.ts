@@ -195,31 +195,46 @@ export function renderStars(
         const usePolygon = GAME_CONFIG.STAR_SHAPE_MODE === 'polygon' && sides > 0;
         const cornerRadius = GAME_CONFIG.STAR_CORNER_RADIUS ?? 0.3;
 
+        // Player Ownership Ring (Solid circle replacing the colored shape outline)
+        const ringRadius = radius * 1.35;
+        graphics.circle(star.x, star.y, ringRadius);
+        graphics.stroke({ color: isActive ? 0xffffff : color, width: isActive ? 4 : 2, alpha: 0.9 });
+
         // Outer glow ring (pulses slightly, stronger when active)
         const starFxTime = state.gameNowMs / 1000;
         const glowPulse = 1 + Math.sin(starFxTime * 2) * 0.1;
-        const glowAlpha = isActive ? 0.25 : 0.12;
-        const glowRadius = (radius + 8) * glowPulse;
-        if (usePolygon) {
-            drawShapePath(graphics, star.x, star.y, glowRadius, sides, cornerRadius,
-                { color, alpha: glowAlpha });
-        } else {
-            graphics.circle(star.x, star.y, glowRadius);
-            graphics.fill({ color, alpha: glowAlpha });
-        }
+        const glowAlpha = isActive ? 0.35 : 0.15;
+        const glowRadius = ringRadius * glowPulse;
+        graphics.circle(star.x, star.y, glowRadius);
+        graphics.fill({ color, alpha: glowAlpha });
 
-        // Main star body — base color from StarType
+        // Main star body — 3D Shaded 
         const typeStats = STAR_TYPE_STATS[star.starType as StarType];
         const typeColor = typeStats ? typeStats.color : 0xffffff;
 
+        const typeHsl = colorUtils.hexToHSL(typeColor);
+        const shadow = colorUtils.hslToHex(typeHsl.h, typeHsl.s, Math.max(0.0, typeHsl.l - 0.25));
+        const highlight = colorUtils.hslToHex(typeHsl.h, typeHsl.s, Math.min(1.0, typeHsl.l + 0.2));
+
         if (usePolygon) {
+            // Base layer with dark fill and normal stroke
             drawShapePath(graphics, star.x, star.y, radius, sides, cornerRadius,
-                { color: typeColor, alpha: 0.3 },
-                { color: isActive ? 0xffffff : color, width: isActive ? 4 : 2, alpha: 1 });
+                { color: shadow, alpha: 0.8 },
+                { color: typeColor, width: 3, alpha: 1.0 });
+
+            // Inner layer with bright fill
+            drawShapePath(graphics, star.x, star.y, radius * 0.55, sides, cornerRadius,
+                { color: highlight, alpha: 1.0 },
+                { color: highlight, width: 1, alpha: 1.0 });
         } else {
+            // Circle fallback
             graphics.circle(star.x, star.y, radius);
-            graphics.fill({ color: typeColor, alpha: 0.3 });
-            graphics.stroke({ color: isActive ? 0xffffff : color, width: isActive ? 4 : 2, alpha: 1 });
+            graphics.fill({ color: shadow, alpha: 0.8 });
+            graphics.stroke({ color: typeColor, width: 3, alpha: 1.0 });
+
+            graphics.circle(star.x, star.y, radius * 0.55);
+            graphics.fill({ color: highlight, alpha: 1.0 });
+            graphics.stroke({ color: highlight, width: 1, alpha: 1.0 });
         }
 
         // Active star white fill overlay

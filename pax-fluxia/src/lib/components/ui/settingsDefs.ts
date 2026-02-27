@@ -189,6 +189,8 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'starIconScale', configKey: 'STAR_ICON_SCALE' },
     { panelKey: 'starCornerRadius', configKey: 'STAR_CORNER_RADIUS' },
     { panelKey: 'orbitRingMult', configKey: 'ORBIT_RING_MULT' },
+    { panelKey: 'damagedOrbitRadius', configKey: 'DAMAGED_ORBIT_RADIUS' },
+    { panelKey: 'damagedOrbitEvade', configKey: 'DAMAGED_ORBIT_EVADE' },
     { panelKey: 'shipOutlineOn', configKey: 'SHIP_OUTLINE_ON' },
     { panelKey: 'shipOutlinePx', configKey: 'SHIP_OUTLINE_PX' },
     { panelKey: 'shipGlowIntensity', configKey: 'SHIP_GLOW_INTENSITY' },

@@ -32,9 +32,9 @@
   --color-player-orange: #ff8844;
 
   /* Typography */
-  --font-display: 'Orbitron', 'Exo 2', sans-serif;
-  --font-data: 'JetBrains Mono', 'Roboto Mono', monospace;
-  --font-body: 'Inter', system-ui, sans-serif;
+  --font-display: 'Exo', sans-serif;
+  --font-data: 'JetBrains Mono', monospace;
+  --font-body: 'Montserrat', sans-serif;
 
   /* Font Sizes — Desktop defaults (overridden by media queries below) */
   --text-xs: 0.75rem;

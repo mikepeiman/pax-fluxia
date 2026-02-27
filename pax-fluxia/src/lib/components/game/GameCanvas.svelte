@@ -156,8 +156,24 @@
     let zoomLevel = 1; // User zoom multiplier (1.0 = default fit)
     let panOffsetX = 0; // Pan offset in world coordinates
     let panOffsetY = 0;
-    const ZOOM_MIN = 0.5; // Max zoom-out: 200% of gameboard visible
+    const ZOOM_MIN = 0.8; // Max zoom-out: 125% of gameboard visible
     const ZOOM_MAX = 5.0;
+
+    export function centerAndFit() {
+        zoomLevel = 1;
+        panOffsetX = 0;
+        panOffsetY = 0;
+        if (app && app.stage) {
+            const containerWidth = app.screen.width;
+            const containerHeight = app.screen.height;
+            const effectiveScale = baseScale * zoomLevel;
+            const scaledWidth = GAME_WIDTH * effectiveScale;
+            const scaledHeight = GAME_HEIGHT * effectiveScale;
+            app.stage.x = (containerWidth - scaledWidth) / 2;
+            app.stage.y = (containerHeight - scaledHeight) / 2;
+            app.stage.scale.set(effectiveScale);
+        }
+    }
     const ZOOM_STEP = 0.1; // Per scroll notch
     let isPanning = false; // Middle-mouse-button or spacebar pan
     let isSpaceHeld = false; // Spacebar held for pan mode
@@ -308,17 +324,28 @@
         orbGraphics = containers.orbGraphics;
 
         // L5: Faint nebula background — uses same image as main menu
-        const bgImagePath =
-            (typeof localStorage !== "undefined"
-                ? localStorage.getItem("pax_bgImage")
-                : null) || "pax-fluxia-bg-4.jpg";
-        const bgTexture = await PIXI.Assets.load(`/assets/${bgImagePath}`);
-        const bgSprite = new PIXI.Sprite(bgTexture);
+        // Respect "no background" choice: if BG_IMAGE_URL is empty, skip loading
+        const bgImagePath = GAME_CONFIG.BG_IMAGE_URL;
+        const bgSprite = new PIXI.Sprite();
         bgSprite.anchor.set(0.5, 0.5);
         bgSprite.alpha = 0.12;
         app.stage.addChildAt(bgSprite, 0); // Bottom-most layer
-        // Size and position will be set in handleResize when GAME_WIDTH/HEIGHT are known
         (app as any)._nebulaBgSprite = bgSprite;
+
+        if (bgImagePath) {
+            try {
+                const bgTexture = await PIXI.Assets.load(
+                    `/assets/${bgImagePath}`,
+                );
+                bgSprite.texture = bgTexture;
+                bgSprite.visible = true;
+            } catch {
+                bgSprite.visible = false;
+            }
+        } else {
+            bgSprite.visible = false;
+        }
+        // Size and position will be set in handleResize when GAME_WIDTH/HEIGHT are known
 
         // Live background swap via settings panel
         const handleBgChange = async (e: Event) => {

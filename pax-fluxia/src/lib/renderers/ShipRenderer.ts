@@ -800,11 +800,45 @@ export function renderShips(
         }
         state.visualDamagedShips.set(star.id, damagedShips);
 
+        let dangerDx = 0, dangerDy = 0;
+        if (GAME_CONFIG.DAMAGED_ORBIT_EVADE) {
+            // Add vector towards target if attacking
+            if (star.targetId !== null) {
+                const targetStar = starsById.get(star.targetId);
+                if (targetStar) {
+                    dangerDx += targetStar.x - star.x;
+                    dangerDy += targetStar.y - star.y;
+                }
+            }
+            // Add vectors from incoming ships
+            for (const ts of state.travelingShips) {
+                if (ts.toStarId === star.id) {
+                    dangerDx += ts.laneStartX - star.x; // Or just the ship's current pos: ts.x - star.x
+                    dangerDy += ts.laneStartY - star.y;
+                }
+            }
+        }
+
+        const hasDanger = dangerDx !== 0 || dangerDy !== 0;
+        const safeAngle = hasDanger ? Math.atan2(-dangerDy, -dangerDx) : 0;
+
         damagedShips.forEach((ship, i) => {
             const damageTime = GAME_CONFIG.STATIC_ORBITS ? 0
                 : (state.gameNowMs / 1000);
-            const angle = damageTime * 0.5 + (i * Math.PI * 2) / Math.max(damagedShips.length, 1);
-            const radius = 15;
+
+            let angle = 0;
+            if (GAME_CONFIG.DAMAGED_ORBIT_EVADE && hasDanger) {
+                // Cluster on the safe side, wavering slightly
+                const spread = Math.PI * 0.8; // 144 degrees spread
+                const offset = (i / Math.max(damagedShips.length - 1, 1) - 0.5) * spread;
+                const waver = Math.sin(damageTime * 2 + i) * 0.15;
+                angle = safeAngle + offset + waver;
+            } else {
+                // Normal spinning orbit
+                angle = damageTime * 0.5 + (i * Math.PI * 2) / Math.max(damagedShips.length, 1);
+            }
+
+            const radius = GAME_CONFIG.DAMAGED_ORBIT_RADIUS ?? 15;
             const tx = star.x + Math.cos(angle) * radius;
             const ty = star.y + Math.sin(angle) * radius;
 
