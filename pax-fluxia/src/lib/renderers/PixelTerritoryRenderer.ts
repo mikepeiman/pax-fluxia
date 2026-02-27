@@ -36,6 +36,9 @@ function buildFingerprint(stars: StarState[]): string {
     fp += `:${GAME_CONFIG.PIXEL_EDGE_BLEND}:${GAME_CONFIG.PIXEL_BLUR}`;
     fp += `:${GAME_CONFIG.PIXEL_CORRIDOR_BOOST}:${GAME_CONFIG.TERRITORY_PIXEL}`;
     fp += `:${GAME_CONFIG.VORONOI_SATURATION}:${GAME_CONFIG.VORONOI_LIGHTNESS}`;
+    fp += `:${GAME_CONFIG.PIXEL_HUE_SHIFT}:${GAME_CONFIG.PIXEL_BORDER_WIDTH}`;
+    fp += `:${GAME_CONFIG.PIXEL_BORDER_ALPHA}:${GAME_CONFIG.PIXEL_BORDER_BRIGHTEN}`;
+    fp += `:${GAME_CONFIG.PIXEL_PATTERN}:${GAME_CONFIG.PIXEL_PATTERN_SCALE}`;
     return fp;
 }
 
@@ -159,6 +162,12 @@ export function renderPixelTerritory(
     const satMult = GAME_CONFIG.VORONOI_SATURATION ?? 1.0;
     const lightMult = GAME_CONFIG.VORONOI_LIGHTNESS ?? 1.0;
     const useHSL = satMult !== 1.0 || lightMult !== 1.0;
+    const hueShift = GAME_CONFIG.PIXEL_HUE_SHIFT ?? 0;
+    const borderWidth = GAME_CONFIG.PIXEL_BORDER_WIDTH ?? 0;
+    const borderAlpha = GAME_CONFIG.PIXEL_BORDER_ALPHA ?? 0.6;
+    const borderBrighten = GAME_CONFIG.PIXEL_BORDER_BRIGHTEN ?? 80;
+    const pattern = GAME_CONFIG.PIXEL_PATTERN ?? 'none';
+    const patternScale = GAME_CONFIG.PIXEL_PATTERN_SCALE ?? 4;
 
     // Create offscreen canvas
     const canvas = document.createElement('canvas');
@@ -169,9 +178,14 @@ export function renderPixelTerritory(
     // Pre-compute star data at canvas scale, with HSL adjustment applied
     const starData: StarEntry[] = ownedStars.map(s => {
         const rawRgb = hexToRGB(colorUtils.getPlayerColor(s.ownerId!));
-        const rgb = useHSL
-            ? adjustColorHSL(rawRgb[0], rawRgb[1], rawRgb[2], satMult, lightMult)
-            : rawRgb;
+        let rgb: [number, number, number];
+        if (useHSL || hueShift !== 0) {
+            const [h, sat, l] = rgbToHSL(rawRgb[0], rawRgb[1], rawRgb[2]);
+            const newH = (h + hueShift) % 360;
+            rgb = hslToRGB(newH, Math.min(1, sat * satMult), Math.min(1, l * lightMult));
+        } else {
+            rgb = rawRgb;
+        }
         return {
             x: s.x / resolution,
             y: s.y / resolution,
@@ -295,11 +309,87 @@ export function renderPixelTerritory(
                 }
             }
 
+            // ── Pattern modulation ──
+            if (pattern !== 'none') {
+                let patternMask = 1.0;
+                const ps = patternScale;
+                if (pattern === 'stripes') {
+                    // Diagonal stripes
+                    patternMask = ((Math.floor((px + py) / ps)) % 2 === 0) ? 1.0 : 0.35;
+                } else if (pattern === 'crosshatch') {
+                    // Grid crosshatch
+                    const xLine = (px % ps) < 1;
+                    const yLine = (py % ps) < 1;
+                    patternMask = (xLine || yLine) ? 1.0 : 0.3;
+                } else if (pattern === 'dots') {
+                    // Dot grid
+                    const gx = ((px % ps) - ps / 2);
+                    const gy = ((py % ps) - ps / 2);
+                    const dotDist = Math.sqrt(gx * gx + gy * gy) / (ps / 2);
+                    patternMask = dotDist < 0.5 ? 1.0 : 0.25;
+                }
+                pixelAlpha *= patternMask;
+            }
+
             const idx = (py * canvasW + px) * 4;
             pixels[idx] = r;
             pixels[idx + 1] = g;
             pixels[idx + 2] = b;
             pixels[idx + 3] = Math.round(pixelAlpha * 255);
+
+            // Store owner index for border detection pass
+            if (borderWidth > 0) {
+                // Re-use blue channel of a parallel array? No — use separate ownerGrid
+            }
+        }
+    }
+
+    // ── Border detection pass ──
+    if (borderWidth > 0) {
+        // Build owner grid — determine owner per pixel by re-running the same logic
+        // but we already have the pixels. Instead, store owner IDs during main loop.
+        // We need to refactor — let's do a simpler approach: detect edges in the RGBA
+        // data by checking if neighboring pixels have different colors.
+        const bw = Math.max(1, Math.round(borderWidth));
+        for (let py = bw; py < canvasH - bw; py++) {
+            for (let px = bw; px < canvasW - bw; px++) {
+                const idx = (py * canvasW + px) * 4;
+                const cr = pixels[idx], cg = pixels[idx + 1], cb = pixels[idx + 2];
+                if (pixels[idx + 3] === 0) continue; // skip empty/transparent
+
+                // Check neighbors for color difference (different owner = different color)
+                let isBorder = false;
+                for (let d = 1; d <= bw && !isBorder; d++) {
+                    // Right
+                    if (px + d < canvasW) {
+                        const ni = (py * canvasW + (px + d)) * 4;
+                        if (pixels[ni + 3] > 0 && (pixels[ni] !== cr || pixels[ni + 1] !== cg || pixels[ni + 2] !== cb)) isBorder = true;
+                    }
+                    // Down
+                    if (py + d < canvasH) {
+                        const ni = ((py + d) * canvasW + px) * 4;
+                        if (pixels[ni + 3] > 0 && (pixels[ni] !== cr || pixels[ni + 1] !== cg || pixels[ni + 2] !== cb)) isBorder = true;
+                    }
+                    // Left
+                    if (px - d >= 0) {
+                        const ni = (py * canvasW + (px - d)) * 4;
+                        if (pixels[ni + 3] > 0 && (pixels[ni] !== cr || pixels[ni + 1] !== cg || pixels[ni + 2] !== cb)) isBorder = true;
+                    }
+                    // Up
+                    if (py - d >= 0) {
+                        const ni = ((py - d) * canvasW + px) * 4;
+                        if (pixels[ni + 3] > 0 && (pixels[ni] !== cr || pixels[ni + 1] !== cg || pixels[ni + 2] !== cb)) isBorder = true;
+                    }
+                }
+
+                if (isBorder) {
+                    // Brighten the pixel for border effect
+                    pixels[idx] = Math.min(255, cr + borderBrighten);
+                    pixels[idx + 1] = Math.min(255, cg + borderBrighten);
+                    pixels[idx + 2] = Math.min(255, cb + borderBrighten);
+                    pixels[idx + 3] = Math.round(borderAlpha * 255);
+                }
+            }
         }
     }
 

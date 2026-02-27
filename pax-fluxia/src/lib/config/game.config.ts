@@ -281,6 +281,12 @@ interface GameConfigType {
     PIXEL_BLUR: number;              // GPU blur strength (0=sharp, default 4)
     PIXEL_BLEND_POWER: number;       // DEPRECATED — replaced by PIXEL_CORRIDOR_BOOST
     PIXEL_CORRIDOR_BOOST: number;    // Same-owner distance discount for corridor guarantee (0=off, 0.3=natural, 0.6=strong, default 0.3)
+    PIXEL_HUE_SHIFT: number;         // Hue rotation offset in degrees (0-360, default 0)
+    PIXEL_BORDER_WIDTH: number;      // Territory border thickness in pixels (0=off, 1-4, default 1)
+    PIXEL_BORDER_ALPHA: number;      // Border line alpha (0-1, default 0.6)
+    PIXEL_BORDER_BRIGHTEN: number;   // How much to brighten border color (0-255, default 80)
+    PIXEL_PATTERN: 'none' | 'stripes' | 'crosshatch' | 'dots';  // Pattern overlay on territory fill
+    PIXEL_PATTERN_SCALE: number;     // Pattern size/density (1=fine, 10=coarse, default 4)
 
     SHOW_HEX_GRID: boolean;
     STARS_PER_PLAYER: number;
@@ -744,9 +750,9 @@ const _rawConfig: GameConfigType = {
     /** How much to brighten border color (0-255) */
     VORONOI_BORDER_BRIGHTEN: 80,
     /** Voronoi color saturation multiplier (0=grey, 1=original, 2=vivid) */
-    VORONOI_SATURATION: 0.8,
+    VORONOI_SATURATION: 2,
     /** Voronoi color lightness multiplier (0=dark, 1=original, 2=bright) */
-    VORONOI_LIGHTNESS: 0.4,
+    VORONOI_LIGHTNESS: 1,
     /** Territory glow bleed radius as fraction of map size */
     VORONOI_GLOW_RADIUS: 0.3,
     /** Peak glow alpha per layer */
@@ -790,17 +796,29 @@ const _rawConfig: GameConfigType = {
 
     // ── Pixel Territory ──
     /** Pixel territory alpha (0-1, lower = more transparent) */
-    PIXEL_ALPHA: 0.29,
+    PIXEL_ALPHA: 0.09,
     /** Downscale factor (1=full res/slow, 4=balanced, 8=fast/blocky) */
-    PIXEL_RESOLUTION: 8,
+    PIXEL_RESOLUTION: 3,
     /** Edge blend softness at territory boundaries (0=hard edges, 1-10=soft) */
-    PIXEL_EDGE_BLEND: 1,
+    PIXEL_EDGE_BLEND: 0,
     /** GPU blur strength (0=sharp pixel edges, 4+=smooth) */
-    PIXEL_BLUR: 3,
+    PIXEL_BLUR: 4,
     /** DEPRECATED — kept for compat */
     PIXEL_BLEND_POWER: 4,
     /** Same-owner distance discount for corridor guarantee (0=off, 0.3=natural, 0.6=strong) */
-    PIXEL_CORRIDOR_BOOST: 0.85,
+    PIXEL_CORRIDOR_BOOST: 0.9,
+    /** Hue rotation offset in degrees (0-360) */
+    PIXEL_HUE_SHIFT: 0,
+    /** Territory border thickness (0=off) */
+    PIXEL_BORDER_WIDTH: 1,
+    /** Border line alpha */
+    PIXEL_BORDER_ALPHA: 0.6,
+    /** How much to brighten border color (0-255) */
+    PIXEL_BORDER_BRIGHTEN: 80,
+    /** Pattern overlay on territory ('none' | 'stripes' | 'crosshatch' | 'dots') */
+    PIXEL_PATTERN: 'none' as const,
+    /** Pattern density (1=fine, 10=coarse) */
+    PIXEL_PATTERN_SCALE: 4,
 
     /** Show hex grid (debug) */
     SHOW_HEX_GRID: false,

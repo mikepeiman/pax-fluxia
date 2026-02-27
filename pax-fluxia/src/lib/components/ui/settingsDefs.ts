@@ -230,6 +230,12 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'pixelBlur', configKey: 'PIXEL_BLUR' },
     { panelKey: 'pixelBlendPower', configKey: 'PIXEL_BLEND_POWER' },
     { panelKey: 'pixelCorridorBoost', configKey: 'PIXEL_CORRIDOR_BOOST' },
+    { panelKey: 'pixelHueShift', configKey: 'PIXEL_HUE_SHIFT' },
+    { panelKey: 'pixelBorderWidth', configKey: 'PIXEL_BORDER_WIDTH' },
+    { panelKey: 'pixelBorderAlpha', configKey: 'PIXEL_BORDER_ALPHA' },
+    { panelKey: 'pixelBorderBrighten', configKey: 'PIXEL_BORDER_BRIGHTEN' },
+    { panelKey: 'pixelPattern', configKey: 'PIXEL_PATTERN' },
+    { panelKey: 'pixelPatternScale', configKey: 'PIXEL_PATTERN_SCALE' },
     // Metaball params
     { panelKey: 'metaballRadius', configKey: 'METABALL_INFLUENCE_RADIUS' },
     { panelKey: 'metaballFalloff', configKey: 'METABALL_FALLOFF' },

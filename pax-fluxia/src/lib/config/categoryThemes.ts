@@ -172,6 +172,12 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
         'PIXEL_BLUR',
         'PIXEL_BLEND_POWER',
         'PIXEL_CORRIDOR_BOOST',
+        'PIXEL_HUE_SHIFT',
+        'PIXEL_BORDER_WIDTH',
+        'PIXEL_BORDER_ALPHA',
+        'PIXEL_BORDER_BRIGHTEN',
+        'PIXEL_PATTERN',
+        'PIXEL_PATTERN_SCALE',
         'TERRITORY_MODE',
         // Star power / halos
         'SHOW_STAR_POWER',

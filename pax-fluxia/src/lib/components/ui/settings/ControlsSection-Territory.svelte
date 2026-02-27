@@ -380,6 +380,128 @@
             }}
         />
     </div>
+    <h4 class="sub-heading">🎨 Hue & Borders</h4>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Hue Shift</span><span class="val"
+                >{panel.pixelHueShift ?? 0}°</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="360"
+            step="5"
+            value={panel.pixelHueShift ?? 0}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.PIXEL_HUE_SHIFT = v;
+                updatePanel("pixelHueShift", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Border Width</span><span class="val"
+                >{panel.pixelBorderWidth ?? 1}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="4"
+            step="1"
+            value={panel.pixelBorderWidth ?? 1}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.PIXEL_BORDER_WIDTH = v;
+                updatePanel("pixelBorderWidth", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Border Alpha</span><span class="val"
+                >{(panel.pixelBorderAlpha ?? 0.6).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={panel.pixelBorderAlpha ?? 0.6}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.PIXEL_BORDER_ALPHA = v;
+                updatePanel("pixelBorderAlpha", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Border Brighten</span><span class="val"
+                >{panel.pixelBorderBrighten ?? 80}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="255"
+            step="5"
+            value={panel.pixelBorderBrighten ?? 80}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.PIXEL_BORDER_BRIGHTEN = v;
+                updatePanel("pixelBorderBrighten", v);
+            }}
+        />
+    </div>
+    <h4 class="sub-heading">🔲 Pattern</h4>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Pattern</span><span class="val"
+                >{panel.pixelPattern ?? "none"}</span
+            >
+        </div>
+        <select
+            class="mode-select"
+            value={panel.pixelPattern ?? "none"}
+            onchange={(e) => {
+                const v = (e.target as HTMLSelectElement).value as
+                    | "none"
+                    | "stripes"
+                    | "crosshatch"
+                    | "dots";
+                GAME_CONFIG.PIXEL_PATTERN = v;
+                updatePanel("pixelPattern", v);
+            }}
+        >
+            <option value="none">None</option>
+            <option value="stripes">Stripes</option>
+            <option value="crosshatch">Crosshatch</option>
+            <option value="dots">Dots</option>
+        </select>
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Pattern Scale</span><span class="val"
+                >{panel.pixelPatternScale ?? 4}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="1"
+            max="10"
+            step="1"
+            value={panel.pixelPatternScale ?? 4}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.PIXEL_PATTERN_SCALE = v;
+                updatePanel("pixelPatternScale", v);
+            }}
+        />
+    </div>
 {/if}
 
 {#if panel.territoryMetaball}
