@@ -24,6 +24,7 @@ let cachedTexture: PIXI.Texture | null = null;
 let cachedBlurFilter: PIXI.BlurFilter | null = null;
 let cachedBlurStrength = -1;
 let lastRenderTime = 0;
+let lastRenderDuration = 0;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -144,18 +145,18 @@ export function renderPixelTerritory(
         return;
     }
 
-    // ── THROTTLE: max one recompute per 500ms during gameplay ──
-    // At resolution=1 with faction influence, pixel computation is O(W*H*stars*owners)
-    // which can exceed 500M operations. Don't do that every 16ms frame.
+    // ── ADAPTIVE THROTTLE ──
+    // Wait at least 5× the last render duration before recomputing.
+    // At resolution=1 (~1.2s render), this means ~6s between recomputes.
+    // At resolution=4 (~50ms render), ~250ms. Prevents main thread blocking.
     const now = performance.now();
-    const THROTTLE_MS = 500;
-    if (cachedSprite && (now - lastRenderTime) < THROTTLE_MS) {
-        // Show stale cache while waiting for next recompute window
+    const minWait = Math.max(500, lastRenderDuration * 5);
+    if (cachedSprite && (now - lastRenderTime) < minWait) {
         cachedSprite.visible = true;
         applyBlur();
         return;
     }
-    lastRenderTime = now;
+    const renderStart = performance.now();
 
     cachedFingerprint = fingerprint;
 
@@ -415,6 +416,10 @@ export function renderPixelTerritory(
     cachedSprite.visible = true;
 
     applyBlur();
+
+    // Record render duration for adaptive throttle
+    lastRenderDuration = performance.now() - renderStart;
+    lastRenderTime = performance.now();
 }
 
 // ── Blur ───────────────────────────────────────────────────────────────────
