@@ -6,6 +6,7 @@
         extractTheme,
         saveTheme,
         loadThemes,
+        deleteTheme,
         exportThemeJSON,
         type GameTheme,
     } from "$lib/config/themes";
@@ -847,14 +848,43 @@
     }
 
     function handleDeleteFullTheme(name: string) {
-        userThemes = userThemes.filter((t) => t.name !== name);
-        if (typeof window !== "undefined") {
-            localStorage.setItem(
-                "pax-fluxia-themes",
-                JSON.stringify(userThemes),
-            );
-        }
+        deleteTheme(name);
+        userThemes = loadThemes();
         if (selectedThemeName === name) selectedThemeName = "";
+    }
+
+    function handleImportTheme() {
+        const input = document.createElement("input");
+        input.type = "file";
+        input.accept = ".json";
+        input.onchange = async () => {
+            const file = input.files?.[0];
+            if (!file) return;
+            try {
+                const text = await file.text();
+                const theme = JSON.parse(text) as GameTheme;
+                if (
+                    !theme.name ||
+                    !theme.values ||
+                    typeof theme.values !== "object"
+                ) {
+                    configStatus = "❌ Invalid theme file";
+                    configStatusColor = "#f87171";
+                    return;
+                }
+                saveTheme(theme);
+                applyTheme(theme);
+                userThemes = loadThemes();
+                selectedThemeName = theme.name;
+                syncAllFromConfig();
+                configStatus = `✅ Theme "${theme.name}" imported`;
+                configStatusColor = "#4ade80";
+            } catch {
+                configStatus = "❌ Failed to parse theme file";
+                configStatusColor = "#f87171";
+            }
+        };
+        input.click();
     }
 
     // =========================================================================
@@ -1126,6 +1156,22 @@
                 {/each}
             </div>
         {/if}
+        <div class="full-io-row">
+            <button
+                class="full-io-btn"
+                onclick={handleExportTheme}
+                title="Export selected theme as JSON"
+            >
+                📤 Export
+            </button>
+            <button
+                class="full-io-btn"
+                onclick={handleImportTheme}
+                title="Import theme from JSON file"
+            >
+                📥 Import
+            </button>
+        </div>
     </div>
 
     <!-- Icon Toolbar -->
@@ -1899,5 +1945,27 @@
     .full-chip-delete:hover {
         opacity: 1;
         color: #ff5555;
+    }
+    .full-io-row {
+        display: flex;
+        gap: 6px;
+        width: 100%;
+        margin-top: 4px;
+    }
+    .full-io-btn {
+        flex: 1;
+        padding: 3px 8px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.04);
+        color: #aaa;
+        font-size: 11px;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+    .full-io-btn:hover {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: rgba(255, 255, 255, 0.2);
+        color: #fff;
     }
 </style>
