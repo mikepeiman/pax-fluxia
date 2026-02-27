@@ -23,6 +23,7 @@ let cachedSprite: PIXI.Sprite | null = null;
 let cachedTexture: PIXI.Texture | null = null;
 let cachedBlurFilter: PIXI.BlurFilter | null = null;
 let cachedBlurStrength = -1;
+let lastRenderTime = 0;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -142,6 +143,19 @@ export function renderPixelTerritory(
         applyBlur();
         return;
     }
+
+    // ── THROTTLE: max one recompute per 500ms during gameplay ──
+    // At resolution=1 with faction influence, pixel computation is O(W*H*stars*owners)
+    // which can exceed 500M operations. Don't do that every 16ms frame.
+    const now = performance.now();
+    const THROTTLE_MS = 500;
+    if (cachedSprite && (now - lastRenderTime) < THROTTLE_MS) {
+        // Show stale cache while waiting for next recompute window
+        cachedSprite.visible = true;
+        applyBlur();
+        return;
+    }
+    lastRenderTime = now;
 
     cachedFingerprint = fingerprint;
 
