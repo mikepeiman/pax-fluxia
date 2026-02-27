@@ -287,6 +287,7 @@ interface GameConfigType {
     PIXEL_BORDER_BRIGHTEN: number;   // How much to brighten border color (0-255, default 80)
     PIXEL_PATTERN: 'none' | 'stripes' | 'crosshatch' | 'dots';  // Pattern overlay on territory fill
     PIXEL_PATTERN_SCALE: number;     // Pattern size/density (1=fine, 10=coarse, default 4)
+    PIXEL_PATTERN_ROTATION: number;  // Per-player pattern rotation (0=off, 1=golden angle, 0-1=blend)
 
     SHOW_HEX_GRID: boolean;
     STARS_PER_PLAYER: number;
@@ -819,6 +820,8 @@ const _rawConfig: GameConfigType = {
     PIXEL_PATTERN: 'stripes' as const,
     /** Pattern density (1=fine, 10=coarse) */
     PIXEL_PATTERN_SCALE: 12,
+    /** Per-player pattern rotation amount (0=same for all, 1=max golden angle separation) */
+    PIXEL_PATTERN_ROTATION: 1,
 
     /** Show hex grid (debug) */
     SHOW_HEX_GRID: false,

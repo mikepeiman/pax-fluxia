@@ -40,7 +40,7 @@ function buildFingerprint(stars: StarState[]): string {
     fp += `:${GAME_CONFIG.VORONOI_SATURATION}:${GAME_CONFIG.VORONOI_LIGHTNESS}`;
     fp += `:${GAME_CONFIG.PIXEL_HUE_SHIFT}:${GAME_CONFIG.PIXEL_BORDER_WIDTH}`;
     fp += `:${GAME_CONFIG.PIXEL_BORDER_ALPHA}:${GAME_CONFIG.PIXEL_BORDER_BRIGHTEN}`;
-    fp += `:${GAME_CONFIG.PIXEL_PATTERN}:${GAME_CONFIG.PIXEL_PATTERN_SCALE}`;
+    fp += `:${GAME_CONFIG.PIXEL_PATTERN}:${GAME_CONFIG.PIXEL_PATTERN_SCALE}:${GAME_CONFIG.PIXEL_PATTERN_ROTATION}`;
     return fp;
 }
 
@@ -238,10 +238,11 @@ export function renderPixelTerritory(
     }
 
     // Pre-compute per-owner pattern rotation (golden angle for max separation)
+    const patternRotation = GAME_CONFIG.PIXEL_PATTERN_ROTATION ?? 1;
     const ownerCos = new Float64Array(owners.length);
     const ownerSin = new Float64Array(owners.length);
     for (let oi = 0; oi < owners.length; oi++) {
-        const angle = (oi * 137.508 * Math.PI) / 180; // golden angle in radians
+        const angle = (oi * 137.508 * patternRotation * Math.PI) / 180;
         ownerCos[oi] = Math.cos(angle);
         ownerSin[oi] = Math.sin(angle);
     }

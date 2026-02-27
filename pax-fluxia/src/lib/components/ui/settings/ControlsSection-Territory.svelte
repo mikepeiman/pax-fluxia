@@ -505,6 +505,26 @@
             }}
         />
     </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Pattern Rotation</span><span class="val"
+                >{(panel.pixelPatternRotation ?? 1).toFixed(1)}
+                {(panel.pixelPatternRotation ?? 1) === 0 ? "(off)" : ""}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.1"
+            value={panel.pixelPatternRotation ?? 1}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.PIXEL_PATTERN_ROTATION = v;
+                updatePanel("pixelPatternRotation", v);
+            }}
+        />
+    </div>
 {/if}
 
 {#if panel.territoryMetaball}
