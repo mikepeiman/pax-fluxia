@@ -480,6 +480,72 @@
     />
 </div>
 
+<!-- ── Star Shape ── -->
+<h4 class="sub-heading">Star Shape</h4>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Shape Mode</span>
+        <div style="display: flex; gap: 4px;">
+            <button
+                class="mode-btn"
+                class:active={panel.starShapeMode === "polygon"}
+                onclick={() => {
+                    GAME_CONFIG.STAR_SHAPE_MODE = "polygon";
+                    updatePanel("starShapeMode", "polygon");
+                }}>Polygon</button
+            >
+            <button
+                class="mode-btn"
+                class:active={panel.starShapeMode === "circle"}
+                onclick={() => {
+                    GAME_CONFIG.STAR_SHAPE_MODE = "circle";
+                    updatePanel("starShapeMode", "circle");
+                }}>Circle</button
+            >
+        </div>
+    </div>
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Icon Scale</span><span class="val"
+            >{((panel.starIconScale ?? 0.55) as number).toFixed(2)}</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0.2"
+        max="0.8"
+        step="0.05"
+        value={panel.starIconScale ?? 0.55}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.STAR_ICON_SCALE = v;
+            updatePanel("starIconScale", v);
+        }}
+    />
+</div>
+{#if panel.starShapeMode === "polygon"}
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Corner Radius</span><span class="val"
+                >{((panel.starCornerRadius ?? 0.3) as number).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={panel.starCornerRadius ?? 0.3}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.STAR_CORNER_RADIUS = v;
+                updatePanel("starCornerRadius", v);
+            }}
+        />
+    </div>
+{/if}
+
 <!-- ── Density Coloring ── -->
 <h4 class="sub-heading">Density Coloring</h4>
 {#each densityVariables as v}

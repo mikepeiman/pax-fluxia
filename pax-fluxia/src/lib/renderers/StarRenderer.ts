@@ -35,6 +35,82 @@ const TYPE_SIDES: Record<string, number> = {
     grey: 0,
 };
 
+// ── Polygon Geometry Helpers ────────────────────────────────────────────────
+
+/**
+ * Generate vertices for a regular polygon centered at (cx, cy).
+ * Returns array of [x, y] pairs.
+ */
+function regularPolygonVertices(
+    cx: number, cy: number, radius: number, sides: number,
+): [number, number][] {
+    const verts: [number, number][] = [];
+    const startAngle = -Math.PI / 2; // top-aligned
+    for (let i = 0; i < sides; i++) {
+        const angle = startAngle + (2 * Math.PI / sides) * i;
+        verts.push([cx + radius * Math.cos(angle), cy + radius * Math.sin(angle)]);
+    }
+    return verts;
+}
+
+/**
+ * Apply Chaikin corner-cutting to smooth polygon vertices.
+ * Each iteration replaces each edge with two points at 25%/75% along it.
+ * `roundness` (0-1) controls how much to cut: 0=no smoothing, 1=full Chaikin.
+ */
+function chaikinSmooth(
+    verts: [number, number][], iterations: number, roundness: number,
+): [number, number][] {
+    if (iterations <= 0 || roundness <= 0) return verts;
+    const cutRatio = 0.25 * roundness;
+    let result = verts;
+    for (let iter = 0; iter < iterations; iter++) {
+        const smoothed: [number, number][] = [];
+        for (let i = 0; i < result.length; i++) {
+            const curr = result[i];
+            const next = result[(i + 1) % result.length];
+            smoothed.push([
+                curr[0] + (next[0] - curr[0]) * cutRatio,
+                curr[1] + (next[1] - curr[1]) * cutRatio,
+            ]);
+            smoothed.push([
+                curr[0] + (next[0] - curr[0]) * (1 - cutRatio),
+                curr[1] + (next[1] - curr[1]) * (1 - cutRatio),
+            ]);
+        }
+        result = smoothed;
+    }
+    return result;
+}
+
+/**
+ * Draw a filled+stroked rounded polygon (or circle if sides=0).
+ */
+function drawShapePath(
+    g: PIXI.Graphics,
+    cx: number, cy: number, radius: number,
+    sides: number, cornerRadius: number,
+    fill: { color: number; alpha: number },
+    stroke?: { color: number; width: number; alpha: number },
+): void {
+    if (sides === 0 || sides > 20) {
+        // Circle fallback
+        g.circle(cx, cy, radius);
+        g.fill(fill);
+        if (stroke) g.stroke(stroke);
+        return;
+    }
+    const raw = regularPolygonVertices(cx, cy, radius, sides);
+    const smoothed = chaikinSmooth(raw, 2, cornerRadius);
+    g.moveTo(smoothed[0][0], smoothed[0][1]);
+    for (let i = 1; i < smoothed.length; i++) {
+        g.lineTo(smoothed[i][0], smoothed[i][1]);
+    }
+    g.closePath();
+    g.fill(fill);
+    if (stroke) g.stroke(stroke);
+}
+
 // ── State Caches (managed by StarRenderer) ──────────────────────────────────
 
 export interface StarRenderCaches {
@@ -114,25 +190,47 @@ export function renderStars(
 
 
 
+        // Determine shape properties
+        const sides = TYPE_SIDES[star.starType] ?? 0;
+        const usePolygon = GAME_CONFIG.STAR_SHAPE_MODE === 'polygon' && sides > 0;
+        const cornerRadius = GAME_CONFIG.STAR_CORNER_RADIUS ?? 0.3;
+
         // Outer glow ring (pulses slightly, stronger when active)
         const starFxTime = state.gameNowMs / 1000;
         const glowPulse = 1 + Math.sin(starFxTime * 2) * 0.1;
         const glowAlpha = isActive ? 0.25 : 0.12;
-        graphics.circle(star.x, star.y, (radius + 8) * glowPulse);
-        graphics.fill({ color, alpha: glowAlpha });
+        const glowRadius = (radius + 8) * glowPulse;
+        if (usePolygon) {
+            drawShapePath(graphics, star.x, star.y, glowRadius, sides, cornerRadius,
+                { color, alpha: glowAlpha });
+        } else {
+            graphics.circle(star.x, star.y, glowRadius);
+            graphics.fill({ color, alpha: glowAlpha });
+        }
 
         // Main star body — base color from StarType
         const typeStats = STAR_TYPE_STATS[star.starType as StarType];
         const typeColor = typeStats ? typeStats.color : 0xffffff;
 
-        graphics.circle(star.x, star.y, radius);
-        graphics.fill({ color: typeColor, alpha: 0.3 });
-        graphics.stroke({ color: isActive ? 0xffffff : color, width: isActive ? 4 : 2, alpha: 1 });
+        if (usePolygon) {
+            drawShapePath(graphics, star.x, star.y, radius, sides, cornerRadius,
+                { color: typeColor, alpha: 0.3 },
+                { color: isActive ? 0xffffff : color, width: isActive ? 4 : 2, alpha: 1 });
+        } else {
+            graphics.circle(star.x, star.y, radius);
+            graphics.fill({ color: typeColor, alpha: 0.3 });
+            graphics.stroke({ color: isActive ? 0xffffff : color, width: isActive ? 4 : 2, alpha: 1 });
+        }
 
         // Active star white fill overlay
         if (isActive) {
-            graphics.circle(star.x, star.y, radius);
-            graphics.fill({ color: 0xffffff, alpha: 0.3 });
+            if (usePolygon) {
+                drawShapePath(graphics, star.x, star.y, radius, sides, cornerRadius,
+                    { color: 0xffffff, alpha: 0.3 });
+            } else {
+                graphics.circle(star.x, star.y, radius);
+                graphics.fill({ color: 0xffffff, alpha: 0.3 });
+            }
         }
 
         // Conquest flash: bright white pulse overlay
@@ -145,15 +243,26 @@ export function renderStars(
             } else {
                 const flashProgress = flashElapsed / flash.duration;
                 const flashAlpha = Math.sin(flashProgress * Math.PI);
-                graphics.circle(star.x, star.y, radius * 1.3);
-                graphics.fill({ color: 0xffffff, alpha: flashAlpha * 0.85 });
+                if (usePolygon) {
+                    drawShapePath(graphics, star.x, star.y, radius * 1.3, sides, cornerRadius,
+                        { color: 0xffffff, alpha: flashAlpha * 0.85 });
+                } else {
+                    graphics.circle(star.x, star.y, radius * 1.3);
+                    graphics.fill({ color: 0xffffff, alpha: flashAlpha * 0.85 });
+                }
             }
         }
 
-        // Inner type icon (geometric shape)
+        // Inner corona glow — soft type-colored radial behind the icon
+        const coronaRadius = radius * 0.65;
+        graphics.circle(star.x, star.y, coronaRadius);
+        graphics.fill({ color: typeColor, alpha: 0.15 });
+
+        // Inner type icon (geometric shape) — larger and more visible
         const iconTime = state.gameNowMs / 1000;
-        const iconAlpha = 0.5 + Math.sin(iconTime * 3) * 0.1;
-        const iconSize = radius * 0.35;
+        const iconAlpha = 0.6 + Math.sin(iconTime * 3) * 0.1;
+        const iconScale = GAME_CONFIG.STAR_ICON_SCALE ?? 0.55;
+        const iconSize = radius * iconScale;
         drawTypeIcon(graphics, star.x, star.y, iconSize, star.starType, iconAlpha, typeColor);
 
         // Get label elements

@@ -104,6 +104,9 @@ interface GameConfigType {
     // Visual
     SHIP_BASE_SIZE: number;
     STAR_RENDER_RADIUS: number;    // Visual radius of stars on canvas (default 20)
+    STAR_SHAPE_MODE: 'polygon' | 'circle';  // Star body shape: 'polygon' = type-specific shape, 'circle' = classic (default 'polygon')
+    STAR_ICON_SCALE: number;       // Type icon size as fraction of star radius (0.2-0.8, default 0.55)
+    STAR_CORNER_RADIUS: number;    // Polygon corner rounding (0=sharp, 1=fully round like circle, default 0.3)
     ORBIT_RING_MULT: number;       // Orbit ring spacing = SHIP_BASE_SIZE * ORBIT_RING_MULT (default 1.4)
     TRANSFER_ANIMATION_MS: number;
     STATIC_ORBITS: boolean;  // When true, ships don't rotate around stars (performance)
@@ -512,6 +515,13 @@ const _rawConfig: GameConfigType = {
 
     /** Visual radius of stars on canvas */
     STAR_RENDER_RADIUS: 25,
+
+    /** Star body shape: 'polygon' = type-specific shape, 'circle' = classic */
+    STAR_SHAPE_MODE: 'polygon' as 'polygon' | 'circle',
+    /** Type icon size as fraction of star radius */
+    STAR_ICON_SCALE: 0.55,
+    /** Polygon corner rounding (0=sharp, 1=fully round) */
+    STAR_CORNER_RADIUS: 0.3,
 
     /** Show hex selection border on active star (renders above ships) */
     SHOW_SELECTION_HEX: true,
