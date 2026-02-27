@@ -320,6 +320,27 @@
         // Size and position will be set in handleResize when GAME_WIDTH/HEIGHT are known
         (app as any)._nebulaBgSprite = bgSprite;
 
+        // Live background swap via settings panel
+        const handleBgChange = async (e: Event) => {
+            const img = (e as CustomEvent).detail as string;
+            const sprite = (app as any)?._nebulaBgSprite as
+                | PIXI.Sprite
+                | undefined;
+            if (!sprite) return;
+            if (!img) {
+                sprite.visible = false;
+                return;
+            }
+            try {
+                const tex = await PIXI.Assets.load(`/assets/${img}`);
+                sprite.texture = tex;
+                sprite.visible = true;
+            } catch {
+                sprite.visible = false;
+            }
+        };
+        window.addEventListener("pax-bg-change", handleBgChange);
+
         log.success(
             "GameCanvas",
             `PixiJS initialized (${app.screen.width}x${app.screen.height})`,
