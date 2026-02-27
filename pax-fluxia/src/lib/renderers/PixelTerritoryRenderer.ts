@@ -213,9 +213,16 @@ export function renderPixelTerritory(
 
     // Pre-compute per-owner RGB (first star of that owner — they share colors)
     const ownerRGB: Map<string, [number, number, number]> = new Map();
-    for (const owner of owners) {
+    // Map owner strings to numeric indices for the ownership grid
+    const ownerIndex: Map<string, number> = new Map();
+    for (let oi = 0; oi < owners.length; oi++) {
+        const owner = owners[oi];
         ownerRGB.set(owner, starData[starsByOwner.get(owner)![0]].rgb);
+        ownerIndex.set(owner, oi);
     }
+
+    // Ownership grid for border detection (owner index per pixel)
+    const ownerGrid = borderWidth > 0 ? new Uint8Array(canvasW * canvasH) : null;
 
     for (let py = 0; py < canvasH; py++) {
         for (let px = 0; px < canvasW; px++) {
@@ -289,12 +296,12 @@ export function renderPixelTerritory(
             const [r, g, b] = winnerRgb;
             let pixelAlpha = alpha;
 
-            // Optional edge blend: reduce alpha near territory boundaries
+            // Edge blend: fade alpha near ENEMY boundaries only
+            // (same-owner boundaries are invisible — no blend needed)
             if (edgeBlend > 0) {
-                // Find nearest enemy star distance
                 let secondMinDist = Infinity;
                 for (let i = 0; i < numStars; i++) {
-                    if (starData[i].ownerId === winnerOwner) continue;
+                    if (starData[i].ownerId === winnerOwner) continue; // skip friendly
                     const dx = px - starData[i].x;
                     const dy = py - starData[i].y;
                     const dist = dx * dx + dy * dy;
@@ -304,7 +311,7 @@ export function renderPixelTerritory(
                     const d1 = Math.sqrt(nearestDistSq);
                     const d2 = Math.sqrt(secondMinDist);
                     const edgeDist = (d2 - d1) / (d1 + d2 + 0.001);
-                    const blendFactor = Math.min(1, edgeDist / (edgeBlend * 0.1));
+                    const blendFactor = Math.min(1, edgeDist / (edgeBlend * 0.05));
                     pixelAlpha *= blendFactor;
                 }
             }
@@ -337,56 +344,35 @@ export function renderPixelTerritory(
             pixels[idx + 2] = b;
             pixels[idx + 3] = Math.round(pixelAlpha * 255);
 
-            // Store owner index for border detection pass
-            if (borderWidth > 0) {
-                // Re-use blue channel of a parallel array? No — use separate ownerGrid
+            // Store owner index for border detection
+            if (ownerGrid) {
+                ownerGrid[py * canvasW + px] = ownerIndex.get(winnerOwner)!;
             }
         }
     }
 
-    // ── Border detection pass ──
-    if (borderWidth > 0) {
-        // Build owner grid — determine owner per pixel by re-running the same logic
-        // but we already have the pixels. Instead, store owner IDs during main loop.
-        // We need to refactor — let's do a simpler approach: detect edges in the RGBA
-        // data by checking if neighboring pixels have different colors.
+    // ── Border detection pass (ownership-based, not RGB) ──
+    if (borderWidth > 0 && ownerGrid) {
         const bw = Math.max(1, Math.round(borderWidth));
         for (let py = bw; py < canvasH - bw; py++) {
             for (let px = bw; px < canvasW - bw; px++) {
-                const idx = (py * canvasW + px) * 4;
-                const cr = pixels[idx], cg = pixels[idx + 1], cb = pixels[idx + 2];
-                if (pixels[idx + 3] === 0) continue; // skip empty/transparent
+                const gridIdx = py * canvasW + px;
+                const myOwner = ownerGrid[gridIdx];
 
-                // Check neighbors for color difference (different owner = different color)
+                // Check neighbors for DIFFERENT owner
                 let isBorder = false;
                 for (let d = 1; d <= bw && !isBorder; d++) {
-                    // Right
-                    if (px + d < canvasW) {
-                        const ni = (py * canvasW + (px + d)) * 4;
-                        if (pixels[ni + 3] > 0 && (pixels[ni] !== cr || pixels[ni + 1] !== cg || pixels[ni + 2] !== cb)) isBorder = true;
-                    }
-                    // Down
-                    if (py + d < canvasH) {
-                        const ni = ((py + d) * canvasW + px) * 4;
-                        if (pixels[ni + 3] > 0 && (pixels[ni] !== cr || pixels[ni + 1] !== cg || pixels[ni + 2] !== cb)) isBorder = true;
-                    }
-                    // Left
-                    if (px - d >= 0) {
-                        const ni = (py * canvasW + (px - d)) * 4;
-                        if (pixels[ni + 3] > 0 && (pixels[ni] !== cr || pixels[ni + 1] !== cg || pixels[ni + 2] !== cb)) isBorder = true;
-                    }
-                    // Up
-                    if (py - d >= 0) {
-                        const ni = ((py - d) * canvasW + px) * 4;
-                        if (pixels[ni + 3] > 0 && (pixels[ni] !== cr || pixels[ni + 1] !== cg || pixels[ni + 2] !== cb)) isBorder = true;
-                    }
+                    if (px + d < canvasW && ownerGrid[gridIdx + d] !== myOwner) isBorder = true;
+                    if (px - d >= 0 && ownerGrid[gridIdx - d] !== myOwner) isBorder = true;
+                    if (py + d < canvasH && ownerGrid[gridIdx + d * canvasW] !== myOwner) isBorder = true;
+                    if (py - d >= 0 && ownerGrid[gridIdx - d * canvasW] !== myOwner) isBorder = true;
                 }
 
                 if (isBorder) {
-                    // Brighten the pixel for border effect
-                    pixels[idx] = Math.min(255, cr + borderBrighten);
-                    pixels[idx + 1] = Math.min(255, cg + borderBrighten);
-                    pixels[idx + 2] = Math.min(255, cb + borderBrighten);
+                    const idx = (py * canvasW + px) * 4;
+                    pixels[idx] = Math.min(255, pixels[idx] + borderBrighten);
+                    pixels[idx + 1] = Math.min(255, pixels[idx + 1] + borderBrighten);
+                    pixels[idx + 2] = Math.min(255, pixels[idx + 2] + borderBrighten);
                     pixels[idx + 3] = Math.round(borderAlpha * 255);
                 }
             }

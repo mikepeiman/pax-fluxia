@@ -317,14 +317,17 @@
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Edge Blend</span><span class="val"
-                >{panel.pixelEdgeBlend ?? 0}</span
+                >{(panel.pixelEdgeBlend ?? 0).toFixed(1)}
+                {(panel.pixelEdgeBlend ?? 0) === 0
+                    ? "(off)"
+                    : "(enemy only)"}</span
             >
         </div>
         <input
             type="range"
             min="0"
-            max="10"
-            step="1"
+            max="20"
+            step="0.5"
             value={panel.pixelEdgeBlend ?? 0}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;

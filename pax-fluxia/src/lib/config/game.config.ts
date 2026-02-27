@@ -800,9 +800,9 @@ const _rawConfig: GameConfigType = {
     /** Downscale factor (1=full res/slow, 4=balanced, 8=fast/blocky) */
     PIXEL_RESOLUTION: 3,
     /** Edge blend softness at territory boundaries (0=hard edges, 1-10=soft) */
-    PIXEL_EDGE_BLEND: 0,
+    PIXEL_EDGE_BLEND: 2,
     /** GPU blur strength (0=sharp pixel edges, 4+=smooth) */
-    PIXEL_BLUR: 4,
+    PIXEL_BLUR: 0,
     /** DEPRECATED — kept for compat */
     PIXEL_BLEND_POWER: 4,
     /** Same-owner distance discount for corridor guarantee (0=off, 0.3=natural, 0.6=strong) */
@@ -810,15 +810,15 @@ const _rawConfig: GameConfigType = {
     /** Hue rotation offset in degrees (0-360) */
     PIXEL_HUE_SHIFT: 0,
     /** Territory border thickness (0=off) */
-    PIXEL_BORDER_WIDTH: 1,
+    PIXEL_BORDER_WIDTH: 0,
     /** Border line alpha */
-    PIXEL_BORDER_ALPHA: 0.6,
+    PIXEL_BORDER_ALPHA: 0.1,
     /** How much to brighten border color (0-255) */
-    PIXEL_BORDER_BRIGHTEN: 80,
+    PIXEL_BORDER_BRIGHTEN: 50,
     /** Pattern overlay on territory ('none' | 'stripes' | 'crosshatch' | 'dots') */
-    PIXEL_PATTERN: 'none' as const,
+    PIXEL_PATTERN: 'crosshatch' as const,
     /** Pattern density (1=fine, 10=coarse) */
-    PIXEL_PATTERN_SCALE: 4,
+    PIXEL_PATTERN_SCALE: 10,
 
     /** Show hex grid (debug) */
     SHOW_HEX_GRID: false,
