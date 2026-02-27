@@ -288,6 +288,7 @@ interface GameConfigType {
     PIXEL_PATTERN: 'none' | 'stripes' | 'crosshatch' | 'dots';  // Pattern overlay on territory fill
     PIXEL_PATTERN_SCALE: number;     // Pattern size/density (1=fine, 10=coarse, default 4)
     PIXEL_PATTERN_ROTATION: number;  // Per-player pattern rotation (0=off, 1=golden angle, 0-1=blend)
+    PIXEL_EDGE_FADE: number;         // Edge fade padding beyond gameboard in world pixels (0=off, 200=default)
 
     SHOW_HEX_GRID: boolean;
     STARS_PER_PLAYER: number;
@@ -822,6 +823,8 @@ const _rawConfig: GameConfigType = {
     PIXEL_PATTERN_SCALE: 12,
     /** Per-player pattern rotation amount (0=same for all, 1=max golden angle separation) */
     PIXEL_PATTERN_ROTATION: 1,
+    /** Edge fade: how far past the gameboard edges territory extends (px, 0=off) */
+    PIXEL_EDGE_FADE: 200,
 
     /** Show hex grid (debug) */
     SHOW_HEX_GRID: false,

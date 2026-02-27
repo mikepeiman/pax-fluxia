@@ -237,6 +237,7 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'pixelPattern', configKey: 'PIXEL_PATTERN' },
     { panelKey: 'pixelPatternScale', configKey: 'PIXEL_PATTERN_SCALE' },
     { panelKey: 'pixelPatternRotation', configKey: 'PIXEL_PATTERN_ROTATION' },
+    { panelKey: 'pixelEdgeFade', configKey: 'PIXEL_EDGE_FADE' },
     // Metaball params
     { panelKey: 'metaballRadius', configKey: 'METABALL_INFLUENCE_RADIUS' },
     { panelKey: 'metaballFalloff', configKey: 'METABALL_FALLOFF' },

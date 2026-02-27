@@ -525,6 +525,25 @@
             }}
         />
     </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Edge Fade</span><span class="val"
+                >{panel.pixelEdgeFade ?? 200}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="500"
+            step="10"
+            value={panel.pixelEdgeFade ?? 200}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.PIXEL_EDGE_FADE = v;
+                updatePanel("pixelEdgeFade", v);
+            }}
+        />
+    </div>
 {/if}
 
 {#if panel.territoryMetaball}

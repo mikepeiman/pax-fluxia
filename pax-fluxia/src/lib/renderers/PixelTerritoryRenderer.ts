@@ -41,6 +41,7 @@ function buildFingerprint(stars: StarState[]): string {
     fp += `:${GAME_CONFIG.PIXEL_HUE_SHIFT}:${GAME_CONFIG.PIXEL_BORDER_WIDTH}`;
     fp += `:${GAME_CONFIG.PIXEL_BORDER_ALPHA}:${GAME_CONFIG.PIXEL_BORDER_BRIGHTEN}`;
     fp += `:${GAME_CONFIG.PIXEL_PATTERN}:${GAME_CONFIG.PIXEL_PATTERN_SCALE}:${GAME_CONFIG.PIXEL_PATTERN_ROTATION}`;
+    fp += `:${GAME_CONFIG.PIXEL_EDGE_FADE}`;
     return fp;
 }
 
@@ -169,8 +170,14 @@ export function renderPixelTerritory(
 
     // Config
     const resolution = GAME_CONFIG.PIXEL_RESOLUTION ?? 4;
-    const canvasW = Math.ceil(worldWidth / resolution);
-    const canvasH = Math.ceil(worldHeight / resolution);
+
+    // Edge fade: extend territory past the gameboard with gradual alpha fade
+    const edgeFadePx = GAME_CONFIG.PIXEL_EDGE_FADE ?? 200;
+    const padding = edgeFadePx; // world-space padding beyond gameboard
+    const totalW = worldWidth + padding * 2;
+    const totalH = worldHeight + padding * 2;
+    const canvasW = Math.ceil(totalW / resolution);
+    const canvasH = Math.ceil(totalH / resolution);
     const alpha = GAME_CONFIG.PIXEL_ALPHA ?? 0.15;
     const edgeBlend = GAME_CONFIG.PIXEL_EDGE_BLEND ?? 0;
     const corridorBoost = GAME_CONFIG.PIXEL_CORRIDOR_BOOST ?? 0;
@@ -184,6 +191,12 @@ export function renderPixelTerritory(
     const pattern = GAME_CONFIG.PIXEL_PATTERN ?? 'none';
     // Normalize to world-space so pattern looks the same at any resolution
     const patternScale = Math.max(1, Math.round((GAME_CONFIG.PIXEL_PATTERN_SCALE ?? 4) / resolution));
+    // Pre-compute gameboard bounds in canvas-space for edge fade
+    const boardLeft = padding / resolution;
+    const boardTop = padding / resolution;
+    const boardRight = (padding + worldWidth) / resolution;
+    const boardBottom = (padding + worldHeight) / resolution;
+    const fadeDistCanvas = padding / resolution; // fade distance in canvas pixels
 
     // Create offscreen canvas
     const canvas = document.createElement('canvas');
@@ -203,8 +216,8 @@ export function renderPixelTerritory(
             rgb = rawRgb;
         }
         return {
-            x: s.x / resolution,
-            y: s.y / resolution,
+            x: (s.x + padding) / resolution,
+            y: (s.y + padding) / resolution,
             rgb,
             ownerId: s.ownerId!,
         };
@@ -356,6 +369,16 @@ export function renderPixelTerritory(
                     for (let px = startX; px < endX; px++) {
                         let pa = alpha;
 
+                        // Edge fade: reduce alpha for pixels outside gameboard
+                        if (fadeDistCanvas > 0) {
+                            let fadeMult = 1.0;
+                            if (px < boardLeft) fadeMult = Math.min(fadeMult, px / fadeDistCanvas);
+                            else if (px > boardRight) fadeMult = Math.min(fadeMult, (canvasW - px) / fadeDistCanvas);
+                            if (py < boardTop) fadeMult = Math.min(fadeMult, py / fadeDistCanvas);
+                            else if (py > boardBottom) fadeMult = Math.min(fadeMult, (canvasH - py) / fadeDistCanvas);
+                            pa *= Math.max(0, fadeMult);
+                        }
+
                         // Pattern modulation with per-owner rotation
                         if (pattern !== 'none') {
                             const ps = patternScale;
@@ -433,6 +456,16 @@ export function renderPixelTerritory(
 
                         const [r, g, b] = winnerRgb;
                         let pixelAlpha = alpha;
+
+                        // Edge fade: reduce alpha for pixels outside gameboard
+                        if (fadeDistCanvas > 0) {
+                            let fadeMult = 1.0;
+                            if (px < boardLeft) fadeMult = Math.min(fadeMult, px / fadeDistCanvas);
+                            else if (px > boardRight) fadeMult = Math.min(fadeMult, (canvasW - px) / fadeDistCanvas);
+                            if (py < boardTop) fadeMult = Math.min(fadeMult, py / fadeDistCanvas);
+                            else if (py > boardBottom) fadeMult = Math.min(fadeMult, (canvasH - py) / fadeDistCanvas);
+                            pixelAlpha *= Math.max(0, fadeMult);
+                        }
 
                         // Edge blend (only at boundaries, only between enemies)
                         if (edgeBlend > 0) {
@@ -525,8 +558,10 @@ export function renderPixelTerritory(
         if (!cachedSprite.parent) container.addChild(cachedSprite);
     }
 
-    cachedSprite.width = worldWidth;
-    cachedSprite.height = worldHeight;
+    cachedSprite.width = totalW;
+    cachedSprite.height = totalH;
+    cachedSprite.x = -padding;
+    cachedSprite.y = -padding;
     cachedSprite.visible = true;
 
     applyBlur();
