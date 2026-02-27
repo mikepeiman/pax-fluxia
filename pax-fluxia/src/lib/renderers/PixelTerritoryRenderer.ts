@@ -181,7 +181,8 @@ export function renderPixelTerritory(
     const borderAlpha = GAME_CONFIG.PIXEL_BORDER_ALPHA ?? 0.6;
     const borderBrighten = GAME_CONFIG.PIXEL_BORDER_BRIGHTEN ?? 80;
     const pattern = GAME_CONFIG.PIXEL_PATTERN ?? 'none';
-    const patternScale = GAME_CONFIG.PIXEL_PATTERN_SCALE ?? 4;
+    // Normalize to world-space so pattern looks the same at any resolution
+    const patternScale = Math.max(1, Math.round((GAME_CONFIG.PIXEL_PATTERN_SCALE ?? 4) / resolution));
 
     // Create offscreen canvas
     const canvas = document.createElement('canvas');

@@ -495,7 +495,7 @@
         <input
             type="range"
             min="1"
-            max="10"
+            max="50"
             step="1"
             value={panel.pixelPatternScale ?? 4}
             oninput={(e) => {
