@@ -14,7 +14,7 @@
 
 import * as PIXI from 'pixi.js';
 import { GAME_CONFIG } from '$lib/config/game.config';
-import type { StarState } from '$lib/types/game.types';
+import type { StarState, StarConnection } from '$lib/types/game.types';
 import type { ColorUtils } from './RenderContext';
 import PixelWorker from './pixelTerritory.worker?worker';
 
@@ -157,6 +157,7 @@ export function renderPixelTerritory(
     colorUtils: ColorUtils,
     worldWidth: number,
     worldHeight: number,
+    connections?: StarConnection[],
 ): void {
     if (!GAME_CONFIG.TERRITORY_PIXEL) {
         if (cachedSprite) cachedSprite.visible = false;
@@ -260,6 +261,32 @@ export function renderPixelTerritory(
     pendingPadding = padding;
     workerBusy = true;
 
+    // Build corridor segments for same-owner connected pairs
+    const corridorBoost = GAME_CONFIG.PIXEL_CORRIDOR_BOOST ?? 0;
+    const corridorSegs: { x1: number; y1: number; x2: number; y2: number; ownerIdx: number; halfW: number }[] = [];
+    if (corridorBoost > 0 && connections) {
+        // Build star lookup by id
+        const starById = new Map<string, StarState>();
+        for (const s of ownedStars) starById.set(s.id, s);
+        for (const conn of connections) {
+            const a = starById.get(conn.sourceId);
+            const b = starById.get(conn.targetId);
+            if (!a || !b || !a.ownerId || !b.ownerId) continue;
+            if (a.ownerId !== b.ownerId) continue;
+            const oi = ownerIndexMap.get(a.ownerId);
+            if (oi === undefined) continue;
+            // Canvas coordinates
+            const x1 = (a.x + padding) / resolution;
+            const y1 = (a.y + padding) / resolution;
+            const x2 = (b.x + padding) / resolution;
+            const y2 = (b.y + padding) / resolution;
+            // Capsule half-width: proportional to link distance, scaled by corridorBoost
+            const linkDist = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+            const halfW = Math.max(2, Math.min(30 / resolution, linkDist * 0.12 * corridorBoost));
+            corridorSegs.push({ x1, y1, x2, y2, ownerIdx: oi, halfW });
+        }
+    }
+
     // Dispatch to worker
     worker.postMessage({
         canvasW,
@@ -269,7 +296,8 @@ export function renderPixelTerritory(
         ownerRGB: ownerRGBFlat,
         alpha: GAME_CONFIG.PIXEL_ALPHA ?? 0.15,
         edgeBlend: GAME_CONFIG.PIXEL_EDGE_BLEND ?? 0,
-        corridorBoost: GAME_CONFIG.PIXEL_CORRIDOR_BOOST ?? 0,
+        corridorBoost,
+        corridorSegs,
         borderWidth: GAME_CONFIG.PIXEL_BORDER_WIDTH ?? 0,
         borderAlpha: GAME_CONFIG.PIXEL_BORDER_ALPHA ?? 0.6,
         borderBrighten: GAME_CONFIG.PIXEL_BORDER_BRIGHTEN ?? 80,

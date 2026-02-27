@@ -15,6 +15,13 @@ interface StarData {
     ownerIdx: number;
 }
 
+interface CorridorSeg {
+    x1: number; y1: number;
+    x2: number; y2: number;
+    ownerIdx: number;
+    halfW: number; // capsule half-width in canvas pixels
+}
+
 interface WorkerInput {
     canvasW: number;
     canvasH: number;
@@ -24,6 +31,7 @@ interface WorkerInput {
     alpha: number;
     edgeBlend: number;
     corridorBoost: number;
+    corridorSegs: CorridorSeg[];
     borderWidth: number;
     borderAlpha: number;
     borderBrighten: number;
@@ -41,11 +49,36 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
     const d = e.data;
     const {
         canvasW, canvasH, stars, numOwners, ownerRGB,
-        alpha, edgeBlend, corridorBoost,
+        alpha, edgeBlend, corridorBoost, corridorSegs,
         borderWidth, borderAlpha, borderBrighten,
         pattern, patternScale, patternRotation,
         boardLeft, boardTop, boardRight, boardBottom, fadeDistCanvas,
     } = d;
+
+    // ── Point-to-line-segment squared distance ──
+    function segDistSq(px: number, py: number, seg: CorridorSeg): number {
+        const dx = seg.x2 - seg.x1;
+        const dy = seg.y2 - seg.y1;
+        const lenSq = dx * dx + dy * dy;
+        if (lenSq < 1) return (px - seg.x1) ** 2 + (py - seg.y1) ** 2;
+        let t = ((px - seg.x1) * dx + (py - seg.y1) * dy) / lenSq;
+        if (t < 0) t = 0; else if (t > 1) t = 1;
+        const cx = seg.x1 + t * dx;
+        const cy = seg.y1 + t * dy;
+        return (px - cx) ** 2 + (py - cy) ** 2;
+    }
+
+    // ── Corridor capsule ownership check ──
+    // Returns ownerIdx if point is inside any corridor capsule, -1 otherwise
+    function corridorOwner(px: number, py: number): number {
+        for (let i = 0; i < corridorSegs.length; i++) {
+            const seg = corridorSegs[i];
+            if (segDistSq(px, py, seg) <= seg.halfW * seg.halfW) {
+                return seg.ownerIdx;
+            }
+        }
+        return -1;
+    }
 
     const numStars = stars.length;
     const pixels = new Uint8ClampedArray(canvasW * canvasH * 4);
@@ -84,7 +117,11 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
             const tIdx = ty * tilesW + tx;
             let winnerOi = 0;
 
-            if (corridorBoost > 0 && numOwners > 1) {
+            // Check capsule corridors first (guaranteed connectivity)
+            const cOwner = corridorSegs.length > 0 ? corridorOwner(centerX, centerY) : -1;
+            if (cOwner >= 0) {
+                winnerOi = cOwner;
+            } else if (corridorBoost > 0 && numOwners > 1) {
                 let bestInfluence = -1;
                 for (let oi = 0; oi < numOwners; oi++) {
                     const indices = starsByOwner[oi];
@@ -198,7 +235,19 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
                         let winnerOi = 0;
                         let nearestDistSq = Infinity;
 
-                        if (corridorBoost > 0 && numOwners > 1) {
+                        // Check capsule corridors first
+                        const cOwner = corridorSegs.length > 0 ? corridorOwner(px, py) : -1;
+                        if (cOwner >= 0) {
+                            winnerOi = cOwner;
+                            // Still need nearestDistSq for edge blend
+                            for (let i = 0; i < numStars; i++) {
+                                if (stars[i].ownerIdx !== cOwner) continue;
+                                const ddx = px - stars[i].x;
+                                const ddy = py - stars[i].y;
+                                const d = ddx * ddx + ddy * ddy;
+                                if (d < nearestDistSq) nearestDistSq = d;
+                            }
+                        } else if (corridorBoost > 0 && numOwners > 1) {
                             let bestInfluence = -1;
                             let bestNearestDistSq = Infinity;
                             for (let oi = 0; oi < numOwners; oi++) {
