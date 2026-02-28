@@ -166,6 +166,42 @@
     let panStartOffsetX = 0;
     let panStartOffsetY = 0;
 
+    // Multi-touch gesture state
+    const activePointers = new Map<number, { x: number; y: number }>();
+    let isPinching = false;
+    let pinchStartDist = 0;
+    let pinchStartZoom = 1;
+    let pinchCenterX = 0;
+    let pinchCenterY = 0;
+
+    // Long-press and double-tap state
+    let longPressTimer: ReturnType<typeof setTimeout> | null = null;
+    let lastTapTime = 0;
+    let lastTapStarId: string | null = null;
+    const LONG_PRESS_MS = 500;
+    const DOUBLE_TAP_MS = 300;
+
+    function clearLongPress() {
+        if (longPressTimer) {
+            clearTimeout(longPressTimer);
+            longPressTimer = null;
+        }
+    }
+
+    function getPinchDist(): number {
+        const pts = Array.from(activePointers.values());
+        if (pts.length < 2) return 0;
+        const dx = pts[1].x - pts[0].x;
+        const dy = pts[1].y - pts[0].y;
+        return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    function getPinchCenter(): { x: number; y: number } {
+        const pts = Array.from(activePointers.values());
+        if (pts.length < 2) return { x: 0, y: 0 };
+        return { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
+    }
+
     // Input state
     let isDragging = false;
     let dragSourceId: string | null = null;
@@ -1000,15 +1036,60 @@
     function handlePointerDown(event: PointerEvent) {
         if (!app) return;
         log.input(
-            `▼ pointerDown btn=${event.button} @(${event.clientX},${event.clientY})`,
+            `▼ pointerDown btn=${event.button} @(${event.clientX},${event.clientY}) ptrType=${event.pointerType}`,
         );
+
+        // Track active pointers for multi-touch
+        activePointers.set(event.pointerId, {
+            x: event.clientX,
+            y: event.clientY,
+        });
+
+        // 2+ fingers → start pinch zoom / pan, suppress single-touch actions
+        if (activePointers.size >= 2) {
+            clearLongPress();
+            cancelDrag();
+            isPinching = true;
+            pinchStartDist = getPinchDist();
+            pinchStartZoom = zoomLevel;
+            const center = getPinchCenter();
+            const rect = canvasContainer.getBoundingClientRect();
+            pinchCenterX = center.x - rect.left;
+            pinchCenterY = center.y - rect.top;
+            panStartScreenX = center.x;
+            panStartScreenY = center.y;
+            panStartOffsetX = panOffsetX;
+            panStartOffsetY = panOffsetY;
+            return;
+        }
+
+        // Single-touch: start long-press timer
+        if (event.pointerType === "touch") {
+            clearLongPress();
+            const startX = event.clientX;
+            const startY = event.clientY;
+            longPressTimer = setTimeout(() => {
+                longPressTimer = null;
+                // Long-press: show star info
+                const rect = canvasContainer.getBoundingClientRect();
+                const star = hitTestStar(startX - rect.left, startY - rect.top);
+                if (star) {
+                    selectedStarStore.select(star.id);
+                    // Dispatch star-info-toggle event for the info panel
+                    window.dispatchEvent(
+                        new CustomEvent("star-info-toggle", { detail: true }),
+                    );
+                }
+                cancelDrag(); // prevent drag after long-press
+            }, LONG_PRESS_MS);
+        }
 
         const rect = canvasContainer.getBoundingClientRect();
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
 
         // Middle-click or Space+click: start pan
-        if (event.button === 1) {
+        if (event.button === 1 || (isSpaceHeld && event.button === 0)) {
             event.preventDefault();
             isPanning = true;
             panStartScreenX = event.clientX;
@@ -1079,6 +1160,50 @@
     let lastEnemyPassthrough: StarId | null = null;
 
     function handlePointerMove(event: PointerEvent) {
+        // Update pointer tracking
+        if (activePointers.has(event.pointerId)) {
+            activePointers.set(event.pointerId, {
+                x: event.clientX,
+                y: event.clientY,
+            });
+        }
+
+        // Pinch zoom + 2-finger pan
+        if (isPinching && activePointers.size >= 2) {
+            clearLongPress();
+            const dist = getPinchDist();
+            if (pinchStartDist > 0) {
+                const scale = dist / pinchStartDist;
+                const oldZoom = zoomLevel;
+                zoomLevel = Math.max(
+                    ZOOM_MIN,
+                    Math.min(ZOOM_MAX, pinchStartZoom * scale),
+                );
+
+                // Also pan: track center movement
+                const center = getPinchCenter();
+                const effectiveScale = baseScale * zoomLevel;
+                const dx = center.x - panStartScreenX;
+                const dy = center.y - panStartScreenY;
+                panOffsetX = panStartOffsetX - dx / effectiveScale;
+                panOffsetY = panStartOffsetY - dy / effectiveScale;
+
+                applyZoomTransform();
+            }
+            return;
+        }
+
+        // Cancel long-press if finger moved too far
+        if (longPressTimer && event.pointerType === "touch") {
+            const p = activePointers.get(event.pointerId);
+            // We already updated p above, so check distance from original down
+            const dx = event.clientX - dragStartX;
+            const dy = event.clientY - dragStartY;
+            if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+                clearLongPress();
+            }
+        }
+
         // Pan mode: update pan offset based on mouse delta
         if (isPanning) {
             const effectiveScale = baseScale * zoomLevel;
@@ -1193,6 +1318,49 @@
         log.input(
             `▲ pointerUp btn=${event.button} @(${event.clientX},${event.clientY})`,
         );
+
+        // Remove from active pointers
+        activePointers.delete(event.pointerId);
+        clearLongPress();
+
+        // End pinch when fingers lift
+        if (isPinching) {
+            if (activePointers.size < 2) isPinching = false;
+            return;
+        }
+
+        // Double-tap detection (cancel orders on star)
+        if (event.pointerType === "touch") {
+            const rect = canvasContainer.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            const star = hitTestStar(x, y);
+            const now = performance.now();
+            if (
+                star &&
+                lastTapStarId === star.id &&
+                now - lastTapTime < DOUBLE_TAP_MS
+            ) {
+                // Double-tap on same star → cancel orders
+                if (isLocalPlayerStar(star)) {
+                    doCancelOrder(star.id);
+                    pendingOrders.forEach((key) => {
+                        if (key.startsWith(star.id + "->"))
+                            pendingOrders.delete(key);
+                    });
+                    log.success(
+                        "GameCanvas",
+                        `Double-tap cancel orders on ${star.id}`,
+                    );
+                }
+                lastTapTime = 0;
+                lastTapStarId = null;
+                cancelDrag();
+                return;
+            }
+            lastTapTime = now;
+            lastTapStarId = star?.id ?? null;
+        }
 
         // End pan
         if (isPanning) {
@@ -1505,8 +1673,11 @@
     onpointerdown={handlePointerDown}
     onpointermove={handlePointerMove}
     onpointerup={handlePointerUp}
-    onpointerleave={() => {
+    onpointerleave={(e) => {
+        activePointers.delete(e.pointerId);
+        clearLongPress();
         cancelDrag();
+        if (isPinching && activePointers.size < 2) isPinching = false;
         if (isPanning) {
             isPanning = false;
             canvasContainer.style.cursor = "crosshair";
