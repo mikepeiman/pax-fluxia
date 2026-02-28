@@ -16,6 +16,46 @@
   import type { PlayerState } from "$lib/types/game.types";
   import { themeStore } from "$lib/stores/themeStore.svelte";
 
+  // ── Mobile landscape detection ──
+  let isMobileLandscape = $state(false);
+  let mobileDrawerOpen = $state(false);
+
+  if (typeof window !== "undefined") {
+    const mq = window.matchMedia(
+      "(max-height: 500px) and (max-width: 900px), (max-width: 600px)",
+    );
+    isMobileLandscape = mq.matches;
+    mq.addEventListener("change", (e) => {
+      isMobileLandscape = e.matches;
+      if (!e.matches) mobileDrawerOpen = false;
+    });
+
+    // Right-edge swipe to open drawer
+    let touchStartX = 0;
+    window.addEventListener(
+      "touchstart",
+      (e) => {
+        const t = e.touches[0];
+        if (t.clientX > window.innerWidth - 30) touchStartX = t.clientX;
+        else touchStartX = 0;
+      },
+      { passive: true },
+    );
+    window.addEventListener(
+      "touchmove",
+      (e) => {
+        if (touchStartX > 0 && !mobileDrawerOpen) {
+          const dx = touchStartX - e.touches[0].clientX;
+          if (dx > 50) {
+            mobileDrawerOpen = true;
+            touchStartX = 0;
+          }
+        }
+      },
+      { passive: true },
+    );
+  }
+
   let roomIdCopied = $state(false);
   function copyRoomId() {
     if (multiplayerStore.roomId) {
@@ -134,12 +174,14 @@
 </svelte:head>
 
 <main class="app-container">
-  <TopBar
-    onSettingsClick={gameStore.currentView !== "game"
-      ? () => (showAudioSettings = true)
-      : undefined}
-    onHelpClick={() => alert("Help & controls guide coming soon!")}
-  />
+  {#if !isMobileLandscape || gameStore.currentView !== "game"}
+    <TopBar
+      onSettingsClick={gameStore.currentView !== "game"
+        ? () => (showAudioSettings = true)
+        : undefined}
+      onHelpClick={() => alert("Help & controls guide coming soon!")}
+    />
+  {/if}
 
   {#if gameStore.currentView === "menu"}
     <MainMenu />
@@ -225,9 +267,70 @@
           </div>
         {/if}
 
-        <!-- BOTTOM LEFT: Speed & quick actions -->
-        <div class="overlay-bottom-left">
-          <div class="controls-wrapper glass-panel">
+        <!-- BOTTOM LEFT: Speed & quick actions (DESKTOP) -->
+        {#if !isMobileLandscape}
+          <div class="overlay-bottom-left">
+            <div class="controls-wrapper glass-panel">
+              <SpeedControls
+                speed={activeGameStore.speed}
+                isPaused={activeGameStore.isPaused}
+                hasStarted={activeGameStore.phase === "playing"}
+                onSpeedChange={(speed) => activeGameStore.setSpeed(speed)}
+                onPause={() => activeGameStore.pauseGame()}
+                onResume={() => activeGameStore.resumeGame()}
+                onStart={() => activeGameStore.startGame()}
+              />
+
+              <div class="action-buttons">
+                <button
+                  class="btn btn--ghost btn--sm"
+                  onclick={() => activeGameStore.playAgain()}
+                >
+                  Restart
+                </button>
+                <button
+                  class="btn btn--ghost btn--sm"
+                  onclick={() => (showAudioSettings = true)}
+                  title="Audio Settings"
+                >
+                  🔊
+                </button>
+                <button
+                  class="btn btn--danger btn--sm"
+                  onclick={() => (showSurrenderModal = true)}
+                >
+                  Quit
+                </button>
+              </div>
+            </div>
+          </div>
+        {/if}
+
+        <!-- MOBILE: Floating mini-HUD (top-right) -->
+        {#if isMobileLandscape}
+          <div class="mobile-hud">
+            <div class="mobile-hud__stats">
+              {#if leaderboardPlayers.length > 0}
+                {@const localId = activeGameStore.localPlayerId}
+                {@const me = leaderboardPlayers.find(
+                  (p) => p.id === localId || (p as any).sessionId === localId,
+                )}
+                {#if me}
+                  <span class="mobile-hud__dot" style="background: {me.color}"
+                  ></span>
+                  <span class="mobile-hud__ships">{me.totalShips ?? 0}</span>
+                {/if}
+              {/if}
+            </div>
+            <button
+              class="mobile-hud__hamburger"
+              onclick={() => (mobileDrawerOpen = !mobileDrawerOpen)}
+              title="Settings">☰</button
+            >
+          </div>
+
+          <!-- MOBILE: Compact bottom speed bar -->
+          <div class="mobile-speed-bar">
             <SpeedControls
               speed={activeGameStore.speed}
               isPaused={activeGameStore.isPaused}
@@ -237,34 +340,12 @@
               onResume={() => activeGameStore.resumeGame()}
               onStart={() => activeGameStore.startGame()}
             />
-
-            <div class="action-buttons">
-              <button
-                class="btn btn--ghost btn--sm"
-                onclick={() => activeGameStore.playAgain()}
-              >
-                Restart
-              </button>
-              <button
-                class="btn btn--ghost btn--sm"
-                onclick={() => (showAudioSettings = true)}
-                title="Audio Settings"
-              >
-                🔊
-              </button>
-              <button
-                class="btn btn--danger btn--sm"
-                onclick={() => (showSurrenderModal = true)}
-              >
-                Quit
-              </button>
-            </div>
           </div>
-        </div>
+        {/if}
       </div>
 
-      <!-- SECONDARY CONTROLS COLUMN (toggled by gear icon) -->
-      {#if showSettingsPanel}
+      <!-- SECONDARY CONTROLS COLUMN (toggled by gear icon, desktop only) -->
+      {#if showSettingsPanel && !isMobileLandscape}
         <div class="area-controls">
           <div class="panel-section section-tuning">
             <GameSettingsPanel />
@@ -272,8 +353,12 @@
         </div>
       {/if}
 
-      <!-- RIGHT SIDEBAR (always visible) -->
-      <div class="area-right" style="width: {sidebarWidth}px;">
+      <!-- RIGHT SIDEBAR (desktop only) -->
+      <div
+        class="area-right"
+        class:mobile-hidden={isMobileLandscape}
+        style="width: {sidebarWidth}px;"
+      >
         <!-- Resize handle -->
         <div
           class="resize-handle"
@@ -361,6 +446,64 @@
         </div>
       </div>
     </div>
+
+    <!-- MOBILE: Right-edge settings drawer -->
+    {#if isMobileLandscape}
+      {#if mobileDrawerOpen}
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div
+          class="mobile-drawer-scrim"
+          onclick={() => (mobileDrawerOpen = false)}
+        ></div>
+      {/if}
+      <div class="mobile-drawer" class:open={mobileDrawerOpen}>
+        <div class="mobile-drawer__header">
+          <span>Settings</span>
+          <button
+            class="mobile-drawer__close"
+            onclick={() => (mobileDrawerOpen = false)}>✕</button
+          >
+        </div>
+        <div class="mobile-drawer__content">
+          <Leaderboard players={leaderboardPlayers} />
+          <div class="sidebar-theme">
+            <label class="theme-label" for="mobile-theme-select">🎨 THEME</label
+            >
+            <select
+              id="mobile-theme-select"
+              class="theme-select"
+              value={themeStore.selectedThemeName}
+              onchange={(e) => {
+                const v = (e.target as HTMLSelectElement).value;
+                if (v) themeStore.applyTheme(v);
+              }}
+            >
+              <option value="">Select Theme…</option>
+              {#each themeStore.allThemes as theme}
+                <option value={theme.name}>{theme.name}</option>
+              {/each}
+            </select>
+          </div>
+          <div class="mobile-drawer__actions">
+            <button
+              class="btn btn--ghost btn--sm"
+              onclick={() => activeGameStore.playAgain()}>Restart</button
+            >
+            <button
+              class="btn btn--danger btn--sm"
+              onclick={() => {
+                mobileDrawerOpen = false;
+                showSurrenderModal = true;
+              }}>Quit</button
+            >
+          </div>
+          <div class="mobile-drawer__settings">
+            <GameSettingsPanel />
+          </div>
+        </div>
+      </div>
+    {/if}
 
     <!-- Surrender Confirmation Modal -->
     {#if showSurrenderModal}
@@ -905,5 +1048,175 @@
   .surrender-modal__cancel {
     opacity: 0.5;
     font-size: 0.75rem;
+  }
+
+  /* ═══ MOBILE GAME UI ═══ */
+
+  /* Hide sidebar on mobile */
+  .mobile-hidden {
+    display: none !important;
+  }
+
+  /* Floating mini-HUD (top-right corner) */
+  .mobile-hud {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 60;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: rgba(10, 10, 20, 0.75);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    pointer-events: auto;
+  }
+
+  .mobile-hud__stats {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .mobile-hud__dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .mobile-hud__ships {
+    font-family: "Exo", sans-serif;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 0.03em;
+  }
+
+  .mobile-hud__hamburger {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+    font-size: 1.1rem;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition:
+      background 0.15s,
+      border-color 0.15s;
+  }
+  .mobile-hud__hamburger:hover,
+  .mobile-hud__hamburger:active {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(0, 255, 255, 0.4);
+  }
+
+  /* Compact bottom speed bar */
+  .mobile-speed-bar {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 60;
+    background: rgba(10, 10, 20, 0.8);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 4px 14px;
+    pointer-events: auto;
+    max-width: 90vw;
+  }
+
+  /* Mobile drawer scrim (tap to close) */
+  .mobile-drawer-scrim {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 200;
+  }
+
+  /* Mobile slide-in drawer */
+  .mobile-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 280px;
+    max-width: 80vw;
+    height: 100vh;
+    background: rgba(10, 10, 18, 0.97);
+    border-left: 1px solid rgba(0, 255, 255, 0.15);
+    box-shadow: -8px 0 30px rgba(0, 0, 0, 0.6);
+    z-index: 210;
+    transform: translateX(100%);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .mobile-drawer.open {
+    transform: translateX(0);
+  }
+
+  .mobile-drawer__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    font-family: "Exo", sans-serif;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.7);
+    flex-shrink: 0;
+  }
+
+  .mobile-drawer__close {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition:
+      color 0.15s,
+      background 0.15s;
+  }
+  .mobile-drawer__close:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .mobile-drawer__content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .mobile-drawer__actions {
+    display: flex;
+    gap: 6px;
+    padding: 4px 0;
+    flex-shrink: 0;
+  }
+  .mobile-drawer__actions .btn {
+    flex: 1;
+  }
+
+  .mobile-drawer__settings {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
   }
 </style>
