@@ -49,6 +49,7 @@ interface GameConfigType {
     /** Bind animation speed to tick duration (default true) */
     BIND_ANIMATION_TO_TICK: boolean;
     NUMBER_TRANSITION_MS: number;     // Smooth transition duration for ship count labels (ms, 0=instant, default 120)
+    LABEL_ANIM_MODE: 'rolling' | 'fade' | 'instant'; // Label animation mode: rolling=lerp, fade=alpha flash, instant=snap
 
     // Transfer
     TRANSFER_RATE: number;
@@ -210,6 +211,9 @@ interface GameConfigType {
 
     // Star glow — radial gradient behind ships showing fleet power
     STAR_GLOW_ON: boolean;         // Enable star glow effect (default true)
+    STAR_RING_OFFSET: number;      // Distance of ownership ring from star center in % of radius (default 20)
+    STAR_RING_WIDTH: number;       // Ownership ring stroke width in px (default 2)
+    STAR_RING_ALPHA: number;       // Ownership ring opacity (0-1, default 0.8)
     STAR_GLOW_RADIUS_MULT: number; // Glow radius as multiplier of outermost orbit ring (default 1.3)
     STAR_GLOW_INTENSITY: number;   // Peak glow alpha (0-1, default 0.25)
     STAR_GLOW_LAYERS: number;      // Number of concentric gradient layers (default 4)
@@ -282,6 +286,8 @@ interface GameConfigType {
     METABALL_BORDER_WIDTH: number;       // Border line width between territories (default 1.5)
     METABALL_BORDER_ALPHA: number;       // Border line alpha (default 0.6)
     METABALL_COVERAGE: number;           // Grid padding factor (0=compact, 0.3=extended, default 0.3)
+    METABALL_SATURATION: number;         // Saturation multiplier (0=grey, 1=normal, 2=vivid, default 1.0)
+    METABALL_LIGHTNESS: number;          // Lightness multiplier (0=dark, 1=normal, 2=bright, default 1.0)
 
     // ── Pixel Territory ────────────────────────────────────────────────────
     PIXEL_ALPHA: number;             // Pixel territory alpha (0-1, default 0.15)
@@ -300,13 +306,15 @@ interface GameConfigType {
     PIXEL_EDGE_FADE: number;         // Edge fade padding beyond gameboard in world pixels (0=off, 200=default)
     PIXEL_LANE_CONSTRAIN: number;    // Constrain territory to connection directions (0=off, 0.5=moderate, 1=strict lane-only)
     PIXEL_PRESSURE: number;          // Shift boundaries by ship count (0=off, 0.5=moderate, 1=full proportional)
+    PIXEL_SATURATION: number;        // Saturation multiplier (0=grey, 1=normal, 2=vivid, default 1.0)
+    PIXEL_LIGHTNESS: number;         // Lightness multiplier (0=dark, 1=normal, 2=bright, default 1.0)
 
     // ── Graph Territory (4th mode — connection-graph-constrained) ──
     TERRITORY_GRAPH: boolean;        // Enable graph-constrained territory renderer (default false)
     GRAPH_ALPHA: number;             // Fill alpha (0-0.5, default 0.15)
     GRAPH_RESOLUTION: number;        // Downsample factor (1-8, default 4)
     GRAPH_BLUR: number;              // GPU blur strength (0-20, default 4)
-    GRAPH_PRESSURE: number;          // Ship-count boundary shifting (0-1, default 0)
+    GRAPH_PRESSURE: number;          // Ship-count boundary shifting (0=off, 1=moderate, 5=extreme)
     GRAPH_CORRIDOR_BOOST: number;    // Same-owner corridor capsule width (0-0.9, default 0.3)
     GRAPH_BORDER_WIDTH: number;      // Border pixel width (0-4, default 1)
     GRAPH_BORDER_ALPHA: number;      // Border alpha (0-1, default 0.6)
@@ -321,6 +329,8 @@ interface GameConfigType {
     LANE_WIDTH: number;              // Half-width of lane influence corridor in world px (20-200, default 60)
     LANE_DIRECT_FALLOFF: number;     // How fast direct star influence fades (0.1-5, default 1.0)
     LANE_THRESHOLD: number;          // Minimum influence to claim territory (0-0.5, default 0.01)
+    GRAPH_SATURATION: number;        // Graph/Lane saturation multiplier (0=grey, 1=normal, 2=vivid, default 1.0)
+    GRAPH_LIGHTNESS: number;         // Graph/Lane lightness multiplier (0=dark, 1=normal, 2=bright, default 1.0)
 
     SHOW_HEX_GRID: boolean;
     STARS_PER_PLAYER: number;
@@ -379,14 +389,14 @@ const _rawConfig: GameConfigType = {
     // ========================================================================
 
     /** Base tick interval at 1x speed (ms) - slower = more strategic */
-    BASE_TICK_MS: 1200,
+    BASE_TICK_MS: 1050,
 
     /** Minimum tick interval at max speed (ms) */
     MIN_TICK_MS: 100,
 
     /** Animation interpolation speed (ms) - controls visual smoothness of tick progress.
      *  Lower = faster visual transitions. Separate from actual tick rate. */
-    ANIMATION_SPEED_MS: 1200,
+    ANIMATION_SPEED_MS: 1050,
 
     /** Bind animation speed to tick duration */
     BIND_ANIMATION_TO_TICK: true,
@@ -394,12 +404,15 @@ const _rawConfig: GameConfigType = {
     /** Smooth transition duration for ship count labels (ms, 0=instant) */
     NUMBER_TRANSITION_MS: 120,
 
+    /** Label animation mode: 'rolling' = smooth lerp, 'fade' = alpha flash, 'instant' = snap */
+    LABEL_ANIM_MODE: 'rolling' as const,
+
     // ========================================================================
     // TRANSFER MECHANICS
     // ========================================================================
 
     /** Percentage of ships that transfer per tick (0.0 - 1.0) */
-    TRANSFER_RATE: 0.07,
+    TRANSFER_RATE: 0.1,
 
     /** Minimum ships to transfer per tick */
     MIN_SHIPS_PER_TRANSFER: 0,
@@ -434,19 +447,19 @@ const _rawConfig: GameConfigType = {
     AGGRESSOR_ADVANTAGE: 0.8333333333333334,
 
     /** Base damage per engaged ship per tick. Range: 0.05-2.0 */
-    DAMAGE_PER_SHIP: 0.105,
+    DAMAGE_PER_SHIP: 0.075,
 
     /** Fraction of damage that destroys ships (rest disables). Range: 0-1 */
-    LETHALITY: 0.35,
+    LETHALITY: 0.1,
 
     /** How much numerical superiority matters. 0 = none, 1 = dominant */
     FORCE_RATIO_EFFECT: 0,
 
     /** Overwhelm ratio for instant conquest (need Nx enemy ships) */
-    CONQUEST_THRESHOLD: 25,
+    CONQUEST_THRESHOLD: 12,
 
     /** percentage each damaged ship contributes to defense, as a percentage x 100 */
-    DAMAGED_SHIP_EFFECTIVENESS: 0.5,
+    DAMAGED_SHIP_EFFECTIVENESS: 0.1,
 
     // ========================================================================
     // PRODUCTION
@@ -474,7 +487,7 @@ const _rawConfig: GameConfigType = {
     // ========================================================================
 
     /** Percentage of remaining ships that transfer on capture */
-    CONQUEST_TRANSFER_PERCENTAGE: 60,
+    CONQUEST_TRANSFER_PERCENTAGE: 30,
 
     /** Defender strength ratio below which they are instantly overwhelmed (e.g. 0.1 = 10% of attackers) */
     OVERWHELM_THRESHOLD: 0.1,
@@ -498,20 +511,20 @@ const _rawConfig: GameConfigType = {
     // ========================================================================
 
     /** % of ships captured when defender is actively retreating to friendly star */
-    RETREAT_CAPTURE_RATE: 0.1,
+    RETREAT_CAPTURE_RATE: 0.25,
 
     /** % of ships captured when defender has escape routes but not retreating */
-    SCATTER_CAPTURE_RATE: 0.2,
+    SCATTER_CAPTURE_RATE: 0.4,
 
     /** % of non-captured ships destroyed during scatter (rest escape) */
     SCATTER_DESTROY_RATE: 0.5,
 
     /** % of damaged ships converted to active on retreat/scatter (0=stay damaged, 1=all activate) */
-    RETREAT_DAMAGED_ACTIVATION_RATE: 0.1,
+    RETREAT_DAMAGED_ACTIVATION_RATE: 0,
 
 
     /** Starting ships per star at game start */
-    STARTING_SHIPS: 70,
+    STARTING_SHIPS: 40,
 
     // ========================================================================
     // AI BEHAVIOR
@@ -540,18 +553,18 @@ const _rawConfig: GameConfigType = {
     // ========================================================================
 
     /** Base ship render size */
-    SHIP_BASE_SIZE: 3,
+    SHIP_BASE_SIZE: 3.3,
 
     /** Visual radius of stars on canvas */
     STAR_RENDER_RADIUS: 25,
 
     /** Background Image */
-    BG_IMAGE_URL: "pax-fluxia-bg-4.jpg",
+    BG_IMAGE_URL: "",
 
     /** Star body shape: 'polygon' = type-specific shape, 'circle' = classic */
     STAR_SHAPE_MODE: 'polygon' as 'polygon' | 'circle',
     /** Type icon size as fraction of star radius */
-    STAR_ICON_SCALE: 0.55,
+    STAR_ICON_SCALE: 0.8,
     /** Polygon corner rounding (0=sharp, 1=fully round) */
     STAR_CORNER_RADIUS: 0.3,
 
@@ -559,7 +572,7 @@ const _rawConfig: GameConfigType = {
     SHOW_SELECTION_HEX: true,
 
     /** Inner orbit radius offset */
-    ORBIT_BASE_RADIUS: 5,
+    ORBIT_BASE_RADIUS: 9,
 
     /** Orbit ring spacing multiplier (ringSpacing = shipBaseSize * this) */
     ORBIT_RING_MULT: 1.6,
@@ -567,7 +580,7 @@ const _rawConfig: GameConfigType = {
     DAMAGED_ORBIT_EVADE: false,
 
     /** Ship transfer animation duration (ms) */
-    TRANSFER_ANIMATION_MS: 1200,
+    TRANSFER_ANIMATION_MS: 1050,
     STATIC_ORBITS: false,
 
     /** How much ships cluster toward target (0=none, 1=max) */
@@ -575,15 +588,15 @@ const _rawConfig: GameConfigType = {
     /** Fraction of half-tick spent departing vs traveling */
     DEPART_FRACTION: 0.55,
     /** Max random departure jitter (ms) */
-    DEPART_JITTER_MS: 0,
+    DEPART_JITTER_MS: 175,
     /** Max perpendicular lane offset (px per side) */
-    LANE_OFFSET_PX: 12,
+    LANE_OFFSET_PX: 25,
     /** Ship departure mode: lifo (newest first), fifo (oldest first), nearside (closest to target) */
-    DEPART_MODE: 'fifo' as const,
+    DEPART_MODE: 'nearside' as const,
     /** How fast ships settle into orbit slot (ms) */
-    SETTLE_DURATION_MS: 1740,
+    SETTLE_DURATION_MS: 0,
     /** Fraction of tick used to stagger arrival settle (0=instant, 1=full tick spread) */
-    ARRIVAL_SPREAD: 1,
+    ARRIVAL_SPREAD: 1.1,
     /** Amplitude of sinusoidal wobble on travel path (px) */
     WOBBLE_AMP: 0,
 
@@ -600,52 +613,52 @@ const _rawConfig: GameConfigType = {
     // Travel easing controls
     // Travel animation mode
     TRAVEL_MODE: 'lane' as const,
-    TRAVEL_EASING: 'easeInOut' as const,
-    TRAVEL_EASING_POWER: 0.5,
-    TRAVEL_DURATION_MULT: 1,
-    TRAVEL_ARC_INTENSITY: 0.75,
+    TRAVEL_EASING: 'easeOut' as const,
+    TRAVEL_EASING_POWER: 0.7,
+    TRAVEL_DURATION_MULT: 2.2,
+    TRAVEL_ARC_INTENSITY: 2,
     /** How tightly ships converge to lane (0=straight to orbit slot, 1=full lane convergence) */
-    LANE_CONVERGENCE: 0.85,
+    LANE_CONVERGENCE: 0.45,
     /** Where along origin→dest center the convergence point sits (0=origin, 100=dest) */
-    LANE_CONVERGENCE_POINT: 100,
+    LANE_CONVERGENCE_POINT: 80,
     /** Ship spacing factor per ring: higher = fewer ships per ring = more spread out (default 1.5) */
     ORBIT_DENSITY: 1.7,
     /** Attack surge displacement as fraction of star radius (default 0.4) */
-    ATTACK_SURGE_MULT: 0.6,
+    ATTACK_SURGE_MULT: 0.7,
     ATTACK_SURGE_PROPORTIONAL: true,
     ATTACK_SURGE_FORCE_COFACTOR: 0.6,
     /** Ramp-in duration for attack surge (ms, 0=instant/old behavior) */
-    ATTACK_SURGE_RAMP_MS: 0,
+    ATTACK_SURGE_RAMP_MS: 1050,
     /** Surge pulse shape power (1=sine, 2=sharper peak, 0.5=flatter) */
     ATTACK_SURGE_SHAPE: 1,
     /** Duration of one surge sine pulse cycle (ms, default = BASE_TICK_MS) */
-    SURGE_PULSE_DURATION_MS: 1200,
+    SURGE_PULSE_DURATION_MS: 1050,
     /** Conquest animation strategy: 'immediate' = pop, 'surge' = settle from above, 'travel' = fly through lane */
-    CONQUEST_ANIMATION_MODE: 'travel' as const,
+    CONQUEST_ANIMATION_MODE: 'arrowhead' as const,
     /** How long conquest ships settle into orbit in surge mode (ms) */
     CONQUEST_SETTLE_MS: 500,
     /** Initial spawn radius above orbit for surge mode (px above star edge) */
-    CONQUEST_SURGE_RADIUS: 50,
+    CONQUEST_SURGE_RADIUS: 35,
     /** Per-ship stagger delay for organic arrival spread in surge mode (ms) */
-    CONQUEST_SURGE_STAGGER_MS: 70,
+    CONQUEST_SURGE_STAGGER_MS: 30,
     /** Conquest travel speed multiplier (>1 = faster, <1 = slower, 1 = normal) */
-    CONQUEST_TRAVEL_SPEED: 0.1,
+    CONQUEST_TRAVEL_SPEED: 0.93,
     /** Delay before conquest ships start moving (ms) — ships hold surged position */
     CONQUEST_LERP_DELAY_MS: 0,
     CONQUEST_COLOR_DELAY_TICKS: 0,
     CONQUEST_FLASH_TICKS: 2.5,
     // ── Arrowhead conquest animation ──
-    ARROW_TAPER: 0.35,
-    ARROW_WIDTH: 115,
-    ARROW_SPEED: 2.8,
+    ARROW_TAPER: 0.8,
+    ARROW_WIDTH: 35,
+    ARROW_SPEED: 0.6,
     ARROW_EASING: 'easeIn' as const,
-    ARROW_ENGULF_MODE: 'collapse' as const,
-    ARROW_ENGULF_RADIUS: 85,
-    ARROW_SPIRAL_MIN_DEG: 60,
-    ARROW_SPIRAL_MAX_DEG: 300,
+    ARROW_ENGULF_MODE: 'ring' as const,
+    ARROW_ENGULF_RADIUS: 45,
+    ARROW_SPIRAL_MIN_DEG: 120,
+    ARROW_SPIRAL_MAX_DEG: 450,
     ARROW_SPIRAL_RANDOM: true,
-    ARROW_SPIRAL_DURATION_MS: 250,
-    ARROW_STAGGER_MS: 60,
+    ARROW_SPIRAL_DURATION_MS: 800,
+    ARROW_STAGGER_MS: 0,
     ARROW_STAGGER_AUTO: true,
     /** Auto-slow game when conquest fires (for tuning/debugging) */
     CONQUEST_SLOWMO_ENABLED: false,
@@ -658,13 +671,13 @@ const _rawConfig: GameConfigType = {
     /** Log₂ coefficient for force glow scaling (higher = more dramatic) */
     CONQUEST_FORCE_GLOW_MULT: 0.15,
     /** Show player-color outline behind each ship */
-    SHIP_OUTLINE_ON: false,
+    SHIP_OUTLINE_ON: true,
     /** Outline thickness in px */
     SHIP_OUTLINE_PX: 1,
     /** Multiplier brightness glow: 0 = none, 1 = max (brightens within hue, not toward white) */
-    SHIP_GLOW_INTENSITY: 0.3,
+    SHIP_GLOW_INTENSITY: 0.2,
     /** Radial glow sprite radius multiplier per ship */
-    SHIP_GLOW_RADIUS: 8,
+    SHIP_GLOW_RADIUS: 0,
     /** Minimum HSL lightness for player colors — prevents dark colors vanishing on dark bg */
     MIN_COLOR_LIGHTNESS: 0.5,
     /** Global ship size multiplier */
@@ -672,17 +685,23 @@ const _rawConfig: GameConfigType = {
     /** Max visual ship sprites per star — overflow represented as brightness multiplier */
     MAX_VISUAL_SHIPS: 500,
     /** Degrees of hue shift per density tier */
-    DENSITY_HUE_STEP: 20,
+    DENSITY_HUE_STEP: 4,
     /** Saturation change per density tier (positive direction = increase, negative = decrease) */
-    DENSITY_SAT_STEP: 0.13,
+    DENSITY_SAT_STEP: 0.05,
     /** Lightness change per density tier */
-    DENSITY_LIGHT_STEP: 0.06,
+    DENSITY_LIGHT_STEP: 0.05,
     /** Number of density tiers per direction on the color wheel */
-    DENSITY_TIERS: 6,
+    DENSITY_TIERS: 3,
     DENSITY_DARKEN_ALT: true,
-    SHIP_VISUAL_RADIUS: 6,
+    SHIP_VISUAL_RADIUS: 3,
     /** Star glow settings */
     STAR_GLOW_ON: true,
+    /** Ownership ring offset from star center (% of radius) */
+    STAR_RING_OFFSET: 20,
+    /** Ownership ring stroke width (px) */
+    STAR_RING_WIDTH: 2,
+    /** Ownership ring alpha (0-1) */
+    STAR_RING_ALPHA: 0.8,
     STAR_GLOW_RADIUS_MULT: 1.3,
     STAR_GLOW_INTENSITY: 0.25,
     STAR_GLOW_LAYERS: 4,
@@ -695,7 +714,7 @@ const _rawConfig: GameConfigType = {
     /** Oscillation frequency relative to ticks (0.25 = once per 4 ticks, 2.0 = twice per tick) */
     ORBIT_BIAS_FREQ: 0.25,
     /** Ships merge into single glowing orb during travel, fragment into ships on arrival */
-    ORB_TRAVEL: true,
+    ORB_TRAVEL: false,
     /** Which orb draw mode visual to use */
     ORB_DRAW_MODE: 'mode1' as string,
     /** Base orb radius in px before ship count scaling */
@@ -744,13 +763,13 @@ const _rawConfig: GameConfigType = {
     CONNECTION_WIDTH: 3,
 
     /** Connection line alpha */
-    CONNECTION_ALPHA: 0.3,
+    CONNECTION_ALPHA: 0.25,
 
     /** Connection shadow/border width (added to CONNECTION_WIDTH) */
     CONNECTION_SHADOW_WIDTH: 3,
 
     /** Connection shadow alpha */
-    CONNECTION_SHADOW_ALPHA: 0.3,
+    CONNECTION_SHADOW_ALPHA: 0.25,
 
     /** Show connection lines */
     SHOW_CONNECTIONS: true,
@@ -758,7 +777,7 @@ const _rawConfig: GameConfigType = {
     /** Show star power alpha overlay behind stars (F-47) */
     SHOW_STAR_POWER: true,
     /** Star power overlay alpha (0-1) */
-    STAR_POWER_ALPHA: 0.07,
+    STAR_POWER_ALPHA: 0.3,
     /** Star power radius multiplier relative to star radius */
     STAR_POWER_RADIUS_MULT: 3,
     /** Number of concentric gradient layers */
@@ -767,11 +786,11 @@ const _rawConfig: GameConfigType = {
     STAR_POWER_BLUR: 4,
     HALO_FLEET_SCALE: true,
     /** Fleet halo mode: 'stepped' or 'linear' */
-    HALO_FLEET_MODE: 'linear',
+    HALO_FLEET_MODE: 'stepped',
     /** Fleet halo intensity multiplier (0=off, 1=default, 2=strong) */
-    HALO_FLEET_INTENSITY: 1.0,
+    HALO_FLEET_INTENSITY: 2,
     /** Ships per step for stepped mode */
-    HALO_FLEET_STEP_SIZE: 500,
+    HALO_FLEET_STEP_SIZE: 100,
     /** Ship count for full alpha in linear mode */
     HALO_FLEET_MAX_SHIPS: 500,
 
@@ -780,72 +799,76 @@ const _rawConfig: GameConfigType = {
     /** Enable Metaball territory renderer */
     TERRITORY_METABALL: false,
     /** Enable Pixel (nearest-neighbor) territory renderer */
-    TERRITORY_PIXEL: true,
+    TERRITORY_PIXEL: false,
     /** LEGACY territory mode — kept for compat */
-    TERRITORY_MODE: 'voronoi' as 'voronoi' | 'metaball' | 'off',
+    TERRITORY_MODE: 'metaball' as 'voronoi' | 'metaball' | 'off',
 
     /** Show contiguous Voronoi territory fill */
-    SHOW_VORONOI: true,
+    SHOW_VORONOI: false,
     /** Voronoi territory alpha (0-1) */
-    VORONOI_ALPHA: 0.05,
+    VORONOI_ALPHA: 0.25,
     /** Voronoi canvas downscale factor (higher = faster/blockier) */
-    VORONOI_RESOLUTION: 4,
+    VORONOI_RESOLUTION: 2,
     /** Legacy (unused with d3-delaunay) */
-    VORONOI_EDGE_BLEND: 0,
+    VORONOI_EDGE_BLEND: 2.3,
     /** Voronoi border line width between territories (0=off) */
-    VORONOI_BORDER_WIDTH: 2,
+    VORONOI_BORDER_WIDTH: 8,
     /** Voronoi border alpha */
-    VORONOI_BORDER_ALPHA: 0.1,
+    VORONOI_BORDER_ALPHA: 0.35,
     /** How much to brighten border color (0-255) */
-    VORONOI_BORDER_BRIGHTEN: 80,
+    VORONOI_BORDER_BRIGHTEN: 20,
     /** Voronoi color saturation multiplier (0=grey, 1=original, 2=vivid) */
-    VORONOI_SATURATION: 2,
+    VORONOI_SATURATION: 0.75,
     /** Voronoi color lightness multiplier (0=dark, 1=original, 2=bright) */
-    VORONOI_LIGHTNESS: 0.8,
+    VORONOI_LIGHTNESS: 0.75,
     /** Territory glow bleed radius as fraction of map size */
-    VORONOI_GLOW_RADIUS: 0.3,
+    VORONOI_GLOW_RADIUS: 0.15,
     /** Peak glow alpha per layer */
-    VORONOI_GLOW_ALPHA: 0.04,
+    VORONOI_GLOW_ALPHA: 0.045,
     /** Number of concentric glow layers */
-    VORONOI_GLOW_LAYERS: 4,
+    VORONOI_GLOW_LAYERS: 7,
     /** GPU blur for smooth territory edges (0=sharp, higher=softer) */
-    VORONOI_BLUR: 8,
+    VORONOI_BLUR: 6,
     /** Chaikin smoothing iterations (0=angular polygons, 2=rounded, 4=very smooth) */
     VORONOI_SMOOTHING: 2,
     /** Enable gradient blending at territory borders */
     VORONOI_GRADIENT_BLEND: true,
     /** Gradient blend strip width in px */
-    VORONOI_BLEND_WIDTH: 30,
+    VORONOI_BLEND_WIDTH: 80,
 
     // ── Metaball Territory ──
     /** How far each star's influence field extends (px) */
-    METABALL_INFLUENCE_RADIUS: 120,
+    METABALL_INFLUENCE_RADIUS: 300,
     /** Falloff curve for influence: 'inverse-square' (organic), 'gaussian' (fluid), 'smoothstep' (defined edges) */
-    METABALL_FALLOFF: 'inverse-square' as 'inverse-square' | 'gaussian' | 'smoothstep',
+    METABALL_FALLOFF: 'gaussian' as 'inverse-square' | 'gaussian' | 'smoothstep',
     /** Faction boundary sharpness (higher = crisper borders, lower = softer blend) */
-    METABALL_BLEND_SHARPNESS: 3.0,
+    METABALL_BLEND_SHARPNESS: 6,
     /** Overall metaball territory alpha (0-1) */
-    METABALL_ALPHA: 0.1,
+    METABALL_ALPHA: 0.6,
     /** Grid resolution in px per cell (lower = sharper but slower, 4-16 typical) */
-    METABALL_CELL_SIZE: 8,
+    METABALL_CELL_SIZE: 12,
     /** Minimum influence to draw (lower = more coverage, 0.01-0.2 typical) */
     METABALL_THRESHOLD: 0.05,
     /** Star strength multiplier (scales all influence, default 1.0) */
-    METABALL_STRENGTH_MULT: 1.0,
+    METABALL_STRENGTH_MULT: 2,
     /** Edge alpha falloff steepness (higher = sharper edges, default 3.0) */
     METABALL_EDGE_FADE: 3.0,
     /** GPU blur on metaball output (0=pixelated, 4=smooth, higher=very soft) */
     METABALL_BLUR: 4,
     /** Border line width between metaball territories */
-    METABALL_BORDER_WIDTH: 1.5,
+    METABALL_BORDER_WIDTH: 2,
     /** Border line alpha */
-    METABALL_BORDER_ALPHA: 0.6,
+    METABALL_BORDER_ALPHA: 0.05,
     /** Grid padding factor (0=compact, 0.3=extended) */
-    METABALL_COVERAGE: 0.3,
+    METABALL_COVERAGE: 0,
+    /** Metaball color saturation multiplier (0=grey, 1=original, 2=vivid) */
+    METABALL_SATURATION: 1.0,
+    /** Metaball color lightness multiplier (0=dark, 1=original, 2=bright) */
+    METABALL_LIGHTNESS: 1.0,
 
     // ── Pixel Territory ──
     /** Pixel territory alpha (0-1, lower = more transparent) */
-    PIXEL_ALPHA: 0.17,
+    PIXEL_ALPHA: 0.5,
     /** Downscale factor (1=full res/slow, 4=balanced, 8=fast/blocky) */
     PIXEL_RESOLUTION: 1,
     /** Edge blend softness at territory boundaries (0=hard edges, 1-10=soft) */
@@ -867,7 +890,7 @@ const _rawConfig: GameConfigType = {
     /** Pattern overlay on territory ('none' | 'stripes' | 'crosshatch' | 'dots') */
     PIXEL_PATTERN: 'crosshatch' as const,
     /** Pattern density (1=fine, 10=coarse) */
-    PIXEL_PATTERN_SCALE: 17,
+    PIXEL_PATTERN_SCALE: 14,
     /** Per-player pattern rotation amount (0=same for all, 1=max golden angle separation) */
     PIXEL_PATTERN_ROTATION: 0,
     /** Edge fade: how far past the gameboard edges territory extends (px, 0=off) */
@@ -876,26 +899,34 @@ const _rawConfig: GameConfigType = {
     PIXEL_LANE_CONSTRAIN: 0.5,
     /** Shift boundaries by ship count pressure (0=off, 1=full) */
     PIXEL_PRESSURE: 0,
+    /** Pixel color saturation multiplier (0=grey, 1=original, 2=vivid) */
+    PIXEL_SATURATION: 1.0,
+    /** Pixel color lightness multiplier (0=dark, 1=original, 2=bright) */
+    PIXEL_LIGHTNESS: 1.0,
 
     // ── Graph Territory (4th mode) ──
-    TERRITORY_GRAPH: false,
-    GRAPH_ALPHA: 0.15,
-    GRAPH_RESOLUTION: 4,
-    GRAPH_BLUR: 4,
-    GRAPH_PRESSURE: 0,
+    TERRITORY_GRAPH: true,
+    GRAPH_ALPHA: 0.5,
+    GRAPH_RESOLUTION: 1,
+    GRAPH_BLUR: 1,
+    GRAPH_PRESSURE: 1,
     GRAPH_CORRIDOR_BOOST: 0.3,
-    GRAPH_BORDER_WIDTH: 1,
-    GRAPH_BORDER_ALPHA: 0.6,
+    GRAPH_BORDER_WIDTH: 4,
+    GRAPH_BORDER_ALPHA: 0.3,
     GRAPH_BORDER_BRIGHTEN: 80,
     GRAPH_EDGE_FADE: 120,
     GRAPH_BARRIER_EXTENT: 1.5,
     GRAPH_PATTERN: 'crosshatch' as const,
-    GRAPH_PATTERN_SCALE: 17,
+    GRAPH_PATTERN_SCALE: 14,
     GRAPH_PATTERN_ROTATION: 0,
-    LANE_INFLUENCE: 5,
-    LANE_WIDTH: 60,
-    LANE_DIRECT_FALLOFF: 1.0,
+    LANE_INFLUENCE: 1,
+    LANE_WIDTH: 105,
+    LANE_DIRECT_FALLOFF: 3.1,
     LANE_THRESHOLD: 0.01,
+    /** Graph/Lane color saturation multiplier (0=grey, 1=original, 2=vivid) */
+    GRAPH_SATURATION: 1.0,
+    /** Graph/Lane color lightness multiplier (0=dark, 1=original, 2=bright) */
+    GRAPH_LIGHTNESS: 1.0,
 
     /** Show hex grid (debug) */
     SHOW_HEX_GRID: false,

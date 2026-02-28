@@ -11,6 +11,38 @@
 
     let { panel, updatePanel, syncFromConfig }: Props = $props();
     import CategoryThemeBar from "./CategoryThemeBar.svelte";
+
+    const TERRITORY_KEYS = [
+        "territoryVoronoi",
+        "territoryMetaball",
+        "territoryPixel",
+        "territoryGraph",
+    ] as const;
+    const CONFIG_KEYS = [
+        "TERRITORY_VORONOI",
+        "TERRITORY_METABALL",
+        "TERRITORY_PIXEL",
+        "TERRITORY_GRAPH",
+    ] as const;
+
+    function selectTerritory(
+        chosen: (typeof TERRITORY_KEYS)[number],
+        enabled: boolean,
+    ) {
+        if (enabled) {
+            // Turn all off, then enable chosen exclusively
+            for (let i = 0; i < TERRITORY_KEYS.length; i++) {
+                const isChosen = TERRITORY_KEYS[i] === chosen;
+                (GAME_CONFIG as any)[CONFIG_KEYS[i]] = isChosen;
+                updatePanel(TERRITORY_KEYS[i], isChosen);
+            }
+        } else {
+            // Allow turning off without forcing another on
+            (GAME_CONFIG as any)[CONFIG_KEYS[TERRITORY_KEYS.indexOf(chosen)]] =
+                false;
+            updatePanel(chosen, false);
+        }
+    }
 </script>
 
 <CategoryThemeBar category="territory" onApply={() => syncFromConfig?.()} />
@@ -23,11 +55,13 @@
         <label class="toggle-switch">
             <input
                 type="checkbox"
-                checked={panel.territoryVoronoi ?? true}
+                checked={panel.territoryVoronoi ??
+                    GAME_CONFIG.TERRITORY_VORONOI}
                 onchange={(e) => {
-                    const v = (e.target as HTMLInputElement).checked;
-                    GAME_CONFIG.TERRITORY_VORONOI = v;
-                    updatePanel("territoryVoronoi", v);
+                    selectTerritory(
+                        "territoryVoronoi",
+                        (e.target as HTMLInputElement).checked,
+                    );
                 }}
             />
             <span class="toggle-slider"></span>
@@ -40,11 +74,13 @@
         <label class="toggle-switch">
             <input
                 type="checkbox"
-                checked={panel.territoryMetaball ?? false}
+                checked={panel.territoryMetaball ??
+                    GAME_CONFIG.TERRITORY_METABALL}
                 onchange={(e) => {
-                    const v = (e.target as HTMLInputElement).checked;
-                    GAME_CONFIG.TERRITORY_METABALL = v;
-                    updatePanel("territoryMetaball", v);
+                    selectTerritory(
+                        "territoryMetaball",
+                        (e.target as HTMLInputElement).checked,
+                    );
                 }}
             />
             <span class="toggle-slider"></span>
@@ -57,11 +93,12 @@
         <label class="toggle-switch">
             <input
                 type="checkbox"
-                checked={panel.territoryPixel ?? false}
+                checked={panel.territoryPixel ?? GAME_CONFIG.TERRITORY_PIXEL}
                 onchange={(e) => {
-                    const v = (e.target as HTMLInputElement).checked;
-                    GAME_CONFIG.TERRITORY_PIXEL = v;
-                    updatePanel("territoryPixel", v);
+                    selectTerritory(
+                        "territoryPixel",
+                        (e.target as HTMLInputElement).checked,
+                    );
                 }}
             />
             <span class="toggle-slider"></span>
@@ -74,11 +111,12 @@
         <label class="toggle-switch">
             <input
                 type="checkbox"
-                checked={panel.territoryGraph ?? false}
+                checked={panel.territoryGraph ?? GAME_CONFIG.TERRITORY_GRAPH}
                 onchange={(e) => {
-                    const v = (e.target as HTMLInputElement).checked;
-                    GAME_CONFIG.TERRITORY_GRAPH = v;
-                    updatePanel("territoryGraph", v);
+                    selectTerritory(
+                        "territoryGraph",
+                        (e.target as HTMLInputElement).checked,
+                    );
                 }}
             />
             <span class="toggle-slider"></span>
@@ -89,6 +127,44 @@
 {#if panel.territoryGraph}
     <!-- ── Lane Territory Controls ── -->
     <h4 class="sub-heading">Lane Territory Settings</h4>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Saturation</span><span class="val"
+                >{((panel.graphSaturation ?? 1) as number).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="2"
+            step="0.05"
+            value={panel.graphSaturation ?? 1}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.GRAPH_SATURATION = v;
+                updatePanel("graphSaturation", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Lightness</span><span class="val"
+                >{((panel.graphLightness ?? 1) as number).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="2"
+            step="0.05"
+            value={panel.graphLightness ?? 1}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.GRAPH_LIGHTNESS = v;
+                updatePanel("graphLightness", v);
+            }}
+        />
+    </div>
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Alpha</span><span class="val"
@@ -223,8 +299,8 @@
         <input
             type="range"
             min="0"
-            max="1"
-            step="0.05"
+            max="5"
+            step="0.1"
             value={panel.graphPressure ?? 0}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
@@ -296,11 +372,117 @@
             }}
         />
     </div>
+    <div
+        class="var-row grayed"
+        style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"
+    >
+        🔲 Pattern
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Pattern</span><span class="val"
+                >{panel.graphPattern ?? "none"}</span
+            >
+        </div>
+        <select
+            class="mode-select"
+            value={panel.graphPattern ?? "none"}
+            onchange={(e) => {
+                const v = (e.target as HTMLSelectElement).value as any;
+                GAME_CONFIG.GRAPH_PATTERN = v;
+                updatePanel("graphPattern", v);
+            }}
+        >
+            <option value="none">None</option>
+            <option value="stripes">Stripes</option>
+            <option value="crosshatch">Crosshatch</option>
+            <option value="dots">Dots</option>
+        </select>
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Pattern Scale</span><span class="val"
+                >{panel.graphPatternScale ?? 14}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="4"
+            max="40"
+            step="1"
+            value={panel.graphPatternScale ?? 14}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.GRAPH_PATTERN_SCALE = v;
+                updatePanel("graphPatternScale", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Pattern Rotation</span><span class="val"
+                >{(panel.graphPatternRotation ?? 0).toFixed(1)}
+                {(panel.graphPatternRotation ?? 0) === 0 ? "(off)" : ""}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="3"
+            step="0.1"
+            value={panel.graphPatternRotation ?? 0}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.GRAPH_PATTERN_ROTATION = v;
+                updatePanel("graphPatternRotation", v);
+            }}
+        />
+    </div>
 {/if}
 
 {#if panel.territoryVoronoi}
     <!-- ── Voronoi Controls ── -->
     <h4 class="sub-heading">Voronoi Settings</h4>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Saturation</span><span class="val"
+                >{((panel.voronoiSaturation ?? 0.75) as number).toFixed(
+                    2,
+                )}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="2"
+            step="0.05"
+            value={panel.voronoiSaturation ?? 0.75}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.VORONOI_SATURATION = v;
+                updatePanel("voronoiSaturation", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Lightness</span><span class="val"
+                >{((panel.voronoiLightness ?? 0.75) as number).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="2"
+            step="0.05"
+            value={panel.voronoiLightness ?? 0.75}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.VORONOI_LIGHTNESS = v;
+                updatePanel("voronoiLightness", v);
+            }}
+        />
+    </div>
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Alpha</span><span class="val"
@@ -461,50 +643,47 @@
     </div>
 {/if}
 
-<!-- ── Shared Color Controls (always visible) ── -->
-<h4 class="sub-heading">🎨 Territory Color</h4>
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Saturation</span><span class="val"
-            >{((panel.voronoiSaturation ?? 0) as number).toFixed(2)}</span
-        >
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="2"
-        step="0.05"
-        value={panel.voronoiSaturation}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.VORONOI_SATURATION = v;
-            updatePanel("voronoiSaturation", v);
-        }}
-    />
-</div>
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Lightness</span><span class="val"
-            >{((panel.voronoiLightness ?? 0) as number).toFixed(2)}</span
-        >
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="2"
-        step="0.05"
-        value={panel.voronoiLightness}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.VORONOI_LIGHTNESS = v;
-            updatePanel("voronoiLightness", v);
-        }}
-    />
-</div>
-
 {#if panel.territoryPixel}
     <!-- ── Pixel (Classic) Controls ── -->
     <h4 class="sub-heading">Pixel (Classic) Settings</h4>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Saturation</span><span class="val"
+                >{((panel.pixelSaturation ?? 1) as number).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="2"
+            step="0.05"
+            value={panel.pixelSaturation ?? 1}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.PIXEL_SATURATION = v;
+                updatePanel("pixelSaturation", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Lightness</span><span class="val"
+                >{((panel.pixelLightness ?? 1) as number).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="2"
+            step="0.05"
+            value={panel.pixelLightness ?? 1}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.PIXEL_LIGHTNESS = v;
+                updatePanel("pixelLightness", v);
+            }}
+        />
+    </div>
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Alpha</span><span class="val"
@@ -654,8 +833,8 @@
         <input
             type="range"
             min="0"
-            max="1"
-            step="0.05"
+            max="10"
+            step="0.1"
             value={panel.pixelPressure ?? 0}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
@@ -832,6 +1011,44 @@
     <h4 class="sub-heading">Metaball Settings</h4>
     <div class="var-row">
         <div class="row-top">
+            <span class="var-name">Saturation</span><span class="val"
+                >{((panel.metaballSaturation ?? 1) as number).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="2"
+            step="0.05"
+            value={panel.metaballSaturation ?? 1}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.METABALL_SATURATION = v;
+                updatePanel("metaballSaturation", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Lightness</span><span class="val"
+                >{((panel.metaballLightness ?? 1) as number).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="2"
+            step="0.05"
+            value={panel.metaballLightness ?? 1}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.METABALL_LIGHTNESS = v;
+                updatePanel("metaballLightness", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
             <span class="var-name">Influence Radius</span><span class="val"
                 >{panel.metaballRadius ?? 120}px</span
             >
@@ -839,8 +1056,8 @@
         <input
             type="range"
             min="30"
-            max="400"
-            step="5"
+            max="800"
+            step="10"
             value={panel.metaballRadius ?? 120}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
@@ -939,9 +1156,9 @@
         </div>
         <input
             type="range"
-            min="0.005"
-            max="0.3"
-            step="0.005"
+            min="0.01"
+            max="2.0"
+            step="0.01"
             value={panel.metaballThreshold ?? 0.05}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
@@ -959,7 +1176,7 @@
         <input
             type="range"
             min="0.1"
-            max="5.0"
+            max="20"
             step="0.1"
             value={panel.metaballStrength ?? 1.0}
             oninput={(e) => {
@@ -978,7 +1195,7 @@
         <input
             type="range"
             min="0.5"
-            max="10"
+            max="20"
             step="0.5"
             value={panel.metaballEdgeFade ?? 3.0}
             oninput={(e) => {

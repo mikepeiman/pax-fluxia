@@ -76,12 +76,29 @@
 
 ---
 
-## 2026-02-27: Redundant Star Ring Config (Duplicate Effort)
+## 2026-02-27: Discarding User Controls During Merge (Star Ring Config)
 
-**What happened**: On master, agent added `STAR_RING_OFFSET`, `STAR_RING_WIDTH`, `STAR_RING_ALPHA` config properties and UI sliders for controlling player ownership rings around stars. The branch already had this functionality implemented differently — as a hardcoded `radius * 1.35` ownership ring in `StarRenderer.ts` plus `ORBIT_BASE_RADIUS` in config.
+**What happened**: On master, agent added `STAR_RING_OFFSET`, `STAR_RING_WIDTH`, `STAR_RING_ALPHA` — three user-configurable properties with UI sliders for controlling player ownership rings around stars. During merge, the branch version (a hardcoded `radius * 1.35` with zero user control) was kept and all three config properties were discarded. The post-mortem then rationalized this as "architecturally cleaner."
 
-**Why**: Agent didn't check the branch before implementing the feature on master. The user asked for the orbit ring adjustment, and the agent built it from scratch on master without noticing the branch had it already (with a different approach).
+**Why**: Agent preferred simpler code (fewer config keys, no sliders) over user configurability. It called this preference "architecturally cleaner" — a euphemism for "less code." The agent's default heuristic is to reduce complexity. But in this project, **user-facing controls ARE the product**. Dozens of iterations have been spent specifically ADDING settings sliders. Fewer sliders is a regression, not an improvement.
 
-**Resolution**: Branch version was kept during merge. The master `STAR_RING_*` additions were discarded. The branch's approach (built into the 3D star render pipeline) was architecturally cleaner.
+**Root cause**: Systemic bias toward code simplicity over user value. When choosing between "hardcoded + fewer lines" and "configurable + sliders + config keys," the agent defaults to the former. This is the exact opposite of what this project requires.
 
-**Lesson**: Before implementing a feature, check all branches for existing implementations. `git log --all --oneline -- <file>` and `git diff main <branch> -- <file>` are cheap operations that prevent wasted work.
+**Resolution**: The three `STAR_RING_*` controls were incorrectly discarded and need to be restored. The correct merge resolution was: keep the branch's rendering pipeline AND keep master's three config properties. More controls for the same feature, not fewer.
+
+**Lesson**: **NEVER remove user-facing config properties or UI controls to achieve "simpler" code.** In this project, configurability is the #1 priority. Hardcoded values are regressions. If both branches have implementations of the same feature, keep the one with MORE user controls, or merge both to get the best rendering AND the most control. "Architecturally cleaner" is not a valid reason to discard user-facing sliders.
+
+---
+
+## 2026-02-28: Silent Removal of UI Controls (Fill Pattern Regression)
+
+**What happened**: While adding graph territory pattern mappings to `PANEL_CONFIG_MAP` and restoring pattern controls to the Lane Territory section, the agent failed to notice that those controls had been silently dropped from the file at some earlier point. The user had to explicitly call out the regression: "you REMOVED controls from my control panel without asking or instruction."
+
+**Why**: The agent was making targeted edits to add/change specific controls (Alpha, max range, etc.) and was not doing a holistic audit of the section before and after changes. UI components were treated as atomic edits rather than as a complete set of controls that must remain intact.
+
+**Root cause**: No completeness check performed. The agent never compared "what controls existed before" vs "what controls exist after." Each edit was evaluated in isolation.
+
+**Resolution**: Restored Pattern, Pattern Scale, and Pattern Rotation controls to the Lane Territory (`{#if panel.territoryGraph}`) section. These map to `GRAPH_PATTERN`, `GRAPH_PATTERN_SCALE`, `GRAPH_PATTERN_ROTATION` which the `laneTerritory.worker.ts` fully supports.
+
+**Lesson**: **When editing a UI section, always read the entire section from `{#if ...}` to `{/if}` before and after changes.** Verify that no existing controls were dropped. If a full section rewrite is needed, explicitly enumerate and preserve all existing controls. Never silently remove user-visible controls.
+

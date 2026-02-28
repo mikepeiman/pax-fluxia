@@ -97,8 +97,6 @@ body {
   overflow: hidden;
   overscroll-behavior: none;
   -webkit-overflow-scrolling: auto;
-  touch-action: manipulation;
-  /* Prevent double-tap zoom + harden pull-to-refresh */
 }
 
 body {

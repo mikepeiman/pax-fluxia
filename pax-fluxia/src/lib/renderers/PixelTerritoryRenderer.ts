@@ -44,7 +44,7 @@ function buildFingerprint(stars: StarState[]): string {
     fp += `:${GAME_CONFIG.PIXEL_ALPHA}:${GAME_CONFIG.PIXEL_RESOLUTION}`;
     fp += `:${GAME_CONFIG.PIXEL_EDGE_BLEND}:${GAME_CONFIG.PIXEL_BLUR}`;
     fp += `:${GAME_CONFIG.PIXEL_CORRIDOR_BOOST}:${GAME_CONFIG.TERRITORY_PIXEL}`;
-    fp += `:${GAME_CONFIG.VORONOI_SATURATION}:${GAME_CONFIG.VORONOI_LIGHTNESS}`;
+    fp += `:${GAME_CONFIG.PIXEL_SATURATION}:${GAME_CONFIG.PIXEL_LIGHTNESS}`;
     fp += `:${GAME_CONFIG.PIXEL_HUE_SHIFT}:${GAME_CONFIG.PIXEL_BORDER_WIDTH}`;
     fp += `:${GAME_CONFIG.PIXEL_BORDER_ALPHA}:${GAME_CONFIG.PIXEL_BORDER_BRIGHTEN}`;
     fp += `:${GAME_CONFIG.PIXEL_PATTERN}:${GAME_CONFIG.PIXEL_PATTERN_SCALE}:${GAME_CONFIG.PIXEL_PATTERN_ROTATION}`;
@@ -200,8 +200,8 @@ export function renderPixelTerritory(
     const totalH = worldHeight + padding * 2;
     const canvasW = Math.ceil(totalW / resolution);
     const canvasH = Math.ceil(totalH / resolution);
-    const satMult = GAME_CONFIG.VORONOI_SATURATION ?? 1.0;
-    const lightMult = GAME_CONFIG.VORONOI_LIGHTNESS ?? 1.0;
+    const satMult = GAME_CONFIG.PIXEL_SATURATION ?? 1.0;
+    const lightMult = GAME_CONFIG.PIXEL_LIGHTNESS ?? 1.0;
     const useHSL = satMult !== 1.0 || lightMult !== 1.0;
     const hueShift = GAME_CONFIG.PIXEL_HUE_SHIFT ?? 0;
     const patternScale = Math.max(1, Math.round((GAME_CONFIG.PIXEL_PATTERN_SCALE ?? 4) / resolution));

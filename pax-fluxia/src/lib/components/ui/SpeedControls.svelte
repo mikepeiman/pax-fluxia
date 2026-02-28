@@ -176,4 +176,27 @@
         background: var(--color-accent-cyan);
         color: var(--color-void-deep);
     }
+
+    /* ── Mobile compact mode ── */
+    @media (max-width: 1024px) {
+        .speed-controls-container {
+            gap: 4px;
+        }
+        .start-btn {
+            padding: 8px 12px;
+            font-size: var(--text-sm);
+        }
+        .speed-controls {
+            gap: 2px;
+            padding: 2px;
+        }
+        .speed-btn {
+            width: 36px;
+            height: 28px;
+            font-size: 0.75rem;
+        }
+        .center-btn {
+            width: 32px;
+        }
+    }
 </style>

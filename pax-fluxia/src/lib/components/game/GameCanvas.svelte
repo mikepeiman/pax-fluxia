@@ -1105,7 +1105,26 @@
             return;
         }
 
-        // Single-touch: start long-press timer
+        const rect = canvasContainer.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+
+        // Single-touch: check if we're touching empty space (no star nearby)
+        // If so, enter pan mode for single-finger panning
+        if (event.pointerType === "touch") {
+            const earlyHit = hitTestStar(x, y);
+            if (!earlyHit) {
+                // No star nearby — single-finger pan
+                isPanning = true;
+                panStartScreenX = event.clientX;
+                panStartScreenY = event.clientY;
+                panStartOffsetX = panOffsetX;
+                panStartOffsetY = panOffsetY;
+                return;
+            }
+        }
+
+        // Single-touch on a star: start long-press timer
         if (event.pointerType === "touch") {
             clearLongPress();
             const startX = event.clientX;
@@ -1125,10 +1144,6 @@
                 cancelDrag(); // prevent drag after long-press
             }, LONG_PRESS_MS);
         }
-
-        const rect = canvasContainer.getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
 
         // Middle-click or Space+click: start pan
         if (event.button === 1 || (isSpaceHeld && event.button === 0)) {
@@ -1190,6 +1205,7 @@
                 `pointerDown → unowned star ${star.id} (owner=${star.ownerId}), drag state reset`,
             );
         } else {
+            // Desktop: empty space click (non-touch) — just reset drag
             isDragging = false;
             dragSourceId = null;
             dragStartX = x;

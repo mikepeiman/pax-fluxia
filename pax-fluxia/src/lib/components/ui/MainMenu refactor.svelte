@@ -104,7 +104,9 @@
         loadSetting("retainOrderOnConquest", true),
     );
     let allowOpposingOrders = $state(loadSetting("allowOpposingOrders", false));
-    let tickDuration = $state(loadSetting("tickDuration", 1250));
+    let tickDuration = $state(
+        loadSetting("tickDuration", GAME_CONFIG.BASE_TICK_MS),
+    );
     let playerName = $state(loadSetting("playerName", "Commander"));
     let colorSat = $state(loadSetting("colorSat", 70));
     let colorLig = $state(loadSetting("colorLig", 55));

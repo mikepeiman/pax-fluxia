@@ -37,7 +37,7 @@ interface WorkerInput {
     laneInfluence: number;   // How much stronger lane influence is vs direct (1-10)
     laneWidth: number;       // Half-width of the influence corridor in canvas px
     directFalloff: number;   // How fast direct star influence fades (0.5-5)
-    pressure: number;        // Ship-count influence boost (0-1)
+    pressure: number;        // Ship-count influence boost (0=off, higher=stronger boundary shift)
     threshold: number;       // Minimum influence to claim territory (0-0.5)
     borderWidth: number;
     borderAlpha: number;
@@ -118,7 +118,7 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
 
             // Pressure: boost influence for high-ship stars
             if (pressure > 0 && s.ships > 0) {
-                inf *= 1 + Math.log2(1 + s.ships) * 0.1 * pressure;
+                inf *= 1 + Math.log2(1 + s.ships) * 0.5 * pressure;
             }
 
             infBuf[s.ownerIdx] += inf;

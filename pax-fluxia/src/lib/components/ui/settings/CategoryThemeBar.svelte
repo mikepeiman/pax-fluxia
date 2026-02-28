@@ -282,6 +282,9 @@
         align-items: center;
         justify-content: center;
         gap: 6px;
+        padding: 0 10px;
+        min-width: 30px;
+        flex-shrink: 0;
         transition: all 0.2s;
     }
     .action-btn:hover {

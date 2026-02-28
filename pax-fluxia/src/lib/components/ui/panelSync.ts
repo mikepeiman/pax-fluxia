@@ -96,6 +96,19 @@ export function loadPanelSettings<T extends Record<string, any>>(defaults: T): T
     return { ...defaults };
 }
 
+/**
+ * Build panel defaults by reading every key in PANEL_CONFIG_MAP from GAME_CONFIG.
+ * This ensures panel state always starts consistent with game config — no undefined keys.
+ */
+export function panelDefaultsFromConfig(): Record<string, any> {
+    const defaults: Record<string, any> = {};
+    for (const m of PANEL_CONFIG_MAP) {
+        const raw = (GAME_CONFIG as any)[m.configKey];
+        defaults[m.panelKey] = m.transform === 'inverse' ? (1 / raw) : raw;
+    }
+    return defaults;
+}
+
 export function savePanelSettings(panel: Record<string, any>): void {
     if (typeof window === 'undefined') return;
     try {

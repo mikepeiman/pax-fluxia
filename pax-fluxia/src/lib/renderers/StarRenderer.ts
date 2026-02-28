@@ -125,6 +125,7 @@ interface LabelLerp {
     activeTarget: number;
     damagedTarget: number;
     lastUpdateMs: number;
+    fadeAlpha: number; // For 'fade' mode: 1.0 = fully visible, flashes low on change
 }
 const labelLerps = new Map<string, LabelLerp>();
 
@@ -196,9 +197,12 @@ export function renderStars(
         const cornerRadius = GAME_CONFIG.STAR_CORNER_RADIUS ?? 0.3;
 
         // Player Ownership Ring (Solid circle replacing the colored shape outline)
-        const ringRadius = radius * 1.35;
+        const ringOffset = GAME_CONFIG.STAR_RING_OFFSET ?? 20;
+        const ringWidth = GAME_CONFIG.STAR_RING_WIDTH ?? 2;
+        const ringAlpha = GAME_CONFIG.STAR_RING_ALPHA ?? 0.8;
+        const ringRadius = radius * (1 + ringOffset / 100);
         graphics.circle(star.x, star.y, ringRadius);
-        graphics.stroke({ color: isActive ? 0xffffff : color, width: isActive ? 4 : 2, alpha: 0.9 });
+        graphics.stroke({ color: isActive ? 0xffffff : color, width: isActive ? ringWidth + 2 : ringWidth, alpha: isActive ? Math.min(1, ringAlpha + 0.1) : ringAlpha });
 
         // Outer glow ring (pulses slightly, stronger when active)
         const starFxTime = state.gameNowMs / 1000;
@@ -285,43 +289,75 @@ export function renderStars(
         const damagedText = label.getChildByLabel('damaged') as PIXI.Text;
         const leashGraphics = label.getChildByLabel('leash') as PIXI.Graphics;
 
-        // --- Smooth number transitions ---
+        // --- Smooth number transitions (mode-aware) ---
         const transMs = GAME_CONFIG.NUMBER_TRANSITION_MS ?? 120;
+        const animMode = GAME_CONFIG.LABEL_ANIM_MODE ?? 'rolling';
         const active = star.activeShips;
         const damaged = star.damagedShips;
 
         let lerp = labelLerps.get(star.id);
         if (!lerp) {
-            lerp = { activeDisplay: active, damagedDisplay: damaged, activeTarget: active, damagedTarget: damaged, lastUpdateMs: state.gameNowMs };
+            lerp = { activeDisplay: active, damagedDisplay: damaged, activeTarget: active, damagedTarget: damaged, lastUpdateMs: state.gameNowMs, fadeAlpha: 1.0 };
             labelLerps.set(star.id, lerp);
         }
 
-        // Update targets when actual values change
-        if (lerp.activeTarget !== active) {
-            lerp.activeTarget = active;
-            if (transMs <= 0) lerp.activeDisplay = active;
-        }
-        if (lerp.damagedTarget !== damaged) {
-            lerp.damagedTarget = damaged;
-            if (transMs <= 0) lerp.damagedDisplay = damaged;
-        }
+        // Detect value changes
+        const activeChanged = lerp.activeTarget !== active;
+        const damagedChanged = lerp.damagedTarget !== damaged;
 
-        // Lerp toward target
-        if (transMs > 0) {
-            const dt = Math.max(1, state.gameNowMs - lerp.lastUpdateMs);
-            const t = Math.min(1, dt / transMs * 3); // exponential-ish approach
-            lerp.activeDisplay += (lerp.activeTarget - lerp.activeDisplay) * t;
-            lerp.damagedDisplay += (lerp.damagedTarget - lerp.damagedDisplay) * t;
-            // Snap when very close
-            if (Math.abs(lerp.activeDisplay - lerp.activeTarget) < 0.5) lerp.activeDisplay = lerp.activeTarget;
-            if (Math.abs(lerp.damagedDisplay - lerp.damagedTarget) < 0.5) lerp.damagedDisplay = lerp.damagedTarget;
+        if (animMode === 'rolling') {
+            // Rolling / lerp mode (original behavior)
+            if (activeChanged) {
+                lerp.activeTarget = active;
+                if (transMs <= 0) lerp.activeDisplay = active;
+            }
+            if (damagedChanged) {
+                lerp.damagedTarget = damaged;
+                if (transMs <= 0) lerp.damagedDisplay = damaged;
+            }
+            if (transMs > 0) {
+                const dt = Math.max(1, state.gameNowMs - lerp.lastUpdateMs);
+                const t = Math.min(1, dt / transMs * 3);
+                lerp.activeDisplay += (lerp.activeTarget - lerp.activeDisplay) * t;
+                lerp.damagedDisplay += (lerp.damagedTarget - lerp.damagedDisplay) * t;
+                if (Math.abs(lerp.activeDisplay - lerp.activeTarget) < 0.5) lerp.activeDisplay = lerp.activeTarget;
+                if (Math.abs(lerp.damagedDisplay - lerp.damagedTarget) < 0.5) lerp.damagedDisplay = lerp.damagedTarget;
+            }
+            lerp.fadeAlpha = 1.0;
+        } else if (animMode === 'fade') {
+            // Fade mode: snap number instantly, flash alpha on change
+            if (activeChanged || damagedChanged) {
+                lerp.activeTarget = active;
+                lerp.damagedTarget = damaged;
+                lerp.activeDisplay = active;
+                lerp.damagedDisplay = damaged;
+                lerp.fadeAlpha = 0.25; // Flash low
+            }
+            // Fade alpha back to 1.0
+            if (lerp.fadeAlpha < 1.0 && transMs > 0) {
+                const dt = Math.max(1, state.gameNowMs - lerp.lastUpdateMs);
+                const t = Math.min(1, dt / transMs * 2);
+                lerp.fadeAlpha += (1.0 - lerp.fadeAlpha) * t;
+                if (lerp.fadeAlpha > 0.98) lerp.fadeAlpha = 1.0;
+            }
+        } else {
+            // Instant mode: snap everything
+            lerp.activeTarget = active;
+            lerp.damagedTarget = damaged;
+            lerp.activeDisplay = active;
+            lerp.damagedDisplay = damaged;
+            lerp.fadeAlpha = 1.0;
         }
         lerp.lastUpdateMs = state.gameNowMs;
 
-        if (activeText) activeText.text = String(Math.round(lerp.activeDisplay));
+        if (activeText) {
+            activeText.text = String(Math.round(lerp.activeDisplay));
+            activeText.alpha = lerp.fadeAlpha;
+        }
 
         if (damagedText) {
             damagedText.text = String(Math.round(lerp.damagedDisplay));
+            damagedText.alpha = lerp.fadeAlpha;
             damagedText.visible = true;
         }
 

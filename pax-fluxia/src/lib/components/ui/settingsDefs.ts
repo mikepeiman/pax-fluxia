@@ -265,7 +265,65 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'metaballBorderAlpha', configKey: 'METABALL_BORDER_ALPHA' },
     { panelKey: 'metaballBlur', configKey: 'METABALL_BLUR' },
     { panelKey: 'metaballCoverage', configKey: 'METABALL_COVERAGE' },
+    { panelKey: 'metaballSaturation', configKey: 'METABALL_SATURATION' },
+    { panelKey: 'metaballLightness', configKey: 'METABALL_LIGHTNESS' },
     { panelKey: 'numberTransitionMs', configKey: 'NUMBER_TRANSITION_MS' },
+    // Pixel extras
+    { panelKey: 'pixelLaneConstrain', configKey: 'PIXEL_LANE_CONSTRAIN' },
+    { panelKey: 'pixelPressure', configKey: 'PIXEL_PRESSURE' },
+    { panelKey: 'pixelSaturation', configKey: 'PIXEL_SATURATION' },
+    { panelKey: 'pixelLightness', configKey: 'PIXEL_LIGHTNESS' },
+    // Graph Territory
+    { panelKey: 'territoryGraph', configKey: 'TERRITORY_GRAPH' },
+    { panelKey: 'graphAlpha', configKey: 'GRAPH_ALPHA' },
+    { panelKey: 'graphResolution', configKey: 'GRAPH_RESOLUTION' },
+    { panelKey: 'graphBlur', configKey: 'GRAPH_BLUR' },
+    { panelKey: 'graphPressure', configKey: 'GRAPH_PRESSURE' },
+    { panelKey: 'graphCorridorBoost', configKey: 'GRAPH_CORRIDOR_BOOST' },
+    { panelKey: 'graphBorderWidth', configKey: 'GRAPH_BORDER_WIDTH' },
+    { panelKey: 'graphBorderAlpha', configKey: 'GRAPH_BORDER_ALPHA' },
+    { panelKey: 'graphBorderBrighten', configKey: 'GRAPH_BORDER_BRIGHTEN' },
+    { panelKey: 'graphEdgeFade', configKey: 'GRAPH_EDGE_FADE' },
+    { panelKey: 'graphBarrierExtent', configKey: 'GRAPH_BARRIER_EXTENT' },
+    { panelKey: 'graphPattern', configKey: 'GRAPH_PATTERN' },
+    { panelKey: 'graphPatternScale', configKey: 'GRAPH_PATTERN_SCALE' },
+    { panelKey: 'graphPatternRotation', configKey: 'GRAPH_PATTERN_ROTATION' },
+    { panelKey: 'laneInfluence', configKey: 'LANE_INFLUENCE' },
+    { panelKey: 'laneWidth', configKey: 'LANE_WIDTH' },
+    { panelKey: 'laneDirectFalloff', configKey: 'LANE_DIRECT_FALLOFF' },
+    { panelKey: 'graphSaturation', configKey: 'GRAPH_SATURATION' },
+    { panelKey: 'graphLightness', configKey: 'GRAPH_LIGHTNESS' },
+    // Connection visuals
+    { panelKey: 'showConnections', configKey: 'SHOW_CONNECTIONS' },
+    { panelKey: 'connectionWidth', configKey: 'CONNECTION_WIDTH' },
+    { panelKey: 'connectionAlpha', configKey: 'CONNECTION_ALPHA' },
+    { panelKey: 'connectionShadowWidth', configKey: 'CONNECTION_SHADOW_WIDTH' },
+    { panelKey: 'connectionShadowAlpha', configKey: 'CONNECTION_SHADOW_ALPHA' },
+    // Star glow
+    { panelKey: 'starGlowOn', configKey: 'STAR_GLOW_ON' },
+    { panelKey: 'starGlowLayers', configKey: 'STAR_GLOW_LAYERS' },
+    // Star ownership ring
+    { panelKey: 'starRingOffset', configKey: 'STAR_RING_OFFSET' },
+    { panelKey: 'starRingWidth', configKey: 'STAR_RING_WIDTH' },
+    { panelKey: 'starRingAlpha', configKey: 'STAR_RING_ALPHA' },
+    // Density
+    { panelKey: 'densityHueStep', configKey: 'DENSITY_HUE_STEP' },
+    { panelKey: 'densitySatStep', configKey: 'DENSITY_SAT_STEP' },
+    { panelKey: 'densityLightStep', configKey: 'DENSITY_LIGHT_STEP' },
+    { panelKey: 'densityTiers', configKey: 'DENSITY_TIERS' },
+    { panelKey: 'densityDarkenAlt', configKey: 'DENSITY_DARKEN_ALT' },
+    // Orbit
+    { panelKey: 'orbitBaseRadius', configKey: 'ORBIT_BASE_RADIUS' },
+    { panelKey: 'staticOrbits', configKey: 'STATIC_ORBITS' },
+    { panelKey: 'orbDrawMode', configKey: 'ORB_DRAW_MODE' },
+    // Surge pulse
+    { panelKey: 'surgePulseDurationMs', configKey: 'SURGE_PULSE_DURATION_MS' },
+    // Anim speed
+    { panelKey: 'animSpeed', configKey: 'ANIMATION_SPEED_MS' },
+    // Transfer
+    { panelKey: 'transferAnimMs', configKey: 'TRANSFER_ANIMATION_MS' },
+    // Show hex selection
+    { panelKey: 'showSelectionHex', configKey: 'SHOW_SELECTION_HEX' },
 ];
 
 // ── ConfigKey → PanelKey lookup (for animSliderToPanelKey) ──────────────────

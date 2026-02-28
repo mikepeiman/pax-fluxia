@@ -27,6 +27,7 @@
         saveVisuals,
         applyVisuals,
         loadPanelSettings,
+        panelDefaultsFromConfig,
         savePanelSettings,
         applyPanelToConfig,
         syncPanelFromConfig,
@@ -149,7 +150,7 @@
     let activeTier = $state<SettingsTier>(loadTier());
 
     // Panel settings (persisted via panelSync)
-    let panel = $state(loadPanelSettings({} as Record<string, any>));
+    let panel = $state(loadPanelSettings(panelDefaultsFromConfig()));
     // Visuals state (persisted via panelSync)
     let vis = $state(loadVisuals());
     // Animation lock state (persisted via panelSync)
@@ -987,14 +988,14 @@
         {
             id: "ships",
             icon: "🎨",
-            label: "Ship Appearance",
+            label: "Stars & Ships",
             color: "#88ccff",
             tier: "advanced",
         },
         {
             id: "travel",
             icon: "🚀",
-            label: "Path & Easing",
+            label: "Ship travel",
             color: "#44aaff",
             tier: "advanced",
         },

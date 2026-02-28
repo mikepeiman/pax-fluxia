@@ -62,6 +62,39 @@ function rgbToHex(r: number, g: number, b: number): number {
     return (Math.round(r) << 16) | (Math.round(g) << 8) | Math.round(b);
 }
 
+function rgbToHSL(r: number, g: number, b: number): [number, number, number] {
+    const rn = r / 255, gn = g / 255, bn = b / 255;
+    const max = Math.max(rn, gn, bn), min = Math.min(rn, gn, bn);
+    const l = (max + min) / 2;
+    if (max === min) return [0, 0, l];
+    const d = max - min;
+    const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    let h = 0;
+    if (max === rn) h = ((gn - bn) / d + (gn < bn ? 6 : 0)) * 60;
+    else if (max === gn) h = ((bn - rn) / d + 2) * 60;
+    else h = ((rn - gn) / d + 4) * 60;
+    return [h, s, l];
+}
+
+function hslToRGB(h: number, s: number, l: number): [number, number, number] {
+    if (s === 0) { const v = Math.round(l * 255); return [v, v, v]; }
+    function hue2rgb(p: number, q: number, t: number): number {
+        if (t < 0) t += 1; if (t > 1) t -= 1;
+        if (t < 1 / 6) return p + (q - p) * 6 * t;
+        if (t < 1 / 2) return q;
+        if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+        return p;
+    }
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const p = 2 * l - q;
+    const hn = h / 360;
+    return [
+        Math.round(hue2rgb(p, q, hn + 1 / 3) * 255),
+        Math.round(hue2rgb(p, q, hn) * 255),
+        Math.round(hue2rgb(p, q, hn - 1 / 3) * 255),
+    ];
+}
+
 /**
  * Build fingerprint from ownership data + config.
  * This only changes on tick events (ownership/ship count changes),
@@ -79,6 +112,7 @@ function buildFingerprint(stars: StarState[]): string {
     fp += `:${GAME_CONFIG.METABALL_STRENGTH_MULT}:${GAME_CONFIG.METABALL_EDGE_FADE}`;
     fp += `:${GAME_CONFIG.METABALL_BLUR}:${GAME_CONFIG.TERRITORY_METABALL}`;
     fp += `:${GAME_CONFIG.METABALL_BORDER_WIDTH}:${GAME_CONFIG.METABALL_BORDER_ALPHA}`;
+    fp += `:${GAME_CONFIG.METABALL_SATURATION}:${GAME_CONFIG.METABALL_LIGHTNESS}`;
     return fp;
 }
 
@@ -153,9 +187,18 @@ export function renderMetaball(
         }
     }
 
-    const playerColors: [number, number, number][] = playerIds.map(
-        pid => hexToRGB(colorUtils.getPlayerColor(pid))
-    );
+    const satMult = GAME_CONFIG.METABALL_SATURATION ?? 1.0;
+    const lightMult = GAME_CONFIG.METABALL_LIGHTNESS ?? 1.0;
+    const useHSL = satMult !== 1.0 || lightMult !== 1.0;
+
+    const playerColors: [number, number, number][] = playerIds.map(pid => {
+        const rawRgb = hexToRGB(colorUtils.getPlayerColor(pid));
+        if (useHSL) {
+            const [h, s, l] = rgbToHSL(rawRgb[0], rawRgb[1], rawRgb[2]);
+            return hslToRGB(h, Math.min(1, s * satMult), Math.min(1, l * lightMult));
+        }
+        return rawRgb;
+    });
 
     // Grid padding: 0=compact (exact world), 0.3=extended (fills viewport at zoom-out)
     const coverage = GAME_CONFIG.METABALL_COVERAGE ?? 0.3;

@@ -138,7 +138,9 @@
             makeDefaultPlayerConfigs(loadSetting("playerCount", 6)),
         ),
     );
-    let tickDuration = $state(loadSetting("tickDuration", 1250));
+    let tickDuration = $state(
+        loadSetting("tickDuration", GAME_CONFIG.BASE_TICK_MS),
+    );
 
     // Player identity (persisted)
     let playerName = $state(loadSetting("playerName", "Commander"));

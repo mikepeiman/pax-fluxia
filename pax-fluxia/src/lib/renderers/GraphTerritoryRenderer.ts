@@ -45,7 +45,7 @@ function buildFingerprint(stars: StarState[]): string {
     fp += `:${GAME_CONFIG.GRAPH_BORDER_WIDTH}:${GAME_CONFIG.GRAPH_BORDER_ALPHA}`;
     fp += `:${GAME_CONFIG.GRAPH_BORDER_BRIGHTEN}:${GAME_CONFIG.GRAPH_EDGE_FADE}`;
     fp += `:${GAME_CONFIG.GRAPH_CORRIDOR_BOOST}:${GAME_CONFIG.TERRITORY_GRAPH}`;
-    fp += `:${GAME_CONFIG.VORONOI_SATURATION}:${GAME_CONFIG.VORONOI_LIGHTNESS}`;
+    fp += `:${GAME_CONFIG.GRAPH_SATURATION}:${GAME_CONFIG.GRAPH_LIGHTNESS}`;
     fp += `:${GAME_CONFIG.GRAPH_PATTERN}:${GAME_CONFIG.GRAPH_PATTERN_SCALE}:${GAME_CONFIG.GRAPH_PATTERN_ROTATION}`;
     fp += `:${GAME_CONFIG.GRAPH_BARRIER_EXTENT}`;
     return fp;
@@ -167,8 +167,8 @@ export function renderGraphTerritory(
     const totalH = worldHeight + padding * 2;
     const canvasW = Math.ceil(totalW / resolution);
     const canvasH = Math.ceil(totalH / resolution);
-    const satMult = GAME_CONFIG.VORONOI_SATURATION ?? 1.0;
-    const lightMult = GAME_CONFIG.VORONOI_LIGHTNESS ?? 1.0;
+    const satMult = GAME_CONFIG.GRAPH_SATURATION ?? 1.0;
+    const lightMult = GAME_CONFIG.GRAPH_LIGHTNESS ?? 1.0;
     const useHSL = satMult !== 1.0 || lightMult !== 1.0;
     const patternScale = Math.max(1, Math.round((GAME_CONFIG.GRAPH_PATTERN_SCALE ?? 4) / resolution));
     const barrierExtent = GAME_CONFIG.GRAPH_BARRIER_EXTENT ?? 1.5;

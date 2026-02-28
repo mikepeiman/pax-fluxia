@@ -235,6 +235,7 @@ Given your context (web stack, heavy dev experience, and desire for tunable, rou
 
 Exposed tuning variables you can surface to designers/yourself:
 
+
 - Voronoi relaxation iterations / weight (if using CVT‑style relaxation).  
 - Polygon smoothing iterations / tension (Chaikin).  
 - Blending radius around borders.  

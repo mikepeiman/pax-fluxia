@@ -132,22 +132,6 @@
 
   // ── Mobile drawer (icon-activated, no swipe) ──
   let mobileDrawerOpen = $state(false);
-
-  // ── Pull-to-refresh hardening ──
-  if (typeof window !== "undefined") {
-    document.addEventListener(
-      "touchmove",
-      (e: TouchEvent) => {
-        if (
-          document.documentElement.scrollTop <= 0 &&
-          document.body.scrollHeight <= window.innerHeight
-        ) {
-          e.preventDefault();
-        }
-      },
-      { passive: false },
-    );
-  }
 </script>
 
 <div class="app-container">
@@ -173,47 +157,6 @@
     <div class="game-layout" class:settings-open={showSettingsPanel}>
       <!-- CANVAS AREA -->
       <div class="area-canvas">
-        <!-- L3: SVG star speckle background -->
-        <svg
-          class="starfield-bg"
-          xmlns="http://www.w3.org/2000/svg"
-          width="100%"
-          height="100%"
-        >
-          <defs>
-            <pattern
-              id="starfield"
-              width="200"
-              height="200"
-              patternUnits="userSpaceOnUse"
-            >
-              <circle cx="12" cy="45" r="0.6" fill="white" opacity="0.12" />
-              <circle cx="67" cy="12" r="0.9" fill="white" opacity="0.07" />
-              <circle cx="134" cy="78" r="0.4" fill="white" opacity="0.18" />
-              <circle cx="45" cy="156" r="0.7" fill="white" opacity="0.09" />
-              <circle cx="178" cy="34" r="0.5" fill="white" opacity="0.14" />
-              <circle cx="89" cy="189" r="0.8" fill="white" opacity="0.06" />
-              <circle cx="156" cy="123" r="0.3" fill="white" opacity="0.2" />
-              <circle cx="23" cy="89" r="0.6" fill="white" opacity="0.1" />
-              <circle cx="112" cy="167" r="0.5" fill="white" opacity="0.13" />
-              <circle cx="167" cy="178" r="0.7" fill="white" opacity="0.08" />
-              <circle cx="78" cy="67" r="0.4" fill="white" opacity="0.16" />
-              <circle cx="145" cy="45" r="0.6" fill="white" opacity="0.11" />
-              <circle cx="34" cy="134" r="0.5" fill="white" opacity="0.09" />
-              <circle cx="189" cy="89" r="0.8" fill="white" opacity="0.05" />
-              <circle cx="56" cy="23" r="0.3" fill="white" opacity="0.17" />
-              <circle cx="123" cy="112" r="0.7" fill="white" opacity="0.07" />
-              <circle cx="90" cy="145" r="0.4" fill="white" opacity="0.15" />
-              <circle cx="178" cy="156" r="0.6" fill="white" opacity="0.1" />
-              <circle cx="12" cy="178" r="0.5" fill="white" opacity="0.12" />
-              <circle cx="145" cy="12" r="0.9" fill="white" opacity="0.06" />
-              <circle cx="67" cy="100" r="0.3" fill="#aaddff" opacity="0.08" />
-              <circle cx="100" cy="34" r="0.4" fill="#ffddaa" opacity="0.06" />
-              <circle cx="156" cy="89" r="0.5" fill="#aaffdd" opacity="0.05" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#starfield)" />
-        </svg>
         <GameCanvas bind:this={gameCanvasRef} />
 
         <!-- TOP CENTER: Room ID Badge (MP only) -->
@@ -428,58 +371,15 @@
 
   <!-- ═══ MOBILE CONTROL RIBBON + DRAWER (hidden on desktop) ═══ -->
   {#if gameStore.currentView === "game"}
-    <!-- ICON RIBBON — permanent strip of action icons -->
-    <div class="mobile-ribbon">
-      <button
-        class="ribbon-icon"
-        class:active={mobileDrawerOpen}
-        onclick={() => (mobileDrawerOpen = !mobileDrawerOpen)}
-        title="Menu"
-      >
-        {mobileDrawerOpen ? "✕" : "☰"}
-      </button>
-      {#if activeGameStore.phase !== "playing"}
-        <button
-          class="ribbon-icon ribbon-start"
-          onclick={() => activeGameStore.startGame()}
-          title="Start Game"
-        >
-          ▶
-        </button>
-      {:else}
-        <button
-          class="ribbon-icon"
-          class:active={activeGameStore.isPaused}
-          onclick={() => {
-            if (activeGameStore.isPaused) activeGameStore.resumeGame();
-            else activeGameStore.pauseGame();
-          }}
-          title={activeGameStore.isPaused ? "Resume" : "Pause"}
-        >
-          {activeGameStore.isPaused ? "▶" : "⏸"}
-        </button>
-        <button
-          class="ribbon-icon"
-          onclick={() => gameCanvasRef?.centerAndFit?.()}
-          title="Fit to Viewport"
-        >
-          ⛶
-        </button>
-        <button
-          class="ribbon-icon"
-          onclick={() => {
-            const speeds = [1, 2, 4, 10] as const;
-            const idx = speeds.indexOf(activeGameStore.speed as any);
-            const next = speeds[(idx + 1) % speeds.length];
-            if (activeGameStore.isPaused) activeGameStore.resumeGame();
-            activeGameStore.setSpeed(next as any);
-          }}
-          title="Speed: {activeGameStore.speed}x"
-        >
-          {activeGameStore.speed}x
-        </button>
-      {/if}
-    </div>
+    <!-- MOBILE MENU BUTTON (☰ only) -->
+    <button
+      class="mobile-menu-btn"
+      class:active={mobileDrawerOpen}
+      onclick={() => (mobileDrawerOpen = !mobileDrawerOpen)}
+      title="Menu"
+    >
+      {mobileDrawerOpen ? "✕" : "☰"}
+    </button>
 
     <!-- Scrim -->
     {#if mobileDrawerOpen}
@@ -517,28 +417,6 @@
               <option value={theme.name}>{theme.name}</option>
             {/each}
           </select>
-        </div>
-
-        <!-- Actions -->
-        <div class="mobile-section mobile-actions">
-          <button
-            class="btn btn--ghost btn--sm"
-            onclick={() => activeGameStore.playAgain()}
-          >
-            🔄 Restart
-          </button>
-          <button
-            class="btn btn--ghost btn--sm"
-            onclick={() => (showAudioSettings = true)}
-          >
-            🔊 Audio
-          </button>
-          <button
-            class="btn btn--danger btn--sm"
-            onclick={() => (showSurrenderModal = true)}
-          >
-            Quit
-          </button>
         </div>
       </div>
     </div>
@@ -582,16 +460,29 @@
     .area-controls {
       display: none !important;
     }
-    /* ── Hide ALL desktop overlays on mobile ── */
-    .overlay-bottom-left,
+    /* ── Hide desktop overlays on mobile (but NOT overlay-bottom-left) ── */
     .overlay-top-left,
     .overlay-top-center {
       display: none !important;
     }
+    /* Reposition speed controls to center-bottom on mobile */
+    .overlay-bottom-left {
+      left: 50% !important;
+      right: auto !important;
+      bottom: calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+      transform: translateX(-50%);
+    }
+    .controls-wrapper {
+      flex-direction: row !important;
+      gap: 8px;
+    }
+    .action-buttons {
+      flex-direction: row !important;
+    }
   }
 
   /* ── Mobile-only elements (hidden on desktop) ── */
-  .mobile-ribbon {
+  .mobile-menu-btn {
     display: none;
   }
   .mobile-scrim {
@@ -602,67 +493,34 @@
   }
 
   @media (max-width: 1024px) {
-    /* ── RIBBON: permanent icon strip ── */
-    .mobile-ribbon {
-      display: flex;
-      position: fixed;
-      z-index: 500;
-      gap: 2px;
-      padding: 4px;
-      background: rgba(10, 10, 18, 0.85);
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-    }
-
-    .ribbon-icon {
+    /* ── Mobile menu button (☰) — top-right ── */
+    .mobile-menu-btn {
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 40px;
-      height: 40px;
-      border-radius: 8px;
-      background: transparent;
-      border: 1px solid transparent;
-      color: rgba(255, 255, 255, 0.65);
-      font-size: 1.1rem;
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: rgba(10, 10, 18, 0.85);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 1.3rem;
       cursor: pointer;
-      transition: all 0.15s ease;
-      font-family: inherit;
+      z-index: 500;
+      transition: all 0.2s ease;
     }
-    .ribbon-icon:hover,
-    .ribbon-icon:active {
-      color: #fff;
-      background: rgba(255, 255, 255, 0.1);
-      border-color: rgba(0, 255, 255, 0.3);
-    }
-    .ribbon-icon.active {
-      color: #0ff;
-      background: rgba(0, 255, 255, 0.12);
+    .mobile-menu-btn:active {
+      background: rgba(10, 10, 18, 0.95);
       border-color: rgba(0, 255, 255, 0.4);
+      color: #fff;
     }
-
-    /* ── LANDSCAPE: ribbon on right edge, vertical ── */
-    @media (orientation: landscape) {
-      .mobile-ribbon {
-        flex-direction: column;
-        right: 0;
-        top: 50%;
-        transform: translateY(-50%);
-        border-radius: 10px 0 0 10px;
-        border-right: none;
-      }
-    }
-
-    /* ── PORTRAIT: ribbon on bottom edge, horizontal ── */
-    @media (orientation: portrait) {
-      .mobile-ribbon {
-        flex-direction: row;
-        bottom: 0;
-        left: 50%;
-        transform: translateX(-50%);
-        border-radius: 10px 10px 0 0;
-        border-bottom: none;
-      }
+    .mobile-menu-btn.active {
+      color: #0ff;
+      border-color: rgba(0, 255, 255, 0.4);
     }
 
     /* ── Scrim behind drawer ── */
@@ -720,12 +578,6 @@
     }
     .mobile-section:last-child {
       border-bottom: none;
-    }
-
-    .mobile-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
     }
 
     .mobile-theme-label {
