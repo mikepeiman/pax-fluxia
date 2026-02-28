@@ -62,6 +62,17 @@
     window.addEventListener("pax-star-info-toggle", ((e: CustomEvent) => {
       showStarInfoPanel = e.detail;
     }) as EventListener);
+
+    // F hotkey — fit game to viewport
+    window.addEventListener("keydown", (e: KeyboardEvent) => {
+      if (e.key === "f" || e.key === "F") {
+        // Don't trigger if user is typing in an input
+        const tag = (e.target as HTMLElement)?.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+        e.preventDefault();
+        gameCanvasRef?.centerAndFit?.();
+      }
+    });
   }
 
   // ── Resizable sidebar (F-53) ──
@@ -118,6 +129,25 @@
           (b.totalShips ?? 0) - (a.totalShips ?? 0),
       );
   });
+
+  // ── Mobile drawer (icon-activated, no swipe) ──
+  let mobileDrawerOpen = $state(false);
+
+  // ── Pull-to-refresh hardening ──
+  if (typeof window !== "undefined") {
+    document.addEventListener(
+      "touchmove",
+      (e: TouchEvent) => {
+        if (
+          document.documentElement.scrollTop <= 0 &&
+          document.body.scrollHeight <= window.innerHeight
+        ) {
+          e.preventDefault();
+        }
+      },
+      { passive: false },
+    );
+  }
 </script>
 
 <div class="app-container">
@@ -126,6 +156,9 @@
       ? () => (showAudioSettings = true)
       : undefined}
     onHelpClick={() => alert("Help & controls guide coming soon!")}
+    onFitViewport={gameStore.currentView === "game"
+      ? () => gameCanvasRef?.centerAndFit?.()
+      : undefined}
   />
 
   {#if gameStore.currentView === "menu"}
@@ -392,6 +425,124 @@
       </div>
     {/if}
   {/if}
+
+  <!-- ═══ MOBILE CONTROL RIBBON + DRAWER (hidden on desktop) ═══ -->
+  {#if gameStore.currentView === "game"}
+    <!-- ICON RIBBON — permanent strip of action icons -->
+    <div class="mobile-ribbon">
+      <button
+        class="ribbon-icon"
+        class:active={mobileDrawerOpen}
+        onclick={() => (mobileDrawerOpen = !mobileDrawerOpen)}
+        title="Menu"
+      >
+        {mobileDrawerOpen ? "✕" : "☰"}
+      </button>
+      {#if activeGameStore.phase !== "playing"}
+        <button
+          class="ribbon-icon ribbon-start"
+          onclick={() => activeGameStore.startGame()}
+          title="Start Game"
+        >
+          ▶
+        </button>
+      {:else}
+        <button
+          class="ribbon-icon"
+          class:active={activeGameStore.isPaused}
+          onclick={() => {
+            if (activeGameStore.isPaused) activeGameStore.resumeGame();
+            else activeGameStore.pauseGame();
+          }}
+          title={activeGameStore.isPaused ? "Resume" : "Pause"}
+        >
+          {activeGameStore.isPaused ? "▶" : "⏸"}
+        </button>
+        <button
+          class="ribbon-icon"
+          onclick={() => gameCanvasRef?.centerAndFit?.()}
+          title="Fit to Viewport"
+        >
+          ⛶
+        </button>
+        <button
+          class="ribbon-icon"
+          onclick={() => {
+            const speeds = [1, 2, 4, 10] as const;
+            const idx = speeds.indexOf(activeGameStore.speed as any);
+            const next = speeds[(idx + 1) % speeds.length];
+            if (activeGameStore.isPaused) activeGameStore.resumeGame();
+            activeGameStore.setSpeed(next as any);
+          }}
+          title="Speed: {activeGameStore.speed}x"
+        >
+          {activeGameStore.speed}x
+        </button>
+      {/if}
+    </div>
+
+    <!-- Scrim -->
+    {#if mobileDrawerOpen}
+      <div
+        class="mobile-scrim"
+        onclick={() => (mobileDrawerOpen = false)}
+        role="presentation"
+      ></div>
+    {/if}
+
+    <!-- Drawer panel (opens from ribbon ☰ icon only) -->
+    <div class="mobile-drawer" class:open={mobileDrawerOpen}>
+      <div class="mobile-drawer-content">
+        <!-- Leaderboard -->
+        <div class="mobile-section">
+          <Leaderboard players={leaderboardPlayers} />
+        </div>
+
+        <!-- Theme -->
+        <div class="mobile-section">
+          <label class="mobile-theme-label" for="mobile-theme-select"
+            >🎨 THEME</label
+          >
+          <select
+            id="mobile-theme-select"
+            class="mobile-theme-select"
+            value={themeStore.selectedThemeName}
+            onchange={(e) => {
+              const v = (e.target as HTMLSelectElement).value;
+              if (v) themeStore.applyTheme(v);
+            }}
+          >
+            <option value="">Select Theme…</option>
+            {#each themeStore.allThemes as theme}
+              <option value={theme.name}>{theme.name}</option>
+            {/each}
+          </select>
+        </div>
+
+        <!-- Actions -->
+        <div class="mobile-section mobile-actions">
+          <button
+            class="btn btn--ghost btn--sm"
+            onclick={() => activeGameStore.playAgain()}
+          >
+            🔄 Restart
+          </button>
+          <button
+            class="btn btn--ghost btn--sm"
+            onclick={() => (showAudioSettings = true)}
+          >
+            🔊 Audio
+          </button>
+          <button
+            class="btn btn--danger btn--sm"
+            onclick={() => (showSurrenderModal = true)}
+          >
+            Quit
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -418,14 +569,196 @@
     grid-template-areas: "canvas controls right";
   }
 
-  @media (max-width: 800px) {
+  @media (max-width: 1024px) {
     .game-layout {
-      grid-template-columns: 1fr;
-      grid-template-areas: "canvas";
+      grid-template-columns: 1fr !important;
+      grid-template-areas: "canvas" !important;
+    }
+    .game-layout.settings-open {
+      grid-template-columns: 1fr !important;
+      grid-template-areas: "canvas" !important;
     }
     .area-right,
     .area-controls {
-      display: none;
+      display: none !important;
+    }
+    /* ── Hide ALL desktop overlays on mobile ── */
+    .overlay-bottom-left,
+    .overlay-top-left,
+    .overlay-top-center {
+      display: none !important;
+    }
+  }
+
+  /* ── Mobile-only elements (hidden on desktop) ── */
+  .mobile-ribbon {
+    display: none;
+  }
+  .mobile-scrim {
+    display: none;
+  }
+  .mobile-drawer {
+    display: none;
+  }
+
+  @media (max-width: 1024px) {
+    /* ── RIBBON: permanent icon strip ── */
+    .mobile-ribbon {
+      display: flex;
+      position: fixed;
+      z-index: 500;
+      gap: 2px;
+      padding: 4px;
+      background: rgba(10, 10, 18, 0.85);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .ribbon-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      background: transparent;
+      border: 1px solid transparent;
+      color: rgba(255, 255, 255, 0.65);
+      font-size: 1.1rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-family: inherit;
+    }
+    .ribbon-icon:hover,
+    .ribbon-icon:active {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(0, 255, 255, 0.3);
+    }
+    .ribbon-icon.active {
+      color: #0ff;
+      background: rgba(0, 255, 255, 0.12);
+      border-color: rgba(0, 255, 255, 0.4);
+    }
+
+    /* ── LANDSCAPE: ribbon on right edge, vertical ── */
+    @media (orientation: landscape) {
+      .mobile-ribbon {
+        flex-direction: column;
+        right: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        border-radius: 10px 0 0 10px;
+        border-right: none;
+      }
+    }
+
+    /* ── PORTRAIT: ribbon on bottom edge, horizontal ── */
+    @media (orientation: portrait) {
+      .mobile-ribbon {
+        flex-direction: row;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        border-radius: 10px 10px 0 0;
+        border-bottom: none;
+      }
+    }
+
+    /* ── Scrim behind drawer ── */
+    .mobile-scrim {
+      display: block;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 490;
+      animation: fadeIn 0.2s ease;
+    }
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+      to {
+        opacity: 1;
+      }
+    }
+
+    /* ── Slide-in drawer from right ── */
+    .mobile-drawer {
+      display: flex;
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 280px;
+      max-width: 80vw;
+      height: 100vh;
+      height: 100dvh;
+      background: rgba(10, 10, 18, 0.97);
+      backdrop-filter: blur(12px);
+      border-left: 1px solid rgba(255, 255, 255, 0.1);
+      z-index: 495;
+      transform: translateX(100%);
+      transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+      flex-direction: column;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+    .mobile-drawer.open {
+      transform: translateX(0);
+    }
+
+    .mobile-drawer-content {
+      padding: 20px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .mobile-section {
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .mobile-section:last-child {
+      border-bottom: none;
+    }
+
+    .mobile-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .mobile-theme-label {
+      display: block;
+      font-family: "Exo", sans-serif;
+      font-size: 0.7rem;
+      font-weight: 900;
+      letter-spacing: 0.15em;
+      color: rgba(255, 200, 60, 0.9);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .mobile-theme-select {
+      width: 100%;
+      padding: 8px 10px;
+      background: rgba(20, 20, 35, 0.9);
+      border: 1px solid rgba(255, 200, 60, 0.3);
+      border-radius: 6px;
+      color: #fff;
+      font-family: "Montserrat", sans-serif;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* Hide desktop-only elements on mobile */
+    :global(.top-bar) {
+      display: none !important;
+    }
+    :global(.help-fab),
+    :global(.fit-fab) {
+      display: none !important;
     }
   }
 

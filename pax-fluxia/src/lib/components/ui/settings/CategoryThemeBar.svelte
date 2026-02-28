@@ -70,6 +70,24 @@
         if (selectedName === name) selectedName = "";
         _version++; // trigger preset list refresh
     }
+
+    function handleUpdate() {
+        if (!selectedName) return;
+        const existing = presets.find((p) => p.name === selectedName);
+        if (!existing || existing.builtIn) return;
+        const preset = saveCategoryPreset(category, selectedName);
+        _version++;
+        saveFlash = true;
+        setTimeout(() => (saveFlash = false), 600);
+        downloadThemeJson(preset);
+    }
+
+    $effect(() => {
+        // Determine if selected preset is a user preset (editable)
+        const p = presets.find((pr) => pr.name === selectedName);
+        isUserPreset = p ? !p.builtIn : false;
+    });
+    let isUserPreset = $state(false);
 </script>
 
 {#if presets.length > 0 || true}
@@ -95,12 +113,22 @@
                     {/each}
                 </select>
 
+                {#if isUserPreset}
+                    <button
+                        class="action-btn update-btn"
+                        class:flash={saveFlash}
+                        onclick={handleUpdate}
+                        title="Update ‘{selectedName}’ with current settings"
+                    >
+                        💾
+                    </button>
+                {/if}
                 <button
-                    class="action-btn action-half"
+                    class="action-btn create-btn"
                     title="Create new theme from current settings"
                     onclick={() => (showSaveInput = true)}
                 >
-                    <span class="plus-icon">+</span> Create theme
+                    <span class="plus-icon">+</span>
                 </button>
             </div>
 

@@ -838,6 +838,16 @@
         themeStore.exportTheme(name);
     }
 
+    function handleUpdateTheme() {
+        const name = themeStore.selectedThemeName;
+        if (!name || !themeStore.isUserTheme(name)) return;
+        themeStore.saveTheme(name);
+        configStatus = `\u2705 Theme \"${name}\" updated`;
+        configStatusColor = "#4ade80";
+        fullSaveFlash = true;
+        setTimeout(() => (fullSaveFlash = false), 600);
+    }
+
     function handleExportTheme() {
         themeStore.exportTheme(themeStore.selectedThemeName || undefined);
     }
@@ -1079,13 +1089,24 @@
                         </option>
                     {/each}
                 </select>
+                {#if themeStore.selectedThemeName && themeStore.isUserTheme(themeStore.selectedThemeName)}
+                    <button
+                        class="full-action-btn full-update-btn"
+                        class:flash={fullSaveFlash}
+                        onclick={handleUpdateTheme}
+                        title="Update ‘{themeStore.selectedThemeName}’ with current settings"
+                    >
+                        💾 Update
+                    </button>
+                {/if}
                 <button
-                    class="full-action-btn full-action-half"
+                    class="full-action-btn full-create-btn"
                     onclick={() => {
                         showFullSaveInput = true;
                     }}
+                    title="Save current settings as a new theme"
                 >
-                    <span class="full-plus-icon">+</span> Create theme
+                    <span class="full-plus-icon">+</span> New
                 </button>
             </div>
             <div class="full-save-drawer" class:open={showFullSaveInput}>

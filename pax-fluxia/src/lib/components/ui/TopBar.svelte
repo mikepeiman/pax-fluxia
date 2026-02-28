@@ -10,9 +10,10 @@
     interface Props {
         onSettingsClick?: () => void;
         onHelpClick?: () => void;
+        onFitViewport?: () => void;
     }
 
-    let { onSettingsClick, onHelpClick }: Props = $props();
+    let { onSettingsClick, onHelpClick, onFitViewport }: Props = $props();
 
     const isInGame = $derived(gameStore.currentView === "game");
     const isInMenu = $derived(gameStore.currentView === "menu");
@@ -88,6 +89,13 @@
         {/if}
     </div>
 </div>
+
+<!-- Fit-to-viewport button — fixed bottom-right, left of help -->
+{#if onFitViewport}
+    <button class="fit-fab" onclick={onFitViewport} title="Fit to Viewport (F)">
+        ⛶
+    </button>
+{/if}
 
 <!-- Help button — fixed bottom-right, always visible -->
 {#if onHelpClick}
@@ -234,6 +242,34 @@
     }
 
     .help-fab:hover {
+        color: #fff;
+        border-color: rgba(0, 255, 255, 0.4);
+        background: rgba(20, 20, 30, 0.9);
+        box-shadow: 0 0 12px rgba(0, 255, 255, 0.15);
+    }
+
+    /* Fit-to-viewport FAB — left of help */
+    .fit-fab {
+        position: fixed;
+        bottom: 20px;
+        right: 64px;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: rgba(20, 20, 30, 0.7);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        color: rgba(255, 255, 255, 0.4);
+        font-size: 1rem;
+        cursor: pointer;
+        z-index: 200;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .fit-fab:hover {
         color: #fff;
         border-color: rgba(0, 255, 255, 0.4);
         background: rgba(20, 20, 30, 0.9);
