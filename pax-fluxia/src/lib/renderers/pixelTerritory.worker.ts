@@ -6,6 +6,25 @@
 // back a Uint8ClampedArray + ownerGrid as Transferable (zero-copy).
 // ============================================================================
 
+const SQRT3 = Math.sqrt(3);
+function hexDistToEdge(px: number, py: number, size: number): number {
+    const q = (2.0 / 3.0 * px) / size;
+    const r = (-1.0 / 3.0 * px + SQRT3 / 3.0 * py) / size;
+    const s = -q - r;
+    let rq = Math.round(q), rr = Math.round(r), rs = Math.round(s);
+    const dq = Math.abs(rq - q), dr = Math.abs(rr - r), ds = Math.abs(rs - s);
+    if (dq > dr && dq > ds) rq = -rr - rs;
+    else if (dr > ds) rr = -rq - rs;
+    const cx = size * (3.0 / 2.0 * rq);
+    const cy = size * (SQRT3 / 2.0 * rq + SQRT3 * rr);
+    const ddx = Math.abs(px - cx), ddy = Math.abs(py - cy);
+    const halfH = SQRT3 / 2.0 * size;
+    const dRight = size - ddx;
+    const dHoriz = halfH - ddy;
+    const dDiag = (SQRT3 * size - ddy - SQRT3 * ddx) / 2.0;
+    return Math.max(0, Math.min(dRight, dHoriz, dDiag));
+}
+
 interface StarData {
     x: number;
     y: number;
@@ -217,6 +236,10 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
                                 const gx = ((((rpx % ps) + ps) % ps) - ps / 2);
                                 const gy = ((((rpy % ps) + ps) % ps) - ps / 2);
                                 pa *= (Math.sqrt(gx * gx + gy * gy) / (ps / 2)) < 0.5 ? 1.0 : 0.25;
+                            } else if (pattern === 'hex') {
+                                const d2e = hexDistToEdge(px, py, ps);
+                                if (d2e < 1.5) pa *= 0.05;
+                                else if (d2e < 3.0) pa = Math.min(1.0, pa * 2.5);
                             }
                         }
 
@@ -330,6 +353,10 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
                                 const gx = ((((rpx % ps) + ps) % ps) - ps / 2);
                                 const gy = ((((rpy % ps) + ps) % ps) - ps / 2);
                                 pa *= (Math.sqrt(gx * gx + gy * gy) / (ps / 2)) < 0.5 ? 1.0 : 0.25;
+                            } else if (pattern === 'hex') {
+                                const d2e = hexDistToEdge(px, py, ps);
+                                if (d2e < 1.5) pa *= 0.05;
+                                else if (d2e < 3.0) pa = Math.min(1.0, pa * 2.5);
                             }
                         }
 

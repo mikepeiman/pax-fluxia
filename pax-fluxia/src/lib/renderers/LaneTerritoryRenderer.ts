@@ -1,0 +1,332 @@
+// ============================================================================
+// LaneTerritoryRenderer — Connection-Aware Influence Territory
+// ============================================================================
+// Replaces GraphTerritoryRenderer. Uses the TERRITORY_GRAPH toggle.
+// Influence propagates along connection lanes like pipes/rivers, creating
+// organic shapes that follow the graph topology.
+// ============================================================================
+
+import * as PIXI from 'pixi.js';
+import { GAME_CONFIG } from '$lib/config/game.config';
+import type { StarState, StarConnection } from '$lib/types/game.types';
+import type { ColorUtils } from './RenderContext';
+import LaneWorker from './laneTerritory.worker?worker';
+
+// ── Cache ──
+let cachedFingerprint = '';
+let cachedSprite: PIXI.Sprite | null = null;
+let cachedTexture: PIXI.Texture | null = null;
+let cachedBlurFilter: PIXI.BlurFilter | null = null;
+let cachedBlurStrength = -1;
+
+// ── Worker state ──
+let worker: Worker | null = null;
+let workerBusy = false;
+let pendingContainer: PIXI.Container | null = null;
+let pendingTotalW = 0;
+let pendingTotalH = 0;
+let pendingPadding = 0;
+
+// ── Helpers ──
+
+function buildFingerprint(stars: StarState[]): string {
+    let fp = '';
+    for (const s of stars) {
+        fp += `${s.id}:${s.ownerId ?? ''}:${s.activeShips}|`;
+    }
+    fp += `:${GAME_CONFIG.GRAPH_ALPHA}:${GAME_CONFIG.GRAPH_RESOLUTION}`;
+    fp += `:${GAME_CONFIG.GRAPH_BLUR}:${GAME_CONFIG.GRAPH_PRESSURE}`;
+    fp += `:${GAME_CONFIG.GRAPH_BORDER_WIDTH}:${GAME_CONFIG.GRAPH_BORDER_ALPHA}`;
+    fp += `:${GAME_CONFIG.GRAPH_BORDER_BRIGHTEN}:${GAME_CONFIG.GRAPH_EDGE_FADE}`;
+    fp += `:${GAME_CONFIG.TERRITORY_GRAPH}`;
+    fp += `:${GAME_CONFIG.VORONOI_SATURATION}:${GAME_CONFIG.VORONOI_LIGHTNESS}`;
+    fp += `:${GAME_CONFIG.GRAPH_PATTERN}:${GAME_CONFIG.GRAPH_PATTERN_SCALE}:${GAME_CONFIG.GRAPH_PATTERN_ROTATION}`;
+    fp += `:${GAME_CONFIG.LANE_INFLUENCE}:${GAME_CONFIG.LANE_WIDTH}`;
+    fp += `:${GAME_CONFIG.LANE_DIRECT_FALLOFF}:${GAME_CONFIG.LANE_THRESHOLD}`;
+    fp += `:${GAME_CONFIG.HEX_SIZE}:${GAME_CONFIG.HEX_GAP}:${GAME_CONFIG.HEX_LINE}:${GAME_CONFIG.HEX_MATCH_BOARD}`;
+    return fp;
+}
+
+function hexToRGB(hex: number): [number, number, number] {
+    return [(hex >> 16) & 0xff, (hex >> 8) & 0xff, hex & 0xff];
+}
+
+function rgbToHSL(r: number, g: number, b: number): [number, number, number] {
+    const rn = r / 255, gn = g / 255, bn = b / 255;
+    const max = Math.max(rn, gn, bn), min = Math.min(rn, gn, bn);
+    const l = (max + min) / 2;
+    if (max === min) return [0, 0, l];
+    const d = max - min;
+    const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    let h = 0;
+    if (max === rn) h = ((gn - bn) / d + (gn < bn ? 6 : 0)) * 60;
+    else if (max === gn) h = ((bn - rn) / d + 2) * 60;
+    else h = ((rn - gn) / d + 4) * 60;
+    return [h, s, l];
+}
+
+function hslToRGB(h: number, s: number, l: number): [number, number, number] {
+    if (s === 0) { const v = Math.round(l * 255); return [v, v, v]; }
+    function hue2rgb(p: number, q: number, t: number): number {
+        if (t < 0) t += 1; if (t > 1) t -= 1;
+        if (t < 1 / 6) return p + (q - p) * 6 * t;
+        if (t < 1 / 2) return q;
+        if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+        return p;
+    }
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const p = 2 * l - q;
+    const hn = h / 360;
+    return [
+        Math.round(hue2rgb(p, q, hn + 1 / 3) * 255),
+        Math.round(hue2rgb(p, q, hn) * 255),
+        Math.round(hue2rgb(p, q, hn - 1 / 3) * 255),
+    ];
+}
+
+// ── Worker result handler ──
+
+function handleWorkerResult(e: MessageEvent): void {
+    const { pixels: pixelBuf, canvasW, canvasH } = e.data;
+    const pixelData = new Uint8ClampedArray(pixelBuf);
+    workerBusy = false;
+
+    const container = pendingContainer;
+    if (!container) return;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = canvasW;
+    canvas.height = canvasH;
+    const ctx = canvas.getContext('2d')!;
+    const imageData = new ImageData(pixelData, canvasW, canvasH);
+    ctx.putImageData(imageData, 0, 0);
+
+    if (cachedTexture) cachedTexture.destroy(true);
+    cachedTexture = PIXI.Texture.from(canvas);
+    cachedTexture.source.scaleMode = 'linear';
+
+    if (!cachedSprite) {
+        cachedSprite = new PIXI.Sprite(cachedTexture);
+        container.addChild(cachedSprite);
+    } else {
+        cachedSprite.texture = cachedTexture;
+        if (!cachedSprite.parent) container.addChild(cachedSprite);
+    }
+
+    cachedSprite.width = pendingTotalW;
+    cachedSprite.height = pendingTotalH;
+    cachedSprite.x = -pendingPadding;
+    cachedSprite.y = -pendingPadding;
+    cachedSprite.visible = true;
+    applyBlur();
+}
+
+// ── Main Renderer ──
+
+export function renderLaneTerritory(
+    stars: StarState[],
+    container: PIXI.Container,
+    colorUtils: ColorUtils,
+    worldWidth: number,
+    worldHeight: number,
+    connections?: StarConnection[],
+): void {
+    if (!GAME_CONFIG.TERRITORY_GRAPH) {
+        if (cachedSprite) cachedSprite.visible = false;
+        return;
+    }
+
+    const fingerprint = buildFingerprint(stars);
+    if (fingerprint === cachedFingerprint && cachedSprite) {
+        cachedSprite.visible = true;
+        applyBlur();
+        return;
+    }
+    if (workerBusy) {
+        if (cachedSprite) { cachedSprite.visible = true; applyBlur(); }
+        return;
+    }
+
+    cachedFingerprint = fingerprint;
+
+    const ownedStars = stars.filter(s => s.ownerId);
+    if (ownedStars.length === 0) {
+        if (cachedSprite) cachedSprite.visible = false;
+        return;
+    }
+
+    // Config
+    const resolution = GAME_CONFIG.GRAPH_RESOLUTION ?? 4;
+    const edgeFadePx = GAME_CONFIG.GRAPH_EDGE_FADE ?? 200;
+    const padding = edgeFadePx;
+    const totalW = worldWidth + padding * 2;
+    const totalH = worldHeight + padding * 2;
+    const canvasW = Math.ceil(totalW / resolution);
+    const canvasH = Math.ceil(totalH / resolution);
+    const satMult = GAME_CONFIG.VORONOI_SATURATION ?? 1.0;
+    const lightMult = GAME_CONFIG.VORONOI_LIGHTNESS ?? 1.0;
+    const useHSL = satMult !== 1.0 || lightMult !== 1.0;
+    const patternScale = Math.max(1, Math.round((GAME_CONFIG.GRAPH_PATTERN_SCALE ?? 4) / resolution));
+
+    // Build owner data
+    const ownerSet = new Set<string>();
+    for (const s of ownedStars) ownerSet.add(s.ownerId!);
+    const owners = Array.from(ownerSet);
+    const ownerIndexMap = new Map<string, number>();
+    for (let i = 0; i < owners.length; i++) ownerIndexMap.set(owners[i], i);
+
+    const ownerRGBFlat: number[] = new Array(owners.length * 3);
+    const starDataForWorker: { x: number; y: number; r: number; g: number; b: number; ownerIdx: number; ships: number; maskRadius: number }[] = [];
+
+    // Compute star mask radius from orb config
+    const orbBase = GAME_CONFIG.ORB_BASE_RADIUS ?? 1.5;
+    const orbScale = GAME_CONFIG.ORB_RADIUS_SCALE ?? 1.6;
+    const orbOuter = GAME_CONFIG.ORB_OUTER_SCALE ?? 3.6;
+    const shipScaleMult = GAME_CONFIG.SHIP_SCALE_MULT ?? 1.0;
+
+    for (const s of ownedStars) {
+        const rawRgb = hexToRGB(colorUtils.getPlayerColor(s.ownerId!));
+        let rgb: [number, number, number];
+        if (useHSL) {
+            const [h, sat, l] = rgbToHSL(rawRgb[0], rawRgb[1], rawRgb[2]);
+            rgb = hslToRGB(h, Math.min(1, sat * satMult), Math.min(1, l * lightMult));
+        } else {
+            rgb = rawRgb;
+        }
+
+        const oi = ownerIndexMap.get(s.ownerId!)!;
+        if (ownerRGBFlat[oi * 3] === undefined) {
+            ownerRGBFlat[oi * 3] = rgb[0];
+            ownerRGBFlat[oi * 3 + 1] = rgb[1];
+            ownerRGBFlat[oi * 3 + 2] = rgb[2];
+        }
+
+        const totalShips = (s.activeShips ?? 0) + (s.damagedShips ?? 0);
+        const orbRadius = (orbBase + orbScale * Math.sqrt(Math.max(1, totalShips))) * orbOuter * shipScaleMult;
+
+        starDataForWorker.push({
+            x: (s.x + padding) / resolution,
+            y: (s.y + padding) / resolution,
+            r: rgb[0], g: rgb[1], b: rgb[2],
+            ownerIdx: oi,
+            ships: totalShips,
+            maskRadius: orbRadius / resolution,
+        });
+    }
+
+    // ── Build lane segments from ALL connections (both same-owner and enemy) ──
+    // Each lane propagates influence from BOTH endpoint stars.
+    const laneSeg: { x1: number; y1: number; x2: number; y2: number; ownerA: number; ownerB: number; shipsA: number; shipsB: number }[] = [];
+
+    if (connections) {
+        const starById = new Map<string, StarState>();
+        for (const s of ownedStars) starById.set(s.id, s);
+
+        for (const conn of connections) {
+            const a = starById.get(conn.sourceId);
+            const b = starById.get(conn.targetId);
+            if (!a || !b || !a.ownerId || !b.ownerId) continue;
+
+            const oiA = ownerIndexMap.get(a.ownerId);
+            const oiB = ownerIndexMap.get(b.ownerId);
+            if (oiA === undefined || oiB === undefined) continue;
+
+            laneSeg.push({
+                x1: (a.x + padding) / resolution,
+                y1: (a.y + padding) / resolution,
+                x2: (b.x + padding) / resolution,
+                y2: (b.y + padding) / resolution,
+                ownerA: oiA,
+                ownerB: oiB,
+                shipsA: (a.activeShips ?? 0) + (a.damagedShips ?? 0),
+                shipsB: (b.activeShips ?? 0) + (b.damagedShips ?? 0),
+            });
+        }
+    }
+
+    // Initialize worker
+    if (!worker) {
+        worker = new LaneWorker();
+        worker.onmessage = handleWorkerResult;
+    }
+
+    pendingContainer = container;
+    pendingTotalW = totalW;
+    pendingTotalH = totalH;
+    pendingPadding = padding;
+    workerBusy = true;
+
+    const laneW = GAME_CONFIG.LANE_WIDTH ?? 60;
+
+    worker.postMessage({
+        canvasW, canvasH,
+        stars: starDataForWorker,
+        numOwners: owners.length,
+        ownerRGB: ownerRGBFlat,
+        alpha: GAME_CONFIG.GRAPH_ALPHA ?? 0.15,
+        lanes: laneSeg,
+        laneInfluence: GAME_CONFIG.LANE_INFLUENCE ?? 5,
+        laneWidth: laneW / resolution,
+        directFalloff: GAME_CONFIG.LANE_DIRECT_FALLOFF ?? 1.0,
+        pressure: GAME_CONFIG.GRAPH_PRESSURE ?? 0,
+        threshold: GAME_CONFIG.LANE_THRESHOLD ?? 0.01,
+        borderWidth: GAME_CONFIG.GRAPH_BORDER_WIDTH ?? 1,
+        borderAlpha: GAME_CONFIG.GRAPH_BORDER_ALPHA ?? 0.6,
+        borderBrighten: GAME_CONFIG.GRAPH_BORDER_BRIGHTEN ?? 80,
+        pattern: GAME_CONFIG.GRAPH_PATTERN ?? 'none',
+        patternScale,
+        patternRotation: GAME_CONFIG.GRAPH_PATTERN_ROTATION ?? 1,
+        boardLeft: padding / resolution,
+        boardTop: padding / resolution,
+        boardRight: (padding + worldWidth) / resolution,
+        boardBottom: (padding + worldHeight) / resolution,
+        fadeDistCanvas: padding / resolution,
+        hexSize: (GAME_CONFIG.HEX_MATCH_BOARD && GAME_CONFIG._MAP_HEX_RADIUS > 0
+            ? GAME_CONFIG._MAP_HEX_RADIUS
+            : GAME_CONFIG.HEX_SIZE ?? 30) / resolution,
+        hexGap: (GAME_CONFIG.HEX_GAP ?? 0) / resolution,
+        hexLine: Math.max(0.5, (GAME_CONFIG.HEX_LINE ?? 1) / resolution),
+    });
+
+    if (cachedSprite) { cachedSprite.visible = true; applyBlur(); }
+}
+
+// ── Blur ──
+
+function applyBlur(): void {
+    if (!cachedSprite) return;
+    const blur = GAME_CONFIG.GRAPH_BLUR ?? 0;
+    if (blur > 0) {
+        if (cachedBlurStrength !== blur) {
+            cachedBlurFilter = new PIXI.BlurFilter({ strength: blur, quality: 3 });
+            cachedBlurStrength = blur;
+        }
+        cachedSprite.filters = cachedBlurFilter ? [cachedBlurFilter] : [];
+    } else {
+        cachedSprite.filters = [];
+        cachedBlurFilter = null;
+        cachedBlurStrength = -1;
+    }
+}
+
+// ── Cache Reset ──
+
+export function resetLaneTerritoryCache(): void {
+    cachedFingerprint = '';
+    if (cachedSprite) {
+        if (cachedSprite.parent) cachedSprite.parent.removeChild(cachedSprite);
+        cachedSprite.destroy();
+        cachedSprite = null;
+    }
+    if (cachedTexture) {
+        cachedTexture.destroy(true);
+        cachedTexture = null;
+    }
+    cachedBlurFilter = null;
+    cachedBlurStrength = -1;
+    if (worker) {
+        worker.terminate();
+        worker = null;
+    }
+    workerBusy = false;
+}

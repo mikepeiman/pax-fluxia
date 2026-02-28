@@ -288,10 +288,43 @@ interface GameConfigType {
     PIXEL_BORDER_WIDTH: number;      // Territory border thickness in pixels (0=off, 1-4, default 1)
     PIXEL_BORDER_ALPHA: number;      // Border line alpha (0-1, default 0.6)
     PIXEL_BORDER_BRIGHTEN: number;   // How much to brighten border color (0-255, default 80)
-    PIXEL_PATTERN: 'none' | 'stripes' | 'crosshatch' | 'dots';  // Pattern overlay on territory fill
+    PIXEL_PATTERN: 'none' | 'stripes' | 'crosshatch' | 'dots' | 'hex';  // Pattern overlay on territory fill
     PIXEL_PATTERN_SCALE: number;     // Pattern size/density (1=fine, 10=coarse, default 4)
     PIXEL_PATTERN_ROTATION: number;  // Per-player pattern rotation (0=off, 1=golden angle, 0-1=blend)
     PIXEL_EDGE_FADE: number;         // Edge fade padding beyond gameboard in world pixels (0=off, 200=default)
+<<<<<<< Updated upstream
+=======
+    PIXEL_LANE_CONSTRAIN: number;    // Constrain territory to connection directions (0=off, 0.5=moderate, 1=strict lane-only)
+    PIXEL_PRESSURE: number;          // Shift boundaries by ship count (0=off, 0.5=moderate, 1=full proportional)
+
+    // ── Graph Territory (4th mode — connection-graph-constrained) ──
+    TERRITORY_GRAPH: boolean;        // Enable graph-constrained territory renderer (default false)
+    GRAPH_ALPHA: number;             // Fill alpha (0-0.5, default 0.15)
+    GRAPH_RESOLUTION: number;        // Downsample factor (1-8, default 4)
+    GRAPH_BLUR: number;              // GPU blur strength (0-20, default 4)
+    GRAPH_PRESSURE: number;          // Ship-count boundary shifting (0-1, default 0)
+    GRAPH_CORRIDOR_BOOST: number;    // Same-owner corridor capsule width (0-0.9, default 0.3)
+    GRAPH_BORDER_WIDTH: number;      // Border pixel width (0-4, default 1)
+    GRAPH_BORDER_ALPHA: number;      // Border alpha (0-1, default 0.6)
+    GRAPH_BORDER_BRIGHTEN: number;   // Border brighten amount (0-255, default 80)
+    GRAPH_EDGE_FADE: number;         // Edge fade padding in world px (0-500, default 120)
+    GRAPH_BARRIER_EXTENT: number;    // (legacy, kept for Graph mode) Barrier length multiplier
+    GRAPH_PATTERN: 'none' | 'stripes' | 'crosshatch' | 'dots' | 'hex';
+    GRAPH_PATTERN_SCALE: number;
+    GRAPH_PATTERN_ROTATION: number;
+    // Lane-specific influence parameters
+    LANE_INFLUENCE: number;          // How strong lane corridor influence is vs direct (1-10, default 5)
+    LANE_WIDTH: number;              // Half-width of lane influence corridor in world px (20-200, default 60)
+    LANE_DIRECT_FALLOFF: number;     // How fast direct star influence fades (0.1-5, default 1.0)
+    LANE_THRESHOLD: number;          // Minimum influence to claim territory (0-0.5, default 0.01)
+>>>>>>> Stashed changes
+
+    // Hex grid overlay (when pattern = 'hex')
+    HEX_SIZE: number;                // Side length of hex cell in world pixels (10-100, default 30)
+    HEX_GAP: number;                 // Gap/padding between hex cells in world px (0-10, default 0)
+    HEX_LINE: number;                // Line thickness in world px (0.5-4, default 1)
+    HEX_BLUR: number;                // Blur applied to hex lines (0-8, default 0)
+    HEX_MATCH_BOARD: boolean;        // Match hex grid to gameboard hex grid (default false)
 
     SHOW_HEX_GRID: boolean;
     STARS_PER_PLAYER: number;
@@ -835,6 +868,39 @@ const _rawConfig: GameConfigType = {
     PIXEL_PATTERN_ROTATION: 0,
     /** Edge fade: how far past the gameboard edges territory extends (px, 0=off) */
     PIXEL_EDGE_FADE: 120,
+<<<<<<< Updated upstream
+=======
+    /** Constrain territory to connection directions (0=off, 1=strict) */
+    PIXEL_LANE_CONSTRAIN: 0.5,
+    /** Shift boundaries by ship count pressure (0=off, 1=full) */
+    PIXEL_PRESSURE: 0,
+
+    // ── Graph Territory (4th mode) ──
+    TERRITORY_GRAPH: false,
+    GRAPH_ALPHA: 0.15,
+    GRAPH_RESOLUTION: 4,
+    GRAPH_BLUR: 4,
+    GRAPH_PRESSURE: 0,
+    GRAPH_CORRIDOR_BOOST: 0.3,
+    GRAPH_BORDER_WIDTH: 1,
+    GRAPH_BORDER_ALPHA: 0.6,
+    GRAPH_BORDER_BRIGHTEN: 80,
+    GRAPH_EDGE_FADE: 120,
+    GRAPH_BARRIER_EXTENT: 1.5,
+    GRAPH_PATTERN: 'crosshatch' as const,
+    GRAPH_PATTERN_SCALE: 17,
+    GRAPH_PATTERN_ROTATION: 0,
+    LANE_INFLUENCE: 5,
+    LANE_WIDTH: 60,
+    LANE_DIRECT_FALLOFF: 2.0,
+    LANE_THRESHOLD: 0.01,
+>>>>>>> Stashed changes
+
+    HEX_SIZE: 30,
+    HEX_GAP: 0,
+    HEX_LINE: 1,
+    HEX_BLUR: 0,
+    HEX_MATCH_BOARD: false,
 
     /** Show hex grid (debug) */
     SHOW_HEX_GRID: false,

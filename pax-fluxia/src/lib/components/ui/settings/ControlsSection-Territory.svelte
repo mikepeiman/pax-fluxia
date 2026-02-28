@@ -26,8 +26,19 @@
                 checked={panel.territoryVoronoi ?? true}
                 onchange={(e) => {
                     const v = (e.target as HTMLInputElement).checked;
-                    GAME_CONFIG.TERRITORY_VORONOI = v;
-                    updatePanel("territoryVoronoi", v);
+                    if (v) {
+                        GAME_CONFIG.TERRITORY_VORONOI = true;
+                        GAME_CONFIG.TERRITORY_METABALL = false;
+                        GAME_CONFIG.TERRITORY_PIXEL = false;
+                        GAME_CONFIG.TERRITORY_GRAPH = false;
+                        updatePanel("territoryVoronoi", true);
+                        updatePanel("territoryMetaball", false);
+                        updatePanel("territoryPixel", false);
+                        updatePanel("territoryGraph", false);
+                    } else {
+                        GAME_CONFIG.TERRITORY_VORONOI = false;
+                        updatePanel("territoryVoronoi", false);
+                    }
                 }}
             />
             <span class="toggle-slider"></span>
@@ -43,8 +54,19 @@
                 checked={panel.territoryMetaball ?? false}
                 onchange={(e) => {
                     const v = (e.target as HTMLInputElement).checked;
-                    GAME_CONFIG.TERRITORY_METABALL = v;
-                    updatePanel("territoryMetaball", v);
+                    if (v) {
+                        GAME_CONFIG.TERRITORY_METABALL = true;
+                        GAME_CONFIG.TERRITORY_VORONOI = false;
+                        GAME_CONFIG.TERRITORY_PIXEL = false;
+                        GAME_CONFIG.TERRITORY_GRAPH = false;
+                        updatePanel("territoryMetaball", true);
+                        updatePanel("territoryVoronoi", false);
+                        updatePanel("territoryPixel", false);
+                        updatePanel("territoryGraph", false);
+                    } else {
+                        GAME_CONFIG.TERRITORY_METABALL = false;
+                        updatePanel("territoryMetaball", false);
+                    }
                 }}
             />
             <span class="toggle-slider"></span>
@@ -60,14 +82,269 @@
                 checked={panel.territoryPixel ?? false}
                 onchange={(e) => {
                     const v = (e.target as HTMLInputElement).checked;
-                    GAME_CONFIG.TERRITORY_PIXEL = v;
-                    updatePanel("territoryPixel", v);
+                    if (v) {
+                        GAME_CONFIG.TERRITORY_PIXEL = true;
+                        GAME_CONFIG.TERRITORY_VORONOI = false;
+                        GAME_CONFIG.TERRITORY_METABALL = false;
+                        GAME_CONFIG.TERRITORY_GRAPH = false;
+                        updatePanel("territoryPixel", true);
+                        updatePanel("territoryVoronoi", false);
+                        updatePanel("territoryMetaball", false);
+                        updatePanel("territoryGraph", false);
+                    } else {
+                        GAME_CONFIG.TERRITORY_PIXEL = false;
+                        updatePanel("territoryPixel", false);
+                    }
                 }}
             />
             <span class="toggle-slider"></span>
         </label>
     </div>
 </div>
+<<<<<<< Updated upstream
+=======
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">🔗 Lane Territory</span>
+        <label class="toggle-switch">
+            <input
+                type="checkbox"
+                checked={panel.territoryGraph ?? false}
+                onchange={(e) => {
+                    const v = (e.target as HTMLInputElement).checked;
+                    if (v) {
+                        GAME_CONFIG.TERRITORY_GRAPH = true;
+                        GAME_CONFIG.TERRITORY_VORONOI = false;
+                        GAME_CONFIG.TERRITORY_METABALL = false;
+                        GAME_CONFIG.TERRITORY_PIXEL = false;
+                        updatePanel("territoryGraph", true);
+                        updatePanel("territoryVoronoi", false);
+                        updatePanel("territoryMetaball", false);
+                        updatePanel("territoryPixel", false);
+                    } else {
+                        GAME_CONFIG.TERRITORY_GRAPH = false;
+                        updatePanel("territoryGraph", false);
+                    }
+                }}
+            />
+            <span class="toggle-slider"></span>
+        </label>
+    </div>
+</div>
+
+{#if panel.territoryGraph}
+    <!-- ── Lane Territory Controls ── -->
+    <h4 class="sub-heading">Lane Territory Settings</h4>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Alpha</span><span class="val"
+                >{(panel.graphAlpha ?? 0.15).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0.02"
+            max="0.5"
+            step="0.01"
+            value={panel.graphAlpha ?? 0.15}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.GRAPH_ALPHA = v;
+                updatePanel("graphAlpha", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Lane Influence</span><span class="val"
+                >{(panel.laneInfluence ?? 5).toFixed(1)}×
+                {(panel.laneInfluence ?? 5) <= 2
+                    ? "(subtle)"
+                    : (panel.laneInfluence ?? 5) <= 5
+                      ? "(moderate)"
+                      : "(strong)"}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="1"
+            max="10"
+            step="0.5"
+            value={panel.laneInfluence ?? 5}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.LANE_INFLUENCE = v;
+                updatePanel("laneInfluence", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Lane Width</span><span class="val"
+                >{panel.laneWidth ?? 60}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="20"
+            max="200"
+            step="5"
+            value={panel.laneWidth ?? 60}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.LANE_WIDTH = v;
+                updatePanel("laneWidth", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Direct Falloff</span><span class="val"
+                >{(panel.laneDirectFalloff ?? 1.0).toFixed(1)}
+                {(panel.laneDirectFalloff ?? 1.0) <= 0.5
+                    ? "(far reach)"
+                    : (panel.laneDirectFalloff ?? 1.0) <= 1.5
+                      ? "(natural)"
+                      : "(tight)"}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0.1"
+            max="5"
+            step="0.1"
+            value={panel.laneDirectFalloff ?? 1.0}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.LANE_DIRECT_FALLOFF = v;
+                updatePanel("laneDirectFalloff", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Resolution</span><span class="val"
+                >{panel.graphResolution ?? 4}× downsample</span
+            >
+        </div>
+        <input
+            type="range"
+            min="1"
+            max="8"
+            step="1"
+            value={panel.graphResolution ?? 4}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.GRAPH_RESOLUTION = v;
+                updatePanel("graphResolution", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Blur</span><span class="val"
+                >{panel.graphBlur ?? 4}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="20"
+            step="1"
+            value={panel.graphBlur ?? 4}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.GRAPH_BLUR = v;
+                updatePanel("graphBlur", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Pressure</span><span class="val"
+                >{(panel.graphPressure ?? 0).toFixed(2)}
+                {(panel.graphPressure ?? 0) === 0 ? "(off)" : ""}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={panel.graphPressure ?? 0}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.GRAPH_PRESSURE = v;
+                updatePanel("graphPressure", v);
+            }}
+        />
+    </div>
+
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Edge Fade</span><span class="val"
+                >{panel.graphEdgeFade ?? 120}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="500"
+            step="10"
+            value={panel.graphEdgeFade ?? 120}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.GRAPH_EDGE_FADE = v;
+                updatePanel("graphEdgeFade", v);
+            }}
+        />
+    </div>
+    <div
+        class="var-row grayed"
+        style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"
+    >
+        🔲 Borders
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Border Width</span><span class="val"
+                >{panel.graphBorderWidth ?? 1}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="4"
+            step="1"
+            value={panel.graphBorderWidth ?? 1}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.GRAPH_BORDER_WIDTH = v;
+                updatePanel("graphBorderWidth", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Border Alpha</span><span class="val"
+                >{(panel.graphBorderAlpha ?? 0.6).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={panel.graphBorderAlpha ?? 0.6}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.GRAPH_BORDER_ALPHA = v;
+                updatePanel("graphBorderAlpha", v);
+            }}
+        />
+    </div>
+{/if}
+>>>>>>> Stashed changes
 
 {#if panel.territoryVoronoi}
     <!-- ── Voronoi Controls ── -->
@@ -230,6 +507,186 @@
             }}
         />
     </div>
+{/if}
+
+<!-- ── Shared Pattern Controls (all modes) ── -->
+{#if panel.territoryVoronoi || panel.territoryMetaball || panel.territoryPixel || panel.territoryGraph}
+    <h4 class="sub-heading">🔲 Pattern</h4>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Pattern</span><span class="val"
+                >{panel.pixelPattern ?? "none"}</span
+            >
+        </div>
+        <select
+            class="mode-select"
+            value={panel.pixelPattern ?? "none"}
+            onchange={(e) => {
+                const v = (e.target as HTMLSelectElement).value as
+                    | "none"
+                    | "stripes"
+                    | "crosshatch"
+                    | "dots"
+                    | "hex";
+                GAME_CONFIG.PIXEL_PATTERN = v;
+                GAME_CONFIG.GRAPH_PATTERN = v;
+                updatePanel("pixelPattern", v);
+                updatePanel("graphPattern", v);
+            }}
+        >
+            <option value="none">None</option>
+            <option value="stripes">Stripes</option>
+            <option value="crosshatch">Crosshatch</option>
+            <option value="dots">Dots</option>
+            <option value="hex">Hex Grid</option>
+        </select>
+    </div>
+    {#if (panel.pixelPattern ?? "none") === "hex"}
+        <!-- Hex-specific controls -->
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">Match Board</span>
+                <label class="toggle-label">
+                    <input
+                        type="checkbox"
+                        checked={panel.hexMatchBoard ?? false}
+                        onchange={(e) => {
+                            const v = (e.target as HTMLInputElement).checked;
+                            GAME_CONFIG.HEX_MATCH_BOARD = v;
+                            updatePanel("hexMatchBoard", v);
+                        }}
+                    />
+                    <span class="val">{panel.hexMatchBoard ? "on" : "off"}</span
+                    >
+                </label>
+            </div>
+        </div>
+        {#if !(panel.hexMatchBoard ?? false)}
+            <div class="var-row">
+                <div class="row-top">
+                    <span class="var-name">Side Length</span><span class="val"
+                        >{panel.hexSize ?? 30}px</span
+                    >
+                </div>
+                <input
+                    type="range"
+                    min="10"
+                    max="100"
+                    step="2"
+                    value={panel.hexSize ?? 30}
+                    oninput={(e) => {
+                        const v = +(e.target as HTMLInputElement).value;
+                        GAME_CONFIG.HEX_SIZE = v;
+                        updatePanel("hexSize", v);
+                    }}
+                />
+            </div>
+        {/if}
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">Gap</span><span class="val"
+                    >{panel.hexGap ?? 0}px</span
+                >
+            </div>
+            <input
+                type="range"
+                min="0"
+                max="10"
+                step="0.5"
+                value={panel.hexGap ?? 0}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    GAME_CONFIG.HEX_GAP = v;
+                    updatePanel("hexGap", v);
+                }}
+            />
+        </div>
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">Line Width</span><span class="val"
+                    >{(panel.hexLine ?? 1).toFixed(1)}px</span
+                >
+            </div>
+            <input
+                type="range"
+                min="0.5"
+                max="4"
+                step="0.5"
+                value={panel.hexLine ?? 1}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    GAME_CONFIG.HEX_LINE = v;
+                    updatePanel("hexLine", v);
+                }}
+            />
+        </div>
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">Blur</span><span class="val"
+                    >{panel.hexBlur ?? 0}px</span
+                >
+            </div>
+            <input
+                type="range"
+                min="0"
+                max="8"
+                step="1"
+                value={panel.hexBlur ?? 0}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    GAME_CONFIG.HEX_BLUR = v;
+                    updatePanel("hexBlur", v);
+                }}
+            />
+        </div>
+    {:else}
+        <!-- Generic pattern controls -->
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">Pattern Scale</span><span class="val"
+                    >{panel.pixelPatternScale ?? 4}</span
+                >
+            </div>
+            <input
+                type="range"
+                min="1"
+                max="50"
+                step="1"
+                value={panel.pixelPatternScale ?? 4}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    GAME_CONFIG.PIXEL_PATTERN_SCALE = v;
+                    GAME_CONFIG.GRAPH_PATTERN_SCALE = v;
+                    updatePanel("pixelPatternScale", v);
+                    updatePanel("graphPatternScale", v);
+                }}
+            />
+        </div>
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">Pattern Rotation</span><span class="val"
+                    >{(panel.pixelPatternRotation ?? 1).toFixed(1)}
+                    {(panel.pixelPatternRotation ?? 1) === 0
+                        ? "(off)"
+                        : ""}</span
+                >
+            </div>
+            <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.1"
+                value={panel.pixelPatternRotation ?? 1}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    GAME_CONFIG.PIXEL_PATTERN_ROTATION = v;
+                    GAME_CONFIG.GRAPH_PATTERN_ROTATION = v;
+                    updatePanel("pixelPatternRotation", v);
+                    updatePanel("graphPatternRotation", v);
+                }}
+            />
+        </div>
+    {/if}
 {/if}
 
 <!-- ── Shared Color Controls (always visible) ── -->
@@ -460,71 +917,7 @@
             }}
         />
     </div>
-    <h4 class="sub-heading">🔲 Pattern</h4>
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Pattern</span><span class="val"
-                >{panel.pixelPattern ?? "none"}</span
-            >
-        </div>
-        <select
-            class="mode-select"
-            value={panel.pixelPattern ?? "none"}
-            onchange={(e) => {
-                const v = (e.target as HTMLSelectElement).value as
-                    | "none"
-                    | "stripes"
-                    | "crosshatch"
-                    | "dots";
-                GAME_CONFIG.PIXEL_PATTERN = v;
-                updatePanel("pixelPattern", v);
-            }}
-        >
-            <option value="none">None</option>
-            <option value="stripes">Stripes</option>
-            <option value="crosshatch">Crosshatch</option>
-            <option value="dots">Dots</option>
-        </select>
-    </div>
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Pattern Scale</span><span class="val"
-                >{panel.pixelPatternScale ?? 4}</span
-            >
-        </div>
-        <input
-            type="range"
-            min="1"
-            max="50"
-            step="1"
-            value={panel.pixelPatternScale ?? 4}
-            oninput={(e) => {
-                const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.PIXEL_PATTERN_SCALE = v;
-                updatePanel("pixelPatternScale", v);
-            }}
-        />
-    </div>
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Pattern Rotation</span><span class="val"
-                >{(panel.pixelPatternRotation ?? 1).toFixed(1)}
-                {(panel.pixelPatternRotation ?? 1) === 0 ? "(off)" : ""}</span
-            >
-        </div>
-        <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.1"
-            value={panel.pixelPatternRotation ?? 1}
-            oninput={(e) => {
-                const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.PIXEL_PATTERN_ROTATION = v;
-                updatePanel("pixelPatternRotation", v);
-            }}
-        />
-    </div>
+
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Edge Fade</span><span class="val"
