@@ -44,7 +44,7 @@
 | F-53 | Resizable controls drawer + drag-to-resize handle (280-600px, persisted) | Medium | Done (2026-02-18) |
 | F-54 | Single-clock refactor: remove wall-time system, all VFX use game clock | High | Done (2026-02-18) |
 | F-55 | Multiplayer rejoin game: reconnect to in-progress game after disconnect | High | Planned (today) |
-| F-56 | Server chat & lobby chat: in-game and pre-game text communication | High | Planned (today) |
+| F-56 | MP chat & lobby: lobby chat integrated into Main Menu, expandable to fullscreen; in-game chat panel (side in landscape, bottom in portrait) | High | Planned |
 | F-57 | Game notifications: email/app/SMS alerts when someone creates a game | Medium | Planned |
 | F-58 | Game host wait timer: host sets duration to wait before starting, allowing players to join | Medium | Planned |
 | F-59 | Settings panel: icons beside sliders on right, larger+brighter icons, 2-per-row at wide width | Medium | Planned |
@@ -65,7 +65,7 @@
 | F-76 | Arrow formation speed slider: control how fast conquest arrowhead ships reach target (tick-relative duration) | Medium | Planned |
 | F-77 | Theme sub-modules: split themes into composable categories — Map Theme (star/Voronoi/halo visuals), Travel Theme (ship motion/curves/speed), Conquest Theme (animations/surge/settle), Static Theme (colors/sizes/scaling) — mix & match | High | Planned |
 | F-78 | Mobile responsive main menu: remove overflow:hidden scroll blockers, clamp() responsive title, 480px/900px breakpoints, grid stacking | High | Done (2026-02-22) |
-| F-79 | Mobile landscape game mode: full-canvas layout, floating HUD bar, bottom speed bar, slide-out drawer, touch gestures | Critical | Planning |
+| F-79 | Mobile game UI: full-canvas layout, floating HUD, touch gestures, mini-leaderboard ribbon (pinnable L/R, shows rank/ships/damaged/production), controls ribbon, careful mobile typography | Critical | In Progress |
 | F-80 | Fullscreen background: 6-layer system (CSS nebula gradients, animated drift, SVG starfield, AI nebula texture, PIXI procedural starfield, territory glow bleed) + hex grid fix | High | Done (2026-02-23) |
 | F-81 | Mobile menu tab redesign: keep-mounted SP/MP tabs with `hidden` attr, CSS Grid desktop layout, shared-setup section | High | Done (2026-02-24) |
 | F-82 | Background switcher: dropdown with thumbnails, reads `static/assets/`, localStorage persistence, floating picker button | Medium | Done (2026-02-24) |
@@ -78,6 +78,12 @@
 | F-89 | Pulsing corona ring: thicker glowing ring around star, pulse rate/size increases with ship count — heartbeat effect for powerful stars | Medium | Planned |
 | F-90 | Gravitational lensing: PixiJS displacement filter warps nearby space around powerful stars, conveying mass/threat | Medium | Planned |
 | F-91 | Particle aura: tiny fast-orbiting light motes (distinct from ship dots), count scales with ship power, player-colored | Medium | Planned |
+| F-92 | Always-on MP lobby: every Main Menu visitor auto-joins a lobby; overflow auto-creates new lobbies. Lobby IS the Main Menu. No separate Create/Join flow | Critical | Planned |
+| F-93 | Color palette picker: replace rainbow hue sliders with perceptual-distance palette (6-12 colors, adjustable anchor HSLA + count). Players pick, AI gets remainder | High | Planned |
+| F-94 | Compact Main Menu controls: dual-thumb range slider for min/max links, compact label+slider widgets, space-efficient layout for mobile+desktop | High | Planned |
+| F-95 | Double-tap empty space to pause/play (touch gesture) | Medium | Planned |
+| F-96 | In-game floating settings gear icon: access UI options (leaderboard pin side, controls ribbon visibility) | Medium | Planned |
+| F-97 | UI typography pass: better fonts, size/weight/spacing/padding/placement across all screens | High | Planned |
 
 ## Known Regressions
 | ID | Description | Since |

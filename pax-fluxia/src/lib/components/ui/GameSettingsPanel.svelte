@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
     import { onMount } from "svelte";
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { type GameTheme } from "$lib/config/themes";
