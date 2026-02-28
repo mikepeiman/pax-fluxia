@@ -48,6 +48,7 @@ export const VISUAL_DEFAULTS = {
     laneAlpha: GAME_CONFIG.CONNECTION_ALPHA,
     shadowWidth: GAME_CONFIG.CONNECTION_SHADOW_WIDTH,
     shadowAlpha: GAME_CONFIG.CONNECTION_SHADOW_ALPHA,
+    bgImage: GAME_CONFIG.BG_IMAGE_URL,
 };
 
 export function loadVisuals(): typeof VISUAL_DEFAULTS {
@@ -72,6 +73,14 @@ export function applyVisuals(vis: typeof VISUAL_DEFAULTS): void {
     GAME_CONFIG.CONNECTION_ALPHA = vis.laneAlpha;
     GAME_CONFIG.CONNECTION_SHADOW_WIDTH = vis.shadowWidth;
     GAME_CONFIG.CONNECTION_SHADOW_ALPHA = vis.shadowAlpha;
+
+    // Live-update background image if it changes
+    if (GAME_CONFIG.BG_IMAGE_URL !== vis.bgImage) {
+        GAME_CONFIG.BG_IMAGE_URL = vis.bgImage;
+        if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent("pax-bg-change", { detail: vis.bgImage }));
+        }
+    }
 }
 
 // ── Panel Settings Persistence ──────────────────────────────────────────────

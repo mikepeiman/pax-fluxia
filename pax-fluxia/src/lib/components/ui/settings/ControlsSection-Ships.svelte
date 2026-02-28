@@ -386,6 +386,25 @@
 <h4 class="sub-heading">Orbit Layout</h4>
 <div class="var-row">
     <div class="row-top">
+        <span class="var-name">Inner Orbit Padding</span><span class="val"
+            >{((panel.orbitBaseRadius ?? 0) as number).toFixed(1)}</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="20"
+        step="0.5"
+        value={panel.orbitBaseRadius}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.ORBIT_BASE_RADIUS = v;
+            updatePanel("orbitBaseRadius", v);
+        }}
+    />
+</div>
+<div class="var-row">
+    <div class="row-top">
         <span class="var-name">Orbit Spacing Size</span><span class="val"
             >{((panel.shipBaseSize ?? 0) as number).toFixed(1)}</span
         >
@@ -394,7 +413,7 @@
         type="range"
         min="1"
         max="12"
-        step="0.5"
+        step="0.1"
         value={panel.shipBaseSize}
         oninput={(e) => {
             const v = +(e.target as HTMLInputElement).value;

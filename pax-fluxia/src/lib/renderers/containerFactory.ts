@@ -25,10 +25,6 @@ export function createContainers(stage: PIXI.Container): RenderContainers {
     const voronoiContainer = new PIXI.Container();
     stage.addChild(voronoiContainer);
 
-    // Order arrows (below stars)
-    const linkGraphics = new PIXI.Graphics();
-    stage.addChild(linkGraphics);
-
     // Star circles
     const starsContainer = new PIXI.Container();
     stage.addChild(starsContainer);
@@ -55,6 +51,10 @@ export function createContainers(stage: PIXI.Container): RenderContainers {
     const connectionGraphics = new PIXI.Graphics();
     stage.addChild(connectionGraphics);
 
+    // Order arrows (above lanes)
+    const linkGraphics = new PIXI.Graphics();
+    stage.addChild(linkGraphics);
+
     // Labels (ship counts, star IDs)
     const labelsContainer = new PIXI.Container();
     stage.addChild(labelsContainer);
@@ -64,7 +64,6 @@ export function createContainers(stage: PIXI.Container): RenderContainers {
     stage.addChild(dragPreviewGraphics);
 
     return {
-        linkGraphics,
         starsContainer,
         glowContainer,
         shipsContainer,
@@ -72,6 +71,7 @@ export function createContainers(stage: PIXI.Container): RenderContainers {
         orbGraphics,
         selectionOverlayGraphics,
         connectionGraphics,
+        linkGraphics,
         labelsContainer,
         dragPreviewGraphics,
         territoryGraphics,

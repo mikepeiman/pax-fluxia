@@ -39,7 +39,7 @@ let pendingPadding = 0;
 function buildFingerprint(stars: StarState[]): string {
     let fp = '';
     for (const s of stars) {
-        fp += `${s.id}:${s.ownerId ?? ''}|`;
+        fp += `${s.id}:${s.ownerId ?? ''}:${s.activeShips}|`;
     }
     fp += `:${GAME_CONFIG.PIXEL_ALPHA}:${GAME_CONFIG.PIXEL_RESOLUTION}`;
     fp += `:${GAME_CONFIG.PIXEL_EDGE_BLEND}:${GAME_CONFIG.PIXEL_BLUR}`;
@@ -49,6 +49,7 @@ function buildFingerprint(stars: StarState[]): string {
     fp += `:${GAME_CONFIG.PIXEL_BORDER_ALPHA}:${GAME_CONFIG.PIXEL_BORDER_BRIGHTEN}`;
     fp += `:${GAME_CONFIG.PIXEL_PATTERN}:${GAME_CONFIG.PIXEL_PATTERN_SCALE}:${GAME_CONFIG.PIXEL_PATTERN_ROTATION}`;
     fp += `:${GAME_CONFIG.PIXEL_EDGE_FADE}`;
+    fp += `:${GAME_CONFIG.PIXEL_LANE_CONSTRAIN}:${GAME_CONFIG.PIXEL_PRESSURE}`;
     return fp;
 }
 
@@ -207,7 +208,7 @@ export function renderPixelTerritory(
 
     // Pre-compute star data at canvas scale, with HSL adjustment
     const ownerSet = new Set<string>();
-    const starDataForWorker: { x: number; y: number; r: number; g: number; b: number; ownerIdx: number }[] = [];
+    const starDataForWorker: { x: number; y: number; r: number; g: number; b: number; ownerIdx: number; ships: number; angles: number[] }[] = [];
 
     for (const s of ownedStars) {
         ownerSet.add(s.ownerId!);
@@ -215,6 +216,26 @@ export function renderPixelTerritory(
     const owners = Array.from(ownerSet);
     const ownerIndexMap = new Map<string, number>();
     for (let i = 0; i < owners.length; i++) ownerIndexMap.set(owners[i], i);
+
+    // Precompute connection angles per star (for lane constraint)
+    const starAngleMap = new Map<string, number[]>();
+    if (connections) {
+        const starById = new Map<string, StarState>();
+        for (const s of ownedStars) starById.set(s.id, s);
+        for (const conn of connections) {
+            const a = starById.get(conn.sourceId);
+            const b = starById.get(conn.targetId);
+            if (!a || !b) continue;
+            // Angle from a → b
+            const angleAB = Math.atan2(b.y - a.y, b.x - a.x);
+            if (!starAngleMap.has(a.id)) starAngleMap.set(a.id, []);
+            starAngleMap.get(a.id)!.push(angleAB);
+            // Angle from b → a
+            const angleBA = Math.atan2(a.y - b.y, a.x - b.x);
+            if (!starAngleMap.has(b.id)) starAngleMap.set(b.id, []);
+            starAngleMap.get(b.id)!.push(angleBA);
+        }
+    }
 
     // Build flat owner RGB array
     const ownerRGBFlat: number[] = new Array(owners.length * 3);
@@ -245,6 +266,8 @@ export function renderPixelTerritory(
             g: rgb[1],
             b: rgb[2],
             ownerIdx: oi,
+            ships: (s.activeShips ?? 0) + (s.damagedShips ?? 0),
+            angles: starAngleMap.get(s.id) ?? [],
         });
     }
 
@@ -298,6 +321,8 @@ export function renderPixelTerritory(
         edgeBlend: GAME_CONFIG.PIXEL_EDGE_BLEND ?? 0,
         corridorBoost,
         corridorSegs,
+        laneConstrain: GAME_CONFIG.PIXEL_LANE_CONSTRAIN ?? 0,
+        pressure: GAME_CONFIG.PIXEL_PRESSURE ?? 0,
         borderWidth: GAME_CONFIG.PIXEL_BORDER_WIDTH ?? 0,
         borderAlpha: GAME_CONFIG.PIXEL_BORDER_ALPHA ?? 0.6,
         borderBrighten: GAME_CONFIG.PIXEL_BORDER_BRIGHTEN ?? 80,

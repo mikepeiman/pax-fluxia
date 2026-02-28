@@ -129,6 +129,20 @@
         Object.entries(values).forEach(([key, val]) => {
             (GAME_CONFIG as any)[key] = val;
         });
+
+        // Push initial panel config to GAME_CONFIG
+        applyPanelToConfig(panel);
+
+        // Push timing values to active game stores
+        if (panel.tickInterval) {
+            activeGameStore.updateTickInterval(panel.tickInterval);
+        }
+        if (panel.animSpeed) {
+            animationStore.setAnimationSpeed(panel.animSpeed);
+        }
+
+        // Apply visual config (triggers 'pax-bg-change' if needed)
+        applyVisuals(vis);
     });
 
     let tickInterval = $state(GAME_CONFIG.BASE_TICK_MS);
@@ -716,8 +730,11 @@
             orbMidScale: GAME_CONFIG.ORB_MID_SCALE,
             orbCoreScale: GAME_CONFIG.ORB_CORE_SCALE,
             shipBaseSize: GAME_CONFIG.SHIP_BASE_SIZE,
+            orbitBaseRadius: GAME_CONFIG.ORBIT_BASE_RADIUS,
             starRenderRadius: GAME_CONFIG.STAR_RENDER_RADIUS,
             orbitRingMult: GAME_CONFIG.ORBIT_RING_MULT,
+            damagedOrbitRadius: GAME_CONFIG.DAMAGED_ORBIT_RADIUS,
+            damagedOrbitEvade: GAME_CONFIG.DAMAGED_ORBIT_EVADE,
             shipOutlineOn: GAME_CONFIG.SHIP_OUTLINE_ON,
             shipOutlinePx: GAME_CONFIG.SHIP_OUTLINE_PX,
             shipGlowIntensity: GAME_CONFIG.SHIP_GLOW_INTENSITY,

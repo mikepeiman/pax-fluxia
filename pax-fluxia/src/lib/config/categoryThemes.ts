@@ -225,6 +225,9 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
     ships: [
         'SHIP_BASE_SIZE',
         'STAR_RENDER_RADIUS',
+        'ORBIT_BASE_RADIUS',
+        'DAMAGED_ORBIT_RADIUS',
+        'DAMAGED_ORBIT_EVADE',
         'ORBIT_RING_MULT',
         'SHIP_OUTLINE_ON',
         'SHIP_OUTLINE_PX',

@@ -103,14 +103,14 @@ interface GameConfigType {
 
     // Visual
     SHIP_BASE_SIZE: number;
+    ORBIT_BASE_RADIUS: number;     // Inner orbit offset to clear player color ring (0-20)
     STAR_RENDER_RADIUS: number;    // Visual radius of stars on canvas (default 20)
     STAR_SHAPE_MODE: 'polygon' | 'circle';  // Star body shape: 'polygon' = type-specific shape, 'circle' = classic (default 'polygon')
     STAR_ICON_SCALE: number;       // Type icon size as fraction of star radius (0.2-0.8, default 0.55)
     STAR_CORNER_RADIUS: number;    // Polygon corner rounding (0=sharp, 1=fully round like circle, default 0.3)
-    STAR_RING_OFFSET: number;      // Player color ring distance from star edge in px (0-40, default 20)
-    STAR_RING_WIDTH: number;       // Player color ring stroke width in px (0-6, default 2)
-    STAR_RING_ALPHA: number;       // Player color ring opacity (0-1, default 0.8)
     ORBIT_RING_MULT: number;       // Orbit ring spacing = SHIP_BASE_SIZE * ORBIT_RING_MULT (default 1.4)
+    DAMAGED_ORBIT_RADIUS: number;  // Radius where damaged ships orbit (default 15)
+    DAMAGED_ORBIT_EVADE: boolean;  // Whether damaged ships cluster away from combat (default true)
     TRANSFER_ANIMATION_MS: number;
     STATIC_ORBITS: boolean;  // When true, ships don't rotate around stars (performance)
     SHOW_SELECTION_HEX: boolean;  // Show hex border on selected star (above ships)
@@ -266,6 +266,9 @@ interface GameConfigType {
     VORONOI_GRADIENT_BLEND: boolean; // Enable gradient blending at territory borders (default true)
     VORONOI_BLEND_WIDTH: number;   // Gradient blend strip width in px (default 30)
 
+    // ── Visual Overrides ────────────────────────────────────────────────────────────
+    BG_IMAGE_URL: string;          // Background image url relative to /assets/
+
     // ── Metaball Territory ──────────────────────────────────────────────────
     METABALL_INFLUENCE_RADIUS: number;  // How far each star's field extends in px (default 120)
     METABALL_FALLOFF: 'inverse-square' | 'gaussian' | 'smoothstep';  // Falloff curve (default 'inverse-square')
@@ -291,7 +294,7 @@ interface GameConfigType {
     PIXEL_BORDER_WIDTH: number;      // Territory border thickness in pixels (0=off, 1-4, default 1)
     PIXEL_BORDER_ALPHA: number;      // Border line alpha (0-1, default 0.6)
     PIXEL_BORDER_BRIGHTEN: number;   // How much to brighten border color (0-255, default 80)
-    PIXEL_PATTERN: 'none' | 'stripes' | 'crosshatch' | 'dots' | 'hex';  // Pattern overlay on territory fill
+    PIXEL_PATTERN: 'none' | 'stripes' | 'crosshatch' | 'dots';  // Pattern overlay on territory fill
     PIXEL_PATTERN_SCALE: number;     // Pattern size/density (1=fine, 10=coarse, default 4)
     PIXEL_PATTERN_ROTATION: number;  // Per-player pattern rotation (0=off, 1=golden angle, 0-1=blend)
     PIXEL_EDGE_FADE: number;         // Edge fade padding beyond gameboard in world pixels (0=off, 200=default)
@@ -310,7 +313,7 @@ interface GameConfigType {
     GRAPH_BORDER_BRIGHTEN: number;   // Border brighten amount (0-255, default 80)
     GRAPH_EDGE_FADE: number;         // Edge fade padding in world px (0-500, default 120)
     GRAPH_BARRIER_EXTENT: number;    // (legacy, kept for Graph mode) Barrier length multiplier
-    GRAPH_PATTERN: 'none' | 'stripes' | 'crosshatch' | 'dots' | 'hex';
+    GRAPH_PATTERN: 'none' | 'stripes' | 'crosshatch' | 'dots';
     GRAPH_PATTERN_SCALE: number;
     GRAPH_PATTERN_ROTATION: number;
     // Lane-specific influence parameters
@@ -318,13 +321,6 @@ interface GameConfigType {
     LANE_WIDTH: number;              // Half-width of lane influence corridor in world px (20-200, default 60)
     LANE_DIRECT_FALLOFF: number;     // How fast direct star influence fades (0.1-5, default 1.0)
     LANE_THRESHOLD: number;          // Minimum influence to claim territory (0-0.5, default 0.01)
-
-    // Hex grid overlay (when pattern = 'hex')
-    HEX_SIZE: number;                // Side length of hex cell in world pixels (10-100, default 30)
-    HEX_GAP: number;                 // Gap/padding between hex cells in world px (0-10, default 0)
-    HEX_LINE: number;                // Line thickness in world px (0.5-4, default 1)
-    HEX_BLUR: number;                // Blur applied to hex lines (0-8, default 0)
-    HEX_MATCH_BOARD: boolean;        // Match hex grid to gameboard hex grid (default false)
 
     SHOW_HEX_GRID: boolean;
     STARS_PER_PLAYER: number;
@@ -549,24 +545,26 @@ const _rawConfig: GameConfigType = {
     /** Visual radius of stars on canvas */
     STAR_RENDER_RADIUS: 25,
 
+    /** Background Image */
+    BG_IMAGE_URL: "pax-fluxia-bg-4.jpg",
+
     /** Star body shape: 'polygon' = type-specific shape, 'circle' = classic */
     STAR_SHAPE_MODE: 'polygon' as 'polygon' | 'circle',
     /** Type icon size as fraction of star radius */
     STAR_ICON_SCALE: 0.55,
     /** Polygon corner rounding (0=sharp, 1=fully round) */
     STAR_CORNER_RADIUS: 0.3,
-    /** Player color ring: distance from star edge */
-    STAR_RING_OFFSET: 20,
-    /** Player color ring: stroke width */
-    STAR_RING_WIDTH: 2,
-    /** Player color ring: opacity */
-    STAR_RING_ALPHA: 0.8,
 
     /** Show hex selection border on active star (renders above ships) */
     SHOW_SELECTION_HEX: true,
 
+    /** Inner orbit radius offset */
+    ORBIT_BASE_RADIUS: 5,
+
     /** Orbit ring spacing multiplier (ringSpacing = shipBaseSize * this) */
     ORBIT_RING_MULT: 1.6,
+    DAMAGED_ORBIT_RADIUS: 15,
+    DAMAGED_ORBIT_EVADE: false,
 
     /** Ship transfer animation duration (ms) */
     TRANSFER_ANIMATION_MS: 1200,
@@ -896,14 +894,8 @@ const _rawConfig: GameConfigType = {
     GRAPH_PATTERN_ROTATION: 0,
     LANE_INFLUENCE: 5,
     LANE_WIDTH: 60,
-    LANE_DIRECT_FALLOFF: 2.0,
+    LANE_DIRECT_FALLOFF: 1.0,
     LANE_THRESHOLD: 0.01,
-
-    HEX_SIZE: 30,
-    HEX_GAP: 0,
-    HEX_LINE: 1,
-    HEX_BLUR: 0,
-    HEX_MATCH_BOARD: false,
 
     /** Show hex grid (debug) */
     SHOW_HEX_GRID: false,
@@ -970,9 +962,9 @@ export function calculateTransferAmount(activeShips: number): number {
 
 /**
  * COMBAT V4 - Wrapper around shared combat logic from @pax/common
- *
+ * 
  * This ensures single-player uses the exact same combat calculation as multiplayer.
- *
+ * 
  * @param sideAShips - Ships on side A (typically defender)
  * @param sideBShips - Ships on side B (typically attacker)
  * @param sideAIsAttacking - Whether side A has an active attack order

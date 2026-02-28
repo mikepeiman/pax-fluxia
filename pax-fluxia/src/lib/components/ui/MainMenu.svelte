@@ -9,6 +9,7 @@
     } from "$lib/utils/colorDistance";
     import { multiplayerStore } from "$lib/stores/multiplayerStore.svelte";
     import type { RoomListing } from "$lib/stores/multiplayerStore.svelte";
+    import { loadVisuals, saveVisuals } from "$lib/components/ui/panelSync";
     import { log } from "$lib/utils/logger";
     import {
         AI_STRATEGIES,
@@ -25,13 +26,16 @@
     // ── Background Switcher ──
     let bgImages = $state<string[]>([]);
     let bgOpen = $state(false);
-    let bgImage = $state(
-        typeof localStorage !== "undefined"
-            ? localStorage.getItem("pax_bgImage") || "pax-fluxia-bg-4.jpg"
-            : "pax-fluxia-bg-4.jpg",
-    );
+
+    // Load initial visual defaults (which includes bgImage)
+    let visuals = loadVisuals();
+    let bgImage = $state(visuals.bgImage);
+
     $effect(() => {
-        localStorage.setItem("pax_bgImage", bgImage);
+        // Sync back to visuals block when changed in MainMenu
+        visuals.bgImage = bgImage;
+        GAME_CONFIG.BG_IMAGE_URL = bgImage;
+        saveVisuals(visuals);
     });
     $effect(() => {
         fetch("/api/backgrounds")

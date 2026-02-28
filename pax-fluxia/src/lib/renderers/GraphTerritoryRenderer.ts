@@ -1,16 +1,22 @@
 // ============================================================================
-// LaneTerritoryRenderer — Connection-Aware Influence Territory
+// GraphTerritoryRenderer — Graph-constrained territory with barrier walls
 // ============================================================================
-// Replaces GraphTerritoryRenderer. Uses the TERRITORY_GRAPH toggle.
-// Influence propagates along connection lanes like pipes/rivers, creating
-// organic shapes that follow the graph topology.
+//
+// 4th territory render mode. Enemy connection lanes act as HARD BARRIERS
+// that territory cannot cross. Uses a Web Worker for zero main-thread blocking.
+//
+// Key difference from PixelTerritoryRenderer:
+//   - Builds "barrier segments" from ALL connections between different-owner stars
+//   - Worker tests line-of-sight from each pixel to each star
+//   - If a barrier blocks the view, that star can't claim the pixel
+//   - Result: territory naturally follows the connection graph topology
 // ============================================================================
 
 import * as PIXI from 'pixi.js';
 import { GAME_CONFIG } from '$lib/config/game.config';
 import type { StarState, StarConnection } from '$lib/types/game.types';
 import type { ColorUtils } from './RenderContext';
-import LaneWorker from './laneTerritory.worker?worker';
+import GraphWorker from './graphTerritory.worker?worker';
 
 // ── Cache ──
 let cachedFingerprint = '';
@@ -38,11 +44,10 @@ function buildFingerprint(stars: StarState[]): string {
     fp += `:${GAME_CONFIG.GRAPH_BLUR}:${GAME_CONFIG.GRAPH_PRESSURE}`;
     fp += `:${GAME_CONFIG.GRAPH_BORDER_WIDTH}:${GAME_CONFIG.GRAPH_BORDER_ALPHA}`;
     fp += `:${GAME_CONFIG.GRAPH_BORDER_BRIGHTEN}:${GAME_CONFIG.GRAPH_EDGE_FADE}`;
-    fp += `:${GAME_CONFIG.TERRITORY_GRAPH}`;
+    fp += `:${GAME_CONFIG.GRAPH_CORRIDOR_BOOST}:${GAME_CONFIG.TERRITORY_GRAPH}`;
     fp += `:${GAME_CONFIG.VORONOI_SATURATION}:${GAME_CONFIG.VORONOI_LIGHTNESS}`;
     fp += `:${GAME_CONFIG.GRAPH_PATTERN}:${GAME_CONFIG.GRAPH_PATTERN_SCALE}:${GAME_CONFIG.GRAPH_PATTERN_ROTATION}`;
-    fp += `:${GAME_CONFIG.LANE_INFLUENCE}:${GAME_CONFIG.LANE_WIDTH}`;
-    fp += `:${GAME_CONFIG.LANE_DIRECT_FALLOFF}:${GAME_CONFIG.LANE_THRESHOLD}`;
+    fp += `:${GAME_CONFIG.GRAPH_BARRIER_EXTENT}`;
     return fp;
 }
 
@@ -122,7 +127,7 @@ function handleWorkerResult(e: MessageEvent): void {
 
 // ── Main Renderer ──
 
-export function renderLaneTerritory(
+export function renderGraphTerritory(
     stars: StarState[],
     container: PIXI.Container,
     colorUtils: ColorUtils,
@@ -166,6 +171,7 @@ export function renderLaneTerritory(
     const lightMult = GAME_CONFIG.VORONOI_LIGHTNESS ?? 1.0;
     const useHSL = satMult !== 1.0 || lightMult !== 1.0;
     const patternScale = Math.max(1, Math.round((GAME_CONFIG.GRAPH_PATTERN_SCALE ?? 4) / resolution));
+    const barrierExtent = GAME_CONFIG.GRAPH_BARRIER_EXTENT ?? 1.5;
 
     // Build owner data
     const ownerSet = new Set<string>();
@@ -203,8 +209,10 @@ export function renderLaneTerritory(
         });
     }
 
-    // ── Build lane segments from SAME-OWNER connections ──
-    const laneSeg: { x1: number; y1: number; x2: number; y2: number; ownerIdx: number }[] = [];
+    // ── Build barrier segments from enemy connections ──
+    const barriers: { x1: number; y1: number; x2: number; y2: number }[] = [];
+    const corridorBoost = GAME_CONFIG.GRAPH_CORRIDOR_BOOST ?? 0;
+    const corridorSegs: { x1: number; y1: number; x2: number; y2: number; ownerIdx: number; halfW: number }[] = [];
 
     if (connections) {
         const starById = new Map<string, StarState>();
@@ -215,23 +223,49 @@ export function renderLaneTerritory(
             const b = starById.get(conn.targetId);
             if (!a || !b || !a.ownerId || !b.ownerId) continue;
 
-            if (a.ownerId === b.ownerId) {
-                const oi = ownerIndexMap.get(a.ownerId);
-                if (oi === undefined) continue;
-                laneSeg.push({
-                    x1: (a.x + padding) / resolution,
-                    y1: (a.y + padding) / resolution,
-                    x2: (b.x + padding) / resolution,
-                    y2: (b.y + padding) / resolution,
-                    ownerIdx: oi,
+            if (a.ownerId !== b.ownerId) {
+                // ── Enemy connection → barrier segment ──
+                // Extend the barrier perpendicular and beyond the endpoints
+                // so it acts as a proper wall
+                const ax = (a.x + padding) / resolution;
+                const ay = (a.y + padding) / resolution;
+                const bx = (b.x + padding) / resolution;
+                const by = (b.y + padding) / resolution;
+
+                // The barrier is the connection line itself, extended by barrierExtent
+                const dx = bx - ax;
+                const dy = by - ay;
+                const len = Math.sqrt(dx * dx + dy * dy) || 1;
+                const ext = len * (barrierExtent - 1) * 0.5;
+                const nx = dx / len;
+                const ny = dy / len;
+
+                barriers.push({
+                    x1: ax - nx * ext,
+                    y1: ay - ny * ext,
+                    x2: bx + nx * ext,
+                    y2: by + ny * ext,
                 });
+            } else {
+                // ── Same-owner connection → corridor capsule ──
+                if (corridorBoost > 0) {
+                    const oi = ownerIndexMap.get(a.ownerId);
+                    if (oi === undefined) continue;
+                    const x1 = (a.x + padding) / resolution;
+                    const y1 = (a.y + padding) / resolution;
+                    const x2 = (b.x + padding) / resolution;
+                    const y2 = (b.y + padding) / resolution;
+                    const linkDist = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+                    const halfW = Math.max(2, Math.min(30 / resolution, linkDist * 0.12 * corridorBoost));
+                    corridorSegs.push({ x1, y1, x2, y2, ownerIdx: oi, halfW });
+                }
             }
         }
     }
 
     // Initialize worker
     if (!worker) {
-        worker = new LaneWorker();
+        worker = new GraphWorker();
         worker.onmessage = handleWorkerResult;
     }
 
@@ -241,20 +275,15 @@ export function renderLaneTerritory(
     pendingPadding = padding;
     workerBusy = true;
 
-    const laneW = GAME_CONFIG.LANE_WIDTH ?? 60;
-
     worker.postMessage({
         canvasW, canvasH,
         stars: starDataForWorker,
         numOwners: owners.length,
         ownerRGB: ownerRGBFlat,
         alpha: GAME_CONFIG.GRAPH_ALPHA ?? 0.15,
-        lanes: laneSeg,
-        laneInfluence: GAME_CONFIG.LANE_INFLUENCE ?? 5,
-        laneWidth: laneW / resolution,
-        directFalloff: GAME_CONFIG.LANE_DIRECT_FALLOFF ?? 1.0,
+        barriers,
+        corridorSegs,
         pressure: GAME_CONFIG.GRAPH_PRESSURE ?? 0,
-        threshold: GAME_CONFIG.LANE_THRESHOLD ?? 0.01,
         borderWidth: GAME_CONFIG.GRAPH_BORDER_WIDTH ?? 1,
         borderAlpha: GAME_CONFIG.GRAPH_BORDER_ALPHA ?? 0.6,
         borderBrighten: GAME_CONFIG.GRAPH_BORDER_BRIGHTEN ?? 80,
@@ -291,7 +320,7 @@ function applyBlur(): void {
 
 // ── Cache Reset ──
 
-export function resetLaneTerritoryCache(): void {
+export function resetGraphTerritoryCache(): void {
     cachedFingerprint = '';
     if (cachedSprite) {
         if (cachedSprite.parent) cachedSprite.parent.removeChild(cachedSprite);

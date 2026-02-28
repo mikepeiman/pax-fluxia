@@ -1,29 +1,13 @@
 // ============================================================================
-// PixelTerritoryWorker — Off-thread pixel territory computation
+// GraphTerritoryWorker — Connection-graph-constrained territory computation
 // ============================================================================
-// Receives star positions, config, and canvas dimensions.
-// Computes the full pixel array (hierarchical adaptive resolution) and posts
-// back a Uint8ClampedArray + ownerGrid as Transferable (zero-copy).
+// Enemy connection lanes act as HARD BARRIERS. Territory cannot bleed past
+// an enemy corridor. A pixel is owned by the nearest star whose line-of-sight
+// (pixel → star) does NOT cross any enemy barrier segment.
+//
+// This creates natural encirclement, proper corridors, and territory shapes
+// that follow the connection graph topology.
 // ============================================================================
-
-const SQRT3 = Math.sqrt(3);
-function hexDistToEdge(px: number, py: number, size: number): number {
-    const q = (2.0 / 3.0 * px) / size;
-    const r = (-1.0 / 3.0 * px + SQRT3 / 3.0 * py) / size;
-    const s = -q - r;
-    let rq = Math.round(q), rr = Math.round(r), rs = Math.round(s);
-    const dq = Math.abs(rq - q), dr = Math.abs(rr - r), ds = Math.abs(rs - s);
-    if (dq > dr && dq > ds) rq = -rr - rs;
-    else if (dr > ds) rr = -rq - rs;
-    const cx = size * (3.0 / 2.0 * rq);
-    const cy = size * (SQRT3 / 2.0 * rq + SQRT3 * rr);
-    const ddx = Math.abs(px - cx), ddy = Math.abs(py - cy);
-    const halfH = SQRT3 / 2.0 * size;
-    const dRight = size - ddx;
-    const dHoriz = halfH - ddy;
-    const dDiag = (SQRT3 * size - ddy - SQRT3 * ddx) / 2.0;
-    return Math.max(0, Math.min(dRight, dHoriz, dDiag));
-}
 
 interface StarData {
     x: number;
@@ -32,15 +16,19 @@ interface StarData {
     g: number;
     b: number;
     ownerIdx: number;
-    ships: number;     // activeShips + damagedShips for pressure
-    angles: number[];  // connection angles in radians for lane constraint
+    ships: number;
+}
+
+interface BarrierSeg {
+    x1: number; y1: number;
+    x2: number; y2: number;
 }
 
 interface CorridorSeg {
     x1: number; y1: number;
     x2: number; y2: number;
     ownerIdx: number;
-    halfW: number; // capsule half-width in canvas pixels
+    halfW: number;
 }
 
 interface WorkerInput {
@@ -48,13 +36,11 @@ interface WorkerInput {
     canvasH: number;
     stars: StarData[];
     numOwners: number;
-    ownerRGB: number[]; // flat array: [r0,g0,b0, r1,g1,b1, ...]
+    ownerRGB: number[];
     alpha: number;
-    edgeBlend: number;
-    corridorBoost: number;
+    barriers: BarrierSeg[];
     corridorSegs: CorridorSeg[];
-    laneConstrain: number;  // 0=off, 1=strict — penalty for off-lane directions
-    pressure: number;        // 0=off, 1=full — ship-count boundary shifting
+    pressure: number;
     borderWidth: number;
     borderAlpha: number;
     borderBrighten: number;
@@ -69,17 +55,47 @@ interface WorkerInput {
 }
 
 self.onmessage = (e: MessageEvent<WorkerInput>) => {
-    const d = e.data;
     const {
         canvasW, canvasH, stars, numOwners, ownerRGB,
-        alpha, edgeBlend, corridorBoost, corridorSegs,
-        laneConstrain, pressure,
+        alpha, barriers, corridorSegs, pressure,
         borderWidth, borderAlpha, borderBrighten,
         pattern, patternScale, patternRotation,
         boardLeft, boardTop, boardRight, boardBottom, fadeDistCanvas,
-    } = d;
+    } = e.data;
 
-    // ── Point-to-line-segment squared distance ──
+    const numStars = stars.length;
+    const numBarriers = barriers.length;
+
+    // ── Line segment intersection test ──
+    // Returns true if segment (ax,ay)→(bx,by) crosses segment (cx,cy)→(dx,dy)
+    function segmentsIntersect(
+        ax: number, ay: number, bx: number, by: number,
+        cx: number, cy: number, dx: number, dy: number,
+    ): boolean {
+        const dxAB = bx - ax, dyAB = by - ay;
+        const dxCD = dx - cx, dyCD = dy - cy;
+        const denom = dxAB * dyCD - dyAB * dxCD;
+        if (Math.abs(denom) < 1e-10) return false; // parallel
+
+        const t = ((cx - ax) * dyCD - (cy - ay) * dxCD) / denom;
+        const u = ((cx - ax) * dyAB - (cy - ay) * dxAB) / denom;
+
+        // Intersection at interior of both segments (exclude exact endpoints)
+        return t > 0.01 && t < 0.99 && u > 0.01 && u < 0.99;
+    }
+
+    // ── Check if line from pixel to star crosses any barrier ──
+    function isBlocked(px: number, py: number, sx: number, sy: number): boolean {
+        for (let b = 0; b < numBarriers; b++) {
+            const bar = barriers[b];
+            if (segmentsIntersect(px, py, sx, sy, bar.x1, bar.y1, bar.x2, bar.y2)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // ── Capsule corridor check ──
     function segDistSq(px: number, py: number, seg: CorridorSeg): number {
         const dx = seg.x2 - seg.x1;
         const dy = seg.y2 - seg.y1;
@@ -92,8 +108,6 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
         return (px - cx) ** 2 + (py - cy) ** 2;
     }
 
-    // ── Corridor capsule ownership check ──
-    // Returns ownerIdx if point is inside any corridor capsule, -1 otherwise
     function corridorOwner(px: number, py: number): number {
         for (let i = 0; i < corridorSegs.length; i++) {
             const seg = corridorSegs[i];
@@ -104,58 +118,14 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
         return -1;
     }
 
-    // ── Effective distance with lane constraint + pressure ──
-    // Returns a modified distSq that penalizes off-lane directions
-    // and discounts distance for high-ship-count stars.
-    function effectiveDistSq(px: number, py: number, starIdx: number): number {
-        const s = stars[starIdx];
-        const dx = px - s.x;
-        const dy = py - s.y;
-        let distSq = dx * dx + dy * dy;
-
-        // Pressure: scale distance inversely with ship count
-        // More ships → smaller effective distance → larger territory
-        if (pressure > 0 && s.ships > 0) {
-            // Ships factor: log scale to prevent extreme values
-            // A star with 100 ships gets ~2x distance reduction at pressure=1
-            const shipFactor = 1 + Math.log2(1 + s.ships) * 0.15 * pressure;
-            distSq /= (shipFactor * shipFactor);
-        }
-
-        // Lane constraint: penalize pixels NOT in direction of connections
-        if (laneConstrain > 0 && s.angles.length > 0 && distSq > 1) {
-            const pixelAngle = Math.atan2(dy, dx);
-
-            // Find minimum angular distance to any connection direction
-            let minAngleDiff = Math.PI; // worst case: opposite direction
-            for (let a = 0; a < s.angles.length; a++) {
-                let diff = Math.abs(pixelAngle - s.angles[a]);
-                if (diff > Math.PI) diff = 2 * Math.PI - diff;
-                if (diff < minAngleDiff) minAngleDiff = diff;
-            }
-
-            // Angular penalty: pixels far from any connection get inflated distance
-            // At minAngleDiff=0 (on a connection): penalty=1 (no change)
-            // At minAngleDiff=PI (opposite all connections): penalty up to 4x at laneConstrain=1
-            const angleRatio = minAngleDiff / Math.PI; // 0-1
-            const penalty = 1 + angleRatio * angleRatio * 3.0 * laneConstrain;
-            distSq *= penalty;
-        }
-
-        return distSq;
-    }
-
-    const numStars = stars.length;
-    const pixels = new Uint8ClampedArray(canvasW * canvasH * 4);
-
-    // Build owner → star indices
+    // ── Build owner → star indices ──
     const starsByOwner: number[][] = [];
     for (let oi = 0; oi < numOwners; oi++) starsByOwner.push([]);
     for (let i = 0; i < numStars; i++) {
         starsByOwner[stars[i].ownerIdx].push(i);
     }
 
-    // Pre-compute per-owner pattern rotation
+    // ── Pattern rotation ──
     const ownerCos = new Float64Array(numOwners);
     const ownerSin = new Float64Array(numOwners);
     for (let oi = 0; oi < numOwners; oi++) {
@@ -164,57 +134,61 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
         ownerSin[oi] = Math.sin(angle);
     }
 
-    // ── Hierarchical adaptive resolution ──
+    // ── Pixel computation ──
+    const pixels = new Uint8ClampedArray(canvasW * canvasH * 4);
+    const ownerGrid = borderWidth > 0 ? new Uint8Array(canvasW * canvasH) : null;
+
+    // Hierarchical: 8px tiles for coarse pass
     const TILE_SIZE = 8;
     const tilesW = Math.ceil(canvasW / TILE_SIZE);
     const tilesH = Math.ceil(canvasH / TILE_SIZE);
-
-    // Pass 1: Coarse ownership
     const tileOwner = new Uint8Array(tilesW * tilesH);
     const tileR = new Uint8Array(tilesW * tilesH);
     const tileG = new Uint8Array(tilesW * tilesH);
     const tileB = new Uint8Array(tilesW * tilesH);
 
+    // ── Find owner for a pixel with barrier checking ──
+    function findOwner(px: number, py: number): number {
+        // 1. Check corridor capsules first (guaranteed connectivity)
+        const cOwner = corridorSegs.length > 0 ? corridorOwner(px, py) : -1;
+        if (cOwner >= 0) return cOwner;
+
+        // 2. Find nearest star NOT blocked by a barrier
+        let nearestDistSq = Infinity;
+        let winnerOi = 0;
+
+        for (let i = 0; i < numStars; i++) {
+            const s = stars[i];
+            const dx = px - s.x;
+            const dy = py - s.y;
+            let distSq = dx * dx + dy * dy;
+
+            // Pressure: scale distance inversely with ship count
+            if (pressure > 0 && s.ships > 0) {
+                const shipFactor = 1 + Math.log2(1 + s.ships) * 0.15 * pressure;
+                distSq /= (shipFactor * shipFactor);
+            }
+
+            // Skip if already farther than best
+            if (distSq >= nearestDistSq) continue;
+
+            // Check if line of sight is blocked by an enemy barrier
+            if (numBarriers > 0 && isBlocked(px, py, s.x, s.y)) continue;
+
+            nearestDistSq = distSq;
+            winnerOi = s.ownerIdx;
+        }
+
+        return winnerOi;
+    }
+
+    // Pass 1: Coarse tile ownership
     for (let ty = 0; ty < tilesH; ty++) {
         const centerY = (ty + 0.5) * TILE_SIZE;
         for (let tx = 0; tx < tilesW; tx++) {
             const centerX = (tx + 0.5) * TILE_SIZE;
             const tIdx = ty * tilesW + tx;
-            let winnerOi = 0;
-
-            // Check capsule corridors first (guaranteed connectivity)
-            const cOwner = corridorSegs.length > 0 ? corridorOwner(centerX, centerY) : -1;
-            if (cOwner >= 0) {
-                winnerOi = cOwner;
-            } else if (corridorBoost > 0 && numOwners > 1) {
-                let bestInfluence = -1;
-                for (let oi = 0; oi < numOwners; oi++) {
-                    const indices = starsByOwner[oi];
-                    let influence = 0;
-                    let ownerMinDist = Infinity;
-                    for (let j = 0; j < indices.length; j++) {
-                        const distSq = effectiveDistSq(centerX, centerY, indices[j]);
-                        if (distSq < ownerMinDist) ownerMinDist = distSq;
-                        influence += distSq < 1 ? 1e12 : 1.0 / distSq;
-                    }
-                    const score = Math.pow(influence, corridorBoost) *
-                        Math.pow(ownerMinDist < 1 ? 1e-12 : 1.0 / ownerMinDist, 1.0 - corridorBoost);
-                    if (score > bestInfluence) {
-                        bestInfluence = score;
-                        winnerOi = oi;
-                    }
-                }
-            } else {
-                let nearestDistSq = Infinity;
-                for (let i = 0; i < numStars; i++) {
-                    const dist = effectiveDistSq(centerX, centerY, i);
-                    if (dist < nearestDistSq) {
-                        nearestDistSq = dist;
-                        winnerOi = stars[i].ownerIdx;
-                    }
-                }
-            }
-
+            const winnerOi = findOwner(centerX, centerY);
             tileOwner[tIdx] = winnerOi;
             tileR[tIdx] = ownerRGB[winnerOi * 3];
             tileG[tIdx] = ownerRGB[winnerOi * 3 + 1];
@@ -235,9 +209,7 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
         }
     }
 
-    // Pass 3 & 4: Fill pixels
-    const ownerGrid = borderWidth > 0 ? new Uint8Array(canvasW * canvasH) : null;
-
+    // Pass 3: Fill pixels
     for (let ty = 0; ty < tilesH; ty++) {
         for (let tx = 0; tx < tilesW; tx++) {
             const tIdx = ty * tilesW + tx;
@@ -247,7 +219,7 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
             const endY = Math.min(startY + TILE_SIZE, canvasH);
 
             if (!isBoundary[tIdx]) {
-                // Interior tile: flood fill
+                // Interior tile: flood fill with tile color
                 const r = tileR[tIdx], g = tileG[tIdx], b = tileB[tIdx];
                 const oi = tileOwner[tIdx];
                 for (let py = startY; py < endY; py++) {
@@ -277,10 +249,6 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
                                 const gx = ((((rpx % ps) + ps) % ps) - ps / 2);
                                 const gy = ((((rpy % ps) + ps) % ps) - ps / 2);
                                 pa *= (Math.sqrt(gx * gx + gy * gy) / (ps / 2)) < 0.5 ? 1.0 : 0.25;
-                            } else if (pattern === 'hex') {
-                                const d2e = hexDistToEdge(px, py, ps);
-                                if (d2e < 1.5) pa *= 0.05;
-                                else if (d2e < 3.0) pa = Math.min(1.0, pa * 2.5);
                             }
                         }
 
@@ -293,55 +261,10 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
                     }
                 }
             } else {
-                // Boundary tile: full per-pixel computation
+                // Boundary tile: per-pixel ownership with barrier checking
                 for (let py = startY; py < endY; py++) {
                     for (let px = startX; px < endX; px++) {
-                        let winnerOi = 0;
-                        let nearestDistSq = Infinity;
-
-                        // Check capsule corridors first
-                        const cOwner = corridorSegs.length > 0 ? corridorOwner(px, py) : -1;
-                        if (cOwner >= 0) {
-                            winnerOi = cOwner;
-                            // Still need nearestDistSq for edge blend
-                            for (let i = 0; i < numStars; i++) {
-                                if (stars[i].ownerIdx !== cOwner) continue;
-                                const ddx = px - stars[i].x;
-                                const ddy = py - stars[i].y;
-                                const d = ddx * ddx + ddy * ddy;
-                                if (d < nearestDistSq) nearestDistSq = d;
-                            }
-                        } else if (corridorBoost > 0 && numOwners > 1) {
-                            let bestInfluence = -1;
-                            let bestNearestDistSq = Infinity;
-                            for (let oi = 0; oi < numOwners; oi++) {
-                                const indices = starsByOwner[oi];
-                                let influence = 0;
-                                let ownerMinDist = Infinity;
-                                for (let j = 0; j < indices.length; j++) {
-                                    const distSq = effectiveDistSq(px, py, indices[j]);
-                                    if (distSq < ownerMinDist) ownerMinDist = distSq;
-                                    influence += distSq < 1 ? 1e12 : 1.0 / distSq;
-                                }
-                                const score = Math.pow(influence, corridorBoost) *
-                                    Math.pow(ownerMinDist < 1 ? 1e-12 : 1.0 / ownerMinDist, 1.0 - corridorBoost);
-                                if (score > bestInfluence) {
-                                    bestInfluence = score;
-                                    winnerOi = oi;
-                                    bestNearestDistSq = ownerMinDist;
-                                }
-                            }
-                            nearestDistSq = bestNearestDistSq;
-                        } else {
-                            for (let i = 0; i < numStars; i++) {
-                                const dist = effectiveDistSq(px, py, i);
-                                if (dist < nearestDistSq) {
-                                    nearestDistSq = dist;
-                                    winnerOi = stars[i].ownerIdx;
-                                }
-                            }
-                        }
-
+                        const winnerOi = findOwner(px, py);
                         const r = ownerRGB[winnerOi * 3];
                         const g = ownerRGB[winnerOi * 3 + 1];
                         const b = ownerRGB[winnerOi * 3 + 2];
@@ -357,25 +280,6 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
                             pa *= Math.max(0, fm);
                         }
 
-                        // Edge blend (enemy boundaries only)
-                        if (edgeBlend > 0) {
-                            let secondMinDist = Infinity;
-                            for (let i = 0; i < numStars; i++) {
-                                if (stars[i].ownerIdx === winnerOi) continue;
-                                const dx = px - stars[i].x;
-                                const dy = py - stars[i].y;
-                                const dist = dx * dx + dy * dy;
-                                if (dist < secondMinDist) secondMinDist = dist;
-                            }
-                            if (secondMinDist < Infinity) {
-                                const d1 = Math.sqrt(nearestDistSq);
-                                const d2 = Math.sqrt(secondMinDist);
-                                const edgeDist = (d2 - d1) / (d1 + d2 + 0.001);
-                                const blendFactor = Math.min(1, edgeDist / (edgeBlend * 0.05));
-                                pa *= blendFactor;
-                            }
-                        }
-
                         // Pattern
                         if (pattern !== 'none') {
                             const ps = patternScale;
@@ -389,10 +293,6 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
                                 const gx = ((((rpx % ps) + ps) % ps) - ps / 2);
                                 const gy = ((((rpy % ps) + ps) % ps) - ps / 2);
                                 pa *= (Math.sqrt(gx * gx + gy * gy) / (ps / 2)) < 0.5 ? 1.0 : 0.25;
-                            } else if (pattern === 'hex') {
-                                const d2e = hexDistToEdge(px, py, ps);
-                                if (d2e < 1.5) pa *= 0.05;
-                                else if (d2e < 3.0) pa = Math.min(1.0, pa * 2.5);
                             }
                         }
 
