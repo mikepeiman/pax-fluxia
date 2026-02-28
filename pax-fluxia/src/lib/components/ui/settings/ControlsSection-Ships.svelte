@@ -546,6 +546,66 @@
     </div>
 {/if}
 
+<!-- ── Player Color Ring ── -->
+<h4 class="sub-heading">Player Ring</h4>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Ring Offset</span><span class="val"
+            >{((panel.starRingOffset ?? 20) as number).toFixed(0)}px</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="40"
+        step="1"
+        value={panel.starRingOffset ?? 20}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.STAR_RING_OFFSET = v;
+            updatePanel("starRingOffset", v);
+        }}
+    />
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Ring Width</span><span class="val"
+            >{((panel.starRingWidth ?? 2) as number).toFixed(1)}</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="6"
+        step="0.5"
+        value={panel.starRingWidth ?? 2}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.STAR_RING_WIDTH = v;
+            updatePanel("starRingWidth", v);
+        }}
+    />
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Ring Alpha</span><span class="val"
+            >{((panel.starRingAlpha ?? 0.8) as number).toFixed(2)}</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="1"
+        step="0.05"
+        value={panel.starRingAlpha ?? 0.8}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.STAR_RING_ALPHA = v;
+            updatePanel("starRingAlpha", v);
+        }}
+    />
+</div>
+
 <!-- ── Density Coloring ── -->
 <h4 class="sub-heading">Density Coloring</h4>
 {#each densityVariables as v}

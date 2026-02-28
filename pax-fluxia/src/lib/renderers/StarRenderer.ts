@@ -208,6 +208,16 @@ export function renderStars(
             graphics.fill({ color, alpha: glowAlpha });
         }
 
+        // Player color ring — circular outline beneath orbit layer
+        const ringOffset = GAME_CONFIG.STAR_RING_OFFSET ?? 20;
+        const ringWidth = GAME_CONFIG.STAR_RING_WIDTH ?? 2;
+        const ringAlpha = GAME_CONFIG.STAR_RING_ALPHA ?? 0.8;
+        if (ringWidth > 0 && ringAlpha > 0) {
+            const ringRadius = radius + ringOffset;
+            graphics.circle(star.x, star.y, ringRadius);
+            graphics.stroke({ color, width: ringWidth, alpha: ringAlpha });
+        }
+
         // Main star body — base color from StarType
         const typeStats = STAR_TYPE_STATS[star.starType as StarType];
         const typeColor = typeStats ? typeStats.color : 0xffffff;
