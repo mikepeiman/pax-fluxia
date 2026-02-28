@@ -292,8 +292,6 @@ interface GameConfigType {
     PIXEL_PATTERN_SCALE: number;     // Pattern size/density (1=fine, 10=coarse, default 4)
     PIXEL_PATTERN_ROTATION: number;  // Per-player pattern rotation (0=off, 1=golden angle, 0-1=blend)
     PIXEL_EDGE_FADE: number;         // Edge fade padding beyond gameboard in world pixels (0=off, 200=default)
-<<<<<<< Updated upstream
-=======
     PIXEL_LANE_CONSTRAIN: number;    // Constrain territory to connection directions (0=off, 0.5=moderate, 1=strict lane-only)
     PIXEL_PRESSURE: number;          // Shift boundaries by ship count (0=off, 0.5=moderate, 1=full proportional)
 
@@ -317,7 +315,6 @@ interface GameConfigType {
     LANE_WIDTH: number;              // Half-width of lane influence corridor in world px (20-200, default 60)
     LANE_DIRECT_FALLOFF: number;     // How fast direct star influence fades (0.1-5, default 1.0)
     LANE_THRESHOLD: number;          // Minimum influence to claim territory (0-0.5, default 0.01)
->>>>>>> Stashed changes
 
     // Hex grid overlay (when pattern = 'hex')
     HEX_SIZE: number;                // Side length of hex cell in world pixels (10-100, default 30)
@@ -868,8 +865,6 @@ const _rawConfig: GameConfigType = {
     PIXEL_PATTERN_ROTATION: 0,
     /** Edge fade: how far past the gameboard edges territory extends (px, 0=off) */
     PIXEL_EDGE_FADE: 120,
-<<<<<<< Updated upstream
-=======
     /** Constrain territory to connection directions (0=off, 1=strict) */
     PIXEL_LANE_CONSTRAIN: 0.5,
     /** Shift boundaries by ship count pressure (0=off, 1=full) */
@@ -894,7 +889,6 @@ const _rawConfig: GameConfigType = {
     LANE_WIDTH: 60,
     LANE_DIRECT_FALLOFF: 2.0,
     LANE_THRESHOLD: 0.01,
->>>>>>> Stashed changes
 
     HEX_SIZE: 30,
     HEX_GAP: 0,
@@ -967,9 +961,9 @@ export function calculateTransferAmount(activeShips: number): number {
 
 /**
  * COMBAT V4 - Wrapper around shared combat logic from @pax/common
- * 
+ *
  * This ensures single-player uses the exact same combat calculation as multiplayer.
- * 
+ *
  * @param sideAShips - Ships on side A (typically defender)
  * @param sideBShips - Ships on side B (typically attacker)
  * @param sideAIsAttacking - Whether side A has an active attack order

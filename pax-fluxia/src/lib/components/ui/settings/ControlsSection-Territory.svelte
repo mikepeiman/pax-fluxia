@@ -101,8 +101,6 @@
         </label>
     </div>
 </div>
-<<<<<<< Updated upstream
-=======
 <div class="var-row">
     <div class="row-top">
         <span class="var-name">🔗 Lane Territory</span>
@@ -344,7 +342,6 @@
         />
     </div>
 {/if}
->>>>>>> Stashed changes
 
 {#if panel.territoryVoronoi}
     <!-- ── Voronoi Controls ── -->
