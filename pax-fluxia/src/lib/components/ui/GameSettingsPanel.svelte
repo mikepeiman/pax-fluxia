@@ -673,7 +673,7 @@
             production: GAME_CONFIG.BASE_PRODUCTION,
             repair: GAME_CONFIG.REPAIR_RATE,
             defense: 1 / GAME_CONFIG.AGGRESSOR_ADVANTAGE,
-            attack: GAME_CONFIG.DAMAGE_PER_SHIP,
+            globalDamage: GAME_CONFIG.GLOBAL_DAMAGE_MODIFIER,
             arrowLength: GAME_CONFIG.ARROW_LENGTH_FRACTION,
             departMode: GAME_CONFIG.DEPART_MODE,
             settleDuration: GAME_CONFIG.SETTLE_DURATION_MS,

@@ -663,10 +663,11 @@
         <label class="toggle-label">
             <input
                 type="checkbox"
-                checked={GAME_CONFIG.DENSITY_DARKEN_ALT}
+                checked={panel.densityDarkenAlt}
                 onchange={() => {
-                    GAME_CONFIG.DENSITY_DARKEN_ALT =
-                        !GAME_CONFIG.DENSITY_DARKEN_ALT;
+                    const v = !panel.densityDarkenAlt;
+                    GAME_CONFIG.DENSITY_DARKEN_ALT = v;
+                    updatePanel("densityDarkenAlt", v);
                 }}
             />
             <span class="var-name">Alternate Darkening</span>
@@ -681,9 +682,11 @@
         <label class="toggle-label">
             <input
                 type="checkbox"
-                checked={GAME_CONFIG.STAR_GLOW_ON}
+                checked={panel.starGlowOn}
                 onchange={() => {
-                    GAME_CONFIG.STAR_GLOW_ON = !GAME_CONFIG.STAR_GLOW_ON;
+                    const v = !panel.starGlowOn;
+                    GAME_CONFIG.STAR_GLOW_ON = v;
+                    updatePanel("starGlowOn", v);
                 }}
             />
             <span class="var-name">Glow Enabled</span>

@@ -76,9 +76,11 @@
 <label class="toggle-row"
     ><input
         type="checkbox"
-        checked={GAME_CONFIG.SHOW_HEX_GRID}
+        checked={panel.showHexGrid}
         onchange={(e) => {
-            GAME_CONFIG.SHOW_HEX_GRID = (e.target as HTMLInputElement).checked;
+            const v = (e.target as HTMLInputElement).checked;
+            GAME_CONFIG.SHOW_HEX_GRID = v;
+            updatePanel("showHexGrid", v);
         }}
     />
     <span class="var-name">🔷 Show Hex Grid</span></label
@@ -107,7 +109,7 @@
 <div class="var-row">
     <div class="row-top">
         <span class="var-name">➡️ Arrow Length</span><span class="val"
-            >{Math.round(GAME_CONFIG.ARROW_LENGTH_FRACTION * 100)}%</span
+            >{Math.round(((panel.arrowLength ?? 0.5) as number) * 100)}%</span
         >
     </div>
     <input
@@ -115,19 +117,22 @@
         min="10"
         max="100"
         step="1"
-        value={Math.round(GAME_CONFIG.ARROW_LENGTH_FRACTION * 100)}
+        value={Math.round(((panel.arrowLength ?? 0.5) as number) * 100)}
         oninput={(e) => {
-            GAME_CONFIG.ARROW_LENGTH_FRACTION =
-                parseInt((e.target as HTMLInputElement).value) / 100;
+            const v = parseInt((e.target as HTMLInputElement).value) / 100;
+            GAME_CONFIG.ARROW_LENGTH_FRACTION = v;
+            updatePanel("arrowLength", v);
         }}
     />
 </div>
 <label class="toggle-row"
     ><input
         type="checkbox"
-        checked={GAME_CONFIG.STATIC_ORBITS}
+        checked={panel.staticOrbits}
         onchange={(e) => {
-            GAME_CONFIG.STATIC_ORBITS = (e.target as HTMLInputElement).checked;
+            const v = (e.target as HTMLInputElement).checked;
+            GAME_CONFIG.STATIC_ORBITS = v;
+            updatePanel("staticOrbits", v);
         }}
     />
     <span class="var-name">🛑 Static Orbits</span><span
@@ -138,11 +143,11 @@
 <label class="toggle-row"
     ><input
         type="checkbox"
-        checked={GAME_CONFIG.SHOW_SELECTION_HEX}
+        checked={panel.showSelectionHex}
         onchange={(e) => {
-            GAME_CONFIG.SHOW_SELECTION_HEX = (
-                e.target as HTMLInputElement
-            ).checked;
+            const v = (e.target as HTMLInputElement).checked;
+            GAME_CONFIG.SHOW_SELECTION_HEX = v;
+            updatePanel("showSelectionHex", v);
         }}
     />
     <span class="var-name">⬡ Selection Hex</span><span
