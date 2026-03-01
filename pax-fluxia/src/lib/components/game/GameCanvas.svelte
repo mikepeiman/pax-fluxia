@@ -1387,13 +1387,14 @@
             return;
         }
 
-        // Double-tap detection (cancel orders on star)
+        // Double-tap detection (cancel orders on star OR pause on empty space)
         if (event.pointerType === "touch") {
             const rect = canvasContainer.getBoundingClientRect();
             const x = event.clientX - rect.left;
             const y = event.clientY - rect.top;
             const star = hitTestStar(x, y);
             const now = performance.now();
+
             if (
                 star &&
                 lastTapStarId === star.id &&
@@ -1416,6 +1417,26 @@
                 cancelDrag();
                 return;
             }
+
+            // F-95: Double-tap on EMPTY space → toggle pause/play
+            if (
+                !star &&
+                lastTapStarId === null &&
+                now - lastTapTime < DOUBLE_TAP_MS
+            ) {
+                if (activeGameStore.isPaused) {
+                    activeGameStore.resumeGame();
+                } else {
+                    activeGameStore.pauseGame();
+                }
+                log.input(
+                    `Double-tap empty space → ${activeGameStore.isPaused ? "PAUSED" : "RESUMED"}`,
+                );
+                lastTapTime = 0;
+                cancelDrag();
+                return;
+            }
+
             lastTapTime = now;
             lastTapStarId = star?.id ?? null;
         }
