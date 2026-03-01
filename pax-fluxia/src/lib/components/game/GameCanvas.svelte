@@ -559,16 +559,30 @@
     function updateWorldBounds() {
         const currentStars = activeGameStore.stars as StarState[];
         if (!currentStars || currentStars.length === 0) return;
-        let maxX = 0,
+        let minX = Infinity,
+            minY = Infinity,
+            maxX = 0,
             maxY = 0;
         for (const s of currentStars) {
+            if (s.x < minX) minX = s.x;
+            if (s.y < minY) minY = s.y;
             if (s.x > maxX) maxX = s.x;
             if (s.y > maxY) maxY = s.y;
         }
         // Add padding (star radius + orbits)
         const pad = 80;
-        GAME_WIDTH = maxX + pad;
-        GAME_HEIGHT = maxY + pad;
+        GAME_WIDTH = maxX - minX + pad * 2;
+        GAME_HEIGHT = maxY - minY + pad * 2;
+        // Shift all star positions so the bounding box starts at (pad, pad)
+        // This ensures the game world origin aligns with the content
+        if (minX !== pad || minY !== pad) {
+            const offsetX = pad - minX;
+            const offsetY = pad - minY;
+            for (const s of currentStars) {
+                s.x += offsetX;
+                s.y += offsetY;
+            }
+        }
     }
 
     // ── F-107: Portrait Map Orientation ──────────────────────────────────

@@ -724,6 +724,57 @@
     }
   }
 
+  /* ── Landscape mobile: convert top/bottom bars to left/right sidebars ── */
+  @media (max-width: 1024px) and (orientation: landscape) {
+    .mobile-menu-btn {
+      /* Left sidebar: narrow vertical strip */
+      top: 0 !important;
+      left: 0 !important;
+      right: auto !important;
+      width: 44px !important;
+      height: 100vh !important;
+      flex-direction: column !important;
+      border-bottom: none !important;
+      border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+      gap: 8px !important;
+      padding: 8px 4px !important;
+    }
+    .mobile-menu-btn .ribbon-stat {
+      writing-mode: vertical-rl !important;
+      text-orientation: mixed !important;
+      font-size: 0.65rem !important;
+    }
+    /* Shift canvas so it doesn't sit under left sidebar */
+    .area-canvas {
+      margin-left: 44px !important;
+    }
+    /* Bottom speed controls → right sidebar */
+    .overlay-bottom-left {
+      left: auto !important;
+      right: 0 !important;
+      top: 0 !important;
+      bottom: 0 !important;
+      width: 56px !important;
+      height: 100vh !important;
+      max-width: 56px !important;
+    }
+    .controls-wrapper {
+      flex-direction: column !important;
+      padding: 6px !important;
+      height: 100% !important;
+      justify-content: center !important;
+    }
+    /* Also shift canvas to not sit under right sidebar */
+    .area-canvas {
+      margin-right: 56px !important;
+    }
+    /* FAB position adjustment for landscape */
+    .settings-fab {
+      bottom: 12px !important;
+      right: 64px !important;
+    }
+  }
+
   /* ── Mobile-only elements (hidden on desktop) ── */
   .mobile-menu-btn {
     display: none;
