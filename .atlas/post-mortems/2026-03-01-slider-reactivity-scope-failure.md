@@ -20,10 +20,9 @@ This is a pattern of **anchoring bias** — the agent anchored on the files it w
 
 ## Corrective Actions
 
-1. **MEMORY rule created:** `.gemini/MEMORY/slider-reactivity.md` — mandates panel-first pattern for all sliders.
-2. **Code standard created:** `.gemini/settings/slider-reactivity-standard.md` — detailed reference with checklist.
-3. **Post-mortem rule created:** `.gemini/MEMORY/post-mortem-process.md` — mandates post-mortems after significant failures.
-4. **All panels fixed:** 9 controls converted across Economy, Visuals, Ships panels. 7 new entries added to `PANEL_CONFIG_MAP`.
+1. **Rule created:** `.agent/rules/slider-reactivity.md` — mandates panel-first pattern for all sliders.
+2. **Post-mortem rule created:** `.agent/rules/post-mortem-process.md` — mandates post-mortems after significant failures.
+3. **All panels fixed:** 9 controls converted across Economy, Visuals, Ships panels. 7 new entries added to `PANEL_CONFIG_MAP`.
 
 ## Lessons
 

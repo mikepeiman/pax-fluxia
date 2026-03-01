@@ -1,9 +1,9 @@
-# Slider Reactivity Standard
 
-## MANDATORY: All UI sliders MUST follow this pattern
+# Slider Reactivity: Panel-First Pattern
 
-`GAME_CONFIG` is a **plain object** — it is NOT Svelte-reactive.
-Sliders that read `GAME_CONFIG.xxx` directly will NOT update when config changes (theme apply, import, etc.).
+## RULE: All UI sliders MUST read from `panel.xxx` ($state), never `GAME_CONFIG.xxx` directly.
+
+`GAME_CONFIG` is a plain object — it is **NOT** Svelte-reactive. Reading `GAME_CONFIG.xxx` in a template will NOT update when config changes (theme apply, import, sync).
 
 ### The ONE correct pattern:
 
@@ -14,14 +14,12 @@ Sliders that read `GAME_CONFIG.xxx` directly will NOT update when config changes
 
 ### ❌ NEVER do this:
 ```svelte
-<!-- BROKEN: GAME_CONFIG is not reactive, slider won't update on theme change -->
 <span>{GAME_CONFIG.SOME_VALUE}</span>
 <input value={GAME_CONFIG.SOME_VALUE} oninput={(e) => { GAME_CONFIG.SOME_VALUE = v; }} />
 ```
 
 ### ✅ ALWAYS do this:
 ```svelte
-<!-- CORRECT: panel is $state, slider updates on any change -->
 <span>{panel.someValue}</span>
 <input value={panel.someValue} oninput={(e) => {
     const v = parseFloat((e.target as HTMLInputElement).value);
