@@ -124,6 +124,13 @@
 | B-50 | **Mobile slider +/- nudge buttons**: Sliders are too small for precise finger control on mobile. Need +/- buttons to nudge values by step size. |
 | B-51 | **Mobile back button exits app**: Android back button immediately exits. Should close open menus/overlays first (settings → drawer → game). Needs `popstate`/`beforeunload` handling. |
 | B-52 | **Exit confirmation modal**: No confirmation before leaving active game or closing app. Need modal: "Are you sure? You'll lose your current game." |
+| B-53 | ~~Mobile bottom bar redundancy~~ **FIXED**: Restart/Audio/Quit buttons duplicated in FAB popup and bottom bar. Hidden action-buttons on mobile, added Restart to FAB popup, full-width start widget. |
+
+## Future Refactors
+
+| ID | Description |
+|----|-------------|
+| R-1 | **SliderRow component**: Refactor all sliders to use unified `SliderRow.svelte` component (already created at `settings/SliderRow.svelte`) instead of the `nudgeSliders.ts` DOM injection action. Cleaner architecture, but touches every panel file. |
 
 ## Open Bugs — MP (B)
 
