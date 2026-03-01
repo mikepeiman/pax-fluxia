@@ -840,6 +840,23 @@
     .mobile-scrim {
       z-index: 599 !important;
     }
+    /* Landscape drawer: horizontal layout — leaderboard left, theme right */
+    .mobile-drawer-content {
+      flex-direction: row !important;
+      align-items: flex-start !important;
+      justify-content: center !important;
+      padding: 16px 32px !important;
+      gap: 24px !important;
+    }
+    .drawer-leaderboard {
+      max-width: 280px !important;
+      flex-shrink: 0;
+    }
+    .drawer-theme-row {
+      flex-direction: column !important;
+      align-self: center !important;
+      max-width: 160px !important;
+    }
   }
 
   /* ── Mobile-only elements (hidden on desktop) ── */
