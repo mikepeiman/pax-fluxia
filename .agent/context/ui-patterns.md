@@ -123,3 +123,15 @@ function setAnimValue(key: string, val: number) {
 ```
 
 **Rule**: Every slider that reads/writes GAME_CONFIG MUST use a `$state` mirror. All programmatic changes (lock/pin, recalculation) must also update the mirror.
+
+## Responsive Design Protocol
+
+When adapting UI between orientations or breakpoints, follow this protocol rather than applying CSS patches:
+
+1. **Budget the constraint axis first** — landscape = height is scarce (use horizontal space), portrait = width is scarce (use vertical space). Count pixel budget before writing any CSS.
+2. **Reflow, don't just reposition** — if elements are stacked vertically, ask: should they be side-by-side in landscape? If side-by-side, should they stack in portrait?
+3. **Eliminate, don't just hide** — if a label doesn't fit, use an icon. Don't `display:none` and call it redesigned.
+4. **One-screen rule for overlays** — fullscreen overlays must fit ALL content without scrolling. Compact (smaller fonts, tighter gaps) rather than adding scroll.
+5. **Test the dimension you changed** — mentally walk through what happens to EVERY element in the constrained dimension before committing.
+
+**Anti-patterns**: Applying `!important` overrides to force desktop layouts into mobile, hiding text without replacing with icons, keeping vertical stacks in landscape when horizontal space is available.
