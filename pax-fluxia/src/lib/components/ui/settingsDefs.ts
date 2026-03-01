@@ -125,6 +125,8 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'production', configKey: 'BASE_PRODUCTION' },
     { panelKey: 'repair', configKey: 'REPAIR_RATE' },
     { panelKey: 'defense', configKey: 'AGGRESSOR_ADVANTAGE', transform: 'inverse' },
+    { panelKey: 'repairSuppressAttacker', configKey: 'REPAIR_SUPPRESS_ATTACKER' },
+    { panelKey: 'repairSuppressDefender', configKey: 'REPAIR_SUPPRESS_DEFENDER' },
     { panelKey: 'globalDamage', configKey: 'GLOBAL_DAMAGE_MODIFIER' },
     { panelKey: 'arrowLength', configKey: 'ARROW_LENGTH_FRACTION' },
     { panelKey: 'departMode', configKey: 'DEPART_MODE' },

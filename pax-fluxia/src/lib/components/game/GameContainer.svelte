@@ -40,6 +40,15 @@
   // On mobile (<1024px), always start closed regardless of localStorage
   const isMobileAtLoad =
     typeof window !== "undefined" && window.innerWidth < 1024;
+  let isMobileNow = $state(isMobileAtLoad);
+
+  // Track mobile state reactively for FAB visibility
+  if (typeof window !== "undefined") {
+    window.addEventListener("resize", () => {
+      isMobileNow = window.innerWidth < 1024;
+    });
+  }
+
   let showSettingsPanel = $state(
     !isMobileAtLoad &&
       typeof localStorage !== "undefined" &&
@@ -452,7 +461,7 @@
 
     <!-- F-96: Floating Settings Gear (visible on both mobile and desktop in-game) -->
     <!-- Hidden on mobile when settings overlay is open to avoid overlapping close button -->
-    {#if !showSettingsPanel || !isMobileAtLoad}
+    {#if !showSettingsPanel || !isMobileNow}
       <button
         class="settings-fab"
         class:active={showSettingsFab}
@@ -574,7 +583,7 @@
     .overlay-bottom-left {
       left: 50% !important;
       right: auto !important;
-      bottom: calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+      bottom: calc(20px + env(safe-area-inset-bottom, 0px)) !important;
       transform: translateX(-50%);
       width: auto !important;
       max-width: calc(100vw - 80px); /* leave room for FAB gear */
@@ -605,21 +614,23 @@
 
   @media (max-width: 1024px) {
     /* ── Mobile menu button (☰) — top-right ── */
+    /* ── Mobile top ribbon (replaces floating ☰ circle) ── */
     .mobile-menu-btn {
       display: flex;
       align-items: center;
       justify-content: center;
       position: fixed;
-      top: 10px;
-      right: 10px;
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      background: rgba(10, 10, 18, 0.85);
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 40px;
+      border-radius: 0;
+      background: rgba(10, 10, 18, 0.92);
       backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.15);
+      border: none;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
       color: rgba(255, 255, 255, 0.7);
-      font-size: 1.3rem;
+      font-size: 1.2rem;
       cursor: pointer;
       z-index: 500;
       transition: all 0.2s ease;

@@ -82,7 +82,7 @@
         <span class="var-name">🗡️ Repair Suppress (Attacking)</span><span
             class="val"
             >{Math.round(
-                (GAME_CONFIG.REPAIR_SUPPRESS_ATTACKER ?? 0.5) * 100,
+                ((panel.repairSuppressAttacker ?? 0.5) as number) * 100,
             )}%</span
         >
     </div>
@@ -91,10 +91,13 @@
         min="0"
         max="100"
         step="5"
-        value={Math.round((GAME_CONFIG.REPAIR_SUPPRESS_ATTACKER ?? 0.5) * 100)}
+        value={Math.round(
+            ((panel.repairSuppressAttacker ?? 0.5) as number) * 100,
+        )}
         oninput={(e) => {
             const pct = parseInt((e.target as HTMLInputElement).value);
             GAME_CONFIG.REPAIR_SUPPRESS_ATTACKER = pct / 100;
+            updatePanel("repairSuppressAttacker", pct / 100);
         }}
     />
 </div>
@@ -103,7 +106,7 @@
         <span class="var-name">🛡️ Repair Suppress (Defending)</span><span
             class="val"
             >{Math.round(
-                (GAME_CONFIG.REPAIR_SUPPRESS_DEFENDER ?? 0.1) * 100,
+                ((panel.repairSuppressDefender ?? 0.1) as number) * 100,
             )}%</span
         >
     </div>
@@ -112,10 +115,13 @@
         min="0"
         max="100"
         step="5"
-        value={Math.round((GAME_CONFIG.REPAIR_SUPPRESS_DEFENDER ?? 0.1) * 100)}
+        value={Math.round(
+            ((panel.repairSuppressDefender ?? 0.1) as number) * 100,
+        )}
         oninput={(e) => {
             const pct = parseInt((e.target as HTMLInputElement).value);
             GAME_CONFIG.REPAIR_SUPPRESS_DEFENDER = pct / 100;
+            updatePanel("repairSuppressDefender", pct / 100);
         }}
     />
 </div>
@@ -141,7 +147,7 @@
 <div class="var-row">
     <div class="row-top">
         <span class="var-name">💥 Global Damage Modifier</span><span class="val"
-            >{GAME_CONFIG.GLOBAL_DAMAGE_MODIFIER}%</span
+            >{panel.globalDamage}%</span
         >
     </div>
     <input
@@ -149,7 +155,7 @@
         min="0"
         max="200"
         step="1"
-        value={GAME_CONFIG.GLOBAL_DAMAGE_MODIFIER}
+        value={panel.globalDamage}
         oninput={(e) => {
             const v = parseInt((e.target as HTMLInputElement).value);
             GAME_CONFIG.GLOBAL_DAMAGE_MODIFIER = v;
