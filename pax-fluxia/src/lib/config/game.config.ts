@@ -30,6 +30,7 @@ export function buildEngineConfig(): EngineConfig {
         SCATTER_DESTROY_RATE: GAME_CONFIG.SCATTER_DESTROY_RATE,
         RETREAT_DAMAGED_ACTIVATION_RATE: GAME_CONFIG.RETREAT_DAMAGED_ACTIVATION_RATE,
         DAMAGED_SHIP_EFFECTIVENESS: GAME_CONFIG.DAMAGED_SHIP_EFFECTIVENESS,
+        GLOBAL_DAMAGE_MODIFIER: GAME_CONFIG.GLOBAL_DAMAGE_MODIFIER,
         LETHALITY: GAME_CONFIG.LETHALITY,
         AGGRESSOR_ADVANTAGE: GAME_CONFIG.AGGRESSOR_ADVANTAGE,
         FORCE_RATIO_EFFECT: GAME_CONFIG.FORCE_RATIO_EFFECT,
@@ -59,6 +60,7 @@ interface GameConfigType {
 
     // Combat V4 - Symmetric Model
     AGGRESSOR_ADVANTAGE: number;    // Tilts damage toward attacker (>1) or defender (<1)
+    GLOBAL_DAMAGE_MODIFIER: number; // Global damage scalar (percentage, 100 = full)
     LETHALITY: number;              // % of damage that destroys (rest disables)
     FORCE_RATIO_EFFECT: number;     // How much numerical superiority matters
     CONQUEST_THRESHOLD: number;     // Overwhelm ratio for instant capture
@@ -448,6 +450,9 @@ const _rawConfig: GameConfigType = {
 
     /** Tilts damage toward attacker (>1) or defender (<1). 1.0 = symmetric. */
     AGGRESSOR_ADVANTAGE: 0.8333333333333334,
+
+    /** Global damage scalar (percentage). 100 = full, 50 = half, 200 = double */
+    GLOBAL_DAMAGE_MODIFIER: 100,
 
     /** Fraction of damage that destroys ships (rest disables). Range: 0-1 */
     LETHALITY: 0.1,
@@ -1031,6 +1036,7 @@ export function calculateCombatV4(
         sideAIsAttacking,
         sideBIsAttacking,
         {
+            GLOBAL_DAMAGE_MODIFIER: GAME_CONFIG.GLOBAL_DAMAGE_MODIFIER,
             LETHALITY: GAME_CONFIG.LETHALITY,
             AGGRESSOR_ADVANTAGE: GAME_CONFIG.AGGRESSOR_ADVANTAGE,
             FORCE_RATIO_EFFECT: GAME_CONFIG.FORCE_RATIO_EFFECT,

@@ -69,6 +69,7 @@ export interface EngineConfig {
 
     // Combat — unified from COMBAT_CONFIG (Phase A: single pipeline)
     DAMAGED_SHIP_EFFECTIVENESS: number;    // Damaged ships as fraction of defenders
+    GLOBAL_DAMAGE_MODIFIER: number;        // Global damage scalar (percentage, 100 = full)
     LETHALITY: number;                     // Fraction of damage that kills (rest disables)
     AGGRESSOR_ADVANTAGE: number;           // Attacker damage multiplier (>1 = attacker advantage)
     FORCE_RATIO_EFFECT: number;            // How much numerical superiority matters
@@ -98,6 +99,7 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
     SCATTER_DESTROY_RATE: 0.50,
     RETREAT_DAMAGED_ACTIVATION_RATE: 0.1,
     DAMAGED_SHIP_EFFECTIVENESS: 0.5,
+    GLOBAL_DAMAGE_MODIFIER: 100,
     LETHALITY: 0.25,
     AGGRESSOR_ADVANTAGE: 0.8333333333333334,
     FORCE_RATIO_EFFECT: 0,

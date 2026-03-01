@@ -138,6 +138,25 @@
         }}
     />
 </div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">💥 Global Damage Modifier</span><span class="val"
+            >{GAME_CONFIG.GLOBAL_DAMAGE_MODIFIER}%</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="200"
+        step="1"
+        value={GAME_CONFIG.GLOBAL_DAMAGE_MODIFIER}
+        oninput={(e) => {
+            const v = parseInt((e.target as HTMLInputElement).value);
+            GAME_CONFIG.GLOBAL_DAMAGE_MODIFIER = v;
+            updatePanel("globalDamage", v);
+        }}
+    />
+</div>
 
 <style>
     @import "./panel-shared.css";
