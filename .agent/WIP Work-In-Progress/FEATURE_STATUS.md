@@ -120,6 +120,10 @@
 | B-41 | Deferred orders can be set in both directions between two stars (A→B and B→A). Same exclusivity rule as active orders should apply — flow can only go one direction at a time between any pair. |
 | B-47 | ~~Animation speed slider does nothing~~ **FIXED**: FX handlers used FXClock `gameTime` for `departTime` but ShipRenderer used `performance.now()` — time domain mismatch caused instant ship arrivals regardless of animation speed setting. Fixed in `transferHandler.ts` and `conquestHandler.ts`. |
 | B-48 | ~~Players all start on same star type~~ **FIXED**: Star types were assigned via deterministic cycling (`types[i % types.length]`) and positions weren't shuffled. Players in the same index-modulo group always got the same star type. Fixed with `Math.random()` type selection and position shuffling in both client `GameEngine.ts` and server `GameRoom.ts`. |
+| B-49 | ~~Mobile close button cut off by top ribbon~~ **FIXED**: Ribbon z-500 covered close button z-210. Fixed by hiding ribbon when settings overlay is open (`{#if !showSettingsPanel}`). |
+| B-50 | **Mobile slider +/- nudge buttons**: Sliders are too small for precise finger control on mobile. Need +/- buttons to nudge values by step size. |
+| B-51 | **Mobile back button exits app**: Android back button immediately exits. Should close open menus/overlays first (settings → drawer → game). Needs `popstate`/`beforeunload` handling. |
+| B-52 | **Exit confirmation modal**: No confirmation before leaving active game or closing app. Need modal: "Are you sure? You'll lose your current game." |
 
 ## Open Bugs — MP (B)
 

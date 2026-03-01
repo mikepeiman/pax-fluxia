@@ -409,15 +409,17 @@
 
   <!-- ═══ MOBILE CONTROL RIBBON + DRAWER (hidden on desktop) ═══ -->
   {#if gameStore.currentView === "game"}
-    <!-- MOBILE MENU BUTTON (☰ only) -->
-    <button
-      class="mobile-menu-btn"
-      class:active={mobileDrawerOpen}
-      onclick={() => (mobileDrawerOpen = !mobileDrawerOpen)}
-      title="Menu"
-    >
-      {mobileDrawerOpen ? "✕" : "☰"}
-    </button>
+    <!-- MOBILE MENU BUTTON (☰ only) — hide when settings overlay is open -->
+    {#if !showSettingsPanel}
+      <button
+        class="mobile-menu-btn"
+        class:active={mobileDrawerOpen}
+        onclick={() => (mobileDrawerOpen = !mobileDrawerOpen)}
+        title="Menu"
+      >
+        {mobileDrawerOpen ? "✕" : "☰"}
+      </button>
+    {/if}
 
     <!-- Scrim -->
     {#if mobileDrawerOpen}
