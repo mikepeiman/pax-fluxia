@@ -311,7 +311,7 @@
               onCenterFit={() => gameCanvasRef?.centerAndFit?.()}
             />
 
-            <div class="action-buttons">
+            <div class="action-buttons mobile-hide">
               <button
                 class="btn btn--ghost btn--sm"
                 onclick={() => activeGameStore.playAgain()}
@@ -608,6 +608,17 @@
           class="fab-item"
           onclick={() => {
             audioManager.play("click");
+            activeGameStore.playAgain();
+            showSettingsFab = false;
+          }}
+        >
+          <span class="fab-icon">🔄</span>
+          <span>Restart</span>
+        </button>
+        <button
+          class="fab-item"
+          onclick={() => {
+            audioManager.play("click");
             mobileDrawerOpen = !mobileDrawerOpen;
             showSettingsFab = false;
           }}
@@ -687,23 +698,26 @@
     }
     /* Reposition speed controls to center-bottom on mobile */
     .overlay-bottom-left {
-      left: 50% !important;
-      right: auto !important;
-      bottom: calc(20px + env(safe-area-inset-bottom, 0px)) !important;
-      transform: translateX(-50%);
+      left: 8px !important;
+      right: 8px !important;
+      bottom: calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+      transform: none;
       width: auto !important;
-      max-width: calc(100vw - 80px); /* leave room for FAB gear */
+      max-width: 100%;
     }
     .controls-wrapper {
       flex-direction: row !important;
       gap: 6px;
       padding: 8px !important;
       max-width: 100%;
-      overflow: hidden;
+      overflow: visible;
     }
     .action-buttons {
       flex-direction: row !important;
       flex-shrink: 0;
+    }
+    .mobile-hide {
+      display: none !important;
     }
   }
 
