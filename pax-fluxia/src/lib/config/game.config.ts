@@ -30,7 +30,6 @@ export function buildEngineConfig(): EngineConfig {
         SCATTER_DESTROY_RATE: GAME_CONFIG.SCATTER_DESTROY_RATE,
         RETREAT_DAMAGED_ACTIVATION_RATE: GAME_CONFIG.RETREAT_DAMAGED_ACTIVATION_RATE,
         DAMAGED_SHIP_EFFECTIVENESS: GAME_CONFIG.DAMAGED_SHIP_EFFECTIVENESS,
-        DAMAGE_PER_SHIP: GAME_CONFIG.DAMAGE_PER_SHIP,
         LETHALITY: GAME_CONFIG.LETHALITY,
         AGGRESSOR_ADVANTAGE: GAME_CONFIG.AGGRESSOR_ADVANTAGE,
         FORCE_RATIO_EFFECT: GAME_CONFIG.FORCE_RATIO_EFFECT,
@@ -60,7 +59,6 @@ interface GameConfigType {
 
     // Combat V4 - Symmetric Model
     AGGRESSOR_ADVANTAGE: number;    // Tilts damage toward attacker (>1) or defender (<1)
-    DAMAGE_PER_SHIP: number;        // Base damage output per engaged ship
     LETHALITY: number;              // % of damage that destroys (rest disables)
     FORCE_RATIO_EFFECT: number;     // How much numerical superiority matters
     CONQUEST_THRESHOLD: number;     // Overwhelm ratio for instant capture
@@ -439,23 +437,17 @@ const _rawConfig: GameConfigType = {
     // 1. AGGRESSOR_ADVANTAGE: Tilts damage ratio. >1 = attacker deals more.
     //    Both sides attacking = both get bonus (explosive battles).
     //
-    // 2. DAMAGE_PER_SHIP: Base damage output per engaged ship per tick.
-    //    Higher = faster kills, shorter battles.
-    //
-    // 3. LETHALITY: % of damage that destroys ships (rest disables).
+    // 2. LETHALITY: % of damage that destroys ships (rest disables).
     //    High = decisive battles. Low = attrition + repair matters.
     //
-    // 4. FORCE_RATIO_EFFECT: Non-linear bonus for numerical superiority.
+    // 3. FORCE_RATIO_EFFECT: Non-linear bonus for numerical superiority.
     //    Uses log2(ratio) so 8:1 only gives 3x bonus of 2:1.
     //
-    // 5. CONQUEST_THRESHOLD: Attackers need Nx defender ships to overwhelm.
+    // 4. CONQUEST_THRESHOLD: Attackers need Nx defender ships to overwhelm.
     // ========================================================================
 
     /** Tilts damage toward attacker (>1) or defender (<1). 1.0 = symmetric. */
     AGGRESSOR_ADVANTAGE: 0.8333333333333334,
-
-    /** Base damage per engaged ship per tick. Range: 0.05-2.0 */
-    DAMAGE_PER_SHIP: 0.075,
 
     /** Fraction of damage that destroys ships (rest disables). Range: 0-1 */
     LETHALITY: 0.1,
@@ -1039,7 +1031,6 @@ export function calculateCombatV4(
         sideAIsAttacking,
         sideBIsAttacking,
         {
-            DAMAGE_PER_SHIP: GAME_CONFIG.DAMAGE_PER_SHIP,
             LETHALITY: GAME_CONFIG.LETHALITY,
             AGGRESSOR_ADVANTAGE: GAME_CONFIG.AGGRESSOR_ADVANTAGE,
             FORCE_RATIO_EFFECT: GAME_CONFIG.FORCE_RATIO_EFFECT,

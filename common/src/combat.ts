@@ -23,15 +23,10 @@ import type { CombatResult, StarType } from './types';
 
 export const COMBAT_CONFIG = {
     // ────────────────────────────────────────────────────────────────────────
-    // BASE DAMAGE
-    // Each ship deals this much damage per tick to the enemy
-    // ────────────────────────────────────────────────────────────────────────
-    DAMAGE_PER_SHIP: 0.075,          // Base damage per ship per tick
-
-    // ────────────────────────────────────────────────────────────────────────
     // LETHALITY
     // Fraction of damage that permanently destroys ships.
     // Remainder goes to damagedShips pool (can be repaired).
+    // Ship count IS the damage (no DAMAGE_PER_SHIP multiplier).
     // ────────────────────────────────────────────────────────────────────────
     LETHALITY: 0.25,                // 25% of damage kills, 75% disables
 
@@ -89,7 +84,7 @@ export const COMBAT_CONFIG = {
 // │   • sideBIsAttacking: bool    Does side B have an attack order?         │
 // ├─────────────────────────────────────────────────────────────────────────┤
 // │ PROCESS:                                                                │
-// │   1. Base damage = ships × DAMAGE_PER_SHIP                              │
+// │   1. Base damage = ship count (ships ARE the damage)                    │
 // │   2. Apply AGGRESSOR_ADVANTAGE if attacking                             │
 // │   3. Apply FORCE_RATIO_EFFECT (log2 bonus for larger force)             │
 // │   4. Ensure MINIMUM_DAMAGE                                              │
@@ -112,7 +107,6 @@ export interface CombatResultFull {
 
 /** Optional overrides for combat variables (client UI panel passes these) */
 export interface CombatConfigOverride {
-    DAMAGE_PER_SHIP?: number;
     LETHALITY?: number;
     AGGRESSOR_ADVANTAGE?: number;
     FORCE_RATIO_EFFECT?: number;
@@ -142,28 +136,20 @@ export function calculateCombat(
     }
 
     // Merge overrides with defaults — allows UI panel to drive combat math
-    const DAMAGE_PER_SHIP = configOverrides?.DAMAGE_PER_SHIP ?? COMBAT_CONFIG.DAMAGE_PER_SHIP;
     const AGGRESSOR_ADVANTAGE = configOverrides?.AGGRESSOR_ADVANTAGE ?? COMBAT_CONFIG.AGGRESSOR_ADVANTAGE;
     const FORCE_RATIO_EFFECT = configOverrides?.FORCE_RATIO_EFFECT ?? COMBAT_CONFIG.FORCE_RATIO_EFFECT;
     const MINIMUM_DAMAGE = configOverrides?.MINIMUM_DAMAGE ?? COMBAT_CONFIG.MINIMUM_DAMAGE;
     const LETHALITY = configOverrides?.LETHALITY ?? COMBAT_CONFIG.LETHALITY;
 
     // ────────────────────────────────────────────────────────────────────────
-    // STEP 1: BASE DAMAGE OUTPUT
-    // Each side's output = their ship count × damage per ship
-    // ────────────────────────────────────────────────────────────────────────
-    const baseOutputA = sideAShips * DAMAGE_PER_SHIP;
-    const baseOutputB = sideBShips * DAMAGE_PER_SHIP;
-
-    // ────────────────────────────────────────────────────────────────────────
-    // STEP 2: AGGRESSOR ADVANTAGE
-    // Attacking side deals MORE damage
+    // STEP 1+2: DAMAGE OUTPUT WITH AGGRESSOR ADVANTAGE
+    // Ship count IS the damage. Attacking side gets AGGRESSOR_ADVANTAGE mult.
     // Both sides attacking = both get the bonus (explosive battles)
     // ────────────────────────────────────────────────────────────────────────
     const aggressorA = sideAIsAttacking ? AGGRESSOR_ADVANTAGE : 1.0;
     const aggressorB = sideBIsAttacking ? AGGRESSOR_ADVANTAGE : 1.0;
-    const outputA = baseOutputA * aggressorA;
-    const outputB = baseOutputB * aggressorB;
+    const outputA = sideAShips * aggressorA;
+    const outputB = sideBShips * aggressorB;
 
     // ────────────────────────────────────────────────────────────────────────
     // STEP 3: FORCE RATIO MODIFIER

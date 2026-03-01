@@ -65,7 +65,6 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
 
     combat: [
         'AGGRESSOR_ADVANTAGE',
-        'DAMAGE_PER_SHIP',
         'LETHALITY',
         'FORCE_RATIO_EFFECT',
         'CONQUEST_THRESHOLD',

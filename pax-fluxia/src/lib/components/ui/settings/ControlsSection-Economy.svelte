@@ -138,25 +138,6 @@
         }}
     />
 </div>
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">⚔️ Damage Per Ship</span><span class="val"
-            >{((panel.attack ?? 0) as number).toFixed(3)}</span
-        >
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="0.5"
-        step="0.005"
-        value={panel.attack}
-        oninput={(e) => {
-            const v = parseFloat((e.target as HTMLInputElement).value);
-            GAME_CONFIG.DAMAGE_PER_SHIP = v;
-            updatePanel("attack", v);
-        }}
-    />
-</div>
 
 <style>
     @import "./panel-shared.css";
