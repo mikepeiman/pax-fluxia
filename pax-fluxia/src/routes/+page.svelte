@@ -2,7 +2,7 @@
   import "../app.css";
   import LandingPage from "$lib/components/landing/LandingPage.svelte";
   import GameContainer from "$lib/components/game/GameContainer.svelte";
-  
+
   let showGame = $state(false);
 
   function handlePlay() {
@@ -19,7 +19,7 @@
     crossorigin="anonymous"
   />
   <link
-    href="https://fonts.googleapis.com/css2?family=Exo:wght@400;700;900&family=Montserrat:wght@400;500;600;700&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;700&family=Rajdhani:wght@500;600;700&display=swap"
     rel="stylesheet"
   />
 </svelte:head>
@@ -38,6 +38,6 @@
     padding: 0;
     background: #000;
     color: #fff;
-    font-family: "Montserrat", sans-serif;
+    font-family: "Inter", sans-serif;
   }
 </style>

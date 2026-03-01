@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount, onDestroy } from "svelte";
   import { gameStore } from "$lib/stores/gameStore.svelte";
   import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
   import { multiplayerStore } from "$lib/stores/multiplayerStore.svelte";
@@ -132,6 +133,23 @@
 
   // ── Mobile drawer (icon-activated, no swipe) ──
   let mobileDrawerOpen = $state(false);
+
+  // Lock body scroll when in game view (landing page needs scroll)
+  $effect(() => {
+    if (typeof document !== "undefined") {
+      if (gameStore.currentView === "game") {
+        document.body.classList.add("game-active");
+      } else {
+        document.body.classList.remove("game-active");
+      }
+    }
+  });
+
+  onDestroy(() => {
+    if (typeof document !== "undefined") {
+      document.body.classList.remove("game-active");
+    }
+  });
 </script>
 
 <div class="app-container">
