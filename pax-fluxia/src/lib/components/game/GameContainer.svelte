@@ -37,8 +37,12 @@
   );
 
   // ── Settings panel toggle (secondary column) ──
+  // On mobile (<1024px), always start closed regardless of localStorage
+  const isMobileAtLoad =
+    typeof window !== "undefined" && window.innerWidth < 1024;
   let showSettingsPanel = $state(
-    typeof localStorage !== "undefined" &&
+    !isMobileAtLoad &&
+      typeof localStorage !== "undefined" &&
       localStorage.getItem("pax-settings-open") === "true",
   );
   function toggleSettingsPanel() {
@@ -447,14 +451,17 @@
     </div>
 
     <!-- F-96: Floating Settings Gear (visible on both mobile and desktop in-game) -->
-    <button
-      class="settings-fab"
-      class:active={showSettingsFab}
-      onclick={() => (showSettingsFab = !showSettingsFab)}
-      title="Quick Settings"
-    >
-      ⚙
-    </button>
+    <!-- Hidden on mobile when settings overlay is open to avoid overlapping close button -->
+    {#if !showSettingsPanel || !isMobileAtLoad}
+      <button
+        class="settings-fab"
+        class:active={showSettingsFab}
+        onclick={() => (showSettingsFab = !showSettingsFab)}
+        title="Quick Settings"
+      >
+        ⚙
+      </button>
+    {/if}
 
     {#if showSettingsFab}
       <!-- svelte-ignore a11y_click_events_have_key_events -->

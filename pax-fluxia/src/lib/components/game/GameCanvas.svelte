@@ -117,6 +117,21 @@
     $effect(() => {
         fxOrchestrator.setAnimationSpeed(animationStore.speedMs);
     });
+
+    // F-107: When stars first populate, check orientation and transpose if needed
+    let starsInitialized = false;
+    $effect(() => {
+        const stars = activeGameStore.stars as StarState[];
+        if (!starsInitialized && stars.length > 0) {
+            starsInitialized = true;
+            // Defer to next frame so app.screen dimensions are settled
+            requestAnimationFrame(() => {
+                updateWorldBounds();
+                checkOrientationAndTranspose();
+                handleResize();
+            });
+        }
+    });
     // Physics State — backed by FXOrchestrator.vsm
     // These aliases let the render loop use the same variable names unchanged.
     let visualShips: Map<string, VisualShipState[]> =

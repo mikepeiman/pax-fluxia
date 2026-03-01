@@ -81,20 +81,20 @@
     <div class="row-top">
         <span class="var-name">🗡️ Repair Suppress (Attacking)</span><span
             class="val"
-            >{((GAME_CONFIG.REPAIR_SUPPRESS_ATTACKER ?? 0.5) as number).toFixed(
-                2,
-            )}</span
+            >{Math.round(
+                (GAME_CONFIG.REPAIR_SUPPRESS_ATTACKER ?? 0.5) * 100,
+            )}%</span
         >
     </div>
     <input
         type="range"
         min="0"
-        max="1"
-        step="0.05"
-        value={GAME_CONFIG.REPAIR_SUPPRESS_ATTACKER ?? 0.5}
+        max="100"
+        step="5"
+        value={Math.round((GAME_CONFIG.REPAIR_SUPPRESS_ATTACKER ?? 0.5) * 100)}
         oninput={(e) => {
-            const v = parseFloat((e.target as HTMLInputElement).value);
-            GAME_CONFIG.REPAIR_SUPPRESS_ATTACKER = v;
+            const pct = parseInt((e.target as HTMLInputElement).value);
+            GAME_CONFIG.REPAIR_SUPPRESS_ATTACKER = pct / 100;
         }}
     />
 </div>
@@ -102,26 +102,26 @@
     <div class="row-top">
         <span class="var-name">🛡️ Repair Suppress (Defending)</span><span
             class="val"
-            >{((GAME_CONFIG.REPAIR_SUPPRESS_DEFENDER ?? 0.1) as number).toFixed(
-                2,
-            )}</span
+            >{Math.round(
+                (GAME_CONFIG.REPAIR_SUPPRESS_DEFENDER ?? 0.1) * 100,
+            )}%</span
         >
     </div>
     <input
         type="range"
         min="0"
-        max="1"
-        step="0.05"
-        value={GAME_CONFIG.REPAIR_SUPPRESS_DEFENDER ?? 0.1}
+        max="100"
+        step="5"
+        value={Math.round((GAME_CONFIG.REPAIR_SUPPRESS_DEFENDER ?? 0.1) * 100)}
         oninput={(e) => {
-            const v = parseFloat((e.target as HTMLInputElement).value);
-            GAME_CONFIG.REPAIR_SUPPRESS_DEFENDER = v;
+            const pct = parseInt((e.target as HTMLInputElement).value);
+            GAME_CONFIG.REPAIR_SUPPRESS_DEFENDER = pct / 100;
         }}
     />
 </div>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">🛡️ Defense</span><span class="val"
+        <span class="var-name">🛡️ Defense Multiplier</span><span class="val"
             >{((panel.defense ?? 0) as number).toFixed(2)}×</span
         >
     </div>
@@ -140,7 +140,7 @@
 </div>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">⚔️ Attack</span><span class="val"
+        <span class="var-name">⚔️ Damage Per Ship</span><span class="val"
             >{((panel.attack ?? 0) as number).toFixed(3)}</span
         >
     </div>
