@@ -546,10 +546,56 @@
         GAME_HEIGHT = maxY + pad;
     }
 
+    // ── F-107: Portrait Map Orientation ──────────────────────────────────
+    // Track whether the map is currently transposed for portrait mode.
+    // When the viewport orientation flips (landscape↔portrait), swap
+    // every star's x↔y coordinates so the map fills the screen optimally.
+    let isTransposed = false;
+
+    /** Detect if the container is portrait (height > width) */
+    function isPortrait(): boolean {
+        if (!app) return false;
+        return app.screen.height > app.screen.width;
+    }
+
+    /** Transpose all star coordinates (x↔y) for portrait/landscape swap */
+    function transposeStarCoordinates() {
+        const currentStars = activeGameStore.stars as StarState[];
+        if (!currentStars || currentStars.length === 0) return;
+        for (const s of currentStars) {
+            const tmp = s.x;
+            s.x = s.y;
+            s.y = tmp;
+        }
+        // Reset territory/voronoi caches since positions changed
+        resetVoronoiCache();
+        resetMetaballCache();
+        resetPixelTerritoryCache();
+        resetLaneTerritoryCache();
+
+        // Recompute world bounds with new positions
+        updateWorldBounds();
+    }
+
+    /** Check orientation and transpose if needed */
+    function checkOrientationAndTranspose() {
+        const portrait = isPortrait();
+        const mapIsLandscape = GAME_WIDTH > GAME_HEIGHT;
+        // Transpose when portrait viewport + landscape map, or landscape viewport + portrait map
+        const needsTranspose = portrait === mapIsLandscape;
+        if (needsTranspose !== isTransposed) {
+            transposeStarCoordinates();
+            isTransposed = needsTranspose;
+        }
+    }
+
     function handleResize() {
         if (!app) return;
 
         app.resize();
+
+        // F-107: Check if orientation changed and transpose star positions if needed
+        checkOrientationAndTranspose();
 
         // Recompute world bounds from star positions
         updateWorldBounds();
