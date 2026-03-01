@@ -47,50 +47,57 @@
     }
 </script>
 
-<!-- Swatch trigger -->
-<!-- svelte-ignore a11y_click_events_have_key_events -->
-<!-- svelte-ignore a11y_no_static_element_interactions -->
-<span
-    class="swatch-trigger"
-    style:background-color={hslColor(selectedHue)}
-    onclick={() => (popupOpen = !popupOpen)}
-    onkeydown={(e) => {
-        if (e.key === "Enter" || e.key === " ") popupOpen = !popupOpen;
-    }}
-    role="button"
-    tabindex="0"
-    title="Click to pick color"
-></span>
-
-{#if popupOpen}
+<div class="color-palette-wrapper">
+    <!-- Swatch trigger -->
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="palette-backdrop" onclick={() => (popupOpen = false)}></div>
-    <div class="palette-popup">
-        <div class="palette-grid">
-            {#each palette as hue}
-                <button
-                    class="palette-swatch"
-                    class:selected={isSelected(hue)}
-                    class:claimed={isClaimed(hue) && !isSelected(hue)}
-                    style:background-color={hslColor(hue)}
-                    onclick={() => select(hue)}
-                    title={isClaimed(hue)
-                        ? "Already in use"
-                        : `Hue ${Math.round(hue)}°`}
-                >
-                    {#if isSelected(hue)}
-                        <span class="check">✓</span>
-                    {:else if isClaimed(hue)}
-                        <span class="claimed-mark">•</span>
-                    {/if}
-                </button>
-            {/each}
+    <span
+        class="swatch-trigger"
+        style:background-color={hslColor(selectedHue)}
+        onclick={() => (popupOpen = !popupOpen)}
+        onkeydown={(e) => {
+            if (e.key === "Enter" || e.key === " ") popupOpen = !popupOpen;
+        }}
+        role="button"
+        tabindex="0"
+        title="Click to pick color"
+    ></span>
+
+    {#if popupOpen}
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div class="palette-backdrop" onclick={() => (popupOpen = false)}></div>
+        <div class="palette-popup">
+            <div class="palette-grid">
+                {#each palette as hue}
+                    <button
+                        class="palette-swatch"
+                        class:selected={isSelected(hue)}
+                        class:claimed={isClaimed(hue) && !isSelected(hue)}
+                        style:background-color={hslColor(hue)}
+                        onclick={() => select(hue)}
+                        title={isClaimed(hue)
+                            ? "Already in use"
+                            : `Hue ${Math.round(hue)}°`}
+                    >
+                        {#if isSelected(hue)}
+                            <span class="check">✓</span>
+                        {:else if isClaimed(hue)}
+                            <span class="claimed-mark">•</span>
+                        {/if}
+                    </button>
+                {/each}
+            </div>
         </div>
-    </div>
-{/if}
+    {/if}
+</div>
 
 <style>
+    .color-palette-wrapper {
+        position: relative;
+        display: inline-block;
+    }
+
     .swatch-trigger {
         display: inline-block;
         width: 28px;
@@ -116,10 +123,9 @@
 
     .palette-popup {
         position: absolute;
-        z-index: 100;
+        z-index: 1000;
         top: calc(100% + 8px);
-        left: 50%;
-        transform: translateX(-50%);
+        left: 0;
         background: rgba(10, 12, 20, 0.96);
         border: 1px solid rgba(0, 255, 255, 0.15);
         border-radius: 12px;
@@ -132,11 +138,11 @@
     @keyframes popup-in {
         from {
             opacity: 0;
-            transform: translateX(-50%) translateY(-4px);
+            transform: translateY(-4px);
         }
         to {
             opacity: 1;
-            transform: translateX(-50%) translateY(0);
+            transform: translateY(0);
         }
     }
 
