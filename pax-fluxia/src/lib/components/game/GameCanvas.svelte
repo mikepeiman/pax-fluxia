@@ -4,6 +4,7 @@
     import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
     import { animationStore } from "$lib/stores/animationStore.svelte";
     import { audioManager } from "$lib/services/audioManager.svelte";
+    import { mapTranspose } from "$lib/stores/mapTranspose.svelte";
     import { log } from "$lib/utils/logger";
     import { GAME_CONFIG } from "$lib/config/game.config";
     import {
@@ -467,10 +468,11 @@
 
         window.removeEventListener("resize", handleResize);
 
-        // F-107: Remove orientation listener
+        // F-107: Remove orientation listener and reset transpose flag
         if (orientationQuery) {
             orientationQuery.removeEventListener("change", onOrientationChange);
         }
+        mapTranspose.active = false;
 
         if (resizeObserver) {
             resizeObserver.disconnect();
@@ -562,6 +564,7 @@
         let maxX = 0,
             maxY = 0;
         for (const s of currentStars) {
+            // Stars already have transposed coordinates via toGameState
             if (s.x > maxX) maxX = s.x;
             if (s.y > maxY) maxY = s.y;
         }
@@ -582,23 +585,17 @@
             : false;
     let mapIsPortrait = false; // Set when stars first load
 
-    /** Transpose all star coordinates (x↔y) for portrait/landscape swap */
+    /** Toggle the transpose flag — toGameState() handles the actual x↔y swap */
     function transposeStarCoordinates() {
-        const currentStars = activeGameStore.stars as StarState[];
-        if (!currentStars || currentStars.length === 0) return;
-        for (const s of currentStars) {
-            const tmp = s.x;
-            s.x = s.y;
-            s.y = tmp;
-        }
+        mapTranspose.active = !mapTranspose.active;
         // Flip the map orientation flag
         mapIsPortrait = !mapIsPortrait;
-        // Reset territory caches since positions changed
+        // Reset territory caches since display positions changed
         resetVoronoiCache();
         resetMetaballCache();
         resetPixelTerritoryCache();
         resetLaneTerritoryCache();
-        // Recompute world bounds with new positions
+        // Recompute world bounds with new display positions
         updateWorldBounds();
         log.sys(
             "GameCanvas",

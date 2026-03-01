@@ -39,6 +39,7 @@ import { audioManager } from '$lib/services/audioManager.svelte';
 import { GAME_CONFIG, buildEngineConfig } from '$lib/config/game.config';
 import { animationStore } from '$lib/stores/animationStore.svelte';
 import { activeGameStore } from '$lib/stores/activeGameStore.svelte';
+import { mapTranspose } from '$lib/stores/mapTranspose.svelte';
 
 // ============================================================================
 // Constants
@@ -284,8 +285,8 @@ function toGameState(s: GameRoomState): GameState {
 
     const stars = Array.from(s.stars.values()).map(star => ({
         id: star.id,
-        x: star.x,
-        y: star.y,
+        x: mapTranspose.active ? star.y : star.x,
+        y: mapTranspose.active ? star.x : star.y,
         radius: star.radius,
         ownerId: star.ownerId,
         activeShips: star.activeShips,
