@@ -700,7 +700,7 @@
     .overlay-bottom-left {
       left: 8px !important;
       right: 8px !important;
-      bottom: calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+      bottom: calc(56px + env(safe-area-inset-bottom, 0px)) !important;
       transform: none;
       width: auto !important;
       max-width: 100%;
@@ -718,6 +718,9 @@
     }
     .mobile-hide {
       display: none !important;
+    }
+    .settings-fab {
+      bottom: calc(64px + env(safe-area-inset-bottom, 0px));
     }
   }
 
