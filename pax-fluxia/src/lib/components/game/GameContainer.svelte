@@ -822,6 +822,40 @@
       bottom: 12px !important;
       right: 64px !important;
     }
+    /* Drawer: fullscreen overlay in landscape (covers sidebars too) */
+    .mobile-drawer {
+      width: 100vw !important;
+      max-width: 100vw !important;
+      height: 100vh !important;
+      height: 100dvh !important;
+      top: 0 !important;
+      left: 0 !important;
+      right: 0 !important;
+      border-left: none !important;
+      transform: translateX(100%) !important;
+      z-index: 600 !important;
+    }
+    .mobile-drawer.open {
+      transform: translateX(0) !important;
+    }
+    .mobile-drawer-content {
+      padding: 16px 24px !important;
+      max-width: 600px !important;
+      margin: 0 auto !important;
+    }
+    /* Settings panel: also fullscreen overlay in landscape */
+    .area-controls {
+      position: fixed !important;
+      inset: 0 !important;
+      z-index: 610 !important;
+      margin: 0 !important;
+      width: 100vw !important;
+      max-width: 100vw !important;
+    }
+    /* Scrim covers everything including sidebars */
+    .mobile-scrim {
+      z-index: 599 !important;
+    }
   }
 
   /* ── Mobile-only elements (hidden on desktop) ── */
