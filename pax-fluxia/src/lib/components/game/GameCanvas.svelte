@@ -118,16 +118,21 @@
         fxOrchestrator.setAnimationSpeed(animationStore.speedMs);
     });
 
-    // F-107: When stars first populate, check orientation and transpose if needed
+    // F-107: When stars first populate, set map orientation and sync if needed
     let starsInitialized = false;
     $effect(() => {
         const stars = activeGameStore.stars as StarState[];
         if (!starsInitialized && stars.length > 0) {
             starsInitialized = true;
-            // Defer to next frame so app.screen dimensions are settled
             requestAnimationFrame(() => {
                 updateWorldBounds();
-                checkOrientationAndTranspose();
+                // Set initial map orientation from generated dimensions
+                mapIsPortrait = GAME_HEIGHT > GAME_WIDTH;
+                log.sys(
+                    "GameCanvas",
+                    `Initial map: ${mapIsPortrait ? "portrait" : "landscape"} (${GAME_WIDTH}x${GAME_HEIGHT}), viewport: ${viewportIsPortrait ? "portrait" : "landscape"}`,
+                );
+                syncOrientationIfNeeded();
                 handleResize();
             });
         }
@@ -462,6 +467,11 @@
 
         window.removeEventListener("resize", handleResize);
 
+        // F-107: Remove orientation listener
+        if (orientationQuery) {
+            orientationQuery.removeEventListener("change", onOrientationChange);
+        }
+
         if (resizeObserver) {
             resizeObserver.disconnect();
             resizeObserver = null;
@@ -562,20 +572,15 @@
     }
 
     // ── F-107: Portrait Map Orientation ──────────────────────────────────
-    // Track whether the map is currently transposed for portrait mode.
-    // When the viewport orientation flips (landscape↔portrait), swap
-    // every star's x↔y coordinates so the map fills the screen optimally.
-    let isTransposed = false;
-    // Track the ORIGINAL map orientation independently of live GAME_WIDTH/HEIGHT.
-    // After a transpose, GAME_WIDTH/HEIGHT swap (via updateWorldBounds), so
-    // comparing them to viewport orientation would flip-flop on every resize.
-    let originalMapIsLandscape: boolean | null = null;
-
-    /** Detect if the container is portrait (height > width) */
-    function isPortrait(): boolean {
-        if (!app) return false;
-        return app.screen.height > app.screen.width;
-    }
+    // Simple approach:
+    // 1. Track viewport orientation via matchMedia (fires reliably on rotation)
+    // 2. Track current map orientation as a boolean
+    // 3. Transpose star x↔y when they don't match
+    let viewportIsPortrait =
+        typeof window !== "undefined"
+            ? window.matchMedia("(orientation: portrait)").matches
+            : false;
+    let mapIsPortrait = false; // Set when stars first load
 
     /** Transpose all star coordinates (x↔y) for portrait/landscape swap */
     function transposeStarCoordinates() {
@@ -586,50 +591,54 @@
             s.x = s.y;
             s.y = tmp;
         }
-        // Reset territory/voronoi caches since positions changed
+        // Flip the map orientation flag
+        mapIsPortrait = !mapIsPortrait;
+        // Reset territory caches since positions changed
         resetVoronoiCache();
         resetMetaballCache();
         resetPixelTerritoryCache();
         resetLaneTerritoryCache();
-
         // Recompute world bounds with new positions
         updateWorldBounds();
         log.sys(
             "GameCanvas",
-            `Transposed star positions. Map now ${GAME_WIDTH}x${GAME_HEIGHT}`,
+            `Transposed stars → map is now ${mapIsPortrait ? "portrait" : "landscape"} (${GAME_WIDTH}x${GAME_HEIGHT})`,
         );
     }
 
-    /** Check orientation and transpose if needed */
-    function checkOrientationAndTranspose() {
-        const portrait = isPortrait();
-        // Capture original map orientation ONCE (before any transpose)
-        if (originalMapIsLandscape === null) {
-            originalMapIsLandscape = GAME_WIDTH > GAME_HEIGHT;
-            log.sys(
-                "GameCanvas",
-                `Original map orientation: ${originalMapIsLandscape ? "landscape" : "portrait"}`,
-            );
-        }
-        // Use the tracked original orientation (toggled on transpose),
-        // NOT the live GAME_WIDTH/HEIGHT which change after each transpose.
-        const currentMapIsLandscape = isTransposed
-            ? !originalMapIsLandscape
-            : originalMapIsLandscape;
-        // Transpose when viewport orientation doesn't match map orientation
-        const needsTranspose = portrait === currentMapIsLandscape;
-        if (needsTranspose !== isTransposed) {
+    /** Transpose if viewport orientation doesn't match map orientation */
+    function syncOrientationIfNeeded() {
+        if (viewportIsPortrait !== mapIsPortrait) {
             transposeStarCoordinates();
-            isTransposed = needsTranspose;
-            // Reset pan/zoom so the map fully reframes in the new orientation
+            // Reset pan/zoom so map fully reframes
             zoomLevel = 1;
             panOffsetX = 0;
             panOffsetY = 0;
             log.sys(
                 "GameCanvas",
-                `Orientation change → isTransposed=${isTransposed}, portrait=${portrait}`,
+                `Orientation synced: viewport=${viewportIsPortrait ? "portrait" : "landscape"}, map=${mapIsPortrait ? "portrait" : "landscape"}`,
             );
         }
+    }
+
+    // Listen for orientation changes via matchMedia (reliable on mobile)
+    const orientationQuery =
+        typeof window !== "undefined"
+            ? window.matchMedia("(orientation: portrait)")
+            : null;
+
+    function onOrientationChange(e: MediaQueryListEvent) {
+        viewportIsPortrait = e.matches;
+        log.sys(
+            "GameCanvas",
+            `Orientation changed → viewport is now ${viewportIsPortrait ? "portrait" : "landscape"}`,
+        );
+        syncOrientationIfNeeded();
+        handleResize();
+    }
+
+    if (orientationQuery) {
+        orientationQuery.addEventListener("change", onOrientationChange);
     }
 
     function handleResize() {
@@ -637,8 +646,7 @@
 
         app.resize();
 
-        // F-107: Check if orientation changed and transpose star positions if needed
-        checkOrientationAndTranspose();
+        // F-107: Orientation is handled by matchMedia listener (onOrientationChange)
 
         // Recompute world bounds from star positions
         updateWorldBounds();
