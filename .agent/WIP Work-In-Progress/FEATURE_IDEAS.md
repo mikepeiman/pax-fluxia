@@ -168,6 +168,7 @@
 | R-28 | Tailwind CSS Migration | 🟡 | 2026-02-08 |
 | R-34 | AST-Based Bidirectional Documentation | 🔵 | 2026-02-10 |
 | R-37 | Full Engine Unification: server uses shared GameEngine | 🔴 | 2026-02-10 |
-| R-92 | Game Sounds (lightweight, no Tone.js) | 🔴 | 2026-02-13 |
+| R-92 | Game Sounds System (lightweight, no Tone.js) | 🔴 | 2026-02-13 |
+| F-98 | Implement Game Audio: wire up resources/*.wav/.ogg to events/controls | High | 2026-02-28 |
 | R-122 | Custom Game Themes (saveable/loadable presets) | 🟡 | 2026-02-16 |
 | R-123 | Community Content Hub | 🔵 | 2026-02-16 |
