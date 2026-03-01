@@ -21,6 +21,7 @@
         hslToHex as hslToHexBase,
     } from "./menuDefs";
     import RangeDual from "./RangeDual.svelte";
+    import ColorPalette from "./ColorPalette.svelte";
 
     let visible = $state(true);
 
@@ -150,10 +151,15 @@
     let colorSat = $state(loadSetting("colorSat", 70)); // 40-100
     let colorLig = $state(loadSetting("colorLig", 55)); // 30-70
     let hueOffset = $state(loadSetting("hueOffset", 0)); // global hue rotation offset
+    let paletteSize = $state(loadSetting("paletteSize", 8)); // 6-12 palette colors
 
     let showAIDetails = $state(false);
     let showColorPalette = $state(false);
-    let showPlayerHuePicker = $state(false);
+
+    // Derived: all currently claimed hues (for marking occupied swatches)
+    const claimedHues = $derived(
+        playerConfigs.slice(0, playerCount).map((c) => c.hue),
+    );
 
     // MP Join state
     let joinRoomId = $state("");
@@ -190,6 +196,7 @@
         saveSetting("playerName", playerName);
         saveSetting("colorSat", colorSat);
         saveSetting("colorLig", colorLig);
+        saveSetting("paletteSize", paletteSize);
     }
 
     /** Enforce perceptual color spacing (CIEDE2000) between all players */
@@ -630,32 +637,13 @@
                     <div class="control-group">
                         <div class="identity-widget">
                             <div class="identity-swatch-wrap">
-                                <!-- svelte-ignore a11y_no_static_element_interactions -->
-                                <span
-                                    class="identity-swatch"
-                                    style:background-color="hsl({playerConfigs[0]
-                                        ?.hue ?? 210}, {colorSat}%, {colorLig}%)"
-                                    onclick={() =>
-                                        (showPlayerHuePicker =
-                                            !showPlayerHuePicker)}
-                                    role="button"
-                                    tabindex="0"
-                                    title="Click to pick color"
-                                ></span>
-                                {#if showPlayerHuePicker}
-                                    <!-- svelte-ignore a11y_no_static_element_interactions -->
-                                    <div class="hue-popup">
-                                        <input
-                                            type="range"
-                                            class="hue-slider hue-popup-slider"
-                                            min="0"
-                                            max="360"
-                                            bind:value={playerConfigs[0].hue}
-                                            style:--hue={playerConfigs[0]
-                                                ?.hue ?? 210}
-                                        />
-                                    </div>
-                                {/if}
+                                <ColorPalette
+                                    bind:selectedHue={playerConfigs[0].hue}
+                                    saturation={colorSat}
+                                    lightness={colorLig}
+                                    {paletteSize}
+                                    {claimedHues}
+                                />
                             </div>
                             <div class="identity-fields">
                                 <label class="identity-label"
@@ -716,6 +704,16 @@
                                 <span class="value">{hueOffset}</span>
                             </div>
                             <div class="hue-offset-inline">
+                                <span class="mini-label">COLORS</span>
+                                <input
+                                    type="range"
+                                    min="6"
+                                    max="12"
+                                    bind:value={paletteSize}
+                                />
+                                <span class="value">{paletteSize}</span>
+                            </div>
+                            <div class="hue-offset-inline">
                                 <span class="mini-label">SAT</span>
                                 <input
                                     type="range"
@@ -742,11 +740,13 @@
                         {#each playerConfigs as cfg, i}
                             {#if i > 0}
                                 <div class="player-config-row inline-row">
-                                    <span
-                                        class="player-swatch"
-                                        style:background-color="hsl({cfg.hue}, {colorSat}%,
-                                        {colorLig}%)"
-                                    ></span>
+                                    <ColorPalette
+                                        bind:selectedHue={playerConfigs[i].hue}
+                                        saturation={colorSat}
+                                        lightness={colorLig}
+                                        {paletteSize}
+                                        {claimedHues}
+                                    />
                                     <span class="player-label-inline"
                                         >P{i + 1}</span
                                     >
@@ -759,14 +759,6 @@
                                             >{/each}
                                     </select>
                                     {#if showAIDetails}
-                                        <input
-                                            type="range"
-                                            class="hue-slider compact"
-                                            min="0"
-                                            max="360"
-                                            bind:value={playerConfigs[i].hue}
-                                            style:--hue={cfg.hue}
-                                        />
                                         <select
                                             class="inline-select"
                                             bind:value={
