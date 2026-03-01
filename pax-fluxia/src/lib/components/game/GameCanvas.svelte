@@ -566,6 +566,10 @@
     // When the viewport orientation flips (landscape↔portrait), swap
     // every star's x↔y coordinates so the map fills the screen optimally.
     let isTransposed = false;
+    // Track the ORIGINAL map orientation independently of live GAME_WIDTH/HEIGHT.
+    // After a transpose, GAME_WIDTH/HEIGHT swap (via updateWorldBounds), so
+    // comparing them to viewport orientation would flip-flop on every resize.
+    let originalMapIsLandscape: boolean | null = null;
 
     /** Detect if the container is portrait (height > width) */
     function isPortrait(): boolean {
@@ -590,17 +594,41 @@
 
         // Recompute world bounds with new positions
         updateWorldBounds();
+        log.sys(
+            "GameCanvas",
+            `Transposed star positions. Map now ${GAME_WIDTH}x${GAME_HEIGHT}`,
+        );
     }
 
     /** Check orientation and transpose if needed */
     function checkOrientationAndTranspose() {
         const portrait = isPortrait();
-        const mapIsLandscape = GAME_WIDTH > GAME_HEIGHT;
-        // Transpose when portrait viewport + landscape map, or landscape viewport + portrait map
-        const needsTranspose = portrait === mapIsLandscape;
+        // Capture original map orientation ONCE (before any transpose)
+        if (originalMapIsLandscape === null) {
+            originalMapIsLandscape = GAME_WIDTH > GAME_HEIGHT;
+            log.sys(
+                "GameCanvas",
+                `Original map orientation: ${originalMapIsLandscape ? "landscape" : "portrait"}`,
+            );
+        }
+        // Use the tracked original orientation (toggled on transpose),
+        // NOT the live GAME_WIDTH/HEIGHT which change after each transpose.
+        const currentMapIsLandscape = isTransposed
+            ? !originalMapIsLandscape
+            : originalMapIsLandscape;
+        // Transpose when viewport orientation doesn't match map orientation
+        const needsTranspose = portrait === currentMapIsLandscape;
         if (needsTranspose !== isTransposed) {
             transposeStarCoordinates();
             isTransposed = needsTranspose;
+            // Reset pan/zoom so the map fully reframes in the new orientation
+            zoomLevel = 1;
+            panOffsetX = 0;
+            panOffsetY = 0;
+            log.sys(
+                "GameCanvas",
+                `Orientation change → isTransposed=${isTransposed}, portrait=${portrait}`,
+            );
         }
     }
 
