@@ -1,5 +1,10 @@
 <script lang="ts">
-    import { hslToLab, deltaE00, MIN_DELTA_E } from "$lib/utils/colorDistance";
+    import {
+        hslToLab,
+        deltaE00,
+        MIN_DELTA_E,
+        generatePalette,
+    } from "$lib/utils/colorDistance";
 
     let {
         selectedHue = $bindable(210),
@@ -19,44 +24,9 @@
 
     let popupOpen = $state(false);
 
-    /**
-     * Generate a perceptually-spaced palette of N hues from an anchor hue.
-     * Uses CIEDE2000 to verify each candidate meets minimum distance.
-     */
-    function generatePalette(anchorHue: number, count: number): number[] {
-        const palette: number[] = [anchorHue];
-        const step = 360 / count;
-
-        for (let i = 1; i < count; i++) {
-            let candidate = (anchorHue + step * i) % 360;
-            // Nudge candidate if too close perceptually to any existing palette color
-            for (let attempt = 0; attempt < 20; attempt++) {
-                let ok = true;
-                for (const existing of palette) {
-                    const [L1, a1, b1] = hslToLab(
-                        candidate,
-                        saturation / 100,
-                        lightness / 100,
-                    );
-                    const [L2, a2, b2] = hslToLab(
-                        existing,
-                        saturation / 100,
-                        lightness / 100,
-                    );
-                    if (deltaE00(L1, a1, b1, L2, a2, b2) < MIN_DELTA_E) {
-                        candidate = (candidate + 15) % 360;
-                        ok = false;
-                        break;
-                    }
-                }
-                if (ok) break;
-            }
-            palette.push(candidate);
-        }
-        return palette;
-    }
-
-    const palette = $derived(generatePalette(0, paletteSize));
+    const palette = $derived(
+        generatePalette(paletteSize, saturation / 100, lightness / 100),
+    );
 
     function hslColor(hue: number): string {
         return `hsl(${hue}, ${saturation}%, ${lightness}%)`;

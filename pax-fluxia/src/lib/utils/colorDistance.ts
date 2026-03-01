@@ -179,3 +179,31 @@ export function enforcePerceptualSpacing(hues: number[]): number[] {
     }
     return result;
 }
+
+/**
+ * Generate a perceptually-spaced palette of N hues.
+ * Starts from anchorHue=0 and spaces evenly, nudging to maintain CIEDE2000 distance.
+ */
+export function generatePalette(count: number, s: number = GAME_SAT, l: number = GAME_LIG): number[] {
+    const palette: number[] = [0];
+    const step = 360 / count;
+
+    for (let i = 1; i < count; i++) {
+        let candidate = (step * i) % 360;
+        for (let attempt = 0; attempt < 20; attempt++) {
+            let ok = true;
+            for (const existing of palette) {
+                const [L1, a1, b1] = hslToLab(candidate, s, l);
+                const [L2, a2, b2] = hslToLab(existing, s, l);
+                if (deltaE00(L1, a1, b1, L2, a2, b2) < MIN_DELTA_E) {
+                    candidate = (candidate + 15) % 360;
+                    ok = false;
+                    break;
+                }
+            }
+            if (ok) break;
+        }
+        palette.push(candidate);
+    }
+    return palette;
+}

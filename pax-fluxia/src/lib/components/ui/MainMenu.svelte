@@ -5,6 +5,7 @@
     import type { GameSettings } from "$lib/types/game.types";
     import {
         enforcePerceptualSpacing,
+        generatePalette,
         MIN_DELTA_E,
     } from "$lib/utils/colorDistance";
     import { multiplayerStore } from "$lib/stores/multiplayerStore.svelte";
@@ -160,6 +161,28 @@
     const claimedHues = $derived(
         playerConfigs.slice(0, playerCount).map((c) => c.hue),
     );
+
+    // Auto-assign unclaimed palette colors to AI opponents
+    $effect(() => {
+        const palette = generatePalette(
+            paletteSize,
+            colorSat / 100,
+            colorLig / 100,
+        );
+        const humanHue = playerConfigs[0]?.hue ?? 210;
+        // Find palette colors NOT close to the human player's color
+        const available = palette.filter((h) => Math.abs(h - humanHue) > 5);
+        for (let i = 1; i < playerConfigs.length; i++) {
+            if (i < available.length) {
+                playerConfigs[i].hue =
+                    available[
+                        i - 1 < available.length
+                            ? i - 1
+                            : (i - 1) % available.length
+                    ];
+            }
+        }
+    });
 
     // MP Join state
     let joinRoomId = $state("");
