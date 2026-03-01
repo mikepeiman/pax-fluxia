@@ -148,6 +148,82 @@
   // ── Mobile drawer (icon-activated, no swipe) ──
   let mobileDrawerOpen = $state(false);
   let showSettingsFab = $state(false);
+  let showExitConfirm = $state(false);
+
+  // ── Back button navigation: close overlays instead of exiting ──
+  // Push a history entry so Android back button fires popstate
+  if (typeof window !== "undefined") {
+    // Ensure we have a base history entry to pop against
+    history.replaceState({ pax: "base" }, "");
+    history.pushState({ pax: "game" }, "");
+
+    window.addEventListener("popstate", (e) => {
+      // Always re-push so we never actually leave the page
+      history.pushState({ pax: "game" }, "");
+
+      // Close overlays in priority order
+      if (showSettingsPanel) {
+        showSettingsPanel = false;
+        localStorage.setItem("pax-settings-open", "false");
+        return;
+      }
+      if (mobileDrawerOpen) {
+        mobileDrawerOpen = false;
+        return;
+      }
+      if (showAudioSettings) {
+        showAudioSettings = false;
+        return;
+      }
+      if (showSurrenderModal) {
+        showSurrenderModal = false;
+        return;
+      }
+      if (showResults && !resultsDismissed) {
+        resultsDismissed = true;
+        return;
+      }
+      if (showExitConfirm) {
+        showExitConfirm = false;
+        return;
+      }
+      // Nothing open — if game is active, show exit confirmation
+      if (
+        gameStore.currentView === "game" &&
+        activeGameStore.phase === "playing"
+      ) {
+        showExitConfirm = true;
+        return;
+      }
+      // Not in active game — allow natural back (go to menu)
+      if (gameStore.currentView === "game") {
+        gameStore.setView("menu");
+      }
+    });
+  }
+
+  // ── Exit confirmation: warn before closing tab during active game ──
+  if (typeof window !== "undefined") {
+    window.addEventListener("beforeunload", (e) => {
+      if (
+        gameStore.currentView === "game" &&
+        activeGameStore.phase === "playing"
+      ) {
+        e.preventDefault();
+        // Modern browsers show their own message, this is just for compat
+        e.returnValue =
+          "You have an active game. Are you sure you want to leave?";
+      }
+    });
+  }
+
+  function confirmExit() {
+    showExitConfirm = false;
+    gameStore.setView("menu");
+  }
+  function cancelExit() {
+    showExitConfirm = false;
+  }
 
   // Lock body scroll when in game view (landing page needs scroll)
   $effect(() => {
@@ -401,6 +477,34 @@
             onclick={() => (showSurrenderModal = false)}
           >
             Cancel
+          </button>
+        </div>
+      </div>
+    {/if}
+
+    <!-- Exit Confirmation Modal (back button during active game) -->
+    {#if showExitConfirm}
+      <div
+        class="modal-overlay modal-overlay--fixed"
+        role="dialog"
+        aria-modal="true"
+      >
+        <div class="surrender-modal glass-panel">
+          <h3 class="surrender-modal__title">Leave Game?</h3>
+          <p class="surrender-modal__desc">
+            You'll lose your current game progress.
+          </p>
+          <div class="surrender-modal__actions">
+            <button class="btn btn--ghost btn--md" onclick={confirmExit}>
+              🚪 Leave
+              <span class="btn-sub">Return to main menu</span>
+            </button>
+          </div>
+          <button
+            class="btn btn--ghost btn--sm surrender-modal__cancel"
+            onclick={cancelExit}
+          >
+            Continue Playing
           </button>
         </div>
       </div>
