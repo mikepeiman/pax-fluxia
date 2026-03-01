@@ -133,6 +133,7 @@
 
   // ── Mobile drawer (icon-activated, no swipe) ──
   let mobileDrawerOpen = $state(false);
+  let showSettingsFab = $state(false);
 
   // Lock body scroll when in game view (landing page needs scroll)
   $effect(() => {
@@ -438,6 +439,54 @@
         </div>
       </div>
     </div>
+
+    <!-- F-96: Floating Settings Gear (visible on both mobile and desktop in-game) -->
+    <button
+      class="settings-fab"
+      class:active={showSettingsFab}
+      onclick={() => (showSettingsFab = !showSettingsFab)}
+      title="Quick Settings"
+    >
+      ⚙
+    </button>
+
+    {#if showSettingsFab}
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div class="fab-scrim" onclick={() => (showSettingsFab = false)}></div>
+      <div class="fab-popup glass-panel">
+        <button
+          class="fab-item"
+          onclick={() => {
+            toggleSettingsPanel();
+            showSettingsFab = false;
+          }}
+        >
+          <span class="fab-icon">⚙</span>
+          <span>{showSettingsPanel ? "Hide" : "Show"} Settings</span>
+        </button>
+        <button
+          class="fab-item"
+          onclick={() => {
+            mobileDrawerOpen = !mobileDrawerOpen;
+            showSettingsFab = false;
+          }}
+        >
+          <span class="fab-icon">📊</span>
+          <span>Leaderboard</span>
+        </button>
+        <button
+          class="fab-item"
+          onclick={() => {
+            showSurrenderModal = true;
+            showSettingsFab = false;
+          }}
+        >
+          <span class="fab-icon">🏳</span>
+          <span>Quit Game</span>
+        </button>
+      </div>
+    {/if}
   {/if}
 </div>
 
@@ -1086,5 +1135,93 @@
   .surrender-modal__cancel {
     opacity: 0.5;
     font-size: 0.75rem;
+  }
+
+  /* ── F-96: Floating Settings Gear FAB ── */
+  .settings-fab {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 90;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1px solid rgba(0, 255, 255, 0.2);
+    background: rgba(10, 14, 30, 0.85);
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 1.3rem;
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+  .settings-fab:hover,
+  .settings-fab.active {
+    border-color: rgba(0, 255, 255, 0.5);
+    background: rgba(10, 14, 30, 0.95);
+    transform: rotate(45deg);
+    box-shadow: 0 4px 24px rgba(0, 255, 255, 0.15);
+  }
+
+  .fab-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 89;
+  }
+
+  .fab-popup {
+    position: fixed;
+    bottom: 72px;
+    right: 20px;
+    z-index: 91;
+    background: rgba(10, 14, 30, 0.96);
+    border: 1px solid rgba(0, 255, 255, 0.15);
+    border-radius: 12px;
+    padding: 6px;
+    backdrop-filter: blur(16px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+    animation: fab-pop-in 0.15s ease-out;
+    min-width: 170px;
+  }
+
+  @keyframes fab-pop-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .fab-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 14px;
+    border: none;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 0.82rem;
+    font-family: inherit;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: background 0.15s;
+    text-align: left;
+  }
+  .fab-item:hover {
+    background: rgba(0, 255, 255, 0.08);
+  }
+  .fab-icon {
+    font-size: 1.1rem;
+    width: 24px;
+    text-align: center;
+    flex-shrink: 0;
   }
 </style>
