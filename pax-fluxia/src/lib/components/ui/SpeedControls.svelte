@@ -10,6 +10,8 @@
         onResume: () => void;
         onStart: () => void;
         onCenterFit?: () => void;
+        isMuted?: boolean;
+        onToggleMute?: () => void;
     }
 
     let {
@@ -21,6 +23,8 @@
         onResume,
         onStart,
         onCenterFit,
+        isMuted = false,
+        onToggleMute,
     }: Props = $props();
 
     // Local state to track current speed for UI highlighting
@@ -69,6 +73,21 @@
             >
                 ⌖
             </button>
+        {/if}
+
+        <!-- Mute Toggle Button -->
+        {#if onToggleMute}
+            <button
+                class="speed-btn mute-btn"
+                class:speed-btn--active={isMuted}
+                onclick={onToggleMute}
+                title={isMuted ? "Unmute Audio" : "Mute Audio"}
+            >
+                {isMuted ? "🔇" : "🔊"}
+            </button>
+        {/if}
+
+        {#if onCenterFit || onToggleMute}
             <div class="divider"></div>
         {/if}
 

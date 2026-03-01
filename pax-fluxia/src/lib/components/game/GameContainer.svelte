@@ -330,6 +330,8 @@
               onResume={() => activeGameStore.resumeGame()}
               onStart={() => activeGameStore.startGame()}
               onCenterFit={() => gameCanvasRef?.centerAndFit?.()}
+              isMuted={audioManager.muted}
+              onToggleMute={() => audioManager.toggleMute()}
             />
 
             <div class="action-buttons mobile-hide">
@@ -612,12 +614,13 @@
         <button
           class="fab-item"
           onclick={() => {
-            audioManager.toggleMute();
             audioManager.play("click");
+            showAudioSettings = true;
+            showSettingsFab = false;
           }}
         >
-          <span class="fab-icon">{audioManager.muted ? "🔇" : "🔊"}</span>
-          <span>{audioManager.muted ? "Unmute" : "Mute"} Audio</span>
+          <span class="fab-icon">🎵</span>
+          <span>Audio Settings</span>
         </button>
         <button
           class="fab-item"
