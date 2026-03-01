@@ -14,6 +14,7 @@
         DENSITY_VARIABLES,
         LOG_CATEGORIES,
     } from "./settingsDefs";
+    import { nudgeSliders } from "./settings/nudgeSliders";
     import {
         STORAGE_KEY,
         PANEL_STORAGE_KEY,
@@ -1055,7 +1056,7 @@
     );
 </script>
 
-<div class="controls-panel">
+<div class="controls-panel" use:nudgeSliders>
     <!-- Tier Toggle -->
     <div class="tier-bar">
         {#each ["basic", "advanced", "developer"] as const as tier}
@@ -1974,5 +1975,48 @@
         background: rgba(255, 255, 255, 0.08);
         border-color: rgba(255, 255, 255, 0.2);
         color: #fff;
+    }
+
+    /* ── Nudge slider buttons (injected via nudgeSliders action) ── */
+    :global(.nudge-slider-wrap) {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        width: 100%;
+    }
+    :global(.nudge-slider-wrap) input[type="range"] {
+        flex: 1;
+        min-width: 0;
+    }
+    :global(.slider-nudge-btn) {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        flex-shrink: 0;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 5px;
+        background: rgba(255, 255, 255, 0.06);
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 0.9rem;
+        font-weight: 700;
+        cursor: pointer;
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
+        transition:
+            background 0.12s,
+            border-color 0.12s;
+        padding: 0;
+        line-height: 1;
+    }
+    :global(.slider-nudge-btn:hover) {
+        background: rgba(74, 222, 128, 0.12);
+        border-color: rgba(74, 222, 128, 0.4);
+        color: #4ade80;
+    }
+    :global(.slider-nudge-btn:active) {
+        background: rgba(74, 222, 128, 0.25);
+        border-color: rgba(74, 222, 128, 0.6);
     }
 </style>
