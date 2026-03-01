@@ -54,9 +54,30 @@
       typeof localStorage !== "undefined" &&
       localStorage.getItem("pax-settings-open") === "true",
   );
+  // Auto-pause: pause game when settings open, restore on close
+  let pauseOnSettings = $state(
+    typeof localStorage === "undefined" ||
+      localStorage.getItem("pax-pause-on-settings") !== "false",
+  ); // Default: ON
+  let wasPausedBeforeSettings = false;
+
   function toggleSettingsPanel() {
     showSettingsPanel = !showSettingsPanel;
     localStorage.setItem("pax-settings-open", String(showSettingsPanel));
+    // Auto-pause logic
+    if (pauseOnSettings && activeGameStore.phase === "playing") {
+      if (showSettingsPanel) {
+        wasPausedBeforeSettings = activeGameStore.isPaused;
+        if (!activeGameStore.isPaused) {
+          activeGameStore.pauseGame();
+        }
+      } else {
+        // Restore previous pause state
+        if (!wasPausedBeforeSettings && activeGameStore.isPaused) {
+          activeGameStore.resumeGame();
+        }
+      }
+    }
   }
 
   // ── In-game menu collapse ──
@@ -726,29 +747,31 @@
 
   /* ── Landscape mobile: convert top/bottom bars to left/right sidebars ── */
   @media (max-width: 1024px) and (orientation: landscape) {
+    /* Left sidebar: thin strip with just ☰ icon */
     .mobile-menu-btn {
-      /* Left sidebar: narrow vertical strip */
       top: 0 !important;
       left: 0 !important;
       right: auto !important;
       width: 44px !important;
       height: 100vh !important;
+      height: 100dvh !important;
       flex-direction: column !important;
       border-bottom: none !important;
       border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
-      gap: 8px !important;
-      padding: 8px 4px !important;
+      gap: 6px !important;
+      padding: 8px 0 !important;
+      font-size: 1.4rem !important;
     }
+    /* Hide any text labels in left sidebar */
     .mobile-menu-btn .ribbon-stat {
-      writing-mode: vertical-rl !important;
-      text-orientation: mixed !important;
-      font-size: 0.65rem !important;
+      display: none !important;
     }
-    /* Shift canvas so it doesn't sit under left sidebar */
+    /* Shift canvas to clear left sidebar */
     .area-canvas {
       margin-left: 44px !important;
+      margin-right: 56px !important;
     }
-    /* Bottom speed controls → right sidebar */
+    /* Right sidebar: speed controls vertically stacked */
     .overlay-bottom-left {
       left: auto !important;
       right: 0 !important;
@@ -756,19 +779,45 @@
       bottom: 0 !important;
       width: 56px !important;
       height: 100vh !important;
+      height: 100dvh !important;
       max-width: 56px !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
     }
     .controls-wrapper {
       flex-direction: column !important;
-      padding: 6px !important;
-      height: 100% !important;
+      padding: 4px !important;
+      height: auto !important;
+      gap: 4px !important;
       justify-content: center !important;
+      align-items: center !important;
+      width: 48px !important;
     }
-    /* Also shift canvas to not sit under right sidebar */
-    .area-canvas {
-      margin-right: 56px !important;
+    /* Speed buttons: compact icon squares */
+    .controls-wrapper :global(.speed-controls) {
+      flex-direction: column !important;
+      gap: 4px !important;
     }
-    /* FAB position adjustment for landscape */
+    .controls-wrapper :global(.speed-btn) {
+      width: 36px !important;
+      height: 36px !important;
+      min-width: 36px !important;
+      font-size: 0.85rem !important;
+      padding: 0 !important;
+    }
+    .controls-wrapper :global(.start-btn) {
+      width: 40px !important;
+      height: 40px !important;
+      font-size: 0.7rem !important;
+      padding: 4px !important;
+      line-height: 1.1 !important;
+    }
+    .controls-wrapper :global(.divider) {
+      width: 32px !important;
+      height: 1px !important;
+    }
+    /* FAB in landscape: above right sidebar bottom */
     .settings-fab {
       bottom: 12px !important;
       right: 64px !important;
