@@ -37,13 +37,47 @@
   );
 
   // ── Settings panel toggle (secondary column) ──
+  // On mobile (<1024px), always start closed regardless of localStorage
+  const isMobileAtLoad =
+    typeof window !== "undefined" && window.innerWidth < 1024;
+  let isMobileNow = $state(isMobileAtLoad);
+
+  // Track mobile state reactively for FAB visibility
+  if (typeof window !== "undefined") {
+    window.addEventListener("resize", () => {
+      isMobileNow = window.innerWidth < 1024;
+    });
+  }
+
   let showSettingsPanel = $state(
-    typeof localStorage !== "undefined" &&
+    !isMobileAtLoad &&
+      typeof localStorage !== "undefined" &&
       localStorage.getItem("pax-settings-open") === "true",
   );
+  // Auto-pause: pause game when settings open, restore on close
+  let pauseOnSettings = $state(
+    typeof localStorage === "undefined" ||
+      localStorage.getItem("pax-pause-on-settings") !== "false",
+  ); // Default: ON
+  let wasPausedBeforeSettings = false;
+
   function toggleSettingsPanel() {
     showSettingsPanel = !showSettingsPanel;
     localStorage.setItem("pax-settings-open", String(showSettingsPanel));
+    // Auto-pause logic
+    if (pauseOnSettings && activeGameStore.phase === "playing") {
+      if (showSettingsPanel) {
+        wasPausedBeforeSettings = activeGameStore.isPaused;
+        if (!activeGameStore.isPaused) {
+          activeGameStore.pauseGame();
+        }
+      } else {
+        // Restore previous pause state
+        if (!wasPausedBeforeSettings && activeGameStore.isPaused) {
+          activeGameStore.resumeGame();
+        }
+      }
+    }
   }
 
   // ── In-game menu collapse ──
@@ -135,6 +169,82 @@
   // ── Mobile drawer (icon-activated, no swipe) ──
   let mobileDrawerOpen = $state(false);
   let showSettingsFab = $state(false);
+  let showExitConfirm = $state(false);
+
+  // ── Back button navigation: close overlays instead of exiting ──
+  // Push a history entry so Android back button fires popstate
+  if (typeof window !== "undefined") {
+    // Ensure we have a base history entry to pop against
+    history.replaceState({ pax: "base" }, "");
+    history.pushState({ pax: "game" }, "");
+
+    window.addEventListener("popstate", (e) => {
+      // Always re-push so we never actually leave the page
+      history.pushState({ pax: "game" }, "");
+
+      // Close overlays in priority order
+      if (showSettingsPanel) {
+        showSettingsPanel = false;
+        localStorage.setItem("pax-settings-open", "false");
+        return;
+      }
+      if (mobileDrawerOpen) {
+        mobileDrawerOpen = false;
+        return;
+      }
+      if (showAudioSettings) {
+        showAudioSettings = false;
+        return;
+      }
+      if (showSurrenderModal) {
+        showSurrenderModal = false;
+        return;
+      }
+      if (showResults && !resultsDismissed) {
+        resultsDismissed = true;
+        return;
+      }
+      if (showExitConfirm) {
+        showExitConfirm = false;
+        return;
+      }
+      // Nothing open — if game is active, show exit confirmation
+      if (
+        gameStore.currentView === "game" &&
+        activeGameStore.phase === "playing"
+      ) {
+        showExitConfirm = true;
+        return;
+      }
+      // Not in active game — allow natural back (go to menu)
+      if (gameStore.currentView === "game") {
+        gameStore.setView("menu");
+      }
+    });
+  }
+
+  // ── Exit confirmation: warn before closing tab during active game ──
+  if (typeof window !== "undefined") {
+    window.addEventListener("beforeunload", (e) => {
+      if (
+        gameStore.currentView === "game" &&
+        activeGameStore.phase === "playing"
+      ) {
+        e.preventDefault();
+        // Modern browsers show their own message, this is just for compat
+        e.returnValue =
+          "You have an active game. Are you sure you want to leave?";
+      }
+    });
+  }
+
+  function confirmExit() {
+    showExitConfirm = false;
+    gameStore.setView("menu");
+  }
+  function cancelExit() {
+    showExitConfirm = false;
+  }
 
   // Lock body scroll when in game view (landing page needs scroll)
   $effect(() => {
@@ -222,7 +332,7 @@
               onCenterFit={() => gameCanvasRef?.centerAndFit?.()}
             />
 
-            <div class="action-buttons">
+            <div class="action-buttons mobile-hide">
               <button
                 class="btn btn--ghost btn--sm"
                 onclick={() => activeGameStore.playAgain()}
@@ -392,19 +502,49 @@
         </div>
       </div>
     {/if}
+
+    <!-- Exit Confirmation Modal (back button during active game) -->
+    {#if showExitConfirm}
+      <div
+        class="modal-overlay modal-overlay--fixed"
+        role="dialog"
+        aria-modal="true"
+      >
+        <div class="surrender-modal glass-panel">
+          <h3 class="surrender-modal__title">Leave Game?</h3>
+          <p class="surrender-modal__desc">
+            You'll lose your current game progress.
+          </p>
+          <div class="surrender-modal__actions">
+            <button class="btn btn--ghost btn--md" onclick={confirmExit}>
+              🚪 Leave
+              <span class="btn-sub">Return to main menu</span>
+            </button>
+          </div>
+          <button
+            class="btn btn--ghost btn--sm surrender-modal__cancel"
+            onclick={cancelExit}
+          >
+            Continue Playing
+          </button>
+        </div>
+      </div>
+    {/if}
   {/if}
 
   <!-- ═══ MOBILE CONTROL RIBBON + DRAWER (hidden on desktop) ═══ -->
   {#if gameStore.currentView === "game"}
-    <!-- MOBILE MENU BUTTON (☰ only) -->
-    <button
-      class="mobile-menu-btn"
-      class:active={mobileDrawerOpen}
-      onclick={() => (mobileDrawerOpen = !mobileDrawerOpen)}
-      title="Menu"
-    >
-      {mobileDrawerOpen ? "✕" : "☰"}
-    </button>
+    <!-- MOBILE MENU BUTTON (☰ only) — hide when settings overlay is open -->
+    {#if !showSettingsPanel}
+      <button
+        class="mobile-menu-btn"
+        class:active={mobileDrawerOpen}
+        onclick={() => (mobileDrawerOpen = !mobileDrawerOpen)}
+        title="Menu"
+      >
+        {mobileDrawerOpen ? "✕" : "☰"}
+      </button>
+    {/if}
 
     <!-- Scrim -->
     {#if mobileDrawerOpen}
@@ -447,14 +587,17 @@
     </div>
 
     <!-- F-96: Floating Settings Gear (visible on both mobile and desktop in-game) -->
-    <button
-      class="settings-fab"
-      class:active={showSettingsFab}
-      onclick={() => (showSettingsFab = !showSettingsFab)}
-      title="Quick Settings"
-    >
-      ⚙
-    </button>
+    <!-- Hidden on mobile when settings overlay is open to avoid overlapping close button -->
+    {#if !showSettingsPanel || !isMobileNow}
+      <button
+        class="settings-fab"
+        class:active={showSettingsFab}
+        onclick={() => (showSettingsFab = !showSettingsFab)}
+        title="Quick Settings"
+      >
+        ⚙
+      </button>
+    {/if}
 
     {#if showSettingsFab}
       <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -481,6 +624,17 @@
         >
           <span class="fab-icon">⚙</span>
           <span>{showSettingsPanel ? "Hide" : "Show"} Settings</span>
+        </button>
+        <button
+          class="fab-item"
+          onclick={() => {
+            audioManager.play("click");
+            activeGameStore.playAgain();
+            showSettingsFab = false;
+          }}
+        >
+          <span class="fab-icon">🔄</span>
+          <span>Restart</span>
         </button>
         <button
           class="fab-item"
@@ -565,23 +719,108 @@
     }
     /* Reposition speed controls to center-bottom on mobile */
     .overlay-bottom-left {
-      left: 50% !important;
-      right: auto !important;
-      bottom: calc(8px + env(safe-area-inset-bottom, 0px)) !important;
-      transform: translateX(-50%);
+      left: 8px !important;
+      right: 8px !important;
+      bottom: calc(56px + env(safe-area-inset-bottom, 0px)) !important;
+      transform: none;
       width: auto !important;
-      max-width: calc(100vw - 80px); /* leave room for FAB gear */
+      max-width: 100%;
     }
     .controls-wrapper {
       flex-direction: row !important;
       gap: 6px;
       padding: 8px !important;
       max-width: 100%;
-      overflow: hidden;
+      overflow: visible;
     }
     .action-buttons {
       flex-direction: row !important;
       flex-shrink: 0;
+    }
+    .mobile-hide {
+      display: none !important;
+    }
+    .settings-fab {
+      bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+    }
+  }
+
+  /* ── Landscape mobile: convert top/bottom bars to left/right sidebars ── */
+  @media (max-width: 1024px) and (orientation: landscape) {
+    /* Left sidebar: thin strip with just ☰ icon */
+    .mobile-menu-btn {
+      top: 0 !important;
+      left: 0 !important;
+      right: auto !important;
+      width: 44px !important;
+      height: 100vh !important;
+      height: 100dvh !important;
+      flex-direction: column !important;
+      border-bottom: none !important;
+      border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+      gap: 6px !important;
+      padding: 8px 0 !important;
+      font-size: 1.4rem !important;
+    }
+    /* Hide any text labels in left sidebar */
+    .mobile-menu-btn .ribbon-stat {
+      display: none !important;
+    }
+    /* Shift canvas to clear left sidebar */
+    .area-canvas {
+      margin-left: 44px !important;
+      margin-right: 56px !important;
+    }
+    /* Right sidebar: speed controls vertically stacked */
+    .overlay-bottom-left {
+      left: auto !important;
+      right: 0 !important;
+      top: 0 !important;
+      bottom: 0 !important;
+      width: 56px !important;
+      height: 100vh !important;
+      height: 100dvh !important;
+      max-width: 56px !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+    }
+    .controls-wrapper {
+      flex-direction: column !important;
+      padding: 4px !important;
+      height: auto !important;
+      gap: 4px !important;
+      justify-content: center !important;
+      align-items: center !important;
+      width: 48px !important;
+    }
+    /* Speed buttons: compact icon squares */
+    .controls-wrapper :global(.speed-controls) {
+      flex-direction: column !important;
+      gap: 4px !important;
+    }
+    .controls-wrapper :global(.speed-btn) {
+      width: 36px !important;
+      height: 36px !important;
+      min-width: 36px !important;
+      font-size: 0.85rem !important;
+      padding: 0 !important;
+    }
+    .controls-wrapper :global(.start-btn) {
+      width: 40px !important;
+      height: 40px !important;
+      font-size: 0.7rem !important;
+      padding: 4px !important;
+      line-height: 1.1 !important;
+    }
+    .controls-wrapper :global(.divider) {
+      width: 32px !important;
+      height: 1px !important;
+    }
+    /* FAB in landscape: above right sidebar bottom */
+    .settings-fab {
+      bottom: 12px !important;
+      right: 64px !important;
     }
   }
 
@@ -598,21 +837,23 @@
 
   @media (max-width: 1024px) {
     /* ── Mobile menu button (☰) — top-right ── */
+    /* ── Mobile top ribbon (replaces floating ☰ circle) ── */
     .mobile-menu-btn {
       display: flex;
       align-items: center;
       justify-content: center;
       position: fixed;
-      top: 10px;
-      right: 10px;
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      background: rgba(10, 10, 18, 0.85);
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 40px;
+      border-radius: 0;
+      background: rgba(10, 10, 18, 0.92);
       backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.15);
+      border: none;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
       color: rgba(255, 255, 255, 0.7);
-      font-size: 1.3rem;
+      font-size: 1.2rem;
       cursor: pointer;
       z-index: 500;
       transition: all 0.2s ease;

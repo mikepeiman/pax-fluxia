@@ -19,7 +19,7 @@ export interface SliderVarDef {
 
 export const COMBAT_VARIABLES: SliderVarDef[] = [
     { key: 'AGGRESSOR_ADVANTAGE', label: 'Aggressor Advantage', min: 0, max: 3, step: 0.1 },
-    { key: 'DAMAGE_PER_SHIP', label: 'Damage Per Ship', min: 0, max: 1, step: 0.01 },
+    { key: 'GLOBAL_DAMAGE_MODIFIER', label: 'Global Damage Modifier', min: 0, max: 200, step: 1 },
     { key: 'LETHALITY', label: 'Lethality', min: 0, max: 1, step: 0.05 },
     { key: 'FORCE_RATIO_EFFECT', label: 'Force Ratio Effect', min: 0, max: 1, step: 0.1 },
     { key: 'CONQUEST_THRESHOLD', label: 'Conquest Threshold', min: 1, max: 50, step: 1 },
@@ -125,7 +125,9 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'production', configKey: 'BASE_PRODUCTION' },
     { panelKey: 'repair', configKey: 'REPAIR_RATE' },
     { panelKey: 'defense', configKey: 'AGGRESSOR_ADVANTAGE', transform: 'inverse' },
-    { panelKey: 'attack', configKey: 'DAMAGE_PER_SHIP' },
+    { panelKey: 'repairSuppressAttacker', configKey: 'REPAIR_SUPPRESS_ATTACKER' },
+    { panelKey: 'repairSuppressDefender', configKey: 'REPAIR_SUPPRESS_DEFENDER' },
+    { panelKey: 'globalDamage', configKey: 'GLOBAL_DAMAGE_MODIFIER' },
     { panelKey: 'arrowLength', configKey: 'ARROW_LENGTH_FRACTION' },
     { panelKey: 'departMode', configKey: 'DEPART_MODE' },
     { panelKey: 'settleDuration', configKey: 'SETTLE_DURATION_MS' },
@@ -204,6 +206,11 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'maxVisualShips', configKey: 'MAX_VISUAL_SHIPS' },
     { panelKey: 'starGlowRadiusMult', configKey: 'STAR_GLOW_RADIUS_MULT' },
     { panelKey: 'starGlowIntensity', configKey: 'STAR_GLOW_INTENSITY' },
+    { panelKey: 'starGlowOn', configKey: 'STAR_GLOW_ON' },
+    { panelKey: 'densityDarkenAlt', configKey: 'DENSITY_DARKEN_ALT' },
+    { panelKey: 'showHexGrid', configKey: 'SHOW_HEX_GRID' },
+    { panelKey: 'staticOrbits', configKey: 'STATIC_ORBITS' },
+    { panelKey: 'showSelectionHex', configKey: 'SHOW_SELECTION_HEX' },
     { panelKey: 'laneOffsetPx', configKey: 'LANE_OFFSET_PX' },
     { panelKey: 'laneConvergence', configKey: 'LANE_CONVERGENCE' },
     { panelKey: 'laneConvergencePoint', configKey: 'LANE_CONVERGENCE_POINT' },
@@ -346,7 +353,7 @@ export const TIER_LABELS: Record<SettingsTier, { label: string; icon: string; co
 
 export const MD_EXPORT_SECTIONS: Record<string, string[]> = {
     Combat: [
-        'AGGRESSOR_ADVANTAGE', 'DAMAGE_PER_SHIP', 'LETHALITY', 'FORCE_RATIO_EFFECT',
+        'AGGRESSOR_ADVANTAGE', 'GLOBAL_DAMAGE_MODIFIER', 'LETHALITY', 'FORCE_RATIO_EFFECT',
         'CONQUEST_THRESHOLD', 'CONQUEST_TRANSFER_PERCENTAGE',
     ],
     Production: ['BASE_PRODUCTION', 'REPAIR_RATE', 'MIN_REPAIR', 'REPAIR_COMBAT_PENALTY', 'REPAIR_SUPPRESS_ATTACKER', 'REPAIR_SUPPRESS_DEFENDER'],

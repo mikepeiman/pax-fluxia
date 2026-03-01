@@ -588,9 +588,14 @@ function initDebugMap(playerIds: string[], variant: string): void {
 
 /** Standard random map via generateMap() */
 function initStandardMap(playerIds: string[]): void {
+    // Match map aspect ratio to viewport — portrait screens get portrait maps
+    const isPortrait = typeof window !== 'undefined' && window.innerHeight > window.innerWidth;
+    const mapW = isPortrait ? 900 : 1600;
+    const mapH = isPortrait ? 1600 : 900;
+
     const result = generateMap({
-        width: 1600,
-        height: 900,
+        width: mapW,
+        height: mapH,
         playerCount: playerIds.length,
         starsPerPlayer: GAME_CONFIG.STARS_PER_PLAYER,
         spacingMultiplier: settings.starSpacing ?? 1.0,

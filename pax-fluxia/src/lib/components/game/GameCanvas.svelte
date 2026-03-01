@@ -117,6 +117,26 @@
     $effect(() => {
         fxOrchestrator.setAnimationSpeed(animationStore.speedMs);
     });
+
+    // F-107: When stars first populate, set map orientation and sync if needed
+    let starsInitialized = false;
+    $effect(() => {
+        const stars = activeGameStore.stars as StarState[];
+        if (!starsInitialized && stars.length > 0) {
+            starsInitialized = true;
+            requestAnimationFrame(() => {
+                updateWorldBounds();
+                // Set initial map orientation from generated dimensions
+                mapIsPortrait = GAME_HEIGHT > GAME_WIDTH;
+                log.sys(
+                    "GameCanvas",
+                    `Initial map: ${mapIsPortrait ? "portrait" : "landscape"} (${GAME_WIDTH}x${GAME_HEIGHT}), viewport: ${viewportIsPortrait ? "portrait" : "landscape"}`,
+                );
+                syncOrientationIfNeeded();
+                handleResize();
+            });
+        }
+    });
     // Physics State — backed by FXOrchestrator.vsm
     // These aliases let the render loop use the same variable names unchanged.
     let visualShips: Map<string, VisualShipState[]> =
@@ -447,6 +467,11 @@
 
         window.removeEventListener("resize", handleResize);
 
+        // F-107: Remove orientation listener
+        if (orientationQuery) {
+            orientationQuery.removeEventListener("change", onOrientationChange);
+        }
+
         if (resizeObserver) {
             resizeObserver.disconnect();
             resizeObserver = null;
@@ -534,22 +559,108 @@
     function updateWorldBounds() {
         const currentStars = activeGameStore.stars as StarState[];
         if (!currentStars || currentStars.length === 0) return;
-        let maxX = 0,
+        let minX = Infinity,
+            minY = Infinity,
+            maxX = 0,
             maxY = 0;
         for (const s of currentStars) {
+            if (s.x < minX) minX = s.x;
+            if (s.y < minY) minY = s.y;
             if (s.x > maxX) maxX = s.x;
             if (s.y > maxY) maxY = s.y;
         }
         // Add padding (star radius + orbits)
         const pad = 80;
-        GAME_WIDTH = maxX + pad;
-        GAME_HEIGHT = maxY + pad;
+        GAME_WIDTH = maxX - minX + pad * 2;
+        GAME_HEIGHT = maxY - minY + pad * 2;
+        // Shift all star positions so the bounding box starts at (pad, pad)
+        // This ensures the game world origin aligns with the content
+        if (minX !== pad || minY !== pad) {
+            const offsetX = pad - minX;
+            const offsetY = pad - minY;
+            for (const s of currentStars) {
+                s.x += offsetX;
+                s.y += offsetY;
+            }
+        }
+    }
+
+    // ── F-107: Portrait Map Orientation ──────────────────────────────────
+    // Simple approach:
+    // 1. Track viewport orientation via matchMedia (fires reliably on rotation)
+    // 2. Track current map orientation as a boolean
+    // 3. Transpose star x↔y when they don't match
+    let viewportIsPortrait =
+        typeof window !== "undefined"
+            ? window.matchMedia("(orientation: portrait)").matches
+            : false;
+    let mapIsPortrait = false; // Set when stars first load
+
+    /** Transpose all star coordinates (x↔y) for portrait/landscape swap */
+    function transposeStarCoordinates() {
+        const currentStars = activeGameStore.stars as StarState[];
+        if (!currentStars || currentStars.length === 0) return;
+        for (const s of currentStars) {
+            const tmp = s.x;
+            s.x = s.y;
+            s.y = tmp;
+        }
+        // Flip the map orientation flag
+        mapIsPortrait = !mapIsPortrait;
+        // Reset territory caches since positions changed
+        resetVoronoiCache();
+        resetMetaballCache();
+        resetPixelTerritoryCache();
+        resetLaneTerritoryCache();
+        // Recompute world bounds with new positions
+        updateWorldBounds();
+        log.sys(
+            "GameCanvas",
+            `Transposed stars → map is now ${mapIsPortrait ? "portrait" : "landscape"} (${GAME_WIDTH}x${GAME_HEIGHT})`,
+        );
+    }
+
+    /** Transpose if viewport orientation doesn't match map orientation */
+    function syncOrientationIfNeeded() {
+        if (viewportIsPortrait !== mapIsPortrait) {
+            transposeStarCoordinates();
+            // Reset pan/zoom so map fully reframes
+            zoomLevel = 1;
+            panOffsetX = 0;
+            panOffsetY = 0;
+            log.sys(
+                "GameCanvas",
+                `Orientation synced: viewport=${viewportIsPortrait ? "portrait" : "landscape"}, map=${mapIsPortrait ? "portrait" : "landscape"}`,
+            );
+        }
+    }
+
+    // Listen for orientation changes via matchMedia (reliable on mobile)
+    const orientationQuery =
+        typeof window !== "undefined"
+            ? window.matchMedia("(orientation: portrait)")
+            : null;
+
+    function onOrientationChange(e: MediaQueryListEvent) {
+        viewportIsPortrait = e.matches;
+        log.sys(
+            "GameCanvas",
+            `Orientation changed → viewport is now ${viewportIsPortrait ? "portrait" : "landscape"}`,
+        );
+        syncOrientationIfNeeded();
+        handleResize();
+    }
+
+    if (orientationQuery) {
+        orientationQuery.addEventListener("change", onOrientationChange);
     }
 
     function handleResize() {
         if (!app) return;
 
         app.resize();
+
+        // F-107: Orientation is handled by matchMedia listener (onOrientationChange)
 
         // Recompute world bounds from star positions
         updateWorldBounds();

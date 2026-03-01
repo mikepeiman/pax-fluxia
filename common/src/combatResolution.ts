@@ -199,7 +199,7 @@ export function resolveMultiSourceCombat(
         defenderIsAttacking,
         true, // attackers are always attacking
         {
-            DAMAGE_PER_SHIP: cfg.DAMAGE_PER_SHIP,
+            GLOBAL_DAMAGE_MODIFIER: cfg.GLOBAL_DAMAGE_MODIFIER,
             LETHALITY: cfg.LETHALITY,
             AGGRESSOR_ADVANTAGE: cfg.AGGRESSOR_ADVANTAGE,
             FORCE_RATIO_EFFECT: cfg.FORCE_RATIO_EFFECT,

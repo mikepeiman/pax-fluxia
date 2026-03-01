@@ -14,6 +14,7 @@
         DENSITY_VARIABLES,
         LOG_CATEGORIES,
     } from "./settingsDefs";
+    import { nudgeSliders } from "./settings/nudgeSliders";
     import {
         STORAGE_KEY,
         PANEL_STORAGE_KEY,
@@ -67,31 +68,32 @@
     const densityVariables = DENSITY_VARIABLES;
     const logCategories = LOG_CATEGORIES;
 
-    // ── Combat tuning defaults (single source of truth for reset + disabled state)
+    // ── Combat tuning defaults — derived from GAME_CONFIG at load time (single source of truth)
     const defaultValues = {
-        TRANSFER_RATE: 0.07,
-        AGGRESSOR_ADVANTAGE: 0.7,
-        DAMAGE_PER_SHIP: 0.05,
-        LETHALITY: 0.12,
-        FORCE_RATIO_EFFECT: 0,
-        CONQUEST_THRESHOLD: 25,
-        CONQUEST_TRANSFER_PERCENTAGE: 50,
-        RETREAT_CAPTURE_RATE: 0.1,
-        SCATTER_CAPTURE_RATE: 0.2,
-        SCATTER_DESTROY_RATE: 0.4,
-        RETREAT_DAMAGED_ACTIVATION_RATE: 0,
-        DAMAGED_SHIP_EFFECTIVENESS: 0.5,
-        REPAIR_RATE: 7,
-        AI_MUST_ATTACK_RATIO: 1.25,
-        AI_ATTACK_UPPER_BOUNDS: 0.8,
-        AI_ATTACK_STICKINESS: 0.5,
-        AI_EVALUATION_FREQUENCY: 0.5,
-        AI_TACTICAL_AGGRESSION: 0.1,
-        AI_RANDOM_AGGRESSION: 0.05,
-        DENSITY_HUE_STEP: 4,
-        DENSITY_SAT_STEP: 0.05,
-        DENSITY_LIGHT_STEP: 0.05,
-        DENSITY_TIERS: 3,
+        TRANSFER_RATE: GAME_CONFIG.TRANSFER_RATE,
+        AGGRESSOR_ADVANTAGE: GAME_CONFIG.AGGRESSOR_ADVANTAGE,
+        GLOBAL_DAMAGE_MODIFIER: GAME_CONFIG.GLOBAL_DAMAGE_MODIFIER,
+        LETHALITY: GAME_CONFIG.LETHALITY,
+        FORCE_RATIO_EFFECT: GAME_CONFIG.FORCE_RATIO_EFFECT,
+        CONQUEST_THRESHOLD: GAME_CONFIG.CONQUEST_THRESHOLD,
+        CONQUEST_TRANSFER_PERCENTAGE: GAME_CONFIG.CONQUEST_TRANSFER_PERCENTAGE,
+        RETREAT_CAPTURE_RATE: GAME_CONFIG.RETREAT_CAPTURE_RATE,
+        SCATTER_CAPTURE_RATE: GAME_CONFIG.SCATTER_CAPTURE_RATE,
+        SCATTER_DESTROY_RATE: GAME_CONFIG.SCATTER_DESTROY_RATE,
+        RETREAT_DAMAGED_ACTIVATION_RATE:
+            GAME_CONFIG.RETREAT_DAMAGED_ACTIVATION_RATE,
+        DAMAGED_SHIP_EFFECTIVENESS: GAME_CONFIG.DAMAGED_SHIP_EFFECTIVENESS,
+        REPAIR_RATE: GAME_CONFIG.REPAIR_RATE,
+        AI_MUST_ATTACK_RATIO: GAME_CONFIG.AI_MUST_ATTACK_RATIO,
+        AI_ATTACK_UPPER_BOUNDS: GAME_CONFIG.AI_ATTACK_UPPER_BOUNDS,
+        AI_ATTACK_STICKINESS: GAME_CONFIG.AI_ATTACK_STICKINESS,
+        AI_EVALUATION_FREQUENCY: GAME_CONFIG.AI_EVALUATION_FREQUENCY,
+        AI_TACTICAL_AGGRESSION: GAME_CONFIG.AI_TACTICAL_AGGRESSION,
+        AI_RANDOM_AGGRESSION: GAME_CONFIG.AI_RANDOM_AGGRESSION,
+        DENSITY_HUE_STEP: GAME_CONFIG.DENSITY_HUE_STEP,
+        DENSITY_SAT_STEP: GAME_CONFIG.DENSITY_SAT_STEP,
+        DENSITY_LIGHT_STEP: GAME_CONFIG.DENSITY_LIGHT_STEP,
+        DENSITY_TIERS: GAME_CONFIG.DENSITY_TIERS,
     };
 
     // Default values — single source of truth for reset + disabled toggle state
@@ -99,7 +101,7 @@
     let enabled = $state({
         TRANSFER_RATE: true,
         AGGRESSOR_ADVANTAGE: true,
-        DAMAGE_PER_SHIP: true,
+        GLOBAL_DAMAGE_MODIFIER: true,
         LETHALITY: true,
         FORCE_RATIO_EFFECT: true,
         CONQUEST_THRESHOLD: true,
@@ -672,7 +674,7 @@
             production: GAME_CONFIG.BASE_PRODUCTION,
             repair: GAME_CONFIG.REPAIR_RATE,
             defense: 1 / GAME_CONFIG.AGGRESSOR_ADVANTAGE,
-            attack: GAME_CONFIG.DAMAGE_PER_SHIP,
+            globalDamage: GAME_CONFIG.GLOBAL_DAMAGE_MODIFIER,
             arrowLength: GAME_CONFIG.ARROW_LENGTH_FRACTION,
             departMode: GAME_CONFIG.DEPART_MODE,
             settleDuration: GAME_CONFIG.SETTLE_DURATION_MS,
@@ -1054,7 +1056,7 @@
     );
 </script>
 
-<div class="controls-panel">
+<div class="controls-panel" use:nudgeSliders>
     <!-- Tier Toggle -->
     <div class="tier-bar">
         {#each ["basic", "advanced", "developer"] as const as tier}
@@ -1973,5 +1975,48 @@
         background: rgba(255, 255, 255, 0.08);
         border-color: rgba(255, 255, 255, 0.2);
         color: #fff;
+    }
+
+    /* ── Nudge slider buttons (injected via nudgeSliders action) ── */
+    :global(.nudge-slider-wrap) {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        width: 100%;
+    }
+    :global(.nudge-slider-wrap) input[type="range"] {
+        flex: 1;
+        min-width: 0;
+    }
+    :global(.slider-nudge-btn) {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        flex-shrink: 0;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 5px;
+        background: rgba(255, 255, 255, 0.06);
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 0.9rem;
+        font-weight: 700;
+        cursor: pointer;
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
+        transition:
+            background 0.12s,
+            border-color 0.12s;
+        padding: 0;
+        line-height: 1;
+    }
+    :global(.slider-nudge-btn:hover) {
+        background: rgba(74, 222, 128, 0.12);
+        border-color: rgba(74, 222, 128, 0.4);
+        color: #4ade80;
+    }
+    :global(.slider-nudge-btn:active) {
+        background: rgba(74, 222, 128, 0.25);
+        border-color: rgba(74, 222, 128, 0.6);
     }
 </style>

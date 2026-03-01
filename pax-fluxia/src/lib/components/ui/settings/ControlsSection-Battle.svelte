@@ -31,19 +31,9 @@
 <CategoryThemeBar category="combat" onApply={() => syncFromConfig?.()} />
 
 {#each variables as v}
-    <div
-        class="var-row"
-        class:disabled={!enabled[v.key as keyof typeof enabled]}
-    >
+    <div class="var-row">
         <div class="row-top">
-            <label class="toggle-label">
-                <input
-                    type="checkbox"
-                    checked={enabled[v.key as keyof typeof enabled]}
-                    onchange={() => toggle(v.key as keyof typeof enabled)}
-                />
-                <span class="var-name">{v.label}</span>
-            </label>
+            <span class="var-name">{v.label}</span>
             <span class="val">{values[v.key as VarKey].toFixed(2)}</span>
         </div>
         <input
@@ -57,7 +47,6 @@
                     v.key as VarKey,
                     parseFloat((e.target as HTMLInputElement).value),
                 )}
-            disabled={!enabled[v.key as keyof typeof enabled]}
         />
     </div>
 {/each}

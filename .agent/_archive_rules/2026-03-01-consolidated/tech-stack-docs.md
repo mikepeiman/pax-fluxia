@@ -1,5 +1,4 @@
 
-
 # Tech Stack Documentation Policy
 
 ## MANDATORY: Maintain a docs reference for every project
@@ -27,8 +26,3 @@ Store tech stack docs in `.atlas/TECH_STACK.md` (or equivalent project docs dire
 2. When encountering a new library, add its docs URL immediately
 3. Before implementing a feature that touches a library, **read the relevant docs page**
 4. When debugging, check docs for API changes between versions
-
-## Current Project: Pax Fluxia
-
-See `.atlas/TECH_STACK.md` for the full reference.
-
