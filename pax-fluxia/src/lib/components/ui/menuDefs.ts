@@ -101,8 +101,7 @@ export const DIFFICULTIES = ['Easy', 'Normal', 'Hard', 'Expert'];
 export const MIN_HUE_GAP = 30;
 
 /** Convert HSL hue (0-360) at fixed S/L to hex string */
-export function hslToHex(hue: number): string {
-    const s = 0.7, l = 0.55;
+export function hslToHex(hue: number, s: number = 0.7, l: number = 0.55): string {
     const a = s * Math.min(l, 1 - l);
     const f = (n: number) => {
         const k = (n + hue / 30) % 12;

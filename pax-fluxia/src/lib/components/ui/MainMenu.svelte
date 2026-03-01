@@ -20,6 +20,7 @@
         DIFFICULTIES,
         hslToHex as hslToHexBase,
     } from "./menuDefs";
+    import RangeDual from "./RangeDual.svelte";
 
     let visible = $state(true);
 
@@ -545,29 +546,22 @@
                     </div>
 
                     <!-- Links + Spacing -->
-                    <div class="config-triple-row">
+                    <div class="config-dual-row">
                         <div class="config-item">
-                            <label>Links min</label>
-                            <div class="slider-container">
-                                <input
-                                    type="range"
-                                    min="1"
-                                    max="4"
-                                    bind:value={minLinks}
+                            <label
+                                >Links <span>[{minLinks}-{maxLinks}]</span
+                                ></label
+                            >
+                            <div
+                                class="slider-container"
+                                style="padding: 0 4px;"
+                            >
+                                <RangeDual
+                                    bind:min={minLinks}
+                                    bind:max={maxLinks}
+                                    minLimit={1}
+                                    maxLimit={8}
                                 />
-                                <span class="value">{minLinks}</span>
-                            </div>
-                        </div>
-                        <div class="config-item">
-                            <label>Links max</label>
-                            <div class="slider-container">
-                                <input
-                                    type="range"
-                                    min="2"
-                                    max="8"
-                                    bind:value={maxLinks}
-                                />
-                                <span class="value">{maxLinks}</span>
                             </div>
                         </div>
                         <div class="config-item">
@@ -1364,6 +1358,7 @@
     }
 
     .title {
+        font-family: var(--font-display);
         font-size: clamp(1.6rem, 5vw, 3.2rem);
         margin: 0;
         line-height: 1.1;

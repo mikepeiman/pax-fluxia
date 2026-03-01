@@ -32,9 +32,9 @@
   --color-player-orange: #ff8844;
 
   /* Typography */
-  --font-display: 'Exo', sans-serif;
+  --font-display: 'Rajdhani', sans-serif;
   --font-data: 'JetBrains Mono', monospace;
-  --font-body: 'Montserrat', sans-serif;
+  --font-body: 'Inter', sans-serif;
 
   /* Font Sizes — Desktop defaults (overridden by media queries below) */
   --text-xs: 0.75rem;
