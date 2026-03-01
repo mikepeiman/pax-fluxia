@@ -2,6 +2,8 @@
     import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
     import { gameStore } from "$lib/stores/gameStore.svelte";
     import type { GameHistoryEntry } from "$lib/types/game.types";
+    import { onMount } from "svelte";
+    import { audioManager } from "$lib/services/audioManager.svelte";
 
     // Props
     let { onClose }: { onClose?: () => void } = $props();
@@ -180,10 +182,12 @@
     }
 
     function handlePlayAgain() {
+        audioManager.play("click");
         activeGameStore.playAgain();
     }
 
     function handleReturnToMenu() {
+        audioManager.play("click");
         activeGameStore.returnToMenu();
     }
 
@@ -214,6 +218,14 @@
         const last = history[history.length - 1];
         if (!last?.players) return [];
         return [...last.players].sort((a, b) => b.totalShips - a.totalShips);
+    });
+
+    onMount(() => {
+        if (victory) {
+            audioManager.play("win");
+        } else {
+            audioManager.play("lose");
+        }
     });
 </script>
 

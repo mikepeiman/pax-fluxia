@@ -53,10 +53,16 @@ export function applyRepair(star: Star, currentTick: number, cfg: EngineConfig):
     const typeMult = STAR_TYPE_STATS[star.starType as StarType]?.repair ?? 1.0;
     let amount = Math.max(cfg.MIN_REPAIR, star.damagedShips * (cfg.REPAIR_RATE / 100) * typeMult);
 
-    // Pinning penalty: reduced repair when in combat
-    const isPinned = star.lastCombatTick >= currentTick - 1;
-    if (isPinned) {
-        amount *= cfg.REPAIR_COMBAT_PENALTY;
+    // Split suppression: independent penalties for attacking vs defending
+    const isDefending = star.lastCombatTick >= currentTick - 1;
+    const isAttacking = (star.lastAttackTick ?? -1) >= currentTick - 1;
+    const isPinned = isDefending || isAttacking;
+
+    if (isDefending) {
+        amount *= cfg.REPAIR_SUPPRESS_DEFENDER ?? cfg.REPAIR_COMBAT_PENALTY;
+    }
+    if (isAttacking) {
+        amount *= cfg.REPAIR_SUPPRESS_ATTACKER ?? cfg.REPAIR_COMBAT_PENALTY;
     }
 
     star.repairOverflow += amount;

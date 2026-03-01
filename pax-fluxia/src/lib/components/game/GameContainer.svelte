@@ -15,6 +15,7 @@
   import TopBar from "$lib/components/ui/TopBar.svelte";
   import type { PlayerState } from "$lib/types/game.types";
   import { themeStore } from "$lib/stores/themeStore.svelte";
+  import { audioManager } from "$lib/services/audioManager.svelte";
 
   let gameCanvasRef: any = $state(null);
 
@@ -249,6 +250,11 @@
       <!-- SECONDARY CONTROLS COLUMN (toggled by gear icon) -->
       {#if showSettingsPanel}
         <div class="area-controls">
+          <button
+            class="settings-overlay-close"
+            onclick={() => (showSettingsPanel = false)}
+            title="Close Settings">✕</button
+          >
           <div class="panel-section section-tuning">
             <GameSettingsPanel />
           </div>
@@ -458,6 +464,17 @@
         <button
           class="fab-item"
           onclick={() => {
+            audioManager.toggleMute();
+            audioManager.play("click");
+          }}
+        >
+          <span class="fab-icon">{audioManager.muted ? "🔇" : "🔊"}</span>
+          <span>{audioManager.muted ? "Unmute" : "Mute"} Audio</span>
+        </button>
+        <button
+          class="fab-item"
+          onclick={() => {
+            audioManager.play("click");
             toggleSettingsPanel();
             showSettingsFab = false;
           }}
@@ -468,6 +485,7 @@
         <button
           class="fab-item"
           onclick={() => {
+            audioManager.play("click");
             mobileDrawerOpen = !mobileDrawerOpen;
             showSettingsFab = false;
           }}
@@ -478,6 +496,7 @@
         <button
           class="fab-item"
           onclick={() => {
+            audioManager.play("click");
             showSurrenderModal = true;
             showSettingsFab = false;
           }}
@@ -523,9 +542,21 @@
       grid-template-columns: 1fr !important;
       grid-template-areas: "canvas" !important;
     }
-    .area-right,
-    .area-controls {
+    .area-right {
       display: none !important;
+    }
+    /* On mobile, settings panel becomes a fullscreen scrollable overlay */
+    .area-controls {
+      position: fixed !important;
+      inset: 0 !important;
+      z-index: 200 !important;
+      display: flex !important;
+      flex-direction: column !important;
+      background: rgba(5, 10, 25, 0.95) !important;
+      backdrop-filter: blur(12px) !important;
+      overflow-y: auto !important;
+      padding: 12px !important;
+      padding-top: 48px !important; /* room for close button */
     }
     /* ── Hide desktop overlays on mobile (but NOT overlay-bottom-left) ── */
     .overlay-top-left,
@@ -538,13 +569,19 @@
       right: auto !important;
       bottom: calc(8px + env(safe-area-inset-bottom, 0px)) !important;
       transform: translateX(-50%);
+      width: auto !important;
+      max-width: calc(100vw - 80px); /* leave room for FAB gear */
     }
     .controls-wrapper {
       flex-direction: row !important;
-      gap: 8px;
+      gap: 6px;
+      padding: 8px !important;
+      max-width: 100%;
+      overflow: hidden;
     }
     .action-buttons {
       flex-direction: row !important;
+      flex-shrink: 0;
     }
   }
 
@@ -727,19 +764,6 @@
     overflow: hidden;
     min-width: 0;
     min-height: 0;
-  }
-
-  /* L3: SVG starfield — above canvas for visibility */
-  .starfield-bg {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    z-index: 1;
-    opacity: 0.8;
-    /* L2: slow drift animation on starfield */
-    animation: nebula-drift 90s ease-in-out infinite;
   }
 
   @keyframes nebula-drift {
@@ -1223,5 +1247,30 @@
     width: 24px;
     text-align: center;
     flex-shrink: 0;
+  }
+
+  /* ── Mobile settings overlay close button ── */
+  .settings-overlay-close {
+    display: none; /* hidden on desktop */
+  }
+  @media (max-width: 1024px) {
+    .settings-overlay-close {
+      display: flex;
+      position: fixed;
+      top: 8px;
+      right: 8px;
+      z-index: 210;
+      width: 40px;
+      height: 40px;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(0, 255, 255, 0.3);
+      border-radius: 50%;
+      background: rgba(10, 14, 30, 0.9);
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 1.2rem;
+      cursor: pointer;
+      backdrop-filter: blur(8px);
+    }
   }
 </style>

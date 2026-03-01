@@ -15,6 +15,7 @@
 import * as PIXI from 'pixi.js';
 import { GAME_CONFIG } from '$lib/config/game.config';
 import type { StarState, StarConnection } from '$lib/types/game.types';
+import { findConnectedClustersOptimized } from './territoryUtils';
 import type { ColorUtils } from './RenderContext';
 import PixelWorker from './pixelTerritory.worker?worker';
 
@@ -50,6 +51,7 @@ function buildFingerprint(stars: StarState[]): string {
     fp += `:${GAME_CONFIG.PIXEL_PATTERN}:${GAME_CONFIG.PIXEL_PATTERN_SCALE}:${GAME_CONFIG.PIXEL_PATTERN_ROTATION}`;
     fp += `:${GAME_CONFIG.PIXEL_EDGE_FADE}`;
     fp += `:${GAME_CONFIG.PIXEL_LANE_CONSTRAIN}:${GAME_CONFIG.PIXEL_PRESSURE}`;
+    fp += `:${GAME_CONFIG.TERRITORY_CLUSTER_SPLIT}`;
     return fp;
 }
 
@@ -206,39 +208,41 @@ export function renderPixelTerritory(
     const hueShift = GAME_CONFIG.PIXEL_HUE_SHIFT ?? 0;
     const patternScale = Math.max(1, Math.round((GAME_CONFIG.PIXEL_PATTERN_SCALE ?? 4) / resolution));
 
-    // Pre-compute star data at canvas scale, with HSL adjustment
-    const ownerSet = new Set<string>();
-    const starDataForWorker: { x: number; y: number; r: number; g: number; b: number; ownerIdx: number; ships: number; angles: number[] }[] = [];
+    // Build star lookup and connected clusters
+    const starById = new Map<string, StarState>();
+    for (const s of ownedStars) starById.set(s.id, s);
 
-    for (const s of ownedStars) {
-        ownerSet.add(s.ownerId!);
-    }
-    const owners = Array.from(ownerSet);
-    const ownerIndexMap = new Map<string, number>();
-    for (let i = 0; i < owners.length; i++) ownerIndexMap.set(owners[i], i);
+    const clusterMap = findConnectedClustersOptimized(
+        ownedStars,
+        connections ?? [],
+        starById,
+    );
+
+    const clusterValues = Array.from(clusterMap.values());
+    const numClusters = clusterValues.length > 0
+        ? Math.max(...clusterValues.map(c => c.clusterIdx)) + 1
+        : 0;
+
+    const starDataForWorker: { x: number; y: number; r: number; g: number; b: number; ownerIdx: number; ships: number; angles: number[] }[] = [];
 
     // Precompute connection angles per star (for lane constraint)
     const starAngleMap = new Map<string, number[]>();
     if (connections) {
-        const starById = new Map<string, StarState>();
-        for (const s of ownedStars) starById.set(s.id, s);
         for (const conn of connections) {
             const a = starById.get(conn.sourceId);
             const b = starById.get(conn.targetId);
             if (!a || !b) continue;
-            // Angle from a → b
             const angleAB = Math.atan2(b.y - a.y, b.x - a.x);
             if (!starAngleMap.has(a.id)) starAngleMap.set(a.id, []);
             starAngleMap.get(a.id)!.push(angleAB);
-            // Angle from b → a
             const angleBA = Math.atan2(a.y - b.y, a.x - b.x);
             if (!starAngleMap.has(b.id)) starAngleMap.set(b.id, []);
             starAngleMap.get(b.id)!.push(angleBA);
         }
     }
 
-    // Build flat owner RGB array
-    const ownerRGBFlat: number[] = new Array(owners.length * 3);
+    // Build flat cluster RGB array (same color for same-player clusters)
+    const ownerRGBFlat: number[] = new Array(numClusters * 3);
 
     for (const s of ownedStars) {
         const rawRgb = hexToRGB(colorUtils.getPlayerColor(s.ownerId!));
@@ -251,12 +255,11 @@ export function renderPixelTerritory(
             rgb = rawRgb;
         }
 
-        const oi = ownerIndexMap.get(s.ownerId!)!;
-        // Store first RGB for this owner
-        if (ownerRGBFlat[oi * 3] === undefined) {
-            ownerRGBFlat[oi * 3] = rgb[0];
-            ownerRGBFlat[oi * 3 + 1] = rgb[1];
-            ownerRGBFlat[oi * 3 + 2] = rgb[2];
+        const ci = clusterMap.get(s.id)?.clusterIdx ?? 0;
+        if (ownerRGBFlat[ci * 3] === undefined) {
+            ownerRGBFlat[ci * 3] = rgb[0];
+            ownerRGBFlat[ci * 3 + 1] = rgb[1];
+            ownerRGBFlat[ci * 3 + 2] = rgb[2];
         }
 
         starDataForWorker.push({
@@ -265,7 +268,7 @@ export function renderPixelTerritory(
             r: rgb[0],
             g: rgb[1],
             b: rgb[2],
-            ownerIdx: oi,
+            ownerIdx: ci,
             ships: (s.activeShips ?? 0) + (s.damagedShips ?? 0),
             angles: starAngleMap.get(s.id) ?? [],
         });
@@ -288,25 +291,20 @@ export function renderPixelTerritory(
     const corridorBoost = GAME_CONFIG.PIXEL_CORRIDOR_BOOST ?? 0;
     const corridorSegs: { x1: number; y1: number; x2: number; y2: number; ownerIdx: number; halfW: number }[] = [];
     if (corridorBoost > 0 && connections) {
-        // Build star lookup by id
-        const starById = new Map<string, StarState>();
-        for (const s of ownedStars) starById.set(s.id, s);
         for (const conn of connections) {
             const a = starById.get(conn.sourceId);
             const b = starById.get(conn.targetId);
             if (!a || !b || !a.ownerId || !b.ownerId) continue;
             if (a.ownerId !== b.ownerId) continue;
-            const oi = ownerIndexMap.get(a.ownerId);
-            if (oi === undefined) continue;
-            // Canvas coordinates
+            const ci = clusterMap.get(a.id)?.clusterIdx;
+            if (ci === undefined) continue;
             const x1 = (a.x + padding) / resolution;
             const y1 = (a.y + padding) / resolution;
             const x2 = (b.x + padding) / resolution;
             const y2 = (b.y + padding) / resolution;
-            // Capsule half-width: proportional to link distance, scaled by corridorBoost
             const linkDist = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
             const halfW = Math.max(2, Math.min(30 / resolution, linkDist * 0.12 * corridorBoost));
-            corridorSegs.push({ x1, y1, x2, y2, ownerIdx: oi, halfW });
+            corridorSegs.push({ x1, y1, x2, y2, ownerIdx: ci, halfW });
         }
     }
 
@@ -315,7 +313,7 @@ export function renderPixelTerritory(
         canvasW,
         canvasH,
         stars: starDataForWorker,
-        numOwners: owners.length,
+        numOwners: numClusters,
         ownerRGB: ownerRGBFlat,
         alpha: GAME_CONFIG.PIXEL_ALPHA ?? 0.15,
         edgeBlend: GAME_CONFIG.PIXEL_EDGE_BLEND ?? 0,

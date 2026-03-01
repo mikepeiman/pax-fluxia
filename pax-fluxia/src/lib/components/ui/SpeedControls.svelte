@@ -181,6 +181,7 @@
     @media (max-width: 1024px) {
         .speed-controls-container {
             gap: 4px;
+            min-width: 0;
         }
         .start-btn {
             padding: 8px 12px;
@@ -189,14 +190,19 @@
         .speed-controls {
             gap: 2px;
             padding: 2px;
+            flex-shrink: 1;
+            min-width: 0;
         }
         .speed-btn {
-            width: 36px;
+            width: 32px;
+            min-width: 28px;
             height: 28px;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
+            flex-shrink: 1;
         }
         .center-btn {
-            width: 32px;
+            width: 28px;
+            min-width: 24px;
         }
     }
 </style>

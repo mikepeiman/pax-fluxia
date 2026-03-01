@@ -3,6 +3,7 @@
     import * as PIXI from "pixi.js";
     import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
     import { animationStore } from "$lib/stores/animationStore.svelte";
+    import { audioManager } from "$lib/services/audioManager.svelte";
     import { log } from "$lib/utils/logger";
     import { GAME_CONFIG } from "$lib/config/game.config";
     import {
@@ -28,7 +29,7 @@
         initShipRendering,
     } from "$lib/renderers/containerFactory";
     import type { StarType } from "@pax/common";
-    import { audio } from "$lib/audio/AudioManager";
+
     import { selectedStarStore } from "$lib/stores/selectedStarStore.svelte";
     import { createColorUtils } from "$lib/renderers/colorUtils";
     import {
@@ -281,7 +282,7 @@
         }
 
         // Play order sound (ascending notes for chains)
-        audio.order(orderChainDepth);
+        audioManager.play("click");
         orderChainDepth++;
     }
 
@@ -303,6 +304,12 @@
         targetId: string,
         persist: boolean,
     ): boolean {
+        const targetStar = activeGameStore.stars.find((s) => s.id === targetId);
+        if (targetStar) {
+            audioManager.play(
+                isLocalPlayerStar(targetStar) ? "move" : "attack",
+            );
+        }
         activeGameStore.issueOrder(sourceId, targetId, persist);
         return true;
     }
@@ -318,6 +325,12 @@
         targetId: string,
         persist: boolean,
     ): boolean {
+        const targetStar = activeGameStore.stars.find((s) => s.id === targetId);
+        if (targetStar) {
+            audioManager.play(
+                isLocalPlayerStar(targetStar) ? "move" : "attack",
+            );
+        }
         activeGameStore.setDeferredOrder(sourceId, targetId, persist);
         return true;
     }
@@ -809,6 +822,7 @@
                 colorUtils,
                 GAME_WIDTH,
                 GAME_HEIGHT,
+                activeGameStore.connections as StarConnection[],
             );
 
             // Metaball renderer (checks TERRITORY_METABALL internally)
@@ -818,6 +832,7 @@
                 colorUtils,
                 GAME_WIDTH,
                 GAME_HEIGHT,
+                activeGameStore.connections as StarConnection[],
             );
 
             // Pixel territory renderer (checks TERRITORY_PIXEL internally)
@@ -1162,6 +1177,7 @@
         // Always select star for info panel (any button, any owner)
         if (star) {
             selectedStarStore.select(star.id);
+            audioManager.play("click");
         }
 
         // FIX: Right Click to Cancel

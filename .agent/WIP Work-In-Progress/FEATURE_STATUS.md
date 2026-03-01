@@ -429,7 +429,7 @@
 | F-47 | Territory alpha overlay (Voronoi-based player control mask) | High | Planned |
 | F-48 | Per-player VFX themes | High | Planned |
 | F-49 | Arrowhead conquest animation | High | Done (2026-02-17) |
-| F-50 | Split repair suppression | High | Planned |
+| F-50 | Split repair suppression | High | ❓ Implemented — `REPAIR_SUPPRESS_ATTACKER` (0.5) / `REPAIR_SUPPRESS_DEFENDER` (0.1), see `production.ts` |
 | F-51 | Controls UI readability pass | High | Done (2026-02-18) |
 | F-52 | Tick progress indicator | High | Planned |
 | F-53 | Resizable controls drawer | Medium | Done (2026-02-18) |

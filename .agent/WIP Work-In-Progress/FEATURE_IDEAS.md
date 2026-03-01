@@ -85,6 +85,8 @@
 | F-89 | Pulsing corona ring | Medium | 2026-02-24 |
 | F-90 | Gravitational lensing | Medium | 2026-02-24 |
 | F-91 | Particle aura | Medium | 2026-02-24 |
+| F-104 | Contour territory renderer (contour extraction → path simplification) | High | 2026-03-01 |
+| F-105 | Load classic Pax Galaxia maps (user will provide format) | High | 2026-03-01 |
 
 ---
 
@@ -114,6 +116,10 @@
 | F-85 | Map editor | High | 2026-02-24 |
 | F-95 | Double-tap empty space to pause/play | Medium | 2026-02-28 |
 | F-96 | In-game floating settings gear icon | Medium | 2026-02-28 |
+| F-106 | Infotips on all settings: config key (click→clipboard) + description | High | 2026-03-01 |
+| F-107 | Portrait map rotation: longest side → longest side | Critical | 2026-03-01 |
+| F-108 | Mobile main menu redesign: compact, Start visible above fold | Critical | 2026-03-01 |
+| B-21 | Landscape game speed widget buttons overflowing container | High | 2026-03-01 |
 
 ---
 
@@ -170,5 +176,17 @@
 | R-37 | Full Engine Unification: server uses shared GameEngine | 🔴 | 2026-02-10 |
 | R-92 | Game Sounds System (lightweight, no Tone.js) | 🔴 | 2026-02-13 |
 | F-98 | Implement Game Audio: wire up resources/*.wav/.ogg to events/controls | High | 2026-02-28 |
+| F-100 | Audio Themes: save/load audio presets with custom per-sound volumes | Medium | 2026-02-28 |
+| F-101 | Swappable SFX: in-game menu to switch sound files per event from available clips | Medium | 2026-02-28 |
 | R-122 | Custom Game Themes (saveable/loadable presets) | 🟡 | 2026-02-16 |
 | R-123 | Community Content Hub | 🔵 | 2026-02-16 |
+| F-102 | Territory Border Feel: straightening, effects controls for "feel" of territory boundaries | High | 2026-02-28 |
+| F-103 | Territory Connectivity Clustering: disconnected stars → separate territory blobs | High | 2026-02-28 |
+
+---
+
+## Web / Meta
+
+| ID | Feature | Priority | Added |
+|----|---------|----------|-------|
+| F-99 | Add Blog to Website (build posts from markdown files in project folder) | Medium | 2026-02-28 |

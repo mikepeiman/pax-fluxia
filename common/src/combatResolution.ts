@@ -236,7 +236,7 @@ export function resolveMultiSourceCombat(
 
         attacker.activeShips = Math.max(0, attacker.activeShips - totalDamage);
         attacker.damagedShips += disabled;
-        attacker.lastCombatTick = tick;
+        attacker.lastAttackTick = tick;
 
         if (attacker.activeShips <= 0) {
             attacker.targetId = null;

@@ -124,6 +124,32 @@
     </div>
 </div>
 
+<!-- Cluster Split (applies to any active renderer) -->
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">🧩 Cluster Split</span>
+        <label class="toggle-switch">
+            <input
+                type="checkbox"
+                checked={panel.territoryClusterSplit ??
+                    GAME_CONFIG.TERRITORY_CLUSTER_SPLIT}
+                onchange={(e) => {
+                    const v = (e.target as HTMLInputElement).checked;
+                    GAME_CONFIG.TERRITORY_CLUSTER_SPLIT = v;
+                    updatePanel("territoryClusterSplit", v);
+                }}
+            />
+            <span class="toggle-slider"></span>
+        </label>
+    </div>
+    <div
+        class="row-bottom"
+        style="font-size: 10px; opacity: 0.6; padding: 2px 4px;"
+    >
+        Disconnected stars → separate territory blobs
+    </div>
+</div>
+
 {#if panel.territoryGraph}
     <!-- ── Lane Territory Controls ── -->
     <h4 class="sub-heading">Lane Territory Settings</h4>
@@ -435,6 +461,57 @@
                 const v = +(e.target as HTMLInputElement).value;
                 GAME_CONFIG.GRAPH_PATTERN_ROTATION = v;
                 updatePanel("graphPatternRotation", v);
+            }}
+        />
+    </div>
+    <div
+        class="var-row grayed"
+        style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"
+    >
+        🎨 Border Feel
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Feel</span><span class="val"
+                >{panel.borderFeel ?? "raw"}</span
+            >
+        </div>
+        <select
+            class="mode-select"
+            value={panel.borderFeel ?? "raw"}
+            onchange={(e) => {
+                const v = (e.target as HTMLSelectElement).value as any;
+                GAME_CONFIG.BORDER_FEEL = v;
+                updatePanel("borderFeel", v);
+            }}
+        >
+            <option value="raw">Raw (pixel edges)</option>
+            <option value="smooth">Smooth (rounded)</option>
+            <option value="angular">Angular (geometric)</option>
+        </select>
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Smooth Iterations</span><span class="val"
+                >{panel.borderSmooth ?? 0}
+                {(panel.borderSmooth ?? 0) === 0
+                    ? "(off)"
+                    : (panel.borderSmooth ?? 0) <= 2
+                      ? "(light)"
+                      : "(heavy)"}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="5"
+            step="1"
+            value={panel.borderSmooth ?? 0}
+            disabled={(panel.borderFeel ?? "raw") === "raw"}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.BORDER_SMOOTH = v;
+                updatePanel("borderSmooth", v);
             }}
         />
     </div>

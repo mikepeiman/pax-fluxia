@@ -9,6 +9,7 @@ import { log } from '$lib/utils/logger';
 import { GAME_CONFIG } from '$lib/config/game.config';
 import type { TickEvents, TransferEvent } from '@pax/common';
 import { activeGameStore } from '$lib/stores/activeGameStore.svelte';
+import { audioManager } from '$lib/services/audioManager.svelte';
 
 // Server URL: env var > same-origin (production) > localhost (dev)
 const SERVER_URL = import.meta.env.VITE_SERVER_URL
@@ -386,6 +387,11 @@ function syncStateFromRoom(state: any): void {
     if (newTick !== tick) {
         // New tick arrived — reset interpolation timer
         lastTickTime = performance.now();
+
+        // Play metronome tick sound (if phase is playing)
+        if (newPhase === 'playing' && !newIsPaused) {
+            audioManager.play('tick');
+        }
     }
 
     // Detect restart: server reset phase back to "lobby"
@@ -472,7 +478,8 @@ function syncStateFromRoom(state: any): void {
                 transferRate: star.transferRate,
                 productionOverflow: star.productionOverflow ?? 0,
                 repairOverflow: star.repairOverflow ?? 0,
-                lastCombatTick: star.lastCombatTick ?? -1
+                lastCombatTick: star.lastCombatTick ?? -1,
+                lastAttackTick: star.lastAttackTick ?? -1
             });
         });
     }
@@ -509,6 +516,9 @@ function setupRoomListeners(): void {
     // Handle playerJoined message (sent by server when a player joins)
     room.onMessage('playerJoined', (data: { sessionId: string }) => {
         log.net('Room', `Player joined: ${data.sessionId}`);
+        if (data.sessionId !== localSessionId) {
+            audioManager.play('new_player');
+        }
     });
 
     // Handle welcome message (sent by server on join)

@@ -1,5 +1,6 @@
 import { writable } from 'svelte/store';
-import { audio } from '$lib/audio/AudioManager';
+import { audioManager } from '$lib/services/audioManager.svelte';
+import { activeGameStore } from '$lib/stores/activeGameStore.svelte';
 
 export interface CombatLogEntry {
     id: string;
@@ -44,7 +45,6 @@ export interface CombatLogEntry {
 }
 
 // Star type color map - Canonical Spec
-// GREY=basic, YELLOW=production, BLUE=movement, PURPLE=repair, RED=defense, GREEN=attack
 export const STAR_TYPE_COLORS: Record<string, string> = {
     grey: '#8899aa',   // BASIC - no bonuses
     yellow: '#fbbf24', // PRODUCTION - 2x ship generation
@@ -67,14 +67,9 @@ function createCombatLogStore() {
                     timestamp: Date.now()
                 };
 
-                // Play combat audio scaled to battle intensity
-                const totalShips = entry.attacker.ships + entry.defender.ships;
-                const intensity = Math.min(1, totalShips / 500); // Scale: 500 ships = max intensity
-                audio.combat(intensity);
-
-                // Play conquest sound for conquests
-                if (entry.result === 'CONQUERED') {
-                    audio.conquest();
+                // Play conquest sound ONLY for local player's conquests
+                if (entry.result === 'CONQUERED' && entry.attacker.ownerId === activeGameStore.localPlayerId) {
+                    audioManager.play('conquest');
                 }
 
                 // Keep last 50 logs

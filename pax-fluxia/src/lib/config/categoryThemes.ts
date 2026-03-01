@@ -80,6 +80,8 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
         'REPAIR_RATE',
         'MIN_REPAIR',
         'REPAIR_COMBAT_PENALTY',
+        'REPAIR_SUPPRESS_ATTACKER',
+        'REPAIR_SUPPRESS_DEFENDER',
     ],
 
     travel: [

@@ -471,3 +471,26 @@ Explicit `import { WebSocketTransport } from "@colyseus/ws-transport"` in `prod.
 - This ensures a single shared `@colyseus/core` module instance
 
 
+---
+
+# Decision: Settings Panel — "Economy" Is "Global Settings" + Mirrored Duplicates OK
+
+**Date:** 2026-03-01
+**Status:** Active
+
+## Context
+Agent proposed removing duplicate Attack/Defense sliders from Economy section since they control the same variables as Battle section (`AGGRESSOR_ADVANTAGE`, `DAMAGE_PER_SHIP`). User corrected this.
+
+## Decision
+1. **"Economy" is the wrong label** → rename to **"Global Settings"**
+2. **Attack/Defense sliders belong in Global** — they are global modifiers, not economy-specific
+3. **Variables MAY be duplicated across panels** under two conditions:
+   - Labels must be **exactly the same** in both panels
+   - Values must be **bound together as mirrors** — changing one updates the other in real-time
+4. Current problem: labels differ ("Defense" ≠ "Aggressor Advantage") and values are not bound
+
+## Action Items
+- Rename "Economy" section → "Global Settings"
+- Harmonize labels across Global and Battle panels
+- Implement two-way binding for shared variables
+- Add `REPAIR_SUPPRESS_ATTACKER` / `REPAIR_SUPPRESS_DEFENDER` sliders to Global

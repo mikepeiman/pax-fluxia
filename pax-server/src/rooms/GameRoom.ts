@@ -763,6 +763,7 @@ export class GameRoom extends Room {
         star.productionOverflow = 0;
         star.repairOverflow = 0;
         star.lastCombatTick = -1;
+        star.lastAttackTick = -1;
         this.state.stars.set(id, star);
     }
 

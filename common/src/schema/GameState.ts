@@ -55,8 +55,9 @@ export const StarSchema = schema({
     // Integer-ship invariant: overflow accumulators
     productionOverflow: "number",
     repairOverflow: "number",
-    // Combat state (for repair pinning penalty)
+    // Combat state (for repair suppression: attacker vs defender)
     lastCombatTick: "number",
+    lastAttackTick: "number",
 }, "StarSchema");
 export type StarSchema = SchemaType<typeof StarSchema>;
 

@@ -11,6 +11,8 @@
     import { multiplayerStore } from "$lib/stores/multiplayerStore.svelte";
     import type { RoomListing } from "$lib/stores/multiplayerStore.svelte";
     import { loadVisuals, saveVisuals } from "$lib/components/ui/panelSync";
+    import { audioManager } from "$lib/services/audioManager.svelte";
+    import AudioSettings from "$lib/components/ui/AudioSettings.svelte";
     import { log } from "$lib/utils/logger";
     import {
         AI_STRATEGIES,
@@ -59,6 +61,7 @@
               ? "mp"
               : "sp",
     );
+    let showAudioSettings = $state(false);
 
     // Persist gameMode so MP tab survives reload
     $effect(() => {
@@ -833,6 +836,55 @@
                     {/if}
 
                     <div class="section-divider"></div>
+
+                    <!-- Audio Settings -->
+                    <div class="speed-start-row">
+                        <div class="config-item speed-control">
+                            <label>AUDIO</label>
+                            <div
+                                class="slider-container"
+                                style="display: flex; gap: 0.5rem; align-items: center;"
+                            >
+                                <button
+                                    class="mute-btn"
+                                    class:muted={audioManager.muted}
+                                    onclick={() => audioManager.toggleMute()}
+                                    title={audioManager.muted
+                                        ? "Unmute"
+                                        : "Mute"}
+                                >
+                                    {audioManager.muted ? "🔇" : "🔊"}
+                                </button>
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max="1"
+                                    step="0.05"
+                                    disabled={audioManager.muted}
+                                    value={audioManager.masterVolume}
+                                    oninput={(e) =>
+                                        audioManager.setMasterVolume(
+                                            +(e.target as HTMLInputElement)
+                                                .value,
+                                        )}
+                                />
+                                <span class="value"
+                                    >{Math.round(
+                                        audioManager.masterVolume * 100,
+                                    )}%</span
+                                >
+                                <button
+                                    class="audio-open-btn"
+                                    onclick={() => {
+                                        showAudioSettings = true;
+                                    }}
+                                    title="Open Audio Settings">🎛</button
+                                >
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section-divider"></div>
                     <div class="speed-start-row">
                         <div class="config-item speed-control">
                             <label>TICK DURATION</label>
@@ -855,7 +907,10 @@
 
                     <button
                         class="start-btn start-btn-primary"
-                        onclick={startSPGame}
+                        onclick={() => {
+                            audioManager.play("click");
+                            startSPGame();
+                        }}
                     >
                         <span class="btn-glow"></span>
                         START GAME
@@ -1161,6 +1216,13 @@
         </div>
     </div>
 {/if}
+
+<AudioSettings
+    visible={showAudioSettings}
+    onClose={() => {
+        showAudioSettings = false;
+    }}
+/>
 
 <style>
     /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
@@ -1555,10 +1617,38 @@
         .menu-container {
             width: 100vw;
             max-width: 100vw;
-            padding: 16px 10px;
-            gap: 14px;
+            padding: 8px 10px;
+            gap: 8px;
             box-sizing: border-box;
             overflow-x: hidden;
+        }
+
+        /* ══ COMPACT TITLE ══
+           Collapse hero title into a slim inline banner at top of menu.
+           Title + subtitle in one row, minimal height. */
+        .title-block {
+            padding: 6px 0 2px;
+            margin: 0;
+        }
+        .title {
+            font-size: 1.1rem !important;
+            flex-direction: row !important;
+            gap: 6px;
+            line-height: 1;
+        }
+        .pax {
+            font-size: 0.9rem;
+            letter-spacing: 2px !important;
+        }
+        .fluxia {
+            font-size: 1.1rem;
+            letter-spacing: 3px !important;
+        }
+        .subtitle {
+            font-size: 0.4rem !important;
+            margin-top: 0 !important;
+            letter-spacing: 1px !important;
+            color: rgba(90, 122, 138, 0.6);
         }
 
         /* Every panel: constrain to parent */
@@ -1566,8 +1656,8 @@
         .mp-panel {
             max-width: 100%;
             box-sizing: border-box;
-            padding: 14px 12px;
-            gap: 12px;
+            padding: 12px 10px;
+            gap: 10px;
             overflow: hidden;
         }
 
@@ -1638,19 +1728,13 @@
         .mp-panel {
             clip-path: none;
             border-radius: 8px;
-            padding: 14px 12px;
+            padding: 12px 10px;
         }
 
         /* Touch targets */
         .button-row button {
             min-height: 44px;
             min-width: 44px;
-        }
-
-        /* Subtitle readable */
-        .subtitle {
-            color: #5a7a8a;
-            font-size: 0.55rem;
         }
 
         /* Color palette wraps */
@@ -3221,5 +3305,34 @@
 
     .speed-control .button-row {
         gap: 0;
+    }
+
+    /* ── Audio compact row ── */
+    .mute-btn {
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 1rem;
+        padding: 2px 6px;
+        transition: background 0.2s;
+    }
+    .mute-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+    }
+    .mute-btn.muted {
+        opacity: 0.5;
+    }
+    .audio-open-btn {
+        background: rgba(0, 255, 255, 0.1);
+        border: 1px solid rgba(0, 170, 170, 0.4);
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 1rem;
+        padding: 2px 6px;
+        transition: all 0.15s;
+    }
+    .audio-open-btn:hover {
+        background: rgba(0, 255, 255, 0.2);
     }
 </style>

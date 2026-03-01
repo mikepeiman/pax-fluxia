@@ -13,7 +13,8 @@
 
 import * as PIXI from 'pixi.js';
 import { GAME_CONFIG } from '$lib/config/game.config';
-import type { StarState } from '$lib/types/game.types';
+import type { StarState, StarConnection } from '$lib/types/game.types';
+import { findConnectedClustersOptimized } from './territoryUtils';
 import type { ColorUtils } from './RenderContext';
 
 // ── Cache ──────────────────────────────────────────────────────────────────
@@ -124,6 +125,7 @@ export function renderMetaball(
     colorUtils: ColorUtils,
     worldWidth: number,
     worldHeight: number,
+    connections?: StarConnection[],
 ): void {
     const show = GAME_CONFIG.TERRITORY_METABALL;
 
@@ -177,13 +179,28 @@ export function renderMetaball(
     const borderAlpha = GAME_CONFIG.METABALL_BORDER_ALPHA ?? 0.6;
     const falloffFn = FALLOFF_MAP[falloffType] ?? falloffInverseSquare;
 
-    // Build player index map
-    cachedPlayerMap.clear();
-    const playerIds: string[] = [];
-    for (const s of ownedStars) {
-        if (s.ownerId && !cachedPlayerMap.has(s.ownerId)) {
-            cachedPlayerMap.set(s.ownerId, playerIds.length);
-            playerIds.push(s.ownerId);
+    // Build star lookup and connected clusters
+    const starById = new Map<string, StarState>();
+    for (const s of ownedStars) starById.set(s.id, s);
+
+    const clusterMap = findConnectedClustersOptimized(
+        ownedStars,
+        connections ?? [],
+        starById,
+    );
+
+    const clusterValues = Array.from(clusterMap.values());
+    const numClusters = clusterValues.length > 0
+        ? Math.max(...clusterValues.map(c => c.clusterIdx)) + 1
+        : 0;
+
+    // Build cluster → color mapping (same color for same-player clusters)
+    const clusterIds: number[] = [];
+    const clusterOwnerMap = new Map<number, string>();
+    for (const [starId, info] of clusterMap) {
+        if (!clusterOwnerMap.has(info.clusterIdx)) {
+            clusterOwnerMap.set(info.clusterIdx, info.ownerId);
+            clusterIds.push(info.clusterIdx);
         }
     }
 
@@ -191,14 +208,16 @@ export function renderMetaball(
     const lightMult = GAME_CONFIG.METABALL_LIGHTNESS ?? 1.0;
     const useHSL = satMult !== 1.0 || lightMult !== 1.0;
 
-    const playerColors: [number, number, number][] = playerIds.map(pid => {
-        const rawRgb = hexToRGB(colorUtils.getPlayerColor(pid));
+    const playerColors: [number, number, number][] = new Array(numClusters);
+    for (const [ci, ownerId] of clusterOwnerMap) {
+        const rawRgb = hexToRGB(colorUtils.getPlayerColor(ownerId));
         if (useHSL) {
             const [h, s, l] = rgbToHSL(rawRgb[0], rawRgb[1], rawRgb[2]);
-            return hslToRGB(h, Math.min(1, s * satMult), Math.min(1, l * lightMult));
+            playerColors[ci] = hslToRGB(h, Math.min(1, s * satMult), Math.min(1, l * lightMult));
+        } else {
+            playerColors[ci] = rawRgb;
         }
-        return rawRgb;
-    });
+    }
 
     // Grid padding: 0=compact (exact world), 0.3=extended (fills viewport at zoom-out)
     const coverage = GAME_CONFIG.METABALL_COVERAGE ?? 0.3;
@@ -212,11 +231,11 @@ export function renderMetaball(
     const cols = Math.ceil(gridW / cellSize);
     const rows = Math.ceil(gridH / cellSize);
 
-    // Precompute star data (positions relative to grid origin)
+    // Precompute star data (cluster-indexed)
     const starData = ownedStars.map(s => ({
         x: s.x,
         y: s.y,
-        playerIdx: cachedPlayerMap.get(s.ownerId!) ?? 0,
+        playerIdx: clusterMap.get(s.id)?.clusterIdx ?? 0,
         strength: (0.5 + Math.min(2.0, Math.log2(Math.max(1, s.activeShips + s.damagedShips)) * 0.2)) * strengthMult,
     }));
 
@@ -227,7 +246,7 @@ export function renderMetaball(
     territoryGraphics.clear();
     borderGraphics.clear();
 
-    const numPlayers = playerIds.length;
+    const numPlayers = numClusters;
 
     // ── Grid computation (only runs on fingerprint change = tick) ──
     for (let row = 0; row < rows; row++) {

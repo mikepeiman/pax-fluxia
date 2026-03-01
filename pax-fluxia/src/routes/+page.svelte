@@ -1,11 +1,18 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import "../app.css";
   import LandingPage from "$lib/components/landing/LandingPage.svelte";
   import GameContainer from "$lib/components/game/GameContainer.svelte";
+  import { audioManager } from "$lib/services/audioManager.svelte";
 
   let showGame = $state(false);
 
+  onMount(() => {
+    audioManager.init();
+  });
+
   function handlePlay() {
+    audioManager.play("play");
     showGame = true;
   }
 </script>

@@ -50,6 +50,144 @@ interface WorkerInput {
     boardRight: number;
     boardBottom: number;
     fadeDistCanvas: number;
+    borderFeel: string;       // 'raw' | 'smooth' | 'angular'
+    borderSmooth: number;     // smoothing iterations (0-5)
+}
+
+// ============================================================================
+// Post-processing: morphological operations on ownerGrid
+// ============================================================================
+
+/**
+ * Post-process the ownership grid to create different border "feel" styles.
+ *
+ * 'smooth': Majority-vote morphological filter. Each border pixel adopts the
+ *           most common owner among its neighbors. Reduces jagged edges.
+ *           Multiple iterations create progressively smoother borders.
+ *
+ * 'angular': Run-length stepping. Scans horizontal and vertical runs of the
+ *            same owner and extends short runs to create clean geometric
+ *            border segments with angular transitions.
+ */
+function postProcessOwnerGrid(
+    grid: Uint8Array,
+    w: number,
+    h: number,
+    feel: string,
+    iterations: number,
+): void {
+    if (feel === 'smooth') {
+        smoothBorders(grid, w, h, iterations);
+    } else if (feel === 'angular') {
+        angularBorders(grid, w, h, iterations);
+    }
+}
+
+/**
+ * Majority-vote smoothing with a 5×5 kernel and 3 internal passes per
+ * user iteration. Much more aggressive than a single 3×3 pass.
+ * Each border pixel adopts the most common owner in its neighborhood.
+ */
+function smoothBorders(grid: Uint8Array, w: number, h: number, iterations: number): void {
+    const tmp = new Uint8Array(w * h);
+    const RADIUS = 2; // 5×5 kernel
+    const totalPasses = iterations * 3; // 3 internal passes per user iteration
+
+    for (let iter = 0; iter < totalPasses; iter++) {
+        tmp.set(grid);
+
+        for (let y = RADIUS; y < h - RADIUS; y++) {
+            for (let x = RADIUS; x < w - RADIUS; x++) {
+                const idx = y * w + x;
+                const me = grid[idx];
+
+                // Quick border check (4-connected neighbors)
+                if (grid[idx - w] === me && grid[idx + w] === me &&
+                    grid[idx + 1] === me && grid[idx - 1] === me) continue;
+
+                // Count neighbors in RADIUS×RADIUS neighborhood
+                const counts = new Map<number, number>();
+                for (let dy = -RADIUS; dy <= RADIUS; dy++) {
+                    for (let dx = -RADIUS; dx <= RADIUS; dx++) {
+                        const nIdx = (y + dy) * w + (x + dx);
+                        const owner = grid[nIdx];
+                        counts.set(owner, (counts.get(owner) ?? 0) + 1);
+                    }
+                }
+
+                // Pick majority
+                let maxCount = 0;
+                let winner = me;
+                for (const [owner, count] of counts) {
+                    if (count > maxCount) {
+                        maxCount = count;
+                        winner = owner;
+                    }
+                }
+                tmp[idx] = winner;
+            }
+        }
+
+        grid.set(tmp);
+    }
+}
+
+/**
+ * Angular stepping: scan rows and columns, find short runs of an owner
+ * sandwiched between longer runs of another owner, and absorb them.
+ * This creates clean edges with fewer jagged transitions.
+ * 'iterations' controls the minimum run length threshold.
+ */
+function angularBorders(grid: Uint8Array, w: number, h: number, iterations: number): void {
+    const minRun = Math.max(3, iterations * 10); // aggressive: slider 1 = 10px, slider 5 = 50px
+
+    // Horizontal pass: absorb short horizontal runs
+    for (let y = 0; y < h; y++) {
+        let runStart = 0;
+        let runOwner = grid[y * w];
+
+        for (let x = 1; x <= w; x++) {
+            const cur = x < w ? grid[y * w + x] : 255; // sentinel
+            if (cur === runOwner && x < w) continue;
+
+            // End of run from runStart to x-1
+            const runLen = x - runStart;
+
+            if (runLen < minRun && runStart > 0 && x < w) {
+                // Short run — absorb into the left neighbor's owner
+                const leftOwner = grid[y * w + runStart - 1];
+                for (let fill = runStart; fill < x; fill++) {
+                    grid[y * w + fill] = leftOwner;
+                }
+            }
+
+            runStart = x;
+            runOwner = cur;
+        }
+    }
+
+    // Vertical pass: absorb short vertical runs
+    for (let x = 0; x < w; x++) {
+        let runStart = 0;
+        let runOwner = grid[x];
+
+        for (let y = 1; y <= h; y++) {
+            const cur = y < h ? grid[y * w + x] : 255;
+            if (cur === runOwner && y < h) continue;
+
+            const runLen = y - runStart;
+
+            if (runLen < minRun && runStart > 0 && y < h) {
+                const topOwner = grid[(runStart - 1) * w + x];
+                for (let fill = runStart; fill < y; fill++) {
+                    grid[fill * w + x] = topOwner;
+                }
+            }
+
+            runStart = y;
+            runOwner = cur;
+        }
+    }
 }
 
 self.onmessage = (e: MessageEvent<WorkerInput>) => {
@@ -60,6 +198,7 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
         borderWidth, borderAlpha, borderBrighten,
         pattern, patternScale, patternRotation,
         boardLeft, boardTop, boardRight, boardBottom, fadeDistCanvas,
+        borderFeel, borderSmooth,
     } = e.data;
 
     const numStars = stars.length;
@@ -155,7 +294,9 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
 
     // ── Pixel computation with hierarchical tiles ──
     const pixels = new Uint8ClampedArray(canvasW * canvasH * 4);
-    const ownerGrid = borderWidth > 0 ? new Uint8Array(canvasW * canvasH) : null;
+    // Always create ownerGrid when border or post-processing needs it
+    const needsOwnerGrid = borderWidth > 0 || (borderFeel !== 'raw' && borderSmooth > 0);
+    const ownerGrid = needsOwnerGrid ? new Uint8Array(canvasW * canvasH) : null;
 
     const TILE_SIZE = 8;
     const tilesW = Math.ceil(canvasW / TILE_SIZE);
@@ -286,6 +427,29 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
                         pixels[idx + 3] = Math.round(pa * 255);
                         if (ownerGrid) ownerGrid[py * canvasW + px] = winner;
                     }
+                }
+            }
+        }
+    }
+
+    // ── Post-process ownerGrid: border feel ──
+    if (ownerGrid && borderFeel !== 'raw' && borderSmooth > 0) {
+        postProcessOwnerGrid(ownerGrid, canvasW, canvasH, borderFeel, borderSmooth);
+        // Re-apply colors from post-processed ownerGrid
+        for (let py = 0; py < canvasH; py++) {
+            for (let px = 0; px < canvasW; px++) {
+                const gi = py * canvasW + px;
+                const owner = ownerGrid[gi];
+                if (owner >= numOwners) continue; // skip unclaimed
+                const pi = gi * 4;
+                const r = ownerRGB[owner * 3];
+                const g = ownerRGB[owner * 3 + 1];
+                const b = ownerRGB[owner * 3 + 2];
+                if (pixels[pi] !== r || pixels[pi + 1] !== g || pixels[pi + 2] !== b) {
+                    pixels[pi] = r;
+                    pixels[pi + 1] = g;
+                    pixels[pi + 2] = b;
+                    // Keep existing alpha
                 }
             }
         }

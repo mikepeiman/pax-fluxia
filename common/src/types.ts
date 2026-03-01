@@ -48,7 +48,8 @@ export interface Star {
     productionOverflow: number;
     repairOverflow: number;
     // Combat state
-    lastCombatTick: number;
+    lastCombatTick: number;   // tick when this star was last DEFENDING (under attack)
+    lastAttackTick: number;   // tick when this star was last ATTACKING (sending ships)
     repairedThisTick?: number;
     // Orders
     targetId: StarId | null;

@@ -1,5 +1,10 @@
 <script lang="ts">
-    import { audio } from "$lib/audio/AudioManager";
+    import {
+        audioManager,
+        SOUND_LABELS,
+        ALL_SOUND_TYPES,
+        type SoundType,
+    } from "$lib/services/audioManager.svelte";
     import { fade, fly } from "svelte/transition";
 
     // Props
@@ -8,182 +13,107 @@
         onClose: () => void;
     }
     let { visible, onClose }: Props = $props();
-
-    // Load settings from localStorage or audio manager
-    function loadSetting<T>(key: string, defaultValue: T): T {
-        if (typeof window === 'undefined') return defaultValue;
-        const stored = localStorage.getItem(`pax-fluxia-audio-${key}`);
-        if (stored) {
-            try {
-                return JSON.parse(stored) as T;
-            } catch {
-                return defaultValue;
-            }
-        }
-        return defaultValue;
-    }
-
-    function saveSetting(key: string, value: any) {
-        if (typeof window === 'undefined') return;
-        localStorage.setItem(`pax-fluxia-audio-${key}`, JSON.stringify(value));
-    }
-
-    // State
-    let audioEnabled = $state(loadSetting("enabled", true));
-    let masterVol = $state(loadSetting("master", 0.3));
-    let tickVol = $state(loadSetting("tick", 0.5));
-    let orderVol = $state(loadSetting("order", 0.7));
-    let combatVol = $state(loadSetting("combat", 0.5));
-
-    // Apply settings when changed
-    $effect(() => {
-        audio.setEnabled(audioEnabled);
-        saveSetting("enabled", audioEnabled);
-    });
-
-    $effect(() => {
-        audio.setVolume(masterVol);
-        saveSetting("master", masterVol);
-    });
-
-    $effect(() => {
-        audio.setTickVolume(tickVol);
-        saveSetting("tick", tickVol);
-    });
-
-    $effect(() => {
-        audio.setOrderVolume(orderVol);
-        saveSetting("order", orderVol);
-    });
-
-    $effect(() => {
-        audio.setCombatVolume(combatVol);
-        saveSetting("combat", combatVol);
-    });
-
-    // Test sounds
-    function testTick() {
-        audio.tick();
-    }
-
-    function testOrder() {
-        audio.order(0);
-        setTimeout(() => audio.order(1), 150);
-        setTimeout(() => audio.order(2), 300);
-    }
-
-    function testCombat() {
-        audio.combat(0.3);
-        setTimeout(() => audio.combat(0.6), 200);
-        setTimeout(() => audio.combat(0.9), 400);
-    }
-
-    function testConquest() {
-        audio.conquest();
-    }
 </script>
 
 {#if visible}
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="modal-overlay" onclick={onClose} transition:fade={{ duration: 150 }}>
-        <div 
-            class="modal-content" 
+    <div
+        class="modal-overlay"
+        onclick={onClose}
+        transition:fade={{ duration: 150 }}
+    >
+        <div
+            class="modal-content"
             onclick={(e) => e.stopPropagation()}
             transition:fly={{ y: 20, duration: 200 }}
         >
             <div class="modal-header">
                 <h2>Audio Settings</h2>
-                <button class="close-btn" onclick={onClose}>×</button>
+                <div class="header-actions">
+                    <button
+                        class="reset-btn"
+                        onclick={() => audioManager.resetDefaults()}
+                        title="Reset all to defaults">↺ Reset</button
+                    >
+                    <button class="close-btn" onclick={onClose}>×</button>
+                </div>
             </div>
 
             <div class="settings-body">
-                <!-- Master Toggle -->
-                <div class="setting-row master-toggle">
-                    <label>
-                        <input type="checkbox" bind:checked={audioEnabled} />
+                <!-- Master Toggle + Volume -->
+                <div class="setting-row master-row">
+                    <label class="master-toggle">
+                        <input
+                            type="checkbox"
+                            checked={!audioManager.muted}
+                            onchange={() => audioManager.toggleMute()}
+                        />
                         <span class="toggle-label">Sound Enabled</span>
                     </label>
                 </div>
 
-                <!-- Master Volume -->
-                <div class="setting-row" class:disabled={!audioEnabled}>
+                <div class="setting-row" class:disabled={audioManager.muted}>
                     <div class="setting-header">
                         <span class="setting-name">Master Volume</span>
-                        <span class="setting-value">{Math.round(masterVol * 100)}%</span>
+                        <span class="setting-value"
+                            >{Math.round(
+                                audioManager.masterVolume * 100,
+                            )}%</span
+                        >
                     </div>
-                    <input 
-                        type="range" 
-                        min="0" 
-                        max="1" 
-                        step="0.05" 
-                        bind:value={masterVol}
-                        disabled={!audioEnabled}
+                    <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        value={audioManager.masterVolume}
+                        oninput={(e) =>
+                            audioManager.setMasterVolume(
+                                +(e.target as HTMLInputElement).value,
+                            )}
+                        disabled={audioManager.muted}
                     />
                 </div>
 
                 <div class="divider"></div>
 
-                <!-- Tick Volume -->
-                <div class="setting-row" class:disabled={!audioEnabled}>
-                    <div class="setting-header">
-                        <span class="setting-name">Tick Sound</span>
-                        <span class="setting-value">{Math.round(tickVol * 100)}%</span>
-                        <button class="test-btn" onclick={testTick} disabled={!audioEnabled}>Test</button>
+                <!-- Per-Sound Volume Sliders -->
+                {#each ALL_SOUND_TYPES as stype}
+                    <div
+                        class="setting-row"
+                        class:disabled={audioManager.muted}
+                    >
+                        <div class="setting-header">
+                            <span class="setting-name"
+                                >{SOUND_LABELS[stype]}</span
+                            >
+                            <span class="setting-value"
+                                >{Math.round(
+                                    audioManager.soundVolumes[stype] * 100,
+                                )}%</span
+                            >
+                            <button
+                                class="test-btn"
+                                onclick={() => audioManager.preview(stype)}
+                                disabled={audioManager.muted}>Test</button
+                            >
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="1"
+                            step="0.05"
+                            value={audioManager.soundVolumes[stype]}
+                            oninput={(e) =>
+                                audioManager.setSoundVolume(
+                                    stype,
+                                    +(e.target as HTMLInputElement).value,
+                                )}
+                            disabled={audioManager.muted}
+                        />
                     </div>
-                    <input 
-                        type="range" 
-                        min="0" 
-                        max="1" 
-                        step="0.1" 
-                        bind:value={tickVol}
-                        disabled={!audioEnabled}
-                    />
-                    <span class="setting-desc">Subtle pulse each game tick</span>
-                </div>
-
-                <!-- Order Volume -->
-                <div class="setting-row" class:disabled={!audioEnabled}>
-                    <div class="setting-header">
-                        <span class="setting-name">Order Sounds</span>
-                        <span class="setting-value">{Math.round(orderVol * 100)}%</span>
-                        <button class="test-btn" onclick={testOrder} disabled={!audioEnabled}>Test</button>
-                    </div>
-                    <input 
-                        type="range" 
-                        min="0" 
-                        max="1" 
-                        step="0.1" 
-                        bind:value={orderVol}
-                        disabled={!audioEnabled}
-                    />
-                    <span class="setting-desc">Chimes when issuing commands</span>
-                </div>
-
-                <!-- Combat Volume -->
-                <div class="setting-row" class:disabled={!audioEnabled}>
-                    <div class="setting-header">
-                        <span class="setting-name">Combat Sounds</span>
-                        <span class="setting-value">{Math.round(combatVol * 100)}%</span>
-                        <button class="test-btn" onclick={testCombat} disabled={!audioEnabled}>Test</button>
-                    </div>
-                    <input 
-                        type="range" 
-                        min="0" 
-                        max="1" 
-                        step="0.1" 
-                        bind:value={combatVol}
-                        disabled={!audioEnabled}
-                    />
-                    <span class="setting-desc">Battle impacts and conquest fanfares</span>
-                </div>
-
-                <!-- Conquest Test -->
-                <div class="setting-row" class:disabled={!audioEnabled}>
-                    <button class="conquest-btn" onclick={testConquest} disabled={!audioEnabled}>
-                        Test Conquest Fanfare
-                    </button>
-                </div>
+                {/each}
             </div>
         </div>
     </div>
@@ -207,8 +137,10 @@
         background: #0a0f1e;
         border: 1px solid #4488ff;
         border-radius: 12px;
-        width: 380px;
+        width: 420px;
         max-width: 90vw;
+        max-height: 85vh;
+        overflow-y: auto;
         box-shadow: 0 0 40px rgba(68, 136, 255, 0.2);
     }
 
@@ -218,6 +150,10 @@
         align-items: center;
         padding: 16px 20px;
         border-bottom: 1px solid #1a2a40;
+        position: sticky;
+        top: 0;
+        background: #0a0f1e;
+        z-index: 1;
     }
 
     .modal-header h2 {
@@ -226,6 +162,29 @@
         font-size: 1.1rem;
         color: #00ffff;
         letter-spacing: 1px;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .reset-btn {
+        background: rgba(255, 80, 80, 0.1);
+        border: 1px solid rgba(255, 80, 80, 0.3);
+        color: #f88;
+        padding: 4px 10px;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.7rem;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+
+    .reset-btn:hover {
+        background: rgba(255, 80, 80, 0.2);
+        border-color: rgba(255, 80, 80, 0.5);
     }
 
     .close-btn {
@@ -249,16 +208,16 @@
     }
 
     .settings-body {
-        padding: 20px;
+        padding: 16px 20px;
         display: flex;
         flex-direction: column;
-        gap: 16px;
+        gap: 12px;
     }
 
     .setting-row {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 6px;
     }
 
     .setting-row.disabled {
@@ -266,7 +225,7 @@
         pointer-events: none;
     }
 
-    .master-toggle label {
+    .master-toggle {
         display: flex;
         align-items: center;
         gap: 12px;
@@ -293,16 +252,16 @@
 
     .setting-name {
         font-family: "JetBrains Mono", monospace;
-        font-size: 0.85rem;
+        font-size: 0.8rem;
         color: #aab;
         flex: 1;
     }
 
     .setting-value {
         font-family: "JetBrains Mono", monospace;
-        font-size: 0.8rem;
+        font-size: 0.75rem;
         color: #00ffff;
-        min-width: 40px;
+        min-width: 36px;
         text-align: right;
     }
 
@@ -310,9 +269,9 @@
         background: rgba(0, 255, 255, 0.1);
         border: 1px solid #00aaaa;
         color: #00ffff;
-        padding: 4px 12px;
+        padding: 3px 10px;
         font-family: "JetBrains Mono", monospace;
-        font-size: 0.7rem;
+        font-size: 0.65rem;
         border-radius: 4px;
         cursor: pointer;
         transition: all 0.15s;
@@ -350,37 +309,9 @@
         opacity: 0.3;
     }
 
-    .setting-desc {
-        font-size: 0.7rem;
-        color: #556;
-        font-style: italic;
-    }
-
     .divider {
         height: 1px;
         background: #1a2a40;
-        margin: 4px 0;
-    }
-
-    .conquest-btn {
-        background: linear-gradient(180deg, #2a3a5a, #1a2a40);
-        border: 1px solid #4488ff;
-        color: #88aaff;
-        padding: 10px 16px;
-        font-family: "JetBrains Mono", monospace;
-        font-size: 0.8rem;
-        border-radius: 6px;
-        cursor: pointer;
-        transition: all 0.15s;
-    }
-
-    .conquest-btn:hover:not(:disabled) {
-        background: linear-gradient(180deg, #3a4a6a, #2a3a50);
-        color: #aaccff;
-    }
-
-    .conquest-btn:disabled {
-        opacity: 0.3;
-        cursor: not-allowed;
+        margin: 2px 0;
     }
 </style>

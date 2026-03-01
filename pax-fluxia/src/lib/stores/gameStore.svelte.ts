@@ -35,7 +35,7 @@ import {
 import type { AIConfig } from '@pax/common';
 import { AI, createAI, DEFAULT_AI_CONFIG } from '@pax/common';
 import { combatLog } from '$lib/stores/combatLogStore';
-import { audio } from '$lib/audio/AudioManager';
+import { audioManager } from '$lib/services/audioManager.svelte';
 import { GAME_CONFIG, buildEngineConfig } from '$lib/config/game.config';
 import { animationStore } from '$lib/stores/animationStore.svelte';
 import { activeGameStore } from '$lib/stores/activeGameStore.svelte';
@@ -298,6 +298,7 @@ function toGameState(s: GameRoomState): GameState {
         defensivePosture: star.defensivePosture,
         defenseStrength: star.defenseStrength,
         lastCombatTick: star.lastCombatTick,
+        lastAttackTick: star.lastAttackTick ?? -1,
         targetId: star.targetId || null,
         queuedOrderTargetId: star.queuedOrderTargetId || null,
         productionOverflow: star.productionOverflow,
@@ -401,7 +402,7 @@ function executeTick(): void {
     snapshot = toGameState(state);
 
     // Play tick sound
-    audio.tick();
+    audioManager.play('tick');
 
     // Track stats
     const totalShips = Array.from(state.stars.values())
@@ -447,6 +448,7 @@ function runAI(engineCfg: EngineConfig): void {
         defensivePosture: s.defensivePosture,
         defenseStrength: s.defenseStrength,
         lastCombatTick: s.lastCombatTick,
+        lastAttackTick: s.lastAttackTick ?? -1,
         targetId: s.targetId || null,
         queuedOrderTargetId: s.queuedOrderTargetId || null,
         productionOverflow: s.productionOverflow,
@@ -841,9 +843,6 @@ function updateSettings(partial: Partial<GameSettings>): void {
 async function startGame(): Promise<void> {
     // Destroy existing game if any
     destroyGame();
-
-    // Initialize audio
-    await audio.init();
 
     // Clear combat log
     combatLog.clear();

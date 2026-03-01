@@ -12,7 +12,8 @@
 import * as PIXI from 'pixi.js';
 import { Delaunay } from 'd3-delaunay';
 import { GAME_CONFIG } from '$lib/config/game.config';
-import type { StarState } from '$lib/types/game.types';
+import type { StarState, StarConnection } from '$lib/types/game.types';
+import { findConnectedClustersOptimized } from './territoryUtils';
 import type { ColorUtils } from './RenderContext';
 
 // ── Cache ──────────────────────────────────────────────────────────────────
@@ -173,6 +174,7 @@ export function renderVoronoi(
     colorUtils: ColorUtils,
     worldWidth: number,
     worldHeight: number,
+    connections?: StarConnection[],
 ): void {
     if (!GAME_CONFIG.TERRITORY_VORONOI) {
         if (cellGraphics) cellGraphics.visible = false;
@@ -220,11 +222,24 @@ export function renderVoronoi(
     const delaunay = Delaunay.from(points);
     const voronoi = delaunay.voronoi(bounds);
 
+    // Build connected clusters for ownership comparison
+    const starById = new Map<string, StarState>();
+    for (const s of ownedStars) starById.set(s.id, s);
+    const clusterMap = findConnectedClustersOptimized(
+        ownedStars,
+        connections ?? [],
+        starById,
+    );
+
     // Pre-compute adjusted colors per star
-    const starColors: { hex: number; rgb: [number, number, number] }[] = ownedStars.map(s => {
+    const starColors: { hex: number; rgb: [number, number, number]; clusterIdx: number }[] = ownedStars.map(s => {
         const rawRgb = hexToRGB(colorUtils.getPlayerColor(s.ownerId!));
         const rgb = adjustColorHSL(rawRgb[0], rawRgb[1], rawRgb[2], satMult, lightMult);
-        return { hex: rgbToHex(rgb[0], rgb[1], rgb[2]), rgb };
+        return {
+            hex: rgbToHex(rgb[0], rgb[1], rgb[2]),
+            rgb,
+            clusterIdx: clusterMap.get(s.id)?.clusterIdx ?? -1,
+        };
     });
 
     // ── Draw filled cells ──
@@ -286,7 +301,10 @@ export function renderVoronoi(
                 const neighborIdx = delaunay.find(probeX, probeY);
                 if (neighborIdx !== i && neighborIdx < ownedStars.length) {
                     const ownerN = ownedStars[neighborIdx].ownerId;
-                    if (ownerN !== ownerI) {
+                    const clusterI = starColors[i].clusterIdx;
+                    const clusterN = starColors[neighborIdx].clusterIdx;
+                    // Draw border between different owners OR different clusters of same owner
+                    if (ownerN !== ownerI || clusterI !== clusterN) {
                         // ── Hard border line (always draws when borderWidth > 0) ──
                         if (borderWidth > 0 && borderAlpha > 0) {
                             const borderColor = rgbToHex(

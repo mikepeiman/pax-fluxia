@@ -1,0 +1,3700 @@
+﻿Loading svelte-check in workspace: c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia
+Getting Svelte diagnostics...
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32mvite.config.js[39m:10:21
+[31mError[39m: Parameter 'server' implicitly has an 'any' type. 
+[36m    name: "settings-dump",
+    configureServer([35mserver[36m) {
+      server.middlewares.use("/__settings-dump", (req, res) => {[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32mvite.config.js[39m:11:51
+[31mError[39m: Parameter 'req' implicitly has an 'any' type. 
+[36m    configureServer(server) {
+      server.middlewares.use("/__settings-dump", ([35mreq[36m, res) => {
+        if (req.method !== "POST") { res.statusCode = 405; res.end(); return; }[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32mvite.config.js[39m:11:56
+[31mError[39m: Parameter 'res' implicitly has an 'any' type. 
+[36m    configureServer(server) {
+      server.middlewares.use("/__settings-dump", (req, [35mres[36m) => {
+        if (req.method !== "POST") { res.statusCode = 405; res.end(); return; }[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32mvite.config.js[39m:14:25
+[31mError[39m: Parameter 'chunk' implicitly has an 'any' type. 
+[36m        let body = "";
+        req.on("data", ([35mchunk[36m) => (body += chunk));
+        req.on("end", () => {[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu.svelte[39m:498:13
+[33mWarn[39m: Non-interactive element `<nav>` cannot have interactive role 'tablist'
+https://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role (svelte)
+[36m            <!-- ΓòÉΓòÉΓòÉ SP / MP Tabs ΓòÉΓòÉΓòÉ -->
+            [35m<nav class="responsive-tabs" role="tablist">
+                <button
+                    class="tab-btn"
+                    role="tab"
+                    aria-selected={gameMode === "sp"}
+                    class:active={gameMode === "sp"}
+                    onclick={() => (gameMode = "sp")}
+                >
+                    <span class="tab-icon">≡ƒÄ«</span>
+                    <span class="tab-label">SINGLE PLAYER</span>
+                </button>
+                <button
+                    class="tab-btn"
+                    role="tab"
+                    aria-selected={gameMode === "mp"}
+                    class:active={gameMode === "mp"}
+                    onclick={() => (gameMode = "mp")}
+                >
+                    <span class="tab-icon">≡ƒîÉ</span>
+                    <span class="tab-label">MULTIPLAYER</span>
+                    {#if multiplayerStore.isConnected}
+                        <span class="connected-dot"></span>
+                    {/if}
+                </button>
+            </nav>[36m[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu.svelte[39m:532:25
+[33mWarn[39m: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+[36m                    <div class="control-group">
+                        [35m<label>MAP</label>[36m
+                        <div class="map-card-row">[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu.svelte[39m:582:29
+[33mWarn[39m: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+[36m                        <div class="config-item">
+                            [35m<label
+                                >Links <span>[{minLinks}-{maxLinks}]</span
+                                ></label
+                            >[36m
+                            <div[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu.svelte[39m:599:29
+[33mWarn[39m: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+[36m                        <div class="config-item">
+                            [35m<label>Spacing</label>[36m
+                            <div class="slider-container">[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu.svelte[39m:620:29
+[33mWarn[39m: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+[36m                        <div class="control-group">
+                            [35m<label>PLAYERS</label>[36m
+                            <div class="button-row">[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu.svelte[39m:632:29
+[33mWarn[39m: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+[36m                        <div class="config-item">
+                            [35m<label>Stars per player</label>[36m
+                            <div class="slider-container">[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu.svelte[39m:644:29
+[33mWarn[39m: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+[36m                        <div class="config-item">
+                            [35m<label>Ships per star</label>[36m
+                            <div class="slider-container">[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu.svelte[39m:673:33
+[33mWarn[39m: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+[36m                            <div class="identity-fields">
+                                [35m<label class="identity-label"
+                                    >YOUR COMMANDER</label
+                                >[36m
+                                <input[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu.svelte[39m:697:25
+[33mWarn[39m: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+[36m                    <div class="player-config-header">
+                        [35m<label>AI OPPONENTS</label>[36m
+                        <button[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu.svelte[39m:806:29
+[33mWarn[39m: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+[36m                        <div class="config-item">
+                            [35m<label>SAVED MAPS</label>[36m
+                            <div class="saved-maps-list">[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu.svelte[39m:841:29
+[33mWarn[39m: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+[36m                        <div class="config-item speed-control">
+                            [35m<label>AUDIO</label>[36m
+                            <div[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu.svelte[39m:886:29
+[33mWarn[39m: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+[36m                        <div class="config-item speed-control">
+                            [35m<label>TICK DURATION</label>[36m
+                            <div class="slider-container">[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu.svelte[39m:1679:9
+[33mWarn[39m: Unused CSS selector "input[type="number"]"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m        input[type="text"],
+        [35minput[type="number"][36m,
+        input[type="range"],[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu.svelte[39m:1885:5
+[33mWarn[39m: Unused CSS selector ".button-row.compact button"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+    [35m.button-row.compact button[36m {
+        border-right: none;[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu.svelte[39m:1890:5
+[33mWarn[39m: Unused CSS selector ".button-row.compact button:last-child"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+    [35m.button-row.compact button:last-child[36m {
+        border-bottom: none;[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu.svelte[39m:2316:5
+[33mWarn[39m: Unused CSS selector ".checkbox-label .tooltip"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+    [35m.checkbox-label .tooltip[36m {
+        display: none;[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu.svelte[39m:2331:5
+[33mWarn[39m: Unused CSS selector ".checkbox-label:hover .tooltip"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+    [35m.checkbox-label:hover .tooltip[36m {
+        display: block;[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu.svelte[39m:3273:5
+[33mWarn[39m: Unused CSS selector ".speed-control .button-row"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+    [35m.speed-control .button-row[36m {
+        gap: 0;[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Timing.svelte[39m:247:8
+[33mWarn[39m: Unused CSS selector ".sub-heading"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Timing.svelte[39m:247:8
+[33mWarn[39m: Unused CSS selector ".var-row.disabled"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Timing.svelte[39m:247:8
+[33mWarn[39m: Unused CSS selector ".var-row.indent"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Timing.svelte[39m:247:8
+[33mWarn[39m: Unused CSS selector ".toggle-label"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Timing.svelte[39m:247:8
+[33mWarn[39m: Unused CSS selector ".mode-select"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Timing.svelte[39m:247:8
+[33mWarn[39m: Unused CSS selector ".mode-select:focus"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Timing.svelte[39m:247:8
+[33mWarn[39m: Unused CSS selector ".mode-select option"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Timing.svelte[39m:247:8
+[33mWarn[39m: Unused CSS selector ".btn-xs"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Timing.svelte[39m:247:8
+[33mWarn[39m: Unused CSS selector ".btn-xs:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Timing.svelte[39m:247:8
+[33mWarn[39m: Unused CSS selector ".log-actions"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Timing.svelte[39m:247:8
+[33mWarn[39m: Unused CSS selector ".log-label"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Timing.svelte[39m:247:8
+[33mWarn[39m: Unused CSS selector ".log-desc"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Timing.svelte[39m:247:8
+[33mWarn[39m: Unused CSS selector ".btn-export"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Timing.svelte[39m:247:8
+[33mWarn[39m: Unused CSS selector ".btn-export:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Timing.svelte[39m:247:8
+[33mWarn[39m: Unused CSS selector ".btn-import"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Timing.svelte[39m:247:8
+[33mWarn[39m: Unused CSS selector ".btn-import:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Timing.svelte[39m:247:8
+[33mWarn[39m: Unused CSS selector ".future-desc"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Timing.svelte[39m:247:8
+[33mWarn[39m: Unused CSS selector ".var-row.compact"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Timing.svelte[39m:247:8
+[33mWarn[39m: Unused CSS selector ".var-row.compact .row-top"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Timing.svelte[39m:247:8
+[33mWarn[39m: Unused CSS selector ".var-row.compact .var-name"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Timing.svelte[39m:247:8
+[33mWarn[39m: Unused CSS selector ".var-row.compact .val"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Timing.svelte[39m:247:8
+[33mWarn[39m: Unused CSS selector ".orb-pair"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Battle.svelte[39m:65:8
+[33mWarn[39m: Unused CSS selector ".sub-heading"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Battle.svelte[39m:65:8
+[33mWarn[39m: Unused CSS selector ".var-row.indent"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Battle.svelte[39m:65:8
+[33mWarn[39m: Unused CSS selector ".var-row.grayed"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Battle.svelte[39m:65:8
+[33mWarn[39m: Unused CSS selector ".val-group"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Battle.svelte[39m:65:8
+[33mWarn[39m: Unused CSS selector ".toggle-switch"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Battle.svelte[39m:65:8
+[33mWarn[39m: Unused CSS selector ".toggle-switch input"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Battle.svelte[39m:65:8
+[33mWarn[39m: Unused CSS selector ".toggle-slider"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Battle.svelte[39m:65:8
+[33mWarn[39m: Unused CSS selector ".toggle-slider::before"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Battle.svelte[39m:65:8
+[33mWarn[39m: Unused CSS selector ".toggle-switch input:checked+.toggle-slider"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Battle.svelte[39m:65:8
+[33mWarn[39m: Unused CSS selector ".toggle-switch input:checked+.toggle-slider::before"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Battle.svelte[39m:65:8
+[33mWarn[39m: Unused CSS selector ".toggle-row"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Battle.svelte[39m:65:8
+[33mWarn[39m: Unused CSS selector ".toggle-row:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Battle.svelte[39m:65:8
+[33mWarn[39m: Unused CSS selector ".mode-select"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Battle.svelte[39m:65:8
+[33mWarn[39m: Unused CSS selector ".mode-select:focus"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Battle.svelte[39m:65:8
+[33mWarn[39m: Unused CSS selector ".mode-select option"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Battle.svelte[39m:65:8
+[33mWarn[39m: Unused CSS selector ".btn-xs"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Battle.svelte[39m:65:8
+[33mWarn[39m: Unused CSS selector ".btn-xs:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Battle.svelte[39m:65:8
+[33mWarn[39m: Unused CSS selector ".lock-btn"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Battle.svelte[39m:65:8
+[33mWarn[39m: Unused CSS selector ".lock-btn:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Battle.svelte[39m:65:8
+[33mWarn[39m: Unused CSS selector ".lock-btn.active"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Battle.svelte[39m:65:8
+[33mWarn[39m: Unused CSS selector ".var-row.locked input[type="range"]"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Battle.svelte[39m:65:8
+[33mWarn[39m: Unused CSS selector ".var-row.locked .var-name"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Battle.svelte[39m:65:8
+[33mWarn[39m: Unused CSS selector ".log-actions"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Battle.svelte[39m:65:8
+[33mWarn[39m: Unused CSS selector ".log-label"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Battle.svelte[39m:65:8
+[33mWarn[39m: Unused CSS selector ".log-desc"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Battle.svelte[39m:65:8
+[33mWarn[39m: Unused CSS selector ".btn-export"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Battle.svelte[39m:65:8
+[33mWarn[39m: Unused CSS selector ".btn-export:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Battle.svelte[39m:65:8
+[33mWarn[39m: Unused CSS selector ".btn-import"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Battle.svelte[39m:65:8
+[33mWarn[39m: Unused CSS selector ".btn-import:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Battle.svelte[39m:65:8
+[33mWarn[39m: Unused CSS selector ".future-desc"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Battle.svelte[39m:65:8
+[33mWarn[39m: Unused CSS selector ".var-row.compact"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Battle.svelte[39m:65:8
+[33mWarn[39m: Unused CSS selector ".var-row.compact .row-top"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Battle.svelte[39m:65:8
+[33mWarn[39m: Unused CSS selector ".var-row.compact .var-name"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Battle.svelte[39m:65:8
+[33mWarn[39m: Unused CSS selector ".var-row.compact .val"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Battle.svelte[39m:65:8
+[33mWarn[39m: Unused CSS selector ".orb-pair"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Economy.svelte[39m:129:8
+[33mWarn[39m: Unused CSS selector ".sub-heading"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Economy.svelte[39m:129:8
+[33mWarn[39m: Unused CSS selector ".var-row.disabled"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Economy.svelte[39m:129:8
+[33mWarn[39m: Unused CSS selector ".var-row.indent"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Economy.svelte[39m:129:8
+[33mWarn[39m: Unused CSS selector ".var-row.grayed"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Economy.svelte[39m:129:8
+[33mWarn[39m: Unused CSS selector ".val-group"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Economy.svelte[39m:129:8
+[33mWarn[39m: Unused CSS selector ".toggle-label"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Economy.svelte[39m:129:8
+[33mWarn[39m: Unused CSS selector ".toggle-switch"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Economy.svelte[39m:129:8
+[33mWarn[39m: Unused CSS selector ".toggle-switch input"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Economy.svelte[39m:129:8
+[33mWarn[39m: Unused CSS selector ".toggle-slider"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Economy.svelte[39m:129:8
+[33mWarn[39m: Unused CSS selector ".toggle-slider::before"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Economy.svelte[39m:129:8
+[33mWarn[39m: Unused CSS selector ".toggle-switch input:checked+.toggle-slider"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Economy.svelte[39m:129:8
+[33mWarn[39m: Unused CSS selector ".toggle-switch input:checked+.toggle-slider::before"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Economy.svelte[39m:129:8
+[33mWarn[39m: Unused CSS selector ".toggle-row"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Economy.svelte[39m:129:8
+[33mWarn[39m: Unused CSS selector ".toggle-row:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Economy.svelte[39m:129:8
+[33mWarn[39m: Unused CSS selector "input[type="checkbox"]"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Economy.svelte[39m:129:8
+[33mWarn[39m: Unused CSS selector ".mode-select"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Economy.svelte[39m:129:8
+[33mWarn[39m: Unused CSS selector ".mode-select:focus"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Economy.svelte[39m:129:8
+[33mWarn[39m: Unused CSS selector ".mode-select option"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Economy.svelte[39m:129:8
+[33mWarn[39m: Unused CSS selector ".btn-xs"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Economy.svelte[39m:129:8
+[33mWarn[39m: Unused CSS selector ".btn-xs:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Economy.svelte[39m:129:8
+[33mWarn[39m: Unused CSS selector ".lock-btn"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Economy.svelte[39m:129:8
+[33mWarn[39m: Unused CSS selector ".lock-btn:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Economy.svelte[39m:129:8
+[33mWarn[39m: Unused CSS selector ".lock-btn.active"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Economy.svelte[39m:129:8
+[33mWarn[39m: Unused CSS selector ".var-row.locked input[type="range"]"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Economy.svelte[39m:129:8
+[33mWarn[39m: Unused CSS selector ".var-row.locked .var-name"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Economy.svelte[39m:129:8
+[33mWarn[39m: Unused CSS selector ".log-actions"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Economy.svelte[39m:129:8
+[33mWarn[39m: Unused CSS selector ".log-label"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Economy.svelte[39m:129:8
+[33mWarn[39m: Unused CSS selector ".log-desc"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Economy.svelte[39m:129:8
+[33mWarn[39m: Unused CSS selector ".btn-export"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Economy.svelte[39m:129:8
+[33mWarn[39m: Unused CSS selector ".btn-export:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Economy.svelte[39m:129:8
+[33mWarn[39m: Unused CSS selector ".btn-import"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Economy.svelte[39m:129:8
+[33mWarn[39m: Unused CSS selector ".btn-import:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Economy.svelte[39m:129:8
+[33mWarn[39m: Unused CSS selector ".future-desc"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Economy.svelte[39m:129:8
+[33mWarn[39m: Unused CSS selector ".var-row.compact"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Economy.svelte[39m:129:8
+[33mWarn[39m: Unused CSS selector ".var-row.compact .row-top"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Economy.svelte[39m:129:8
+[33mWarn[39m: Unused CSS selector ".var-row.compact .var-name"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Economy.svelte[39m:129:8
+[33mWarn[39m: Unused CSS selector ".var-row.compact .val"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Economy.svelte[39m:129:8
+[33mWarn[39m: Unused CSS selector ".orb-pair"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-AI.svelte[39m:103:8
+[33mWarn[39m: Unused CSS selector ".var-row.indent"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-AI.svelte[39m:103:8
+[33mWarn[39m: Unused CSS selector ".val-group"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-AI.svelte[39m:103:8
+[33mWarn[39m: Unused CSS selector ".toggle-switch"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-AI.svelte[39m:103:8
+[33mWarn[39m: Unused CSS selector ".toggle-switch input"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-AI.svelte[39m:103:8
+[33mWarn[39m: Unused CSS selector ".toggle-slider"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-AI.svelte[39m:103:8
+[33mWarn[39m: Unused CSS selector ".toggle-slider::before"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-AI.svelte[39m:103:8
+[33mWarn[39m: Unused CSS selector ".toggle-switch input:checked+.toggle-slider"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-AI.svelte[39m:103:8
+[33mWarn[39m: Unused CSS selector ".toggle-switch input:checked+.toggle-slider::before"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-AI.svelte[39m:103:8
+[33mWarn[39m: Unused CSS selector ".toggle-row"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-AI.svelte[39m:103:8
+[33mWarn[39m: Unused CSS selector ".toggle-row:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-AI.svelte[39m:103:8
+[33mWarn[39m: Unused CSS selector ".mode-select"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-AI.svelte[39m:103:8
+[33mWarn[39m: Unused CSS selector ".mode-select:focus"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-AI.svelte[39m:103:8
+[33mWarn[39m: Unused CSS selector ".mode-select option"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-AI.svelte[39m:103:8
+[33mWarn[39m: Unused CSS selector ".btn-xs"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-AI.svelte[39m:103:8
+[33mWarn[39m: Unused CSS selector ".btn-xs:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-AI.svelte[39m:103:8
+[33mWarn[39m: Unused CSS selector ".lock-btn"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-AI.svelte[39m:103:8
+[33mWarn[39m: Unused CSS selector ".lock-btn:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-AI.svelte[39m:103:8
+[33mWarn[39m: Unused CSS selector ".lock-btn.active"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-AI.svelte[39m:103:8
+[33mWarn[39m: Unused CSS selector ".var-row.locked input[type="range"]"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-AI.svelte[39m:103:8
+[33mWarn[39m: Unused CSS selector ".var-row.locked .var-name"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-AI.svelte[39m:103:8
+[33mWarn[39m: Unused CSS selector ".log-actions"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-AI.svelte[39m:103:8
+[33mWarn[39m: Unused CSS selector ".log-label"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-AI.svelte[39m:103:8
+[33mWarn[39m: Unused CSS selector ".log-desc"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-AI.svelte[39m:103:8
+[33mWarn[39m: Unused CSS selector ".btn-export"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-AI.svelte[39m:103:8
+[33mWarn[39m: Unused CSS selector ".btn-export:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-AI.svelte[39m:103:8
+[33mWarn[39m: Unused CSS selector ".btn-import"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-AI.svelte[39m:103:8
+[33mWarn[39m: Unused CSS selector ".btn-import:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-AI.svelte[39m:103:8
+[33mWarn[39m: Unused CSS selector ".var-row.compact"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-AI.svelte[39m:103:8
+[33mWarn[39m: Unused CSS selector ".var-row.compact .row-top"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-AI.svelte[39m:103:8
+[33mWarn[39m: Unused CSS selector ".var-row.compact .var-name"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-AI.svelte[39m:103:8
+[33mWarn[39m: Unused CSS selector ".var-row.compact .val"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-AI.svelte[39m:103:8
+[33mWarn[39m: Unused CSS selector ".orb-pair"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Travel.svelte[39m:309:8
+[33mWarn[39m: Unused CSS selector ".var-row.disabled"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Travel.svelte[39m:309:8
+[33mWarn[39m: Unused CSS selector ".var-row.indent"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Travel.svelte[39m:309:8
+[33mWarn[39m: Unused CSS selector ".var-row.grayed"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Travel.svelte[39m:309:8
+[33mWarn[39m: Unused CSS selector ".val-group"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Travel.svelte[39m:309:8
+[33mWarn[39m: Unused CSS selector ".toggle-switch"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Travel.svelte[39m:309:8
+[33mWarn[39m: Unused CSS selector ".toggle-switch input"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Travel.svelte[39m:309:8
+[33mWarn[39m: Unused CSS selector ".toggle-slider"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Travel.svelte[39m:309:8
+[33mWarn[39m: Unused CSS selector ".toggle-slider::before"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Travel.svelte[39m:309:8
+[33mWarn[39m: Unused CSS selector ".toggle-switch input:checked+.toggle-slider"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Travel.svelte[39m:309:8
+[33mWarn[39m: Unused CSS selector ".toggle-switch input:checked+.toggle-slider::before"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Travel.svelte[39m:309:8
+[33mWarn[39m: Unused CSS selector ".mode-select"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Travel.svelte[39m:309:8
+[33mWarn[39m: Unused CSS selector ".mode-select:focus"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Travel.svelte[39m:309:8
+[33mWarn[39m: Unused CSS selector ".mode-select option"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Travel.svelte[39m:309:8
+[33mWarn[39m: Unused CSS selector ".btn-xs"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Travel.svelte[39m:309:8
+[33mWarn[39m: Unused CSS selector ".btn-xs:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Travel.svelte[39m:309:8
+[33mWarn[39m: Unused CSS selector ".lock-btn"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Travel.svelte[39m:309:8
+[33mWarn[39m: Unused CSS selector ".lock-btn:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Travel.svelte[39m:309:8
+[33mWarn[39m: Unused CSS selector ".lock-btn.active"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Travel.svelte[39m:309:8
+[33mWarn[39m: Unused CSS selector ".var-row.locked input[type="range"]"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Travel.svelte[39m:309:8
+[33mWarn[39m: Unused CSS selector ".var-row.locked .var-name"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Travel.svelte[39m:309:8
+[33mWarn[39m: Unused CSS selector ".log-actions"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Travel.svelte[39m:309:8
+[33mWarn[39m: Unused CSS selector ".log-desc"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Travel.svelte[39m:309:8
+[33mWarn[39m: Unused CSS selector ".btn-export"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Travel.svelte[39m:309:8
+[33mWarn[39m: Unused CSS selector ".btn-export:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Travel.svelte[39m:309:8
+[33mWarn[39m: Unused CSS selector ".btn-import"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Travel.svelte[39m:309:8
+[33mWarn[39m: Unused CSS selector ".btn-import:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Travel.svelte[39m:309:8
+[33mWarn[39m: Unused CSS selector ".future-desc"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Travel.svelte[39m:309:8
+[33mWarn[39m: Unused CSS selector ".var-row.compact"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Travel.svelte[39m:309:8
+[33mWarn[39m: Unused CSS selector ".var-row.compact .row-top"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Travel.svelte[39m:309:8
+[33mWarn[39m: Unused CSS selector ".var-row.compact .var-name"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Travel.svelte[39m:309:8
+[33mWarn[39m: Unused CSS selector ".var-row.compact .val"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Travel.svelte[39m:309:8
+[33mWarn[39m: Unused CSS selector ".orb-pair"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Surge.svelte[39m:394:8
+[33mWarn[39m: Unused CSS selector ".var-row.disabled"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Surge.svelte[39m:394:8
+[33mWarn[39m: Unused CSS selector ".var-row.grayed"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Surge.svelte[39m:394:8
+[33mWarn[39m: Unused CSS selector ".val-group"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Surge.svelte[39m:394:8
+[33mWarn[39m: Unused CSS selector ".toggle-switch"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Surge.svelte[39m:394:8
+[33mWarn[39m: Unused CSS selector ".toggle-switch input"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Surge.svelte[39m:394:8
+[33mWarn[39m: Unused CSS selector ".toggle-slider"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Surge.svelte[39m:394:8
+[33mWarn[39m: Unused CSS selector ".toggle-slider::before"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Surge.svelte[39m:394:8
+[33mWarn[39m: Unused CSS selector ".toggle-switch input:checked+.toggle-slider"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Surge.svelte[39m:394:8
+[33mWarn[39m: Unused CSS selector ".toggle-switch input:checked+.toggle-slider::before"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Surge.svelte[39m:394:8
+[33mWarn[39m: Unused CSS selector ".mode-select"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Surge.svelte[39m:394:8
+[33mWarn[39m: Unused CSS selector ".mode-select:focus"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Surge.svelte[39m:394:8
+[33mWarn[39m: Unused CSS selector ".mode-select option"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Surge.svelte[39m:394:8
+[33mWarn[39m: Unused CSS selector ".btn-xs"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Surge.svelte[39m:394:8
+[33mWarn[39m: Unused CSS selector ".btn-xs:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Surge.svelte[39m:394:8
+[33mWarn[39m: Unused CSS selector ".lock-btn"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Surge.svelte[39m:394:8
+[33mWarn[39m: Unused CSS selector ".lock-btn:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Surge.svelte[39m:394:8
+[33mWarn[39m: Unused CSS selector ".lock-btn.active"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Surge.svelte[39m:394:8
+[33mWarn[39m: Unused CSS selector ".var-row.locked input[type="range"]"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Surge.svelte[39m:394:8
+[33mWarn[39m: Unused CSS selector ".var-row.locked .var-name"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Surge.svelte[39m:394:8
+[33mWarn[39m: Unused CSS selector ".log-actions"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Surge.svelte[39m:394:8
+[33mWarn[39m: Unused CSS selector ".log-desc"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Surge.svelte[39m:394:8
+[33mWarn[39m: Unused CSS selector ".btn-export"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Surge.svelte[39m:394:8
+[33mWarn[39m: Unused CSS selector ".btn-export:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Surge.svelte[39m:394:8
+[33mWarn[39m: Unused CSS selector ".btn-import"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Surge.svelte[39m:394:8
+[33mWarn[39m: Unused CSS selector ".btn-import:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Surge.svelte[39m:394:8
+[33mWarn[39m: Unused CSS selector ".future-desc"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Conquest.svelte[39m:407:8
+[33mWarn[39m: Unused CSS selector ".var-row.disabled"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Conquest.svelte[39m:407:8
+[33mWarn[39m: Unused CSS selector ".var-row.indent"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Conquest.svelte[39m:407:8
+[33mWarn[39m: Unused CSS selector ".var-row.grayed"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Conquest.svelte[39m:407:8
+[33mWarn[39m: Unused CSS selector ".val-group"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Conquest.svelte[39m:407:8
+[33mWarn[39m: Unused CSS selector ".toggle-label"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Conquest.svelte[39m:407:8
+[33mWarn[39m: Unused CSS selector ".toggle-slider"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Conquest.svelte[39m:407:8
+[33mWarn[39m: Unused CSS selector ".toggle-slider::before"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Conquest.svelte[39m:407:8
+[33mWarn[39m: Unused CSS selector ".toggle-switch input:checked+.toggle-slider"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Conquest.svelte[39m:407:8
+[33mWarn[39m: Unused CSS selector ".toggle-switch input:checked+.toggle-slider::before"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Conquest.svelte[39m:407:8
+[33mWarn[39m: Unused CSS selector ".toggle-row"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Conquest.svelte[39m:407:8
+[33mWarn[39m: Unused CSS selector ".toggle-row:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Conquest.svelte[39m:407:8
+[33mWarn[39m: Unused CSS selector ".btn-xs"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Conquest.svelte[39m:407:8
+[33mWarn[39m: Unused CSS selector ".btn-xs:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Conquest.svelte[39m:407:8
+[33mWarn[39m: Unused CSS selector ".lock-btn"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Conquest.svelte[39m:407:8
+[33mWarn[39m: Unused CSS selector ".lock-btn:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Conquest.svelte[39m:407:8
+[33mWarn[39m: Unused CSS selector ".lock-btn.active"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Conquest.svelte[39m:407:8
+[33mWarn[39m: Unused CSS selector ".var-row.locked input[type="range"]"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Conquest.svelte[39m:407:8
+[33mWarn[39m: Unused CSS selector ".var-row.locked .var-name"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Conquest.svelte[39m:407:8
+[33mWarn[39m: Unused CSS selector ".log-actions"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Conquest.svelte[39m:407:8
+[33mWarn[39m: Unused CSS selector ".log-label"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Conquest.svelte[39m:407:8
+[33mWarn[39m: Unused CSS selector ".log-desc"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Conquest.svelte[39m:407:8
+[33mWarn[39m: Unused CSS selector ".btn-export"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Conquest.svelte[39m:407:8
+[33mWarn[39m: Unused CSS selector ".btn-export:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Conquest.svelte[39m:407:8
+[33mWarn[39m: Unused CSS selector ".btn-import"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Conquest.svelte[39m:407:8
+[33mWarn[39m: Unused CSS selector ".btn-import:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Conquest.svelte[39m:407:8
+[33mWarn[39m: Unused CSS selector ".future-desc"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Conquest.svelte[39m:407:8
+[33mWarn[39m: Unused CSS selector ".var-row.compact"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Conquest.svelte[39m:407:8
+[33mWarn[39m: Unused CSS selector ".var-row.compact .row-top"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Conquest.svelte[39m:407:8
+[33mWarn[39m: Unused CSS selector ".var-row.compact .var-name"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Conquest.svelte[39m:407:8
+[33mWarn[39m: Unused CSS selector ".var-row.compact .val"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Conquest.svelte[39m:407:8
+[33mWarn[39m: Unused CSS selector ".orb-pair"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Territory.svelte[39m:1293:8
+[33mWarn[39m: Unused CSS selector ".var-row.disabled"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Territory.svelte[39m:1293:8
+[33mWarn[39m: Unused CSS selector ".var-row.indent"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Territory.svelte[39m:1293:8
+[33mWarn[39m: Unused CSS selector ".val-group"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Territory.svelte[39m:1293:8
+[33mWarn[39m: Unused CSS selector ".toggle-label"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Territory.svelte[39m:1293:8
+[33mWarn[39m: Unused CSS selector ".toggle-row"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Territory.svelte[39m:1293:8
+[33mWarn[39m: Unused CSS selector ".toggle-row:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Territory.svelte[39m:1293:8
+[33mWarn[39m: Unused CSS selector ".btn-xs"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Territory.svelte[39m:1293:8
+[33mWarn[39m: Unused CSS selector ".btn-xs:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Territory.svelte[39m:1293:8
+[33mWarn[39m: Unused CSS selector ".lock-btn"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Territory.svelte[39m:1293:8
+[33mWarn[39m: Unused CSS selector ".lock-btn:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Territory.svelte[39m:1293:8
+[33mWarn[39m: Unused CSS selector ".lock-btn.active"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Territory.svelte[39m:1293:8
+[33mWarn[39m: Unused CSS selector ".var-row.locked input[type="range"]"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Territory.svelte[39m:1293:8
+[33mWarn[39m: Unused CSS selector ".var-row.locked .var-name"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Territory.svelte[39m:1293:8
+[33mWarn[39m: Unused CSS selector ".log-actions"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Territory.svelte[39m:1293:8
+[33mWarn[39m: Unused CSS selector ".log-label"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Territory.svelte[39m:1293:8
+[33mWarn[39m: Unused CSS selector ".log-desc"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Territory.svelte[39m:1293:8
+[33mWarn[39m: Unused CSS selector ".btn-export"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Territory.svelte[39m:1293:8
+[33mWarn[39m: Unused CSS selector ".btn-export:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Territory.svelte[39m:1293:8
+[33mWarn[39m: Unused CSS selector ".btn-import"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Territory.svelte[39m:1293:8
+[33mWarn[39m: Unused CSS selector ".btn-import:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Territory.svelte[39m:1293:8
+[33mWarn[39m: Unused CSS selector ".future-desc"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Territory.svelte[39m:1293:8
+[33mWarn[39m: Unused CSS selector ".var-row.compact"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Territory.svelte[39m:1293:8
+[33mWarn[39m: Unused CSS selector ".var-row.compact .row-top"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Territory.svelte[39m:1293:8
+[33mWarn[39m: Unused CSS selector ".var-row.compact .var-name"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Territory.svelte[39m:1293:8
+[33mWarn[39m: Unused CSS selector ".var-row.compact .val"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Territory.svelte[39m:1293:8
+[33mWarn[39m: Unused CSS selector ".orb-pair"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Ships.svelte[39m:758:8
+[33mWarn[39m: Unused CSS selector ".var-row.indent"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Ships.svelte[39m:758:8
+[33mWarn[39m: Unused CSS selector ".val-group"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Ships.svelte[39m:758:8
+[33mWarn[39m: Unused CSS selector ".toggle-row"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Ships.svelte[39m:758:8
+[33mWarn[39m: Unused CSS selector ".toggle-row:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Ships.svelte[39m:758:8
+[33mWarn[39m: Unused CSS selector ".mode-select"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Ships.svelte[39m:758:8
+[33mWarn[39m: Unused CSS selector ".mode-select:focus"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Ships.svelte[39m:758:8
+[33mWarn[39m: Unused CSS selector ".mode-select option"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Ships.svelte[39m:758:8
+[33mWarn[39m: Unused CSS selector ".btn-xs"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Ships.svelte[39m:758:8
+[33mWarn[39m: Unused CSS selector ".btn-xs:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Ships.svelte[39m:758:8
+[33mWarn[39m: Unused CSS selector ".lock-btn"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Ships.svelte[39m:758:8
+[33mWarn[39m: Unused CSS selector ".lock-btn:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Ships.svelte[39m:758:8
+[33mWarn[39m: Unused CSS selector ".lock-btn.active"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Ships.svelte[39m:758:8
+[33mWarn[39m: Unused CSS selector ".var-row.locked input[type="range"]"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Ships.svelte[39m:758:8
+[33mWarn[39m: Unused CSS selector ".var-row.locked .var-name"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Ships.svelte[39m:758:8
+[33mWarn[39m: Unused CSS selector ".log-actions"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Ships.svelte[39m:758:8
+[33mWarn[39m: Unused CSS selector ".log-label"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Ships.svelte[39m:758:8
+[33mWarn[39m: Unused CSS selector ".log-desc"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Ships.svelte[39m:758:8
+[33mWarn[39m: Unused CSS selector ".btn-export"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Ships.svelte[39m:758:8
+[33mWarn[39m: Unused CSS selector ".btn-export:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Ships.svelte[39m:758:8
+[33mWarn[39m: Unused CSS selector ".btn-import"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Ships.svelte[39m:758:8
+[33mWarn[39m: Unused CSS selector ".btn-import:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Ships.svelte[39m:758:8
+[33mWarn[39m: Unused CSS selector ".var-row.compact"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Ships.svelte[39m:758:8
+[33mWarn[39m: Unused CSS selector ".var-row.compact .row-top"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Ships.svelte[39m:758:8
+[33mWarn[39m: Unused CSS selector ".var-row.compact .var-name"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Ships.svelte[39m:758:8
+[33mWarn[39m: Unused CSS selector ".var-row.compact .val"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Ships.svelte[39m:758:8
+[33mWarn[39m: Unused CSS selector ".orb-pair"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Visuals.svelte[39m:230:8
+[33mWarn[39m: Unused CSS selector ".var-row.disabled"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Visuals.svelte[39m:230:8
+[33mWarn[39m: Unused CSS selector ".var-row.indent"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Visuals.svelte[39m:230:8
+[33mWarn[39m: Unused CSS selector ".var-row.grayed"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Visuals.svelte[39m:230:8
+[33mWarn[39m: Unused CSS selector ".val-group"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Visuals.svelte[39m:230:8
+[33mWarn[39m: Unused CSS selector ".toggle-label"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Visuals.svelte[39m:230:8
+[33mWarn[39m: Unused CSS selector ".toggle-switch"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Visuals.svelte[39m:230:8
+[33mWarn[39m: Unused CSS selector ".toggle-switch input"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Visuals.svelte[39m:230:8
+[33mWarn[39m: Unused CSS selector ".toggle-slider"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Visuals.svelte[39m:230:8
+[33mWarn[39m: Unused CSS selector ".toggle-slider::before"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Visuals.svelte[39m:230:8
+[33mWarn[39m: Unused CSS selector ".toggle-switch input:checked+.toggle-slider"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Visuals.svelte[39m:230:8
+[33mWarn[39m: Unused CSS selector ".toggle-switch input:checked+.toggle-slider::before"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Visuals.svelte[39m:230:8
+[33mWarn[39m: Unused CSS selector ".mode-select"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Visuals.svelte[39m:230:8
+[33mWarn[39m: Unused CSS selector ".mode-select:focus"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Visuals.svelte[39m:230:8
+[33mWarn[39m: Unused CSS selector ".mode-select option"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Visuals.svelte[39m:230:8
+[33mWarn[39m: Unused CSS selector ".btn-xs"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Visuals.svelte[39m:230:8
+[33mWarn[39m: Unused CSS selector ".btn-xs:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Visuals.svelte[39m:230:8
+[33mWarn[39m: Unused CSS selector ".lock-btn"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Visuals.svelte[39m:230:8
+[33mWarn[39m: Unused CSS selector ".lock-btn:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Visuals.svelte[39m:230:8
+[33mWarn[39m: Unused CSS selector ".lock-btn.active"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Visuals.svelte[39m:230:8
+[33mWarn[39m: Unused CSS selector ".var-row.locked input[type="range"]"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Visuals.svelte[39m:230:8
+[33mWarn[39m: Unused CSS selector ".var-row.locked .var-name"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Visuals.svelte[39m:230:8
+[33mWarn[39m: Unused CSS selector ".log-actions"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Visuals.svelte[39m:230:8
+[33mWarn[39m: Unused CSS selector ".log-label"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Visuals.svelte[39m:230:8
+[33mWarn[39m: Unused CSS selector ".log-desc"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Visuals.svelte[39m:230:8
+[33mWarn[39m: Unused CSS selector ".btn-export"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Visuals.svelte[39m:230:8
+[33mWarn[39m: Unused CSS selector ".btn-export:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Visuals.svelte[39m:230:8
+[33mWarn[39m: Unused CSS selector ".btn-import"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Visuals.svelte[39m:230:8
+[33mWarn[39m: Unused CSS selector ".btn-import:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Visuals.svelte[39m:230:8
+[33mWarn[39m: Unused CSS selector ".future-desc"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Visuals.svelte[39m:230:8
+[33mWarn[39m: Unused CSS selector ".var-row.compact"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Visuals.svelte[39m:230:8
+[33mWarn[39m: Unused CSS selector ".var-row.compact .row-top"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Visuals.svelte[39m:230:8
+[33mWarn[39m: Unused CSS selector ".var-row.compact .var-name"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Visuals.svelte[39m:230:8
+[33mWarn[39m: Unused CSS selector ".var-row.compact .val"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Visuals.svelte[39m:230:8
+[33mWarn[39m: Unused CSS selector ".orb-pair"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import "./panel-shared.css";[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Rules.svelte[39m:58:8
+[33mWarn[39m: Unused CSS selector ".sub-heading"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Rules.svelte[39m:58:8
+[33mWarn[39m: Unused CSS selector ".var-row.disabled"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Rules.svelte[39m:58:8
+[33mWarn[39m: Unused CSS selector ".var-row.indent"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Rules.svelte[39m:58:8
+[33mWarn[39m: Unused CSS selector ".row-top"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Rules.svelte[39m:58:8
+[33mWarn[39m: Unused CSS selector ".val"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Rules.svelte[39m:58:8
+[33mWarn[39m: Unused CSS selector ".val-group"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Rules.svelte[39m:58:8
+[33mWarn[39m: Unused CSS selector ".toggle-label"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Rules.svelte[39m:58:8
+[33mWarn[39m: Unused CSS selector ".toggle-switch"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Rules.svelte[39m:58:8
+[33mWarn[39m: Unused CSS selector ".toggle-switch input"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Rules.svelte[39m:58:8
+[33mWarn[39m: Unused CSS selector ".toggle-slider"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Rules.svelte[39m:58:8
+[33mWarn[39m: Unused CSS selector ".toggle-slider::before"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Rules.svelte[39m:58:8
+[33mWarn[39m: Unused CSS selector ".toggle-switch input:checked+.toggle-slider"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Rules.svelte[39m:58:8
+[33mWarn[39m: Unused CSS selector ".toggle-switch input:checked+.toggle-slider::before"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Rules.svelte[39m:58:8
+[33mWarn[39m: Unused CSS selector "input[type="range"]"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Rules.svelte[39m:58:8
+[33mWarn[39m: Unused CSS selector "input[type="range"]::-webkit-slider-thumb"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Rules.svelte[39m:58:8
+[33mWarn[39m: Unused CSS selector "input[type="range"]::-moz-range-thumb"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Rules.svelte[39m:58:8
+[33mWarn[39m: Unused CSS selector ".mode-select"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Rules.svelte[39m:58:8
+[33mWarn[39m: Unused CSS selector ".mode-select:focus"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Rules.svelte[39m:58:8
+[33mWarn[39m: Unused CSS selector ".mode-select option"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Rules.svelte[39m:58:8
+[33mWarn[39m: Unused CSS selector ".btn-xs"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Rules.svelte[39m:58:8
+[33mWarn[39m: Unused CSS selector ".btn-xs:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Rules.svelte[39m:58:8
+[33mWarn[39m: Unused CSS selector ".lock-btn"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Rules.svelte[39m:58:8
+[33mWarn[39m: Unused CSS selector ".lock-btn:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Rules.svelte[39m:58:8
+[33mWarn[39m: Unused CSS selector ".lock-btn.active"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Rules.svelte[39m:58:8
+[33mWarn[39m: Unused CSS selector ".var-row.locked input[type="range"]"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Rules.svelte[39m:58:8
+[33mWarn[39m: Unused CSS selector ".var-row.locked .var-name"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Rules.svelte[39m:58:8
+[33mWarn[39m: Unused CSS selector ".log-actions"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Rules.svelte[39m:58:8
+[33mWarn[39m: Unused CSS selector ".log-label"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Rules.svelte[39m:58:8
+[33mWarn[39m: Unused CSS selector ".log-desc"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Rules.svelte[39m:58:8
+[33mWarn[39m: Unused CSS selector ".btn-export"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Rules.svelte[39m:58:8
+[33mWarn[39m: Unused CSS selector ".btn-export:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Rules.svelte[39m:58:8
+[33mWarn[39m: Unused CSS selector ".btn-import"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Rules.svelte[39m:58:8
+[33mWarn[39m: Unused CSS selector ".btn-import:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Rules.svelte[39m:58:8
+[33mWarn[39m: Unused CSS selector ".future-desc"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Rules.svelte[39m:58:8
+[33mWarn[39m: Unused CSS selector ".var-row.compact"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Rules.svelte[39m:58:8
+[33mWarn[39m: Unused CSS selector ".var-row.compact .row-top"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Rules.svelte[39m:58:8
+[33mWarn[39m: Unused CSS selector ".var-row.compact .var-name"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Rules.svelte[39m:58:8
+[33mWarn[39m: Unused CSS selector ".var-row.compact .val"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Rules.svelte[39m:58:8
+[33mWarn[39m: Unused CSS selector ".orb-pair"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Logging.svelte[39m:108:8
+[33mWarn[39m: Unused CSS selector ".var-row"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Logging.svelte[39m:108:8
+[33mWarn[39m: Unused CSS selector ".var-row.disabled"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Logging.svelte[39m:108:8
+[33mWarn[39m: Unused CSS selector ".var-row.indent"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Logging.svelte[39m:108:8
+[33mWarn[39m: Unused CSS selector ".var-row.grayed"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Logging.svelte[39m:108:8
+[33mWarn[39m: Unused CSS selector ".row-top"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Logging.svelte[39m:108:8
+[33mWarn[39m: Unused CSS selector ".var-name"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Logging.svelte[39m:108:8
+[33mWarn[39m: Unused CSS selector ".val"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Logging.svelte[39m:108:8
+[33mWarn[39m: Unused CSS selector ".val-group"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Logging.svelte[39m:108:8
+[33mWarn[39m: Unused CSS selector ".toggle-label"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Logging.svelte[39m:108:8
+[33mWarn[39m: Unused CSS selector ".toggle-switch"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Logging.svelte[39m:108:8
+[33mWarn[39m: Unused CSS selector ".toggle-switch input"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Logging.svelte[39m:108:8
+[33mWarn[39m: Unused CSS selector ".toggle-slider"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Logging.svelte[39m:108:8
+[33mWarn[39m: Unused CSS selector ".toggle-slider::before"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Logging.svelte[39m:108:8
+[33mWarn[39m: Unused CSS selector ".toggle-switch input:checked+.toggle-slider"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Logging.svelte[39m:108:8
+[33mWarn[39m: Unused CSS selector ".toggle-switch input:checked+.toggle-slider::before"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Logging.svelte[39m:108:8
+[33mWarn[39m: Unused CSS selector "input[type="range"]"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Logging.svelte[39m:108:8
+[33mWarn[39m: Unused CSS selector "input[type="range"]::-webkit-slider-thumb"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Logging.svelte[39m:108:8
+[33mWarn[39m: Unused CSS selector "input[type="range"]::-moz-range-thumb"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Logging.svelte[39m:108:8
+[33mWarn[39m: Unused CSS selector ".mode-select"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Logging.svelte[39m:108:8
+[33mWarn[39m: Unused CSS selector ".mode-select:focus"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Logging.svelte[39m:108:8
+[33mWarn[39m: Unused CSS selector ".mode-select option"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Logging.svelte[39m:108:8
+[33mWarn[39m: Unused CSS selector ".lock-btn"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Logging.svelte[39m:108:8
+[33mWarn[39m: Unused CSS selector ".lock-btn:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Logging.svelte[39m:108:8
+[33mWarn[39m: Unused CSS selector ".lock-btn.active"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Logging.svelte[39m:108:8
+[33mWarn[39m: Unused CSS selector ".var-row.locked input[type="range"]"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Logging.svelte[39m:108:8
+[33mWarn[39m: Unused CSS selector ".var-row.locked .var-name"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Logging.svelte[39m:108:8
+[33mWarn[39m: Unused CSS selector ".future-desc"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Logging.svelte[39m:108:8
+[33mWarn[39m: Unused CSS selector ".var-row.compact"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Logging.svelte[39m:108:8
+[33mWarn[39m: Unused CSS selector ".var-row.compact .row-top"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Logging.svelte[39m:108:8
+[33mWarn[39m: Unused CSS selector ".var-row.compact .var-name"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Logging.svelte[39m:108:8
+[33mWarn[39m: Unused CSS selector ".var-row.compact .val"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\settings\ControlsSection-Logging.svelte[39m:108:8
+[33mWarn[39m: Unused CSS selector ".orb-pair"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+<style>[35m[36m
+    @import './panel-shared.css';[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1153:29
+[33mWarn[39m: Visible, non-interactive elements with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type="button">` or `<a>` might be more appropriate
+https://svelte.dev/e/a11y_click_events_have_key_events (svelte)
+[36m                        {#if themeStore.isUserTheme(t.name)}
+                            [35m<span
+                                class="full-chip-delete"
+                                onclick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteFullTheme(t.name);
+                                }}>├ù</span
+                            >[36m
+                        {/if}[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1153:29
+[33mWarn[39m: `<span>` with a click handler must have an ARIA role
+https://svelte.dev/e/a11y_no_static_element_interactions (svelte)
+[36m                        {#if themeStore.isUserTheme(t.name)}
+                            [35m<span
+                                class="full-chip-delete"
+                                onclick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteFullTheme(t.name);
+                                }}>├ù</span
+                            >[36m
+                        {/if}[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1488:5
+[33mWarn[39m: Unused CSS selector ".orb-pair"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m    /* Paired orb controls side-by-side */
+    [35m.orb-pair[36m {
+        display: grid;[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1493:5
+[33mWarn[39m: Unused CSS selector ".var-row.compact"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m    }
+    [35m.var-row.compact[36m {
+        padding: 3px 5px;[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1497:5
+[33mWarn[39m: Unused CSS selector ".var-row.compact .row-top"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m    }
+    [35m.var-row.compact .row-top[36m {
+        gap: 2px;[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1500:5
+[33mWarn[39m: Unused CSS selector ".var-row.compact .var-name"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m    }
+    [35m.var-row.compact .var-name[36m {
+        font-size: 9px;[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1503:5
+[33mWarn[39m: Unused CSS selector ".var-row.compact .val"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m    }
+    [35m.var-row.compact .val[36m {
+        font-size: 9px;[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1508:5
+[33mWarn[39m: Unused CSS selector ".var-row"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m    /* ΓöÇΓöÇ Controls ΓöÇΓöÇ */
+    [35m.var-row[36m {
+        background: rgba(255, 255, 255, 0.03);[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1517:5
+[33mWarn[39m: Unused CSS selector ".var-row.disabled"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m    }
+    [35m.var-row.disabled[36m {
+        opacity: 0.45;[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1520:5
+[33mWarn[39m: Unused CSS selector ".var-row.indent"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m    }
+    [35m.var-row.indent[36m {
+        margin-left: 12px;[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1523:5
+[33mWarn[39m: Unused CSS selector ".row-top"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m    }
+    [35m.row-top[36m {
+        display: flex;[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1528:5
+[33mWarn[39m: Unused CSS selector ".var-name"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m    }
+    [35m.var-name[36m {
+        font-size: 12px;[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1533:5
+[33mWarn[39m: Unused CSS selector ".val"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m    }
+    [35m.val[36m {
+        font-family: "Exo", sans-serif;[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1538:5
+[33mWarn[39m: Unused CSS selector ".toggle-label"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m    }
+    [35m.toggle-label[36m {
+        display: flex;[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1547:5
+[33mWarn[39m: Unused CSS selector "input[type="range"]"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m    }
+    [35minput[type="range"][36m {
+        width: 100%;[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1555:5
+[33mWarn[39m: Unused CSS selector "input[type="checkbox"]"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m    }
+    [35minput[type="checkbox"][36m {
+        accent-color: var(--accent, #00e0ff);[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1560:5
+[33mWarn[39m: Unused CSS selector ".mode-select"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m    }
+    [35m.mode-select[36m {
+        width: 100%;[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1572:5
+[33mWarn[39m: Unused CSS selector ".mode-select:focus"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m    }
+    [35m.mode-select:focus[36m {
+        outline: 1px solid var(--accent, #00e0ff);[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1576:5
+[33mWarn[39m: Unused CSS selector ".sub-heading"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+    [35m.sub-heading[36m {
+        font-size: 9px;[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1588:5
+[33mWarn[39m: Unused CSS selector ".log-actions"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m    /* ΓöÇΓöÇ Logging ΓöÇΓöÇ */
+    [35m.log-actions[36m {
+        display: flex;[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1593:5
+[33mWarn[39m: Unused CSS selector ".btn-xs"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m    }
+    [35m.btn-xs[36m {
+        background: transparent;[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1604:5
+[33mWarn[39m: Unused CSS selector ".btn-xs:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m    }
+    [35m.btn-xs:hover[36m {
+        border-color: #fff;[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1609:5
+[33mWarn[39m: Unused CSS selector ".val-group"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m    /* Lock buttons for tick-ratio locking */
+    [35m.val-group[36m {
+        display: flex;[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1614:5
+[33mWarn[39m: Unused CSS selector ".lock-btn"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m    }
+    [35m.lock-btn[36m {
+        background: none;[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1627:5
+[33mWarn[39m: Unused CSS selector ".lock-btn:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m    }
+    [35m.lock-btn:hover[36m {
+        opacity: 0.8;[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1631:5
+[33mWarn[39m: Unused CSS selector ".lock-btn.active"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m    }
+    [35m.lock-btn.active[36m {
+        opacity: 1;[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1636:5
+[33mWarn[39m: Unused CSS selector ".var-row.locked input[type="range"]"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m    }
+    [35m.var-row.locked input[type="range"][36m {
+        opacity: 0.35;[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1640:5
+[33mWarn[39m: Unused CSS selector ".var-row.locked .var-name"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m    }
+    [35m.var-row.locked .var-name[36m {
+        color: rgba(120, 180, 255, 0.9);[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1643:5
+[33mWarn[39m: Unused CSS selector ".toggle-row"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m    }
+    [35m.toggle-row[36m {
+        display: flex;[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1652:5
+[33mWarn[39m: Unused CSS selector ".toggle-row:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m    }
+    [35m.toggle-row:hover[36m {
+        background: rgba(100, 120, 160, 0.1);[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1655:5
+[33mWarn[39m: Unused CSS selector ".log-label"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m    }
+    [35m.log-label[36m {
+        font-weight: 600;[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1659:5
+[33mWarn[39m: Unused CSS selector ".log-desc"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m    }
+    [35m.log-desc[36m {
+        font-size: 8px;[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1664:5
+[33mWarn[39m: Unused CSS selector ".sub-heading"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m    }
+    [35m.sub-heading[36m {
+        font-size: 10px;[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1674:5
+[33mWarn[39m: Unused CSS selector ".btn-export"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m    }
+    [35m.btn-export[36m {
+        border-color: #4a7;[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1678:5
+[33mWarn[39m: Unused CSS selector ".btn-export:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m    }
+    [35m.btn-export:hover[36m {
+        border-color: #6fb;[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1683:5
+[33mWarn[39m: Unused CSS selector ".btn-import"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m    }
+    [35m.btn-import[36m {
+        border-color: #47a;[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1687:5
+[33mWarn[39m: Unused CSS selector ".btn-import:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m    }
+    [35m.btn-import:hover[36m {
+        border-color: #6af;[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1693:5
+[33mWarn[39m: Unused CSS selector ".var-row.grayed"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m    /* ΓöÇΓöÇ Future AI Strategies ΓöÇΓöÇ */
+    [35m.var-row.grayed[36m {
+        opacity: 0.35;[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1698:5
+[33mWarn[39m: Unused CSS selector ".future-desc"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m    }
+    [35m.future-desc[36m {
+        font-size: 8px;[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1243:26
+[31mError[39m: Type 'Record<string, any>' is not assignable to type 'never'. (ts)
+[36m                    <ControlsSectionBattle
+                        {[35mpanel[36m}
+                        {updatePanel}[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1244:26
+[31mError[39m: Type '(key: string, value: any) => void' is not assignable to type 'never'. (ts)
+[36m                        {panel}
+                        {[35mupdatePanel[36m}
+                        {values}[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1245:26
+[31mError[39m: Type '{ TRANSFER_RATE: number; AGGRESSOR_ADVANTAGE: number; DAMAGE_PER_SHIP: number; LETHALITY: number; FORCE_RATIO_EFFECT: number; CONQUEST_THRESHOLD: number; CONQUEST_TRANSFER_PERCENTAGE: number; ... 15 more ...; DENSITY_TIERS: number; }' is not assignable to type 'never'. (ts)
+[36m                        {updatePanel}
+                        {[35mvalues[36m}
+                        {enabled}[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1246:26
+[31mError[39m: Type '{ TRANSFER_RATE: boolean; AGGRESSOR_ADVANTAGE: boolean; DAMAGE_PER_SHIP: boolean; LETHALITY: boolean; FORCE_RATIO_EFFECT: boolean; CONQUEST_THRESHOLD: boolean; CONQUEST_TRANSFER_PERCENTAGE: boolean; ... 15 more ...; DENSITY_TIERS: boolean; }' is not assignable to type 'never'. (ts)
+[36m                        {values}
+                        {[35menabled[36m}
+                        {updateValue}[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1247:26
+[31mError[39m: Type '(key: "DAMAGE_PER_SHIP" | "LETHALITY" | "AGGRESSOR_ADVANTAGE" | "FORCE_RATIO_EFFECT" | "CONQUEST_THRESHOLD" | "REPAIR_RATE" | "TRANSFER_RATE" | "CONQUEST_TRANSFER_PERCENTAGE" | ... 14 more ... | "DENSITY_TIERS", newValue: number) => void' is not assignable to type 'never'. (ts)
+[36m                        {enabled}
+                        {[35mupdateValue[36m}
+                        {toggle}[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1248:26
+[31mError[39m: Type '(key: "DAMAGE_PER_SHIP" | "LETHALITY" | "AGGRESSOR_ADVANTAGE" | "FORCE_RATIO_EFFECT" | "CONQUEST_THRESHOLD" | "REPAIR_RATE" | "TRANSFER_RATE" | "CONQUEST_TRANSFER_PERCENTAGE" | ... 14 more ... | "DENSITY_TIERS") => void' is not assignable to type 'never'. (ts)
+[36m                        {updateValue}
+                        {[35mtoggle[36m}
+                        syncFromConfig={syncAllFromConfig}[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1249:25
+[31mError[39m: Type '() => void' is not assignable to type 'never'. (ts)
+[36m                        {toggle}
+                        [35msyncFromConfig[36m={syncAllFromConfig}
+                    />[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1261:26
+[31mError[39m: Type 'Record<string, any>' is not assignable to type 'never'. (ts)
+[36m                    <ControlsSectionAI
+                        {[35mpanel[36m}
+                        {updatePanel}[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1262:26
+[31mError[39m: Type '(key: string, value: any) => void' is not assignable to type 'never'. (ts)
+[36m                        {panel}
+                        {[35mupdatePanel[36m}
+                        {values}[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1263:26
+[31mError[39m: Type '{ TRANSFER_RATE: number; AGGRESSOR_ADVANTAGE: number; DAMAGE_PER_SHIP: number; LETHALITY: number; FORCE_RATIO_EFFECT: number; CONQUEST_THRESHOLD: number; CONQUEST_TRANSFER_PERCENTAGE: number; ... 15 more ...; DENSITY_TIERS: number; }' is not assignable to type 'never'. (ts)
+[36m                        {updatePanel}
+                        {[35mvalues[36m}
+                        {enabled}[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1264:26
+[31mError[39m: Type '{ TRANSFER_RATE: boolean; AGGRESSOR_ADVANTAGE: boolean; DAMAGE_PER_SHIP: boolean; LETHALITY: boolean; FORCE_RATIO_EFFECT: boolean; CONQUEST_THRESHOLD: boolean; CONQUEST_TRANSFER_PERCENTAGE: boolean; ... 15 more ...; DENSITY_TIERS: boolean; }' is not assignable to type 'never'. (ts)
+[36m                        {values}
+                        {[35menabled[36m}
+                        {updateValue}[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1265:26
+[31mError[39m: Type '(key: "DAMAGE_PER_SHIP" | "LETHALITY" | "AGGRESSOR_ADVANTAGE" | "FORCE_RATIO_EFFECT" | "CONQUEST_THRESHOLD" | "REPAIR_RATE" | "TRANSFER_RATE" | "CONQUEST_TRANSFER_PERCENTAGE" | ... 14 more ... | "DENSITY_TIERS", newValue: number) => void' is not assignable to type 'never'. (ts)
+[36m                        {enabled}
+                        {[35mupdateValue[36m}
+                        {toggle}[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1266:26
+[31mError[39m: Type '(key: "DAMAGE_PER_SHIP" | "LETHALITY" | "AGGRESSOR_ADVANTAGE" | "FORCE_RATIO_EFFECT" | "CONQUEST_THRESHOLD" | "REPAIR_RATE" | "TRANSFER_RATE" | "CONQUEST_TRANSFER_PERCENTAGE" | ... 14 more ... | "DENSITY_TIERS") => void' is not assignable to type 'never'. (ts)
+[36m                        {updateValue}
+                        {[35mtoggle[36m}
+                        syncFromConfig={syncAllFromConfig}[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\GameSettingsPanel.svelte[39m:1267:25
+[31mError[39m: Type '() => void' is not assignable to type 'never'. (ts)
+[36m                        {toggle}
+                        [35msyncFromConfig[36m={syncAllFromConfig}
+                    />[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\SpeedControls.svelte[39m:27:42
+[33mWarn[39m: This reference only captures the initial value of `speed`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+[36m    // Local state to track current speed for UI highlighting
+    let currentSpeed = $state<GameSpeed>([35mspeed[36m || 1);[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\TopBar.svelte[39m:184:5
+[33mWarn[39m: Unused CSS selector ".trace-btn"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+    [35m.trace-btn[36m {
+        font-size: 0.6rem;[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\TopBar.svelte[39m:190:5
+[33mWarn[39m: Unused CSS selector ".trace-btn.armed"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+    [35m.trace-btn.armed[36m {
+        border-color: rgba(255, 60, 60, 0.5);[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\TopBar.svelte[39m:195:5
+[33mWarn[39m: Unused CSS selector ".trace-btn.capturing"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m
+    [35m.trace-btn.capturing[36m {
+        border-color: rgba(255, 165, 0, 0.5);[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\game\GameContainer.svelte[39m:747:3
+[33mWarn[39m: Unused CSS selector ".starfield-bg"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m  /* L3: SVG starfield ΓÇö above canvas for visibility */
+  [35m.starfield-bg[36m {
+    position: absolute;[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\landing\FeatureDeepDive.svelte[39m:55:63
+[31mError[39m: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ visible: { title: string; desc: string; color: string; }; attrition: { title: string; desc: string; color: string; }; pinning: { title: string; desc: string; color: string; }; overwhelm: { title: string; desc: string; color: string; }; }'.
+  No index signature with a parameter of type 'string' was found on type '{ visible: { title: string; desc: string; color: string; }; attrition: { title: string; desc: string; color: string; }; pinning: { title: string; desc: string; color: string; }; overwhelm: { title: string; desc: string; color: string; }; }'. (ts)
+[36m      <div class="visual">
+        <div class="visual-placeholder" style="border-color: {[35mcontent[activeTab][36m.color}">
+          <div class="scanline"></div>[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\landing\FeatureDeepDive.svelte[39m:67:67
+[31mError[39m: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ visible: { title: string; desc: string; color: string; }; attrition: { title: string; desc: string; color: string; }; pinning: { title: string; desc: string; color: string; }; overwhelm: { title: string; desc: string; color: string; }; }'.
+  No index signature with a parameter of type 'string' was found on type '{ visible: { title: string; desc: string; color: string; }; attrition: { title: string; desc: string; color: string; }; pinning: { title: string; desc: string; color: string; }; overwhelm: { title: string; desc: string; color: string; }; }'. (ts)
+[36m          <div in:fly={{ y: 20, duration: 300 }} out:fade>
+            <h2 class="section-title font-display" style="color: {[35mcontent[activeTab][36m.color}">
+              {content[activeTab].title}[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\landing\FeatureDeepDive.svelte[39m:68:16
+[31mError[39m: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ visible: { title: string; desc: string; color: string; }; attrition: { title: string; desc: string; color: string; }; pinning: { title: string; desc: string; color: string; }; overwhelm: { title: string; desc: string; color: string; }; }'.
+  No index signature with a parameter of type 'string' was found on type '{ visible: { title: string; desc: string; color: string; }; attrition: { title: string; desc: string; color: string; }; pinning: { title: string; desc: string; color: string; }; overwhelm: { title: string; desc: string; color: string; }; }'. (ts)
+[36m            <h2 class="section-title font-display" style="color: {content[activeTab].color}">
+              {[35mcontent[activeTab][36m.title}
+            </h2>[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\landing\FeatureDeepDive.svelte[39m:71:16
+[31mError[39m: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ visible: { title: string; desc: string; color: string; }; attrition: { title: string; desc: string; color: string; }; pinning: { title: string; desc: string; color: string; }; overwhelm: { title: string; desc: string; color: string; }; }'.
+  No index signature with a parameter of type 'string' was found on type '{ visible: { title: string; desc: string; color: string; }; attrition: { title: string; desc: string; color: string; }; pinning: { title: string; desc: string; color: string; }; overwhelm: { title: string; desc: string; color: string; }; }'. (ts)
+[36m            <p class="section-desc font-body">
+              {[35mcontent[activeTab][36m.desc}
+            </p>[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu refactor.svelte[39m:427:17
+[33mWarn[39m: `<div>` with a click handler must have an ARIA role
+https://svelte.dev/e/a11y_no_static_element_interactions (svelte)
+[36m                <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+                [35m<div
+                    class="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm"
+                    onclick={() => (showMobileOptions = false)}
+                ></div>[36m
+                <div[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu refactor.svelte[39m:540:29
+[33mWarn[39m: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+[36m                        <div class="flex flex-col gap-2">
+                            [35m<label
+                                class="text-[0.65rem] text-[#778899] font-bold tracking-[1.5px]"
+                                >MAP</label
+                            >[36m
+                            <div class="flex flex-wrap gap-2">[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu refactor.svelte[39m:602:33
+[33mWarn[39m: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+[36m                            <div class="config-col">
+                                [35m<label>LINKS MIN</label>[36m
+                                <div class="slider-row">[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu refactor.svelte[39m:613:33
+[33mWarn[39m: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+[36m                            <div class="config-col">
+                                [35m<label>LINKS MAX</label>[36m
+                                <div class="slider-row">[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu refactor.svelte[39m:624:33
+[33mWarn[39m: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+[36m                            <div class="config-col">
+                                [35m<label>SPACING</label>[36m
+                                <div class="slider-row">[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu refactor.svelte[39m:648:33
+[33mWarn[39m: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+[36m                            <div class="config-col">
+                                [35m<label>PLAYERS</label>[36m
+                                <div[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu refactor.svelte[39m:665:33
+[33mWarn[39m: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+[36m                            <div class="config-col">
+                                [35m<label>STARS / PLAYER</label>[36m
+                                <div class="slider-row">[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu refactor.svelte[39m:678:33
+[33mWarn[39m: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+[36m                            <div class="config-col">
+                                [35m<label>SHIPS / STAR</label>[36m
+                                <div class="slider-row">[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu refactor.svelte[39m:704:37
+[33mWarn[39m: Visible, non-interactive elements with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type="button">` or `<a>` might be more appropriate
+https://svelte.dev/e/a11y_click_events_have_key_events (svelte)
+[36m                                    <!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
+                                    [35m<span
+                                        class="block size-10 rounded-full shadow-[0_0_12px_rgba(0,0,0,0.4)_inset_0_0_6px_rgba(255,255,255,0.1)] border-2 border-white/15 cursor-pointer hover:scale-110 transition-transform"
+                                        style:background-color="hsl({playerConfigs[0]
+                                            ?.hue ?? 210}, {colorSat}%, {colorLig}%)"
+                                        onclick={() =>
+                                            (showPlayerHuePicker =
+                                                !showPlayerHuePicker)}
+                                    ></span>[36m
+                                    {#if showPlayerHuePicker}[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu refactor.svelte[39m:731:37
+[33mWarn[39m: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+[36m                                <div class="flex-1 w-full flex flex-col gap-1">
+                                    [35m<label
+                                        class="font-['Exo'] text-[0.6rem] font-extrabold tracking-[0.15em] text-cyan-400/60 uppercase"
+                                        >YOUR COMMANDER</label
+                                    >[36m
+                                    <input[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu refactor.svelte[39m:781:29
+[33mWarn[39m: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+[36m                        <div class="flex justify-between items-center">
+                            [35m<label
+                                class="text-[0.65rem] text-[#778899] font-bold tracking-[1.5px]"
+                                >AI OPPONENTS</label
+                            >[36m
+                            <div class="flex gap-2">[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu refactor.svelte[39m:909:33
+[33mWarn[39m: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+[36m                            <div>
+                                [35m<label
+                                    class="text-[0.65rem] text-[#778899] font-bold tracking-[1.5px]"
+                                    >SAVED MAPS</label
+                                >[36m
+                                <div class="flex flex-col gap-1 mt-1.5">[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu refactor.svelte[39m:952:33
+[33mWarn[39m: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+[36m                            <div class="config-col">
+                                [35m<label>TICK DURATION</label>[36m
+                                <div class="slider-row">[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu refactor.svelte[39m:1022:33
+[33mWarn[39m: Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute
+https://svelte.dev/e/a11y_consider_explicit_label (svelte)
+[36m                                >
+                                [35m<button
+                                    class="size-4 opacity-50 hover:opacity-100 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgMCAyNCAyNCIgc3Ryb2tlPSJ3aGl0ZSI+PHBhdGggc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBzdHJva2Utd2lkdGg9IjIiIGQ9Ik04IDE2SDZDOC44OTU0MyAxNiA4IDE1LjEwNDYgOCAxNHYtNGMwLTEuMTA0Ni44OTU0My0yIDItMmgybS0yIDRoNHY0SDh6Ii8+PC9zdmc+')] bg-contain"
+                                    onclick={copyRoomId}
+                                ></button>[36m
+                            </div>[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu refactor.svelte[39m:1202:45
+[33mWarn[39m: `<div>` with a click handler must have an ARIA role
+https://svelte.dev/e/a11y_no_static_element_interactions (svelte)
+[36m                                            <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+                                            [35m<div
+                                                class="bg-cyan-400/5 border border-cyan-400/10 rounded-lg p-2 cursor-pointer hover:bg-cyan-400/10 hover:-translate-y-px transition-all"
+                                                onclick={() =>
+                                                    (confirmJoinTarget = room)}
+                                            >
+                                                <div
+                                                    class="flex justify-between items-center mb-1"
+                                                >
+                                                    <span
+                                                        class="font-semibold text-[#cce8ff] text-sm"
+                                                        >{room.metadata
+                                                            ?.hostName ||
+                                                            "Unknown"}</span
+                                                    >
+                                                    <span
+                                                        class="text-[0.65rem] px-1.5 py-0.5 rounded uppercase tracking-wide {room
+                                                            .metadata?.phase ===
+                                                        'playing'
+                                                            ? 'bg-red-500/15 text-red-300'
+                                                            : 'bg-cyan-400/15 text-cyan-200'}"
+                                                        >{room.metadata
+                                                            ?.phase ||
+                                                            "lobby"}</span
+                                                    >
+                                                </div>
+                                                <div
+                                                    class="flex flex-wrap gap-2 text-[0.7rem] text-[#79b] mb-1"
+                                                >
+                                                    <span
+                                                        class="opacity-80 capitalize"
+                                                        >{room.metadata
+                                                            ?.mapType ||
+                                                            "?"}</span
+                                                    >
+                                                    <span class="opacity-80"
+                                                        >Γ¡É {room.metadata
+                                                            ?.starsPerPlayer ||
+                                                            "?"}/p</span
+                                                    >
+                                                    <span class="opacity-80"
+                                                        >≡ƒÜÇ {room.metadata
+                                                            ?.shipsPerStar ||
+                                                            "?"}/star</span
+                                                    >
+                                                    {#if room.metadata?.phase === "playing" && room.metadata?.tick}
+                                                        <span
+                                                            class="text-red-300 font-semibold"
+                                                            >T{room.metadata
+                                                                .tick}</span
+                                                        >
+                                                    {/if}
+                                                </div>
+                                                <div
+                                                    class="flex justify-between text-xs text-[#8ab]"
+                                                >
+                                                    <span
+                                                        >{room.clients}/{room.maxClients}
+                                                        players</span
+                                                    >
+                                                </div>
+                                            </div>[36m
+                                        {/each}[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu refactor.svelte[39m:1293:5
+[33mWarn[39m: `<div>` with a click handler must have an ARIA role
+https://svelte.dev/e/a11y_no_static_element_interactions (svelte)
+[36m    <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+    [35m<div
+        class="fixed inset-0 bg-black/70 flex items-center justify-center z-[10000]"
+        transition:fade
+        onclick={() => {
+            confirmJoinTarget = null;
+            selectedTakeOverId = null;
+        }}
+    >
+        <div
+            class="bg-[#0a1628] border border-cyan-400/25 rounded-xl p-8 max-w-[340px] text-center shadow-2xl"
+            onclick={(e) => e.stopPropagation()}
+        >
+            <h3 class="m-0 mb-3 text-[#cce8ff] text-xl">Join Room?</h3>
+            <p class="my-1 text-[#8ab] text-sm">
+                Host: <strong
+                    >{confirmJoinTarget.metadata?.hostName || "Unknown"}</strong
+                >
+            </p>
+            <p class="my-1 text-[#8ab] text-sm">
+                {confirmJoinTarget.clients}/{confirmJoinTarget.maxClients} players
+                ΓÇó {confirmJoinTarget.metadata?.mapType || "standard"}
+            </p>
+
+            {#if confirmJoinTarget.metadata?.phase === "playing" && confirmJoinTarget.metadata?.aiPlayers?.length}
+                <div class="mt-3 text-left">
+                    <p class="text-xs text-[#8ab] mb-1.5">
+                        Take over an AI player:
+                    </p>
+                    <div class="flex flex-wrap gap-1.5">
+                        {#each confirmJoinTarget.metadata.aiPlayers as ai}
+                            <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+                            <div
+                                class="flex items-center gap-1.5 px-2.5 py-1 rounded bg-cyan-400/5 border border-cyan-400/10 text-[#8ac] text-xs cursor-pointer hover:bg-cyan-400/10 hover:border-cyan-400/30 {selectedTakeOverId ===
+                                ai.sessionId
+                                    ? 'border-cyan-400/50 bg-cyan-400/15 text-[#cef]'
+                                    : ''}"
+                                onclick={() =>
+                                    (selectedTakeOverId = ai.sessionId)}
+                            >
+                                <span
+                                    class="size-2.5 rounded-full"
+                                    style="background: {ai.color}"
+                                ></span>
+                                {ai.name}
+                            </div>
+                        {/each}
+                    </div>
+                </div>
+            {:else if confirmJoinTarget.metadata?.phase === "playing"}
+                <p
+                    class="p-2 bg-red-500/10 border border-red-500/20 rounded text-red-400 text-xs mt-2"
+                >
+                    No AI players available to take over
+                </p>
+            {/if}
+
+            <div class="flex gap-3 mt-5 justify-center">
+                <button
+                    class="bg-cyan-600/80 text-white font-bold py-2 px-4 rounded hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onclick={handleConfirmJoin}
+                    disabled={confirmJoinTarget.metadata?.phase === "playing" &&
+                        !confirmJoinTarget.metadata?.aiPlayers?.length}
+                >
+                    {confirmJoinTarget.metadata?.phase === "playing"
+                        ? "TAKE OVER"
+                        : "JOIN"}
+                </button>
+                <button
+                    class="bg-transparent border border-red-500/30 text-red-400 py-2 px-4 rounded hover:bg-red-500/10"
+                    onclick={() => {
+                        confirmJoinTarget = null;
+                        selectedTakeOverId = null;
+                    }}>Cancel</button
+                >
+            </div>
+        </div>
+    </div>[36m
+{/if}[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu refactor.svelte[39m:1301:9
+[33mWarn[39m: `<div>` with a click handler must have an ARIA role
+https://svelte.dev/e/a11y_no_static_element_interactions (svelte)
+[36m    >
+        [35m<div
+            class="bg-[#0a1628] border border-cyan-400/25 rounded-xl p-8 max-w-[340px] text-center shadow-2xl"
+            onclick={(e) => e.stopPropagation()}
+        >
+            <h3 class="m-0 mb-3 text-[#cce8ff] text-xl">Join Room?</h3>
+            <p class="my-1 text-[#8ab] text-sm">
+                Host: <strong
+                    >{confirmJoinTarget.metadata?.hostName || "Unknown"}</strong
+                >
+            </p>
+            <p class="my-1 text-[#8ab] text-sm">
+                {confirmJoinTarget.clients}/{confirmJoinTarget.maxClients} players
+                ΓÇó {confirmJoinTarget.metadata?.mapType || "standard"}
+            </p>
+
+            {#if confirmJoinTarget.metadata?.phase === "playing" && confirmJoinTarget.metadata?.aiPlayers?.length}
+                <div class="mt-3 text-left">
+                    <p class="text-xs text-[#8ab] mb-1.5">
+                        Take over an AI player:
+                    </p>
+                    <div class="flex flex-wrap gap-1.5">
+                        {#each confirmJoinTarget.metadata.aiPlayers as ai}
+                            <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+                            <div
+                                class="flex items-center gap-1.5 px-2.5 py-1 rounded bg-cyan-400/5 border border-cyan-400/10 text-[#8ac] text-xs cursor-pointer hover:bg-cyan-400/10 hover:border-cyan-400/30 {selectedTakeOverId ===
+                                ai.sessionId
+                                    ? 'border-cyan-400/50 bg-cyan-400/15 text-[#cef]'
+                                    : ''}"
+                                onclick={() =>
+                                    (selectedTakeOverId = ai.sessionId)}
+                            >
+                                <span
+                                    class="size-2.5 rounded-full"
+                                    style="background: {ai.color}"
+                                ></span>
+                                {ai.name}
+                            </div>
+                        {/each}
+                    </div>
+                </div>
+            {:else if confirmJoinTarget.metadata?.phase === "playing"}
+                <p
+                    class="p-2 bg-red-500/10 border border-red-500/20 rounded text-red-400 text-xs mt-2"
+                >
+                    No AI players available to take over
+                </p>
+            {/if}
+
+            <div class="flex gap-3 mt-5 justify-center">
+                <button
+                    class="bg-cyan-600/80 text-white font-bold py-2 px-4 rounded hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onclick={handleConfirmJoin}
+                    disabled={confirmJoinTarget.metadata?.phase === "playing" &&
+                        !confirmJoinTarget.metadata?.aiPlayers?.length}
+                >
+                    {confirmJoinTarget.metadata?.phase === "playing"
+                        ? "TAKE OVER"
+                        : "JOIN"}
+                </button>
+                <button
+                    class="bg-transparent border border-red-500/30 text-red-400 py-2 px-4 rounded hover:bg-red-500/10"
+                    onclick={() => {
+                        confirmJoinTarget = null;
+                        selectedTakeOverId = null;
+                    }}>Cancel</button
+                >
+            </div>
+        </div>[36m
+    </div>[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu refactor.svelte[39m:1324:29
+[33mWarn[39m: `<div>` with a click handler must have an ARIA role
+https://svelte.dev/e/a11y_no_static_element_interactions (svelte)
+[36m                            <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+                            [35m<div
+                                class="flex items-center gap-1.5 px-2.5 py-1 rounded bg-cyan-400/5 border border-cyan-400/10 text-[#8ac] text-xs cursor-pointer hover:bg-cyan-400/10 hover:border-cyan-400/30 {selectedTakeOverId ===
+                                ai.sessionId
+                                    ? 'border-cyan-400/50 bg-cyan-400/15 text-[#cef]'
+                                    : ''}"
+                                onclick={() =>
+                                    (selectedTakeOverId = ai.sessionId)}
+                            >
+                                <span
+                                    class="size-2.5 rounded-full"
+                                    style="background: {ai.color}"
+                                ></span>
+                                {ai.name}
+                            </div>[36m
+                        {/each}[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu refactor.svelte[39m:1538:9
+[33mWarn[39m: Unknown at rule @apply (css)
+[36m    .panel-title {
+        [35m@apply[36m text-xs text-[#668899] tracking-[3px] m-0 pb-2 border-b border-white/5 drop-shadow-[0_0_8px_rgba(0,255,255,0.1)];
+    }[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu refactor.svelte[39m:1541:9
+[33mWarn[39m: Unknown at rule @apply (css)
+[36m    .checkbox-label {
+        [35m@apply[36m flex items-center gap-2 cursor-pointer text-[0.8rem] font-medium text-[#99aabb] py-1;
+    }[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu refactor.svelte[39m:1544:9
+[33mWarn[39m: Unknown at rule @apply (css)
+[36m    .checkbox-label input {
+        [35m@apply[36m w-3.5 h-3.5 accent-cyan-400 cursor-pointer;
+    }[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu refactor.svelte[39m:1547:9
+[33mWarn[39m: Unknown at rule @apply (css)
+[36m    .config-col {
+        [35m@apply[36m flex flex-col gap-1;
+    }[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu refactor.svelte[39m:1550:9
+[33mWarn[39m: Unknown at rule @apply (css)
+[36m    .config-col label {
+        [35m@apply[36m text-[0.65rem] text-[#778899] font-bold tracking-[1.5px] uppercase;
+    }[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu refactor.svelte[39m:1553:9
+[33mWarn[39m: Unknown at rule @apply (css)
+[36m    .slider-row {
+        [35m@apply[36m flex items-center gap-2 min-h-[28px];
+    }[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu refactor.svelte[39m:1556:9
+[33mWarn[39m: Unknown at rule @apply (css)
+[36m    .mono-val {
+        [35m@apply[36m text-cyan-400 font-mono text-xs min-w-[32px] text-right whitespace-nowrap;
+    }[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu refactor.svelte[39m:1559:9
+[33mWarn[39m: Unknown at rule @apply (css)
+[36m    .badge {
+        [35m@apply[36m text-[0.5rem] px-1.5 py-0.5 rounded border font-bold tracking-widest;
+    }[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu refactor.svelte[39m:1562:9
+[33mWarn[39m: Unknown at rule @apply (css)
+[36m    .mp-action-btn {
+        [35m@apply[36m w-full py-3 px-4 border border-[rgba(200,80,255,0.25)] rounded bg-[rgba(200,80,255,0.08)] text-[#cc88ff] text-[0.8rem] font-bold tracking-[2px] hover:bg-[rgba(200,80,255,0.18)] hover:text-[#dd99ff] hover:shadow-[0_0_16px_rgba(200,80,255,0.15)] disabled:opacity-35 disabled:cursor-not-allowed transition-all duration-200;
+    }[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu refactor.svelte[39m:1565:9
+[33mWarn[39m: Unknown at rule @apply (css)
+[36m    .detail-toggle {
+        [35m@apply[36m bg-white/5 border border-white/10 rounded text-[#678] text-[0.6rem] px-2 py-0.5 cursor-pointer font-['Exo'] tracking-wide hover:bg-cyan-400/5 hover:text-cyan-600 hover:border-cyan-400/15 transition-colors;
+    }[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu refactor.svelte[39m:563:57
+[31mError[39m: Object is possibly 'undefined'. (ts)
+[36m                                                    y1={m.stars[a].y}
+                                                    x2={[35mm.stars[b][36m.x}
+                                                    y2={m.stars[b].y}[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\MainMenu refactor.svelte[39m:564:57
+[31mError[39m: Object is possibly 'undefined'. (ts)
+[36m                                                    x2={m.stars[b].x}
+                                                    y2={[35mm.stars[b][36m.y}
+                                                    stroke={mapType === m.id[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\_archived\MultiplayerLobby.svelte[39m:118:25
+[33mWarn[39m: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+[36m                    <div class="setting-row">
+                        [35m<label>Stars / Player</label>[36m
+                        <div class="slider-row">[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\_archived\MultiplayerLobby.svelte[39m:130:25
+[33mWarn[39m: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+[36m                    <div class="setting-row">
+                        [35m<label>Ships / Star</label>[36m
+                        <div class="slider-row">[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\_archived\MultiplayerLobby.svelte[39m:143:25
+[33mWarn[39m: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+[36m                    <div class="setting-row">
+                        [35m<label>Star Spacing</label>[36m
+                        <div class="slider-row">[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\_archived\MultiplayerLobby.svelte[39m:157:29
+[33mWarn[39m: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+[36m                        <div class="half">
+                            [35m<label>Min Links</label>[36m
+                            <div class="slider-row">[39m
+
+c:\Users\mikep\Desktop\WebDev\PRISM-Atlas-DART v1\pax-fluxia\[32msrc\lib\components\ui\_archived\MultiplayerLobby.svelte[39m:169:29
+[33mWarn[39m: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+[36m                        <div class="half">
+                            [35m<label>Max Links</label>[36m
+                            <div class="slider-row">[39m
+
+====================================
+[31msvelte-check found 24 errors and 468 warnings in 21 files
+[39m

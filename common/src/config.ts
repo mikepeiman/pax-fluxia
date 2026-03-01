@@ -46,7 +46,9 @@ export interface EngineConfig {
     // Repair
     REPAIR_RATE: number;
     MIN_REPAIR: number;
-    REPAIR_COMBAT_PENALTY: number;
+    REPAIR_COMBAT_PENALTY: number;         // Legacy: uniform penalty (used if split not set)
+    REPAIR_SUPPRESS_ATTACKER: number;      // Repair multiplier when star is ATTACKING (0=no repair, 1=full)
+    REPAIR_SUPPRESS_DEFENDER: number;      // Repair multiplier when star is DEFENDING (0=no repair, 1=full)
 
     // Transfer
     TRANSFER_RATE: number;                 // Base transfer rate (Blue stars get 2x via speed multiplier)
@@ -83,6 +85,8 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
     REPAIR_RATE: 5,
     MIN_REPAIR: 1,
     REPAIR_COMBAT_PENALTY: 0.1,
+    REPAIR_SUPPRESS_ATTACKER: 0.5,
+    REPAIR_SUPPRESS_DEFENDER: 0.1,
     MIN_SHIPS_PER_TRANSFER: 1,
     TRANSFER_RATE: 0.1,
     CONQUEST_TRANSFER_PERCENTAGE: 50,

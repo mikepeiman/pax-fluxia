@@ -9,6 +9,7 @@
 import * as PIXI from 'pixi.js';
 import { GAME_CONFIG } from '$lib/config/game.config';
 import type { StarState, StarConnection } from '$lib/types/game.types';
+import { findConnectedClustersOptimized } from './territoryUtils';
 import type { ColorUtils } from './RenderContext';
 import LaneWorker from './laneTerritory.worker?worker';
 
@@ -43,6 +44,8 @@ function buildFingerprint(stars: StarState[]): string {
     fp += `:${GAME_CONFIG.GRAPH_PATTERN}:${GAME_CONFIG.GRAPH_PATTERN_SCALE}:${GAME_CONFIG.GRAPH_PATTERN_ROTATION}`;
     fp += `:${GAME_CONFIG.LANE_INFLUENCE}:${GAME_CONFIG.LANE_WIDTH}`;
     fp += `:${GAME_CONFIG.LANE_DIRECT_FALLOFF}:${GAME_CONFIG.LANE_THRESHOLD}`;
+    fp += `:${GAME_CONFIG.TERRITORY_CLUSTER_SPLIT}`;
+    fp += `:${GAME_CONFIG.BORDER_FEEL}:${GAME_CONFIG.BORDER_SMOOTH}`;
     return fp;
 }
 
@@ -167,14 +170,23 @@ export function renderLaneTerritory(
     const useHSL = satMult !== 1.0 || lightMult !== 1.0;
     const patternScale = Math.max(1, Math.round((GAME_CONFIG.GRAPH_PATTERN_SCALE ?? 4) / resolution));
 
-    // Build owner data
-    const ownerSet = new Set<string>();
-    for (const s of ownedStars) ownerSet.add(s.ownerId!);
-    const owners = Array.from(ownerSet);
-    const ownerIndexMap = new Map<string, number>();
-    for (let i = 0; i < owners.length; i++) ownerIndexMap.set(owners[i], i);
+    // Build star lookup and connected clusters
+    const starById = new Map<string, StarState>();
+    for (const s of ownedStars) starById.set(s.id, s);
 
-    const ownerRGBFlat: number[] = new Array(owners.length * 3);
+    const clusterMap = findConnectedClustersOptimized(
+        ownedStars,
+        connections ?? [],
+        starById,
+    );
+
+    // Build cluster → ownerIdx mapping (each disconnected cluster gets unique index)
+    const clusterValues = Array.from(clusterMap.values());
+    const numClusters = clusterValues.length > 0
+        ? Math.max(...clusterValues.map(c => c.clusterIdx)) + 1
+        : 0;
+
+    const ownerRGBFlat: number[] = new Array(numClusters * 3);
     const starDataForWorker: { x: number; y: number; r: number; g: number; b: number; ownerIdx: number; ships: number }[] = [];
 
     for (const s of ownedStars) {
@@ -187,43 +199,40 @@ export function renderLaneTerritory(
             rgb = rawRgb;
         }
 
-        const oi = ownerIndexMap.get(s.ownerId!)!;
-        if (ownerRGBFlat[oi * 3] === undefined) {
-            ownerRGBFlat[oi * 3] = rgb[0];
-            ownerRGBFlat[oi * 3 + 1] = rgb[1];
-            ownerRGBFlat[oi * 3 + 2] = rgb[2];
+        const ci = clusterMap.get(s.id)?.clusterIdx ?? 0;
+        if (ownerRGBFlat[ci * 3] === undefined) {
+            ownerRGBFlat[ci * 3] = rgb[0];
+            ownerRGBFlat[ci * 3 + 1] = rgb[1];
+            ownerRGBFlat[ci * 3 + 2] = rgb[2];
         }
 
         starDataForWorker.push({
             x: (s.x + padding) / resolution,
             y: (s.y + padding) / resolution,
             r: rgb[0], g: rgb[1], b: rgb[2],
-            ownerIdx: oi,
+            ownerIdx: ci,
             ships: (s.activeShips ?? 0) + (s.damagedShips ?? 0),
         });
     }
 
-    // ── Build lane segments from SAME-OWNER connections ──
+    // ── Build lane segments from SAME-CLUSTER connections ──
     const laneSeg: { x1: number; y1: number; x2: number; y2: number; ownerIdx: number }[] = [];
 
     if (connections) {
-        const starById = new Map<string, StarState>();
-        for (const s of ownedStars) starById.set(s.id, s);
-
         for (const conn of connections) {
             const a = starById.get(conn.sourceId);
             const b = starById.get(conn.targetId);
             if (!a || !b || !a.ownerId || !b.ownerId) continue;
 
             if (a.ownerId === b.ownerId) {
-                const oi = ownerIndexMap.get(a.ownerId);
-                if (oi === undefined) continue;
+                const ci = clusterMap.get(a.id)?.clusterIdx;
+                if (ci === undefined) continue;
                 laneSeg.push({
                     x1: (a.x + padding) / resolution,
                     y1: (a.y + padding) / resolution,
                     x2: (b.x + padding) / resolution,
                     y2: (b.y + padding) / resolution,
-                    ownerIdx: oi,
+                    ownerIdx: ci,
                 });
             }
         }
@@ -246,7 +255,7 @@ export function renderLaneTerritory(
     worker.postMessage({
         canvasW, canvasH,
         stars: starDataForWorker,
-        numOwners: owners.length,
+        numOwners: numClusters,
         ownerRGB: ownerRGBFlat,
         alpha: GAME_CONFIG.GRAPH_ALPHA ?? 0.15,
         lanes: laneSeg,
@@ -266,6 +275,8 @@ export function renderLaneTerritory(
         boardRight: (padding + worldWidth) / resolution,
         boardBottom: (padding + worldHeight) / resolution,
         fadeDistCanvas: padding / resolution,
+        borderFeel: GAME_CONFIG.BORDER_FEEL ?? 'raw',
+        borderSmooth: GAME_CONFIG.BORDER_SMOOTH ?? 0,
     });
 
     if (cachedSprite) { cachedSprite.visible = true; applyBlur(); }

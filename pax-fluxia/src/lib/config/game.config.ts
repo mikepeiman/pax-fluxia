@@ -16,6 +16,8 @@ export function buildEngineConfig(): EngineConfig {
         REPAIR_RATE: GAME_CONFIG.REPAIR_RATE,
         MIN_REPAIR: GAME_CONFIG.MIN_REPAIR,
         REPAIR_COMBAT_PENALTY: GAME_CONFIG.REPAIR_COMBAT_PENALTY,
+        REPAIR_SUPPRESS_ATTACKER: GAME_CONFIG.REPAIR_SUPPRESS_ATTACKER,
+        REPAIR_SUPPRESS_DEFENDER: GAME_CONFIG.REPAIR_SUPPRESS_DEFENDER,
         TRANSFER_RATE: GAME_CONFIG.TRANSFER_RATE,
         MIN_SHIPS_PER_TRANSFER: GAME_CONFIG.MIN_SHIPS_PER_TRANSFER,
         CONQUEST_TRANSFER_PERCENTAGE: GAME_CONFIG.CONQUEST_TRANSFER_PERCENTAGE,
@@ -70,6 +72,8 @@ interface GameConfigType {
     REPAIR_RATE: number;
     MIN_REPAIR: number;
     REPAIR_COMBAT_PENALTY: number;
+    REPAIR_SUPPRESS_ATTACKER: number;
+    REPAIR_SUPPRESS_DEFENDER: number;
 
     // Conquest
     CONQUEST_TRANSFER_PERCENTAGE: number;
@@ -250,6 +254,7 @@ interface GameConfigType {
     TERRITORY_VORONOI: boolean;    // Enable Voronoi territory renderer (default true)
     TERRITORY_METABALL: boolean;   // Enable Metaball territory renderer (default false)
     TERRITORY_PIXEL: boolean;      // Enable Pixel (nearest-neighbor) territory renderer (default false)
+    TERRITORY_CLUSTER_SPLIT: boolean; // Split disconnected same-owner stars into separate territory blobs (default false)
     TERRITORY_MODE: 'voronoi' | 'metaball' | 'off';  // LEGACY — kept for compat
 
     // ── Voronoi Territory ───────────────────────────────────────────────────
@@ -331,6 +336,9 @@ interface GameConfigType {
     LANE_THRESHOLD: number;          // Minimum influence to claim territory (0-0.5, default 0.01)
     GRAPH_SATURATION: number;        // Graph/Lane saturation multiplier (0=grey, 1=normal, 2=vivid, default 1.0)
     GRAPH_LIGHTNESS: number;         // Graph/Lane lightness multiplier (0=dark, 1=normal, 2=bright, default 1.0)
+    // Border feel post-processing
+    BORDER_FEEL: 'raw' | 'smooth' | 'angular';  // Border shape style: raw=pixel edges, smooth=morphological, angular=geometric segments
+    BORDER_SMOOTH: number;           // Smoothing iterations for border feel (0-5, default 2)
 
     SHOW_HEX_GRID: boolean;
     STARS_PER_PLAYER: number;
@@ -481,6 +489,8 @@ const _rawConfig: GameConfigType = {
 
     /** Repair multiplier when under attack (0.0 - 1.0) */
     REPAIR_COMBAT_PENALTY: 0.1,
+    REPAIR_SUPPRESS_ATTACKER: 0.5,
+    REPAIR_SUPPRESS_DEFENDER: 0.1,
 
     // ========================================================================
     // CONQUEST
@@ -800,6 +810,8 @@ const _rawConfig: GameConfigType = {
     TERRITORY_METABALL: false,
     /** Enable Pixel (nearest-neighbor) territory renderer */
     TERRITORY_PIXEL: false,
+    /** Split disconnected same-owner stars into separate territory blobs */
+    TERRITORY_CLUSTER_SPLIT: false,
     /** LEGACY territory mode — kept for compat */
     TERRITORY_MODE: 'metaball' as 'voronoi' | 'metaball' | 'off',
 
@@ -927,6 +939,10 @@ const _rawConfig: GameConfigType = {
     GRAPH_SATURATION: 1.0,
     /** Graph/Lane color lightness multiplier (0=dark, 1=original, 2=bright) */
     GRAPH_LIGHTNESS: 1.0,
+    /** Border shape style: raw=pixel edges, smooth=morphological, angular=geometric segments */
+    BORDER_FEEL: 'raw' as 'raw' | 'smooth' | 'angular',
+    /** Smoothing iterations for border feel (0=none, 5=max) */
+    BORDER_SMOOTH: 0,
 
     /** Show hex grid (debug) */
     SHOW_HEX_GRID: false,
