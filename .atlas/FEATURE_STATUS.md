@@ -30,6 +30,7 @@
 | F-130 | Audio volume persistence — remember per-sound volume adjustments in localStorage | ✅ Done | Critical | 2026-03-02 |
 | F-131 | Per-sound file selector — dropdown to pick which audio file for each sound event | ✅ Done | Critical | 2026-03-02 |
 | F-132 | Audio theming — save/load audio presets, designate default themes | ✅ Done | Critical | 2026-03-02 |
+| F-133 | New territory renderer — consider a fresh renderer approach; current pixel/lane renderers have cross-platform issues | 🟡 Idea | Medium | 2026-03-02 |
 
 ## Known Regressions
 

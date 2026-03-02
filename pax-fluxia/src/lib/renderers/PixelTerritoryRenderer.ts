@@ -110,6 +110,7 @@ function handleWorkerResult(e: MessageEvent): void {
     const pixelData = new Uint8ClampedArray(pixelBuf);
 
     workerBusy = false;
+    console.warn('[PixelTerritory] Worker returned', { canvasW, canvasH, pixelBytes: pixelBuf.byteLength });
 
     const container = pendingContainer;
     if (!container) return;
@@ -166,6 +167,7 @@ export function renderPixelTerritory(
         if (cachedSprite) cachedSprite.visible = false;
         return;
     }
+    console.warn('[PixelTerritory] renderPixelTerritory called', { worldWidth, worldHeight, starCount: stars.length });
 
     const fingerprint = buildFingerprint(stars) + `:${worldWidth}:${worldHeight}`;
 
@@ -286,6 +288,7 @@ export function renderPixelTerritory(
     pendingTotalH = totalH;
     pendingPadding = padding;
     workerBusy = true;
+    console.warn('[PixelTerritory] Dispatching to worker', { canvasW, canvasH, resolution, ownedStars: ownedStars.length });
 
     // Build corridor segments for same-owner connected pairs
     const corridorBoost = GAME_CONFIG.PIXEL_CORRIDOR_BOOST ?? 0;
