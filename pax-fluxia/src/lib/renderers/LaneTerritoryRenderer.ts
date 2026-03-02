@@ -138,7 +138,7 @@ export function renderLaneTerritory(
         return;
     }
 
-    const fingerprint = buildFingerprint(stars);
+    const fingerprint = buildFingerprint(stars) + `:${worldWidth}:${worldHeight}`;
     if (fingerprint === cachedFingerprint && cachedSprite) {
         cachedSprite.visible = true;
         applyBlur();

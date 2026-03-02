@@ -330,6 +330,8 @@
               onResume={() => activeGameStore.resumeGame()}
               onStart={() => activeGameStore.startGame()}
               onCenterFit={() => gameCanvasRef?.centerAndFit?.()}
+              isMuted={audioManager.muted}
+              onToggleMute={() => audioManager.toggleMute()}
             />
 
             <div class="action-buttons mobile-hide">
@@ -555,29 +557,34 @@
       ></div>
     {/if}
 
-    <!-- Drawer panel (opens from ribbon ☰ icon only) -->
+    <!-- Drawer panel: fullscreen overlay with no scroll -->
     <div class="mobile-drawer" class:open={mobileDrawerOpen}>
+      <!-- Close button (always visible, top-right) -->
+      <button
+        class="drawer-close"
+        onclick={() => (mobileDrawerOpen = false)}
+        title="Close">✕</button
+      >
+
       <div class="mobile-drawer-content">
-        <!-- Leaderboard -->
-        <div class="mobile-section">
+        <!-- Leaderboard (compact mode) -->
+        <div class="drawer-leaderboard">
           <Leaderboard players={leaderboardPlayers} />
         </div>
 
-        <!-- Theme -->
-        <div class="mobile-section">
-          <label class="mobile-theme-label" for="mobile-theme-select"
-            >🎨 THEME</label
-          >
+        <!-- Theme selector (inline row) -->
+        <div class="drawer-theme-row">
+          <span class="drawer-theme-icon">🎨</span>
           <select
             id="mobile-theme-select"
-            class="mobile-theme-select"
+            class="drawer-theme-select"
             value={themeStore.selectedThemeName}
             onchange={(e) => {
               const v = (e.target as HTMLSelectElement).value;
               if (v) themeStore.applyTheme(v);
             }}
           >
-            <option value="">Select Theme…</option>
+            <option value="">Theme…</option>
             {#each themeStore.allThemes as theme}
               <option value={theme.name}>{theme.name}</option>
             {/each}
@@ -607,12 +614,13 @@
         <button
           class="fab-item"
           onclick={() => {
-            audioManager.toggleMute();
             audioManager.play("click");
+            showAudioSettings = true;
+            showSettingsFab = false;
           }}
         >
-          <span class="fab-icon">{audioManager.muted ? "🔇" : "🔊"}</span>
-          <span>{audioManager.muted ? "Unmute" : "Mute"} Audio</span>
+          <span class="fab-icon">🎵</span>
+          <span>Audio Settings</span>
         </button>
         <button
           class="fab-item"
@@ -822,6 +830,36 @@
       bottom: 12px !important;
       right: 64px !important;
     }
+    /* Settings panel: fullscreen overlay in landscape */
+    .area-controls {
+      position: fixed !important;
+      inset: 0 !important;
+      z-index: 610 !important;
+      margin: 0 !important;
+      width: 100vw !important;
+      max-width: 100vw !important;
+    }
+    /* Scrim covers everything including sidebars */
+    .mobile-scrim {
+      z-index: 599 !important;
+    }
+    /* Landscape drawer: horizontal layout — leaderboard left, theme right */
+    .mobile-drawer-content {
+      flex-direction: row !important;
+      align-items: flex-start !important;
+      justify-content: center !important;
+      padding: 16px 32px !important;
+      gap: 24px !important;
+    }
+    .drawer-leaderboard {
+      max-width: 280px !important;
+      flex-shrink: 0;
+    }
+    .drawer-theme-row {
+      flex-direction: column !important;
+      align-self: center !important;
+      max-width: 160px !important;
+    }
   }
 
   /* ── Mobile-only elements (hidden on desktop) ── */
@@ -886,65 +924,161 @@
       }
     }
 
-    /* ── Slide-in drawer from right ── */
+    /* ── Fullscreen drawer overlay (no scroll, fits viewport) ── */
     .mobile-drawer {
       display: flex;
       position: fixed;
-      top: 0;
-      right: 0;
-      width: 280px;
-      max-width: 80vw;
+      inset: 0;
+      width: 100vw;
       height: 100vh;
       height: 100dvh;
-      background: rgba(10, 10, 18, 0.97);
-      backdrop-filter: blur(12px);
-      border-left: 1px solid rgba(255, 255, 255, 0.1);
-      z-index: 495;
-      transform: translateX(100%);
-      transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+      background: rgba(8, 8, 16, 0.97);
+      backdrop-filter: blur(16px);
+      z-index: 600;
       flex-direction: column;
-      overflow-y: auto;
-      overscroll-behavior: contain;
+      overflow: hidden;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
     }
     .mobile-drawer.open {
-      transform: translateX(0);
+      opacity: 1;
+      pointer-events: auto;
     }
 
+    /* ✕ close button */
+    .drawer-close {
+      position: absolute;
+      top: 12px;
+      right: 16px;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 50%;
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 1.1rem;
+      cursor: pointer;
+      z-index: 610;
+      transition: all 0.15s ease;
+    }
+    .drawer-close:active {
+      background: rgba(0, 255, 255, 0.15);
+      color: #0ff;
+      border-color: rgba(0, 255, 255, 0.4);
+    }
+
+    /* Content: flex column, centered, no scroll */
     .mobile-drawer-content {
-      padding: 20px 16px;
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      justify-content: center;
+      align-items: center;
+      height: 100%;
+      padding: 56px 24px 24px; /* top padding clears close button */
+      gap: 12px;
+      overflow: hidden;
     }
 
-    .mobile-section {
-      padding: 8px 0;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    }
-    .mobile-section:last-child {
-      border-bottom: none;
-    }
-
-    .mobile-theme-label {
-      display: block;
-      font-family: "Exo", sans-serif;
-      font-size: 0.7rem;
-      font-weight: 900;
-      letter-spacing: 0.15em;
-      color: rgba(255, 200, 60, 0.9);
-      text-transform: uppercase;
-      margin-bottom: 6px;
-    }
-
-    .mobile-theme-select {
+    /* Leaderboard wrapper: takes only the space it needs */
+    .drawer-leaderboard {
       width: 100%;
+      max-width: 400px;
+    }
+
+    /* ── Compact leaderboard inside drawer ── */
+    .drawer-leaderboard :global(.leaderboard) {
       padding: 8px 10px;
+      min-width: unset;
+    }
+    .drawer-leaderboard :global(.leaderboard__header) {
+      margin-bottom: 4px;
+    }
+    .drawer-leaderboard :global(.leaderboard__title) {
+      font-size: 0.65rem;
+    }
+    .drawer-leaderboard :global(.game-totals) {
+      padding: 2px 4px;
+      margin-bottom: 2px;
+      font-size: 0.65rem;
+    }
+    .drawer-leaderboard :global(.totals-total) {
+      font-size: 0.7rem;
+    }
+    .drawer-leaderboard :global(.tick-counter) {
+      gap: 4px;
+    }
+    .drawer-leaderboard :global(.tick-label) {
+      font-size: 0.6rem;
+    }
+    .drawer-leaderboard :global(.tick-value) {
+      font-size: 1.1rem;
+    }
+    .drawer-leaderboard :global(.tick-progress-bar) {
+      height: 3px;
+      margin: 2px 0 4px 0;
+    }
+    .drawer-leaderboard :global(.leaderboard__list) {
+      gap: 2px;
+    }
+    .drawer-leaderboard :global(.leaderboard__item) {
+      padding: 3px 6px;
+      gap: 6px;
+      font-size: 0.75rem;
+    }
+    .drawer-leaderboard :global(.player-dot) {
+      width: 8px;
+      height: 8px;
+    }
+    .drawer-leaderboard :global(.player-dot--self) {
+      width: 10px;
+      height: 10px;
+    }
+    .drawer-leaderboard :global(.player-name) {
+      font-size: 0.75rem;
+    }
+    .drawer-leaderboard :global(.player-stats) {
+      font-size: 0.65rem;
+    }
+    .drawer-leaderboard :global(.stat-total) {
+      font-size: 0.7rem;
+      min-width: 2em;
+    }
+    .drawer-leaderboard :global(.stat-breakdown) {
+      font-size: 0.55rem;
+      min-width: 2.5em;
+    }
+    .drawer-leaderboard :global(.stat-stars) {
+      min-width: 2em;
+    }
+    .drawer-leaderboard :global(.stat-prod) {
+      min-width: 2em;
+    }
+
+    /* Theme selector: inline icon + select */
+    .drawer-theme-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      max-width: 400px;
+    }
+    .drawer-theme-icon {
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+    .drawer-theme-select {
+      flex: 1;
+      padding: 6px 10px;
       background: rgba(20, 20, 35, 0.9);
       border: 1px solid rgba(255, 200, 60, 0.3);
       border-radius: 6px;
       color: #fff;
       font-family: "Montserrat", sans-serif;
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       font-weight: 600;
       cursor: pointer;
     }

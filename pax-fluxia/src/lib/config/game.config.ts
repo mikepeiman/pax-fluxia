@@ -839,7 +839,7 @@ const _rawConfig: GameConfigType = {
     /** GPU blur for smooth territory edges (0=sharp, higher=softer) */
     VORONOI_BLUR: 6,
     /** Chaikin smoothing iterations (0=angular polygons, 2=rounded, 4=very smooth) */
-    VORONOI_SMOOTHING: 2,
+    VORONOI_SMOOTHING: 0,
     /** Enable gradient blending at territory borders */
     VORONOI_GRADIENT_BLEND: true,
     /** Gradient blend strip width in px */

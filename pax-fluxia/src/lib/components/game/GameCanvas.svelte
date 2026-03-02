@@ -4,6 +4,7 @@
     import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
     import { animationStore } from "$lib/stores/animationStore.svelte";
     import { audioManager } from "$lib/services/audioManager.svelte";
+    import { mapTranspose } from "$lib/stores/mapTranspose.svelte";
     import { log } from "$lib/utils/logger";
     import { GAME_CONFIG } from "$lib/config/game.config";
     import {
@@ -184,13 +185,17 @@
     const ZOOM_MIN = 0.8; // Max zoom-out: 125% of gameboard visible
     const ZOOM_MAX = 5.0;
 
+    /** Height of the bottom UI overlay (speed controls) that obscures the canvas */
+    const BOTTOM_UI_INSET = 56;
+
     export function centerAndFit() {
         zoomLevel = 1;
         panOffsetX = 0;
         panOffsetY = 0;
         if (app && app.stage) {
             const containerWidth = app.screen.width;
-            const containerHeight = app.screen.height;
+            // Subtract bottom UI inset so map fits above the controls
+            const containerHeight = app.screen.height - BOTTOM_UI_INSET;
             const effectiveScale = baseScale * zoomLevel;
             const scaledWidth = GAME_WIDTH * effectiveScale;
             const scaledHeight = GAME_HEIGHT * effectiveScale;
@@ -467,10 +472,11 @@
 
         window.removeEventListener("resize", handleResize);
 
-        // F-107: Remove orientation listener
+        // F-107: Remove orientation listener and reset transpose flag
         if (orientationQuery) {
             orientationQuery.removeEventListener("change", onOrientationChange);
         }
+        mapTranspose.active = false;
 
         if (resizeObserver) {
             resizeObserver.disconnect();
@@ -529,6 +535,10 @@
             // Render the current frame from unified store
             const stars = activeGameStore.stars as StarState[];
             if (stars.length > 0 && app) {
+                // Pre-map coordinates for display (applies transpose if active)
+                const displayStars: StarState[] = mapTranspose.active
+                    ? stars.map((s) => ({ ...s, x: s.y, y: s.x }))
+                    : stars;
                 // Compute tickProgress from game time (NOT wall clock)
                 const gameNowMs = fxOrchestrator.gameTime;
                 const tickProgress = isPaused
@@ -538,7 +548,7 @@
                               activeGameStore.effectiveTickMs,
                           1,
                       );
-                renderFrame(stars, tickProgress);
+                renderFrame(displayStars, tickProgress);
             }
 
             animationFrameId = requestAnimationFrame(loop);
@@ -555,34 +565,22 @@
     let GAME_WIDTH = 1600;
     let GAME_HEIGHT = 900;
 
-    /** Recompute world bounds from actual star positions + padding */
+    /** Recompute world bounds from display positions (respects transpose) */
     function updateWorldBounds() {
         const currentStars = activeGameStore.stars as StarState[];
         if (!currentStars || currentStars.length === 0) return;
-        let minX = Infinity,
-            minY = Infinity,
-            maxX = 0,
+        let maxX = 0,
             maxY = 0;
         for (const s of currentStars) {
-            if (s.x < minX) minX = s.x;
-            if (s.y < minY) minY = s.y;
-            if (s.x > maxX) maxX = s.x;
-            if (s.y > maxY) maxY = s.y;
+            const dx = mapTranspose.x(s);
+            const dy = mapTranspose.y(s);
+            if (dx > maxX) maxX = dx;
+            if (dy > maxY) maxY = dy;
         }
         // Add padding (star radius + orbits)
         const pad = 80;
-        GAME_WIDTH = maxX - minX + pad * 2;
-        GAME_HEIGHT = maxY - minY + pad * 2;
-        // Shift all star positions so the bounding box starts at (pad, pad)
-        // This ensures the game world origin aligns with the content
-        if (minX !== pad || minY !== pad) {
-            const offsetX = pad - minX;
-            const offsetY = pad - minY;
-            for (const s of currentStars) {
-                s.x += offsetX;
-                s.y += offsetY;
-            }
-        }
+        GAME_WIDTH = maxX + pad;
+        GAME_HEIGHT = maxY + pad;
     }
 
     // ── F-107: Portrait Map Orientation ──────────────────────────────────
@@ -596,23 +594,19 @@
             : false;
     let mapIsPortrait = false; // Set when stars first load
 
-    /** Transpose all star coordinates (x↔y) for portrait/landscape swap */
+    /** Toggle the transpose flag — display coordinates swap at consumption sites */
     function transposeStarCoordinates() {
-        const currentStars = activeGameStore.stars as StarState[];
-        if (!currentStars || currentStars.length === 0) return;
-        for (const s of currentStars) {
-            const tmp = s.x;
-            s.x = s.y;
-            s.y = tmp;
-        }
+        mapTranspose.active = !mapTranspose.active;
         // Flip the map orientation flag
         mapIsPortrait = !mapIsPortrait;
-        // Reset territory caches since positions changed
+        // Reset territory caches since display positions changed
         resetVoronoiCache();
         resetMetaballCache();
         resetPixelTerritoryCache();
         resetLaneTerritoryCache();
-        // Recompute world bounds with new positions
+        // Reset visual ship state so damaged ships snap (no lerp drift)
+        fxOrchestrator.reset();
+        // Recompute world bounds with new display positions
         updateWorldBounds();
         log.sys(
             "GameCanvas",
@@ -667,7 +661,8 @@
 
         // Calculate base scale to fit game world in container
         const containerWidth = app.screen.width;
-        const containerHeight = app.screen.height;
+        // Subtract bottom UI inset so map fits above the controls
+        const containerHeight = app.screen.height - BOTTOM_UI_INSET;
 
         const scaleX = containerWidth / GAME_WIDTH;
         const scaleY = containerHeight / GAME_HEIGHT;
@@ -1179,7 +1174,12 @@
         let nearestDist = Infinity;
 
         for (const star of stars) {
-            const dist = distance(x, y, star.x, star.y);
+            const dist = distance(
+                x,
+                y,
+                mapTranspose.x(star),
+                mapTranspose.y(star),
+            );
             // Hit radius: 2× visual radius or 40px minimum
             const hitRadius = Math.max(star.radius * 2, 40);
             if (dist <= hitRadius && dist < nearestDist) {
@@ -1317,8 +1317,8 @@
             dragStartX = x;
             dragStartY = y;
             // But use star center for visual drag preview line
-            dragSourceCenterX = star.x;
-            dragSourceCenterY = star.y;
+            dragSourceCenterX = mapTranspose.x(star);
+            dragSourceCenterY = mapTranspose.y(star);
             dragCurrentX = x;
             dragCurrentY = y;
             log.input(`pointerDown → DRAG START from owned star ${star.id}`);
@@ -1458,8 +1458,8 @@
                         dragSourceId = targetStar.id;
                         dragStartX = dragCurrentX;
                         dragStartY = dragCurrentY;
-                        dragSourceCenterX = targetStar.x;
-                        dragSourceCenterY = targetStar.y;
+                        dragSourceCenterX = mapTranspose.x(targetStar);
+                        dragSourceCenterY = mapTranspose.y(targetStar);
                         activeStarId = targetStar.id;
                     }
                 } else if (lastEnemyPassthrough === dragSourceId) {
@@ -1488,8 +1488,8 @@
                         dragSourceId = targetStar.id;
                         dragStartX = dragCurrentX;
                         dragStartY = dragCurrentY;
-                        dragSourceCenterX = targetStar.x;
-                        dragSourceCenterY = targetStar.y;
+                        dragSourceCenterX = mapTranspose.x(targetStar);
+                        dragSourceCenterY = mapTranspose.y(targetStar);
                     }
                 }
             }
@@ -1816,8 +1816,8 @@
 
             if (isConnected) {
                 dragPreviewGraphics.circle(
-                    target.x,
-                    target.y,
+                    mapTranspose.x(target),
+                    mapTranspose.y(target),
                     target.radius + 15,
                 );
                 dragPreviewGraphics.stroke({

@@ -68,3 +68,28 @@
 - **Decision**: Rename `TerritoryRenderer` → `StarPowerRenderer`, `SHOW_TERRITORY` → `SHOW_STAR_POWER`. Per-star radial halos represent fleet strength/power, not ownership geometry.
 - **Rationale**: "Territory" describes ownership boundaries (Voronoi cells, metaball fields). Per-star halos that scale with ship count are "star power" — a visual indicator of strength radiating from individual stars. Naming must describe what the visual *represents*, not the rendering technique.
 - **Rule**: Added to `.agent/memory/semantic-naming.md` (Visual Layer Naming section)
+
+## 2026-03-01
+
+### D-25: Consumption-Layer Transpose for Map Orientation
+- **Decision**: Star coordinate transposition (x↔y for portrait/landscape) must happen at the point of consumption (rendering, territory worker, world-bounds), NOT in the data layer (toGameState). A shared `mapTranspose` flag provides `x(star)`/`y(star)` utilities.
+- **Rationale**: `toGameState()` only runs at tick time. Mutating star objects or swapping in toGameState creates stale-coordinate windows between ticks where rendering, territory, and view scaling use non-transposed values.
+
+### D-26: Topbar Renamed to "StatusBar"
+- **Decision**: The top UI bar is now called "StatusBar" (or "statusbar"). It displays game info only — no controls live here.
+
+### D-27: StatusBar Design — CSS Grid + Minified Leaderboard
+- **Decision**: StatusBar uses CSS Grid layout containing a minified leaderboard display and player-color swatch.
+
+### D-28: Star Cycling Navigation Widget
+- **Decision**: A `< [⊕] >` widget cycles through the player's owned stars. `<` and `>` cycle prev/next. `[⊕]` recenters full-map view. Zoom level for star focus is user-controllable (slider). This widget is a standalone component.
+
+### D-29: Player-Color Swatch in StatusBar
+- **Decision**: Two-part swatch — outer shape uses player's territory color+pattern, inner inset shape uses player's primary color fill.
+
+### D-30: Settings + Hamburger Combined in Speed Widget
+- **Decision**: Gear icon (settings) and hamburger icon merge into a single small widget within the game speed control area, freeing the statusbar for info display only.
+
+### D-31: Mobile Layout uses CSS Grid
+- **Decision**: Mobile game layouts refactor from current approach to CSS Grid for proper spacing, UI avoidance, and responsive behavior.
+
