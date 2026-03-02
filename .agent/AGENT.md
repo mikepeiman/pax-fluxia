@@ -169,6 +169,10 @@ Ask user for screenshots. Never use browser subagent for screenshotting (too slo
 ### Git
 Use `git ac "message"` alias for add+commit. Run commands separately, never chain with `&&`.
 
+**⛔ NEVER push to `live` branch.** Only the user deploys to production. Hard rule, always on.
+
+**Commit working state FIRST.** When user says "commit" or "push," do it immediately before any additional work. Tweaks go in separate commits.
+
 ### Pre-Code Checklist (Gear 2+)
 1. New files? → Update physical map
 2. New exports/types? → Update inventory
