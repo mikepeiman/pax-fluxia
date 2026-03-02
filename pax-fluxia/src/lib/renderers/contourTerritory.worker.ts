@@ -1,13 +1,13 @@
 // ============================================================================
 // ContourTerritoryWorker — Vector territory via marching squares
 // ============================================================================
-// Unlike pixel/lane/metaball workers that produce raster bitmaps,
-// this worker produces VECTOR polygon data:
+// Pipeline:
 //   1. Build low-res ownership grid (nearest-star Voronoi)
-//   2. Extract contour boundaries via marching squares
-//   3. Simplify paths (Douglas-Peucker)
-//   4. Optional Chaikin smoothing
-//   5. Return polygon arrays per owner
+//   2. For each owner, create binary mask
+//   3. Extract boundary via marching squares with INTEGER edge keys
+//   4. Chain edges into closed polygons
+//   5. Simplify (Douglas-Peucker) + smooth (Chaikin)
+//   6. Return polygon arrays per owner
 // ============================================================================
 
 interface StarData {
@@ -33,27 +33,57 @@ interface PolygonResult {
     fillPoints: number[];   // flat [x,y, x,y, ...] in world coords
 }
 
-// ── Marching Squares lookup table ──
-// Each cell has 4 corners: TL, TR, BR, BL
-// Bit-mask: TL=8, TR=4, BR=2, BL=1
-// Edge midpoints: top=0, right=1, bottom=2, left=3
-const MS_EDGES: number[][] = [
-    [],           // 0: all outside
-    [2, 3],       // 1: BL inside
-    [1, 2],       // 2: BR inside
-    [1, 3],       // 3: BL+BR inside
-    [0, 1],       // 4: TR inside
-    [0, 1, 2, 3], // 5: TR+BL (ambiguous — saddle, use simple)
-    [0, 2],       // 6: TR+BR inside
-    [0, 3],       // 7: TR+BR+BL inside
-    [0, 3],       // 8: TL inside
-    [0, 2],       // 9: TL+BL inside
-    [0, 1, 2, 3], // 10: TL+BR (ambiguous — saddle)
-    [0, 1],       // 11: TL+BL+BR inside
-    [1, 3],       // 12: TL+TR inside
-    [1, 2],       // 13: TL+TR+BL inside
-    [2, 3],       // 14: TL+TR+BR inside
-    [],           // 15: all inside
+// ── Edge identification ──
+// Each edge in the grid is uniquely identified by integer coordinates:
+//   Horizontal edge at row gy, between columns gx and gx+1:  "H:gx:gy"
+//   Vertical edge at column gx, between rows gy and gy+1:    "V:gx:gy"
+// Edge midpoints in world coords:
+//   H:gx:gy → ((gx+0.5)*cellW, gy*cellH)
+//   V:gx:gy → (gx*cellW, (gy+0.5)*cellH)
+
+function edgeKey(type: 'H' | 'V', gx: number, gy: number): string {
+    return `${type}:${gx}:${gy}`;
+}
+
+function edgeMidpoint(type: 'H' | 'V', gx: number, gy: number, cellW: number, cellH: number): [number, number] {
+    if (type === 'H') {
+        return [(gx + 0.5) * cellW, gy * cellH];
+    } else {
+        return [gx * cellW, (gy + 0.5) * cellH];
+    }
+}
+
+// Marching squares edge table for binary grid
+// Cell corners: TL(gx,gy) TR(gx+1,gy) BR(gx+1,gy+1) BL(gx,gy+1)
+// Bits: TL=8, TR=4, BR=2, BL=1
+// Edges: top=H:gx:gy, right=V:gx+1:gy, bottom=H:gx:gy+1, left=V:gx:gy
+// Each case returns pairs of connected edges [from, to, from, to, ...]
+type EdgeSpec = ['H' | 'V', number, number]; // [type, dx, dy] relative to cell (gx, gy)
+
+const TOP: EdgeSpec = ['H', 0, 0];
+const RIGHT: EdgeSpec = ['V', 1, 0];
+const BOTTOM: EdgeSpec = ['H', 0, 1];
+const LEFT: EdgeSpec = ['V', 0, 0];
+
+// For each of the 16 cases, list edge pairs that form segments
+// Each pair: [fromEdge, toEdge]
+const MS_CASES: [EdgeSpec, EdgeSpec][][] = [
+    [],                          // 0: all outside
+    [[BOTTOM, LEFT]],            // 1: BL
+    [[RIGHT, BOTTOM]],           // 2: BR
+    [[RIGHT, LEFT]],             // 3: BL+BR
+    [[TOP, RIGHT]],              // 4: TR
+    [[TOP, LEFT], [RIGHT, BOTTOM]], // 5: TR+BL (saddle)
+    [[TOP, BOTTOM]],             // 6: TR+BR
+    [[TOP, LEFT]],               // 7: TL missing
+    [[LEFT, TOP]],               // 8: TL
+    [[BOTTOM, TOP]],             // 9: TL+BL
+    [[LEFT, BOTTOM], [TOP, RIGHT]], // 10: TL+BR (saddle)
+    [[RIGHT, TOP]],              // 11: BL missing
+    [[LEFT, RIGHT]],             // 12: TL+TR
+    [[BOTTOM, RIGHT]],           // 13: BR missing
+    [[LEFT, BOTTOM]],            // 14: BL missing
+    [],                          // 15: all inside
 ];
 
 // ── Douglas-Peucker path simplification ──
@@ -61,7 +91,6 @@ function simplifyPath(points: number[], tolerance: number): number[] {
     const n = points.length / 2;
     if (n <= 2) return points;
 
-    // Find point with max distance from line between first and last
     let maxDist = 0;
     let maxIdx = 0;
     const sx = points[0], sy = points[1];
@@ -88,14 +117,13 @@ function simplifyPath(points: number[], tolerance: number): number[] {
     if (maxDist > tolerance) {
         const left = simplifyPath(points.slice(0, (maxIdx + 1) * 2), tolerance);
         const right = simplifyPath(points.slice(maxIdx * 2), tolerance);
-        // Merge, removing duplicate middle point
         return left.slice(0, -2).concat(right);
     }
 
     return [sx, sy, ex, ey];
 }
 
-// ── Chaikin smoothing ──
+// ── Chaikin smoothing (closed polygon) ──
 function chaikinSmooth(points: number[], iterations: number): number[] {
     let pts = points;
     for (let iter = 0; iter < iterations; iter++) {
@@ -106,9 +134,7 @@ function chaikinSmooth(points: number[], iterations: number): number[] {
             const j = (i + 1) % n;
             const x0 = pts[i * 2], y0 = pts[i * 2 + 1];
             const x1 = pts[j * 2], y1 = pts[j * 2 + 1];
-            // Q point (25% along segment)
             out.push(x0 * 0.75 + x1 * 0.25, y0 * 0.75 + y1 * 0.25);
-            // R point (75% along segment)
             out.push(x0 * 0.25 + x1 * 0.75, y0 * 0.25 + y1 * 0.75);
         }
         pts = out;
@@ -119,11 +145,10 @@ function chaikinSmooth(points: number[], iterations: number): number[] {
 self.onmessage = (e: MessageEvent<WorkerInput>) => {
     const { gridW, gridH, worldW, worldH, stars, numOwners, ownerRGB, simplify, smooth } = e.data;
 
-    // Scale factors: grid coords → world coords
     const cellW = worldW / gridW;
     const cellH = worldH / gridH;
 
-    // ── Step 1: Build ownership grid (nearest-star Voronoi) ──
+    // ── Step 1: Build ownership grid ──
     const grid = new Int8Array(gridW * gridH).fill(-1);
 
     for (let gy = 0; gy < gridH; gy++) {
@@ -134,9 +159,9 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
             let winner = -1;
             for (let i = 0; i < stars.length; i++) {
                 const s = stars[i];
-                const dx = wx - s.x;
-                const dy = wy - s.y;
-                const distSq = dx * dx + dy * dy;
+                const ddx = wx - s.x;
+                const ddy = wy - s.y;
+                const distSq = ddx * ddx + ddy * ddy;
                 if (distSq < minDist) {
                     minDist = distSq;
                     winner = s.ownerIdx;
@@ -146,115 +171,109 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
         }
     }
 
-    // ── Step 2: Extract contour polygons per owner via marching squares ──
-    // For each owner, collect boundary segments then chain into polygons.
+    // ── Step 2: For each owner, extract boundary polygons ──
+    // Collect unique owner indices
+    const ownerSet = new Set<number>();
+    for (let i = 0; i < grid.length; i++) {
+        if (grid[i] >= 0) ownerSet.add(grid[i]);
+    }
 
-    const ownerSegments = new Map<number, Map<string, [number, number, number, number]>>();
+    const results: PolygonResult[] = [];
 
-    for (let gy = 0; gy < gridH - 1; gy++) {
-        for (let gx = 0; gx < gridW - 1; gx++) {
-            const tl = grid[gy * gridW + gx];
-            const tr = grid[gy * gridW + gx + 1];
-            const br = grid[(gy + 1) * gridW + gx + 1];
-            const bl = grid[(gy + 1) * gridW + gx];
+    for (const ownerIdx of ownerSet) {
+        // Build binary mask: 1 = this owner, 0 = not
+        // Use a padded grid (1 cell border of 0s) to ensure closed contours
+        const padW = gridW + 2;
+        const padH = gridH + 2;
+        const mask = new Uint8Array(padW * padH); // all 0 by default
 
-            // For each owner present in this cell, check marching squares
-            const owners = new Set<number>();
-            if (tl >= 0) owners.add(tl);
-            if (tr >= 0) owners.add(tr);
-            if (br >= 0) owners.add(br);
-            if (bl >= 0) owners.add(bl);
-
-            for (const owner of owners) {
-                // Build mask for this owner
-                let mask = 0;
-                if (tl === owner) mask |= 8;
-                if (tr === owner) mask |= 4;
-                if (br === owner) mask |= 2;
-                if (bl === owner) mask |= 1;
-
-                const edges = MS_EDGES[mask];
-                if (edges.length < 2) continue;
-
-                // Edge midpoints in world coords
-                const midpoints: [number, number][] = [
-                    [(gx + 0.5) * cellW, gy * cellH],          // top
-                    [(gx + 1) * cellW, (gy + 0.5) * cellH],    // right
-                    [(gx + 0.5) * cellW, (gy + 1) * cellH],    // bottom
-                    [gx * cellW, (gy + 0.5) * cellH],          // left
-                ];
-
-                // Create segments (pairs of edge indices → line segments)
-                for (let s = 0; s < edges.length; s += 2) {
-                    const [x1, y1] = midpoints[edges[s]];
-                    const [x2, y2] = midpoints[edges[s + 1]];
-
-                    if (!ownerSegments.has(owner)) {
-                        ownerSegments.set(owner, new Map());
-                    }
-                    // Key by start point for chaining
-                    const key = `${x1.toFixed(1)},${y1.toFixed(1)}`;
-                    ownerSegments.get(owner)!.set(key, [x1, y1, x2, y2]);
+        for (let gy = 0; gy < gridH; gy++) {
+            for (let gx = 0; gx < gridW; gx++) {
+                if (grid[gy * gridW + gx] === ownerIdx) {
+                    mask[(gy + 1) * padW + (gx + 1)] = 1;
                 }
             }
         }
-    }
 
-    // ── Step 3: Chain segments into polygons ──
-    const results: PolygonResult[] = [];
+        // Marching squares on the padded binary mask
+        // Collect directed edges: from → to
+        const edgeFrom = new Map<string, string>();   // fromKey → toKey
+        const edgeCoords = new Map<string, [number, number]>(); // edgeKey → world coords
 
-    for (const [ownerIdx, segments] of ownerSegments) {
+        for (let gy = 0; gy < padH - 1; gy++) {
+            for (let gx = 0; gx < padW - 1; gx++) {
+                const tl = mask[gy * padW + gx];
+                const tr = mask[gy * padW + gx + 1];
+                const br = mask[(gy + 1) * padW + gx + 1];
+                const bl = mask[(gy + 1) * padW + gx];
+
+                const caseIdx = (tl << 3) | (tr << 2) | (br << 1) | bl;
+                const pairs = MS_CASES[caseIdx];
+                if (pairs.length === 0) continue;
+
+                for (const [fromSpec, toSpec] of pairs) {
+                    const fgx = gx + fromSpec[1];
+                    const fgy = gy + fromSpec[2];
+                    const tgx = gx + toSpec[1];
+                    const tgy = gy + toSpec[2];
+
+                    const fKey = edgeKey(fromSpec[0], fgx, fgy);
+                    const tKey = edgeKey(toSpec[0], tgx, tgy);
+
+                    edgeFrom.set(fKey, tKey);
+
+                    // Compute world coordinates (offset by -1 for padding)
+                    if (!edgeCoords.has(fKey)) {
+                        const [wx, wy] = edgeMidpoint(fromSpec[0], fgx - 1, fgy - 1, cellW, cellH);
+                        edgeCoords.set(fKey, [wx, wy]);
+                    }
+                    if (!edgeCoords.has(tKey)) {
+                        const [wx, wy] = edgeMidpoint(toSpec[0], tgx - 1, tgy - 1, cellW, cellH);
+                        edgeCoords.set(tKey, [wx, wy]);
+                    }
+                }
+            }
+        }
+
+        // ── Step 3: Chain directed edges into closed polygons ──
         const used = new Set<string>();
-        const polygons: number[][] = [];
 
-        for (const [startKey, seg] of segments) {
+        for (const startKey of edgeFrom.keys()) {
             if (used.has(startKey)) continue;
 
-            const polygon: number[] = [seg[0], seg[1]];
-            used.add(startKey);
-            let cx = seg[2], cy = seg[3];
-            polygon.push(cx, cy);
-
-            // Follow chain
+            const polygon: number[] = [];
+            let currentKey = startKey;
             let safety = 0;
-            while (safety++ < 10000) {
-                const nextKey = `${cx.toFixed(1)},${cy.toFixed(1)}`;
-                const next = segments.get(nextKey);
-                if (!next || used.has(nextKey)) break;
 
-                used.add(nextKey);
-                cx = next[2];
-                cy = next[3];
-                polygon.push(cx, cy);
-
-                // Check if we've closed the loop
-                if (Math.abs(cx - polygon[0]) < 0.5 && Math.abs(cy - polygon[1]) < 0.5) {
+            while (safety++ < 50000) {
+                if (used.has(currentKey)) {
+                    // We've looped back — closed polygon
                     break;
                 }
+                used.add(currentKey);
+
+                const coords = edgeCoords.get(currentKey);
+                if (coords) {
+                    polygon.push(coords[0], coords[1]);
+                }
+
+                const nextKey = edgeFrom.get(currentKey);
+                if (!nextKey) break;
+                currentKey = nextKey;
             }
 
             if (polygon.length >= 6) { // At least 3 points
-                polygons.push(polygon);
+                let processed = polygon;
+                if (simplify > 0) {
+                    processed = simplifyPath(processed, simplify * cellW * 0.05);
+                }
+                if (smooth > 0 && processed.length >= 6) {
+                    processed = chaikinSmooth(processed, smooth);
+                }
+                results.push({ ownerIdx, fillPoints: processed });
             }
-        }
-
-        // For each polygon: simplify then smooth
-        for (const poly of polygons) {
-            let processed = poly;
-            if (simplify > 0) {
-                processed = simplifyPath(processed, simplify * cellW * 0.1);
-            }
-            if (smooth > 0 && processed.length >= 6) {
-                processed = chaikinSmooth(processed, smooth);
-            }
-            results.push({ ownerIdx, fillPoints: processed });
         }
     }
-
-    // Also create fill polygons for interior (non-boundary) regions.
-    // For each owner, find convex hull of all their grid cells as a fallback fill.
-    // The marching squares polygons above handle boundaries; we need interior fills too.
-    // We'll send the boundary polygons and let the main thread use them as both fill and border.
 
     (self as any).postMessage({ polygons: results, numOwners, ownerRGB });
 };
