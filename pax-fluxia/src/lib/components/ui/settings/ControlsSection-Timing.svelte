@@ -40,13 +40,12 @@
         pinValueToTickDuration,
         lockRatioToTick,
         lockRatioToAnimSpeed,
-    syncFromConfig,
+        syncFromConfig,
     }: Props = $props();
-    import CategoryThemeBar from './CategoryThemeBar.svelte';
+    import CategoryThemeBar from "./CategoryThemeBar.svelte";
 </script>
 
 <CategoryThemeBar category="timing" onApply={() => syncFromConfig?.()} />
-
 
 <div class="var-row">
     <div class="row-top">
@@ -222,27 +221,6 @@
         </div>
     {/if}
 {/each}
-
-<!-- Number Transition Duration -->
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Label Transition</span><span class="val"
-            >{panel.numberTransitionMs ?? 120}ms</span
-        >
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="500"
-        step="10"
-        value={panel.numberTransitionMs ?? 120}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.NUMBER_TRANSITION_MS = v;
-            updatePanel("numberTransitionMs", v);
-        }}
-    />
-</div>
 
 <style>
     @import "./panel-shared.css";

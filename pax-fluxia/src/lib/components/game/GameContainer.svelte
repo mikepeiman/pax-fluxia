@@ -641,6 +641,7 @@
   .app-container {
     width: 100vw;
     height: 100vh;
+    height: 100dvh;
   }
 
   /* ═══ GRID LAYOUT V8 ═══ */
@@ -651,12 +652,30 @@
     grid-template-columns: 1fr auto;
     grid-template-areas: "canvas right";
     height: 100vh;
+    height: 100dvh;
     width: 100vw;
   }
 
   .game-layout.settings-open {
     grid-template-columns: 1fr auto auto;
     grid-template-areas: "canvas controls right";
+  }
+
+  .area-canvas {
+    grid-area: canvas;
+    position: relative;
+    width: 100%;
+    height: 100%;
+    min-height: 0; /* Prevents CSS Grid from expanding cell beyond available space */
+    overflow: hidden;
+    /* DEBUG: thick red border to visualize canvas container bounds */
+    border: 3px solid red;
+    box-sizing: border-box;
+  }
+
+  /* Controls bar and StatusBar are mobile-only */
+  .area-controls-bar {
+    display: none;
   }
 
   @media (max-width: 1024px) {
@@ -700,6 +719,7 @@
     }
     /* Controls bar fills bottom grid area */
     .area-controls-bar {
+      display: flex;
       grid-area: controls;
       padding: 6px 8px;
       padding-bottom: 4rem;
@@ -744,12 +764,12 @@
       align-items: center !important;
       justify-content: flex-start !important;
     }
-    /* Rotate fieldsets so they become thin vertical strips — text reads bottom-to-top */
+    /* Rotate fieldsets so they become thin vertical strips */
     .speed-fieldset,
     .area-controls-bar :global(.star-nav-fieldset) {
-      writing-mode: vertical-lr;
+      writing-mode: vertical-rl;
       transform: rotate(180deg);
-      flex-direction: row !important;
+      flex-direction: row-reverse !important;
       padding: 4px 2px !important;
       gap: 2px !important;
       margin: 0;
@@ -761,10 +781,10 @@
       writing-mode: horizontal-tb;
       transform: rotate(180deg);
     }
-    /* Legend text reads vertically bottom-to-top */
+    /* Legend text reads vertically */
     .speed-legend,
     .area-controls-bar :global(.star-nav-legend) {
-      writing-mode: vertical-lr;
+      writing-mode: vertical-rl;
       transform: rotate(180deg);
       font-size: 0.4rem;
       padding: 1px 0;
@@ -779,6 +799,14 @@
       margin: 0 !important;
       width: 100vw !important;
       max-width: 100vw !important;
+      height: 100vh !important;
+      overflow-y: auto !important;
+      display: flex !important;
+      flex-direction: column !important;
+      background: rgba(5, 10, 25, 0.95) !important;
+      backdrop-filter: blur(12px) !important;
+      padding: 12px !important;
+      padding-top: 48px !important;
     }
     .mobile-scrim {
       z-index: 599 !important;

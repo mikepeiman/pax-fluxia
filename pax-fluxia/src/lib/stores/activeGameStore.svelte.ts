@@ -16,6 +16,7 @@ import { validateOrder } from '@pax/common';
 import type { TickEvents } from '@pax/common';
 import type { StarState, PlayerState, ConnectionState, GameHistoryEntry } from '$lib/types/game.types';
 import { combatLog } from '$lib/stores/combatLogStore';
+import { audioManager } from '$lib/services/audioManager.svelte';
 import { GAME_CONFIG } from '$lib/config/game.config';
 
 // ============================================================================
@@ -50,6 +51,11 @@ function pushTickEvents(events: TickEvents): void {
 
     // Feed combat log from events (unified — no longer done separately in each store)
     for (const combat of events.combats) {
+        // Cross-reference conquest event for escape/destroy details
+        const conquestInfo = combat.conquered
+            ? events.conquests.find(c => c.tick === combat.tick && c.starId === combat.defenderId)
+            : undefined;
+
         combatLog.add({
             tick: combat.tick,
             attacker: {
@@ -70,7 +76,31 @@ function pushTickEvents(events: TickEvents): void {
             },
             settings: { aggressor: 0, damage: 0, lethality: 0, forceRatio: 0, repairRate: 0 },
             result: combat.conquered ? 'CONQUERED' : 'DEFENSE',
+            // Conquest details from the matching ConquestEvent
+            conquestType: conquestInfo?.conquestType,
+            captured: conquestInfo?.shipsCaptured,
+            escaped: conquestInfo?.shipsEscaped,
+            destroyed: conquestInfo?.shipsDestroyed,
         });
+    }
+
+    // ── Audio triggers from conquest events (uses uncorrupted previousOwner/newOwner) ──
+    const localId = activeGameStore.localPlayerId;
+    for (const conquest of events.conquests) {
+        const isLocalWin = conquest.newOwner === localId;
+        const isLocalLoss = conquest.previousOwner === localId;
+
+        if (isLocalWin) {
+            if (audioManager.separateConquestSounds) {
+                audioManager.play(`conquest_${conquest.conquestType}` as any);
+            } else {
+                audioManager.play('conquest');
+            }
+        }
+
+        if (isLocalLoss) {
+            audioManager.play('starloss');
+        }
     }
 }
 

@@ -119,6 +119,12 @@
         color: rgba(255, 255, 255, 0.7);
         overflow: hidden;
     }
+    /* StatusBar is mobile-only — desktop uses TopBar + right sidebar */
+    @media (min-width: 1025px) {
+        .statusbar {
+            display: none;
+        }
+    }
 
     /* ── Swatch + controls ── */
     .sb-swatch-wrap {
@@ -153,12 +159,12 @@
     }
     .swatch-gear {
         position: absolute;
-        bottom: -2px;
-        right: -2px;
-        font-size: 0.6rem;
+        bottom: -3px;
+        right: -3px;
+        font-size: 0.85rem;
         line-height: 1;
-        color: rgba(255, 255, 255, 0.7);
-        text-shadow: 0 0 3px rgba(0, 0, 0, 0.8);
+        color: rgba(255, 255, 255, 0.8);
+        text-shadow: 0 0 4px rgba(0, 0, 0, 0.9);
     }
     .sb-mute-btn {
         width: 24px;
@@ -197,14 +203,6 @@
     .sb-player.is-self {
         opacity: 1;
         font-weight: 700;
-    }
-    .sb-player.is-self .sb-dot {
-        box-shadow: 0 0 4px 1px currentColor;
-        outline: 1px solid rgba(255, 255, 255, 0.4);
-    }
-    .sb-player.is-self .sb-ships {
-        color: #fff;
-        font-size: 0.65rem;
     }
     .sb-dot {
         width: 8px;
@@ -268,9 +266,9 @@
             height: 20px;
         }
         .swatch-gear {
-            font-size: 0.7rem;
-            bottom: -1px;
-            right: 0;
+            font-size: 1rem;
+            bottom: -2px;
+            right: -1px;
         }
         .sb-mute-btn {
             width: 28px;

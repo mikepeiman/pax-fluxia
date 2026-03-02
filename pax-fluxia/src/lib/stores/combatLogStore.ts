@@ -1,6 +1,4 @@
 import { writable } from 'svelte/store';
-import { audioManager } from '$lib/services/audioManager.svelte';
-import { activeGameStore } from '$lib/stores/activeGameStore.svelte';
 
 export interface CombatLogEntry {
     id: string;
@@ -38,6 +36,7 @@ export interface CombatLogEntry {
     result: 'DEFENSE' | 'FALLING' | 'CONQUERED';
 
     // Conquest details (only present on CONQUERED results)
+    conquestType?: 'retreat' | 'scatter' | 'complete';
     captured?: number;   // Ships captured by attacker
     escaped?: number;    // Ships that escaped (retreat/scatter)
     destroyed?: number;  // Ships destroyed during scatter
@@ -66,12 +65,6 @@ function createCombatLogStore() {
                     id: crypto.randomUUID(),
                     timestamp: Date.now()
                 };
-
-                // Play conquest sound ONLY for local player's conquests
-                if (entry.result === 'CONQUERED' && entry.attacker.ownerId === activeGameStore.localPlayerId) {
-                    audioManager.play('conquest');
-                }
-
                 // Keep last 50 logs
                 return [newLog, ...logs].slice(0, 50);
             });

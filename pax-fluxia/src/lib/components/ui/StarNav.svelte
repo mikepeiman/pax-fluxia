@@ -1,5 +1,6 @@
 <script lang="ts">
     import type { StarState } from "$lib/types/game.types";
+    import { logFlags } from "$lib/utils/logger";
 
     interface Props {
         stars: StarState[];
@@ -17,6 +18,7 @@
     );
 
     let currentIndex = $state(0);
+    let lastNavInfo = $state("");
 
     // Clamp index when owned stars change
     $effect(() => {
@@ -31,13 +33,17 @@
         if (ownedStars.length === 0) return;
         currentIndex =
             (currentIndex - 1 + ownedStars.length) % ownedStars.length;
-        onNavigateToStar(ownedStars[currentIndex].id);
+        const star = ownedStars[currentIndex];
+        lastNavInfo = `→${star.id} own=${star.ownerId} idx=${currentIndex}/${ownedStars.length}`;
+        onNavigateToStar(star.id);
     }
 
     function next() {
         if (ownedStars.length === 0) return;
         currentIndex = (currentIndex + 1) % ownedStars.length;
-        onNavigateToStar(ownedStars[currentIndex].id);
+        const star = ownedStars[currentIndex];
+        lastNavInfo = `→${star.id} own=${star.ownerId} idx=${currentIndex}/${ownedStars.length}`;
+        onNavigateToStar(star.id);
     }
 </script>
 
@@ -61,6 +67,15 @@
         title="Next star">▸</button
     >
 </fieldset>
+
+{#if logFlags.canvas}
+    <div class="sn-debug">
+        <div>
+            pid={localPlayerId ?? "null"} owned={ownedStars.length}/{stars.length}
+        </div>
+        {#if lastNavInfo}<div>{lastNavInfo}</div>{/if}
+    </div>
+{/if}
 
 <style>
     .star-nav-fieldset {
@@ -106,5 +121,15 @@
     .sn-center {
         color: rgba(0, 255, 255, 0.6);
         font-size: 1.3rem;
+    }
+    .sn-debug {
+        font-family: monospace;
+        font-size: 0.55rem;
+        color: rgba(0, 200, 255, 0.7);
+        background: rgba(0, 0, 0, 0.5);
+        padding: 2px 6px;
+        border-radius: 4px;
+        margin-top: 2px;
+        line-height: 1.3;
     }
 </style>

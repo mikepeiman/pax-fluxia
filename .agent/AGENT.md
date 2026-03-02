@@ -5,22 +5,26 @@
 
 ---
 
-## 1. Project Identity
+## 1. Project Technical Specifications
 
 **Pax Fluxia** — real-time multiplayer galactic strategy game.
 - **Client**: SvelteKit 5 + PixiJS 8 + TypeScript (`pax-fluxia/`)
 - **Server**: Colyseus 0.15 + Bun (`pax-server/`)
 - **Shared**: `@pax/common` monorepo package (`common/`)
 - **Build**: Bun only. `bun install`, `bun run dev`, `bunx`. Never npm/npx/yarn.
-- **Port**: Dev server on `localhost:1420` (Tauri). Never 5173.
+- **Port**: Dev server on `localhost:1420` (Tauri). 
 - **Shell**: PowerShell on Windows. **Never use `&&` to chain commands.**
 
 ---
 
 ## 2. Agent Behavior — Non-Negotiable
 
-### 2.1 Chat-First Response
+### 2.1 Chat-First Response -  Think Critically
+- **Not auto-compliance, not auto-challenge** — think about each prompt carefully and respond thoughtfully
+- When the user proposes an approach, evaluate it: what's right, what's missing, what are the tradeoffs?
+- Push back where warranted, agree where sound, and surface things the user may not have considered
 **Every response starts with a text paragraph** containing:
+- any new insights or ideas you have, critical feedback, challenges, questions, or other thoughts
 - All tasks/instructions you currently remember
 - Working assumptions about code state
 - Memory gaps (if context truncated, say so)
@@ -38,7 +42,13 @@
 - **No guessing** — always read the source definition before writing dependent code
 - **Finish the task** — complete current work before starting new items
 
-### 2.4 Document Everything
+### 2.4 Completeness
+- **Every definition must have a consumer** — adding a type, config key, or function without wiring it to its integration point is dead code and counts as incomplete work
+- **Trace the full path** — when creating something new (event, SoundType, config flag), follow the chain from definition → usage → trigger → UI
+- **No orphans** — before marking work done, verify: "Who calls this? Where does this render? What fires this event?"
+
+
+### 2.5 Document Everything
 All ideas, fixes, bugs, roadmap items the user mentions → document immediately in:
 | Type | Where |
 |------|-------|
@@ -47,12 +57,12 @@ All ideas, fixes, bugs, roadmap items the user mentions → document immediately
 | Design decisions | `.atlas/DECISIONS.md` |
 | Mechanics changes | `.atlas/MECHANICS.md` |
 
-### 2.5 Session Memory
+### 2.6 Session Memory
 - **Session notes**: `.agent/WIP Work-In-Progress/SESSION_YYYY-MM-DD.md` — create at session start, append after every task
 - **Chat log**: `.agent/WIP Work-In-Progress/CHAT_YYYY-MM-DD.md` — verbatim user prompts, timestamped
 - **Post-mortems**: `.atlas/post-mortems/YYYY-MM-DD-<name>.md` — after significant failures
 
-### 2.6 Model Selection
+### 2.7 Model Selection
 | Task | Model |
 |------|-------|
 | Docs, formatting, lookups, config | 🟢 Flash |
@@ -169,6 +179,10 @@ Ask user for screenshots. Never use browser subagent for screenshotting (too slo
 ### Git
 Use `git ac "message"` alias for add+commit. Run commands separately, never chain with `&&`.
 
+**⛔ NEVER push to `live` branch.** Only the user deploys to production. Hard rule, always on.
+
+**Commit working state FIRST.** When user says "commit" or "push," do it immediately before any additional work. Tweaks go in separate commits.
+
 ### Pre-Code Checklist (Gear 2+)
 1. New files? → Update physical map
 2. New exports/types? → Update inventory
@@ -195,13 +209,49 @@ Use `git ac "message"` alias for add+commit. Run commands separately, never chai
 
 ## 10. File Reference
 
+### Core Documents
 | Need | Load |
 |------|------|
 | Full context | `.agent/AGENT.md` (this file) |
 | Feature status / bugs | `.atlas/FEATURE_STATUS.md` |
+| Feature ideas / roadmap | `.agent/WIP Work-In-Progress/FEATURE_IDEAS.md` |
 | Design decisions | `.atlas/DECISIONS.md` |
 | Game mechanics | `.atlas/MECHANICS.md` |
 | Design rules (CSS/layout) | `.atlas/DESIGN_RULES.md` |
+
+### Session & Work-In-Progress
+| Need | Load |
+|------|------|
+| Session notes (current) | `.agent/WIP Work-In-Progress/SESSION_YYYY-MM-DD.md` |
+| Chat log (user prompts) | `.agent/WIP Work-In-Progress/CHAT_YYYY-MM-DD.md` |
+| UI work queue | `.agent/WIP Work-In-Progress/UI/YYYY-MM-DD.md` |
+| Post-mortems | `.atlas/post-mortems/YYYY-MM-DD-<name>.md` |
+
+### Deep Reference (on-demand)
+| Need | Load |
+|------|------|
 | Active rules (detailed) | `.agent/rules/` |
 | Skills (on-demand) | `.agent/.skills/` |
 | Archives (reference only) | `.agent/_archive_rules/`, `.agent/_archive_memory/` |
+
+---
+
+## 11. Post-Mortem Process
+
+After every significant agent failure, write a post-mortem to `.atlas/post-mortems/YYYY-MM-DD-<semantic-name>.md`.
+
+**When to write:**
+- Agent declares "done" but work was not actually done
+- Same bug type recurs after being "fixed"
+- Agent fails to follow explicit instruction
+- User has to correct agent on something obvious
+
+**Format:**
+```
+# Post-Mortem: [Date] — [Short Title]
+## What Happened — factual description
+## Root Cause — systemic, not surface-level
+## Impact — user time, trust, code quality wasted
+## Corrective Actions — rules created, standards changed
+## Lessons — what to internalize
+```

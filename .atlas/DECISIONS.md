@@ -93,3 +93,19 @@
 ### D-31: Mobile Layout uses CSS Grid
 - **Decision**: Mobile game layouts refactor from current approach to CSS Grid for proper spacing, UI avoidance, and responsive behavior.
 
+## 2026-03-02
+
+### D-32: Map Transpose Must Match Physical Device Rotation (F-107)
+- **Decision**: When the device rotates counter-clockwise (portrait → landscape), the map must rotate to match. A star at top-right in portrait should appear at top-left in landscape. Implemented via 90° CCW rotation transform: `displayX = star.y`, `displayY = mapWidth - star.x`.
+- **Rationale**: The player's spatial memory of star positions must be preserved across orientation changes. A simple x↔y swap without axis flip keeps stars in the same quadrant, which feels like a layout shift rather than a rotation.
+- **Critical**: The axis flip must use `GAME_WIDTH` (pre-transpose narrow dimension, ~900), NOT `GAME_HEIGHT` (~1600). Using the wrong dimension caused a 700px vertical offset regression (2026-03-02).
+
+### PM-01: Incomplete Debug Cleanup (Post-Mortem, 2026-03-02)
+- **Error**: Told to "remove the two rectangular boxes and any other code artifacts" for map fit debugging. Removed PIXI `drawDebugWorldBounds()` calls but missed a CSS `border: 3px solid red` debug style on `GameContainer.svelte:L672`.
+- **Root cause**: Agent searched codebase for debug patterns instead of first consulting the log of what it actually did in prior steps. The red border was added by the agent itself in a previous step; reviewing that step would have immediately revealed it.
+- **Prevention**: When user refers to "things you did" or "code you added," the agent's **first step** must be to go back and read the log/diff of what was actually changed, not guess and search the codebase. The work history is the source of truth for what was introduced.
+
+### PM-02: Wrong Settings Section (Post-Mortem, 2026-03-02)
+- **Error**: User specified "Section: Map & Game" for the Label Anim Mode toggle. Agent placed it in Timing section instead.
+- **Root cause**: Agent noticed `NUMBER_TRANSITION_MS` was already in Timing and assumed logical grouping overrode the user's explicit instruction. This violates §2.3: "User words are specifications."
+- **Prevention**: When user specifies a section/location, treat it as a hard constraint. Never substitute own judgment for an explicit placement instruction.

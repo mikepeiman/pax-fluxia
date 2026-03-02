@@ -28,6 +28,8 @@ export interface ConquestResult {
     shipsEscaped: number;
     shipsDestroyed: number;
     defenderTotalAtConquest: number;
+    /** Conquest type — determined at source in applyConquest() */
+    conquestType: 'retreat' | 'scatter' | 'complete';
     /** If defender retreated, the target star ID */
     retreatTargetId?: string;
     /** If defender scattered, the IDs ships scattered to */
@@ -111,6 +113,7 @@ export function applyConquest(
         shipsEscaped: 0,
         shipsDestroyed: 0,
         defenderTotalAtConquest: defenderTotal,
+        conquestType: 'complete', // default, overridden below
         shipsTransferred: 0,
         perStarTransfers: [],
     };
@@ -137,6 +140,7 @@ export function applyConquest(
 
         result.retreatTargetId = retreatTarget.id;
         result.shipsEscaped = shipsEscaping;
+        result.conquestType = 'retreat';
 
     } else if (escapeRoutes.length > 0) {
         // Scatter: some captured, some destroyed, some escape
@@ -182,6 +186,7 @@ export function applyConquest(
         }
 
         result.shipsEscaped = shipsEscaping;
+        result.conquestType = 'scatter';
 
     } else {
         // No escape: 100% captured

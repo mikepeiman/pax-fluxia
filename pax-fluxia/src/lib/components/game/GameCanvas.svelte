@@ -185,23 +185,31 @@
     const ZOOM_MIN = 0.8; // Max zoom-out: 125% of gameboard visible
     const ZOOM_MAX = 5.0;
 
-    /** Height of the bottom UI overlay (speed controls) that obscures the canvas */
-    const BOTTOM_UI_INSET = 56;
+    /** Height of the bottom UI overlay — now 0 because CSS Grid sizes the canvas container */
+    const BOTTOM_UI_INSET = 0;
 
     export function centerAndFit() {
         zoomLevel = 1;
         panOffsetX = 0;
         panOffsetY = 0;
         if (app && app.stage) {
-            const containerWidth = app.screen.width;
-            // Subtract bottom UI inset so map fits above the controls
-            const containerHeight = app.screen.height - BOTTOM_UI_INSET;
-            const effectiveScale = baseScale * zoomLevel;
-            const scaledWidth = GAME_WIDTH * effectiveScale;
-            const scaledHeight = GAME_HEIGHT * effectiveScale;
-            app.stage.x = (containerWidth - scaledWidth) / 2;
-            app.stage.y = (containerHeight - scaledHeight) / 2;
-            app.stage.scale.set(effectiveScale);
+            updateWorldBounds();
+            const cw = app.screen.width;
+            const ch = app.screen.height;
+            // Fit content to shorter dimension
+            baseScale = Math.min(cw / contentWidth, ch / contentHeight);
+            const es = baseScale;
+            app.stage.scale.set(es);
+            // Center the content bounding box in the viewport
+            const contentCenterX = contentMinX + contentWidth / 2;
+            const contentCenterY = contentMinY + contentHeight / 2;
+            app.stage.x = cw / 2 - contentCenterX * es;
+            app.stage.y = ch / 2 - contentCenterY * es;
+
+            log.canvas(
+                "centerAndFit",
+                `container=${cw.toFixed(0)}x${ch.toFixed(0)} content=(${contentMinX.toFixed(0)},${contentMinY.toFixed(0)} ${contentWidth.toFixed(0)}x${contentHeight.toFixed(0)}) baseScale=${baseScale.toFixed(4)} stage=(${app.stage.x.toFixed(1)},${app.stage.y.toFixed(1)})`,
+            );
         }
     }
 
@@ -212,25 +220,35 @@
         if (!star || !app) return;
 
         zoomLevel = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, zoom));
-        const effectiveScale = baseScale * zoomLevel;
-        app.stage.scale.set(effectiveScale);
+        const es = baseScale * zoomLevel;
+        app.stage.scale.set(es);
 
         // Use transposed coordinates
         const sx = mapTranspose.x(star);
         const sy = mapTranspose.y(star);
 
-        const containerWidth = app.screen.width;
-        const containerHeight = app.screen.height - BOTTOM_UI_INSET;
+        const cw = app.screen.width;
+        const ch = app.screen.height;
 
         // Center the star in the viewport
-        app.stage.x = containerWidth / 2 - sx * effectiveScale;
-        app.stage.y = containerHeight / 2 - sy * effectiveScale;
+        app.stage.x = cw / 2 - sx * es;
+        app.stage.y = ch / 2 - sy * es;
 
-        // Update pan offsets to match
-        panOffsetX =
-            app.stage.x - (containerWidth - GAME_WIDTH * effectiveScale) / 2;
-        panOffsetY =
-            app.stage.y - (containerHeight - GAME_HEIGHT * effectiveScale) / 2;
+        // Derive panOffset from the centered-content baseline
+        const contentCenterX = contentMinX + contentWidth / 2;
+        const contentCenterY = contentMinY + contentHeight / 2;
+        const baselineX = cw / 2 - contentCenterX * es;
+        const baselineY = ch / 2 - contentCenterY * es;
+        panOffsetX = -(app.stage.x - baselineX) / es;
+        panOffsetY = -(app.stage.y - baselineY) / es;
+
+        // Clamp but don't snap back to center
+        clampPan();
+
+        log.canvas(
+            "navigateToStar",
+            `id=${starId} raw=(${star.x.toFixed(0)},${star.y.toFixed(0)}) transposed=(${sx.toFixed(0)},${sy.toFixed(0)}) ownerId=${star.ownerId} localPlayer=${activeGameStore.localPlayerId} container=${cw.toFixed(0)}x${ch.toFixed(0)} es=${es.toFixed(4)} stage=(${app.stage.x.toFixed(1)},${app.stage.y.toFixed(1)})`,
+        );
     }
     const ZOOM_STEP = 0.1; // Per scroll notch
     let isPanning = false; // Middle-mouse-button or spacebar pan
@@ -563,9 +581,13 @@
             // Render the current frame from unified store
             const stars = activeGameStore.stars as StarState[];
             if (stars.length > 0 && app) {
-                // Pre-map coordinates for display (applies transpose if active)
+                // Pre-map coordinates for display (applies transpose + axis flip if active)
                 const displayStars: StarState[] = mapTranspose.active
-                    ? stars.map((s) => ({ ...s, x: s.y, y: s.x }))
+                    ? stars.map((s) => ({
+                          ...s,
+                          x: mapTranspose.x(s),
+                          y: mapTranspose.y(s),
+                      }))
                     : stars;
                 // Compute tickProgress from game time (NOT wall clock)
                 const gameNowMs = fxOrchestrator.gameTime;
@@ -589,7 +611,13 @@
     // Rendering
     // ============================================================================
 
-    // Game world dimensions (dynamic — computed from star positions)
+    // Content bounding box (dynamic — computed from star positions)
+    // These describe the actual star content area, NOT starting at (0,0)
+    let contentMinX = 0;
+    let contentMinY = 0;
+    let contentWidth = 1600;
+    let contentHeight = 900;
+    // Legacy aliases used by bg sprite sizing
     let GAME_WIDTH = 1600;
     let GAME_HEIGHT = 900;
 
@@ -597,18 +625,53 @@
     function updateWorldBounds() {
         const currentStars = activeGameStore.stars as StarState[];
         if (!currentStars || currentStars.length === 0) return;
-        let maxX = 0,
-            maxY = 0;
+        let minX = Infinity,
+            minY = Infinity;
+        let maxX = -Infinity,
+            maxY = -Infinity;
         for (const s of currentStars) {
             const dx = mapTranspose.x(s);
             const dy = mapTranspose.y(s);
+            if (dx < minX) minX = dx;
+            if (dy < minY) minY = dy;
             if (dx > maxX) maxX = dx;
             if (dy > maxY) maxY = dy;
         }
         // Add padding (star radius + orbits)
         const pad = 80;
+        contentMinX = minX - pad;
+        contentMinY = minY - pad;
+        contentWidth = maxX - minX + 2 * pad;
+        contentHeight = maxY - minY + 2 * pad;
+        // Legacy — used by bg sprite and territory renderers
         GAME_WIDTH = maxX + pad;
         GAME_HEIGHT = maxY + pad;
+
+        log.canvas(
+            "WorldBounds",
+            `stars=${currentStars.length} min=(${minX.toFixed(0)},${minY.toFixed(0)}) max=(${maxX.toFixed(0)},${maxY.toFixed(0)}) content=(${contentMinX.toFixed(0)},${contentMinY.toFixed(0)} ${contentWidth.toFixed(0)}x${contentHeight.toFixed(0)}) transpose=${mapTranspose.active}`,
+        );
+    }
+
+    /** DEBUG: Draw a bright yellow rectangle showing content bounds */
+    function drawDebugWorldBounds() {
+        if (!app) return;
+        let dbg = (app as any)._debugBoundsGfx as PIXI.Graphics | undefined;
+        if (!dbg) {
+            dbg = new PIXI.Graphics();
+            app.stage.addChild(dbg);
+            (app as any)._debugBoundsGfx = dbg;
+        }
+        dbg.clear();
+        // Yellow border around actual content bounds
+        dbg.rect(contentMinX, contentMinY, contentWidth, contentHeight);
+        dbg.stroke({ color: 0xffff00, width: 3 });
+        // Crosshair at content center
+        const cx = contentMinX + contentWidth / 2;
+        const cy = contentMinY + contentHeight / 2;
+        dbg.moveTo(cx - 30, cy).lineTo(cx + 30, cy);
+        dbg.moveTo(cx, cy - 30).lineTo(cx, cy + 30);
+        dbg.stroke({ color: 0xff00ff, width: 2 });
     }
 
     // ── F-107: Portrait Map Orientation ──────────────────────────────────
@@ -622,8 +685,10 @@
             : false;
     let mapIsPortrait = false; // Set when stars first load
 
-    /** Toggle the transpose flag — display coordinates swap at consumption sites */
+    /** Toggle the transpose flag — 90° CCW rotation matching physical device rotation */
     function transposeStarCoordinates() {
+        // Set map width BEFORE toggling so the axis flip uses pre-transpose width
+        mapTranspose.mapWidth = GAME_WIDTH;
         mapTranspose.active = !mapTranspose.active;
         // Flip the map orientation flag
         mapIsPortrait = !mapIsPortrait;
@@ -691,14 +756,14 @@
         // Recompute world bounds from star positions
         updateWorldBounds();
 
-        // Calculate base scale to fit game world in container
+        // Calculate base scale to fit content bounding box in container
         const containerWidth = app.screen.width;
-        // Subtract bottom UI inset so map fits above the controls
-        const containerHeight = app.screen.height - BOTTOM_UI_INSET;
+        const containerHeight = app.screen.height;
 
-        const scaleX = containerWidth / GAME_WIDTH;
-        const scaleY = containerHeight / GAME_HEIGHT;
-        baseScale = Math.min(scaleX, scaleY); // Fit (not fill)
+        baseScale = Math.min(
+            containerWidth / contentWidth,
+            containerHeight / contentHeight,
+        );
 
         // Size nebula background to cover visible viewport (not just game world)
         const bgSprite = (app as any)._nebulaBgSprite as
@@ -706,10 +771,8 @@
             | undefined;
         if (bgSprite && bgSprite.texture) {
             const effectiveScale = baseScale * zoomLevel;
-            // Visible area in world coordinates (larger than game world when zoomed out)
             const viewWorldW = containerWidth / effectiveScale;
             const viewWorldH = containerHeight / effectiveScale;
-            // Cover whichever is larger: game world or visible viewport (with 20% bleed)
             const coverW = Math.max(GAME_WIDTH, viewWorldW) * 1.2;
             const coverH = Math.max(GAME_HEIGHT, viewWorldH) * 1.2;
             bgSprite.x = GAME_WIDTH / 2;
@@ -722,33 +785,39 @@
 
         // Apply combined scale + zoom
         applyZoomTransform();
+
+        const canvasEl = canvasContainer;
+        log.canvas(
+            "handleResize",
+            `container=${containerWidth.toFixed(0)}x${containerHeight.toFixed(0)} content=(${contentMinX.toFixed(0)},${contentMinY.toFixed(0)} ${contentWidth.toFixed(0)}x${contentHeight.toFixed(0)}) baseScale=${baseScale.toFixed(4)} dpr=${window.devicePixelRatio} cssGrid(el)=${canvasEl?.clientWidth ?? "?"}x${canvasEl?.clientHeight ?? "?"} viewport=${window.innerWidth}x${window.innerHeight}`,
+        );
     }
 
     function applyZoomTransform() {
         if (!app) return;
 
-        const containerWidth = app.screen.width;
-        const containerHeight = app.screen.height;
-        const effectiveScale = baseScale * zoomLevel;
+        const cw = app.screen.width;
+        const ch = app.screen.height;
+        const es = baseScale * zoomLevel;
 
-        app.stage.scale.set(effectiveScale, effectiveScale);
+        app.stage.scale.set(es, es);
 
-        // Center content, then apply pan offset
-        const scaledWidth = GAME_WIDTH * effectiveScale;
-        const scaledHeight = GAME_HEIGHT * effectiveScale;
-        const centerX = (containerWidth - scaledWidth) / 2;
-        const centerY = (containerHeight - scaledHeight) / 2;
+        // Center on content bounding box, then apply pan offset
+        const contentCenterX = contentMinX + contentWidth / 2;
+        const contentCenterY = contentMinY + contentHeight / 2;
+        const baselineX = cw / 2 - contentCenterX * es;
+        const baselineY = ch / 2 - contentCenterY * es;
 
-        app.stage.x = centerX - panOffsetX * effectiveScale;
-        app.stage.y = centerY - panOffsetY * effectiveScale;
+        app.stage.x = baselineX - panOffsetX * es;
+        app.stage.y = baselineY - panOffsetY * es;
 
         // Update bg sprite to cover visible viewport at current zoom
         const bgSprite = (app as any)._nebulaBgSprite as
             | PIXI.Sprite
             | undefined;
         if (bgSprite && bgSprite.texture) {
-            const viewWorldW = containerWidth / effectiveScale;
-            const viewWorldH = containerHeight / effectiveScale;
+            const viewWorldW = cw / es;
+            const viewWorldH = ch / es;
             const coverW = Math.max(GAME_WIDTH, viewWorldW) * 1.2;
             const coverH = Math.max(GAME_HEIGHT, viewWorldH) * 1.2;
             const texW = bgSprite.texture.width;
@@ -756,39 +825,34 @@
             bgSprite.scale.set(Math.max(coverW / texW, coverH / texH));
         }
 
-        // Clamp pan so map edges stay roughly visible
         clampPan();
     }
 
     function clampPan() {
         if (!app) return;
 
-        const containerWidth = app.screen.width;
-        const containerHeight = app.screen.height;
-        const effectiveScale = baseScale * zoomLevel;
-        const scaledWidth = GAME_WIDTH * effectiveScale;
-        const scaledHeight = GAME_HEIGHT * effectiveScale;
+        const cw = app.screen.width;
+        const ch = app.screen.height;
+        const es = baseScale * zoomLevel;
+        const scaledContentW = contentWidth * es;
+        const scaledContentH = contentHeight * es;
 
-        // Allow panning up to 100% the world size beyond edges (unrestricted)
-        const maxPanX = Math.max(
-            0,
-            (scaledWidth - containerWidth) / (2 * effectiveScale) +
-                GAME_WIDTH * 1.0,
-        );
-        const maxPanY = Math.max(
-            0,
-            (scaledHeight - containerHeight) / (2 * effectiveScale) +
-                GAME_HEIGHT * 1.0,
-        );
+        // Only allow pan when zoomed-in content exceeds viewport
+        const overflowX = Math.max(0, (scaledContentW - cw) / 2);
+        const overflowY = Math.max(0, (scaledContentH - ch) / 2);
+        const maxPanX = overflowX / es;
+        const maxPanY = overflowY / es;
 
         panOffsetX = Math.max(-maxPanX, Math.min(maxPanX, panOffsetX));
         panOffsetY = Math.max(-maxPanY, Math.min(maxPanY, panOffsetY));
 
         // Reapply position after clamp
-        const centerX = (containerWidth - scaledWidth) / 2;
-        const centerY = (containerHeight - scaledHeight) / 2;
-        app.stage.x = centerX - panOffsetX * effectiveScale;
-        app.stage.y = centerY - panOffsetY * effectiveScale;
+        const contentCenterX = contentMinX + contentWidth / 2;
+        const contentCenterY = contentMinY + contentHeight / 2;
+        const baselineX = cw / 2 - contentCenterX * es;
+        const baselineY = ch / 2 - contentCenterY * es;
+        app.stage.x = baselineX - panOffsetX * es;
+        app.stage.y = baselineY - panOffsetY * es;
     }
 
     function handleWheel(event: WheelEvent) {
