@@ -185,13 +185,17 @@
     const ZOOM_MIN = 0.8; // Max zoom-out: 125% of gameboard visible
     const ZOOM_MAX = 5.0;
 
+    /** Height of the bottom UI overlay (speed controls) that obscures the canvas */
+    const BOTTOM_UI_INSET = 56;
+
     export function centerAndFit() {
         zoomLevel = 1;
         panOffsetX = 0;
         panOffsetY = 0;
         if (app && app.stage) {
             const containerWidth = app.screen.width;
-            const containerHeight = app.screen.height;
+            // Subtract bottom UI inset so map fits above the controls
+            const containerHeight = app.screen.height - BOTTOM_UI_INSET;
             const effectiveScale = baseScale * zoomLevel;
             const scaledWidth = GAME_WIDTH * effectiveScale;
             const scaledHeight = GAME_HEIGHT * effectiveScale;
@@ -657,7 +661,8 @@
 
         // Calculate base scale to fit game world in container
         const containerWidth = app.screen.width;
-        const containerHeight = app.screen.height;
+        // Subtract bottom UI inset so map fits above the controls
+        const containerHeight = app.screen.height - BOTTOM_UI_INSET;
 
         const scaleX = containerWidth / GAME_WIDTH;
         const scaleY = containerHeight / GAME_HEIGHT;
@@ -1169,7 +1174,12 @@
         let nearestDist = Infinity;
 
         for (const star of stars) {
-            const dist = distance(x, y, star.x, star.y);
+            const dist = distance(
+                x,
+                y,
+                mapTranspose.x(star),
+                mapTranspose.y(star),
+            );
             // Hit radius: 2× visual radius or 40px minimum
             const hitRadius = Math.max(star.radius * 2, 40);
             if (dist <= hitRadius && dist < nearestDist) {
@@ -1307,8 +1317,8 @@
             dragStartX = x;
             dragStartY = y;
             // But use star center for visual drag preview line
-            dragSourceCenterX = star.x;
-            dragSourceCenterY = star.y;
+            dragSourceCenterX = mapTranspose.x(star);
+            dragSourceCenterY = mapTranspose.y(star);
             dragCurrentX = x;
             dragCurrentY = y;
             log.input(`pointerDown → DRAG START from owned star ${star.id}`);
@@ -1448,8 +1458,8 @@
                         dragSourceId = targetStar.id;
                         dragStartX = dragCurrentX;
                         dragStartY = dragCurrentY;
-                        dragSourceCenterX = targetStar.x;
-                        dragSourceCenterY = targetStar.y;
+                        dragSourceCenterX = mapTranspose.x(targetStar);
+                        dragSourceCenterY = mapTranspose.y(targetStar);
                         activeStarId = targetStar.id;
                     }
                 } else if (lastEnemyPassthrough === dragSourceId) {
@@ -1478,8 +1488,8 @@
                         dragSourceId = targetStar.id;
                         dragStartX = dragCurrentX;
                         dragStartY = dragCurrentY;
-                        dragSourceCenterX = targetStar.x;
-                        dragSourceCenterY = targetStar.y;
+                        dragSourceCenterX = mapTranspose.x(targetStar);
+                        dragSourceCenterY = mapTranspose.y(targetStar);
                     }
                 }
             }
@@ -1806,8 +1816,8 @@
 
             if (isConnected) {
                 dragPreviewGraphics.circle(
-                    target.x,
-                    target.y,
+                    mapTranspose.x(target),
+                    mapTranspose.y(target),
                     target.radius + 15,
                 );
                 dragPreviewGraphics.stroke({
