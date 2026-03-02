@@ -7,6 +7,34 @@
         type AudioTheme,
     } from "$lib/services/audioManager.svelte";
     import { fade, fly } from "svelte/transition";
+    import type { SoundFileEntry } from "$lib/config/soundManifest";
+
+    // Track which dropdown is open (by SoundType key)
+    let openDropdown = $state<string | null>(null);
+
+    function toggleDropdown(type: string) {
+        openDropdown = openDropdown === type ? null : type;
+    }
+
+    function selectFile(type: SoundType, path: string) {
+        audioManager.setSoundFile(type, path);
+        openDropdown = null;
+    }
+
+    function previewFile(path: string, e: MouseEvent) {
+        e.stopPropagation();
+        // Play the file directly without changing the assignment
+        const audio = new Audio(`/sounds/${path}`);
+        audio.volume = audioManager.masterVolume * 0.6;
+        audio.play().catch(() => {});
+    }
+
+    function handleClickOutside(e: MouseEvent) {
+        const target = e.target as HTMLElement;
+        if (!target.closest(".file-picker")) {
+            openDropdown = null;
+        }
+    }
 
     // Props
     interface Props {
@@ -46,7 +74,10 @@
     >
         <div
             class="modal-content"
-            onclick={(e) => e.stopPropagation()}
+            onclick={(e) => {
+                e.stopPropagation();
+                handleClickOutside(e);
+            }}
             transition:fly={{ y: 20, duration: 200 }}
         >
             <div class="modal-header">
@@ -133,23 +164,65 @@
                                 )}
                             disabled={audioManager.muted}
                         />
-                        <!-- File selector dropdown -->
-                        <select
-                            class="file-select"
-                            value={audioManager.soundFiles[stype]}
-                            onchange={(e) =>
-                                audioManager.setSoundFile(
-                                    stype,
-                                    (e.target as HTMLSelectElement).value,
-                                )}
-                            disabled={audioManager.muted}
+                        <!-- Custom file picker dropdown -->
+                        <!-- svelte-ignore a11y_click_events_have_key_events -->
+                        <!-- svelte-ignore a11y_no_static_element_interactions -->
+                        <div
+                            class="file-picker"
+                            class:disabled={audioManager.muted}
                         >
-                            {#each audioManager.getAvailableFiles(stype) as entry}
-                                <option value={entry.path}
-                                    >{entry.label} ({entry.category})</option
+                            <div
+                                class="file-picker-trigger"
+                                onclick={() => toggleDropdown(stype)}
+                            >
+                                <span class="file-picker-label">
+                                    {audioManager
+                                        .getAvailableFiles(stype)
+                                        .find(
+                                            (f) =>
+                                                f.path ===
+                                                audioManager.soundFiles[stype],
+                                        )?.label ??
+                                        audioManager.soundFiles[stype]}
+                                </span>
+                                <span class="file-picker-arrow"
+                                    >{openDropdown === stype ? "▲" : "▼"}</span
                                 >
-                            {/each}
-                        </select>
+                            </div>
+                            {#if openDropdown === stype}
+                                <div class="file-picker-menu">
+                                    {#each audioManager.getAvailableFiles(stype) as entry}
+                                        <div
+                                            class="file-picker-item"
+                                            class:selected={entry.path ===
+                                                audioManager.soundFiles[stype]}
+                                        >
+                                            <span
+                                                class="file-picker-item-label"
+                                                onclick={() =>
+                                                    selectFile(
+                                                        stype,
+                                                        entry.path,
+                                                    )}
+                                            >
+                                                {entry.label}
+                                                <span
+                                                    class="file-picker-item-cat"
+                                                    >({entry.category})</span
+                                                >
+                                            </span>
+                                            <button
+                                                class="file-picker-play"
+                                                onclick={(e) =>
+                                                    previewFile(entry.path, e)}
+                                                title="Preview this sound"
+                                                >▶</button
+                                            >
+                                        </div>
+                                    {/each}
+                                </div>
+                            {/if}
+                        </div>
                     </div>
                 {/each}
 
@@ -426,7 +499,6 @@
         margin: 2px 0;
     }
 
-    .file-select,
     .theme-select {
         width: 100%;
         background: #0d1525;
@@ -438,13 +510,113 @@
         border-radius: 4px;
         appearance: auto;
     }
-    .file-select:focus,
     .theme-select:focus {
         border-color: #00aaaa;
         outline: none;
     }
-    .file-select:disabled {
+
+    /* ── Custom File Picker ── */
+    .file-picker {
+        position: relative;
+        width: 100%;
+    }
+    .file-picker.disabled {
         opacity: 0.3;
+        pointer-events: none;
+    }
+    .file-picker-trigger {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: #0d1525;
+        border: 1px solid #223355;
+        color: #aab;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.7rem;
+        padding: 4px 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        user-select: none;
+    }
+    .file-picker-trigger:hover {
+        border-color: #00aaaa;
+    }
+    .file-picker-label {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        flex: 1;
+    }
+    .file-picker-arrow {
+        font-size: 0.55rem;
+        color: #667;
+        margin-left: 6px;
+    }
+    .file-picker-menu {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        z-index: 100;
+        background: #0a0f1e;
+        border: 1px solid #00aaaa;
+        border-radius: 4px;
+        margin-top: 2px;
+        max-height: 180px;
+        overflow-y: auto;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+    }
+    .file-picker-item {
+        display: flex;
+        align-items: center;
+        padding: 4px 8px;
+        cursor: pointer;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.7rem;
+        color: #aab;
+        border-bottom: 1px solid #111a2a;
+    }
+    .file-picker-item:last-child {
+        border-bottom: none;
+    }
+    .file-picker-item:hover {
+        background: rgba(0, 255, 255, 0.05);
+    }
+    .file-picker-item.selected {
+        background: rgba(0, 255, 255, 0.1);
+        color: #0ff;
+    }
+    .file-picker-item-label {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .file-picker-item-cat {
+        color: #556;
+        font-size: 0.6rem;
+        margin-left: 4px;
+    }
+    .file-picker-play {
+        background: none;
+        border: 1px solid rgba(0, 255, 255, 0.3);
+        color: #0ff;
+        font-size: 0.6rem;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        margin-left: 6px;
+        transition: all 0.15s;
+    }
+    .file-picker-play:hover {
+        background: rgba(0, 255, 255, 0.15);
+        border-color: #0ff;
+        transform: scale(1.1);
     }
 
     .theme-section {
