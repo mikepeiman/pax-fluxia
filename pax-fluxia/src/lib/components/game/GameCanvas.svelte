@@ -64,6 +64,10 @@
         renderLaneTerritory as renderLaneTerritoryModule,
         resetLaneTerritoryCache,
     } from "$lib/renderers/LaneTerritoryRenderer";
+    import {
+        renderContourTerritory as renderContourTerritoryModule,
+        resetContourTerritoryCache,
+    } from "$lib/renderers/ContourTerritoryRenderer";
 
     // ============================================================================
     // PixiJS Application
@@ -735,6 +739,7 @@
         resetMetaballCache();
         resetPixelTerritoryCache();
         resetLaneTerritoryCache();
+        resetContourTerritoryCache();
         // Clear ALL visual ship positions so they re-spawn at transposed coords
         // (ships store x/y, laneStartX/Y, laneEndX/Y in old coordinate space)
         visualDamagedShips.clear();
@@ -1008,6 +1013,7 @@
             resetMetaballCache();
             resetPixelTerritoryCache();
             resetLaneTerritoryCache();
+            resetContourTerritoryCache();
             activeSurges.clear();
             nextShipId = 0;
             starShipCounts.clear();
@@ -1088,6 +1094,16 @@
 
             // Lane territory renderer (checks TERRITORY_GRAPH internally)
             renderLaneTerritoryModule(
+                stars,
+                voronoiContainer,
+                colorUtils,
+                GAME_WIDTH,
+                GAME_HEIGHT,
+                activeGameStore.connections as StarConnection[],
+            );
+
+            // Contour territory renderer (checks TERRITORY_CONTOUR internally)
+            renderContourTerritoryModule(
                 stars,
                 voronoiContainer,
                 colorUtils,

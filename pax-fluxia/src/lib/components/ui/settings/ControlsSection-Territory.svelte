@@ -17,12 +17,14 @@
         "territoryMetaball",
         "territoryPixel",
         "territoryGraph",
+        "territoryContour",
     ] as const;
     const CONFIG_KEYS = [
         "TERRITORY_VORONOI",
         "TERRITORY_METABALL",
         "TERRITORY_PIXEL",
         "TERRITORY_GRAPH",
+        "TERRITORY_CONTOUR",
     ] as const;
 
     function selectTerritory(
@@ -115,6 +117,25 @@
                 onchange={(e) => {
                     selectTerritory(
                         "territoryGraph",
+                        (e.target as HTMLInputElement).checked,
+                    );
+                }}
+            />
+            <span class="toggle-slider"></span>
+        </label>
+    </div>
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">✏️ Contour (Vector)</span>
+        <label class="toggle-switch">
+            <input
+                type="checkbox"
+                checked={panel.territoryContour ??
+                    GAME_CONFIG.TERRITORY_CONTOUR}
+                onchange={(e) => {
+                    selectTerritory(
+                        "territoryContour",
                         (e.target as HTMLInputElement).checked,
                     );
                 }}
@@ -512,6 +533,179 @@
                 const v = +(e.target as HTMLInputElement).value;
                 GAME_CONFIG.BORDER_SMOOTH = v;
                 updatePanel("borderSmooth", v);
+            }}
+        />
+    </div>
+{/if}
+
+{#if panel.territoryContour}
+    <!-- ── Contour Controls ── -->
+    <h4 class="sub-heading">Contour (Vector) Settings</h4>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Saturation</span><span class="val"
+                >{((panel.contourSaturation ?? 1) as number).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="2"
+            step="0.05"
+            value={panel.contourSaturation ?? 1}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.CONTOUR_SATURATION = v;
+                updatePanel("contourSaturation", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Lightness</span><span class="val"
+                >{((panel.contourLightness ?? 1) as number).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="2"
+            step="0.05"
+            value={panel.contourLightness ?? 1}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.CONTOUR_LIGHTNESS = v;
+                updatePanel("contourLightness", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Fill Alpha</span><span class="val"
+                >{(panel.contourFillAlpha ?? 0.15).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0.02"
+            max="0.5"
+            step="0.01"
+            value={panel.contourFillAlpha ?? 0.15}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.CONTOUR_FILL_ALPHA = v;
+                updatePanel("contourFillAlpha", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Resolution</span><span class="val"
+                >{panel.contourResolution ?? 128}px grid</span
+            >
+        </div>
+        <input
+            type="range"
+            min="32"
+            max="256"
+            step="16"
+            value={panel.contourResolution ?? 128}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.CONTOUR_RESOLUTION = v;
+                updatePanel("contourResolution", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Simplify</span><span class="val"
+                >{panel.contourSimplify ?? 5}
+                {(panel.contourSimplify ?? 5) <= 2
+                    ? "(detailed)"
+                    : (panel.contourSimplify ?? 5) <= 8
+                      ? "(moderate)"
+                      : "(coarse)"}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="20"
+            step="1"
+            value={panel.contourSimplify ?? 5}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.CONTOUR_SIMPLIFY = v;
+                updatePanel("contourSimplify", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Smoothing</span><span class="val"
+                >{panel.contourSmooth ?? 2}
+                {(panel.contourSmooth ?? 2) === 0
+                    ? "(angular)"
+                    : (panel.contourSmooth ?? 2) <= 1
+                      ? "(light)"
+                      : "(smooth)"}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="4"
+            step="1"
+            value={panel.contourSmooth ?? 2}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.CONTOUR_SMOOTH = v;
+                updatePanel("contourSmooth", v);
+            }}
+        />
+    </div>
+    <div
+        class="var-row grayed"
+        style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"
+    >
+        🔲 Borders
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Border Width</span><span class="val"
+                >{panel.contourBorderWidth ?? 2}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="8"
+            step="0.5"
+            value={panel.contourBorderWidth ?? 2}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.CONTOUR_BORDER_WIDTH = v;
+                updatePanel("contourBorderWidth", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Border Alpha</span><span class="val"
+                >{(panel.contourBorderAlpha ?? 0.6).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={panel.contourBorderAlpha ?? 0.6}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.CONTOUR_BORDER_ALPHA = v;
+                updatePanel("contourBorderAlpha", v);
             }}
         />
     </div>

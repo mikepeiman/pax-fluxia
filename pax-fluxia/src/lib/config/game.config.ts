@@ -340,6 +340,18 @@ interface GameConfigType {
     BORDER_FEEL: 'raw' | 'smooth' | 'angular';  // Border shape style: raw=pixel edges, smooth=morphological, angular=geometric segments
     BORDER_SMOOTH: number;           // Smoothing iterations for border feel (0-5, default 2)
 
+    // ── Contour Territory (5th mode — vector contour extraction) ──
+    TERRITORY_CONTOUR: boolean;      // Enable contour territory renderer (default false)
+    CONTOUR_RESOLUTION: number;      // Grid size for ownership computation (64-256, default 128)
+    CONTOUR_SIMPLIFY: number;        // Douglas-Peucker tolerance (0-20, default 5)
+    CONTOUR_SMOOTH: number;          // Chaikin subdivision iterations (0-4, default 2)
+    CONTOUR_FILL_ALPHA: number;      // Fill opacity (0-1, default 0.15)
+    CONTOUR_BORDER_WIDTH: number;    // Border stroke width (0-8, default 2)
+    CONTOUR_BORDER_ALPHA: number;    // Border opacity (0-1, default 0.6)
+    CONTOUR_BORDER_BRIGHTEN: number; // Border brighten amount (0-255, default 80)
+    CONTOUR_SATURATION: number;      // Saturation multiplier (0-2, default 1.0)
+    CONTOUR_LIGHTNESS: number;       // Lightness multiplier (0-2, default 1.0)
+
     SHOW_HEX_GRID: boolean;
     STARS_PER_PLAYER: number;
 
@@ -940,6 +952,18 @@ const _rawConfig: GameConfigType = {
     BORDER_FEEL: 'raw' as 'raw' | 'smooth' | 'angular',
     /** Smoothing iterations for border feel (0=none, 5=max) */
     BORDER_SMOOTH: 0,
+
+    // ── Contour Territory (5th mode — vector contour extraction) ──
+    TERRITORY_CONTOUR: false,
+    CONTOUR_RESOLUTION: 128,
+    CONTOUR_SIMPLIFY: 5,
+    CONTOUR_SMOOTH: 2,
+    CONTOUR_FILL_ALPHA: 0.15,
+    CONTOUR_BORDER_WIDTH: 2,
+    CONTOUR_BORDER_ALPHA: 0.6,
+    CONTOUR_BORDER_BRIGHTEN: 80,
+    CONTOUR_SATURATION: 1.0,
+    CONTOUR_LIGHTNESS: 1.0,
 
     /** Show hex grid (debug) */
     SHOW_HEX_GRID: false,

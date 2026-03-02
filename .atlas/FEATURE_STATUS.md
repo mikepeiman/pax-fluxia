@@ -23,7 +23,7 @@
 | F-123 | StatusBar: minified leaderboard + game stats (ships/tick) | ✅ Done | Medium | 2026-03-01 |
 | F-124 | Star cycling navigation: `◂ ⌖ ▸` widget with StarNav.svelte | ✅ Done | Medium | 2026-03-01 |
 | F-125 | Player-color swatch in StatusBar | ✅ Done | Medium | 2026-03-01 |
-| F-126 | Smooth camera transitions for star-cycle and center-fit (lerp/ease animation) | 🟡 Planned | High | 2026-03-02 |
+| F-126 | Smooth camera transitions for star-cycle and center-fit (lerp/ease animation) | ✅ Done | High | 2026-03-02 |
 | F-127 | "Stretch Map To Fit" toggle — rerender map to maximize viewport usage | 🟡 Planned | High | 2026-03-02 |
 | F-128 | Main Menu full redesign — current menu wastes space on desktop and mobile | 🟡 Planned | Medium | 2026-03-02 |
 | F-129 | Canvas debug infrastructure (debug borders, world bounds rect, log.canvas category) | ✅ Done | Low | 2026-03-02 |
