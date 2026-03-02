@@ -130,6 +130,31 @@
 
                 <div class="divider"></div>
 
+                <!-- Separate Conquest Sounds Toggle -->
+                <div class="setting-row" class:disabled={audioManager.muted}>
+                    <label class="toggle-inline">
+                        <input
+                            type="checkbox"
+                            checked={audioManager.separateConquestSounds}
+                            onchange={(e) =>
+                                audioManager.setSeparateConquestSounds(
+                                    (e.target as HTMLInputElement).checked,
+                                )}
+                            disabled={audioManager.muted}
+                        />
+                        <span class="toggle-label"
+                            >Separate Conquest Sounds</span
+                        >
+                        <span class="toggle-hint"
+                            >{audioManager.separateConquestSounds
+                                ? "3 distinct"
+                                : "1 generic"}</span
+                        >
+                    </label>
+                </div>
+
+                <div class="divider"></div>
+
                 <!-- Per-Sound Volume Sliders + File Selectors -->
                 {#each ALL_SOUND_TYPES as stype}
                     <div
@@ -222,6 +247,29 @@
                                     {/each}
                                 </div>
                             {/if}
+                        </div>
+                        <!-- Start offset slider (trim ramp-up) -->
+                        <div class="offset-row">
+                            <span class="offset-label">Offset</span>
+                            <input
+                                type="range"
+                                min="0"
+                                max="2"
+                                step="0.01"
+                                value={audioManager.soundOffsets[stype]}
+                                oninput={(e) =>
+                                    audioManager.setSoundOffset(
+                                        stype,
+                                        +(e.target as HTMLInputElement).value,
+                                    )}
+                                disabled={audioManager.muted}
+                                class="offset-slider"
+                            />
+                            <span class="offset-value"
+                                >{audioManager.soundOffsets[stype].toFixed(
+                                    2,
+                                )}s</span
+                            >
                         </div>
                     </div>
                 {/each}
@@ -655,5 +703,49 @@
         outline: none;
         border-color: #00ffff;
         box-shadow: 0 0 6px rgba(0, 255, 255, 0.2);
+    }
+
+    /* Offset slider row */
+    .offset-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 2px;
+        padding: 0 4px;
+    }
+    .offset-label {
+        font-size: 0.65rem;
+        color: #888;
+        min-width: 35px;
+    }
+    .offset-slider {
+        flex: 1;
+        height: 12px;
+    }
+    .offset-value {
+        font-size: 0.65rem;
+        color: #aaa;
+        min-width: 32px;
+        text-align: right;
+        font-family: "JetBrains Mono", monospace;
+    }
+
+    /* Conquest sounds toggle */
+    .toggle-inline {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        font-size: 0.8rem;
+    }
+    .toggle-inline input[type="checkbox"] {
+        width: 14px;
+        height: 14px;
+        accent-color: #0ff;
+    }
+    .toggle-hint {
+        font-size: 0.65rem;
+        color: #888;
+        margin-left: auto;
     }
 </style>

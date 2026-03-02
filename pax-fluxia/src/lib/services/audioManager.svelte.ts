@@ -98,6 +98,14 @@ class AudioManager {
             ALL_SOUND_TYPES.map(t => [t, SOUND_CONFIGS[t].file])
         ) as Record<SoundType, string>
     );
+    /** Per-sound start offset in seconds (skip ramp-up) */
+    public soundOffsets = $state<Record<SoundType, number>>(
+        Object.fromEntries(
+            ALL_SOUND_TYPES.map(t => [t, 0])
+        ) as Record<SoundType, number>
+    );
+    /** When true, conquest plays subtype-specific sound; when false, plays generic 'conquest' */
+    public separateConquestSounds = $state(true);
     /** Available audio themes */
     public savedThemes = $state<AudioTheme[]>([]);
     /** Currently selected theme name */
@@ -129,6 +137,18 @@ class AudioManager {
                 this.soundFiles[type] = savedFile;
             }
         }
+
+        // Load per-sound start offsets
+        for (const type of ALL_SOUND_TYPES) {
+            const savedOffset = localStorage.getItem(`${STORAGE_PREFIX}-offset-${type}`);
+            if (savedOffset !== null) {
+                this.soundOffsets[type] = parseFloat(savedOffset);
+            }
+        }
+
+        // Load separate conquest sounds toggle
+        const savedSepConquest = localStorage.getItem(`${STORAGE_PREFIX}-separate-conquest`);
+        if (savedSepConquest !== null) this.separateConquestSounds = savedSepConquest === "true";
 
         // Load saved themes
         this.savedThemes = this.loadThemesFromStorage();
@@ -211,7 +231,7 @@ class AudioManager {
         const audio = pool.find(a => a.paused || a.ended);
         if (audio) {
             audio.volume = this.getEffectiveVolume(type);
-            audio.currentTime = 0;
+            audio.currentTime = this.soundOffsets[type] || 0;
             audio.play().catch(e => {
                 if (e.name !== "NotAllowedError") {
                     log.error("AudioManager", `Play error for ${type}`, e);
@@ -261,6 +281,18 @@ class AudioManager {
     /** Get available files for a sound type from the manifest */
     getAvailableFiles(type: SoundType): SoundFileEntry[] {
         return getFilesForSoundType(type);
+    }
+
+    /** Set per-sound start offset in seconds (trims ramp-up) */
+    setSoundOffset(type: SoundType, offsetSec: number) {
+        this.soundOffsets[type] = Math.max(0, offsetSec);
+        localStorage.setItem(`${STORAGE_PREFIX}-offset-${type}`, String(this.soundOffsets[type]));
+    }
+
+    /** Toggle separate conquest sounds (subtype-specific vs generic) */
+    setSeparateConquestSounds(value: boolean) {
+        this.separateConquestSounds = value;
+        localStorage.setItem(`${STORAGE_PREFIX}-separate-conquest`, String(value));
     }
 
     toggleMute() {

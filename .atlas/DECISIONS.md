@@ -102,11 +102,8 @@
 
 ### PM-01: Incomplete Debug Cleanup (Post-Mortem, 2026-03-02)
 - **Error**: Told to "remove the two rectangular boxes and any other code artifacts" for map fit debugging. Removed PIXI `drawDebugWorldBounds()` calls but missed a CSS `border: 3px solid red` debug style on `GameContainer.svelte:L672`.
-- **Root cause**: Search queries (`debug.*rect`, `world.?bounds|debug.?border`) targeted only canvas/PIXI debug drawing. CSS debug styles (borders, outlines, background colors) are a separate artifact category not covered by those patterns.
-- **Prevention**: When given "remove debug visuals," search BOTH categories:
-  1. Canvas/PIXI: `drawDebug|debugBounds|debugRect|debugGfx`
-  2. CSS: `border.*red|border.*debug|outline.*debug|background.*debug|solid red|solid yellow|solid magenta`
-- **Systemic gap**: No change log exists that records what was added for debugging vs. production. A future `// DEBUG:` comment convention could help grep for all temp artifacts.
+- **Root cause**: Agent searched codebase for debug patterns instead of first consulting the log of what it actually did in prior steps. The red border was added by the agent itself in a previous step; reviewing that step would have immediately revealed it.
+- **Prevention**: When user refers to "things you did" or "code you added," the agent's **first step** must be to go back and read the log/diff of what was actually changed, not guess and search the codebase. The work history is the source of truth for what was introduced.
 
 ### PM-02: Wrong Settings Section (Post-Mortem, 2026-03-02)
 - **Error**: User specified "Section: Map & Game" for the Label Anim Mode toggle. Agent placed it in Timing section instead.

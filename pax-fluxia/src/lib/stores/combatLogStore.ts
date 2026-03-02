@@ -73,19 +73,18 @@ function createCombatLogStore() {
                     const isLocalDefender = entry.defender.ownerId === activeGameStore.localPlayerId;
 
                     if (isLocalAttacker) {
-                        // Play generic conquest sound
-                        audioManager.play('conquest');
-
-                        // Also play subtype-specific sound based on capture type
-                        if (entry.escaped && entry.escaped > 0) {
-                            // Defender ships escaped → scatter capture
-                            audioManager.play('conquest_scatter');
-                        } else if (entry.destroyed && entry.destroyed > 0) {
-                            // Ships destroyed but none escaped → retreat capture
-                            audioManager.play('conquest_retreat');
+                        if (audioManager.separateConquestSounds) {
+                            // Play subtype-specific sound ONLY
+                            if (entry.escaped && entry.escaped > 0) {
+                                audioManager.play('conquest_scatter');
+                            } else if (entry.destroyed && entry.destroyed > 0) {
+                                audioManager.play('conquest_retreat');
+                            } else {
+                                audioManager.play('conquest_complete');
+                            }
                         } else {
-                            // All captured, none escaped or destroyed → complete capture
-                            audioManager.play('conquest_complete');
+                            // Play generic conquest sound ONLY
+                            audioManager.play('conquest');
                         }
                     }
 
