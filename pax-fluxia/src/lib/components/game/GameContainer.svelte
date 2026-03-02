@@ -668,14 +668,23 @@
     height: 100%;
     min-height: 0; /* Prevents CSS Grid from expanding cell beyond available space */
     overflow: hidden;
-    /* DEBUG: thick red border to visualize canvas container bounds */
-    border: 3px solid red;
     box-sizing: border-box;
   }
 
-  /* Controls bar and StatusBar are mobile-only */
+  /* Controls bar: speed + star nav — always visible, bottom of canvas */
   .area-controls-bar {
-    display: none;
+    display: flex;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 50;
+    padding: 4px 8px;
+    gap: 8px;
+    align-items: center;
+    pointer-events: auto;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(4px);
   }
 
   @media (max-width: 1024px) {
