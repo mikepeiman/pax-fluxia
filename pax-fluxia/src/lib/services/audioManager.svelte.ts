@@ -36,16 +36,16 @@ interface SoundConfig {
 }
 
 const SOUND_CONFIGS: Record<SoundType, SoundConfig> = {
-    click: { file: "click.wav", defaultVolume: 0.3, poolSize: 3 },
-    move: { file: "move.wav", defaultVolume: 0.5, poolSize: 5 },
-    attack: { file: "attack.wav", defaultVolume: 0.3, poolSize: 10 },
-    chat: { file: "chat.wav", defaultVolume: 0.6, poolSize: 2 },
-    tick: { file: "tick.wav", defaultVolume: 0.4, poolSize: 3 },
-    play: { file: "PLAY.WAV", defaultVolume: 0.6, poolSize: 1 },
-    lose: { file: "lose.ogg", defaultVolume: 0.6, poolSize: 1 },
-    win: { file: "win.ogg", defaultVolume: 0.6, poolSize: 1 },
-    new_player: { file: "new_player.ogg", defaultVolume: 0.8, poolSize: 2 },
-    conquest: { file: "conquest.wav", defaultVolume: 0.8, poolSize: 2 },
+    click: { file: "ui/click.wav", defaultVolume: 0.3, poolSize: 3 },
+    move: { file: "move/move.wav", defaultVolume: 0.5, poolSize: 5 },
+    attack: { file: "attack/attack.wav", defaultVolume: 0.3, poolSize: 10 },
+    chat: { file: "ui/chat.wav", defaultVolume: 0.6, poolSize: 2 },
+    tick: { file: "tick/tick.wav", defaultVolume: 0.4, poolSize: 3 },
+    play: { file: "ui/PLAY.WAV", defaultVolume: 0.6, poolSize: 1 },
+    lose: { file: "gameloss/lose.ogg", defaultVolume: 0.6, poolSize: 1 },
+    win: { file: "gamewin/win.ogg", defaultVolume: 0.6, poolSize: 1 },
+    new_player: { file: "ui/new_player.ogg", defaultVolume: 0.8, poolSize: 2 },
+    conquest: { file: "conquest/mixkit-fast-small-sweep-transition-166.wav", defaultVolume: 0.8, poolSize: 2 },
     starloss: { file: "starloss/mixkit-arcade-mechanical-bling-210.wav", defaultVolume: 0.6, poolSize: 2 },
 };
 

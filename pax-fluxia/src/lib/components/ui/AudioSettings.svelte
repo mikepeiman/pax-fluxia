@@ -4,6 +4,7 @@
         SOUND_LABELS,
         ALL_SOUND_TYPES,
         type SoundType,
+        type AudioTheme,
     } from "$lib/services/audioManager.svelte";
     import { fade, fly } from "svelte/transition";
 
@@ -13,6 +14,26 @@
         onClose: () => void;
     }
     let { visible, onClose }: Props = $props();
+
+    let showSavePrompt = $state(false);
+    let saveThemeName = $state("");
+
+    function handleSaveTheme() {
+        if (!saveThemeName.trim()) return;
+        audioManager.saveAudioTheme(saveThemeName.trim());
+        saveThemeName = "";
+        showSavePrompt = false;
+    }
+
+    function handleApplyTheme(name: string) {
+        const themes = audioManager.getAllThemes();
+        const theme = themes.find((t) => t.name === name);
+        if (theme) audioManager.applyAudioTheme(theme);
+    }
+
+    function handleDeleteTheme(name: string) {
+        audioManager.deleteAudioTheme(name);
+    }
 </script>
 
 {#if visible}
@@ -78,7 +99,7 @@
 
                 <div class="divider"></div>
 
-                <!-- Per-Sound Volume Sliders -->
+                <!-- Per-Sound Volume Sliders + File Selectors -->
                 {#each ALL_SOUND_TYPES as stype}
                     <div
                         class="setting-row"
@@ -112,8 +133,98 @@
                                 )}
                             disabled={audioManager.muted}
                         />
+                        <!-- File selector dropdown -->
+                        <select
+                            class="file-select"
+                            value={audioManager.soundFiles[stype]}
+                            onchange={(e) =>
+                                audioManager.setSoundFile(
+                                    stype,
+                                    (e.target as HTMLSelectElement).value,
+                                )}
+                            disabled={audioManager.muted}
+                        >
+                            {#each audioManager.getAvailableFiles(stype) as entry}
+                                <option value={entry.path}
+                                    >{entry.label} ({entry.category})</option
+                                >
+                            {/each}
+                        </select>
                     </div>
                 {/each}
+
+                <div class="divider"></div>
+
+                <!-- Audio Themes -->
+                <div class="theme-section">
+                    <div class="setting-header">
+                        <span
+                            class="setting-name"
+                            style="font-size:0.9rem; color:#0ff;"
+                            >Audio Themes</span
+                        >
+                    </div>
+
+                    <div class="theme-row">
+                        <select
+                            class="theme-select"
+                            value={audioManager.selectedThemeName}
+                            onchange={(e) =>
+                                handleApplyTheme(
+                                    (e.target as HTMLSelectElement).value,
+                                )}
+                        >
+                            <option value="">— Select theme —</option>
+                            {#each audioManager.getAllThemes() as theme}
+                                <option value={theme.name}
+                                    >{theme.name}{theme.builtIn
+                                        ? " ★"
+                                        : ""}</option
+                                >
+                            {/each}
+                        </select>
+                        <button
+                            class="test-btn"
+                            onclick={() => {
+                                showSavePrompt = !showSavePrompt;
+                            }}>💾 Save</button
+                        >
+                        {#if audioManager.selectedThemeName && !audioManager
+                                .getAllThemes()
+                                .find((t) => t.name === audioManager.selectedThemeName)?.builtIn}
+                            <button
+                                class="reset-btn"
+                                onclick={() =>
+                                    handleDeleteTheme(
+                                        audioManager.selectedThemeName,
+                                    )}>🗑</button
+                            >
+                        {/if}
+                    </div>
+
+                    {#if showSavePrompt}
+                        <div class="save-prompt">
+                            <input
+                                type="text"
+                                class="save-input"
+                                placeholder="Theme name..."
+                                bind:value={saveThemeName}
+                                onkeydown={(e) => {
+                                    if (e.key === "Enter") handleSaveTheme();
+                                }}
+                            />
+                            <button class="test-btn" onclick={handleSaveTheme}
+                                >Save</button
+                            >
+                            <button
+                                class="test-btn"
+                                onclick={() => {
+                                    showSavePrompt = false;
+                                }}>Cancel</button
+                            >
+                        </div>
+                    {/if}
+                </div>
             </div>
         </div>
     </div>
@@ -313,5 +424,64 @@
         height: 1px;
         background: #1a2a40;
         margin: 2px 0;
+    }
+
+    .file-select,
+    .theme-select {
+        width: 100%;
+        background: #0d1525;
+        border: 1px solid #223355;
+        color: #aab;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.7rem;
+        padding: 4px 8px;
+        border-radius: 4px;
+        appearance: auto;
+    }
+    .file-select:focus,
+    .theme-select:focus {
+        border-color: #00aaaa;
+        outline: none;
+    }
+    .file-select:disabled {
+        opacity: 0.3;
+    }
+
+    .theme-section {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    .theme-row {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+    }
+    .theme-row .theme-select {
+        flex: 1;
+    }
+
+    .save-prompt {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+    }
+    .save-input {
+        flex: 1;
+        background: #0d1525;
+        border: 1px solid #00aaaa;
+        color: #fff;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.75rem;
+        padding: 5px 8px;
+        border-radius: 4px;
+    }
+    .save-input::placeholder {
+        color: #556;
+    }
+    .save-input:focus {
+        outline: none;
+        border-color: #00ffff;
+        box-shadow: 0 0 6px rgba(0, 255, 255, 0.2);
     }
 </style>
