@@ -641,6 +641,7 @@
   .app-container {
     width: 100vw;
     height: 100vh;
+    height: 100dvh;
   }
 
   /* ═══ GRID LAYOUT V8 ═══ */
@@ -651,6 +652,7 @@
     grid-template-columns: 1fr auto;
     grid-template-areas: "canvas right";
     height: 100vh;
+    height: 100dvh;
     width: 100vw;
   }
 
