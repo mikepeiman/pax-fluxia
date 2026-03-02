@@ -13,6 +13,8 @@
   import StarInfoPanel from "$lib/components/ui/StarInfoPanel.svelte";
   import AudioSettings from "$lib/components/ui/AudioSettings.svelte";
   import TopBar from "$lib/components/ui/TopBar.svelte";
+  import StatusBar from "$lib/components/ui/StatusBar.svelte";
+  import StarNav from "$lib/components/ui/StarNav.svelte";
   import type { PlayerState } from "$lib/types/game.types";
   import { themeStore } from "$lib/stores/themeStore.svelte";
   import { audioManager } from "$lib/services/audioManager.svelte";
@@ -285,6 +287,14 @@
     />
 
     <div class="game-layout" class:settings-open={showSettingsPanel}>
+      <!-- STATUSBAR (info display) -->
+      <StatusBar
+        players={leaderboardPlayers}
+        localPlayerId={activeGameStore.localPlayerId ?? undefined}
+        isMuted={audioManager.muted}
+        onToggleMute={() => audioManager.toggleMute()}
+        onToggleSettings={() => (showSettingsFab = !showSettingsFab)}
+      />
       <!-- CANVAS AREA -->
       <div class="area-canvas">
         <GameCanvas bind:this={gameCanvasRef} />
@@ -317,46 +327,30 @@
             <ResultsModal onClose={() => (resultsDismissed = true)} />
           </div>
         {/if}
+      </div>
 
-        <!-- BOTTOM LEFT: Speed & quick actions -->
-        <div class="overlay-bottom-left">
-          <div class="controls-wrapper glass-panel">
-            <SpeedControls
-              speed={activeGameStore.speed}
-              isPaused={activeGameStore.isPaused}
-              hasStarted={activeGameStore.phase === "playing"}
-              onSpeedChange={(speed) => activeGameStore.setSpeed(speed)}
-              onPause={() => activeGameStore.pauseGame()}
-              onResume={() => activeGameStore.resumeGame()}
-              onStart={() => activeGameStore.startGame()}
-              onCenterFit={() => gameCanvasRef?.centerAndFit?.()}
-              isMuted={audioManager.muted}
-              onToggleMute={() => audioManager.toggleMute()}
-            />
+      <!-- BOTTOM CONTROLS (grid area: controls) -->
+      <div class="area-controls-bar">
+        <fieldset class="speed-fieldset">
+          <legend class="speed-legend">Gamespeed</legend>
+          <SpeedControls
+            speed={activeGameStore.speed}
+            isPaused={activeGameStore.isPaused}
+            hasStarted={true}
+            onSpeedChange={(speed) => activeGameStore.setSpeed(speed)}
+            onPause={() => activeGameStore.pauseGame()}
+            onResume={() => activeGameStore.resumeGame()}
+            onStart={() => activeGameStore.startGame()}
+          />
+        </fieldset>
 
-            <div class="action-buttons mobile-hide">
-              <button
-                class="btn btn--ghost btn--sm"
-                onclick={() => activeGameStore.playAgain()}
-              >
-                Restart
-              </button>
-              <button
-                class="btn btn--ghost btn--sm"
-                onclick={() => (showAudioSettings = true)}
-                title="Audio Settings"
-              >
-                🔊
-              </button>
-              <button
-                class="btn btn--danger btn--sm"
-                onclick={() => (showSurrenderModal = true)}
-              >
-                Quit
-              </button>
-            </div>
-          </div>
-        </div>
+        <!-- Star cycling navigation -->
+        <StarNav
+          stars={activeGameStore.stars ?? []}
+          localPlayerId={activeGameStore.localPlayerId ?? undefined}
+          onNavigateToStar={(starId) => gameCanvasRef?.navigateToStar?.(starId)}
+          onCenterFit={() => gameCanvasRef?.centerAndFit?.()}
+        />
       </div>
 
       <!-- SECONDARY CONTROLS COLUMN (toggled by gear icon) -->
@@ -536,76 +530,7 @@
 
   <!-- ═══ MOBILE CONTROL RIBBON + DRAWER (hidden on desktop) ═══ -->
   {#if gameStore.currentView === "game"}
-    <!-- MOBILE MENU BUTTON (☰ only) — hide when settings overlay is open -->
-    {#if !showSettingsPanel}
-      <button
-        class="mobile-menu-btn"
-        class:active={mobileDrawerOpen}
-        onclick={() => (mobileDrawerOpen = !mobileDrawerOpen)}
-        title="Menu"
-      >
-        {mobileDrawerOpen ? "✕" : "☰"}
-      </button>
-    {/if}
-
-    <!-- Scrim -->
-    {#if mobileDrawerOpen}
-      <div
-        class="mobile-scrim"
-        onclick={() => (mobileDrawerOpen = false)}
-        role="presentation"
-      ></div>
-    {/if}
-
-    <!-- Drawer panel: fullscreen overlay with no scroll -->
-    <div class="mobile-drawer" class:open={mobileDrawerOpen}>
-      <!-- Close button (always visible, top-right) -->
-      <button
-        class="drawer-close"
-        onclick={() => (mobileDrawerOpen = false)}
-        title="Close">✕</button
-      >
-
-      <div class="mobile-drawer-content">
-        <!-- Leaderboard (compact mode) -->
-        <div class="drawer-leaderboard">
-          <Leaderboard players={leaderboardPlayers} />
-        </div>
-
-        <!-- Theme selector (inline row) -->
-        <div class="drawer-theme-row">
-          <span class="drawer-theme-icon">🎨</span>
-          <select
-            id="mobile-theme-select"
-            class="drawer-theme-select"
-            value={themeStore.selectedThemeName}
-            onchange={(e) => {
-              const v = (e.target as HTMLSelectElement).value;
-              if (v) themeStore.applyTheme(v);
-            }}
-          >
-            <option value="">Theme…</option>
-            {#each themeStore.allThemes as theme}
-              <option value={theme.name}>{theme.name}</option>
-            {/each}
-          </select>
-        </div>
-      </div>
-    </div>
-
-    <!-- F-96: Floating Settings Gear (visible on both mobile and desktop in-game) -->
-    <!-- Hidden on mobile when settings overlay is open to avoid overlapping close button -->
-    {#if !showSettingsPanel || !isMobileNow}
-      <button
-        class="settings-fab"
-        class:active={showSettingsFab}
-        onclick={() => (showSettingsFab = !showSettingsFab)}
-        title="Quick Settings"
-      >
-        ⚙
-      </button>
-    {/if}
-
+    <!-- Menu popup (triggered by ☰ in controls bar) -->
     {#if showSettingsFab}
       <!-- svelte-ignore a11y_click_events_have_key_events -->
       <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -637,23 +562,23 @@
           class="fab-item"
           onclick={() => {
             audioManager.play("click");
-            activeGameStore.playAgain();
-            showSettingsFab = false;
-          }}
-        >
-          <span class="fab-icon">🔄</span>
-          <span>Restart</span>
-        </button>
-        <button
-          class="fab-item"
-          onclick={() => {
-            audioManager.play("click");
             mobileDrawerOpen = !mobileDrawerOpen;
             showSettingsFab = false;
           }}
         >
           <span class="fab-icon">📊</span>
           <span>Leaderboard</span>
+        </button>
+        <button
+          class="fab-item"
+          onclick={() => {
+            audioManager.play("click");
+            activeGameStore.playAgain();
+            showSettingsFab = false;
+          }}
+        >
+          <span class="fab-icon">🔄</span>
+          <span>Restart</span>
         </button>
         <button
           class="fab-item"
@@ -666,6 +591,45 @@
           <span class="fab-icon">🏳</span>
           <span>Quit Game</span>
         </button>
+      </div>
+    {/if}
+
+    <!-- Mobile drawer: leaderboard + theme -->
+    {#if mobileDrawerOpen}
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        class="mobile-scrim"
+        onclick={() => (mobileDrawerOpen = false)}
+      ></div>
+      <div class="mobile-drawer open">
+        <button
+          class="drawer-close"
+          onclick={() => (mobileDrawerOpen = false)}
+          title="Close">✕</button
+        >
+        <div class="mobile-drawer-content">
+          <div class="drawer-leaderboard">
+            <Leaderboard players={leaderboardPlayers} />
+          </div>
+          <div class="drawer-theme-row">
+            <span class="drawer-theme-icon">🎨</span>
+            <select
+              id="mobile-theme-select"
+              class="drawer-theme-select"
+              value={themeStore.selectedThemeName}
+              onchange={(e) => {
+                const v = (e.target as HTMLSelectElement).value;
+                if (v) themeStore.applyTheme(v);
+              }}
+            >
+              <option value="">Theme…</option>
+              {#each themeStore.allThemes as theme}
+                <option value={theme.name}>{theme.name}</option>
+              {/each}
+            </select>
+          </div>
+        </div>
       </div>
     {/if}
   {/if}
@@ -696,18 +660,27 @@
   }
 
   @media (max-width: 1024px) {
+    /* ── Mobile portrait: 3-row grid ── */
     .game-layout {
       grid-template-columns: 1fr !important;
-      grid-template-areas: "canvas" !important;
+      grid-template-rows: auto 1fr auto;
+      grid-template-areas:
+        "statusbar"
+        "canvas"
+        "controls" !important;
     }
     .game-layout.settings-open {
       grid-template-columns: 1fr !important;
-      grid-template-areas: "canvas" !important;
+      grid-template-rows: auto 1fr auto;
+      grid-template-areas:
+        "statusbar"
+        "canvas"
+        "controls" !important;
     }
     .area-right {
       display: none !important;
     }
-    /* On mobile, settings panel becomes a fullscreen scrollable overlay */
+    /* Settings panel → fullscreen overlay on mobile */
     .area-controls {
       position: fixed !important;
       inset: 0 !important;
@@ -718,118 +691,86 @@
       backdrop-filter: blur(12px) !important;
       overflow-y: auto !important;
       padding: 12px !important;
-      padding-top: 48px !important; /* room for close button */
+      padding-top: 48px !important;
     }
-    /* ── Hide desktop overlays on mobile (but NOT overlay-bottom-left) ── */
+    /* Hide desktop-only overlays */
     .overlay-top-left,
     .overlay-top-center {
       display: none !important;
     }
-    /* Reposition speed controls to center-bottom on mobile */
-    .overlay-bottom-left {
-      left: 8px !important;
-      right: 8px !important;
-      bottom: calc(56px + env(safe-area-inset-bottom, 0px)) !important;
-      transform: none;
-      width: auto !important;
-      max-width: 100%;
+    /* Controls bar fills bottom grid area */
+    .area-controls-bar {
+      grid-area: controls;
+      padding: 6px 8px;
+      padding-bottom: 4rem;
+      background: rgba(5, 10, 25, 0.92);
+      backdrop-filter: blur(8px);
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
     }
-    .controls-wrapper {
+    .speed-fieldset {
       flex-direction: row !important;
       gap: 6px;
-      padding: 8px !important;
+      padding: 6px 8px !important;
       max-width: 100%;
       overflow: visible;
     }
-    .action-buttons {
-      flex-direction: row !important;
-      flex-shrink: 0;
-    }
-    .mobile-hide {
-      display: none !important;
-    }
-    .settings-fab {
-      bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+    /* Fab popup positioned above controls bar */
+    .fab-popup {
+      bottom: calc(56px + env(safe-area-inset-bottom, 0px)) !important;
     }
   }
 
-  /* ── Landscape mobile: convert top/bottom bars to left/right sidebars ── */
+  /* ── Landscape mobile: statusbar left, canvas center, controls right ── */
   @media (max-width: 1024px) and (orientation: landscape) {
-    /* Left sidebar: thin strip with just ☰ icon */
-    .mobile-menu-btn {
-      top: 0 !important;
-      left: 0 !important;
-      right: auto !important;
-      width: 44px !important;
-      height: 100vh !important;
-      height: 100dvh !important;
+    .game-layout {
+      grid-template-columns: 50px 1fr 56px !important;
+      grid-template-rows: 1fr !important;
+      grid-template-areas: "statusbar canvas controls" !important;
+    }
+    .game-layout.settings-open {
+      grid-template-columns: 50px 1fr 56px !important;
+      grid-template-rows: 1fr !important;
+      grid-template-areas: "statusbar canvas controls" !important;
+    }
+    /* Controls bar as vertical right sidebar — tight fit */
+    .area-controls-bar {
       flex-direction: column !important;
-      border-bottom: none !important;
-      border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
-      gap: 6px !important;
-      padding: 8px 0 !important;
-      font-size: 1.4rem !important;
-    }
-    /* Hide any text labels in left sidebar */
-    .mobile-menu-btn .ribbon-stat {
-      display: none !important;
-    }
-    /* Shift canvas to clear left sidebar */
-    .area-canvas {
-      margin-left: 44px !important;
-      margin-right: 56px !important;
-    }
-    /* Right sidebar: speed controls vertically stacked */
-    .overlay-bottom-left {
-      left: auto !important;
-      right: 0 !important;
-      top: 0 !important;
-      bottom: 0 !important;
-      width: 56px !important;
-      height: 100vh !important;
-      height: 100dvh !important;
-      max-width: 56px !important;
-      display: flex !important;
+      padding: 2px 2px;
+      border-top: none;
+      border-left: 1px solid rgba(255, 255, 255, 0.08);
+      gap: 4px;
+      overflow: visible;
+      max-height: 100dvh;
       align-items: center !important;
-      justify-content: center !important;
+      justify-content: flex-start !important;
     }
-    .controls-wrapper {
-      flex-direction: column !important;
-      padding: 4px !important;
-      height: auto !important;
-      gap: 4px !important;
-      justify-content: center !important;
-      align-items: center !important;
-      width: 48px !important;
+    /* Rotate fieldsets so they become thin vertical strips — text reads bottom-to-top */
+    .speed-fieldset,
+    .area-controls-bar :global(.star-nav-fieldset) {
+      writing-mode: vertical-lr;
+      transform: rotate(180deg);
+      flex-direction: row !important;
+      padding: 4px 2px !important;
+      gap: 2px !important;
+      margin: 0;
+      border-width: 1px;
     }
-    /* Speed buttons: compact icon squares */
-    .controls-wrapper :global(.speed-controls) {
-      flex-direction: column !important;
-      gap: 4px !important;
+    /* Counter-rotate button contents so icons are upright */
+    .speed-fieldset :global(.speed-btn),
+    .area-controls-bar :global(.sn-btn) {
+      writing-mode: horizontal-tb;
+      transform: rotate(180deg);
     }
-    .controls-wrapper :global(.speed-btn) {
-      width: 36px !important;
-      height: 36px !important;
-      min-width: 36px !important;
-      font-size: 0.85rem !important;
-      padding: 0 !important;
+    /* Legend text reads vertically bottom-to-top */
+    .speed-legend,
+    .area-controls-bar :global(.star-nav-legend) {
+      writing-mode: vertical-lr;
+      transform: rotate(180deg);
+      font-size: 0.4rem;
+      padding: 1px 0;
+      letter-spacing: 0.08em;
     }
-    .controls-wrapper :global(.start-btn) {
-      width: 40px !important;
-      height: 40px !important;
-      font-size: 0.7rem !important;
-      padding: 4px !important;
-      line-height: 1.1 !important;
-    }
-    .controls-wrapper :global(.divider) {
-      width: 32px !important;
-      height: 1px !important;
-    }
-    /* FAB in landscape: above right sidebar bottom */
-    .settings-fab {
-      bottom: 12px !important;
-      right: 64px !important;
-    }
+
     /* Settings panel: fullscreen overlay in landscape */
     .area-controls {
       position: fixed !important;
@@ -839,11 +780,10 @@
       width: 100vw !important;
       max-width: 100vw !important;
     }
-    /* Scrim covers everything including sidebars */
     .mobile-scrim {
       z-index: 599 !important;
     }
-    /* Landscape drawer: horizontal layout — leaderboard left, theme right */
+    /* Landscape drawer: horizontal layout */
     .mobile-drawer-content {
       flex-direction: row !important;
       align-items: flex-start !important;
@@ -863,8 +803,9 @@
   }
 
   /* ── Mobile-only elements (hidden on desktop) ── */
-  .mobile-menu-btn {
+  .area-controls-bar {
     display: none;
+    grid-area: controls;
   }
   .mobile-scrim {
     display: none;
@@ -874,36 +815,10 @@
   }
 
   @media (max-width: 1024px) {
-    /* ── Mobile menu button (☰) — top-right ── */
-    /* ── Mobile top ribbon (replaces floating ☰ circle) ── */
-    .mobile-menu-btn {
+    .area-controls-bar {
       display: flex;
       align-items: center;
       justify-content: center;
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 40px;
-      border-radius: 0;
-      background: rgba(10, 10, 18, 0.92);
-      backdrop-filter: blur(10px);
-      border: none;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-      color: rgba(255, 255, 255, 0.7);
-      font-size: 1.2rem;
-      cursor: pointer;
-      z-index: 500;
-      transition: all 0.2s ease;
-    }
-    .mobile-menu-btn:active {
-      background: rgba(10, 10, 18, 0.95);
-      border-color: rgba(0, 255, 255, 0.4);
-      color: #fff;
-    }
-    .mobile-menu-btn.active {
-      color: #0ff;
-      border-color: rgba(0, 255, 255, 0.4);
     }
 
     /* ── Scrim behind drawer ── */
@@ -1409,31 +1324,23 @@
     z-index: 9999;
   }
 
-  .overlay-bottom-left {
-    position: absolute;
-    bottom: 20px;
-    left: 20px;
+  .speed-fieldset {
+    margin: 0;
+    padding: 6px 10px 8px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
     display: flex;
-    flex-direction: column;
-    gap: 10px;
-    width: 280px;
-    z-index: 50;
-    pointer-events: none;
+    gap: 4px;
+    align-items: center;
   }
-  .overlay-bottom-left > * {
-    pointer-events: auto;
-  }
-
-  .controls-wrapper {
-    padding: 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .action-buttons {
-    display: flex;
-    gap: 8px;
+  .speed-legend {
+    font-family: "Montserrat", sans-serif;
+    font-size: 0.55rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.35);
+    padding: 0 6px;
   }
 
   /* ═══ UTILITIES ═══ */
@@ -1465,16 +1372,6 @@
   }
   .btn--ghost:hover {
     border-color: #fff;
-    color: #fff;
-  }
-
-  .btn--danger {
-    background: rgba(239, 68, 68, 0.2);
-    border: 1px solid rgba(239, 68, 68, 0.5);
-    color: #fca5a5;
-  }
-  .btn--danger:hover {
-    background: rgba(239, 68, 68, 0.4);
     color: #fff;
   }
 
@@ -1534,36 +1431,6 @@
   .surrender-modal__cancel {
     opacity: 0.5;
     font-size: 0.75rem;
-  }
-
-  /* ── F-96: Floating Settings Gear FAB ── */
-  .settings-fab {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    z-index: 90;
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    border: 1px solid rgba(0, 255, 255, 0.2);
-    background: rgba(10, 14, 30, 0.85);
-    color: rgba(255, 255, 255, 0.8);
-    font-size: 1.3rem;
-    cursor: pointer;
-    backdrop-filter: blur(10px);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-  }
-  .settings-fab:hover,
-  .settings-fab.active {
-    border-color: rgba(0, 255, 255, 0.5);
-    background: rgba(10, 14, 30, 0.95);
-    transform: rotate(45deg);
-    box-shadow: 0 4px 24px rgba(0, 255, 255, 0.15);
   }
 
   .fab-scrim {

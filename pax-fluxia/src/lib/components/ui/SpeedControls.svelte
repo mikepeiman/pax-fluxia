@@ -41,7 +41,6 @@
         { value: 1, label: "▶" },
         { value: 2, label: "▶▶" },
         { value: 4, label: "▶▶▶" },
-        { value: 10, label: "⚡" },
     ];
 
     function handleSpeedClick(newSpeed: GameSpeed) {
@@ -64,33 +63,6 @@
     {/if}
 
     <div class="speed-controls">
-        <!-- Center & Fit Button -->
-        {#if onCenterFit}
-            <button
-                class="speed-btn center-btn"
-                onclick={onCenterFit}
-                title="Center & Fit Gameboard"
-            >
-                ⌖
-            </button>
-        {/if}
-
-        <!-- Mute Toggle Button -->
-        {#if onToggleMute}
-            <button
-                class="speed-btn mute-btn"
-                class:speed-btn--active={isMuted}
-                onclick={onToggleMute}
-                title={isMuted ? "Unmute Audio" : "Mute Audio"}
-            >
-                {isMuted ? "🔇" : "🔊"}
-            </button>
-        {/if}
-
-        {#if onCenterFit || onToggleMute}
-            <div class="divider"></div>
-        {/if}
-
         <!-- Pause Button -->
         <button
             class="speed-btn"
@@ -176,16 +148,6 @@
         background: rgba(255, 255, 255, 0.05);
     }
 
-    .center-btn {
-        color: var(--color-accent-cyan);
-    }
-
-    .divider {
-        width: 1px;
-        background: rgba(255, 255, 255, 0.1);
-        margin: 4px 2px;
-    }
-
     .speed-btn--active {
         background: var(--color-accent-cyan);
         color: var(--color-void-deep);
@@ -218,10 +180,6 @@
             height: 28px;
             font-size: 0.7rem;
             flex-shrink: 1;
-        }
-        .center-btn {
-            width: 28px;
-            min-width: 24px;
         }
     }
 </style>

@@ -204,6 +204,34 @@
             app.stage.scale.set(effectiveScale);
         }
     }
+
+    /** Navigate to a specific star by centering the viewport on it */
+    export function navigateToStar(starId: string, zoom: number = 2.5) {
+        const stars = activeGameStore.stars;
+        const star = stars?.find((s: any) => s.id === starId);
+        if (!star || !app) return;
+
+        zoomLevel = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, zoom));
+        const effectiveScale = baseScale * zoomLevel;
+        app.stage.scale.set(effectiveScale);
+
+        // Use transposed coordinates
+        const sx = mapTranspose.x(star);
+        const sy = mapTranspose.y(star);
+
+        const containerWidth = app.screen.width;
+        const containerHeight = app.screen.height - BOTTOM_UI_INSET;
+
+        // Center the star in the viewport
+        app.stage.x = containerWidth / 2 - sx * effectiveScale;
+        app.stage.y = containerHeight / 2 - sy * effectiveScale;
+
+        // Update pan offsets to match
+        panOffsetX =
+            app.stage.x - (containerWidth - GAME_WIDTH * effectiveScale) / 2;
+        panOffsetY =
+            app.stage.y - (containerHeight - GAME_HEIGHT * effectiveScale) / 2;
+    }
     const ZOOM_STEP = 0.1; // Per scroll notch
     let isPanning = false; // Middle-mouse-button or spacebar pan
     let isSpaceHeld = false; // Spacebar held for pan mode
@@ -604,8 +632,12 @@
         resetMetaballCache();
         resetPixelTerritoryCache();
         resetLaneTerritoryCache();
-        // Reset visual ship state so damaged ships snap (no lerp drift)
-        fxOrchestrator.reset();
+        // Clear ALL visual ship positions so they re-spawn at transposed coords
+        // (ships store x/y, laneStartX/Y, laneEndX/Y in old coordinate space)
+        visualDamagedShips.clear();
+        visualShips.clear();
+        travelingShips.length = 0;
+        fxOrchestrator.vsm.travelingShips.length = 0;
         // Recompute world bounds with new display positions
         updateWorldBounds();
         log.sys(
@@ -1930,5 +1962,10 @@
         border-radius: 4px;
         pointer-events: none;
         user-select: none;
+    }
+    @media (max-width: 1024px) {
+        .fps-overlay {
+            display: none;
+        }
     }
 </style>
