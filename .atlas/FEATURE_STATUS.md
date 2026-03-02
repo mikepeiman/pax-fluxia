@@ -27,9 +27,9 @@
 | F-127 | "Stretch Map To Fit" toggle — rerender map to maximize viewport usage | 🟡 Planned | High | 2026-03-02 |
 | F-128 | Main Menu full redesign — current menu wastes space on desktop and mobile | 🟡 Planned | Medium | 2026-03-02 |
 | F-129 | Canvas debug infrastructure (debug borders, world bounds rect, log.canvas category) | ✅ Done | Low | 2026-03-02 |
-| F-130 | Audio volume persistence — remember per-sound volume adjustments in localStorage | 🟡 Planned | Critical | 2026-03-02 |
-| F-131 | Per-sound file selector — dropdown to pick which audio file for each sound event | 🟡 Planned | Critical | 2026-03-02 |
-| F-132 | Audio theming — save/load audio presets, designate default themes | 🟡 Planned | Critical | 2026-03-02 |
+| F-130 | Audio volume persistence — remember per-sound volume adjustments in localStorage | ✅ Done | Critical | 2026-03-02 |
+| F-131 | Per-sound file selector — dropdown to pick which audio file for each sound event | ✅ Done | Critical | 2026-03-02 |
+| F-132 | Audio theming — save/load audio presets, designate default themes | ✅ Done | Critical | 2026-03-02 |
 
 ## Known Regressions
 
