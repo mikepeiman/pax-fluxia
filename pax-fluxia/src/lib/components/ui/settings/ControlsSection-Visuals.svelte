@@ -122,6 +122,51 @@
         style="font-size:9px;opacity:0.6">Flip X↔Y axes</span
     ></label
 >
+
+<!-- Label Number Animation Mode -->
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Label Anim Mode</span>
+        <select
+            class="val"
+            style="background:#111;color:#ccc;border:1px solid #444;border-radius:3px;font-size:11px;padding:1px 4px;"
+            value={GAME_CONFIG.LABEL_ANIM_MODE ?? "rolling"}
+            onchange={(e) => {
+                const v = (e.target as HTMLSelectElement).value;
+                GAME_CONFIG.LABEL_ANIM_MODE = v as
+                    | "rolling"
+                    | "fade"
+                    | "instant";
+                updatePanel("labelAnimMode", v);
+            }}
+        >
+            <option value="rolling">Rolling (lerp)</option>
+            <option value="fade">Fade (snap + flash)</option>
+            <option value="instant">Instant</option>
+        </select>
+    </div>
+</div>
+<!-- Label Transition Duration -->
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Label Transition</span><span class="val"
+            >{panel.numberTransitionMs ?? 120}ms</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="500"
+        step="10"
+        value={panel.numberTransitionMs ?? 120}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.NUMBER_TRANSITION_MS = v;
+            updatePanel("numberTransitionMs", v);
+        }}
+    />
+</div>
+
 <h4 class="sub-heading">Connections</h4>
 <div class="var-row">
     <div class="row-top">

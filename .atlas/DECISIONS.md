@@ -99,3 +99,16 @@
 - **Decision**: When the device rotates counter-clockwise (portrait → landscape), the map must rotate to match. A star at top-right in portrait should appear at top-left in landscape. Implemented via 90° CCW rotation transform: `displayX = star.y`, `displayY = mapWidth - star.x`.
 - **Rationale**: The player's spatial memory of star positions must be preserved across orientation changes. A simple x↔y swap without axis flip keeps stars in the same quadrant, which feels like a layout shift rather than a rotation.
 - **Critical**: The axis flip must use `GAME_WIDTH` (pre-transpose narrow dimension, ~900), NOT `GAME_HEIGHT` (~1600). Using the wrong dimension caused a 700px vertical offset regression (2026-03-02).
+
+### PM-01: Incomplete Debug Cleanup (Post-Mortem, 2026-03-02)
+- **Error**: Told to "remove the two rectangular boxes and any other code artifacts" for map fit debugging. Removed PIXI `drawDebugWorldBounds()` calls but missed a CSS `border: 3px solid red` debug style on `GameContainer.svelte:L672`.
+- **Root cause**: Search queries (`debug.*rect`, `world.?bounds|debug.?border`) targeted only canvas/PIXI debug drawing. CSS debug styles (borders, outlines, background colors) are a separate artifact category not covered by those patterns.
+- **Prevention**: When given "remove debug visuals," search BOTH categories:
+  1. Canvas/PIXI: `drawDebug|debugBounds|debugRect|debugGfx`
+  2. CSS: `border.*red|border.*debug|outline.*debug|background.*debug|solid red|solid yellow|solid magenta`
+- **Systemic gap**: No change log exists that records what was added for debugging vs. production. A future `// DEBUG:` comment convention could help grep for all temp artifacts.
+
+### PM-02: Wrong Settings Section (Post-Mortem, 2026-03-02)
+- **Error**: User specified "Section: Map & Game" for the Label Anim Mode toggle. Agent placed it in Timing section instead.
+- **Root cause**: Agent noticed `NUMBER_TRANSITION_MS` was already in Timing and assumed logical grouping overrode the user's explicit instruction. This violates §2.3: "User words are specifications."
+- **Prevention**: When user specifies a section/location, treat it as a hard constraint. Never substitute own judgment for an explicit placement instruction.
