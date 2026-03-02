@@ -666,6 +666,9 @@
     height: 100%;
     min-height: 0; /* Prevents CSS Grid from expanding cell beyond available space */
     overflow: hidden;
+    /* DEBUG: thick red border to visualize canvas container bounds */
+    border: 3px solid red;
+    box-sizing: border-box;
   }
 
   /* Controls bar and StatusBar are mobile-only */

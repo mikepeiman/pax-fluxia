@@ -24,6 +24,7 @@ export const logFlags = {
     conquest: false,
     input: false,
     repair: false,
+    canvas: true,    // Canvas debug (viewport, scaling, centering)
 };
 
 // Expose on window for runtime console toggling
@@ -40,6 +41,7 @@ const styles = {
     ok: 'background: #22c55e; color: #fff; padding: 2px 4px; border-radius: 2px; font-weight: bold;',
     combat: 'background: #ff6b35; color: #fff; padding: 2px 4px; border-radius: 2px; font-weight: bold;',
     conquest: 'background: #e11d48; color: #fff; padding: 2px 4px; border-radius: 2px; font-weight: bold;',
+    canvas: 'background: #0ea5e9; color: #fff; padding: 2px 4px; border-radius: 2px; font-weight: bold;',
     reset: 'color: inherit;'
 };
 
@@ -252,6 +254,12 @@ export const log = {
     input: (action: string, data?: unknown) => {
         if (!logFlags.input) return;
         console.log(`%cINPUT%c ${action}`, 'background: #6366f1; color: #fff; padding: 2px 4px; border-radius: 2px; font-weight: bold;', styles.reset, data ?? '');
+    },
+
+    /** 🖥️ CANVAS - Viewport, scaling, centering, pan diagnostics */
+    canvas: (context: string, msg: string, data?: unknown) => {
+        if (!logFlags.canvas) return;
+        console.log(`%cCANVAS%c [${context}] ${msg}`, styles.canvas, styles.reset, data ?? '');
     },
 
     /**

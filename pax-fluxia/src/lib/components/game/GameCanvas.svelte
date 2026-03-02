@@ -208,6 +208,13 @@
             app.stage.x = (containerWidth - scaledWidth) / 2;
             app.stage.y = (containerHeight - scaledHeight) / 2;
             app.stage.scale.set(effectiveScale);
+
+            // DEBUG
+            log.canvas(
+                "centerAndFit",
+                `container=${containerWidth.toFixed(0)}x${containerHeight.toFixed(0)} world=${GAME_WIDTH.toFixed(0)}x${GAME_HEIGHT.toFixed(0)} scaleX=${scaleX.toFixed(4)} scaleY=${scaleY.toFixed(4)} baseScale=${baseScale.toFixed(4)} stage.x=${app.stage.x.toFixed(1)} stage.y=${app.stage.y.toFixed(1)}`,
+            );
+            drawDebugWorldBounds();
         }
     }
 
@@ -240,6 +247,12 @@
 
         // Ensure pan stays within bounds
         clampPan();
+
+        // DEBUG
+        log.canvas(
+            "navigateToStar",
+            `id=${starId} raw=(${star.x.toFixed(0)},${star.y.toFixed(0)}) transposed=(${sx.toFixed(0)},${sy.toFixed(0)}) ownerId=${star.ownerId} localPlayer=${activeGameStore.localPlayerId} container=${containerWidth.toFixed(0)}x${containerHeight.toFixed(0)} effectiveScale=${effectiveScale.toFixed(4)} stage=(${app.stage.x.toFixed(1)},${app.stage.y.toFixed(1)})`,
+        );
     }
     const ZOOM_STEP = 0.1; // Per scroll notch
     let isPanning = false; // Middle-mouse-button or spacebar pan
@@ -610,11 +623,15 @@
     function updateWorldBounds() {
         const currentStars = activeGameStore.stars as StarState[];
         if (!currentStars || currentStars.length === 0) return;
+        let minX = Infinity,
+            minY = Infinity;
         let maxX = 0,
             maxY = 0;
         for (const s of currentStars) {
             const dx = mapTranspose.x(s);
             const dy = mapTranspose.y(s);
+            if (dx < minX) minX = dx;
+            if (dy < minY) minY = dy;
             if (dx > maxX) maxX = dx;
             if (dy > maxY) maxY = dy;
         }
@@ -622,6 +639,34 @@
         const pad = 80;
         GAME_WIDTH = maxX + pad;
         GAME_HEIGHT = maxY + pad;
+
+        // DEBUG: log star extent and world bounds
+        log.canvas(
+            "WorldBounds",
+            `stars=${currentStars.length} minX=${minX.toFixed(0)} minY=${minY.toFixed(0)} maxX=${maxX.toFixed(0)} maxY=${maxY.toFixed(0)} → GAME_WIDTH=${GAME_WIDTH.toFixed(0)} GAME_HEIGHT=${GAME_HEIGHT.toFixed(0)} transpose=${mapTranspose.active}`,
+        );
+    }
+
+    /** DEBUG: Draw a bright yellow rectangle showing world bounds (GAME_WIDTH × GAME_HEIGHT) */
+    function drawDebugWorldBounds() {
+        if (!app) return;
+        // Create or reuse debug graphics on stage
+        let dbg = (app as any)._debugBoundsGfx as PIXI.Graphics | undefined;
+        if (!dbg) {
+            dbg = new PIXI.Graphics();
+            app.stage.addChild(dbg);
+            (app as any)._debugBoundsGfx = dbg;
+        }
+        dbg.clear();
+        // Yellow border around game world
+        dbg.rect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+        dbg.stroke({ color: 0xffff00, width: 3 });
+        // Crosshair at center of world
+        const cx = GAME_WIDTH / 2;
+        const cy = GAME_HEIGHT / 2;
+        dbg.moveTo(cx - 30, cy).lineTo(cx + 30, cy);
+        dbg.moveTo(cx, cy - 30).lineTo(cx, cy + 30);
+        dbg.stroke({ color: 0xff00ff, width: 2 });
     }
 
     // ── F-107: Portrait Map Orientation ──────────────────────────────────
@@ -736,6 +781,14 @@
 
         // Apply combined scale + zoom
         applyZoomTransform();
+
+        // DEBUG
+        drawDebugWorldBounds();
+        const canvasEl = canvasContainer;
+        log.canvas(
+            "handleResize",
+            `container=${containerWidth.toFixed(0)}x${containerHeight.toFixed(0)} world=${GAME_WIDTH.toFixed(0)}x${GAME_HEIGHT.toFixed(0)} scaleX=${scaleX.toFixed(4)} scaleY=${scaleY.toFixed(4)} baseScale=${baseScale.toFixed(4)} dpr=${window.devicePixelRatio} cssGrid(el)=${canvasEl?.clientWidth ?? "?"}x${canvasEl?.clientHeight ?? "?"} viewport=${window.innerWidth}x${window.innerHeight}`,
+        );
     }
 
     function applyZoomTransform() {
