@@ -1,4 +1,5 @@
 import { log } from "$lib/utils/logger";
+import { getFilesForSoundType, type SoundFileEntry } from "$lib/config/soundManifest";
 
 export type SoundType =
     | "click"
@@ -10,7 +11,8 @@ export type SoundType =
     | "lose"
     | "win"
     | "new_player"
-    | "conquest";
+    | "conquest"
+    | "starloss";
 
 /** Human-readable labels for UI */
 export const SOUND_LABELS: Record<SoundType, string> = {
@@ -24,6 +26,7 @@ export const SOUND_LABELS: Record<SoundType, string> = {
     win: "Victory",
     new_player: "Player Joined",
     conquest: "Star Conquered",
+    starloss: "Star Lost",
 };
 
 interface SoundConfig {
@@ -43,12 +46,28 @@ const SOUND_CONFIGS: Record<SoundType, SoundConfig> = {
     win: { file: "win.ogg", defaultVolume: 0.6, poolSize: 1 },
     new_player: { file: "new_player.ogg", defaultVolume: 0.8, poolSize: 2 },
     conquest: { file: "conquest.wav", defaultVolume: 0.8, poolSize: 2 },
+    starloss: { file: "starloss/mixkit-arcade-mechanical-bling-210.wav", defaultVolume: 0.6, poolSize: 2 },
 };
 
 /** All sound type keys, exported for UI iteration */
 export const ALL_SOUND_TYPES: SoundType[] = Object.keys(SOUND_CONFIGS) as SoundType[];
 
 const STORAGE_PREFIX = "pax-audio";
+
+// ── Audio Theme Type ────────────────────────────────────────────────────────
+
+export interface AudioTheme {
+    name: string;
+    created: string;
+    masterVolume: number;
+    muted: boolean;
+    soundVolumes: Record<SoundType, number>;
+    soundFiles: Record<SoundType, string>;
+    builtIn?: boolean;
+}
+
+const AUDIO_THEMES_KEY = `${STORAGE_PREFIX}-themes`;
+const AUDIO_SELECTED_THEME_KEY = `${STORAGE_PREFIX}-selected-theme`;
 
 class AudioManager {
     private pools: Map<SoundType, HTMLAudioElement[]> = new Map();
@@ -64,6 +83,16 @@ class AudioManager {
             ALL_SOUND_TYPES.map(t => [t, SOUND_CONFIGS[t].defaultVolume])
         ) as Record<SoundType, number>
     );
+    /** Per-sound file assignments (path relative to /sounds/) */
+    public soundFiles = $state<Record<SoundType, string>>(
+        Object.fromEntries(
+            ALL_SOUND_TYPES.map(t => [t, SOUND_CONFIGS[t].file])
+        ) as Record<SoundType, string>
+    );
+    /** Available audio themes */
+    public savedThemes = $state<AudioTheme[]>([]);
+    /** Currently selected theme name */
+    public selectedThemeName = $state("");
 
     // ── Init ──
     init() {
@@ -84,20 +113,43 @@ class AudioManager {
             }
         }
 
+        // Load per-sound file assignments
+        for (const type of ALL_SOUND_TYPES) {
+            const savedFile = localStorage.getItem(`${STORAGE_PREFIX}-file-${type}`);
+            if (savedFile !== null) {
+                this.soundFiles[type] = savedFile;
+            }
+        }
+
+        // Load saved themes
+        this.savedThemes = this.loadThemesFromStorage();
+        const selectedName = localStorage.getItem(AUDIO_SELECTED_THEME_KEY);
+        if (selectedName) this.selectedThemeName = selectedName;
+
         // Preload sound pools
         for (const type of ALL_SOUND_TYPES) {
-            const config = SOUND_CONFIGS[type];
-            const pool: HTMLAudioElement[] = [];
-            for (let i = 0; i < config.poolSize; i++) {
-                const audio = new Audio(`/sounds/${config.file}`);
-                audio.volume = this.getEffectiveVolume(type);
-                pool.push(audio);
-            }
-            this.pools.set(type, pool);
+            this.rebuildPool(type);
         }
 
         this.initialized = true;
-        log.sys("AudioManager", `Initialized: master=${this.masterVolume}, muted=${this.muted}`);
+        log.sys("AudioManager", `Initialized: master=${this.masterVolume}, muted=${this.muted}, ${ALL_SOUND_TYPES.length} sound types`);
+    }
+
+    // ── Pool Management ──
+
+    private rebuildPool(type: SoundType) {
+        const config = SOUND_CONFIGS[type];
+        const filePath = this.soundFiles[type];
+        const pool: HTMLAudioElement[] = [];
+        // Determine full URL: if path contains '/', it's a subdirectory path;
+        // otherwise it's a legacy root file
+        const url = filePath.includes('/') ? `/sounds/${filePath}` : `/sounds/${filePath}`;
+        for (let i = 0; i < config.poolSize; i++) {
+            const audio = new Audio(url);
+            audio.volume = this.getEffectiveVolume(type);
+            pool.push(audio);
+        }
+        this.pools.set(type, pool);
     }
 
     // ── Helpers ──
@@ -118,6 +170,11 @@ class AudioManager {
     private persistSoundVolume(type: SoundType) {
         if (typeof window === "undefined") return;
         localStorage.setItem(`${STORAGE_PREFIX}-vol-${type}`, this.soundVolumes[type].toString());
+    }
+
+    private persistSoundFile(type: SoundType) {
+        if (typeof window === "undefined") return;
+        localStorage.setItem(`${STORAGE_PREFIX}-file-${type}`, this.soundFiles[type]);
     }
 
     private updatePoolVolumes() {
@@ -148,7 +205,7 @@ class AudioManager {
             audio.currentTime = 0;
             audio.play().catch(e => {
                 if (e.name !== "NotAllowedError") {
-                    console.error("Audio play error", e);
+                    log.error("AudioManager", `Play error for ${type}`, e);
                 }
             });
         }
@@ -181,6 +238,22 @@ class AudioManager {
         }
     }
 
+    /** Change which audio file is used for a sound type */
+    setSoundFile(type: SoundType, filePath: string) {
+        this.soundFiles[type] = filePath;
+        this.persistSoundFile(type);
+        // Rebuild audio pool with new file
+        if (this.initialized) {
+            this.rebuildPool(type);
+        }
+        log.sys("AudioManager", `Changed ${type} file → ${filePath}`);
+    }
+
+    /** Get available files for a sound type from the manifest */
+    getAvailableFiles(type: SoundType): SoundFileEntry[] {
+        return getFilesForSoundType(type);
+    }
+
     toggleMute() {
         this.muted = !this.muted;
         this.persistMute();
@@ -192,7 +265,7 @@ class AudioManager {
         }
     }
 
-    /** Reset all volumes to defaults */
+    /** Reset all volumes and file assignments to defaults */
     resetDefaults() {
         this.masterVolume = 0.5;
         this.muted = false;
@@ -201,15 +274,130 @@ class AudioManager {
 
         for (const type of ALL_SOUND_TYPES) {
             this.soundVolumes[type] = SOUND_CONFIGS[type].defaultVolume;
+            this.soundFiles[type] = SOUND_CONFIGS[type].file;
             this.persistSoundVolume(type);
+            this.persistSoundFile(type);
+        }
+        // Rebuild all pools
+        if (this.initialized) {
+            for (const type of ALL_SOUND_TYPES) {
+                this.rebuildPool(type);
+            }
         }
         this.updatePoolVolumes();
-        log.sys("AudioManager", "Reset all volumes to defaults");
+        log.sys("AudioManager", "Reset all volumes and files to defaults");
     }
 
     /** Get default volume for a sound type */
     getDefaultVolume(type: SoundType): number {
         return SOUND_CONFIGS[type].defaultVolume;
+    }
+
+    /** Get default file for a sound type */
+    getDefaultFile(type: SoundType): string {
+        return SOUND_CONFIGS[type].file;
+    }
+
+    // ── Audio Theme API ──
+
+    private loadThemesFromStorage(): AudioTheme[] {
+        try {
+            const raw = localStorage.getItem(AUDIO_THEMES_KEY);
+            return raw ? JSON.parse(raw) : [];
+        } catch { return []; }
+    }
+
+    private persistThemes() {
+        if (typeof window === "undefined") return;
+        localStorage.setItem(AUDIO_THEMES_KEY, JSON.stringify(this.savedThemes));
+    }
+
+    /** Export current audio settings as a named theme */
+    exportAudioTheme(name: string): AudioTheme {
+        return {
+            name,
+            created: new Date().toISOString(),
+            masterVolume: this.masterVolume,
+            muted: this.muted,
+            soundVolumes: { ...this.soundVolumes },
+            soundFiles: { ...this.soundFiles },
+        };
+    }
+
+    /** Apply an audio theme — sets all volumes and file assignments */
+    applyAudioTheme(theme: AudioTheme) {
+        this.masterVolume = theme.masterVolume;
+        this.muted = theme.muted;
+        this.persistMaster();
+        this.persistMute();
+
+        for (const type of ALL_SOUND_TYPES) {
+            if (theme.soundVolumes[type] !== undefined) {
+                this.soundVolumes[type] = theme.soundVolumes[type];
+                this.persistSoundVolume(type);
+            }
+            if (theme.soundFiles[type] !== undefined) {
+                this.soundFiles[type] = theme.soundFiles[type];
+                this.persistSoundFile(type);
+            }
+        }
+
+        // Rebuild all pools and update volumes
+        if (this.initialized) {
+            for (const type of ALL_SOUND_TYPES) {
+                this.rebuildPool(type);
+            }
+        }
+
+        this.selectedThemeName = theme.name;
+        localStorage.setItem(AUDIO_SELECTED_THEME_KEY, theme.name);
+        log.sys("AudioManager", `Applied audio theme: ${theme.name}`);
+    }
+
+    /** Save current settings as a named theme */
+    saveAudioTheme(name: string): AudioTheme {
+        const theme = this.exportAudioTheme(name);
+        // Replace if same name exists
+        this.savedThemes = this.savedThemes.filter(t => t.name !== name);
+        this.savedThemes = [theme, ...this.savedThemes];
+        this.persistThemes();
+        this.selectedThemeName = name;
+        localStorage.setItem(AUDIO_SELECTED_THEME_KEY, name);
+        log.sys("AudioManager", `Saved audio theme: ${name}`);
+        return theme;
+    }
+
+    /** Delete a saved audio theme */
+    deleteAudioTheme(name: string) {
+        this.savedThemes = this.savedThemes.filter(t => t.name !== name);
+        this.persistThemes();
+        if (this.selectedThemeName === name) {
+            this.selectedThemeName = "";
+            localStorage.removeItem(AUDIO_SELECTED_THEME_KEY);
+        }
+        log.sys("AudioManager", `Deleted audio theme: ${name}`);
+    }
+
+    /** Get the built-in "Default" audio theme */
+    getDefaultTheme(): AudioTheme {
+        return {
+            name: "Default",
+            created: "2026-01-01T00:00:00.000Z",
+            masterVolume: 0.5,
+            muted: false,
+            builtIn: true,
+            soundVolumes: Object.fromEntries(
+                ALL_SOUND_TYPES.map(t => [t, SOUND_CONFIGS[t].defaultVolume])
+            ) as Record<SoundType, number>,
+            soundFiles: Object.fromEntries(
+                ALL_SOUND_TYPES.map(t => [t, SOUND_CONFIGS[t].file])
+            ) as Record<SoundType, string>,
+        };
+    }
+
+    /** All themes including built-in Default */
+    getAllThemes(): AudioTheme[] {
+        return [this.getDefaultTheme(), ...this.savedThemes];
     }
 }
 
