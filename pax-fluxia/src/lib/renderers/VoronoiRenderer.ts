@@ -186,7 +186,7 @@ export function renderVoronoi(
     if (cellGraphics) cellGraphics.visible = true;
     if (borderGraphics) borderGraphics.visible = true;
 
-    const fingerprint = buildFingerprint(stars);
+    const fingerprint = buildFingerprint(stars) + `:${worldWidth}:${worldHeight}`;
 
     // Skip regeneration if nothing changed
     if (fingerprint === cachedFingerprint && cellGraphics) {

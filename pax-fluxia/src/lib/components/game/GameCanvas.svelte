@@ -531,6 +531,10 @@
             // Render the current frame from unified store
             const stars = activeGameStore.stars as StarState[];
             if (stars.length > 0 && app) {
+                // Pre-map coordinates for display (applies transpose if active)
+                const displayStars: StarState[] = mapTranspose.active
+                    ? stars.map((s) => ({ ...s, x: s.y, y: s.x }))
+                    : stars;
                 // Compute tickProgress from game time (NOT wall clock)
                 const gameNowMs = fxOrchestrator.gameTime;
                 const tickProgress = isPaused
@@ -540,7 +544,7 @@
                               activeGameStore.effectiveTickMs,
                           1,
                       );
-                renderFrame(stars, tickProgress);
+                renderFrame(displayStars, tickProgress);
             }
 
             animationFrameId = requestAnimationFrame(loop);
@@ -557,16 +561,17 @@
     let GAME_WIDTH = 1600;
     let GAME_HEIGHT = 900;
 
-    /** Recompute world bounds from actual star positions + padding */
+    /** Recompute world bounds from display positions (respects transpose) */
     function updateWorldBounds() {
         const currentStars = activeGameStore.stars as StarState[];
         if (!currentStars || currentStars.length === 0) return;
         let maxX = 0,
             maxY = 0;
         for (const s of currentStars) {
-            // Stars already have transposed coordinates via toGameState
-            if (s.x > maxX) maxX = s.x;
-            if (s.y > maxY) maxY = s.y;
+            const dx = mapTranspose.x(s);
+            const dy = mapTranspose.y(s);
+            if (dx > maxX) maxX = dx;
+            if (dy > maxY) maxY = dy;
         }
         // Add padding (star radius + orbits)
         const pad = 80;
@@ -585,7 +590,7 @@
             : false;
     let mapIsPortrait = false; // Set when stars first load
 
-    /** Toggle the transpose flag — toGameState() handles the actual x↔y swap */
+    /** Toggle the transpose flag — display coordinates swap at consumption sites */
     function transposeStarCoordinates() {
         mapTranspose.active = !mapTranspose.active;
         // Flip the map orientation flag
@@ -595,6 +600,8 @@
         resetMetaballCache();
         resetPixelTerritoryCache();
         resetLaneTerritoryCache();
+        // Reset visual ship state so damaged ships snap (no lerp drift)
+        fxOrchestrator.reset();
         // Recompute world bounds with new display positions
         updateWorldBounds();
         log.sys(

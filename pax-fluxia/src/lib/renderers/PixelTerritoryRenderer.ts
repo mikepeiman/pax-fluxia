@@ -167,7 +167,7 @@ export function renderPixelTerritory(
         return;
     }
 
-    const fingerprint = buildFingerprint(stars);
+    const fingerprint = buildFingerprint(stars) + `:${worldWidth}:${worldHeight}`;
 
     // Skip if nothing changed or worker is busy
     if (fingerprint === cachedFingerprint && cachedSprite) {

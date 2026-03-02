@@ -150,7 +150,7 @@ export function renderMetaball(
     // ── PERF: Fingerprint check — skip if nothing changed ──
     // This is the key optimization: fingerprint only changes when star
     // ownership/ship counts change (on tick), NOT every animation frame.
-    const fingerprint = buildFingerprint(stars);
+    const fingerprint = buildFingerprint(stars) + `:${worldWidth}:${worldHeight}`;
     if (fingerprint === cachedFingerprint) {
         // Still update blur filter (cheap)
         applyBlurFilter();
