@@ -69,7 +69,6 @@
         border: 1px solid rgba(255, 255, 255, 0.12);
         border-radius: 8px;
         display: flex;
-        flex-direction: row-reverse;
         gap: 2px;
         align-items: center;
     }

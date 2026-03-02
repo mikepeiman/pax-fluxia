@@ -185,8 +185,8 @@
     const ZOOM_MIN = 0.8; // Max zoom-out: 125% of gameboard visible
     const ZOOM_MAX = 5.0;
 
-    /** Height of the bottom UI overlay (speed controls) that obscures the canvas (Now 0 because of CSS Grid) */
-    const BOTTOM_UI_INSET = 0;
+    /** Height of the bottom UI overlay (speed controls) that obscures the canvas */
+    const BOTTOM_UI_INSET = 56;
 
     export function centerAndFit() {
         zoomLevel = 1;
@@ -624,8 +624,6 @@
 
     /** Toggle the transpose flag — display coordinates swap at consumption sites */
     function transposeStarCoordinates() {
-        // Set map height BEFORE toggling so the axis flip uses pre-transpose height
-        mapTranspose.mapHeight = GAME_HEIGHT;
         mapTranspose.active = !mapTranspose.active;
         // Flip the map orientation flag
         mapIsPortrait = !mapIsPortrait;
