@@ -40,13 +40,12 @@
         pinValueToTickDuration,
         lockRatioToTick,
         lockRatioToAnimSpeed,
-    syncFromConfig,
+        syncFromConfig,
     }: Props = $props();
-    import CategoryThemeBar from './CategoryThemeBar.svelte';
+    import CategoryThemeBar from "./CategoryThemeBar.svelte";
 </script>
 
 <CategoryThemeBar category="timing" onApply={() => syncFromConfig?.()} />
-
 
 <div class="var-row">
     <div class="row-top">
@@ -242,6 +241,30 @@
             updatePanel("numberTransitionMs", v);
         }}
     />
+</div>
+
+<!-- Label Animation Mode -->
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Label Anim Mode</span>
+        <select
+            class="val"
+            style="background:#111;color:#ccc;border:1px solid #444;border-radius:3px;font-size:11px;padding:1px 4px;"
+            value={GAME_CONFIG.LABEL_ANIM_MODE ?? "rolling"}
+            onchange={(e) => {
+                const v = (e.target as HTMLSelectElement).value;
+                GAME_CONFIG.LABEL_ANIM_MODE = v as
+                    | "rolling"
+                    | "fade"
+                    | "instant";
+                updatePanel("labelAnimMode", v);
+            }}
+        >
+            <option value="rolling">Rolling (lerp)</option>
+            <option value="fade">Fade (snap + flash)</option>
+            <option value="instant">Instant</option>
+        </select>
+    </div>
 </div>
 
 <style>

@@ -42,6 +42,11 @@
 - **No guessing** — always read the source definition before writing dependent code
 - **Finish the task** — complete current work before starting new items
 
+### 2.4 Completeness
+- **Every definition must have a consumer** — adding a type, config key, or function without wiring it to its integration point is dead code and counts as incomplete work
+- **Trace the full path** — when creating something new (event, SoundType, config flag), follow the chain from definition → usage → trigger → UI
+- **No orphans** — before marking work done, verify: "Who calls this? Where does this render? What fires this event?"
+
 
 ### 2.5 Document Everything
 All ideas, fixes, bugs, roadmap items the user mentions → document immediately in:

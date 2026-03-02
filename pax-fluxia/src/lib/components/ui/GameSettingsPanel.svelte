@@ -798,6 +798,7 @@
             metaballBorderWidth: GAME_CONFIG.METABALL_BORDER_WIDTH,
             metaballBorderAlpha: GAME_CONFIG.METABALL_BORDER_ALPHA,
             numberTransitionMs: GAME_CONFIG.NUMBER_TRANSITION_MS,
+            labelAnimMode: GAME_CONFIG.LABEL_ANIM_MODE ?? "rolling",
             bindAnimToTick: GAME_CONFIG.BIND_ANIMATION_TO_TICK,
         };
         savePanelSettings(panel);

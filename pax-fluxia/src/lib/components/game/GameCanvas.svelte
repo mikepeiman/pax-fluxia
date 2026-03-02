@@ -210,7 +210,6 @@
                 "centerAndFit",
                 `container=${cw.toFixed(0)}x${ch.toFixed(0)} content=(${contentMinX.toFixed(0)},${contentMinY.toFixed(0)} ${contentWidth.toFixed(0)}x${contentHeight.toFixed(0)}) baseScale=${baseScale.toFixed(4)} stage=(${app.stage.x.toFixed(1)},${app.stage.y.toFixed(1)})`,
             );
-            drawDebugWorldBounds();
         }
     }
 
@@ -787,8 +786,6 @@
         // Apply combined scale + zoom
         applyZoomTransform();
 
-        // DEBUG
-        drawDebugWorldBounds();
         const canvasEl = canvasContainer;
         log.canvas(
             "handleResize",
