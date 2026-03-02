@@ -153,12 +153,12 @@
     }
     .swatch-gear {
         position: absolute;
-        bottom: -2px;
-        right: -2px;
-        font-size: 0.6rem;
+        bottom: -3px;
+        right: -3px;
+        font-size: 0.85rem;
         line-height: 1;
-        color: rgba(255, 255, 255, 0.7);
-        text-shadow: 0 0 3px rgba(0, 0, 0, 0.8);
+        color: rgba(255, 255, 255, 0.8);
+        text-shadow: 0 0 4px rgba(0, 0, 0, 0.9);
     }
     .sb-mute-btn {
         width: 24px;
@@ -260,9 +260,9 @@
             height: 20px;
         }
         .swatch-gear {
-            font-size: 0.7rem;
-            bottom: -1px;
-            right: 0;
+            font-size: 1rem;
+            bottom: -2px;
+            right: -1px;
         }
         .sb-mute-btn {
             width: 28px;
