@@ -93,3 +93,8 @@
 ### D-31: Mobile Layout uses CSS Grid
 - **Decision**: Mobile game layouts refactor from current approach to CSS Grid for proper spacing, UI avoidance, and responsive behavior.
 
+## 2026-03-02
+
+### D-32: Remove Map Transpose on Orientation Change (F-107 reversal)
+- **Decision**: Remove the x↔y star coordinate transpose triggered by orientation change. The device has a fixed aspect ratio — the map generates once for that aspect and never needs re-transposing. Only the UI (bars, controls, grid layout) adjusts for portrait vs landscape.
+- **Rationale**: The transpose added unnecessary complexity, potential rendering glitches, and confused the coordinate system. The game canvas already fills the available space via CSS Grid.

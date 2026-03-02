@@ -659,6 +659,14 @@
     grid-template-areas: "canvas controls right";
   }
 
+  .area-canvas {
+    grid-area: canvas;
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+
   @media (max-width: 1024px) {
     /* ── Mobile portrait: 3-row grid ── */
     .game-layout {

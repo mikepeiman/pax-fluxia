@@ -9,10 +9,10 @@ This is the master context file containing ALL project rules, conventions, and d
 ## Key Rules (Inline for System Prompt)
 
 ### PowerShell
-**NEVER use `&&` to chain commands.** Run commands separately or use `git ac "message"` alias.
+**NEVER use `&&` to chain commands.** Run commands separately. For git commits use `git ac "message"` alias.
 
 ### Trust User Feedback
-- Never assume the user is mistaken about what they observed
+- Never assume the user is mistaken about what they observed; but do consider that they might be; but you must ASK TO CLARIFY if you think they are.
 - Always investigate before proposing a cause
 - Use accurate language: "clarified" = new info, "corrected" = you were wrong
 
