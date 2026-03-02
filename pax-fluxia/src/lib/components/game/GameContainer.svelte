@@ -327,31 +327,30 @@
             <ResultsModal onClose={() => (resultsDismissed = true)} />
           </div>
         {/if}
+      </div>
 
-        <!-- BOTTOM CONTROLS (inside canvas for absolute positioning) -->
-        <div class="area-controls-bar">
-          <fieldset class="speed-fieldset">
-            <legend class="speed-legend">Gamespeed</legend>
-            <SpeedControls
-              speed={activeGameStore.speed}
-              isPaused={activeGameStore.isPaused}
-              hasStarted={true}
-              onSpeedChange={(speed) => activeGameStore.setSpeed(speed)}
-              onPause={() => activeGameStore.pauseGame()}
-              onResume={() => activeGameStore.resumeGame()}
-              onStart={() => activeGameStore.startGame()}
-            />
-          </fieldset>
-
-          <!-- Star cycling navigation -->
-          <StarNav
-            stars={activeGameStore.stars ?? []}
-            localPlayerId={activeGameStore.localPlayerId ?? undefined}
-            onNavigateToStar={(starId) =>
-              gameCanvasRef?.navigateToStar?.(starId)}
-            onCenterFit={() => gameCanvasRef?.centerAndFit?.()}
+      <!-- BOTTOM CONTROLS (grid area: controls-bar) -->
+      <div class="area-controls-bar">
+        <fieldset class="speed-fieldset">
+          <legend class="speed-legend">Gamespeed</legend>
+          <SpeedControls
+            speed={activeGameStore.speed}
+            isPaused={activeGameStore.isPaused}
+            hasStarted={true}
+            onSpeedChange={(speed) => activeGameStore.setSpeed(speed)}
+            onPause={() => activeGameStore.pauseGame()}
+            onResume={() => activeGameStore.resumeGame()}
+            onStart={() => activeGameStore.startGame()}
           />
-        </div>
+        </fieldset>
+
+        <!-- Star cycling navigation -->
+        <StarNav
+          stars={activeGameStore.stars ?? []}
+          localPlayerId={activeGameStore.localPlayerId ?? undefined}
+          onNavigateToStar={(starId) => gameCanvasRef?.navigateToStar?.(starId)}
+          onCenterFit={() => gameCanvasRef?.centerAndFit?.()}
+        />
       </div>
 
       <!-- SECONDARY CONTROLS COLUMN (toggled by gear icon) -->
@@ -651,7 +650,10 @@
   .game-layout {
     display: grid;
     grid-template-columns: 1fr auto;
-    grid-template-areas: "canvas right";
+    grid-template-rows: 1fr auto;
+    grid-template-areas:
+      "canvas right"
+      "controls-bar right";
     height: 100vh;
     height: 100dvh;
     width: 100vw;
@@ -659,7 +661,10 @@
 
   .game-layout.settings-open {
     grid-template-columns: 1fr auto auto;
-    grid-template-areas: "canvas controls right";
+    grid-template-rows: 1fr auto;
+    grid-template-areas:
+      "canvas controls right"
+      "controls-bar controls right";
   }
 
   .area-canvas {
@@ -672,20 +677,16 @@
     box-sizing: border-box;
   }
 
-  /* Controls bar: speed + star nav — always visible, bottom of canvas */
+  /* Controls bar: speed + star nav */
   .area-controls-bar {
+    grid-area: controls-bar;
     display: flex;
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 50;
     padding: 4px 8px;
     gap: 8px;
     align-items: center;
-    pointer-events: auto;
-    background: rgba(0, 0, 0, 0.55);
+    background: rgba(5, 10, 25, 0.85);
     backdrop-filter: blur(4px);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
   }
 
   @media (max-width: 1024px) {
