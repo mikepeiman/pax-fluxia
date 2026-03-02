@@ -744,12 +744,12 @@
       align-items: center !important;
       justify-content: flex-start !important;
     }
-    /* Rotate fieldsets so they become thin vertical strips — text reads bottom-to-top */
+    /* Rotate fieldsets so they become thin vertical strips */
     .speed-fieldset,
     .area-controls-bar :global(.star-nav-fieldset) {
-      writing-mode: vertical-lr;
+      writing-mode: vertical-rl;
       transform: rotate(180deg);
-      flex-direction: row !important;
+      flex-direction: row-reverse !important;
       padding: 4px 2px !important;
       gap: 2px !important;
       margin: 0;
@@ -761,10 +761,10 @@
       writing-mode: horizontal-tb;
       transform: rotate(180deg);
     }
-    /* Legend text reads vertically bottom-to-top */
+    /* Legend text reads vertically */
     .speed-legend,
     .area-controls-bar :global(.star-nav-legend) {
-      writing-mode: vertical-lr;
+      writing-mode: vertical-rl;
       transform: rotate(180deg);
       font-size: 0.4rem;
       padding: 1px 0;

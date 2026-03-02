@@ -198,14 +198,6 @@
         opacity: 1;
         font-weight: 700;
     }
-    .sb-player.is-self .sb-dot {
-        box-shadow: 0 0 4px 1px currentColor;
-        outline: 1px solid rgba(255, 255, 255, 0.4);
-    }
-    .sb-player.is-self .sb-ships {
-        color: #fff;
-        font-size: 0.65rem;
-    }
     .sb-dot {
         width: 8px;
         height: 8px;
