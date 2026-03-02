@@ -98,6 +98,9 @@ export const SOUND_TYPE_CATEGORIES: Record<string, string[]> = {
     win: ["gamewin", "ui"],
     new_player: ["ui"],
     conquest: ["conquest", "ui"],
+    conquest_retreat: ["conquest", "ui"],
+    conquest_scatter: ["conquest", "ui"],
+    conquest_complete: ["conquest", "ui"],
     starloss: ["starloss", "ui"],
 };
 

@@ -67,9 +67,32 @@ function createCombatLogStore() {
                     timestamp: Date.now()
                 };
 
-                // Play conquest sound ONLY for local player's conquests
-                if (entry.result === 'CONQUERED' && entry.attacker.ownerId === activeGameStore.localPlayerId) {
-                    audioManager.play('conquest');
+                // ── Audio triggers for conquest events ──
+                if (entry.result === 'CONQUERED') {
+                    const isLocalAttacker = entry.attacker.ownerId === activeGameStore.localPlayerId;
+                    const isLocalDefender = entry.defender.ownerId === activeGameStore.localPlayerId;
+
+                    if (isLocalAttacker) {
+                        // Play generic conquest sound
+                        audioManager.play('conquest');
+
+                        // Also play subtype-specific sound based on capture type
+                        if (entry.escaped && entry.escaped > 0) {
+                            // Defender ships escaped → scatter capture
+                            audioManager.play('conquest_scatter');
+                        } else if (entry.destroyed && entry.destroyed > 0) {
+                            // Ships destroyed but none escaped → retreat capture
+                            audioManager.play('conquest_retreat');
+                        } else {
+                            // All captured, none escaped or destroyed → complete capture
+                            audioManager.play('conquest_complete');
+                        }
+                    }
+
+                    if (isLocalDefender) {
+                        // Local player lost a star
+                        audioManager.play('starloss');
+                    }
                 }
 
                 // Keep last 50 logs

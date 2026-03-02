@@ -12,6 +12,9 @@ export type SoundType =
     | "win"
     | "new_player"
     | "conquest"
+    | "conquest_retreat"
+    | "conquest_scatter"
+    | "conquest_complete"
     | "starloss";
 
 /** Human-readable labels for UI */
@@ -25,7 +28,10 @@ export const SOUND_LABELS: Record<SoundType, string> = {
     lose: "Defeat",
     win: "Victory",
     new_player: "Player Joined",
-    conquest: "Star Conquered",
+    conquest: "Star Conquered (any)",
+    conquest_retreat: "Conquest: Retreat",
+    conquest_scatter: "Conquest: Scatter",
+    conquest_complete: "Conquest: Complete",
     starloss: "Star Lost",
 };
 
@@ -46,6 +52,9 @@ const SOUND_CONFIGS: Record<SoundType, SoundConfig> = {
     win: { file: "gamewin/win.ogg", defaultVolume: 0.6, poolSize: 1 },
     new_player: { file: "ui/new_player.ogg", defaultVolume: 0.8, poolSize: 2 },
     conquest: { file: "conquest/mixkit-fast-small-sweep-transition-166.wav", defaultVolume: 0.8, poolSize: 2 },
+    conquest_retreat: { file: "conquest/SWSH_Swish Fused Small 04_RSCPC_PX.wav", defaultVolume: 0.7, poolSize: 2 },
+    conquest_scatter: { file: "conquest/WHSH_Whoosh Plasma 04_RSCPC_SFEW.wav", defaultVolume: 0.7, poolSize: 2 },
+    conquest_complete: { file: "conquest/SWSH_Swish Crisp Large 01_RSCPC_PX.wav", defaultVolume: 0.8, poolSize: 2 },
     starloss: { file: "starloss/mixkit-arcade-mechanical-bling-210.wav", defaultVolume: 0.6, poolSize: 2 },
 };
 
