@@ -88,8 +88,9 @@ function createCombatLogStore() {
                         }
                     }
 
-                    if (isLocalDefender) {
-                        // Local player lost a star
+                    if (isLocalDefender && !isLocalAttacker) {
+                        // Local player lost a star (guard: exclude attacker since
+                        // applyConquest() mutates defender.ownerId before event emit)
                         audioManager.play('starloss');
                     }
                 }
