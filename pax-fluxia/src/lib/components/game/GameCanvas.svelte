@@ -185,20 +185,26 @@
     const ZOOM_MIN = 0.8; // Max zoom-out: 125% of gameboard visible
     const ZOOM_MAX = 5.0;
 
-    /** Height of the bottom UI overlay (speed controls) that obscures the canvas */
-    const BOTTOM_UI_INSET = 56;
+    /** Height of the bottom UI overlay — now 0 because CSS Grid sizes the canvas container */
+    const BOTTOM_UI_INSET = 0;
 
     export function centerAndFit() {
         zoomLevel = 1;
         panOffsetX = 0;
         panOffsetY = 0;
         if (app && app.stage) {
+            // Recalculate baseScale from current world bounds
+            updateWorldBounds();
             const containerWidth = app.screen.width;
-            // Subtract bottom UI inset so map fits above the controls
-            const containerHeight = app.screen.height - BOTTOM_UI_INSET;
-            const effectiveScale = baseScale * zoomLevel;
+            const containerHeight = app.screen.height;
+            const scaleX = containerWidth / GAME_WIDTH;
+            const scaleY = containerHeight / GAME_HEIGHT;
+            baseScale = Math.min(scaleX, scaleY); // Fit to smaller dimension
+
+            const effectiveScale = baseScale;
             const scaledWidth = GAME_WIDTH * effectiveScale;
             const scaledHeight = GAME_HEIGHT * effectiveScale;
+            // Center on both axes
             app.stage.x = (containerWidth - scaledWidth) / 2;
             app.stage.y = (containerHeight - scaledHeight) / 2;
             app.stage.scale.set(effectiveScale);
@@ -220,7 +226,7 @@
         const sy = mapTranspose.y(star);
 
         const containerWidth = app.screen.width;
-        const containerHeight = app.screen.height - BOTTOM_UI_INSET;
+        const containerHeight = app.screen.height;
 
         // Center the star in the viewport
         app.stage.x = containerWidth / 2 - sx * effectiveScale;
@@ -231,6 +237,9 @@
             app.stage.x - (containerWidth - GAME_WIDTH * effectiveScale) / 2;
         panOffsetY =
             app.stage.y - (containerHeight - GAME_HEIGHT * effectiveScale) / 2;
+
+        // Ensure pan stays within bounds
+        clampPan();
     }
     const ZOOM_STEP = 0.1; // Per scroll notch
     let isPanning = false; // Middle-mouse-button or spacebar pan
@@ -563,9 +572,13 @@
             // Render the current frame from unified store
             const stars = activeGameStore.stars as StarState[];
             if (stars.length > 0 && app) {
-                // Pre-map coordinates for display (applies transpose if active)
+                // Pre-map coordinates for display (applies transpose + axis flip if active)
                 const displayStars: StarState[] = mapTranspose.active
-                    ? stars.map((s) => ({ ...s, x: s.y, y: s.x }))
+                    ? stars.map((s) => ({
+                          ...s,
+                          x: mapTranspose.x(s),
+                          y: mapTranspose.y(s),
+                      }))
                     : stars;
                 // Compute tickProgress from game time (NOT wall clock)
                 const gameNowMs = fxOrchestrator.gameTime;
@@ -622,8 +635,10 @@
             : false;
     let mapIsPortrait = false; // Set when stars first load
 
-    /** Toggle the transpose flag — display coordinates swap at consumption sites */
+    /** Toggle the transpose flag — 90° CCW rotation matching physical device rotation */
     function transposeStarCoordinates() {
+        // Set map width BEFORE toggling so the axis flip uses pre-transpose width
+        mapTranspose.mapWidth = GAME_WIDTH;
         mapTranspose.active = !mapTranspose.active;
         // Flip the map orientation flag
         mapIsPortrait = !mapIsPortrait;
@@ -693,8 +708,7 @@
 
         // Calculate base scale to fit game world in container
         const containerWidth = app.screen.width;
-        // Subtract bottom UI inset so map fits above the controls
-        const containerHeight = app.screen.height - BOTTOM_UI_INSET;
+        const containerHeight = app.screen.height;
 
         const scaleX = containerWidth / GAME_WIDTH;
         const scaleY = containerHeight / GAME_HEIGHT;
@@ -769,17 +783,12 @@
         const scaledWidth = GAME_WIDTH * effectiveScale;
         const scaledHeight = GAME_HEIGHT * effectiveScale;
 
-        // Allow panning up to 100% the world size beyond edges (unrestricted)
-        const maxPanX = Math.max(
-            0,
-            (scaledWidth - containerWidth) / (2 * effectiveScale) +
-                GAME_WIDTH * 1.0,
-        );
-        const maxPanY = Math.max(
-            0,
-            (scaledHeight - containerHeight) / (2 * effectiveScale) +
-                GAME_HEIGHT * 1.0,
-        );
+        // Only allow pan when zoomed-in content exceeds viewport
+        // When map fits inside viewport, pan is locked to 0
+        const overflowX = Math.max(0, (scaledWidth - containerWidth) / 2);
+        const overflowY = Math.max(0, (scaledHeight - containerHeight) / 2);
+        const maxPanX = overflowX / effectiveScale;
+        const maxPanY = overflowY / effectiveScale;
 
         panOffsetX = Math.max(-maxPanX, Math.min(maxPanX, panOffsetX));
         panOffsetY = Math.max(-maxPanY, Math.min(maxPanY, panOffsetY));

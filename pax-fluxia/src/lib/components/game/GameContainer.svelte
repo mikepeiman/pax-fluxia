@@ -659,6 +659,20 @@
     grid-template-areas: "canvas controls right";
   }
 
+  .area-canvas {
+    grid-area: canvas;
+    position: relative;
+    width: 100%;
+    height: 100%;
+    min-height: 0; /* Prevents CSS Grid from expanding cell beyond available space */
+    overflow: hidden;
+  }
+
+  /* Controls bar and StatusBar are mobile-only */
+  .area-controls-bar {
+    display: none;
+  }
+
   @media (max-width: 1024px) {
     /* ── Mobile portrait: 3-row grid ── */
     .game-layout {
@@ -700,6 +714,7 @@
     }
     /* Controls bar fills bottom grid area */
     .area-controls-bar {
+      display: flex;
       grid-area: controls;
       padding: 6px 8px;
       padding-bottom: 4rem;

@@ -119,6 +119,12 @@
         color: rgba(255, 255, 255, 0.7);
         overflow: hidden;
     }
+    /* StatusBar is mobile-only — desktop uses TopBar + right sidebar */
+    @media (min-width: 1025px) {
+        .statusbar {
+            display: none;
+        }
+    }
 
     /* ── Swatch + controls ── */
     .sb-swatch-wrap {

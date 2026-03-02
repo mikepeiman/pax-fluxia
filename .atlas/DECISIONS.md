@@ -95,6 +95,7 @@
 
 ## 2026-03-02
 
-### D-32: Remove Map Transpose on Orientation Change (F-107 reversal)
-- **Decision**: Remove the x↔y star coordinate transpose triggered by orientation change. The device has a fixed aspect ratio — the map generates once for that aspect and never needs re-transposing. Only the UI (bars, controls, grid layout) adjusts for portrait vs landscape.
-- **Rationale**: The transpose added unnecessary complexity, potential rendering glitches, and confused the coordinate system. The game canvas already fills the available space via CSS Grid.
+### D-32: Map Transpose Must Match Physical Device Rotation (F-107)
+- **Decision**: When the device rotates counter-clockwise (portrait → landscape), the map must rotate to match. A star at top-right in portrait should appear at top-left in landscape. Implemented via 90° CCW rotation transform: `displayX = star.y`, `displayY = mapWidth - star.x`.
+- **Rationale**: The player's spatial memory of star positions must be preserved across orientation changes. A simple x↔y swap without axis flip keeps stars in the same quadrant, which feels like a layout shift rather than a rotation.
+- **Critical**: The axis flip must use `GAME_WIDTH` (pre-transpose narrow dimension, ~900), NOT `GAME_HEIGHT` (~1600). Using the wrong dimension caused a 700px vertical offset regression (2026-03-02).

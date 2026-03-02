@@ -1,5 +1,6 @@
 <script lang="ts">
     import { GAME_CONFIG } from "$lib/config/game.config";
+    import { mapTranspose } from "$lib/stores/mapTranspose.svelte";
     import { onMount } from "svelte";
 
     // ControlsSection-VISUALS — In-Game Settings Controls: Map & Grid
@@ -103,6 +104,22 @@
     <span class="var-name">🔍 Star Inspector</span><span
         class="val"
         style="font-size:9px;opacity:0.6">click star to inspect</span
+    ></label
+>
+<label class="toggle-row"
+    ><input
+        type="checkbox"
+        checked={mapTranspose.active}
+        onchange={(e) => {
+            const v = (e.target as HTMLInputElement).checked;
+            mapTranspose.active = v;
+            // Dispatch resize event so GameCanvas recalculates scale
+            window.dispatchEvent(new Event("resize"));
+        }}
+    />
+    <span class="var-name">🔄 Rotate Map (Transpose)</span><span
+        class="val"
+        style="font-size:9px;opacity:0.6">Flip X↔Y axes</span
     ></label
 >
 <h4 class="sub-heading">Connections</h4>
