@@ -13,9 +13,9 @@
 
 | ID | Feature | Status | Priority | Date |
 |----|---------|--------|----------|------|
-| F-120 | Mobile layout refactor to CSS Grid | 📋 Planned | High | 2026-03-01 |
-| F-121 | Combine gear (settings) + hamburger icon into speed widget; remove from topbar | 📋 Planned | Medium | 2026-03-01 |
-| F-122 | Rename topbar to "Status Bar" / "Statusbar" | 📋 Planned | Medium | 2026-03-01 |
-| F-123 | Statusbar: minified leaderboard display (CSS Grid + flex layout) | 📋 Planned | Medium | 2026-03-01 |
-| F-124 | Star cycling navigation: `< [center] >` controls as a UI widget. Brackets cycle through player's stars with configurable zoom (slider). Center resets to full-map view. | 📋 Planned | Medium | 2026-03-01 |
-| F-125 | Player-color swatch in statusbar: two-part swatch with territory color+pattern as full shape, player primary-color inset shape filled | 📋 Planned | Medium | 2026-03-01 |
+| F-120 | Mobile layout refactor to CSS Grid (portrait: 3-row, landscape: statusbar left column) | ✅ Done | High | 2026-03-01 |
+| F-121 | Gear+hamburger consolidated into SpeedControls bar ☰ button | ✅ Done | Medium | 2026-03-01 |
+| F-122 | StatusBar.svelte replaces TopBar for in-game view | ✅ Done | Medium | 2026-03-01 |
+| F-123 | StatusBar: minified leaderboard + game stats (ships/tick) | ✅ Done | Medium | 2026-03-01 |
+| F-124 | Star cycling navigation: `◂ ⌖ ▸` widget with StarNav.svelte | ✅ Done | Medium | 2026-03-01 |
+| F-125 | Player-color swatch in StatusBar | ✅ Done | Medium | 2026-03-01 |
