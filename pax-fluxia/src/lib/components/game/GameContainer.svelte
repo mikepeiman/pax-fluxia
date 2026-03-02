@@ -842,10 +842,6 @@
   }
 
   /* ── Mobile-only elements (hidden on desktop) ── */
-  .area-controls-bar {
-    display: none;
-    grid-area: controls;
-  }
   .mobile-scrim {
     display: none;
   }
