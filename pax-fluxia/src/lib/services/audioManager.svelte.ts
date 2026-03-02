@@ -28,7 +28,7 @@ export const SOUND_LABELS: Record<SoundType, string> = {
     lose: "Defeat",
     win: "Victory",
     new_player: "Player Joined",
-    conquest: "Star Conquered (any)",
+    conquest: "Conquest (Any)",
     conquest_retreat: "Conquest: Retreat",
     conquest_scatter: "Conquest: Scatter",
     conquest_complete: "Conquest: Complete",

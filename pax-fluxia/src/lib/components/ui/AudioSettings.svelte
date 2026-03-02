@@ -9,6 +9,16 @@
     import { fade, fly } from "svelte/transition";
     import type { SoundFileEntry } from "$lib/config/soundManifest";
 
+    const CONQUEST_TYPES: SoundType[] = [
+        "conquest",
+        "conquest_retreat",
+        "conquest_scatter",
+        "conquest_complete",
+    ];
+    const NON_CONQUEST_TYPES = ALL_SOUND_TYPES.filter(
+        (t) => !CONQUEST_TYPES.includes(t),
+    );
+
     // Track which dropdown is open (by SoundType key)
     let openDropdown = $state<string | null>(null);
 
@@ -130,33 +140,8 @@
 
                 <div class="divider"></div>
 
-                <!-- Separate Conquest Sounds Toggle -->
-                <div class="setting-row" class:disabled={audioManager.muted}>
-                    <label class="toggle-inline">
-                        <input
-                            type="checkbox"
-                            checked={audioManager.separateConquestSounds}
-                            onchange={(e) =>
-                                audioManager.setSeparateConquestSounds(
-                                    (e.target as HTMLInputElement).checked,
-                                )}
-                            disabled={audioManager.muted}
-                        />
-                        <span class="toggle-label"
-                            >Separate Conquest Sounds</span
-                        >
-                        <span class="toggle-hint"
-                            >{audioManager.separateConquestSounds
-                                ? "3 distinct"
-                                : "1 generic"}</span
-                        >
-                    </label>
-                </div>
-
-                <div class="divider"></div>
-
-                <!-- Per-Sound Volume Sliders + File Selectors -->
-                {#each ALL_SOUND_TYPES as stype}
+                <!-- Per-Sound Volume Sliders (non-conquest) -->
+                {#each NON_CONQUEST_TYPES as stype}
                     <div
                         class="setting-row"
                         class:disabled={audioManager.muted}
@@ -189,7 +174,6 @@
                                 )}
                             disabled={audioManager.muted}
                         />
-                        <!-- Custom file picker dropdown -->
                         <!-- svelte-ignore a11y_click_events_have_key_events -->
                         <!-- svelte-ignore a11y_no_static_element_interactions -->
                         <div
@@ -248,7 +232,6 @@
                                 </div>
                             {/if}
                         </div>
-                        <!-- Start offset slider (trim ramp-up) -->
                         <div class="offset-row">
                             <span class="offset-label">Offset</span>
                             <input
@@ -273,6 +256,162 @@
                         </div>
                     </div>
                 {/each}
+
+                <!-- ═══ CONQUEST SOUNDS GROUP ═══ -->
+                <div class="conquest-group" class:disabled={audioManager.muted}>
+                    <div class="conquest-group-header">
+                        <span class="conquest-group-title">Conquest Sounds</span
+                        >
+                        <label class="toggle-inline conquest-toggle">
+                            <input
+                                type="checkbox"
+                                checked={audioManager.separateConquestSounds}
+                                onchange={(e) =>
+                                    audioManager.setSeparateConquestSounds(
+                                        (e.target as HTMLInputElement).checked,
+                                    )}
+                                disabled={audioManager.muted}
+                            />
+                            <span class="toggle-label">Separate</span>
+                            <span class="toggle-hint"
+                                >{audioManager.separateConquestSounds
+                                    ? "3 distinct"
+                                    : "1 generic"}</span
+                            >
+                        </label>
+                    </div>
+
+                    {#each CONQUEST_TYPES as stype}
+                        {@const isSubtype = stype !== "conquest"}
+                        {@const isInactive = isSubtype
+                            ? !audioManager.separateConquestSounds
+                            : audioManager.separateConquestSounds}
+                        <div
+                            class="setting-row"
+                            class:disabled={audioManager.muted}
+                            class:conquest-inactive={isInactive}
+                        >
+                            <div class="setting-header">
+                                <span class="setting-name"
+                                    >{SOUND_LABELS[stype]}</span
+                                >
+                                <span class="setting-value"
+                                    >{Math.round(
+                                        audioManager.soundVolumes[stype] * 100,
+                                    )}%</span
+                                >
+                                <button
+                                    class="test-btn"
+                                    onclick={() => audioManager.preview(stype)}
+                                    disabled={audioManager.muted}>Test</button
+                                >
+                            </div>
+                            <input
+                                type="range"
+                                min="0"
+                                max="1"
+                                step="0.05"
+                                value={audioManager.soundVolumes[stype]}
+                                oninput={(e) =>
+                                    audioManager.setSoundVolume(
+                                        stype,
+                                        +(e.target as HTMLInputElement).value,
+                                    )}
+                                disabled={audioManager.muted}
+                            />
+                            <!-- svelte-ignore a11y_click_events_have_key_events -->
+                            <!-- svelte-ignore a11y_no_static_element_interactions -->
+                            <div
+                                class="file-picker"
+                                class:disabled={audioManager.muted}
+                            >
+                                <div
+                                    class="file-picker-trigger"
+                                    onclick={() => toggleDropdown(stype)}
+                                >
+                                    <span class="file-picker-label">
+                                        {audioManager
+                                            .getAvailableFiles(stype)
+                                            .find(
+                                                (f) =>
+                                                    f.path ===
+                                                    audioManager.soundFiles[
+                                                        stype
+                                                    ],
+                                            )?.label ??
+                                            audioManager.soundFiles[stype]}
+                                    </span>
+                                    <span class="file-picker-arrow"
+                                        >{openDropdown === stype
+                                            ? "▲"
+                                            : "▼"}</span
+                                    >
+                                </div>
+                                {#if openDropdown === stype}
+                                    <div class="file-picker-menu">
+                                        {#each audioManager.getAvailableFiles(stype) as entry}
+                                            <div
+                                                class="file-picker-item"
+                                                class:selected={entry.path ===
+                                                    audioManager.soundFiles[
+                                                        stype
+                                                    ]}
+                                            >
+                                                <span
+                                                    class="file-picker-item-label"
+                                                    onclick={() =>
+                                                        selectFile(
+                                                            stype,
+                                                            entry.path,
+                                                        )}
+                                                >
+                                                    {entry.label}
+                                                    <span
+                                                        class="file-picker-item-cat"
+                                                        >({entry.category})</span
+                                                    >
+                                                </span>
+                                                <button
+                                                    class="file-picker-play"
+                                                    onclick={(e) =>
+                                                        previewFile(
+                                                            entry.path,
+                                                            e,
+                                                        )}
+                                                    title="Preview this sound"
+                                                    >▶</button
+                                                >
+                                            </div>
+                                        {/each}
+                                    </div>
+                                {/if}
+                            </div>
+                            <div class="offset-row">
+                                <span class="offset-label">Offset</span>
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max="2"
+                                    step="0.01"
+                                    value={audioManager.soundOffsets[stype]}
+                                    oninput={(e) =>
+                                        audioManager.setSoundOffset(
+                                            stype,
+                                            +(e.target as HTMLInputElement)
+                                                .value,
+                                        )}
+                                    disabled={audioManager.muted}
+                                    class="offset-slider"
+                                />
+                                <span class="offset-value"
+                                    >{audioManager.soundOffsets[stype].toFixed(
+                                        2,
+                                    )}s</span
+                                >
+                            </div>
+                        </div>
+                    {/each}
+                </div>
 
                 <div class="divider"></div>
 
@@ -747,5 +886,34 @@
         font-size: 0.65rem;
         color: #888;
         margin-left: auto;
+    }
+
+    /* Conquest sounds group */
+    .conquest-group {
+        border: 1px solid rgba(0, 255, 255, 0.15);
+        border-radius: 6px;
+        padding: 8px;
+        margin-top: 4px;
+    }
+    .conquest-group-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 6px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid rgba(0, 255, 255, 0.1);
+    }
+    .conquest-group-title {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #0ff;
+        letter-spacing: 0.03em;
+    }
+    .conquest-toggle {
+        font-size: 0.7rem !important;
+    }
+    .conquest-inactive {
+        opacity: 0.3;
+        pointer-events: none;
     }
 </style>
