@@ -329,7 +329,7 @@
         {/if}
       </div>
 
-      <!-- BOTTOM CONTROLS (grid area: controls-bar) -->
+      <!-- MOBILE-ONLY: Bottom controls bar (hidden on desktop, shown by mobile media query) -->
       <div class="area-controls-bar">
         <fieldset class="speed-fieldset">
           <legend class="speed-legend">Gamespeed</legend>
@@ -343,8 +343,6 @@
             onStart={() => activeGameStore.startGame()}
           />
         </fieldset>
-
-        <!-- Star cycling navigation -->
         <StarNav
           stars={activeGameStore.stars ?? []}
           localPlayerId={activeGameStore.localPlayerId ?? undefined}
@@ -379,10 +377,39 @@
           title="Drag to resize"
         ></div>
 
-        <!-- 1. LEADERBOARD (standalone, visual gap below) -->
+        <!-- 1. GAME CONTROLS (speed + pause) -->
+        <div class="sidebar-controls">
+          <fieldset class="speed-fieldset">
+            <legend class="speed-legend">Gamespeed</legend>
+            <SpeedControls
+              speed={activeGameStore.speed}
+              isPaused={activeGameStore.isPaused}
+              hasStarted={true}
+              onSpeedChange={(speed) => activeGameStore.setSpeed(speed)}
+              onPause={() => activeGameStore.pauseGame()}
+              onResume={() => activeGameStore.resumeGame()}
+              onStart={() => activeGameStore.startGame()}
+            />
+          </fieldset>
+        </div>
+
+        <!-- 2. STAR VIEW (cycling navigation) -->
+        <div class="sidebar-starnav">
+          <StarNav
+            stars={activeGameStore.stars ?? []}
+            localPlayerId={activeGameStore.localPlayerId ?? undefined}
+            onNavigateToStar={(starId) =>
+              gameCanvasRef?.navigateToStar?.(starId)}
+            onCenterFit={() => gameCanvasRef?.centerAndFit?.()}
+          />
+        </div>
+
+        <!-- 3. LEADERBOARD -->
         <div class="sidebar-leaderboard">
           <Leaderboard players={leaderboardPlayers} />
         </div>
+
+        <hr class="sidebar-divider" />
 
         <!-- 2. THEME SELECTOR (bold, prominent) -->
         <div class="sidebar-theme">
@@ -650,10 +677,7 @@
   .game-layout {
     display: grid;
     grid-template-columns: 1fr auto;
-    grid-template-rows: 1fr auto;
-    grid-template-areas:
-      "canvas right"
-      "controls-bar right";
+    grid-template-areas: "canvas right";
     height: 100vh;
     height: 100dvh;
     width: 100vw;
@@ -661,10 +685,7 @@
 
   .game-layout.settings-open {
     grid-template-columns: 1fr auto auto;
-    grid-template-rows: 1fr auto;
-    grid-template-areas:
-      "canvas controls right"
-      "controls-bar controls right";
+    grid-template-areas: "canvas controls right";
   }
 
   .area-canvas {
@@ -677,16 +698,27 @@
     box-sizing: border-box;
   }
 
-  /* Controls bar: speed + star nav */
-  .area-controls-bar {
-    grid-area: controls-bar;
-    display: flex;
-    padding: 4px 8px;
-    gap: 8px;
-    align-items: center;
-    background: rgba(5, 10, 25, 0.85);
-    backdrop-filter: blur(4px);
+  /* Sidebar sections */
+  .sidebar-controls {
+    padding: 6px 8px;
+  }
+  .sidebar-starnav {
+    padding: 2px 8px 6px;
+  }
+  .sidebar-divider {
+    border: none;
     border-top: 1px solid rgba(255, 255, 255, 0.08);
+    margin: 4px 8px;
+  }
+
+  /* Mobile controls bar: hidden on desktop */
+  .area-controls-bar {
+    display: none;
+  }
+  .sidebar-divider {
+    border: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    margin: 4px 8px;
   }
 
   @media (max-width: 1024px) {
