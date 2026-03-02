@@ -38,6 +38,7 @@ export interface CombatLogEntry {
     result: 'DEFENSE' | 'FALLING' | 'CONQUERED';
 
     // Conquest details (only present on CONQUERED results)
+    conquestType?: 'retreat' | 'scatter' | 'complete';
     captured?: number;   // Ships captured by attacker
     escaped?: number;    // Ships that escaped (retreat/scatter)
     destroyed?: number;  // Ships destroyed during scatter
@@ -73,15 +74,9 @@ function createCombatLogStore() {
                     const isLocalDefender = entry.defender.ownerId === activeGameStore.localPlayerId;
 
                     if (isLocalAttacker) {
-                        if (audioManager.separateConquestSounds) {
-                            // Play subtype-specific sound ONLY
-                            if (entry.escaped && entry.escaped > 0) {
-                                audioManager.play('conquest_scatter');
-                            } else if (entry.destroyed && entry.destroyed > 0) {
-                                audioManager.play('conquest_retreat');
-                            } else {
-                                audioManager.play('conquest_complete');
-                            }
+                        if (audioManager.separateConquestSounds && entry.conquestType) {
+                            // Play subtype-specific sound ONLY (type set at source in applyConquest)
+                            audioManager.play(`conquest_${entry.conquestType}` as any);
                         } else {
                             // Play generic conquest sound ONLY
                             audioManager.play('conquest');

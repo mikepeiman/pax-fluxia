@@ -76,6 +76,7 @@ function pushTickEvents(events: TickEvents): void {
             settings: { aggressor: 0, damage: 0, lethality: 0, forceRatio: 0, repairRate: 0 },
             result: combat.conquered ? 'CONQUERED' : 'DEFENSE',
             // Conquest details from the matching ConquestEvent
+            conquestType: conquestInfo?.conquestType,
             captured: conquestInfo?.shipsCaptured,
             escaped: conquestInfo?.shipsEscaped,
             destroyed: conquestInfo?.shipsDestroyed,

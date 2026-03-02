@@ -41,6 +41,7 @@ export interface ConquestEvent {
     shipsEscaped: number;
     shipsDestroyed: number;
     shipsTransferred: number;
+    conquestType: 'retreat' | 'scatter' | 'complete';
     retreatTargetId?: string;
     scatterTargetIds?: string[];
     scatterShipCounts?: number[];

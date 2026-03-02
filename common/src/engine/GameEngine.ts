@@ -293,6 +293,7 @@ export class GameEngine {
                 shipsEscaped: result.conquest.shipsEscaped,
                 shipsDestroyed: result.conquest.shipsDestroyed,
                 shipsTransferred: result.conquest.shipsTransferred,
+                conquestType: result.conquest.conquestType,
                 retreatTargetId: result.conquest.retreatTargetId,
                 scatterTargetIds: result.conquest.scatterTargetIds,
                 scatterShipCounts: result.conquest.scatterShipCounts,
