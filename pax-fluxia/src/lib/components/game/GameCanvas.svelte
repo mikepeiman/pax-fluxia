@@ -604,10 +604,12 @@
         resetMetaballCache();
         resetPixelTerritoryCache();
         resetLaneTerritoryCache();
-        // Clear visual ship positions so they re-spawn at transposed coords
-        // (damaged ships lerp at 0.05 — without clearing, they drift for seconds)
+        // Clear ALL visual ship positions so they re-spawn at transposed coords
+        // (ships store x/y, laneStartX/Y, laneEndX/Y in old coordinate space)
         visualDamagedShips.clear();
         visualShips.clear();
+        travelingShips.length = 0;
+        fxOrchestrator.vsm.travelingShips.length = 0;
         // Recompute world bounds with new display positions
         updateWorldBounds();
         log.sys(
