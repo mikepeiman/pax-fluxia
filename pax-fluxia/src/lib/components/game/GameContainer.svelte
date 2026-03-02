@@ -327,30 +327,31 @@
             <ResultsModal onClose={() => (resultsDismissed = true)} />
           </div>
         {/if}
-      </div>
 
-      <!-- BOTTOM CONTROLS (grid area: controls) -->
-      <div class="area-controls-bar">
-        <fieldset class="speed-fieldset">
-          <legend class="speed-legend">Gamespeed</legend>
-          <SpeedControls
-            speed={activeGameStore.speed}
-            isPaused={activeGameStore.isPaused}
-            hasStarted={true}
-            onSpeedChange={(speed) => activeGameStore.setSpeed(speed)}
-            onPause={() => activeGameStore.pauseGame()}
-            onResume={() => activeGameStore.resumeGame()}
-            onStart={() => activeGameStore.startGame()}
+        <!-- BOTTOM CONTROLS (inside canvas for absolute positioning) -->
+        <div class="area-controls-bar">
+          <fieldset class="speed-fieldset">
+            <legend class="speed-legend">Gamespeed</legend>
+            <SpeedControls
+              speed={activeGameStore.speed}
+              isPaused={activeGameStore.isPaused}
+              hasStarted={true}
+              onSpeedChange={(speed) => activeGameStore.setSpeed(speed)}
+              onPause={() => activeGameStore.pauseGame()}
+              onResume={() => activeGameStore.resumeGame()}
+              onStart={() => activeGameStore.startGame()}
+            />
+          </fieldset>
+
+          <!-- Star cycling navigation -->
+          <StarNav
+            stars={activeGameStore.stars ?? []}
+            localPlayerId={activeGameStore.localPlayerId ?? undefined}
+            onNavigateToStar={(starId) =>
+              gameCanvasRef?.navigateToStar?.(starId)}
+            onCenterFit={() => gameCanvasRef?.centerAndFit?.()}
           />
-        </fieldset>
-
-        <!-- Star cycling navigation -->
-        <StarNav
-          stars={activeGameStore.stars ?? []}
-          localPlayerId={activeGameStore.localPlayerId ?? undefined}
-          onNavigateToStar={(starId) => gameCanvasRef?.navigateToStar?.(starId)}
-          onCenterFit={() => gameCanvasRef?.centerAndFit?.()}
-        />
+        </div>
       </div>
 
       <!-- SECONDARY CONTROLS COLUMN (toggled by gear icon) -->
