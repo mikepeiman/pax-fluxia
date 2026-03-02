@@ -16,6 +16,7 @@ import { validateOrder } from '@pax/common';
 import type { TickEvents } from '@pax/common';
 import type { StarState, PlayerState, ConnectionState, GameHistoryEntry } from '$lib/types/game.types';
 import { combatLog } from '$lib/stores/combatLogStore';
+import { audioManager } from '$lib/services/audioManager.svelte';
 import { GAME_CONFIG } from '$lib/config/game.config';
 
 // ============================================================================
@@ -81,6 +82,25 @@ function pushTickEvents(events: TickEvents): void {
             escaped: conquestInfo?.shipsEscaped,
             destroyed: conquestInfo?.shipsDestroyed,
         });
+    }
+
+    // ── Audio triggers from conquest events (uses uncorrupted previousOwner/newOwner) ──
+    const localId = activeGameStore.localPlayerId;
+    for (const conquest of events.conquests) {
+        const isLocalWin = conquest.newOwner === localId;
+        const isLocalLoss = conquest.previousOwner === localId;
+
+        if (isLocalWin) {
+            if (audioManager.separateConquestSounds) {
+                audioManager.play(`conquest_${conquest.conquestType}` as any);
+            } else {
+                audioManager.play('conquest');
+            }
+        }
+
+        if (isLocalLoss) {
+            audioManager.play('starloss');
+        }
     }
 }
 

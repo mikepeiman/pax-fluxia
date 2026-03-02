@@ -1,6 +1,4 @@
 import { writable } from 'svelte/store';
-import { audioManager } from '$lib/services/audioManager.svelte';
-import { activeGameStore } from '$lib/stores/activeGameStore.svelte';
 
 export interface CombatLogEntry {
     id: string;
@@ -67,29 +65,6 @@ function createCombatLogStore() {
                     id: crypto.randomUUID(),
                     timestamp: Date.now()
                 };
-
-                // ── Audio triggers for conquest events ──
-                if (entry.result === 'CONQUERED') {
-                    const isLocalAttacker = entry.attacker.ownerId === activeGameStore.localPlayerId;
-                    const isLocalDefender = entry.defender.ownerId === activeGameStore.localPlayerId;
-
-                    if (isLocalAttacker) {
-                        if (audioManager.separateConquestSounds && entry.conquestType) {
-                            // Play subtype-specific sound ONLY (type set at source in applyConquest)
-                            audioManager.play(`conquest_${entry.conquestType}` as any);
-                        } else {
-                            // Play generic conquest sound ONLY
-                            audioManager.play('conquest');
-                        }
-                    }
-
-                    if (isLocalDefender && !isLocalAttacker) {
-                        // Local player lost a star (guard: exclude attacker since
-                        // applyConquest() mutates defender.ownerId before event emit)
-                        audioManager.play('starloss');
-                    }
-                }
-
                 // Keep last 50 logs
                 return [newLog, ...logs].slice(0, 50);
             });
