@@ -797,6 +797,14 @@
       margin: 0 !important;
       width: 100vw !important;
       max-width: 100vw !important;
+      height: 100vh !important;
+      overflow-y: auto !important;
+      display: flex !important;
+      flex-direction: column !important;
+      background: rgba(5, 10, 25, 0.95) !important;
+      backdrop-filter: blur(12px) !important;
+      padding: 12px !important;
+      padding-top: 48px !important;
     }
     .mobile-scrim {
       z-index: 599 !important;

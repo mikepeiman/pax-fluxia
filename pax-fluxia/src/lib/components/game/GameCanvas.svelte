@@ -193,26 +193,22 @@
         panOffsetX = 0;
         panOffsetY = 0;
         if (app && app.stage) {
-            // Recalculate baseScale from current world bounds
             updateWorldBounds();
-            const containerWidth = app.screen.width;
-            const containerHeight = app.screen.height;
-            const scaleX = containerWidth / GAME_WIDTH;
-            const scaleY = containerHeight / GAME_HEIGHT;
-            baseScale = Math.min(scaleX, scaleY); // Fit to smaller dimension
+            const cw = app.screen.width;
+            const ch = app.screen.height;
+            // Fit content to shorter dimension
+            baseScale = Math.min(cw / contentWidth, ch / contentHeight);
+            const es = baseScale;
+            app.stage.scale.set(es);
+            // Center the content bounding box in the viewport
+            const contentCenterX = contentMinX + contentWidth / 2;
+            const contentCenterY = contentMinY + contentHeight / 2;
+            app.stage.x = cw / 2 - contentCenterX * es;
+            app.stage.y = ch / 2 - contentCenterY * es;
 
-            const effectiveScale = baseScale;
-            const scaledWidth = GAME_WIDTH * effectiveScale;
-            const scaledHeight = GAME_HEIGHT * effectiveScale;
-            // Center on both axes
-            app.stage.x = (containerWidth - scaledWidth) / 2;
-            app.stage.y = (containerHeight - scaledHeight) / 2;
-            app.stage.scale.set(effectiveScale);
-
-            // DEBUG
             log.canvas(
                 "centerAndFit",
-                `container=${containerWidth.toFixed(0)}x${containerHeight.toFixed(0)} world=${GAME_WIDTH.toFixed(0)}x${GAME_HEIGHT.toFixed(0)} scaleX=${scaleX.toFixed(4)} scaleY=${scaleY.toFixed(4)} baseScale=${baseScale.toFixed(4)} stage.x=${app.stage.x.toFixed(1)} stage.y=${app.stage.y.toFixed(1)}`,
+                `container=${cw.toFixed(0)}x${ch.toFixed(0)} content=(${contentMinX.toFixed(0)},${contentMinY.toFixed(0)} ${contentWidth.toFixed(0)}x${contentHeight.toFixed(0)}) baseScale=${baseScale.toFixed(4)} stage=(${app.stage.x.toFixed(1)},${app.stage.y.toFixed(1)})`,
             );
             drawDebugWorldBounds();
         }
@@ -225,33 +221,34 @@
         if (!star || !app) return;
 
         zoomLevel = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, zoom));
-        const effectiveScale = baseScale * zoomLevel;
-        app.stage.scale.set(effectiveScale);
+        const es = baseScale * zoomLevel;
+        app.stage.scale.set(es);
 
         // Use transposed coordinates
         const sx = mapTranspose.x(star);
         const sy = mapTranspose.y(star);
 
-        const containerWidth = app.screen.width;
-        const containerHeight = app.screen.height;
+        const cw = app.screen.width;
+        const ch = app.screen.height;
 
         // Center the star in the viewport
-        app.stage.x = containerWidth / 2 - sx * effectiveScale;
-        app.stage.y = containerHeight / 2 - sy * effectiveScale;
+        app.stage.x = cw / 2 - sx * es;
+        app.stage.y = ch / 2 - sy * es;
 
-        // Update pan offsets to match
-        panOffsetX =
-            app.stage.x - (containerWidth - GAME_WIDTH * effectiveScale) / 2;
-        panOffsetY =
-            app.stage.y - (containerHeight - GAME_HEIGHT * effectiveScale) / 2;
+        // Derive panOffset from the centered-content baseline
+        const contentCenterX = contentMinX + contentWidth / 2;
+        const contentCenterY = contentMinY + contentHeight / 2;
+        const baselineX = cw / 2 - contentCenterX * es;
+        const baselineY = ch / 2 - contentCenterY * es;
+        panOffsetX = -(app.stage.x - baselineX) / es;
+        panOffsetY = -(app.stage.y - baselineY) / es;
 
-        // Ensure pan stays within bounds
+        // Clamp but don't snap back to center
         clampPan();
 
-        // DEBUG
         log.canvas(
             "navigateToStar",
-            `id=${starId} raw=(${star.x.toFixed(0)},${star.y.toFixed(0)}) transposed=(${sx.toFixed(0)},${sy.toFixed(0)}) ownerId=${star.ownerId} localPlayer=${activeGameStore.localPlayerId} container=${containerWidth.toFixed(0)}x${containerHeight.toFixed(0)} effectiveScale=${effectiveScale.toFixed(4)} stage=(${app.stage.x.toFixed(1)},${app.stage.y.toFixed(1)})`,
+            `id=${starId} raw=(${star.x.toFixed(0)},${star.y.toFixed(0)}) transposed=(${sx.toFixed(0)},${sy.toFixed(0)}) ownerId=${star.ownerId} localPlayer=${activeGameStore.localPlayerId} container=${cw.toFixed(0)}x${ch.toFixed(0)} es=${es.toFixed(4)} stage=(${app.stage.x.toFixed(1)},${app.stage.y.toFixed(1)})`,
         );
     }
     const ZOOM_STEP = 0.1; // Per scroll notch
@@ -615,7 +612,13 @@
     // Rendering
     // ============================================================================
 
-    // Game world dimensions (dynamic — computed from star positions)
+    // Content bounding box (dynamic — computed from star positions)
+    // These describe the actual star content area, NOT starting at (0,0)
+    let contentMinX = 0;
+    let contentMinY = 0;
+    let contentWidth = 1600;
+    let contentHeight = 900;
+    // Legacy aliases used by bg sprite sizing
     let GAME_WIDTH = 1600;
     let GAME_HEIGHT = 900;
 
@@ -625,8 +628,8 @@
         if (!currentStars || currentStars.length === 0) return;
         let minX = Infinity,
             minY = Infinity;
-        let maxX = 0,
-            maxY = 0;
+        let maxX = -Infinity,
+            maxY = -Infinity;
         for (const s of currentStars) {
             const dx = mapTranspose.x(s);
             const dy = mapTranspose.y(s);
@@ -637,20 +640,23 @@
         }
         // Add padding (star radius + orbits)
         const pad = 80;
+        contentMinX = minX - pad;
+        contentMinY = minY - pad;
+        contentWidth = maxX - minX + 2 * pad;
+        contentHeight = maxY - minY + 2 * pad;
+        // Legacy — used by bg sprite and territory renderers
         GAME_WIDTH = maxX + pad;
         GAME_HEIGHT = maxY + pad;
 
-        // DEBUG: log star extent and world bounds
         log.canvas(
             "WorldBounds",
-            `stars=${currentStars.length} minX=${minX.toFixed(0)} minY=${minY.toFixed(0)} maxX=${maxX.toFixed(0)} maxY=${maxY.toFixed(0)} → GAME_WIDTH=${GAME_WIDTH.toFixed(0)} GAME_HEIGHT=${GAME_HEIGHT.toFixed(0)} transpose=${mapTranspose.active}`,
+            `stars=${currentStars.length} min=(${minX.toFixed(0)},${minY.toFixed(0)}) max=(${maxX.toFixed(0)},${maxY.toFixed(0)}) content=(${contentMinX.toFixed(0)},${contentMinY.toFixed(0)} ${contentWidth.toFixed(0)}x${contentHeight.toFixed(0)}) transpose=${mapTranspose.active}`,
         );
     }
 
-    /** DEBUG: Draw a bright yellow rectangle showing world bounds (GAME_WIDTH × GAME_HEIGHT) */
+    /** DEBUG: Draw a bright yellow rectangle showing content bounds */
     function drawDebugWorldBounds() {
         if (!app) return;
-        // Create or reuse debug graphics on stage
         let dbg = (app as any)._debugBoundsGfx as PIXI.Graphics | undefined;
         if (!dbg) {
             dbg = new PIXI.Graphics();
@@ -658,12 +664,12 @@
             (app as any)._debugBoundsGfx = dbg;
         }
         dbg.clear();
-        // Yellow border around game world
-        dbg.rect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+        // Yellow border around actual content bounds
+        dbg.rect(contentMinX, contentMinY, contentWidth, contentHeight);
         dbg.stroke({ color: 0xffff00, width: 3 });
-        // Crosshair at center of world
-        const cx = GAME_WIDTH / 2;
-        const cy = GAME_HEIGHT / 2;
+        // Crosshair at content center
+        const cx = contentMinX + contentWidth / 2;
+        const cy = contentMinY + contentHeight / 2;
         dbg.moveTo(cx - 30, cy).lineTo(cx + 30, cy);
         dbg.moveTo(cx, cy - 30).lineTo(cx, cy + 30);
         dbg.stroke({ color: 0xff00ff, width: 2 });
@@ -751,13 +757,14 @@
         // Recompute world bounds from star positions
         updateWorldBounds();
 
-        // Calculate base scale to fit game world in container
+        // Calculate base scale to fit content bounding box in container
         const containerWidth = app.screen.width;
         const containerHeight = app.screen.height;
 
-        const scaleX = containerWidth / GAME_WIDTH;
-        const scaleY = containerHeight / GAME_HEIGHT;
-        baseScale = Math.min(scaleX, scaleY); // Fit (not fill)
+        baseScale = Math.min(
+            containerWidth / contentWidth,
+            containerHeight / contentHeight,
+        );
 
         // Size nebula background to cover visible viewport (not just game world)
         const bgSprite = (app as any)._nebulaBgSprite as
@@ -765,10 +772,8 @@
             | undefined;
         if (bgSprite && bgSprite.texture) {
             const effectiveScale = baseScale * zoomLevel;
-            // Visible area in world coordinates (larger than game world when zoomed out)
             const viewWorldW = containerWidth / effectiveScale;
             const viewWorldH = containerHeight / effectiveScale;
-            // Cover whichever is larger: game world or visible viewport (with 20% bleed)
             const coverW = Math.max(GAME_WIDTH, viewWorldW) * 1.2;
             const coverH = Math.max(GAME_HEIGHT, viewWorldH) * 1.2;
             bgSprite.x = GAME_WIDTH / 2;
@@ -787,35 +792,35 @@
         const canvasEl = canvasContainer;
         log.canvas(
             "handleResize",
-            `container=${containerWidth.toFixed(0)}x${containerHeight.toFixed(0)} world=${GAME_WIDTH.toFixed(0)}x${GAME_HEIGHT.toFixed(0)} scaleX=${scaleX.toFixed(4)} scaleY=${scaleY.toFixed(4)} baseScale=${baseScale.toFixed(4)} dpr=${window.devicePixelRatio} cssGrid(el)=${canvasEl?.clientWidth ?? "?"}x${canvasEl?.clientHeight ?? "?"} viewport=${window.innerWidth}x${window.innerHeight}`,
+            `container=${containerWidth.toFixed(0)}x${containerHeight.toFixed(0)} content=(${contentMinX.toFixed(0)},${contentMinY.toFixed(0)} ${contentWidth.toFixed(0)}x${contentHeight.toFixed(0)}) baseScale=${baseScale.toFixed(4)} dpr=${window.devicePixelRatio} cssGrid(el)=${canvasEl?.clientWidth ?? "?"}x${canvasEl?.clientHeight ?? "?"} viewport=${window.innerWidth}x${window.innerHeight}`,
         );
     }
 
     function applyZoomTransform() {
         if (!app) return;
 
-        const containerWidth = app.screen.width;
-        const containerHeight = app.screen.height;
-        const effectiveScale = baseScale * zoomLevel;
+        const cw = app.screen.width;
+        const ch = app.screen.height;
+        const es = baseScale * zoomLevel;
 
-        app.stage.scale.set(effectiveScale, effectiveScale);
+        app.stage.scale.set(es, es);
 
-        // Center content, then apply pan offset
-        const scaledWidth = GAME_WIDTH * effectiveScale;
-        const scaledHeight = GAME_HEIGHT * effectiveScale;
-        const centerX = (containerWidth - scaledWidth) / 2;
-        const centerY = (containerHeight - scaledHeight) / 2;
+        // Center on content bounding box, then apply pan offset
+        const contentCenterX = contentMinX + contentWidth / 2;
+        const contentCenterY = contentMinY + contentHeight / 2;
+        const baselineX = cw / 2 - contentCenterX * es;
+        const baselineY = ch / 2 - contentCenterY * es;
 
-        app.stage.x = centerX - panOffsetX * effectiveScale;
-        app.stage.y = centerY - panOffsetY * effectiveScale;
+        app.stage.x = baselineX - panOffsetX * es;
+        app.stage.y = baselineY - panOffsetY * es;
 
         // Update bg sprite to cover visible viewport at current zoom
         const bgSprite = (app as any)._nebulaBgSprite as
             | PIXI.Sprite
             | undefined;
         if (bgSprite && bgSprite.texture) {
-            const viewWorldW = containerWidth / effectiveScale;
-            const viewWorldH = containerHeight / effectiveScale;
+            const viewWorldW = cw / es;
+            const viewWorldH = ch / es;
             const coverW = Math.max(GAME_WIDTH, viewWorldW) * 1.2;
             const coverH = Math.max(GAME_HEIGHT, viewWorldH) * 1.2;
             const texW = bgSprite.texture.width;
@@ -823,34 +828,34 @@
             bgSprite.scale.set(Math.max(coverW / texW, coverH / texH));
         }
 
-        // Clamp pan so map edges stay roughly visible
         clampPan();
     }
 
     function clampPan() {
         if (!app) return;
 
-        const containerWidth = app.screen.width;
-        const containerHeight = app.screen.height;
-        const effectiveScale = baseScale * zoomLevel;
-        const scaledWidth = GAME_WIDTH * effectiveScale;
-        const scaledHeight = GAME_HEIGHT * effectiveScale;
+        const cw = app.screen.width;
+        const ch = app.screen.height;
+        const es = baseScale * zoomLevel;
+        const scaledContentW = contentWidth * es;
+        const scaledContentH = contentHeight * es;
 
         // Only allow pan when zoomed-in content exceeds viewport
-        // When map fits inside viewport, pan is locked to 0
-        const overflowX = Math.max(0, (scaledWidth - containerWidth) / 2);
-        const overflowY = Math.max(0, (scaledHeight - containerHeight) / 2);
-        const maxPanX = overflowX / effectiveScale;
-        const maxPanY = overflowY / effectiveScale;
+        const overflowX = Math.max(0, (scaledContentW - cw) / 2);
+        const overflowY = Math.max(0, (scaledContentH - ch) / 2);
+        const maxPanX = overflowX / es;
+        const maxPanY = overflowY / es;
 
         panOffsetX = Math.max(-maxPanX, Math.min(maxPanX, panOffsetX));
         panOffsetY = Math.max(-maxPanY, Math.min(maxPanY, panOffsetY));
 
         // Reapply position after clamp
-        const centerX = (containerWidth - scaledWidth) / 2;
-        const centerY = (containerHeight - scaledHeight) / 2;
-        app.stage.x = centerX - panOffsetX * effectiveScale;
-        app.stage.y = centerY - panOffsetY * effectiveScale;
+        const contentCenterX = contentMinX + contentWidth / 2;
+        const contentCenterY = contentMinY + contentHeight / 2;
+        const baselineX = cw / 2 - contentCenterX * es;
+        const baselineY = ch / 2 - contentCenterY * es;
+        app.stage.x = baselineX - panOffsetX * es;
+        app.stage.y = baselineY - panOffsetY * es;
     }
 
     function handleWheel(event: WheelEvent) {
