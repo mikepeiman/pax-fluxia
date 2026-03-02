@@ -204,13 +204,49 @@ Use `git ac "message"` alias for add+commit. Run commands separately, never chai
 
 ## 10. File Reference
 
+### Core Documents
 | Need | Load |
 |------|------|
 | Full context | `.agent/AGENT.md` (this file) |
 | Feature status / bugs | `.atlas/FEATURE_STATUS.md` |
+| Feature ideas / roadmap | `.agent/WIP Work-In-Progress/FEATURE_IDEAS.md` |
 | Design decisions | `.atlas/DECISIONS.md` |
 | Game mechanics | `.atlas/MECHANICS.md` |
 | Design rules (CSS/layout) | `.atlas/DESIGN_RULES.md` |
+
+### Session & Work-In-Progress
+| Need | Load |
+|------|------|
+| Session notes (current) | `.agent/WIP Work-In-Progress/SESSION_YYYY-MM-DD.md` |
+| Chat log (user prompts) | `.agent/WIP Work-In-Progress/CHAT_YYYY-MM-DD.md` |
+| UI work queue | `.agent/WIP Work-In-Progress/UI/YYYY-MM-DD.md` |
+| Post-mortems | `.atlas/post-mortems/YYYY-MM-DD-<name>.md` |
+
+### Deep Reference (on-demand)
+| Need | Load |
+|------|------|
 | Active rules (detailed) | `.agent/rules/` |
 | Skills (on-demand) | `.agent/.skills/` |
 | Archives (reference only) | `.agent/_archive_rules/`, `.agent/_archive_memory/` |
+
+---
+
+## 11. Post-Mortem Process
+
+After every significant agent failure, write a post-mortem to `.atlas/post-mortems/YYYY-MM-DD-<semantic-name>.md`.
+
+**When to write:**
+- Agent declares "done" but work was not actually done
+- Same bug type recurs after being "fixed"
+- Agent fails to follow explicit instruction
+- User has to correct agent on something obvious
+
+**Format:**
+```
+# Post-Mortem: [Date] — [Short Title]
+## What Happened — factual description
+## Root Cause — systemic, not surface-level
+## Impact — user time, trust, code quality wasted
+## Corrective Actions — rules created, standards changed
+## Lessons — what to internalize
+```
