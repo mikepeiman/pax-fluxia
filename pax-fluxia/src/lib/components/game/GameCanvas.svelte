@@ -604,8 +604,10 @@
         resetMetaballCache();
         resetPixelTerritoryCache();
         resetLaneTerritoryCache();
-        // Reset visual ship state so damaged ships snap (no lerp drift)
-        fxOrchestrator.reset();
+        // Clear visual ship positions so they re-spawn at transposed coords
+        // (damaged ships lerp at 0.05 — without clearing, they drift for seconds)
+        visualDamagedShips.clear();
+        visualShips.clear();
         // Recompute world bounds with new display positions
         updateWorldBounds();
         log.sys(
