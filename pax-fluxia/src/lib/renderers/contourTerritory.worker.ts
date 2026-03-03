@@ -222,23 +222,17 @@ function roundCorners(points: number[], radiusWorld: number, thresholdDeg: numbe
     return result;
 }
 
-// ── F-135: Junction Detection & Angle Pull-Back ──
-// Detects vertices shared by ≥3 distinct owner polygons and pulls them
-// toward the territory with the most acute angle.
+// ── F-135: Junction Detection & Angle Pull-Back (v2) ──
+// Detects junction points from the OWNERSHIP GRID (cell corners where ≥3
+// distinct owners meet), then finds the nearest polygon vertex from each
+// owner and moves them ALL to the corrected position.
 
 interface RawPolygon {
     ownerIdx: number;
     points: number[];  // flat [x,y, x,y, ...] in world coords
 }
 
-/** Snap vertex coordinates to a grid for junction matching */
-function snapKey(x: number, y: number, epsilon: number): string {
-    const sx = Math.round(x / epsilon) * epsilon;
-    const sy = Math.round(y / epsilon) * epsilon;
-    return `${sx.toFixed(2)},${sy.toFixed(2)}`;
-}
-
-/** Compute angle at vertex i of a polygon (interior angle facing outward) */
+/** Compute angle at vertex i of a polygon */
 function vertexAngle(points: number[], idx: number): number {
     const n = points.length / 2;
     const prev = ((idx - 1) + n) % n;
@@ -252,106 +246,156 @@ function vertexAngle(points: number[], idx: number): number {
     const dot = ax * bx + ay * by;
     const cross = ax * by - ay * bx;
 
-    return Math.atan2(Math.abs(cross), dot); // Always positive, 0..π
+    return Math.atan2(Math.abs(cross), dot); // 0..π
 }
 
 /**
- * F-135: Detect junction vertices shared by ≥3 owners and pull them
- * toward the owner with the most acute (smallest) angle.
+ * F-135 v2: Grid-based junction detection + angle pull-back.
  * 
- * strength: 0..1, how far to move toward the ideal position
- * epsilon: distance threshold for matching vertices across polygons
+ * 1. Scan ownership grid for cell corners where ≥3 owners meet
+ * 2. Convert junction grid position to world coordinates
+ * 3. For each polygon, find the closest vertex within searchRadius
+ * 4. Measure angles, find acutest owner
+ * 5. Pull ALL nearby vertices toward the acute owner's bisector
  */
 function correctJunctions(
     rawPolygons: RawPolygon[],
+    grid: Int8Array,
+    gridW: number,
+    gridH: number,
+    cellW: number,
+    cellH: number,
     strength: number,
-    epsilon: number,
 ): void {
-    if (strength <= 0 || rawPolygons.length < 3) return;
+    if (strength <= 0 || rawPolygons.length < 2) return;
 
-    // Step 1: Build a map from snapped vertex position → list of (polygonIndex, vertexIndex, ownerIdx)
-    const vertexMap = new Map<string, { polyIdx: number; vertIdx: number; ownerIdx: number }[]>();
+    // Search radius: how far from a grid junction to look for polygon vertices
+    const searchRadius = Math.sqrt(cellW * cellW + cellH * cellH) * 1.5;
 
-    for (let pi = 0; pi < rawPolygons.length; pi++) {
-        const poly = rawPolygons[pi];
-        const n = poly.points.length / 2;
-        for (let vi = 0; vi < n; vi++) {
-            const x = poly.points[vi * 2];
-            const y = poly.points[vi * 2 + 1];
-            const key = snapKey(x, y, epsilon);
+    // Step 1: Find junction corners on the ownership grid
+    // A grid corner at (cx, cy) is bordered by cells (cx-1,cy-1), (cx,cy-1), (cx-1,cy), (cx,cy)
+    interface Junction {
+        wx: number;  // world x
+        wy: number;  // world y
+        owners: Set<number>;
+    }
+    const junctions: Junction[] = [];
 
-            let list = vertexMap.get(key);
-            if (!list) {
-                list = [];
-                vertexMap.set(key, list);
+    for (let cy = 1; cy < gridH; cy++) {
+        for (let cx = 1; cx < gridW; cx++) {
+            const owners = new Set<number>();
+            const tl = grid[(cy - 1) * gridW + (cx - 1)];
+            const tr = grid[(cy - 1) * gridW + cx];
+            const bl = grid[cy * gridW + (cx - 1)];
+            const br = grid[cy * gridW + cx];
+
+            if (tl >= 0) owners.add(tl);
+            if (tr >= 0) owners.add(tr);
+            if (bl >= 0) owners.add(bl);
+            if (br >= 0) owners.add(br);
+
+            if (owners.size >= 3) {
+                junctions.push({
+                    wx: cx * cellW,
+                    wy: cy * cellH,
+                    owners,
+                });
             }
-            list.push({ polyIdx: pi, vertIdx: vi, ownerIdx: poly.ownerIdx });
         }
     }
 
-    // Step 2: Find junction vertices (≥3 distinct owners at same position)
-    for (const [, entries] of vertexMap) {
-        const uniqueOwners = new Set(entries.map(e => e.ownerIdx));
-        if (uniqueOwners.size < 3) continue;
+    if (junctions.length === 0) return;
 
-        // This is a junction! Measure the angle at this vertex for each polygon.
-        let minAngle = Infinity;
-        let minEntry: { polyIdx: number; vertIdx: number; ownerIdx: number } | null = null;
+    // Step 2: For each junction, find nearest vertex per polygon and apply correction
+    for (const junc of junctions) {
+        // Find the closest vertex in each polygon within searchRadius
+        interface NearbyVertex {
+            polyIdx: number;
+            vertIdx: number;
+            ownerIdx: number;
+            distSq: number;
+        }
+        const nearby: NearbyVertex[] = [];
 
-        // Collect all entries with their angles
-        const withAngles: { entry: typeof entries[0]; angle: number }[] = [];
+        for (let pi = 0; pi < rawPolygons.length; pi++) {
+            const poly = rawPolygons[pi];
+            if (!junc.owners.has(poly.ownerIdx)) continue;
 
-        for (const entry of entries) {
-            const poly = rawPolygons[entry.polyIdx];
             const n = poly.points.length / 2;
-            if (n < 3) continue;
+            let bestDist = searchRadius * searchRadius;
+            let bestVi = -1;
 
-            const angle = vertexAngle(poly.points, entry.vertIdx);
-            withAngles.push({ entry, angle });
+            for (let vi = 0; vi < n; vi++) {
+                const dx = poly.points[vi * 2] - junc.wx;
+                const dy = poly.points[vi * 2 + 1] - junc.wy;
+                const dSq = dx * dx + dy * dy;
+                if (dSq < bestDist) {
+                    bestDist = dSq;
+                    bestVi = vi;
+                }
+            }
 
-            if (angle < minAngle) {
-                minAngle = angle;
-                minEntry = entry;
+            if (bestVi >= 0) {
+                nearby.push({
+                    polyIdx: pi,
+                    vertIdx: bestVi,
+                    ownerIdx: poly.ownerIdx,
+                    distSq: bestDist,
+                });
             }
         }
 
-        if (!minEntry || withAngles.length < 3) continue;
+        // Need at least 3 polygons from distinct owners near this junction
+        const nearbyOwners = new Set(nearby.map(n => n.ownerIdx));
+        if (nearbyOwners.size < 3) continue;
 
-        // Step 3: Pull toward the acutest owner
-        // Direction: from junction vertex toward the bisector of the acute owner's incident edges
-        const acutePoly = rawPolygons[minEntry.polyIdx];
+        // Step 3: Measure angle at each polygon's nearest vertex, find the acutest
+        let minAngle = Infinity;
+        let acuteEntry: NearbyVertex | null = null;
+
+        for (const nv of nearby) {
+            const poly = rawPolygons[nv.polyIdx];
+            const n = poly.points.length / 2;
+            if (n < 3) continue;
+
+            const angle = vertexAngle(poly.points, nv.vertIdx);
+            if (angle < minAngle) {
+                minAngle = angle;
+                acuteEntry = nv;
+            }
+        }
+
+        if (!acuteEntry) continue;
+
+        // Step 4: Compute pull direction — bisector of the acute owner's incident edges
+        const acutePoly = rawPolygons[acuteEntry.polyIdx];
         const acuteN = acutePoly.points.length / 2;
-        const vi = minEntry.vertIdx;
+        const vi = acuteEntry.vertIdx;
         const prevIdx = ((vi - 1) + acuteN) % acuteN;
         const nextIdx = (vi + 1) % acuteN;
 
-        // Current junction position
         const jx = acutePoly.points[vi * 2];
         const jy = acutePoly.points[vi * 2 + 1];
 
-        // Vectors from junction to prev and next vertices of the acute owner
         const toPrevX = acutePoly.points[prevIdx * 2] - jx;
         const toPrevY = acutePoly.points[prevIdx * 2 + 1] - jy;
         const toNextX = acutePoly.points[nextIdx * 2] - jx;
         const toNextY = acutePoly.points[nextIdx * 2 + 1] - jy;
 
-        // Normalize
         const lenPrev = Math.sqrt(toPrevX * toPrevX + toPrevY * toPrevY);
         const lenNext = Math.sqrt(toNextX * toNextX + toNextY * toNextY);
         if (lenPrev < 0.001 || lenNext < 0.001) continue;
 
-        // Bisector direction (into the acute owner's territory)
+        // Bisector into the acute owner's territory
         const bisX = toPrevX / lenPrev + toNextX / lenNext;
         const bisY = toPrevY / lenPrev + toNextY / lenNext;
         const bisLen = Math.sqrt(bisX * bisX + bisY * bisY);
         if (bisLen < 0.001) continue;
 
-        // Pull distance: proportional to how acute the angle is.
-        // At 60° (very acute for a 3-way junction), pull more. At 120° (ideal), pull zero.
-        // Scale: (idealAngle - actualAngle) / idealAngle * epsilon * strength
-        const idealAngle = (2 * Math.PI) / uniqueOwners.size; // 120° for 3-way, 90° for 4-way
+        // Pull distance scaled by angle deficit and strength
+        const idealAngle = (2 * Math.PI) / nearbyOwners.size;
         const deficit = Math.max(0, idealAngle - minAngle);
-        const pullDistance = (deficit / idealAngle) * epsilon * 2 * strength;
+        const pullDistance = (deficit / idealAngle) * cellW * strength;
 
         if (pullDistance < 0.01) continue;
 
@@ -359,11 +403,11 @@ function correctJunctions(
         const newJx = jx + (bisX / bisLen) * pullDistance;
         const newJy = jy + (bisY / bisLen) * pullDistance;
 
-        // Step 4: Update ALL polygons that share this junction vertex
-        for (const entry of entries) {
-            const poly = rawPolygons[entry.polyIdx];
-            poly.points[entry.vertIdx * 2] = newJx;
-            poly.points[entry.vertIdx * 2 + 1] = newJy;
+        // Step 5: Move ALL nearby polygon vertices to the new position
+        for (const nv of nearby) {
+            const poly = rawPolygons[nv.polyIdx];
+            poly.points[nv.vertIdx * 2] = newJx;
+            poly.points[nv.vertIdx * 2 + 1] = newJy;
         }
     }
 }
@@ -616,9 +660,7 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
 
     // ── Step 3: F-135 Junction correction (across ALL owner polygons) ──
     if (junctionCorrection > 0) {
-        // Use half the cell diagonal as epsilon for vertex matching
-        const junctionEpsilon = Math.sqrt(cellW * cellW + cellH * cellH) * 0.6;
-        correctJunctions(rawPolygons, junctionCorrection, junctionEpsilon);
+        correctJunctions(rawPolygons, grid, gridW, gridH, cellW, cellH, junctionCorrection);
     }
 
     // ── Step 4: Post-process each polygon (simplify, smooth, round) ──

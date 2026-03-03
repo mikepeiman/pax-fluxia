@@ -204,6 +204,7 @@ Use `git ac "message"` alias for add+commit. Run commands separately, never chai
 | Chaining PowerShell with && | Run separately |
 | Reading GAME_CONFIG in templates | Use panel.$state pattern |
 | Ignoring user's exact words | User words are specifications |
+| Setting timid slider ranges for new FX | **10X rule**: provide at least 10× the "reasonable" range. You can't debug what you can't see. |
 
 ---
 
