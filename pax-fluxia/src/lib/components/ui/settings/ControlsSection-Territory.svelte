@@ -495,6 +495,24 @@
     <h4 class="sub-heading">Visual Settings</h4>
     <div class="var-row">
         <div class="row-top">
+            <span class="var-name">🌊 Morph Speed</span><span class="val"
+                >{GAME_CONFIG.TERRITORY_TRANSITION_MS}ms</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="2000"
+            step="50"
+            value={GAME_CONFIG.TERRITORY_TRANSITION_MS}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.TERRITORY_TRANSITION_MS = v;
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
             <span class="var-name">🎨 Fill Alpha</span><span class="val"
                 >{(panel.voronoiAlpha ?? GAME_CONFIG.VORONOI_ALPHA).toFixed(
                     2,

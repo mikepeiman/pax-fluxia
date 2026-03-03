@@ -49,7 +49,7 @@ interface TerritoryCell {
 
 /** Merged polygon for same-owner territory rendering. */
 interface MergedTerritory {
-    points: number[][];     // [[x,y], ...] closed polygon
+    points: [number, number][];     // [[x,y], ...] closed polygon
     ownerId: string;
     color: number;          // hex fill color
 }
@@ -59,6 +59,16 @@ interface MergedTerritory {
 let cachedFingerprint = '';
 let fillGraphics: PIXI.Graphics | null = null;
 let borderGraphics: PIXI.Graphics | null = null;
+
+// ── Morph Transition State ─────────────────────────────────────────────────
+
+/** Previous and target territory data for vertex morphing. */
+let prevTerritories: MergedTerritory[] | null = null;
+let targetTerritories: MergedTerritory[] | null = null;
+let prevSharedEdges: SharedBorderEdge[] | null = null;
+let targetSharedEdges: SharedBorderEdge[] | null = null;
+let transitionStart = 0;
+let isTransitioning = false;
 
 // ── Fingerprint ────────────────────────────────────────────────────────────
 
@@ -213,6 +223,156 @@ function blendColors(colorA: number, colorB: number, t: number): number {
     );
 }
 
+// ── Polygon Morph Helpers ─────────────────────────────────────────────────
+
+/** Resample a polygon to `n` evenly-spaced points along its perimeter. */
+function resamplePolygon(pts: [number, number][], n: number): [number, number][] {
+    if (pts.length <= 1 || n <= 1) return pts.slice();
+
+    // Compute cumulative arc lengths
+    const arcLens: number[] = [0];
+    for (let i = 1; i < pts.length; i++) {
+        arcLens.push(arcLens[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+    }
+    const totalLen = arcLens[arcLens.length - 1];
+    if (totalLen === 0) return pts.slice();
+
+    const result: [number, number][] = [];
+    let segIdx = 0;
+    for (let i = 0; i < n; i++) {
+        const targetLen = (i / n) * totalLen;
+        while (segIdx < arcLens.length - 2 && arcLens[segIdx + 1] < targetLen) segIdx++;
+        const segLen = arcLens[segIdx + 1] - arcLens[segIdx];
+        const t = segLen > 0 ? (targetLen - arcLens[segIdx]) / segLen : 0;
+        result.push([
+            pts[segIdx][0] + (pts[segIdx + 1][0] - pts[segIdx][0]) * t,
+            pts[segIdx][1] + (pts[segIdx + 1][1] - pts[segIdx][1]) * t,
+        ]);
+    }
+    // Close the polygon
+    result.push([result[0][0], result[0][1]]);
+    return result;
+}
+
+/** Get centroid of a polygon. */
+function polygonCentroid(pts: [number, number][]): [number, number] {
+    let cx = 0, cy = 0;
+    const n = pts.length - 1;  // last point = first (closed)
+    for (let i = 0; i < n; i++) { cx += pts[i][0]; cy += pts[i][1]; }
+    return n > 0 ? [cx / n, cy / n] : [0, 0];
+}
+
+/** Lerp two equal-length polygon arrays. */
+function lerpPolygon(from: [number, number][], to: [number, number][], t: number): [number, number][] {
+    const result: [number, number][] = [];
+    const len = Math.min(from.length, to.length);
+    for (let i = 0; i < len; i++) {
+        result.push([
+            from[i][0] + (to[i][0] - from[i][0]) * t,
+            from[i][1] + (to[i][1] - from[i][1]) * t,
+        ]);
+    }
+    return result;
+}
+
+/** Render interpolated territories during a morph transition. */
+function renderMorphedFrame(
+    container: PIXI.Container,
+    prev: MergedTerritory[], target: MergedTerritory[],
+    _prevEdges: SharedBorderEdge[], _targetEdges: SharedBorderEdge[],
+    t: number,  // 0=prev, 1=target (eased)
+    alpha: number, borderWidth: number, borderAlpha: number,
+    _colorUtils: ColorUtils, _stars: StarState[],
+): void {
+    const RESAMPLE_N = 64;  // Normalize all polygons to this many points
+
+    // Ensure graphics exist
+    if (!fillGraphics) {
+        fillGraphics = new PIXI.Graphics();
+        container.addChild(fillGraphics);
+    }
+    fillGraphics.clear();
+    fillGraphics.visible = true;
+
+    // Match territories by ownerId
+    const prevMap = new Map<string, MergedTerritory>();
+    for (const ter of prev) prevMap.set(ter.ownerId, ter);
+    const targetMap = new Map<string, MergedTerritory>();
+    for (const ter of target) targetMap.set(ter.ownerId, ter);
+
+    const allOwners = new Set([...prevMap.keys(), ...targetMap.keys()]);
+
+    for (const ownerId of allOwners) {
+        const pTer = prevMap.get(ownerId);
+        const tTer = targetMap.get(ownerId);
+
+        let morphedPts: [number, number][];
+        const color = tTer?.color ?? pTer?.color ?? 0;
+
+        if (pTer && tTer) {
+            // Both exist — lerp vertices
+            const pResampled = resamplePolygon(pTer.points, RESAMPLE_N);
+            const tResampled = resamplePolygon(tTer.points, RESAMPLE_N);
+            morphedPts = lerpPolygon(pResampled, tResampled, t);
+        } else if (tTer && !pTer) {
+            // New territory — grow from centroid
+            const c = polygonCentroid(tTer.points);
+            const collapsed: [number, number][] = tTer.points.map((): [number, number] => [c[0], c[1]]);
+            const tResampled = resamplePolygon(tTer.points, RESAMPLE_N);
+            const cResampled = resamplePolygon(collapsed, RESAMPLE_N);
+            morphedPts = lerpPolygon(cResampled, tResampled, t);
+        } else if (pTer && !tTer) {
+            // Dying territory — shrink to centroid
+            const c = polygonCentroid(pTer.points);
+            const collapsed: [number, number][] = pTer.points.map((): [number, number] => [c[0], c[1]]);
+            const pResampled = resamplePolygon(pTer.points, RESAMPLE_N);
+            const cResampled = resamplePolygon(collapsed, RESAMPLE_N);
+            morphedPts = lerpPolygon(pResampled, cResampled, t);
+        } else {
+            continue;
+        }
+
+        fillGraphics.poly(morphedPts.flat());
+        fillGraphics.fill({ color, alpha });
+    }
+
+    // Simple territory borders for morphed frames
+    if (borderWidth > 0 && borderAlpha > 0) {
+        if (!borderGraphics) {
+            borderGraphics = new PIXI.Graphics();
+            container.addChild(borderGraphics);
+        }
+        borderGraphics.clear();
+        borderGraphics.visible = true;
+
+        for (const ownerId of allOwners) {
+            const pTer = prevMap.get(ownerId);
+            const tTer = targetMap.get(ownerId);
+            const color = tTer?.color ?? pTer?.color ?? 0;
+            const [r, g, b] = hexToRGB(color);
+            const borderColor = (Math.min(255, r + 40) << 16) | (Math.min(255, g + 40) << 8) | Math.min(255, b + 40);
+
+            let morphedPts: [number, number][];
+            if (pTer && tTer) {
+                morphedPts = lerpPolygon(resamplePolygon(pTer.points, RESAMPLE_N), resamplePolygon(tTer.points, RESAMPLE_N), t);
+            } else if (tTer) {
+                const c = polygonCentroid(tTer.points);
+                morphedPts = lerpPolygon(resamplePolygon(tTer.points.map(() => [c[0], c[1]] as [number, number]), RESAMPLE_N), resamplePolygon(tTer.points, RESAMPLE_N), t);
+            } else if (pTer) {
+                const c = polygonCentroid(pTer.points);
+                morphedPts = lerpPolygon(resamplePolygon(pTer.points, RESAMPLE_N), resamplePolygon(pTer.points.map(() => [c[0], c[1]] as [number, number]), RESAMPLE_N), t);
+            } else continue;
+
+            if (morphedPts.length > 1) {
+                borderGraphics.moveTo(morphedPts[0][0], morphedPts[0][1]);
+                for (let i = 1; i < morphedPts.length; i++) borderGraphics.lineTo(morphedPts[i][0], morphedPts[i][1]);
+                borderGraphics.closePath();
+                borderGraphics.stroke({ width: borderWidth, color: borderColor, alpha: borderAlpha });
+            }
+        }
+    }
+}
+
 // ── Cell Merging ───────────────────────────────────────────────────────────
 
 function mergeSameOwnerCells(
@@ -322,7 +482,7 @@ function mergeSameOwnerCells(
                     chain[0][1] !== chain[chain.length - 1][1]) {
                     chain.push([chain[0][0], chain[0][1]]);
                 }
-                result.push({ points: chain, ownerId, color: 0 });
+                result.push({ points: chain as [number, number][], ownerId, color: 0 });
             }
         }
     }
@@ -340,12 +500,46 @@ export function renderPowerVoronoi(
     worldHeight: number,
     connections?: StarConnection[],
 ): void {
-    // Re-show existing graphics BEFORE cache check — voronoiContainer blanket-hides every frame
+    const transitionMs = GAME_CONFIG.TERRITORY_TRANSITION_MS ?? 400;
+    const now = performance.now();
+
+    // Re-show graphics — voronoiContainer blanket-hides every frame
     if (fillGraphics) fillGraphics.visible = true;
     if (borderGraphics) borderGraphics.visible = true;
 
+    // ── Morph: re-render interpolated polygons during transition ──────────
+    if (isTransitioning && prevTerritories && targetTerritories && transitionMs > 0) {
+        const elapsed = now - transitionStart;
+        const t = Math.min(1, elapsed / transitionMs);  // 0→1 (eased)
+        const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;  // easeInOutQuad
+
+        // Interpolate territories and re-draw
+        const alpha = GAME_CONFIG.VORONOI_ALPHA ?? 0.25;
+        const borderWidth = GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 1.5;
+        const borderAlpha = GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.4;
+
+        renderMorphedFrame(voronoiContainer, prevTerritories, targetTerritories,
+            prevSharedEdges ?? [], targetSharedEdges ?? [],
+            eased, alpha, borderWidth, borderAlpha, colorUtils, stars);
+
+        if (t >= 1) {
+            // Transition complete
+            isTransitioning = false;
+            prevTerritories = null;
+            prevSharedEdges = null;
+        }
+        return;  // Don't recompute — just animate
+    }
+
     const fp = buildFingerprint(stars);
     if (fp === cachedFingerprint) return;
+
+    // ── Fingerprint changed: snapshot current targets as prev ─────────────
+    if (transitionMs > 0 && targetTerritories && targetTerritories.length > 0) {
+        prevTerritories = targetTerritories;
+        prevSharedEdges = targetSharedEdges;
+    }
+
     cachedFingerprint = fp;
 
     const alpha = GAME_CONFIG.VORONOI_ALPHA ?? 0.25;
@@ -634,12 +828,33 @@ export function renderPowerVoronoi(
     } else if (borderGraphics) {
         borderGraphics.clear();
     }
+
+    // ── Store targets + start transition ────────────────────────────────
+    // Assign colors to shared edges for morphing
+    for (const edge of sharedEdges) {
+        edge.colorA = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerA), satMult, lightMult);
+        edge.colorB = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerB), satMult, lightMult);
+    }
+    targetTerritories = merged;
+    targetSharedEdges = sharedEdges;
+
+    // Start morph transition if we have prev data
+    if (transitionMs > 0 && prevTerritories && prevTerritories.length > 0) {
+        transitionStart = now;
+        isTransitioning = true;
+    }
 }
 
 // ── Cache Reset ────────────────────────────────────────────────────────────
 
 export function resetPowerVoronoiCache(): void {
     cachedFingerprint = '';
+    isTransitioning = false;
+    prevTerritories = null;
+    targetTerritories = null;
+    prevSharedEdges = null;
+    targetSharedEdges = null;
+    transitionStart = 0;
     if (fillGraphics) {
         if (fillGraphics.parent) fillGraphics.parent.removeChild(fillGraphics);
         fillGraphics.destroy();

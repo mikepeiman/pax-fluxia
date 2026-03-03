@@ -43,7 +43,8 @@
 | F-139 | Minimum star boundary margin: territory boundaries must be ≥5 orbit radii from any star center — prevents orbit ring clipping | 🔄 In Progress | High | 2026-03-03 |
 | F-140 | Topographic territory renderer: if gap-free Voronoi pipeline is efficient enough, layer multiple offset passes to create terrain-like elevation contour effect reminiscent of topo maps | 🟡 Idea | Medium | 2026-03-03 |
 | F-141 | Distinct conquest travel duration/speed slider — currently conflated with transfer travel speed, needs separate control | 🟡 Idea | Medium | 2026-03-03 |
-| F-142 | Strength-blended shared borders: overlapping territory borders with alpha blending reflecting relative player strength. Gradient concentrated by proximity to nearest star (opposition radiating outward). Stronger player → more color influence, higher saturation, higher lightness | 🔄 In Progress | High | 2026-03-03 |
+| F-142 | Strength-blended shared borders: overlapping territory borders with alpha blending reflecting relative player strength. Gradient concentrated by proximity to nearest star (opposition radiating outward). Stronger player → more color influence, higher saturation, higher lightness | ✅ Done | High | 2026-03-03 |
+| F-143 | Animated territory transitions: smooth crossfade when ownership changes — old territories fade out while new ones fade in over configurable duration | 🔄 In Progress | Medium | 2026-03-03 |
 
 ## Known Regressions
 
