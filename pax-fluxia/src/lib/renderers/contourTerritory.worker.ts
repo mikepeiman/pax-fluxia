@@ -306,76 +306,70 @@ function correctJunctions(
 
     if (junctions.length === 0) return;
 
-    // Step 2: For each junction, find nearest vertex per polygon and apply correction
+    // Step 2: For each junction, find ALL nearby vertices, collapse, and correct
     for (const junc of junctions) {
-        // Find the closest vertex in each polygon within searchRadius
-        interface NearbyVertex {
-            polyIdx: number;
-            vertIdx: number;
-            ownerIdx: number;
-            distSq: number;
-        }
-        const nearby: NearbyVertex[] = [];
+        // Collect ALL vertices from ALL polygons within searchRadius of this junction
+        // Group by polygon index
+        const polyVertices = new Map<number, { vertIdx: number; distSq: number }[]>();
 
         for (let pi = 0; pi < rawPolygons.length; pi++) {
             const poly = rawPolygons[pi];
             if (!junc.owners.has(poly.ownerIdx)) continue;
 
             const n = poly.points.length / 2;
-            let bestDist = searchRadius * searchRadius;
-            let bestVi = -1;
+            const verts: { vertIdx: number; distSq: number }[] = [];
 
             for (let vi = 0; vi < n; vi++) {
                 const dx = poly.points[vi * 2] - junc.wx;
                 const dy = poly.points[vi * 2 + 1] - junc.wy;
                 const dSq = dx * dx + dy * dy;
-                if (dSq < bestDist) {
-                    bestDist = dSq;
-                    bestVi = vi;
+                if (dSq < searchRadius * searchRadius) {
+                    verts.push({ vertIdx: vi, distSq: dSq });
                 }
             }
 
-            if (bestVi >= 0) {
-                nearby.push({
-                    polyIdx: pi,
-                    vertIdx: bestVi,
-                    ownerIdx: poly.ownerIdx,
-                    distSq: bestDist,
-                });
+            if (verts.length > 0) {
+                // Sort by distance so closest is first
+                verts.sort((a, b) => a.distSq - b.distSq);
+                polyVertices.set(pi, verts);
             }
         }
 
-        // Need at least 3 polygons from distinct owners near this junction
-        const nearbyOwners = new Set(nearby.map(n => n.ownerIdx));
+        // Check we have ≥3 distinct owners represented
+        const nearbyOwners = new Set<number>();
+        for (const [pi] of polyVertices) {
+            nearbyOwners.add(rawPolygons[pi].ownerIdx);
+        }
         if (nearbyOwners.size < 3) continue;
 
-        // Step 3: Measure angle at each polygon's nearest vertex, find the acutest
+        // Step 3: Measure angle at each polygon's closest vertex, find the acutest
         let minAngle = Infinity;
-        let acuteEntry: NearbyVertex | null = null;
+        let acutePolyIdx = -1;
+        let acuteVertIdx = -1;
 
-        for (const nv of nearby) {
-            const poly = rawPolygons[nv.polyIdx];
+        for (const [pi, verts] of polyVertices) {
+            const poly = rawPolygons[pi];
             const n = poly.points.length / 2;
             if (n < 3) continue;
 
-            const angle = vertexAngle(poly.points, nv.vertIdx);
+            const angle = vertexAngle(poly.points, verts[0].vertIdx);
             if (angle < minAngle) {
                 minAngle = angle;
-                acuteEntry = nv;
+                acutePolyIdx = pi;
+                acuteVertIdx = verts[0].vertIdx;
             }
         }
 
-        if (!acuteEntry) continue;
+        if (acutePolyIdx < 0) continue;
 
         // Step 4: Compute pull direction — bisector of the acute owner's incident edges
-        const acutePoly = rawPolygons[acuteEntry.polyIdx];
+        const acutePoly = rawPolygons[acutePolyIdx];
         const acuteN = acutePoly.points.length / 2;
-        const vi = acuteEntry.vertIdx;
-        const prevIdx = ((vi - 1) + acuteN) % acuteN;
-        const nextIdx = (vi + 1) % acuteN;
+        const prevIdx = ((acuteVertIdx - 1) + acuteN) % acuteN;
+        const nextIdx = (acuteVertIdx + 1) % acuteN;
 
-        const jx = acutePoly.points[vi * 2];
-        const jy = acutePoly.points[vi * 2 + 1];
+        const jx = acutePoly.points[acuteVertIdx * 2];
+        const jy = acutePoly.points[acuteVertIdx * 2 + 1];
 
         const toPrevX = acutePoly.points[prevIdx * 2] - jx;
         const toPrevY = acutePoly.points[prevIdx * 2 + 1] - jy;
@@ -386,7 +380,6 @@ function correctJunctions(
         const lenNext = Math.sqrt(toNextX * toNextX + toNextY * toNextY);
         if (lenPrev < 0.001 || lenNext < 0.001) continue;
 
-        // Bisector into the acute owner's territory
         const bisX = toPrevX / lenPrev + toNextX / lenNext;
         const bisY = toPrevY / lenPrev + toNextY / lenNext;
         const bisLen = Math.sqrt(bisX * bisX + bisY * bisY);
@@ -399,15 +392,37 @@ function correctJunctions(
 
         if (pullDistance < 0.01) continue;
 
-        // New junction position
+        // New junction position (pulled back along bisector)
         const newJx = jx + (bisX / bisLen) * pullDistance;
         const newJy = jy + (bisY / bisLen) * pullDistance;
 
-        // Step 5: Move ALL nearby polygon vertices to the new position
-        for (const nv of nearby) {
-            const poly = rawPolygons[nv.polyIdx];
-            poly.points[nv.vertIdx * 2] = newJx;
-            poly.points[nv.vertIdx * 2 + 1] = newJy;
+        // Step 5: For each polygon, collapse ALL nearby vertices to newPos
+        // Remove duplicate vertices that would be created, keeping only one at newPos
+        // Process in reverse polygon order to avoid index invalidation
+        for (const [pi, verts] of polyVertices) {
+            const poly = rawPolygons[pi];
+
+            if (verts.length === 1) {
+                // Simple case: just move the one vertex
+                poly.points[verts[0].vertIdx * 2] = newJx;
+                poly.points[verts[0].vertIdx * 2 + 1] = newJy;
+            } else {
+                // Multiple vertices near junction — collapse them.
+                // Move the closest to newPos, remove the rest.
+                // Must process removals in reverse index order to keep indices valid.
+                const sortedByIdx = [...verts].sort((a, b) => b.vertIdx - a.vertIdx);
+                const keepIdx = verts[0].vertIdx; // closest vertex
+
+                // Move the keeper to newPos
+                poly.points[keepIdx * 2] = newJx;
+                poly.points[keepIdx * 2 + 1] = newJy;
+
+                // Remove others (in reverse order to preserve indices)
+                for (const v of sortedByIdx) {
+                    if (v.vertIdx === keepIdx) continue;
+                    poly.points.splice(v.vertIdx * 2, 2);
+                }
+            }
         }
     }
 }
