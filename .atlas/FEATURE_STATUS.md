@@ -39,9 +39,11 @@
 | F-136 | Territory rendering: minimum shared-boundary section length (slider) — prevent tiny border segments | 🟡 Idea | Medium | 2026-03-02 |
 | F-137 | Periphery coverage: same-owner stars at map edge should have territory begin on the *inside* of connecting lane and fully cover the outside | 🔄 In Progress | Medium | 2026-03-03 |
 | F-138 | Modified Voronoi territories: merge same-owner d3-delaunay cells into unified polygons, Bézier arc smoothing at sharp vertices, Chaikin smoothing | 🔄 In Progress | High | 2026-03-03 |
-| F-138v2 | Power Voronoi V2: d3-weighted-voronoi power diagram with star margin as weight. Phase 1 working (basic fill+stroke). | ✅ Phase 1 Done | High | 2026-03-03 |
+| F-138v2 | Power Voronoi V2: d3-weighted-voronoi power diagram with star margin as weight. Phase 2 done (disconnect virtual stars + tuning panel). | ✅ Phase 2 Done | High | 2026-03-03 |
 | F-139 | Minimum star boundary margin: territory boundaries must be ≥5 orbit radii from any star center — prevents orbit ring clipping | 🔄 In Progress | High | 2026-03-03 |
 | F-140 | Topographic territory renderer: if gap-free Voronoi pipeline is efficient enough, layer multiple offset passes to create terrain-like elevation contour effect reminiscent of topo maps | 🟡 Idea | Medium | 2026-03-03 |
+| F-141 | Distinct conquest travel duration/speed slider — currently conflated with transfer travel speed, needs separate control | 🟡 Idea | Medium | 2026-03-03 |
+| F-142 | Strength-blended shared borders: overlapping territory borders with alpha blending reflecting relative player strength. Gradient concentrated by proximity to nearest star (opposition radiating outward). Stronger player → more color influence, higher saturation, higher lightness | 🔄 In Progress | High | 2026-03-03 |
 
 ## Known Regressions
 

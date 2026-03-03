@@ -492,6 +492,123 @@
             }}
         />
     </div>
+    <h4 class="sub-heading">Visual Settings</h4>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">🎨 Fill Alpha</span><span class="val"
+                >{(panel.voronoiAlpha ?? GAME_CONFIG.VORONOI_ALPHA).toFixed(
+                    2,
+                )}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value={panel.voronoiAlpha ?? GAME_CONFIG.VORONOI_ALPHA}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate("VORONOI_ALPHA", "voronoiAlpha", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">📏 Border Width</span><span class="val"
+                >{(
+                    panel.voronoiBorderWidth ?? GAME_CONFIG.VORONOI_BORDER_WIDTH
+                ).toFixed(1)}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="6"
+            step="0.5"
+            value={panel.voronoiBorderWidth ?? GAME_CONFIG.VORONOI_BORDER_WIDTH}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "VORONOI_BORDER_WIDTH",
+                    "voronoiBorderWidth",
+                    v,
+                );
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">💫 Border Alpha</span><span class="val"
+                >{(
+                    panel.voronoiBorderAlpha ?? GAME_CONFIG.VORONOI_BORDER_ALPHA
+                ).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={panel.voronoiBorderAlpha ?? GAME_CONFIG.VORONOI_BORDER_ALPHA}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "VORONOI_BORDER_ALPHA",
+                    "voronoiBorderAlpha",
+                    v,
+                );
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">🌈 Saturation</span><span class="val"
+                >{(
+                    panel.voronoiSaturation ?? GAME_CONFIG.VORONOI_SATURATION
+                ).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="2"
+            step="0.05"
+            value={panel.voronoiSaturation ?? GAME_CONFIG.VORONOI_SATURATION}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "VORONOI_SATURATION",
+                    "voronoiSaturation",
+                    v,
+                );
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">☀️ Lightness</span><span class="val"
+                >{(
+                    panel.voronoiLightness ?? GAME_CONFIG.VORONOI_LIGHTNESS
+                ).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="2"
+            step="0.05"
+            value={panel.voronoiLightness ?? GAME_CONFIG.VORONOI_LIGHTNESS}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "VORONOI_LIGHTNESS",
+                    "voronoiLightness",
+                    v,
+                );
+            }}
+        />
+    </div>
 {/if}
 {#if panel.territoryGraph}
     <!-- ── Lane Territory Controls ── -->

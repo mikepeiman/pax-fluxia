@@ -65,7 +65,7 @@ let borderGraphics: PIXI.Graphics | null = null;
 function buildFingerprint(stars: StarState[]): string {
     let fp = 'powerV2:';
     for (const s of stars) {
-        fp += `${s.id}:${s.ownerId ?? ''}|`;
+        fp += `${s.id}:${s.ownerId ?? ''}:${s.activeShips ?? 0}|`;
     }
     fp += `${GAME_CONFIG.VORONOI_ALPHA}:${GAME_CONFIG.VORONOI_BORDER_WIDTH}`;
     fp += `:${GAME_CONFIG.VORONOI_BORDER_ALPHA}:${GAME_CONFIG.VORONOI_SATURATION}`;
@@ -141,6 +141,76 @@ function edgeKey(x1: number, y1: number, x2: number, y2: number): string {
 
 function ptKey(x: number, y: number): string {
     return `${+x.toFixed(2)},${+y.toFixed(2)}`;
+}
+
+// ── Shared Border Edge Extraction ──────────────────────────────────────────
+
+/** A border edge segment shared between two different owners. */
+interface SharedBorderEdge {
+    x1: number; y1: number;
+    x2: number; y2: number;
+    ownerA: string;
+    ownerB: string;
+    colorA: number;
+    colorB: number;
+}
+
+/**
+ * Extract edges shared between cells of DIFFERENT owners (contested borders).
+ * Each edge appears once with ownerA/ownerB — these are the boundaries where
+ * territory borders should overlap and blend.
+ */
+function extractSharedEdges(cells: TerritoryCell[]): SharedBorderEdge[] {
+    // Map: edgeKey → { owners: Set<string>, ownerPerCell: string[] }
+    const edgeOwners = new Map<string, { owners: string[]; pts: [number, number, number, number] }>();
+
+    for (const cell of cells) {
+        const pts = cell.points;
+        for (let j = 0; j < pts.length - 1; j++) {
+            const key = edgeKey(pts[j][0], pts[j][1], pts[j + 1][0], pts[j + 1][1]);
+            if (!edgeOwners.has(key)) {
+                edgeOwners.set(key, {
+                    owners: [cell.ownerId],
+                    pts: [pts[j][0], pts[j][1], pts[j + 1][0], pts[j + 1][1]],
+                });
+            } else {
+                const entry = edgeOwners.get(key)!;
+                if (!entry.owners.includes(cell.ownerId)) {
+                    entry.owners.push(cell.ownerId);
+                }
+            }
+        }
+    }
+
+    // Collect only edges with exactly 2 different owners (contested boundaries)
+    const shared: SharedBorderEdge[] = [];
+    for (const [, entry] of edgeOwners) {
+        if (entry.owners.length === 2 &&
+            entry.owners[0] !== entry.owners[1] &&
+            entry.owners[0] !== '__disconnect__' &&
+            entry.owners[1] !== '__disconnect__') {
+            shared.push({
+                x1: entry.pts[0], y1: entry.pts[1],
+                x2: entry.pts[2], y2: entry.pts[3],
+                ownerA: entry.owners[0],
+                ownerB: entry.owners[1],
+                colorA: 0,
+                colorB: 0,
+            });
+        }
+    }
+    return shared;
+}
+
+/** Blend two hex colors by ratio t (0=colorA, 1=colorB). */
+function blendColors(colorA: number, colorB: number, t: number): number {
+    const [rA, gA, bA] = hexToRGB(colorA);
+    const [rB, gB, bB] = hexToRGB(colorB);
+    return (
+        (Math.round(rA + (rB - rA) * t) << 16) |
+        (Math.round(gA + (gB - gA) * t) << 8) |
+        Math.round(bA + (bB - bA) * t)
+    );
 }
 
 // ── Cell Merging ───────────────────────────────────────────────────────────
@@ -435,6 +505,9 @@ export function renderPowerVoronoi(
         }
     }
 
+    // ── Stage 2b: Extract shared edges (before merge removes internal edges) ──
+    const sharedEdges = extractSharedEdges(cells);
+
     // ── Stage 3: Merge same-owner cells ────────────────────────────────────
     const merged = mergeSameOwnerCells(cells, GAME_CONFIG.TERRITORY_CLUSTER_SPLIT, clusterMap);
 
@@ -459,7 +532,7 @@ export function renderPowerVoronoi(
         fillGraphics.fill({ color: territory.color, alpha });
     }
 
-    // Borders
+    // Borders — strength-blended shared edges (F-142)
     if (borderWidth > 0 && borderAlpha > 0) {
         if (!borderGraphics) {
             borderGraphics = new PIXI.Graphics();
@@ -468,6 +541,7 @@ export function renderPowerVoronoi(
         borderGraphics.clear();
         borderGraphics.visible = true;
 
+        // Layer 1: Each territory's own border in its territory color
         for (const territory of merged) {
             const [r, g, b] = hexToRGB(territory.color);
             const borderColor = (Math.min(255, r + 40) << 16) |
@@ -482,6 +556,80 @@ export function renderPowerVoronoi(
                 borderGraphics.closePath();
                 borderGraphics.stroke({ width: borderWidth, color: borderColor, alpha: borderAlpha });
             }
+        }
+
+        // Layer 2: Shared edges — dual overlapping strokes with strength blend
+        // Build nearest-star lookup per owner for proximity gradient
+        const ownerStars = new Map<string, StarState[]>();
+        for (const s of ownedStars) {
+            if (!ownerStars.has(s.ownerId!)) ownerStars.set(s.ownerId!, []);
+            ownerStars.get(s.ownerId!)!.push(s);
+        }
+
+        // Get the total ship strength per owner (for relative strength)
+        const ownerStrength = new Map<string, number>();
+        for (const s of ownedStars) {
+            ownerStrength.set(s.ownerId!, (ownerStrength.get(s.ownerId!) ?? 0) + (s.activeShips ?? 0) + (s.damagedShips ?? 0));
+        }
+
+        // Assign colors to shared edges
+        for (const edge of sharedEdges) {
+            edge.colorA = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerA), satMult, lightMult);
+            edge.colorB = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerB), satMult, lightMult);
+        }
+
+        // Render shared edges with proximity-based strength gradient
+        const blendWidth = borderWidth * 2.5;  // shared edges are wider for visual impact
+
+        for (const edge of sharedEdges) {
+            // Get nearest star distance to each endpoint for each owner
+            const starsA = ownerStars.get(edge.ownerA) ?? [];
+            const starsB = ownerStars.get(edge.ownerB) ?? [];
+            const strengthA = ownerStrength.get(edge.ownerA) ?? 1;
+            const strengthB = ownerStrength.get(edge.ownerB) ?? 1;
+
+            // Relative strength ratio (0 = A dominates, 1 = B dominates)
+            const totalStrength = strengthA + strengthB;
+            const baseRatio = totalStrength > 0 ? strengthB / totalStrength : 0.5;
+
+            // Edge midpoint for proximity check
+            const mx = (edge.x1 + edge.x2) / 2;
+            const my = (edge.y1 + edge.y2) / 2;
+
+            // Find nearest star of each owner to edge midpoint
+            let distA = Infinity, distB = Infinity;
+            for (const s of starsA) {
+                const d = Math.hypot(s.x - mx, s.y - my);
+                if (d < distA) distA = d;
+            }
+            for (const s of starsB) {
+                const d = Math.hypot(s.x - mx, s.y - my);
+                if (d < distB) distB = d;
+            }
+
+            // Proximity factor: closer star gets more influence
+            const totalDist = distA + distB;
+            const proximityRatio = totalDist > 0 ? distA / totalDist : 0.5;  // 0=A closer, 1=B closer
+
+            // Combine: strength × proximity (each 50% weight)
+            const blendT = baseRatio * 0.5 + proximityRatio * 0.5;
+
+            // Boost saturation and lightness based on dominance
+            const dominance = Math.abs(blendT - 0.5) * 2;  // 0 = equal, 1 = fully dominant
+            const blendedColor = blendColors(edge.colorA, edge.colorB, blendT);
+
+            // Boost the blended color's saturation and lightness based on dominance
+            const [bR, bG, bB] = hexToRGB(blendedColor);
+            const [bH, bS, bL] = rgbToHSL(bR, bG, bB);
+            const boostedSat = Math.min(1, bS + dominance * 0.3);
+            const boostedLight = Math.min(0.85, bL + dominance * 0.15);
+            const [fR, fG, fB] = hslToRGB(bH, boostedSat, boostedLight);
+            const finalColor = (fR << 16) | (fG << 8) | fB;
+
+            // Draw the shared edge with the blended color
+            borderGraphics.moveTo(edge.x1, edge.y1);
+            borderGraphics.lineTo(edge.x2, edge.y2);
+            borderGraphics.stroke({ width: blendWidth, color: finalColor, alpha: borderAlpha * 1.5 });
         }
     } else if (borderGraphics) {
         borderGraphics.clear();
