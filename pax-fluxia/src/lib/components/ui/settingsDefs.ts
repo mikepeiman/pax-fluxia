@@ -332,6 +332,9 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'transferAnimMs', configKey: 'TRANSFER_ANIMATION_MS' },
     // Show hex selection
     { panelKey: 'showSelectionHex', configKey: 'SHOW_SELECTION_HEX' },
+    // Merged Voronoi Territory (F-138)
+    { panelKey: 'territoryMergedVoronoi', configKey: 'TERRITORY_MERGED_VORONOI' },
+    { panelKey: 'mergedVoronoiStarMargin', configKey: 'MERGED_VORONOI_STAR_MARGIN' },
     // Contour Territory
     { panelKey: 'territoryContour', configKey: 'TERRITORY_CONTOUR' },
     { panelKey: 'territoryClusterSplit', configKey: 'TERRITORY_CLUSTER_SPLIT' },

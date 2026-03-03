@@ -252,10 +252,14 @@ interface GameConfigType {
 
     // ── Territory Toggles ──────────────────────────────────────────────────────
     TERRITORY_VORONOI: boolean;    // Enable Voronoi territory renderer (default true)
+    TERRITORY_MERGED_VORONOI: boolean; // Enable Merged Voronoi territory renderer (F-138, default false)
     TERRITORY_METABALL: boolean;   // Enable Metaball territory renderer (default false)
     TERRITORY_PIXEL: boolean;      // Enable Pixel (nearest-neighbor) territory renderer (default false)
     TERRITORY_CLUSTER_SPLIT: boolean; // Split disconnected same-owner stars into separate territory blobs (default false)
     TERRITORY_MODE: 'voronoi' | 'metaball' | 'off';  // LEGACY — kept for compat
+
+    // ── Merged Voronoi Territory (F-138) ────────────────────────────────────
+    MERGED_VORONOI_STAR_MARGIN: number; // Min boundary distance from star centers in px (0-500, default 50)
 
     // ── Voronoi Territory ───────────────────────────────────────────────────
     SHOW_VORONOI: boolean;         // Show contiguous Voronoi territory fill (default true)
@@ -820,6 +824,8 @@ const _rawConfig: GameConfigType = {
 
     /** Enable Voronoi territory renderer */
     TERRITORY_VORONOI: false,
+    /** Enable Merged Voronoi territory renderer (F-138) */
+    TERRITORY_MERGED_VORONOI: false,
     /** Enable Metaball territory renderer */
     TERRITORY_METABALL: false,
     /** Enable Pixel (nearest-neighbor) territory renderer */
@@ -861,6 +867,10 @@ const _rawConfig: GameConfigType = {
     VORONOI_GRADIENT_BLEND: true,
     /** Gradient blend strip width in px */
     VORONOI_BLEND_WIDTH: 80,
+
+    // ── Merged Voronoi Territory (F-138) ──
+    /** Min boundary distance from star centers in px (0=off, 50=default) */
+    MERGED_VORONOI_STAR_MARGIN: 50,
 
     // ── Metaball Territory ──
     /** How far each star's influence field extends (px) */

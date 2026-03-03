@@ -166,6 +166,7 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
     territory: [
         // Territory toggles
         'TERRITORY_VORONOI',
+        'TERRITORY_MERGED_VORONOI',
         'TERRITORY_METABALL',
         'TERRITORY_PIXEL',
         'PIXEL_ALPHA',
@@ -209,6 +210,8 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
         'VORONOI_SMOOTHING',
         'VORONOI_GRADIENT_BLEND',
         'VORONOI_BLEND_WIDTH',
+        // Merged Voronoi (F-138)
+        'MERGED_VORONOI_STAR_MARGIN',
         // Metaball
         'METABALL_INFLUENCE_RADIUS',
         'METABALL_FALLOFF',
