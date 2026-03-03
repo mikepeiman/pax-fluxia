@@ -806,12 +806,12 @@
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Junction Correction</span><span class="val"
-                >{(panel.contourJunctionCorrection ?? 0.5).toFixed(2)}
-                {(panel.contourJunctionCorrection ?? 0.5) === 0
+                >{(panel.contourJunctionCorrection ?? 50).toFixed(0)}
+                {(panel.contourJunctionCorrection ?? 50) === 0
                     ? "(off)"
-                    : (panel.contourJunctionCorrection ?? 0.5) <= 0.3
+                    : (panel.contourJunctionCorrection ?? 50) <= 20
                       ? "(subtle)"
-                      : (panel.contourJunctionCorrection ?? 0.5) <= 0.7
+                      : (panel.contourJunctionCorrection ?? 50) <= 60
                         ? "(moderate)"
                         : "(strong)"}</span
             >
@@ -819,9 +819,9 @@
         <input
             type="range"
             min="0"
-            max="1"
-            step="0.05"
-            value={panel.contourJunctionCorrection ?? 0.5}
+            max="100"
+            step="1"
+            value={panel.contourJunctionCorrection ?? 50}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
                 GAME_CONFIG.CONTOUR_JUNCTION_CORRECTION = v;

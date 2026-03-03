@@ -973,7 +973,7 @@ const _rawConfig: GameConfigType = {
     CONTOUR_CORNER_THRESHOLD: 120,
     CONTOUR_PERIPHERY_STRENGTH: 0,
     CONTOUR_PERIPHERY_INSET: 0,
-    CONTOUR_JUNCTION_CORRECTION: 0.5,
+    CONTOUR_JUNCTION_CORRECTION: 50,
 
     /** Show hex grid (debug) */
     SHOW_HEX_GRID: false,
