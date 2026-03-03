@@ -61,15 +61,13 @@ let cachedVisualFingerprint = '';
 let fillGraphics: PIXI.Graphics | null = null;
 let borderGraphics: PIXI.Graphics | null = null;
 
-// ── Morph Transition State ─────────────────────────────────────────────────
+// ── Border Transition State ─────────────────────────────────────────────────
 
-/** Previous and target territory data for vertex morphing. */
-let prevTerritories: MergedTerritory[] | null = null;
-let targetTerritories: MergedTerritory[] | null = null;
-let prevSharedEdges: SharedBorderEdge[] | null = null;
-let targetSharedEdges: SharedBorderEdge[] | null = null;
-let transitionStart = 0;
-let isTransitioning = false;
+/** Previous shared border edge positions for border-only animation. */
+let prevBorderEdges: SharedBorderEdge[] | null = null;
+let targetBorderEdges: SharedBorderEdge[] | null = null;
+let borderTransitionStart = 0;
+let isBorderTransitioning = false;
 
 // ── Fingerprint ────────────────────────────────────────────────────────────
 
@@ -281,123 +279,6 @@ function lerpPolygon(from: [number, number][], to: [number, number][], t: number
     return result;
 }
 
-/** Render interpolated territories during a morph transition. */
-function renderMorphedFrame(
-    container: PIXI.Container,
-    prev: MergedTerritory[], target: MergedTerritory[],
-    _prevEdges: SharedBorderEdge[], _targetEdges: SharedBorderEdge[],
-    t: number,  // 0=prev, 1=target (eased)
-    alpha: number, borderWidth: number, borderAlpha: number,
-    _colorUtils: ColorUtils, _stars: StarState[],
-): void {
-    const RESAMPLE_N = 64;
-
-    // Ensure graphics exist
-    if (!fillGraphics) {
-        fillGraphics = new PIXI.Graphics();
-        container.addChild(fillGraphics);
-    }
-    fillGraphics.clear();
-    fillGraphics.visible = true;
-
-    // Group territories by ownerId (supports multiple per owner)
-    const prevByOwner = new Map<string, MergedTerritory[]>();
-    for (const ter of prev) {
-        if (!prevByOwner.has(ter.ownerId)) prevByOwner.set(ter.ownerId, []);
-        prevByOwner.get(ter.ownerId)!.push(ter);
-    }
-    const targetByOwner = new Map<string, MergedTerritory[]>();
-    for (const ter of target) {
-        if (!targetByOwner.has(ter.ownerId)) targetByOwner.set(ter.ownerId, []);
-        targetByOwner.get(ter.ownerId)!.push(ter);
-    }
-
-    const allOwners = new Set([...prevByOwner.keys(), ...targetByOwner.keys()]);
-
-    // Collect all morphed polygons for border rendering
-    const morphedPolygons: { pts: [number, number][]; color: number }[] = [];
-
-    for (const ownerId of allOwners) {
-        const pTers = prevByOwner.get(ownerId) ?? [];
-        const tTers = targetByOwner.get(ownerId) ?? [];
-
-        // Match prev→target by nearest centroid
-        const usedTargets = new Set<number>();
-        const usedPrevs = new Set<number>();
-
-        // For each prev territory, find nearest target territory
-        for (let pi = 0; pi < pTers.length; pi++) {
-            const pCentroid = polygonCentroid(pTers[pi].points);
-            let bestDist = Infinity;
-            let bestTi = -1;
-            for (let ti = 0; ti < tTers.length; ti++) {
-                if (usedTargets.has(ti)) continue;
-                const tCentroid = polygonCentroid(tTers[ti].points);
-                const d = Math.hypot(pCentroid[0] - tCentroid[0], pCentroid[1] - tCentroid[1]);
-                if (d < bestDist) { bestDist = d; bestTi = ti; }
-            }
-
-            if (bestTi >= 0) {
-                // Matched pair — lerp vertices
-                usedTargets.add(bestTi);
-                usedPrevs.add(pi);
-                const pResampled = resamplePolygon(pTers[pi].points, RESAMPLE_N);
-                const tResampled = resamplePolygon(tTers[bestTi].points, RESAMPLE_N);
-                const morphed = lerpPolygon(pResampled, tResampled, t);
-                const color = tTers[bestTi].color ?? pTers[pi].color ?? 0;
-                fillGraphics!.poly(morphed.flat());
-                fillGraphics!.fill({ color, alpha });
-                morphedPolygons.push({ pts: morphed, color });
-            }
-        }
-
-        // Unmatched prev territories — shrink to centroid (dying)
-        for (let pi = 0; pi < pTers.length; pi++) {
-            if (usedPrevs.has(pi)) continue;
-            const c = polygonCentroid(pTers[pi].points);
-            const pResampled = resamplePolygon(pTers[pi].points, RESAMPLE_N);
-            const collapsed = resamplePolygon(pTers[pi].points.map((): [number, number] => [c[0], c[1]]), RESAMPLE_N);
-            const morphed = lerpPolygon(pResampled, collapsed, t);
-            const color = pTers[pi].color ?? 0;
-            fillGraphics!.poly(morphed.flat());
-            fillGraphics!.fill({ color, alpha });
-            morphedPolygons.push({ pts: morphed, color });
-        }
-
-        // Unmatched target territories — grow from centroid (new)
-        for (let ti = 0; ti < tTers.length; ti++) {
-            if (usedTargets.has(ti)) continue;
-            const c = polygonCentroid(tTers[ti].points);
-            const collapsed = resamplePolygon(tTers[ti].points.map((): [number, number] => [c[0], c[1]]), RESAMPLE_N);
-            const tResampled = resamplePolygon(tTers[ti].points, RESAMPLE_N);
-            const morphed = lerpPolygon(collapsed, tResampled, t);
-            const color = tTers[ti].color ?? 0;
-            fillGraphics!.poly(morphed.flat());
-            fillGraphics!.fill({ color, alpha });
-            morphedPolygons.push({ pts: morphed, color });
-        }
-    }
-
-    // Borders for morphed polygons
-    if (borderWidth > 0 && borderAlpha > 0) {
-        if (!borderGraphics) {
-            borderGraphics = new PIXI.Graphics();
-            container.addChild(borderGraphics);
-        }
-        borderGraphics.clear();
-        borderGraphics.visible = true;
-
-        for (const { pts, color } of morphedPolygons) {
-            if (pts.length < 2) continue;
-            const [r, g, b] = hexToRGB(color);
-            const borderColor = (Math.min(255, r + 40) << 16) | (Math.min(255, g + 40) << 8) | Math.min(255, b + 40);
-            borderGraphics.moveTo(pts[0][0], pts[0][1]);
-            for (let i = 1; i < pts.length; i++) borderGraphics.lineTo(pts[i][0], pts[i][1]);
-            borderGraphics.closePath();
-            borderGraphics.stroke({ width: borderWidth, color: borderColor, alpha: borderAlpha });
-        }
-    }
-}
 
 // ── Cell Merging ───────────────────────────────────────────────────────────
 
@@ -533,28 +414,16 @@ export function renderPowerVoronoi(
     if (fillGraphics) fillGraphics.visible = true;
     if (borderGraphics) borderGraphics.visible = true;
 
-    // ── Morph: re-render interpolated polygons during transition ──────────
-    if (isTransitioning && prevTerritories && targetTerritories && transitionMs > 0) {
-        const elapsed = now - transitionStart;
-        const t = Math.min(1, elapsed / transitionMs);  // 0→1 (eased)
-        const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;  // easeInOutQuad
-
-        // Interpolate territories and re-draw
-        const alpha = GAME_CONFIG.VORONOI_ALPHA ?? 0.25;
-        const borderWidth = GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 1.5;
-        const borderAlpha = GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.4;
-
-        renderMorphedFrame(voronoiContainer, prevTerritories, targetTerritories,
-            prevSharedEdges ?? [], targetSharedEdges ?? [],
-            eased, alpha, borderWidth, borderAlpha, colorUtils, stars);
-
+    // ── Border transition update (every frame) ────────────────────────
+    // Fills always render from current state — NO early return.
+    // Border animation runs alongside normal fill rendering.
+    if (isBorderTransitioning && transitionMs > 0) {
+        const elapsed = now - borderTransitionStart;
+        const t = Math.min(1, elapsed / transitionMs);
         if (t >= 1) {
-            // Transition complete
-            isTransitioning = false;
-            prevTerritories = null;
-            prevSharedEdges = null;
+            isBorderTransitioning = false;
+            prevBorderEdges = null;
         }
-        return;  // Don't recompute — just animate
     }
 
     const shapeFp = buildShapeFingerprint(stars);
@@ -564,10 +433,9 @@ export function renderPowerVoronoi(
 
     if (!shapeChanged && !visualChanged) return;  // nothing changed
 
-    // ── Shape changed: snapshot current targets as prev, trigger morph ────
-    if (shapeChanged && transitionMs > 0 && targetTerritories && targetTerritories.length > 0) {
-        prevTerritories = targetTerritories;
-        prevSharedEdges = targetSharedEdges;
+    // ── Shape changed: snapshot current border edges as prev ─────────────
+    if (shapeChanged && transitionMs > 0 && targetBorderEdges && targetBorderEdges.length > 0) {
+        prevBorderEdges = targetBorderEdges;
     }
 
     cachedShapeFingerprint = shapeFp;
@@ -858,19 +726,18 @@ export function renderPowerVoronoi(
         borderGraphics.clear();
     }
 
-    // ── Store targets + start transition ────────────────────────────────
-    // Assign colors to shared edges for morphing
+    // ── Store targets + start border transition ───────────────────────
+    // Assign colors to shared edges
     for (const edge of sharedEdges) {
         edge.colorA = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerA), satMult, lightMult);
         edge.colorB = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerB), satMult, lightMult);
     }
-    targetTerritories = merged;
-    targetSharedEdges = sharedEdges;
+    targetBorderEdges = sharedEdges;
 
-    // Start morph transition if we have prev data
-    if (transitionMs > 0 && prevTerritories && prevTerritories.length > 0) {
-        transitionStart = now;
-        isTransitioning = true;
+    // Start border transition if we have prev edge data
+    if (shapeChanged && transitionMs > 0 && prevBorderEdges && prevBorderEdges.length > 0) {
+        borderTransitionStart = now;
+        isBorderTransitioning = true;
     }
 }
 
@@ -879,12 +746,10 @@ export function renderPowerVoronoi(
 export function resetPowerVoronoiCache(): void {
     cachedShapeFingerprint = '';
     cachedVisualFingerprint = '';
-    isTransitioning = false;
-    prevTerritories = null;
-    targetTerritories = null;
-    prevSharedEdges = null;
-    targetSharedEdges = null;
-    transitionStart = 0;
+    isBorderTransitioning = false;
+    prevBorderEdges = null;
+    targetBorderEdges = null;
+    borderTransitionStart = 0;
     if (fillGraphics) {
         if (fillGraphics.parent) fillGraphics.parent.removeChild(fillGraphics);
         fillGraphics.destroy();
