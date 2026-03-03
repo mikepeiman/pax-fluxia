@@ -1033,7 +1033,20 @@ export function renderPowerVoronoi(
         edge.colorB = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerB), satMult, lightMult);
     }
     targetBorderEdges = sharedEdges;
-    lastMergedTerritories = merged;  // store for next frame's smooth mode snapshot
+    lastMergedTerritories = merged;
+
+    // Always build shared polylines for smooth mode (so they're available for snapshot next frame)
+    const colorMap = new Map<string, number>();
+    for (const edge of sharedEdges) {
+        const key = edge.ownerA < edge.ownerB ? `${edge.ownerA}|${edge.ownerB}` : `${edge.ownerB}|${edge.ownerA}`;
+        if (!colorMap.has(key)) {
+            colorMap.set(key, blendColors(edge.colorA, edge.colorB, 0.5));
+        }
+    }
+    targetSharedPolylines = chainSharedEdgesIntoPolylines(sharedEdges, (a, b) => {
+        const key = a < b ? `${a}|${b}` : `${b}|${a}`;
+        return colorMap.get(key) ?? 0x888888;
+    });
 
     // Start transition based on mode
     if (shapeChanged && transitionMs > 0) {
@@ -1043,20 +1056,8 @@ export function renderPowerVoronoi(
             isBorderTransitioning = true;
         }
 
-        // Smooth mode: chain shared edges into polylines and start transition
+        // Smooth mode
         if (prevSharedPolylines && prevSharedPolylines.length > 0) {
-            // Build color lookup from current shared edge colors
-            const colorMap = new Map<string, number>();
-            for (const edge of sharedEdges) {
-                const key = edge.ownerA < edge.ownerB ? `${edge.ownerA}|${edge.ownerB}` : `${edge.ownerB}|${edge.ownerA}`;
-                if (!colorMap.has(key)) {
-                    colorMap.set(key, blendColors(edge.colorA, edge.colorB, 0.5));
-                }
-            }
-            targetSharedPolylines = chainSharedEdgesIntoPolylines(sharedEdges, (a, b) => {
-                const key = a < b ? `${a}|${b}` : `${b}|${a}`;
-                return colorMap.get(key) ?? 0x888888;
-            });
             smoothTransitionStart = now;
             isSmoothTransitioning = true;
         }
