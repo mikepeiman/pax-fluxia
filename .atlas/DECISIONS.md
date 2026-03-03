@@ -120,3 +120,27 @@
 - **New approach**: d3-delaunay gives clean convex cells with natural ~120° junction angles. Merge same-owner adjacent cells (remove shared edges, chain boundary), apply minimum star margin (F-139), Bézier arc junctions, Chaikin smoothing.
 - **Boilerplate**: `MergedVoronoiRenderer.ts` created as duplicate of `VoronoiRenderer.ts` with TODO markers.
 
+## 2026-03-03
+
+### D-35: Voronoi Tiling Property — Gap Root Cause (F-138)
+- **Decision**: The d3-delaunay Voronoi tiles the plane perfectly (zero gaps). All gaps in the rendered output are caused by pipeline stages modifying shared boundary vertices independently per polygon. This is the SINGLE root cause of gap artifacts.
+- **Mechanism**: When same-owner cells merge, boundary edges shared between different-owner polygons exist as duplicate vertex copies. Stages (arc smoothing, star margin) modify each copy independently → vertices diverge → slivers appear.
+- **Fix approach**: Shared-vertex reconciliation — catalog shared vertices pre-modification, reconcile post-modification.
+
+### D-36: Single-Layer Rendering Mandate (F-138)
+- **Decision**: Territory rendering MUST produce a single set of modified polygons. No base layer + overlay, no bleed/overlap, no dual rendering.
+- **Rationale**: User directive. Stacking layers is a hack that hides gaps rather than solving them.
+
+### D-37: Corridor Virtual Sites (F-138)
+- **Decision**: Inject virtual Voronoi sites along same-owner lanes to create connected territory corridors. Virtual sites inherit source star cluster index. Parameterized by `CORRIDOR_SPACING` (20-200px).
+- **Known issue**: Spacing < ~45px can destabilize merge step.
+
+### D-38: Disconnect Buffer — Enemy Territory Wedge (F-138)
+- **Decision**: Same-owner stars NOT connected by a lane must have enemy territory visually separating them. Algorithm: split connection vector into thirds, enemy territory fills center 1/3rd, meeting at the connection line.
+- **Status**: Concept approved by user, implementation needs redesign (current vertex-pushing approach is imprecise).
+
+### PM-03: False "Unowned Stars" Diagnosis (Post-Mortem, 2026-03-03)
+- **Error**: Agent claimed gaps were caused by "unowned stars creating Voronoi cells nobody renders." All stars are currently owned. Agent made this claim **twice** after being corrected.
+- **Root cause**: Agent substituted speculation for investigation. Instead of examining the actual pipeline code to identify where shared vertices diverge, fabricated a theory that fit the symptom.
+- **Prevention**: Before proposing a root cause for any rendering bug, verify the claim against actual data (star ownership status, vertex coordinates before/after each stage). Never repeat a diagnosis the user has already corrected.
+

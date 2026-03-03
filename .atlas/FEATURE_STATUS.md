@@ -12,6 +12,8 @@
 | B-27 | Pixel territory renderer shows nothing on mobile | ✅ Fixed | 2026-03-02 |
 | B-28 | Lane territory renderer broken — territories oversized, don't accurately capture star boundaries | 🔴 Open | 2026-03-02 |
 | B-29 | Portrait mode wastes vertical/horizontal space — map generation doesn't maximize viewport | 🔴 Open | 2026-03-02 |
+| B-30 | All 6 territory renderers called every frame at 60fps regardless of which is active — wasteful architecture | ✅ Fixed | 2026-03-03 |
+| B-31 | `app.resize is not a function` crash during early PIXI initialization in handleResize | ✅ Fixed | 2026-03-03 |
 
 ## Planned Features
 
@@ -35,9 +37,10 @@
 | F-134 | Restart + Quit buttons in desktop sidebar menu | ✅ Done | High | 2026-03-02 |
 | F-135 | Territory rendering: equalize angles at border intersections (contour-based) — implemented v3 but marching squares geometry fundamentally too noisy | 🔴 Shelved | Medium | 2026-03-02 |
 | F-136 | Territory rendering: minimum shared-boundary section length (slider) — prevent tiny border segments | 🟡 Idea | Medium | 2026-03-02 |
-| F-137 | Periphery coverage: same-owner stars at map edge should have territory begin on the *inside* of connecting lane and fully cover the outside | 🟡 Idea | Medium | 2026-03-02 |
-| F-138 | Voronoi merged territories: merge same-owner d3-delaunay cells into unified polygons, Bézier arc junctions, Chaikin smoothing | 🟡 Planned | High | 2026-03-02 |
-| F-139 | Minimum star boundary margin: territory boundaries must be ≥5 orbit radii from any star center — prevents orbit ring clipping | 🟡 Planned | High | 2026-03-02 |
+| F-137 | Periphery coverage: same-owner stars at map edge should have territory begin on the *inside* of connecting lane and fully cover the outside | 🔄 In Progress | Medium | 2026-03-03 |
+| F-138 | Modified Voronoi territories: merge same-owner d3-delaunay cells into unified polygons, Bézier arc smoothing at sharp vertices, Chaikin smoothing | 🔄 In Progress | High | 2026-03-03 |
+| F-139 | Minimum star boundary margin: territory boundaries must be ≥5 orbit radii from any star center — prevents orbit ring clipping | 🔄 In Progress | High | 2026-03-03 |
+| F-140 | Topographic territory renderer: if gap-free Voronoi pipeline is efficient enough, layer multiple offset passes to create terrain-like elevation contour effect reminiscent of topo maps | 🟡 Idea | Medium | 2026-03-03 |
 
 ## Known Regressions
 
@@ -45,4 +48,12 @@
 |----|-------------|--------|------|
 | R-1 | Territory rendering (all modes) regressed during mobile layout work | 🔴 Active | 2026-03-02 |
 | R-2 | Audio settings (conquest sounds, toggles) not persisting across reload | 🔴 Active | 2026-03-02 |
+
+## Known Bugs (F-138 Territory Pipeline)
+
+| ID | Description | Status | Date |
+|----|-------------|--------|------|
+| B-32 | Territory gaps between different-owner polygons after pipeline stages — shared Voronoi vertices modified independently per polygon, breaking tiling property | 🔴 Open | 2026-03-03 |
+| B-33 | Corridor spacing < ~45px destabilizes merge step — too many virtual sites cause polygon fragmentation | 🟡 Deferred | 2026-03-03 |
+| B-34 | Disconnect buffer vertex-pushing distorts polygon shapes unpredictably — needs topology-aware redesign | 🔴 Open | 2026-03-03 |
 
