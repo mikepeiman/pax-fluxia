@@ -24,8 +24,8 @@
 | F-124 | Star cycling navigation: `◂ ⌖ ▸` widget with StarNav.svelte | ✅ Done | Medium | 2026-03-01 |
 | F-125 | Player-color swatch in StatusBar | ✅ Done | Medium | 2026-03-01 |
 | F-126 | Smooth camera transitions for star-cycle and center-fit (lerp/ease animation) | ✅ Done | High | 2026-03-02 |
-| F-127 | "Stretch Map To Fit" toggle — rerender map to maximize viewport usage | 🟡 Planned | High | 2026-03-02 |
-| F-128 | Main Menu full redesign — current menu wastes space on desktop and mobile | 🟡 Planned | Medium | 2026-03-02 |
+| F-127 | "Stretch Map To Fit" toggle — rerender map to maximize viewport usage | ✅ Done | High | 2026-03-02 |
+| F-128 | Main Menu full redesign — two-column layout, compact mobile, top quick-start | 🔄 In Progress | Medium | 2026-03-02 |
 | F-129 | Canvas debug infrastructure (debug borders, world bounds rect, log.canvas category) | ✅ Done | Low | 2026-03-02 |
 | F-130 | Audio volume persistence — remember per-sound volume adjustments in localStorage | ✅ Done | Critical | 2026-03-02 |
 | F-131 | Per-sound file selector — dropdown to pick which audio file for each sound event | ✅ Done | Critical | 2026-03-02 |
@@ -33,6 +33,8 @@
 | F-133 | New territory renderer — consider a fresh renderer approach; current pixel/lane renderers have cross-platform issues | 🟡 Idea | Medium | 2026-03-02 |
 | F-104 | Contour territory renderer (marching squares + vector polygons) — corner rounding + periphery hull | 🔴 Shelved | Medium | 2026-03-02 |
 | F-134 | Restart + Quit buttons in desktop sidebar menu | ✅ Done | High | 2026-03-02 |
+| F-135 | Territory rendering: equalize angles at border intersections — smoother junctions where 3+ territories meet | 🟡 Idea | Medium | 2026-03-02 |
+| F-136 | Territory rendering: minimum shared-boundary section length (slider) — prevent tiny border segments | 🟡 Idea | Medium | 2026-03-02 |
 
 ## Known Regressions
 
