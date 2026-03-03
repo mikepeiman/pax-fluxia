@@ -22,7 +22,6 @@
 
 import * as PIXI from 'pixi.js';
 import { weightedVoronoi } from 'd3-weighted-voronoi';
-import { interpolate as flubberInterpolate } from 'flubber';
 import { GAME_CONFIG } from '$lib/config/game.config';
 import type { StarState, StarConnection } from '$lib/types/game.types';
 import { findConnectedClustersOptimized } from './territoryUtils';
@@ -70,15 +69,17 @@ let targetBorderEdges: SharedBorderEdge[] | null = null;
 let borderTransitionStart = 0;
 let isBorderTransitioning = false;
 
-// ── Smooth Transition State (Flubber Mode) ─────────────────────────────────
+// ── Smooth Transition State (Contested Border Mode) ─────────────────────────
 
-interface FlubberMorphEntry {
-    interpolator: (t: number) => string;  // flubber interpolator → SVG path
-    color: number;                        // outline color (from target territory)
+/** A continuous polyline of chained shared border edges between two owners. */
+interface SharedPolyline {
+    points: [number, number][];  // ordered points of the chained polyline
+    ownerPairKey: string;        // sorted owner pair key for matching
+    color: number;               // blended color for rendering
 }
 
-let prevTerritoryPolygons: MergedTerritory[] | null = null;
-let flubberMorphEntries: FlubberMorphEntry[] | null = null;
+let prevSharedPolylines: SharedPolyline[] | null = null;
+let targetSharedPolylines: SharedPolyline[] | null = null;
 let smoothTransitionStart = 0;
 let isSmoothTransitioning = false;
 let outlineGraphics: PIXI.Graphics | null = null;
@@ -294,25 +295,115 @@ function lerpPolygon(from: [number, number][], to: [number, number][], t: number
     return result;
 }
 
-/** Parse an SVG path string (from flubber) into [x,y] coordinate pairs for PIXI. */
-function parseSvgPath(pathStr: string): [number, number][] {
-    const result: [number, number][] = [];
-    // flubber outputs paths with M, L, and Z commands
-    const parts = pathStr.match(/[ML]\s*[\d.e+-]+[\s,]+[\d.e+-]+/gi);
-    if (!parts) return result;
-    for (const part of parts) {
-        const nums = part.match(/[\d.e+-]+/g);
-        if (nums && nums.length >= 2) {
-            result.push([parseFloat(nums[0]), parseFloat(nums[1])]);
+/** Chain shared border edges into continuous polylines, grouped by owner-pair.
+ *  Edges between the same two owners that share endpoints get merged into polylines. */
+function chainSharedEdgesIntoPolylines(edges: SharedBorderEdge[], colorLookup?: (ownerA: string, ownerB: string) => number): SharedPolyline[] {
+    // Group edges by sorted owner pair
+    const byPair = new Map<string, SharedBorderEdge[]>();
+    for (const e of edges) {
+        const key = e.ownerA < e.ownerB ? `${e.ownerA}|${e.ownerB}` : `${e.ownerB}|${e.ownerA}`;
+        if (!byPair.has(key)) byPair.set(key, []);
+        byPair.get(key)!.push(e);
+    }
+
+    const result: SharedPolyline[] = [];
+    const SNAP = 0.5;  // endpoint snapping tolerance
+
+    for (const [pairKey, pairEdges] of byPair) {
+        // Build adjacency by endpoint
+        const ptKey = (x: number, y: number) => `${Math.round(x / SNAP) * SNAP},${Math.round(y / SNAP) * SNAP}`;
+        const adj = new Map<string, { x: number; y: number; next: string }[]>();
+        const used = new Array(pairEdges.length).fill(false);
+
+        for (let i = 0; i < pairEdges.length; i++) {
+            const e = pairEdges[i];
+            const k1 = ptKey(e.x1, e.y1);
+            const k2 = ptKey(e.x2, e.y2);
+            if (!adj.has(k1)) adj.set(k1, []);
+            if (!adj.has(k2)) adj.set(k2, []);
+            adj.get(k1)!.push({ x: e.x2, y: e.y2, next: k2 });
+            adj.get(k2)!.push({ x: e.x1, y: e.y1, next: k1 });
+        }
+
+        // Greedy chain: start from an endpoint (degree 1) or any unused edge
+        while (true) {
+            // Find an unused edge
+            let startIdx = -1;
+            for (let i = 0; i < pairEdges.length; i++) {
+                if (!used[i]) { startIdx = i; break; }
+            }
+            if (startIdx < 0) break;
+
+            // Simple: just trace edges greedily
+            const chain: [number, number][] = [];
+            used[startIdx] = true;
+            const e = pairEdges[startIdx];
+            chain.push([e.x1, e.y1]);
+            chain.push([e.x2, e.y2]);
+
+            // Extend forward: try to find next unused edge that connects
+            let extended = true;
+            while (extended) {
+                extended = false;
+                const last = chain[chain.length - 1];
+                const lk = ptKey(last[0], last[1]);
+                for (let i = 0; i < pairEdges.length; i++) {
+                    if (used[i]) continue;
+                    const ei = pairEdges[i];
+                    if (ptKey(ei.x1, ei.y1) === lk) {
+                        chain.push([ei.x2, ei.y2]);
+                        used[i] = true;
+                        extended = true;
+                        break;
+                    }
+                    if (ptKey(ei.x2, ei.y2) === lk) {
+                        chain.push([ei.x1, ei.y1]);
+                        used[i] = true;
+                        extended = true;
+                        break;
+                    }
+                }
+            }
+
+            // Extend backward similarly
+            extended = true;
+            while (extended) {
+                extended = false;
+                const first = chain[0];
+                const fk = ptKey(first[0], first[1]);
+                for (let i = 0; i < pairEdges.length; i++) {
+                    if (used[i]) continue;
+                    const ei = pairEdges[i];
+                    if (ptKey(ei.x2, ei.y2) === fk) {
+                        chain.unshift([ei.x1, ei.y1]);
+                        used[i] = true;
+                        extended = true;
+                        break;
+                    }
+                    if (ptKey(ei.x1, ei.y1) === fk) {
+                        chain.unshift([ei.x2, ei.y2]);
+                        used[i] = true;
+                        extended = true;
+                        break;
+                    }
+                }
+            }
+
+            const [ownerA, ownerB] = pairKey.split('|');
+            const color = colorLookup ? colorLookup(ownerA, ownerB) : 0x888888;
+
+            result.push({ points: chain, ownerPairKey: pairKey, color });
         }
     }
+
     return result;
 }
 
-/** Draw flubber-interpolated territory outlines for smooth morph mode. */
-function renderSmoothOutlines(
+/** Draw contested border polylines at interpolated positions (prev → target).
+ *  Matches polylines by ownerPairKey + nearest centroid, resamples + lerps. */
+function renderContestedBorders(
     container: PIXI.Container,
-    entries: FlubberMorphEntry[],
+    prev: SharedPolyline[], target: SharedPolyline[],
     t: number,
     borderWidth: number, borderAlpha: number,
 ): void {
@@ -323,18 +414,67 @@ function renderSmoothOutlines(
     outlineGraphics.clear();
     outlineGraphics.visible = true;
 
-    for (const entry of entries) {
-        const svgPath = entry.interpolator(t);
-        const pts = parseSvgPath(svgPath);
-        if (pts.length < 2) continue;
+    const blendWidth = borderWidth * 2.5;
+    const RESAMPLE_N = 32;
 
-        const [r, g, b] = hexToRGB(entry.color);
-        const outlineColor = (Math.min(255, r + 40) << 16) | (Math.min(255, g + 40) << 8) | Math.min(255, b + 40);
+    // Group by ownerPairKey for matching
+    const prevByKey = new Map<string, SharedPolyline[]>();
+    for (const p of prev) {
+        if (!prevByKey.has(p.ownerPairKey)) prevByKey.set(p.ownerPairKey, []);
+        prevByKey.get(p.ownerPairKey)!.push(p);
+    }
+    const targetByKey = new Map<string, SharedPolyline[]>();
+    for (const p of target) {
+        if (!targetByKey.has(p.ownerPairKey)) targetByKey.set(p.ownerPairKey, []);
+        targetByKey.get(p.ownerPairKey)!.push(p);
+    }
 
-        outlineGraphics.moveTo(pts[0][0], pts[0][1]);
-        for (let i = 1; i < pts.length; i++) outlineGraphics.lineTo(pts[i][0], pts[i][1]);
-        outlineGraphics.closePath();
-        outlineGraphics.stroke({ width: borderWidth, color: outlineColor, alpha: borderAlpha });
+    const allKeys = new Set([...prevByKey.keys(), ...targetByKey.keys()]);
+
+    for (const key of allKeys) {
+        const pLines = prevByKey.get(key) ?? [];
+        const tLines = targetByKey.get(key) ?? [];
+        const usedTargets = new Set<number>();
+
+        for (const pLine of pLines) {
+            const pC = polygonCentroid(pLine.points);
+            let bestDist = Infinity;
+            let bestIdx = -1;
+            for (let ti = 0; ti < tLines.length; ti++) {
+                if (usedTargets.has(ti)) continue;
+                const tC = polygonCentroid(tLines[ti].points);
+                const d = Math.hypot(pC[0] - tC[0], pC[1] - tC[1]);
+                if (d < bestDist) { bestDist = d; bestIdx = ti; }
+            }
+
+            if (bestIdx >= 0) {
+                // Matched: resample both to same point count and lerp
+                usedTargets.add(bestIdx);
+                const tLine = tLines[bestIdx];
+                const pSampled = resamplePolygon(pLine.points, RESAMPLE_N);
+                const tSampled = resamplePolygon(tLine.points, RESAMPLE_N);
+                const lerped = lerpPolygon(pSampled, tSampled, t);
+
+                outlineGraphics.moveTo(lerped[0][0], lerped[0][1]);
+                for (let i = 1; i < lerped.length; i++) outlineGraphics.lineTo(lerped[i][0], lerped[i][1]);
+                outlineGraphics.stroke({ width: blendWidth, color: tLine.color, alpha: borderAlpha * 1.5 });
+            } else {
+                // Prev-only polyline: fade out
+                const pts = pLine.points;
+                outlineGraphics.moveTo(pts[0][0], pts[0][1]);
+                for (let i = 1; i < pts.length; i++) outlineGraphics.lineTo(pts[i][0], pts[i][1]);
+                outlineGraphics.stroke({ width: blendWidth, color: pLine.color, alpha: borderAlpha * 1.5 * (1 - t) });
+            }
+        }
+
+        // Target-only polylines: fade in
+        for (let ti = 0; ti < tLines.length; ti++) {
+            if (usedTargets.has(ti)) continue;
+            const pts = tLines[ti].points;
+            outlineGraphics.moveTo(pts[0][0], pts[0][1]);
+            for (let i = 1; i < pts.length; i++) outlineGraphics.lineTo(pts[i][0], pts[i][1]);
+            outlineGraphics.stroke({ width: blendWidth, color: tLines[ti].color, alpha: borderAlpha * 1.5 * t });
+        }
     }
 }
 
@@ -560,19 +700,18 @@ export function renderPowerVoronoi(
         if (shapeFpCheck === cachedShapeFingerprint && visualFpCheck === cachedVisualFingerprint) return;
     }
 
-    // Smooth mode: flubber polygon outline morph
-    if (boundaryMode === 'smooth' && isSmoothTransitioning && transitionMs > 0 && flubberMorphEntries) {
+    // Smooth mode: contested shared border polyline morph
+    if (boundaryMode === 'smooth' && isSmoothTransitioning && transitionMs > 0 && prevSharedPolylines && targetSharedPolylines) {
         const elapsed = now - smoothTransitionStart;
         const rawT = Math.min(1, elapsed / transitionMs);
         const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
 
-        renderSmoothOutlines(voronoiContainer, flubberMorphEntries,
+        renderContestedBorders(voronoiContainer, prevSharedPolylines, targetSharedPolylines,
             eased, GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 1.5, GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.4);
 
         if (rawT >= 1) {
             isSmoothTransitioning = false;
-            prevTerritoryPolygons = null;
-            flubberMorphEntries = null;
+            prevSharedPolylines = null;
             if (outlineGraphics) { outlineGraphics.clear(); outlineGraphics.visible = false; }
         }
         const shapeFpCheck = buildShapeFingerprint(stars);
@@ -593,9 +732,9 @@ export function renderPowerVoronoi(
         if (targetBorderEdges && targetBorderEdges.length > 0) {
             prevBorderEdges = targetBorderEdges;
         }
-        // Smooth mode: snapshot territory polygons (flubber interpolators created after merge)
-        if (lastMergedTerritories && lastMergedTerritories.length > 0) {
-            prevTerritoryPolygons = lastMergedTerritories;
+        // Smooth mode: snapshot current shared polylines
+        if (targetSharedPolylines && targetSharedPolylines.length > 0) {
+            prevSharedPolylines = targetSharedPolylines;
         }
     }
 
@@ -904,82 +1043,22 @@ export function renderPowerVoronoi(
             isBorderTransitioning = true;
         }
 
-        // Smooth mode: create flubber interpolators for matched territory pairs
-        if (prevTerritoryPolygons && prevTerritoryPolygons.length > 0) {
-            const entries: FlubberMorphEntry[] = [];
-
-            // Group prev and target by ownerId (multi-territory support)
-            const prevByOwner = new Map<string, MergedTerritory[]>();
-            for (const ter of prevTerritoryPolygons) {
-                if (!prevByOwner.has(ter.ownerId)) prevByOwner.set(ter.ownerId, []);
-                prevByOwner.get(ter.ownerId)!.push(ter);
-            }
-            const targetByOwner = new Map<string, MergedTerritory[]>();
-            for (const ter of merged) {
-                if (!targetByOwner.has(ter.ownerId)) targetByOwner.set(ter.ownerId, []);
-                targetByOwner.get(ter.ownerId)!.push(ter);
-            }
-
-            const allOwners = new Set([...prevByOwner.keys(), ...targetByOwner.keys()]);
-
-            for (const ownerId of allOwners) {
-                const pTers = prevByOwner.get(ownerId) ?? [];
-                const tTers = targetByOwner.get(ownerId) ?? [];
-
-                // Match prev→target by nearest centroid
-                const usedTargets = new Set<number>();
-
-                for (const pTer of pTers) {
-                    const pC = polygonCentroid(pTer.points);
-                    let bestDist = Infinity;
-                    let bestIdx = -1;
-                    for (let ti = 0; ti < tTers.length; ti++) {
-                        if (usedTargets.has(ti)) continue;
-                        const tC = polygonCentroid(tTers[ti].points);
-                        const d = Math.hypot(pC[0] - tC[0], pC[1] - tC[1]);
-                        if (d < bestDist) { bestDist = d; bestIdx = ti; }
-                    }
-
-                    if (bestIdx >= 0) {
-                        usedTargets.add(bestIdx);
-                        try {
-                            const interp = flubberInterpolate(
-                                pTer.points as number[][],
-                                tTers[bestIdx].points as number[][],
-                                { maxSegmentLength: 10 }
-                            );
-                            entries.push({ interpolator: interp, color: tTers[bestIdx].color });
-                        } catch (e) {
-                            console.warn('[PowerVoronoi] flubber interpolation failed:', e);
-                        }
-                    } else {
-                        // Dying territory: shrink to centroid
-                        const c = polygonCentroid(pTer.points);
-                        const dot: number[][] = [[c[0], c[1]], [c[0] + 1, c[1]], [c[0] + 1, c[1] + 1], [c[0], c[1] + 1]];
-                        try {
-                            const interp = flubberInterpolate(pTer.points as number[][], dot, { maxSegmentLength: 10 });
-                            entries.push({ interpolator: interp, color: pTer.color });
-                        } catch (_e) { /* ignore */ }
-                    }
-                }
-
-                // Unmatched target territories: grow from centroid
-                for (let ti = 0; ti < tTers.length; ti++) {
-                    if (usedTargets.has(ti)) continue;
-                    const c = polygonCentroid(tTers[ti].points);
-                    const dot: number[][] = [[c[0], c[1]], [c[0] + 1, c[1]], [c[0] + 1, c[1] + 1], [c[0], c[1] + 1]];
-                    try {
-                        const interp = flubberInterpolate(dot, tTers[ti].points as number[][], { maxSegmentLength: 10 });
-                        entries.push({ interpolator: interp, color: tTers[ti].color });
-                    } catch (_e) { /* ignore */ }
+        // Smooth mode: chain shared edges into polylines and start transition
+        if (prevSharedPolylines && prevSharedPolylines.length > 0) {
+            // Build color lookup from current shared edge colors
+            const colorMap = new Map<string, number>();
+            for (const edge of sharedEdges) {
+                const key = edge.ownerA < edge.ownerB ? `${edge.ownerA}|${edge.ownerB}` : `${edge.ownerB}|${edge.ownerA}`;
+                if (!colorMap.has(key)) {
+                    colorMap.set(key, blendColors(edge.colorA, edge.colorB, 0.5));
                 }
             }
-
-            if (entries.length > 0) {
-                flubberMorphEntries = entries;
-                smoothTransitionStart = now;
-                isSmoothTransitioning = true;
-            }
+            targetSharedPolylines = chainSharedEdgesIntoPolylines(sharedEdges, (a, b) => {
+                const key = a < b ? `${a}|${b}` : `${b}|${a}`;
+                return colorMap.get(key) ?? 0x888888;
+            });
+            smoothTransitionStart = now;
+            isSmoothTransitioning = true;
         }
     }
 }
@@ -996,8 +1075,8 @@ export function resetPowerVoronoiCache(): void {
     borderTransitionStart = 0;
     // Smooth mode state
     isSmoothTransitioning = false;
-    prevTerritoryPolygons = null;
-    flubberMorphEntries = null;
+    prevSharedPolylines = null;
+    targetSharedPolylines = null;
     smoothTransitionStart = 0;
     lastMergedTerritories = null;
     if (fillGraphics) {

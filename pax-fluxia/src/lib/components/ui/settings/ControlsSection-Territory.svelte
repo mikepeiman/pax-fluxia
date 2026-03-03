@@ -496,7 +496,8 @@
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">🌊 Morph Speed</span><span class="val"
-                >{GAME_CONFIG.TERRITORY_TRANSITION_MS}ms</span
+                >{panel.territoryTransitionMs ??
+                    GAME_CONFIG.TERRITORY_TRANSITION_MS}ms</span
             >
         </div>
         <input
@@ -504,32 +505,49 @@
             min="0"
             max="2000"
             step="50"
-            value={GAME_CONFIG.TERRITORY_TRANSITION_MS}
+            value={panel.territoryTransitionMs ??
+                GAME_CONFIG.TERRITORY_TRANSITION_MS}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.TERRITORY_TRANSITION_MS = v;
+                debouncedConfigUpdate(
+                    "TERRITORY_TRANSITION_MS",
+                    "territoryTransitionMs",
+                    v,
+                );
             }}
         />
     </div>
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">🔀 Boundary Mode</span><span class="val"
-                >{GAME_CONFIG.TERRITORY_BOUNDARY_MODE ?? "smooth"}</span
+                >{panel.territoryBoundaryMode ??
+                    GAME_CONFIG.TERRITORY_BOUNDARY_MODE ??
+                    "smooth"}</span
             >
         </div>
         <div style="display:flex; gap:4px;">
             <button
                 class="mini-btn"
-                class:active={GAME_CONFIG.TERRITORY_BOUNDARY_MODE === "segment"}
+                class:active={(panel.territoryBoundaryMode ??
+                    GAME_CONFIG.TERRITORY_BOUNDARY_MODE) === "segment"}
                 onclick={() => {
-                    GAME_CONFIG.TERRITORY_BOUNDARY_MODE = "segment";
+                    debouncedConfigUpdate(
+                        "TERRITORY_BOUNDARY_MODE",
+                        "territoryBoundaryMode",
+                        "segment",
+                    );
                 }}>Segment</button
             >
             <button
                 class="mini-btn"
-                class:active={GAME_CONFIG.TERRITORY_BOUNDARY_MODE === "smooth"}
+                class:active={(panel.territoryBoundaryMode ??
+                    GAME_CONFIG.TERRITORY_BOUNDARY_MODE) === "smooth"}
                 onclick={() => {
-                    GAME_CONFIG.TERRITORY_BOUNDARY_MODE = "smooth";
+                    debouncedConfigUpdate(
+                        "TERRITORY_BOUNDARY_MODE",
+                        "territoryBoundaryMode",
+                        "smooth",
+                    );
                 }}>Smooth</button
             >
         </div>
