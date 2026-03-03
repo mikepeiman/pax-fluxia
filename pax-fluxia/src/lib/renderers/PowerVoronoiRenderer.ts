@@ -772,18 +772,31 @@ export function renderPowerVoronoi(
         }
 
 
+        // ── Ship strength per owner (available for FX: power influence, border blend) ──
+        const ownerStrength = new Map<string, number>();
+        for (const s of ownedStars) {
+            ownerStrength.set(s.ownerId!, (ownerStrength.get(s.ownerId!) ?? 0) + (s.activeShips ?? 0) + (s.damagedShips ?? 0));
+        }
+
         // Assign colors to shared edges
         for (const edge of sharedEdges) {
             edge.colorA = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerA), satMult, lightMult);
             edge.colorB = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerB), satMult, lightMult);
         }
 
-        // Render shared edges with proximity-based strength gradient
+        // Render shared edges with proximity-based gradient
         const blendWidth = borderWidth * 2.5;  // shared edges are wider for visual impact
 
         for (const edge of sharedEdges) {
             const starsA = ownerStars.get(edge.ownerA) ?? [];
             const starsB = ownerStars.get(edge.ownerB) ?? [];
+
+            // Strength data available for future FX (not used in fingerprint/animation loop)
+            const _strengthA = ownerStrength.get(edge.ownerA) ?? 1;
+            const _strengthB = ownerStrength.get(edge.ownerB) ?? 1;
+            // TODO: Wire to UI toggle for strength-weighted border blend
+            // const totalStrength = _strengthA + _strengthB;
+            // const strengthRatio = totalStrength > 0 ? _strengthB / totalStrength : 0.5;
 
             // Edge midpoint for proximity check
             const mx = (edge.x1 + edge.x2) / 2;
@@ -800,7 +813,7 @@ export function renderPowerVoronoi(
                 if (d < distB) distB = d;
             }
 
-            // Proximity-only blend: closer star's owner color dominates
+            // Proximity-only blend (strength blend ready but flagged out of animation loop)
             const totalDist = distA + distB;
             const blendT = totalDist > 0 ? distA / totalDist : 0.5;
 
