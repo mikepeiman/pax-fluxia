@@ -114,7 +114,9 @@
 - **Decision**: Chaikin smoothing slider defaults to 0 (completely off). Must be applied AFTER junction correction (F-135), never before.
 - **Rationale**: Smoothing erases junction geometry and creates corner gaps. User should opt in to smoothing only after junctions are correct.
 
-### D-34: Territory Border Intersection Design (F-135, F-136)
-- **Decision**: At multi-territory junctions, pull vertex toward the owner with the most acute angle (directional, not symmetric equalization). Minimum shared-boundary length enforced by rounding UP to next integer segment length and pulling topology to meet requirement.
-- **Rationale**: The acute-angle owner's territory is "poking in" — pulling back naturally equalizes. Minimum boundary is a hard quantization, not a fuzzy grid filter.
+### D-34: Voronoi Over Marching Squares for Territory Rendering
+- **Decision**: Abandon marching squares / contour-based renderer (F-104, F-135) in favor of **Voronoi merged territories (F-138)** using d3-delaunay.
+- **Rationale**: Marching squares geometry is fundamentally too noisy — edge midpoints are pairwise (between 2 owners), no shared 3-way junction vertex exists, and every junction fix exposed a deeper geometric issue. After 3 algorithm iterations, visual quality was still unacceptable.
+- **New approach**: d3-delaunay gives clean convex cells with natural ~120° junction angles. Merge same-owner adjacent cells (remove shared edges, chain boundary), apply minimum star margin (F-139), Bézier arc junctions, Chaikin smoothing.
+- **Boilerplate**: `MergedVoronoiRenderer.ts` created as duplicate of `VoronoiRenderer.ts` with TODO markers.
 
