@@ -355,6 +355,7 @@ interface GameConfigType {
     CONTOUR_CORNER_THRESHOLD: number;// Angle threshold in degrees below which corners are rounded (0-180, default 120)
     CONTOUR_PERIPHERY_STRENGTH: number; // Periphery ownership strength (0=off, 1=full hull override)
     CONTOUR_PERIPHERY_INSET: number; // How far inside the lane the periphery boundary sits (px, default 0)
+    CONTOUR_JUNCTION_CORRECTION: number; // F-135: Angle equalization at multi-owner junctions (0=off, 1=full, default 0.5)
 
     SHOW_HEX_GRID: boolean;
     STARS_PER_PLAYER: number;
@@ -961,7 +962,7 @@ const _rawConfig: GameConfigType = {
     TERRITORY_CONTOUR: false,
     CONTOUR_RESOLUTION: 128,
     CONTOUR_SIMPLIFY: 5,
-    CONTOUR_SMOOTH: 2,
+    CONTOUR_SMOOTH: 0,
     CONTOUR_FILL_ALPHA: 0.15,
     CONTOUR_BORDER_WIDTH: 2,
     CONTOUR_BORDER_ALPHA: 0.6,
@@ -972,6 +973,7 @@ const _rawConfig: GameConfigType = {
     CONTOUR_CORNER_THRESHOLD: 120,
     CONTOUR_PERIPHERY_STRENGTH: 0,
     CONTOUR_PERIPHERY_INSET: 0,
+    CONTOUR_JUNCTION_CORRECTION: 0.5,
 
     /** Show hex grid (debug) */
     SHOW_HEX_GRID: false,

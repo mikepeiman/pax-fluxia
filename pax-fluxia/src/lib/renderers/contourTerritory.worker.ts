@@ -6,10 +6,12 @@
 //   2. Apply periphery hull ownership (force edges along perimeter lanes)
 //   3. For each owner, create binary mask
 //   4. Extract boundary via marching squares with INTEGER edge keys
-//   5. Chain edges into closed polygons
-//   6. Round sharp corners (angle-aware arc insertion)
-//   7. Simplify (Douglas-Peucker) + smooth (Chaikin)
-//   8. Return polygon arrays per owner
+//   5. Chain edges into closed polygons → raw polygons
+//   6. F-135: Detect multi-owner junction vertices, apply angle pull-back
+//   7. Simplify (Douglas-Peucker)
+//   8. Smooth (Chaikin) — defaults OFF per D-33
+//   9. Round sharp corners (angle-aware arc insertion)
+//  10. Return polygon arrays per owner
 // ============================================================================
 
 interface StarData {
@@ -39,6 +41,7 @@ interface WorkerInput {
     cornerThreshold: number;// Angle below which to round (degrees)
     peripheryStrength: number; // 0=off, 1=full periphery hull override
     peripheryInset: number; // px inset from lane
+    junctionCorrection: number; // F-135: angle equalization strength (0=off, 1=full)
 }
 
 interface PolygonResult {
@@ -219,6 +222,152 @@ function roundCorners(points: number[], radiusWorld: number, thresholdDeg: numbe
     return result;
 }
 
+// ── F-135: Junction Detection & Angle Pull-Back ──
+// Detects vertices shared by ≥3 distinct owner polygons and pulls them
+// toward the territory with the most acute angle.
+
+interface RawPolygon {
+    ownerIdx: number;
+    points: number[];  // flat [x,y, x,y, ...] in world coords
+}
+
+/** Snap vertex coordinates to a grid for junction matching */
+function snapKey(x: number, y: number, epsilon: number): string {
+    const sx = Math.round(x / epsilon) * epsilon;
+    const sy = Math.round(y / epsilon) * epsilon;
+    return `${sx.toFixed(2)},${sy.toFixed(2)}`;
+}
+
+/** Compute angle at vertex i of a polygon (interior angle facing outward) */
+function vertexAngle(points: number[], idx: number): number {
+    const n = points.length / 2;
+    const prev = ((idx - 1) + n) % n;
+    const next = (idx + 1) % n;
+
+    const ax = points[prev * 2] - points[idx * 2];
+    const ay = points[prev * 2 + 1] - points[idx * 2 + 1];
+    const bx = points[next * 2] - points[idx * 2];
+    const by = points[next * 2 + 1] - points[idx * 2 + 1];
+
+    const dot = ax * bx + ay * by;
+    const cross = ax * by - ay * bx;
+
+    return Math.atan2(Math.abs(cross), dot); // Always positive, 0..π
+}
+
+/**
+ * F-135: Detect junction vertices shared by ≥3 owners and pull them
+ * toward the owner with the most acute (smallest) angle.
+ * 
+ * strength: 0..1, how far to move toward the ideal position
+ * epsilon: distance threshold for matching vertices across polygons
+ */
+function correctJunctions(
+    rawPolygons: RawPolygon[],
+    strength: number,
+    epsilon: number,
+): void {
+    if (strength <= 0 || rawPolygons.length < 3) return;
+
+    // Step 1: Build a map from snapped vertex position → list of (polygonIndex, vertexIndex, ownerIdx)
+    const vertexMap = new Map<string, { polyIdx: number; vertIdx: number; ownerIdx: number }[]>();
+
+    for (let pi = 0; pi < rawPolygons.length; pi++) {
+        const poly = rawPolygons[pi];
+        const n = poly.points.length / 2;
+        for (let vi = 0; vi < n; vi++) {
+            const x = poly.points[vi * 2];
+            const y = poly.points[vi * 2 + 1];
+            const key = snapKey(x, y, epsilon);
+
+            let list = vertexMap.get(key);
+            if (!list) {
+                list = [];
+                vertexMap.set(key, list);
+            }
+            list.push({ polyIdx: pi, vertIdx: vi, ownerIdx: poly.ownerIdx });
+        }
+    }
+
+    // Step 2: Find junction vertices (≥3 distinct owners at same position)
+    for (const [, entries] of vertexMap) {
+        const uniqueOwners = new Set(entries.map(e => e.ownerIdx));
+        if (uniqueOwners.size < 3) continue;
+
+        // This is a junction! Measure the angle at this vertex for each polygon.
+        let minAngle = Infinity;
+        let minEntry: { polyIdx: number; vertIdx: number; ownerIdx: number } | null = null;
+
+        // Collect all entries with their angles
+        const withAngles: { entry: typeof entries[0]; angle: number }[] = [];
+
+        for (const entry of entries) {
+            const poly = rawPolygons[entry.polyIdx];
+            const n = poly.points.length / 2;
+            if (n < 3) continue;
+
+            const angle = vertexAngle(poly.points, entry.vertIdx);
+            withAngles.push({ entry, angle });
+
+            if (angle < minAngle) {
+                minAngle = angle;
+                minEntry = entry;
+            }
+        }
+
+        if (!minEntry || withAngles.length < 3) continue;
+
+        // Step 3: Pull toward the acutest owner
+        // Direction: from junction vertex toward the bisector of the acute owner's incident edges
+        const acutePoly = rawPolygons[minEntry.polyIdx];
+        const acuteN = acutePoly.points.length / 2;
+        const vi = minEntry.vertIdx;
+        const prevIdx = ((vi - 1) + acuteN) % acuteN;
+        const nextIdx = (vi + 1) % acuteN;
+
+        // Current junction position
+        const jx = acutePoly.points[vi * 2];
+        const jy = acutePoly.points[vi * 2 + 1];
+
+        // Vectors from junction to prev and next vertices of the acute owner
+        const toPrevX = acutePoly.points[prevIdx * 2] - jx;
+        const toPrevY = acutePoly.points[prevIdx * 2 + 1] - jy;
+        const toNextX = acutePoly.points[nextIdx * 2] - jx;
+        const toNextY = acutePoly.points[nextIdx * 2 + 1] - jy;
+
+        // Normalize
+        const lenPrev = Math.sqrt(toPrevX * toPrevX + toPrevY * toPrevY);
+        const lenNext = Math.sqrt(toNextX * toNextX + toNextY * toNextY);
+        if (lenPrev < 0.001 || lenNext < 0.001) continue;
+
+        // Bisector direction (into the acute owner's territory)
+        const bisX = toPrevX / lenPrev + toNextX / lenNext;
+        const bisY = toPrevY / lenPrev + toNextY / lenNext;
+        const bisLen = Math.sqrt(bisX * bisX + bisY * bisY);
+        if (bisLen < 0.001) continue;
+
+        // Pull distance: proportional to how acute the angle is.
+        // At 60° (very acute for a 3-way junction), pull more. At 120° (ideal), pull zero.
+        // Scale: (idealAngle - actualAngle) / idealAngle * epsilon * strength
+        const idealAngle = (2 * Math.PI) / uniqueOwners.size; // 120° for 3-way, 90° for 4-way
+        const deficit = Math.max(0, idealAngle - minAngle);
+        const pullDistance = (deficit / idealAngle) * epsilon * 2 * strength;
+
+        if (pullDistance < 0.01) continue;
+
+        // New junction position
+        const newJx = jx + (bisX / bisLen) * pullDistance;
+        const newJy = jy + (bisY / bisLen) * pullDistance;
+
+        // Step 4: Update ALL polygons that share this junction vertex
+        for (const entry of entries) {
+            const poly = rawPolygons[entry.polyIdx];
+            poly.points[entry.vertIdx * 2] = newJx;
+            poly.points[entry.vertIdx * 2 + 1] = newJy;
+        }
+    }
+}
+
 // ── Periphery hull ownership ──
 // For connected same-owner stars at the map edge, force ownership
 // of the exterior region (between their lane and the map boundary)
@@ -335,7 +484,7 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
     const {
         gridW, gridH, worldW, worldH, stars, connections, numOwners, ownerRGB,
         simplify, smooth, cornerRadius, cornerThreshold,
-        peripheryStrength, peripheryInset
+        peripheryStrength, peripheryInset, junctionCorrection
     } = e.data;
 
     const cellW = worldW / gridW;
@@ -372,13 +521,14 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
         );
     }
 
-    // ── Step 2: For each owner, extract boundary polygons ──
+    // ── Step 2: For each owner, extract RAW boundary polygons ──
     const ownerSet = new Set<number>();
     for (let i = 0; i < grid.length; i++) {
         if (grid[i] >= 0) ownerSet.add(grid[i]);
     }
 
-    const results: PolygonResult[] = [];
+    // Pass 1: Extract raw polygons for ALL owners (no simplify/smooth/round yet)
+    const rawPolygons: RawPolygon[] = [];
 
     for (const ownerIdx of ownerSet) {
         // Build padded binary mask
@@ -459,24 +609,38 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
                 const minArea = cellW * cellH * 4;
                 if (polygonArea(polygon) < minArea) continue;
 
-                let processed = polygon;
-
-                // Simplify first (remove redundant marching-squares vertices)
-                if (simplify > 0) {
-                    processed = simplifyPath(processed, simplify * cellW * 0.05);
-                }
-                // Smooth next (Chaikin subdivision)
-                if (smooth > 0 && processed.length >= 6) {
-                    processed = chaikinSmooth(processed, smooth);
-                }
-                // Corner rounding LAST — so arcs survive and aren't eliminated
-                if (cornerRadius > 0 && processed.length >= 6) {
-                    const radiusWorld = cornerRadius * Math.max(cellW, cellH);
-                    processed = roundCorners(processed, radiusWorld, cornerThreshold);
-                }
-                results.push({ ownerIdx, fillPoints: processed });
+                rawPolygons.push({ ownerIdx, points: polygon });
             }
         }
+    }
+
+    // ── Step 3: F-135 Junction correction (across ALL owner polygons) ──
+    if (junctionCorrection > 0) {
+        // Use half the cell diagonal as epsilon for vertex matching
+        const junctionEpsilon = Math.sqrt(cellW * cellW + cellH * cellH) * 0.6;
+        correctJunctions(rawPolygons, junctionCorrection, junctionEpsilon);
+    }
+
+    // ── Step 4: Post-process each polygon (simplify, smooth, round) ──
+    const results: PolygonResult[] = [];
+
+    for (const raw of rawPolygons) {
+        let processed = raw.points;
+
+        // Simplify first (remove redundant marching-squares vertices)
+        if (simplify > 0) {
+            processed = simplifyPath(processed, simplify * cellW * 0.05);
+        }
+        // Smooth next (Chaikin subdivision) — D-33: defaults OFF (slider=0)
+        if (smooth > 0 && processed.length >= 6) {
+            processed = chaikinSmooth(processed, smooth);
+        }
+        // Corner rounding LAST — so arcs survive and aren't eliminated
+        if (cornerRadius > 0 && processed.length >= 6) {
+            const radiusWorld = cornerRadius * Math.max(cellW, cellH);
+            processed = roundCorners(processed, radiusWorld, cornerThreshold);
+        }
+        results.push({ ownerIdx: raw.ownerIdx, fillPoints: processed });
     }
 
     (self as any).postMessage({ polygons: results, numOwners, ownerRGB });

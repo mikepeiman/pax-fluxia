@@ -644,10 +644,10 @@
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Smoothing</span><span class="val"
-                >{panel.contourSmooth ?? 2}
-                {(panel.contourSmooth ?? 2) === 0
-                    ? "(angular)"
-                    : (panel.contourSmooth ?? 2) <= 1
+                >{panel.contourSmooth ?? 0}
+                {(panel.contourSmooth ?? 0) === 0
+                    ? "(off)"
+                    : (panel.contourSmooth ?? 0) <= 1
                       ? "(light)"
                       : "(smooth)"}</span
             >
@@ -657,7 +657,7 @@
             min="0"
             max="4"
             step="1"
-            value={panel.contourSmooth ?? 2}
+            value={panel.contourSmooth ?? 0}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
                 GAME_CONFIG.CONTOUR_SMOOTH = v;
@@ -794,6 +794,38 @@
                 const v = +(e.target as HTMLInputElement).value;
                 GAME_CONFIG.CONTOUR_PERIPHERY_INSET = v;
                 updatePanel("contourPeripheryInset", v);
+            }}
+        />
+    </div>
+    <div
+        class="var-row grayed"
+        style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"
+    >
+        🔀 Junction Correction (F-135)
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Junction Correction</span><span class="val"
+                >{(panel.contourJunctionCorrection ?? 0.5).toFixed(2)}
+                {(panel.contourJunctionCorrection ?? 0.5) === 0
+                    ? "(off)"
+                    : (panel.contourJunctionCorrection ?? 0.5) <= 0.3
+                      ? "(subtle)"
+                      : (panel.contourJunctionCorrection ?? 0.5) <= 0.7
+                        ? "(moderate)"
+                        : "(strong)"}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={panel.contourJunctionCorrection ?? 0.5}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.CONTOUR_JUNCTION_CORRECTION = v;
+                updatePanel("contourJunctionCorrection", v);
             }}
         />
     </div>

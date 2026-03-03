@@ -33,8 +33,9 @@
 | F-133 | New territory renderer — consider a fresh renderer approach; current pixel/lane renderers have cross-platform issues | 🟡 Idea | Medium | 2026-03-02 |
 | F-104 | Contour territory renderer (marching squares + vector polygons) — corner rounding + periphery hull | 🔴 Shelved | Medium | 2026-03-02 |
 | F-134 | Restart + Quit buttons in desktop sidebar menu | ✅ Done | High | 2026-03-02 |
-| F-135 | Territory rendering: equalize angles at border intersections — smoother junctions where 3+ territories meet | 🟡 Idea | Medium | 2026-03-02 |
+| F-135 | Territory rendering: equalize angles at border intersections — smoother junctions where 3+ territories meet | 🔄 In Progress | Medium | 2026-03-02 |
 | F-136 | Territory rendering: minimum shared-boundary section length (slider) — prevent tiny border segments | 🟡 Idea | Medium | 2026-03-02 |
+| F-137 | Periphery coverage: same-owner stars at map edge should have territory begin on the *inside* of connecting lane and fully cover the outside | 🟡 Idea | Medium | 2026-03-02 |
 
 ## Known Regressions
 

@@ -39,6 +39,7 @@ function buildFingerprint(stars: StarState[]): string {
     fp += `:${GAME_CONFIG.TERRITORY_CLUSTER_SPLIT}`;
     fp += `:${GAME_CONFIG.CONTOUR_CORNER_RADIUS}:${GAME_CONFIG.CONTOUR_CORNER_THRESHOLD}`;
     fp += `:${GAME_CONFIG.CONTOUR_PERIPHERY_STRENGTH}:${GAME_CONFIG.CONTOUR_PERIPHERY_INSET}`;
+    fp += `:${GAME_CONFIG.CONTOUR_JUNCTION_CORRECTION}`;
     return fp;
 }
 
@@ -253,6 +254,7 @@ export function renderContourTerritory(
         cornerThreshold: GAME_CONFIG.CONTOUR_CORNER_THRESHOLD ?? 120,
         peripheryStrength: GAME_CONFIG.CONTOUR_PERIPHERY_STRENGTH ?? 0,
         peripheryInset: GAME_CONFIG.CONTOUR_PERIPHERY_INSET ?? 0,
+        junctionCorrection: GAME_CONFIG.CONTOUR_JUNCTION_CORRECTION ?? 0.5,
     });
 
     if (cachedGraphics) cachedGraphics.visible = true;
