@@ -22,6 +22,7 @@
 
 import * as PIXI from 'pixi.js';
 import { weightedVoronoi } from 'd3-weighted-voronoi';
+import { interpolate as flubberInterpolate } from 'flubber';
 import { GAME_CONFIG } from '$lib/config/game.config';
 import type { StarState, StarConnection } from '$lib/types/game.types';
 import { findConnectedClustersOptimized } from './territoryUtils';
@@ -61,13 +62,27 @@ let cachedVisualFingerprint = '';
 let fillGraphics: PIXI.Graphics | null = null;
 let borderGraphics: PIXI.Graphics | null = null;
 
-// ── Border Transition State ─────────────────────────────────────────────────
+// ── Border Transition State (Segment Mode) ─────────────────────────────────
 
-/** Previous shared border edge positions for border-only animation. */
+/** Previous shared border edge positions for segment mode animation. */
 let prevBorderEdges: SharedBorderEdge[] | null = null;
 let targetBorderEdges: SharedBorderEdge[] | null = null;
 let borderTransitionStart = 0;
 let isBorderTransitioning = false;
+
+// ── Smooth Transition State (Flubber Mode) ─────────────────────────────────
+
+interface FlubberMorphEntry {
+    interpolator: (t: number) => string;  // flubber interpolator → SVG path
+    color: number;                        // outline color (from target territory)
+}
+
+let prevTerritoryPolygons: MergedTerritory[] | null = null;
+let flubberMorphEntries: FlubberMorphEntry[] | null = null;
+let smoothTransitionStart = 0;
+let isSmoothTransitioning = false;
+let outlineGraphics: PIXI.Graphics | null = null;
+let lastMergedTerritories: MergedTerritory[] | null = null;  // stored for smooth mode snapshot
 
 // ── Fingerprint ────────────────────────────────────────────────────────────
 
@@ -279,6 +294,49 @@ function lerpPolygon(from: [number, number][], to: [number, number][], t: number
     return result;
 }
 
+/** Parse an SVG path string (from flubber) into [x,y] coordinate pairs for PIXI. */
+function parseSvgPath(pathStr: string): [number, number][] {
+    const result: [number, number][] = [];
+    // flubber outputs paths with M, L, and Z commands
+    const parts = pathStr.match(/[ML]\s*[\d.e+-]+[\s,]+[\d.e+-]+/gi);
+    if (!parts) return result;
+    for (const part of parts) {
+        const nums = part.match(/[\d.e+-]+/g);
+        if (nums && nums.length >= 2) {
+            result.push([parseFloat(nums[0]), parseFloat(nums[1])]);
+        }
+    }
+    return result;
+}
+
+/** Draw flubber-interpolated territory outlines for smooth morph mode. */
+function renderSmoothOutlines(
+    container: PIXI.Container,
+    entries: FlubberMorphEntry[],
+    t: number,
+    borderWidth: number, borderAlpha: number,
+): void {
+    if (!outlineGraphics) {
+        outlineGraphics = new PIXI.Graphics();
+        container.addChild(outlineGraphics);
+    }
+    outlineGraphics.clear();
+    outlineGraphics.visible = true;
+
+    for (const entry of entries) {
+        const svgPath = entry.interpolator(t);
+        const pts = parseSvgPath(svgPath);
+        if (pts.length < 2) continue;
+
+        const [r, g, b] = hexToRGB(entry.color);
+        const outlineColor = (Math.min(255, r + 40) << 16) | (Math.min(255, g + 40) << 8) | Math.min(255, b + 40);
+
+        outlineGraphics.moveTo(pts[0][0], pts[0][1]);
+        for (let i = 1; i < pts.length; i++) outlineGraphics.lineTo(pts[i][0], pts[i][1]);
+        outlineGraphics.closePath();
+        outlineGraphics.stroke({ width: borderWidth, color: outlineColor, alpha: borderAlpha });
+    }
+}
 
 /** Draw shared border edges at interpolated positions between prev and target.
  *  Matches edges by midpoint proximity for smooth "borders sliding" animation. */
@@ -479,14 +537,17 @@ export function renderPowerVoronoi(
     // Re-show graphics — voronoiContainer blanket-hides every frame
     if (fillGraphics) fillGraphics.visible = true;
     if (borderGraphics) borderGraphics.visible = true;
+    if (outlineGraphics) outlineGraphics.visible = true;
 
-    // ── Border transition: re-draw interpolated borders each frame ─────
-    if (isBorderTransitioning && transitionMs > 0 && prevBorderEdges && targetBorderEdges) {
+    // ── Per-frame animation (both modes) ────────────────────────────────
+    const boundaryMode = GAME_CONFIG.TERRITORY_BOUNDARY_MODE ?? 'smooth';
+
+    // Segment mode: edge-level lerp
+    if (boundaryMode === 'segment' && isBorderTransitioning && transitionMs > 0 && prevBorderEdges && targetBorderEdges) {
         const elapsed = now - borderTransitionStart;
         const rawT = Math.min(1, elapsed / transitionMs);
         const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
 
-        // Re-draw interpolated borders on every frame during transition
         renderInterpolatedBorders(voronoiContainer, prevBorderEdges, targetBorderEdges,
             eased, GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 1.5, GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.4);
 
@@ -494,8 +555,26 @@ export function renderPowerVoronoi(
             isBorderTransitioning = false;
             prevBorderEdges = null;
         }
-        // Don't return — let fills re-render if fingerprint changed
-        // But if nothing changed, bail after border animation
+        const shapeFpCheck = buildShapeFingerprint(stars);
+        const visualFpCheck = buildVisualFingerprint();
+        if (shapeFpCheck === cachedShapeFingerprint && visualFpCheck === cachedVisualFingerprint) return;
+    }
+
+    // Smooth mode: flubber polygon outline morph
+    if (boundaryMode === 'smooth' && isSmoothTransitioning && transitionMs > 0 && flubberMorphEntries) {
+        const elapsed = now - smoothTransitionStart;
+        const rawT = Math.min(1, elapsed / transitionMs);
+        const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
+
+        renderSmoothOutlines(voronoiContainer, flubberMorphEntries,
+            eased, GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 1.5, GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.4);
+
+        if (rawT >= 1) {
+            isSmoothTransitioning = false;
+            prevTerritoryPolygons = null;
+            flubberMorphEntries = null;
+            if (outlineGraphics) { outlineGraphics.clear(); outlineGraphics.visible = false; }
+        }
         const shapeFpCheck = buildShapeFingerprint(stars);
         const visualFpCheck = buildVisualFingerprint();
         if (shapeFpCheck === cachedShapeFingerprint && visualFpCheck === cachedVisualFingerprint) return;
@@ -508,9 +587,16 @@ export function renderPowerVoronoi(
 
     if (!shapeChanged && !visualChanged) return;  // nothing changed
 
-    // ── Shape changed: snapshot current border edges as prev ─────────────
-    if (shapeChanged && transitionMs > 0 && targetBorderEdges && targetBorderEdges.length > 0) {
-        prevBorderEdges = targetBorderEdges;
+    // ── Shape changed: snapshot for transition animation ─────────────────
+    if (shapeChanged && transitionMs > 0) {
+        // Segment mode: snapshot border edges
+        if (targetBorderEdges && targetBorderEdges.length > 0) {
+            prevBorderEdges = targetBorderEdges;
+        }
+        // Smooth mode: snapshot territory polygons (flubber interpolators created after merge)
+        if (lastMergedTerritories && lastMergedTerritories.length > 0) {
+            prevTerritoryPolygons = lastMergedTerritories;
+        }
     }
 
     cachedShapeFingerprint = shapeFp;
@@ -801,18 +887,100 @@ export function renderPowerVoronoi(
         borderGraphics.clear();
     }
 
-    // ── Store targets + start border transition ───────────────────────
+    // ── Store targets + start transition ────────────────────────────────
     // Assign colors to shared edges
     for (const edge of sharedEdges) {
         edge.colorA = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerA), satMult, lightMult);
         edge.colorB = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerB), satMult, lightMult);
     }
     targetBorderEdges = sharedEdges;
+    lastMergedTerritories = merged;  // store for next frame's smooth mode snapshot
 
-    // Start border transition if we have prev edge data
-    if (shapeChanged && transitionMs > 0 && prevBorderEdges && prevBorderEdges.length > 0) {
-        borderTransitionStart = now;
-        isBorderTransitioning = true;
+    // Start transition based on mode
+    if (shapeChanged && transitionMs > 0) {
+        // Segment mode
+        if (prevBorderEdges && prevBorderEdges.length > 0) {
+            borderTransitionStart = now;
+            isBorderTransitioning = true;
+        }
+
+        // Smooth mode: create flubber interpolators for matched territory pairs
+        if (prevTerritoryPolygons && prevTerritoryPolygons.length > 0) {
+            const entries: FlubberMorphEntry[] = [];
+
+            // Group prev and target by ownerId (multi-territory support)
+            const prevByOwner = new Map<string, MergedTerritory[]>();
+            for (const ter of prevTerritoryPolygons) {
+                if (!prevByOwner.has(ter.ownerId)) prevByOwner.set(ter.ownerId, []);
+                prevByOwner.get(ter.ownerId)!.push(ter);
+            }
+            const targetByOwner = new Map<string, MergedTerritory[]>();
+            for (const ter of merged) {
+                if (!targetByOwner.has(ter.ownerId)) targetByOwner.set(ter.ownerId, []);
+                targetByOwner.get(ter.ownerId)!.push(ter);
+            }
+
+            const allOwners = new Set([...prevByOwner.keys(), ...targetByOwner.keys()]);
+
+            for (const ownerId of allOwners) {
+                const pTers = prevByOwner.get(ownerId) ?? [];
+                const tTers = targetByOwner.get(ownerId) ?? [];
+
+                // Match prev→target by nearest centroid
+                const usedTargets = new Set<number>();
+
+                for (const pTer of pTers) {
+                    const pC = polygonCentroid(pTer.points);
+                    let bestDist = Infinity;
+                    let bestIdx = -1;
+                    for (let ti = 0; ti < tTers.length; ti++) {
+                        if (usedTargets.has(ti)) continue;
+                        const tC = polygonCentroid(tTers[ti].points);
+                        const d = Math.hypot(pC[0] - tC[0], pC[1] - tC[1]);
+                        if (d < bestDist) { bestDist = d; bestIdx = ti; }
+                    }
+
+                    if (bestIdx >= 0) {
+                        usedTargets.add(bestIdx);
+                        try {
+                            const interp = flubberInterpolate(
+                                pTer.points as number[][],
+                                tTers[bestIdx].points as number[][],
+                                { maxSegmentLength: 10 }
+                            );
+                            entries.push({ interpolator: interp, color: tTers[bestIdx].color });
+                        } catch (e) {
+                            console.warn('[PowerVoronoi] flubber interpolation failed:', e);
+                        }
+                    } else {
+                        // Dying territory: shrink to centroid
+                        const c = polygonCentroid(pTer.points);
+                        const dot: number[][] = [[c[0], c[1]], [c[0] + 1, c[1]], [c[0] + 1, c[1] + 1], [c[0], c[1] + 1]];
+                        try {
+                            const interp = flubberInterpolate(pTer.points as number[][], dot, { maxSegmentLength: 10 });
+                            entries.push({ interpolator: interp, color: pTer.color });
+                        } catch (_e) { /* ignore */ }
+                    }
+                }
+
+                // Unmatched target territories: grow from centroid
+                for (let ti = 0; ti < tTers.length; ti++) {
+                    if (usedTargets.has(ti)) continue;
+                    const c = polygonCentroid(tTers[ti].points);
+                    const dot: number[][] = [[c[0], c[1]], [c[0] + 1, c[1]], [c[0] + 1, c[1] + 1], [c[0], c[1] + 1]];
+                    try {
+                        const interp = flubberInterpolate(dot, tTers[ti].points as number[][], { maxSegmentLength: 10 });
+                        entries.push({ interpolator: interp, color: tTers[ti].color });
+                    } catch (_e) { /* ignore */ }
+                }
+            }
+
+            if (entries.length > 0) {
+                flubberMorphEntries = entries;
+                smoothTransitionStart = now;
+                isSmoothTransitioning = true;
+            }
+        }
     }
 }
 
@@ -821,10 +989,17 @@ export function renderPowerVoronoi(
 export function resetPowerVoronoiCache(): void {
     cachedShapeFingerprint = '';
     cachedVisualFingerprint = '';
+    // Segment mode state
     isBorderTransitioning = false;
     prevBorderEdges = null;
     targetBorderEdges = null;
     borderTransitionStart = 0;
+    // Smooth mode state
+    isSmoothTransitioning = false;
+    prevTerritoryPolygons = null;
+    flubberMorphEntries = null;
+    smoothTransitionStart = 0;
+    lastMergedTerritories = null;
     if (fillGraphics) {
         if (fillGraphics.parent) fillGraphics.parent.removeChild(fillGraphics);
         fillGraphics.destroy();
@@ -834,5 +1009,10 @@ export function resetPowerVoronoiCache(): void {
         if (borderGraphics.parent) borderGraphics.parent.removeChild(borderGraphics);
         borderGraphics.destroy();
         borderGraphics = null;
+    }
+    if (outlineGraphics) {
+        if (outlineGraphics.parent) outlineGraphics.parent.removeChild(outlineGraphics);
+        outlineGraphics.destroy();
+        outlineGraphics = null;
     }
 }

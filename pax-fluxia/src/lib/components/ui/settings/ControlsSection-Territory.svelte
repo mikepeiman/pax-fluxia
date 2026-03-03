@@ -513,6 +513,29 @@
     </div>
     <div class="var-row">
         <div class="row-top">
+            <span class="var-name">🔀 Boundary Mode</span><span class="val"
+                >{GAME_CONFIG.TERRITORY_BOUNDARY_MODE ?? "smooth"}</span
+            >
+        </div>
+        <div style="display:flex; gap:4px;">
+            <button
+                class="mini-btn"
+                class:active={GAME_CONFIG.TERRITORY_BOUNDARY_MODE === "segment"}
+                onclick={() => {
+                    GAME_CONFIG.TERRITORY_BOUNDARY_MODE = "segment";
+                }}>Segment</button
+            >
+            <button
+                class="mini-btn"
+                class:active={GAME_CONFIG.TERRITORY_BOUNDARY_MODE === "smooth"}
+                onclick={() => {
+                    GAME_CONFIG.TERRITORY_BOUNDARY_MODE = "smooth";
+                }}>Smooth</button
+            >
+        </div>
+    </div>
+    <div class="var-row">
+        <div class="row-top">
             <span class="var-name">🎨 Fill Alpha</span><span class="val"
                 >{(panel.voronoiAlpha ?? GAME_CONFIG.VORONOI_ALPHA).toFixed(
                     2,

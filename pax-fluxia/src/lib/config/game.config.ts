@@ -255,6 +255,7 @@ interface GameConfigType {
     TERRITORY_MODIFIED_VORONOI: boolean; // Enable Modified Voronoi territory renderer (F-138, default false)
     TERRITORY_POWER_VORONOI: boolean;    // Enable Power Voronoi V2 territory renderer (F-138v2, default false)
     TERRITORY_TRANSITION_MS: number;      // Duration of territory morph animation in ms (0 = instant, default 400)
+    TERRITORY_BOUNDARY_MODE: 'segment' | 'smooth';  // 'segment' = edge-level lerp, 'smooth' = flubber polygon morph
     TERRITORY_METABALL: boolean;   // Enable Metaball territory renderer (default false)
     TERRITORY_PIXEL: boolean;      // Enable Pixel (nearest-neighbor) territory renderer (default false)
     TERRITORY_CLUSTER_SPLIT: boolean; // Split disconnected same-owner stars into separate territory blobs (default false)
@@ -839,6 +840,7 @@ const _rawConfig: GameConfigType = {
     TERRITORY_POWER_VORONOI: false,
     /** Duration of territory morph/crossfade animation in ms (0=instant) */
     TERRITORY_TRANSITION_MS: 400,
+    TERRITORY_BOUNDARY_MODE: 'smooth' as const,
     /** Enable Metaball territory renderer */
     TERRITORY_METABALL: false,
     /** Enable Pixel (nearest-neighbor) territory renderer */
