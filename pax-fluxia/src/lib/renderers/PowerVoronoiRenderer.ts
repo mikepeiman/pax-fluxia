@@ -268,6 +268,10 @@ export function renderPowerVoronoi(
     worldHeight: number,
     connections?: StarConnection[],
 ): void {
+    // Re-show existing graphics BEFORE cache check — voronoiContainer blanket-hides every frame
+    if (fillGraphics) fillGraphics.visible = true;
+    if (borderGraphics) borderGraphics.visible = true;
+
     const fp = buildFingerprint(stars);
     if (fp === cachedFingerprint) return;
     cachedFingerprint = fp;
@@ -330,13 +334,19 @@ export function renderPowerVoronoi(
         [-pad, worldHeight + pad],
     ];
 
-    const wv = weightedVoronoi()
-        .x((d: PowerSite) => d.x)
-        .y((d: PowerSite) => d.y)
-        .weight((d: PowerSite) => d.weight)
-        .clip(clip);
+    let polygons: any[];
+    try {
+        const wv = weightedVoronoi()
+            .x((d: PowerSite) => d.x)
+            .y((d: PowerSite) => d.y)
+            .weight((d: PowerSite) => d.weight)
+            .clip(clip);
 
-    const polygons = wv(sites);
+        polygons = wv(sites);
+    } catch (e) {
+        console.error('[PowerVoronoi] d3-weighted-voronoi CRASHED:', e);
+        return;
+    }
 
     // Convert to TerritoryCell array
     const cells: TerritoryCell[] = [];
@@ -396,6 +406,7 @@ export function renderPowerVoronoi(
         voronoiContainer.addChild(fillGraphics);
     }
     fillGraphics.clear();
+    fillGraphics.visible = true;
 
     for (const territory of merged) {
         fillGraphics.poly(territory.points.flat());
@@ -409,6 +420,7 @@ export function renderPowerVoronoi(
             voronoiContainer.addChild(borderGraphics);
         }
         borderGraphics.clear();
+        borderGraphics.visible = true;
 
         for (const territory of merged) {
             const [r, g, b] = hexToRGB(territory.color);
