@@ -74,6 +74,8 @@ function buildFingerprint(stars: StarState[]): string {
     fp += `:${GAME_CONFIG.TERRITORY_CLUSTER_SPLIT}`;
     fp += `:${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED}`;
     fp += `:${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}`;
+    fp += `:${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED}`;
+    fp += `:${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE}`;
     return fp;
 }
 
@@ -323,7 +325,50 @@ export function renderPowerVoronoi(
         }
     }
 
-    // TODO Phase 2: Disconnect virtual enemy sites
+    // Disconnect virtual enemy sites — separate non-connected same-owner territories
+    if (GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED && connections) {
+        const maxDist = GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE ?? 400;
+
+        // Build set of connected same-owner pairs (bidirectional)
+        const connectedPairs = new Set<string>();
+        const starMap = new Map(ownedStars.map(s => [s.id, s]));
+        for (const conn of connections) {
+            const sA = starMap.get(conn.sourceId);
+            const sB = starMap.get(conn.targetId);
+            if (!sA || !sB || sA.ownerId !== sB.ownerId) continue;
+            connectedPairs.add(`${conn.sourceId}|${conn.targetId}`);
+            connectedPairs.add(`${conn.targetId}|${conn.sourceId}`);
+        }
+
+        // For each pair of same-owner stars NOT connected, inject enemy virtual site
+        let disconnectCount = 0;
+        for (let i = 0; i < ownedStars.length; i++) {
+            for (let j = i + 1; j < ownedStars.length; j++) {
+                const sA = ownedStars[i], sB = ownedStars[j];
+                if (sA.ownerId !== sB.ownerId) continue;
+                if (connectedPairs.has(`${sA.id}|${sB.id}`)) continue;
+
+                const dist = Math.hypot(sB.x - sA.x, sB.y - sA.y);
+                if (dist > maxDist) continue;
+
+                // Place enemy virtual site at midpoint
+                const mx = (sA.x + sB.x) / 2;
+                const my = (sA.y + sB.y) / 2;
+                sites.push({
+                    x: mx,
+                    y: my,
+                    weight: starMargin * starMargin * 0.3,  // small weight
+                    ownerId: `__disconnect__`,               // synthetic owner — won't merge with anything
+                    starId: `disconnect_${sA.id}_${sB.id}`,
+                    virtual: 'disconnect',
+                });
+                disconnectCount++;
+            }
+        }
+        if (disconnectCount > 0) {
+            log.sys('PowerVoronoi', `Injected ${disconnectCount} disconnect virtual sites`);
+        }
+    }
 
     // ── Stage 1: Power diagram ─────────────────────────────────────────────
     const pad = 50;
@@ -355,6 +400,7 @@ export function renderPowerVoronoi(
         if (!poly || poly.length < 3) continue;
         const site = (poly as any).site?.originalObject as PowerSite | undefined;
         if (!site) continue;
+        if (site.ownerId === '__disconnect__') continue;  // disconnect cells are invisible boundary pushers
 
         // Ensure closed polygon
         const pts: [number, number][] = poly.map((p: number[]) => [p[0], p[1]] as [number, number]);

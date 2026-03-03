@@ -339,6 +339,10 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'modifiedVoronoiArcStrength', configKey: 'MODIFIED_VORONOI_ARC_STRENGTH' },
     { panelKey: 'modifiedVoronoiArcThreshold', configKey: 'MODIFIED_VORONOI_ARC_THRESHOLD' },
     { panelKey: 'modifiedVoronoiArcMinSegment', configKey: 'MODIFIED_VORONOI_ARC_MIN_SEGMENT' },
+    { panelKey: 'modifiedVoronoiCorridorEnabled', configKey: 'MODIFIED_VORONOI_CORRIDOR_ENABLED' },
+    { panelKey: 'modifiedVoronoiCorridorSpacing', configKey: 'MODIFIED_VORONOI_CORRIDOR_SPACING' },
+    { panelKey: 'modifiedVoronoiDisconnectEnabled', configKey: 'MODIFIED_VORONOI_DISCONNECT_ENABLED' },
+    { panelKey: 'modifiedVoronoiDisconnectDistance', configKey: 'MODIFIED_VORONOI_DISCONNECT_DISTANCE' },
     // Contour Territory
     { panelKey: 'territoryContour', configKey: 'TERRITORY_CONTOUR' },
     { panelKey: 'territoryClusterSplit', configKey: 'TERRITORY_CLUSTER_SPLIT' },

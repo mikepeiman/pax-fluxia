@@ -380,6 +380,119 @@
     </div>
 {/if}
 
+{#if panel.territoryPowerVoronoi}
+    <!-- ── Power Voronoi V2 Settings ── -->
+    <h4 class="sub-heading">⚡ Power Voronoi Settings</h4>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">⭐ Star Margin</span><span class="val"
+                >{panel.modifiedVoronoiStarMargin ??
+                    GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="500"
+            step="5"
+            value={panel.modifiedVoronoiStarMargin ??
+                GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "MODIFIED_VORONOI_STAR_MARGIN",
+                    "modifiedVoronoiStarMargin",
+                    v,
+                );
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">🛤️ Corridor Sites</span><span class="val"
+                >{GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED
+                    ? "ON"
+                    : "OFF"}</span
+            >
+        </div>
+        <input
+            type="checkbox"
+            checked={GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED}
+            onchange={(e) => {
+                const v = (e.target as HTMLInputElement).checked;
+                GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED = v;
+                updatePanel("modifiedVoronoiCorridorEnabled", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">📏 Corridor Spacing</span><span class="val"
+                >{panel.modifiedVoronoiCorridorSpacing ??
+                    GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="20"
+            max="200"
+            step="5"
+            value={panel.modifiedVoronoiCorridorSpacing ??
+                GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "MODIFIED_VORONOI_CORRIDOR_SPACING",
+                    "modifiedVoronoiCorridorSpacing",
+                    v,
+                );
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">🚫 Disconnect Buffer</span><span class="val"
+                >{GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED
+                    ? "ON"
+                    : "OFF"}</span
+            >
+        </div>
+        <input
+            type="checkbox"
+            checked={GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED}
+            onchange={(e) => {
+                const v = (e.target as HTMLInputElement).checked;
+                GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED = v;
+                updatePanel("modifiedVoronoiDisconnectEnabled", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">📐 Disconnect Distance</span><span
+                class="val"
+                >{panel.modifiedVoronoiDisconnectDistance ??
+                    GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="50"
+            max="800"
+            step="25"
+            value={panel.modifiedVoronoiDisconnectDistance ??
+                GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "MODIFIED_VORONOI_DISCONNECT_DISTANCE",
+                    "modifiedVoronoiDisconnectDistance",
+                    v,
+                );
+            }}
+        />
+    </div>
+{/if}
 {#if panel.territoryGraph}
     <!-- ── Lane Territory Controls ── -->
     <h4 class="sub-heading">Lane Territory Settings</h4>
