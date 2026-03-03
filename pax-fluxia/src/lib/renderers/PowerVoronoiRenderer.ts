@@ -280,7 +280,73 @@ function lerpPolygon(from: [number, number][], to: [number, number][], t: number
 }
 
 
-// ── Cell Merging ───────────────────────────────────────────────────────────
+/** Draw shared border edges at interpolated positions between prev and target.
+ *  Matches edges by midpoint proximity for smooth "borders sliding" animation. */
+function renderInterpolatedBorders(
+    container: PIXI.Container,
+    prev: SharedBorderEdge[], target: SharedBorderEdge[],
+    t: number,  // 0=prev, 1=target (eased)
+    borderWidth: number, borderAlpha: number,
+): void {
+    if (!borderGraphics) {
+        borderGraphics = new PIXI.Graphics();
+        container.addChild(borderGraphics);
+    }
+    borderGraphics.clear();
+    borderGraphics.visible = true;
+
+    const blendWidth = borderWidth * 2.5;
+
+    // Build midpoint index for target edges
+    const targetUsed = new Set<number>();
+
+    // For each prev edge, find nearest target edge by midpoint
+    for (const pEdge of prev) {
+        const pMx = (pEdge.x1 + pEdge.x2) / 2;
+        const pMy = (pEdge.y1 + pEdge.y2) / 2;
+
+        let bestDist = Infinity;
+        let bestIdx = -1;
+        for (let ti = 0; ti < target.length; ti++) {
+            if (targetUsed.has(ti)) continue;
+            const tMx = (target[ti].x1 + target[ti].x2) / 2;
+            const tMy = (target[ti].y1 + target[ti].y2) / 2;
+            const d = Math.hypot(pMx - tMx, pMy - tMy);
+            if (d < bestDist) { bestDist = d; bestIdx = ti; }
+        }
+
+        if (bestIdx >= 0 && bestDist < 200) {
+            // Matched pair — lerp endpoints
+            targetUsed.add(bestIdx);
+            const tEdge = target[bestIdx];
+            const x1 = pEdge.x1 + (tEdge.x1 - pEdge.x1) * t;
+            const y1 = pEdge.y1 + (tEdge.y1 - pEdge.y1) * t;
+            const x2 = pEdge.x2 + (tEdge.x2 - pEdge.x2) * t;
+            const y2 = pEdge.y2 + (tEdge.y2 - pEdge.y2) * t;
+            // Use target edge color (since fills show target state)
+            const color = tEdge.colorA || pEdge.colorA || 0x888888;
+            borderGraphics.moveTo(x1, y1);
+            borderGraphics.lineTo(x2, y2);
+            borderGraphics.stroke({ width: blendWidth, color, alpha: borderAlpha * 1.5 });
+        } else {
+            // Prev edge fading out (no match) — draw at prev position with decreasing alpha
+            borderGraphics.moveTo(pEdge.x1, pEdge.y1);
+            borderGraphics.lineTo(pEdge.x2, pEdge.y2);
+            borderGraphics.stroke({ width: blendWidth, color: pEdge.colorA || 0x888888, alpha: borderAlpha * 1.5 * (1 - t) });
+        }
+    }
+
+    // Unmatched target edges — fade in
+    for (let ti = 0; ti < target.length; ti++) {
+        if (targetUsed.has(ti)) continue;
+        const tEdge = target[ti];
+        borderGraphics.moveTo(tEdge.x1, tEdge.y1);
+        borderGraphics.lineTo(tEdge.x2, tEdge.y2);
+        borderGraphics.stroke({ width: blendWidth, color: tEdge.colorA || 0x888888, alpha: borderAlpha * 1.5 * t });
+    }
+}
+
+
 
 function mergeSameOwnerCells(
     cells: TerritoryCell[],
@@ -414,16 +480,25 @@ export function renderPowerVoronoi(
     if (fillGraphics) fillGraphics.visible = true;
     if (borderGraphics) borderGraphics.visible = true;
 
-    // ── Border transition update (every frame) ────────────────────────
-    // Fills always render from current state — NO early return.
-    // Border animation runs alongside normal fill rendering.
-    if (isBorderTransitioning && transitionMs > 0) {
+    // ── Border transition: re-draw interpolated borders each frame ─────
+    if (isBorderTransitioning && transitionMs > 0 && prevBorderEdges && targetBorderEdges) {
         const elapsed = now - borderTransitionStart;
-        const t = Math.min(1, elapsed / transitionMs);
-        if (t >= 1) {
+        const rawT = Math.min(1, elapsed / transitionMs);
+        const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
+
+        // Re-draw interpolated borders on every frame during transition
+        renderInterpolatedBorders(voronoiContainer, prevBorderEdges, targetBorderEdges,
+            eased, GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 1.5, GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.4);
+
+        if (rawT >= 1) {
             isBorderTransitioning = false;
             prevBorderEdges = null;
         }
+        // Don't return — let fills re-render if fingerprint changed
+        // But if nothing changed, bail after border animation
+        const shapeFpCheck = buildShapeFingerprint(stars);
+        const visualFpCheck = buildVisualFingerprint();
+        if (shapeFpCheck === cachedShapeFingerprint && visualFpCheck === cachedVisualFingerprint) return;
     }
 
     const shapeFp = buildShapeFingerprint(stars);
