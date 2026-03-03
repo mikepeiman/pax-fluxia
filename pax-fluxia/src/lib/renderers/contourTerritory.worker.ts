@@ -141,6 +141,19 @@ function chaikinSmooth(points: number[], iterations: number): number[] {
     return pts;
 }
 
+// ── Polygon area (shoelace formula) ──
+function polygonArea(points: number[]): number {
+    const n = points.length / 2;
+    if (n < 3) return 0;
+    let area = 0;
+    for (let i = 0; i < n; i++) {
+        const j = (i + 1) % n;
+        area += points[i * 2] * points[j * 2 + 1];
+        area -= points[j * 2] * points[i * 2 + 1];
+    }
+    return Math.abs(area) / 2;
+}
+
 // ── Angle-aware corner rounding ──
 // Scans polygon for sharp corners (angle < threshold) and replaces them with arcs
 function roundCorners(points: number[], radiusWorld: number, thresholdDeg: number): number[] {
@@ -149,6 +162,7 @@ function roundCorners(points: number[], radiusWorld: number, thresholdDeg: numbe
 
     const thresholdRad = thresholdDeg * (Math.PI / 180);
     const ARC_SEGMENTS = 6; // segments per rounded corner arc
+    const minEdgeLen = radiusWorld * 2; // skip rounding if edges are too short
     const result: number[] = [];
 
     for (let i = 0; i < n; i++) {
@@ -165,7 +179,8 @@ function roundCorners(points: number[], radiusWorld: number, thresholdDeg: numbe
         const len1 = Math.sqrt(v1x * v1x + v1y * v1y);
         const len2 = Math.sqrt(v2x * v2x + v2y * v2y);
 
-        if (len1 < 0.001 || len2 < 0.001) {
+        // Skip rounding if edges are too short (prevents self-intersection)
+        if (len1 < minEdgeLen || len2 < minEdgeLen) {
             result.push(cx, cy);
             continue;
         }
@@ -224,11 +239,11 @@ function applyPeripheryOwnership(
     const starById = new Map<string, StarData>();
     for (const s of stars) starById.set(s.id, s);
 
-    // Find peripheral stars (those in the outer 25% of the map)
+    // Find peripheral stars (those in the outer 15% of the map)
     const worldW = gridW * cellW;
     const worldH = gridH * cellH;
-    const edgeThresholdX = worldW * 0.25;
-    const edgeThresholdY = worldH * 0.25;
+    const edgeThresholdX = worldW * 0.15;
+    const edgeThresholdY = worldH * 0.15;
 
     function isPeripheral(s: StarData): boolean {
         return s.x < edgeThresholdX || s.x > worldW - edgeThresholdX ||
@@ -297,16 +312,15 @@ function applyPeripheryOwnership(
                 const side = toPointX * outNx + toPointY * outNy;
 
                 if (side > -insetPx) {
-                    // This cell is on the exterior side of the lane (or within inset)
+                    // This cell is on the exterior side of the lane
                     const distToLane = Math.sqrt(toPointX * toPointX + toPointY * toPointY);
 
-                    // Distance to nearest map edge from this cell
+                    // Only fill within a narrow band around the lane,
+                    // and only if the cell is near the map edge
                     const distToMapEdge = Math.min(wx, worldW - wx, wy, worldH - wy);
+                    const bandWidth = laneLen * 0.4;
 
-                    // Paint if the cell is closer to the map edge than to the map center,
-                    // and within a reasonable band of the lane
-                    const maxFillDist = Math.max(worldW, worldH) * 0.3;
-                    if (distToLane < maxFillDist && distToMapEdge < edgeThresholdX * 1.5) {
+                    if (distToLane < bandWidth && distToMapEdge < edgeThresholdX) {
                         if (strength >= 1.0 || Math.random() < strength) {
                             grid[gy * gridW + gx] = ownerIdx;
                         }
@@ -441,6 +455,10 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
             }
 
             if (polygon.length >= 6) {
+                // Skip tiny polygon fragments (less than ~4 grid cells)
+                const minArea = cellW * cellH * 4;
+                if (polygonArea(polygon) < minArea) continue;
+
                 let processed = polygon;
 
                 // Simplify first (remove redundant marching-squares vertices)
