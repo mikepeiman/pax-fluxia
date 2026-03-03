@@ -245,7 +245,7 @@ function blendColors(colorA: number, colorB: number, t: number): number {
 
 // ── Polygon Morph Helpers ─────────────────────────────────────────────────
 
-/** Resample a polygon to `n` evenly-spaced points along its perimeter. */
+/** Resample a polygon to `n` evenly-spaced points along its perimeter (CLOSED — wraps last to first). */
 function resamplePolygon(pts: [number, number][], n: number): [number, number][] {
     if (pts.length <= 1 || n <= 1) return pts.slice();
 
@@ -271,6 +271,32 @@ function resamplePolygon(pts: [number, number][], n: number): [number, number][]
     }
     // Close the polygon
     result.push([result[0][0], result[0][1]]);
+    return result;
+}
+
+/** Resample an OPEN polyline to `n` evenly-spaced points (no wrapping). */
+function resamplePolyline(pts: [number, number][], n: number): [number, number][] {
+    if (pts.length <= 1 || n <= 1) return pts.slice();
+
+    const arcLens: number[] = [0];
+    for (let i = 1; i < pts.length; i++) {
+        arcLens.push(arcLens[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+    }
+    const totalLen = arcLens[arcLens.length - 1];
+    if (totalLen === 0) return pts.slice();
+
+    const result: [number, number][] = [];
+    let segIdx = 0;
+    for (let i = 0; i < n; i++) {
+        const targetLen = (i / (n - 1)) * totalLen;  // n-1 so last point = endpoint
+        while (segIdx < arcLens.length - 2 && arcLens[segIdx + 1] < targetLen) segIdx++;
+        const segLen = arcLens[segIdx + 1] - arcLens[segIdx];
+        const t = segLen > 0 ? (targetLen - arcLens[segIdx]) / segLen : 0;
+        result.push([
+            pts[segIdx][0] + (pts[segIdx + 1][0] - pts[segIdx][0]) * t,
+            pts[segIdx][1] + (pts[segIdx + 1][1] - pts[segIdx][1]) * t,
+        ]);
+    }
     return result;
 }
 
@@ -307,7 +333,7 @@ function chainSharedEdgesIntoPolylines(edges: SharedBorderEdge[], colorLookup?: 
     }
 
     const result: SharedPolyline[] = [];
-    const SNAP = 0.5;  // endpoint snapping tolerance
+    const SNAP = 3;  // endpoint snapping tolerance (pixels)
 
     for (const [pairKey, pairEdges] of byPair) {
         // Build adjacency by endpoint
@@ -451,8 +477,8 @@ function renderContestedBorders(
                 // Matched: resample both to same point count and lerp
                 usedTargets.add(bestIdx);
                 const tLine = tLines[bestIdx];
-                const pSampled = resamplePolygon(pLine.points, RESAMPLE_N);
-                const tSampled = resamplePolygon(tLine.points, RESAMPLE_N);
+                const pSampled = resamplePolyline(pLine.points, RESAMPLE_N);
+                const tSampled = resamplePolyline(tLine.points, RESAMPLE_N);
                 const lerped = lerpPolygon(pSampled, tSampled, t);
 
                 outlineGraphics.moveTo(lerped[0][0], lerped[0][1]);

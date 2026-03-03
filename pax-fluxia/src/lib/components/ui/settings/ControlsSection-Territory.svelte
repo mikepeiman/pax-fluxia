@@ -536,7 +536,7 @@
                         "territoryBoundaryMode",
                         "segment",
                     );
-                }}>Segment</button
+                }}>Lego</button
             >
             <button
                 class="mini-btn"
