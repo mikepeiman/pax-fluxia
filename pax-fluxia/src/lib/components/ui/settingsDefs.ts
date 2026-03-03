@@ -332,6 +332,23 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'transferAnimMs', configKey: 'TRANSFER_ANIMATION_MS' },
     // Show hex selection
     { panelKey: 'showSelectionHex', configKey: 'SHOW_SELECTION_HEX' },
+    // Contour Territory
+    { panelKey: 'territoryContour', configKey: 'TERRITORY_CONTOUR' },
+    { panelKey: 'territoryClusterSplit', configKey: 'TERRITORY_CLUSTER_SPLIT' },
+    { panelKey: 'contourSaturation', configKey: 'CONTOUR_SATURATION' },
+    { panelKey: 'contourLightness', configKey: 'CONTOUR_LIGHTNESS' },
+    { panelKey: 'contourFillAlpha', configKey: 'CONTOUR_FILL_ALPHA' },
+    { panelKey: 'contourResolution', configKey: 'CONTOUR_RESOLUTION' },
+    { panelKey: 'contourSimplify', configKey: 'CONTOUR_SIMPLIFY' },
+    { panelKey: 'contourSmooth', configKey: 'CONTOUR_SMOOTH' },
+    { panelKey: 'contourBorderWidth', configKey: 'CONTOUR_BORDER_WIDTH' },
+    { panelKey: 'contourBorderAlpha', configKey: 'CONTOUR_BORDER_ALPHA' },
+    { panelKey: 'contourBorderBrighten', configKey: 'CONTOUR_BORDER_BRIGHTEN' },
+    { panelKey: 'contourCornerRadius', configKey: 'CONTOUR_CORNER_RADIUS' },
+    { panelKey: 'contourCornerThreshold', configKey: 'CONTOUR_CORNER_THRESHOLD' },
+    { panelKey: 'contourPeripheryStrength', configKey: 'CONTOUR_PERIPHERY_STRENGTH' },
+    { panelKey: 'contourPeripheryInset', configKey: 'CONTOUR_PERIPHERY_INSET' },
+    { panelKey: 'contourJunctionCorrection', configKey: 'CONTOUR_JUNCTION_CORRECTION' },
 ];
 
 // ── ConfigKey → PanelKey lookup (for animSliderToPanelKey) ──────────────────
