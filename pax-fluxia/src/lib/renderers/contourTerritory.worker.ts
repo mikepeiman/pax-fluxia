@@ -224,11 +224,11 @@ function applyPeripheryOwnership(
     const starById = new Map<string, StarData>();
     for (const s of stars) starById.set(s.id, s);
 
-    // Find peripheral stars (those near map edges)
-    const edgeThresholdX = cellW * 2;
-    const edgeThresholdY = cellH * 2;
+    // Find peripheral stars (those in the outer 25% of the map)
     const worldW = gridW * cellW;
     const worldH = gridH * cellH;
+    const edgeThresholdX = worldW * 0.25;
+    const edgeThresholdY = worldH * 0.25;
 
     function isPeripheral(s: StarData): boolean {
         return s.x < edgeThresholdX || s.x > worldW - edgeThresholdX ||
@@ -298,14 +298,15 @@ function applyPeripheryOwnership(
 
                 if (side > -insetPx) {
                     // This cell is on the exterior side of the lane (or within inset)
-                    // Check distance to lane — only paint if reasonably close
                     const distToLane = Math.sqrt(toPointX * toPointX + toPointY * toPointY);
 
                     // Distance to nearest map edge from this cell
                     const distToMapEdge = Math.min(wx, worldW - wx, wy, worldH - wy);
 
-                    // Paint if the cell is between the lane and the map edge
-                    if (distToMapEdge < distToLane + cellW * 3) {
+                    // Paint if the cell is closer to the map edge than to the map center,
+                    // and within a reasonable band of the lane
+                    const maxFillDist = Math.max(worldW, worldH) * 0.3;
+                    if (distToLane < maxFillDist && distToMapEdge < edgeThresholdX * 1.5) {
                         if (strength >= 1.0 || Math.random() < strength) {
                             grid[gy * gridW + gx] = ownerIdx;
                         }
@@ -442,17 +443,18 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
             if (polygon.length >= 6) {
                 let processed = polygon;
 
-                // Corner rounding (before simplification, on raw polygon)
-                if (cornerRadius > 0) {
-                    const radiusWorld = cornerRadius * Math.max(cellW, cellH);
-                    processed = roundCorners(processed, radiusWorld, cornerThreshold);
-                }
-
+                // Simplify first (remove redundant marching-squares vertices)
                 if (simplify > 0) {
                     processed = simplifyPath(processed, simplify * cellW * 0.05);
                 }
+                // Smooth next (Chaikin subdivision)
                 if (smooth > 0 && processed.length >= 6) {
                     processed = chaikinSmooth(processed, smooth);
+                }
+                // Corner rounding LAST — so arcs survive and aren't eliminated
+                if (cornerRadius > 0 && processed.length >= 6) {
+                    const radiusWorld = cornerRadius * Math.max(cellW, cellH);
+                    processed = roundCorners(processed, radiusWorld, cornerThreshold);
                 }
                 results.push({ ownerIdx, fillPoints: processed });
             }
