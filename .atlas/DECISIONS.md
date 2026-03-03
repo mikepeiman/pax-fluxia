@@ -109,3 +109,12 @@
 - **Error**: User specified "Section: Map & Game" for the Label Anim Mode toggle. Agent placed it in Timing section instead.
 - **Root cause**: Agent noticed `NUMBER_TRANSITION_MS` was already in Timing and assumed logical grouping overrode the user's explicit instruction. This violates §2.3: "User words are specifications."
 - **Prevention**: When user specifies a section/location, treat it as a hard constraint. Never substitute own judgment for an explicit placement instruction.
+
+### D-33: Chaikin Smoothing Defaults to OFF (0)
+- **Decision**: Chaikin smoothing slider defaults to 0 (completely off). Must be applied AFTER junction correction (F-135), never before.
+- **Rationale**: Smoothing erases junction geometry and creates corner gaps. User should opt in to smoothing only after junctions are correct.
+
+### D-34: Territory Border Intersection Design (F-135, F-136)
+- **Decision**: At multi-territory junctions, pull vertex toward the owner with the most acute angle (directional, not symmetric equalization). Minimum shared-boundary length enforced by rounding UP to next integer segment length and pulling topology to meet requirement.
+- **Rationale**: The acute-angle owner's territory is "poking in" — pulling back naturally equalizes. Minimum boundary is a hard quantization, not a fuzzy grid filter.
+
