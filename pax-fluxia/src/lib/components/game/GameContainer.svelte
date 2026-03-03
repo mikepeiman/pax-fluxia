@@ -478,6 +478,27 @@
                 <span class="mi-icon">💬</span>
                 <span class="mi-label">Chat</span>
               </button>
+              <hr class="menu-divider" />
+              <button
+                class="menu-item"
+                onclick={() => {
+                  audioManager.play("click");
+                  activeGameStore.playAgain();
+                }}
+              >
+                <span class="mi-icon">🔄</span>
+                <span class="mi-label">Restart</span>
+              </button>
+              <button
+                class="menu-item quit-item"
+                onclick={() => {
+                  audioManager.play("click");
+                  showSurrenderModal = true;
+                }}
+              >
+                <span class="mi-icon">🏳</span>
+                <span class="mi-label">Quit Game</span>
+              </button>
             </div>
           {/if}
         </div>
@@ -1316,6 +1337,18 @@
 
   .mi-label {
     flex: 1;
+  }
+
+  .menu-divider {
+    border: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    margin: 4px 0;
+  }
+
+  .menu-item.quit-item:hover {
+    background: rgba(255, 80, 80, 0.1);
+    border-color: rgba(255, 80, 80, 0.25);
+    color: #fca5a5;
   }
 
   /* ═══ OVERLAYS ═══ */
