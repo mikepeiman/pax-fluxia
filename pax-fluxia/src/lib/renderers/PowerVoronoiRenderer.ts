@@ -56,7 +56,8 @@ interface MergedTerritory {
 
 // ── Cache ──────────────────────────────────────────────────────────────────
 
-let cachedFingerprint = '';
+let cachedShapeFingerprint = '';
+let cachedVisualFingerprint = '';
 let fillGraphics: PIXI.Graphics | null = null;
 let borderGraphics: PIXI.Graphics | null = null;
 
@@ -72,20 +73,25 @@ let isTransitioning = false;
 
 // ── Fingerprint ────────────────────────────────────────────────────────────
 
-function buildFingerprint(stars: StarState[]): string {
-    let fp = 'powerV2:';
+function buildShapeFingerprint(stars: StarState[]): string {
+    let fp = 'shape:';
     for (const s of stars) {
-        fp += `${s.id}:${s.ownerId ?? ''}:${s.activeShips ?? 0}|`;
+        fp += `${s.id}:${s.ownerId ?? ''}|`;
     }
-    fp += `${GAME_CONFIG.VORONOI_ALPHA}:${GAME_CONFIG.VORONOI_BORDER_WIDTH}`;
-    fp += `:${GAME_CONFIG.VORONOI_BORDER_ALPHA}:${GAME_CONFIG.VORONOI_SATURATION}`;
-    fp += `:${GAME_CONFIG.VORONOI_LIGHTNESS}`;
     fp += `:${GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN}`;
     fp += `:${GAME_CONFIG.TERRITORY_CLUSTER_SPLIT}`;
     fp += `:${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED}`;
     fp += `:${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}`;
     fp += `:${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED}`;
     fp += `:${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE}`;
+    return fp;
+}
+
+function buildVisualFingerprint(): string {
+    let fp = 'visual:';
+    fp += `${GAME_CONFIG.VORONOI_ALPHA}:${GAME_CONFIG.VORONOI_BORDER_WIDTH}`;
+    fp += `:${GAME_CONFIG.VORONOI_BORDER_ALPHA}:${GAME_CONFIG.VORONOI_SATURATION}`;
+    fp += `:${GAME_CONFIG.VORONOI_LIGHTNESS}`;
     return fp;
 }
 
@@ -531,16 +537,21 @@ export function renderPowerVoronoi(
         return;  // Don't recompute — just animate
     }
 
-    const fp = buildFingerprint(stars);
-    if (fp === cachedFingerprint) return;
+    const shapeFp = buildShapeFingerprint(stars);
+    const visualFp = buildVisualFingerprint();
+    const shapeChanged = shapeFp !== cachedShapeFingerprint;
+    const visualChanged = visualFp !== cachedVisualFingerprint;
 
-    // ── Fingerprint changed: snapshot current targets as prev ─────────────
-    if (transitionMs > 0 && targetTerritories && targetTerritories.length > 0) {
+    if (!shapeChanged && !visualChanged) return;  // nothing changed
+
+    // ── Shape changed: snapshot current targets as prev, trigger morph ────
+    if (shapeChanged && transitionMs > 0 && targetTerritories && targetTerritories.length > 0) {
         prevTerritories = targetTerritories;
         prevSharedEdges = targetSharedEdges;
     }
 
-    cachedFingerprint = fp;
+    cachedShapeFingerprint = shapeFp;
+    cachedVisualFingerprint = visualFp;
 
     const alpha = GAME_CONFIG.VORONOI_ALPHA ?? 0.25;
     const borderWidth = GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 1.5;
@@ -760,11 +771,6 @@ export function renderPowerVoronoi(
             ownerStars.get(s.ownerId!)!.push(s);
         }
 
-        // Get the total ship strength per owner (for relative strength)
-        const ownerStrength = new Map<string, number>();
-        for (const s of ownedStars) {
-            ownerStrength.set(s.ownerId!, (ownerStrength.get(s.ownerId!) ?? 0) + (s.activeShips ?? 0) + (s.damagedShips ?? 0));
-        }
 
         // Assign colors to shared edges
         for (const edge of sharedEdges) {
@@ -776,15 +782,8 @@ export function renderPowerVoronoi(
         const blendWidth = borderWidth * 2.5;  // shared edges are wider for visual impact
 
         for (const edge of sharedEdges) {
-            // Get nearest star distance to each endpoint for each owner
             const starsA = ownerStars.get(edge.ownerA) ?? [];
             const starsB = ownerStars.get(edge.ownerB) ?? [];
-            const strengthA = ownerStrength.get(edge.ownerA) ?? 1;
-            const strengthB = ownerStrength.get(edge.ownerB) ?? 1;
-
-            // Relative strength ratio (0 = A dominates, 1 = B dominates)
-            const totalStrength = strengthA + strengthB;
-            const baseRatio = totalStrength > 0 ? strengthB / totalStrength : 0.5;
 
             // Edge midpoint for proximity check
             const mx = (edge.x1 + edge.x2) / 2;
@@ -801,12 +800,9 @@ export function renderPowerVoronoi(
                 if (d < distB) distB = d;
             }
 
-            // Proximity factor: closer star gets more influence
+            // Proximity-only blend: closer star's owner color dominates
             const totalDist = distA + distB;
-            const proximityRatio = totalDist > 0 ? distA / totalDist : 0.5;  // 0=A closer, 1=B closer
-
-            // Combine: strength × proximity (each 50% weight)
-            const blendT = baseRatio * 0.5 + proximityRatio * 0.5;
+            const blendT = totalDist > 0 ? distA / totalDist : 0.5;
 
             // Boost saturation and lightness based on dominance
             const dominance = Math.abs(blendT - 0.5) * 2;  // 0 = equal, 1 = fully dominant
@@ -848,7 +844,8 @@ export function renderPowerVoronoi(
 // ── Cache Reset ────────────────────────────────────────────────────────────
 
 export function resetPowerVoronoiCache(): void {
-    cachedFingerprint = '';
+    cachedShapeFingerprint = '';
+    cachedVisualFingerprint = '';
     isTransitioning = false;
     prevTerritories = null;
     targetTerritories = null;
