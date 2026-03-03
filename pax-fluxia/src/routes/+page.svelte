@@ -13,7 +13,15 @@
 
   function handlePlay() {
     audioManager.play("play");
-    showGame = true;
+    // In production, redirect to play subdomain; in dev, toggle in-page
+    const isProd =
+      typeof window !== "undefined" &&
+      window.location.hostname === "paxfluxia.com";
+    if (isProd) {
+      window.location.href = "https://play.paxfluxia.com";
+    } else {
+      showGame = true;
+    }
   }
 </script>
 

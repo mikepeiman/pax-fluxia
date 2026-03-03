@@ -12,8 +12,32 @@
     let { panel, updatePanel, syncFromConfig }: Props = $props();
     import CategoryThemeBar from "./CategoryThemeBar.svelte";
 
+    // Debounce config writes to prevent expensive recomputation per slider pixel
+    const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
+    function debouncedConfigUpdate(
+        configKey: string,
+        panelKey: string,
+        value: any,
+        delayMs = 100,
+    ) {
+        // Update panel immediately for responsive UI
+        updatePanel(panelKey, value);
+        // Debounce the config write that triggers recomputation
+        const existing = debounceTimers.get(configKey);
+        if (existing) clearTimeout(existing);
+        debounceTimers.set(
+            configKey,
+            setTimeout(() => {
+                (GAME_CONFIG as any)[configKey] = value;
+                debounceTimers.delete(configKey);
+            }, delayMs),
+        );
+    }
+
     const TERRITORY_KEYS = [
         "territoryVoronoi",
+        "territoryModifiedVoronoi",
+        "territoryPowerVoronoi",
         "territoryMetaball",
         "territoryPixel",
         "territoryGraph",
@@ -21,6 +45,8 @@
     ] as const;
     const CONFIG_KEYS = [
         "TERRITORY_VORONOI",
+        "TERRITORY_MODIFIED_VORONOI",
+        "TERRITORY_POWER_VORONOI",
         "TERRITORY_METABALL",
         "TERRITORY_PIXEL",
         "TERRITORY_GRAPH",
@@ -144,6 +170,44 @@
         </label>
     </div>
 </div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">🔶 Modified Voronoi</span>
+        <label class="toggle-switch">
+            <input
+                type="checkbox"
+                checked={panel.territoryModifiedVoronoi ??
+                    GAME_CONFIG.TERRITORY_MODIFIED_VORONOI}
+                onchange={(e) => {
+                    selectTerritory(
+                        "territoryModifiedVoronoi",
+                        (e.target as HTMLInputElement).checked,
+                    );
+                }}
+            />
+            <span class="toggle-slider"></span>
+        </label>
+    </div>
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">⚡ Power Voronoi V2</span>
+        <label class="toggle-switch">
+            <input
+                type="checkbox"
+                checked={panel.territoryPowerVoronoi ??
+                    GAME_CONFIG.TERRITORY_POWER_VORONOI}
+                onchange={(e) => {
+                    selectTerritory(
+                        "territoryPowerVoronoi",
+                        (e.target as HTMLInputElement).checked,
+                    );
+                }}
+            />
+            <span class="toggle-slider"></span>
+        </label>
+    </div>
+</div>
 
 <!-- Cluster Split (applies to any active renderer) -->
 <div class="var-row">
@@ -170,6 +234,151 @@
         Disconnected stars → separate territory blobs
     </div>
 </div>
+
+{#if panel.territoryModifiedVoronoi}
+    <!-- ── Modified Voronoi Settings (F-138) ── -->
+    <h4 class="sub-heading">Modified Voronoi Settings</h4>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">⭐ Star Margin</span><span class="val"
+                >{panel.modifiedVoronoiStarMargin ??
+                    GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="500"
+            step="5"
+            value={panel.modifiedVoronoiStarMargin ??
+                GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "MODIFIED_VORONOI_STAR_MARGIN",
+                    "modifiedVoronoiStarMargin",
+                    v,
+                );
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">⤴️ Arc Strength</span><span class="val"
+                >{(
+                    panel.modifiedVoronoiArcStrength ??
+                    GAME_CONFIG.MODIFIED_VORONOI_ARC_STRENGTH
+                ).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value={panel.modifiedVoronoiArcStrength ??
+                GAME_CONFIG.MODIFIED_VORONOI_ARC_STRENGTH}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "MODIFIED_VORONOI_ARC_STRENGTH",
+                    "modifiedVoronoiArcStrength",
+                    v,
+                );
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">📐 Arc Threshold</span><span class="val"
+                >{panel.modifiedVoronoiArcThreshold ??
+                    GAME_CONFIG.MODIFIED_VORONOI_ARC_THRESHOLD}°</span
+            >
+        </div>
+        <input
+            type="range"
+            min="30"
+            max="180"
+            step="5"
+            value={panel.modifiedVoronoiArcThreshold ??
+                GAME_CONFIG.MODIFIED_VORONOI_ARC_THRESHOLD}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "MODIFIED_VORONOI_ARC_THRESHOLD",
+                    "modifiedVoronoiArcThreshold",
+                    v,
+                );
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">🔗 Arc Min Segment</span><span class="val"
+                >{panel.modifiedVoronoiArcMinSegment ??
+                    GAME_CONFIG.MODIFIED_VORONOI_ARC_MIN_SEGMENT}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="1"
+            max="20"
+            step="1"
+            value={panel.modifiedVoronoiArcMinSegment ??
+                GAME_CONFIG.MODIFIED_VORONOI_ARC_MIN_SEGMENT}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "MODIFIED_VORONOI_ARC_MIN_SEGMENT",
+                    "modifiedVoronoiArcMinSegment",
+                    v,
+                );
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">🛤️ Corridor Sites</span><span class="val"
+                >{GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED
+                    ? "ON"
+                    : "OFF"}</span
+            >
+        </div>
+        <input
+            type="checkbox"
+            checked={GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED}
+            onchange={(e) => {
+                const v = (e.target as HTMLInputElement).checked;
+                GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED = v;
+                updatePanel("modifiedVoronoiCorridorEnabled", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">📏 Corridor Spacing</span><span class="val"
+                >{panel.modifiedVoronoiCorridorSpacing ??
+                    GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="20"
+            max="200"
+            step="5"
+            value={panel.modifiedVoronoiCorridorSpacing ??
+                GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "MODIFIED_VORONOI_CORRIDOR_SPACING",
+                    "modifiedVoronoiCorridorSpacing",
+                    v,
+                );
+            }}
+        />
+    </div>
+{/if}
 
 {#if panel.territoryGraph}
     <!-- ── Lane Territory Controls ── -->

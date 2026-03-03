@@ -252,14 +252,20 @@ interface GameConfigType {
 
     // ── Territory Toggles ──────────────────────────────────────────────────────
     TERRITORY_VORONOI: boolean;    // Enable Voronoi territory renderer (default true)
-    TERRITORY_MERGED_VORONOI: boolean; // Enable Merged Voronoi territory renderer (F-138, default false)
+    TERRITORY_MODIFIED_VORONOI: boolean; // Enable Modified Voronoi territory renderer (F-138, default false)
+    TERRITORY_POWER_VORONOI: boolean;    // Enable Power Voronoi V2 territory renderer (F-138v2, default false)
     TERRITORY_METABALL: boolean;   // Enable Metaball territory renderer (default false)
     TERRITORY_PIXEL: boolean;      // Enable Pixel (nearest-neighbor) territory renderer (default false)
     TERRITORY_CLUSTER_SPLIT: boolean; // Split disconnected same-owner stars into separate territory blobs (default false)
     TERRITORY_MODE: 'voronoi' | 'metaball' | 'off';  // LEGACY — kept for compat
 
-    // ── Merged Voronoi Territory (F-138) ────────────────────────────────────
-    MERGED_VORONOI_STAR_MARGIN: number; // Min boundary distance from star centers in px (0-500, default 50)
+    // ── Modified Voronoi Territory (F-138) ────────────────────────────────────
+    MODIFIED_VORONOI_STAR_MARGIN: number;      // Min boundary distance from star centers in px (0-500)
+    MODIFIED_VORONOI_ARC_STRENGTH: number;     // How far to retract sharp vertex toward origin (0-1)
+    MODIFIED_VORONOI_ARC_THRESHOLD: number;    // Interior angle below which arc smoothing activates (°)
+    MODIFIED_VORONOI_ARC_MIN_SEGMENT: number;  // Min line-segment length for Bézier tessellation (px)
+    MODIFIED_VORONOI_CORRIDOR_ENABLED: boolean; // Inject virtual sites along same-owner lanes for corridor effect
+    MODIFIED_VORONOI_CORRIDOR_SPACING: number;  // Distance between virtual corridor sites in px (20-200)
 
     // ── Voronoi Territory ───────────────────────────────────────────────────
     SHOW_VORONOI: boolean;         // Show contiguous Voronoi territory fill (default true)
@@ -824,8 +830,10 @@ const _rawConfig: GameConfigType = {
 
     /** Enable Voronoi territory renderer */
     TERRITORY_VORONOI: false,
-    /** Enable Merged Voronoi territory renderer (F-138) */
-    TERRITORY_MERGED_VORONOI: false,
+    /** Enable Modified Voronoi territory renderer (F-138) */
+    TERRITORY_MODIFIED_VORONOI: false,
+    /** Enable Power Voronoi V2 territory renderer (F-138v2) */
+    TERRITORY_POWER_VORONOI: false,
     /** Enable Metaball territory renderer */
     TERRITORY_METABALL: false,
     /** Enable Pixel (nearest-neighbor) territory renderer */
@@ -868,9 +876,19 @@ const _rawConfig: GameConfigType = {
     /** Gradient blend strip width in px */
     VORONOI_BLEND_WIDTH: 80,
 
-    // ── Merged Voronoi Territory (F-138) ──
-    /** Min boundary distance from star centers in px (0=off, 50=default) */
-    MERGED_VORONOI_STAR_MARGIN: 50,
+    // ── Modified Voronoi Territory (F-138) ──
+    /** Min boundary distance from star centers in px (0=off, 45=default) */
+    MODIFIED_VORONOI_STAR_MARGIN: 45,
+    /** How far to retract sharp vertex toward origin (0=none, 0.3=default, 1=full) */
+    MODIFIED_VORONOI_ARC_STRENGTH: 0.3,
+    /** Interior angle below which arc smoothing activates (degrees) */
+    MODIFIED_VORONOI_ARC_THRESHOLD: 150,
+    /** Min line-segment length for Bézier tessellation (px, lower=smoother) */
+    MODIFIED_VORONOI_ARC_MIN_SEGMENT: 4,
+    /** Whether to inject virtual Voronoi sites along same-owner lanes */
+    MODIFIED_VORONOI_CORRIDOR_ENABLED: true,
+    /** Distance between virtual corridor sites in px (lower=more sites=denser corridor) */
+    MODIFIED_VORONOI_CORRIDOR_SPACING: 80,
 
     // ── Metaball Territory ──
     /** How far each star's influence field extends (px) */

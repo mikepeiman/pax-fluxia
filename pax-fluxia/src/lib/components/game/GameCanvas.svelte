@@ -68,6 +68,14 @@
         renderContourTerritory as renderContourTerritoryModule,
         resetContourTerritoryCache,
     } from "$lib/renderers/ContourTerritoryRenderer";
+    import {
+        renderModifiedVoronoi as renderModifiedVoronoiModule,
+        resetModifiedVoronoiCache,
+    } from "$lib/renderers/ModifiedVoronoiRenderer";
+    import {
+        renderPowerVoronoi as renderPowerVoronoiModule,
+        resetPowerVoronoiCache,
+    } from "$lib/renderers/PowerVoronoiRenderer";
 
     // ============================================================================
     // PixiJS Application
@@ -740,6 +748,8 @@
         resetPixelTerritoryCache();
         resetLaneTerritoryCache();
         resetContourTerritoryCache();
+        resetModifiedVoronoiCache();
+        resetPowerVoronoiCache();
         // Clear ALL visual ship positions so they re-spawn at transposed coords
         // (ships store x/y, laneStartX/Y, laneEndX/Y in old coordinate space)
         visualDamagedShips.clear();
@@ -790,7 +800,7 @@
     }
 
     function handleResize() {
-        if (!app) return;
+        if (!app || !app.renderer) return;
 
         app.resize();
 
@@ -1014,6 +1024,8 @@
             resetPixelTerritoryCache();
             resetLaneTerritoryCache();
             resetContourTerritoryCache();
+            resetModifiedVoronoiCache();
+            resetPowerVoronoiCache();
             activeSurges.clear();
             nextShipId = 0;
             starShipCounts.clear();
@@ -1058,59 +1070,91 @@
             renderStarPowerModule(stars, territoryGraphics, colorUtils);
         }
 
-        // Render territory overlays (each renderer manages own visibility)
+        // Render territory overlays — only call the active renderer
         if (voronoiContainer) {
             voronoiContainer.visible = true;
 
-            // Voronoi renderer (checks TERRITORY_VORONOI + SHOW_VORONOI internally)
-            renderVoronoiModule(
-                stars,
-                voronoiContainer,
-                colorUtils,
-                GAME_WIDTH,
-                GAME_HEIGHT,
-                activeGameStore.connections as StarConnection[],
-            );
+            // Hide all children first — only the active renderer will re-show its own
+            for (const child of voronoiContainer.children) {
+                child.visible = false;
+            }
 
-            // Metaball renderer (checks TERRITORY_METABALL internally)
-            renderMetaballModule(
-                stars,
-                voronoiContainer,
-                colorUtils,
-                GAME_WIDTH,
-                GAME_HEIGHT,
-                activeGameStore.connections as StarConnection[],
-            );
+            if (GAME_CONFIG.TERRITORY_VORONOI) {
+                renderVoronoiModule(
+                    stars,
+                    voronoiContainer,
+                    colorUtils,
+                    GAME_WIDTH,
+                    GAME_HEIGHT,
+                    activeGameStore.connections as StarConnection[],
+                );
+            }
 
-            // Pixel territory renderer (checks TERRITORY_PIXEL internally)
-            renderPixelTerritoryModule(
-                stars,
-                voronoiContainer,
-                colorUtils,
-                GAME_WIDTH,
-                GAME_HEIGHT,
-                activeGameStore.connections as StarConnection[],
-            );
+            if (GAME_CONFIG.TERRITORY_METABALL) {
+                renderMetaballModule(
+                    stars,
+                    voronoiContainer,
+                    colorUtils,
+                    GAME_WIDTH,
+                    GAME_HEIGHT,
+                    activeGameStore.connections as StarConnection[],
+                );
+            }
 
-            // Lane territory renderer (checks TERRITORY_GRAPH internally)
-            renderLaneTerritoryModule(
-                stars,
-                voronoiContainer,
-                colorUtils,
-                GAME_WIDTH,
-                GAME_HEIGHT,
-                activeGameStore.connections as StarConnection[],
-            );
+            if (GAME_CONFIG.TERRITORY_PIXEL) {
+                renderPixelTerritoryModule(
+                    stars,
+                    voronoiContainer,
+                    colorUtils,
+                    GAME_WIDTH,
+                    GAME_HEIGHT,
+                    activeGameStore.connections as StarConnection[],
+                );
+            }
 
-            // Contour territory renderer (checks TERRITORY_CONTOUR internally)
-            renderContourTerritoryModule(
-                stars,
-                voronoiContainer,
-                colorUtils,
-                GAME_WIDTH,
-                GAME_HEIGHT,
-                activeGameStore.connections as StarConnection[],
-            );
+            if (GAME_CONFIG.TERRITORY_GRAPH) {
+                renderLaneTerritoryModule(
+                    stars,
+                    voronoiContainer,
+                    colorUtils,
+                    GAME_WIDTH,
+                    GAME_HEIGHT,
+                    activeGameStore.connections as StarConnection[],
+                );
+            }
+
+            if (GAME_CONFIG.TERRITORY_CONTOUR) {
+                renderContourTerritoryModule(
+                    stars,
+                    voronoiContainer,
+                    colorUtils,
+                    GAME_WIDTH,
+                    GAME_HEIGHT,
+                    activeGameStore.connections as StarConnection[],
+                );
+            }
+
+            if (GAME_CONFIG.TERRITORY_MODIFIED_VORONOI) {
+                renderModifiedVoronoiModule(
+                    stars,
+                    voronoiContainer,
+                    colorUtils,
+                    GAME_WIDTH,
+                    GAME_HEIGHT,
+                    activeGameStore.connections as StarConnection[],
+                );
+            }
+
+            if (GAME_CONFIG.TERRITORY_POWER_VORONOI) {
+                renderPowerVoronoiModule(
+                    stars,
+                    voronoiContainer,
+                    colorUtils,
+                    GAME_WIDTH,
+                    GAME_HEIGHT,
+                    activeGameStore.connections as StarConnection[],
+                );
+            }
         }
 
         // Render stars (static elements)

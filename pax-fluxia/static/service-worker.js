@@ -33,7 +33,7 @@ sw.addEventListener('fetch', (event) => {
         fetch(event.request)
             .then((response) => {
                 // Cache successful GET responses
-                if (event.request.method === 'GET' && response.status === 200) {
+                if (event.request.method === 'GET' && response.status === 200 && event.request.url.startsWith('http')) {
                     const clone = response.clone();
                     caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
                 }
