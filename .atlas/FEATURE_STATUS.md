@@ -37,4 +37,5 @@
 | ID | Description | Status | Date |
 |----|-------------|--------|------|
 | R-1 | Territory rendering (all modes) regressed during mobile layout work | 🔴 Active | 2026-03-02 |
+| R-2 | Audio settings (conquest sounds, toggles) not persisting across reload | 🔴 Active | 2026-03-02 |
 

@@ -351,6 +351,10 @@ interface GameConfigType {
     CONTOUR_BORDER_BRIGHTEN: number; // Border brighten amount (0-255, default 80)
     CONTOUR_SATURATION: number;      // Saturation multiplier (0-2, default 1.0)
     CONTOUR_LIGHTNESS: number;       // Lightness multiplier (0-2, default 1.0)
+    CONTOUR_CORNER_RADIUS: number;   // Corner rounding radius in grid cells (0=off, 1-10)
+    CONTOUR_CORNER_THRESHOLD: number;// Angle threshold in degrees below which corners are rounded (0-180, default 120)
+    CONTOUR_PERIPHERY_STRENGTH: number; // Periphery ownership strength (0=off, 1=full hull override)
+    CONTOUR_PERIPHERY_INSET: number; // How far inside the lane the periphery boundary sits (px, default 0)
 
     SHOW_HEX_GRID: boolean;
     STARS_PER_PLAYER: number;
@@ -964,6 +968,10 @@ const _rawConfig: GameConfigType = {
     CONTOUR_BORDER_BRIGHTEN: 80,
     CONTOUR_SATURATION: 1.0,
     CONTOUR_LIGHTNESS: 1.0,
+    CONTOUR_CORNER_RADIUS: 3,
+    CONTOUR_CORNER_THRESHOLD: 120,
+    CONTOUR_PERIPHERY_STRENGTH: 1.0,
+    CONTOUR_PERIPHERY_INSET: 0,
 
     /** Show hex grid (debug) */
     SHOW_HEX_GRID: false,

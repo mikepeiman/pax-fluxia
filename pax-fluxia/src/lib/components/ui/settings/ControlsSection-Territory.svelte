@@ -709,6 +709,94 @@
             }}
         />
     </div>
+    <div
+        class="var-row grayed"
+        style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"
+    >
+        🔄 Corner Rounding
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Corner Radius</span><span class="val"
+                >{panel.contourCornerRadius ?? 3}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="10"
+            step="0.5"
+            value={panel.contourCornerRadius ?? 3}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.CONTOUR_CORNER_RADIUS = v;
+                updatePanel("contourCornerRadius", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Corner Threshold</span><span class="val"
+                >{panel.contourCornerThreshold ?? 120}°</span
+            >
+        </div>
+        <input
+            type="range"
+            min="30"
+            max="170"
+            step="5"
+            value={panel.contourCornerThreshold ?? 120}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.CONTOUR_CORNER_THRESHOLD = v;
+                updatePanel("contourCornerThreshold", v);
+            }}
+        />
+    </div>
+    <div
+        class="var-row grayed"
+        style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"
+    >
+        🏔️ Periphery Ownership
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Periphery Strength</span><span class="val"
+                >{(panel.contourPeripheryStrength ?? 1).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={panel.contourPeripheryStrength ?? 1}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.CONTOUR_PERIPHERY_STRENGTH = v;
+                updatePanel("contourPeripheryStrength", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Periphery Inset</span><span class="val"
+                >{panel.contourPeripheryInset ?? 0}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="50"
+            step="5"
+            value={panel.contourPeripheryInset ?? 0}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.CONTOUR_PERIPHERY_INSET = v;
+                updatePanel("contourPeripheryInset", v);
+            }}
+        />
+    </div>
 {/if}
 
 {#if panel.territoryVoronoi}

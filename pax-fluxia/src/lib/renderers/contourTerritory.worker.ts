@@ -3,17 +3,25 @@
 // ============================================================================
 // Pipeline:
 //   1. Build low-res ownership grid (nearest-star Voronoi)
-//   2. For each owner, create binary mask
-//   3. Extract boundary via marching squares with INTEGER edge keys
-//   4. Chain edges into closed polygons
-//   5. Simplify (Douglas-Peucker) + smooth (Chaikin)
-//   6. Return polygon arrays per owner
+//   2. Apply periphery hull ownership (force edges along perimeter lanes)
+//   3. For each owner, create binary mask
+//   4. Extract boundary via marching squares with INTEGER edge keys
+//   5. Chain edges into closed polygons
+//   6. Round sharp corners (angle-aware arc insertion)
+//   7. Simplify (Douglas-Peucker) + smooth (Chaikin)
+//   8. Return polygon arrays per owner
 // ============================================================================
 
 interface StarData {
     x: number;
     y: number;
     ownerIdx: number;
+    id: string;
+}
+
+interface ConnectionData {
+    fromId: string;
+    toId: string;
 }
 
 interface WorkerInput {
@@ -22,10 +30,15 @@ interface WorkerInput {
     worldW: number;
     worldH: number;
     stars: StarData[];
+    connections: ConnectionData[];
     numOwners: number;
     ownerRGB: number[];     // flat [r,g,b, r,g,b, ...]
     simplify: number;       // Douglas-Peucker tolerance
     smooth: number;         // Chaikin iterations
+    cornerRadius: number;   // Corner rounding radius in grid cells (0=off)
+    cornerThreshold: number;// Angle below which to round (degrees)
+    peripheryStrength: number; // 0=off, 1=full periphery hull override
+    peripheryInset: number; // px inset from lane
 }
 
 interface PolygonResult {
@@ -34,13 +47,6 @@ interface PolygonResult {
 }
 
 // ── Edge identification ──
-// Each edge in the grid is uniquely identified by integer coordinates:
-//   Horizontal edge at row gy, between columns gx and gx+1:  "H:gx:gy"
-//   Vertical edge at column gx, between rows gy and gy+1:    "V:gx:gy"
-// Edge midpoints in world coords:
-//   H:gx:gy → ((gx+0.5)*cellW, gy*cellH)
-//   V:gx:gy → (gx*cellW, (gy+0.5)*cellH)
-
 function edgeKey(type: 'H' | 'V', gx: number, gy: number): string {
     return `${type}:${gx}:${gy}`;
 }
@@ -53,20 +59,13 @@ function edgeMidpoint(type: 'H' | 'V', gx: number, gy: number, cellW: number, ce
     }
 }
 
-// Marching squares edge table for binary grid
-// Cell corners: TL(gx,gy) TR(gx+1,gy) BR(gx+1,gy+1) BL(gx,gy+1)
-// Bits: TL=8, TR=4, BR=2, BL=1
-// Edges: top=H:gx:gy, right=V:gx+1:gy, bottom=H:gx:gy+1, left=V:gx:gy
-// Each case returns pairs of connected edges [from, to, from, to, ...]
-type EdgeSpec = ['H' | 'V', number, number]; // [type, dx, dy] relative to cell (gx, gy)
-
+// Marching squares edge table
+type EdgeSpec = ['H' | 'V', number, number];
 const TOP: EdgeSpec = ['H', 0, 0];
 const RIGHT: EdgeSpec = ['V', 1, 0];
 const BOTTOM: EdgeSpec = ['H', 0, 1];
 const LEFT: EdgeSpec = ['V', 0, 0];
 
-// For each of the 16 cases, list edge pairs that form segments
-// Each pair: [fromEdge, toEdge]
 const MS_CASES: [EdgeSpec, EdgeSpec][][] = [
     [],                          // 0: all outside
     [[BOTTOM, LEFT]],            // 1: BL
@@ -142,8 +141,187 @@ function chaikinSmooth(points: number[], iterations: number): number[] {
     return pts;
 }
 
+// ── Angle-aware corner rounding ──
+// Scans polygon for sharp corners (angle < threshold) and replaces them with arcs
+function roundCorners(points: number[], radiusWorld: number, thresholdDeg: number): number[] {
+    const n = points.length / 2;
+    if (n < 3 || radiusWorld <= 0) return points;
+
+    const thresholdRad = thresholdDeg * (Math.PI / 180);
+    const ARC_SEGMENTS = 6; // segments per rounded corner arc
+    const result: number[] = [];
+
+    for (let i = 0; i < n; i++) {
+        const prev = ((i - 1) + n) % n;
+        const next = (i + 1) % n;
+
+        const px = points[prev * 2], py = points[prev * 2 + 1];
+        const cx = points[i * 2], cy = points[i * 2 + 1];
+        const nx = points[next * 2], ny = points[next * 2 + 1];
+
+        // Vectors from corner to prev and next
+        const v1x = px - cx, v1y = py - cy;
+        const v2x = nx - cx, v2y = ny - cy;
+        const len1 = Math.sqrt(v1x * v1x + v1y * v1y);
+        const len2 = Math.sqrt(v2x * v2x + v2y * v2y);
+
+        if (len1 < 0.001 || len2 < 0.001) {
+            result.push(cx, cy);
+            continue;
+        }
+
+        // Angle between edges
+        const dot = (v1x * v2x + v1y * v2y) / (len1 * len2);
+        const angle = Math.acos(Math.max(-1, Math.min(1, dot)));
+
+        if (angle >= thresholdRad) {
+            // Not sharp enough — keep original vertex
+            result.push(cx, cy);
+            continue;
+        }
+
+        // Clamp radius to not exceed half the edge length
+        const maxR = Math.min(len1 * 0.4, len2 * 0.4, radiusWorld);
+
+        // Points where the arc starts and ends (along each edge, offset from corner)
+        const t1 = maxR / len1;
+        const t2 = maxR / len2;
+        const arcStartX = cx + v1x * t1, arcStartY = cy + v1y * t1;
+        const arcEndX = cx + v2x * t2, arcEndY = cy + v2y * t2;
+
+        // Insert arc points via lerp through the corner
+        // Use quadratic Bezier with corner as control point
+        for (let s = 0; s <= ARC_SEGMENTS; s++) {
+            const t = s / ARC_SEGMENTS;
+            // Quadratic Bezier: (1-t)²·start + 2(1-t)t·corner + t²·end
+            const omt = 1 - t;
+            const bx = omt * omt * arcStartX + 2 * omt * t * cx + t * t * arcEndX;
+            const by = omt * omt * arcStartY + 2 * omt * t * cy + t * t * arcEndY;
+            result.push(bx, by);
+        }
+    }
+
+    return result;
+}
+
+// ── Periphery hull ownership ──
+// For connected same-owner stars at the map edge, force ownership
+// of the exterior region (between their lane and the map boundary)
+function applyPeripheryOwnership(
+    grid: Int8Array,
+    gridW: number,
+    gridH: number,
+    cellW: number,
+    cellH: number,
+    stars: StarData[],
+    connections: ConnectionData[],
+    strength: number,
+    insetPx: number,
+): void {
+    if (strength <= 0 || connections.length === 0) return;
+
+    // Build star lookup by id
+    const starById = new Map<string, StarData>();
+    for (const s of stars) starById.set(s.id, s);
+
+    // Find peripheral stars (those near map edges)
+    const edgeThresholdX = cellW * 2;
+    const edgeThresholdY = cellH * 2;
+    const worldW = gridW * cellW;
+    const worldH = gridH * cellH;
+
+    function isPeripheral(s: StarData): boolean {
+        return s.x < edgeThresholdX || s.x > worldW - edgeThresholdX ||
+            s.y < edgeThresholdY || s.y > worldH - edgeThresholdY;
+    }
+
+    // For each connection between two same-owner peripheral stars,
+    // paint the exterior side of the lane
+    for (const conn of connections) {
+        const a = starById.get(conn.fromId);
+        const b = starById.get(conn.toId);
+        if (!a || !b) continue;
+        if (a.ownerIdx !== b.ownerIdx || a.ownerIdx < 0) continue;
+
+        const aPeripheral = isPeripheral(a);
+        const bPeripheral = isPeripheral(b);
+        if (!aPeripheral && !bPeripheral) continue;
+
+        // Find the exterior side: the side of the lane facing the nearest map edge
+        // Lane direction vector
+        const ldx = b.x - a.x;
+        const ldy = b.y - a.y;
+        const laneLen = Math.sqrt(ldx * ldx + ldy * ldy);
+        if (laneLen < 0.001) continue;
+
+        // Lane midpoint
+        const midX = (a.x + b.x) / 2;
+        const midY = (a.y + b.y) / 2;
+
+        // Perpendicular (outward normal — towards nearest edge)
+        // Two candidates: (ldy, -ldx) and (-ldy, ldx)
+        const n1x = ldy / laneLen, n1y = -ldx / laneLen;
+
+        // Pick the perpendicular that points toward the nearest map edge
+        const test1x = midX + n1x * 10;
+        const test1y = midY + n1y * 10;
+        const test2x = midX - n1x * 10;
+        const test2y = midY - n1y * 10;
+
+        const distToEdge1 = Math.min(test1x, worldW - test1x, test1y, worldH - test1y);
+        const distToEdge2 = Math.min(test2x, worldW - test2x, test2y, worldH - test2y);
+
+        const outNx = distToEdge1 < distToEdge2 ? n1x : -n1x;
+        const outNy = distToEdge1 < distToEdge2 ? n1y : -n1y;
+
+        const ownerIdx = a.ownerIdx;
+
+        // For each grid cell, check if it's on the exterior side of this lane
+        // and closer to this lane than to the interior
+        for (let gy = 0; gy < gridH; gy++) {
+            const wy = (gy + 0.5) * cellH;
+            for (let gx = 0; gx < gridW; gx++) {
+                const wx = (gx + 0.5) * cellW;
+
+                // Project onto lane segment
+                const apx = wx - a.x, apy = wy - a.y;
+                const t = Math.max(0, Math.min(1, (apx * ldx + apy * ldy) / (laneLen * laneLen)));
+                const projX = a.x + t * ldx;
+                const projY = a.y + t * ldy;
+
+                // Vector from projection point to grid cell
+                const toPointX = wx - projX;
+                const toPointY = wy - projY;
+
+                // Dot with outward normal — positive means exterior side
+                const side = toPointX * outNx + toPointY * outNy;
+
+                if (side > -insetPx) {
+                    // This cell is on the exterior side of the lane (or within inset)
+                    // Check distance to lane — only paint if reasonably close
+                    const distToLane = Math.sqrt(toPointX * toPointX + toPointY * toPointY);
+
+                    // Distance to nearest map edge from this cell
+                    const distToMapEdge = Math.min(wx, worldW - wx, wy, worldH - wy);
+
+                    // Paint if the cell is between the lane and the map edge
+                    if (distToMapEdge < distToLane + cellW * 3) {
+                        if (strength >= 1.0 || Math.random() < strength) {
+                            grid[gy * gridW + gx] = ownerIdx;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 self.onmessage = (e: MessageEvent<WorkerInput>) => {
-    const { gridW, gridH, worldW, worldH, stars, numOwners, ownerRGB, simplify, smooth } = e.data;
+    const {
+        gridW, gridH, worldW, worldH, stars, connections, numOwners, ownerRGB,
+        simplify, smooth, cornerRadius, cornerThreshold,
+        peripheryStrength, peripheryInset
+    } = e.data;
 
     const cellW = worldW / gridW;
     const cellH = worldH / gridH;
@@ -171,8 +349,15 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
         }
     }
 
+    // ── Step 1b: Apply periphery hull ownership ──
+    if (peripheryStrength > 0 && connections.length > 0) {
+        applyPeripheryOwnership(
+            grid, gridW, gridH, cellW, cellH,
+            stars, connections, peripheryStrength, peripheryInset,
+        );
+    }
+
     // ── Step 2: For each owner, extract boundary polygons ──
-    // Collect unique owner indices
     const ownerSet = new Set<number>();
     for (let i = 0; i < grid.length; i++) {
         if (grid[i] >= 0) ownerSet.add(grid[i]);
@@ -181,11 +366,10 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
     const results: PolygonResult[] = [];
 
     for (const ownerIdx of ownerSet) {
-        // Build binary mask: 1 = this owner, 0 = not
-        // Use a padded grid (1 cell border of 0s) to ensure closed contours
+        // Build padded binary mask
         const padW = gridW + 2;
         const padH = gridH + 2;
-        const mask = new Uint8Array(padW * padH); // all 0 by default
+        const mask = new Uint8Array(padW * padH);
 
         for (let gy = 0; gy < gridH; gy++) {
             for (let gx = 0; gx < gridW; gx++) {
@@ -195,10 +379,9 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
             }
         }
 
-        // Marching squares on the padded binary mask
-        // Collect directed edges: from → to
-        const edgeFrom = new Map<string, string>();   // fromKey → toKey
-        const edgeCoords = new Map<string, [number, number]>(); // edgeKey → world coords
+        // Marching squares on padded mask
+        const edgeFrom = new Map<string, string>();
+        const edgeCoords = new Map<string, [number, number]>();
 
         for (let gy = 0; gy < padH - 1; gy++) {
             for (let gx = 0; gx < padW - 1; gx++) {
@@ -222,7 +405,6 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
 
                     edgeFrom.set(fKey, tKey);
 
-                    // Compute world coordinates (offset by -1 for padding)
                     if (!edgeCoords.has(fKey)) {
                         const [wx, wy] = edgeMidpoint(fromSpec[0], fgx - 1, fgy - 1, cellW, cellH);
                         edgeCoords.set(fKey, [wx, wy]);
@@ -235,7 +417,7 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
             }
         }
 
-        // ── Step 3: Chain directed edges into closed polygons ──
+        // ── Chain directed edges into closed polygons ──
         const used = new Set<string>();
 
         for (const startKey of edgeFrom.keys()) {
@@ -246,24 +428,26 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
             let safety = 0;
 
             while (safety++ < 50000) {
-                if (used.has(currentKey)) {
-                    // We've looped back — closed polygon
-                    break;
-                }
+                if (used.has(currentKey)) break;
                 used.add(currentKey);
 
                 const coords = edgeCoords.get(currentKey);
-                if (coords) {
-                    polygon.push(coords[0], coords[1]);
-                }
+                if (coords) polygon.push(coords[0], coords[1]);
 
                 const nextKey = edgeFrom.get(currentKey);
                 if (!nextKey) break;
                 currentKey = nextKey;
             }
 
-            if (polygon.length >= 6) { // At least 3 points
+            if (polygon.length >= 6) {
                 let processed = polygon;
+
+                // Corner rounding (before simplification, on raw polygon)
+                if (cornerRadius > 0) {
+                    const radiusWorld = cornerRadius * Math.max(cellW, cellH);
+                    processed = roundCorners(processed, radiusWorld, cornerThreshold);
+                }
+
                 if (simplify > 0) {
                     processed = simplifyPath(processed, simplify * cellW * 0.05);
                 }

@@ -37,6 +37,8 @@ function buildFingerprint(stars: StarState[]): string {
     fp += `:${GAME_CONFIG.CONTOUR_BORDER_BRIGHTEN}:${GAME_CONFIG.TERRITORY_CONTOUR}`;
     fp += `:${GAME_CONFIG.CONTOUR_SATURATION}:${GAME_CONFIG.CONTOUR_LIGHTNESS}`;
     fp += `:${GAME_CONFIG.TERRITORY_CLUSTER_SPLIT}`;
+    fp += `:${GAME_CONFIG.CONTOUR_CORNER_RADIUS}:${GAME_CONFIG.CONTOUR_CORNER_THRESHOLD}`;
+    fp += `:${GAME_CONFIG.CONTOUR_PERIPHERY_STRENGTH}:${GAME_CONFIG.CONTOUR_PERIPHERY_INSET}`;
     return fp;
 }
 
@@ -189,7 +191,7 @@ export function renderContourTerritory(
     const useHSL = satMult !== 1.0 || lightMult !== 1.0;
 
     const ownerRGBFlat: number[] = new Array(numClusters * 3);
-    const starDataForWorker: { x: number; y: number; ownerIdx: number }[] = [];
+    const starDataForWorker: { x: number; y: number; ownerIdx: number; id: string }[] = [];
 
     for (const s of ownedStars) {
         const rawRgb = hexToRGB(colorUtils.getPlayerColor(s.ownerId!));
@@ -212,7 +214,16 @@ export function renderContourTerritory(
             x: s.x,
             y: s.y,
             ownerIdx: ci,
+            id: s.id,
         });
+    }
+
+    // Build connection data for worker
+    const connectionData: { fromId: string; toId: string }[] = [];
+    if (connections) {
+        for (const c of connections) {
+            connectionData.push({ fromId: c.sourceId, toId: c.targetId });
+        }
     }
 
     // Initialize worker
@@ -233,10 +244,15 @@ export function renderContourTerritory(
         worldW: worldWidth,
         worldH: worldHeight,
         stars: starDataForWorker,
+        connections: connectionData,
         numOwners: numClusters,
         ownerRGB: ownerRGBFlat,
         simplify: GAME_CONFIG.CONTOUR_SIMPLIFY ?? 5,
         smooth: GAME_CONFIG.CONTOUR_SMOOTH ?? 2,
+        cornerRadius: GAME_CONFIG.CONTOUR_CORNER_RADIUS ?? 0,
+        cornerThreshold: GAME_CONFIG.CONTOUR_CORNER_THRESHOLD ?? 120,
+        peripheryStrength: GAME_CONFIG.CONTOUR_PERIPHERY_STRENGTH ?? 0,
+        peripheryInset: GAME_CONFIG.CONTOUR_PERIPHERY_INSET ?? 0,
     });
 
     if (cachedGraphics) cachedGraphics.visible = true;
