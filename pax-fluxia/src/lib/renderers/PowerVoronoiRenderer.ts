@@ -290,7 +290,7 @@ function renderMorphedFrame(
     alpha: number, borderWidth: number, borderAlpha: number,
     _colorUtils: ColorUtils, _stars: StarState[],
 ): void {
-    const RESAMPLE_N = 64;  // Normalize all polygons to this many points
+    const RESAMPLE_N = 64;
 
     // Ensure graphics exist
     if (!fillGraphics) {
@@ -300,49 +300,85 @@ function renderMorphedFrame(
     fillGraphics.clear();
     fillGraphics.visible = true;
 
-    // Match territories by ownerId
-    const prevMap = new Map<string, MergedTerritory>();
-    for (const ter of prev) prevMap.set(ter.ownerId, ter);
-    const targetMap = new Map<string, MergedTerritory>();
-    for (const ter of target) targetMap.set(ter.ownerId, ter);
-
-    const allOwners = new Set([...prevMap.keys(), ...targetMap.keys()]);
-
-    for (const ownerId of allOwners) {
-        const pTer = prevMap.get(ownerId);
-        const tTer = targetMap.get(ownerId);
-
-        let morphedPts: [number, number][];
-        const color = tTer?.color ?? pTer?.color ?? 0;
-
-        if (pTer && tTer) {
-            // Both exist — lerp vertices
-            const pResampled = resamplePolygon(pTer.points, RESAMPLE_N);
-            const tResampled = resamplePolygon(tTer.points, RESAMPLE_N);
-            morphedPts = lerpPolygon(pResampled, tResampled, t);
-        } else if (tTer && !pTer) {
-            // New territory — grow from centroid
-            const c = polygonCentroid(tTer.points);
-            const collapsed: [number, number][] = tTer.points.map((): [number, number] => [c[0], c[1]]);
-            const tResampled = resamplePolygon(tTer.points, RESAMPLE_N);
-            const cResampled = resamplePolygon(collapsed, RESAMPLE_N);
-            morphedPts = lerpPolygon(cResampled, tResampled, t);
-        } else if (pTer && !tTer) {
-            // Dying territory — shrink to centroid
-            const c = polygonCentroid(pTer.points);
-            const collapsed: [number, number][] = pTer.points.map((): [number, number] => [c[0], c[1]]);
-            const pResampled = resamplePolygon(pTer.points, RESAMPLE_N);
-            const cResampled = resamplePolygon(collapsed, RESAMPLE_N);
-            morphedPts = lerpPolygon(pResampled, cResampled, t);
-        } else {
-            continue;
-        }
-
-        fillGraphics.poly(morphedPts.flat());
-        fillGraphics.fill({ color, alpha });
+    // Group territories by ownerId (supports multiple per owner)
+    const prevByOwner = new Map<string, MergedTerritory[]>();
+    for (const ter of prev) {
+        if (!prevByOwner.has(ter.ownerId)) prevByOwner.set(ter.ownerId, []);
+        prevByOwner.get(ter.ownerId)!.push(ter);
+    }
+    const targetByOwner = new Map<string, MergedTerritory[]>();
+    for (const ter of target) {
+        if (!targetByOwner.has(ter.ownerId)) targetByOwner.set(ter.ownerId, []);
+        targetByOwner.get(ter.ownerId)!.push(ter);
     }
 
-    // Simple territory borders for morphed frames
+    const allOwners = new Set([...prevByOwner.keys(), ...targetByOwner.keys()]);
+
+    // Collect all morphed polygons for border rendering
+    const morphedPolygons: { pts: [number, number][]; color: number }[] = [];
+
+    for (const ownerId of allOwners) {
+        const pTers = prevByOwner.get(ownerId) ?? [];
+        const tTers = targetByOwner.get(ownerId) ?? [];
+
+        // Match prev→target by nearest centroid
+        const usedTargets = new Set<number>();
+        const usedPrevs = new Set<number>();
+
+        // For each prev territory, find nearest target territory
+        for (let pi = 0; pi < pTers.length; pi++) {
+            const pCentroid = polygonCentroid(pTers[pi].points);
+            let bestDist = Infinity;
+            let bestTi = -1;
+            for (let ti = 0; ti < tTers.length; ti++) {
+                if (usedTargets.has(ti)) continue;
+                const tCentroid = polygonCentroid(tTers[ti].points);
+                const d = Math.hypot(pCentroid[0] - tCentroid[0], pCentroid[1] - tCentroid[1]);
+                if (d < bestDist) { bestDist = d; bestTi = ti; }
+            }
+
+            if (bestTi >= 0) {
+                // Matched pair — lerp vertices
+                usedTargets.add(bestTi);
+                usedPrevs.add(pi);
+                const pResampled = resamplePolygon(pTers[pi].points, RESAMPLE_N);
+                const tResampled = resamplePolygon(tTers[bestTi].points, RESAMPLE_N);
+                const morphed = lerpPolygon(pResampled, tResampled, t);
+                const color = tTers[bestTi].color ?? pTers[pi].color ?? 0;
+                fillGraphics!.poly(morphed.flat());
+                fillGraphics!.fill({ color, alpha });
+                morphedPolygons.push({ pts: morphed, color });
+            }
+        }
+
+        // Unmatched prev territories — shrink to centroid (dying)
+        for (let pi = 0; pi < pTers.length; pi++) {
+            if (usedPrevs.has(pi)) continue;
+            const c = polygonCentroid(pTers[pi].points);
+            const pResampled = resamplePolygon(pTers[pi].points, RESAMPLE_N);
+            const collapsed = resamplePolygon(pTers[pi].points.map((): [number, number] => [c[0], c[1]]), RESAMPLE_N);
+            const morphed = lerpPolygon(pResampled, collapsed, t);
+            const color = pTers[pi].color ?? 0;
+            fillGraphics!.poly(morphed.flat());
+            fillGraphics!.fill({ color, alpha });
+            morphedPolygons.push({ pts: morphed, color });
+        }
+
+        // Unmatched target territories — grow from centroid (new)
+        for (let ti = 0; ti < tTers.length; ti++) {
+            if (usedTargets.has(ti)) continue;
+            const c = polygonCentroid(tTers[ti].points);
+            const collapsed = resamplePolygon(tTers[ti].points.map((): [number, number] => [c[0], c[1]]), RESAMPLE_N);
+            const tResampled = resamplePolygon(tTers[ti].points, RESAMPLE_N);
+            const morphed = lerpPolygon(collapsed, tResampled, t);
+            const color = tTers[ti].color ?? 0;
+            fillGraphics!.poly(morphed.flat());
+            fillGraphics!.fill({ color, alpha });
+            morphedPolygons.push({ pts: morphed, color });
+        }
+    }
+
+    // Borders for morphed polygons
     if (borderWidth > 0 && borderAlpha > 0) {
         if (!borderGraphics) {
             borderGraphics = new PIXI.Graphics();
@@ -351,30 +387,14 @@ function renderMorphedFrame(
         borderGraphics.clear();
         borderGraphics.visible = true;
 
-        for (const ownerId of allOwners) {
-            const pTer = prevMap.get(ownerId);
-            const tTer = targetMap.get(ownerId);
-            const color = tTer?.color ?? pTer?.color ?? 0;
+        for (const { pts, color } of morphedPolygons) {
+            if (pts.length < 2) continue;
             const [r, g, b] = hexToRGB(color);
             const borderColor = (Math.min(255, r + 40) << 16) | (Math.min(255, g + 40) << 8) | Math.min(255, b + 40);
-
-            let morphedPts: [number, number][];
-            if (pTer && tTer) {
-                morphedPts = lerpPolygon(resamplePolygon(pTer.points, RESAMPLE_N), resamplePolygon(tTer.points, RESAMPLE_N), t);
-            } else if (tTer) {
-                const c = polygonCentroid(tTer.points);
-                morphedPts = lerpPolygon(resamplePolygon(tTer.points.map(() => [c[0], c[1]] as [number, number]), RESAMPLE_N), resamplePolygon(tTer.points, RESAMPLE_N), t);
-            } else if (pTer) {
-                const c = polygonCentroid(pTer.points);
-                morphedPts = lerpPolygon(resamplePolygon(pTer.points, RESAMPLE_N), resamplePolygon(pTer.points.map(() => [c[0], c[1]] as [number, number]), RESAMPLE_N), t);
-            } else continue;
-
-            if (morphedPts.length > 1) {
-                borderGraphics.moveTo(morphedPts[0][0], morphedPts[0][1]);
-                for (let i = 1; i < morphedPts.length; i++) borderGraphics.lineTo(morphedPts[i][0], morphedPts[i][1]);
-                borderGraphics.closePath();
-                borderGraphics.stroke({ width: borderWidth, color: borderColor, alpha: borderAlpha });
-            }
+            borderGraphics.moveTo(pts[0][0], pts[0][1]);
+            for (let i = 1; i < pts.length; i++) borderGraphics.lineTo(pts[i][0], pts[i][1]);
+            borderGraphics.closePath();
+            borderGraphics.stroke({ width: borderWidth, color: borderColor, alpha: borderAlpha });
         }
     }
 }
