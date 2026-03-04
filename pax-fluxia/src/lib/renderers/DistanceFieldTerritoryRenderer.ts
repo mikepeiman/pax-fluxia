@@ -1,8 +1,8 @@
 // ============================================================================
-// DistanceFieldTerritoryRenderer — GPU-Accelerated (V2)
+// DistanceFieldTerritoryRenderer â€” GPU-Accelerated (V2)
 // ============================================================================
 //
-// Pipeline (from Deep Technical Guidance §B):
+// Pipeline (from Deep Technical Guidance Â§B):
 //   CPU: Multi-source Dijkstra for K-best per star (~5ms, on ownership change)
 //   GPU: Fragment shader rasterization + border blend (~1ms per frame)
 //   GPU: Temporal blend for conquest animation (~0ms steady state)
@@ -11,16 +11,17 @@
 // ============================================================================
 
 import * as PIXI from 'pixi.js';
-import { GlProgram } from 'pixi.js';
+import { compileHighShaderGlProgram, localUniformBitGl } from 'pixi.js';
 import { GAME_CONFIG } from '$lib/config/game.config';
 import type { StarState, StarConnection } from '$lib/types/game.types';
 import type { ColorUtils } from './RenderContext';
 
-// ── Constants ─────────────────────────────────────────────────────────────
+
+// â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const MAX_STARS = 64;
 const MAX_PLAYERS = 8;
 
-// ── Types ─────────────────────────────────────────────────────────────────
+// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 interface LaneData {
     ax: number; ay: number;
     bx: number; by: number;
@@ -29,100 +30,71 @@ interface LaneData {
     starBIdx: number;
 }
 
-// ── GLSL Fragment Shader ──────────────────────────────────────────────────
-// Now uses PIXI Mesh instead of Filter — Mesh lives in world space, transforms
-// with zoom/pan automatically. No render-target VTC normalization needed.
+// â”€â”€ Shader Bit for Territory Distance Field â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Uses PIXI's compileHighShaderGlProgram() with shader bits.
+// MVP = uProjectionMatrix * uWorldTransformMatrix * modelMatrix
 
-// ── Vertex shader: pass world-space position directly to fragment ──
-// Uses custom uMVP (computed on CPU) instead of PIXI's auto-injected groups 100/101
-const VERT_SHADER = /* glsl */ `
-#version 300 es
-precision highp float;
+const territoryBitGl = {
+    name: 'territory-distance-field-bit',
+    vertex: {
+        header: /* glsl */ `
+            out vec2 vLocalPos;
+        `,
+        main: /* glsl */ `
+            vLocalPos = position;
+        `,
+    },
+    fragment: {
+        header: /* glsl */ `
+            in vec2 vLocalPos;
+            uniform sampler2D uStarData;
+            uniform int uNumStars;
+            uniform float uWorldWidth;
+            uniform float uWorldHeight;
+            uniform float uPadding;
+            uniform int uNumPlayers;
+            uniform float uBorderWidth;
+            uniform float uBorderSoftness;
+            uniform float uBorderAlpha;
+            uniform float uBorderBrighten;
+            uniform float uFillAlpha;
+            uniform float uEdgeFade;
+            uniform float uHueShift;
+            uniform float uSatMult;
+            uniform float uLightMult;
+            uniform float uMorphFactor;
+            uniform vec3 uPlayerColor0;
+            uniform vec3 uPlayerColor1;
+            uniform vec3 uPlayerColor2;
+            uniform vec3 uPlayerColor3;
+            uniform vec3 uPlayerColor4;
+            uniform vec3 uPlayerColor5;
+            uniform vec3 uPlayerColor6;
+            uniform vec3 uPlayerColor7;
+        `,
+        main: /* glsl */ `
+            vec2 worldPos = vLocalPos;
+            outColor = vec4(1.0, 0.0, 1.0, 0.25);
+            float minStarDist = 1e9;
+            for (int i = 0; i < 256; i++) {
+                if (i >= uNumStars) break;
+                ivec2 coord = ivec2(i, 0);
+                vec4 raw = texelFetch(uStarData, coord, 0);
+                float sx = floor(raw.r * 255.0 + 0.5) * 256.0 + floor(raw.g * 255.0 + 0.5);
+                float sy = floor(raw.b * 255.0 + 0.5) * 256.0 + floor(raw.a * 255.0 + 0.5);
+                float d = distance(worldPos, vec2(sx, sy));
+                if (d < minStarDist) minStarDist = d;
+            }
+            if (minStarDist < 25.0) {
+                outColor = vec4(1.0, 0.0, 0.0, 1.0 - minStarDist / 25.0);
+            } else if (minStarDist < 50.0) {
+                outColor = vec4(1.0, 1.0, 0.0, 0.3 * (1.0 - (minStarDist - 25.0) / 25.0));
+            }
+        `,
+    },
+};
 
-in vec2 aPosition;
-in vec2 aUV;
-
-out vec2 vUV;
-out vec2 vLocalPos;
-
-// Custom MVP — set from JS every frame (bypasses PIXI group 100/101)
-uniform mat3 uMVP;
-
-void main() {
-    vUV = aUV;
-    vLocalPos = aPosition;  // aPosition IS world space
-    gl_Position = vec4((uMVP * vec3(aPosition, 1.0)).xy, 0.0, 1.0);
-}
-`;
-
-// ── Fragment shader: DIAGNOSTIC — solid magenta to prove Mesh renders ──
-const FRAG_SHADER = /* glsl */ `
-#version 300 es
-precision highp float;
-
-in vec2 vUV;
-in vec2 vLocalPos;
-out vec4 finalColor;
-
-uniform sampler2D uStarData;
-
-uniform int uNumStars;
-uniform float uWorldWidth;
-uniform float uWorldHeight;
-uniform float uPadding;
-
-uniform int uNumPlayers;
-uniform float uBorderWidth;
-uniform float uBorderSoftness;
-uniform float uBorderAlpha;
-uniform float uBorderBrighten;
-uniform float uFillAlpha;
-uniform float uEdgeFade;
-uniform float uHueShift;
-uniform float uSatMult;
-uniform float uLightMult;
-uniform float uMorphFactor;
-uniform vec3 uPlayerColor0;
-uniform vec3 uPlayerColor1;
-uniform vec3 uPlayerColor2;
-uniform vec3 uPlayerColor3;
-uniform vec3 uPlayerColor4;
-uniform vec3 uPlayerColor5;
-uniform vec3 uPlayerColor6;
-uniform vec3 uPlayerColor7;
-
-void main() {
-    // vLocalPos = interpolated aPosition = world-space coords directly
-    vec2 worldPos = vLocalPos;
-
-    // DIAGNOSTIC: solid magenta base to prove pipeline renders
-    finalColor = vec4(1.0, 0.0, 1.0, 0.25);
-
-    // Star dot test using texelFetch
-    float minStarDist = 1e9;
-
-    for (int i = 0; i < 256; i++) {
-        if (i >= uNumStars) break;
-        ivec2 coord = ivec2(i, 0);  // column i, row 0 = positions
-        vec4 raw = texelFetch(uStarData, coord, 0);
-
-        float sx = floor(raw.r * 255.0 + 0.5) * 256.0 + floor(raw.g * 255.0 + 0.5);
-        float sy = floor(raw.b * 255.0 + 0.5) * 256.0 + floor(raw.a * 255.0 + 0.5);
-
-        float d = distance(worldPos, vec2(sx, sy));
-        if (d < minStarDist) minStarDist = d;
-    }
-
-    // Red dot at star position, yellow halo
-    if (minStarDist < 25.0) {
-        finalColor = vec4(1.0, 0.0, 0.0, 1.0 - minStarDist / 25.0);
-    } else if (minStarDist < 50.0) {
-        finalColor = vec4(1.0, 1.0, 0.0, 0.3 * (1.0 - (minStarDist - 25.0) / 25.0));
-    }
-}
-`;
-
-// ── Module State ──────────────────────────────────────────────────────────
+// â”€â”€ Module State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 let cachedOwnerFp = '';
 let cachedConfigFp = '';
@@ -151,7 +123,7 @@ let starDataTexture: PIXI.Texture | null = null;
 
 
 // ============================================================================
-// Multi-Source Dijkstra — per-player distances (PRESERVED FROM V1)
+// Multi-Source Dijkstra â€” per-player distances (PRESERVED FROM V1)
 // ============================================================================
 // Returns distToPlayer[starIdx][playerIdx] = shortest graph distance
 // from star to nearest star owned by that player.
@@ -300,7 +272,7 @@ function buildConnFp(connections: StarConnection[]): string {
 // ============================================================================
 
 function makeGradientTestTexture(): PIXI.Texture {
-    // Use Canvas2D — the most universally supported texture source
+    // Use Canvas2D â€” the most universally supported texture source
     const w = 64, h = 4;
     const canvas = document.createElement('canvas');
     canvas.width = w;
@@ -322,12 +294,12 @@ function makeGradientTestTexture(): PIXI.Texture {
 }
 
 // ============================================================================
-// GPU Data Texture — pack star data for shader (BufferImageSource pattern)
+// GPU Data Texture â€” pack star data for shader (BufferImageSource pattern)
 // ============================================================================
-// Layout: MAX_STARS columns × 4 rows, RGBA uint8 via BufferImageSource
-//   row 0: (x_hi, x_lo, y_hi, y_lo)      — star positions as 16-bit
+// Layout: MAX_STARS columns Ã— 4 rows, RGBA uint8 via BufferImageSource
+//   row 0: (x_hi, x_lo, y_hi, y_lo)      â€” star positions as 16-bit
 //   row 1: (bestDist_hi, bestDist_lo, secondDist_hi, secondDist_lo)
-//   row 2: (bestOwner+1, secondOwner+1, 0, 0)  — player indices (1-indexed, 0=none)
+//   row 2: (bestOwner+1, secondOwner+1, 0, 0)  â€” player indices (1-indexed, 0=none)
 //   row 3: (prevBest_hi, prevBest_lo, prevSecond_hi, prevSecond_lo)
 //
 // IMPORTANT: BufferImageSource with Uint8Array defaults to 'bgra8unorm',
@@ -442,7 +414,7 @@ function buildStarDataTexture(
             resource: starDataBuffer,
             width: texW,
             height: texH,
-            format: 'rgba8unorm',           // MUST be explicit — Uint8Array defaults to bgra8unorm!
+            format: 'rgba8unorm',           // MUST be explicit â€” Uint8Array defaults to bgra8unorm!
             alphaMode: 'no-premultiply-alpha', // data texture, not color
             scaleMode: 'nearest',
             autoGarbageCollect: false,
@@ -464,9 +436,9 @@ function ensureMesh(worldWidth: number, worldHeight: number): PIXI.Shader {
 
     if (cachedMeshShader) return cachedMeshShader;
 
-    const glProgram = GlProgram.from({
-        vertex: VERT_SHADER,
-        fragment: FRAG_SHADER,
+    const glProgram = compileHighShaderGlProgram({
+        bits: [localUniformBitGl, territoryBitGl],
+        name: 'territory-distance-field',
     });
 
     const x0 = -padding, y0 = -padding;
@@ -492,8 +464,6 @@ function ensureMesh(worldWidth: number, worldHeight: number): PIXI.Shader {
                 uSatMult: { value: 0.7, type: 'f32' },
                 uLightMult: { value: 0.5, type: 'f32' },
                 uMorphFactor: { value: 0, type: 'f32' },
-                // Custom MVP matrix (updated every frame from mesh.worldTransform + renderer projection)
-                uMVP: { value: new Float32Array(9), type: 'mat3x3<f32>' },
                 // Player colors
                 uPlayerColor0: { value: new Float32Array([1, 0, 0]), type: 'vec3<f32>' },
                 uPlayerColor1: { value: new Float32Array([0, 0, 1]), type: 'vec3<f32>' },
@@ -508,7 +478,7 @@ function ensureMesh(worldWidth: number, worldHeight: number): PIXI.Shader {
         },
     });
 
-    // Quad geometry in WORLD SPACE with UVs 0→1
+    // Quad geometry in WORLD SPACE with UVs 0â†’1
     // MeshGeometry wraps buffers with proper VERTEX|COPY_DST usage flags
     const geometry = new PIXI.MeshGeometry({
         positions: new Float32Array([x0, y0, x1, y0, x1, y1, x0, y1]),
@@ -565,7 +535,7 @@ function updateFilterUniforms(
         (u as any)[`uPlayerColor${i} `] = colorArr;
     }
 
-    // Update star data texture reference — pass .source (TextureSource), not Texture
+    // Update star data texture reference â€” pass .source (TextureSource), not Texture
     if (starDataTexture) {
         cachedMeshShader.resources.uStarData = starDataTexture.source;
     }
@@ -583,7 +553,7 @@ function applyBlur(): void {
             cachedBlurFilter = new PIXI.BlurFilter({ strength: blur, quality: 3 });
             cachedBlurStrength = blur;
         }
-        // With Mesh approach, the custom shader is built in — only add blur as extra filter
+        // With Mesh approach, the custom shader is built in â€” only add blur as extra filter
         cachedMesh.filters = cachedBlurFilter ? [cachedBlurFilter] : [];
     } else {
         cachedMesh.filters = [];
@@ -603,50 +573,24 @@ export function renderDistanceFieldTerritory(
     worldWidth: number,
     worldHeight: number,
     connections?: StarConnection[],
-    app?: PIXI.Application,
 ): void {
     if (!GAME_CONFIG.TERRITORY_DISTANCE_FIELD) {
         if (cachedMesh) cachedMesh.visible = false;
         return;
     }
 
-    // ── Always update MVP transform (must run even when star data hasn't changed) ──
-    if (cachedMesh && cachedMeshShader && app) {
-        const proj = (app.renderer as any).globalUniforms?.uniformGroup?.uniforms?.uProjectionMatrix;
-        const meshWT = cachedMesh.worldTransform;
-        if (proj && meshWT) {
-            // MVP = uProjectionMatrix * mesh.worldTransform
-            // Both are PIXI.Matrix (2D affine as mat3)
-            // proj.toArray() gives column-major [a, b, 0, c, d, 0, tx, ty, 1]
-            const p = proj.toArray(false); // column-major
-            const m = meshWT.toArray(false); // column-major
-            // Matrix multiply 3x3 (column-major): result[col][row]
-            const mvp = cachedMeshShader.resources.territoryUniforms.uniforms.uMVP as Float32Array;
-            mvp[0] = p[0] * m[0] + p[3] * m[1]; // + p[6]*m[2]=0
-            mvp[1] = p[1] * m[0] + p[4] * m[1]; // + p[7]*m[2]=0
-            mvp[2] = 0;
-            mvp[3] = p[0] * m[3] + p[3] * m[4]; // + p[6]*m[5]=0
-            mvp[4] = p[1] * m[3] + p[4] * m[4]; // + p[7]*m[5]=0
-            mvp[5] = 0;
-            mvp[6] = p[0] * m[6] + p[3] * m[7] + p[6]; // *m[8]=1
-            mvp[7] = p[1] * m[6] + p[4] * m[7] + p[7]; // *m[8]=1
-            mvp[8] = 1;
-            cachedMeshShader.resources.territoryUniforms.uniforms.uMVP = mvp;
-        }
-    }
-
     const now = performance.now();
     const conns = connections ?? [];
     const transitionMs = GAME_CONFIG.TERRITORY_TRANSITION_MS ?? 400;
 
-    // ── Rebuild lane index if connections changed ──
+    // â”€â”€ Rebuild lane index if connections changed â”€â”€
     const connFp = buildConnFp(conns);
     if (connFp !== cachedConnFp) {
         buildLaneIndex(stars, conns);
         cachedConnFp = connFp;
     }
 
-    // ── Check if ownership changed → recompute Dijkstra ──
+    // â”€â”€ Check if ownership changed â†’ recompute Dijkstra â”€â”€
     const ownerFp = buildOwnerFp(stars);
     const ownerChanged = ownerFp !== cachedOwnerFp;
 
@@ -682,7 +626,7 @@ export function renderDistanceFieldTerritory(
         return;
     }
 
-    // ── Temporal morph factor ──
+    // â”€â”€ Temporal morph factor â”€â”€
     let morphFactor = 0;
     if (isMorphing && prevDist && transitionMs > 0) {
         const elapsed = now - morphStartTime;
@@ -698,7 +642,7 @@ export function renderDistanceFieldTerritory(
         }
     }
 
-    // ── Build GPU data texture (only when ownership or morph changed) ──
+    // â”€â”€ Build GPU data texture (only when ownership or morph changed) â”€â”€
     const configFp = buildConfigFp();
     const needsUpdate = ownerChanged || isMorphing || configFp !== cachedConfigFp;
     if (!needsUpdate && cachedMesh) {
@@ -710,10 +654,10 @@ export function renderDistanceFieldTerritory(
     // Pack star data into data texture
     buildStarDataTexture(stars, currentDist, prevDist, currentPlayerIds);
 
-    // ── Ensure GPU mesh exists ──
+    // â”€â”€ Ensure GPU mesh exists â”€â”€
     ensureMesh(worldWidth, worldHeight);
 
-    // ── Add mesh to container if not already ──
+    // â”€â”€ Add mesh to container if not already â”€â”€
     if (cachedMesh && !cachedMesh.parent) {
         container.addChild(cachedMesh);
     }
@@ -721,13 +665,13 @@ export function renderDistanceFieldTerritory(
         cachedMesh.visible = true;
     }
 
-    // ── Update GPU uniforms ──
+    // â”€â”€ Update GPU uniforms â”€â”€
     if (cachedMeshShader) {
         cachedMeshShader.resources.territoryUniforms.uniforms.uMorphFactor = morphFactor;
     }
     updateFilterUniforms(stars, colorUtils, worldWidth, worldHeight);
 
-    // ── Apply filter pipeline ──
+    // â”€â”€ Apply filter pipeline â”€â”€
     applyBlur();
 }
 
