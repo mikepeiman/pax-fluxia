@@ -42,6 +42,7 @@
         "territoryPixel",
         "territoryGraph",
         "territoryContour",
+        "territoryDistanceField",
     ] as const;
     const CONFIG_KEYS = [
         "TERRITORY_VORONOI",
@@ -51,6 +52,7 @@
         "TERRITORY_PIXEL",
         "TERRITORY_GRAPH",
         "TERRITORY_CONTOUR",
+        "TERRITORY_DISTANCE_FIELD",
     ] as const;
 
     function selectTerritory(
@@ -200,6 +202,25 @@
                 onchange={(e) => {
                     selectTerritory(
                         "territoryPowerVoronoi",
+                        (e.target as HTMLInputElement).checked,
+                    );
+                }}
+            />
+            <span class="toggle-slider"></span>
+        </label>
+    </div>
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">🌊 Distance Field</span>
+        <label class="toggle-switch">
+            <input
+                type="checkbox"
+                checked={panel.territoryDistanceField ??
+                    GAME_CONFIG.TERRITORY_DISTANCE_FIELD}
+                onchange={(e) => {
+                    selectTerritory(
+                        "territoryDistanceField",
                         (e.target as HTMLInputElement).checked,
                     );
                 }}
@@ -1033,6 +1054,270 @@
                 updatePanel("borderSmooth", v);
             }}
         />
+    </div>
+{/if}
+
+{#if panel.territoryDistanceField}
+    <!-- ── Distance Field Controls ── -->
+    <h4 class="sub-heading">🌊 Distance Field Settings</h4>
+
+    <!-- General -->
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Resolution</span><span class="val"
+                >{panel.dfResolution ?? 4}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="1"
+            max="8"
+            step="1"
+            value={panel.dfResolution ?? 4}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.DF_RESOLUTION = v;
+                updatePanel("dfResolution", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Alpha</span><span class="val"
+                >{(panel.dfAlpha ?? 0.3).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0.02"
+            max="1.0"
+            step="0.01"
+            value={panel.dfAlpha ?? 0.3}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.DF_ALPHA = v;
+                updatePanel("dfAlpha", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Blur</span><span class="val"
+                >{(panel.dfBlur ?? 2).toFixed(1)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="10"
+            step="0.5"
+            value={panel.dfBlur ?? 2}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.DF_BLUR = v;
+                updatePanel("dfBlur", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Edge Fade</span><span class="val"
+                >{(panel.dfEdgeFade ?? 200).toFixed(0)}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="500"
+            step="10"
+            value={panel.dfEdgeFade ?? 200}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.DF_EDGE_FADE = v;
+                updatePanel("dfEdgeFade", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Rounding</span><span class="val"
+                >{(panel.dfRounding ?? 8).toFixed(0)}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="30"
+            step="1"
+            value={panel.dfRounding ?? 8}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.DF_ROUNDING = v;
+                updatePanel("dfRounding", v);
+            }}
+        />
+    </div>
+
+    <!-- Color (HSLA) -->
+    <h4 class="sub-heading">🎨 Color (HSLA)</h4>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Hue Shift</span><span class="val"
+                >{(panel.dfHue ?? 0).toFixed(0)}°</span
+            >
+        </div>
+        <input
+            type="range"
+            min="-180"
+            max="180"
+            step="5"
+            value={panel.dfHue ?? 0}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.DF_HUE = v;
+                updatePanel("dfHue", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Saturation</span><span class="val"
+                >{(panel.dfSaturation ?? 0.7).toFixed(2)}×</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="3"
+            step="0.05"
+            value={panel.dfSaturation ?? 0.7}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.DF_SATURATION = v;
+                updatePanel("dfSaturation", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Lightness</span><span class="val"
+                >{(panel.dfLightness ?? 0.5).toFixed(2)}×</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="3"
+            step="0.05"
+            value={panel.dfLightness ?? 0.5}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.DF_LIGHTNESS = v;
+                updatePanel("dfLightness", v);
+            }}
+        />
+    </div>
+
+    <!-- Borders -->
+    <h4 class="sub-heading">🔲 Borders</h4>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Border Width</span><span class="val"
+                >{(panel.dfBorderWidth ?? 15).toFixed(0)}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="80"
+            step="1"
+            value={panel.dfBorderWidth ?? 15}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.DF_BORDER_WIDTH = v;
+                updatePanel("dfBorderWidth", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Border Softness</span><span class="val"
+                >{(panel.dfBorderSoftness ?? 8).toFixed(0)}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="40"
+            step="1"
+            value={panel.dfBorderSoftness ?? 8}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.DF_BORDER_SOFTNESS = v;
+                updatePanel("dfBorderSoftness", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Border Alpha</span><span class="val"
+                >{(panel.dfBorderAlpha ?? 0.8).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={panel.dfBorderAlpha ?? 0.8}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.DF_BORDER_ALPHA = v;
+                updatePanel("dfBorderAlpha", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Border Brighten</span><span class="val"
+                >{(panel.dfBorderBrighten ?? 40).toFixed(0)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="200"
+            step="5"
+            value={panel.dfBorderBrighten ?? 40}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.DF_BORDER_BRIGHTEN = v;
+                updatePanel("dfBorderBrighten", v);
+            }}
+        />
+    </div>
+
+    <!-- Distance Metric -->
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Distance Metric</span>
+        </div>
+        <div class="button-group" style="margin-top:4px">
+            <button
+                class:active={(panel.dfDistanceMetric ?? "length") === "hops"}
+                onclick={() => {
+                    GAME_CONFIG.DF_DISTANCE_METRIC = "hops";
+                    updatePanel("dfDistanceMetric", "hops");
+                }}>Hops</button
+            >
+            <button
+                class:active={(panel.dfDistanceMetric ?? "length") === "length"}
+                onclick={() => {
+                    GAME_CONFIG.DF_DISTANCE_METRIC = "length";
+                    updatePanel("dfDistanceMetric", "length");
+                }}>Length</button
+            >
+        </div>
     </div>
 {/if}
 

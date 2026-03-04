@@ -45,6 +45,7 @@
 | F-141 | Distinct conquest travel duration/speed slider — currently conflated with transfer travel speed, needs separate control | 🟡 Idea | Medium | 2026-03-03 |
 | F-142 | Strength-blended shared borders: overlapping territory borders with alpha blending reflecting relative player strength. Gradient concentrated by proximity to nearest star (opposition radiating outward). Stronger player → more color influence, higher saturation, higher lightness | ✅ Done | High | 2026-03-03 |
 | F-143 | Animated territory transitions: two Boundary Modes — **Segment** (edge-level lerp) and **Smooth** (flubber polygon morph). Fills render target state instantly (no flicker). UI toggle in Power Voronoi Visual Settings panel. Config: `TERRITORY_BOUNDARY_MODE`, `TERRITORY_TRANSITION_MS` | 🔄 Testing | Medium | 2026-03-03 |
+| F-144 | Distance Field territory renderer V1 (CPU): graph-metric Dijkstra + lane projection + per-frame rasterization. **Shelved** — CPU rasterization too slow (0fps). V2 planned: GPU pipeline via PIXI.Shader + RenderTexture per Deep Technical Guidance. | 🔴 V1 Shelved / V2 Planned | High | 2026-03-03 |
 
 ## Known Regressions
 

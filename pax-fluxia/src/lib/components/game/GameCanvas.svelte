@@ -76,6 +76,10 @@
         renderPowerVoronoi as renderPowerVoronoiModule,
         resetPowerVoronoiCache,
     } from "$lib/renderers/PowerVoronoiRenderer";
+    import {
+        renderDistanceFieldTerritory as renderDistanceFieldTerritoryModule,
+        resetDistanceFieldTerritoryCache,
+    } from "$lib/renderers/DistanceFieldTerritoryRenderer";
 
     // ============================================================================
     // PixiJS Application
@@ -750,6 +754,7 @@
         resetContourTerritoryCache();
         resetModifiedVoronoiCache();
         resetPowerVoronoiCache();
+        resetDistanceFieldTerritoryCache();
         // Clear ALL visual ship positions so they re-spawn at transposed coords
         // (ships store x/y, laneStartX/Y, laneEndX/Y in old coordinate space)
         visualDamagedShips.clear();
@@ -1026,6 +1031,7 @@
             resetContourTerritoryCache();
             resetModifiedVoronoiCache();
             resetPowerVoronoiCache();
+            resetDistanceFieldTerritoryCache();
             activeSurges.clear();
             nextShipId = 0;
             starShipCounts.clear();
@@ -1147,6 +1153,17 @@
 
             if (GAME_CONFIG.TERRITORY_POWER_VORONOI) {
                 renderPowerVoronoiModule(
+                    stars,
+                    voronoiContainer,
+                    colorUtils,
+                    GAME_WIDTH,
+                    GAME_HEIGHT,
+                    activeGameStore.connections as StarConnection[],
+                );
+            }
+
+            if (GAME_CONFIG.TERRITORY_DISTANCE_FIELD) {
+                renderDistanceFieldTerritoryModule(
                     stars,
                     voronoiContainer,
                     colorUtils,

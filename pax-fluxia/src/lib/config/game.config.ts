@@ -260,6 +260,22 @@ interface GameConfigType {
     TERRITORY_PIXEL: boolean;      // Enable Pixel (nearest-neighbor) territory renderer (default false)
     TERRITORY_CLUSTER_SPLIT: boolean; // Split disconnected same-owner stars into separate territory blobs (default false)
     TERRITORY_MODE: 'voronoi' | 'metaball' | 'off';  // LEGACY — kept for compat
+    TERRITORY_DISTANCE_FIELD: boolean; // Enable distance-field territory renderer (default false)
+
+    // ── Distance Field Territory ──────────────────────────────────────────────
+    DF_RESOLUTION: number;          // Grid resolution divisor (4 = quarter res, default 4)
+    DF_ALPHA: number;               // Fill opacity (default 0.3)
+    DF_BORDER_WIDTH: number;        // Border band width in world px (default 15)
+    DF_BORDER_SOFTNESS: number;     // Border feather width in world px (default 8)
+    DF_BORDER_ALPHA: number;        // Border opacity multiplier (default 0.8)
+    DF_BORDER_BRIGHTEN: number;     // Border color brightening amount 0-255 (default 40)
+    DF_DISTANCE_METRIC: 'hops' | 'length'; // Distance metric (default 'length')
+    DF_BLUR: number;                // Post-render blur strength (default 2)
+    DF_HUE: number;                 // Hue shift in degrees -180..180 (default 0)
+    DF_SATURATION: number;          // Color saturation mult (default 0.7)
+    DF_LIGHTNESS: number;           // Color lightness mult (default 0.5)
+    DF_EDGE_FADE: number;           // Edge fade padding in px (default 200)
+    DF_ROUNDING: number;            // Canvas-level blur to round sharp territory corners (default 3)
 
     // ── Modified Voronoi Territory (F-138) ────────────────────────────────────
     MODIFIED_VORONOI_STAR_MARGIN: number;      // Min boundary distance from star centers in px (0-500)
@@ -996,6 +1012,22 @@ const _rawConfig: GameConfigType = {
     BORDER_FEEL: 'raw' as 'raw' | 'smooth' | 'angular',
     /** Smoothing iterations for border feel (0=none, 5=max) */
     BORDER_SMOOTH: 0,
+
+    // ── Distance Field Territory (6th mode) ──
+    TERRITORY_DISTANCE_FIELD: false,
+    DF_RESOLUTION: 4,
+    DF_ALPHA: 0.2,
+    DF_BORDER_WIDTH: 5,
+    DF_BORDER_SOFTNESS: 3,
+    DF_BORDER_ALPHA: 0.8,
+    DF_BORDER_BRIGHTEN: 20,
+    DF_DISTANCE_METRIC: 'length' as const,
+    DF_BLUR: 1,
+    DF_HUE: 0,
+    DF_SATURATION: 0.7,
+    DF_LIGHTNESS: 0.5,
+    DF_EDGE_FADE: 200,
+    DF_ROUNDING: 5,
 
     // ── Contour Territory (5th mode — vector contour extraction) ──
     TERRITORY_CONTOUR: false,
