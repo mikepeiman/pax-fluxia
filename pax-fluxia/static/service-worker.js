@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 const sw = /** @type {ServiceWorkerGlobalScope} */ (/** @type {unknown} */ (self));
 
-const CACHE_NAME = 'pax-fluxia-v1';
+const CACHE_NAME = 'pax-fluxia-v2';
 
 // Assets to pre-cache on install
 const PRECACHE_URLS = [
@@ -33,7 +33,8 @@ sw.addEventListener('fetch', (event) => {
         fetch(event.request)
             .then((response) => {
                 // Cache successful GET responses
-                if (event.request.method === 'GET' && response.status === 200 && event.request.url.startsWith('http')) {
+                if (event.request.method === 'GET' && response.status === 200 && event.request.url.startsWith('http')
+                    && !event.request.url.includes('/sounds/')) {
                     const clone = response.clone();
                     caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
                 }

@@ -1140,16 +1140,17 @@
                 );
             }
 
-            if (GAME_CONFIG.TERRITORY_MODIFIED_VORONOI) {
-                renderModifiedVoronoiModule(
-                    stars,
-                    voronoiContainer,
-                    colorUtils,
-                    GAME_WIDTH,
-                    GAME_HEIGHT,
-                    activeGameStore.connections as StarConnection[],
-                );
-            }
+            // DISABLED: Modified Voronoi freezes game — F-138 needs architecture fix
+            // if (GAME_CONFIG.TERRITORY_MODIFIED_VORONOI) {
+            //     renderModifiedVoronoiModule(
+            //         stars,
+            //         voronoiContainer,
+            //         colorUtils,
+            //         GAME_WIDTH,
+            //         GAME_HEIGHT,
+            //         activeGameStore.connections as StarConnection[],
+            //     );
+            // }
 
             if (GAME_CONFIG.TERRITORY_POWER_VORONOI) {
                 renderPowerVoronoiModule(
@@ -1170,6 +1171,7 @@
                     GAME_WIDTH,
                     GAME_HEIGHT,
                     activeGameStore.connections as StarConnection[],
+                    app,
                 );
             }
         }

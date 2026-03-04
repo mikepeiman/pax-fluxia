@@ -1,25 +1,26 @@
 // ============================================================================
-// DistanceFieldTerritoryRenderer — Graph-metric distance field territory
+// DistanceFieldTerritoryRenderer — GPU-Accelerated (V2)
 // ============================================================================
 //
-// Computes multi-source Dijkstra on the star/lane graph for per-player
-// distances. Rasterizes territory via lane projection into a texture with
-// thick blended borders.
+// Pipeline (from Deep Technical Guidance §B):
+//   CPU: Multi-source Dijkstra for K-best per star (~5ms, on ownership change)
+//   GPU: Fragment shader rasterization + border blend (~1ms per frame)
+//   GPU: Temporal blend for conquest animation (~0ms steady state)
 //
-// Animation: lerp per-star distances between old and new states →
-// re-rasterize per frame → border contour physically slides.
-//
-// No worker needed — Dijkstra for ~42 stars is microseconds.
-// Rasterization at ~100K cells is <5ms.
+// No per-frame CPU rasterization. All pixel work on GPU.
 // ============================================================================
 
 import * as PIXI from 'pixi.js';
+import { GlProgram } from 'pixi.js';
 import { GAME_CONFIG } from '$lib/config/game.config';
 import type { StarState, StarConnection } from '$lib/types/game.types';
 import type { ColorUtils } from './RenderContext';
 
-// ── Types ──────────────────────────────────────────────────────────────────
+// ── Constants ─────────────────────────────────────────────────────────────
+const MAX_STARS = 64;
+const MAX_PLAYERS = 8;
 
+// ── Types ─────────────────────────────────────────────────────────────────
 interface LaneData {
     ax: number; ay: number;
     bx: number; by: number;
@@ -28,33 +29,129 @@ interface LaneData {
     starBIdx: number;
 }
 
-// ── State ──────────────────────────────────────────────────────────────────
+// ── GLSL Fragment Shader ──────────────────────────────────────────────────
+// Now uses PIXI Mesh instead of Filter — Mesh lives in world space, transforms
+// with zoom/pan automatically. No render-target VTC normalization needed.
+
+// ── Vertex shader: pass world-space position directly to fragment ──
+// Uses custom uMVP (computed on CPU) instead of PIXI's auto-injected groups 100/101
+const VERT_SHADER = /* glsl */ `
+#version 300 es
+precision highp float;
+
+in vec2 aPosition;
+in vec2 aUV;
+
+out vec2 vUV;
+out vec2 vLocalPos;
+
+// Custom MVP — set from JS every frame (bypasses PIXI group 100/101)
+uniform mat3 uMVP;
+
+void main() {
+    vUV = aUV;
+    vLocalPos = aPosition;  // aPosition IS world space
+    gl_Position = vec4((uMVP * vec3(aPosition, 1.0)).xy, 0.0, 1.0);
+}
+`;
+
+// ── Fragment shader: DIAGNOSTIC — solid magenta to prove Mesh renders ──
+const FRAG_SHADER = /* glsl */ `
+#version 300 es
+precision highp float;
+
+in vec2 vUV;
+in vec2 vLocalPos;
+out vec4 finalColor;
+
+uniform sampler2D uStarData;
+
+uniform int uNumStars;
+uniform float uWorldWidth;
+uniform float uWorldHeight;
+uniform float uPadding;
+
+uniform int uNumPlayers;
+uniform float uBorderWidth;
+uniform float uBorderSoftness;
+uniform float uBorderAlpha;
+uniform float uBorderBrighten;
+uniform float uFillAlpha;
+uniform float uEdgeFade;
+uniform float uHueShift;
+uniform float uSatMult;
+uniform float uLightMult;
+uniform float uMorphFactor;
+uniform vec3 uPlayerColor0;
+uniform vec3 uPlayerColor1;
+uniform vec3 uPlayerColor2;
+uniform vec3 uPlayerColor3;
+uniform vec3 uPlayerColor4;
+uniform vec3 uPlayerColor5;
+uniform vec3 uPlayerColor6;
+uniform vec3 uPlayerColor7;
+
+void main() {
+    // vLocalPos = interpolated aPosition = world-space coords directly
+    vec2 worldPos = vLocalPos;
+
+    // DIAGNOSTIC: solid magenta base to prove pipeline renders
+    finalColor = vec4(1.0, 0.0, 1.0, 0.25);
+
+    // Star dot test using texelFetch
+    float minStarDist = 1e9;
+
+    for (int i = 0; i < 256; i++) {
+        if (i >= uNumStars) break;
+        ivec2 coord = ivec2(i, 0);  // column i, row 0 = positions
+        vec4 raw = texelFetch(uStarData, coord, 0);
+
+        float sx = floor(raw.r * 255.0 + 0.5) * 256.0 + floor(raw.g * 255.0 + 0.5);
+        float sy = floor(raw.b * 255.0 + 0.5) * 256.0 + floor(raw.a * 255.0 + 0.5);
+
+        float d = distance(worldPos, vec2(sx, sy));
+        if (d < minStarDist) minStarDist = d;
+    }
+
+    // Red dot at star position, yellow halo
+    if (minStarDist < 25.0) {
+        finalColor = vec4(1.0, 0.0, 0.0, 1.0 - minStarDist / 25.0);
+    } else if (minStarDist < 50.0) {
+        finalColor = vec4(1.0, 1.0, 0.0, 0.3 * (1.0 - (minStarDist - 25.0) / 25.0));
+    }
+}
+`;
+
+// ── Module State ──────────────────────────────────────────────────────────
 
 let cachedOwnerFp = '';
 let cachedConfigFp = '';
-let cachedSprite: PIXI.Sprite | null = null;
-let cachedTexture: PIXI.Texture | null = null;
+let cachedConnFp = '';
+let cachedMesh: PIXI.Mesh | null = null;
+let cachedMeshShader: PIXI.Shader | null = null;
 let cachedBlurFilter: PIXI.BlurFilter | null = null;
 let cachedBlurStrength = -1;
 
-// Distance field: distToPlayer[starIdx][playerIdx] = graph distance
+// Dijkstra result: distToPlayer[starIdx][playerIdx]
 let currentDist: number[][] | null = null;
 let prevDist: number[][] | null = null;
 let currentPlayerIds: string[] = [];
-let transitionStart = 0;
-let isTransitioning = false;
 
-// Lane index (rebuilt when connections change)
+// Temporal blend
+let morphStartTime = 0;
+let isMorphing = false;
+
+// Lane index
 let laneArray: LaneData[] = [];
 let laneCells: Map<string, number[]> = new Map();
 let laneCellSize = 50;
-let cachedConnFp = '';
 
-// Reusable canvas for rasterization
-let rasterCanvas: HTMLCanvasElement | null = null;
+// GPU pipeline
+let starDataTexture: PIXI.Texture | null = null;
+
 
 // ============================================================================
-// Multi-Source Dijkstra — per-player distances
+// Multi-Source Dijkstra — per-player distances (PRESERVED FROM V1)
 // ============================================================================
 // Returns distToPlayer[starIdx][playerIdx] = shortest graph distance
 // from star to nearest star owned by that player.
@@ -93,7 +190,6 @@ function computeDistToPlayer(
     }
 
     // Priority queue: [distance, starIdx, playerIdx]
-    // Simple array — for 42 stars × 5 players = 210 seeds, this is fine
     const pq: [number, number, number][] = [];
 
     // Seed: each owned star has distance 0 to its own player
@@ -111,15 +207,12 @@ function computeDistToPlayer(
     while (pq.length > 0) {
         const [d, si, pi] = pq.shift()!;
 
-        // Skip if we already found a shorter path
         if (d > dist[si][pi]) continue;
 
-        // Expand neighbors
         for (const { neighbor, cost } of adj[si]) {
             const nd = d + cost;
             if (nd < dist[neighbor][pi]) {
                 dist[neighbor][pi] = nd;
-                // Insert sorted (binary search would be faster but not needed at this scale)
                 let inserted = false;
                 for (let i = 0; i < pq.length; i++) {
                     if (nd < pq[i][0]) {
@@ -137,7 +230,7 @@ function computeDistToPlayer(
 }
 
 // ============================================================================
-// Lane Spatial Index
+// Lane Spatial Index (PRESERVED FROM V1)
 // ============================================================================
 
 function buildLaneIndex(
@@ -158,11 +251,9 @@ function buildLaneIndex(
         laneArray.push({ ax, ay, bx, by, len, starAIdx: ai, starBIdx: bi });
     }
 
-    // Cell size: average lane length / 2, clamped
     const avgLen = laneArray.reduce((s, l) => s + l.len, 0) / Math.max(1, laneArray.length);
     laneCellSize = Math.max(50, Math.min(200, avgLen / 2));
 
-    // Build spatial grid
     laneCells = new Map();
     for (let li = 0; li < laneArray.length; li++) {
         const l = laneArray[li];
@@ -181,364 +272,7 @@ function buildLaneIndex(
 }
 
 // ============================================================================
-// Rasterization
-// ============================================================================
-
-function smoothstep(edge0: number, edge1: number, x: number): number {
-    const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
-    return t * t * (3 - 2 * t);
-}
-
-function projectOntoSegment(
-    px: number, py: number,
-    ax: number, ay: number, bx: number, by: number,
-): { t: number; dist: number } {
-    const dx = bx - ax, dy = by - ay;
-    const lenSq = dx * dx + dy * dy;
-    if (lenSq === 0) return { t: 0, dist: Math.hypot(px - ax, py - ay) };
-    let t = ((px - ax) * dx + (py - ay) * dy) / lenSq;
-    t = Math.max(0, Math.min(1, t));
-    const cx = ax + t * dx, cy = ay + t * dy;
-    return { t, dist: Math.hypot(px - cx, py - cy) };
-}
-
-function rasterize(
-    stars: StarState[],
-    distToPlayer: number[][],
-    playerIds: string[],
-    colorUtils: ColorUtils,
-    worldWidth: number, worldHeight: number,
-    resolution: number, alpha: number,
-    borderWidth: number, borderSoftness: number,
-    borderAlpha: number, borderBrighten: number,
-    hueShift: number, satMult: number, lightMult: number,
-    padding: number, rounding: number,
-): HTMLCanvasElement {
-    const totalW = worldWidth + padding * 2;
-    const totalH = worldHeight + padding * 2;
-    const canvasW = Math.ceil(totalW / resolution);
-    const canvasH = Math.ceil(totalH / resolution);
-    const totalPixels = canvasW * canvasH;
-
-    if (!rasterCanvas) rasterCanvas = document.createElement('canvas');
-    rasterCanvas.width = canvasW;
-    rasterCanvas.height = canvasH;
-    const ctx = rasterCanvas.getContext('2d')!;
-    const imageData = ctx.createImageData(canvasW, canvasH);
-    const pixels = imageData.data;
-
-    const nPlayers = playerIds.length;
-
-    // Precompute player colors (with HSLA adjustment)
-    const playerColors: [number, number, number][] = [];
-    for (const pid of playerIds) {
-        const hex = colorUtils.getPlayerColor(pid);
-        let r = (hex >> 16) & 0xff, g = (hex >> 8) & 0xff, b = hex & 0xff;
-        const rn = r / 255, gn = g / 255, bn = b / 255;
-        const max = Math.max(rn, gn, bn), min = Math.min(rn, gn, bn);
-        let h = 0, s = 0, l = (max + min) / 2;
-        if (max !== min) {
-            const d = max - min;
-            s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-            if (max === rn) h = ((gn - bn) / d + (gn < bn ? 6 : 0)) / 6;
-            else if (max === gn) h = ((bn - rn) / d + 2) / 6;
-            else h = ((rn - gn) / d + 4) / 6;
-        }
-        h = ((h + hueShift / 360) % 1 + 1) % 1;
-        s = Math.min(1, s * satMult);
-        l = Math.min(1, l * lightMult);
-        const hue2rgb = (p: number, q: number, t: number) => {
-            if (t < 0) t += 1; if (t > 1) t -= 1;
-            if (t < 1 / 6) return p + (q - p) * 6 * t;
-            if (t < 1 / 2) return q;
-            if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
-            return p;
-        };
-        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-        const p = 2 * l - q;
-        r = Math.round(hue2rgb(p, q, h + 1 / 3) * 255);
-        g = Math.round(hue2rgb(p, q, h) * 255);
-        b = Math.round(hue2rgb(p, q, h - 1 / 3) * 255);
-        playerColors.push([r, g, b]);
-    }
-
-    // ================================================================
-    // PASS 1: Compute per-pixel ownership
-    // ================================================================
-    const ownerGrid = new Int8Array(totalPixels).fill(-1);
-    const fadeGrid = new Float32Array(totalPixels);
-
-    for (let py = 0; py < canvasH; py++) {
-        for (let px = 0; px < canvasW; px++) {
-            const worldX = px * resolution - padding;
-            const worldY = py * resolution - padding;
-
-            // Edge fade
-            const edgeDist = Math.min(worldX, worldY, worldWidth - worldX, worldHeight - worldY);
-            if (edgeDist < 0) continue;
-            const fade = edgeDist < padding ? edgeDist / padding : 1;
-            if (fade <= 0) continue;
-
-            const gi = py * canvasW + px;
-            fadeGrid[gi] = fade;
-
-            // Find nearest lane via spatial index
-            const cx = Math.floor(worldX / laneCellSize);
-            const cy = Math.floor(worldY / laneCellSize);
-            let bestLaneIdx = -1, bestLaneDist = Infinity, bestT = 0;
-
-            for (let dx = -1; dx <= 1; dx++) {
-                for (let dy = -1; dy <= 1; dy++) {
-                    const cell = laneCells.get(`${cx + dx},${cy + dy}`);
-                    if (!cell) continue;
-                    for (const li of cell) {
-                        const lane = laneArray[li];
-                        const proj = projectOntoSegment(worldX, worldY, lane.ax, lane.ay, lane.bx, lane.by);
-                        if (proj.dist < bestLaneDist) {
-                            bestLaneDist = proj.dist;
-                            bestLaneIdx = li;
-                            bestT = proj.t;
-                        }
-                    }
-                }
-            }
-
-            // Compute per-player graph distance at this pixel
-            let bestPlayer = -1, bestD = Infinity;
-
-            if (bestLaneIdx >= 0) {
-                const lane = laneArray[bestLaneIdx];
-                const tL = bestT;
-                for (let pi = 0; pi < nPlayers; pi++) {
-                    const da = distToPlayer[lane.starAIdx][pi] + tL * lane.len;
-                    const db = distToPlayer[lane.starBIdx][pi] + (1 - tL) * lane.len;
-                    const d = Math.min(da, db);
-                    if (d < bestD) {
-                        bestD = d; bestPlayer = pi;
-                    }
-                }
-            } else {
-                let nearestStar = 0, nearDist = Infinity;
-                for (let si = 0; si < stars.length; si++) {
-                    const d = Math.hypot(worldX - stars[si].x, worldY - stars[si].y);
-                    if (d < nearDist) { nearDist = d; nearestStar = si; }
-                }
-                for (let pi = 0; pi < nPlayers; pi++) {
-                    const d = distToPlayer[nearestStar][pi] + nearDist;
-                    if (d < bestD) {
-                        bestD = d; bestPlayer = pi;
-                    }
-                }
-            }
-
-            ownerGrid[gi] = bestPlayer;
-        }
-    }
-
-    // ================================================================
-    // PASS 2: Morphological smoothing (majority-vote mode filter)
-    // Each pass: for every pixel, if the majority of its 3×3 neighbors
-    // belong to a different player, change this pixel's owner.
-    // This rounds sharp corners and removes thin jutting triangles.
-    // ================================================================
-    if (rounding > 0) {
-        const temp = new Int8Array(totalPixels);
-        const counts = new Uint8Array(nPlayers);
-        for (let pass = 0; pass < rounding; pass++) {
-            temp.set(ownerGrid);
-            for (let py = 1; py < canvasH - 1; py++) {
-                const rowStart = py * canvasW;
-                for (let px = 1; px < canvasW - 1; px++) {
-                    const gi = rowStart + px;
-                    const current = temp[gi];
-                    if (current < 0) continue;
-
-                    // Count 3×3 neighborhood owners
-                    counts.fill(0);
-                    const above = gi - canvasW;
-                    const below = gi + canvasW;
-                    let o: number;
-                    o = temp[above - 1]; if (o >= 0) counts[o]++;
-                    o = temp[above]; if (o >= 0) counts[o]++;
-                    o = temp[above + 1]; if (o >= 0) counts[o]++;
-                    o = temp[gi - 1]; if (o >= 0) counts[o]++;
-                    counts[current]++;   // center pixel
-                    o = temp[gi + 1]; if (o >= 0) counts[o]++;
-                    o = temp[below - 1]; if (o >= 0) counts[o]++;
-                    o = temp[below]; if (o >= 0) counts[o]++;
-                    o = temp[below + 1]; if (o >= 0) counts[o]++;
-
-                    // Find majority owner
-                    let bestOwner = current;
-                    let bestCount = counts[current];
-                    for (let i = 0; i < nPlayers; i++) {
-                        if (counts[i] > bestCount) {
-                            bestCount = counts[i];
-                            bestOwner = i;
-                        }
-                    }
-                    ownerGrid[gi] = bestOwner;
-                }
-            }
-        }
-    }
-
-    // ================================================================
-    // PASS 3: Border distance via fast 2-pass Chamfer distance transform
-    // O(2N) total — each pixel touched exactly twice regardless of border width.
-    // Stores: borderDist[gi] = distance to nearest different-owner pixel (in grid px)
-    //         borderNeighbor[gi] = owner of that nearest different-owner pixel
-    // ================================================================
-    const borderDistGrid = new Float32Array(totalPixels).fill(9999);
-    const borderNeighborGrid = new Int8Array(totalPixels).fill(-1);
-    const bwGrid = borderWidth / resolution;
-    const bsGrid = borderSoftness / resolution;
-    const maxBorderGrid = bwGrid + bsGrid + 2;
-
-    if (borderWidth > 0 && borderAlpha > 0) {
-        // Seed: mark pixels adjacent to a different-owner pixel as distance 0
-        for (let py = 1; py < canvasH - 1; py++) {
-            for (let px = 1; px < canvasW - 1; px++) {
-                const gi = py * canvasW + px;
-                const owner = ownerGrid[gi];
-                if (owner < 0) continue;
-                // Check 4-connected neighbors for different owner
-                const above = ownerGrid[gi - canvasW];
-                const below = ownerGrid[gi + canvasW];
-                const left = ownerGrid[gi - 1];
-                const right = ownerGrid[gi + 1];
-                if ((above >= 0 && above !== owner) ||
-                    (below >= 0 && below !== owner) ||
-                    (left >= 0 && left !== owner) ||
-                    (right >= 0 && right !== owner)) {
-                    borderDistGrid[gi] = 0;
-                    // Pick the different neighbor for color blending
-                    if (above >= 0 && above !== owner) borderNeighborGrid[gi] = above;
-                    else if (below >= 0 && below !== owner) borderNeighborGrid[gi] = below;
-                    else if (left >= 0 && left !== owner) borderNeighborGrid[gi] = left;
-                    else borderNeighborGrid[gi] = right;
-                }
-            }
-        }
-
-        // Forward pass (top-left to bottom-right)
-        for (let py = 1; py < canvasH; py++) {
-            for (let px = 1; px < canvasW; px++) {
-                const gi = py * canvasW + px;
-                if (borderDistGrid[gi] > maxBorderGrid) {
-                    // Check top and left neighbors
-                    const above = gi - canvasW;
-                    const left = gi - 1;
-                    if (borderDistGrid[above] + 1 < borderDistGrid[gi]) {
-                        borderDistGrid[gi] = borderDistGrid[above] + 1;
-                        borderNeighborGrid[gi] = borderNeighborGrid[above];
-                    }
-                    if (borderDistGrid[left] + 1 < borderDistGrid[gi]) {
-                        borderDistGrid[gi] = borderDistGrid[left] + 1;
-                        borderNeighborGrid[gi] = borderNeighborGrid[left];
-                    }
-                }
-            }
-        }
-
-        // Backward pass (bottom-right to top-left)
-        for (let py = canvasH - 2; py >= 0; py--) {
-            for (let px = canvasW - 2; px >= 0; px--) {
-                const gi = py * canvasW + px;
-                if (borderDistGrid[gi] > 0) {
-                    const below = gi + canvasW;
-                    const right = gi + 1;
-                    if (borderDistGrid[below] + 1 < borderDistGrid[gi]) {
-                        borderDistGrid[gi] = borderDistGrid[below] + 1;
-                        borderNeighborGrid[gi] = borderNeighborGrid[below];
-                    }
-                    if (borderDistGrid[right] + 1 < borderDistGrid[gi]) {
-                        borderDistGrid[gi] = borderDistGrid[right] + 1;
-                        borderNeighborGrid[gi] = borderNeighborGrid[right];
-                    }
-                }
-            }
-        }
-    }
-
-    // ================================================================
-    // PASS 4: Colorize from smoothed ownership + distance-based borders
-    // ================================================================
-    for (let py = 0; py < canvasH; py++) {
-        for (let px = 0; px < canvasW; px++) {
-            const gi = py * canvasW + px;
-            const owner = ownerGrid[gi];
-            if (owner < 0) continue;
-            const fade = fadeGrid[gi];
-            if (fade <= 0) continue;
-
-            const [cr, cg, cb] = playerColors[owner];
-            let fr = cr, fg = cg, fb = cb;
-            let borderMask = 0;
-
-            // Border blending from distance transform
-            const bDist = borderDistGrid[gi];
-            const bNeighbor = borderNeighborGrid[gi];
-            if (bNeighbor >= 0 && bDist < bwGrid + bsGrid) {
-                borderMask = smoothstep(bwGrid + bsGrid, 0, bDist) * borderAlpha;
-                if (borderMask > 0) {
-                    const [sr, sg, sb] = playerColors[bNeighbor];
-                    const brt = borderBrighten;
-                    const br = (Math.min(255, cr + brt) + Math.min(255, sr + brt)) / 2;
-                    const bg = (Math.min(255, cg + brt) + Math.min(255, sg + brt)) / 2;
-                    const bb = (Math.min(255, cb + brt) + Math.min(255, sb + brt)) / 2;
-                    fr = Math.round(cr + (br - cr) * borderMask);
-                    fg = Math.round(cg + (bg - cg) * borderMask);
-                    fb = Math.round(cb + (bb - cb) * borderMask);
-                }
-            }
-
-            const pixelAlpha = Math.min(1, alpha + borderMask * (1 - alpha));
-            const idx = gi * 4;
-            pixels[idx] = fr;
-            pixels[idx + 1] = fg;
-            pixels[idx + 2] = fb;
-            pixels[idx + 3] = Math.round(pixelAlpha * fade * 255);
-        }
-    }
-
-    ctx.putImageData(imageData, 0, 0);
-    return rasterCanvas;
-}
-
-// ============================================================================
-// Lerp utility for distance arrays
-// ============================================================================
-
-function lerpDistArrays(
-    prev: number[][], curr: number[][], t: number
-): number[][] {
-    const nStars = prev.length;
-    const nPlayers = prev[0].length;
-    const result: number[][] = new Array(nStars);
-    for (let s = 0; s < nStars; s++) {
-        result[s] = new Array(nPlayers);
-        for (let p = 0; p < nPlayers; p++) {
-            const a = prev[s][p], b = curr[s][p];
-            // Handle Infinity: if either is Infinity, ease toward the finite one
-            if (a === Infinity && b === Infinity) {
-                result[s][p] = Infinity;
-            } else if (a === Infinity) {
-                // Player didn't exist before — ease in with a large penalty
-                result[s][p] = b + (1 - t) * 1000;
-            } else if (b === Infinity) {
-                // Player lost all stars — ease out
-                result[s][p] = a + t * 1000;
-            } else {
-                result[s][p] = a + (b - a) * t;
-            }
-        }
-    }
-    return result;
-}
-
-// ============================================================================
-// Fingerprints
+// Fingerprints (PRESERVED FROM V1, minus DF_RESOLUTION/DF_ROUNDING)
 // ============================================================================
 
 function buildOwnerFp(stars: StarState[]): string {
@@ -548,9 +282,9 @@ function buildOwnerFp(stars: StarState[]): string {
 }
 
 function buildConfigFp(): string {
-    return `${GAME_CONFIG.DF_RESOLUTION}:${GAME_CONFIG.DF_ALPHA}:${GAME_CONFIG.DF_BORDER_WIDTH}:`
+    return `${GAME_CONFIG.DF_ALPHA}:${GAME_CONFIG.DF_BORDER_WIDTH}:`
         + `${GAME_CONFIG.DF_BORDER_SOFTNESS}:${GAME_CONFIG.DF_BORDER_ALPHA}:${GAME_CONFIG.DF_BORDER_BRIGHTEN}:`
-        + `${GAME_CONFIG.DF_BLUR}:${GAME_CONFIG.DF_HUE}:${GAME_CONFIG.DF_ROUNDING}:`
+        + `${GAME_CONFIG.DF_BLUR}:${GAME_CONFIG.DF_HUE}:`
         + `${GAME_CONFIG.DF_SATURATION}:${GAME_CONFIG.DF_LIGHTNESS}:`
         + `${GAME_CONFIG.DF_DISTANCE_METRIC}:${GAME_CONFIG.TERRITORY_TRANSITION_MS}:${GAME_CONFIG.DF_EDGE_FADE}`;
 }
@@ -562,20 +296,297 @@ function buildConnFp(connections: StarConnection[]): string {
 }
 
 // ============================================================================
-// Blur helper
+// DEBUG_LADDER: Gradient test texture to prove BufferImageSource upload works
+// ============================================================================
+
+function makeGradientTestTexture(): PIXI.Texture {
+    // Use Canvas2D — the most universally supported texture source
+    const w = 64, h = 4;
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d')!;
+    const imageData = ctx.createImageData(w, h);
+    const px = imageData.data;
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            const i = (y * w + x) * 4;
+            px[i + 0] = Math.round((x / (w - 1)) * 255); // R ramp
+            px[i + 1] = Math.round((y / (h - 1)) * 255); // G ramp
+            px[i + 2] = 128;                               // B constant (so it's not black)
+            px[i + 3] = 255;                               // A opaque
+        }
+    }
+    ctx.putImageData(imageData, 0, 0);
+    return PIXI.Texture.from(canvas);
+}
+
+// ============================================================================
+// GPU Data Texture — pack star data for shader (BufferImageSource pattern)
+// ============================================================================
+// Layout: MAX_STARS columns × 4 rows, RGBA uint8 via BufferImageSource
+//   row 0: (x_hi, x_lo, y_hi, y_lo)      — star positions as 16-bit
+//   row 1: (bestDist_hi, bestDist_lo, secondDist_hi, secondDist_lo)
+//   row 2: (bestOwner+1, secondOwner+1, 0, 0)  — player indices (1-indexed, 0=none)
+//   row 3: (prevBest_hi, prevBest_lo, prevSecond_hi, prevSecond_lo)
+//
+// IMPORTANT: BufferImageSource with Uint8Array defaults to 'bgra8unorm',
+// so we MUST explicitly set format: 'rgba8unorm'.
+// IMPORTANT: alphaMode must be 'no-premultiply-alpha' because we use all
+// 4 RGBA channels for data, not color.
+
+let starDataBuffer: Uint8Array | null = null;
+
+function encode16(value: number): [number, number] {
+    const clamped = Math.max(0, Math.min(65535, Math.round(value)));
+    return [Math.floor(clamped / 256), clamped % 256];
+}
+
+function buildStarDataTexture(
+    stars: StarState[],
+    dist: number[][],
+    prevDistArr: number[][] | null,
+    playerIds: string[],
+): void {
+    const nStars = Math.min(stars.length, MAX_STARS);
+    const nPlayers = playerIds.length;
+    const texW = MAX_STARS;
+    const texH = 4;
+    const bufSize = texW * texH * 4;
+
+    // Allocate buffer if needed
+    if (!starDataBuffer || starDataBuffer.length !== bufSize) {
+        starDataBuffer = new Uint8Array(bufSize);
+    }
+    starDataBuffer.fill(0);
+
+    for (let i = 0; i < nStars; i++) {
+        // Row 0: positions (16-bit encoded)
+        const row0 = (0 * texW + i) * 4;
+        const [xh, xl] = encode16(stars[i].x);
+        const [yh, yl] = encode16(stars[i].y);
+        starDataBuffer[row0] = xh;
+        starDataBuffer[row0 + 1] = xl;
+        starDataBuffer[row0 + 2] = yh;
+        starDataBuffer[row0 + 3] = yl;
+
+        // Find best and second-best player for this star
+        let bestP = -1, bestD = Infinity;
+        let secondP = -1, secondD = Infinity;
+        for (let pi = 0; pi < nPlayers; pi++) {
+            const d = dist[i]?.[pi] ?? Infinity;
+            if (d < bestD) {
+                secondD = bestD; secondP = bestP;
+                bestD = d; bestP = pi;
+            } else if (d < secondD) {
+                secondD = d; secondP = pi;
+            }
+        }
+
+        // Row 1: distances (16-bit encoded, capped at 65535)
+        const row1 = (1 * texW + i) * 4;
+        const [bdh, bdl] = encode16(bestD === Infinity ? 65535 : bestD);
+        const [sdh, sdl] = encode16(secondD === Infinity ? 65535 : secondD);
+        starDataBuffer[row1] = bdh;
+        starDataBuffer[row1 + 1] = bdl;
+        starDataBuffer[row1 + 2] = sdh;
+        starDataBuffer[row1 + 3] = sdl;
+
+        // Row 2: owner indices (1-indexed, 0 = no owner)
+        const row2 = (2 * texW + i) * 4;
+        starDataBuffer[row2] = bestP >= 0 ? bestP + 1 : 0;
+        starDataBuffer[row2 + 1] = secondP >= 0 ? secondP + 1 : 0;
+
+        // Row 3: previous distances for morph (16-bit encoded)
+        const row3 = (3 * texW + i) * 4;
+        if (prevDistArr) {
+            let prevBestD = Infinity, prevSecondD = Infinity;
+            for (let pi = 0; pi < nPlayers; pi++) {
+                const d = prevDistArr[i]?.[pi] ?? Infinity;
+                if (d < prevBestD) {
+                    prevSecondD = prevBestD;
+                    prevBestD = d;
+                } else if (d < prevSecondD) {
+                    prevSecondD = d;
+                }
+            }
+            const [pbd_h, pbd_l] = encode16(prevBestD === Infinity ? 65535 : prevBestD);
+            const [psd_h, psd_l] = encode16(prevSecondD === Infinity ? 65535 : prevSecondD);
+            starDataBuffer[row3] = pbd_h;
+            starDataBuffer[row3 + 1] = pbd_l;
+            starDataBuffer[row3 + 2] = psd_h;
+            starDataBuffer[row3 + 3] = psd_l;
+        } else {
+            starDataBuffer[row3] = starDataBuffer[row1];
+            starDataBuffer[row3 + 1] = starDataBuffer[row1 + 1];
+            starDataBuffer[row3 + 2] = starDataBuffer[row1 + 2];
+            starDataBuffer[row3 + 3] = starDataBuffer[row1 + 3];
+        }
+    }
+
+    // DEBUG: Verify star position encoding roundtrip
+    if (nStars > 0) {
+        for (let i = 0; i < Math.min(3, nStars); i++) {
+            const row0 = (0 * texW + i) * 4;
+            const bytes = [starDataBuffer[row0], starDataBuffer[row0 + 1], starDataBuffer[row0 + 2], starDataBuffer[row0 + 3]];
+            const decodedX = bytes[0] * 256 + bytes[1];
+            const decodedY = bytes[2] * 256 + bytes[3];
+            console.log(`[DF_DEBUG] Star${i}: actual=(${stars[i].x.toFixed(1)},${stars[i].y.toFixed(1)}) bytes=[${bytes}] decoded=(${decodedX},${decodedY})`);
+        }
+        console.log(`[DF_DEBUG] nStars=${nStars} texW=${texW} texH=${texH} bufLen=${starDataBuffer.length}`);
+    }
+
+    if (!starDataTexture) {
+        // First time: create BufferImageSource + Texture
+        const source = new PIXI.BufferImageSource({
+            resource: starDataBuffer,
+            width: texW,
+            height: texH,
+            format: 'rgba8unorm',           // MUST be explicit — Uint8Array defaults to bgra8unorm!
+            alphaMode: 'no-premultiply-alpha', // data texture, not color
+            scaleMode: 'nearest',
+            autoGarbageCollect: false,
+        });
+        starDataTexture = new PIXI.Texture({ source });
+    } else {
+        // Subsequent: update existing source in-place (avoids texture recreation)
+        (starDataTexture.source as PIXI.BufferImageSource).resource = starDataBuffer;
+        starDataTexture.source.update();
+    }
+}
+
+// ============================================================================
+// GPU Mesh Creation (replaces Filter approach for correct zoom/resize)
+// ============================================================================
+
+function ensureMesh(worldWidth: number, worldHeight: number): PIXI.Shader {
+    const padding = GAME_CONFIG.DF_EDGE_FADE ?? 200;
+
+    if (cachedMeshShader) return cachedMeshShader;
+
+    const glProgram = GlProgram.from({
+        vertex: VERT_SHADER,
+        fragment: FRAG_SHADER,
+    });
+
+    const x0 = -padding, y0 = -padding;
+    const x1 = worldWidth + padding, y1 = worldHeight + padding;
+
+    cachedMeshShader = new PIXI.Shader({
+        glProgram,
+        resources: {
+            // CRITICAL: Must pass TextureSource (.source), NOT Texture!
+            territoryUniforms: {
+                uNumStars: { value: 0, type: 'i32' },
+                uNumPlayers: { value: 0, type: 'i32' },
+                uWorldWidth: { value: 0, type: 'f32' },
+                uWorldHeight: { value: 0, type: 'f32' },
+                uPadding: { value: 0, type: 'f32' },
+                uBorderWidth: { value: 5, type: 'f32' },
+                uBorderSoftness: { value: 3, type: 'f32' },
+                uBorderAlpha: { value: 0.8, type: 'f32' },
+                uBorderBrighten: { value: 20, type: 'f32' },
+                uFillAlpha: { value: 0.2, type: 'f32' },
+                uEdgeFade: { value: 200, type: 'f32' },
+                uHueShift: { value: 0, type: 'f32' },
+                uSatMult: { value: 0.7, type: 'f32' },
+                uLightMult: { value: 0.5, type: 'f32' },
+                uMorphFactor: { value: 0, type: 'f32' },
+                // Custom MVP matrix (updated every frame from mesh.worldTransform + renderer projection)
+                uMVP: { value: new Float32Array(9), type: 'mat3x3<f32>' },
+                // Player colors
+                uPlayerColor0: { value: new Float32Array([1, 0, 0]), type: 'vec3<f32>' },
+                uPlayerColor1: { value: new Float32Array([0, 0, 1]), type: 'vec3<f32>' },
+                uPlayerColor2: { value: new Float32Array([0, 1, 0]), type: 'vec3<f32>' },
+                uPlayerColor3: { value: new Float32Array([1, 1, 0]), type: 'vec3<f32>' },
+                uPlayerColor4: { value: new Float32Array([1, 0, 1]), type: 'vec3<f32>' },
+                uPlayerColor5: { value: new Float32Array([0, 1, 1]), type: 'vec3<f32>' },
+                uPlayerColor6: { value: new Float32Array([1, 0.5, 0]), type: 'vec3<f32>' },
+                uPlayerColor7: { value: new Float32Array([0.5, 0, 1]), type: 'vec3<f32>' },
+            },
+            uStarData: starDataTexture?.source ?? makeGradientTestTexture().source,
+        },
+    });
+
+    // Quad geometry in WORLD SPACE with UVs 0→1
+    // MeshGeometry wraps buffers with proper VERTEX|COPY_DST usage flags
+    const geometry = new PIXI.MeshGeometry({
+        positions: new Float32Array([x0, y0, x1, y0, x1, y1, x0, y1]),
+        uvs: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
+        indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
+        topology: 'triangle-list',
+    });
+
+    cachedMesh = new PIXI.Mesh({ geometry, shader: cachedMeshShader }) as any;
+
+    return cachedMeshShader;
+}
+
+
+// ============================================================================
+// Update GPU uniforms from current state
+// ============================================================================
+
+function updateFilterUniforms(
+    stars: StarState[],
+    colorUtils: ColorUtils,
+    worldWidth: number,
+    worldHeight: number,
+): void {
+    if (!cachedMeshShader) return;
+
+    const nStars = Math.min(stars.length, MAX_STARS);
+    const nPlayers = currentPlayerIds.length;
+    const padding = GAME_CONFIG.DF_EDGE_FADE ?? 200;
+
+    const u = cachedMeshShader.resources.territoryUniforms.uniforms;
+    u.uNumStars = nStars;
+    u.uNumPlayers = nPlayers;
+    u.uWorldWidth = worldWidth;
+    u.uWorldHeight = worldHeight;
+    u.uPadding = padding;
+    u.uBorderWidth = GAME_CONFIG.DF_BORDER_WIDTH ?? 5;
+    u.uBorderSoftness = GAME_CONFIG.DF_BORDER_SOFTNESS ?? 3;
+    u.uBorderAlpha = GAME_CONFIG.DF_BORDER_ALPHA ?? 0.8;
+    u.uBorderBrighten = GAME_CONFIG.DF_BORDER_BRIGHTEN ?? 20;
+    u.uFillAlpha = GAME_CONFIG.DF_ALPHA ?? 0.2;
+    u.uEdgeFade = GAME_CONFIG.DF_EDGE_FADE ?? 200;
+    u.uHueShift = GAME_CONFIG.DF_HUE ?? 0;
+    u.uSatMult = GAME_CONFIG.DF_SATURATION ?? 0.7;
+    u.uLightMult = GAME_CONFIG.DF_LIGHTNESS ?? 0.5;
+
+    // Pack player colors (0-1 range)
+    for (let i = 0; i < Math.min(nPlayers, MAX_PLAYERS); i++) {
+        const hex = colorUtils.getPlayerColor(currentPlayerIds[i]);
+        const r = ((hex >> 16) & 0xff) / 255;
+        const g = ((hex >> 8) & 0xff) / 255;
+        const b = (hex & 0xff) / 255;
+        const colorArr = new Float32Array([r, g, b]);
+        (u as any)[`uPlayerColor${i} `] = colorArr;
+    }
+
+    // Update star data texture reference — pass .source (TextureSource), not Texture
+    if (starDataTexture) {
+        cachedMeshShader.resources.uStarData = starDataTexture.source;
+    }
+}
+
+// ============================================================================
+// Blur helper (PRESERVED FROM V1)
 // ============================================================================
 
 function applyBlur(): void {
-    if (!cachedSprite) return;
+    if (!cachedMesh) return;
     const blur = GAME_CONFIG.DF_BLUR ?? 0;
     if (blur > 0) {
         if (cachedBlurStrength !== blur) {
             cachedBlurFilter = new PIXI.BlurFilter({ strength: blur, quality: 3 });
             cachedBlurStrength = blur;
         }
-        cachedSprite.filters = cachedBlurFilter ? [cachedBlurFilter] : [];
+        // With Mesh approach, the custom shader is built in — only add blur as extra filter
+        cachedMesh.filters = cachedBlurFilter ? [cachedBlurFilter] : [];
     } else {
-        cachedSprite.filters = [];
+        cachedMesh.filters = [];
         cachedBlurFilter = null;
         cachedBlurStrength = -1;
     }
@@ -592,10 +603,36 @@ export function renderDistanceFieldTerritory(
     worldWidth: number,
     worldHeight: number,
     connections?: StarConnection[],
+    app?: PIXI.Application,
 ): void {
     if (!GAME_CONFIG.TERRITORY_DISTANCE_FIELD) {
-        if (cachedSprite) cachedSprite.visible = false;
+        if (cachedMesh) cachedMesh.visible = false;
         return;
+    }
+
+    // ── Always update MVP transform (must run even when star data hasn't changed) ──
+    if (cachedMesh && cachedMeshShader && app) {
+        const proj = (app.renderer as any).globalUniforms?.uniformGroup?.uniforms?.uProjectionMatrix;
+        const meshWT = cachedMesh.worldTransform;
+        if (proj && meshWT) {
+            // MVP = uProjectionMatrix * mesh.worldTransform
+            // Both are PIXI.Matrix (2D affine as mat3)
+            // proj.toArray() gives column-major [a, b, 0, c, d, 0, tx, ty, 1]
+            const p = proj.toArray(false); // column-major
+            const m = meshWT.toArray(false); // column-major
+            // Matrix multiply 3x3 (column-major): result[col][row]
+            const mvp = cachedMeshShader.resources.territoryUniforms.uniforms.uMVP as Float32Array;
+            mvp[0] = p[0] * m[0] + p[3] * m[1]; // + p[6]*m[2]=0
+            mvp[1] = p[1] * m[0] + p[4] * m[1]; // + p[7]*m[2]=0
+            mvp[2] = 0;
+            mvp[3] = p[0] * m[3] + p[3] * m[4]; // + p[6]*m[5]=0
+            mvp[4] = p[1] * m[3] + p[4] * m[4]; // + p[7]*m[5]=0
+            mvp[5] = 0;
+            mvp[6] = p[0] * m[6] + p[3] * m[7] + p[6]; // *m[8]=1
+            mvp[7] = p[1] * m[6] + p[4] * m[7] + p[7]; // *m[8]=1
+            mvp[8] = 1;
+            cachedMeshShader.resources.territoryUniforms.uniforms.uMVP = mvp;
+        }
     }
 
     const now = performance.now();
@@ -622,15 +659,18 @@ export function renderDistanceFieldTerritory(
         const newPlayerIds = Array.from(playerSet).sort();
 
         // Compute new distances
-        const metric = (GAME_CONFIG.DF_DISTANCE_METRIC ?? 'hops') as 'hops' | 'length';
+        const metric = (GAME_CONFIG.DF_DISTANCE_METRIC ?? 'length') as 'hops' | 'length';
         const newDist = computeDistToPlayer(stars, conns, newPlayerIds, metric);
 
-        // Start transition if we have previous data and transition is enabled
+        // Start temporal morph if we have previous data
         if (currentDist && transitionMs > 0 && currentPlayerIds.length === newPlayerIds.length
             && currentPlayerIds.every((id, i) => id === newPlayerIds[i])) {
             prevDist = currentDist;
-            transitionStart = now;
-            isTransitioning = true;
+            morphStartTime = now;
+            isMorphing = true;
+        } else {
+            prevDist = null;
+            isMorphing = false;
         }
 
         currentDist = newDist;
@@ -638,78 +678,56 @@ export function renderDistanceFieldTerritory(
     }
 
     if (!currentDist || currentPlayerIds.length === 0) {
-        if (cachedSprite) cachedSprite.visible = false;
+        if (cachedMesh) cachedMesh.visible = false;
         return;
     }
 
-    // ── Determine which distances to rasterize ──
-    let renderDist = currentDist;
-
-    if (isTransitioning && prevDist && transitionMs > 0) {
-        const elapsed = now - transitionStart;
+    // ── Temporal morph factor ──
+    let morphFactor = 0;
+    if (isMorphing && prevDist && transitionMs > 0) {
+        const elapsed = now - morphStartTime;
         const rawT = Math.min(1, elapsed / transitionMs);
-        const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
 
         if (rawT >= 1) {
-            isTransitioning = false;
+            isMorphing = false;
             prevDist = null;
+            morphFactor = 0;
         } else {
-            renderDist = lerpDistArrays(prevDist, currentDist, eased);
+            // Exponential decay for smooth morph
+            morphFactor = 1 - rawT;
         }
     }
 
-    // ── Check if config changed (needs re-rasterize even if ownership didn't) ──
+    // ── Build GPU data texture (only when ownership or morph changed) ──
     const configFp = buildConfigFp();
-    const needsRender = ownerChanged || isTransitioning || configFp !== cachedConfigFp;
-    if (!needsRender && cachedSprite) {
-        cachedSprite.visible = true;
-        applyBlur();
+    const needsUpdate = ownerChanged || isMorphing || configFp !== cachedConfigFp;
+    if (!needsUpdate && cachedMesh) {
+        cachedMesh.visible = true;
         return;
     }
     cachedConfigFp = configFp;
 
-    // ── Rasterize ──
-    const resolution = GAME_CONFIG.DF_RESOLUTION ?? 4;
-    const fillAlpha = GAME_CONFIG.DF_ALPHA ?? 0.3;
-    const borderWidth = GAME_CONFIG.DF_BORDER_WIDTH ?? 15;
-    const borderSoftness = GAME_CONFIG.DF_BORDER_SOFTNESS ?? 8;
-    const borderAlpha = GAME_CONFIG.DF_BORDER_ALPHA ?? 0.8;
-    const borderBrighten = GAME_CONFIG.DF_BORDER_BRIGHTEN ?? 40;
-    const hueShift = GAME_CONFIG.DF_HUE ?? 0;
-    const satMult = GAME_CONFIG.DF_SATURATION ?? 0.7;
-    const lightMult = GAME_CONFIG.DF_LIGHTNESS ?? 0.5;
-    const edgeFade = GAME_CONFIG.DF_EDGE_FADE ?? 200;
-    const rounding = GAME_CONFIG.DF_ROUNDING ?? 8;
-    const padding = edgeFade;
+    // Pack star data into data texture
+    buildStarDataTexture(stars, currentDist, prevDist, currentPlayerIds);
 
-    const canvas = rasterize(
-        stars, renderDist, currentPlayerIds, colorUtils,
-        worldWidth, worldHeight,
-        resolution, fillAlpha, borderWidth, borderSoftness,
-        borderAlpha, borderBrighten, hueShift, satMult, lightMult, padding, rounding,
-    );
+    // ── Ensure GPU mesh exists ──
+    ensureMesh(worldWidth, worldHeight);
 
-    // ── Update PIXI sprite ──
-    if (cachedTexture) cachedTexture.destroy(true);
-    cachedTexture = PIXI.Texture.from(canvas);
-    cachedTexture.source.scaleMode = 'linear';
-
-    const totalW = worldWidth + padding * 2;
-    const totalH = worldHeight + padding * 2;
-
-    if (!cachedSprite) {
-        cachedSprite = new PIXI.Sprite(cachedTexture);
-        container.addChild(cachedSprite);
-    } else {
-        cachedSprite.texture = cachedTexture;
-        if (!cachedSprite.parent) container.addChild(cachedSprite);
+    // ── Add mesh to container if not already ──
+    if (cachedMesh && !cachedMesh.parent) {
+        container.addChild(cachedMesh);
+    }
+    if (cachedMesh) {
+        cachedMesh.visible = true;
     }
 
-    cachedSprite.width = totalW;
-    cachedSprite.height = totalH;
-    cachedSprite.x = -padding;
-    cachedSprite.y = -padding;
-    cachedSprite.visible = true;
+    // ── Update GPU uniforms ──
+    if (cachedMeshShader) {
+        cachedMeshShader.resources.territoryUniforms.uniforms.uMorphFactor = morphFactor;
+    }
+    updateFilterUniforms(stars, colorUtils, worldWidth, worldHeight);
+
+    // ── Apply filter pipeline ──
     applyBlur();
 }
 
@@ -723,22 +741,24 @@ export function resetDistanceFieldTerritoryCache(): void {
     cachedConnFp = '';
     currentDist = null;
     prevDist = null;
-    isTransitioning = false;
-    transitionStart = 0;
+    isMorphing = false;
+    morphStartTime = 0;
     currentPlayerIds = [];
 
-    if (cachedSprite) {
-        if (cachedSprite.parent) cachedSprite.parent.removeChild(cachedSprite);
-        cachedSprite.destroy();
-        cachedSprite = null;
+    if (cachedMesh) {
+        if (cachedMesh.parent) cachedMesh.parent.removeChild(cachedMesh);
+        cachedMesh.destroy();
+        cachedMesh = null;
     }
-    if (cachedTexture) {
-        cachedTexture.destroy(true);
-        cachedTexture = null;
+    if (cachedMeshShader) {
+        cachedMeshShader.destroy();
+        cachedMeshShader = null;
     }
+
+    starDataTexture = null;
+    starDataBuffer = null;
     cachedBlurFilter = null;
     cachedBlurStrength = -1;
-    rasterCanvas = null;
     laneArray = [];
     laneCells = new Map();
 }

@@ -172,6 +172,7 @@
         </label>
     </div>
 </div>
+<!-- DISABLED: Modified Voronoi freezes game — F-138 needs architecture fix
 <div class="var-row">
     <div class="row-top">
         <span class="var-name">🔶 Modified Voronoi</span>
@@ -191,6 +192,7 @@
         </label>
     </div>
 </div>
+-->
 <div class="var-row">
     <div class="row-top">
         <span class="var-name">⚡ Power Voronoi V2</span>

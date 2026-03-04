@@ -33,8 +33,11 @@
 ### 2.2 Trust the User
 - User observations ARE ground truth — they see the app, you don't
 - Never say "it may FEEL wrong but the math is correct"
+
+### 2.2.1 Epistemic Humility
 - Never declare something "fixed" without user verification or actual evidence
 - Use conditional language: "My working hypothesis is…" not "Found the root cause"
+
 
 ### 2.3 Precision
 - **User words are specifications** — parse as requirements, not symptoms
@@ -45,6 +48,7 @@
 ### 2.4 Completeness
 - **Every definition must have a consumer** — adding a type, config key, or function without wiring it to its integration point is dead code and counts as incomplete work
 - **Trace the full path** — when creating something new (event, SoundType, config flag), follow the chain from definition → usage → trigger → UI
+- **Search ALL references before changing** — when removing, renaming, or commenting out any symbol (variable, property, function), grep the ENTIRE codebase for ALL references and fix every hit BEFORE testing
 - **No orphans** — before marking work done, verify: "Who calls this? Where does this render? What fires this event?"
 
 
@@ -173,8 +177,8 @@ Self-enforce: "Did I update the docs that changed?" If not, update before pushin
 
 ## 8. Process Shortcuts
 
-### Screenshots
-Ask user for screenshots. Never use browser subagent for screenshotting (too slow).
+### Browser
+**⛔ NEVER open a browser or use the browser subagent unless the user gives explicit permission.** Ask the user for screenshots, console errors, or visual verification instead.
 
 ### Git
 Use `git ac "message"` alias for add+commit. Run commands separately, never chain with `&&`.
@@ -239,7 +243,7 @@ Use `git ac "message"` alias for add+commit. Run commands separately, never chai
 
 ## 11. Post-Mortem Process
 
-After every significant agent failure, write a post-mortem to `.atlas/post-mortems/YYYY-MM-DD-<semantic-name>.md`.
+After every significant agent failure, write a post-mortem to `.atlas/post-mortems/post-mortem_YYYY-MM-DD-<semantic-name>.md`.
 
 **When to write:**
 - Agent declares "done" but work was not actually done
