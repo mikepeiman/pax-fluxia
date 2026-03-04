@@ -12,8 +12,19 @@
 
 import * as PIXI from 'pixi.js';
 import { compileHighShaderGlProgram, localUniformBitGl } from 'pixi.js';
-// @ts-ignore — internal pixi.js module, no type declarations but resolves at runtime
-import { roundPixelsBitGl } from 'pixi.js/lib/rendering/high-shader/shader-bits/roundPixelsBit.mjs';
+// roundPixelsBitGl: defines roundPixels() used by localUniformBitGl.vertex.end
+// Inlined because pixi.js doesn't export this from its package exports map
+const roundPixelsBitGl = {
+    name: 'round-pixels-bit',
+    vertex: {
+        header: /* glsl */ `
+            vec2 roundPixels(vec2 position, vec2 targetSize)
+            {
+                return (floor(((position * 0.5 + 0.5) * targetSize) + 0.5) / targetSize) * 2.0 - 1.0;
+            }
+        `,
+    },
+};
 import { GAME_CONFIG } from '$lib/config/game.config';
 import type { StarState, StarConnection } from '$lib/types/game.types';
 import type { ColorUtils } from './RenderContext';
