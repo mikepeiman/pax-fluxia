@@ -46,6 +46,7 @@ const territoryBitGl = {
     },
     fragment: {
         header: /* glsl */ `
+            #version 300 es
             in vec2 vLocalPos;
             uniform sampler2D uStarData;
             uniform int uNumStars;
