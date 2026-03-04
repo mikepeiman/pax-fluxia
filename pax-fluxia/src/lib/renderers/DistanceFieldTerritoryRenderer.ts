@@ -12,6 +12,8 @@
 
 import * as PIXI from 'pixi.js';
 import { compileHighShaderGlProgram, localUniformBitGl } from 'pixi.js';
+// @ts-ignore — internal pixi.js module, no type declarations but resolves at runtime
+import { roundPixelsBitGl } from 'pixi.js/lib/rendering/high-shader/shader-bits/roundPixelsBit.mjs';
 import { GAME_CONFIG } from '$lib/config/game.config';
 import type { StarState, StarConnection } from '$lib/types/game.types';
 import type { ColorUtils } from './RenderContext';
@@ -438,7 +440,7 @@ function ensureMesh(worldWidth: number, worldHeight: number): PIXI.Shader {
     if (cachedMeshShader) return cachedMeshShader;
 
     const glProgram = compileHighShaderGlProgram({
-        bits: [localUniformBitGl, territoryBitGl],
+        bits: [localUniformBitGl, territoryBitGl, roundPixelsBitGl],
         name: 'territory-distance-field',
     });
 
