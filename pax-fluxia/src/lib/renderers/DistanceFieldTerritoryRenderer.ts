@@ -356,7 +356,8 @@ function buildConfigFp(): string {
         + `${GAME_CONFIG.DF_BORDER_SOFTNESS}:${GAME_CONFIG.DF_BORDER_ALPHA}:${GAME_CONFIG.DF_BORDER_BRIGHTEN}:`
         + `${GAME_CONFIG.DF_BLUR}:${GAME_CONFIG.DF_HUE}:`
         + `${GAME_CONFIG.DF_SATURATION}:${GAME_CONFIG.DF_LIGHTNESS}:`
-        + `${GAME_CONFIG.DF_DISTANCE_METRIC}:${GAME_CONFIG.TERRITORY_TRANSITION_MS}:${GAME_CONFIG.DF_EDGE_FADE}`;
+        + `${GAME_CONFIG.DF_DISTANCE_METRIC}:${GAME_CONFIG.TERRITORY_TRANSITION_MS}:`
+        + `${GAME_CONFIG.DF_EDGE_FADE}:${GAME_CONFIG.DF_RESOLUTION}:${GAME_CONFIG.DF_ROUNDING}`;
 }
 
 function buildConnFp(connections: StarConnection[]): string {
@@ -552,15 +553,15 @@ function ensureMesh(worldWidth: number, worldHeight: number): PIXI.Shader {
                 uWorldWidth: { value: 0, type: 'f32' },
                 uWorldHeight: { value: 0, type: 'f32' },
                 uPadding: { value: 0, type: 'f32' },
-                uBorderWidth: { value: 5, type: 'f32' },
-                uBorderSoftness: { value: 3, type: 'f32' },
-                uBorderAlpha: { value: 0.8, type: 'f32' },
-                uBorderBrighten: { value: 20, type: 'f32' },
-                uFillAlpha: { value: 0.2, type: 'f32' },
+                uBorderWidth: { value: 15, type: 'f32' },
+                uBorderSoftness: { value: 10, type: 'f32' },
+                uBorderAlpha: { value: 0.6, type: 'f32' },
+                uBorderBrighten: { value: 60, type: 'f32' },
+                uFillAlpha: { value: 0.15, type: 'f32' },
                 uEdgeFade: { value: 200, type: 'f32' },
                 uHueShift: { value: 0, type: 'f32' },
-                uSatMult: { value: 0.7, type: 'f32' },
-                uLightMult: { value: 0.5, type: 'f32' },
+                uSatMult: { value: 0.5, type: 'f32' },
+                uLightMult: { value: 0.4, type: 'f32' },
                 uMorphFactor: { value: 0, type: 'f32' },
                 // Player colors
                 uPlayerColor0: { value: new Float32Array([1, 0, 0]), type: 'vec3<f32>' },
