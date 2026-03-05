@@ -201,12 +201,25 @@ const territoryBitGl = {
 
                 float alpha = uFillAlpha;
 
-                // Border: where influence of best and closest enemy (different owner) are close
-                if (enemyOwner >= 0) {
+                // Border: single blended line ON the boundary between two different owners
+                if (enemyOwner >= 0 && enemyOwner != 254) {
                     float borderDist = abs(bestInfluence - enemyInfluence);
                     float borderFactor = 1.0 - smoothstep(uBorderWidth - uBorderSoftness, uBorderWidth + uBorderSoftness, borderDist);
                     if (borderFactor > 0.0) {
-                        vec3 borderColor = min(finalRGB + vec3(uBorderBrighten / 255.0), vec3(1.0));
+                        // Look up enemy player color
+                        vec3 ec = vec3(0.5);
+                        if (enemyOwner == 0) ec = uPlayerColor0;
+                        else if (enemyOwner == 1) ec = uPlayerColor1;
+                        else if (enemyOwner == 2) ec = uPlayerColor2;
+                        else if (enemyOwner == 3) ec = uPlayerColor3;
+                        else if (enemyOwner == 4) ec = uPlayerColor4;
+                        else if (enemyOwner == 5) ec = uPlayerColor5;
+                        else if (enemyOwner == 6) ec = uPlayerColor6;
+                        else if (enemyOwner == 7) ec = uPlayerColor7;
+
+                        // Blend both owners' colors 50/50 + brighten for contrast
+                        vec3 borderColor = (pc + ec) * 0.5;
+                        borderColor = min(borderColor + vec3(uBorderBrighten / 255.0), vec3(1.0));
                         finalRGB = mix(finalRGB, borderColor, borderFactor);
                         alpha = mix(alpha, uBorderAlpha, borderFactor);
                     }
