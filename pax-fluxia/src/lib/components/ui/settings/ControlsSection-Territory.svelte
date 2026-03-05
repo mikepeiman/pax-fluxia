@@ -1085,25 +1085,6 @@
     </div>
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name">Alpha</span><span class="val"
-                >{(panel.dfAlpha ?? 0.3).toFixed(2)}</span
-            >
-        </div>
-        <input
-            type="range"
-            min="0.02"
-            max="1.0"
-            step="0.01"
-            value={panel.dfAlpha ?? 0.3}
-            oninput={(e) => {
-                const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.DF_ALPHA = v;
-                updatePanel("dfAlpha", v);
-            }}
-        />
-    </div>
-    <div class="var-row">
-        <div class="row-top">
             <span class="var-name">Blur</span><span class="val"
                 >{(panel.dfBlur ?? 2).toFixed(1)}</span
             >
@@ -1162,6 +1143,25 @@
 
     <!-- Color (HSLA) -->
     <h4 class="sub-heading">🎨 Color (HSLA)</h4>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Alpha</span><span class="val"
+                >{(panel.dfAlpha ?? 0.15).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0.02"
+            max="1.0"
+            step="0.01"
+            value={panel.dfAlpha ?? 0.15}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.DF_ALPHA = v;
+                updatePanel("dfAlpha", v);
+            }}
+        />
+    </div>
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Hue Shift</span><span class="val"

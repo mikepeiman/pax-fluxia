@@ -209,7 +209,7 @@ const territoryBitGl = {
                 float edgeDist = min(edgeX, edgeY);
                 alpha *= smoothstep(0.0, uEdgeFade, edgeDist);
 
-                outColor = vec4(finalRGB, alpha);
+                outColor = vec4(finalRGB * alpha, alpha);
             }
         `,
     },
