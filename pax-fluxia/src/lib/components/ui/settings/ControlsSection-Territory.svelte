@@ -1185,6 +1185,28 @@
         />
     </div>
 
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">⭐ Min Star Radius</span><span class="val"
+                >{(
+                    panel.dfMinStarRadius ?? GAME_CONFIG.DF_MIN_STAR_RADIUS
+                ).toFixed(0)}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="150"
+            step="5"
+            value={panel.dfMinStarRadius ?? GAME_CONFIG.DF_MIN_STAR_RADIUS}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.DF_MIN_STAR_RADIUS = v;
+                updatePanel("dfMinStarRadius", v);
+            }}
+        />
+    </div>
+
     <!-- Color (HSLA) -->
     <h4 class="sub-heading">🎨 Color (HSLA)</h4>
     <div class="var-row">

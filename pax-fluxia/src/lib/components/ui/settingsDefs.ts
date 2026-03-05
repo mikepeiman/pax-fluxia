@@ -352,6 +352,7 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'dfExpansion', configKey: 'DF_EXPANSION' },
     { panelKey: 'dfSmoothing', configKey: 'DF_SMOOTHING' },
     { panelKey: 'dfRounding', configKey: 'DF_ROUNDING' },
+    { panelKey: 'dfMinStarRadius', configKey: 'DF_MIN_STAR_RADIUS' },
     { panelKey: 'dfBorderWidth', configKey: 'DF_BORDER_WIDTH' },
     { panelKey: 'dfBorderSoftness', configKey: 'DF_BORDER_SOFTNESS' },
     { panelKey: 'dfBorderAlpha', configKey: 'DF_BORDER_ALPHA' },

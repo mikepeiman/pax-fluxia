@@ -85,6 +85,8 @@ const territoryBitGl = {
             uniform float uSmoothing;
             uniform float uCorridorBoost;
             uniform float uDisconnectBoost;
+            uniform float uMinStarRadius;
+            uniform int uNumRealStars;
             uniform vec3 uPlayerColor0;
             uniform vec3 uPlayerColor1;
             uniform vec3 uPlayerColor2;
@@ -148,6 +150,13 @@ const territoryBitGl = {
                 vec4 ownerExtra = texelFetch(uStarData, ivec2(i, 2), 0);
                 float boost = decode16(ownerExtra, 1); // bytes 2-3 = influence boost
                 influence -= boost;
+
+                // Minimum star territory: if pixel is within uMinStarRadius of this star,
+                // give it a strong advantage so every star has a guaranteed territory bubble
+                // Only for real stars (i < uNumRealStars), not virtual corridor/disconnect sites
+                if (uMinStarRadius > 0.0 && pixDist < uMinStarRadius && i < uNumRealStars) {
+                    influence = min(influence, pixDist * 0.1);
+                }
 
                 if (influence < bestInfluence) {
                     // Before replacing best: push old best to second
@@ -222,18 +231,19 @@ const territoryBitGl = {
 
                 // Junction smoothing: round corners where enemy territory is close
                 // Only applies at inter-territory boundaries, NOT within same-owner area
-                if (uSmoothing > 0.0 && enemyOwner >= 0 && enemyOwner != 254) {
+                if (uSmoothing > 0.0 && enemyOwner >= 0) {
                     float junctionGap = enemyInfluence - bestInfluence;
                     float junctionFade = smoothstep(0.0, uSmoothing, junctionGap);
                     alpha *= junctionFade;
                 }
 
                 // Border: single blended line ON the boundary between two different owners
-                if (enemyOwner >= 0 && enemyOwner != 254) {
+                if (enemyOwner >= 0) {
                     float borderDist = abs(bestInfluence - enemyInfluence);
                     // Normalize by gradient to get constant screen-space width
-                    float grad = fwidth(bestInfluence - enemyInfluence);
-                    float normDist = borderDist / max(grad, 0.001);
+                    // Clamp grad minimum to 1.0 to prevent noisy/segmented borders at junctions
+                    float grad = max(fwidth(bestInfluence - enemyInfluence), 1.0);
+                    float normDist = borderDist / grad;
                     float borderFactor = 1.0 - smoothstep(uBorderWidth - uBorderSoftness, uBorderWidth + uBorderSoftness, normDist);
                     if (borderFactor > 0.0) {
                         // Look up enemy player color
@@ -742,6 +752,8 @@ function ensureMesh(worldWidth: number, worldHeight: number): PIXI.Shader {
                 uSmoothing: { value: 30, type: 'f32' },
                 uCorridorBoost: { value: 0, type: 'f32' },
                 uDisconnectBoost: { value: 0, type: 'f32' },
+                uMinStarRadius: { value: 40, type: 'f32' },
+                uNumRealStars: { value: 0, type: 'i32' },
                 // Player colors
                 uPlayerColor0: { value: new Float32Array([1, 0, 0]), type: 'vec3<f32>' },
                 uPlayerColor1: { value: new Float32Array([0, 0, 1]), type: 'vec3<f32>' },
@@ -792,6 +804,7 @@ function updateFilterUniforms(
 
     const u = cachedMeshShader.resources.territoryUniforms.uniforms;
     u.uNumStars = nStars;
+    u.uNumRealStars = stars.length;
     u.uNumPlayers = nPlayers;
     u.uWorldWidth = worldWidth;
     u.uWorldHeight = worldHeight;
@@ -817,6 +830,7 @@ function updateFilterUniforms(
     u.uContentMinX = stars.length > 0 ? minX - pad : 0;
     u.uContentMinY = stars.length > 0 ? minY - pad : 0;
     u.uSmoothing = GAME_CONFIG.DF_SMOOTHING ?? 30;
+    u.uMinStarRadius = GAME_CONFIG.DF_MIN_STAR_RADIUS ?? 40;
     // Note: corridor/disconnect boosts are encoded per-site in the data texture,
     // not as uniforms. The weights are applied via vs.weight → encode16 → shader decode.
 

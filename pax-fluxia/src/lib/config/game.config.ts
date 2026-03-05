@@ -279,6 +279,7 @@ interface GameConfigType {
     DF_INFLUENCE_WEIGHT: number;    // How much graph distance matters (0 = pure Voronoi, 1.0 = full influence, default 1.0)
     DF_EXPANSION: number;           // Mesh quad expansion factor beyond padding (0.0 = none, 0.5 = 50%, default 0.10)
     DF_SMOOTHING: number;           // Junction corner smoothing radius in influence units (0 = sharp, default 30)
+    DF_MIN_STAR_RADIUS: number;     // Minimum guaranteed territory radius around each star in px (default 40)
     DF_CORRIDOR_ENABLED: boolean;   // Enable corridor virtual sites along same-owner lanes
     DF_CORRIDOR_SPACING: number;    // Distance between corridor virtual sites in px (default 60)
     DF_CORRIDOR_WEIGHT: number;     // Corridor influence weight multiplier (default 1.0)
@@ -1040,6 +1041,7 @@ const _rawConfig: GameConfigType = {
     DF_INFLUENCE_WEIGHT: 1.0,
     DF_EXPANSION: 0.10,
     DF_SMOOTHING: 30,
+    DF_MIN_STAR_RADIUS: 40,
     DF_CORRIDOR_ENABLED: false,
     DF_CORRIDOR_SPACING: 60,
     DF_CORRIDOR_WEIGHT: 1.0,
