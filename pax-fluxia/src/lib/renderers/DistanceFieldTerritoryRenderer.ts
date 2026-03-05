@@ -594,11 +594,27 @@ function buildStarDataTexture(
         starDataBuffer[row0 + 2] = yh;
         starDataBuffer[row0 + 3] = yl;
 
-        // Row 1: Dijkstra distance = 0 for corridors (they ARE the owner's territory)
-        // For disconnects, also 0 (they compete purely on pixel distance)
+        // Row 1: Dijkstra distance
+        // Corridors: 0 (they ARE the owner's territory, should win easily)
+        // Disconnects: use half the distance between source stars as Dijkstra
+        //   This makes the disconnect site compete fairly with real stars
+        //   instead of dominating via Dijkstra=0 advantage
         const row1 = (1 * texW + i) * 4;
-        starDataBuffer[row1] = 0;
-        starDataBuffer[row1 + 1] = 0;
+        let dijkForVirtual = 0;
+        if (vs.kind === 'disconnect') {
+            // Find source stars to compute their separation distance
+            const starA = stars.find(s => s.id === vs.sourceStarA);
+            const starB = stars.find(s => s.id === vs.sourceStarB);
+            if (starA && starB) {
+                const halfDist = Math.hypot(starB.x - starA.x, starB.y - starA.y) / 2;
+                // Weight controls how competitive: higher weight → lower Dijkstra → stronger gap
+                // At weight=1.0, Dijkstra = halfDist (neutral). At weight=0.1, Dijkstra = halfDist*10 (very weak).
+                dijkForVirtual = Math.round(halfDist / Math.max(vs.weight, 0.01));
+            }
+        }
+        const [dh, dl] = encode16(dijkForVirtual);
+        starDataBuffer[row1] = dh;
+        starDataBuffer[row1 + 1] = dl;
         starDataBuffer[row1 + 2] = 0;
         starDataBuffer[row1 + 3] = 0;
 
@@ -607,8 +623,10 @@ function buildStarDataTexture(
         const pIdx = playerIds.indexOf(vs.ownerId);
         starDataBuffer[row2] = pIdx >= 0 ? pIdx + 1 : 0;
         // Encode boost as 16-bit in bytes 2-3
-        const boost = Math.round((vs.weight ?? 1.0) * 100);
-        const [bh, bl] = encode16(boost);
+        // Corridors use boost (subtracted from influence = more competitive)
+        // Disconnects use Dijkstra distance instead, so boost = 0
+        const boostRaw = vs.kind === 'disconnect' ? 0 : Math.round((vs.weight ?? 1.0) * 100);
+        const [bh, bl] = encode16(boostRaw);
         starDataBuffer[row2 + 2] = bh;
         starDataBuffer[row2 + 3] = bl;
 
