@@ -87,6 +87,34 @@
 
   // ── F-62: Results overlay dismiss ──
   let resultsDismissed = $state(false);
+
+  // ── Map save/load (F-70 in menu) ──
+  let showSaveMapInput = $state(false);
+  let saveMapName = $state("");
+  let saveMapFeedback = $state("");
+  let showLoadMapList = $state(false);
+
+  function handleSaveMap() {
+    const name = saveMapName.trim();
+    if (!name) return;
+    gameStore.saveCurrentMap(name);
+    saveMapFeedback = `✓ Saved "${name}"`;
+    saveMapName = "";
+    showSaveMapInput = false;
+    setTimeout(() => (saveMapFeedback = ""), 2500);
+  }
+
+  function handleLoadMap(map: any) {
+    gameStore.loadSavedMap(map);
+    showLoadMapList = false;
+    // Restart with loaded map
+    activeGameStore.playAgain();
+  }
+
+  function handleDeleteMap(name: string) {
+    gameStore.deleteSavedMap(name);
+  }
+
   const showResults = $derived(
     !resultsDismissed &&
       (gameStore.winner != null || activeGameStore.phase === "results"),
@@ -478,6 +506,74 @@
                 <span class="mi-icon">💬</span>
                 <span class="mi-label">Chat</span>
               </button>
+              <hr class="menu-divider" />
+              <!-- Save Map -->
+              <button
+                class="menu-item"
+                onclick={() => {
+                  showSaveMapInput = !showSaveMapInput;
+                  showLoadMapList = false;
+                }}
+              >
+                <span class="mi-icon">💾</span>
+                <span class="mi-label">Save Map</span>
+              </button>
+              {#if showSaveMapInput}
+                <div class="map-save-row">
+                  <input
+                    type="text"
+                    class="map-name-input"
+                    placeholder="Map name…"
+                    bind:value={saveMapName}
+                    onkeydown={(e) => {
+                      if (e.key === "Enter") handleSaveMap();
+                    }}
+                  />
+                  <button
+                    class="map-save-btn"
+                    onclick={handleSaveMap}
+                    disabled={!saveMapName.trim()}>Save</button
+                  >
+                </div>
+              {/if}
+              {#if saveMapFeedback}
+                <div class="map-feedback">{saveMapFeedback}</div>
+              {/if}
+              <!-- Load Map -->
+              <button
+                class="menu-item"
+                onclick={() => {
+                  showLoadMapList = !showLoadMapList;
+                  showSaveMapInput = false;
+                }}
+              >
+                <span class="mi-icon">📂</span>
+                <span class="mi-label">Load Map</span>
+              </button>
+              {#if showLoadMapList}
+                <div class="map-list">
+                  {#if gameStore.savedMaps.length === 0}
+                    <div class="map-list-empty">No saved maps</div>
+                  {:else}
+                    {#each gameStore.savedMaps as map}
+                      <div class="map-list-item">
+                        <button
+                          class="map-load-btn"
+                          onclick={() => handleLoadMap(map)}
+                          title="Load and restart with this map"
+                        >
+                          🗺 {map.metadata.name}
+                        </button>
+                        <button
+                          class="map-delete-btn"
+                          onclick={() => handleDeleteMap(map.metadata.name)}
+                          title="Delete">✕</button
+                        >
+                      </div>
+                    {/each}
+                  {/if}
+                </div>
+              {/if}
               <hr class="menu-divider" />
               <button
                 class="menu-item"
@@ -1348,6 +1444,99 @@
   .menu-item.quit-item:hover {
     background: rgba(255, 80, 80, 0.1);
     border-color: rgba(255, 80, 80, 0.25);
+    color: #fca5a5;
+  }
+
+  /* Map save/load */
+  .map-save-row {
+    display: flex;
+    gap: 6px;
+    padding: 4px 12px 4px 42px;
+  }
+  .map-name-input {
+    flex: 1;
+    padding: 4px 8px;
+    background: rgba(20, 20, 35, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+    color: #fff;
+    font-family: "Montserrat", sans-serif;
+    font-size: 0.72rem;
+  }
+  .map-name-input:focus {
+    border-color: rgba(80, 200, 255, 0.5);
+    outline: none;
+  }
+  .map-save-btn {
+    padding: 4px 10px;
+    background: rgba(80, 200, 120, 0.2);
+    border: 1px solid rgba(80, 200, 120, 0.4);
+    border-radius: 4px;
+    color: #6ee7b7;
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .map-save-btn:hover:not(:disabled) {
+    background: rgba(80, 200, 120, 0.3);
+  }
+  .map-save-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+  .map-feedback {
+    padding: 2px 12px 2px 42px;
+    color: #6ee7b7;
+    font-size: 0.7rem;
+    font-weight: 500;
+  }
+  .map-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 4px 12px 4px 42px;
+  }
+  .map-list-empty {
+    color: rgba(255, 255, 255, 0.35);
+    font-size: 0.7rem;
+    font-style: italic;
+  }
+  .map-list-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .map-load-btn {
+    flex: 1;
+    padding: 4px 8px;
+    background: rgba(80, 140, 255, 0.1);
+    border: 1px solid rgba(80, 140, 255, 0.2);
+    border-radius: 4px;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.72rem;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.15s;
+  }
+  .map-load-btn:hover {
+    background: rgba(80, 140, 255, 0.2);
+    border-color: rgba(80, 140, 255, 0.4);
+    color: #93c5fd;
+  }
+  .map-delete-btn {
+    padding: 4px 6px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .map-delete-btn:hover {
+    background: rgba(255, 80, 80, 0.15);
+    border-color: rgba(255, 80, 80, 0.3);
     color: #fca5a5;
   }
 
