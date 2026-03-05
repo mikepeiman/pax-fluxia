@@ -276,6 +276,7 @@ interface GameConfigType {
     DF_LIGHTNESS: number;           // Color lightness mult (default 0.5)
     DF_EDGE_FADE: number;           // Edge fade padding in px (default 200)
     DF_ROUNDING: number;            // Canvas-level blur to round sharp territory corners (default 3)
+    DF_INFLUENCE_WEIGHT: number;    // How much graph distance matters (0 = pure Voronoi, 1.0 = full influence, default 1.0)
 
     // ── Modified Voronoi Territory (F-138) ────────────────────────────────────
     MODIFIED_VORONOI_STAR_MARGIN: number;      // Min boundary distance from star centers in px (0-500)
@@ -1028,6 +1029,7 @@ const _rawConfig: GameConfigType = {
     DF_LIGHTNESS: 0.4,
     DF_EDGE_FADE: 200,
     DF_ROUNDING: 5,
+    DF_INFLUENCE_WEIGHT: 1.0,
 
     // ── Contour Territory (5th mode — vector contour extraction) ──
     TERRITORY_CONTOUR: false,

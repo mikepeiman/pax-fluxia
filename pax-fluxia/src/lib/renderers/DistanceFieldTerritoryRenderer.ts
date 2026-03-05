@@ -77,6 +77,7 @@ const territoryBitGl = {
             uniform float uSatMult;
             uniform float uLightMult;
             uniform float uMorphFactor;
+            uniform float uInfluenceWeight;
             uniform vec3 uPlayerColor0;
             uniform vec3 uPlayerColor1;
             uniform vec3 uPlayerColor2;
@@ -129,8 +130,8 @@ const territoryBitGl = {
                 // Morph: interpolate between current and previous Dijkstra distances
                 float dijkstra = mix(curDijkstra, prevDijkstra, uMorphFactor);
 
-                // Total influence = pixel distance + graph distance
-                float influence = pixDist + dijkstra;
+                // Total influence = pixel distance + weighted graph distance
+                float influence = pixDist + dijkstra * uInfluenceWeight;
 
                 if (influence < bestInfluence) {
                     secondInfluence = bestInfluence;
@@ -379,7 +380,7 @@ function buildConfigFp(): string {
         + `${GAME_CONFIG.DF_BLUR}:${GAME_CONFIG.DF_HUE}:`
         + `${GAME_CONFIG.DF_SATURATION}:${GAME_CONFIG.DF_LIGHTNESS}:`
         + `${GAME_CONFIG.DF_DISTANCE_METRIC}:${GAME_CONFIG.TERRITORY_TRANSITION_MS}:`
-        + `${GAME_CONFIG.DF_EDGE_FADE}:${GAME_CONFIG.DF_RESOLUTION}:${GAME_CONFIG.DF_ROUNDING}`;
+        + `${GAME_CONFIG.DF_EDGE_FADE}:${GAME_CONFIG.DF_RESOLUTION}:${GAME_CONFIG.DF_ROUNDING}:${GAME_CONFIG.DF_INFLUENCE_WEIGHT}`;
 }
 
 function buildConnFp(connections: StarConnection[]): string {
@@ -585,6 +586,7 @@ function ensureMesh(worldWidth: number, worldHeight: number): PIXI.Shader {
                 uSatMult: { value: 0.5, type: 'f32' },
                 uLightMult: { value: 0.4, type: 'f32' },
                 uMorphFactor: { value: 0, type: 'f32' },
+                uInfluenceWeight: { value: 1.0, type: 'f32' },
                 // Player colors
                 uPlayerColor0: { value: new Float32Array([1, 0, 0]), type: 'vec3<f32>' },
                 uPlayerColor1: { value: new Float32Array([0, 0, 1]), type: 'vec3<f32>' },
@@ -645,6 +647,7 @@ function updateFilterUniforms(
     u.uHueShift = GAME_CONFIG.DF_HUE ?? 0;
     u.uSatMult = GAME_CONFIG.DF_SATURATION ?? 0.7;
     u.uLightMult = GAME_CONFIG.DF_LIGHTNESS ?? 0.5;
+    u.uInfluenceWeight = GAME_CONFIG.DF_INFLUENCE_WEIGHT ?? 1.0;
 
     // Pack player colors (0-1 range)
     for (let i = 0; i < Math.min(nPlayers, MAX_PLAYERS); i++) {
@@ -763,22 +766,20 @@ export function renderDistanceFieldTerritory(
         }
     }
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Build GPU data texture (only when ownership or morph changed) Ã¢â€â‚¬Ã¢â€â‚¬
+    // —— Build GPU data texture (only when ownership or morph changed) ——
     const configFp = buildConfigFp();
-    const needsUpdate = ownerChanged || isMorphing || configFp !== cachedConfigFp;
-    if (!needsUpdate && cachedMesh) {
-        cachedMesh.visible = true;
-        return;
-    }
+    const needsRebuild = ownerChanged || isMorphing || configFp !== cachedConfigFp;
     cachedConfigFp = configFp;
 
-    // Pack star data into data texture
-    buildStarDataTexture(stars, currentDist, prevDist, currentPlayerIds);
+    if (needsRebuild) {
+        // Pack star data into data texture
+        buildStarDataTexture(stars, currentDist, prevDist, currentPlayerIds);
+    }
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Ensure GPU mesh exists Ã¢â€â‚¬Ã¢â€â‚¬
+    // —— Ensure GPU mesh exists ——
     ensureMesh(worldWidth, worldHeight);
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Add mesh to container if not already Ã¢â€â‚¬Ã¢â€â‚¬
+    // —— Add mesh to container if not already ——
     if (cachedMesh && !cachedMesh.parent) {
         container.addChild(cachedMesh);
     }
@@ -786,13 +787,13 @@ export function renderDistanceFieldTerritory(
         cachedMesh.visible = true;
     }
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Update GPU uniforms Ã¢â€â‚¬Ã¢â€â‚¬
+    // —— Update GPU uniforms EVERY frame (sliders must be reactive) ——
     if (cachedMeshShader) {
         cachedMeshShader.resources.territoryUniforms.uniforms.uMorphFactor = morphFactor;
     }
     updateFilterUniforms(stars, colorUtils, worldWidth, worldHeight);
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Apply filter pipeline Ã¢â€â‚¬Ã¢â€â‚¬
+    // —— Apply filter pipeline ——
     applyBlur();
 }
 
