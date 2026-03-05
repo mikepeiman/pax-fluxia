@@ -1321,6 +1321,50 @@
             >
         </div>
     </div>
+
+    <!-- Influence Weight -->
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Influence Weight</span><span class="val"
+                >{(panel.dfInfluenceWeight ?? 1.0).toFixed(2)}×</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="3"
+            step="0.05"
+            value={panel.dfInfluenceWeight ?? 1.0}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.DF_INFLUENCE_WEIGHT = v;
+                updatePanel("dfInfluenceWeight", v);
+            }}
+        />
+    </div>
+
+    <!-- Transition Speed -->
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Transition Speed</span><span class="val"
+                >{panel.territoryTransitionMs ??
+                    GAME_CONFIG.TERRITORY_TRANSITION_MS}ms</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="3000"
+            step="50"
+            value={panel.territoryTransitionMs ??
+                GAME_CONFIG.TERRITORY_TRANSITION_MS}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.TERRITORY_TRANSITION_MS = v;
+                updatePanel("territoryTransitionMs", v);
+            }}
+        />
+    </div>
 {/if}
 
 {#if panel.territoryContour}

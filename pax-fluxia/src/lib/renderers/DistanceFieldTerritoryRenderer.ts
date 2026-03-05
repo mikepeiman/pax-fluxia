@@ -86,9 +86,6 @@ const territoryBitGl = {
             uniform vec3 uPlayerColor5;
             uniform vec3 uPlayerColor6;
             uniform vec3 uPlayerColor7;
-        `,
-        main: /* glsl */ `
-            vec2 worldPos = vLocalPos;
 
             // Helper: decode 16-bit value from RGBA high/low bytes
             float decode16(vec4 raw, int pair) {
@@ -97,6 +94,9 @@ const territoryBitGl = {
                 else { hi = raw.b; lo = raw.a; }
                 return floor(hi * 255.0 + 0.5) * 256.0 + floor(lo * 255.0 + 0.5);
             }
+        `,
+        main: /* glsl */ `
+            vec2 worldPos = vLocalPos;
 
             // For each star, compute total influence = pixel distance + Dijkstra distance
             // The star with lowest total influence "owns" this pixel
