@@ -1365,6 +1365,92 @@
             }}
         />
     </div>
+
+    <!-- ── Corridor Virtual Sites ── -->
+    <h4 class="sub-heading">Corridor / Disconnect</h4>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">🔗 Corridor Sites</span><span class="val"
+                >{GAME_CONFIG.DF_CORRIDOR_ENABLED ? "ON" : "OFF"}</span
+            >
+        </div>
+        <input
+            type="checkbox"
+            checked={GAME_CONFIG.DF_CORRIDOR_ENABLED}
+            onchange={(e) => {
+                const v = (e.target as HTMLInputElement).checked;
+                GAME_CONFIG.DF_CORRIDOR_ENABLED = v;
+                updatePanel("dfCorridorEnabled", v);
+            }}
+        />
+    </div>
+
+    {#if GAME_CONFIG.DF_CORRIDOR_ENABLED}
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">📏 Corridor Spacing</span><span
+                    class="val"
+                    >{panel.dfCorridorSpacing ??
+                        GAME_CONFIG.DF_CORRIDOR_SPACING}px</span
+                >
+            </div>
+            <input
+                type="range"
+                min="20"
+                max="200"
+                step="5"
+                value={panel.dfCorridorSpacing ??
+                    GAME_CONFIG.DF_CORRIDOR_SPACING}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    GAME_CONFIG.DF_CORRIDOR_SPACING = v;
+                    updatePanel("dfCorridorSpacing", v);
+                }}
+            />
+        </div>
+    {/if}
+
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">✂️ Disconnect Buffer</span><span class="val"
+                >{GAME_CONFIG.DF_DISCONNECT_ENABLED ? "ON" : "OFF"}</span
+            >
+        </div>
+        <input
+            type="checkbox"
+            checked={GAME_CONFIG.DF_DISCONNECT_ENABLED}
+            onchange={(e) => {
+                const v = (e.target as HTMLInputElement).checked;
+                GAME_CONFIG.DF_DISCONNECT_ENABLED = v;
+                updatePanel("dfDisconnectEnabled", v);
+            }}
+        />
+    </div>
+
+    {#if GAME_CONFIG.DF_DISCONNECT_ENABLED}
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">📏 Disconnect Distance</span><span
+                    class="val"
+                    >{panel.dfDisconnectDistance ??
+                        GAME_CONFIG.DF_DISCONNECT_DISTANCE}px</span
+                >
+            </div>
+            <input
+                type="range"
+                min="100"
+                max="800"
+                step="25"
+                value={panel.dfDisconnectDistance ??
+                    GAME_CONFIG.DF_DISCONNECT_DISTANCE}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    GAME_CONFIG.DF_DISCONNECT_DISTANCE = v;
+                    updatePanel("dfDisconnectDistance", v);
+                }}
+            />
+        </div>
+    {/if}
 {/if}
 
 {#if panel.territoryContour}

@@ -80,6 +80,8 @@ const territoryBitGl = {
             uniform float uLightMult;
             uniform float uMorphFactor;
             uniform float uInfluenceWeight;
+            uniform float uContentMinX;
+            uniform float uContentMinY;
             uniform vec3 uPlayerColor0;
             uniform vec3 uPlayerColor1;
             uniform vec3 uPlayerColor2;
@@ -204,7 +206,10 @@ const territoryBitGl = {
                 // Border: single blended line ON the boundary between two different owners
                 if (enemyOwner >= 0 && enemyOwner != 254) {
                     float borderDist = abs(bestInfluence - enemyInfluence);
-                    float borderFactor = 1.0 - smoothstep(uBorderWidth - uBorderSoftness, uBorderWidth + uBorderSoftness, borderDist);
+                    // Normalize by gradient to get constant screen-space width
+                    float grad = fwidth(bestInfluence - enemyInfluence);
+                    float normDist = borderDist / max(grad, 0.001);
+                    float borderFactor = 1.0 - smoothstep(uBorderWidth - uBorderSoftness, uBorderWidth + uBorderSoftness, normDist);
                     if (borderFactor > 0.0) {
                         // Look up enemy player color
                         vec3 ec = vec3(0.5);
@@ -225,9 +230,9 @@ const territoryBitGl = {
                     }
                 }
 
-                // Edge fade at world boundaries
-                float edgeX = min(worldPos.x, uWorldWidth - worldPos.x);
-                float edgeY = min(worldPos.y, uWorldHeight - worldPos.y);
+                // Edge fade at world boundaries — symmetric using content min bounds
+                float edgeX = min(worldPos.x - uContentMinX, uWorldWidth - worldPos.x);
+                float edgeY = min(worldPos.y - uContentMinY, uWorldHeight - worldPos.y);
                 float edgeDist = min(edgeX, edgeY);
                 alpha *= smoothstep(0.0, uEdgeFade, edgeDist);
 
@@ -687,6 +692,8 @@ function ensureMesh(worldWidth: number, worldHeight: number): PIXI.Shader {
                 uLightMult: { value: 0.4, type: 'f32' },
                 uMorphFactor: { value: 0, type: 'f32' },
                 uInfluenceWeight: { value: 1.0, type: 'f32' },
+                uContentMinX: { value: 0, type: 'f32' },
+                uContentMinY: { value: 0, type: 'f32' },
                 // Player colors
                 uPlayerColor0: { value: new Float32Array([1, 0, 0]), type: 'vec3<f32>' },
                 uPlayerColor1: { value: new Float32Array([0, 0, 1]), type: 'vec3<f32>' },
@@ -750,6 +757,16 @@ function updateFilterUniforms(
     u.uSatMult = GAME_CONFIG.DF_SATURATION ?? 0.7;
     u.uLightMult = GAME_CONFIG.DF_LIGHTNESS ?? 0.5;
     u.uInfluenceWeight = GAME_CONFIG.DF_INFLUENCE_WEIGHT ?? 1.0;
+
+    // Compute content min bounds for symmetric edge fade
+    let minX = Infinity, minY = Infinity;
+    for (const s of stars) {
+        if (s.x < minX) minX = s.x;
+        if (s.y < minY) minY = s.y;
+    }
+    const pad = 80; // Same padding as updateWorldBounds in GameCanvas
+    u.uContentMinX = stars.length > 0 ? minX - pad : 0;
+    u.uContentMinY = stars.length > 0 ? minY - pad : 0;
 
     // Pack player colors (0-1 range)
     for (let i = 0; i < Math.min(nPlayers, MAX_PLAYERS); i++) {
