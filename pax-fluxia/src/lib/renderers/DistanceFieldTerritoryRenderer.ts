@@ -614,6 +614,7 @@ function buildStarDataTexture(
 
 function ensureMesh(worldWidth: number, worldHeight: number): PIXI.Shader {
     const padding = GAME_CONFIG.DF_EDGE_FADE ?? 200;
+    const expand = 0.10; // 10% expansion beyond padding to cover full star map
 
     if (cachedMeshShader) return cachedMeshShader;
 
@@ -622,8 +623,11 @@ function ensureMesh(worldWidth: number, worldHeight: number): PIXI.Shader {
         name: 'territory-distance-field',
     });
 
-    const x0 = -padding, y0 = -padding;
-    const x1 = worldWidth + padding, y1 = worldHeight + padding;
+    // Expand mesh coverage: padding + 10% of world dimensions
+    const extraX = worldWidth * expand;
+    const extraY = worldHeight * expand;
+    const x0 = -padding - extraX, y0 = -padding - extraY;
+    const x1 = worldWidth + padding + extraX, y1 = worldHeight + padding + extraY;
 
     cachedMeshShader = new PIXI.Shader({
         glProgram,
