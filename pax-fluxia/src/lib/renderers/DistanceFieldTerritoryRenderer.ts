@@ -151,11 +151,13 @@ const territoryBitGl = {
                 float boost = decode16(ownerExtra, 1); // bytes 2-3 = influence boost
                 influence -= boost;
 
-                // Minimum star territory: if pixel is within uMinStarRadius of this star,
-                // give it a strong advantage so every star has a guaranteed territory bubble
-                // Only for real stars (i < uNumRealStars), not virtual corridor/disconnect sites
+                // Minimum star territory: smooth influence boost near real stars
+                // Quadratic falloff: strongest at star center, smoothly fades to 0 at radius
+                // This avoids hard discontinuities that create visible ring artifacts
                 if (uMinStarRadius > 0.0 && pixDist < uMinStarRadius && i < uNumRealStars) {
-                    influence = min(influence, pixDist * 0.1);
+                    float t = pixDist / uMinStarRadius; // 0..1 (center..edge)
+                    float msrBoost = (1.0 - t * t) * uMinStarRadius; // quadratic, smooth at edge
+                    influence -= msrBoost;
                 }
 
                 if (influence < bestInfluence) {
