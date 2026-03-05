@@ -28,11 +28,13 @@ const roundPixelsBitGl = {
 import { GAME_CONFIG } from '$lib/config/game.config';
 import type { StarState, StarConnection } from '$lib/types/game.types';
 import type { ColorUtils } from './RenderContext';
+import { computeCorridorVirtuals, computeDisconnectVirtuals, DISCONNECT_OWNER_ID, type VirtualSite } from './territoryFeatures';
 
 
 // Ã¢â€â‚¬Ã¢â€â‚¬ Constants Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
-const MAX_STARS = 64;
+const MAX_STARS = 128; // Increased to accommodate virtual sites (corridors + disconnects)
 const MAX_PLAYERS = 8;
+const DISCONNECT_PLAYER_INDEX = 254; // Synthetic player index for disconnect virtuals (shader skips rendering)
 
 // Ã¢â€â‚¬Ã¢â€â‚¬ Types Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 interface LaneData {
@@ -153,7 +155,8 @@ const territoryBitGl = {
                 }
             }
 
-            if (bestStar < 0 || bestOwner < 0) {
+            if (bestStar < 0 || bestOwner < 0 || bestOwner == 254) {
+                // No owner, or disconnect virtual (invisible territory pusher)
                 outColor = vec4(0.0);
             } else {
                 // Player color lookup
@@ -386,7 +389,9 @@ function buildConfigFp(): string {
         + `${GAME_CONFIG.DF_BLUR}:${GAME_CONFIG.DF_HUE}:`
         + `${GAME_CONFIG.DF_SATURATION}:${GAME_CONFIG.DF_LIGHTNESS}:`
         + `${GAME_CONFIG.DF_DISTANCE_METRIC}:${GAME_CONFIG.TERRITORY_TRANSITION_MS}:`
-        + `${GAME_CONFIG.DF_EDGE_FADE}:${GAME_CONFIG.DF_RESOLUTION}:${GAME_CONFIG.DF_ROUNDING}:${GAME_CONFIG.DF_INFLUENCE_WEIGHT}`;
+        + `${GAME_CONFIG.DF_EDGE_FADE}:${GAME_CONFIG.DF_RESOLUTION}:${GAME_CONFIG.DF_ROUNDING}:${GAME_CONFIG.DF_INFLUENCE_WEIGHT}`
+        + `:${GAME_CONFIG.DF_CORRIDOR_ENABLED}:${GAME_CONFIG.DF_CORRIDOR_SPACING}`
+        + `:${GAME_CONFIG.DF_DISCONNECT_ENABLED}:${GAME_CONFIG.DF_DISCONNECT_DISTANCE}`;
 }
 
 function buildConnFp(connections: StarConnection[]): string {
@@ -436,6 +441,7 @@ function makeGradientTestTexture(): PIXI.Texture {
 // 4 RGBA channels for data, not color.
 
 let starDataBuffer: Uint8Array | null = null;
+let totalPackedStars = 0; // real + virtual star count for uniform
 
 function encode16(value: number): [number, number] {
     const clamped = Math.max(0, Math.min(65535, Math.round(value)));
@@ -447,8 +453,9 @@ function buildStarDataTexture(
     dist: number[][],
     prevDistArr: number[][] | null,
     playerIds: string[],
+    virtualSites?: VirtualSite[],
 ): void {
-    const nStars = Math.min(stars.length, MAX_STARS);
+    const nRealStars = Math.min(stars.length, MAX_STARS);
     const nPlayers = playerIds.length;
     const texW = MAX_STARS;
     const texH = 4;
@@ -460,7 +467,8 @@ function buildStarDataTexture(
     }
     starDataBuffer.fill(0);
 
-    for (let i = 0; i < nStars; i++) {
+    // Pack real stars
+    for (let i = 0; i < nRealStars; i++) {
         // Row 0: positions (16-bit encoded)
         const row0 = (0 * texW + i) * 4;
         const [xh, xl] = encode16(stars[i].x);
@@ -524,16 +532,61 @@ function buildStarDataTexture(
         }
     }
 
+    // Pack virtual sites after real stars
+    const vSites = virtualSites ?? [];
+    const nVirtual = Math.min(vSites.length, MAX_STARS - nRealStars);
+    for (let v = 0; v < nVirtual; v++) {
+        const i = nRealStars + v;  // texture column index
+        const vs = vSites[v];
+
+        // Row 0: position
+        const row0 = (0 * texW + i) * 4;
+        const [xh, xl] = encode16(vs.x);
+        const [yh, yl] = encode16(vs.y);
+        starDataBuffer[row0] = xh;
+        starDataBuffer[row0 + 1] = xl;
+        starDataBuffer[row0 + 2] = yh;
+        starDataBuffer[row0 + 3] = yl;
+
+        // Row 1: Dijkstra distance = 0 for corridors (they ARE the owner's territory)
+        // For disconnects, also 0 (they compete purely on pixel distance)
+        const row1 = (1 * texW + i) * 4;
+        starDataBuffer[row1] = 0;
+        starDataBuffer[row1 + 1] = 0;
+        starDataBuffer[row1 + 2] = 0;
+        starDataBuffer[row1 + 3] = 0;
+
+        // Row 2: owner — resolve to player index
+        const row2 = (2 * texW + i) * 4;
+        if (vs.kind === 'disconnect') {
+            starDataBuffer[row2] = DISCONNECT_PLAYER_INDEX + 1; // 255 (1-indexed)
+        } else {
+            // Corridor: find the real player index for this owner
+            const pIdx = playerIds.indexOf(vs.ownerId);
+            starDataBuffer[row2] = pIdx >= 0 ? pIdx + 1 : 0;
+        }
+
+        // Row 3: previous distances = same as row 1 (no morph for virtuals)
+        const row3 = (3 * texW + i) * 4;
+        starDataBuffer[row3] = 0;
+        starDataBuffer[row3 + 1] = 0;
+        starDataBuffer[row3 + 2] = 0;
+        starDataBuffer[row3 + 3] = 0;
+    }
+
+    // Update total star count (real + virtual)
+    totalPackedStars = nRealStars + nVirtual;
+
     // DEBUG: Verify star position encoding roundtrip
-    if (nStars > 0) {
-        for (let i = 0; i < Math.min(3, nStars); i++) {
+    if (nRealStars > 0) {
+        for (let i = 0; i < Math.min(3, nRealStars); i++) {
             const row0 = (0 * texW + i) * 4;
             const bytes = [starDataBuffer[row0], starDataBuffer[row0 + 1], starDataBuffer[row0 + 2], starDataBuffer[row0 + 3]];
             const decodedX = bytes[0] * 256 + bytes[1];
             const decodedY = bytes[2] * 256 + bytes[3];
             console.log(`[DF_DEBUG] Star${i}: actual=(${stars[i].x.toFixed(1)},${stars[i].y.toFixed(1)}) bytes=[${bytes}] decoded=(${decodedX},${decodedY})`);
         }
-        console.log(`[DF_DEBUG] nStars=${nStars} texW=${texW} texH=${texH} bufLen=${starDataBuffer.length}`);
+        console.log(`[DF_DEBUG] nRealStars=${nRealStars} nVirtual=${nVirtual} total=${totalPackedStars} texW=${texW} texH=${texH}`);
     }
 
     if (!starDataTexture) {
@@ -634,7 +687,7 @@ function updateFilterUniforms(
 ): void {
     if (!cachedMeshShader) return;
 
-    const nStars = Math.min(stars.length, MAX_STARS);
+    const nStars = totalPackedStars > 0 ? totalPackedStars : Math.min(stars.length, MAX_STARS);
     const nPlayers = currentPlayerIds.length;
     const padding = GAME_CONFIG.DF_EDGE_FADE ?? 200;
 
@@ -784,8 +837,22 @@ export function renderDistanceFieldTerritory(
     cachedConfigFp = configFp;
 
     if (needsRebuild) {
-        // Pack star data into data texture
-        buildStarDataTexture(stars, currentDist, prevDist, currentPlayerIds);
+        // Compute virtual sites (corridors + disconnects)
+        const ownedStars = stars.filter(s => s.ownerId);
+        let virtuals: VirtualSite[] = [];
+
+        if (GAME_CONFIG.DF_CORRIDOR_ENABLED && conns.length > 0) {
+            const spacing = GAME_CONFIG.DF_CORRIDOR_SPACING ?? 60;
+            virtuals = virtuals.concat(computeCorridorVirtuals(ownedStars, conns, spacing));
+        }
+
+        if (GAME_CONFIG.DF_DISCONNECT_ENABLED && conns.length > 0) {
+            const maxDist = GAME_CONFIG.DF_DISCONNECT_DISTANCE ?? 400;
+            virtuals = virtuals.concat(computeDisconnectVirtuals(ownedStars, conns, maxDist));
+        }
+
+        // Pack star data + virtual sites into data texture
+        buildStarDataTexture(stars, currentDist, prevDist, currentPlayerIds, virtuals);
     }
 
     // —— Ensure GPU mesh exists ——

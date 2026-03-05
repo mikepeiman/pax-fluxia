@@ -277,6 +277,10 @@ interface GameConfigType {
     DF_EDGE_FADE: number;           // Edge fade padding in px (default 200)
     DF_ROUNDING: number;            // Canvas-level blur to round sharp territory corners (default 3)
     DF_INFLUENCE_WEIGHT: number;    // How much graph distance matters (0 = pure Voronoi, 1.0 = full influence, default 1.0)
+    DF_CORRIDOR_ENABLED: boolean;   // Enable corridor virtual sites along same-owner lanes
+    DF_CORRIDOR_SPACING: number;    // Distance between corridor virtual sites in px (default 60)
+    DF_DISCONNECT_ENABLED: boolean; // Enable disconnect virtual sites between unconnected same-owner stars
+    DF_DISCONNECT_DISTANCE: number; // Max distance for disconnect detection in px (default 400)
 
     // ── Modified Voronoi Territory (F-138) ────────────────────────────────────
     MODIFIED_VORONOI_STAR_MARGIN: number;      // Min boundary distance from star centers in px (0-500)
@@ -1030,6 +1034,10 @@ const _rawConfig: GameConfigType = {
     DF_EDGE_FADE: 200,
     DF_ROUNDING: 5,
     DF_INFLUENCE_WEIGHT: 1.0,
+    DF_CORRIDOR_ENABLED: false,
+    DF_CORRIDOR_SPACING: 60,
+    DF_DISCONNECT_ENABLED: false,
+    DF_DISCONNECT_DISTANCE: 400,
 
     // ── Contour Territory (5th mode — vector contour extraction) ──
     TERRITORY_CONTOUR: false,
