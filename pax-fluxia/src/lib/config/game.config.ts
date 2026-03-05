@@ -281,7 +281,9 @@ interface GameConfigType {
     DF_SMOOTHING: number;           // Junction corner smoothing radius in influence units (0 = sharp, default 30)
     DF_MIN_STAR_RADIUS: number;     // Minimum guaranteed territory radius around each star in px (default 40)
     DF_CORRIDOR_ENABLED: boolean;   // Enable corridor virtual sites along same-owner lanes
+    DF_CORRIDOR_MODE: string;       // 'spacing' = fixed px distance, 'count' = fixed count per lane
     DF_CORRIDOR_SPACING: number;    // Distance between corridor virtual sites in px (default 60)
+    DF_CORRIDOR_COUNT: number;      // Fixed number of virtual stars per lane (default 3)
     DF_CORRIDOR_WEIGHT: number;     // Corridor influence weight multiplier (default 1.0)
     DF_DISCONNECT_ENABLED: boolean; // Enable disconnect virtual sites between unconnected same-owner stars
     DF_DISCONNECT_DISTANCE: number; // Max distance for disconnect detection in px (default 400)
@@ -1043,7 +1045,9 @@ const _rawConfig: GameConfigType = {
     DF_SMOOTHING: 30,
     DF_MIN_STAR_RADIUS: 0,
     DF_CORRIDOR_ENABLED: false,
+    DF_CORRIDOR_MODE: 'spacing',
     DF_CORRIDOR_SPACING: 60,
+    DF_CORRIDOR_COUNT: 3,
     DF_CORRIDOR_WEIGHT: 1.0,
     DF_DISCONNECT_ENABLED: false,
     DF_DISCONNECT_DISTANCE: 400,

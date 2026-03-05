@@ -104,11 +104,12 @@
     setTimeout(() => (saveMapFeedback = ""), 2500);
   }
 
-  function handleLoadMap(map: any) {
+  async function handleLoadMap(map: any) {
     gameStore.loadSavedMap(map);
     showLoadMapList = false;
-    // Restart with loaded map
-    activeGameStore.playAgain();
+    menuExpanded = false;
+    // Restart game with loaded map — must await since startGame is async
+    await gameStore.startGame();
   }
 
   function handleDeleteMap(name: string) {
