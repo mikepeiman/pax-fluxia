@@ -951,6 +951,10 @@ export function renderDistanceFieldTerritory(
             const disconnectSites = computeDisconnectVirtuals(ownedStars, stars, conns, maxDist, weight);
             virtuals = virtuals.concat(disconnectSites);
             console.log(`[DF] Disconnects: ${disconnectSites.length} sites (maxDist=${maxDist}, weight=${weight})`);
+            for (const ds of disconnectSites) {
+                const pIdx = currentPlayerIds.indexOf(ds.ownerId);
+                console.log(`  [DF-DC] site at (${ds.x.toFixed(0)},${ds.y.toFixed(0)}) owner=${ds.ownerId} pIdx=${pIdx} weight=${ds.weight}`);
+            }
         }
 
         console.log(`[DF] Total packed: ${stars.length} real + ${virtuals.length} virtual = ${stars.length + virtuals.length}`);
