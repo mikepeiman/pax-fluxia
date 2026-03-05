@@ -89,104 +89,126 @@ const territoryBitGl = {
         main: /* glsl */ `
             vec2 worldPos = vLocalPos;
 
-            // Find nearest star to this pixel
-            float minDist = 1e9;
-            int nearestStar = -1;
-            for (int i = 0; i < 256; i++) {
-                if (i >= uNumStars) break;
-                vec4 posRaw = texelFetch(uStarData, ivec2(i, 0), 0);
-                float sx = floor(posRaw.r * 255.0 + 0.5) * 256.0 + floor(posRaw.g * 255.0 + 0.5);
-                float sy = floor(posRaw.b * 255.0 + 0.5) * 256.0 + floor(posRaw.a * 255.0 + 0.5);
-                float d = distance(worldPos, vec2(sx, sy));
-                if (d < minDist) { minDist = d; nearestStar = i; }
+            // Helper: decode 16-bit value from RGBA high/low bytes
+            float decode16(vec4 raw, int pair) {
+                float hi, lo;
+                if (pair == 0) { hi = raw.r; lo = raw.g; }
+                else { hi = raw.b; lo = raw.a; }
+                return floor(hi * 255.0 + 0.5) * 256.0 + floor(lo * 255.0 + 0.5);
             }
 
-            if (nearestStar < 0) { outColor = vec4(0.0); }
-            else {
-                // Get owner of nearest star (row 2, R channel, 1-indexed)
-                vec4 ownerRaw = texelFetch(uStarData, ivec2(nearestStar, 2), 0);
-                int ownerIdx = int(floor(ownerRaw.r * 255.0 + 0.5)) - 1;
+            // For each star, compute total influence = pixel distance + Dijkstra distance
+            // The star with lowest total influence "owns" this pixel
+            float bestInfluence = 1e9;
+            float secondInfluence = 1e9;
+            int bestStar = -1;
+            int secondStar = -1;
+            int bestOwner = -1;
+            int secondOwner = -1;
 
-                if (ownerIdx < 0) { outColor = vec4(0.0); }
-                else {
-                    // Player color lookup
-                    vec3 pc = vec3(0.5);
-                    if (ownerIdx == 0) pc = uPlayerColor0;
-                    else if (ownerIdx == 1) pc = uPlayerColor1;
-                    else if (ownerIdx == 2) pc = uPlayerColor2;
-                    else if (ownerIdx == 3) pc = uPlayerColor3;
-                    else if (ownerIdx == 4) pc = uPlayerColor4;
-                    else if (ownerIdx == 5) pc = uPlayerColor5;
-                    else if (ownerIdx == 6) pc = uPlayerColor6;
-                    else if (ownerIdx == 7) pc = uPlayerColor7;
+            for (int i = 0; i < 256; i++) {
+                if (i >= uNumStars) break;
+                // Decode star position (row 0)
+                vec4 posRaw = texelFetch(uStarData, ivec2(i, 0), 0);
+                float sx = decode16(posRaw, 0);
+                float sy = decode16(posRaw, 1);
+                float pixDist = distance(worldPos, vec2(sx, sy));
 
-                    // HSL adjustment
-                    float cmax = max(pc.r, max(pc.g, pc.b));
-                    float cmin = min(pc.r, min(pc.g, pc.b));
-                    float delta = cmax - cmin;
-                    float L = (cmax + cmin) * 0.5;
-                    float S = delta < 0.001 ? 0.0 : delta / (1.0 - abs(2.0 * L - 1.0));
-                    float H = 0.0;
-                    if (delta > 0.001) {
-                        if (cmax == pc.r) H = mod((pc.g - pc.b) / delta, 6.0);
-                        else if (cmax == pc.g) H = (pc.b - pc.r) / delta + 2.0;
-                        else H = (pc.r - pc.g) / delta + 4.0;
-                        H /= 6.0;
-                    }
-                    H = fract(H + uHueShift / 360.0);
-                    S *= uSatMult;
-                    L *= uLightMult;
-                    float c2 = (1.0 - abs(2.0 * L - 1.0)) * S;
-                    float x2 = c2 * (1.0 - abs(mod(H * 6.0, 2.0) - 1.0));
-                    float m2 = L - c2 * 0.5;
-                    vec3 rgb;
-                    float h6 = H * 6.0;
-                    if (h6 < 1.0) rgb = vec3(c2, x2, 0.0);
-                    else if (h6 < 2.0) rgb = vec3(x2, c2, 0.0);
-                    else if (h6 < 3.0) rgb = vec3(0.0, c2, x2);
-                    else if (h6 < 4.0) rgb = vec3(0.0, x2, c2);
-                    else if (h6 < 5.0) rgb = vec3(x2, 0.0, c2);
-                    else rgb = vec3(c2, 0.0, x2);
-                    vec3 finalRGB = rgb + vec3(m2);
+                // Get ownership (row 2)
+                vec4 ownerRaw = texelFetch(uStarData, ivec2(i, 2), 0);
+                int ownIdx = int(floor(ownerRaw.r * 255.0 + 0.5)) - 1;
+                if (ownIdx < 0) continue; // skip unowned stars
 
-                    float alpha = uFillAlpha;
+                // Decode Dijkstra distances (row 1 = current, row 3 = previous)
+                vec4 distRaw = texelFetch(uStarData, ivec2(i, 1), 0);
+                float curDijkstra = decode16(distRaw, 0);
 
-                    // Border: find second-nearest star with different owner
-                    float secondMinDist = 1e9;
-                    int secondOwner = -1;
-                    for (int j = 0; j < 256; j++) {
-                        if (j >= uNumStars || j == nearestStar) continue;
-                        vec4 p2 = texelFetch(uStarData, ivec2(j, 0), 0);
-                        float sx2 = floor(p2.r * 255.0 + 0.5) * 256.0 + floor(p2.g * 255.0 + 0.5);
-                        float sy2 = floor(p2.b * 255.0 + 0.5) * 256.0 + floor(p2.a * 255.0 + 0.5);
-                        float d2 = distance(worldPos, vec2(sx2, sy2));
-                        vec4 own2 = texelFetch(uStarData, ivec2(j, 2), 0);
-                        int oi2 = int(floor(own2.r * 255.0 + 0.5)) - 1;
-                        if (oi2 != ownerIdx && oi2 >= 0 && d2 < secondMinDist) {
-                            secondMinDist = d2;
-                            secondOwner = oi2;
-                        }
-                    }
+                vec4 prevRaw = texelFetch(uStarData, ivec2(i, 3), 0);
+                float prevDijkstra = decode16(prevRaw, 0);
 
-                    // Border rendering
-                    if (secondOwner >= 0) {
-                        float borderDist = abs(minDist - secondMinDist);
-                        float borderFactor = 1.0 - smoothstep(uBorderWidth - uBorderSoftness, uBorderWidth + uBorderSoftness, borderDist);
-                        if (borderFactor > 0.0) {
-                            vec3 borderColor = min(finalRGB + vec3(uBorderBrighten / 255.0), vec3(1.0));
-                            finalRGB = mix(finalRGB, borderColor, borderFactor);
-                            alpha = mix(alpha, uBorderAlpha, borderFactor);
-                        }
-                    }
+                // Morph: interpolate between current and previous Dijkstra distances
+                float dijkstra = mix(curDijkstra, prevDijkstra, uMorphFactor);
 
-                    // Edge fade at world boundaries
-                    float edgeX = min(worldPos.x, uWorldWidth - worldPos.x);
-                    float edgeY = min(worldPos.y, uWorldHeight - worldPos.y);
-                    float edgeDist = min(edgeX, edgeY);
-                    alpha *= smoothstep(0.0, uEdgeFade, edgeDist);
+                // Total influence = pixel distance + graph distance
+                float influence = pixDist + dijkstra;
 
-                    outColor = vec4(finalRGB, alpha);
+                if (influence < bestInfluence) {
+                    secondInfluence = bestInfluence;
+                    secondStar = bestStar;
+                    secondOwner = bestOwner;
+                    bestInfluence = influence;
+                    bestStar = i;
+                    bestOwner = ownIdx;
+                } else if (influence < secondInfluence && ownIdx != bestOwner) {
+                    secondInfluence = influence;
+                    secondStar = i;
+                    secondOwner = ownIdx;
                 }
+            }
+
+            if (bestStar < 0 || bestOwner < 0) {
+                outColor = vec4(0.0);
+            } else {
+                // Player color lookup
+                vec3 pc = vec3(0.5);
+                if (bestOwner == 0) pc = uPlayerColor0;
+                else if (bestOwner == 1) pc = uPlayerColor1;
+                else if (bestOwner == 2) pc = uPlayerColor2;
+                else if (bestOwner == 3) pc = uPlayerColor3;
+                else if (bestOwner == 4) pc = uPlayerColor4;
+                else if (bestOwner == 5) pc = uPlayerColor5;
+                else if (bestOwner == 6) pc = uPlayerColor6;
+                else if (bestOwner == 7) pc = uPlayerColor7;
+
+                // HSL adjustment
+                float cmax = max(pc.r, max(pc.g, pc.b));
+                float cmin = min(pc.r, min(pc.g, pc.b));
+                float delta = cmax - cmin;
+                float L = (cmax + cmin) * 0.5;
+                float S = delta < 0.001 ? 0.0 : delta / (1.0 - abs(2.0 * L - 1.0));
+                float H = 0.0;
+                if (delta > 0.001) {
+                    if (cmax == pc.r) H = mod((pc.g - pc.b) / delta, 6.0);
+                    else if (cmax == pc.g) H = (pc.b - pc.r) / delta + 2.0;
+                    else H = (pc.r - pc.g) / delta + 4.0;
+                    H /= 6.0;
+                }
+                H = fract(H + uHueShift / 360.0);
+                S *= uSatMult;
+                L *= uLightMult;
+                float c2 = (1.0 - abs(2.0 * L - 1.0)) * S;
+                float x2 = c2 * (1.0 - abs(mod(H * 6.0, 2.0) - 1.0));
+                float m2 = L - c2 * 0.5;
+                vec3 rgb;
+                float h6 = H * 6.0;
+                if (h6 < 1.0) rgb = vec3(c2, x2, 0.0);
+                else if (h6 < 2.0) rgb = vec3(x2, c2, 0.0);
+                else if (h6 < 3.0) rgb = vec3(0.0, c2, x2);
+                else if (h6 < 4.0) rgb = vec3(0.0, x2, c2);
+                else if (h6 < 5.0) rgb = vec3(x2, 0.0, c2);
+                else rgb = vec3(c2, 0.0, x2);
+                vec3 finalRGB = rgb + vec3(m2);
+
+                float alpha = uFillAlpha;
+
+                // Border: where influence of best and second-best (different owner) are close
+                if (secondOwner >= 0) {
+                    float borderDist = abs(bestInfluence - secondInfluence);
+                    float borderFactor = 1.0 - smoothstep(uBorderWidth - uBorderSoftness, uBorderWidth + uBorderSoftness, borderDist);
+                    if (borderFactor > 0.0) {
+                        vec3 borderColor = min(finalRGB + vec3(uBorderBrighten / 255.0), vec3(1.0));
+                        finalRGB = mix(finalRGB, borderColor, borderFactor);
+                        alpha = mix(alpha, uBorderAlpha, borderFactor);
+                    }
+                }
+
+                // Edge fade at world boundaries
+                float edgeX = min(worldPos.x, uWorldWidth - worldPos.x);
+                float edgeY = min(worldPos.y, uWorldHeight - worldPos.y);
+                float edgeDist = min(edgeX, edgeY);
+                alpha *= smoothstep(0.0, uEdgeFade, edgeDist);
+
+                outColor = vec4(finalRGB, alpha);
             }
         `,
     },
