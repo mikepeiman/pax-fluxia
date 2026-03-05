@@ -1020,6 +1020,23 @@ export function renderDistanceFieldTerritory(
     }
     updateFilterUniforms(stars, colorUtils, worldWidth, worldHeight);
 
+    // ── DIAGNOSTIC: Test if renderer.render() to RT causes sinking ──
+    if (cachedApp && cachedMesh) {
+        const testContainer = new PIXI.Container();
+        testContainer.addChild(cachedMesh);
+        const testRT = PIXI.RenderTexture.create({ width: 256, height: 256 });
+        cachedApp.renderer.render({
+            container: testContainer,
+            target: testRT,
+            clear: true,
+        });
+        // Put mesh back in its original parent
+        testContainer.removeChild(cachedMesh);
+        container.addChild(cachedMesh);
+        testRT.destroy();
+        testContainer.destroy();
+    }
+
     // —— Apply filter pipeline ——
     applyBlur();
 }
