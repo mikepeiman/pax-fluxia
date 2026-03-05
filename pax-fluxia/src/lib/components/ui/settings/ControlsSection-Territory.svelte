@@ -1392,12 +1392,12 @@
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">🔗 Corridor Sites</span><span class="val"
-                >{GAME_CONFIG.DF_CORRIDOR_ENABLED ? "ON" : "OFF"}</span
+                >{panel.dfCorridorEnabled ? "ON" : "OFF"}</span
             >
         </div>
         <input
             type="checkbox"
-            checked={GAME_CONFIG.DF_CORRIDOR_ENABLED}
+            checked={panel.dfCorridorEnabled ?? false}
             onchange={(e) => {
                 const v = (e.target as HTMLInputElement).checked;
                 GAME_CONFIG.DF_CORRIDOR_ENABLED = v;
@@ -1406,58 +1406,63 @@
         />
     </div>
 
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">📏 Corridor Spacing</span><span class="val"
-                >{panel.dfCorridorSpacing ??
-                    GAME_CONFIG.DF_CORRIDOR_SPACING}px</span
-            >
+    {#if panel.dfCorridorEnabled}
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">📏 Corridor Spacing</span><span
+                    class="val"
+                    >{panel.dfCorridorSpacing ??
+                        GAME_CONFIG.DF_CORRIDOR_SPACING}px</span
+                >
+            </div>
+            <input
+                type="range"
+                min="20"
+                max="200"
+                step="5"
+                value={panel.dfCorridorSpacing ??
+                    GAME_CONFIG.DF_CORRIDOR_SPACING}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    GAME_CONFIG.DF_CORRIDOR_SPACING = v;
+                    updatePanel("dfCorridorSpacing", v);
+                }}
+            />
         </div>
-        <input
-            type="range"
-            min="20"
-            max="200"
-            step="5"
-            value={panel.dfCorridorSpacing ?? GAME_CONFIG.DF_CORRIDOR_SPACING}
-            oninput={(e) => {
-                const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.DF_CORRIDOR_SPACING = v;
-                updatePanel("dfCorridorSpacing", v);
-            }}
-        />
-    </div>
 
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">⚖️ Corridor Weight</span><span class="val"
-                >{(
-                    panel.dfCorridorWeight ?? GAME_CONFIG.DF_CORRIDOR_WEIGHT
-                ).toFixed(1)}</span
-            >
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">⚖️ Corridor Weight</span><span
+                    class="val"
+                    >{(
+                        panel.dfCorridorWeight ?? GAME_CONFIG.DF_CORRIDOR_WEIGHT
+                    ).toFixed(1)}</span
+                >
+            </div>
+            <input
+                type="range"
+                min="0.1"
+                max="3.0"
+                step="0.1"
+                value={panel.dfCorridorWeight ?? GAME_CONFIG.DF_CORRIDOR_WEIGHT}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    GAME_CONFIG.DF_CORRIDOR_WEIGHT = v;
+                    updatePanel("dfCorridorWeight", v);
+                }}
+            />
         </div>
-        <input
-            type="range"
-            min="0.1"
-            max="3.0"
-            step="0.1"
-            value={panel.dfCorridorWeight ?? GAME_CONFIG.DF_CORRIDOR_WEIGHT}
-            oninput={(e) => {
-                const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.DF_CORRIDOR_WEIGHT = v;
-                updatePanel("dfCorridorWeight", v);
-            }}
-        />
-    </div>
+    {/if}
 
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">✂️ Disconnect Buffer</span><span class="val"
-                >{GAME_CONFIG.DF_DISCONNECT_ENABLED ? "ON" : "OFF"}</span
+                >{panel.dfDisconnectEnabled ? "ON" : "OFF"}</span
             >
         </div>
         <input
             type="checkbox"
-            checked={GAME_CONFIG.DF_DISCONNECT_ENABLED}
+            checked={panel.dfDisconnectEnabled ?? false}
             onchange={(e) => {
                 const v = (e.target as HTMLInputElement).checked;
                 GAME_CONFIG.DF_DISCONNECT_ENABLED = v;
@@ -1466,50 +1471,55 @@
         />
     </div>
 
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">📏 Disconnect Distance</span><span
-                class="val"
-                >{panel.dfDisconnectDistance ??
-                    GAME_CONFIG.DF_DISCONNECT_DISTANCE}px</span
-            >
+    {#if panel.dfDisconnectEnabled}
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">📏 Disconnect Distance</span><span
+                    class="val"
+                    >{panel.dfDisconnectDistance ??
+                        GAME_CONFIG.DF_DISCONNECT_DISTANCE}px</span
+                >
+            </div>
+            <input
+                type="range"
+                min="100"
+                max="800"
+                step="25"
+                value={panel.dfDisconnectDistance ??
+                    GAME_CONFIG.DF_DISCONNECT_DISTANCE}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    GAME_CONFIG.DF_DISCONNECT_DISTANCE = v;
+                    updatePanel("dfDisconnectDistance", v);
+                }}
+            />
         </div>
-        <input
-            type="range"
-            min="100"
-            max="800"
-            step="25"
-            value={panel.dfDisconnectDistance ??
-                GAME_CONFIG.DF_DISCONNECT_DISTANCE}
-            oninput={(e) => {
-                const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.DF_DISCONNECT_DISTANCE = v;
-                updatePanel("dfDisconnectDistance", v);
-            }}
-        />
-    </div>
 
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">⚖️ Disconnect Weight</span><span class="val"
-                >{(
-                    panel.dfDisconnectWeight ?? GAME_CONFIG.DF_DISCONNECT_WEIGHT
-                ).toFixed(2)}</span
-            >
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">⚖️ Disconnect Weight</span><span
+                    class="val"
+                    >{(
+                        panel.dfDisconnectWeight ??
+                        GAME_CONFIG.DF_DISCONNECT_WEIGHT
+                    ).toFixed(2)}</span
+                >
+            </div>
+            <input
+                type="range"
+                min="0.05"
+                max="2.0"
+                step="0.05"
+                value={panel.dfDisconnectWeight ??
+                    GAME_CONFIG.DF_DISCONNECT_WEIGHT}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    GAME_CONFIG.DF_DISCONNECT_WEIGHT = v;
+                    updatePanel("dfDisconnectWeight", v);
+                }}
+            />
         </div>
-        <input
-            type="range"
-            min="0.05"
-            max="2.0"
-            step="0.05"
-            value={panel.dfDisconnectWeight ?? GAME_CONFIG.DF_DISCONNECT_WEIGHT}
-            oninput={(e) => {
-                const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.DF_DISCONNECT_WEIGHT = v;
-                updatePanel("dfDisconnectWeight", v);
-            }}
-        />
-    </div>
+    {/if}
 {/if}
 
 {#if panel.territoryContour}
