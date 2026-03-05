@@ -82,6 +82,7 @@ const territoryBitGl = {
             uniform float uInfluenceWeight;
             uniform float uContentMinX;
             uniform float uContentMinY;
+            uniform float uSmoothing;
             uniform vec3 uPlayerColor0;
             uniform vec3 uPlayerColor1;
             uniform vec3 uPlayerColor2;
@@ -111,6 +112,8 @@ const territoryBitGl = {
             float enemyInfluence = 1e9;
             int enemyStar = -1;
             int enemyOwner = -1;
+            // Track second-closest influence from ANY owner (for junction detection)
+            float secondInfluence = 1e9;
 
             for (int i = 0; i < 256; i++) {
                 if (i >= uNumStars) break;
@@ -139,21 +142,26 @@ const territoryBitGl = {
                 float influence = pixDist + dijkstra * uInfluenceWeight;
 
                 if (influence < bestInfluence) {
-                    // Before replacing best: if old best had a different owner than
-                    // this new best, old best becomes the new enemy candidate
-                    if (bestOwner >= 0 && bestOwner != ownIdx && bestInfluence < enemyInfluence) {
-                        enemyInfluence = bestInfluence;
-                        enemyStar = bestStar;
-                        enemyOwner = bestOwner;
+                    // Before replacing best: push old best to second
+                    if (bestOwner >= 0) {
+                        secondInfluence = bestInfluence;
+                        if (bestOwner != ownIdx && bestInfluence < enemyInfluence) {
+                            enemyInfluence = bestInfluence;
+                            enemyStar = bestStar;
+                            enemyOwner = bestOwner;
+                        }
                     }
                     bestInfluence = influence;
                     bestStar = i;
                     bestOwner = ownIdx;
-                } else if (ownIdx != bestOwner && influence < enemyInfluence) {
-                    // Track closest star with DIFFERENT owner
-                    enemyInfluence = influence;
-                    enemyStar = i;
-                    enemyOwner = ownIdx;
+                } else {
+                    // Track second-best from any owner
+                    if (influence < secondInfluence) secondInfluence = influence;
+                    if (ownIdx != bestOwner && influence < enemyInfluence) {
+                        enemyInfluence = influence;
+                        enemyStar = i;
+                        enemyOwner = ownIdx;
+                    }
                 }
             }
 
@@ -202,6 +210,14 @@ const territoryBitGl = {
                 vec3 finalRGB = rgb + vec3(m2);
 
                 float alpha = uFillAlpha;
+
+                // Junction smoothing: at 3-way junctions where second-closest
+                // influence is close to best, blend alpha down for rounded corners
+                if (uSmoothing > 0.0 && secondInfluence < 1e8) {
+                    float junctionGap = secondInfluence - bestInfluence;
+                    float junctionFade = smoothstep(0.0, uSmoothing, junctionGap);
+                    alpha *= junctionFade;
+                }
 
                 // Border: single blended line ON the boundary between two different owners
                 if (enemyOwner >= 0 && enemyOwner != 254) {
@@ -634,9 +650,9 @@ function buildStarDataTexture(
 
 function ensureMesh(worldWidth: number, worldHeight: number): PIXI.Shader {
     const padding = GAME_CONFIG.DF_EDGE_FADE ?? 200;
-    const expand = 0.10; // 10% expansion beyond padding to cover full star map
+    const expand = GAME_CONFIG.DF_EXPANSION ?? 0.10;
 
-    // Check if we need to rebuild geometry (dimensions changed)
+    // Check if we need to rebuild geometry (dimensions or expansion changed)
     const dimsChanged = worldWidth !== cachedMeshWorldW || worldHeight !== cachedMeshWorldH;
     if (cachedMeshShader && !dimsChanged) return cachedMeshShader;
 
@@ -694,6 +710,7 @@ function ensureMesh(worldWidth: number, worldHeight: number): PIXI.Shader {
                 uInfluenceWeight: { value: 1.0, type: 'f32' },
                 uContentMinX: { value: 0, type: 'f32' },
                 uContentMinY: { value: 0, type: 'f32' },
+                uSmoothing: { value: 30, type: 'f32' },
                 // Player colors
                 uPlayerColor0: { value: new Float32Array([1, 0, 0]), type: 'vec3<f32>' },
                 uPlayerColor1: { value: new Float32Array([0, 0, 1]), type: 'vec3<f32>' },
@@ -767,6 +784,7 @@ function updateFilterUniforms(
     const pad = 80; // Same padding as updateWorldBounds in GameCanvas
     u.uContentMinX = stars.length > 0 ? minX - pad : 0;
     u.uContentMinY = stars.length > 0 ? minY - pad : 0;
+    u.uSmoothing = GAME_CONFIG.DF_SMOOTHING ?? 30;
 
     // Pack player colors (0-1 range)
     for (let i = 0; i < Math.min(nPlayers, MAX_PLAYERS); i++) {

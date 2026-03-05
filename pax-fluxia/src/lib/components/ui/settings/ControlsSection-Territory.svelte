@@ -1141,6 +1141,50 @@
         />
     </div>
 
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Expansion</span><span class="val"
+                >{(
+                    (panel.dfExpansion ?? GAME_CONFIG.DF_EXPANSION) * 100
+                ).toFixed(0)}%</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="0.5"
+            step="0.05"
+            value={panel.dfExpansion ?? GAME_CONFIG.DF_EXPANSION}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.DF_EXPANSION = v;
+                updatePanel("dfExpansion", v);
+            }}
+        />
+    </div>
+
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Smoothing</span><span class="val"
+                >{(panel.dfSmoothing ?? GAME_CONFIG.DF_SMOOTHING).toFixed(
+                    0,
+                )}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="100"
+            step="5"
+            value={panel.dfSmoothing ?? GAME_CONFIG.DF_SMOOTHING}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.DF_SMOOTHING = v;
+                updatePanel("dfSmoothing", v);
+            }}
+        />
+    </div>
+
     <!-- Color (HSLA) -->
     <h4 class="sub-heading">🎨 Color (HSLA)</h4>
     <div class="var-row">
