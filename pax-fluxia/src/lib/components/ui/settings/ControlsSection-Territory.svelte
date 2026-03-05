@@ -1143,7 +1143,7 @@
 
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name">Expansion</span><span class="val"
+            <span class="var-name">Territory Map Size</span><span class="val"
                 >{(
                     (panel.dfExpansion ?? GAME_CONFIG.DF_EXPANSION) * 100
                 ).toFixed(0)}%</span
@@ -1287,83 +1287,99 @@
     </div>
 
     <!-- Borders -->
-    <h4 class="sub-heading">🔲 Borders</h4>
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Border Width</span><span class="val"
-                >{(panel.dfBorderWidth ?? 15).toFixed(0)}px</span
-            >
+    <h4 class="sub-heading">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input
+                type="checkbox"
+                checked={panel.dfBordersEnabled ?? true}
+                onchange={(e) => {
+                    const v = (e.target as HTMLInputElement).checked;
+                    updatePanel("dfBordersEnabled", v);
+                }}
+                style="margin:0;width:14px;height:14px"
+            />
+            BORDERS
+        </label>
+    </h4>
+
+    {#if panel.dfBordersEnabled ?? true}
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">Border Width</span><span class="val"
+                    >{(panel.dfBorderWidth ?? 15).toFixed(0)}px</span
+                >
+            </div>
+            <input
+                type="range"
+                min="0"
+                max="80"
+                step="1"
+                value={panel.dfBorderWidth ?? 15}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    GAME_CONFIG.DF_BORDER_WIDTH = v;
+                    updatePanel("dfBorderWidth", v);
+                }}
+            />
         </div>
-        <input
-            type="range"
-            min="0"
-            max="80"
-            step="1"
-            value={panel.dfBorderWidth ?? 15}
-            oninput={(e) => {
-                const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.DF_BORDER_WIDTH = v;
-                updatePanel("dfBorderWidth", v);
-            }}
-        />
-    </div>
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Border Softness</span><span class="val"
-                >{(panel.dfBorderSoftness ?? 8).toFixed(0)}px</span
-            >
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">Border Softness</span><span class="val"
+                    >{(panel.dfBorderSoftness ?? 8).toFixed(0)}px</span
+                >
+            </div>
+            <input
+                type="range"
+                min="0"
+                max="40"
+                step="1"
+                value={panel.dfBorderSoftness ?? 8}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    GAME_CONFIG.DF_BORDER_SOFTNESS = v;
+                    updatePanel("dfBorderSoftness", v);
+                }}
+            />
         </div>
-        <input
-            type="range"
-            min="0"
-            max="40"
-            step="1"
-            value={panel.dfBorderSoftness ?? 8}
-            oninput={(e) => {
-                const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.DF_BORDER_SOFTNESS = v;
-                updatePanel("dfBorderSoftness", v);
-            }}
-        />
-    </div>
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Border Alpha</span><span class="val"
-                >{(panel.dfBorderAlpha ?? 0.8).toFixed(2)}</span
-            >
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">Border Alpha</span><span class="val"
+                    >{(panel.dfBorderAlpha ?? 0.8).toFixed(2)}</span
+                >
+            </div>
+            <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={panel.dfBorderAlpha ?? 0.8}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    GAME_CONFIG.DF_BORDER_ALPHA = v;
+                    updatePanel("dfBorderAlpha", v);
+                }}
+            />
         </div>
-        <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.05"
-            value={panel.dfBorderAlpha ?? 0.8}
-            oninput={(e) => {
-                const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.DF_BORDER_ALPHA = v;
-                updatePanel("dfBorderAlpha", v);
-            }}
-        />
-    </div>
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Border Brighten</span><span class="val"
-                >{(panel.dfBorderBrighten ?? 40).toFixed(0)}</span
-            >
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">Border Brighten</span><span class="val"
+                    >{(panel.dfBorderBrighten ?? 40).toFixed(0)}</span
+                >
+            </div>
+            <input
+                type="range"
+                min="0"
+                max="200"
+                step="5"
+                value={panel.dfBorderBrighten ?? 40}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    GAME_CONFIG.DF_BORDER_BRIGHTEN = v;
+                    updatePanel("dfBorderBrighten", v);
+                }}
+            />
         </div>
-        <input
-            type="range"
-            min="0"
-            max="200"
-            step="5"
-            value={panel.dfBorderBrighten ?? 40}
-            oninput={(e) => {
-                const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.DF_BORDER_BRIGHTEN = v;
-                updatePanel("dfBorderBrighten", v);
-            }}
-        />
-    </div>
+    {/if}
 
     <!-- Influence Weight -->
     <div class="var-row">
@@ -1429,10 +1445,33 @@
     </div>
 
     {#if panel.dfCorridorEnabled}
-        <div class="var-row">
+        <!-- Virtual Star Spacing mode: radio + slider side by side -->
+        <div
+            class="var-row"
+            style="opacity: {(panel.dfCorridorMode ?? 'spacing') === 'spacing'
+                ? 1
+                : 0.4}"
+        >
             <div class="row-top">
-                <span class="var-name">📏 Corridor Spacing</span><span
-                    class="val"
+                <label
+                    style="display:flex;align-items:center;gap:4px;cursor:pointer"
+                >
+                    <input
+                        type="radio"
+                        name="corridorMode"
+                        checked={(panel.dfCorridorMode ?? "spacing") ===
+                            "spacing"}
+                        onchange={() => {
+                            GAME_CONFIG.DF_CORRIDOR_MODE = "spacing";
+                            updatePanel("dfCorridorMode", "spacing");
+                        }}
+                        style="margin:0;width:14px;height:14px"
+                    />
+                    <span class="var-name" style="font-size:0.82em"
+                        >Virtual Star Spacing</span
+                    >
+                </label>
+                <span class="val"
                     >{panel.dfCorridorSpacing ??
                         GAME_CONFIG.DF_CORRIDOR_SPACING}px</span
                 >
@@ -1442,12 +1481,59 @@
                 min="20"
                 max="200"
                 step="5"
+                disabled={(panel.dfCorridorMode ?? "spacing") !== "spacing"}
                 value={panel.dfCorridorSpacing ??
                     GAME_CONFIG.DF_CORRIDOR_SPACING}
                 oninput={(e) => {
                     const v = +(e.target as HTMLInputElement).value;
                     GAME_CONFIG.DF_CORRIDOR_SPACING = v;
                     updatePanel("dfCorridorSpacing", v);
+                }}
+            />
+        </div>
+
+        <!-- Virtual Stars Per Lane mode: radio + slider side by side -->
+        <div
+            class="var-row"
+            style="opacity: {(panel.dfCorridorMode ?? 'spacing') === 'count'
+                ? 1
+                : 0.4}"
+        >
+            <div class="row-top">
+                <label
+                    style="display:flex;align-items:center;gap:4px;cursor:pointer"
+                >
+                    <input
+                        type="radio"
+                        name="corridorMode"
+                        checked={(panel.dfCorridorMode ?? "spacing") ===
+                            "count"}
+                        onchange={() => {
+                            GAME_CONFIG.DF_CORRIDOR_MODE = "count";
+                            updatePanel("dfCorridorMode", "count");
+                        }}
+                        style="margin:0;width:14px;height:14px"
+                    />
+                    <span class="var-name" style="font-size:0.82em"
+                        >Virtual Stars Per Lane</span
+                    >
+                </label>
+                <span class="val"
+                    >{panel.dfCorridorCount ??
+                        GAME_CONFIG.DF_CORRIDOR_COUNT}</span
+                >
+            </div>
+            <input
+                type="range"
+                min="1"
+                max="20"
+                step="1"
+                disabled={(panel.dfCorridorMode ?? "spacing") !== "count"}
+                value={panel.dfCorridorCount ?? GAME_CONFIG.DF_CORRIDOR_COUNT}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    GAME_CONFIG.DF_CORRIDOR_COUNT = v;
+                    updatePanel("dfCorridorCount", v);
                 }}
             />
         </div>

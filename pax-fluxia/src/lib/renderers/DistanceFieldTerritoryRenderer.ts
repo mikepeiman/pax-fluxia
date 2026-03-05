@@ -279,43 +279,7 @@ const visualBitGl = {
             float gapNorm = center.g; // normalized influence gap to enemy
             int enemyOwner = int(floor(center.b * 255.0 + 0.5)) - 1;
 
-            // ── Border detection: sample neighbors ────────────────────────
-            // Sample 8 neighbors at uBorderWidth pixel distance
-            // If ANY neighbor has a different owner, this pixel is a border.
-            float pixelW = 1.0 / uTexWidth;
-            float pixelH = 1.0 / uTexHeight;
-            float borderRadius = uBorderWidth; // in pixels
-
-            float borderFactor = 0.0;
-            int dominantEnemy = -1;
-            float enemyCount = 0.0;
-
-            // Sample 8 directions at border radius distance
-            for (int d = 0; d < 8; d++) {
-                float angle = float(d) * 0.7853981633974483; // PI/4
-                vec2 offset = vec2(cos(angle), sin(angle)) * borderRadius;
-                vec2 sampleUV = vUV + offset * vec2(pixelW, pixelH);
-
-                // Clamp to texture bounds
-                sampleUV = clamp(sampleUV, vec2(0.0), vec2(1.0));
-
-                vec4 neighbor = texture(uOwnershipTex, sampleUV);
-                int neighOwner = int(floor(neighbor.r * 255.0 + 0.5)) - 1;
-
-                if (neighOwner >= 0 && neighOwner != myOwner) {
-                    enemyCount += 1.0;
-                    dominantEnemy = neighOwner;
-                }
-            }
-
-            // Border strength = fraction of neighbors that are enemy
-            if (enemyCount > 0.0) {
-                // Soft border: smoothstep based on number of enemy neighbors
-                // 1 neighbor = edge of border, 4+ = solid border center
-                borderFactor = smoothstep(0.0, 3.0 + uBorderSoftness, enemyCount);
-            }
-
-            // ── Coloring ──────────────────────────────────────────────────
+            // ── Coloring (fills only — borders drawn as vectors in Pass 3) ──
             vec3 pc = getPlayerColor(myOwner);
             vec3 finalRGB = hslAdjust(pc);
             float alpha = uFillAlpha;
@@ -326,32 +290,10 @@ const visualBitGl = {
                 alpha *= junctionFade;
             }
 
-            // ── Border rendering ──────────────────────────────────────────
-            if (borderFactor > 0.0 && dominantEnemy >= 0) {
-                vec3 ec = getPlayerColor(dominantEnemy);
-
-                // Force-ratio scaling: border color weighted by influence proximity
-                // gapNorm=0 → equal strength → 50/50 blend
-                // gapNorm=1 → far from border → owner dominates (shouldn't reach here)
-                float forceRatio = 1.0 - gapNorm; // 1.0 = evenly matched, 0.0 = far
-                float enemyWeight = forceRatio * 0.5; // enemy contributes up to 50%
-                float ownerWeight = 1.0 - enemyWeight;
-
-                // Apply HSL adjustments to both colors before blending
-                vec3 ownerRGB = hslAdjust(pc);
-                vec3 enemyRGB = hslAdjust(ec);
-
-                vec3 borderColor = ownerRGB * ownerWeight + enemyRGB * enemyWeight;
-                borderColor = min(borderColor + vec3(uBorderBrighten / 255.0), vec3(1.0));
-
-                finalRGB = mix(finalRGB, borderColor, borderFactor);
-                alpha = mix(alpha, uBorderAlpha, borderFactor);
-            }
-
             // ── Edge fade ─────────────────────────────────────────────────
             vec2 worldPos = vLocalPos;
-            float edgeX = min(worldPos.x - uContentMinX, uWorldWidth - worldPos.x);
-            float edgeY = min(worldPos.y - uContentMinY, uWorldHeight - worldPos.y);
+            float edgeX = min(worldPos.x - uContentMinX, (uContentMinX + uWorldWidth) - worldPos.x);
+            float edgeY = min(worldPos.y - uContentMinY, (uContentMinY + uWorldHeight) - worldPos.y);
             float edgeDist = min(edgeX, edgeY);
             alpha *= smoothstep(0.0, uEdgeFade, edgeDist);
 
@@ -378,6 +320,10 @@ let pass2Shader: PIXI.Shader | null = null;
 
 let cachedMeshWorldW = 0;
 let cachedMeshWorldH = 0;
+let cachedMeshX0 = 0;
+let cachedMeshY0 = 0;
+let cachedMeshW = 0;
+let cachedMeshH = 0;
 let cachedMeshExpansion = -1;
 let cachedBlurFilter: PIXI.BlurFilter | null = null;
 let cachedBlurStrength = -1;
@@ -401,6 +347,259 @@ let starDataTexture: PIXI.Texture | null = null;
 
 // Cached PIXI app reference for rendering Pass 1
 let cachedApp: PIXI.Application | null = null;
+
+// Pass 3: Vector border overlay
+let borderGraphics: PIXI.Graphics | null = null;
+let cachedBorderOwnerFp = '';
+
+// ============================================================================
+// PASS 3: Vector Border Extraction (Marching Squares + Chaikin)
+// ============================================================================
+
+interface BorderSegment {
+    x1: number; y1: number;
+    x2: number; y2: number;
+    ownerA: number; ownerB: number;
+}
+
+/**
+ * Extract border contours from the ownership RenderTexture.
+ * Uses marching squares to trace boundary segments between different-owner regions.
+ * Returns polylines in world-space coordinates.
+ */
+function extractBorderSegments(
+    app: PIXI.Application,
+    rt: PIXI.RenderTexture,
+    meshX0: number, meshY0: number,
+    meshW: number, meshH: number,
+): BorderSegment[] {
+    // Read ownership texture pixels
+    const pixels = app.renderer.extract.pixels(rt);
+    const w = pixels.width;
+    const h = pixels.height;
+    const data = pixels.pixels as unknown as Uint8Array;
+
+    const segments: BorderSegment[] = [];
+    // Scale factors: texture pixels → world coordinates
+    const sx = meshW / w;
+    const sy = meshH / h;
+
+    // Scan grid for ownership changes between adjacent pixels
+    // Horizontal edges (between rows y and y+1)
+    for (let y = 0; y < h - 1; y++) {
+        for (let x = 0; x < w; x++) {
+            const idx1 = (y * w + x) * 4;
+            const idx2 = ((y + 1) * w + x) * 4;
+            const a1 = data[idx1 + 3]; // alpha
+            const a2 = data[idx2 + 3];
+            const o1 = a1 > 127 ? data[idx1] : 0; // R = owner
+            const o2 = a2 > 127 ? data[idx2] : 0;
+            if (o1 !== o2) {
+                // Boundary between y and y+1 — draw horizontal segment
+                segments.push({
+                    x1: meshX0 + x * sx,
+                    y1: meshY0 + (y + 0.5) * sy,
+                    x2: meshX0 + (x + 1) * sx,
+                    y2: meshY0 + (y + 0.5) * sy,
+                    ownerA: o1, ownerB: o2,
+                });
+            }
+        }
+    }
+    // Vertical edges (between columns x and x+1)
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w - 1; x++) {
+            const idx1 = (y * w + x) * 4;
+            const idx2 = (y * w + x + 1) * 4;
+            const a1 = data[idx1 + 3];
+            const a2 = data[idx2 + 3];
+            const o1 = a1 > 127 ? data[idx1] : 0;
+            const o2 = a2 > 127 ? data[idx2] : 0;
+            if (o1 !== o2) {
+                segments.push({
+                    x1: meshX0 + (x + 0.5) * sx,
+                    y1: meshY0 + y * sy,
+                    x2: meshX0 + (x + 0.5) * sx,
+                    y2: meshY0 + (y + 1) * sy,
+                    ownerA: o1, ownerB: o2,
+                });
+            }
+        }
+    }
+    return segments;
+}
+
+/**
+ * Chain border segments into polylines.
+ * Connects segments that share endpoints (within tolerance).
+ */
+function chainSegments(segments: BorderSegment[]): number[][][] {
+    if (segments.length === 0) return [];
+
+    // Build adjacency: endpoint → segment indices
+    const eps = 0.01;
+    const key = (x: number, y: number) => `${Math.round(x / eps)}:${Math.round(y / eps)}`;
+
+    const endpointMap = new Map<string, { segIdx: number; end: 1 | 2 }[]>();
+    for (let i = 0; i < segments.length; i++) {
+        const s = segments[i];
+        const k1 = key(s.x1, s.y1);
+        const k2 = key(s.x2, s.y2);
+        if (!endpointMap.has(k1)) endpointMap.set(k1, []);
+        if (!endpointMap.has(k2)) endpointMap.set(k2, []);
+        endpointMap.get(k1)!.push({ segIdx: i, end: 1 });
+        endpointMap.get(k2)!.push({ segIdx: i, end: 2 });
+    }
+
+    const used = new Array(segments.length).fill(false);
+    const polylines: number[][][] = [];
+
+    for (let start = 0; start < segments.length; start++) {
+        if (used[start]) continue;
+        used[start] = true;
+
+        const s = segments[start];
+        const chain: number[][] = [[s.x1, s.y1], [s.x2, s.y2]];
+
+        // Extend forward from end point
+        let searching = true;
+        while (searching) {
+            searching = false;
+            const lastPt = chain[chain.length - 1];
+            const k = key(lastPt[0], lastPt[1]);
+            const neighbors = endpointMap.get(k);
+            if (neighbors) {
+                for (const n of neighbors) {
+                    if (used[n.segIdx]) continue;
+                    const ns = segments[n.segIdx];
+                    used[n.segIdx] = true;
+                    if (n.end === 1) {
+                        chain.push([ns.x2, ns.y2]);
+                    } else {
+                        chain.push([ns.x1, ns.y1]);
+                    }
+                    searching = true;
+                    break;
+                }
+            }
+        }
+
+        // Extend backward from start point
+        searching = true;
+        while (searching) {
+            searching = false;
+            const firstPt = chain[0];
+            const k = key(firstPt[0], firstPt[1]);
+            const neighbors = endpointMap.get(k);
+            if (neighbors) {
+                for (const n of neighbors) {
+                    if (used[n.segIdx]) continue;
+                    const ns = segments[n.segIdx];
+                    used[n.segIdx] = true;
+                    if (n.end === 2) {
+                        chain.unshift([ns.x1, ns.y1]);
+                    } else {
+                        chain.unshift([ns.x2, ns.y2]);
+                    }
+                    searching = true;
+                    break;
+                }
+            }
+        }
+
+        if (chain.length >= 2) {
+            polylines.push(chain);
+        }
+    }
+
+    return polylines;
+}
+
+/**
+ * Chaikin curve subdivision — produces smooth corners from polylines.
+ * Each iteration rounds corners by 75/25 interpolation.
+ */
+function chaikinSmooth(polyline: number[][], iterations: number): number[][] {
+    let pts = polyline;
+    for (let iter = 0; iter < iterations; iter++) {
+        const smoothed: number[][] = [];
+        smoothed.push(pts[0]); // keep first point
+        for (let i = 0; i < pts.length - 1; i++) {
+            const p0 = pts[i], p1 = pts[i + 1];
+            smoothed.push([
+                0.75 * p0[0] + 0.25 * p1[0],
+                0.75 * p0[1] + 0.25 * p1[1],
+            ]);
+            smoothed.push([
+                0.25 * p0[0] + 0.75 * p1[0],
+                0.25 * p0[1] + 0.75 * p1[1],
+            ]);
+        }
+        smoothed.push(pts[pts.length - 1]); // keep last point
+        pts = smoothed;
+    }
+    return pts;
+}
+
+/**
+ * Draw vector borders as PIXI.Graphics strokes.
+ */
+function drawVectorBorders(
+    container: PIXI.Container,
+    app: PIXI.Application,
+    rt: PIXI.RenderTexture,
+    colorUtils: ColorUtils,
+    meshX0: number, meshY0: number,
+    meshW: number, meshH: number,
+): void {
+    // Create or clear graphics
+    if (!borderGraphics) {
+        borderGraphics = new PIXI.Graphics();
+    }
+    borderGraphics.clear();
+
+    if (!borderGraphics.parent) {
+        container.addChild(borderGraphics);
+    }
+
+    const borderWidth = GAME_CONFIG.DF_BORDER_WIDTH ?? 5;
+    const borderAlpha = GAME_CONFIG.DF_BORDER_ALPHA ?? 0.8;
+    const brighten = (GAME_CONFIG.DF_BORDER_BRIGHTEN ?? 20) / 255;
+
+    // Extract boundary segments from the ownership texture
+    const segments = extractBorderSegments(app, rt, meshX0, meshY0, meshW, meshH);
+    if (segments.length === 0) return;
+
+    // Chain into polylines and smooth
+    const polylines = chainSegments(segments);
+    const smoothIters = 2; // 2 passes of Chaikin smoothing
+
+    for (const polyline of polylines) {
+        if (polyline.length < 2) continue;
+        const smoothed = chaikinSmooth(polyline, smoothIters);
+
+        // Use a neutral bright border color (brighten from white)
+        const r = Math.min(1, 0.7 + brighten);
+        const g = Math.min(1, 0.7 + brighten);
+        const b = Math.min(1, 0.7 + brighten);
+        const color = (Math.round(r * 255) << 16) | (Math.round(g * 255) << 8) | Math.round(b * 255);
+
+        borderGraphics.setStrokeStyle({
+            width: borderWidth,
+            color: color,
+            alpha: borderAlpha,
+            cap: 'round' as any,
+            join: 'round' as any,
+        });
+        borderGraphics.moveTo(smoothed[0][0], smoothed[0][1]);
+        for (let i = 1; i < smoothed.length; i++) {
+            borderGraphics.lineTo(smoothed[i][0], smoothed[i][1]);
+        }
+        borderGraphics.stroke();
+    }
+
+    console.log(`[DF] Vector borders: ${segments.length} segments → ${polylines.length} polylines`);
+}
 
 
 // ============================================================================
@@ -541,7 +740,7 @@ function buildConfigFp(): string {
         + `${GAME_CONFIG.DF_SATURATION}:${GAME_CONFIG.DF_LIGHTNESS}:`
         + `${GAME_CONFIG.DF_DISTANCE_METRIC}:${GAME_CONFIG.TERRITORY_TRANSITION_MS}:`
         + `${GAME_CONFIG.DF_EDGE_FADE}:${GAME_CONFIG.DF_RESOLUTION}:${GAME_CONFIG.DF_ROUNDING}:${GAME_CONFIG.DF_INFLUENCE_WEIGHT}`
-        + `:${GAME_CONFIG.DF_CORRIDOR_ENABLED}:${GAME_CONFIG.DF_CORRIDOR_SPACING}:${GAME_CONFIG.DF_CORRIDOR_WEIGHT}`
+        + `:${GAME_CONFIG.DF_CORRIDOR_ENABLED}:${GAME_CONFIG.DF_CORRIDOR_MODE}:${GAME_CONFIG.DF_CORRIDOR_SPACING}:${GAME_CONFIG.DF_CORRIDOR_COUNT}:${GAME_CONFIG.DF_CORRIDOR_WEIGHT}`
         + `:${GAME_CONFIG.DF_DISCONNECT_ENABLED}:${GAME_CONFIG.DF_DISCONNECT_DISTANCE}:${GAME_CONFIG.DF_DISCONNECT_WEIGHT}`;
 }
 
@@ -728,9 +927,10 @@ function buildStarDataTexture(
         const pIdx = playerIds.indexOf(vs.ownerId);
         starDataBuffer[row2] = pIdx >= 0 ? pIdx + 1 : 0;
         // Encode boost as 16-bit in bytes 2-3
-        // Corridors use boost (subtracted from influence = more competitive)
-        // Disconnects use Dijkstra distance instead, so boost = 0
-        const boostRaw = vs.kind === 'disconnect' ? 0 : Math.round((vs.weight ?? 1.0) * 100);
+        // Both corridors AND disconnects use boost (subtracted from influence = more competitive)
+        // Corridors: boost makes friendly sites claim territory along connections
+        // Disconnects: boost makes enemy sites create gaps between disconnected same-owner regions
+        const boostRaw = Math.round((vs.weight ?? 1.0) * 100);
         const [bh, bl] = encode16(boostRaw);
         starDataBuffer[row2 + 2] = bh;
         starDataBuffer[row2 + 3] = bl;
@@ -794,9 +994,15 @@ function ensureMeshes(worldWidth: number, worldHeight: number): void {
     const extraX = worldWidth * expand;
     const extraY = worldHeight * expand;
     const x0 = -padding - extraX, y0 = -padding - extraY;
+
+    // Cache mesh bounds for vector border extraction
+    cachedMeshX0 = x0;
+    cachedMeshY0 = y0;
     const x1 = worldWidth + padding + extraX, y1 = worldHeight + padding + extraY;
 
     // ── RenderTexture for ownership data ──
+    cachedMeshW = x1 - x0;
+    cachedMeshH = y1 - y0;
     const rtW = Math.ceil(x1 - x0);
     const rtH = Math.ceil(y1 - y0);
     if (ownershipRT) ownershipRT.destroy();
@@ -986,14 +1192,20 @@ function updatePass2Uniforms(
     u.uLightMult = GAME_CONFIG.DF_LIGHTNESS ?? 1;
     u.uSmoothing = GAME_CONFIG.DF_SMOOTHING ?? 30;
 
-    let minX = Infinity, minY = Infinity;
-    for (const s of stars) {
-        if (s.x < minX) minX = s.x;
-        if (s.y < minY) minY = s.y;
-    }
-    const pad = 80;
-    u.uContentMinX = stars.length > 0 ? minX - pad : 0;
-    u.uContentMinY = stars.length > 0 ? minY - pad : 0;
+    // Compute expanded content bounds for edge fade
+    // These must match the mesh geometry (x0,y0)→(x1,y1) from ensureMeshes()
+    const expand = GAME_CONFIG.DF_EXPANSION ?? 0.10;
+    const extraX = worldWidth * expand;
+    const extraY = worldHeight * expand;
+    const contentMinX = -padding - extraX;
+    const contentMinY = -padding - extraY;
+    const contentW = worldWidth + 2 * padding + 2 * extraX;
+    const contentH = worldHeight + 2 * padding + 2 * extraY;
+
+    u.uContentMinX = contentMinX;
+    u.uContentMinY = contentMinY;
+    u.uWorldWidth = contentW;
+    u.uWorldHeight = contentH;
 
     if (ownershipRT) {
         u.uTexWidth = ownershipRT.width;
@@ -1131,10 +1343,12 @@ export function renderDistanceFieldTerritory(
         if (GAME_CONFIG.DF_CORRIDOR_ENABLED && conns.length > 0) {
             const spacing = GAME_CONFIG.DF_CORRIDOR_SPACING ?? 60;
             const weight = GAME_CONFIG.DF_CORRIDOR_WEIGHT ?? 1.0;
-            const corridorSites = computeCorridorVirtuals(ownedStars, conns, spacing);
+            const mode = GAME_CONFIG.DF_CORRIDOR_MODE ?? 'spacing';
+            const count = mode === 'count' ? (GAME_CONFIG.DF_CORRIDOR_COUNT ?? 3) : undefined;
+            const corridorSites = computeCorridorVirtuals(ownedStars, conns, spacing, 0.5, count);
             for (const s of corridorSites) s.weight = weight;
             virtuals = virtuals.concat(corridorSites);
-            console.log(`[DF] Corridors: ${corridorSites.length} sites (spacing=${spacing}, weight=${weight})`);
+            console.log(`[DF] Corridors: ${corridorSites.length} sites (mode=${mode}, ${mode === 'count' ? `count=${count}` : `spacing=${spacing}`}, weight=${weight})`);
         }
 
         if (GAME_CONFIG.DF_DISCONNECT_ENABLED && conns.length > 0) {
@@ -1177,6 +1391,17 @@ export function renderDistanceFieldTerritory(
     }
 
     updatePass2Uniforms(stars, colorUtils, worldWidth, worldHeight);
+
+    // —— PASS 3: Vector border overlay ——
+    // Only recompute when ownership changes (avoids per-frame GPU readback)
+    const borderFpNow = ownerFp + ':' + (GAME_CONFIG.DF_BORDER_WIDTH ?? 5) + ':' + (GAME_CONFIG.DF_BORDER_ALPHA ?? 0.8) + ':' + (GAME_CONFIG.DF_BORDER_BRIGHTEN ?? 20);
+    if (cachedApp && ownershipRT && borderFpNow !== cachedBorderOwnerFp) {
+        cachedBorderOwnerFp = borderFpNow;
+        drawVectorBorders(
+            container, cachedApp, ownershipRT, colorUtils,
+            cachedMeshX0, cachedMeshY0, cachedMeshW, cachedMeshH,
+        );
+    }
 
     // —— Apply filter pipeline ——
     applyBlur();
@@ -1230,4 +1455,11 @@ export function resetDistanceFieldTerritoryCache(): void {
     cachedApp = null;
     laneArray = [];
     laneCells = new Map();
+
+    if (borderGraphics) {
+        if (borderGraphics.parent) borderGraphics.parent.removeChild(borderGraphics);
+        borderGraphics.destroy();
+        borderGraphics = null;
+    }
+    cachedBorderOwnerFp = '';
 }
