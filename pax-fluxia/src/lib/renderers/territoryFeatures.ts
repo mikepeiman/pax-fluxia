@@ -115,55 +115,85 @@ export function computeDisconnectVirtuals(
     weightMultiplier = 0.3,
 ): VirtualSite[] {
     const result: VirtualSite[] = [];
-    const starMap = new Map(ownedStars.map(s => [s.id, s]));
 
-    // Build set of connected same-owner pairs (bidirectional)
-    const connectedPairs = new Set<string>();
-    for (const conn of connections) {
-        const sA = starMap.get(conn.sourceId);
-        const sB = starMap.get(conn.targetId);
-        if (!sA || !sB || sA.ownerId !== sB.ownerId) continue;
-        connectedPairs.add(`${conn.sourceId}|${conn.targetId}`);
-        connectedPairs.add(`${conn.targetId}|${conn.sourceId}`);
+    // Group owned stars by owner
+    const byOwner = new Map<string, StarState[]>();
+    for (const s of ownedStars) {
+        if (!s.ownerId) continue;
+        const arr = byOwner.get(s.ownerId) ?? [];
+        arr.push(s);
+        byOwner.set(s.ownerId, arr);
     }
 
-    // For each pair of same-owner stars NOT connected, inject enemy virtual site
-    for (let i = 0; i < ownedStars.length; i++) {
-        for (let j = i + 1; j < ownedStars.length; j++) {
-            const sA = ownedStars[i], sB = ownedStars[j];
-            if (sA.ownerId !== sB.ownerId) continue;
-            if (connectedPairs.has(`${sA.id}|${sB.id}`)) continue;
+    // For each owner, find connected components via Union-Find
+    // Only same-owner lanes count as connections
+    for (const [ownerId, ownerStars] of byOwner) {
+        if (ownerStars.length < 2) continue;
 
-            const dist = Math.hypot(sB.x - sA.x, sB.y - sA.y);
-            if (dist > maxDistance) continue;
+        // Union-Find: maps starId → root starId
+        const parent = new Map<string, string>();
+        for (const s of ownerStars) parent.set(s.id, s.id);
 
-            const midX = (sA.x + sB.x) / 2;
-            const midY = (sA.y + sB.y) / 2;
-
-            // Find nearest enemy star to the midpoint
-            let nearestEnemyId = '';
-            let nearestEnemyDist = Infinity;
-            for (const s of allStars) {
-                if (!s.ownerId || s.ownerId === sA.ownerId) continue;
-                const d = Math.hypot(s.x - midX, s.y - midY);
-                if (d < nearestEnemyDist) {
-                    nearestEnemyDist = d;
-                    nearestEnemyId = s.ownerId;
-                }
+        function find(x: string): string {
+            while (parent.get(x) !== x) {
+                parent.set(x, parent.get(parent.get(x)!)!); // path compression
+                x = parent.get(x)!;
             }
+            return x;
+        }
+        function union(a: string, b: string) {
+            const ra = find(a), rb = find(b);
+            if (ra !== rb) parent.set(ra, rb);
+        }
 
-            // Only create disconnect if there's an enemy to fill the gap
-            if (!nearestEnemyId) continue;
+        // Union all same-owner connected pairs
+        for (const conn of connections) {
+            const hasA = parent.has(conn.sourceId);
+            const hasB = parent.has(conn.targetId);
+            if (hasA && hasB) {
+                union(conn.sourceId, conn.targetId);
+            }
+        }
 
-            result.push({
-                x: midX,
-                y: midY,
-                weight: weightMultiplier,
-                ownerId: nearestEnemyId,
-                kind: 'disconnect',
-                sourceStarA: sA.id,
-                sourceStarB: sB.id,
-            });
+        // For each pair in DIFFERENT components, consider DX site
+        const starById = new Map(ownerStars.map(s => [s.id, s]));
+        for (let i = 0; i < ownerStars.length; i++) {
+            for (let j = i + 1; j < ownerStars.length; j++) {
+                const sA = ownerStars[i], sB = ownerStars[j];
+
+                // Same component = connected via allied path = no DX needed
+                if (find(sA.id) === find(sB.id)) continue;
+
+                const dist = Math.hypot(sB.x - sA.x, sB.y - sA.y);
+                if (dist > maxDistance) continue;
+
+                const midX = (sA.x + sB.x) / 2;
+                const midY = (sA.y + sB.y) / 2;
+
+                // Find nearest enemy star to the midpoint
+                let nearestEnemyId = '';
+                let nearestEnemyDist = Infinity;
+                for (const s of allStars) {
+                    if (!s.ownerId || s.ownerId === ownerId) continue;
+                    const d = Math.hypot(s.x - midX, s.y - midY);
+                    if (d < nearestEnemyDist) {
+                        nearestEnemyDist = d;
+                        nearestEnemyId = s.ownerId;
+                    }
+                }
+
+                if (!nearestEnemyId) continue;
+
+                result.push({
+                    x: midX,
+                    y: midY,
+                    weight: weightMultiplier,
+                    ownerId: nearestEnemyId,
+                    kind: 'disconnect',
+                    sourceStarA: sA.id,
+                    sourceStarB: sB.id,
+                });
+            }
         }
     }
 
