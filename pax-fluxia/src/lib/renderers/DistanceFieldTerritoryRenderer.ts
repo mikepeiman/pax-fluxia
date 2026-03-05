@@ -173,10 +173,21 @@ const territoryBitGl = {
                 }
             }
 
-            if (bestStar < 0 || bestOwner < 0 || bestOwner == 254) {
-                // No owner, or disconnect virtual (invisible territory pusher)
+            if (bestStar < 0 || bestOwner < 0) {
                 discard;
-            } else {
+            }
+
+            // Disconnect site won this pixel: show enemy territory instead
+            if (bestOwner == 254) {
+                if (enemyOwner >= 0 && enemyOwner != 254) {
+                    bestOwner = enemyOwner;
+                    bestInfluence = enemyInfluence;
+                } else {
+                    discard; // No enemy nearby — nothing to show
+                }
+            }
+
+            {
                 // Player color lookup
                 vec3 pc = vec3(0.5);
                 if (bestOwner == 0) pc = uPlayerColor0;

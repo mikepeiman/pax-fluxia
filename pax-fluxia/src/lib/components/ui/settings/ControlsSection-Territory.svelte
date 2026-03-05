@@ -1343,29 +1343,6 @@
         />
     </div>
 
-    <!-- Distance Metric -->
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Distance Metric</span>
-        </div>
-        <div class="button-group" style="margin-top:4px">
-            <button
-                class:active={(panel.dfDistanceMetric ?? "length") === "hops"}
-                onclick={() => {
-                    GAME_CONFIG.DF_DISTANCE_METRIC = "hops";
-                    updatePanel("dfDistanceMetric", "hops");
-                }}>Hops</button
-            >
-            <button
-                class:active={(panel.dfDistanceMetric ?? "length") === "length"}
-                onclick={() => {
-                    GAME_CONFIG.DF_DISTANCE_METRIC = "length";
-                    updatePanel("dfDistanceMetric", "length");
-                }}>Length</button
-            >
-        </div>
-    </div>
-
     <!-- Influence Weight -->
     <div class="var-row">
         <div class="row-top">
