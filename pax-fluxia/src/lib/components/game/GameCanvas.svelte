@@ -939,19 +939,20 @@
         if (zoomLevel === oldZoom) return; // Hit limit
 
         // Anchor: adjust pan so the same world point stays under cursor
+        // Must match the transform in applyZoomTransform (content-centered)
         const effectiveScale = baseScale * zoomLevel;
         const containerWidth = app.screen.width;
         const containerHeight = app.screen.height;
-        const scaledWidth = GAME_WIDTH * effectiveScale;
-        const scaledHeight = GAME_HEIGHT * effectiveScale;
-        const centerX = (containerWidth - scaledWidth) / 2;
-        const centerY = (containerHeight - scaledHeight) / 2;
+        const contentCenterX = contentMinX + contentWidth / 2;
+        const contentCenterY = contentMinY + contentHeight / 2;
+        const baselineX = containerWidth / 2 - contentCenterX * effectiveScale;
+        const baselineY = containerHeight / 2 - contentCenterY * effectiveScale;
 
-        // worldBefore should equal screenToWorld(screenX, screenY) after transform
-        // screenX = centerX - panOffsetX * effectiveScale + worldBefore.x * effectiveScale
-        // => panOffsetX = (centerX + worldBefore.x * effectiveScale - screenX) / effectiveScale
-        panOffsetX = worldBefore.x - (screenX - centerX) / effectiveScale;
-        panOffsetY = worldBefore.y - (screenY - centerY) / effectiveScale;
+        // worldBefore should remain under cursor after transform:
+        // screenX = baselineX - panOffsetX * es + worldBefore.x * es
+        // => panOffsetX = worldBefore.x - (screenX - baselineX) / es
+        panOffsetX = worldBefore.x - (screenX - baselineX) / effectiveScale;
+        panOffsetY = worldBefore.y - (screenY - baselineY) / effectiveScale;
 
         applyZoomTransform();
     }
