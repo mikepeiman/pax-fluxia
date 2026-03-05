@@ -211,10 +211,10 @@ const territoryBitGl = {
 
                 float alpha = uFillAlpha;
 
-                // Junction smoothing: at 3-way junctions where second-closest
-                // influence is close to best, blend alpha down for rounded corners
-                if (uSmoothing > 0.0 && secondInfluence < 1e8) {
-                    float junctionGap = secondInfluence - bestInfluence;
+                // Junction smoothing: round corners where enemy territory is close
+                // Only applies at inter-territory boundaries, NOT within same-owner area
+                if (uSmoothing > 0.0 && enemyOwner >= 0 && enemyOwner != 254) {
+                    float junctionGap = enemyInfluence - bestInfluence;
                     float junctionFade = smoothstep(0.0, uSmoothing, junctionGap);
                     alpha *= junctionFade;
                 }
@@ -267,6 +267,7 @@ let cachedMesh: PIXI.Mesh | null = null;
 let cachedMeshShader: PIXI.Shader | null = null;
 let cachedMeshWorldW = 0;
 let cachedMeshWorldH = 0;
+let cachedMeshExpansion = -1;
 let cachedBlurFilter: PIXI.BlurFilter | null = null;
 let cachedBlurStrength = -1;
 
@@ -653,7 +654,7 @@ function ensureMesh(worldWidth: number, worldHeight: number): PIXI.Shader {
     const expand = GAME_CONFIG.DF_EXPANSION ?? 0.10;
 
     // Check if we need to rebuild geometry (dimensions or expansion changed)
-    const dimsChanged = worldWidth !== cachedMeshWorldW || worldHeight !== cachedMeshWorldH;
+    const dimsChanged = worldWidth !== cachedMeshWorldW || worldHeight !== cachedMeshWorldH || expand !== cachedMeshExpansion;
     if (cachedMeshShader && !dimsChanged) return cachedMeshShader;
 
     // Expand mesh coverage: padding + 10% of world dimensions
@@ -678,6 +679,7 @@ function ensureMesh(worldWidth: number, worldHeight: number): PIXI.Shader {
         cachedMesh = new PIXI.Mesh({ geometry, shader: cachedMeshShader }) as any;
         cachedMeshWorldW = worldWidth;
         cachedMeshWorldH = worldHeight;
+        cachedMeshExpansion = expand;
         return cachedMeshShader;
     }
 
@@ -737,6 +739,7 @@ function ensureMesh(worldWidth: number, worldHeight: number): PIXI.Shader {
     cachedMesh = new PIXI.Mesh({ geometry, shader: cachedMeshShader }) as any;
     cachedMeshWorldW = worldWidth;
     cachedMeshWorldH = worldHeight;
+    cachedMeshExpansion = expand;
 
     return cachedMeshShader;
 }
