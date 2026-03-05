@@ -1452,6 +1452,29 @@
                 }}
             />
         </div>
+
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">⚖️ Corridor Weight</span><span
+                    class="val"
+                    >{(
+                        panel.dfCorridorWeight ?? GAME_CONFIG.DF_CORRIDOR_WEIGHT
+                    ).toFixed(1)}</span
+                >
+            </div>
+            <input
+                type="range"
+                min="0.1"
+                max="3.0"
+                step="0.1"
+                value={panel.dfCorridorWeight ?? GAME_CONFIG.DF_CORRIDOR_WEIGHT}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    GAME_CONFIG.DF_CORRIDOR_WEIGHT = v;
+                    updatePanel("dfCorridorWeight", v);
+                }}
+            />
+        </div>
     {/if}
 
     <div class="var-row">
@@ -1491,6 +1514,31 @@
                     const v = +(e.target as HTMLInputElement).value;
                     GAME_CONFIG.DF_DISCONNECT_DISTANCE = v;
                     updatePanel("dfDisconnectDistance", v);
+                }}
+            />
+        </div>
+
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">⚖️ Disconnect Weight</span><span
+                    class="val"
+                    >{(
+                        panel.dfDisconnectWeight ??
+                        GAME_CONFIG.DF_DISCONNECT_WEIGHT
+                    ).toFixed(2)}</span
+                >
+            </div>
+            <input
+                type="range"
+                min="0.05"
+                max="2.0"
+                step="0.05"
+                value={panel.dfDisconnectWeight ??
+                    GAME_CONFIG.DF_DISCONNECT_WEIGHT}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    GAME_CONFIG.DF_DISCONNECT_WEIGHT = v;
+                    updatePanel("dfDisconnectWeight", v);
                 }}
             />
         </div>

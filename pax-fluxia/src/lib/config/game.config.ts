@@ -281,8 +281,10 @@ interface GameConfigType {
     DF_SMOOTHING: number;           // Junction corner smoothing radius in influence units (0 = sharp, default 30)
     DF_CORRIDOR_ENABLED: boolean;   // Enable corridor virtual sites along same-owner lanes
     DF_CORRIDOR_SPACING: number;    // Distance between corridor virtual sites in px (default 60)
+    DF_CORRIDOR_WEIGHT: number;     // Corridor influence weight multiplier (default 1.0)
     DF_DISCONNECT_ENABLED: boolean; // Enable disconnect virtual sites between unconnected same-owner stars
     DF_DISCONNECT_DISTANCE: number; // Max distance for disconnect detection in px (default 400)
+    DF_DISCONNECT_WEIGHT: number;   // Disconnect influence weight multiplier (default 0.3)
 
     // ── Modified Voronoi Territory (F-138) ────────────────────────────────────
     MODIFIED_VORONOI_STAR_MARGIN: number;      // Min boundary distance from star centers in px (0-500)
@@ -1040,8 +1042,10 @@ const _rawConfig: GameConfigType = {
     DF_SMOOTHING: 30,
     DF_CORRIDOR_ENABLED: false,
     DF_CORRIDOR_SPACING: 60,
+    DF_CORRIDOR_WEIGHT: 1.0,
     DF_DISCONNECT_ENABLED: false,
     DF_DISCONNECT_DISTANCE: 400,
+    DF_DISCONNECT_WEIGHT: 0.3,
 
     // ── Contour Territory (5th mode — vector contour extraction) ──
     TERRITORY_CONTOUR: false,

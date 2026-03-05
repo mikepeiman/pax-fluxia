@@ -83,6 +83,8 @@ const territoryBitGl = {
             uniform float uContentMinX;
             uniform float uContentMinY;
             uniform float uSmoothing;
+            uniform float uCorridorBoost;
+            uniform float uDisconnectBoost;
             uniform vec3 uPlayerColor0;
             uniform vec3 uPlayerColor1;
             uniform vec3 uPlayerColor2;
@@ -139,7 +141,13 @@ const territoryBitGl = {
                 float dijkstra = mix(curDijkstra, prevDijkstra, uMorphFactor);
 
                 // Total influence = pixel distance + weighted graph distance
+                // Virtual sites (dijkstra=0) get a boost that makes them win more pixels
                 float influence = pixDist + dijkstra * uInfluenceWeight;
+
+                // Apply corridor/disconnect boost (stored in row 2, bytes 2-3)
+                vec4 ownerExtra = texelFetch(uStarData, ivec2(i, 2), 0);
+                float boost = decode16(ownerExtra, 1); // bytes 2-3 = influence boost
+                influence -= boost;
 
                 if (influence < bestInfluence) {
                     // Before replacing best: push old best to second
@@ -167,7 +175,7 @@ const territoryBitGl = {
 
             if (bestStar < 0 || bestOwner < 0 || bestOwner == 254) {
                 // No owner, or disconnect virtual (invisible territory pusher)
-                outColor = vec4(0.0);
+                discard;
             } else {
                 // Player color lookup
                 vec3 pc = vec3(0.5);
@@ -427,8 +435,8 @@ function buildConfigFp(): string {
         + `${GAME_CONFIG.DF_SATURATION}:${GAME_CONFIG.DF_LIGHTNESS}:`
         + `${GAME_CONFIG.DF_DISTANCE_METRIC}:${GAME_CONFIG.TERRITORY_TRANSITION_MS}:`
         + `${GAME_CONFIG.DF_EDGE_FADE}:${GAME_CONFIG.DF_RESOLUTION}:${GAME_CONFIG.DF_ROUNDING}:${GAME_CONFIG.DF_INFLUENCE_WEIGHT}`
-        + `:${GAME_CONFIG.DF_CORRIDOR_ENABLED}:${GAME_CONFIG.DF_CORRIDOR_SPACING}`
-        + `:${GAME_CONFIG.DF_DISCONNECT_ENABLED}:${GAME_CONFIG.DF_DISCONNECT_DISTANCE}`;
+        + `:${GAME_CONFIG.DF_CORRIDOR_ENABLED}:${GAME_CONFIG.DF_CORRIDOR_SPACING}:${GAME_CONFIG.DF_CORRIDOR_WEIGHT}`
+        + `:${GAME_CONFIG.DF_DISCONNECT_ENABLED}:${GAME_CONFIG.DF_DISCONNECT_DISTANCE}:${GAME_CONFIG.DF_DISCONNECT_WEIGHT}`;
 }
 
 function buildConnFp(connections: StarConnection[]): string {
@@ -593,14 +601,24 @@ function buildStarDataTexture(
         starDataBuffer[row1 + 2] = 0;
         starDataBuffer[row1 + 3] = 0;
 
-        // Row 2: owner — resolve to player index
+        // Row 2: owner — resolve to player index + influence boost
         const row2 = (2 * texW + i) * 4;
         if (vs.kind === 'disconnect') {
             starDataBuffer[row2] = DISCONNECT_PLAYER_INDEX + 1; // 255 (1-indexed)
+            // Encode disconnect boost as 16-bit in bytes 2-3
+            const boost = Math.round((vs.weight ?? 0.3) * 100);
+            const [bh, bl] = encode16(boost);
+            starDataBuffer[row2 + 2] = bh;
+            starDataBuffer[row2 + 3] = bl;
         } else {
             // Corridor: find the real player index for this owner
             const pIdx = playerIds.indexOf(vs.ownerId);
             starDataBuffer[row2] = pIdx >= 0 ? pIdx + 1 : 0;
+            // Encode corridor boost as 16-bit in bytes 2-3
+            const boost = Math.round((vs.weight ?? 1.0) * 100);
+            const [bh, bl] = encode16(boost);
+            starDataBuffer[row2 + 2] = bh;
+            starDataBuffer[row2 + 3] = bl;
         }
 
         // Row 3: previous distances = same as row 1 (no morph for virtuals)
@@ -713,6 +731,8 @@ function ensureMesh(worldWidth: number, worldHeight: number): PIXI.Shader {
                 uContentMinX: { value: 0, type: 'f32' },
                 uContentMinY: { value: 0, type: 'f32' },
                 uSmoothing: { value: 30, type: 'f32' },
+                uCorridorBoost: { value: 0, type: 'f32' },
+                uDisconnectBoost: { value: 0, type: 'f32' },
                 // Player colors
                 uPlayerColor0: { value: new Float32Array([1, 0, 0]), type: 'vec3<f32>' },
                 uPlayerColor1: { value: new Float32Array([0, 0, 1]), type: 'vec3<f32>' },
@@ -788,6 +808,8 @@ function updateFilterUniforms(
     u.uContentMinX = stars.length > 0 ? minX - pad : 0;
     u.uContentMinY = stars.length > 0 ? minY - pad : 0;
     u.uSmoothing = GAME_CONFIG.DF_SMOOTHING ?? 30;
+    // Note: corridor/disconnect boosts are encoded per-site in the data texture,
+    // not as uniforms. The weights are applied via vs.weight → encode16 → shader decode.
 
     // Pack player colors (0-1 range)
     for (let i = 0; i < Math.min(nPlayers, MAX_PLAYERS); i++) {
@@ -924,14 +946,23 @@ export function renderDistanceFieldTerritory(
 
         if (GAME_CONFIG.DF_CORRIDOR_ENABLED && conns.length > 0) {
             const spacing = GAME_CONFIG.DF_CORRIDOR_SPACING ?? 60;
-            virtuals = virtuals.concat(computeCorridorVirtuals(ownedStars, conns, spacing));
+            const weight = GAME_CONFIG.DF_CORRIDOR_WEIGHT ?? 1.0;
+            const corridorSites = computeCorridorVirtuals(ownedStars, conns, spacing);
+            // Apply weight to all corridor sites
+            for (const s of corridorSites) s.weight = weight;
+            virtuals = virtuals.concat(corridorSites);
+            console.log(`[DF] Corridors: ${corridorSites.length} sites (spacing=${spacing}, weight=${weight})`);
         }
 
         if (GAME_CONFIG.DF_DISCONNECT_ENABLED && conns.length > 0) {
             const maxDist = GAME_CONFIG.DF_DISCONNECT_DISTANCE ?? 400;
-            virtuals = virtuals.concat(computeDisconnectVirtuals(ownedStars, conns, maxDist));
+            const weight = GAME_CONFIG.DF_DISCONNECT_WEIGHT ?? 0.3;
+            const disconnectSites = computeDisconnectVirtuals(ownedStars, conns, maxDist, weight);
+            virtuals = virtuals.concat(disconnectSites);
+            console.log(`[DF] Disconnects: ${disconnectSites.length} sites (maxDist=${maxDist}, weight=${weight})`);
         }
 
+        console.log(`[DF] Total packed: ${stars.length} real + ${virtuals.length} virtual = ${stars.length + virtuals.length}`);
         // Pack star data + virtual sites into data texture
         buildStarDataTexture(stars, currentDist, prevDist, currentPlayerIds, virtuals);
     }
