@@ -25,6 +25,7 @@ import { weightedVoronoi } from 'd3-weighted-voronoi';
 import { GAME_CONFIG } from '$lib/config/game.config';
 import type { StarState, StarConnection } from '$lib/types/game.types';
 import { findConnectedClustersOptimized } from './territoryUtils';
+import { computeCorridorVirtuals, computeDisconnectVirtuals, DISCONNECT_OWNER_ID } from './territoryFeatures';
 import type { ColorUtils } from './RenderContext';
 import { log } from '$lib/utils/logger';
 
@@ -786,76 +787,38 @@ export function renderPowerVoronoi(
         starId: s.id,
     }));
 
-    // Corridor virtual sites
+    // Corridor virtual sites (shared module)
     if (GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED && connections) {
         const spacing = GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING ?? 60;
-        const starMap = new Map(ownedStars.map(s => [s.id, s]));
-        for (const conn of connections) {
-            const sA = starMap.get(conn.sourceId);
-            const sB = starMap.get(conn.targetId);
-            if (!sA || !sB || sA.ownerId !== sB.ownerId) continue;
-
-            const dx = sB.x - sA.x, dy = sB.y - sA.y;
-            const dist = Math.hypot(dx, dy);
-            if (dist < spacing) continue;
-
-            const steps = Math.floor(dist / spacing);
-            for (let step = 1; step < steps; step++) {
-                const t = step / steps;
-                sites.push({
-                    x: sA.x + dx * t,
-                    y: sA.y + dy * t,
-                    weight: starMargin * starMargin * 0.5,  // half-weight for corridors
-                    ownerId: sA.ownerId!,
-                    starId: `corridor_${conn.sourceId}_${conn.targetId}_${step}`,
-                    virtual: 'corridor',
-                });
-            }
+        const corridorVirtuals = computeCorridorVirtuals(ownedStars, connections, spacing, 0.5);
+        for (const cv of corridorVirtuals) {
+            sites.push({
+                x: cv.x,
+                y: cv.y,
+                weight: starMargin * starMargin * cv.weight,
+                ownerId: cv.ownerId,
+                starId: `corridor_${cv.sourceStarA}_${cv.sourceStarB}`,
+                virtual: 'corridor',
+            });
         }
     }
 
-    // Disconnect virtual enemy sites — separate non-connected same-owner territories
+    // Disconnect virtual enemy sites (shared module)
     if (GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED && connections) {
         const maxDist = GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE ?? 400;
-
-        // Build set of connected same-owner pairs (bidirectional)
-        const connectedPairs = new Set<string>();
-        const starMap = new Map(ownedStars.map(s => [s.id, s]));
-        for (const conn of connections) {
-            const sA = starMap.get(conn.sourceId);
-            const sB = starMap.get(conn.targetId);
-            if (!sA || !sB || sA.ownerId !== sB.ownerId) continue;
-            connectedPairs.add(`${conn.sourceId}|${conn.targetId}`);
-            connectedPairs.add(`${conn.targetId}|${conn.sourceId}`);
+        const disconnectVirtuals = computeDisconnectVirtuals(ownedStars, connections, maxDist, 0.3);
+        for (const dv of disconnectVirtuals) {
+            sites.push({
+                x: dv.x,
+                y: dv.y,
+                weight: starMargin * starMargin * dv.weight,
+                ownerId: DISCONNECT_OWNER_ID,
+                starId: `disconnect_${dv.sourceStarA}_${dv.sourceStarB}`,
+                virtual: 'disconnect',
+            });
         }
-
-        // For each pair of same-owner stars NOT connected, inject enemy virtual site
-        let disconnectCount = 0;
-        for (let i = 0; i < ownedStars.length; i++) {
-            for (let j = i + 1; j < ownedStars.length; j++) {
-                const sA = ownedStars[i], sB = ownedStars[j];
-                if (sA.ownerId !== sB.ownerId) continue;
-                if (connectedPairs.has(`${sA.id}|${sB.id}`)) continue;
-
-                const dist = Math.hypot(sB.x - sA.x, sB.y - sA.y);
-                if (dist > maxDist) continue;
-
-                // Place enemy virtual site at midpoint
-                const mx = (sA.x + sB.x) / 2;
-                const my = (sA.y + sB.y) / 2;
-                sites.push({
-                    x: mx,
-                    y: my,
-                    weight: starMargin * starMargin * 0.3,  // small weight
-                    ownerId: `__disconnect__`,               // synthetic owner — won't merge with anything
-                    starId: `disconnect_${sA.id}_${sB.id}`,
-                    virtual: 'disconnect',
-                });
-                disconnectCount++;
-            }
-        }
-        if (disconnectCount > 0) {
-            log.sys('PowerVoronoi', `Injected ${disconnectCount} disconnect virtual sites`);
+        if (disconnectVirtuals.length > 0) {
+            log.sys('PowerVoronoi', `Injected ${disconnectVirtuals.length} disconnect virtual sites`);
         }
     }
 
