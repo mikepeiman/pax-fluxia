@@ -101,11 +101,12 @@ const territoryBitGl = {
             // For each star, compute total influence = pixel distance + Dijkstra distance
             // The star with lowest total influence "owns" this pixel
             float bestInfluence = 1e9;
-            float secondInfluence = 1e9;
             int bestStar = -1;
-            int secondStar = -1;
             int bestOwner = -1;
-            int secondOwner = -1;
+            // Track closest star with a DIFFERENT owner (for border drawing)
+            float enemyInfluence = 1e9;
+            int enemyStar = -1;
+            int enemyOwner = -1;
 
             for (int i = 0; i < 256; i++) {
                 if (i >= uNumStars) break;
@@ -134,16 +135,21 @@ const territoryBitGl = {
                 float influence = pixDist + dijkstra * uInfluenceWeight;
 
                 if (influence < bestInfluence) {
-                    secondInfluence = bestInfluence;
-                    secondStar = bestStar;
-                    secondOwner = bestOwner;
+                    // Before replacing best: if old best had a different owner than
+                    // this new best, old best becomes the new enemy candidate
+                    if (bestOwner >= 0 && bestOwner != ownIdx && bestInfluence < enemyInfluence) {
+                        enemyInfluence = bestInfluence;
+                        enemyStar = bestStar;
+                        enemyOwner = bestOwner;
+                    }
                     bestInfluence = influence;
                     bestStar = i;
                     bestOwner = ownIdx;
-                } else if (influence < secondInfluence && ownIdx != bestOwner) {
-                    secondInfluence = influence;
-                    secondStar = i;
-                    secondOwner = ownIdx;
+                } else if (ownIdx != bestOwner && influence < enemyInfluence) {
+                    // Track closest star with DIFFERENT owner
+                    enemyInfluence = influence;
+                    enemyStar = i;
+                    enemyOwner = ownIdx;
                 }
             }
 
@@ -192,9 +198,9 @@ const territoryBitGl = {
 
                 float alpha = uFillAlpha;
 
-                // Border: where influence of best and second-best (different owner) are close
-                if (secondOwner >= 0) {
-                    float borderDist = abs(bestInfluence - secondInfluence);
+                // Border: where influence of best and closest enemy (different owner) are close
+                if (enemyOwner >= 0) {
+                    float borderDist = abs(bestInfluence - enemyInfluence);
                     float borderFactor = 1.0 - smoothstep(uBorderWidth - uBorderSoftness, uBorderWidth + uBorderSoftness, borderDist);
                     if (borderFactor > 0.0) {
                         vec3 borderColor = min(finalRGB + vec3(uBorderBrighten / 255.0), vec3(1.0));
