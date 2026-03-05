@@ -244,6 +244,8 @@ let cachedConfigFp = '';
 let cachedConnFp = '';
 let cachedMesh: PIXI.Mesh | null = null;
 let cachedMeshShader: PIXI.Shader | null = null;
+let cachedMeshWorldW = 0;
+let cachedMeshWorldH = 0;
 let cachedBlurFilter: PIXI.BlurFilter | null = null;
 let cachedBlurStrength = -1;
 
@@ -629,18 +631,40 @@ function ensureMesh(worldWidth: number, worldHeight: number): PIXI.Shader {
     const padding = GAME_CONFIG.DF_EDGE_FADE ?? 200;
     const expand = 0.10; // 10% expansion beyond padding to cover full star map
 
-    if (cachedMeshShader) return cachedMeshShader;
-
-    const glProgram = compileHighShaderGlProgram({
-        bits: [localUniformBitGl, territoryBitGl, roundPixelsBitGl],
-        name: 'territory-distance-field',
-    });
+    // Check if we need to rebuild geometry (dimensions changed)
+    const dimsChanged = worldWidth !== cachedMeshWorldW || worldHeight !== cachedMeshWorldH;
+    if (cachedMeshShader && !dimsChanged) return cachedMeshShader;
 
     // Expand mesh coverage: padding + 10% of world dimensions
     const extraX = worldWidth * expand;
     const extraY = worldHeight * expand;
     const x0 = -padding - extraX, y0 = -padding - extraY;
     const x1 = worldWidth + padding + extraX, y1 = worldHeight + padding + extraY;
+
+    // If shader already exists but dimensions changed, rebuild geometry only
+    if (cachedMeshShader && dimsChanged) {
+        const geometry = new PIXI.MeshGeometry({
+            positions: new Float32Array([x0, y0, x1, y0, x1, y1, x0, y1]),
+            uvs: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
+            indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
+            topology: 'triangle-list',
+        });
+        if (cachedMesh) {
+            const parent = cachedMesh.parent;
+            if (parent) parent.removeChild(cachedMesh);
+            cachedMesh.destroy();
+        }
+        cachedMesh = new PIXI.Mesh({ geometry, shader: cachedMeshShader }) as any;
+        cachedMeshWorldW = worldWidth;
+        cachedMeshWorldH = worldHeight;
+        return cachedMeshShader;
+    }
+
+    // First time: compile shader program
+    const glProgram = compileHighShaderGlProgram({
+        bits: [localUniformBitGl, territoryBitGl, roundPixelsBitGl],
+        name: 'territory-distance-field',
+    });
 
     cachedMeshShader = new PIXI.Shader({
         glProgram,
@@ -687,6 +711,8 @@ function ensureMesh(worldWidth: number, worldHeight: number): PIXI.Shader {
     });
 
     cachedMesh = new PIXI.Mesh({ geometry, shader: cachedMeshShader }) as any;
+    cachedMeshWorldW = worldWidth;
+    cachedMeshWorldH = worldHeight;
 
     return cachedMeshShader;
 }
