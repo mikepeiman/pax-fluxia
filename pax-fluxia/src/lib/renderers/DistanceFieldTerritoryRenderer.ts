@@ -663,6 +663,12 @@ function updateFilterUniforms(
     if (starDataTexture) {
         cachedMeshShader.resources.uStarData = starDataTexture.source;
     }
+
+    // CRITICAL: Flag the UniformGroup as dirty so PIXI re-uploads to GPU
+    const ug = cachedMeshShader.resources.territoryUniforms as any;
+    if (ug && typeof ug.update === 'function') {
+        ug.update();
+    }
 }
 
 // ============================================================================
