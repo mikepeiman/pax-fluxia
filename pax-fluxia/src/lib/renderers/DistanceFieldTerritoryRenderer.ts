@@ -431,6 +431,9 @@ function buildLaneIndex(
     }
 }
 
+// Cached PIXI app reference for future Pass 1 rendering
+let cachedApp: PIXI.Application | null = null;
+
 // ============================================================================
 // Fingerprints (PRESERVED FROM V1, minus DF_RESOLUTION/DF_ROUNDING)
 // ============================================================================
@@ -890,11 +893,15 @@ export function renderDistanceFieldTerritory(
     worldWidth: number,
     worldHeight: number,
     connections?: StarConnection[],
+    app?: PIXI.Application,
 ): void {
     if (!GAME_CONFIG.TERRITORY_DISTANCE_FIELD) {
         if (cachedMesh) cachedMesh.visible = false;
         return;
     }
+
+    // Cache the PIXI app reference for future rendering passes
+    if (app) cachedApp = app;
 
     const now = performance.now();
     const conns = connections ?? [];
@@ -1045,6 +1052,7 @@ export function resetDistanceFieldTerritoryCache(): void {
     starDataBuffer = null;
     cachedBlurFilter = null;
     cachedBlurStrength = -1;
+    cachedApp = null;
     laneArray = [];
     laneCells = new Map();
 }
