@@ -28,13 +28,13 @@ const roundPixelsBitGl = {
 import { GAME_CONFIG } from '$lib/config/game.config';
 import type { StarState, StarConnection } from '$lib/types/game.types';
 import type { ColorUtils } from './RenderContext';
-import { computeCorridorVirtuals, computeDisconnectVirtuals, DISCONNECT_OWNER_ID, type VirtualSite } from './territoryFeatures';
+import { computeCorridorVirtuals, computeDisconnectVirtuals, type VirtualSite } from './territoryFeatures';
 
 
 // Ã¢â€â‚¬Ã¢â€â‚¬ Constants Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 const MAX_STARS = 128; // Increased to accommodate virtual sites (corridors + disconnects)
 const MAX_PLAYERS = 8;
-const DISCONNECT_PLAYER_INDEX = 254; // Synthetic player index for disconnect virtuals (shader skips rendering)
+
 
 // Ã¢â€â‚¬Ã¢â€â‚¬ Types Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 interface LaneData {
@@ -175,16 +175,6 @@ const territoryBitGl = {
 
             if (bestStar < 0 || bestOwner < 0) {
                 discard;
-            }
-
-            // Disconnect site won this pixel: show enemy territory instead
-            if (bestOwner == 254) {
-                if (enemyOwner >= 0 && enemyOwner != 254) {
-                    bestOwner = enemyOwner;
-                    bestInfluence = enemyInfluence;
-                } else {
-                    discard; // No enemy nearby — nothing to show
-                }
             }
 
             {
@@ -614,23 +604,13 @@ function buildStarDataTexture(
 
         // Row 2: owner — resolve to player index + influence boost
         const row2 = (2 * texW + i) * 4;
-        if (vs.kind === 'disconnect') {
-            starDataBuffer[row2] = DISCONNECT_PLAYER_INDEX + 1; // 255 (1-indexed)
-            // Encode disconnect boost as 16-bit in bytes 2-3
-            const boost = Math.round((vs.weight ?? 0.3) * 100);
-            const [bh, bl] = encode16(boost);
-            starDataBuffer[row2 + 2] = bh;
-            starDataBuffer[row2 + 3] = bl;
-        } else {
-            // Corridor: find the real player index for this owner
-            const pIdx = playerIds.indexOf(vs.ownerId);
-            starDataBuffer[row2] = pIdx >= 0 ? pIdx + 1 : 0;
-            // Encode corridor boost as 16-bit in bytes 2-3
-            const boost = Math.round((vs.weight ?? 1.0) * 100);
-            const [bh, bl] = encode16(boost);
-            starDataBuffer[row2 + 2] = bh;
-            starDataBuffer[row2 + 3] = bl;
-        }
+        const pIdx = playerIds.indexOf(vs.ownerId);
+        starDataBuffer[row2] = pIdx >= 0 ? pIdx + 1 : 0;
+        // Encode boost as 16-bit in bytes 2-3
+        const boost = Math.round((vs.weight ?? 1.0) * 100);
+        const [bh, bl] = encode16(boost);
+        starDataBuffer[row2 + 2] = bh;
+        starDataBuffer[row2 + 3] = bl;
 
         // Row 3: previous distances = same as row 1 (no morph for virtuals)
         const row3 = (3 * texW + i) * 4;
@@ -968,7 +948,7 @@ export function renderDistanceFieldTerritory(
         if (GAME_CONFIG.DF_DISCONNECT_ENABLED && conns.length > 0) {
             const maxDist = GAME_CONFIG.DF_DISCONNECT_DISTANCE ?? 400;
             const weight = GAME_CONFIG.DF_DISCONNECT_WEIGHT ?? 0.3;
-            const disconnectSites = computeDisconnectVirtuals(ownedStars, conns, maxDist, weight);
+            const disconnectSites = computeDisconnectVirtuals(ownedStars, stars, conns, maxDist, weight);
             virtuals = virtuals.concat(disconnectSites);
             console.log(`[DF] Disconnects: ${disconnectSites.length} sites (maxDist=${maxDist}, weight=${weight})`);
         }

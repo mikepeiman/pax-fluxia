@@ -26,7 +26,7 @@ export interface VirtualSite {
     y: number;
     /** Influence weight multiplier (relative to real star weight) */
     weight: number;
-    /** Owner ID — real player for corridors, synthetic `__disconnect__` for disconnects */
+    /** Owner ID — real player for corridors and disconnects */
     ownerId: string;
     /** Semantic kind — always present, never omitted */
     kind: 'corridor' | 'disconnect';
@@ -96,10 +96,12 @@ export function computeCorridorVirtuals(
  * Generate disconnect virtual sites between unconnected same-owner stars.
  *
  * When a player owns two stars that are NOT connected by a direct lane,
- * an enemy virtual site appears at their midpoint, creating a hard territory
- * gap. The middle ~33% between those stars becomes enemy-occupied space.
+ * an enemy virtual site appears at their midpoint using the nearest
+ * enemy player's ownerId. This makes enemy territory fill the gap
+ * naturally through normal influence competition.
  *
  * @param ownedStars Stars that have an owner
+ * @param allStars ALL stars (needed to find nearest enemy)
  * @param connections All star connections (lanes)
  * @param maxDistance Maximum distance to consider (stars farther apart are ignored)
  * @param weightMultiplier Weight relative to base (default 0.3)
@@ -107,6 +109,7 @@ export function computeCorridorVirtuals(
  */
 export function computeDisconnectVirtuals(
     ownedStars: StarState[],
+    allStars: StarState[],
     connections: StarConnection[],
     maxDistance: number,
     weightMultiplier = 0.3,
@@ -134,12 +137,29 @@ export function computeDisconnectVirtuals(
             const dist = Math.hypot(sB.x - sA.x, sB.y - sA.y);
             if (dist > maxDistance) continue;
 
-            // Place enemy virtual site at midpoint
+            const midX = (sA.x + sB.x) / 2;
+            const midY = (sA.y + sB.y) / 2;
+
+            // Find nearest enemy star to the midpoint
+            let nearestEnemyId = '';
+            let nearestEnemyDist = Infinity;
+            for (const s of allStars) {
+                if (!s.ownerId || s.ownerId === sA.ownerId) continue;
+                const d = Math.hypot(s.x - midX, s.y - midY);
+                if (d < nearestEnemyDist) {
+                    nearestEnemyDist = d;
+                    nearestEnemyId = s.ownerId;
+                }
+            }
+
+            // Only create disconnect if there's an enemy to fill the gap
+            if (!nearestEnemyId) continue;
+
             result.push({
-                x: (sA.x + sB.x) / 2,
-                y: (sA.y + sB.y) / 2,
+                x: midX,
+                y: midY,
                 weight: weightMultiplier,
-                ownerId: DISCONNECT_OWNER_ID,
+                ownerId: nearestEnemyId,
                 kind: 'disconnect',
                 sourceStarA: sA.id,
                 sourceStarB: sB.id,

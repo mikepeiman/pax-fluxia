@@ -79,3 +79,17 @@ This matches PVV2's visual behavior: the gap between unconnected same-owner star
 ## Recommendation
 
 **Use the "fallback to enemy" approach** — it keeps disconnect sites in the influence competition (so they actually push boundaries) but renders enemy-colored territory instead of black voids. This most closely matches PVV2's behavior.
+
+**UPDATE (2026-03-05 10:00):** Implemented the correct approach — disconnect virtual sites now use the nearest enemy player's actual `ownerId` instead of `DISCONNECT_OWNER_ID`. This makes enemy territory fill gaps naturally through normal influence competition. No shader special cases needed. The shader no longer references owner 254 at all.
+
+## User Visual Feedback (2026-03-05 10:09)
+
+From annotated screenshot — three observations for follow-up work:
+
+1. **Star minimum territory buffers** — "The darker blue territory is too squished, we need star minimum territory buffers." Stars at the edges of territory get crowded. Need to implement a minimum distance from star centers (at least 5 orbit radii) before territory boundaries can exist.
+
+2. **Sharp corners need smoothing** — Red boxes highlight specific 3-way junctions where territory corners are too sharp. The current `uSmoothing` alpha-fade approach may not be sufficient; may need stronger smoothing or a different algorithm (e.g., `smin`-based soft minimum for influence blending).
+
+3. **Another sharp corner** — Bottom-center area shows another corner that is "way too sharp and needs a trim."
+
+These are separate tasks from disconnect — document here as reference.
