@@ -1172,6 +1172,7 @@
                     GAME_WIDTH,
                     GAME_HEIGHT,
                     activeGameStore.connections as StarConnection[],
+                    app,
                 );
             }
         }
