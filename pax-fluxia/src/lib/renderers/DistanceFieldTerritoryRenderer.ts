@@ -1464,15 +1464,13 @@ export function renderDistanceFieldTerritory(
 
     updatePass2Uniforms(stars, colorUtils, worldWidth, worldHeight);
 
-    // —— PASS 3: Vector border overlay ——
-    // Only recompute when ownership changes (avoids per-frame GPU readback)
-    const borderFpNow = ownerFp + ':' + (GAME_CONFIG.DF_BORDER_WIDTH ?? 5) + ':' + (GAME_CONFIG.DF_BORDER_ALPHA ?? 0.8) + ':' + (GAME_CONFIG.DF_BORDER_BRIGHTEN ?? 20);
-    if (cachedApp && ownershipRT && borderFpNow !== cachedBorderOwnerFp) {
-        cachedBorderOwnerFp = borderFpNow;
-        drawVectorBorders(
-            container, cachedApp, ownershipRT, colorUtils,
-            cachedMeshX0, cachedMeshY0, cachedMeshW, cachedMeshH,
-        );
+    // —— PASS 3: Vector border overlay — DISABLED ——
+    // GPU neighbor-sampling borders in Pass 2 replace this.
+    // Pass 3 had known issues (B-35: async extract.pixels) and
+    // was drawing broken polygon outlines on top of GPU borders.
+    // Clear any existing border graphics from previous frames.
+    if (borderGraphics) {
+        borderGraphics.clear();
     }
 
     // —— Apply filter pipeline ——
