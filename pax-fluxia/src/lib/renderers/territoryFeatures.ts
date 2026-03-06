@@ -115,11 +115,12 @@ export function computeCorridorVirtuals(
 export function computeDisconnectVirtuals(
     ownedStars: StarState[],
     allStars: StarState[],
-    connections: StarConnection[],
+    connections: StarConnection[] | undefined,
     maxDistance: number,
     weightMultiplier = 0.3,
 ): VirtualSite[] {
     const result: VirtualSite[] = [];
+    if (!connections || connections.length === 0) return result;
 
     // Group owned stars by owner
     const byOwner = new Map<string, StarState[]>();
