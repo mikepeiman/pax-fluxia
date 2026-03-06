@@ -306,10 +306,10 @@ const visualBitGl = {
             // Reads the SAME ownership RT as the fill. During morph
             // transitions, borders track ownership automatically.
             //
-            if (uBordersEnabled > 0.5 && uBorderWidth > 0.0) {
+            if (uBordersEnabled > 0.5) {
                 float tw = 1.0 / uTexWidth;
                 float th = 1.0 / uTexHeight;
-                float radius = uBorderWidth;
+                float radius = max(uBorderWidth, 1.0);
 
                 // Sample 4 cardinal neighbors at search radius
                 vec4 sE = texture(uOwnershipTex, vUV + vec2( tw * radius, 0.0));
