@@ -1305,6 +1305,23 @@
     {#if panel.dfBordersEnabled ?? true}
         <div class="var-row">
             <div class="row-top">
+                <span class="var-name">Border Mode</span>
+            </div>
+            <div style="display:flex;gap:4px;padding:2px 0">
+                {#each [{ id: 0, label: "Gap" }, { id: 1, label: "Even" }, { id: 2, label: "Layered" }] as mode}
+                    <button
+                        class="mode-btn"
+                        class:active={(panel.dfBorderMode ?? 1) === mode.id}
+                        onclick={() => {
+                            GAME_CONFIG.DF_BORDER_MODE = mode.id;
+                            updatePanel("dfBorderMode", mode.id);
+                        }}>{mode.label}</button
+                    >
+                {/each}
+            </div>
+        </div>
+        <div class="var-row">
+            <div class="row-top">
                 <span class="var-name">Border Width</span><span class="val"
                     >{(panel.dfBorderWidth ?? 15).toFixed(0)}px</span
                 >
@@ -2784,6 +2801,27 @@
         padding: 0 4px;
         border-bottom: 1px solid rgba(255, 255, 255, 0.08);
         padding-bottom: 3px;
+    }
+    .mode-btn {
+        flex: 1;
+        padding: 3px 6px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 3px;
+        color: rgba(255, 255, 255, 0.5);
+        font-size: 0.7rem;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+    .mode-btn:hover {
+        border-color: rgba(100, 200, 255, 0.3);
+        color: #93c5fd;
+    }
+    .mode-btn.active {
+        background: rgba(100, 200, 255, 0.15);
+        border-color: rgba(100, 200, 255, 0.4);
+        color: #93c5fd;
+        font-weight: 600;
     }
     .var-row {
         display: flex;

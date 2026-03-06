@@ -73,6 +73,7 @@ const territoryBitGl = {
             uniform float uBorderSoftness;
             uniform float uBorderAlpha;
             uniform float uBorderBrighten;
+            uniform int uBorderMode;
             uniform float uFillAlpha;
             uniform float uEdgeFade;
             uniform float uHueShift;
@@ -239,18 +240,38 @@ const territoryBitGl = {
                     alpha *= junctionFade;
                 }
 
-                // Border: smooth line at territory boundaries using influence gap
-                // gap = 0 right at boundary, grows as you move into territory interior
+                // ── Border rendering (3 modes) ──
+                // gap = 0 at boundary, grows into territory interior
                 if (enemyOwner >= 0 && uBorderWidth > 0.0) {
                     float gap = enemyInfluence - bestInfluence;
-                    float borderThreshold = uBorderWidth;
-                    float softEdge = uBorderSoftness;
-                    // borderMask: 1.0 AT the border (gap=0), fading to 0.0 past borderWidth
-                    float borderMask = 1.0 - smoothstep(
-                        max(borderThreshold - softEdge, 0.0),
-                        borderThreshold + softEdge,
-                        gap
-                    );
+                    float borderMask = 0.0;
+
+                    if (uBorderMode == 0) {
+                        // Mode 0: "Gap" — raw influence gap threshold (organic, variable width)
+                        borderMask = 1.0 - smoothstep(
+                            max(uBorderWidth - uBorderSoftness, 0.0),
+                            uBorderWidth + uBorderSoftness,
+                            gap
+                        );
+                    } else if (uBorderMode == 1) {
+                        // Mode 1: "Even" — normalize by bestInfluence gradient for uniform screen-width
+                        float gradMag = max(fwidth(bestInfluence), 0.5);
+                        float normGap = gap / gradMag;
+                        borderMask = 1.0 - smoothstep(
+                            max(uBorderWidth - uBorderSoftness, 0.0),
+                            uBorderWidth + uBorderSoftness,
+                            normGap
+                        );
+                    } else {
+                        // Mode 2: "Layered" — normalize by gap gradient (variable, layered look)
+                        float gradMag = max(fwidth(gap), 1.0);
+                        float normGap = gap / gradMag;
+                        borderMask = 1.0 - smoothstep(
+                            max(uBorderWidth - uBorderSoftness, 0.0),
+                            uBorderWidth + uBorderSoftness,
+                            normGap
+                        );
+                    }
 
                     if (borderMask > 0.0) {
                         // Look up enemy player color
@@ -747,6 +768,7 @@ function ensureMesh(worldWidth: number, worldHeight: number): PIXI.Shader {
                 uBorderSoftness: { value: 10, type: 'f32' },
                 uBorderAlpha: { value: 0.6, type: 'f32' },
                 uBorderBrighten: { value: 60, type: 'f32' },
+                uBorderMode: { value: 0, type: 'i32' },
                 uFillAlpha: { value: 0.15, type: 'f32' },
                 uEdgeFade: { value: 200, type: 'f32' },
                 uHueShift: { value: 0, type: 'f32' },
@@ -820,6 +842,7 @@ function updateFilterUniforms(
     u.uBorderSoftness = GAME_CONFIG.DF_BORDER_SOFTNESS ?? 3;
     u.uBorderAlpha = GAME_CONFIG.DF_BORDER_ALPHA ?? 0.8;
     u.uBorderBrighten = GAME_CONFIG.DF_BORDER_BRIGHTEN ?? 20;
+    u.uBorderMode = GAME_CONFIG.DF_BORDER_MODE ?? 1;
     u.uFillAlpha = GAME_CONFIG.DF_ALPHA ?? 0.2;
     u.uEdgeFade = GAME_CONFIG.DF_EDGE_FADE ?? 200;
     u.uHueShift = GAME_CONFIG.DF_HUE ?? 0;

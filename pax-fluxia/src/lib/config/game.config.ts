@@ -269,6 +269,7 @@ interface GameConfigType {
     DF_BORDER_SOFTNESS: number;     // Border feather width in world px (default 8)
     DF_BORDER_ALPHA: number;        // Border opacity multiplier (default 0.8)
     DF_BORDER_BRIGHTEN: number;     // Border color brightening amount 0-255 (default 40)
+    DF_BORDER_MODE: number;         // Border rendering mode: 0=gap (organic), 1=even (uniform width), 2=layered (fwidth-diff)
     DF_DISTANCE_METRIC: 'hops' | 'length'; // Distance metric (default 'length')
     DF_BLUR: number;                // Post-render blur strength (default 2)
     DF_HUE: number;                 // Hue shift in degrees -180..180 (default 0)
@@ -1033,6 +1034,7 @@ const _rawConfig: GameConfigType = {
     DF_BORDER_SOFTNESS: 10,
     DF_BORDER_ALPHA: 0.6,
     DF_BORDER_BRIGHTEN: 60,
+    DF_BORDER_MODE: 1,
     DF_DISTANCE_METRIC: 'length' as const,
     DF_BLUR: 2,
     DF_HUE: 0,
