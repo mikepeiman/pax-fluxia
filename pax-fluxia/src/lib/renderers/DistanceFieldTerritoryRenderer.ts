@@ -239,15 +239,20 @@ const territoryBitGl = {
                     alpha *= junctionFade;
                 }
 
-                // Border: single blended line ON the boundary between two different owners
-                if (enemyOwner >= 0) {
-                    float borderDist = abs(bestInfluence - enemyInfluence);
-                    // Normalize by gradient to get constant screen-space width
-                    // Clamp grad minimum to 1.0 to prevent noisy/segmented borders at junctions
-                    float grad = max(fwidth(bestInfluence - enemyInfluence), 1.0);
-                    float normDist = borderDist / grad;
-                    float borderFactor = 1.0 - smoothstep(uBorderWidth - uBorderSoftness, uBorderWidth + uBorderSoftness, normDist);
-                    if (borderFactor > 0.0) {
+                // Border: smooth line at territory boundaries using influence gap
+                // gap = 0 right at boundary, grows as you move into territory interior
+                if (enemyOwner >= 0 && uBorderWidth > 0.0) {
+                    float gap = enemyInfluence - bestInfluence;
+                    float borderThreshold = uBorderWidth;
+                    float softEdge = uBorderSoftness;
+                    // borderMask: 1.0 AT the border (gap=0), fading to 0.0 past borderWidth
+                    float borderMask = 1.0 - smoothstep(
+                        max(borderThreshold - softEdge, 0.0),
+                        borderThreshold + softEdge,
+                        gap
+                    );
+
+                    if (borderMask > 0.0) {
                         // Look up enemy player color
                         vec3 ec = vec3(0.5);
                         if (enemyOwner == 0) ec = uPlayerColor0;
@@ -262,8 +267,8 @@ const territoryBitGl = {
                         // Blend both owners' colors 50/50 + brighten for contrast
                         vec3 borderColor = (pc + ec) * 0.5;
                         borderColor = min(borderColor + vec3(uBorderBrighten / 255.0), vec3(1.0));
-                        finalRGB = mix(finalRGB, borderColor, borderFactor);
-                        alpha = mix(alpha, uBorderAlpha, borderFactor);
+                        finalRGB = mix(finalRGB, borderColor, borderMask);
+                        alpha = mix(alpha, uBorderAlpha, borderMask);
                     }
                 }
 
