@@ -293,32 +293,29 @@ const visualBitGl = {
                 alpha *= junctionFade;
             }
 
-            // ── BORDER DIAGNOSTIC — exact redline from 07a3588 ────
-            if (uBordersEnabled > 0.5) {
-                float tw = 1.0 / uTexWidth;
-                float th = 1.0 / uTexHeight;
-                float radius = max(uBorderWidth, 1.0);
+            // ── GPU SDF Borders ──────────────────────────────────────
+            // gapNorm is the SDF: 0.0 = ON the border, 1.0 = deep inside
+            // smoothstep creates a soft falloff from border to fill
+            // Restored from working commit 3ab68c2
+            if (uBordersEnabled > 0.5 && enemyOwner >= 0) {
+                float borderThreshold = uBorderWidth / 200.0;
+                float softEdge = uBorderSoftness / 200.0;
+                // borderMask: 1.0 AT the border, fading to 0.0 past borderWidth
+                float borderMask = 1.0 - smoothstep(
+                    max(borderThreshold - softEdge, 0.0),
+                    borderThreshold + softEdge,
+                    gapNorm
+                );
 
-                vec4 sE = texture(uOwnershipTex, vUV + vec2( tw * radius, 0.0));
-                vec4 sW = texture(uOwnershipTex, vUV + vec2(-tw * radius, 0.0));
-                vec4 sS = texture(uOwnershipTex, vUV + vec2(0.0,  th * radius));
-                vec4 sN = texture(uOwnershipTex, vUV + vec2(0.0, -th * radius));
+                // Border color: blend between owner and enemy, brightened
+                vec3 enemyPC = getPlayerColor(enemyOwner);
+                vec3 borderBase = mix(hslAdjust(enemyPC), finalRGB, 0.5);
+                float brightenVal = uBorderBrighten / 255.0;
+                vec3 borderRGB = min(borderBase + vec3(brightenVal), vec3(1.0));
 
-                int oE = int(floor(sE.r * 255.0 + 0.5)) - 1;
-                int oW = int(floor(sW.r * 255.0 + 0.5)) - 1;
-                int oS = int(floor(sS.r * 255.0 + 0.5)) - 1;
-                int oN = int(floor(sN.r * 255.0 + 0.5)) - 1;
-
-                bool isBorder = false;
-                if (oE != myOwner && oE >= 0) isBorder = true;
-                if (oW != myOwner && oW >= 0) isBorder = true;
-                if (oS != myOwner && oS >= 0) isBorder = true;
-                if (oN != myOwner && oN >= 0) isBorder = true;
-
-                if (isBorder) {
-                    finalRGB = vec3(1.0, 0.0, 0.0);
-                    alpha = 1.0;
-                }
+                // Blend border onto fill
+                finalRGB = mix(finalRGB, borderRGB, borderMask);
+                alpha = mix(alpha, uBorderAlpha, borderMask);
             }
 
             // ── Edge fade ─────────────────────────────────────────────────
