@@ -268,6 +268,109 @@ const visualBitGl = {
                 else rgb = vec3(c2, 0.0, x2);
                 return rgb + vec3(m2);
             }
+
+            // ── Neighbor sampling for border detection ──────────────
+            // Samples the ownership texture at 20 points around a center
+            // UV and returns the distance (in texels) to the nearest
+            // texel with a different owner. Returns R+1 if no enemy found.
+            //
+            // Parameters:
+            //   ownerTex - ownership RenderTexture from Pass 1
+            //   centerUV - UV coordinate of the current pixel
+            //   texel    - 1/texWidth, 1/texHeight (UV size of one texel)
+            //   R        - search radius in texels
+            //   myOwner  - owner index of the current pixel
+            //
+            float findMinEnemyDist(
+                sampler2D ownerTex, vec2 centerUV, vec2 texel,
+                float R, int myOwner
+            ) {
+                float minD = R + 1.0;
+
+                // Sample one point and update minimum distance
+                // Inlined to avoid array/loop issues on some GLSL ES 3.0 drivers
+                vec4 s; int o;
+
+                // ── Cardinals at 3 radii each (12 samples) ──
+                // East
+                s = texture(ownerTex, centerUV + vec2( 1.0, 0.0) * R * 0.33 * texel);
+                o = int(floor(s.r * 255.0 + 0.5)) - 1;
+                if (o != myOwner && o >= 0) minD = min(minD, R * 0.33);
+                s = texture(ownerTex, centerUV + vec2( 1.0, 0.0) * R * 0.67 * texel);
+                o = int(floor(s.r * 255.0 + 0.5)) - 1;
+                if (o != myOwner && o >= 0) minD = min(minD, R * 0.67);
+                s = texture(ownerTex, centerUV + vec2( 1.0, 0.0) * R * texel);
+                o = int(floor(s.r * 255.0 + 0.5)) - 1;
+                if (o != myOwner && o >= 0) minD = min(minD, R);
+
+                // West
+                s = texture(ownerTex, centerUV + vec2(-1.0, 0.0) * R * 0.33 * texel);
+                o = int(floor(s.r * 255.0 + 0.5)) - 1;
+                if (o != myOwner && o >= 0) minD = min(minD, R * 0.33);
+                s = texture(ownerTex, centerUV + vec2(-1.0, 0.0) * R * 0.67 * texel);
+                o = int(floor(s.r * 255.0 + 0.5)) - 1;
+                if (o != myOwner && o >= 0) minD = min(minD, R * 0.67);
+                s = texture(ownerTex, centerUV + vec2(-1.0, 0.0) * R * texel);
+                o = int(floor(s.r * 255.0 + 0.5)) - 1;
+                if (o != myOwner && o >= 0) minD = min(minD, R);
+
+                // South
+                s = texture(ownerTex, centerUV + vec2(0.0,  1.0) * R * 0.33 * texel);
+                o = int(floor(s.r * 255.0 + 0.5)) - 1;
+                if (o != myOwner && o >= 0) minD = min(minD, R * 0.33);
+                s = texture(ownerTex, centerUV + vec2(0.0,  1.0) * R * 0.67 * texel);
+                o = int(floor(s.r * 255.0 + 0.5)) - 1;
+                if (o != myOwner && o >= 0) minD = min(minD, R * 0.67);
+                s = texture(ownerTex, centerUV + vec2(0.0,  1.0) * R * texel);
+                o = int(floor(s.r * 255.0 + 0.5)) - 1;
+                if (o != myOwner && o >= 0) minD = min(minD, R);
+
+                // North
+                s = texture(ownerTex, centerUV + vec2(0.0, -1.0) * R * 0.33 * texel);
+                o = int(floor(s.r * 255.0 + 0.5)) - 1;
+                if (o != myOwner && o >= 0) minD = min(minD, R * 0.33);
+                s = texture(ownerTex, centerUV + vec2(0.0, -1.0) * R * 0.67 * texel);
+                o = int(floor(s.r * 255.0 + 0.5)) - 1;
+                if (o != myOwner && o >= 0) minD = min(minD, R * 0.67);
+                s = texture(ownerTex, centerUV + vec2(0.0, -1.0) * R * texel);
+                o = int(floor(s.r * 255.0 + 0.5)) - 1;
+                if (o != myOwner && o >= 0) minD = min(minD, R);
+
+                // ── Diagonals at 2 radii each (8 samples) ──
+                // SE
+                s = texture(ownerTex, centerUV + vec2( 0.707,  0.707) * R * 0.5 * texel);
+                o = int(floor(s.r * 255.0 + 0.5)) - 1;
+                if (o != myOwner && o >= 0) minD = min(minD, R * 0.5);
+                s = texture(ownerTex, centerUV + vec2( 0.707,  0.707) * R * texel);
+                o = int(floor(s.r * 255.0 + 0.5)) - 1;
+                if (o != myOwner && o >= 0) minD = min(minD, R);
+
+                // SW
+                s = texture(ownerTex, centerUV + vec2(-0.707,  0.707) * R * 0.5 * texel);
+                o = int(floor(s.r * 255.0 + 0.5)) - 1;
+                if (o != myOwner && o >= 0) minD = min(minD, R * 0.5);
+                s = texture(ownerTex, centerUV + vec2(-0.707,  0.707) * R * texel);
+                o = int(floor(s.r * 255.0 + 0.5)) - 1;
+                if (o != myOwner && o >= 0) minD = min(minD, R);
+
+                // NE
+                s = texture(ownerTex, centerUV + vec2( 0.707, -0.707) * R * 0.5 * texel);
+                o = int(floor(s.r * 255.0 + 0.5)) - 1;
+                if (o != myOwner && o >= 0) minD = min(minD, R * 0.5);
+                s = texture(ownerTex, centerUV + vec2( 0.707, -0.707) * R * texel);
+                o = int(floor(s.r * 255.0 + 0.5)) - 1;
+                if (o != myOwner && o >= 0) minD = min(minD, R);
+
+                // NW
+                s = texture(ownerTex, centerUV + vec2(-0.707, -0.707) * R * 0.5 * texel);
+                o = int(floor(s.r * 255.0 + 0.5)) - 1;
+                if (o != myOwner && o >= 0) minD = min(minD, R * 0.5);
+                s = texture(ownerTex, centerUV + vec2(-0.707, -0.707) * R * texel);
+                o = int(floor(s.r * 255.0 + 0.5)) - 1;
+                if (o != myOwner && o >= 0) minD = min(minD, R);
+
+                return minD;
+            }
         `,
         main: /* glsl */ `
             // Sample ownership at this pixel
@@ -309,80 +412,30 @@ const visualBitGl = {
             // distance, regardless of influence landscape.
             //
             // ARCHITECTURE — "Territories lead, borders follow":
-            // This code reads the SAME ownership RenderTexture that the
-            // fill coloring reads (lines above). During conquest morph
-            // transitions (uMorphFactor in Pass 1), ownership boundaries
-            // slide smoothly as influence values interpolate. Since we
-            // recompute borders from scratch every frame from the current
-            // ownership state, borders are emergent — they automatically
-            // track the moving boundary with zero lag. There are no
-            // "border objects" to animate; the border IS wherever
-            // ownership changes, and that changes continuously.
-            //
-            // PERFORMANCE: 24 texture samples (8 dirs × 3 radii).
-            // Trivial on modern GPUs. If mobile profiling shows issues,
-            // reduce to 4 dirs × 2 radii (8 samples).
+            // Reads the SAME ownership RT as the fill. During conquest
+            // morph transitions, ownership boundaries slide smoothly.
+            // Borders track them automatically — zero lag, no separate
+            // border objects.
             //
             if (uBordersEnabled > 0.5) {
-                // Size of one texel in UV space (0..1)
                 vec2 texel = vec2(1.0 / uTexWidth, 1.0 / uTexHeight);
+                float R = uBorderWidth;
 
-                // Search radius in texels. uBorderWidth slider controls
-                // how far outward we look for ownership changes.
-                float searchRadius = uBorderWidth;
+                // Find minimum distance to a different-owner texel
+                // by sampling 4 cardinal + 4 diagonal directions
+                float minD = findMinEnemyDist(
+                    uOwnershipTex, vUV, texel, R, myOwner
+                );
 
-                // 8 compass directions (N, NE, E, SE, S, SW, W, NW).
-                // Diagonals normalized to 0.707 so they sample at the
-                // same distance as cardinals.
-                vec2 dirs[8];
-                dirs[0] = vec2( 1.0,  0.0);   // E
-                dirs[1] = vec2(-1.0,  0.0);   // W
-                dirs[2] = vec2( 0.0,  1.0);   // S
-                dirs[3] = vec2( 0.0, -1.0);   // N
-                dirs[4] = vec2( 0.707,  0.707); // SE
-                dirs[5] = vec2(-0.707,  0.707); // SW
-                dirs[6] = vec2( 0.707, -0.707); // NE
-                dirs[7] = vec2(-0.707, -0.707); // NW
-
-                // Track nearest different-owner texel distance
-                float minEnemyDist = searchRadius + 1.0;
-                int borderEnemyOwner = -1;
-
-                // Sample at 3 radii per direction (inner/mid/outer)
-                // for smooth distance falloff instead of binary on/off
-                for (int d = 0; d < 8; d++) {
-                    for (int step = 1; step <= 3; step++) {
-                        float r = searchRadius * float(step) / 3.0;
-                        vec2 sampleUV = vUV + dirs[d] * r * texel;
-                        vec4 s = texture(uOwnershipTex, sampleUV);
-                        int sOwner = int(floor(s.r * 255.0 + 0.5)) - 1;
-
-                        // Different owner AND valid → enemy boundary
-                        if (sOwner != myOwner && sOwner >= 0) {
-                            if (r < minEnemyDist) {
-                                minEnemyDist = r;
-                                borderEnemyOwner = sOwner;
-                            }
-                        }
-                    }
-                }
-
-                // Border mask: 1.0 at boundary edge, fading to 0.0
-                // as distance increases. uBorderSoftness = fade width.
-                if (minEnemyDist <= searchRadius) {
+                if (minD <= R) {
                     float softness = max(uBorderSoftness, 0.5);
-                    float borderMask = 1.0 - smoothstep(0.0, softness, minEnemyDist);
+                    float borderMask = 1.0 - smoothstep(0.0, softness, minD);
                     borderMask *= uBorderAlpha;
 
-                    // Border color: 50/50 blend of owner + enemy,
-                    // shifted brighter by uBorderBrighten
-                    int enemyIdx = borderEnemyOwner >= 0 ? borderEnemyOwner : 0;
-                    vec3 enemyPC = getPlayerColor(enemyIdx);
-                    vec3 borderBase = mix(hslAdjust(enemyPC), finalRGB, 0.5);
+                    // Border color: brightened blend of owner + enemy
                     float brightenVal = uBorderBrighten / 255.0;
-                    vec3 borderRGB = min(borderBase + vec3(brightenVal), vec3(1.0));
+                    vec3 borderRGB = min(finalRGB + vec3(brightenVal), vec3(1.0));
 
-                    // Blend border onto fill
                     finalRGB = mix(finalRGB, borderRGB, borderMask);
                     alpha = max(alpha, borderMask);
                 }
