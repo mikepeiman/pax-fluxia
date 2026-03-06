@@ -296,98 +296,51 @@ const visualBitGl = {
             // ── GPU Borders via Neighbor Sampling ─────────────────────
             //
             // Detect ownership boundaries by sampling the ownership
-            // texture at neighboring texels. If a nearby texel has a
-            // DIFFERENT owner, this pixel is near a territory border.
-            //
-            // IMPORTANT: All samples must be fully inlined (no helper
-            // functions, no loops, no arrays). GLSL ES 3.0 on some
+            // texture at neighboring texels. All samples MUST be fully
+            // inlined with unique variable names — GLSL ES 3.0 on some
             // GPUs fails silently with sampler2D function params,
-            // dynamically-indexed arrays, and preprocessor macros
-            // inside main(). Inline-only is the proven approach.
-            //
-            // WHY THIS WORKS: Each texel offset = fixed world distance
-            // (1 texel = worldSize / textureSize). Uniform border width
-            // regardless of influence landscape.
+            // dynamically-indexed arrays, variable reuse across texture
+            // calls, and preprocessor macros inside main().
             //
             // ARCHITECTURE — "Territories lead, borders follow":
             // Reads the SAME ownership RT as the fill. During morph
             // transitions, borders track ownership automatically.
             //
-            if (uBordersEnabled > 0.5 && uBorderWidth > 0.0) {
+            if (uBordersEnabled > 0.5) {
                 float tw = 1.0 / uTexWidth;
                 float th = 1.0 / uTexHeight;
-                float R = uBorderWidth;
+                float radius = max(uBorderWidth, 1.0);
 
-                // Track nearest enemy distance across all samples
-                float minD = R + 1.0;
-                int bEnemy = -1;
-                vec4 bs; int bo;
+                // Sample 4 cardinal neighbors at search radius
+                vec4 sE = texture(uOwnershipTex, vUV + vec2( tw * radius, 0.0));
+                vec4 sW = texture(uOwnershipTex, vUV + vec2(-tw * radius, 0.0));
+                vec4 sS = texture(uOwnershipTex, vUV + vec2(0.0,  th * radius));
+                vec4 sN = texture(uOwnershipTex, vUV + vec2(0.0, -th * radius));
 
-                // ── 4 Cardinals at 2 radii (8 samples) ──
-                // East
-                bs = texture(uOwnershipTex, vUV + vec2( tw * R * 0.5, 0.0));
-                bo = int(floor(bs.r * 255.0 + 0.5)) - 1;
-                if (bo != myOwner && bo >= 0) { minD = min(minD, R*0.5); bEnemy = bo; }
-                bs = texture(uOwnershipTex, vUV + vec2( tw * R, 0.0));
-                bo = int(floor(bs.r * 255.0 + 0.5)) - 1;
-                if (bo != myOwner && bo >= 0) { minD = min(minD, R); bEnemy = bo; }
+                int oE = int(floor(sE.r * 255.0 + 0.5)) - 1;
+                int oW = int(floor(sW.r * 255.0 + 0.5)) - 1;
+                int oS = int(floor(sS.r * 255.0 + 0.5)) - 1;
+                int oN = int(floor(sN.r * 255.0 + 0.5)) - 1;
 
-                // West
-                bs = texture(uOwnershipTex, vUV + vec2(-tw * R * 0.5, 0.0));
-                bo = int(floor(bs.r * 255.0 + 0.5)) - 1;
-                if (bo != myOwner && bo >= 0) { minD = min(minD, R*0.5); bEnemy = bo; }
-                bs = texture(uOwnershipTex, vUV + vec2(-tw * R, 0.0));
-                bo = int(floor(bs.r * 255.0 + 0.5)) - 1;
-                if (bo != myOwner && bo >= 0) { minD = min(minD, R); bEnemy = bo; }
+                bool isBorder = false;
+                int nearEnemy = -1;
+                if (oE != myOwner && oE >= 0) { isBorder = true; nearEnemy = oE; }
+                if (oW != myOwner && oW >= 0) { isBorder = true; nearEnemy = oW; }
+                if (oS != myOwner && oS >= 0) { isBorder = true; nearEnemy = oS; }
+                if (oN != myOwner && oN >= 0) { isBorder = true; nearEnemy = oN; }
 
-                // South
-                bs = texture(uOwnershipTex, vUV + vec2(0.0,  th * R * 0.5));
-                bo = int(floor(bs.r * 255.0 + 0.5)) - 1;
-                if (bo != myOwner && bo >= 0) { minD = min(minD, R*0.5); bEnemy = bo; }
-                bs = texture(uOwnershipTex, vUV + vec2(0.0,  th * R));
-                bo = int(floor(bs.r * 255.0 + 0.5)) - 1;
-                if (bo != myOwner && bo >= 0) { minD = min(minD, R); bEnemy = bo; }
-
-                // North
-                bs = texture(uOwnershipTex, vUV + vec2(0.0, -th * R * 0.5));
-                bo = int(floor(bs.r * 255.0 + 0.5)) - 1;
-                if (bo != myOwner && bo >= 0) { minD = min(minD, R*0.5); bEnemy = bo; }
-                bs = texture(uOwnershipTex, vUV + vec2(0.0, -th * R));
-                bo = int(floor(bs.r * 255.0 + 0.5)) - 1;
-                if (bo != myOwner && bo >= 0) { minD = min(minD, R); bEnemy = bo; }
-
-                // ── 4 Diagonals at full radius (4 samples) ──
-                // 0.707 = 1/sqrt(2), normalizes diagonal to same distance
-                bs = texture(uOwnershipTex, vUV + vec2( tw, th) * R * 0.707);
-                bo = int(floor(bs.r * 255.0 + 0.5)) - 1;
-                if (bo != myOwner && bo >= 0) { minD = min(minD, R); bEnemy = bo; }
-                bs = texture(uOwnershipTex, vUV + vec2(-tw, th) * R * 0.707);
-                bo = int(floor(bs.r * 255.0 + 0.5)) - 1;
-                if (bo != myOwner && bo >= 0) { minD = min(minD, R); bEnemy = bo; }
-                bs = texture(uOwnershipTex, vUV + vec2( tw,-th) * R * 0.707);
-                bo = int(floor(bs.r * 255.0 + 0.5)) - 1;
-                if (bo != myOwner && bo >= 0) { minD = min(minD, R); bEnemy = bo; }
-                bs = texture(uOwnershipTex, vUV + vec2(-tw,-th) * R * 0.707);
-                bo = int(floor(bs.r * 255.0 + 0.5)) - 1;
-                if (bo != myOwner && bo >= 0) { minD = min(minD, R); bEnemy = bo; }
-
-                // ── Border rendering ──
-                if (minD <= R) {
-                    float softness = max(uBorderSoftness, 0.5);
-                    float borderMask = 1.0 - smoothstep(0.0, softness, minD);
-                    borderMask *= uBorderAlpha;
-
-                    // Border color: owner color brightened by uBorderBrighten
+                if (isBorder) {
+                    // Border color: 50/50 blend of owner + enemy, brightened
                     vec3 borderBase = finalRGB;
-                    if (bEnemy >= 0) {
-                        vec3 enemyPC = getPlayerColor(bEnemy);
+                    if (nearEnemy >= 0) {
+                        vec3 enemyPC = getPlayerColor(nearEnemy);
                         borderBase = mix(hslAdjust(enemyPC), finalRGB, 0.5);
                     }
                     float brightenVal = uBorderBrighten / 255.0;
                     vec3 borderRGB = min(borderBase + vec3(brightenVal), vec3(1.0));
 
-                    finalRGB = mix(finalRGB, borderRGB, borderMask);
-                    alpha = max(alpha, borderMask);
+                    finalRGB = borderRGB;
+                    alpha = uBorderAlpha;
                 }
             }
 
