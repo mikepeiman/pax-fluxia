@@ -662,15 +662,57 @@
                     {#if gameStore.savedMaps.length > 0}
                         <div class="section-divider"></div>
                         <div class="config-item">
-                            <label>SAVED MAPS</label>
+                            <label
+                                >SAVED MAPS
+                                {#if gameStore.defaultMapName}
+                                    <span class="default-map-badge"
+                                        >⚡ Default: {gameStore.defaultMapName}</span
+                                    >
+                                    <button
+                                        class="clear-default-btn"
+                                        onclick={() =>
+                                            gameStore.clearDefaultMap()}
+                                        title="Clear default map">✕</button
+                                    >
+                                {/if}
+                            </label>
                             <div class="saved-maps-list">
                                 {#each gameStore.savedMaps as m}
-                                    <div class="saved-map-row">
+                                    <div
+                                        class="saved-map-row"
+                                        class:is-default={gameStore.defaultMapName ===
+                                            m.metadata.name}
+                                    >
                                         <span class="saved-map-name"
                                             >{m.metadata.name}</span
                                         >
                                         <span class="saved-map-info"
                                             >{m.stars.length}★</span
+                                        >
+                                        <button
+                                            class="saved-map-btn default"
+                                            class:active={gameStore.defaultMapName ===
+                                                m.metadata.name}
+                                            onclick={() => {
+                                                if (
+                                                    gameStore.defaultMapName ===
+                                                    m.metadata.name
+                                                ) {
+                                                    gameStore.clearDefaultMap();
+                                                } else {
+                                                    gameStore.setDefaultMap(
+                                                        m.metadata.name,
+                                                    );
+                                                }
+                                            }}
+                                            title={gameStore.defaultMapName ===
+                                            m.metadata.name
+                                                ? "Remove as default"
+                                                : "Set as default map"}
+                                            >{gameStore.defaultMapName ===
+                                            m.metadata.name
+                                                ? "⚡"
+                                                : "☆"}</button
                                         >
                                         <button
                                             class="saved-map-btn load"
@@ -1554,6 +1596,34 @@
     }
     .saved-map-btn.del:hover {
         border-color: rgba(255, 80, 80, 0.4);
+        color: #fca5a5;
+    }
+    .saved-map-btn.default {
+        font-size: 0.85rem;
+        padding: 1px 4px;
+    }
+    .saved-map-btn.default.active {
+        color: #fbbf24;
+        border-color: rgba(251, 191, 36, 0.4);
+    }
+    .saved-map-row.is-default {
+        border-left: 2px solid rgba(251, 191, 36, 0.5);
+        padding-left: 4px;
+    }
+    .default-map-badge {
+        font-size: 0.6rem;
+        color: #fbbf24;
+        margin-left: 6px;
+    }
+    .clear-default-btn {
+        background: transparent;
+        border: none;
+        color: rgba(255, 100, 100, 0.6);
+        cursor: pointer;
+        font-size: 0.6rem;
+        padding: 0 2px;
+    }
+    .clear-default-btn:hover {
         color: #fca5a5;
     }
 

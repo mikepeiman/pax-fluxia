@@ -665,6 +665,9 @@ let lastMapDefinition: MapDefinition | null = null;
 let pendingSavedMap: MapDefinition | null = null;
 let savedMaps: MapDefinition[] = $state(loadSavedMaps());
 
+// F-148: Default map preference — auto-load a saved map on game start
+let defaultMapName: string = $state(localStorage.getItem('pax_defaultMap') || '');
+
 function loadSavedMaps(): MapDefinition[] {
     try {
         const raw = localStorage.getItem('pax_savedMaps');
@@ -674,6 +677,16 @@ function loadSavedMaps(): MapDefinition[] {
 
 function persistSavedMaps(): void {
     localStorage.setItem('pax_savedMaps', JSON.stringify(savedMaps));
+}
+
+function setDefaultMap(name: string): void {
+    defaultMapName = name;
+    localStorage.setItem('pax_defaultMap', name);
+}
+
+function clearDefaultMap(): void {
+    defaultMapName = '';
+    localStorage.removeItem('pax_defaultMap');
 }
 
 /** Export current game state as a MapDefinition */
@@ -795,9 +808,19 @@ function initializeState(): void {
         // Fixed debug maps — deterministic positions for testing
         initDebugMap(playerIds, mapType);
     } else if (pendingSavedMap) {
-        // Load saved map definition
+        // Load saved map definition (explicit user action)
         initSavedMap(playerIds, pendingSavedMap);
         pendingSavedMap = null;
+    } else if (defaultMapName) {
+        // F-148: Auto-load default map if preference is set
+        const defaultMap = savedMaps.find(m => m.metadata.name === defaultMapName);
+        if (defaultMap) {
+            console.log(`[MAP] Auto-loading default map: "${defaultMapName}"`);
+            initSavedMap(playerIds, defaultMap);
+        } else {
+            console.warn(`[MAP] Default map "${defaultMapName}" not found, generating random`);
+            initStandardMap(playerIds);
+        }
     } else {
         initStandardMap(playerIds);
     }
@@ -1113,6 +1136,11 @@ export const gameStore = {
     saveCurrentMap,
     deleteSavedMap,
     loadSavedMap,
+
+    // F-148: Default map preference
+    get defaultMapName() { return defaultMapName; },
+    setDefaultMap,
+    clearDefaultMap,
 };
 
 // ============================================================================
