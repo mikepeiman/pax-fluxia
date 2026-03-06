@@ -45,30 +45,12 @@ interface LaneData {
     starBIdx: number;
 }
 
-// ── TWO-PASS TERRITORY RENDERING ─────────────────────────────────────────
-//
-// PASS 1: Ownership shader → RenderTexture
-//   For each pixel, computes which player owns it via influence competition.
-//   MSR is applied as a post-decision constraint.
-//   Output RGBA: R = (ownerIdx+1)/255, G = bestInfluence/65535 (hi byte),
-//                B = bestInfluence/65535 (lo byte), A = enemyOwner encoded
-//   We pack bestInfluence as 16-bit across G+B for precision.
-//   R channel: 0 = no owner, 1-8 = player indices (1-indexed)
-//   A channel: (enemyOwnerIdx+1)/255 in high bits, plus influence ratio info
-//
-// PASS 2: Visual shader (reads ownership texture)
-//   Reads ownership texture. Colors by owner. Detects borders by sampling
-//   8 neighbors — if ANY neighbor has a different owner, this pixel is a border.
-//   Border width is exactly controlled via sampling radius (screen pixels).
-//   No fwidth(), no gradient sensitivity, no artifacts.
-// ─────────────────────────────────────────────────────────────────────────
-
+// Ã¢â€â‚¬Ã¢â€â‚¬ Shader Bit for Territory Distance Field Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 // Uses PIXI's compileHighShaderGlProgram() with shader bits.
 // MVP = uProjectionMatrix * uWorldTransformMatrix * modelMatrix
 
-// ── PASS 1: Ownership Computation ──────────────────────────────────────
-const ownershipBitGl = {
-    name: 'territory-ownership-bit',
+const territoryBitGl = {
+    name: 'territory-distance-field-bit',
     vertex: {
         header: /* glsl */ `
             out vec2 vLocalPos;
@@ -85,10 +67,35 @@ const ownershipBitGl = {
             uniform int uNumStars;
             uniform float uWorldWidth;
             uniform float uWorldHeight;
+            uniform float uPadding;
+            uniform int uNumPlayers;
+            uniform float uBorderWidth;
+            uniform float uBorderSoftness;
+            uniform float uBorderAlpha;
+            uniform float uBorderBrighten;
+            uniform int uBorderMode;
+            uniform float uFillAlpha;
+            uniform float uEdgeFade;
+            uniform float uHueShift;
+            uniform float uSatMult;
+            uniform float uLightMult;
             uniform float uMorphFactor;
             uniform float uInfluenceWeight;
+            uniform float uContentMinX;
+            uniform float uContentMinY;
+            uniform float uSmoothing;
+            uniform float uCorridorBoost;
+            uniform float uDisconnectBoost;
             uniform float uMinStarRadius;
             uniform int uNumRealStars;
+            uniform vec3 uPlayerColor0;
+            uniform vec3 uPlayerColor1;
+            uniform vec3 uPlayerColor2;
+            uniform vec3 uPlayerColor3;
+            uniform vec3 uPlayerColor4;
+            uniform vec3 uPlayerColor5;
+            uniform vec3 uPlayerColor6;
+            uniform vec3 uPlayerColor7;
 
             // Helper: decode 16-bit value from RGBA high/low bytes
             float decode16(vec4 raw, int pair) {
@@ -102,143 +109,99 @@ const ownershipBitGl = {
             vec2 worldPos = vLocalPos;
 
             // For each star, compute total influence = pixel distance + Dijkstra distance
+            // The star with lowest total influence "owns" this pixel
             float bestInfluence = 1e9;
             int bestStar = -1;
             int bestOwner = -1;
+            // Track closest star with a DIFFERENT owner (for border drawing)
             float enemyInfluence = 1e9;
+            int enemyStar = -1;
             int enemyOwner = -1;
+            // Track second-closest influence from ANY owner (for junction detection)
+            float secondInfluence = 1e9;
 
             for (int i = 0; i < 256; i++) {
                 if (i >= uNumStars) break;
-
+                // Decode star position (row 0)
                 vec4 posRaw = texelFetch(uStarData, ivec2(i, 0), 0);
                 float sx = decode16(posRaw, 0);
                 float sy = decode16(posRaw, 1);
                 float pixDist = distance(worldPos, vec2(sx, sy));
 
+                // Get ownership (row 2)
                 vec4 ownerRaw = texelFetch(uStarData, ivec2(i, 2), 0);
                 int ownIdx = int(floor(ownerRaw.r * 255.0 + 0.5)) - 1;
-                if (ownIdx < 0) continue;
+                if (ownIdx < 0) continue; // skip unowned stars
 
+                // Decode Dijkstra distances (row 1 = current, row 3 = previous)
                 vec4 distRaw = texelFetch(uStarData, ivec2(i, 1), 0);
                 float curDijkstra = decode16(distRaw, 0);
+
                 vec4 prevRaw = texelFetch(uStarData, ivec2(i, 3), 0);
                 float prevDijkstra = decode16(prevRaw, 0);
+
+                // Morph: interpolate between current and previous Dijkstra distances
                 float dijkstra = mix(curDijkstra, prevDijkstra, uMorphFactor);
 
+                // Total influence = pixel distance + weighted graph distance
+                // Virtual sites (dijkstra=0) get a boost that makes them win more pixels
                 float influence = pixDist + dijkstra * uInfluenceWeight;
 
-                // Apply corridor/disconnect boost
+                // Apply corridor/disconnect boost (stored in row 2, bytes 2-3)
                 vec4 ownerExtra = texelFetch(uStarData, ivec2(i, 2), 0);
-                float boost = decode16(ownerExtra, 1);
+                float boost = decode16(ownerExtra, 1); // bytes 2-3 = influence boost
                 influence -= boost;
 
+                // Minimum star territory: smooth influence boost near real stars
+                // Quadratic falloff: strongest at star center, smoothly fades to 0 at radius
+                // This avoids hard discontinuities that create visible ring artifacts
+                if (uMinStarRadius > 0.0 && pixDist < uMinStarRadius && i < uNumRealStars) {
+                    float t = pixDist / uMinStarRadius; // 0..1 (center..edge)
+                    float msrBoost = (1.0 - t * t) * uMinStarRadius; // quadratic, smooth at edge
+                    influence -= msrBoost;
+                }
+
                 if (influence < bestInfluence) {
-                    if (bestOwner >= 0 && bestOwner != ownIdx && bestInfluence < enemyInfluence) {
-                        enemyInfluence = bestInfluence;
-                        enemyOwner = bestOwner;
+                    // Before replacing best: push old best to second
+                    if (bestOwner >= 0) {
+                        secondInfluence = bestInfluence;
+                        if (bestOwner != ownIdx && bestInfluence < enemyInfluence) {
+                            enemyInfluence = bestInfluence;
+                            enemyStar = bestStar;
+                            enemyOwner = bestOwner;
+                        }
                     }
                     bestInfluence = influence;
                     bestStar = i;
                     bestOwner = ownIdx;
                 } else {
+                    // Track second-best from any owner
+                    if (influence < secondInfluence) secondInfluence = influence;
                     if (ownIdx != bestOwner && influence < enemyInfluence) {
                         enemyInfluence = influence;
+                        enemyStar = i;
                         enemyOwner = ownIdx;
                     }
                 }
             }
 
-            // MSR post-decision constraint: if this pixel is within uMinStarRadius
-            // of any real star owned by the winning player, force ownership to that player.
-            // This doesn't modify influence values, just ensures ownership near stars.
-            // (Already handled by influence boost above, but kept for documentation)
-
             if (bestStar < 0 || bestOwner < 0) {
-                // No owner — output marker
-                outColor = vec4(0.0, 0.0, 0.0, 0.0);
-                return;
+                discard;
             }
 
-            // Encode ownership data into RGBA
-            // R: ownerIdx + 1 (1-indexed, 0 = no owner), normalized to 0..1
-            // G: bestInfluence high byte (0..255 mapped to 0..1)
-            // B: bestInfluence low byte
-            // A: enemyOwner + 1 (1-indexed, 0 = no enemy), normalized to 0..1
-            float ownerVal = float(bestOwner + 1) / 255.0;
+            {
+                // Player color lookup
+                vec3 pc = vec3(0.5);
+                if (bestOwner == 0) pc = uPlayerColor0;
+                else if (bestOwner == 1) pc = uPlayerColor1;
+                else if (bestOwner == 2) pc = uPlayerColor2;
+                else if (bestOwner == 3) pc = uPlayerColor3;
+                else if (bestOwner == 4) pc = uPlayerColor4;
+                else if (bestOwner == 5) pc = uPlayerColor5;
+                else if (bestOwner == 6) pc = uPlayerColor6;
+                else if (bestOwner == 7) pc = uPlayerColor7;
 
-            // Encode bestInfluence as 16-bit across G,B (clamp to 0..65535)
-            float clampedBest = clamp(bestInfluence, 0.0, 65535.0);
-            float bestHi = floor(clampedBest / 256.0);
-            float bestLo = clampedBest - bestHi * 256.0;
-
-            // Encode enemyInfluence ratio: how close is enemy? (0 = far, 1 = equal)
-            // This drives border width and force-ratio coloring in Pass 2
-            float influenceGap = enemyOwner >= 0 ? (enemyInfluence - bestInfluence) : 9999.0;
-            float gapNorm = clamp(influenceGap / 200.0, 0.0, 1.0); // normalized gap
-
-            float enemyVal = enemyOwner >= 0 ? float(enemyOwner + 1) / 255.0 : 0.0;
-
-            outColor = vec4(ownerVal, gapNorm, enemyVal, 1.0);
-        `,
-    },
-};
-
-// ── PASS 2: Visual Rendering ───────────────────────────────────────────
-const visualBitGl = {
-    name: 'territory-visual-bit',
-    vertex: {
-        header: /* glsl */ `
-            out vec2 vLocalPos;
-        `,
-        main: /* glsl */ `
-            vLocalPos = position;
-        `,
-    },
-    fragment: {
-        header: /* glsl */ `
-            #version 300 es
-            in vec2 vLocalPos;
-            uniform sampler2D uOwnershipTex;
-            uniform float uTexWidth;
-            uniform float uTexHeight;
-            uniform float uWorldWidth;
-            uniform float uWorldHeight;
-            uniform float uPadding;
-            uniform float uBorderWidth;
-            uniform float uBorderSoftness;
-            uniform float uBorderAlpha;
-            uniform float uBorderBrighten;
-            uniform float uFillAlpha;
-            uniform float uEdgeFade;
-            uniform float uHueShift;
-            uniform float uSatMult;
-            uniform float uLightMult;
-            uniform float uSmoothing;
-            uniform float uContentMinX;
-            uniform float uContentMinY;
-            uniform vec3 uPlayerColor0;
-            uniform vec3 uPlayerColor1;
-            uniform vec3 uPlayerColor2;
-            uniform vec3 uPlayerColor3;
-            uniform vec3 uPlayerColor4;
-            uniform vec3 uPlayerColor5;
-            uniform vec3 uPlayerColor6;
-            uniform vec3 uPlayerColor7;
-
-            vec3 getPlayerColor(int idx) {
-                if (idx == 0) return uPlayerColor0;
-                if (idx == 1) return uPlayerColor1;
-                if (idx == 2) return uPlayerColor2;
-                if (idx == 3) return uPlayerColor3;
-                if (idx == 4) return uPlayerColor4;
-                if (idx == 5) return uPlayerColor5;
-                if (idx == 6) return uPlayerColor6;
-                if (idx == 7) return uPlayerColor7;
-                return vec3(0.5);
-            }
-
-            vec3 hslAdjust(vec3 pc) {
+                // HSL adjustment
                 float cmax = max(pc.r, max(pc.g, pc.b));
                 float cmin = min(pc.r, min(pc.g, pc.b));
                 float delta = cmax - cmin;
@@ -265,65 +228,92 @@ const visualBitGl = {
                 else if (h6 < 4.0) rgb = vec3(0.0, x2, c2);
                 else if (h6 < 5.0) rgb = vec3(x2, 0.0, c2);
                 else rgb = vec3(c2, 0.0, x2);
-                return rgb + vec3(m2);
+                vec3 finalRGB = rgb + vec3(m2);
+
+                float alpha = uFillAlpha;
+
+                // Junction smoothing: round corners where enemy territory is close
+                // Only applies at inter-territory boundaries, NOT within same-owner area
+                if (uSmoothing > 0.0 && enemyOwner >= 0) {
+                    float junctionGap = enemyInfluence - bestInfluence;
+                    float junctionFade = smoothstep(0.0, uSmoothing, junctionGap);
+                    alpha *= junctionFade;
+                }
+
+                // ── Border rendering (3 modes) ──
+                // gap = 0 at boundary, grows into territory interior
+                if (enemyOwner >= 0 && uBorderWidth > 0.0) {
+                    float gap = enemyInfluence - bestInfluence;
+                    float borderMask = 0.0;
+
+                    if (uBorderMode == 0) {
+                        // Mode 0: "Gap" — raw influence gap threshold (organic, variable width)
+                        borderMask = 1.0 - smoothstep(
+                            max(uBorderWidth - uBorderSoftness, 0.0),
+                            uBorderWidth + uBorderSoftness,
+                            gap
+                        );
+                    } else if (uBorderMode == 1) {
+                        // Mode 1: "Even" — normalize by bestInfluence gradient for uniform screen-width
+                        float gradMag = max(fwidth(bestInfluence), 0.5);
+                        float normGap = gap / gradMag;
+                        borderMask = 1.0 - smoothstep(
+                            max(uBorderWidth - uBorderSoftness, 0.0),
+                            uBorderWidth + uBorderSoftness,
+                            normGap
+                        );
+                    } else {
+                        // Mode 2: "Layered" — normalize by gap gradient (variable, layered look)
+                        float gradMag = max(fwidth(gap), 1.0);
+                        float normGap = gap / gradMag;
+                        borderMask = 1.0 - smoothstep(
+                            max(uBorderWidth - uBorderSoftness, 0.0),
+                            uBorderWidth + uBorderSoftness,
+                            normGap
+                        );
+                    }
+
+                    if (borderMask > 0.0) {
+                        // Look up enemy player color
+                        vec3 ec = vec3(0.5);
+                        if (enemyOwner == 0) ec = uPlayerColor0;
+                        else if (enemyOwner == 1) ec = uPlayerColor1;
+                        else if (enemyOwner == 2) ec = uPlayerColor2;
+                        else if (enemyOwner == 3) ec = uPlayerColor3;
+                        else if (enemyOwner == 4) ec = uPlayerColor4;
+                        else if (enemyOwner == 5) ec = uPlayerColor5;
+                        else if (enemyOwner == 6) ec = uPlayerColor6;
+                        else if (enemyOwner == 7) ec = uPlayerColor7;
+
+                        // Blend both owners' colors 50/50 + brighten for contrast
+                        vec3 borderColor = (pc + ec) * 0.5;
+                        borderColor = min(borderColor + vec3(uBorderBrighten / 255.0), vec3(1.0));
+                        finalRGB = mix(finalRGB, borderColor, borderMask);
+                        alpha = mix(alpha, uBorderAlpha, borderMask);
+                    }
+                }
+
+                // Edge fade at world boundaries — symmetric using content min bounds
+                float edgeX = min(worldPos.x - uContentMinX, uWorldWidth - worldPos.x);
+                float edgeY = min(worldPos.y - uContentMinY, uWorldHeight - worldPos.y);
+                float edgeDist = min(edgeX, edgeY);
+                alpha *= smoothstep(0.0, uEdgeFade, edgeDist);
+
+                outColor = vec4(finalRGB * alpha, alpha);
             }
-        `,
-        main: /* glsl */ `
-            // Sample ownership at this pixel
-            vec4 center = texture(uOwnershipTex, vUV);
-            if (center.a < 0.5) discard; // no owner
-
-            int myOwner = int(floor(center.r * 255.0 + 0.5)) - 1;
-            if (myOwner < 0) discard;
-
-            float gapNorm = center.g; // normalized influence gap to enemy
-            int enemyOwner = int(floor(center.b * 255.0 + 0.5)) - 1;
-
-            // ── Coloring (fills only — borders drawn as vectors in Pass 3) ──
-            vec3 pc = getPlayerColor(myOwner);
-            vec3 finalRGB = hslAdjust(pc);
-            float alpha = uFillAlpha;
-
-            // Junction smoothing: fade alpha where enemy territory is close
-            if (uSmoothing > 0.0 && enemyOwner >= 0) {
-                float junctionFade = smoothstep(0.0, 1.0, gapNorm * (200.0 / max(uSmoothing, 1.0)));
-                alpha *= junctionFade;
-            }
-
-            // ── Edge fade ─────────────────────────────────────────────────
-            vec2 worldPos = vLocalPos;
-            float edgeX = min(worldPos.x - uContentMinX, (uContentMinX + uWorldWidth) - worldPos.x);
-            float edgeY = min(worldPos.y - uContentMinY, (uContentMinY + uWorldHeight) - worldPos.y);
-            float edgeDist = min(edgeX, edgeY);
-            alpha *= smoothstep(0.0, uEdgeFade, edgeDist);
-
-            outColor = vec4(finalRGB * alpha, alpha);
         `,
     },
 };
 
-// ─── Module State ───────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Module State Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 let cachedOwnerFp = '';
 let cachedConfigFp = '';
 let cachedConnFp = '';
-
-// Pass 1: ownership mesh → RenderTexture
-let pass1Mesh: PIXI.Mesh | null = null;
-let pass1Shader: PIXI.Shader | null = null;
-let ownershipRT: PIXI.RenderTexture | null = null;
-let pass1Container: PIXI.Container | null = null;
-
-// Pass 2: visual mesh (reads ownership texture, renders to screen)
-let pass2Mesh: PIXI.Mesh | null = null;
-let pass2Shader: PIXI.Shader | null = null;
-
+let cachedMesh: PIXI.Mesh | null = null;
+let cachedMeshShader: PIXI.Shader | null = null;
 let cachedMeshWorldW = 0;
 let cachedMeshWorldH = 0;
-let cachedMeshX0 = 0;
-let cachedMeshY0 = 0;
-let cachedMeshW = 0;
-let cachedMeshH = 0;
 let cachedMeshExpansion = -1;
 let cachedBlurFilter: PIXI.BlurFilter | null = null;
 let cachedBlurStrength = -1;
@@ -344,262 +334,6 @@ let laneCellSize = 50;
 
 // GPU pipeline
 let starDataTexture: PIXI.Texture | null = null;
-
-// Cached PIXI app reference for rendering Pass 1
-let cachedApp: PIXI.Application | null = null;
-
-// Pass 3: Vector border overlay
-let borderGraphics: PIXI.Graphics | null = null;
-let cachedBorderOwnerFp = '';
-
-// ============================================================================
-// PASS 3: Vector Border Extraction (Marching Squares + Chaikin)
-// ============================================================================
-
-interface BorderSegment {
-    x1: number; y1: number;
-    x2: number; y2: number;
-    ownerA: number; ownerB: number;
-}
-
-/**
- * Extract border contours from the ownership RenderTexture.
- * Uses marching squares to trace boundary segments between different-owner regions.
- * Returns polylines in world-space coordinates.
- */
-function extractBorderSegments(
-    app: PIXI.Application,
-    rt: PIXI.RenderTexture,
-    meshX0: number, meshY0: number,
-    meshW: number, meshH: number,
-): BorderSegment[] {
-    // Read ownership texture pixels
-    const pixels = app.renderer.extract.pixels(rt);
-    const w = pixels.width;
-    const h = pixels.height;
-    const data = pixels.pixels as unknown as Uint8Array;
-
-    const segments: BorderSegment[] = [];
-    // Scale factors: texture pixels → world coordinates
-    const sx = meshW / w;
-    const sy = meshH / h;
-
-    // Scan grid for ownership changes between adjacent pixels
-    // Horizontal edges (between rows y and y+1)
-    for (let y = 0; y < h - 1; y++) {
-        for (let x = 0; x < w; x++) {
-            const idx1 = (y * w + x) * 4;
-            const idx2 = ((y + 1) * w + x) * 4;
-            const a1 = data[idx1 + 3]; // alpha
-            const a2 = data[idx2 + 3];
-            const o1 = a1 > 127 ? data[idx1] : 0; // R = owner
-            const o2 = a2 > 127 ? data[idx2] : 0;
-            if (o1 !== o2) {
-                // Boundary between y and y+1 — draw horizontal segment
-                segments.push({
-                    x1: meshX0 + x * sx,
-                    y1: meshY0 + (y + 0.5) * sy,
-                    x2: meshX0 + (x + 1) * sx,
-                    y2: meshY0 + (y + 0.5) * sy,
-                    ownerA: o1, ownerB: o2,
-                });
-            }
-        }
-    }
-    // Vertical edges (between columns x and x+1)
-    for (let y = 0; y < h; y++) {
-        for (let x = 0; x < w - 1; x++) {
-            const idx1 = (y * w + x) * 4;
-            const idx2 = (y * w + x + 1) * 4;
-            const a1 = data[idx1 + 3];
-            const a2 = data[idx2 + 3];
-            const o1 = a1 > 127 ? data[idx1] : 0;
-            const o2 = a2 > 127 ? data[idx2] : 0;
-            if (o1 !== o2) {
-                segments.push({
-                    x1: meshX0 + (x + 0.5) * sx,
-                    y1: meshY0 + y * sy,
-                    x2: meshX0 + (x + 0.5) * sx,
-                    y2: meshY0 + (y + 1) * sy,
-                    ownerA: o1, ownerB: o2,
-                });
-            }
-        }
-    }
-    return segments;
-}
-
-/**
- * Chain border segments into polylines.
- * Connects segments that share endpoints (within tolerance).
- */
-function chainSegments(segments: BorderSegment[]): number[][][] {
-    if (segments.length === 0) return [];
-
-    // Build adjacency: endpoint → segment indices
-    const eps = 0.01;
-    const key = (x: number, y: number) => `${Math.round(x / eps)}:${Math.round(y / eps)}`;
-
-    const endpointMap = new Map<string, { segIdx: number; end: 1 | 2 }[]>();
-    for (let i = 0; i < segments.length; i++) {
-        const s = segments[i];
-        const k1 = key(s.x1, s.y1);
-        const k2 = key(s.x2, s.y2);
-        if (!endpointMap.has(k1)) endpointMap.set(k1, []);
-        if (!endpointMap.has(k2)) endpointMap.set(k2, []);
-        endpointMap.get(k1)!.push({ segIdx: i, end: 1 });
-        endpointMap.get(k2)!.push({ segIdx: i, end: 2 });
-    }
-
-    const used = new Array(segments.length).fill(false);
-    const polylines: number[][][] = [];
-
-    for (let start = 0; start < segments.length; start++) {
-        if (used[start]) continue;
-        used[start] = true;
-
-        const s = segments[start];
-        const chain: number[][] = [[s.x1, s.y1], [s.x2, s.y2]];
-
-        // Extend forward from end point
-        let searching = true;
-        while (searching) {
-            searching = false;
-            const lastPt = chain[chain.length - 1];
-            const k = key(lastPt[0], lastPt[1]);
-            const neighbors = endpointMap.get(k);
-            if (neighbors) {
-                for (const n of neighbors) {
-                    if (used[n.segIdx]) continue;
-                    const ns = segments[n.segIdx];
-                    used[n.segIdx] = true;
-                    if (n.end === 1) {
-                        chain.push([ns.x2, ns.y2]);
-                    } else {
-                        chain.push([ns.x1, ns.y1]);
-                    }
-                    searching = true;
-                    break;
-                }
-            }
-        }
-
-        // Extend backward from start point
-        searching = true;
-        while (searching) {
-            searching = false;
-            const firstPt = chain[0];
-            const k = key(firstPt[0], firstPt[1]);
-            const neighbors = endpointMap.get(k);
-            if (neighbors) {
-                for (const n of neighbors) {
-                    if (used[n.segIdx]) continue;
-                    const ns = segments[n.segIdx];
-                    used[n.segIdx] = true;
-                    if (n.end === 2) {
-                        chain.unshift([ns.x1, ns.y1]);
-                    } else {
-                        chain.unshift([ns.x2, ns.y2]);
-                    }
-                    searching = true;
-                    break;
-                }
-            }
-        }
-
-        if (chain.length >= 2) {
-            polylines.push(chain);
-        }
-    }
-
-    return polylines;
-}
-
-/**
- * Chaikin curve subdivision — produces smooth corners from polylines.
- * Each iteration rounds corners by 75/25 interpolation.
- */
-function chaikinSmooth(polyline: number[][], iterations: number): number[][] {
-    let pts = polyline;
-    for (let iter = 0; iter < iterations; iter++) {
-        const smoothed: number[][] = [];
-        smoothed.push(pts[0]); // keep first point
-        for (let i = 0; i < pts.length - 1; i++) {
-            const p0 = pts[i], p1 = pts[i + 1];
-            smoothed.push([
-                0.75 * p0[0] + 0.25 * p1[0],
-                0.75 * p0[1] + 0.25 * p1[1],
-            ]);
-            smoothed.push([
-                0.25 * p0[0] + 0.75 * p1[0],
-                0.25 * p0[1] + 0.75 * p1[1],
-            ]);
-        }
-        smoothed.push(pts[pts.length - 1]); // keep last point
-        pts = smoothed;
-    }
-    return pts;
-}
-
-/**
- * Draw vector borders as PIXI.Graphics strokes.
- */
-function drawVectorBorders(
-    container: PIXI.Container,
-    app: PIXI.Application,
-    rt: PIXI.RenderTexture,
-    colorUtils: ColorUtils,
-    meshX0: number, meshY0: number,
-    meshW: number, meshH: number,
-): void {
-    // Create or clear graphics
-    if (!borderGraphics) {
-        borderGraphics = new PIXI.Graphics();
-    }
-    borderGraphics.clear();
-
-    if (!borderGraphics.parent) {
-        container.addChild(borderGraphics);
-    }
-
-    const borderWidth = GAME_CONFIG.DF_BORDER_WIDTH ?? 5;
-    const borderAlpha = GAME_CONFIG.DF_BORDER_ALPHA ?? 0.8;
-    const brighten = (GAME_CONFIG.DF_BORDER_BRIGHTEN ?? 20) / 255;
-
-    // Extract boundary segments from the ownership texture
-    const segments = extractBorderSegments(app, rt, meshX0, meshY0, meshW, meshH);
-    if (segments.length === 0) return;
-
-    // Chain into polylines and smooth
-    const polylines = chainSegments(segments);
-    const smoothIters = 2; // 2 passes of Chaikin smoothing
-
-    for (const polyline of polylines) {
-        if (polyline.length < 2) continue;
-        const smoothed = chaikinSmooth(polyline, smoothIters);
-
-        // Use a neutral bright border color (brighten from white)
-        const r = Math.min(1, 0.7 + brighten);
-        const g = Math.min(1, 0.7 + brighten);
-        const b = Math.min(1, 0.7 + brighten);
-        const color = (Math.round(r * 255) << 16) | (Math.round(g * 255) << 8) | Math.round(b * 255);
-
-        borderGraphics.setStrokeStyle({
-            width: borderWidth,
-            color: color,
-            alpha: borderAlpha,
-            cap: 'round' as any,
-            join: 'round' as any,
-        });
-        borderGraphics.moveTo(smoothed[0][0], smoothed[0][1]);
-        for (let i = 1; i < smoothed.length; i++) {
-            borderGraphics.lineTo(smoothed[i][0], smoothed[i][1]);
-        }
-        borderGraphics.stroke();
-    }
-
-    console.log(`[DF] Vector borders: ${segments.length} segments → ${polylines.length} polylines`);
-}
 
 
 // ============================================================================
@@ -736,11 +470,11 @@ function buildOwnerFp(stars: StarState[]): string {
 function buildConfigFp(): string {
     return `${GAME_CONFIG.DF_ALPHA}:${GAME_CONFIG.DF_BORDER_WIDTH}:`
         + `${GAME_CONFIG.DF_BORDER_SOFTNESS}:${GAME_CONFIG.DF_BORDER_ALPHA}:${GAME_CONFIG.DF_BORDER_BRIGHTEN}:`
+        + `${GAME_CONFIG.DF_CORRIDOR_ENABLED}:${GAME_CONFIG.DF_CORRIDOR_MODE}:${GAME_CONFIG.DF_CORRIDOR_SPACING}:${GAME_CONFIG.DF_CORRIDOR_COUNT}:${GAME_CONFIG.DF_CORRIDOR_WEIGHT}:`
         + `${GAME_CONFIG.DF_BLUR}:${GAME_CONFIG.DF_HUE}:`
         + `${GAME_CONFIG.DF_SATURATION}:${GAME_CONFIG.DF_LIGHTNESS}:`
         + `${GAME_CONFIG.DF_DISTANCE_METRIC}:${GAME_CONFIG.TERRITORY_TRANSITION_MS}:`
         + `${GAME_CONFIG.DF_EDGE_FADE}:${GAME_CONFIG.DF_RESOLUTION}:${GAME_CONFIG.DF_ROUNDING}:${GAME_CONFIG.DF_INFLUENCE_WEIGHT}`
-        + `:${GAME_CONFIG.DF_CORRIDOR_ENABLED}:${GAME_CONFIG.DF_CORRIDOR_MODE}:${GAME_CONFIG.DF_CORRIDOR_SPACING}:${GAME_CONFIG.DF_CORRIDOR_COUNT}:${GAME_CONFIG.DF_CORRIDOR_WEIGHT}`
         + `:${GAME_CONFIG.DF_DISCONNECT_ENABLED}:${GAME_CONFIG.DF_DISCONNECT_DISTANCE}:${GAME_CONFIG.DF_DISCONNECT_WEIGHT}`;
 }
 
@@ -927,10 +661,9 @@ function buildStarDataTexture(
         const pIdx = playerIds.indexOf(vs.ownerId);
         starDataBuffer[row2] = pIdx >= 0 ? pIdx + 1 : 0;
         // Encode boost as 16-bit in bytes 2-3
-        // Both corridors AND disconnects use boost (subtracted from influence = more competitive)
-        // Corridors: boost makes friendly sites claim territory along connections
-        // Disconnects: boost makes enemy sites create gaps between disconnected same-owner regions
-        const boostRaw = Math.round((vs.weight ?? 1.0) * 100);
+        // Corridors use boost (subtracted from influence = more competitive)
+        // Disconnects use Dijkstra distance instead, so boost = 0
+        const boostRaw = vs.kind === 'disconnect' ? 0 : Math.round((vs.weight ?? 1.0) * 100);
         const [bh, bl] = encode16(boostRaw);
         starDataBuffer[row2 + 2] = bh;
         starDataBuffer[row2 + 3] = bl;
@@ -978,136 +711,79 @@ function buildStarDataTexture(
 }
 
 // ============================================================================
-// GPU Mesh Creation — Two-pass pipeline
+// GPU Mesh Creation (replaces Filter approach for correct zoom/resize)
 // ============================================================================
-// Pass 1: ownershipBitGl + starData → mesh renders to ownershipRT (RenderTexture)
-// Pass 2: visualBitGl + ownershipRT → mesh renders to screen
 
-function ensureMeshes(worldWidth: number, worldHeight: number): void {
+function ensureMesh(worldWidth: number, worldHeight: number): PIXI.Shader {
     const padding = GAME_CONFIG.DF_EDGE_FADE ?? 200;
     const expand = GAME_CONFIG.DF_EXPANSION ?? 0.10;
 
+    // Check if we need to rebuild geometry (dimensions or expansion changed)
     const dimsChanged = worldWidth !== cachedMeshWorldW || worldHeight !== cachedMeshWorldH || expand !== cachedMeshExpansion;
-    if (pass1Shader && pass2Shader && !dimsChanged) return;
+    if (cachedMeshShader && !dimsChanged) return cachedMeshShader;
 
-    // Expand mesh coverage
+    // Expand mesh coverage: padding + 10% of world dimensions
     const extraX = worldWidth * expand;
     const extraY = worldHeight * expand;
     const x0 = -padding - extraX, y0 = -padding - extraY;
-
-    // Cache mesh bounds for vector border extraction
-    cachedMeshX0 = x0;
-    cachedMeshY0 = y0;
     const x1 = worldWidth + padding + extraX, y1 = worldHeight + padding + extraY;
 
-    // ── RenderTexture for ownership data ──
-    cachedMeshW = x1 - x0;
-    cachedMeshH = y1 - y0;
-    const rtW = Math.ceil(x1 - x0);
-    const rtH = Math.ceil(y1 - y0);
-    if (ownershipRT) ownershipRT.destroy();
-    ownershipRT = PIXI.RenderTexture.create({
-        width: rtW,
-        height: rtH,
-        scaleMode: 'nearest',
-    });
-
-    // Rebuild geometry for both meshes if dimensions changed
-    if (pass1Shader && pass2Shader && dimsChanged) {
-        const geom1 = new PIXI.MeshGeometry({
+    // If shader already exists but dimensions changed, rebuild geometry only
+    if (cachedMeshShader && dimsChanged) {
+        const geometry = new PIXI.MeshGeometry({
             positions: new Float32Array([x0, y0, x1, y0, x1, y1, x0, y1]),
             uvs: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
             indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
             topology: 'triangle-list',
         });
-        if (pass1Mesh) {
-            if (pass1Mesh.parent) pass1Mesh.parent.removeChild(pass1Mesh);
-            pass1Mesh.destroy();
+        if (cachedMesh) {
+            const parent = cachedMesh.parent;
+            if (parent) parent.removeChild(cachedMesh);
+            cachedMesh.destroy();
         }
-        pass1Mesh = new PIXI.Mesh({ geometry: geom1, shader: pass1Shader }) as any;
-        if (pass1Container) pass1Container.addChild(pass1Mesh!);
-
-        const geom2 = new PIXI.MeshGeometry({
-            positions: new Float32Array([x0, y0, x1, y0, x1, y1, x0, y1]),
-            uvs: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
-            indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
-            topology: 'triangle-list',
-        });
-        if (pass2Mesh) {
-            const parent = pass2Mesh.parent;
-            if (parent) parent.removeChild(pass2Mesh);
-            pass2Mesh.destroy();
-        }
-        pass2Mesh = new PIXI.Mesh({ geometry: geom2, shader: pass2Shader }) as any;
-
+        cachedMesh = new PIXI.Mesh({ geometry, shader: cachedMeshShader }) as any;
         cachedMeshWorldW = worldWidth;
         cachedMeshWorldH = worldHeight;
         cachedMeshExpansion = expand;
-        return;
+        return cachedMeshShader;
     }
 
-    // ── First time: compile both shader programs ──
-
-    // Pass 1: ownership computation
-    const pass1Program = compileHighShaderGlProgram({
-        bits: [localUniformBitGl, ownershipBitGl, roundPixelsBitGl],
-        name: 'territory-ownership',
+    // First time: compile shader program
+    const glProgram = compileHighShaderGlProgram({
+        bits: [localUniformBitGl, territoryBitGl, roundPixelsBitGl],
+        name: 'territory-distance-field',
     });
 
-    pass1Shader = new PIXI.Shader({
-        glProgram: pass1Program,
+    cachedMeshShader = new PIXI.Shader({
+        glProgram,
         resources: {
+            // CRITICAL: Must pass TextureSource (.source), NOT Texture!
             territoryUniforms: {
                 uNumStars: { value: 0, type: 'i32' },
-                uWorldWidth: { value: 0, type: 'f32' },
-                uWorldHeight: { value: 0, type: 'f32' },
-                uMorphFactor: { value: 0, type: 'f32' },
-                uInfluenceWeight: { value: 1.0, type: 'f32' },
-                uMinStarRadius: { value: 0, type: 'f32' },
-                uNumRealStars: { value: 0, type: 'i32' },
-            },
-            uStarData: starDataTexture?.source ?? makeGradientTestTexture().source,
-        },
-    });
-
-    const geom1 = new PIXI.MeshGeometry({
-        positions: new Float32Array([x0, y0, x1, y0, x1, y1, x0, y1]),
-        uvs: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
-        indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
-        topology: 'triangle-list',
-    });
-    pass1Mesh = new PIXI.Mesh({ geometry: geom1, shader: pass1Shader }) as any;
-
-    if (!pass1Container) pass1Container = new PIXI.Container();
-    pass1Container.addChild(pass1Mesh!);
-
-    // Pass 2: visual rendering
-    const pass2Program = compileHighShaderGlProgram({
-        bits: [localUniformBitGl, visualBitGl, roundPixelsBitGl],
-        name: 'territory-visual',
-    });
-
-    pass2Shader = new PIXI.Shader({
-        glProgram: pass2Program,
-        resources: {
-            visualUniforms: {
-                uTexWidth: { value: rtW, type: 'f32' },
-                uTexHeight: { value: rtH, type: 'f32' },
+                uNumPlayers: { value: 0, type: 'i32' },
                 uWorldWidth: { value: 0, type: 'f32' },
                 uWorldHeight: { value: 0, type: 'f32' },
                 uPadding: { value: 0, type: 'f32' },
-                uBorderWidth: { value: 5, type: 'f32' },
-                uBorderSoftness: { value: 3, type: 'f32' },
+                uBorderWidth: { value: 15, type: 'f32' },
+                uBorderSoftness: { value: 10, type: 'f32' },
                 uBorderAlpha: { value: 0.6, type: 'f32' },
                 uBorderBrighten: { value: 60, type: 'f32' },
+                uBorderMode: { value: 0, type: 'i32' },
                 uFillAlpha: { value: 0.15, type: 'f32' },
                 uEdgeFade: { value: 200, type: 'f32' },
                 uHueShift: { value: 0, type: 'f32' },
                 uSatMult: { value: 0.5, type: 'f32' },
                 uLightMult: { value: 0.4, type: 'f32' },
-                uSmoothing: { value: 30, type: 'f32' },
+                uMorphFactor: { value: 0, type: 'f32' },
+                uInfluenceWeight: { value: 1.0, type: 'f32' },
                 uContentMinX: { value: 0, type: 'f32' },
                 uContentMinY: { value: 0, type: 'f32' },
+                uSmoothing: { value: 30, type: 'f32' },
+                uCorridorBoost: { value: 0, type: 'f32' },
+                uDisconnectBoost: { value: 0, type: 'f32' },
+                uMinStarRadius: { value: 40, type: 'f32' },
+                uNumRealStars: { value: 0, type: 'i32' },
+                // Player colors
                 uPlayerColor0: { value: new Float32Array([1, 0, 0]), type: 'vec3<f32>' },
                 uPlayerColor1: { value: new Float32Array([0, 0, 1]), type: 'vec3<f32>' },
                 uPlayerColor2: { value: new Float32Array([0, 1, 0]), type: 'vec3<f32>' },
@@ -1117,21 +793,25 @@ function ensureMeshes(worldWidth: number, worldHeight: number): void {
                 uPlayerColor6: { value: new Float32Array([1, 0.5, 0]), type: 'vec3<f32>' },
                 uPlayerColor7: { value: new Float32Array([0.5, 0, 1]), type: 'vec3<f32>' },
             },
-            uOwnershipTex: ownershipRT!.source,
+            uStarData: starDataTexture?.source ?? makeGradientTestTexture().source,
         },
     });
 
-    const geom2 = new PIXI.MeshGeometry({
+    // Quad geometry in WORLD SPACE with UVs 0Ã¢â€ â€™1
+    // MeshGeometry wraps buffers with proper VERTEX|COPY_DST usage flags
+    const geometry = new PIXI.MeshGeometry({
         positions: new Float32Array([x0, y0, x1, y0, x1, y1, x0, y1]),
         uvs: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
         indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
         topology: 'triangle-list',
     });
-    pass2Mesh = new PIXI.Mesh({ geometry: geom2, shader: pass2Shader }) as any;
 
+    cachedMesh = new PIXI.Mesh({ geometry, shader: cachedMeshShader }) as any;
     cachedMeshWorldW = worldWidth;
     cachedMeshWorldH = worldHeight;
     cachedMeshExpansion = expand;
+
+    return cachedMeshShader;
 }
 
 
@@ -1139,45 +819,22 @@ function ensureMeshes(worldWidth: number, worldHeight: number): void {
 // Update GPU uniforms from current state
 // ============================================================================
 
-function updatePass1Uniforms(
-    stars: StarState[],
-    worldWidth: number,
-    worldHeight: number,
-): void {
-    if (!pass1Shader) return;
-
-    const nStars = totalPackedStars > 0 ? totalPackedStars : Math.min(stars.length, MAX_STARS);
-
-    const u = pass1Shader.resources.territoryUniforms.uniforms;
-    u.uNumStars = nStars;
-    u.uNumRealStars = stars.length;
-    u.uWorldWidth = worldWidth;
-    u.uWorldHeight = worldHeight;
-    u.uInfluenceWeight = GAME_CONFIG.DF_INFLUENCE_WEIGHT ?? 1.0;
-    u.uMinStarRadius = GAME_CONFIG.DF_MIN_STAR_RADIUS ?? 0;
-
-    if (starDataTexture) {
-        pass1Shader.resources.uStarData = starDataTexture.source;
-    }
-
-    const ug = pass1Shader.resources.territoryUniforms as any;
-    if (ug && typeof ug.update === 'function') {
-        ug.update();
-    }
-}
-
-function updatePass2Uniforms(
+function updateFilterUniforms(
     stars: StarState[],
     colorUtils: ColorUtils,
     worldWidth: number,
     worldHeight: number,
 ): void {
-    if (!pass2Shader) return;
+    if (!cachedMeshShader) return;
 
+    const nStars = totalPackedStars > 0 ? totalPackedStars : Math.min(stars.length, MAX_STARS);
     const nPlayers = currentPlayerIds.length;
     const padding = GAME_CONFIG.DF_EDGE_FADE ?? 200;
 
-    const u = pass2Shader.resources.visualUniforms.uniforms;
+    const u = cachedMeshShader.resources.territoryUniforms.uniforms;
+    u.uNumStars = nStars;
+    u.uNumRealStars = stars.length;
+    u.uNumPlayers = nPlayers;
     u.uWorldWidth = worldWidth;
     u.uWorldHeight = worldHeight;
     u.uPadding = padding;
@@ -1185,34 +842,29 @@ function updatePass2Uniforms(
     u.uBorderSoftness = GAME_CONFIG.DF_BORDER_SOFTNESS ?? 3;
     u.uBorderAlpha = GAME_CONFIG.DF_BORDER_ALPHA ?? 0.8;
     u.uBorderBrighten = GAME_CONFIG.DF_BORDER_BRIGHTEN ?? 20;
+    u.uBorderMode = GAME_CONFIG.DF_BORDER_MODE ?? 1;
     u.uFillAlpha = GAME_CONFIG.DF_ALPHA ?? 0.2;
     u.uEdgeFade = GAME_CONFIG.DF_EDGE_FADE ?? 200;
     u.uHueShift = GAME_CONFIG.DF_HUE ?? 0;
-    u.uSatMult = GAME_CONFIG.DF_SATURATION ?? 1;
-    u.uLightMult = GAME_CONFIG.DF_LIGHTNESS ?? 1;
-    u.uSmoothing = GAME_CONFIG.DF_SMOOTHING ?? 30;
+    u.uSatMult = GAME_CONFIG.DF_SATURATION ?? 0.7;
+    u.uLightMult = GAME_CONFIG.DF_LIGHTNESS ?? 0.5;
+    u.uInfluenceWeight = GAME_CONFIG.DF_INFLUENCE_WEIGHT ?? 1.0;
 
-    // Compute expanded content bounds for edge fade
-    // These must match the mesh geometry (x0,y0)→(x1,y1) from ensureMeshes()
-    const expand = GAME_CONFIG.DF_EXPANSION ?? 0.10;
-    const extraX = worldWidth * expand;
-    const extraY = worldHeight * expand;
-    const contentMinX = -padding - extraX;
-    const contentMinY = -padding - extraY;
-    const contentW = worldWidth + 2 * padding + 2 * extraX;
-    const contentH = worldHeight + 2 * padding + 2 * extraY;
-
-    u.uContentMinX = contentMinX;
-    u.uContentMinY = contentMinY;
-    // NOTE: Do NOT overwrite uWorldWidth/uWorldHeight with contentW/contentH!
-    // The shader needs original world dimensions for territory computation.
-    // Content bounds are only used for edge fade via uContentMinX/Y.
-
-    if (ownershipRT) {
-        u.uTexWidth = ownershipRT.width;
-        u.uTexHeight = ownershipRT.height;
+    // Compute content min bounds for symmetric edge fade
+    let minX = Infinity, minY = Infinity;
+    for (const s of stars) {
+        if (s.x < minX) minX = s.x;
+        if (s.y < minY) minY = s.y;
     }
+    const pad = 80; // Same padding as updateWorldBounds in GameCanvas
+    u.uContentMinX = stars.length > 0 ? minX - pad : 0;
+    u.uContentMinY = stars.length > 0 ? minY - pad : 0;
+    u.uSmoothing = GAME_CONFIG.DF_SMOOTHING ?? 30;
+    u.uMinStarRadius = GAME_CONFIG.DF_MIN_STAR_RADIUS ?? 40;
+    // Note: corridor/disconnect boosts are encoded per-site in the data texture,
+    // not as uniforms. The weights are applied via vs.weight → encode16 → shader decode.
 
+    // Pack player colors (0-1 range)
     for (let i = 0; i < Math.min(nPlayers, MAX_PLAYERS); i++) {
         const hex = colorUtils.getPlayerColor(currentPlayerIds[i]);
         const r = ((hex >> 16) & 0xff) / 255;
@@ -1222,38 +874,41 @@ function updatePass2Uniforms(
         (u as any)[`uPlayerColor${i}`] = colorArr;
     }
 
-    if (ownershipRT) {
-        pass2Shader.resources.uOwnershipTex = ownershipRT.source;
+    // Update star data texture reference Ã¢â‚¬â€ pass .source (TextureSource), not Texture
+    if (starDataTexture) {
+        cachedMeshShader.resources.uStarData = starDataTexture.source;
     }
 
-    const ug = pass2Shader.resources.visualUniforms as any;
+    // CRITICAL: Flag the UniformGroup as dirty so PIXI re-uploads to GPU
+    const ug = cachedMeshShader.resources.territoryUniforms as any;
     if (ug && typeof ug.update === 'function') {
         ug.update();
     }
 }
 
 // ============================================================================
-// Blur helper
+// Blur helper (PRESERVED FROM V1)
 // ============================================================================
 
 function applyBlur(): void {
-    if (!pass2Mesh) return;
+    if (!cachedMesh) return;
     const blur = GAME_CONFIG.DF_BLUR ?? 0;
     if (blur > 0) {
         if (cachedBlurStrength !== blur) {
             cachedBlurFilter = new PIXI.BlurFilter({ strength: blur, quality: 3 });
             cachedBlurStrength = blur;
         }
-        pass2Mesh.filters = cachedBlurFilter ? [cachedBlurFilter] : [];
+        // With Mesh approach, the custom shader is built in Ã¢â‚¬â€ only add blur as extra filter
+        cachedMesh.filters = cachedBlurFilter ? [cachedBlurFilter] : [];
     } else {
-        pass2Mesh.filters = [];
+        cachedMesh.filters = [];
         cachedBlurFilter = null;
         cachedBlurStrength = -1;
     }
 }
 
 // ============================================================================
-// Main Renderer — Two-Pass Pipeline
+// Main Renderer
 // ============================================================================
 
 export function renderDistanceFieldTerritory(
@@ -1263,41 +918,40 @@ export function renderDistanceFieldTerritory(
     worldWidth: number,
     worldHeight: number,
     connections?: StarConnection[],
-    app?: PIXI.Application,
 ): void {
     if (!GAME_CONFIG.TERRITORY_DISTANCE_FIELD) {
-        if (pass2Mesh) pass2Mesh.visible = false;
+        if (cachedMesh) cachedMesh.visible = false;
         return;
     }
-
-    // Cache the PIXI app reference for rendering Pass 1
-    if (app) cachedApp = app;
 
     const now = performance.now();
     const conns = connections ?? [];
     const transitionMs = GAME_CONFIG.TERRITORY_TRANSITION_MS ?? 400;
 
-    // ── Rebuild lane index if connections changed ──
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Rebuild lane index if connections changed Ã¢â€â‚¬Ã¢â€â‚¬
     const connFp = buildConnFp(conns);
     if (connFp !== cachedConnFp) {
         buildLaneIndex(stars, conns);
         cachedConnFp = connFp;
     }
 
-    // ── Check if ownership changed → recompute Dijkstra ──
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Check if ownership changed Ã¢â€ â€™ recompute Dijkstra Ã¢â€â‚¬Ã¢â€â‚¬
     const ownerFp = buildOwnerFp(stars);
     const ownerChanged = ownerFp !== cachedOwnerFp;
 
     if (ownerChanged) {
         cachedOwnerFp = ownerFp;
 
+        // Build player list
         const playerSet = new Set<string>();
         for (const s of stars) if (s.ownerId) playerSet.add(s.ownerId);
         const newPlayerIds = Array.from(playerSet).sort();
 
+        // Compute new distances
         const metric = (GAME_CONFIG.DF_DISTANCE_METRIC ?? 'length') as 'hops' | 'length';
         const newDist = computeDistToPlayer(stars, conns, newPlayerIds, metric);
 
+        // Start temporal morph if we have previous data
         if (currentDist && transitionMs > 0 && currentPlayerIds.length === newPlayerIds.length
             && currentPlayerIds.every((id, i) => id === newPlayerIds[i])) {
             prevDist = currentDist;
@@ -1313,11 +967,11 @@ export function renderDistanceFieldTerritory(
     }
 
     if (!currentDist || currentPlayerIds.length === 0) {
-        if (pass2Mesh) pass2Mesh.visible = false;
+        if (cachedMesh) cachedMesh.visible = false;
         return;
     }
 
-    // ── Temporal morph factor ──
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Temporal morph factor Ã¢â€â‚¬Ã¢â€â‚¬
     let morphFactor = 0;
     if (isMorphing && prevDist && transitionMs > 0) {
         const elapsed = now - morphStartTime;
@@ -1328,6 +982,7 @@ export function renderDistanceFieldTerritory(
             prevDist = null;
             morphFactor = 0;
         } else {
+            // Exponential decay for smooth morph
             morphFactor = 1 - rawT;
         }
     }
@@ -1338,6 +993,7 @@ export function renderDistanceFieldTerritory(
     cachedConfigFp = configFp;
 
     if (needsRebuild) {
+        // Compute virtual sites (corridors + disconnects)
         const ownedStars = stars.filter(s => s.ownerId);
         let virtuals: VirtualSite[] = [];
 
@@ -1347,6 +1003,7 @@ export function renderDistanceFieldTerritory(
             const mode = GAME_CONFIG.DF_CORRIDOR_MODE ?? 'spacing';
             const count = mode === 'count' ? (GAME_CONFIG.DF_CORRIDOR_COUNT ?? 3) : undefined;
             const corridorSites = computeCorridorVirtuals(ownedStars, conns, spacing, 0.5, count);
+            // Apply weight to all corridor sites
             for (const s of corridorSites) s.weight = weight;
             virtuals = virtuals.concat(corridorSites);
             console.log(`[DF] Corridors: ${corridorSites.length} sites (mode=${mode}, ${mode === 'count' ? `count=${count}` : `spacing=${spacing}`}, weight=${weight})`);
@@ -1365,44 +1022,26 @@ export function renderDistanceFieldTerritory(
         }
 
         console.log(`[DF] Total packed: ${stars.length} real + ${virtuals.length} virtual = ${stars.length + virtuals.length}`);
+        // Pack star data + virtual sites into data texture
         buildStarDataTexture(stars, currentDist, prevDist, currentPlayerIds, virtuals);
     }
 
-    // —— Ensure both meshes exist ——
-    ensureMeshes(worldWidth, worldHeight);
+    // —— Ensure GPU mesh exists ——
+    ensureMesh(worldWidth, worldHeight);
 
-    // —— PASS 1: Render ownership to RenderTexture ——
-    if (cachedApp && pass1Container && ownershipRT && pass1Shader) {
-        pass1Shader.resources.territoryUniforms.uniforms.uMorphFactor = morphFactor;
-        updatePass1Uniforms(stars, worldWidth, worldHeight);
-
-        cachedApp.renderer.render({
-            container: pass1Container,
-            target: ownershipRT,
-            clear: true,
-        });
+    // —— Add mesh to container if not already ——
+    if (cachedMesh && !cachedMesh.parent) {
+        container.addChild(cachedMesh);
+    }
+    if (cachedMesh) {
+        cachedMesh.visible = true;
     }
 
-    // —— PASS 2: Add visual mesh to container ——
-    if (pass2Mesh && !pass2Mesh.parent) {
-        container.addChild(pass2Mesh);
+    // —— Update GPU uniforms EVERY frame (sliders must be reactive) ——
+    if (cachedMeshShader) {
+        cachedMeshShader.resources.territoryUniforms.uniforms.uMorphFactor = morphFactor;
     }
-    if (pass2Mesh) {
-        pass2Mesh.visible = true;
-    }
-
-    updatePass2Uniforms(stars, colorUtils, worldWidth, worldHeight);
-
-    // —— PASS 3: Vector border overlay ——
-    // Only recompute when ownership changes (avoids per-frame GPU readback)
-    const borderFpNow = ownerFp + ':' + (GAME_CONFIG.DF_BORDER_WIDTH ?? 5) + ':' + (GAME_CONFIG.DF_BORDER_ALPHA ?? 0.8) + ':' + (GAME_CONFIG.DF_BORDER_BRIGHTEN ?? 20);
-    if (cachedApp && ownershipRT && borderFpNow !== cachedBorderOwnerFp) {
-        cachedBorderOwnerFp = borderFpNow;
-        drawVectorBorders(
-            container, cachedApp, ownershipRT, colorUtils,
-            cachedMeshX0, cachedMeshY0, cachedMeshW, cachedMeshH,
-        );
-    }
+    updateFilterUniforms(stars, colorUtils, worldWidth, worldHeight);
 
     // —— Apply filter pipeline ——
     applyBlur();
@@ -1422,45 +1061,20 @@ export function resetDistanceFieldTerritoryCache(): void {
     morphStartTime = 0;
     currentPlayerIds = [];
 
-    if (pass1Mesh) {
-        if (pass1Mesh.parent) pass1Mesh.parent.removeChild(pass1Mesh);
-        pass1Mesh.destroy();
-        pass1Mesh = null;
+    if (cachedMesh) {
+        if (cachedMesh.parent) cachedMesh.parent.removeChild(cachedMesh);
+        cachedMesh.destroy();
+        cachedMesh = null;
     }
-    if (pass2Mesh) {
-        if (pass2Mesh.parent) pass2Mesh.parent.removeChild(pass2Mesh);
-        pass2Mesh.destroy();
-        pass2Mesh = null;
-    }
-    if (pass1Shader) {
-        pass1Shader.destroy();
-        pass1Shader = null;
-    }
-    if (pass2Shader) {
-        pass2Shader.destroy();
-        pass2Shader = null;
-    }
-    if (pass1Container) {
-        pass1Container.destroy();
-        pass1Container = null;
-    }
-    if (ownershipRT) {
-        ownershipRT.destroy();
-        ownershipRT = null;
+    if (cachedMeshShader) {
+        cachedMeshShader.destroy();
+        cachedMeshShader = null;
     }
 
     starDataTexture = null;
     starDataBuffer = null;
     cachedBlurFilter = null;
     cachedBlurStrength = -1;
-    cachedApp = null;
     laneArray = [];
     laneCells = new Map();
-
-    if (borderGraphics) {
-        if (borderGraphics.parent) borderGraphics.parent.removeChild(borderGraphics);
-        borderGraphics.destroy();
-        borderGraphics = null;
-    }
-    cachedBorderOwnerFp = '';
 }
