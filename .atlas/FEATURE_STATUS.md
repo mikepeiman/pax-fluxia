@@ -63,6 +63,7 @@
 | B-34 | Disconnect buffer vertex-pushing distorts polygon shapes unpredictably — needs topology-aware redesign | 🔴 Open | 2026-03-03 |
 | B-35 | Vector borders (Pass 3) not rendering — PIXI v8 `extract.pixels()` is async (returns Promise), drawVectorBorders doesn't await it. Original `221241c` code has non-async call, causing silent failure. Same regression as previous session. | 🔴 Open | 2026-03-05 |
 | B-36 | Saved themes lost when localStorage cleared — themes only stored in LS, not persisted to disk. User-created data from intentional save actions MUST persist to file (see `common/resources/settings-themes/` for existing format) | 🔴 Open | 2026-03-06 |
+| B-37 | Territory (fills+borders) offset from starmap — entire DF territory layer misaligned with star positions. Stars not centered in their territories. Borders+fills align with each other but NOT with starmap. | 🔴 Active | 2026-03-06 |
 
 ## Feature Ideas
 
@@ -70,4 +71,5 @@
 |----|---------|----------|------|
 | F-146 | File-based persistence for saved maps, themes, and settings — localStorage is ephemeral, user-created content (saved maps, custom themes, custom settings) should persist to local files. Themes already have a folder at `common/resources/settings-themes/` | High | 2026-03-05 |
 | F-147 | Border "layers" mode — current neighbor-sampling borders show per-player layered borders (each side colored separately). Keep as optional setting alongside blended single-border mode | Medium | 2026-03-06 |
+| F-148 | Default map loading — toggle+select in Main Menu to load a saved map by default instead of generating random. Persist preference. | High | 2026-03-06 |
 
