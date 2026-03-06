@@ -293,12 +293,10 @@ const visualBitGl = {
 
             // ── GPU SDF Borders ──────────────────────────────────────────
             // gapNorm is the SDF: 0.0 = ON the border, 1.0 = deep inside territory
-            // fwidth() normalizes to screen pixels — constant border width
-            // regardless of influence gradient steepness
+            // smoothstep creates a soft falloff from border to fill
             if (uBordersEnabled > 0.5 && enemyOwner >= 0) {
-                float fw = fwidth(gapNorm);
-                float borderThreshold = uBorderWidth * fw;
-                float softEdge = uBorderSoftness * fw;
+                float borderThreshold = uBorderWidth / 200.0;
+                float softEdge = uBorderSoftness / 200.0;
                 // borderMask: 1.0 AT the border, fading to 0.0 past borderWidth
                 float borderMask = 1.0 - smoothstep(
                     max(borderThreshold - softEdge, 0.0),
