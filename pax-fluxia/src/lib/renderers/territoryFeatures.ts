@@ -52,7 +52,6 @@ export const DISCONNECT_OWNER_ID = '__disconnect__';
  * @param connections All star connections (lanes)
  * @param spacing Distance between corridor virtual sites (px)
  * @param weightMultiplier Weight relative to base (default 0.5)
- * @param count Optional fixed count of virtual stars per lane (overrides spacing)
  * @returns Array of corridor VirtualSite objects
  */
 export function computeCorridorVirtuals(
@@ -60,7 +59,6 @@ export function computeCorridorVirtuals(
     connections: StarConnection[],
     spacing: number,
     weightMultiplier = 0.5,
-    count?: number,
 ): VirtualSite[] {
     const result: VirtualSite[] = [];
     const starMap = new Map(ownedStars.map(s => [s.id, s]));
@@ -72,12 +70,9 @@ export function computeCorridorVirtuals(
 
         const dx = sB.x - sA.x, dy = sB.y - sA.y;
         const dist = Math.hypot(dx, dy);
+        if (dist < spacing) continue;
 
-        // Count mode: fixed number of virtual stars per lane, evenly distributed
-        // Spacing mode: virtual stars at fixed pixel intervals
-        const steps = count != null ? count + 1 : Math.floor(dist / spacing);
-        if (steps < 2) continue;
-
+        const steps = Math.floor(dist / spacing);
         for (let step = 1; step < steps; step++) {
             const t = step / steps;
             result.push({
@@ -115,12 +110,11 @@ export function computeCorridorVirtuals(
 export function computeDisconnectVirtuals(
     ownedStars: StarState[],
     allStars: StarState[],
-    connections: StarConnection[] | undefined,
+    connections: StarConnection[],
     maxDistance: number,
     weightMultiplier = 0.3,
 ): VirtualSite[] {
     const result: VirtualSite[] = [];
-    if (!connections || connections.length === 0) return result;
 
     // Group owned stars by owner
     const byOwner = new Map<string, StarState[]>();
