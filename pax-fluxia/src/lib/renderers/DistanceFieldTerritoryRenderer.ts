@@ -291,28 +291,101 @@ const visualBitGl = {
                 alpha *= junctionFade;
             }
 
-            // ── GPU SDF Borders ──────────────────────────────────────────
-            // gapNorm is the SDF: 0.0 = ON the border, 1.0 = deep inside territory
-            // smoothstep creates a soft falloff from border to fill
-            if (uBordersEnabled > 0.5 && enemyOwner >= 0) {
-                float borderThreshold = uBorderWidth / 200.0;
-                float softEdge = uBorderSoftness / 200.0;
-                // borderMask: 1.0 AT the border, fading to 0.0 past borderWidth
-                float borderMask = 1.0 - smoothstep(
-                    max(borderThreshold - softEdge, 0.0),
-                    borderThreshold + softEdge,
-                    gapNorm
-                );
+            // ── GPU Borders via Neighbor Sampling ─────────────────────
+            //
+            // WHAT: Detect ownership boundaries by sampling the ownership
+            // texture at neighboring texels. If a nearby texel has a
+            // DIFFERENT owner, this pixel is near a territory border.
+            //
+            // WHY NOT gapNorm: The previous approach used gapNorm
+            // (influence gap between owner and enemy). That value's
+            // gradient varies with local star density — steep near
+            // close stars, shallow near distant ones — causing borders
+            // to be thicker on one side than the other (asymmetric).
+            //
+            // WHY THIS WORKS: Each texel offset maps to a fixed world
+            // distance (1 texel = worldSize / textureSize). So sampling
+            // at a fixed radius finds ownership changes at a uniform
+            // distance, regardless of influence landscape.
+            //
+            // ARCHITECTURE — "Territories lead, borders follow":
+            // This code reads the SAME ownership RenderTexture that the
+            // fill coloring reads (lines above). During conquest morph
+            // transitions (uMorphFactor in Pass 1), ownership boundaries
+            // slide smoothly as influence values interpolate. Since we
+            // recompute borders from scratch every frame from the current
+            // ownership state, borders are emergent — they automatically
+            // track the moving boundary with zero lag. There are no
+            // "border objects" to animate; the border IS wherever
+            // ownership changes, and that changes continuously.
+            //
+            // PERFORMANCE: 24 texture samples (8 dirs × 3 radii).
+            // Trivial on modern GPUs. If mobile profiling shows issues,
+            // reduce to 4 dirs × 2 radii (8 samples).
+            //
+            if (uBordersEnabled > 0.5) {
+                // Size of one texel in UV space (0..1)
+                vec2 texel = vec2(1.0 / uTexWidth, 1.0 / uTexHeight);
 
-                // Border color: blend between owner and enemy, brightened
-                vec3 enemyPC = getPlayerColor(enemyOwner);
-                vec3 borderBase = mix(hslAdjust(enemyPC), finalRGB, 0.5);
-                float brightenVal = uBorderBrighten / 255.0;
-                vec3 borderRGB = min(borderBase + vec3(brightenVal), vec3(1.0));
+                // Search radius in texels. uBorderWidth slider controls
+                // how far outward we look for ownership changes.
+                float searchRadius = uBorderWidth;
 
-                // Blend border onto fill
-                finalRGB = mix(finalRGB, borderRGB, borderMask);
-                alpha = mix(alpha, uBorderAlpha, borderMask);
+                // 8 compass directions (N, NE, E, SE, S, SW, W, NW).
+                // Diagonals normalized to 0.707 so they sample at the
+                // same distance as cardinals.
+                vec2 dirs[8];
+                dirs[0] = vec2( 1.0,  0.0);   // E
+                dirs[1] = vec2(-1.0,  0.0);   // W
+                dirs[2] = vec2( 0.0,  1.0);   // S
+                dirs[3] = vec2( 0.0, -1.0);   // N
+                dirs[4] = vec2( 0.707,  0.707); // SE
+                dirs[5] = vec2(-0.707,  0.707); // SW
+                dirs[6] = vec2( 0.707, -0.707); // NE
+                dirs[7] = vec2(-0.707, -0.707); // NW
+
+                // Track nearest different-owner texel distance
+                float minEnemyDist = searchRadius + 1.0;
+                int borderEnemyOwner = -1;
+
+                // Sample at 3 radii per direction (inner/mid/outer)
+                // for smooth distance falloff instead of binary on/off
+                for (int d = 0; d < 8; d++) {
+                    for (int step = 1; step <= 3; step++) {
+                        float r = searchRadius * float(step) / 3.0;
+                        vec2 sampleUV = vUV + dirs[d] * r * texel;
+                        vec4 s = texture(uOwnershipTex, sampleUV);
+                        int sOwner = int(floor(s.r * 255.0 + 0.5)) - 1;
+
+                        // Different owner AND valid → enemy boundary
+                        if (sOwner != myOwner && sOwner >= 0) {
+                            if (r < minEnemyDist) {
+                                minEnemyDist = r;
+                                borderEnemyOwner = sOwner;
+                            }
+                        }
+                    }
+                }
+
+                // Border mask: 1.0 at boundary edge, fading to 0.0
+                // as distance increases. uBorderSoftness = fade width.
+                if (minEnemyDist <= searchRadius) {
+                    float softness = max(uBorderSoftness, 0.5);
+                    float borderMask = 1.0 - smoothstep(0.0, softness, minEnemyDist);
+                    borderMask *= uBorderAlpha;
+
+                    // Border color: 50/50 blend of owner + enemy,
+                    // shifted brighter by uBorderBrighten
+                    int enemyIdx = borderEnemyOwner >= 0 ? borderEnemyOwner : 0;
+                    vec3 enemyPC = getPlayerColor(enemyIdx);
+                    vec3 borderBase = mix(hslAdjust(enemyPC), finalRGB, 0.5);
+                    float brightenVal = uBorderBrighten / 255.0;
+                    vec3 borderRGB = min(borderBase + vec3(brightenVal), vec3(1.0));
+
+                    // Blend border onto fill
+                    finalRGB = mix(finalRGB, borderRGB, borderMask);
+                    alpha = max(alpha, borderMask);
+                }
             }
 
             // ── Edge fade ─────────────────────────────────────────────────
