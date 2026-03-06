@@ -444,11 +444,11 @@ function buildOwnerFp(stars: StarState[]): string {
 function buildConfigFp(): string {
     return `${GAME_CONFIG.DF_ALPHA}:${GAME_CONFIG.DF_BORDER_WIDTH}:`
         + `${GAME_CONFIG.DF_BORDER_SOFTNESS}:${GAME_CONFIG.DF_BORDER_ALPHA}:${GAME_CONFIG.DF_BORDER_BRIGHTEN}:`
+        + `${GAME_CONFIG.DF_CORRIDOR_ENABLED}:${GAME_CONFIG.DF_CORRIDOR_MODE}:${GAME_CONFIG.DF_CORRIDOR_SPACING}:${GAME_CONFIG.DF_CORRIDOR_COUNT}:${GAME_CONFIG.DF_CORRIDOR_WEIGHT}:`
         + `${GAME_CONFIG.DF_BLUR}:${GAME_CONFIG.DF_HUE}:`
         + `${GAME_CONFIG.DF_SATURATION}:${GAME_CONFIG.DF_LIGHTNESS}:`
         + `${GAME_CONFIG.DF_DISTANCE_METRIC}:${GAME_CONFIG.TERRITORY_TRANSITION_MS}:`
         + `${GAME_CONFIG.DF_EDGE_FADE}:${GAME_CONFIG.DF_RESOLUTION}:${GAME_CONFIG.DF_ROUNDING}:${GAME_CONFIG.DF_INFLUENCE_WEIGHT}`
-        + `:${GAME_CONFIG.DF_CORRIDOR_ENABLED}:${GAME_CONFIG.DF_CORRIDOR_SPACING}:${GAME_CONFIG.DF_CORRIDOR_WEIGHT}`
         + `:${GAME_CONFIG.DF_DISCONNECT_ENABLED}:${GAME_CONFIG.DF_DISCONNECT_DISTANCE}:${GAME_CONFIG.DF_DISCONNECT_WEIGHT}`;
 }
 
@@ -972,11 +972,13 @@ export function renderDistanceFieldTerritory(
         if (GAME_CONFIG.DF_CORRIDOR_ENABLED && conns.length > 0) {
             const spacing = GAME_CONFIG.DF_CORRIDOR_SPACING ?? 60;
             const weight = GAME_CONFIG.DF_CORRIDOR_WEIGHT ?? 1.0;
-            const corridorSites = computeCorridorVirtuals(ownedStars, conns, spacing);
+            const mode = GAME_CONFIG.DF_CORRIDOR_MODE ?? 'spacing';
+            const count = mode === 'count' ? (GAME_CONFIG.DF_CORRIDOR_COUNT ?? 3) : undefined;
+            const corridorSites = computeCorridorVirtuals(ownedStars, conns, spacing, 0.5, count);
             // Apply weight to all corridor sites
             for (const s of corridorSites) s.weight = weight;
             virtuals = virtuals.concat(corridorSites);
-            console.log(`[DF] Corridors: ${corridorSites.length} sites (spacing=${spacing}, weight=${weight})`);
+            console.log(`[DF] Corridors: ${corridorSites.length} sites (mode=${mode}, ${mode === 'count' ? `count=${count}` : `spacing=${spacing}`}, weight=${weight})`);
         }
 
         if (GAME_CONFIG.DF_DISCONNECT_ENABLED && conns.length > 0) {
