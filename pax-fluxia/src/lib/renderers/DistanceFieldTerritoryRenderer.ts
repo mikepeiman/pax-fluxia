@@ -215,6 +215,7 @@ const visualBitGl = {
             uniform float uSatMult;
             uniform float uLightMult;
             uniform float uSmoothing;
+            uniform float uBordersEnabled;
             uniform float uContentMinX;
             uniform float uContentMinY;
             uniform vec3 uPlayerColor0;
@@ -279,7 +280,7 @@ const visualBitGl = {
             float gapNorm = center.g; // normalized influence gap to enemy
             int enemyOwner = int(floor(center.b * 255.0 + 0.5)) - 1;
 
-            // ── Coloring (fills only — borders drawn as vectors in Pass 3) ──
+            // ── Fill coloring ──
             vec3 pc = getPlayerColor(myOwner);
             vec3 finalRGB = hslAdjust(pc);
             float alpha = uFillAlpha;
@@ -288,6 +289,30 @@ const visualBitGl = {
             if (uSmoothing > 0.0 && enemyOwner >= 0) {
                 float junctionFade = smoothstep(0.0, 1.0, gapNorm * (200.0 / max(uSmoothing, 1.0)));
                 alpha *= junctionFade;
+            }
+
+            // ── GPU SDF Borders ──────────────────────────────────────────
+            // gapNorm is the SDF: 0.0 = ON the border, 1.0 = deep inside territory
+            // smoothstep creates a soft falloff from border to fill
+            if (uBordersEnabled > 0.5 && enemyOwner >= 0) {
+                float borderThreshold = uBorderWidth / 200.0;
+                float softEdge = uBorderSoftness / 200.0;
+                // borderMask: 1.0 AT the border, fading to 0.0 past borderWidth
+                float borderMask = 1.0 - smoothstep(
+                    max(borderThreshold - softEdge, 0.0),
+                    borderThreshold + softEdge,
+                    gapNorm
+                );
+
+                // Border color: blend between owner and enemy, brightened
+                vec3 enemyPC = getPlayerColor(enemyOwner);
+                vec3 borderBase = mix(hslAdjust(enemyPC), finalRGB, 0.5);
+                float brightenVal = uBorderBrighten / 255.0;
+                vec3 borderRGB = min(borderBase + vec3(brightenVal), vec3(1.0));
+
+                // Blend border onto fill
+                finalRGB = mix(finalRGB, borderRGB, borderMask);
+                alpha = mix(alpha, uBorderAlpha, borderMask);
             }
 
             // ── Edge fade ─────────────────────────────────────────────────
@@ -1106,6 +1131,7 @@ function ensureMeshes(worldWidth: number, worldHeight: number): void {
                 uSatMult: { value: 0.5, type: 'f32' },
                 uLightMult: { value: 0.4, type: 'f32' },
                 uSmoothing: { value: 30, type: 'f32' },
+                uBordersEnabled: { value: 1, type: 'f32' },
                 uContentMinX: { value: 0, type: 'f32' },
                 uContentMinY: { value: 0, type: 'f32' },
                 uPlayerColor0: { value: new Float32Array([1, 0, 0]), type: 'vec3<f32>' },
@@ -1191,6 +1217,7 @@ function updatePass2Uniforms(
     u.uSatMult = GAME_CONFIG.DF_SATURATION ?? 1;
     u.uLightMult = GAME_CONFIG.DF_LIGHTNESS ?? 1;
     u.uSmoothing = GAME_CONFIG.DF_SMOOTHING ?? 30;
+    u.uBordersEnabled = (GAME_CONFIG as any).DF_BORDERS_ENABLED !== false ? 1.0 : 0.0;
 
     // Compute expanded content bounds for edge fade
     // These must match the mesh geometry (x0,y0)→(x1,y1) from ensureMeshes()

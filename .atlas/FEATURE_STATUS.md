@@ -61,4 +61,11 @@
 | B-32 | Territory gaps between different-owner polygons after pipeline stages — shared Voronoi vertices modified independently per polygon, breaking tiling property | 🔴 Open | 2026-03-03 |
 | B-33 | Corridor spacing < ~45px destabilizes merge step — too many virtual sites cause polygon fragmentation | 🟡 Deferred | 2026-03-03 |
 | B-34 | Disconnect buffer vertex-pushing distorts polygon shapes unpredictably — needs topology-aware redesign | 🔴 Open | 2026-03-03 |
+| B-35 | Vector borders (Pass 3) not rendering — PIXI v8 `extract.pixels()` is async (returns Promise), drawVectorBorders doesn't await it. Original `221241c` code has non-async call, causing silent failure. Same regression as previous session. | 🔴 Open | 2026-03-05 |
+
+## Feature Ideas
+
+| ID | Feature | Priority | Date |
+|----|---------|----------|------|
+| F-146 | File-based persistence for saved maps and settings — localStorage is ephemeral, user-created content (saved maps, custom settings) should persist to local files | High | 2026-03-05 |
 
