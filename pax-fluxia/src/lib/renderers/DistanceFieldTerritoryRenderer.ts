@@ -317,17 +317,11 @@ const visualBitGl = {
                 vec4 sS = texture(uOwnershipTex, vUV + vec2(0.0,  th * radius));
                 vec4 sN = texture(uOwnershipTex, vUV + vec2(0.0, -th * radius));
 
-                // Sample 4 diagonal neighbors (0.707 = 1/sqrt(2) for same distance)
+                // Sample 4 diagonal neighbors (0.707 = 1/sqrt(2))
                 vec4 sSE = texture(uOwnershipTex, vUV + vec2( tw, th) * radius * 0.707);
                 vec4 sSW = texture(uOwnershipTex, vUV + vec2(-tw, th) * radius * 0.707);
                 vec4 sNE = texture(uOwnershipTex, vUV + vec2( tw,-th) * radius * 0.707);
                 vec4 sNW = texture(uOwnershipTex, vUV + vec2(-tw,-th) * radius * 0.707);
-
-                // Also sample at half-radius for distance estimation
-                vec4 sEi = texture(uOwnershipTex, vUV + vec2( tw * radius * 0.5, 0.0));
-                vec4 sWi = texture(uOwnershipTex, vUV + vec2(-tw * radius * 0.5, 0.0));
-                vec4 sSi = texture(uOwnershipTex, vUV + vec2(0.0,  th * radius * 0.5));
-                vec4 sNi = texture(uOwnershipTex, vUV + vec2(0.0, -th * radius * 0.5));
 
                 // Decode owners (unique names for each)
                 int oE = int(floor(sE.r * 255.0 + 0.5)) - 1;
@@ -338,41 +332,20 @@ const visualBitGl = {
                 int oSW = int(floor(sSW.r * 255.0 + 0.5)) - 1;
                 int oNE = int(floor(sNE.r * 255.0 + 0.5)) - 1;
                 int oNW = int(floor(sNW.r * 255.0 + 0.5)) - 1;
-                int oEi = int(floor(sEi.r * 255.0 + 0.5)) - 1;
-                int oWi = int(floor(sWi.r * 255.0 + 0.5)) - 1;
-                int oSi = int(floor(sSi.r * 255.0 + 0.5)) - 1;
-                int oNi = int(floor(sNi.r * 255.0 + 0.5)) - 1;
 
-                // Find minimum distance to enemy texel
-                float minDist = radius + 1.0;
+                // Binary border check — any different-owner neighbor = border
+                bool isBorder = false;
                 int nearEnemy = -1;
+                if (oE != myOwner && oE >= 0) { isBorder = true; nearEnemy = oE; }
+                if (oW != myOwner && oW >= 0) { isBorder = true; nearEnemy = oW; }
+                if (oS != myOwner && oS >= 0) { isBorder = true; nearEnemy = oS; }
+                if (oN != myOwner && oN >= 0) { isBorder = true; nearEnemy = oN; }
+                if (oSE != myOwner && oSE >= 0) { isBorder = true; nearEnemy = oSE; }
+                if (oSW != myOwner && oSW >= 0) { isBorder = true; nearEnemy = oSW; }
+                if (oNE != myOwner && oNE >= 0) { isBorder = true; nearEnemy = oNE; }
+                if (oNW != myOwner && oNW >= 0) { isBorder = true; nearEnemy = oNW; }
 
-                // Inner ring (half radius) — if enemy found here, dist = R*0.5
-                if (oEi != myOwner && oEi >= 0) { minDist = min(minDist, radius*0.5); nearEnemy = oEi; }
-                if (oWi != myOwner && oWi >= 0) { minDist = min(minDist, radius*0.5); nearEnemy = oWi; }
-                if (oSi != myOwner && oSi >= 0) { minDist = min(minDist, radius*0.5); nearEnemy = oSi; }
-                if (oNi != myOwner && oNi >= 0) { minDist = min(minDist, radius*0.5); nearEnemy = oNi; }
-
-                // Outer ring (full radius) — dist = R
-                if (oE != myOwner && oE >= 0) { minDist = min(minDist, radius); nearEnemy = oE; }
-                if (oW != myOwner && oW >= 0) { minDist = min(minDist, radius); nearEnemy = oW; }
-                if (oS != myOwner && oS >= 0) { minDist = min(minDist, radius); nearEnemy = oS; }
-                if (oN != myOwner && oN >= 0) { minDist = min(minDist, radius); nearEnemy = oN; }
-
-                // Diagonals (full radius) — dist = R
-                if (oSE != myOwner && oSE >= 0) { minDist = min(minDist, radius); nearEnemy = oSE; }
-                if (oSW != myOwner && oSW >= 0) { minDist = min(minDist, radius); nearEnemy = oSW; }
-                if (oNE != myOwner && oNE >= 0) { minDist = min(minDist, radius); nearEnemy = oNE; }
-                if (oNW != myOwner && oNW >= 0) { minDist = min(minDist, radius); nearEnemy = oNW; }
-
-                if (minDist <= radius) {
-                    // Border mask: softness controls outer fade.
-                    // At softness=0: hard edge — full mask for all minDist < radius
-                    // At softness=N: solid from 0→(radius-N), fading from (radius-N)→radius
-                    float solidEnd = max(radius - uBorderSoftness, 0.0);
-                    float borderMask = 1.0 - smoothstep(solidEnd, radius + 0.01, minDist);
-                    borderMask *= uBorderAlpha;
-
+                if (isBorder) {
                     // Border color: 50/50 blend of owner + enemy, brightened
                     vec3 borderBase = finalRGB;
                     if (nearEnemy >= 0) {
@@ -382,8 +355,8 @@ const visualBitGl = {
                     float brightenVal = uBorderBrighten / 255.0;
                     vec3 borderRGB = min(borderBase + vec3(brightenVal), vec3(1.0));
 
-                    finalRGB = mix(finalRGB, borderRGB, borderMask);
-                    alpha = max(alpha, borderMask);
+                    finalRGB = borderRGB;
+                    alpha = uBorderAlpha;
                 }
             }
 
