@@ -293,70 +293,31 @@ const visualBitGl = {
                 alpha *= junctionFade;
             }
 
-            // ── GPU Borders via Neighbor Sampling ─────────────────────
-            //
-            // Detect ownership boundaries by sampling the ownership
-            // texture at neighboring texels. All samples MUST be fully
-            // inlined with unique variable names — GLSL ES 3.0 on some
-            // GPUs fails silently with sampler2D function params,
-            // dynamically-indexed arrays, variable reuse across texture
-            // calls, and preprocessor macros inside main().
-            //
-            // ARCHITECTURE — "Territories lead, borders follow":
-            // Reads the SAME ownership RT as the fill. During morph
-            // transitions, borders track ownership automatically.
-            //
+            // ── BORDER DIAGNOSTIC — exact redline from 07a3588 ────
             if (uBordersEnabled > 0.5) {
                 float tw = 1.0 / uTexWidth;
                 float th = 1.0 / uTexHeight;
                 float radius = max(uBorderWidth, 1.0);
 
-                // Sample 4 cardinal neighbors at search radius
                 vec4 sE = texture(uOwnershipTex, vUV + vec2( tw * radius, 0.0));
                 vec4 sW = texture(uOwnershipTex, vUV + vec2(-tw * radius, 0.0));
                 vec4 sS = texture(uOwnershipTex, vUV + vec2(0.0,  th * radius));
                 vec4 sN = texture(uOwnershipTex, vUV + vec2(0.0, -th * radius));
 
-                // Sample 4 diagonal neighbors (0.707 = 1/sqrt(2))
-                vec4 sSE = texture(uOwnershipTex, vUV + vec2( tw, th) * radius * 0.707);
-                vec4 sSW = texture(uOwnershipTex, vUV + vec2(-tw, th) * radius * 0.707);
-                vec4 sNE = texture(uOwnershipTex, vUV + vec2( tw,-th) * radius * 0.707);
-                vec4 sNW = texture(uOwnershipTex, vUV + vec2(-tw,-th) * radius * 0.707);
-
-                // Decode owners (unique names for each)
                 int oE = int(floor(sE.r * 255.0 + 0.5)) - 1;
                 int oW = int(floor(sW.r * 255.0 + 0.5)) - 1;
                 int oS = int(floor(sS.r * 255.0 + 0.5)) - 1;
                 int oN = int(floor(sN.r * 255.0 + 0.5)) - 1;
-                int oSE = int(floor(sSE.r * 255.0 + 0.5)) - 1;
-                int oSW = int(floor(sSW.r * 255.0 + 0.5)) - 1;
-                int oNE = int(floor(sNE.r * 255.0 + 0.5)) - 1;
-                int oNW = int(floor(sNW.r * 255.0 + 0.5)) - 1;
 
-                // Binary border check — any different-owner neighbor = border
                 bool isBorder = false;
-                int nearEnemy = -1;
-                if (oE != myOwner && oE >= 0) { isBorder = true; nearEnemy = oE; }
-                if (oW != myOwner && oW >= 0) { isBorder = true; nearEnemy = oW; }
-                if (oS != myOwner && oS >= 0) { isBorder = true; nearEnemy = oS; }
-                if (oN != myOwner && oN >= 0) { isBorder = true; nearEnemy = oN; }
-                if (oSE != myOwner && oSE >= 0) { isBorder = true; nearEnemy = oSE; }
-                if (oSW != myOwner && oSW >= 0) { isBorder = true; nearEnemy = oSW; }
-                if (oNE != myOwner && oNE >= 0) { isBorder = true; nearEnemy = oNE; }
-                if (oNW != myOwner && oNW >= 0) { isBorder = true; nearEnemy = oNW; }
+                if (oE != myOwner && oE >= 0) isBorder = true;
+                if (oW != myOwner && oW >= 0) isBorder = true;
+                if (oS != myOwner && oS >= 0) isBorder = true;
+                if (oN != myOwner && oN >= 0) isBorder = true;
 
                 if (isBorder) {
-                    // Border color: 50/50 blend of owner + enemy, brightened
-                    vec3 borderBase = finalRGB;
-                    if (nearEnemy >= 0) {
-                        vec3 enemyPC = getPlayerColor(nearEnemy);
-                        borderBase = mix(hslAdjust(enemyPC), finalRGB, 0.5);
-                    }
-                    float brightenVal = uBorderBrighten / 255.0;
-                    vec3 borderRGB = min(borderBase + vec3(brightenVal), vec3(1.0));
-
-                    finalRGB = borderRGB;
-                    alpha = uBorderAlpha;
+                    finalRGB = vec3(1.0, 0.0, 0.0);
+                    alpha = 1.0;
                 }
             }
 
