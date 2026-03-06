@@ -394,50 +394,34 @@ const visualBitGl = {
                 alpha *= junctionFade;
             }
 
-            // ── GPU Borders via Neighbor Sampling ─────────────────────
-            //
-            // WHAT: Detect ownership boundaries by sampling the ownership
-            // texture at neighboring texels. If a nearby texel has a
-            // DIFFERENT owner, this pixel is near a territory border.
-            //
-            // WHY NOT gapNorm: The previous approach used gapNorm
-            // (influence gap between owner and enemy). That value's
-            // gradient varies with local star density — steep near
-            // close stars, shallow near distant ones — causing borders
-            // to be thicker on one side than the other (asymmetric).
-            //
-            // WHY THIS WORKS: Each texel offset maps to a fixed world
-            // distance (1 texel = worldSize / textureSize). So sampling
-            // at a fixed radius finds ownership changes at a uniform
-            // distance, regardless of influence landscape.
-            //
-            // ARCHITECTURE — "Territories lead, borders follow":
-            // Reads the SAME ownership RT as the fill. During conquest
-            // morph transitions, ownership boundaries slide smoothly.
-            // Borders track them automatically — zero lag, no separate
-            // border objects.
-            //
+            // ── BORDER DIAGNOSTIC — minimal inline neighbor test ────
+            // Sample 4 immediate cardinal neighbors (1 texel away).
+            // If ANY has a different owner → bright red border.
+            // This tests whether offset UV sampling works AT ALL.
             if (uBordersEnabled > 0.5) {
-                vec2 texel = vec2(1.0 / uTexWidth, 1.0 / uTexHeight);
-                float R = uBorderWidth;
+                float tw = 1.0 / uTexWidth;
+                float th = 1.0 / uTexHeight;
+                float radius = max(uBorderWidth, 1.0);
 
-                // Find minimum distance to a different-owner texel
-                // by sampling 4 cardinal + 4 diagonal directions
-                float minD = findMinEnemyDist(
-                    uOwnershipTex, vUV, texel, R, myOwner
-                );
+                vec4 sE = texture(uOwnershipTex, vUV + vec2( tw * radius, 0.0));
+                vec4 sW = texture(uOwnershipTex, vUV + vec2(-tw * radius, 0.0));
+                vec4 sS = texture(uOwnershipTex, vUV + vec2(0.0,  th * radius));
+                vec4 sN = texture(uOwnershipTex, vUV + vec2(0.0, -th * radius));
 
-                if (minD <= R) {
-                    float softness = max(uBorderSoftness, 0.5);
-                    float borderMask = 1.0 - smoothstep(0.0, softness, minD);
-                    borderMask *= uBorderAlpha;
+                int oE = int(floor(sE.r * 255.0 + 0.5)) - 1;
+                int oW = int(floor(sW.r * 255.0 + 0.5)) - 1;
+                int oS = int(floor(sS.r * 255.0 + 0.5)) - 1;
+                int oN = int(floor(sN.r * 255.0 + 0.5)) - 1;
 
-                    // Border color: brightened blend of owner + enemy
-                    float brightenVal = uBorderBrighten / 255.0;
-                    vec3 borderRGB = min(finalRGB + vec3(brightenVal), vec3(1.0));
+                bool isBorder = false;
+                if (oE != myOwner && oE >= 0) isBorder = true;
+                if (oW != myOwner && oW >= 0) isBorder = true;
+                if (oS != myOwner && oS >= 0) isBorder = true;
+                if (oN != myOwner && oN >= 0) isBorder = true;
 
-                    finalRGB = mix(finalRGB, borderRGB, borderMask);
-                    alpha = max(alpha, borderMask);
+                if (isBorder) {
+                    finalRGB = vec3(1.0, 0.0, 0.0); // BRIGHT RED
+                    alpha = 1.0;
                 }
             }
 
