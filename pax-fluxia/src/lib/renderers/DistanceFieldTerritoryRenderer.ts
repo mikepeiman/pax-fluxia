@@ -310,6 +310,8 @@ const territoryBitGl = {
 let cachedOwnerFp = '';
 let cachedConfigFp = '';
 let cachedConnFp = '';
+let cachedGeomFp = '';
+let cachedDistanceMetric: 'hops' | 'length' | null = null;
 let cachedMesh: PIXI.Mesh | null = null;
 let cachedMeshShader: PIXI.Shader | null = null;
 let cachedMeshWorldW = 0;
@@ -481,6 +483,15 @@ function buildConfigFp(): string {
 function buildConnFp(connections: StarConnection[]): string {
     let fp = '';
     for (const c of connections) fp += `${c.sourceId}-${c.targetId}|`;
+    return fp;
+}
+
+function buildGeomFp(stars: StarState[]): string {
+    let fp = '';
+    for (const s of stars) {
+        // Round to 0.1 so tiny float jitter does not thrash cache invalidation.
+        fp += `${s.id}:${Math.round(s.x * 10)}:${Math.round(s.y * 10)}|`;
+    }
     return fp;
 }
 
@@ -927,10 +938,19 @@ export function renderDistanceFieldTerritory(
     const now = performance.now();
     const conns = connections ?? [];
     const transitionMs = GAME_CONFIG.TERRITORY_TRANSITION_MS ?? 400;
+    const metric = (GAME_CONFIG.DF_DISTANCE_METRIC ?? 'length') as 'hops' | 'length';
+    const metricChanged = cachedDistanceMetric !== metric;
+    cachedDistanceMetric = metric;
+
+    const geomFp = buildGeomFp(stars);
+    const geomChanged = geomFp !== cachedGeomFp;
+    if (geomChanged) {
+        cachedGeomFp = geomFp;
+    }
 
     // Ã¢â€â‚¬Ã¢â€â‚¬ Rebuild lane index if connections changed Ã¢â€â‚¬Ã¢â€â‚¬
     const connFp = buildConnFp(conns);
-    if (connFp !== cachedConnFp) {
+    if (connFp !== cachedConnFp || geomChanged) {
         buildLaneIndex(stars, conns);
         cachedConnFp = connFp;
     }
@@ -939,7 +959,7 @@ export function renderDistanceFieldTerritory(
     const ownerFp = buildOwnerFp(stars);
     const ownerChanged = ownerFp !== cachedOwnerFp;
 
-    if (ownerChanged) {
+    if (ownerChanged || geomChanged || metricChanged) {
         cachedOwnerFp = ownerFp;
 
         // Build player list
@@ -948,7 +968,6 @@ export function renderDistanceFieldTerritory(
         const newPlayerIds = Array.from(playerSet).sort();
 
         // Compute new distances
-        const metric = (GAME_CONFIG.DF_DISTANCE_METRIC ?? 'length') as 'hops' | 'length';
         const newDist = computeDistToPlayer(stars, conns, newPlayerIds, metric);
 
         // Start temporal morph if we have previous data
@@ -989,7 +1008,7 @@ export function renderDistanceFieldTerritory(
 
     // —— Build GPU data texture (only when ownership or morph changed) ——
     const configFp = buildConfigFp();
-    const needsRebuild = ownerChanged || isMorphing || configFp !== cachedConfigFp;
+    const needsRebuild = ownerChanged || geomChanged || metricChanged || isMorphing || configFp !== cachedConfigFp;
     cachedConfigFp = configFp;
 
     if (needsRebuild) {
@@ -1055,6 +1074,8 @@ export function resetDistanceFieldTerritoryCache(): void {
     cachedOwnerFp = '';
     cachedConfigFp = '';
     cachedConnFp = '';
+    cachedGeomFp = '';
+    cachedDistanceMetric = null;
     currentDist = null;
     prevDist = null;
     isMorphing = false;
@@ -1078,3 +1099,4 @@ export function resetDistanceFieldTerritoryCache(): void {
     laneArray = [];
     laneCells = new Map();
 }
+
