@@ -366,9 +366,11 @@ const visualBitGl = {
                 if (oNW != myOwner && oNW >= 0) { minDist = min(minDist, radius); nearEnemy = oNW; }
 
                 if (minDist <= radius) {
-                    // Soft border mask: 1.0 at boundary, fading to 0.0
-                    float softness = max(uBorderSoftness, 0.5);
-                    float borderMask = 1.0 - smoothstep(0.0, softness, minDist);
+                    // Border mask: softness controls outer fade.
+                    // At softness=0: hard edge — full mask for all minDist < radius
+                    // At softness=N: solid from 0→(radius-N), fading from (radius-N)→radius
+                    float solidEnd = max(radius - uBorderSoftness, 0.0);
+                    float borderMask = 1.0 - smoothstep(solidEnd, radius + 0.01, minDist);
                     borderMask *= uBorderAlpha;
 
                     // Border color: 50/50 blend of owner + enemy, brightened

@@ -68,4 +68,5 @@
 | ID | Feature | Priority | Date |
 |----|---------|----------|------|
 | F-146 | File-based persistence for saved maps and settings — localStorage is ephemeral, user-created content (saved maps, custom settings) should persist to local files | High | 2026-03-05 |
+| F-147 | Border "layers" mode — current neighbor-sampling borders show per-player layered borders (each side colored separately). Keep as optional setting alongside blended single-border mode | Medium | 2026-03-06 |
 
