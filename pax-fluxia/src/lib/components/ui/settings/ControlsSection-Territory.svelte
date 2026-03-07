@@ -1457,6 +1457,107 @@
                 />
             </div>
         {/if}
+
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">Vector Borders</span><span class="val"
+                    >{panel.dfVectorBordersEnabled ?? GAME_CONFIG.DF_VECTOR_BORDERS_ENABLED
+                        ? "ON"
+                        : "OFF"}</span
+                >
+            </div>
+            <input
+                type="checkbox"
+                checked={panel.dfVectorBordersEnabled ?? GAME_CONFIG.DF_VECTOR_BORDERS_ENABLED}
+                onchange={(e) => {
+                    const v = (e.target as HTMLInputElement).checked;
+                    GAME_CONFIG.DF_VECTOR_BORDERS_ENABLED = v;
+                    updatePanel("dfVectorBordersEnabled", v);
+                }}
+            />
+        </div>
+
+        {#if panel.dfVectorBordersEnabled ?? GAME_CONFIG.DF_VECTOR_BORDERS_ENABLED}
+            <div class="var-row">
+                <div class="row-top">
+                    <span class="var-name">Vector Grid</span><span class="val"
+                        >{panel.dfVectorGridResolution ?? GAME_CONFIG.DF_VECTOR_GRID_RESOLUTION}px</span
+                    >
+                </div>
+                <input
+                    type="range"
+                    min="64"
+                    max="512"
+                    step="16"
+                    value={panel.dfVectorGridResolution ?? GAME_CONFIG.DF_VECTOR_GRID_RESOLUTION}
+                    oninput={(e) => {
+                        const v = +(e.target as HTMLInputElement).value;
+                        GAME_CONFIG.DF_VECTOR_GRID_RESOLUTION = v;
+                        updatePanel("dfVectorGridResolution", v);
+                    }}
+                />
+            </div>
+
+            <div class="var-row">
+                <div class="row-top">
+                    <span class="var-name">Vector Smoothing</span><span class="val"
+                        >{panel.dfVectorSmoothing ?? GAME_CONFIG.DF_VECTOR_SMOOTHING}</span
+                    >
+                </div>
+                <input
+                    type="range"
+                    min="0"
+                    max="4"
+                    step="1"
+                    value={panel.dfVectorSmoothing ?? GAME_CONFIG.DF_VECTOR_SMOOTHING}
+                    oninput={(e) => {
+                        const v = +(e.target as HTMLInputElement).value;
+                        GAME_CONFIG.DF_VECTOR_SMOOTHING = v;
+                        updatePanel("dfVectorSmoothing", v);
+                    }}
+                />
+            </div>
+
+            <div class="var-row">
+                <div class="row-top">
+                    <span class="var-name">Vector Simplify</span><span class="val"
+                        >{(panel.dfVectorSimplify ?? GAME_CONFIG.DF_VECTOR_SIMPLIFY).toFixed(1)}px</span
+                    >
+                </div>
+                <input
+                    type="range"
+                    min="0"
+                    max="3"
+                    step="0.1"
+                    value={panel.dfVectorSimplify ?? GAME_CONFIG.DF_VECTOR_SIMPLIFY}
+                    oninput={(e) => {
+                        const v = +(e.target as HTMLInputElement).value;
+                        GAME_CONFIG.DF_VECTOR_SIMPLIFY = v;
+                        updatePanel("dfVectorSimplify", v);
+                    }}
+                />
+            </div>
+
+            <div class="var-row">
+                <div class="row-top">
+                    <span class="var-name">Vector Update</span><span class="val"
+                        >{panel.dfVectorUpdateMs ?? GAME_CONFIG.DF_VECTOR_UPDATE_MS}ms</span
+                    >
+                </div>
+                <input
+                    type="range"
+                    min="0"
+                    max="200"
+                    step="5"
+                    value={panel.dfVectorUpdateMs ?? GAME_CONFIG.DF_VECTOR_UPDATE_MS}
+                    oninput={(e) => {
+                        const v = +(e.target as HTMLInputElement).value;
+                        GAME_CONFIG.DF_VECTOR_UPDATE_MS = v;
+                        updatePanel("dfVectorUpdateMs", v);
+                    }}
+                />
+            </div>
+        {/if}
     {/if}
 
     <!-- Influence Weight -->

@@ -273,6 +273,11 @@ interface GameConfigType {
     DF_BORDER_HQ_ENABLED: boolean;  // Enable supersampled border field for smoother edges (default false)
     DF_BORDER_HQ_SCALE: number;     // Supersample factor for ownership/JFA pass (1.0-4.0, default 2.0)
     DF_BORDER_HQ_MAX_DIM: number;   // Max ownership/JFA texture dimension in HQ mode (default 8192)
+    DF_VECTOR_BORDERS_ENABLED: boolean; // Draw DF borders using vector polylines (default false)
+    DF_VECTOR_GRID_RESOLUTION: number;  // Ownership sampling grid on long axis (default 192)
+    DF_VECTOR_SMOOTHING: number;        // Chaikin smoothing iterations for vector lines (default 1)
+    DF_VECTOR_SIMPLIFY: number;         // Polyline simplify tolerance in world px (default 0.5)
+    DF_VECTOR_UPDATE_MS: number;        // Rebuild interval while morphing (ms, default 33)
     DF_DISTANCE_METRIC: 'hops' | 'length'; // Distance metric (default 'length')
     DF_BLUR: number;                // Post-render blur strength (default 2)
     DF_HUE: number;                 // Hue shift in degrees -180..180 (default 0)
@@ -1041,6 +1046,11 @@ const _rawConfig: GameConfigType = {
     DF_BORDER_HQ_ENABLED: false,
     DF_BORDER_HQ_SCALE: 2.0,
     DF_BORDER_HQ_MAX_DIM: 8192,
+    DF_VECTOR_BORDERS_ENABLED: false,
+    DF_VECTOR_GRID_RESOLUTION: 192,
+    DF_VECTOR_SMOOTHING: 1,
+    DF_VECTOR_SIMPLIFY: 0.5,
+    DF_VECTOR_UPDATE_MS: 33,
     DF_DISTANCE_METRIC: 'length' as const,
     DF_BLUR: 2,
     DF_HUE: 0,

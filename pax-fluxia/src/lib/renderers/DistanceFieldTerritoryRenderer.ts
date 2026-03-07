@@ -123,6 +123,23 @@ interface TwoPassDiagnosticsPayload {
     samples: TwoPassSampleComparison[];
 }
 
+interface OwnershipSampleSite {
+    x: number;
+    y: number;
+    ownerIdx: number;
+    order: number;
+    curDijkstra: number;
+    prevDijkstra: number;
+    boost: number;
+    isRealStar: boolean;
+}
+
+interface VectorBorderPolyline {
+    ownerA: number;
+    ownerB: number;
+    points: number[];
+}
+
 const DF_CONTENT_BOUNDS_PADDING = 80;
 const DF_ALIGNMENT_EPSILON = 0.5;
 const DF_ALIGNMENT_SAMPLE_LIMIT = 6;
@@ -136,6 +153,9 @@ const DF_PASS1_BASE_MAX_TEXTURE_DIM = 4096;
 const DF_PASS1_ABSOLUTE_MAX_TEXTURE_DIM = 8192;
 const DF_BORDER_HQ_MIN_SCALE = 1.0;
 const DF_BORDER_HQ_MAX_SCALE = 4.0;
+const DF_VECTOR_MIN_GRID = 64;
+const DF_VECTOR_MAX_GRID = 512;
+const DF_VECTOR_MAX_CHAIKIN = 4;
 
 // ============================================================================
 // Shader Bit: Territory Distance Field (single-pass fill + optional inline border)
@@ -886,6 +906,10 @@ let cachedBorderOriginY = 0;
 let cachedBorderExtentW = 0;
 let cachedBorderExtentH = 0;
 
+let cachedVectorBorderGraphics: PIXI.Graphics | null = null;
+let cachedVectorBorderFingerprint = '';
+let cachedVectorBorderLastBuildMs = 0;
+
 let cachedRenderOriginX = 0;
 let cachedRenderOriginY = 0;
 let cachedRenderExtentW = 0;
@@ -1058,6 +1082,8 @@ function buildVisualFp(): string {
     return `${GAME_CONFIG.DF_ALPHA}:${GAME_CONFIG.DF_BORDER_WIDTH}:${GAME_CONFIG.DF_BORDER_SOFTNESS}:`
         + `${GAME_CONFIG.DF_BORDER_ALPHA}:${GAME_CONFIG.DF_BORDER_BRIGHTEN}:${GAME_CONFIG.DF_BORDER_MODE}:`
         + `${GAME_CONFIG.DF_BORDER_HQ_ENABLED}:${GAME_CONFIG.DF_BORDER_HQ_SCALE}:${GAME_CONFIG.DF_BORDER_HQ_MAX_DIM}:`
+        + `${GAME_CONFIG.DF_VECTOR_BORDERS_ENABLED}:${GAME_CONFIG.DF_VECTOR_GRID_RESOLUTION}:${GAME_CONFIG.DF_VECTOR_SMOOTHING}:`
+        + `${GAME_CONFIG.DF_VECTOR_SIMPLIFY}:${GAME_CONFIG.DF_VECTOR_UPDATE_MS}:`
         + `${GAME_CONFIG.DF_BLUR}:${GAME_CONFIG.DF_HUE}:${GAME_CONFIG.DF_SATURATION}:${GAME_CONFIG.DF_LIGHTNESS}:`
         + `${GAME_CONFIG.DF_EDGE_FADE}:${GAME_CONFIG.DF_RESOLUTION}:${GAME_CONFIG.DF_ROUNDING}:`
         + `${GAME_CONFIG.DF_INFLUENCE_WEIGHT}:${GAME_CONFIG.DF_EXPANSION}:${GAME_CONFIG.DF_SMOOTHING}:`
@@ -1285,6 +1311,494 @@ function runInternalTwoPassTrack(
     }
 }
 
+function buildOwnershipSampleSites(
+    stars: StarState[],
+    virtualSites: VirtualSite[],
+    dist: number[][],
+    prevDistArr: number[][] | null,
+    playerIds: string[],
+): OwnershipSampleSite[] {
+    const playerIdxById = new Map<string, number>();
+    for (let i = 0; i < playerIds.length; i++) {
+        playerIdxById.set(playerIds[i], i);
+    }
+
+    const sites: OwnershipSampleSite[] = [];
+
+    for (let i = 0; i < stars.length; i++) {
+        const star = stars[i];
+        const ownerIdx = playerIdxById.get(star.ownerId ?? '');
+        if (ownerIdx === undefined) continue;
+
+        const curDijkstra = dist[i]?.[ownerIdx] ?? Infinity;
+        if (!Number.isFinite(curDijkstra)) continue;
+        const prevDijkstra = prevDistArr?.[i]?.[ownerIdx] ?? curDijkstra;
+
+        sites.push({
+            x: star.x,
+            y: star.y,
+            ownerIdx,
+            order: i,
+            curDijkstra,
+            prevDijkstra,
+            boost: 0,
+            isRealStar: true,
+        });
+    }
+
+    if (virtualSites.length > 0) {
+        const starById = new Map(stars.map((star) => [star.id, star] as const));
+        for (let i = 0; i < virtualSites.length; i++) {
+            const site = virtualSites[i];
+            const ownerIdx = playerIdxById.get(site.ownerId);
+            if (ownerIdx === undefined) continue;
+
+            const curDijkstra = computeVirtualDijkstra(site, starById);
+            const prevDijkstra = 0;
+            const boost = site.kind === 'corridor'
+                ? Math.round((site.weight ?? 1.0) * 100)
+                : 0;
+
+            sites.push({
+                x: site.x,
+                y: site.y,
+                ownerIdx,
+                order: stars.length + i,
+                curDijkstra,
+                prevDijkstra,
+                boost,
+                isRealStar: false,
+            });
+        }
+    }
+
+    return sites;
+}
+
+function sampleOwnerFromSites(
+    worldX: number,
+    worldY: number,
+    sites: OwnershipSampleSite[],
+    influenceWeight: number,
+    minStarRadius: number,
+    morphFactor: number,
+): number {
+    let bestInfluence = Infinity;
+    let bestOwner = -1;
+    let bestOrder = Number.MAX_SAFE_INTEGER;
+
+    for (let i = 0; i < sites.length; i++) {
+        const site = sites[i];
+        const pixDist = Math.hypot(worldX - site.x, worldY - site.y);
+        const dijkstra = site.curDijkstra + (site.prevDijkstra - site.curDijkstra) * morphFactor;
+        let influence = pixDist + dijkstra * influenceWeight - site.boost;
+
+        if (site.isRealStar && minStarRadius > 0 && pixDist < minStarRadius) {
+            const t = pixDist / minStarRadius;
+            influence -= (1 - t * t) * minStarRadius;
+        }
+
+        const delta = influence - bestInfluence;
+        const wins = bestOwner < 0
+            || delta < -DF_TIE_EPSILON
+            || (Math.abs(delta) <= DF_TIE_EPSILON && (site.ownerIdx < bestOwner || (site.ownerIdx === bestOwner && site.order < bestOrder)));
+
+        if (wins) {
+            bestInfluence = influence;
+            bestOwner = site.ownerIdx;
+            bestOrder = site.order;
+        }
+    }
+
+    return bestOwner;
+}
+
+function simplifyOpenPolyline(points: number[], tolerance: number): number[] {
+    const n = points.length / 2;
+    if (n <= 2 || tolerance <= 0) return points;
+
+    const keep = new Uint8Array(n);
+    keep[0] = 1;
+    keep[n - 1] = 1;
+
+    const pointLineDistance = (idx: number, start: number, end: number): number => {
+        const sx = points[start * 2];
+        const sy = points[start * 2 + 1];
+        const ex = points[end * 2];
+        const ey = points[end * 2 + 1];
+        const px = points[idx * 2];
+        const py = points[idx * 2 + 1];
+
+        const dx = ex - sx;
+        const dy = ey - sy;
+        const lenSq = dx * dx + dy * dy;
+        if (lenSq < 0.0001) return Math.hypot(px - sx, py - sy);
+
+        const t = Math.max(0, Math.min(1, ((px - sx) * dx + (py - sy) * dy) / lenSq));
+        const cx = sx + t * dx;
+        const cy = sy + t * dy;
+        return Math.hypot(px - cx, py - cy);
+    };
+
+    const recurse = (start: number, end: number): void => {
+        let maxDist = 0;
+        let maxIdx = -1;
+        for (let i = start + 1; i < end; i++) {
+            const dist = pointLineDistance(i, start, end);
+            if (dist > maxDist) {
+                maxDist = dist;
+                maxIdx = i;
+            }
+        }
+
+        if (maxIdx >= 0 && maxDist > tolerance) {
+            keep[maxIdx] = 1;
+            recurse(start, maxIdx);
+            recurse(maxIdx, end);
+        }
+    };
+
+    recurse(0, n - 1);
+
+    const out: number[] = [];
+    for (let i = 0; i < n; i++) {
+        if (keep[i]) {
+            out.push(points[i * 2], points[i * 2 + 1]);
+        }
+    }
+
+    return out.length >= 4 ? out : points;
+}
+
+function chaikinSmoothOpen(points: number[], iterations: number): number[] {
+    let pts = points;
+    for (let iter = 0; iter < iterations; iter++) {
+        const n = pts.length / 2;
+        if (n < 3) break;
+
+        const out: number[] = [pts[0], pts[1]];
+        for (let i = 0; i < n - 1; i++) {
+            const x0 = pts[i * 2];
+            const y0 = pts[i * 2 + 1];
+            const x1 = pts[(i + 1) * 2];
+            const y1 = pts[(i + 1) * 2 + 1];
+            out.push(x0 * 0.75 + x1 * 0.25, y0 * 0.75 + y1 * 0.25);
+            out.push(x0 * 0.25 + x1 * 0.75, y0 * 0.25 + y1 * 0.75);
+        }
+        out.push(pts[(n - 1) * 2], pts[(n - 1) * 2 + 1]);
+        pts = out;
+    }
+    return pts;
+}
+
+function chaikinSmoothClosed(points: number[], iterations: number): number[] {
+    let pts = points;
+    for (let iter = 0; iter < iterations; iter++) {
+        const n = pts.length / 2;
+        if (n < 3) break;
+        const out: number[] = [];
+        for (let i = 0; i < n; i++) {
+            const j = (i + 1) % n;
+            const x0 = pts[i * 2];
+            const y0 = pts[i * 2 + 1];
+            const x1 = pts[j * 2];
+            const y1 = pts[j * 2 + 1];
+            out.push(x0 * 0.75 + x1 * 0.25, y0 * 0.75 + y1 * 0.25);
+            out.push(x0 * 0.25 + x1 * 0.75, y0 * 0.25 + y1 * 0.75);
+        }
+        pts = out;
+    }
+    return pts;
+}
+
+function extractVectorBorderPolylines(
+    ownerGrid: Int16Array,
+    gridW: number,
+    gridH: number,
+    originX: number,
+    originY: number,
+    extentW: number,
+    extentH: number,
+    simplifyTolerance: number,
+    smoothIterations: number,
+): VectorBorderPolyline[] {
+    type Edge = [number, number, number, number];
+    const pairEdges = new Map<string, Edge[]>();
+
+    const addPairEdge = (ownerA: number, ownerB: number, x1: number, y1: number, x2: number, y2: number) => {
+        if (ownerA < 0 || ownerB < 0 || ownerA === ownerB) return;
+        const a = Math.min(ownerA, ownerB);
+        const b = Math.max(ownerA, ownerB);
+        const key = `${a}|${b}`;
+        let edges = pairEdges.get(key);
+        if (!edges) {
+            edges = [];
+            pairEdges.set(key, edges);
+        }
+        edges.push([x1, y1, x2, y2]);
+    };
+
+    for (let y = 0; y < gridH; y++) {
+        for (let x = 0; x < gridW; x++) {
+            const owner = ownerGrid[y * gridW + x];
+            if (owner < 0) continue;
+
+            if (x + 1 < gridW) {
+                const rightOwner = ownerGrid[y * gridW + x + 1];
+                if (rightOwner >= 0 && rightOwner !== owner) {
+                    addPairEdge(owner, rightOwner, x + 1, y, x + 1, y + 1);
+                }
+            }
+
+            if (y + 1 < gridH) {
+                const downOwner = ownerGrid[(y + 1) * gridW + x];
+                if (downOwner >= 0 && downOwner !== owner) {
+                    addPairEdge(owner, downOwner, x, y + 1, x + 1, y + 1);
+                }
+            }
+        }
+    }
+
+    const toWorldPoints = (path: string[]): number[] => {
+        const points: number[] = [];
+        for (const key of path) {
+            const [sx, sy] = key.split(',');
+            const vx = Number(sx);
+            const vy = Number(sy);
+            points.push(
+                originX + (vx / gridW) * extentW,
+                originY + (vy / gridH) * extentH,
+            );
+        }
+        return points;
+    };
+
+    const polylines: VectorBorderPolyline[] = [];
+
+    for (const [pairKey, edges] of pairEdges) {
+        const [pairA, pairB] = pairKey.split('|').map(Number);
+
+        const adjacency = new Map<string, string[]>();
+        const addAdjacency = (from: string, to: string) => {
+            const list = adjacency.get(from) ?? [];
+            if (!list.includes(to)) list.push(to);
+            adjacency.set(from, list);
+        };
+
+        for (const [x1, y1, x2, y2] of edges) {
+            const v1 = `${x1},${y1}`;
+            const v2 = `${x2},${y2}`;
+            addAdjacency(v1, v2);
+            addAdjacency(v2, v1);
+        }
+
+        const usedEdges = new Set<string>();
+        const edgeKey = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`);
+
+        const consumePath = (start: string, next: string): string[] => {
+            const path = [start, next];
+            usedEdges.add(edgeKey(start, next));
+
+            let safety = 0;
+            while (safety++ < 100000) {
+                const prev = path[path.length - 2];
+                const current = path[path.length - 1];
+                const neighbors = adjacency.get(current) ?? [];
+
+                let candidate: string | null = null;
+                for (const neighbor of neighbors) {
+                    const key = edgeKey(current, neighbor);
+                    if (usedEdges.has(key)) continue;
+                    if (neighbor === prev && neighbors.length > 1) continue;
+                    candidate = neighbor;
+                    break;
+                }
+
+                if (!candidate) break;
+                path.push(candidate);
+                usedEdges.add(edgeKey(current, candidate));
+                if (candidate === start) break;
+            }
+
+            return path;
+        };
+
+        const tryAddPolyline = (path: string[]) => {
+            if (path.length < 2) return;
+
+            const isClosed = path[0] === path[path.length - 1];
+            const uniquePath = isClosed ? path.slice(0, -1) : path;
+            if (uniquePath.length < 2) return;
+
+            let worldPoints = toWorldPoints(uniquePath);
+            if (simplifyTolerance > 0 && !isClosed) {
+                worldPoints = simplifyOpenPolyline(worldPoints, simplifyTolerance);
+            }
+
+            if (smoothIterations > 0) {
+                worldPoints = isClosed
+                    ? chaikinSmoothClosed(worldPoints, smoothIterations)
+                    : chaikinSmoothOpen(worldPoints, smoothIterations);
+            }
+
+            if (worldPoints.length >= 4) {
+                polylines.push({ ownerA: pairA, ownerB: pairB, points: worldPoints });
+            }
+        };
+
+        for (const [vertex, neighbors] of adjacency) {
+            if (neighbors.length === 2) continue;
+            for (const neighbor of neighbors) {
+                const key = edgeKey(vertex, neighbor);
+                if (usedEdges.has(key)) continue;
+                tryAddPolyline(consumePath(vertex, neighbor));
+            }
+        }
+
+        for (const [vertex, neighbors] of adjacency) {
+            for (const neighbor of neighbors) {
+                const key = edgeKey(vertex, neighbor);
+                if (usedEdges.has(key)) continue;
+                tryAddPolyline(consumePath(vertex, neighbor));
+            }
+        }
+    }
+
+    return polylines;
+}
+
+function hideVectorBorderOverlay(): void {
+    if (cachedVectorBorderGraphics) {
+        cachedVectorBorderGraphics.visible = false;
+    }
+}
+
+function renderVectorBorderOverlay(
+    container: PIXI.Container,
+    colorUtils: ColorUtils,
+    stars: StarState[],
+    virtualSites: VirtualSite[],
+    dist: number[][],
+    prevDistArr: number[][] | null,
+    playerIds: string[],
+    morphFactor: number,
+    now: number,
+    forceRebuild: boolean,
+): void {
+    const borderWidth = GAME_CONFIG.DF_BORDER_WIDTH ?? 0;
+    const borderAlpha = GAME_CONFIG.DF_BORDER_ALPHA ?? 0;
+    if (borderWidth <= 0 || borderAlpha <= 0 || stars.length === 0 || playerIds.length === 0) {
+        hideVectorBorderOverlay();
+        return;
+    }
+
+    const extentW = Math.max(1, cachedRenderExtentW);
+    const extentH = Math.max(1, cachedRenderExtentH);
+
+    const requestedGrid = GAME_CONFIG.DF_VECTOR_GRID_RESOLUTION ?? 192;
+    const gridW = Math.max(DF_VECTOR_MIN_GRID, Math.min(DF_VECTOR_MAX_GRID, Math.round(requestedGrid)));
+    const gridH = Math.max(DF_VECTOR_MIN_GRID, Math.min(DF_VECTOR_MAX_GRID, Math.round(gridW * (extentH / extentW))));
+
+    const smoothIterations = Math.max(0, Math.min(DF_VECTOR_MAX_CHAIKIN, Math.round(GAME_CONFIG.DF_VECTOR_SMOOTHING ?? 1)));
+    const simplifyTolerance = Math.max(0, GAME_CONFIG.DF_VECTOR_SIMPLIFY ?? 0.5);
+    const updateMs = Math.max(0, GAME_CONFIG.DF_VECTOR_UPDATE_MS ?? 33);
+
+    const staticFp = `${cachedGeometryFp}:${cachedTopologyFp}:${cachedRenderOriginX}:${cachedRenderOriginY}:${extentW}:${extentH}:`
+        + `${borderWidth}:${borderAlpha}:${GAME_CONFIG.DF_BORDER_BRIGHTEN}:${gridW}:${gridH}:${smoothIterations}:${simplifyTolerance}`;
+    const intervalDue = morphFactor > 0 && (now - cachedVectorBorderLastBuildMs >= updateMs);
+    const needsRebuild = forceRebuild || staticFp !== cachedVectorBorderFingerprint || intervalDue || !cachedVectorBorderGraphics;
+
+    if (!needsRebuild) {
+        if (cachedVectorBorderGraphics && !cachedVectorBorderGraphics.parent) {
+            container.addChild(cachedVectorBorderGraphics);
+        }
+        if (cachedVectorBorderGraphics) {
+            cachedVectorBorderGraphics.visible = true;
+        }
+        return;
+    }
+
+    const ownershipSites = buildOwnershipSampleSites(stars, virtualSites, dist, prevDistArr, playerIds);
+    if (ownershipSites.length === 0) {
+        hideVectorBorderOverlay();
+        return;
+    }
+
+    const influenceWeight = GAME_CONFIG.DF_INFLUENCE_WEIGHT ?? 1.0;
+    const minStarRadius = GAME_CONFIG.DF_MIN_STAR_RADIUS ?? 0;
+
+    const ownerGrid = new Int16Array(gridW * gridH);
+    for (let y = 0; y < gridH; y++) {
+        const worldY = cachedRenderOriginY + ((y + 0.5) / gridH) * extentH;
+        for (let x = 0; x < gridW; x++) {
+            const worldX = cachedRenderOriginX + ((x + 0.5) / gridW) * extentW;
+            ownerGrid[y * gridW + x] = sampleOwnerFromSites(
+                worldX,
+                worldY,
+                ownershipSites,
+                influenceWeight,
+                minStarRadius,
+                morphFactor,
+            );
+        }
+    }
+
+    const polylines = extractVectorBorderPolylines(
+        ownerGrid,
+        gridW,
+        gridH,
+        cachedRenderOriginX,
+        cachedRenderOriginY,
+        extentW,
+        extentH,
+        simplifyTolerance,
+        smoothIterations,
+    );
+
+    if (!cachedVectorBorderGraphics) {
+        cachedVectorBorderGraphics = new PIXI.Graphics();
+    }
+    if (!cachedVectorBorderGraphics.parent) {
+        container.addChild(cachedVectorBorderGraphics);
+    }
+
+    cachedVectorBorderGraphics.clear();
+
+    const brighten = GAME_CONFIG.DF_BORDER_BRIGHTEN ?? 0;
+
+    for (const polyline of polylines) {
+        const ownerAId = playerIds[polyline.ownerA];
+        const ownerBId = playerIds[polyline.ownerB];
+        if (!ownerAId || !ownerBId) continue;
+
+        const colorA = colorUtils.getPlayerColor(ownerAId);
+        const colorB = colorUtils.getPlayerColor(ownerBId);
+
+        const r = Math.min(255, Math.round((((colorA >> 16) & 0xff) + ((colorB >> 16) & 0xff)) * 0.5 + brighten));
+        const g = Math.min(255, Math.round((((colorA >> 8) & 0xff) + ((colorB >> 8) & 0xff)) * 0.5 + brighten));
+        const b = Math.min(255, Math.round(((colorA & 0xff) + (colorB & 0xff)) * 0.5 + brighten));
+        const strokeColor = (r << 16) | (g << 8) | b;
+
+        const points = polyline.points;
+        if (points.length < 4) continue;
+
+        cachedVectorBorderGraphics.moveTo(points[0], points[1]);
+        for (let i = 2; i < points.length; i += 2) {
+            cachedVectorBorderGraphics.lineTo(points[i], points[i + 1]);
+        }
+        cachedVectorBorderGraphics.stroke({
+            width: borderWidth,
+            color: strokeColor,
+            alpha: borderAlpha,
+            cap: 'round',
+            join: 'round',
+        } as any);
+    }
+
+    cachedVectorBorderGraphics.visible = true;
+    cachedVectorBorderFingerprint = staticFp;
+    cachedVectorBorderLastBuildMs = now;
+}
 function makeBounds(minX: number, minY: number, maxX: number, maxY: number): AlignmentBounds {
     return {
         minX,
@@ -2200,6 +2714,7 @@ export function renderDistanceFieldTerritory(
     if (!GAME_CONFIG.TERRITORY_DISTANCE_FIELD) {
         if (cachedMesh) cachedMesh.visible = false;
         if (cachedBorderMesh) cachedBorderMesh.visible = false;
+        hideVectorBorderOverlay();
         return;
     }
 
@@ -2217,11 +2732,13 @@ export function renderDistanceFieldTerritory(
     if (hasInvalidWorld) {
         if (cachedMesh) cachedMesh.visible = false;
         if (cachedBorderMesh) cachedBorderMesh.visible = false;
+        hideVectorBorderOverlay();
         return;
     }
 
-    const useTwoPassBorders = DF_TWO_PASS_BORDERS_ENABLED && !!renderer;
-    if (DF_TWO_PASS_BORDERS_ENABLED && !renderer && !warnedMissingRendererForTwoPass) {
+    const vectorBordersEnabled = Boolean(GAME_CONFIG.DF_VECTOR_BORDERS_ENABLED ?? false);
+    const useTwoPassBorders = DF_TWO_PASS_BORDERS_ENABLED && !!renderer && !vectorBordersEnabled;
+    if (DF_TWO_PASS_BORDERS_ENABLED && !renderer && !vectorBordersEnabled && !warnedMissingRendererForTwoPass) {
         warnedMissingRendererForTwoPass = true;
         console.warn('[DF_TWOPASS] renderer unavailable; falling back to inline borders');
     }
@@ -2255,6 +2772,7 @@ export function renderDistanceFieldTerritory(
 
     if (!currentDist || currentPlayerIds.length === 0) {
         if (cachedMesh) cachedMesh.visible = false;
+        hideVectorBorderOverlay();
         return;
     }
 
@@ -2338,7 +2856,7 @@ export function renderDistanceFieldTerritory(
     if (cachedMeshShader) {
         cachedMeshShader.resources.territoryUniforms.uniforms.uMorphFactor = morphFactor;
     }
-    updateFilterUniforms(canonicalStars, colorUtils, worldWidth, worldHeight, alignmentContract, useTwoPassBorders);
+    updateFilterUniforms(canonicalStars, colorUtils, worldWidth, worldHeight, alignmentContract, useTwoPassBorders || vectorBordersEnabled);
 
     if (useTwoPassBorders) {
         ensureTwoPassBorderResources();
@@ -2356,8 +2874,29 @@ export function renderDistanceFieldTerritory(
                 && (GAME_CONFIG.DF_BORDER_WIDTH ?? 0) > 0
                 && (GAME_CONFIG.DF_BORDER_ALPHA ?? 0) > 0;
         }
+        hideVectorBorderOverlay();
     } else if (cachedBorderMesh) {
         cachedBorderMesh.visible = false;
+    }
+
+    if (vectorBordersEnabled) {
+        const forceVectorRebuild = changeClassification.geometryChanged
+            || changeClassification.topologyChanged
+            || changeClassification.visualChanged;
+        renderVectorBorderOverlay(
+            container,
+            colorUtils,
+            canonicalStars,
+            activeVirtualSites,
+            currentDist,
+            prevDist,
+            currentPlayerIds,
+            morphFactor,
+            now,
+            forceVectorRebuild,
+        );
+    } else {
+        hideVectorBorderOverlay();
     }
 
     applyBlur();
@@ -2439,6 +2978,11 @@ export function resetDistanceFieldTerritoryCache(): void {
         cachedBorderShader.destroy();
         cachedBorderShader = null;
     }
+    if (cachedVectorBorderGraphics) {
+        if (cachedVectorBorderGraphics.parent) cachedVectorBorderGraphics.parent.removeChild(cachedVectorBorderGraphics);
+        cachedVectorBorderGraphics.destroy();
+        cachedVectorBorderGraphics = null;
+    }
     if (cachedJumpFloodTextureA) {
         cachedJumpFloodTextureA.destroy(true);
         cachedJumpFloodTextureA = null;
@@ -2473,6 +3017,8 @@ export function resetDistanceFieldTerritoryCache(): void {
     cachedBorderOriginY = 0;
     cachedBorderExtentW = 0;
     cachedBorderExtentH = 0;
+    cachedVectorBorderFingerprint = '';
+    cachedVectorBorderLastBuildMs = 0;
     laneArray = [];
     laneCells = new Map();
     latestAlignmentDiagnostics = null;
