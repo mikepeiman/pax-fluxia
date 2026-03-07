@@ -1331,6 +1331,23 @@
         </div>
         <div class="var-row">
             <div class="row-top">
+                <span class="var-name">Border Family</span>
+            </div>
+            <div style="display:flex;gap:4px;padding:2px 0">
+                {#each [{ id: "straight", label: "Straight" }, { id: "curved", label: "Curved" }, { id: "segmented", label: "Segmented" }] as family}
+                    <button
+                        class="mode-btn"
+                        class:active={(panel.dfBorderFamily ?? GAME_CONFIG.DF_BORDER_FAMILY ?? "straight") === family.id}
+                        onclick={() => {
+                            updatePanel("dfBorderFamily", family.id);
+                        }}>{family.label}</button
+                    >
+                {/each}
+            </div>
+        </div>
+
+        <div class="var-row">
+            <div class="row-top">
                 <span class="var-name">Border Softness</span><span class="val"
                     >{(panel.dfBorderSoftness ?? 8).toFixed(0)}px</span
                 >

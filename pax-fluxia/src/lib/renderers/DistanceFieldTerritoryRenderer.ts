@@ -165,6 +165,21 @@ interface VectorBorderPolyline {
     points: number[];
 }
 
+type BorderFamilyId = 'straight' | 'curved' | 'segmented';
+
+interface BorderFamilyRenderContext {
+    container: PIXI.Container;
+    colorUtils: ColorUtils;
+    stars: StarState[];
+    virtualSites: VirtualSite[];
+    dist: number[][];
+    prevDistArr: number[][] | null;
+    playerIds: string[];
+    morphFactor: number;
+    now: number;
+    forceRebuild: boolean;
+}
+
 const DF_CONTENT_BOUNDS_PADDING = 80;
 const DF_ALIGNMENT_EPSILON = 0.5;
 const DF_ALIGNMENT_SAMPLE_LIMIT = 6;
@@ -938,6 +953,8 @@ let cachedBorderExtentH = 0;
 let cachedVectorBorderGraphics: PIXI.Graphics | null = null;
 let cachedVectorBorderFingerprint = '';
 let cachedVectorBorderLastBuildMs = 0;
+let warnedCurvedBorderFamilyFallback = false;
+let warnedSegmentedBorderFamilyFallback = false;
 
 let cachedRenderOriginX = 0;
 let cachedRenderOriginY = 0;
@@ -1131,7 +1148,7 @@ function buildTopologyConfigFp(metric: 'hops' | 'length'): string {
 
 function buildVisualFp(): string {
     return `${GAME_CONFIG.DF_ALPHA}:${GAME_CONFIG.DF_BORDER_WIDTH}:${GAME_CONFIG.DF_BORDER_SOFTNESS}:`
-        + `${GAME_CONFIG.DF_BORDER_ALPHA}:${GAME_CONFIG.DF_BORDER_BRIGHTEN}:${GAME_CONFIG.DF_BORDER_MODE}:`
+        + `${GAME_CONFIG.DF_BORDER_ALPHA}:${GAME_CONFIG.DF_BORDER_BRIGHTEN}:${GAME_CONFIG.DF_BORDER_MODE}:${GAME_CONFIG.DF_BORDER_FAMILY}:`
         + `${GAME_CONFIG.DF_BORDER_HQ_ENABLED}:${GAME_CONFIG.DF_BORDER_HQ_SCALE}:${GAME_CONFIG.DF_BORDER_HQ_MAX_DIM}:`
         + `${GAME_CONFIG.DF_VECTOR_BORDERS_ENABLED}:${GAME_CONFIG.DF_VECTOR_GRID_RESOLUTION}:${GAME_CONFIG.DF_VECTOR_SMOOTHING}:`
         + `${GAME_CONFIG.DF_VECTOR_SIMPLIFY}:${GAME_CONFIG.DF_VECTOR_UPDATE_MS}:`
@@ -1742,6 +1759,40 @@ function hideVectorBorderOverlay(): void {
     if (cachedVectorBorderGraphics) {
         cachedVectorBorderGraphics.visible = false;
     }
+}
+
+
+function normalizeBorderFamily(rawFamily: unknown): BorderFamilyId {
+    if (rawFamily === 'curved' || rawFamily === 'segmented' || rawFamily === 'straight') return rawFamily;
+    return 'straight';
+}
+
+function renderBorderFamilyOverlay(family: BorderFamilyId, ctx: BorderFamilyRenderContext): void {
+    if (family === 'curved') {
+        if (!warnedCurvedBorderFamilyFallback) {
+            warnedCurvedBorderFamilyFallback = true;
+            console.info('[DF_BORDER] curved family is stubbed in this pass; falling back to straight renderer');
+        }
+    } else if (family === 'segmented') {
+        if (!warnedSegmentedBorderFamilyFallback) {
+            warnedSegmentedBorderFamilyFallback = true;
+            console.info('[DF_BORDER] segmented family is stubbed in this pass; falling back to straight renderer');
+        }
+    }
+
+    // Straight renderer is the canonical implementation for this migration step.
+    renderVectorBorderOverlay(
+        ctx.container,
+        ctx.colorUtils,
+        ctx.stars,
+        ctx.virtualSites,
+        ctx.dist,
+        ctx.prevDistArr,
+        ctx.playerIds,
+        ctx.morphFactor,
+        ctx.now,
+        ctx.forceRebuild,
+    );
 }
 
 function renderVectorBorderOverlay(
@@ -2826,6 +2877,7 @@ export function renderDistanceFieldTerritory(
     }
 
     const vectorBordersEnabled = Boolean(GAME_CONFIG.DF_VECTOR_BORDERS_ENABLED ?? false);
+    const borderFamily = normalizeBorderFamily(GAME_CONFIG.DF_BORDER_FAMILY);
     const useTwoPassBorders = DF_TWO_PASS_BORDERS_ENABLED && !!renderer && !vectorBordersEnabled;
     if (DF_TWO_PASS_BORDERS_ENABLED && !renderer && !vectorBordersEnabled && !warnedMissingRendererForTwoPass) {
         warnedMissingRendererForTwoPass = true;
@@ -3018,18 +3070,18 @@ export function renderDistanceFieldTerritory(
         const forceVectorRebuild = changeClassification.geometryChanged
             || changeClassification.topologyChanged
             || changeClassification.visualChanged;
-        renderVectorBorderOverlay(
+        renderBorderFamilyOverlay(borderFamily, {
             container,
             colorUtils,
-            canonicalStars,
-            activeVirtualSites,
-            currentDist,
-            prevDist,
-            currentPlayerIds,
+            stars: canonicalStars,
+            virtualSites: activeVirtualSites,
+            dist: currentDist,
+            prevDistArr: prevDist,
+            playerIds: currentPlayerIds,
             morphFactor,
             now,
-            forceVectorRebuild,
-        );
+            forceRebuild: forceVectorRebuild,
+        });
     } else {
         hideVectorBorderOverlay();
     }
@@ -3171,5 +3223,7 @@ export function resetDistanceFieldTerritoryCache(): void {
     cachedDisconnectSiteCount = 0;
     cachedPackedVirtualCount = 0;
     warnedMissingRendererForTwoPass = false;
+    warnedCurvedBorderFamilyFallback = false;
+    warnedSegmentedBorderFamilyFallback = false;
 }
 
