@@ -81,10 +81,27 @@ interface AlignmentContract {
     diagnostics: AlignmentDiagnosticsPayload;
 }
 
+interface CanonicalDfInputSnapshot {
+    stars: StarState[];
+    connections: StarConnection[];
+    ownedStars: StarState[];
+}
+
+interface DfChangeClassification {
+    geometryChanged: boolean;
+    topologyChanged: boolean;
+    visualChanged: boolean;
+    geometryFp: string;
+    topologyFp: string;
+    visualFp: string;
+    changedBuckets: Array<'geometry' | 'topology' | 'visual'>;
+}
+
 const DF_CONTENT_BOUNDS_PADDING = 80;
 const DF_ALIGNMENT_EPSILON = 0.5;
 const DF_ALIGNMENT_SAMPLE_LIMIT = 6;
 const DF_ALIGNMENT_HISTORY_LIMIT = 24;
+const DF_TIE_EPSILON = 0.01;
 
 // Ã¢â€â‚¬Ã¢â€â‚¬ Shader Bit for Territory Distance Field Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 // Uses PIXI's compileHighShaderGlProgram() with shader bits.
@@ -348,16 +365,16 @@ const territoryBitGl = {
 
 // Ã¢â€â‚¬Ã¢â€â‚¬ Module State Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
-let cachedOwnerFp = '';
-let cachedConfigFp = '';
-let cachedConnFp = '';
-let cachedGeomFp = '';
+let cachedGeometryFp = '';
+let cachedTopologyFp = '';
+let cachedVisualFp = '';
 let cachedDistanceMetric: 'hops' | 'length' | null = null;
 let cachedMesh: PIXI.Mesh | null = null;
 let cachedMeshShader: PIXI.Shader | null = null;
 let cachedMeshWorldW = 0;
 let cachedMeshWorldH = 0;
 let cachedMeshExpansion = -1;
+let cachedMeshPadding = -1;
 let cachedBlurFilter: PIXI.BlurFilter | null = null;
 let cachedBlurStrength = -1;
 
@@ -381,6 +398,7 @@ let starDataTexture: PIXI.Texture | null = null;
 let latestAlignmentDiagnostics: AlignmentDiagnosticsPayload | null = null;
 let alignmentDiagnosticsHistory: AlignmentDiagnosticsPayload[] = [];
 let lastAlignmentIssueFp = '';
+let lastChangeClassification: DfChangeClassification | null = null;
 
 
 // ============================================================================
@@ -505,39 +523,136 @@ function buildLaneIndex(
 }
 
 // ============================================================================
-// Fingerprints (PRESERVED FROM V1, minus DF_RESOLUTION/DF_ROUNDING)
+// Canonical inputs + change bucketing
 // ============================================================================
 
-function buildOwnerFp(stars: StarState[]): string {
-    let fp = '';
-    for (const s of stars) fp += `${s.id}:${s.ownerId ?? ''}|`;
-    return fp;
+function canonicalizeDfInputs(stars: StarState[], connections: StarConnection[]): CanonicalDfInputSnapshot {
+    const canonicalStars = [...stars].sort((a, b) => a.id.localeCompare(b.id));
+
+    const normalizedConnections = connections
+        .map((conn) => {
+            const sourceId = conn.sourceId <= conn.targetId ? conn.sourceId : conn.targetId;
+            const targetId = conn.sourceId <= conn.targetId ? conn.targetId : conn.sourceId;
+            return sourceId === conn.sourceId ? conn : { ...conn, sourceId, targetId };
+        })
+        .sort((a, b) => {
+            if (a.sourceId !== b.sourceId) return a.sourceId.localeCompare(b.sourceId);
+            if (a.targetId !== b.targetId) return a.targetId.localeCompare(b.targetId);
+            return (a.distance ?? 0) - (b.distance ?? 0);
+        });
+
+    const canonicalConnections: StarConnection[] = [];
+    let prevConnKey = '';
+    for (const conn of normalizedConnections) {
+        const key = `${conn.sourceId}|${conn.targetId}|${Math.round((conn.distance ?? 0) * 1000)}`;
+        if (key === prevConnKey) continue;
+        canonicalConnections.push(conn);
+        prevConnKey = key;
+    }
+
+    return {
+        stars: canonicalStars,
+        connections: canonicalConnections,
+        ownedStars: canonicalStars.filter((s) => Boolean(s.ownerId)),
+    };
 }
 
-function buildConfigFp(): string {
-    return `${GAME_CONFIG.DF_ALPHA}:${GAME_CONFIG.DF_BORDER_WIDTH}:`
-        + `${GAME_CONFIG.DF_BORDER_SOFTNESS}:${GAME_CONFIG.DF_BORDER_ALPHA}:${GAME_CONFIG.DF_BORDER_BRIGHTEN}:`
-        + `${GAME_CONFIG.DF_CORRIDOR_ENABLED}:${GAME_CONFIG.DF_CORRIDOR_MODE}:${GAME_CONFIG.DF_CORRIDOR_SPACING}:${GAME_CONFIG.DF_CORRIDOR_COUNT}:${GAME_CONFIG.DF_CORRIDOR_WEIGHT}:`
-        + `${GAME_CONFIG.DF_BLUR}:${GAME_CONFIG.DF_HUE}:`
-        + `${GAME_CONFIG.DF_SATURATION}:${GAME_CONFIG.DF_LIGHTNESS}:`
-        + `${GAME_CONFIG.DF_DISTANCE_METRIC}:${GAME_CONFIG.TERRITORY_TRANSITION_MS}:`
-        + `${GAME_CONFIG.DF_EDGE_FADE}:${GAME_CONFIG.DF_RESOLUTION}:${GAME_CONFIG.DF_ROUNDING}:${GAME_CONFIG.DF_INFLUENCE_WEIGHT}`
-        + `:${GAME_CONFIG.DF_DISCONNECT_ENABLED}:${GAME_CONFIG.DF_DISCONNECT_DISTANCE}:${GAME_CONFIG.DF_DISCONNECT_WEIGHT}`;
+function buildTopologyConfigFp(metric: 'hops' | 'length'): string {
+    return `${metric}:${GAME_CONFIG.DF_CORRIDOR_ENABLED}:${GAME_CONFIG.DF_CORRIDOR_MODE}:`
+        + `${GAME_CONFIG.DF_CORRIDOR_SPACING}:${GAME_CONFIG.DF_CORRIDOR_COUNT}:${GAME_CONFIG.DF_CORRIDOR_WEIGHT}:`
+        + `${GAME_CONFIG.DF_DISCONNECT_ENABLED}:${GAME_CONFIG.DF_DISCONNECT_DISTANCE}:${GAME_CONFIG.DF_DISCONNECT_WEIGHT}`;
 }
 
-function buildConnFp(connections: StarConnection[]): string {
-    let fp = '';
-    for (const c of connections) fp += `${c.sourceId}-${c.targetId}|`;
-    return fp;
+function buildVisualFp(): string {
+    return `${GAME_CONFIG.DF_ALPHA}:${GAME_CONFIG.DF_BORDER_WIDTH}:${GAME_CONFIG.DF_BORDER_SOFTNESS}:`
+        + `${GAME_CONFIG.DF_BORDER_ALPHA}:${GAME_CONFIG.DF_BORDER_BRIGHTEN}:${GAME_CONFIG.DF_BORDER_MODE}:`
+        + `${GAME_CONFIG.DF_BLUR}:${GAME_CONFIG.DF_HUE}:${GAME_CONFIG.DF_SATURATION}:${GAME_CONFIG.DF_LIGHTNESS}:`
+        + `${GAME_CONFIG.DF_EDGE_FADE}:${GAME_CONFIG.DF_RESOLUTION}:${GAME_CONFIG.DF_ROUNDING}:`
+        + `${GAME_CONFIG.DF_INFLUENCE_WEIGHT}:${GAME_CONFIG.DF_EXPANSION}:${GAME_CONFIG.DF_SMOOTHING}:`
+        + `${GAME_CONFIG.DF_MIN_STAR_RADIUS}:${GAME_CONFIG.TERRITORY_TRANSITION_MS}`;
 }
 
-function buildGeomFp(stars: StarState[]): string {
+function buildTopologyFp(snapshot: CanonicalDfInputSnapshot, metric: 'hops' | 'length'): string {
+    let ownerFp = '';
+    for (const s of snapshot.stars) {
+        ownerFp += `${s.id}:${s.ownerId ?? ''}|`;
+    }
+
+    let connFp = '';
+    for (const c of snapshot.connections) {
+        connFp += `${c.sourceId}-${c.targetId}:${Math.round((c.distance ?? 0) * 10)}|`;
+    }
+
+    return `${ownerFp}||${connFp}||${buildTopologyConfigFp(metric)}`;
+}
+
+function buildGeometryFp(stars: StarState[]): string {
     let fp = '';
     for (const s of stars) {
         // Round to 0.1 so tiny float jitter does not thrash cache invalidation.
         fp += `${s.id}:${Math.round(s.x * 10)}:${Math.round(s.y * 10)}|`;
     }
     return fp;
+}
+
+function classifyDfChanges(snapshot: CanonicalDfInputSnapshot, metric: 'hops' | 'length'): DfChangeClassification {
+    const geometryFp = buildGeometryFp(snapshot.stars);
+    const topologyFp = buildTopologyFp(snapshot, metric);
+    const visualFp = buildVisualFp();
+
+    const geometryChanged = geometryFp !== cachedGeometryFp;
+    const topologyChanged = topologyFp !== cachedTopologyFp;
+    const visualChanged = visualFp !== cachedVisualFp;
+
+    cachedGeometryFp = geometryFp;
+    cachedTopologyFp = topologyFp;
+    cachedVisualFp = visualFp;
+
+    const changedBuckets: Array<'geometry' | 'topology' | 'visual'> = [];
+    if (geometryChanged) changedBuckets.push('geometry');
+    if (topologyChanged) changedBuckets.push('topology');
+    if (visualChanged) changedBuckets.push('visual');
+
+    const classification: DfChangeClassification = {
+        geometryChanged,
+        topologyChanged,
+        visualChanged,
+        geometryFp,
+        topologyFp,
+        visualFp,
+        changedBuckets,
+    };
+
+    lastChangeClassification = classification;
+    return classification;
+}
+
+function canonicalizeVirtualSites(virtualSites: VirtualSite[]): VirtualSite[] {
+    if (virtualSites.length <= 1) return [...virtualSites];
+
+    const sorted = [...virtualSites].sort((a, b) => {
+        const aA = a.sourceStarA <= a.sourceStarB ? a.sourceStarA : a.sourceStarB;
+        const aB = a.sourceStarA <= a.sourceStarB ? a.sourceStarB : a.sourceStarA;
+        const bA = b.sourceStarA <= b.sourceStarB ? b.sourceStarA : b.sourceStarB;
+        const bB = b.sourceStarA <= b.sourceStarB ? b.sourceStarB : b.sourceStarA;
+
+        const keyA = `${a.kind}|${a.ownerId}|${aA}|${aB}|${Math.round(a.x * 100)}|${Math.round(a.y * 100)}|${Math.round(a.weight * 1000)}`;
+        const keyB = `${b.kind}|${b.ownerId}|${bA}|${bB}|${Math.round(b.x * 100)}|${Math.round(b.y * 100)}|${Math.round(b.weight * 1000)}`;
+        return keyA.localeCompare(keyB);
+    });
+
+    const deduped: VirtualSite[] = [];
+    let prevKey = '';
+    for (const site of sorted) {
+        const a = site.sourceStarA <= site.sourceStarB ? site.sourceStarA : site.sourceStarB;
+        const b = site.sourceStarA <= site.sourceStarB ? site.sourceStarB : site.sourceStarA;
+        const key = `${site.kind}|${site.ownerId}|${a}|${b}|${Math.round(site.x * 100)}|${Math.round(site.y * 100)}|${Math.round(site.weight * 1000)}`;
+        if (key === prevKey) continue;
+        deduped.push(site);
+        prevKey = key;
+    }
+
+    return deduped;
 }
 
 function makeBounds(minX: number, minY: number, maxX: number, maxY: number): AlignmentBounds {
@@ -902,7 +1017,7 @@ function ensureMesh(worldWidth: number, worldHeight: number): PIXI.Shader {
     const expand = GAME_CONFIG.DF_EXPANSION ?? 0.10;
 
     // Check if we need to rebuild geometry (dimensions or expansion changed)
-    const dimsChanged = worldWidth !== cachedMeshWorldW || worldHeight !== cachedMeshWorldH || expand !== cachedMeshExpansion;
+    const dimsChanged = worldWidth !== cachedMeshWorldW || worldHeight !== cachedMeshWorldH || expand !== cachedMeshExpansion || padding !== cachedMeshPadding;
     if (cachedMeshShader && !dimsChanged) return cachedMeshShader;
 
     // Expand mesh coverage: padding + 10% of world dimensions
@@ -928,6 +1043,7 @@ function ensureMesh(worldWidth: number, worldHeight: number): PIXI.Shader {
         cachedMeshWorldW = worldWidth;
         cachedMeshWorldH = worldHeight;
         cachedMeshExpansion = expand;
+        cachedMeshPadding = padding;
         return cachedMeshShader;
     }
 
@@ -993,6 +1109,7 @@ function ensureMesh(worldWidth: number, worldHeight: number): PIXI.Shader {
     cachedMeshWorldW = worldWidth;
     cachedMeshWorldH = worldHeight;
     cachedMeshExpansion = expand;
+    cachedMeshPadding = padding;
 
     return cachedMeshShader;
 }
@@ -1103,48 +1220,34 @@ export function renderDistanceFieldTerritory(
     }
 
     const now = performance.now();
-    const conns = connections ?? [];
     const transitionMs = GAME_CONFIG.TERRITORY_TRANSITION_MS ?? 400;
     const metric = (GAME_CONFIG.DF_DISTANCE_METRIC ?? 'length') as 'hops' | 'length';
-    const metricChanged = cachedDistanceMetric !== metric;
     cachedDistanceMetric = metric;
 
-    const alignmentContract = buildAlignmentContract(stars, worldWidth, worldHeight, 'prebuild');
+    const canonicalInput = canonicalizeDfInputs(stars, connections ?? []);
+    const canonicalStars = canonicalInput.stars;
+    const canonicalConnections = canonicalInput.connections;
+
+    const alignmentContract = buildAlignmentContract(canonicalStars, worldWidth, worldHeight, 'prebuild');
     const hasInvalidWorld = alignmentContract.diagnostics.issues.includes('world dimensions must be finite positive numbers');
     if (hasInvalidWorld) {
         if (cachedMesh) cachedMesh.visible = false;
         return;
     }
 
-    const geomFp = buildGeomFp(stars);
-    const geomChanged = geomFp !== cachedGeomFp;
-    if (geomChanged) {
-        cachedGeomFp = geomFp;
+    const changeClassification = classifyDfChanges(canonicalInput, metric);
+
+    if (changeClassification.geometryChanged || changeClassification.topologyChanged) {
+        buildLaneIndex(canonicalStars, canonicalConnections);
     }
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Rebuild lane index if connections changed Ã¢â€â‚¬Ã¢â€â‚¬
-    const connFp = buildConnFp(conns);
-    if (connFp !== cachedConnFp || geomChanged) {
-        buildLaneIndex(stars, conns);
-        cachedConnFp = connFp;
-    }
-
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Check if ownership changed Ã¢â€ â€™ recompute Dijkstra Ã¢â€â‚¬Ã¢â€â‚¬
-    const ownerFp = buildOwnerFp(stars);
-    const ownerChanged = ownerFp !== cachedOwnerFp;
-
-    if (ownerChanged || geomChanged || metricChanged) {
-        cachedOwnerFp = ownerFp;
-
-        // Build player list
+    if (changeClassification.geometryChanged || changeClassification.topologyChanged) {
         const playerSet = new Set<string>();
-        for (const s of stars) if (s.ownerId) playerSet.add(s.ownerId);
+        for (const s of canonicalStars) if (s.ownerId) playerSet.add(s.ownerId);
         const newPlayerIds = Array.from(playerSet).sort();
 
-        // Compute new distances
-        const newDist = computeDistToPlayer(stars, conns, newPlayerIds, metric);
+        const newDist = computeDistToPlayer(canonicalStars, canonicalConnections, newPlayerIds, metric);
 
-        // Start temporal morph if we have previous data
         if (currentDist && transitionMs > 0 && currentPlayerIds.length === newPlayerIds.length
             && currentPlayerIds.every((id, i) => id === newPlayerIds[i])) {
             prevDist = currentDist;
@@ -1164,7 +1267,6 @@ export function renderDistanceFieldTerritory(
         return;
     }
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Temporal morph factor Ã¢â€â‚¬Ã¢â€â‚¬
     let morphFactor = 0;
     if (isMorphing && prevDist && transitionMs > 0) {
         const elapsed = now - morphStartTime;
@@ -1175,58 +1277,52 @@ export function renderDistanceFieldTerritory(
             prevDist = null;
             morphFactor = 0;
         } else {
-            // Exponential decay for smooth morph
             morphFactor = 1 - rawT;
         }
     }
 
-    // —— Build GPU data texture (only when ownership or morph changed) ——
-    const configFp = buildConfigFp();
-    const needsRebuild = ownerChanged || geomChanged || metricChanged || isMorphing || configFp !== cachedConfigFp;
-    cachedConfigFp = configFp;
+    const needsRebuild = changeClassification.geometryChanged
+        || changeClassification.topologyChanged
+        || isMorphing
+        || !starDataTexture;
 
     if (needsRebuild) {
         if (alignmentContract.diagnostics.issues.length > 0) {
             console.assert(false, '[DF_ALIGN] alignment contract issues detected before DF rebuild', alignmentContract.diagnostics);
         }
 
-        // Compute virtual sites (corridors + disconnects)
-        const ownedStars = stars.filter(s => s.ownerId);
         let virtuals: VirtualSite[] = [];
 
-        if (GAME_CONFIG.DF_CORRIDOR_ENABLED && conns.length > 0) {
+        if (GAME_CONFIG.DF_CORRIDOR_ENABLED && canonicalConnections.length > 0) {
             const spacing = GAME_CONFIG.DF_CORRIDOR_SPACING ?? 60;
             const weight = GAME_CONFIG.DF_CORRIDOR_WEIGHT ?? 1.0;
             const mode = GAME_CONFIG.DF_CORRIDOR_MODE ?? 'spacing';
             const count = mode === 'count' ? (GAME_CONFIG.DF_CORRIDOR_COUNT ?? 3) : undefined;
-            const corridorSites = computeCorridorVirtuals(ownedStars, conns, spacing, 0.5, count);
-            // Apply weight to all corridor sites
-            for (const s of corridorSites) s.weight = weight;
+            const corridorSites = computeCorridorVirtuals(canonicalInput.ownedStars, canonicalConnections, spacing, 0.5, count);
+            for (const site of corridorSites) site.weight = weight;
             virtuals = virtuals.concat(corridorSites);
             console.log(`[DF] Corridors: ${corridorSites.length} sites (mode=${mode}, ${mode === 'count' ? `count=${count}` : `spacing=${spacing}`}, weight=${weight})`);
         }
 
-        if (GAME_CONFIG.DF_DISCONNECT_ENABLED && conns.length > 0) {
+        if (GAME_CONFIG.DF_DISCONNECT_ENABLED && canonicalConnections.length > 0) {
             const maxDist = GAME_CONFIG.DF_DISCONNECT_DISTANCE ?? 400;
             const weight = GAME_CONFIG.DF_DISCONNECT_WEIGHT ?? 0.3;
-            const disconnectSites = computeDisconnectVirtuals(ownedStars, stars, conns, maxDist, weight);
+            const disconnectSites = computeDisconnectVirtuals(canonicalInput.ownedStars, canonicalStars, canonicalConnections, maxDist, weight);
             virtuals = virtuals.concat(disconnectSites);
             console.log(`[DF] Disconnects: ${disconnectSites.length} sites (maxDist=${maxDist}, weight=${weight})`);
-            for (const ds of disconnectSites) {
-                const pIdx = currentPlayerIds.indexOf(ds.ownerId);
-                console.log(`  [DF-DC] site at (${ds.x.toFixed(0)},${ds.y.toFixed(0)}) owner=${ds.ownerId} pIdx=${pIdx} weight=${ds.weight}`);
+            for (const site of disconnectSites) {
+                const pIdx = currentPlayerIds.indexOf(site.ownerId);
+                console.log(`  [DF-DC] site at (${site.x.toFixed(0)},${site.y.toFixed(0)}) owner=${site.ownerId} pIdx=${pIdx} weight=${site.weight}`);
             }
         }
 
-        console.log(`[DF] Total packed: ${stars.length} real + ${virtuals.length} virtual = ${stars.length + virtuals.length}`);
-        // Pack star data + virtual sites into data texture
-        buildStarDataTexture(stars, currentDist, prevDist, currentPlayerIds, virtuals);
+        const stableVirtuals = canonicalizeVirtualSites(virtuals);
+        console.log(`[DF] Total packed: ${canonicalStars.length} real + ${stableVirtuals.length} virtual = ${canonicalStars.length + stableVirtuals.length}`);
+        buildStarDataTexture(canonicalStars, currentDist, prevDist, currentPlayerIds, stableVirtuals);
     }
 
-    // —— Ensure GPU mesh exists ——
     ensureMesh(worldWidth, worldHeight);
 
-    // —— Add mesh to container if not already ——
     if (cachedMesh && !cachedMesh.parent) {
         container.addChild(cachedMesh);
     }
@@ -1234,16 +1330,13 @@ export function renderDistanceFieldTerritory(
         cachedMesh.visible = true;
     }
 
-    // —— Update GPU uniforms EVERY frame (sliders must be reactive) ——
     if (cachedMeshShader) {
         cachedMeshShader.resources.territoryUniforms.uniforms.uMorphFactor = morphFactor;
     }
-    updateFilterUniforms(stars, colorUtils, worldWidth, worldHeight, alignmentContract);
+    updateFilterUniforms(canonicalStars, colorUtils, worldWidth, worldHeight, alignmentContract);
 
-    // —— Apply filter pipeline ——
     applyBlur();
 }
-
 // ============================================================================
 // Alignment Diagnostics
 // ============================================================================
@@ -1256,15 +1349,18 @@ export function getDistanceFieldAlignmentDiagnosticsHistory(): AlignmentDiagnost
     return [...alignmentDiagnosticsHistory];
 }
 
+export function getDistanceFieldChangeClassification(): DfChangeClassification | null {
+    return lastChangeClassification;
+}
+
 // ============================================================================
 // Cache Reset
 // ============================================================================
 
 export function resetDistanceFieldTerritoryCache(): void {
-    cachedOwnerFp = '';
-    cachedConfigFp = '';
-    cachedConnFp = '';
-    cachedGeomFp = '';
+    cachedGeometryFp = '';
+    cachedTopologyFp = '';
+    cachedVisualFp = '';
     cachedDistanceMetric = null;
     currentDist = null;
     prevDist = null;
@@ -1286,10 +1382,15 @@ export function resetDistanceFieldTerritoryCache(): void {
     starDataBuffer = null;
     cachedBlurFilter = null;
     cachedBlurStrength = -1;
+    cachedMeshWorldW = 0;
+    cachedMeshWorldH = 0;
+    cachedMeshExpansion = -1;
+    cachedMeshPadding = -1;
     laneArray = [];
     laneCells = new Map();
     latestAlignmentDiagnostics = null;
     alignmentDiagnosticsHistory = [];
     lastAlignmentIssueFp = '';
+    lastChangeClassification = null;
 }
 
