@@ -165,6 +165,22 @@ interface VectorBorderPolyline {
     points: number[];
 }
 
+interface VectorBorderBuildJob {
+    staticFp: string;
+    gridW: number;
+    gridH: number;
+    originX: number;
+    originY: number;
+    extentW: number;
+    extentH: number;
+    influenceWeight: number;
+    minStarRadius: number;
+    morphFactor: number;
+    ownershipSites: OwnershipSampleSite[];
+    ownerGrid: Int16Array;
+    nextRow: number;
+}
+
 type BorderFamilyId = 'straight' | 'curved' | 'segmented';
 
 interface BorderFamilyRenderContext {
@@ -199,6 +215,7 @@ const DF_VECTOR_MAX_STRAIGHT_PASSES = 4;
 const DF_VECTOR_MORPH_MIN_UPDATE_MS = 16;
 const DF_VECTOR_MORPH_HEAVY_MIN_UPDATE_MS = 66;
 const DF_VECTOR_ADAPTIVE_OPS_PER_MS = 140000;
+const DF_VECTOR_REBUILD_BUDGET_MS = 2.0;
 
 // ============================================================================
 // Shader Bit: Territory Distance Field (single-pass fill + optional inline border)
@@ -956,6 +973,7 @@ let cachedBorderExtentH = 0;
 let cachedVectorBorderGraphics: PIXI.Graphics | null = null;
 let cachedVectorBorderFingerprint = '';
 let cachedVectorBorderLastBuildMs = 0;
+let cachedVectorBuildJob: VectorBorderBuildJob | null = null;
 let warnedCurvedBorderFamilyFallback = false;
 let warnedSegmentedBorderFamilyFallback = false;
 
@@ -1779,6 +1797,7 @@ function extractVectorBorderPolylines(
     return polylines;
 }
 function hideVectorBorderOverlay(): void {
+    cachedVectorBuildJob = null;
     if (cachedVectorBorderGraphics) {
         cachedVectorBorderGraphics.visible = false;
     }
@@ -1816,6 +1835,36 @@ function renderBorderFamilyOverlay(family: BorderFamilyId, ctx: BorderFamilyRend
         ctx.now,
         ctx.forceRebuild,
     );
+}
+
+function stepVectorBorderBuildJob(job: VectorBorderBuildJob, maxMs: number): boolean {
+    const startedAt = performance.now();
+
+    while (job.nextRow < job.gridH) {
+        const y = job.nextRow;
+        const worldY = job.originY + ((y + 0.5) / job.gridH) * job.extentH;
+        const rowBase = y * job.gridW;
+
+        for (let x = 0; x < job.gridW; x++) {
+            const worldX = job.originX + ((x + 0.5) / job.gridW) * job.extentW;
+            job.ownerGrid[rowBase + x] = sampleOwnerFromSites(
+                worldX,
+                worldY,
+                job.ownershipSites,
+                job.influenceWeight,
+                job.minStarRadius,
+                job.morphFactor,
+            );
+        }
+
+        job.nextRow++;
+
+        if (job.nextRow < job.gridH && performance.now() - startedAt >= maxMs) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 function computeAdaptiveVectorUpdateMs(
@@ -1882,33 +1931,65 @@ function renderVectorBorderOverlay(
         return;
     }
 
-    const ownershipSites = buildOwnershipSampleSites(stars, virtualSites, dist, prevDistArr, playerIds);
-    if (ownershipSites.length === 0) {
+    const influenceWeight = GAME_CONFIG.DF_INFLUENCE_WEIGHT ?? 1.0;
+    const minStarRadius = GAME_CONFIG.DF_MIN_STAR_RADIUS ?? 0;
+
+    const canReuseBuildJob = Boolean(
+        cachedVectorBuildJob
+        && cachedVectorBuildJob.staticFp === staticFp
+        && cachedVectorBuildJob.gridW === gridW
+        && cachedVectorBuildJob.gridH === gridH
+        && cachedVectorBuildJob.originX === cachedRenderOriginX
+        && cachedVectorBuildJob.originY === cachedRenderOriginY
+        && cachedVectorBuildJob.extentW === extentW
+        && cachedVectorBuildJob.extentH === extentH,
+    );
+
+    if (!canReuseBuildJob) {
+        const ownershipSites = buildOwnershipSampleSites(stars, virtualSites, dist, prevDistArr, playerIds);
+        if (ownershipSites.length === 0) {
+            hideVectorBorderOverlay();
+            return;
+        }
+
+        cachedVectorBuildJob = {
+            staticFp,
+            gridW,
+            gridH,
+            originX: cachedRenderOriginX,
+            originY: cachedRenderOriginY,
+            extentW,
+            extentH,
+            influenceWeight,
+            minStarRadius,
+            morphFactor,
+            ownershipSites,
+            ownerGrid: new Int16Array(gridW * gridH),
+            nextRow: 0,
+        };
+    }
+
+    if (!cachedVectorBuildJob) {
         hideVectorBorderOverlay();
         return;
     }
 
-    const influenceWeight = GAME_CONFIG.DF_INFLUENCE_WEIGHT ?? 1.0;
-    const minStarRadius = GAME_CONFIG.DF_MIN_STAR_RADIUS ?? 0;
+    cachedVectorBuildJob.morphFactor = morphFactor;
 
-    const ownerGrid = new Int16Array(gridW * gridH);
-    for (let y = 0; y < gridH; y++) {
-        const worldY = cachedRenderOriginY + ((y + 0.5) / gridH) * extentH;
-        for (let x = 0; x < gridW; x++) {
-            const worldX = cachedRenderOriginX + ((x + 0.5) / gridW) * extentW;
-            ownerGrid[y * gridW + x] = sampleOwnerFromSites(
-                worldX,
-                worldY,
-                ownershipSites,
-                influenceWeight,
-                minStarRadius,
-                morphFactor,
-            );
+    const rebuildBudgetMs = DF_VECTOR_REBUILD_BUDGET_MS;
+    const buildCompleted = stepVectorBorderBuildJob(cachedVectorBuildJob, rebuildBudgetMs);
+    if (!buildCompleted) {
+        if (cachedVectorBorderGraphics && !cachedVectorBorderGraphics.parent) {
+            container.addChild(cachedVectorBorderGraphics);
         }
+        if (cachedVectorBorderGraphics) {
+            cachedVectorBorderGraphics.visible = true;
+        }
+        return;
     }
 
     const polylines = extractVectorBorderPolylines(
-        ownerGrid,
+        cachedVectorBuildJob.ownerGrid,
         gridW,
         gridH,
         cachedRenderOriginX,
@@ -1976,6 +2057,7 @@ function renderVectorBorderOverlay(
     }
 
     cachedVectorBorderGraphics.visible = true;
+    cachedVectorBuildJob = null;
     cachedVectorBorderFingerprint = staticFp;
     cachedVectorBorderLastBuildMs = now;
 }
@@ -3249,6 +3331,7 @@ export function resetDistanceFieldTerritoryCache(): void {
     cachedBorderExtentH = 0;
     cachedVectorBorderFingerprint = '';
     cachedVectorBorderLastBuildMs = 0;
+    cachedVectorBuildJob = null;
     laneArray = [];
     laneCells = new Map();
     latestAlignmentDiagnostics = null;
@@ -3266,4 +3349,3 @@ export function resetDistanceFieldTerritoryCache(): void {
     warnedCurvedBorderFamilyFallback = false;
     warnedSegmentedBorderFamilyFallback = false;
 }
-
