@@ -144,3 +144,5 @@
 - **Root cause**: Agent substituted speculation for investigation. Instead of examining the actual pipeline code to identify where shared vertices diverge, fabricated a theory that fit the symptom.
 - **Prevention**: Before proposing a root cause for any rendering bug, verify the claim against actual data (star ownership status, vertex coordinates before/after each stage). Never repeat a diagnosis the user has already corrected.
 
+
+- 2026-03-07: Territory borders in production now use GPU ownership-field two-pass rendering as canonical path; CPU vector overlay remains debug-only due non-zero divergence risk from simplify/straighten operations.

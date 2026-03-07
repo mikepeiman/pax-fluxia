@@ -208,6 +208,9 @@ const DF_TIE_EPSILON = 0.01;
 const DF_INTERNAL_TWO_PASS_TRACK = false;
 const DF_INTERNAL_TWO_PASS_LEGACY_CONTENT_ORIGIN = false;
 const DF_TWO_PASS_BORDERS_ENABLED = true;
+// CPU-extracted vector overlays are intentionally disabled in the canonical path because
+// simplification/straightening can move borders off the ownership field. Keep for debug only.
+const DF_VECTOR_OVERLAY_DEBUG_PATH = false;
 const DF_PASS1_GAP_SCALE = 512.0;
 const DF_PASS1_BASE_MAX_TEXTURE_DIM = 4096;
 const DF_PASS1_ABSOLUTE_MAX_TEXTURE_DIM = 8192;
@@ -3039,8 +3042,8 @@ export function renderDistanceFieldTerritory(
 
     const vectorBordersEnabled = Boolean(GAME_CONFIG.DF_VECTOR_BORDERS_ENABLED ?? false);
     const borderFamily = normalizeBorderFamily(GAME_CONFIG.DF_BORDER_FAMILY);
-    const useTwoPassBorders = DF_TWO_PASS_BORDERS_ENABLED && !!renderer && !vectorBordersEnabled;
-    if (DF_TWO_PASS_BORDERS_ENABLED && !renderer && !vectorBordersEnabled && !warnedMissingRendererForTwoPass) {
+    const useTwoPassBorders = DF_TWO_PASS_BORDERS_ENABLED && !!renderer;
+    if (DF_TWO_PASS_BORDERS_ENABLED && !renderer && !warnedMissingRendererForTwoPass) {
         warnedMissingRendererForTwoPass = true;
         console.warn('[DF_TWOPASS] renderer unavailable; falling back to inline borders');
     }
@@ -3204,7 +3207,7 @@ export function renderDistanceFieldTerritory(
     if (cachedMeshShader) {
         cachedMeshShader.resources.territoryUniforms.uniforms.uMorphFactor = morphFactor;
     }
-    updateFilterUniforms(canonicalStars, colorUtils, worldWidth, worldHeight, alignmentContract, useTwoPassBorders || vectorBordersEnabled);
+    updateFilterUniforms(canonicalStars, colorUtils, worldWidth, worldHeight, alignmentContract, useTwoPassBorders || (vectorBordersEnabled && DF_VECTOR_OVERLAY_DEBUG_PATH));
 
     if (useTwoPassBorders) {
         ensureTwoPassBorderResources();
@@ -3227,7 +3230,7 @@ export function renderDistanceFieldTerritory(
         cachedBorderMesh.visible = false;
     }
 
-    if (vectorBordersEnabled) {
+    if (vectorBordersEnabled && DF_VECTOR_OVERLAY_DEBUG_PATH) {
         const forceVectorRebuild = changeClassification.geometryChanged
             || changeClassification.topologyChanged
             || changeClassification.visualChanged;
@@ -3394,5 +3397,6 @@ export function resetDistanceFieldTerritoryCache(): void {
     warnedCurvedBorderFamilyFallback = false;
     warnedSegmentedBorderFamilyFallback = false;
 }
+
 
 
