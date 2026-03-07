@@ -213,8 +213,9 @@ const DF_PASS1_BASE_MAX_TEXTURE_DIM = 4096;
 const DF_PASS1_ABSOLUTE_MAX_TEXTURE_DIM = 8192;
 const DF_BORDER_HQ_MIN_SCALE = 1.0;
 const DF_BORDER_HQ_MAX_SCALE = 4.0;
-const DF_VECTOR_MIN_GRID = 64;
-const DF_VECTOR_MAX_GRID = 512;
+// Keep a quality floor so vector borders stay visually aligned with DF fill at gameplay zoom.
+const DF_VECTOR_MIN_GRID = 128;
+const DF_VECTOR_MAX_GRID = 1024;
 const DF_VECTOR_MAX_STRAIGHT_PASSES = 4;
 const DF_VECTOR_MORPH_MIN_UPDATE_MS = 16;
 const DF_VECTOR_MORPH_HEAVY_MIN_UPDATE_MS = 66;
@@ -976,9 +977,11 @@ let cachedBorderExtentW = 0;
 let cachedBorderExtentH = 0;
 
 let cachedVectorBorderGraphics: PIXI.Graphics | null = null;
-let cachedVectorBorderFingerprint = '';
+let cachedVectorGeometryFingerprint = '';
+let cachedVectorStyleFingerprint = '';
 let cachedVectorBorderLastBuildMs = 0;
 let cachedVectorBuildJob: VectorBorderBuildJob | null = null;
+let cachedVectorPolylines: VectorBorderPolyline[] = [];
 // Identity of the last border geometry actually drawn to screen.
 let cachedVectorPublishedSnapshotId = '';
 let warnedCurvedBorderFamilyFallback = false;
@@ -1917,7 +1920,9 @@ function renderVectorBorderOverlay(
     const extentH = Math.max(1, cachedRenderExtentH);
 
     const requestedGrid = GAME_CONFIG.DF_VECTOR_GRID_RESOLUTION ?? 192;
-    const gridW = Math.max(DF_VECTOR_MIN_GRID, Math.min(DF_VECTOR_MAX_GRID, Math.round(requestedGrid)));
+    const zoomScale = Math.max(1, Math.min(4, Math.max(Math.abs(container.worldTransform.a), Math.abs(container.worldTransform.d))));
+    const effectiveRequestedGrid = Math.round(requestedGrid * zoomScale);
+    const gridW = Math.max(DF_VECTOR_MIN_GRID, Math.min(DF_VECTOR_MAX_GRID, effectiveRequestedGrid));
     const gridH = Math.max(DF_VECTOR_MIN_GRID, Math.min(DF_VECTOR_MAX_GRID, Math.round(gridW * (extentH / extentW))));
 
     // Reuse existing DF_VECTOR_SMOOTHING as an integer straightening pass count.
@@ -1929,30 +1934,23 @@ function renderVectorBorderOverlay(
     const influenceWeight = GAME_CONFIG.DF_INFLUENCE_WEIGHT ?? 1.0;
     const minStarRadius = GAME_CONFIG.DF_MIN_STAR_RADIUS ?? 0;
 
-    const staticFp = `${cachedGeometryFp}:${cachedTopologyFp}:${cachedRenderOriginX}:${cachedRenderOriginY}:${extentW}:${extentH}:`
-        + `${borderWidth}:${borderSoftness}:${borderAlpha}:${GAME_CONFIG.DF_BORDER_BRIGHTEN}:${gridW}:${gridH}:${straightnessPasses}:${simplifyTolerance}:`
-        + `${influenceWeight}:${minStarRadius}:${playerIds.join(',')}`;
-    const intervalDue = morphFactor > 0 && (now - cachedVectorBorderLastBuildMs >= effectiveUpdateMs);
-    const needsRebuild = forceRebuild
-        || staticFp !== cachedVectorBorderFingerprint
-        || intervalDue
-        || !cachedVectorBorderGraphics
-        || cachedVectorPublishedSnapshotId !== ownershipSnapshotId;
+    // Geometry fingerprint controls expensive ownership sampling + polyline extraction.
+    const geometryFp = `${cachedGeometryFp}:${cachedTopologyFp}:${cachedRenderOriginX}:${cachedRenderOriginY}:${extentW}:${extentH}:`
+        + `${gridW}:${gridH}:${straightnessPasses}:${simplifyTolerance}:${influenceWeight}:${minStarRadius}:${playerIds.join(',')}`;
+    // Style fingerprint controls inexpensive polyline stroke redraw only.
+    const styleFp = `${borderWidth}:${borderSoftness}:${borderAlpha}:${GAME_CONFIG.DF_BORDER_BRIGHTEN}`;
 
-    if (!needsRebuild) {
-        if (cachedVectorBorderGraphics && !cachedVectorBorderGraphics.parent) {
-            container.addChild(cachedVectorBorderGraphics);
-        }
-        if (cachedVectorBorderGraphics) {
-            cachedVectorBorderGraphics.visible = true;
-        }
-        return;
-    }
+    const intervalDue = morphFactor > 0 && (now - cachedVectorBorderLastBuildMs >= effectiveUpdateMs);
+    const needsGeometryRebuild = forceRebuild
+        || geometryFp !== cachedVectorGeometryFingerprint
+        || intervalDue
+        || cachedVectorPublishedSnapshotId !== ownershipSnapshotId
+        || cachedVectorPolylines.length === 0;
 
     const canReuseBuildJob = Boolean(
         cachedVectorBuildJob
         && cachedVectorBuildJob.ownershipSnapshotId === ownershipSnapshotId
-        && cachedVectorBuildJob.staticFp === staticFp
+        && cachedVectorBuildJob.staticFp === geometryFp
         && cachedVectorBuildJob.gridW === gridW
         && cachedVectorBuildJob.gridH === gridH
         && cachedVectorBuildJob.originX === cachedRenderOriginX
@@ -1961,71 +1959,80 @@ function renderVectorBorderOverlay(
         && cachedVectorBuildJob.extentH === extentH,
     );
 
-    if (!canReuseBuildJob) {
-        const ownershipSites = buildOwnershipSampleSites(stars, virtualSites, dist, prevDistArr, playerIds);
-        if (ownershipSites.length === 0) {
+    let geometryBuiltThisFrame = false;
+
+    if (needsGeometryRebuild) {
+        if (!canReuseBuildJob) {
+            const ownershipSites = buildOwnershipSampleSites(stars, virtualSites, dist, prevDistArr, playerIds);
+            if (ownershipSites.length === 0) {
+                hideVectorBorderOverlay();
+                return;
+            }
+
+            cachedVectorBuildJob = {
+                ownershipSnapshotId,
+                staticFp: geometryFp,
+                gridW,
+                gridH,
+                originX: cachedRenderOriginX,
+                originY: cachedRenderOriginY,
+                extentW,
+                extentH,
+                influenceWeight,
+                minStarRadius,
+                morphFactor,
+                ownershipSites,
+                ownerGrid: new Int16Array(gridW * gridH),
+                nextRow: 0,
+            };
+        }
+
+        if (!cachedVectorBuildJob) {
             hideVectorBorderOverlay();
             return;
         }
 
-        cachedVectorBuildJob = {
-            ownershipSnapshotId,
-            staticFp,
+        cachedVectorBuildJob.morphFactor = morphFactor;
+        cachedVectorBuildJob.influenceWeight = influenceWeight;
+        cachedVectorBuildJob.minStarRadius = minStarRadius;
+
+        // Guard against stale async/chunked job completion.
+        if (cachedVectorBuildJob.ownershipSnapshotId !== ownershipSnapshotId) {
+            cachedVectorBuildJob = null;
+            cachedVectorPublishedSnapshotId = '';
+            if (cachedVectorBorderGraphics) cachedVectorBorderGraphics.visible = false;
+            return;
+        }
+
+        const buildCompleted = stepVectorBorderBuildJob(cachedVectorBuildJob, DF_VECTOR_REBUILD_BUDGET_MS);
+        if (!buildCompleted) {
+            if (cachedVectorBorderGraphics && !cachedVectorBorderGraphics.parent) {
+                container.addChild(cachedVectorBorderGraphics);
+            }
+            if (cachedVectorBorderGraphics) {
+                cachedVectorBorderGraphics.visible = true;
+            }
+            return;
+        }
+
+        cachedVectorPolylines = extractVectorBorderPolylines(
+            cachedVectorBuildJob.ownerGrid,
             gridW,
             gridH,
-            originX: cachedRenderOriginX,
-            originY: cachedRenderOriginY,
+            cachedRenderOriginX,
+            cachedRenderOriginY,
             extentW,
             extentH,
-            influenceWeight,
-            minStarRadius,
-            morphFactor,
-            ownershipSites,
-            ownerGrid: new Int16Array(gridW * gridH),
-            nextRow: 0,
-        };
-    }
+            simplifyTolerance,
+            straightnessPasses,
+        );
 
-    if (!cachedVectorBuildJob) {
-        hideVectorBorderOverlay();
-        return;
-    }
-
-    cachedVectorBuildJob.morphFactor = morphFactor;
-    cachedVectorBuildJob.influenceWeight = influenceWeight;
-    cachedVectorBuildJob.minStarRadius = minStarRadius;
-
-    // Guard against stale async/chunked job completion.
-    if (cachedVectorBuildJob.ownershipSnapshotId !== ownershipSnapshotId) {
         cachedVectorBuildJob = null;
-        cachedVectorPublishedSnapshotId = '';
-        if (cachedVectorBorderGraphics) cachedVectorBorderGraphics.visible = false;
-        return;
+        cachedVectorGeometryFingerprint = geometryFp;
+        cachedVectorBorderLastBuildMs = now;
+        cachedVectorPublishedSnapshotId = ownershipSnapshotId;
+        geometryBuiltThisFrame = true;
     }
-
-    const rebuildBudgetMs = DF_VECTOR_REBUILD_BUDGET_MS;
-    const buildCompleted = stepVectorBorderBuildJob(cachedVectorBuildJob, rebuildBudgetMs);
-    if (!buildCompleted) {
-        if (cachedVectorBorderGraphics && !cachedVectorBorderGraphics.parent) {
-            container.addChild(cachedVectorBorderGraphics);
-        }
-        if (cachedVectorBorderGraphics) {
-            cachedVectorBorderGraphics.visible = true;
-        }
-        return;
-    }
-
-    const polylines = extractVectorBorderPolylines(
-        cachedVectorBuildJob.ownerGrid,
-        gridW,
-        gridH,
-        cachedRenderOriginX,
-        cachedRenderOriginY,
-        extentW,
-        extentH,
-        simplifyTolerance,
-        straightnessPasses,
-    );
 
     if (!cachedVectorBorderGraphics) {
         cachedVectorBorderGraphics = new PIXI.Graphics();
@@ -2034,18 +2041,25 @@ function renderVectorBorderOverlay(
         container.addChild(cachedVectorBorderGraphics);
     }
 
-    cachedVectorBorderGraphics.clear();
+    const needsStyleRedraw = geometryBuiltThisFrame
+        || cachedVectorStyleFingerprint !== styleFp
+        || !cachedVectorBorderGraphics.visible;
 
+    if (!needsStyleRedraw) {
+        cachedVectorBorderGraphics.visible = true;
+        return;
+    }
+
+    cachedVectorBorderGraphics.clear();
     const brighten = GAME_CONFIG.DF_BORDER_BRIGHTEN ?? 0;
 
-    for (const polyline of polylines) {
+    for (const polyline of cachedVectorPolylines) {
         const ownerAId = playerIds[polyline.ownerA];
         const ownerBId = playerIds[polyline.ownerB];
         if (!ownerAId || !ownerBId) continue;
 
         const colorA = colorUtils.getPlayerColor(ownerAId);
         const colorB = colorUtils.getPlayerColor(ownerBId);
-
         const r = Math.min(255, Math.round((((colorA >> 16) & 0xff) + ((colorB >> 16) & 0xff)) * 0.5 + brighten));
         const g = Math.min(255, Math.round((((colorA >> 8) & 0xff) + ((colorB >> 8) & 0xff)) * 0.5 + brighten));
         const b = Math.min(255, Math.round(((colorA & 0xff) + (colorB & 0xff)) * 0.5 + brighten));
@@ -2083,11 +2097,8 @@ function renderVectorBorderOverlay(
         } as any);
     }
 
+    cachedVectorStyleFingerprint = styleFp;
     cachedVectorBorderGraphics.visible = true;
-    cachedVectorBuildJob = null;
-    cachedVectorBorderFingerprint = staticFp;
-    cachedVectorBorderLastBuildMs = now;
-    cachedVectorPublishedSnapshotId = ownershipSnapshotId;
 }
 function makeBounds(minX: number, minY: number, maxX: number, maxY: number): AlignmentBounds {
     return {
@@ -3360,9 +3371,11 @@ export function resetDistanceFieldTerritoryCache(): void {
     cachedBorderOriginY = 0;
     cachedBorderExtentW = 0;
     cachedBorderExtentH = 0;
-    cachedVectorBorderFingerprint = '';
+    cachedVectorGeometryFingerprint = '';
+    cachedVectorStyleFingerprint = '';
     cachedVectorBorderLastBuildMs = 0;
     cachedVectorBuildJob = null;
+    cachedVectorPolylines = [];
     cachedVectorPublishedSnapshotId = '';
     laneArray = [];
     laneCells = new Map();
