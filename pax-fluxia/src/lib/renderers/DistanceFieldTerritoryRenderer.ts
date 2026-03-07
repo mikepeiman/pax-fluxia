@@ -97,11 +97,35 @@ interface DfChangeClassification {
     changedBuckets: Array<'geometry' | 'topology' | 'visual'>;
 }
 
+interface TwoPassSampleComparison {
+    starId: string;
+    worldX: number;
+    worldY: number;
+    pass1UvX: number;
+    pass1UvY: number;
+    pass2WorldX: number;
+    pass2WorldY: number;
+    mappingDrift: number;
+    ownerSinglePass: number;
+    ownerTwoPass: number;
+    ownerMismatch: boolean;
+}
+
+interface TwoPassDiagnosticsPayload {
+    enabled: boolean;
+    legacyOriginMode: boolean;
+    mismatchCount: number;
+    maxMappingDrift: number;
+    samples: TwoPassSampleComparison[];
+}
+
 const DF_CONTENT_BOUNDS_PADDING = 80;
 const DF_ALIGNMENT_EPSILON = 0.5;
 const DF_ALIGNMENT_SAMPLE_LIMIT = 6;
 const DF_ALIGNMENT_HISTORY_LIMIT = 24;
 const DF_TIE_EPSILON = 0.01;
+const DF_INTERNAL_TWO_PASS_TRACK = false;
+const DF_INTERNAL_TWO_PASS_LEGACY_CONTENT_ORIGIN = false;
 
 // Ã¢â€â‚¬Ã¢â€â‚¬ Shader Bit for Territory Distance Field Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 // Uses PIXI's compileHighShaderGlProgram() with shader bits.
@@ -417,6 +441,8 @@ let latestAlignmentDiagnostics: AlignmentDiagnosticsPayload | null = null;
 let alignmentDiagnosticsHistory: AlignmentDiagnosticsPayload[] = [];
 let lastAlignmentIssueFp = '';
 let lastChangeClassification: DfChangeClassification | null = null;
+let cachedVirtualSites: VirtualSite[] = [];
+let latestTwoPassDiagnostics: TwoPassDiagnosticsPayload | null = null;
 
 
 // ============================================================================
@@ -671,6 +697,144 @@ function canonicalizeVirtualSites(virtualSites: VirtualSite[]): VirtualSite[] {
     }
 
     return deduped;
+}
+
+function computeVirtualDijkstra(site: VirtualSite, starById: Map<string, StarState>): number {
+    if (site.kind !== 'disconnect') return 0;
+    const starA = starById.get(site.sourceStarA);
+    const starB = starById.get(site.sourceStarB);
+    if (!starA || !starB) return 0;
+    const halfDist = Math.hypot(starB.x - starA.x, starB.y - starA.y) / 2;
+    return Math.round(halfDist / Math.max(site.weight, 0.01));
+}
+
+function pickOwnerAtPoint(
+    worldX: number,
+    worldY: number,
+    stars: StarState[],
+    virtualSites: VirtualSite[],
+    dist: number[][],
+    playerIds: string[],
+): number {
+    const influenceWeight = GAME_CONFIG.DF_INFLUENCE_WEIGHT ?? 1.0;
+    const minStarRadius = GAME_CONFIG.DF_MIN_STAR_RADIUS ?? 40;
+    const playerIdxById = new Map<string, number>();
+    for (let i = 0; i < playerIds.length; i++) {
+        playerIdxById.set(playerIds[i], i);
+    }
+
+    let bestInfluence = Infinity;
+    let bestOwner = -1;
+    let bestOrder = Number.MAX_SAFE_INTEGER;
+
+    const applyCandidate = (ownerIdx: number, influence: number, order: number) => {
+        const delta = influence - bestInfluence;
+        const wins = bestOwner < 0
+            || delta < -DF_TIE_EPSILON
+            || (Math.abs(delta) <= DF_TIE_EPSILON && (ownerIdx < bestOwner || (ownerIdx === bestOwner && order < bestOrder)));
+        if (wins) {
+            bestInfluence = influence;
+            bestOwner = ownerIdx;
+            bestOrder = order;
+        }
+    };
+
+    for (let i = 0; i < stars.length; i++) {
+        const star = stars[i];
+        const ownerIdx = playerIdxById.get(star.ownerId);
+        if (ownerIdx === undefined) continue;
+
+        const dijkstra = dist[i]?.[ownerIdx] ?? Infinity;
+        if (!Number.isFinite(dijkstra)) continue;
+
+        const pixDist = Math.hypot(worldX - star.x, worldY - star.y);
+        let influence = pixDist + dijkstra * influenceWeight;
+        if (minStarRadius > 0 && pixDist < minStarRadius) {
+            const t = pixDist / minStarRadius;
+            influence -= (1 - t * t) * minStarRadius;
+        }
+        applyCandidate(ownerIdx, influence, i);
+    }
+
+    const starById = new Map(stars.map((star) => [star.id, star] as const));
+    for (let i = 0; i < virtualSites.length; i++) {
+        const site = virtualSites[i];
+        const ownerIdx = playerIdxById.get(site.ownerId);
+        if (ownerIdx === undefined) continue;
+
+        const pixDist = Math.hypot(worldX - site.x, worldY - site.y);
+        const dijkstra = computeVirtualDijkstra(site, starById);
+        let influence = pixDist + dijkstra * influenceWeight;
+        if (site.kind === 'corridor') {
+            influence -= Math.round((site.weight ?? 1.0) * 100);
+        }
+        applyCandidate(ownerIdx, influence, stars.length + i);
+    }
+
+    return bestOwner;
+}
+
+function runInternalTwoPassTrack(
+    alignment: AlignmentContract,
+    stars: StarState[],
+    dist: number[][],
+    playerIds: string[],
+    virtualSites: VirtualSite[],
+    worldWidth: number,
+    worldHeight: number,
+): void {
+    if (!DF_INTERNAL_TWO_PASS_TRACK) {
+        latestTwoPassDiagnostics = null;
+        return;
+    }
+
+    const pass1ContentMinX = DF_INTERNAL_TWO_PASS_LEGACY_CONTENT_ORIGIN ? 0 : alignment.contentMinX;
+    const pass1ContentMinY = DF_INTERNAL_TWO_PASS_LEGACY_CONTENT_ORIGIN ? 0 : alignment.contentMinY;
+
+    const samples: TwoPassSampleComparison[] = [];
+    let mismatchCount = 0;
+    let maxMappingDrift = 0;
+
+    for (const sample of alignment.diagnostics.samples) {
+        const pass1UvX = worldWidth > 0 ? (sample.worldX - pass1ContentMinX) / worldWidth : 0;
+        const pass1UvY = worldHeight > 0 ? (sample.worldY - pass1ContentMinY) / worldHeight : 0;
+
+        const pass2WorldX = alignment.contentMinX + pass1UvX * worldWidth;
+        const pass2WorldY = alignment.contentMinY + pass1UvY * worldHeight;
+        const mappingDrift = Math.hypot(pass2WorldX - sample.worldX, pass2WorldY - sample.worldY);
+
+        const ownerSinglePass = pickOwnerAtPoint(sample.worldX, sample.worldY, stars, virtualSites, dist, playerIds);
+        const ownerTwoPass = pickOwnerAtPoint(pass2WorldX, pass2WorldY, stars, virtualSites, dist, playerIds);
+        const ownerMismatch = ownerSinglePass !== ownerTwoPass || mappingDrift > DF_ALIGNMENT_EPSILON;
+        if (ownerMismatch) mismatchCount++;
+        if (mappingDrift > maxMappingDrift) maxMappingDrift = mappingDrift;
+
+        samples.push({
+            starId: sample.starId,
+            worldX: sample.worldX,
+            worldY: sample.worldY,
+            pass1UvX,
+            pass1UvY,
+            pass2WorldX,
+            pass2WorldY,
+            mappingDrift,
+            ownerSinglePass,
+            ownerTwoPass,
+            ownerMismatch,
+        });
+    }
+
+    latestTwoPassDiagnostics = {
+        enabled: true,
+        legacyOriginMode: DF_INTERNAL_TWO_PASS_LEGACY_CONTENT_ORIGIN,
+        mismatchCount,
+        maxMappingDrift,
+        samples,
+    };
+
+    if (mismatchCount > 0) {
+        console.warn('[DF_TWOPASS] mapping/ownership mismatch detected in internal diagnostics', latestTwoPassDiagnostics);
+    }
 }
 
 function makeBounds(minX: number, minY: number, maxX: number, maxY: number): AlignmentBounds {
@@ -1306,6 +1470,8 @@ export function renderDistanceFieldTerritory(
         || isMorphing
         || !starDataTexture;
 
+    let activeVirtualSites = cachedVirtualSites;
+
     if (needsRebuild) {
         if (alignmentContract.diagnostics.issues.length > 0) {
             console.assert(false, '[DF_ALIGN] alignment contract issues detected before DF rebuild', alignmentContract.diagnostics);
@@ -1337,9 +1503,21 @@ export function renderDistanceFieldTerritory(
         }
 
         const stableVirtuals = canonicalizeVirtualSites(virtuals);
+        activeVirtualSites = stableVirtuals;
+        cachedVirtualSites = stableVirtuals;
         console.log(`[DF] Total packed: ${canonicalStars.length} real + ${stableVirtuals.length} virtual = ${canonicalStars.length + stableVirtuals.length}`);
         buildStarDataTexture(canonicalStars, currentDist, prevDist, currentPlayerIds, stableVirtuals);
     }
+
+    runInternalTwoPassTrack(
+        alignmentContract,
+        canonicalStars,
+        currentDist,
+        currentPlayerIds,
+        activeVirtualSites,
+        worldWidth,
+        worldHeight,
+    );
 
     ensureMesh(worldWidth, worldHeight);
 
@@ -1371,6 +1549,10 @@ export function getDistanceFieldAlignmentDiagnosticsHistory(): AlignmentDiagnost
 
 export function getDistanceFieldChangeClassification(): DfChangeClassification | null {
     return lastChangeClassification;
+}
+
+export function getDistanceFieldTwoPassDiagnostics(): TwoPassDiagnosticsPayload | null {
+    return latestTwoPassDiagnostics;
 }
 
 // ============================================================================
@@ -1412,5 +1594,7 @@ export function resetDistanceFieldTerritoryCache(): void {
     alignmentDiagnosticsHistory = [];
     lastAlignmentIssueFp = '';
     lastChangeClassification = null;
+    cachedVirtualSites = [];
+    latestTwoPassDiagnostics = null;
 }
 
