@@ -275,7 +275,7 @@ interface GameConfigType {
     DF_BORDER_HQ_MAX_DIM: number;   // Max ownership/JFA texture dimension in HQ mode (default 8192)
     DF_VECTOR_BORDERS_ENABLED: boolean; // Draw DF borders using vector polylines (default false)
     DF_VECTOR_GRID_RESOLUTION: number;  // Ownership sampling grid on long axis (default 192)
-    DF_VECTOR_SMOOTHING: number;        // Chaikin smoothing iterations for vector lines (default 1)
+    DF_VECTOR_SMOOTHING: number;        // Straight-line regularization passes for vector borders (default 1)
     DF_VECTOR_SIMPLIFY: number;         // Polyline simplify tolerance in world px (default 0.5)
     DF_VECTOR_UPDATE_MS: number;        // Rebuild interval while morphing (ms, default 33)
     DF_DISTANCE_METRIC: 'hops' | 'length'; // Distance metric (default 'length')

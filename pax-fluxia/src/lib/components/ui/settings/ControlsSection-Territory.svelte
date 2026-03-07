@@ -1497,7 +1497,7 @@
 
             <div class="var-row">
                 <div class="row-top">
-                    <span class="var-name">Vector Smoothing</span><span
+                    <span class="var-name">Vector Straighten</span><span
                         class="val"
                         >{panel.dfVectorSmoothing ??
                             GAME_CONFIG.DF_VECTOR_SMOOTHING}</span
@@ -1506,7 +1506,7 @@
                 <input
                     type="range"
                     min="0"
-                    max="50"
+                    max="4"
                     step="1"
                     value={panel.dfVectorSmoothing ??
                         GAME_CONFIG.DF_VECTOR_SMOOTHING}
@@ -3069,5 +3069,4 @@
         color: #888;
     }
 </style>
-
 

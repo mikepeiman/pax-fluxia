@@ -180,7 +180,7 @@ const DF_BORDER_HQ_MIN_SCALE = 1.0;
 const DF_BORDER_HQ_MAX_SCALE = 4.0;
 const DF_VECTOR_MIN_GRID = 64;
 const DF_VECTOR_MAX_GRID = 512;
-const DF_VECTOR_MAX_CHAIKIN = 4;
+const DF_VECTOR_MAX_STRAIGHT_PASSES = 4;
 
 // ============================================================================
 // Shader Bit: Territory Distance Field (single-pass fill + optional inline border)
@@ -1521,47 +1521,64 @@ function simplifyOpenPolyline(points: number[], tolerance: number): number[] {
     return out.length >= 4 ? out : points;
 }
 
-function chaikinSmoothOpen(points: number[], iterations: number): number[] {
-    let pts = points;
-    for (let iter = 0; iter < iterations; iter++) {
-        const n = pts.length / 2;
-        if (n < 3) break;
+// Computes max perpendicular deviation of a run from a straight segment.
+function segmentMaxError(points: number[], startPointIndex: number, endPointIndex: number): number {
+    const sx = points[startPointIndex * 2];
+    const sy = points[startPointIndex * 2 + 1];
+    const ex = points[endPointIndex * 2];
+    const ey = points[endPointIndex * 2 + 1];
+    const dx = ex - sx;
+    const dy = ey - sy;
+    const lenSq = dx * dx + dy * dy;
 
-        const out: number[] = [pts[0], pts[1]];
-        for (let i = 0; i < n - 1; i++) {
-            const x0 = pts[i * 2];
-            const y0 = pts[i * 2 + 1];
-            const x1 = pts[(i + 1) * 2];
-            const y1 = pts[(i + 1) * 2 + 1];
-            out.push(x0 * 0.75 + x1 * 0.25, y0 * 0.75 + y1 * 0.25);
-            out.push(x0 * 0.25 + x1 * 0.75, y0 * 0.25 + y1 * 0.75);
-        }
-        out.push(pts[(n - 1) * 2], pts[(n - 1) * 2 + 1]);
-        pts = out;
+    if (lenSq <= 0.0001) return 0;
+
+    let maxError = 0;
+    for (let i = startPointIndex + 1; i < endPointIndex; i++) {
+        const px = points[i * 2];
+        const py = points[i * 2 + 1];
+        const t = Math.max(0, Math.min(1, ((px - sx) * dx + (py - sy) * dy) / lenSq));
+        const lx = sx + dx * t;
+        const ly = sy + dy * t;
+        const err = Math.hypot(px - lx, py - ly);
+        if (err > maxError) maxError = err;
     }
-    return pts;
+
+    return maxError;
 }
 
-function chaikinSmoothClosed(points: number[], iterations: number): number[] {
-    let pts = points;
-    for (let iter = 0; iter < iterations; iter++) {
-        const n = pts.length / 2;
-        if (n < 3) break;
-        const out: number[] = [];
-        for (let i = 0; i < n; i++) {
-            const j = (i + 1) % n;
-            const x0 = pts[i * 2];
-            const y0 = pts[i * 2 + 1];
-            const x1 = pts[j * 2];
-            const y1 = pts[j * 2 + 1];
-            out.push(x0 * 0.75 + x1 * 0.25, y0 * 0.75 + y1 * 0.25);
-            out.push(x0 * 0.25 + x1 * 0.75, y0 * 0.25 + y1 * 0.75);
+function linearizeOpenPolyline(points: number[], maxError: number): number[] {
+    const n = points.length / 2;
+    if (n <= 2 || maxError <= 0) return points;
+
+    const out: number[] = [points[0], points[1]];
+    let startIdx = 0;
+
+    for (let endIdx = 2; endIdx < n; endIdx++) {
+        const err = segmentMaxError(points, startIdx, endIdx);
+        if (err > maxError) {
+            const keepIdx = endIdx - 1;
+            out.push(points[keepIdx * 2], points[keepIdx * 2 + 1]);
+            startIdx = keepIdx;
         }
-        pts = out;
     }
-    return pts;
+
+    out.push(points[(n - 1) * 2], points[(n - 1) * 2 + 1]);
+
+    const deduped: number[] = [out[0], out[1]];
+    for (let i = 2; i < out.length; i += 2) {
+        const px = deduped[deduped.length - 2];
+        const py = deduped[deduped.length - 1];
+        const nx = out[i];
+        const ny = out[i + 1];
+        if (Math.hypot(nx - px, ny - py) < 0.01) continue;
+        deduped.push(nx, ny);
+    }
+
+    return deduped.length >= 4 ? deduped : points;
 }
 
+// Converts sampled ownership boundaries into straightened world-space border polylines.
 function extractVectorBorderPolylines(
     ownerGrid: Int16Array,
     gridW: number,
@@ -1571,7 +1588,7 @@ function extractVectorBorderPolylines(
     extentW: number,
     extentH: number,
     simplifyTolerance: number,
-    smoothIterations: number,
+    straightnessPasses: number,
 ): VectorBorderPolyline[] {
     type Edge = [number, number, number, number];
     const pairEdges = new Map<string, Edge[]>();
@@ -1625,6 +1642,7 @@ function extractVectorBorderPolylines(
     };
 
     const polylines: VectorBorderPolyline[] = [];
+    const quantizationTolerance = Math.max(extentW / Math.max(gridW, 1), extentH / Math.max(gridH, 1)) * 0.85;
 
     for (const [pairKey, edges] of pairEdges) {
         const [pairA, pairB] = pairKey.split('|').map(Number);
@@ -1682,14 +1700,17 @@ function extractVectorBorderPolylines(
             if (uniquePath.length < 2) return;
 
             let worldPoints = toWorldPoints(uniquePath);
-            if (simplifyTolerance > 0 && !isClosed) {
-                worldPoints = simplifyOpenPolyline(worldPoints, simplifyTolerance);
+            const baseTolerance = Math.max(simplifyTolerance, quantizationTolerance);
+            worldPoints = simplifyOpenPolyline(worldPoints, baseTolerance);
+
+            const passes = Math.max(1, straightnessPasses + 1);
+            for (let pass = 0; pass < passes; pass++) {
+                const passTolerance = baseTolerance * (1 + pass * 0.35);
+                worldPoints = linearizeOpenPolyline(worldPoints, passTolerance);
             }
 
-            if (smoothIterations > 0) {
-                worldPoints = isClosed
-                    ? chaikinSmoothClosed(worldPoints, smoothIterations)
-                    : chaikinSmoothOpen(worldPoints, smoothIterations);
+            if (isClosed && worldPoints.length >= 4) {
+                worldPoints = [...worldPoints, worldPoints[0], worldPoints[1]];
             }
 
             if (worldPoints.length >= 4) {
@@ -1717,7 +1738,6 @@ function extractVectorBorderPolylines(
 
     return polylines;
 }
-
 function hideVectorBorderOverlay(): void {
     if (cachedVectorBorderGraphics) {
         cachedVectorBorderGraphics.visible = false;
@@ -1751,12 +1771,13 @@ function renderVectorBorderOverlay(
     const gridW = Math.max(DF_VECTOR_MIN_GRID, Math.min(DF_VECTOR_MAX_GRID, Math.round(requestedGrid)));
     const gridH = Math.max(DF_VECTOR_MIN_GRID, Math.min(DF_VECTOR_MAX_GRID, Math.round(gridW * (extentH / extentW))));
 
-    const smoothIterations = Math.max(0, Math.min(DF_VECTOR_MAX_CHAIKIN, Math.round(GAME_CONFIG.DF_VECTOR_SMOOTHING ?? 1)));
+    // Reuse existing DF_VECTOR_SMOOTHING as an integer straightening pass count.
+    const straightnessPasses = Math.max(0, Math.min(DF_VECTOR_MAX_STRAIGHT_PASSES, Math.round(GAME_CONFIG.DF_VECTOR_SMOOTHING ?? 1)));
     const simplifyTolerance = Math.max(0, GAME_CONFIG.DF_VECTOR_SIMPLIFY ?? 0.5);
     const updateMs = Math.max(0, GAME_CONFIG.DF_VECTOR_UPDATE_MS ?? 33);
 
     const staticFp = `${cachedGeometryFp}:${cachedTopologyFp}:${cachedRenderOriginX}:${cachedRenderOriginY}:${extentW}:${extentH}:`
-        + `${borderWidth}:${borderSoftness}:${borderAlpha}:${GAME_CONFIG.DF_BORDER_BRIGHTEN}:${gridW}:${gridH}:${smoothIterations}:${simplifyTolerance}`;
+        + `${borderWidth}:${borderSoftness}:${borderAlpha}:${GAME_CONFIG.DF_BORDER_BRIGHTEN}:${gridW}:${gridH}:${straightnessPasses}:${simplifyTolerance}`;
     const intervalDue = morphFactor > 0 && (now - cachedVectorBorderLastBuildMs >= updateMs);
     const needsRebuild = forceRebuild || staticFp !== cachedVectorBorderFingerprint || intervalDue || !cachedVectorBorderGraphics;
 
@@ -1804,7 +1825,7 @@ function renderVectorBorderOverlay(
         extentW,
         extentH,
         simplifyTolerance,
-        smoothIterations,
+        straightnessPasses,
     );
 
     if (!cachedVectorBorderGraphics) {
@@ -3151,5 +3172,4 @@ export function resetDistanceFieldTerritoryCache(): void {
     cachedPackedVirtualCount = 0;
     warnedMissingRendererForTwoPass = false;
 }
-
 
