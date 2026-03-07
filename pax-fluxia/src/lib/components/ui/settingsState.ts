@@ -1,5 +1,6 @@
 import { GAME_CONFIG } from '$lib/config/game.config';
 import { PANEL_CONFIG_MAP, type PanelConfigMapping } from './settingsDefs';
+import { recordSettingWrite } from '$lib/config/settingsTelemetry';
 
 export interface SettingsSchemaEntry extends PanelConfigMapping {}
 
@@ -13,15 +14,35 @@ function applyMappedSetting(panelKey: string, value: unknown): void {
         if ((import.meta as any).env?.DEV) {
             console.warn(`[settings] Missing mapping for panel key "${panelKey}"`);
         }
+        recordSettingWrite({
+            panelKey,
+            configKey: null,
+            inputValue: value,
+            panelValue: value,
+            appliedValue: null,
+            atMs: performance.now(),
+        });
         return;
     }
 
     if (value === undefined) return;
+    let appliedValue: unknown;
     if (mapping.transform === 'inverse') {
-        (GAME_CONFIG as any)[mapping.configKey] = 1 / (value as number);
+        appliedValue = 1 / (value as number);
+        (GAME_CONFIG as any)[mapping.configKey] = appliedValue;
     } else {
-        (GAME_CONFIG as any)[mapping.configKey] = value;
+        appliedValue = value;
+        (GAME_CONFIG as any)[mapping.configKey] = appliedValue;
     }
+
+    recordSettingWrite({
+        panelKey,
+        configKey: mapping.configKey,
+        inputValue: value,
+        panelValue: value,
+        appliedValue,
+        atMs: performance.now(),
+    });
 }
 
 export function setSetting(

@@ -26,6 +26,7 @@ const roundPixelsBitGl = {
     },
 };
 import { GAME_CONFIG } from '$lib/config/game.config';
+import { getSettingWrites, type SettingWriteTelemetry } from '$lib/config/settingsTelemetry';
 import type { StarState, StarConnection } from '$lib/types/game.types';
 import type { ColorUtils } from './RenderContext';
 import { computeCorridorVirtuals, computeDisconnectVirtuals, type VirtualSite } from './territoryFeatures';
@@ -121,6 +122,30 @@ interface TwoPassDiagnosticsPayload {
     mismatchCount: number;
     maxMappingDrift: number;
     samples: TwoPassSampleComparison[];
+}
+
+type DfDxRebuildReason = 'geometry' | 'topology' | 'visual' | 'ui-write';
+interface DfDxConfigSnapshot {
+    corridorEnabled: boolean;
+    corridorMode: string;
+    corridorSpacing: number;
+    corridorCount: number;
+    corridorWeight: number;
+    disconnectEnabled: boolean;
+    disconnectDistance: number;
+    disconnectWeight: number;
+}
+interface DfDxDiagnosticsPayload {
+    rebuilt: boolean;
+    reasons: DfDxRebuildReason[];
+    topologyFp: string;
+    geometryFp: string;
+    corridorSiteCount: number;
+    disconnectSiteCount: number;
+    virtualSiteCount: number;
+    packedVirtualCount: number;
+    config: DfDxConfigSnapshot;
+    settingWrites: Record<string, SettingWriteTelemetry | null>;
 }
 
 interface OwnershipSampleSite {
@@ -882,7 +907,11 @@ let lastAlignmentIssueFp = '';
 let lastChangeClassification: DfChangeClassification | null = null;
 let cachedVirtualSites: VirtualSite[] = [];
 let latestTwoPassDiagnostics: TwoPassDiagnosticsPayload | null = null;
-
+let latestDxDiagnostics: DfDxDiagnosticsPayload | null = null;
+let lastDxWriteAt = 0;
+let cachedCorridorSiteCount = 0;
+let cachedDisconnectSiteCount = 0;
+let cachedPackedVirtualCount = 0;
 let warnedMissingRendererForTwoPass = false;
 let cachedOwnershipTexture: PIXI.RenderTexture | null = null;
 let cachedOwnershipShader: PIXI.Shader | null = null;
@@ -915,7 +944,29 @@ let cachedRenderOriginY = 0;
 let cachedRenderExtentW = 0;
 let cachedRenderExtentH = 0;
 
-
+// DF/DX panel keys that can change virtual-site topology and require deterministic rebuilds.
+const DX_TELEMETRY_PANEL_KEYS = [
+    'dfCorridorEnabled',
+    'dfCorridorMode',
+    'dfCorridorSpacing',
+    'dfCorridorCount',
+    'dfCorridorWeight',
+    'dfDisconnectEnabled',
+    'dfDisconnectDistance',
+    'dfDisconnectWeight',
+] as const;
+function buildDxConfigSnapshot(): DfDxConfigSnapshot {
+    return {
+        corridorEnabled: Boolean(GAME_CONFIG.DF_CORRIDOR_ENABLED),
+        corridorMode: GAME_CONFIG.DF_CORRIDOR_MODE ?? 'spacing',
+        corridorSpacing: GAME_CONFIG.DF_CORRIDOR_SPACING ?? 60,
+        corridorCount: GAME_CONFIG.DF_CORRIDOR_COUNT ?? 3,
+        corridorWeight: GAME_CONFIG.DF_CORRIDOR_WEIGHT ?? 1.0,
+        disconnectEnabled: Boolean(GAME_CONFIG.DF_DISCONNECT_ENABLED),
+        disconnectDistance: GAME_CONFIG.DF_DISCONNECT_DISTANCE ?? 400,
+        disconnectWeight: GAME_CONFIG.DF_DISCONNECT_WEIGHT ?? 0.3,
+    };
+}
 // ============================================================================
 // Multi-Source Dijkstra - per-player distances (preserved from V1)
 // ============================================================================
@@ -2762,6 +2813,14 @@ export function renderDistanceFieldTerritory(
 
     const changeClassification = classifyDfChanges(canonicalInput, metric);
 
+    const dxSettingWrites = getSettingWrites([...DX_TELEMETRY_PANEL_KEYS]);
+    const latestUiWriteAt = Object.values(dxSettingWrites).reduce((maxAt, entry) => {
+        if (!entry) return maxAt;
+        return entry.atMs > maxAt ? entry.atMs : maxAt;
+    }, 0);
+    // Rebuild once after any relevant UI write so steady-state matches drag-state behavior.
+    const uiWriteNeedsRebuild = latestUiWriteAt > lastDxWriteAt;
+
     if (changeClassification.geometryChanged || changeClassification.topologyChanged) {
         buildLaneIndex(canonicalStars, canonicalConnections);
     }
@@ -2810,7 +2869,8 @@ export function renderDistanceFieldTerritory(
     const needsRebuild = changeClassification.geometryChanged
         || changeClassification.topologyChanged
         || isMorphing
-        || !starDataTexture;
+        || !starDataTexture
+        || uiWriteNeedsRebuild;
 
     let activeVirtualSites = cachedVirtualSites;
 
@@ -2820,6 +2880,8 @@ export function renderDistanceFieldTerritory(
         }
 
         let virtuals: VirtualSite[] = [];
+        let corridorSitesCount = 0;
+        let disconnectSitesCount = 0;
 
         if (GAME_CONFIG.DF_CORRIDOR_ENABLED && canonicalConnections.length > 0) {
             const spacing = GAME_CONFIG.DF_CORRIDOR_SPACING ?? 60;
@@ -2829,6 +2891,7 @@ export function renderDistanceFieldTerritory(
             const corridorSites = computeCorridorVirtuals(canonicalInput.ownedStars, canonicalConnections, spacing, 0.5, count);
             for (const site of corridorSites) site.weight = weight;
             virtuals = virtuals.concat(corridorSites);
+            corridorSitesCount = corridorSites.length;
             console.log(`[DF] Corridors: ${corridorSites.length} sites (mode=${mode}, ${mode === 'count' ? `count=${count}` : `spacing=${spacing}`}, weight=${weight})`);
         }
 
@@ -2837,6 +2900,7 @@ export function renderDistanceFieldTerritory(
             const weight = GAME_CONFIG.DF_DISCONNECT_WEIGHT ?? 0.3;
             const disconnectSites = computeDisconnectVirtuals(canonicalInput.ownedStars, canonicalStars, canonicalConnections, maxDist, weight);
             virtuals = virtuals.concat(disconnectSites);
+            disconnectSitesCount = disconnectSites.length;
             console.log(`[DF] Disconnects: ${disconnectSites.length} sites (maxDist=${maxDist}, weight=${weight})`);
             for (const site of disconnectSites) {
                 const pIdx = currentPlayerIds.indexOf(site.ownerId);
@@ -2849,6 +2913,39 @@ export function renderDistanceFieldTerritory(
         cachedVirtualSites = stableVirtuals;
         console.log(`[DF] Total packed: ${canonicalStars.length} real + ${stableVirtuals.length} virtual = ${canonicalStars.length + stableVirtuals.length}`);
         buildStarDataTexture(canonicalStars, currentDist, prevDist, currentPlayerIds, stableVirtuals);
+
+        cachedCorridorSiteCount = corridorSitesCount;
+        cachedDisconnectSiteCount = disconnectSitesCount;
+        cachedPackedVirtualCount = stableVirtuals.length;
+        latestDxDiagnostics = {
+            rebuilt: true,
+            reasons: [
+                ...changeClassification.changedBuckets,
+                ...(uiWriteNeedsRebuild ? ['ui-write' as const] : []),
+            ],
+            topologyFp: changeClassification.topologyFp,
+            geometryFp: changeClassification.geometryFp,
+            corridorSiteCount: corridorSitesCount,
+            disconnectSiteCount: disconnectSitesCount,
+            virtualSiteCount: stableVirtuals.length,
+            packedVirtualCount: stableVirtuals.length,
+            config: buildDxConfigSnapshot(),
+            settingWrites: dxSettingWrites,
+        };
+        lastDxWriteAt = latestUiWriteAt;
+    } else {
+        latestDxDiagnostics = {
+            rebuilt: false,
+            reasons: [],
+            topologyFp: changeClassification.topologyFp,
+            geometryFp: changeClassification.geometryFp,
+            corridorSiteCount: cachedCorridorSiteCount,
+            disconnectSiteCount: cachedDisconnectSiteCount,
+            virtualSiteCount: cachedVirtualSites.length,
+            packedVirtualCount: cachedPackedVirtualCount,
+            config: buildDxConfigSnapshot(),
+            settingWrites: dxSettingWrites,
+        };
     }
 
     runInternalTwoPassTrack(
@@ -2936,6 +3033,9 @@ export function getDistanceFieldChangeClassification(): DfChangeClassification |
 
 export function getDistanceFieldTwoPassDiagnostics(): TwoPassDiagnosticsPayload | null {
     return latestTwoPassDiagnostics;
+}
+export function getDistanceFieldDxDiagnostics(): DfDxDiagnosticsPayload | null {
+    return latestDxDiagnostics;
 }
 
 // ============================================================================
@@ -3044,6 +3144,12 @@ export function resetDistanceFieldTerritoryCache(): void {
     lastChangeClassification = null;
     cachedVirtualSites = [];
     latestTwoPassDiagnostics = null;
+    latestDxDiagnostics = null;
+    lastDxWriteAt = 0;
+    cachedCorridorSiteCount = 0;
+    cachedDisconnectSiteCount = 0;
+    cachedPackedVirtualCount = 0;
     warnedMissingRendererForTwoPass = false;
 }
+
 
