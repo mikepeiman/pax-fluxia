@@ -3111,10 +3111,6 @@ export function getDistanceFieldDxDiagnostics(): DfDxDiagnosticsPayload | null {
     return latestDxDiagnostics;
 }
 
-export function isDistanceFieldMorphingActive(): boolean {
-    return isMorphing;
-}
-
 // ============================================================================
 // Cache Reset
 // ============================================================================

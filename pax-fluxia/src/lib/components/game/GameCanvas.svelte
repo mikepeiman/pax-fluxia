@@ -7,7 +7,6 @@
     import { mapTranspose } from "$lib/stores/mapTranspose.svelte";
     import { log } from "$lib/utils/logger";
     import { GAME_CONFIG } from "$lib/config/game.config";
-    import { getSettingWrites } from "$lib/config/settingsTelemetry";
     import {
         getOrbitSlot,
         getTotalOccupiedLayers,
@@ -80,7 +79,6 @@
     import {
         renderDistanceFieldTerritory as renderDistanceFieldTerritoryModule,
         resetDistanceFieldTerritoryCache,
-        isDistanceFieldMorphingActive,
     } from "$lib/renderers/DistanceFieldTerritoryRenderer";
 
     // ============================================================================
@@ -188,49 +186,6 @@
     const emptyStarsMap = new Map<string, StarState>(); // Cached empty map — avoid per-frame allocation
     let resizeObserver: ResizeObserver | null = null;
     let lastTickGameTimeMs = 0; // Game-clock time at last tick (for tickProgress)
-    // Distance-field render scheduling: render on tick/update events, not every animation frame.
-    const DF_RENDER_PANEL_KEYS = [
-        "territoryDistanceField",
-        "dfResolution",
-        "dfBlur",
-        "dfEdgeFade",
-        "dfAlpha",
-        "dfHue",
-        "dfSaturation",
-        "dfLightness",
-        "dfExpansion",
-        "dfSmoothing",
-        "dfRounding",
-        "dfMinStarRadius",
-        "dfBorderWidth",
-        "dfBorderSoftness",
-        "dfBorderAlpha",
-        "dfBorderBrighten",
-        "dfBorderHqEnabled",
-        "dfBorderHqScale",
-        "dfBorderHqMaxDim",
-        "dfVectorBordersEnabled",
-        "dfVectorGridResolution",
-        "dfVectorSmoothing",
-        "dfVectorSimplify",
-        "dfVectorUpdateMs",
-        "dfInfluenceWeight",
-        "territoryTransitionMs",
-        "dfCorridorEnabled",
-        "dfCorridorMode",
-        "dfCorridorSpacing",
-        "dfCorridorCount",
-        "dfCorridorWeight",
-        "dfDisconnectEnabled",
-        "dfDisconnectDistance",
-        "dfDisconnectWeight",
-        "dfBorderMode",
-        "dfBorderFamily",
-    ] as const;
-    let lastDfRenderedTick = -1;
-    let lastDfRenderWriteAt = 0;
-    let lastDfModeEnabled = false;
-    let hasRenderedDfFrame = false;
 
     // starsById cache — rebuilt only when star array identity changes (on tick events)
     const cachedStarsById = new Map<string, StarState>();
@@ -800,10 +755,6 @@
         resetModifiedVoronoiCache();
         resetPowerVoronoiCache();
         resetDistanceFieldTerritoryCache();
-        lastDfRenderedTick = -1;
-        lastDfRenderWriteAt = 0;
-        lastDfModeEnabled = false;
-        hasRenderedDfFrame = false;
         // Clear ALL visual ship positions so they re-spawn at transposed coords
         // (ships store x/y, laneStartX/Y, laneEndX/Y in old coordinate space)
         visualDamagedShips.clear();
@@ -1043,14 +994,6 @@
         }
     }
 
-    function getLatestDfRenderWriteAt(): number {
-        const writes = getSettingWrites([...DF_RENDER_PANEL_KEYS]);
-        return Object.values(writes).reduce((maxAt, entry) => {
-            if (!entry) return maxAt;
-            return entry.atMs > maxAt ? entry.atMs : maxAt;
-        }, 0);
-    }
-
     function drawHex(g: PIXI.Graphics, x: number, y: number, r: number) {
         g.moveTo(x + r * Math.cos(0), y + r * Math.sin(0));
         for (let i = 1; i <= 6; i++) {
@@ -1090,10 +1033,6 @@
             resetModifiedVoronoiCache();
             resetPowerVoronoiCache();
             resetDistanceFieldTerritoryCache();
-            lastDfRenderedTick = -1;
-            lastDfRenderWriteAt = 0;
-            lastDfModeEnabled = false;
-            hasRenderedDfFrame = false;
             activeSurges.clear();
             nextShipId = 0;
             starShipCounts.clear();
@@ -1225,19 +1164,7 @@
                 );
             }
 
-            const dfModeEnabled = Boolean(GAME_CONFIG.TERRITORY_DISTANCE_FIELD);
-            const dfModeChanged = dfModeEnabled !== lastDfModeEnabled;
-            const latestDfWriteAt = getLatestDfRenderWriteAt();
-            const dfSettingsChanged = latestDfWriteAt > lastDfRenderWriteAt;
-            const dfTick = activeGameStore.currentTick ?? 0;
-            const dfTickChanged = dfTick !== lastDfRenderedTick;
-            const dfMorphing = isDistanceFieldMorphingActive();
-
-            const shouldRenderDf = dfModeEnabled
-                ? !hasRenderedDfFrame || dfModeChanged || dfSettingsChanged || dfTickChanged || dfMorphing
-                : dfModeChanged;
-
-            if (shouldRenderDf) {
+            if (GAME_CONFIG.TERRITORY_DISTANCE_FIELD) {
                 renderDistanceFieldTerritoryModule(
                     stars,
                     voronoiContainer,
@@ -1248,17 +1175,7 @@
                     // Two-pass DF borders need the renderer for pass-1 offscreen rendering.
                     app?.renderer ?? undefined,
                 );
-
-                if (dfModeEnabled) {
-                    hasRenderedDfFrame = true;
-                    lastDfRenderedTick = dfTick;
-                    if (dfSettingsChanged) {
-                        lastDfRenderWriteAt = latestDfWriteAt;
-                    }
-                }
             }
-
-            lastDfModeEnabled = dfModeEnabled;
         }
 
         // Render stars (static elements)
