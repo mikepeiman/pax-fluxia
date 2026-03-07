@@ -196,6 +196,9 @@ const DF_BORDER_HQ_MAX_SCALE = 4.0;
 const DF_VECTOR_MIN_GRID = 64;
 const DF_VECTOR_MAX_GRID = 512;
 const DF_VECTOR_MAX_STRAIGHT_PASSES = 4;
+const DF_VECTOR_MORPH_MIN_UPDATE_MS = 16;
+const DF_VECTOR_MORPH_HEAVY_MIN_UPDATE_MS = 66;
+const DF_VECTOR_ADAPTIVE_OPS_PER_MS = 140000;
 
 // ============================================================================
 // Shader Bit: Territory Distance Field (single-pass fill + optional inline border)
@@ -1440,6 +1443,16 @@ function buildOwnershipSampleSites(
         }
     }
 
+    // Sort by baseline influence term so winner candidates are tested early.
+    // This improves pruning in sampleOwnerFromSites on dense maps.
+    sites.sort((a, b) => {
+        const aBase = a.curDijkstra - a.boost;
+        const bBase = b.curDijkstra - b.boost;
+        if (aBase !== bBase) return aBase - bBase;
+        if (a.ownerIdx !== b.ownerIdx) return a.ownerIdx - b.ownerIdx;
+        return a.order - b.order;
+    });
+
     return sites;
 }
 
@@ -1457,9 +1470,19 @@ function sampleOwnerFromSites(
 
     for (let i = 0; i < sites.length; i++) {
         const site = sites[i];
-        const pixDist = Math.hypot(worldX - site.x, worldY - site.y);
         const dijkstra = site.curDijkstra + (site.prevDijkstra - site.curDijkstra) * morphFactor;
-        let influence = pixDist + dijkstra * influenceWeight - site.boost;
+        const baseInfluence = dijkstra * influenceWeight - site.boost;
+
+        // If this site's baseline is already above the best winner by tie epsilon,
+        // distance (always >= 0) cannot recover it.
+        if (bestOwner >= 0 && baseInfluence > bestInfluence + DF_TIE_EPSILON) {
+            continue;
+        }
+
+        const dx = worldX - site.x;
+        const dy = worldY - site.y;
+        const pixDist = Math.sqrt(dx * dx + dy * dy);
+        let influence = pixDist + baseInfluence;
 
         if (site.isRealStar && minStarRadius > 0 && pixDist < minStarRadius) {
             const t = pixDist / minStarRadius;
@@ -1795,6 +1818,21 @@ function renderBorderFamilyOverlay(family: BorderFamilyId, ctx: BorderFamilyRend
     );
 }
 
+function computeAdaptiveVectorUpdateMs(
+    requestedMs: number,
+    gridW: number,
+    gridH: number,
+    siteCount: number,
+    morphFactor: number,
+): number {
+    if (morphFactor <= 0) return requestedMs;
+
+    const ops = Math.max(1, gridW * gridH * siteCount);
+    const budgetMs = Math.ceil(ops / DF_VECTOR_ADAPTIVE_OPS_PER_MS);
+    const heavyFloor = ops >= 2_000_000 ? DF_VECTOR_MORPH_HEAVY_MIN_UPDATE_MS : DF_VECTOR_MORPH_MIN_UPDATE_MS;
+    return Math.max(requestedMs, heavyFloor, budgetMs);
+}
+
 function renderVectorBorderOverlay(
     container: PIXI.Container,
     colorUtils: ColorUtils,
@@ -1826,10 +1864,12 @@ function renderVectorBorderOverlay(
     const straightnessPasses = Math.max(0, Math.min(DF_VECTOR_MAX_STRAIGHT_PASSES, Math.round(GAME_CONFIG.DF_VECTOR_SMOOTHING ?? 1)));
     const simplifyTolerance = Math.max(0, GAME_CONFIG.DF_VECTOR_SIMPLIFY ?? 0.5);
     const updateMs = Math.max(0, GAME_CONFIG.DF_VECTOR_UPDATE_MS ?? 33);
+    const estimatedSiteCount = Math.max(1, stars.length + virtualSites.length);
+    const effectiveUpdateMs = computeAdaptiveVectorUpdateMs(updateMs, gridW, gridH, estimatedSiteCount, morphFactor);
 
     const staticFp = `${cachedGeometryFp}:${cachedTopologyFp}:${cachedRenderOriginX}:${cachedRenderOriginY}:${extentW}:${extentH}:`
         + `${borderWidth}:${borderSoftness}:${borderAlpha}:${GAME_CONFIG.DF_BORDER_BRIGHTEN}:${gridW}:${gridH}:${straightnessPasses}:${simplifyTolerance}`;
-    const intervalDue = morphFactor > 0 && (now - cachedVectorBorderLastBuildMs >= updateMs);
+    const intervalDue = morphFactor > 0 && (now - cachedVectorBorderLastBuildMs >= effectiveUpdateMs);
     const needsRebuild = forceRebuild || staticFp !== cachedVectorBorderFingerprint || intervalDue || !cachedVectorBorderGraphics;
 
     if (!needsRebuild) {
