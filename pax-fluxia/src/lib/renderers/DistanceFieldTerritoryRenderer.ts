@@ -132,7 +132,10 @@ const DF_INTERNAL_TWO_PASS_TRACK = false;
 const DF_INTERNAL_TWO_PASS_LEGACY_CONTENT_ORIGIN = false;
 const DF_TWO_PASS_BORDERS_ENABLED = true;
 const DF_PASS1_GAP_SCALE = 512.0;
-const DF_PASS1_MAX_TEXTURE_DIM = 4096;
+const DF_PASS1_BASE_MAX_TEXTURE_DIM = 4096;
+const DF_PASS1_ABSOLUTE_MAX_TEXTURE_DIM = 8192;
+const DF_BORDER_HQ_MIN_SCALE = 1.0;
+const DF_BORDER_HQ_MAX_SCALE = 4.0;
 
 // ============================================================================
 // Shader Bit: Territory Distance Field (single-pass fill + optional inline border)
@@ -797,7 +800,9 @@ const borderPassBitGl = {
 
             float inner = max(uBorderWidth - uBorderSoftness, 0.0);
             float outer = uBorderWidth + uBorderSoftness;
-            float borderMask = 1.0 - smoothstep(inner, outer, sd);
+            // Screen-space AA softens the border edge even when softness=0.
+            float aa = max(fwidth(sd), 0.0001);
+            float borderMask = 1.0 - smoothstep(inner - aa, outer + aa, sd);
             if (borderMask <= 0.0) {
                 discard;
             }
@@ -1052,6 +1057,7 @@ function buildTopologyConfigFp(metric: 'hops' | 'length'): string {
 function buildVisualFp(): string {
     return `${GAME_CONFIG.DF_ALPHA}:${GAME_CONFIG.DF_BORDER_WIDTH}:${GAME_CONFIG.DF_BORDER_SOFTNESS}:`
         + `${GAME_CONFIG.DF_BORDER_ALPHA}:${GAME_CONFIG.DF_BORDER_BRIGHTEN}:${GAME_CONFIG.DF_BORDER_MODE}:`
+        + `${GAME_CONFIG.DF_BORDER_HQ_ENABLED}:${GAME_CONFIG.DF_BORDER_HQ_SCALE}:${GAME_CONFIG.DF_BORDER_HQ_MAX_DIM}:`
         + `${GAME_CONFIG.DF_BLUR}:${GAME_CONFIG.DF_HUE}:${GAME_CONFIG.DF_SATURATION}:${GAME_CONFIG.DF_LIGHTNESS}:`
         + `${GAME_CONFIG.DF_EDGE_FADE}:${GAME_CONFIG.DF_RESOLUTION}:${GAME_CONFIG.DF_ROUNDING}:`
         + `${GAME_CONFIG.DF_INFLUENCE_WEIGHT}:${GAME_CONFIG.DF_EXPANSION}:${GAME_CONFIG.DF_SMOOTHING}:`
@@ -1776,14 +1782,39 @@ function createTargetMesh(width: number, height: number, shader: PIXI.Shader): P
     return new PIXI.Mesh({ geometry, shader }) as PIXI.Mesh;
 }
 
+// HQ mode supersamples pass-1 ownership/JFA textures before pass-2 shading.
+// Border width remains in world units; only edge fidelity increases at close zoom.
+function getTwoPassTextureSizing(extentW: number, extentH: number): {
+    texW: number;
+    texH: number;
+} {
+    const hqEnabled = Boolean(GAME_CONFIG.DF_BORDER_HQ_ENABLED ?? false);
+    const requestedScale = hqEnabled ? (GAME_CONFIG.DF_BORDER_HQ_SCALE ?? 2.0) : 1.0;
+    const clampedScale = Math.max(DF_BORDER_HQ_MIN_SCALE, Math.min(DF_BORDER_HQ_MAX_SCALE, requestedScale));
+
+    const configuredMaxDim = Math.floor(GAME_CONFIG.DF_BORDER_HQ_MAX_DIM ?? DF_PASS1_ABSOLUTE_MAX_TEXTURE_DIM);
+    const maxTextureDim = hqEnabled
+        ? Math.max(
+            DF_PASS1_BASE_MAX_TEXTURE_DIM,
+            Math.min(DF_PASS1_ABSOLUTE_MAX_TEXTURE_DIM, configuredMaxDim),
+        )
+        : DF_PASS1_BASE_MAX_TEXTURE_DIM;
+
+    const fitScale = Math.max(0.01, Math.min(maxTextureDim / extentW, maxTextureDim / extentH));
+    const effectiveScale = Math.min(clampedScale, fitScale);
+
+    return {
+        texW: Math.max(1, Math.round(extentW * effectiveScale)),
+        texH: Math.max(1, Math.round(extentH * effectiveScale)),
+    };
+}
+
 function ensureTwoPassBorderResources(): void {
     if (!DF_TWO_PASS_BORDERS_ENABLED) return;
 
     const extentW = Math.max(1, cachedRenderExtentW);
     const extentH = Math.max(1, cachedRenderExtentH);
-    const scale = Math.min(1, DF_PASS1_MAX_TEXTURE_DIM / extentW, DF_PASS1_MAX_TEXTURE_DIM / extentH);
-    const texW = Math.max(1, Math.round(extentW * scale));
-    const texH = Math.max(1, Math.round(extentH * scale));
+    const { texW, texH } = getTwoPassTextureSizing(extentW, extentH);
 
     const textureChanged = !cachedOwnershipTexture || texW !== cachedOwnershipTexW || texH !== cachedOwnershipTexH;
     if (textureChanged) {

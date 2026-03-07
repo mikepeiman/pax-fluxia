@@ -1396,6 +1396,67 @@
                 }}
             />
         </div>
+
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">High Quality Borders</span><span class="val"
+                    >{panel.dfBorderHqEnabled ?? GAME_CONFIG.DF_BORDER_HQ_ENABLED
+                        ? "ON"
+                        : "OFF"}</span
+                >
+            </div>
+            <input
+                type="checkbox"
+                checked={panel.dfBorderHqEnabled ?? GAME_CONFIG.DF_BORDER_HQ_ENABLED}
+                onchange={(e) => {
+                    const v = (e.target as HTMLInputElement).checked;
+                    GAME_CONFIG.DF_BORDER_HQ_ENABLED = v;
+                    updatePanel("dfBorderHqEnabled", v);
+                }}
+            />
+        </div>
+
+        {#if panel.dfBorderHqEnabled ?? GAME_CONFIG.DF_BORDER_HQ_ENABLED}
+            <div class="var-row">
+                <div class="row-top">
+                    <span class="var-name">HQ Supersample</span><span class="val"
+                        >{(panel.dfBorderHqScale ?? GAME_CONFIG.DF_BORDER_HQ_SCALE).toFixed(1)}x</span
+                    >
+                </div>
+                <input
+                    type="range"
+                    min="1.0"
+                    max="4.0"
+                    step="0.5"
+                    value={panel.dfBorderHqScale ?? GAME_CONFIG.DF_BORDER_HQ_SCALE}
+                    oninput={(e) => {
+                        const v = +(e.target as HTMLInputElement).value;
+                        GAME_CONFIG.DF_BORDER_HQ_SCALE = v;
+                        updatePanel("dfBorderHqScale", v);
+                    }}
+                />
+            </div>
+
+            <div class="var-row">
+                <div class="row-top">
+                    <span class="var-name">HQ Max Texture</span><span class="val"
+                        >{panel.dfBorderHqMaxDim ?? GAME_CONFIG.DF_BORDER_HQ_MAX_DIM}px</span
+                    >
+                </div>
+                <input
+                    type="range"
+                    min="4096"
+                    max="8192"
+                    step="512"
+                    value={panel.dfBorderHqMaxDim ?? GAME_CONFIG.DF_BORDER_HQ_MAX_DIM}
+                    oninput={(e) => {
+                        const v = +(e.target as HTMLInputElement).value;
+                        GAME_CONFIG.DF_BORDER_HQ_MAX_DIM = v;
+                        updatePanel("dfBorderHqMaxDim", v);
+                    }}
+                />
+            </div>
+        {/if}
     {/if}
 
     <!-- Influence Weight -->
