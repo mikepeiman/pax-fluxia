@@ -1,8 +1,8 @@
 // ============================================================================
-// DistanceFieldTerritoryRenderer Ã¢â‚¬â€ GPU-Accelerated (V2)
+// DistanceFieldTerritoryRenderer - GPU-Accelerated (V2)
 // ============================================================================
 //
-// Pipeline (from Deep Technical Guidance Ã‚Â§B):
+// Pipeline (from Deep Technical Guidance, Section B):
 //   CPU: Multi-source Dijkstra for K-best per star (~5ms, on ownership change)
 //   GPU: Fragment shader rasterization + border blend (~1ms per frame)
 //   GPU: Temporal blend for conquest animation (~0ms steady state)
@@ -31,12 +31,16 @@ import type { ColorUtils } from './RenderContext';
 import { computeCorridorVirtuals, computeDisconnectVirtuals, type VirtualSite } from './territoryFeatures';
 
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ Constants Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ============================================================================
+// Constants
+// ============================================================================
 const MAX_STARS = 128; // Increased to accommodate virtual sites (corridors + disconnects)
 const MAX_PLAYERS = 8;
 
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ Types Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ============================================================================
+// Types
+// ============================================================================
 interface LaneData {
     ax: number; ay: number;
     bx: number; by: number;
@@ -126,8 +130,13 @@ const DF_ALIGNMENT_HISTORY_LIMIT = 24;
 const DF_TIE_EPSILON = 0.01;
 const DF_INTERNAL_TWO_PASS_TRACK = false;
 const DF_INTERNAL_TWO_PASS_LEGACY_CONTENT_ORIGIN = false;
+const DF_TWO_PASS_BORDERS_ENABLED = true;
+const DF_PASS1_GAP_SCALE = 512.0;
+const DF_PASS1_MAX_TEXTURE_DIM = 4096;
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ Shader Bit for Territory Distance Field Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ============================================================================
+// Shader Bit: Territory Distance Field (single-pass fill + optional inline border)
+// ============================================================================
 // Uses PIXI's compileHighShaderGlProgram() with shader bits.
 // MVP = uProjectionMatrix * uWorldTransformMatrix * modelMatrix
 
@@ -405,7 +414,241 @@ const territoryBitGl = {
     },
 };
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ Module State Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ============================================================================
+// Two-Pass Border Pipeline: Pass 1 ownership+gap field (offscreen)
+// ============================================================================
+
+const ownershipPassBitGl = {
+    name: 'territory-distance-field-ownership-pass-bit',
+    vertex: {
+        header: /* glsl */ `
+            out vec2 vLocalPos;
+        `,
+        main: /* glsl */ `
+            vLocalPos = position;
+        `,
+    },
+    fragment: {
+        header: /* glsl */ `
+            #version 300 es
+            in vec2 vLocalPos;
+            uniform sampler2D uStarData;
+            uniform int uNumStars;
+            uniform int uNumRealStars;
+            uniform float uMorphFactor;
+            uniform float uTieEpsilon;
+            uniform float uInfluenceWeight;
+            uniform float uMinStarRadius;
+            uniform vec2 uRenderOrigin;
+            uniform float uGapScale;
+
+            float decode16(vec4 raw, int pair) {
+                float hi, lo;
+                if (pair == 0) { hi = raw.r; lo = raw.g; }
+                else { hi = raw.b; lo = raw.a; }
+                return floor(hi * 255.0 + 0.5) * 256.0 + floor(lo * 255.0 + 0.5);
+            }
+        `,
+        main: /* glsl */ `
+            vec2 worldPos = vLocalPos + uRenderOrigin;
+
+            float bestInfluence = 1e9;
+            int bestOwner = -1;
+            int bestStar = -1;
+            float enemyInfluence = 1e9;
+            int enemyOwner = -1;
+
+            for (int i = 0; i < 256; i++) {
+                if (i >= uNumStars) break;
+
+                vec4 posRaw = texelFetch(uStarData, ivec2(i, 0), 0);
+                float sx = decode16(posRaw, 0);
+                float sy = decode16(posRaw, 1);
+                float pixDist = distance(worldPos, vec2(sx, sy));
+
+                vec4 ownerRaw = texelFetch(uStarData, ivec2(i, 2), 0);
+                int ownIdx = int(floor(ownerRaw.r * 255.0 + 0.5)) - 1;
+                if (ownIdx < 0) continue;
+
+                vec4 distRaw = texelFetch(uStarData, ivec2(i, 1), 0);
+                float curDijkstra = decode16(distRaw, 0);
+
+                vec4 prevRaw = texelFetch(uStarData, ivec2(i, 3), 0);
+                float prevDijkstra = decode16(prevRaw, 0);
+
+                float dijkstra = mix(curDijkstra, prevDijkstra, uMorphFactor);
+                float influence = pixDist + dijkstra * uInfluenceWeight;
+
+                vec4 ownerExtra = texelFetch(uStarData, ivec2(i, 2), 0);
+                float boost = decode16(ownerExtra, 1);
+                influence -= boost;
+
+                if (uMinStarRadius > 0.0 && pixDist < uMinStarRadius && i < uNumRealStars) {
+                    float t = pixDist / uMinStarRadius;
+                    float msrBoost = (1.0 - t * t) * uMinStarRadius;
+                    influence -= msrBoost;
+                }
+
+                float bestDelta = influence - bestInfluence;
+                bool winsBest = bestOwner < 0
+                    || bestDelta < -uTieEpsilon
+                    || (abs(bestDelta) <= uTieEpsilon && (ownIdx < bestOwner || (ownIdx == bestOwner && i < bestStar)));
+
+                if (winsBest) {
+                    if (bestOwner >= 0 && bestOwner != ownIdx) {
+                        float enemyDeltaPrev = bestInfluence - enemyInfluence;
+                        bool winsEnemyPrev = enemyOwner < 0
+                            || enemyDeltaPrev < -uTieEpsilon
+                            || (abs(enemyDeltaPrev) <= uTieEpsilon && bestOwner < enemyOwner);
+                        if (winsEnemyPrev) {
+                            enemyInfluence = bestInfluence;
+                            enemyOwner = bestOwner;
+                        }
+                    }
+                    bestInfluence = influence;
+                    bestOwner = ownIdx;
+                    bestStar = i;
+                } else if (ownIdx != bestOwner) {
+                    float enemyDelta = influence - enemyInfluence;
+                    bool winsEnemy = enemyOwner < 0
+                        || enemyDelta < -uTieEpsilon
+                        || (abs(enemyDelta) <= uTieEpsilon && ownIdx < enemyOwner);
+                    if (winsEnemy) {
+                        enemyInfluence = influence;
+                        enemyOwner = ownIdx;
+                    }
+                }
+            }
+
+            if (bestOwner < 0) {
+                outColor = vec4(0.0, 0.0, 1.0, 1.0);
+                return;
+            }
+
+            float gap = uGapScale;
+            int encodedEnemy = bestOwner;
+            if (enemyOwner >= 0) {
+                gap = max(enemyInfluence - bestInfluence, 0.0);
+                encodedEnemy = enemyOwner;
+            }
+
+            float bestEnc = float(bestOwner + 1) / 255.0;
+            float enemyEnc = float(encodedEnemy + 1) / 255.0;
+            float gapNorm = clamp(gap / uGapScale, 0.0, 1.0);
+            outColor = vec4(bestEnc, enemyEnc, gapNorm, 1.0);
+        `,
+    },
+};
+
+// ============================================================================
+// Two-Pass Border Pipeline: Pass 2 constant-width border stroke (onscreen)
+// ============================================================================
+
+const borderPassBitGl = {
+    name: 'territory-distance-field-border-pass-bit',
+    vertex: {
+        header: /* glsl */ `
+            out vec2 vLocalPos;
+        `,
+        main: /* glsl */ `
+            vLocalPos = position;
+        `,
+    },
+    fragment: {
+        header: /* glsl */ `
+            #version 300 es
+            in vec2 vLocalPos;
+            uniform sampler2D uOwnershipTex;
+            uniform vec2 uRenderOrigin;
+            uniform vec2 uRenderExtent;
+            uniform vec2 uOwnershipTexel;
+            uniform float uGapScale;
+            uniform float uBorderWidth;
+            uniform float uBorderSoftness;
+            uniform float uBorderAlpha;
+            uniform float uBorderBrighten;
+            uniform float uWorldWidth;
+            uniform float uWorldHeight;
+            uniform float uContentMinX;
+            uniform float uContentMinY;
+            uniform float uEdgeFade;
+            uniform vec3 uPlayerColor0;
+            uniform vec3 uPlayerColor1;
+            uniform vec3 uPlayerColor2;
+            uniform vec3 uPlayerColor3;
+            uniform vec3 uPlayerColor4;
+            uniform vec3 uPlayerColor5;
+            uniform vec3 uPlayerColor6;
+            uniform vec3 uPlayerColor7;
+
+            int decodeOwner(float enc) {
+                return int(floor(enc * 255.0 + 0.5)) - 1;
+            }
+
+            vec3 getPlayerColor(int owner) {
+                if (owner == 0) return uPlayerColor0;
+                if (owner == 1) return uPlayerColor1;
+                if (owner == 2) return uPlayerColor2;
+                if (owner == 3) return uPlayerColor3;
+                if (owner == 4) return uPlayerColor4;
+                if (owner == 5) return uPlayerColor5;
+                if (owner == 6) return uPlayerColor6;
+                if (owner == 7) return uPlayerColor7;
+                return vec3(0.5);
+            }
+        `,
+        main: /* glsl */ `
+            vec2 worldPos = vLocalPos;
+            vec2 uv = (worldPos - uRenderOrigin) / uRenderExtent;
+            if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
+                discard;
+            }
+
+            vec4 center = texture(uOwnershipTex, uv);
+            int bestOwner = decodeOwner(center.r);
+            int enemyOwner = decodeOwner(center.g);
+            if (bestOwner < 0 || enemyOwner < 0 || bestOwner == enemyOwner || uBorderWidth <= 0.0) {
+                discard;
+            }
+
+            float gapC = center.b * uGapScale;
+            float gapL = texture(uOwnershipTex, uv - vec2(uOwnershipTexel.x, 0.0)).b * uGapScale;
+            float gapR = texture(uOwnershipTex, uv + vec2(uOwnershipTexel.x, 0.0)).b * uGapScale;
+            float gapU = texture(uOwnershipTex, uv - vec2(0.0, uOwnershipTexel.y)).b * uGapScale;
+            float gapD = texture(uOwnershipTex, uv + vec2(0.0, uOwnershipTexel.y)).b * uGapScale;
+
+            float texelWorldX = max(uRenderExtent.x * uOwnershipTexel.x, 0.0001);
+            float texelWorldY = max(uRenderExtent.y * uOwnershipTexel.y, 0.0001);
+            float dGapDx = (gapR - gapL) / (2.0 * texelWorldX);
+            float dGapDy = (gapD - gapU) / (2.0 * texelWorldY);
+            float gradMag = max(length(vec2(dGapDx, dGapDy)), 0.01);
+            float sd = gapC / gradMag;
+
+            float inner = max(uBorderWidth - uBorderSoftness, 0.0);
+            float outer = uBorderWidth + uBorderSoftness;
+            float borderMask = 1.0 - smoothstep(inner, outer, sd);
+            if (borderMask <= 0.0) {
+                discard;
+            }
+
+            vec3 pc = getPlayerColor(bestOwner);
+            vec3 ec = getPlayerColor(enemyOwner);
+            vec3 borderColor = (pc + ec) * 0.5;
+            borderColor = min(borderColor + vec3(uBorderBrighten / 255.0), vec3(1.0));
+
+            float edgeX = min(worldPos.x - uContentMinX, uWorldWidth - worldPos.x);
+            float edgeY = min(worldPos.y - uContentMinY, uWorldHeight - worldPos.y);
+            float edgeDist = min(edgeX, edgeY);
+            float edgeMask = smoothstep(0.0, uEdgeFade, edgeDist);
+
+            float alpha = uBorderAlpha * borderMask * edgeMask;
+            outColor = vec4(borderColor * alpha, alpha);
+        `,
+    },
+};
+// ============================================================================
+// Module State
+// ============================================================================
 
 let cachedGeometryFp = '';
 let cachedTopologyFp = '';
@@ -444,9 +687,30 @@ let lastChangeClassification: DfChangeClassification | null = null;
 let cachedVirtualSites: VirtualSite[] = [];
 let latestTwoPassDiagnostics: TwoPassDiagnosticsPayload | null = null;
 
+let warnedMissingRendererForTwoPass = false;
+let cachedOwnershipTexture: PIXI.RenderTexture | null = null;
+let cachedOwnershipShader: PIXI.Shader | null = null;
+let cachedOwnershipMesh: PIXI.Mesh | null = null;
+let cachedOwnershipTexW = 0;
+let cachedOwnershipTexH = 0;
+let cachedOwnershipExtentW = 0;
+let cachedOwnershipExtentH = 0;
+
+let cachedBorderShader: PIXI.Shader | null = null;
+let cachedBorderMesh: PIXI.Mesh | null = null;
+let cachedBorderOriginX = 0;
+let cachedBorderOriginY = 0;
+let cachedBorderExtentW = 0;
+let cachedBorderExtentH = 0;
+
+let cachedRenderOriginX = 0;
+let cachedRenderOriginY = 0;
+let cachedRenderExtentW = 0;
+let cachedRenderExtentH = 0;
+
 
 // ============================================================================
-// Multi-Source Dijkstra Ã¢â‚¬â€ per-player distances (PRESERVED FROM V1)
+// Multi-Source Dijkstra - per-player distances (preserved from V1)
 // ============================================================================
 // Returns distToPlayer[starIdx][playerIdx] = shortest graph distance
 // from star to nearest star owned by that player.
@@ -969,7 +1233,7 @@ function buildAlignmentContract(
 // ============================================================================
 
 function makeGradientTestTexture(): PIXI.Texture {
-    // Use Canvas2D Ã¢â‚¬â€ the most universally supported texture source
+    // Use Canvas2D - the most universally supported texture source
     const w = 64, h = 4;
     const canvas = document.createElement('canvas');
     canvas.width = w;
@@ -991,12 +1255,12 @@ function makeGradientTestTexture(): PIXI.Texture {
 }
 
 // ============================================================================
-// GPU Data Texture Ã¢â‚¬â€ pack star data for shader (BufferImageSource pattern)
+// GPU Data Texture - pack star data for shader (BufferImageSource pattern)
 // ============================================================================
-// Layout: MAX_STARS columns Ãƒâ€” 4 rows, RGBA uint8 via BufferImageSource
-//   row 0: (x_hi, x_lo, y_hi, y_lo)      Ã¢â‚¬â€ star positions as 16-bit
+// Layout: MAX_STARS columns x 4 rows, RGBA uint8 via BufferImageSource
+//   row 0: (x_hi, x_lo, y_hi, y_lo)      - star positions as 16-bit
 //   row 1: (bestDist_hi, bestDist_lo, secondDist_hi, secondDist_lo)
-//   row 2: (bestOwner+1, secondOwner+1, 0, 0)  Ã¢â‚¬â€ player indices (1-indexed, 0=none)
+//   row 2: (bestOwner+1, secondOwner+1, 0, 0)  - player indices (1-indexed, 0=none)
 //   row 3: (prevBest_hi, prevBest_lo, prevSecond_hi, prevSecond_lo)
 //
 // IMPORTANT: BufferImageSource with Uint8Array defaults to 'bgra8unorm',
@@ -1177,7 +1441,7 @@ function buildStarDataTexture(
             resource: starDataBuffer,
             width: texW,
             height: texH,
-            format: 'rgba8unorm',           // MUST be explicit Ã¢â‚¬â€ Uint8Array defaults to bgra8unorm!
+            format: 'rgba8unorm',           // MUST be explicit - Uint8Array defaults to bgra8unorm!
             alphaMode: 'no-premultiply-alpha', // data texture, not color
             scaleMode: 'nearest',
             autoGarbageCollect: false,
@@ -1200,13 +1464,17 @@ function ensureMesh(worldWidth: number, worldHeight: number): PIXI.Shader {
 
     // Check if we need to rebuild geometry (dimensions or expansion changed)
     const dimsChanged = worldWidth !== cachedMeshWorldW || worldHeight !== cachedMeshWorldH || expand !== cachedMeshExpansion || padding !== cachedMeshPadding;
-    if (cachedMeshShader && !dimsChanged) return cachedMeshShader;
+    if (cachedMeshShader && !dimsChanged) {
+        return cachedMeshShader;
+    }
 
     // Expand mesh coverage: padding + 10% of world dimensions
     const extraX = worldWidth * expand;
     const extraY = worldHeight * expand;
     const x0 = -padding - extraX, y0 = -padding - extraY;
     const x1 = worldWidth + padding + extraX, y1 = worldHeight + padding + extraY;
+    const extentW = x1 - x0;
+    const extentH = y1 - y0;
 
     // If shader already exists but dimensions changed, rebuild geometry only
     if (cachedMeshShader && dimsChanged) {
@@ -1226,6 +1494,10 @@ function ensureMesh(worldWidth: number, worldHeight: number): PIXI.Shader {
         cachedMeshWorldH = worldHeight;
         cachedMeshExpansion = expand;
         cachedMeshPadding = padding;
+        cachedRenderOriginX = x0;
+        cachedRenderOriginY = y0;
+        cachedRenderExtentW = extentW;
+        cachedRenderExtentH = extentH;
         return cachedMeshShader;
     }
 
@@ -1279,7 +1551,7 @@ function ensureMesh(worldWidth: number, worldHeight: number): PIXI.Shader {
         },
     });
 
-    // Quad geometry in WORLD SPACE with UVs 0Ã¢â€ â€™1
+    // Quad geometry in world space with UVs in [0, 1]
     // MeshGeometry wraps buffers with proper VERTEX|COPY_DST usage flags
     const geometry = new PIXI.MeshGeometry({
         positions: new Float32Array([x0, y0, x1, y0, x1, y1, x0, y1]),
@@ -1293,11 +1565,226 @@ function ensureMesh(worldWidth: number, worldHeight: number): PIXI.Shader {
     cachedMeshWorldH = worldHeight;
     cachedMeshExpansion = expand;
     cachedMeshPadding = padding;
+    cachedRenderOriginX = x0;
+    cachedRenderOriginY = y0;
+    cachedRenderExtentW = extentW;
+    cachedRenderExtentH = extentH;
 
     return cachedMeshShader;
 }
 
 
+// Two-pass resource lifecycle:
+// 1) ensure offscreen ownership target + shader
+// 2) ensure onscreen border shader + mesh
+// 3) rebuild only when extents/texture dimensions drift
+function ensureTwoPassBorderResources(): void {
+    if (!DF_TWO_PASS_BORDERS_ENABLED) return;
+
+    const extentW = Math.max(1, cachedRenderExtentW);
+    const extentH = Math.max(1, cachedRenderExtentH);
+    const scale = Math.min(1, DF_PASS1_MAX_TEXTURE_DIM / extentW, DF_PASS1_MAX_TEXTURE_DIM / extentH);
+    const texW = Math.max(1, Math.round(extentW * scale));
+    const texH = Math.max(1, Math.round(extentH * scale));
+
+    const textureChanged = !cachedOwnershipTexture || texW !== cachedOwnershipTexW || texH !== cachedOwnershipTexH;
+    if (textureChanged) {
+        if (cachedOwnershipTexture) {
+            cachedOwnershipTexture.destroy(true);
+            cachedOwnershipTexture = null;
+        }
+        cachedOwnershipTexture = PIXI.RenderTexture.create({ width: texW, height: texH, resolution: 1 });
+        cachedOwnershipTexW = texW;
+        cachedOwnershipTexH = texH;
+
+        const src = cachedOwnershipTexture.source as any;
+        if (src) {
+            src.scaleMode = 'nearest';
+            src.autoGarbageCollect = false;
+        }
+    }
+
+    if (!cachedOwnershipShader) {
+        const ownershipProgram = compileHighShaderGlProgram({
+            bits: [localUniformBitGl, ownershipPassBitGl, roundPixelsBitGl],
+            name: 'territory-distance-field-ownership-pass',
+        });
+        cachedOwnershipShader = new PIXI.Shader({
+            glProgram: ownershipProgram,
+            resources: {
+                passOwnershipUniforms: {
+                    uNumStars: { value: 0, type: 'i32' },
+                    uNumRealStars: { value: 0, type: 'i32' },
+                    uMorphFactor: { value: 0, type: 'f32' },
+                    uTieEpsilon: { value: DF_TIE_EPSILON, type: 'f32' },
+                    uInfluenceWeight: { value: 1.0, type: 'f32' },
+                    uMinStarRadius: { value: 40, type: 'f32' },
+                    uRenderOrigin: { value: new Float32Array([0, 0]), type: 'vec2<f32>' },
+                    uGapScale: { value: DF_PASS1_GAP_SCALE, type: 'f32' },
+                },
+                uStarData: starDataTexture?.source ?? makeGradientTestTexture().source,
+            },
+        });
+    }
+
+    const ownershipMeshNeedsRebuild = !cachedOwnershipMesh
+        || textureChanged
+        || Math.abs(extentW - cachedOwnershipExtentW) > 0.5
+        || Math.abs(extentH - cachedOwnershipExtentH) > 0.5;
+    if (ownershipMeshNeedsRebuild) {
+        const geometry = new PIXI.MeshGeometry({
+            positions: new Float32Array([0, 0, extentW, 0, extentW, extentH, 0, extentH]),
+            uvs: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
+            indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
+            topology: 'triangle-list',
+        });
+
+        if (cachedOwnershipMesh) cachedOwnershipMesh.destroy();
+        cachedOwnershipMesh = new PIXI.Mesh({ geometry, shader: cachedOwnershipShader! }) as any;
+        cachedOwnershipExtentW = extentW;
+        cachedOwnershipExtentH = extentH;
+    }
+
+    if (!cachedBorderShader) {
+        const borderProgram = compileHighShaderGlProgram({
+            bits: [localUniformBitGl, borderPassBitGl, roundPixelsBitGl],
+            name: 'territory-distance-field-border-pass',
+        });
+        cachedBorderShader = new PIXI.Shader({
+            glProgram: borderProgram,
+            resources: {
+                borderPassUniforms: {
+                    uRenderOrigin: { value: new Float32Array([0, 0]), type: 'vec2<f32>' },
+                    uRenderExtent: { value: new Float32Array([1, 1]), type: 'vec2<f32>' },
+                    uOwnershipTexel: { value: new Float32Array([1, 1]), type: 'vec2<f32>' },
+                    uGapScale: { value: DF_PASS1_GAP_SCALE, type: 'f32' },
+                    uBorderWidth: { value: 10, type: 'f32' },
+                    uBorderSoftness: { value: 4, type: 'f32' },
+                    uBorderAlpha: { value: 0.8, type: 'f32' },
+                    uBorderBrighten: { value: 40, type: 'f32' },
+                    uWorldWidth: { value: 0, type: 'f32' },
+                    uWorldHeight: { value: 0, type: 'f32' },
+                    uContentMinX: { value: 0, type: 'f32' },
+                    uContentMinY: { value: 0, type: 'f32' },
+                    uEdgeFade: { value: 200, type: 'f32' },
+                    uPlayerColor0: { value: new Float32Array([1, 0, 0]), type: 'vec3<f32>' },
+                    uPlayerColor1: { value: new Float32Array([0, 0, 1]), type: 'vec3<f32>' },
+                    uPlayerColor2: { value: new Float32Array([0, 1, 0]), type: 'vec3<f32>' },
+                    uPlayerColor3: { value: new Float32Array([1, 1, 0]), type: 'vec3<f32>' },
+                    uPlayerColor4: { value: new Float32Array([1, 0, 1]), type: 'vec3<f32>' },
+                    uPlayerColor5: { value: new Float32Array([0, 1, 1]), type: 'vec3<f32>' },
+                    uPlayerColor6: { value: new Float32Array([1, 0.5, 0]), type: 'vec3<f32>' },
+                    uPlayerColor7: { value: new Float32Array([0.5, 0, 1]), type: 'vec3<f32>' },
+                },
+                uOwnershipTex: cachedOwnershipTexture?.source ?? makeGradientTestTexture().source,
+            },
+        });
+    }
+
+    const borderMeshNeedsRebuild = !cachedBorderMesh
+        || Math.abs(cachedRenderOriginX - cachedBorderOriginX) > 0.5
+        || Math.abs(cachedRenderOriginY - cachedBorderOriginY) > 0.5
+        || Math.abs(cachedRenderExtentW - cachedBorderExtentW) > 0.5
+        || Math.abs(cachedRenderExtentH - cachedBorderExtentH) > 0.5;
+
+    if (borderMeshNeedsRebuild) {
+        const x0 = cachedRenderOriginX;
+        const y0 = cachedRenderOriginY;
+        const x1 = x0 + cachedRenderExtentW;
+        const y1 = y0 + cachedRenderExtentH;
+
+        const geometry = new PIXI.MeshGeometry({
+            positions: new Float32Array([x0, y0, x1, y0, x1, y1, x0, y1]),
+            uvs: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
+            indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
+            topology: 'triangle-list',
+        });
+
+        if (cachedBorderMesh) {
+            if (cachedBorderMesh.parent) cachedBorderMesh.parent.removeChild(cachedBorderMesh);
+            cachedBorderMesh.destroy();
+        }
+
+        const borderMesh = new PIXI.Mesh({ geometry, shader: cachedBorderShader! }) as PIXI.Mesh;
+        borderMesh.filters = [];
+        cachedBorderMesh = borderMesh;
+        cachedBorderOriginX = cachedRenderOriginX;
+        cachedBorderOriginY = cachedRenderOriginY;
+        cachedBorderExtentW = cachedRenderExtentW;
+        cachedBorderExtentH = cachedRenderExtentH;
+    }
+}
+
+// Pass 1 runs every frame so morphing and influence sliders remain fluid.
+function updateOwnershipPassUniforms(stars: StarState[], morphFactor: number): void {
+    if (!cachedOwnershipShader) return;
+
+    const nStars = totalPackedStars > 0 ? totalPackedStars : Math.min(stars.length, MAX_STARS);
+    const u = cachedOwnershipShader.resources.passOwnershipUniforms.uniforms;
+    u.uNumStars = nStars;
+    u.uNumRealStars = stars.length;
+    u.uMorphFactor = morphFactor;
+    u.uTieEpsilon = DF_TIE_EPSILON;
+    u.uInfluenceWeight = GAME_CONFIG.DF_INFLUENCE_WEIGHT ?? 1.0;
+    u.uMinStarRadius = GAME_CONFIG.DF_MIN_STAR_RADIUS ?? 40;
+    u.uRenderOrigin = new Float32Array([cachedRenderOriginX, cachedRenderOriginY]);
+    u.uGapScale = DF_PASS1_GAP_SCALE;
+
+    if (starDataTexture) {
+        cachedOwnershipShader.resources.uStarData = starDataTexture.source;
+    }
+
+    const ug = cachedOwnershipShader.resources.passOwnershipUniforms as any;
+    if (ug && typeof ug.update === 'function') ug.update();
+}
+
+function renderOwnershipPass(renderer: PIXI.Renderer): void {
+    if (!cachedOwnershipMesh || !cachedOwnershipTexture) return;
+    (renderer as any).render({ container: cachedOwnershipMesh, target: cachedOwnershipTexture, clear: true });
+}
+
+// Pass 2 consumes the ownership texture and draws an even-width AA stroke.
+function updateTwoPassBorderUniforms(
+    colorUtils: ColorUtils,
+    worldWidth: number,
+    worldHeight: number,
+    alignment: AlignmentContract,
+): void {
+    if (!cachedBorderShader || !cachedOwnershipTexture) return;
+
+    const nPlayers = currentPlayerIds.length;
+    const u = cachedBorderShader.resources.borderPassUniforms.uniforms;
+    u.uRenderOrigin = new Float32Array([cachedRenderOriginX, cachedRenderOriginY]);
+    u.uRenderExtent = new Float32Array([Math.max(1, cachedRenderExtentW), Math.max(1, cachedRenderExtentH)]);
+    u.uOwnershipTexel = new Float32Array([
+        1 / Math.max(1, cachedOwnershipTexW),
+        1 / Math.max(1, cachedOwnershipTexH),
+    ]);
+    u.uGapScale = DF_PASS1_GAP_SCALE;
+    u.uBorderWidth = GAME_CONFIG.DF_BORDER_WIDTH ?? 5;
+    u.uBorderSoftness = GAME_CONFIG.DF_BORDER_SOFTNESS ?? 3;
+    u.uBorderAlpha = GAME_CONFIG.DF_BORDER_ALPHA ?? 0.8;
+    u.uBorderBrighten = GAME_CONFIG.DF_BORDER_BRIGHTEN ?? 20;
+    u.uWorldWidth = worldWidth;
+    u.uWorldHeight = worldHeight;
+    u.uContentMinX = alignment.contentMinX;
+    u.uContentMinY = alignment.contentMinY;
+    u.uEdgeFade = GAME_CONFIG.DF_EDGE_FADE ?? 200;
+
+    for (let i = 0; i < Math.min(nPlayers, MAX_PLAYERS); i++) {
+        const hex = colorUtils.getPlayerColor(currentPlayerIds[i]);
+        const r = ((hex >> 16) & 0xff) / 255;
+        const g = ((hex >> 8) & 0xff) / 255;
+        const b = (hex & 0xff) / 255;
+        const colorArr = new Float32Array([r, g, b]);
+        (u as any)[`uPlayerColor${i}`] = colorArr;
+    }
+
+    cachedBorderShader.resources.uOwnershipTex = cachedOwnershipTexture.source;
+
+    const ug = cachedBorderShader.resources.borderPassUniforms as any;
+    if (ug && typeof ug.update === 'function') ug.update();
+}
 // ============================================================================
 // Update GPU uniforms from current state
 // ============================================================================
@@ -1308,6 +1795,7 @@ function updateFilterUniforms(
     worldWidth: number,
     worldHeight: number,
     alignment: AlignmentContract,
+    disableInlineBorders: boolean,
 ): void {
     if (!cachedMeshShader) return;
 
@@ -1322,7 +1810,8 @@ function updateFilterUniforms(
     u.uWorldWidth = worldWidth;
     u.uWorldHeight = worldHeight;
     u.uPadding = padding;
-    u.uBorderWidth = GAME_CONFIG.DF_BORDER_WIDTH ?? 5;
+    // In two-pass mode, fill pass must not draw inline borders.
+    u.uBorderWidth = disableInlineBorders ? 0 : (GAME_CONFIG.DF_BORDER_WIDTH ?? 5);
     u.uBorderSoftness = GAME_CONFIG.DF_BORDER_SOFTNESS ?? 3;
     u.uBorderAlpha = GAME_CONFIG.DF_BORDER_ALPHA ?? 0.8;
     u.uBorderBrighten = GAME_CONFIG.DF_BORDER_BRIGHTEN ?? 20;
@@ -1353,7 +1842,7 @@ function updateFilterUniforms(
         (u as any)[`uPlayerColor${i}`] = colorArr;
     }
 
-    // Update star data texture reference Ã¢â‚¬â€ pass .source (TextureSource), not Texture
+    // Update star data texture reference - pass .source (TextureSource), not Texture
     if (starDataTexture) {
         cachedMeshShader.resources.uStarData = starDataTexture.source;
     }
@@ -1377,7 +1866,7 @@ function applyBlur(): void {
             cachedBlurFilter = new PIXI.BlurFilter({ strength: blur, quality: 3 });
             cachedBlurStrength = blur;
         }
-        // With Mesh approach, the custom shader is built in Ã¢â‚¬â€ only add blur as extra filter
+        // With mesh approach, the custom shader is built in - only add blur as extra filter
         cachedMesh.filters = cachedBlurFilter ? [cachedBlurFilter] : [];
     } else {
         cachedMesh.filters = [];
@@ -1397,9 +1886,11 @@ export function renderDistanceFieldTerritory(
     worldWidth: number,
     worldHeight: number,
     connections?: StarConnection[],
+    renderer?: PIXI.Renderer,
 ): void {
     if (!GAME_CONFIG.TERRITORY_DISTANCE_FIELD) {
         if (cachedMesh) cachedMesh.visible = false;
+        if (cachedBorderMesh) cachedBorderMesh.visible = false;
         return;
     }
 
@@ -1416,7 +1907,14 @@ export function renderDistanceFieldTerritory(
     const hasInvalidWorld = alignmentContract.diagnostics.issues.includes('world dimensions must be finite positive numbers');
     if (hasInvalidWorld) {
         if (cachedMesh) cachedMesh.visible = false;
+        if (cachedBorderMesh) cachedBorderMesh.visible = false;
         return;
+    }
+
+    const useTwoPassBorders = DF_TWO_PASS_BORDERS_ENABLED && !!renderer;
+    if (DF_TWO_PASS_BORDERS_ENABLED && !renderer && !warnedMissingRendererForTwoPass) {
+        warnedMissingRendererForTwoPass = true;
+        console.warn('[DF_TWOPASS] renderer unavailable; falling back to inline borders');
     }
 
     const changeClassification = classifyDfChanges(canonicalInput, metric);
@@ -1531,7 +2029,23 @@ export function renderDistanceFieldTerritory(
     if (cachedMeshShader) {
         cachedMeshShader.resources.territoryUniforms.uniforms.uMorphFactor = morphFactor;
     }
-    updateFilterUniforms(canonicalStars, colorUtils, worldWidth, worldHeight, alignmentContract);
+    updateFilterUniforms(canonicalStars, colorUtils, worldWidth, worldHeight, alignmentContract, useTwoPassBorders);
+
+    if (useTwoPassBorders) {
+        ensureTwoPassBorderResources();
+        updateOwnershipPassUniforms(canonicalStars, morphFactor);
+        renderOwnershipPass(renderer!);
+        updateTwoPassBorderUniforms(colorUtils, worldWidth, worldHeight, alignmentContract);
+
+        if (cachedBorderMesh && !cachedBorderMesh.parent) {
+            container.addChild(cachedBorderMesh);
+        }
+        if (cachedBorderMesh) {
+            cachedBorderMesh.visible = (GAME_CONFIG.DF_BORDER_WIDTH ?? 0) > 0 && (GAME_CONFIG.DF_BORDER_ALPHA ?? 0) > 0;
+        }
+    } else if (cachedBorderMesh) {
+        cachedBorderMesh.visible = false;
+    }
 
     applyBlur();
 }
@@ -1579,6 +2093,27 @@ export function resetDistanceFieldTerritoryCache(): void {
         cachedMeshShader.destroy();
         cachedMeshShader = null;
     }
+    if (cachedOwnershipMesh) {
+        cachedOwnershipMesh.destroy();
+        cachedOwnershipMesh = null;
+    }
+    if (cachedOwnershipShader) {
+        cachedOwnershipShader.destroy();
+        cachedOwnershipShader = null;
+    }
+    if (cachedBorderMesh) {
+        if (cachedBorderMesh.parent) cachedBorderMesh.parent.removeChild(cachedBorderMesh);
+        cachedBorderMesh.destroy();
+        cachedBorderMesh = null;
+    }
+    if (cachedBorderShader) {
+        cachedBorderShader.destroy();
+        cachedBorderShader = null;
+    }
+    if (cachedOwnershipTexture) {
+        cachedOwnershipTexture.destroy(true);
+        cachedOwnershipTexture = null;
+    }
 
     starDataTexture = null;
     starDataBuffer = null;
@@ -1588,6 +2123,18 @@ export function resetDistanceFieldTerritoryCache(): void {
     cachedMeshWorldH = 0;
     cachedMeshExpansion = -1;
     cachedMeshPadding = -1;
+    cachedRenderOriginX = 0;
+    cachedRenderOriginY = 0;
+    cachedRenderExtentW = 0;
+    cachedRenderExtentH = 0;
+    cachedOwnershipTexW = 0;
+    cachedOwnershipTexH = 0;
+    cachedOwnershipExtentW = 0;
+    cachedOwnershipExtentH = 0;
+    cachedBorderOriginX = 0;
+    cachedBorderOriginY = 0;
+    cachedBorderExtentW = 0;
+    cachedBorderExtentH = 0;
     laneArray = [];
     laneCells = new Map();
     latestAlignmentDiagnostics = null;
@@ -1596,5 +2143,6 @@ export function resetDistanceFieldTerritoryCache(): void {
     lastChangeClassification = null;
     cachedVirtualSites = [];
     latestTwoPassDiagnostics = null;
+    warnedMissingRendererForTwoPass = false;
 }
 

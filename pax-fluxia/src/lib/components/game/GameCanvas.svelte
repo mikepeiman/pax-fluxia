@@ -1172,6 +1172,8 @@
                     GAME_WIDTH,
                     GAME_HEIGHT,
                     activeGameStore.connections as StarConnection[],
+                    // Two-pass DF borders need the renderer for pass-1 offscreen rendering.
+                    app?.renderer ?? undefined,
                 );
             }
         }
