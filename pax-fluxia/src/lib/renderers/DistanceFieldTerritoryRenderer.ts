@@ -138,6 +138,7 @@ const territoryBitGl = {
             uniform float uSatMult;
             uniform float uLightMult;
             uniform float uMorphFactor;
+            uniform float uTieEpsilon;
             uniform float uInfluenceWeight;
             uniform float uContentMinX;
             uniform float uContentMinY;
@@ -219,14 +220,25 @@ const territoryBitGl = {
                     influence -= msrBoost;
                 }
 
-                if (influence < bestInfluence) {
+                float bestDelta = influence - bestInfluence;
+                bool winsBest = bestOwner < 0
+                    || bestDelta < -uTieEpsilon
+                    || (abs(bestDelta) <= uTieEpsilon && (ownIdx < bestOwner || (ownIdx == bestOwner && i < bestStar)));
+
+                if (winsBest) {
                     // Before replacing best: push old best to second
                     if (bestOwner >= 0) {
                         secondInfluence = bestInfluence;
-                        if (bestOwner != ownIdx && bestInfluence < enemyInfluence) {
-                            enemyInfluence = bestInfluence;
-                            enemyStar = bestStar;
-                            enemyOwner = bestOwner;
+                        if (bestOwner != ownIdx) {
+                            float enemyDeltaPrev = bestInfluence - enemyInfluence;
+                            bool winsEnemyPrev = enemyOwner < 0
+                                || enemyDeltaPrev < -uTieEpsilon
+                                || (abs(enemyDeltaPrev) <= uTieEpsilon && bestOwner < enemyOwner);
+                            if (winsEnemyPrev) {
+                                enemyInfluence = bestInfluence;
+                                enemyStar = bestStar;
+                                enemyOwner = bestOwner;
+                            }
                         }
                     }
                     bestInfluence = influence;
@@ -235,10 +247,16 @@ const territoryBitGl = {
                 } else {
                     // Track second-best from any owner
                     if (influence < secondInfluence) secondInfluence = influence;
-                    if (ownIdx != bestOwner && influence < enemyInfluence) {
-                        enemyInfluence = influence;
-                        enemyStar = i;
-                        enemyOwner = ownIdx;
+                    if (ownIdx != bestOwner) {
+                        float enemyDelta = influence - enemyInfluence;
+                        bool winsEnemy = enemyOwner < 0
+                            || enemyDelta < -uTieEpsilon
+                            || (abs(enemyDelta) <= uTieEpsilon && ownIdx < enemyOwner);
+                        if (winsEnemy) {
+                            enemyInfluence = influence;
+                            enemyStar = i;
+                            enemyOwner = ownIdx;
+                        }
                     }
                 }
             }
@@ -1074,6 +1092,7 @@ function ensureMesh(worldWidth: number, worldHeight: number): PIXI.Shader {
                 uSatMult: { value: 0.5, type: 'f32' },
                 uLightMult: { value: 0.4, type: 'f32' },
                 uMorphFactor: { value: 0, type: 'f32' },
+                uTieEpsilon: { value: DF_TIE_EPSILON, type: 'f32' },
                 uInfluenceWeight: { value: 1.0, type: 'f32' },
                 uContentMinX: { value: 0, type: 'f32' },
                 uContentMinY: { value: 0, type: 'f32' },
@@ -1149,6 +1168,7 @@ function updateFilterUniforms(
     u.uHueShift = GAME_CONFIG.DF_HUE ?? 0;
     u.uSatMult = GAME_CONFIG.DF_SATURATION ?? 0.7;
     u.uLightMult = GAME_CONFIG.DF_LIGHTNESS ?? 0.5;
+    u.uTieEpsilon = DF_TIE_EPSILON;
     u.uInfluenceWeight = GAME_CONFIG.DF_INFLUENCE_WEIGHT ?? 1.0;
 
     // Alignment contract owns content bounds so mesh/data/shader stay in one coordinate space.

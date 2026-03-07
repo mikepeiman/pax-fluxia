@@ -806,7 +806,7 @@ export function renderPowerVoronoi(
     // Disconnect virtual enemy sites (shared module)
     if (GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED && connections) {
         const maxDist = GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE ?? 400;
-        const disconnectVirtuals = computeDisconnectVirtuals(ownedStars, connections, maxDist, 0.3);
+        const disconnectVirtuals = computeDisconnectVirtuals(ownedStars, stars, connections, maxDist, 0.3);
         for (const dv of disconnectVirtuals) {
             sites.push({
                 x: dv.x,
