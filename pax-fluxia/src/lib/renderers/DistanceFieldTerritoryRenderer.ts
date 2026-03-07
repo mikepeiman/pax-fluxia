@@ -422,16 +422,16 @@ const ownershipPassBitGl = {
     name: 'territory-distance-field-ownership-pass-bit',
     vertex: {
         header: /* glsl */ `
-            out vec2 vLocalPos;
+            out vec2 vUv;
         `,
         main: /* glsl */ `
-            vLocalPos = position;
+            vUv = uv;
         `,
     },
     fragment: {
         header: /* glsl */ `
             #version 300 es
-            in vec2 vLocalPos;
+            in vec2 vUv;
             uniform sampler2D uStarData;
             uniform int uNumStars;
             uniform int uNumRealStars;
@@ -440,6 +440,7 @@ const ownershipPassBitGl = {
             uniform float uInfluenceWeight;
             uniform float uMinStarRadius;
             uniform vec2 uRenderOrigin;
+            uniform vec2 uRenderExtent;
             uniform float uGapScale;
 
             float decode16(vec4 raw, int pair) {
@@ -450,7 +451,7 @@ const ownershipPassBitGl = {
             }
         `,
         main: /* glsl */ `
-            vec2 worldPos = vLocalPos + uRenderOrigin;
+            vec2 worldPos = uRenderOrigin + vUv * uRenderExtent;
 
             float bestInfluence = 1e9;
             int bestOwner = -1;
@@ -541,6 +542,172 @@ const ownershipPassBitGl = {
 };
 
 // ============================================================================
+// Two-Pass Border Pipeline: Pass 1.5 boundary seeds (offscreen)
+// ============================================================================
+
+const boundarySeedBitGl = {
+    name: 'territory-distance-field-boundary-seed-bit',
+    vertex: {
+        header: /* glsl */ `
+            out vec2 vUv;
+        `,
+        main: /* glsl */ `
+            vUv = uv;
+        `,
+    },
+    fragment: {
+        header: /* glsl */ `
+            #version 300 es
+            in vec2 vUv;
+            uniform sampler2D uOwnershipTex;
+            uniform vec2 uOwnershipTexSize;
+
+            int decodeOwner(float enc) {
+                return int(floor(enc * 255.0 + 0.5)) - 1;
+            }
+
+            vec4 encodeSeed(vec2 coord) {
+                vec2 clamped = clamp(coord, vec2(0.0), vec2(65535.0));
+                vec2 hi = floor(clamped / 256.0);
+                vec2 lo = clamped - hi * 256.0;
+                return vec4(hi.x / 255.0, lo.x / 255.0, hi.y / 255.0, lo.y / 255.0);
+            }
+        `,
+        main: /* glsl */ `
+            ivec2 texSize = ivec2(uOwnershipTexSize);
+            ivec2 maxCoord = max(texSize - ivec2(1), ivec2(0));
+            ivec2 p = ivec2(min(floor(vUv * uOwnershipTexSize), uOwnershipTexSize - vec2(1.0)));
+
+            int ownerC = decodeOwner(texelFetch(uOwnershipTex, p, 0).r);
+            if (ownerC < 0) {
+                outColor = vec4(1.0);
+                return;
+            }
+
+            ivec2 pL = max(p + ivec2(-1, 0), ivec2(0));
+            ivec2 pR = min(p + ivec2(1, 0), maxCoord);
+            ivec2 pU = max(p + ivec2(0, -1), ivec2(0));
+            ivec2 pD = min(p + ivec2(0, 1), maxCoord);
+            ivec2 pUL = max(p + ivec2(-1, -1), ivec2(0));
+            ivec2 pUR = ivec2(min(p.x + 1, maxCoord.x), max(p.y - 1, 0));
+            ivec2 pDL = ivec2(max(p.x - 1, 0), min(p.y + 1, maxCoord.y));
+            ivec2 pDR = min(p + ivec2(1, 1), maxCoord);
+
+            int ownerL = decodeOwner(texelFetch(uOwnershipTex, pL, 0).r);
+            int ownerR = decodeOwner(texelFetch(uOwnershipTex, pR, 0).r);
+            int ownerU = decodeOwner(texelFetch(uOwnershipTex, pU, 0).r);
+            int ownerD = decodeOwner(texelFetch(uOwnershipTex, pD, 0).r);
+            int ownerUL = decodeOwner(texelFetch(uOwnershipTex, pUL, 0).r);
+            int ownerUR = decodeOwner(texelFetch(uOwnershipTex, pUR, 0).r);
+            int ownerDL = decodeOwner(texelFetch(uOwnershipTex, pDL, 0).r);
+            int ownerDR = decodeOwner(texelFetch(uOwnershipTex, pDR, 0).r);
+
+            bool boundary =
+                (ownerL >= 0 && ownerL != ownerC) ||
+                (ownerR >= 0 && ownerR != ownerC) ||
+                (ownerU >= 0 && ownerU != ownerC) ||
+                (ownerD >= 0 && ownerD != ownerC) ||
+                (ownerUL >= 0 && ownerUL != ownerC) ||
+                (ownerUR >= 0 && ownerUR != ownerC) ||
+                (ownerDL >= 0 && ownerDL != ownerC) ||
+                (ownerDR >= 0 && ownerDR != ownerC);
+
+            outColor = boundary ? encodeSeed(vec2(p)) : vec4(1.0);
+        `,
+    },
+};
+
+// ============================================================================
+// Two-Pass Border Pipeline: Pass 1.75 jump flood nearest-boundary field
+// ============================================================================
+
+const jumpFloodBitGl = {
+    name: 'territory-distance-field-jump-flood-bit',
+    vertex: {
+        header: /* glsl */ `
+            out vec2 vUv;
+        `,
+        main: /* glsl */ `
+            vUv = uv;
+        `,
+    },
+    fragment: {
+        header: /* glsl */ `
+            #version 300 es
+            in vec2 vUv;
+            uniform sampler2D uSeedTex;
+            uniform vec2 uSeedTexSize;
+            uniform float uJump;
+
+            vec2 decodeSeed(vec4 raw) {
+                float x = floor(raw.r * 255.0 + 0.5) * 256.0 + floor(raw.g * 255.0 + 0.5);
+                float y = floor(raw.b * 255.0 + 0.5) * 256.0 + floor(raw.a * 255.0 + 0.5);
+                return vec2(x, y);
+            }
+
+            vec4 encodeSeed(vec2 coord) {
+                vec2 clamped = clamp(coord, vec2(0.0), vec2(65535.0));
+                vec2 hi = floor(clamped / 256.0);
+                vec2 lo = clamped - hi * 256.0;
+                return vec4(hi.x / 255.0, lo.x / 255.0, hi.y / 255.0, lo.y / 255.0);
+            }
+
+            bool validSeed(vec2 seed) {
+                return seed.x < 65535.0 && seed.y < 65535.0;
+            }
+        `,
+        main: /* glsl */ `
+            ivec2 texSize = ivec2(uSeedTexSize);
+            ivec2 maxCoord = max(texSize - ivec2(1), ivec2(0));
+            ivec2 p = ivec2(min(floor(vUv * uSeedTexSize), uSeedTexSize - vec2(1.0)));
+            int jump = int(max(floor(uJump + 0.5), 1.0));
+
+            vec2 base = decodeSeed(texelFetch(uSeedTex, p, 0));
+            vec2 bestSeed = base;
+            float bestDist = 1e20;
+            if (validSeed(base)) {
+                vec2 d = base - vec2(p);
+                bestDist = dot(d, d);
+            }
+
+            ivec2 n0 = max(p + ivec2(-jump, -jump), ivec2(0));
+            vec2 c0 = decodeSeed(texelFetch(uSeedTex, n0, 0));
+            if (validSeed(c0)) { vec2 d0 = c0 - vec2(p); float dist0 = dot(d0, d0); if (dist0 < bestDist) { bestDist = dist0; bestSeed = c0; } }
+
+            ivec2 n1 = max(p + ivec2(0, -jump), ivec2(0));
+            vec2 c1 = decodeSeed(texelFetch(uSeedTex, n1, 0));
+            if (validSeed(c1)) { vec2 d1 = c1 - vec2(p); float dist1 = dot(d1, d1); if (dist1 < bestDist) { bestDist = dist1; bestSeed = c1; } }
+
+            ivec2 n2 = ivec2(min(p.x + jump, maxCoord.x), max(p.y - jump, 0));
+            vec2 c2 = decodeSeed(texelFetch(uSeedTex, n2, 0));
+            if (validSeed(c2)) { vec2 d2 = c2 - vec2(p); float dist2 = dot(d2, d2); if (dist2 < bestDist) { bestDist = dist2; bestSeed = c2; } }
+
+            ivec2 n3 = max(p + ivec2(-jump, 0), ivec2(0));
+            vec2 c3 = decodeSeed(texelFetch(uSeedTex, n3, 0));
+            if (validSeed(c3)) { vec2 d3 = c3 - vec2(p); float dist3 = dot(d3, d3); if (dist3 < bestDist) { bestDist = dist3; bestSeed = c3; } }
+
+            ivec2 n4 = min(p + ivec2(jump, 0), maxCoord);
+            vec2 c4 = decodeSeed(texelFetch(uSeedTex, n4, 0));
+            if (validSeed(c4)) { vec2 d4 = c4 - vec2(p); float dist4 = dot(d4, d4); if (dist4 < bestDist) { bestDist = dist4; bestSeed = c4; } }
+
+            ivec2 n5 = ivec2(max(p.x - jump, 0), min(p.y + jump, maxCoord.y));
+            vec2 c5 = decodeSeed(texelFetch(uSeedTex, n5, 0));
+            if (validSeed(c5)) { vec2 d5 = c5 - vec2(p); float dist5 = dot(d5, d5); if (dist5 < bestDist) { bestDist = dist5; bestSeed = c5; } }
+
+            ivec2 n6 = min(p + ivec2(0, jump), maxCoord);
+            vec2 c6 = decodeSeed(texelFetch(uSeedTex, n6, 0));
+            if (validSeed(c6)) { vec2 d6 = c6 - vec2(p); float dist6 = dot(d6, d6); if (dist6 < bestDist) { bestDist = dist6; bestSeed = c6; } }
+
+            ivec2 n7 = min(p + ivec2(jump, jump), maxCoord);
+            vec2 c7 = decodeSeed(texelFetch(uSeedTex, n7, 0));
+            if (validSeed(c7)) { vec2 d7 = c7 - vec2(p); float dist7 = dot(d7, d7); if (dist7 < bestDist) { bestDist = dist7; bestSeed = c7; } }
+
+            outColor = validSeed(bestSeed) ? encodeSeed(bestSeed) : vec4(1.0);
+        `,
+    },
+};
+
+// ============================================================================
 // Two-Pass Border Pipeline: Pass 2 constant-width border stroke (onscreen)
 // ============================================================================
 
@@ -559,10 +726,10 @@ const borderPassBitGl = {
             #version 300 es
             in vec2 vLocalPos;
             uniform sampler2D uOwnershipTex;
+            uniform sampler2D uBoundaryTex;
+            uniform vec2 uBoundaryTexSize;
             uniform vec2 uRenderOrigin;
             uniform vec2 uRenderExtent;
-            uniform vec2 uOwnershipTexel;
-            uniform float uGapScale;
             uniform float uBorderWidth;
             uniform float uBorderSoftness;
             uniform float uBorderAlpha;
@@ -583,6 +750,12 @@ const borderPassBitGl = {
 
             int decodeOwner(float enc) {
                 return int(floor(enc * 255.0 + 0.5)) - 1;
+            }
+
+            vec2 decodeSeed(vec4 raw) {
+                float x = floor(raw.r * 255.0 + 0.5) * 256.0 + floor(raw.g * 255.0 + 0.5);
+                float y = floor(raw.b * 255.0 + 0.5) * 256.0 + floor(raw.a * 255.0 + 0.5);
+                return vec2(x, y);
             }
 
             vec3 getPlayerColor(int owner) {
@@ -611,18 +784,16 @@ const borderPassBitGl = {
                 discard;
             }
 
-            float gapC = center.b * uGapScale;
-            float gapL = texture(uOwnershipTex, uv - vec2(uOwnershipTexel.x, 0.0)).b * uGapScale;
-            float gapR = texture(uOwnershipTex, uv + vec2(uOwnershipTexel.x, 0.0)).b * uGapScale;
-            float gapU = texture(uOwnershipTex, uv - vec2(0.0, uOwnershipTexel.y)).b * uGapScale;
-            float gapD = texture(uOwnershipTex, uv + vec2(0.0, uOwnershipTexel.y)).b * uGapScale;
+            vec2 seed = decodeSeed(texture(uBoundaryTex, uv));
+            if (seed.x >= 65535.0 || seed.y >= 65535.0) {
+                discard;
+            }
 
-            float texelWorldX = max(uRenderExtent.x * uOwnershipTexel.x, 0.0001);
-            float texelWorldY = max(uRenderExtent.y * uOwnershipTexel.y, 0.0001);
-            float dGapDx = (gapR - gapL) / (2.0 * texelWorldX);
-            float dGapDy = (gapD - gapU) / (2.0 * texelWorldY);
-            float gradMag = max(length(vec2(dGapDx, dGapDy)), 0.01);
-            float sd = gapC / gradMag;
+            vec2 texelPos = uv * uBoundaryTexSize + vec2(0.5);
+            vec2 seedPos = seed + vec2(0.5);
+            vec2 deltaTex = texelPos - seedPos;
+            vec2 texelWorld = uRenderExtent / max(uBoundaryTexSize, vec2(1.0));
+            float sd = length(deltaTex * texelWorld);
 
             float inner = max(uBorderWidth - uBorderSoftness, 0.0);
             float outer = uBorderWidth + uBorderSoftness;
@@ -691,6 +862,13 @@ let warnedMissingRendererForTwoPass = false;
 let cachedOwnershipTexture: PIXI.RenderTexture | null = null;
 let cachedOwnershipShader: PIXI.Shader | null = null;
 let cachedOwnershipMesh: PIXI.Mesh | null = null;
+let cachedBoundarySeedShader: PIXI.Shader | null = null;
+let cachedBoundarySeedMesh: PIXI.Mesh | null = null;
+let cachedJumpFloodShader: PIXI.Shader | null = null;
+let cachedJumpFloodMesh: PIXI.Mesh | null = null;
+let cachedJumpFloodTextureA: PIXI.RenderTexture | null = null;
+let cachedJumpFloodTextureB: PIXI.RenderTexture | null = null;
+let cachedBoundaryDistanceTexture: PIXI.RenderTexture | null = null;
 let cachedOwnershipTexW = 0;
 let cachedOwnershipTexH = 0;
 let cachedOwnershipExtentW = 0;
@@ -1575,9 +1753,29 @@ function ensureMesh(worldWidth: number, worldHeight: number): PIXI.Shader {
 
 
 // Two-pass resource lifecycle:
-// 1) ensure offscreen ownership target + shader
-// 2) ensure onscreen border shader + mesh
-// 3) rebuild only when extents/texture dimensions drift
+// 1) render ownership field into offscreen texture
+// 2) detect boundary pixels and run jump-flood nearest-boundary propagation
+// 3) render constant-width border using true distance-to-boundary
+function createNearestRenderTexture(width: number, height: number): PIXI.RenderTexture {
+    const texture = PIXI.RenderTexture.create({ width, height, resolution: 1 });
+    const src = texture.source as any;
+    if (src) {
+        src.scaleMode = 'nearest';
+        src.autoGarbageCollect = false;
+    }
+    return texture;
+}
+
+function createTargetMesh(width: number, height: number, shader: PIXI.Shader): PIXI.Mesh {
+    const geometry = new PIXI.MeshGeometry({
+        positions: new Float32Array([0, 0, width, 0, width, height, 0, height]),
+        uvs: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
+        indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
+        topology: 'triangle-list',
+    });
+    return new PIXI.Mesh({ geometry, shader }) as PIXI.Mesh;
+}
+
 function ensureTwoPassBorderResources(): void {
     if (!DF_TWO_PASS_BORDERS_ENABLED) return;
 
@@ -1589,19 +1787,16 @@ function ensureTwoPassBorderResources(): void {
 
     const textureChanged = !cachedOwnershipTexture || texW !== cachedOwnershipTexW || texH !== cachedOwnershipTexH;
     if (textureChanged) {
-        if (cachedOwnershipTexture) {
-            cachedOwnershipTexture.destroy(true);
-            cachedOwnershipTexture = null;
-        }
-        cachedOwnershipTexture = PIXI.RenderTexture.create({ width: texW, height: texH, resolution: 1 });
+        if (cachedOwnershipTexture) cachedOwnershipTexture.destroy(true);
+        if (cachedJumpFloodTextureA) cachedJumpFloodTextureA.destroy(true);
+        if (cachedJumpFloodTextureB) cachedJumpFloodTextureB.destroy(true);
+
+        cachedOwnershipTexture = createNearestRenderTexture(texW, texH);
+        cachedJumpFloodTextureA = createNearestRenderTexture(texW, texH);
+        cachedJumpFloodTextureB = createNearestRenderTexture(texW, texH);
+        cachedBoundaryDistanceTexture = null;
         cachedOwnershipTexW = texW;
         cachedOwnershipTexH = texH;
-
-        const src = cachedOwnershipTexture.source as any;
-        if (src) {
-            src.scaleMode = 'nearest';
-            src.autoGarbageCollect = false;
-        }
     }
 
     if (!cachedOwnershipShader) {
@@ -1620,6 +1815,7 @@ function ensureTwoPassBorderResources(): void {
                     uInfluenceWeight: { value: 1.0, type: 'f32' },
                     uMinStarRadius: { value: 40, type: 'f32' },
                     uRenderOrigin: { value: new Float32Array([0, 0]), type: 'vec2<f32>' },
+                    uRenderExtent: { value: new Float32Array([1, 1]), type: 'vec2<f32>' },
                     uGapScale: { value: DF_PASS1_GAP_SCALE, type: 'f32' },
                 },
                 uStarData: starDataTexture?.source ?? makeGradientTestTexture().source,
@@ -1627,22 +1823,37 @@ function ensureTwoPassBorderResources(): void {
         });
     }
 
-    const ownershipMeshNeedsRebuild = !cachedOwnershipMesh
-        || textureChanged
-        || Math.abs(extentW - cachedOwnershipExtentW) > 0.5
-        || Math.abs(extentH - cachedOwnershipExtentH) > 0.5;
-    if (ownershipMeshNeedsRebuild) {
-        const geometry = new PIXI.MeshGeometry({
-            positions: new Float32Array([0, 0, extentW, 0, extentW, extentH, 0, extentH]),
-            uvs: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
-            indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
-            topology: 'triangle-list',
+    if (!cachedBoundarySeedShader) {
+        const boundarySeedProgram = compileHighShaderGlProgram({
+            bits: [localUniformBitGl, boundarySeedBitGl, roundPixelsBitGl],
+            name: 'territory-distance-field-boundary-seed-pass',
         });
+        cachedBoundarySeedShader = new PIXI.Shader({
+            glProgram: boundarySeedProgram,
+            resources: {
+                boundarySeedUniforms: {
+                    uOwnershipTexSize: { value: new Float32Array([1, 1]), type: 'vec2<f32>' },
+                },
+                uOwnershipTex: cachedOwnershipTexture?.source ?? makeGradientTestTexture().source,
+            },
+        });
+    }
 
-        if (cachedOwnershipMesh) cachedOwnershipMesh.destroy();
-        cachedOwnershipMesh = new PIXI.Mesh({ geometry, shader: cachedOwnershipShader! }) as any;
-        cachedOwnershipExtentW = extentW;
-        cachedOwnershipExtentH = extentH;
+    if (!cachedJumpFloodShader) {
+        const jumpFloodProgram = compileHighShaderGlProgram({
+            bits: [localUniformBitGl, jumpFloodBitGl, roundPixelsBitGl],
+            name: 'territory-distance-field-jump-flood-pass',
+        });
+        cachedJumpFloodShader = new PIXI.Shader({
+            glProgram: jumpFloodProgram,
+            resources: {
+                jumpFloodUniforms: {
+                    uSeedTexSize: { value: new Float32Array([1, 1]), type: 'vec2<f32>' },
+                    uJump: { value: 1, type: 'f32' },
+                },
+                uSeedTex: cachedJumpFloodTextureA?.source ?? makeGradientTestTexture().source,
+            },
+        });
     }
 
     if (!cachedBorderShader) {
@@ -1656,8 +1867,7 @@ function ensureTwoPassBorderResources(): void {
                 borderPassUniforms: {
                     uRenderOrigin: { value: new Float32Array([0, 0]), type: 'vec2<f32>' },
                     uRenderExtent: { value: new Float32Array([1, 1]), type: 'vec2<f32>' },
-                    uOwnershipTexel: { value: new Float32Array([1, 1]), type: 'vec2<f32>' },
-                    uGapScale: { value: DF_PASS1_GAP_SCALE, type: 'f32' },
+                    uBoundaryTexSize: { value: new Float32Array([1, 1]), type: 'vec2<f32>' },
                     uBorderWidth: { value: 10, type: 'f32' },
                     uBorderSoftness: { value: 4, type: 'f32' },
                     uBorderAlpha: { value: 0.8, type: 'f32' },
@@ -1677,8 +1887,26 @@ function ensureTwoPassBorderResources(): void {
                     uPlayerColor7: { value: new Float32Array([0.5, 0, 1]), type: 'vec3<f32>' },
                 },
                 uOwnershipTex: cachedOwnershipTexture?.source ?? makeGradientTestTexture().source,
+                uBoundaryTex: cachedJumpFloodTextureA?.source ?? makeGradientTestTexture().source,
             },
         });
+    }
+
+    const targetMeshNeedsRebuild = textureChanged
+        || !cachedOwnershipMesh
+        || !cachedBoundarySeedMesh
+        || !cachedJumpFloodMesh;
+
+    if (targetMeshNeedsRebuild) {
+        if (cachedOwnershipMesh) cachedOwnershipMesh.destroy();
+        if (cachedBoundarySeedMesh) cachedBoundarySeedMesh.destroy();
+        if (cachedJumpFloodMesh) cachedJumpFloodMesh.destroy();
+
+        cachedOwnershipMesh = createTargetMesh(texW, texH, cachedOwnershipShader!);
+        cachedBoundarySeedMesh = createTargetMesh(texW, texH, cachedBoundarySeedShader!);
+        cachedJumpFloodMesh = createTargetMesh(texW, texH, cachedJumpFloodShader!);
+        cachedOwnershipExtentW = texW;
+        cachedOwnershipExtentH = texH;
     }
 
     const borderMeshNeedsRebuild = !cachedBorderMesh
@@ -1728,6 +1956,7 @@ function updateOwnershipPassUniforms(stars: StarState[], morphFactor: number): v
     u.uInfluenceWeight = GAME_CONFIG.DF_INFLUENCE_WEIGHT ?? 1.0;
     u.uMinStarRadius = GAME_CONFIG.DF_MIN_STAR_RADIUS ?? 40;
     u.uRenderOrigin = new Float32Array([cachedRenderOriginX, cachedRenderOriginY]);
+    u.uRenderExtent = new Float32Array([Math.max(1, cachedRenderExtentW), Math.max(1, cachedRenderExtentH)]);
     u.uGapScale = DF_PASS1_GAP_SCALE;
 
     if (starDataTexture) {
@@ -1743,24 +1972,72 @@ function renderOwnershipPass(renderer: PIXI.Renderer): void {
     (renderer as any).render({ container: cachedOwnershipMesh, target: cachedOwnershipTexture, clear: true });
 }
 
-// Pass 2 consumes the ownership texture and draws an even-width AA stroke.
+function renderBoundaryDistancePass(renderer: PIXI.Renderer): boolean {
+    if (
+        !cachedOwnershipTexture
+        || !cachedBoundarySeedShader
+        || !cachedBoundarySeedMesh
+        || !cachedJumpFloodShader
+        || !cachedJumpFloodMesh
+        || !cachedJumpFloodTextureA
+        || !cachedJumpFloodTextureB
+    ) {
+        return false;
+    }
+
+    const boundaryUniforms = cachedBoundarySeedShader.resources.boundarySeedUniforms.uniforms;
+    boundaryUniforms.uOwnershipTexSize = new Float32Array([Math.max(1, cachedOwnershipTexW), Math.max(1, cachedOwnershipTexH)]);
+    cachedBoundarySeedShader.resources.uOwnershipTex = cachedOwnershipTexture.source;
+    const boundaryGroup = cachedBoundarySeedShader.resources.boundarySeedUniforms as any;
+    if (boundaryGroup && typeof boundaryGroup.update === 'function') boundaryGroup.update();
+
+    (renderer as any).render({ container: cachedBoundarySeedMesh, target: cachedJumpFloodTextureA, clear: true });
+
+    let jump = 1;
+    const maxDim = Math.max(cachedOwnershipTexW, cachedOwnershipTexH);
+    while (jump < maxDim) jump *= 2;
+    jump = Math.max(1, Math.floor(jump / 2));
+
+    let inputTex = cachedJumpFloodTextureA;
+    let outputTex = cachedJumpFloodTextureB;
+
+    while (true) {
+        const jumpUniforms = cachedJumpFloodShader.resources.jumpFloodUniforms.uniforms;
+        jumpUniforms.uSeedTexSize = new Float32Array([Math.max(1, cachedOwnershipTexW), Math.max(1, cachedOwnershipTexH)]);
+        jumpUniforms.uJump = jump;
+        cachedJumpFloodShader.resources.uSeedTex = inputTex.source;
+
+        const jumpGroup = cachedJumpFloodShader.resources.jumpFloodUniforms as any;
+        if (jumpGroup && typeof jumpGroup.update === 'function') jumpGroup.update();
+
+        (renderer as any).render({ container: cachedJumpFloodMesh, target: outputTex, clear: true });
+
+        const nextInput = outputTex;
+        outputTex = inputTex;
+        inputTex = nextInput;
+
+        if (jump <= 1) break;
+        jump = Math.floor(jump / 2);
+    }
+
+    cachedBoundaryDistanceTexture = inputTex;
+    return true;
+}
+
+// Pass 2 consumes ownership + nearest-boundary field and draws an even-width AA stroke.
 function updateTwoPassBorderUniforms(
     colorUtils: ColorUtils,
     worldWidth: number,
     worldHeight: number,
     alignment: AlignmentContract,
-): void {
-    if (!cachedBorderShader || !cachedOwnershipTexture) return;
+): boolean {
+    if (!cachedBorderShader || !cachedOwnershipTexture || !cachedBoundaryDistanceTexture) return false;
 
     const nPlayers = currentPlayerIds.length;
     const u = cachedBorderShader.resources.borderPassUniforms.uniforms;
     u.uRenderOrigin = new Float32Array([cachedRenderOriginX, cachedRenderOriginY]);
     u.uRenderExtent = new Float32Array([Math.max(1, cachedRenderExtentW), Math.max(1, cachedRenderExtentH)]);
-    u.uOwnershipTexel = new Float32Array([
-        1 / Math.max(1, cachedOwnershipTexW),
-        1 / Math.max(1, cachedOwnershipTexH),
-    ]);
-    u.uGapScale = DF_PASS1_GAP_SCALE;
+    u.uBoundaryTexSize = new Float32Array([Math.max(1, cachedOwnershipTexW), Math.max(1, cachedOwnershipTexH)]);
     u.uBorderWidth = GAME_CONFIG.DF_BORDER_WIDTH ?? 5;
     u.uBorderSoftness = GAME_CONFIG.DF_BORDER_SOFTNESS ?? 3;
     u.uBorderAlpha = GAME_CONFIG.DF_BORDER_ALPHA ?? 0.8;
@@ -1781,11 +2058,12 @@ function updateTwoPassBorderUniforms(
     }
 
     cachedBorderShader.resources.uOwnershipTex = cachedOwnershipTexture.source;
+    cachedBorderShader.resources.uBoundaryTex = cachedBoundaryDistanceTexture.source;
 
     const ug = cachedBorderShader.resources.borderPassUniforms as any;
     if (ug && typeof ug.update === 'function') ug.update();
+    return true;
 }
-// ============================================================================
 // Update GPU uniforms from current state
 // ============================================================================
 
@@ -2035,13 +2313,17 @@ export function renderDistanceFieldTerritory(
         ensureTwoPassBorderResources();
         updateOwnershipPassUniforms(canonicalStars, morphFactor);
         renderOwnershipPass(renderer!);
-        updateTwoPassBorderUniforms(colorUtils, worldWidth, worldHeight, alignmentContract);
+        const hasBoundaryField = renderBoundaryDistancePass(renderer!);
+        const borderReady = hasBoundaryField
+            && updateTwoPassBorderUniforms(colorUtils, worldWidth, worldHeight, alignmentContract);
 
         if (cachedBorderMesh && !cachedBorderMesh.parent) {
             container.addChild(cachedBorderMesh);
         }
         if (cachedBorderMesh) {
-            cachedBorderMesh.visible = (GAME_CONFIG.DF_BORDER_WIDTH ?? 0) > 0 && (GAME_CONFIG.DF_BORDER_ALPHA ?? 0) > 0;
+            cachedBorderMesh.visible = borderReady
+                && (GAME_CONFIG.DF_BORDER_WIDTH ?? 0) > 0
+                && (GAME_CONFIG.DF_BORDER_ALPHA ?? 0) > 0;
         }
     } else if (cachedBorderMesh) {
         cachedBorderMesh.visible = false;
@@ -2097,6 +2379,22 @@ export function resetDistanceFieldTerritoryCache(): void {
         cachedOwnershipMesh.destroy();
         cachedOwnershipMesh = null;
     }
+    if (cachedBoundarySeedMesh) {
+        cachedBoundarySeedMesh.destroy();
+        cachedBoundarySeedMesh = null;
+    }
+    if (cachedJumpFloodMesh) {
+        cachedJumpFloodMesh.destroy();
+        cachedJumpFloodMesh = null;
+    }
+    if (cachedBoundarySeedShader) {
+        cachedBoundarySeedShader.destroy();
+        cachedBoundarySeedShader = null;
+    }
+    if (cachedJumpFloodShader) {
+        cachedJumpFloodShader.destroy();
+        cachedJumpFloodShader = null;
+    }
     if (cachedOwnershipShader) {
         cachedOwnershipShader.destroy();
         cachedOwnershipShader = null;
@@ -2109,6 +2407,14 @@ export function resetDistanceFieldTerritoryCache(): void {
     if (cachedBorderShader) {
         cachedBorderShader.destroy();
         cachedBorderShader = null;
+    }
+    if (cachedJumpFloodTextureA) {
+        cachedJumpFloodTextureA.destroy(true);
+        cachedJumpFloodTextureA = null;
+    }
+    if (cachedJumpFloodTextureB) {
+        cachedJumpFloodTextureB.destroy(true);
+        cachedJumpFloodTextureB = null;
     }
     if (cachedOwnershipTexture) {
         cachedOwnershipTexture.destroy(true);
@@ -2131,6 +2437,7 @@ export function resetDistanceFieldTerritoryCache(): void {
     cachedOwnershipTexH = 0;
     cachedOwnershipExtentW = 0;
     cachedOwnershipExtentH = 0;
+    cachedBoundaryDistanceTexture = null;
     cachedBorderOriginX = 0;
     cachedBorderOriginY = 0;
     cachedBorderExtentW = 0;
