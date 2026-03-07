@@ -3115,7 +3115,7 @@ export function renderDistanceFieldTerritory(
             for (const site of corridorSites) site.weight = weight;
             virtuals = virtuals.concat(corridorSites);
             corridorSitesCount = corridorSites.length;
-            console.log(`[DF] Corridors: ${corridorSites.length} sites (mode=${mode}, ${mode === 'count' ? `count=${count}` : `spacing=${spacing}`}, weight=${weight})`);
+            if (DF_DEBUG_LOGS) console.log(`[DF] Corridors: ${corridorSites.length} sites (mode=${mode}, ${mode === 'count' ? `count=${count}` : `spacing=${spacing}`}, weight=${weight})`);
         }
 
         if (GAME_CONFIG.DF_DISCONNECT_ENABLED && canonicalConnections.length > 0) {
@@ -3124,17 +3124,17 @@ export function renderDistanceFieldTerritory(
             const disconnectSites = computeDisconnectVirtuals(canonicalInput.ownedStars, canonicalStars, canonicalConnections, maxDist, weight);
             virtuals = virtuals.concat(disconnectSites);
             disconnectSitesCount = disconnectSites.length;
-            console.log(`[DF] Disconnects: ${disconnectSites.length} sites (maxDist=${maxDist}, weight=${weight})`);
+            if (DF_DEBUG_LOGS) console.log(`[DF] Disconnects: ${disconnectSites.length} sites (maxDist=${maxDist}, weight=${weight})`);
             for (const site of disconnectSites) {
                 const pIdx = currentPlayerIds.indexOf(site.ownerId);
-                console.log(`  [DF-DC] site at (${site.x.toFixed(0)},${site.y.toFixed(0)}) owner=${site.ownerId} pIdx=${pIdx} weight=${site.weight}`);
+                if (DF_DEBUG_LOGS) console.log(`  [DF-DC] site at (${site.x.toFixed(0)},${site.y.toFixed(0)}) owner=${site.ownerId} pIdx=${pIdx} weight=${site.weight}`);
             }
         }
 
         const stableVirtuals = canonicalizeVirtualSites(virtuals);
         activeVirtualSites = stableVirtuals;
         cachedVirtualSites = stableVirtuals;
-        console.log(`[DF] Total packed: ${canonicalStars.length} real + ${stableVirtuals.length} virtual = ${canonicalStars.length + stableVirtuals.length}`);
+        if (DF_DEBUG_LOGS) console.log(`[DF] Total packed: ${canonicalStars.length} real + ${stableVirtuals.length} virtual = ${canonicalStars.length + stableVirtuals.length}`);
         buildStarDataTexture(canonicalStars, currentDist, prevDist, currentPlayerIds, stableVirtuals);
 
         cachedCorridorSiteCount = corridorSitesCount;

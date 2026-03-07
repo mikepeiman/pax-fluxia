@@ -176,3 +176,4 @@ Start Step 1 implementation in `DistanceFieldTerritoryRenderer.ts` and related c
 - Added clear inline comments for future maintainers/agents around the fill/border snapshot lock semantics.
 - Gated high-volume DF debug logs behind DF_DEBUG_LOGS=false to reduce runtime overhead.
 - Reset path now clears vector published snapshot state to avoid stale carryover after cache resets.
+- Added low-risk perf cut: gated high-frequency DF topology/debug console logging behind DF_DEBUG_LOGS to prevent log-induced frame stalls during ticks and slider adjustments.
