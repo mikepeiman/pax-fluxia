@@ -28,6 +28,9 @@
         debounceTimers.set(
             configKey,
             setTimeout(() => {
+                if ((import.meta as any).env?.DEV) {
+                    console.warn(`[settings][guard] Direct UI write to GAME_CONFIG.${configKey}; prefer updatePanel-only flow.`);
+                }
                 (GAME_CONFIG as any)[configKey] = value;
                 debounceTimers.delete(configKey);
             }, delayMs),
@@ -1078,7 +1081,6 @@
             value={panel.dfResolution ?? 4}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.DF_RESOLUTION = v;
                 updatePanel("dfResolution", v);
             }}
         />
@@ -1097,7 +1099,6 @@
             value={panel.dfBlur ?? 2}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.DF_BLUR = v;
                 updatePanel("dfBlur", v);
             }}
         />
@@ -1116,7 +1117,6 @@
             value={panel.dfEdgeFade ?? 200}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.DF_EDGE_FADE = v;
                 updatePanel("dfEdgeFade", v);
             }}
         />
@@ -1135,7 +1135,6 @@
             value={panel.dfRounding ?? 8}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.DF_ROUNDING = v;
                 updatePanel("dfRounding", v);
             }}
         />
@@ -1157,7 +1156,6 @@
             value={panel.dfExpansion ?? GAME_CONFIG.DF_EXPANSION}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.DF_EXPANSION = v;
                 updatePanel("dfExpansion", v);
             }}
         />
@@ -1179,7 +1177,6 @@
             value={panel.dfSmoothing ?? GAME_CONFIG.DF_SMOOTHING}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.DF_SMOOTHING = v;
                 updatePanel("dfSmoothing", v);
             }}
         />
@@ -1201,7 +1198,6 @@
             value={panel.dfMinStarRadius ?? GAME_CONFIG.DF_MIN_STAR_RADIUS}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.DF_MIN_STAR_RADIUS = v;
                 updatePanel("dfMinStarRadius", v);
             }}
         />
@@ -1223,7 +1219,6 @@
             value={panel.dfAlpha ?? 0.15}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.DF_ALPHA = v;
                 updatePanel("dfAlpha", v);
             }}
         />
@@ -1242,7 +1237,6 @@
             value={panel.dfHue ?? 0}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.DF_HUE = v;
                 updatePanel("dfHue", v);
             }}
         />
@@ -1261,7 +1255,6 @@
             value={panel.dfSaturation ?? 0.7}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.DF_SATURATION = v;
                 updatePanel("dfSaturation", v);
             }}
         />
@@ -1280,7 +1273,6 @@
             value={panel.dfLightness ?? 0.5}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.DF_LIGHTNESS = v;
                 updatePanel("dfLightness", v);
             }}
         />
@@ -1313,7 +1305,6 @@
                         class="mode-btn"
                         class:active={(panel.dfBorderMode ?? 1) === mode.id}
                         onclick={() => {
-                            GAME_CONFIG.DF_BORDER_MODE = mode.id;
                             updatePanel("dfBorderMode", mode.id);
                         }}>{mode.label}</button
                     >
@@ -1334,7 +1325,6 @@
                 value={panel.dfBorderWidth ?? 15}
                 oninput={(e) => {
                     const v = +(e.target as HTMLInputElement).value;
-                    GAME_CONFIG.DF_BORDER_WIDTH = v;
                     updatePanel("dfBorderWidth", v);
                 }}
             />
@@ -1353,7 +1343,6 @@
                 value={panel.dfBorderSoftness ?? 8}
                 oninput={(e) => {
                     const v = +(e.target as HTMLInputElement).value;
-                    GAME_CONFIG.DF_BORDER_SOFTNESS = v;
                     updatePanel("dfBorderSoftness", v);
                 }}
             />
@@ -1372,7 +1361,6 @@
                 value={panel.dfBorderAlpha ?? 0.8}
                 oninput={(e) => {
                     const v = +(e.target as HTMLInputElement).value;
-                    GAME_CONFIG.DF_BORDER_ALPHA = v;
                     updatePanel("dfBorderAlpha", v);
                 }}
             />
@@ -1391,7 +1379,6 @@
                 value={panel.dfBorderBrighten ?? 40}
                 oninput={(e) => {
                     const v = +(e.target as HTMLInputElement).value;
-                    GAME_CONFIG.DF_BORDER_BRIGHTEN = v;
                     updatePanel("dfBorderBrighten", v);
                 }}
             />
@@ -1399,18 +1386,20 @@
 
         <div class="var-row">
             <div class="row-top">
-                <span class="var-name">High Quality Borders</span><span class="val"
-                    >{panel.dfBorderHqEnabled ?? GAME_CONFIG.DF_BORDER_HQ_ENABLED
+                <span class="var-name">High Quality Borders</span><span
+                    class="val"
+                    >{(panel.dfBorderHqEnabled ??
+                    GAME_CONFIG.DF_BORDER_HQ_ENABLED)
                         ? "ON"
                         : "OFF"}</span
                 >
             </div>
             <input
                 type="checkbox"
-                checked={panel.dfBorderHqEnabled ?? GAME_CONFIG.DF_BORDER_HQ_ENABLED}
+                checked={panel.dfBorderHqEnabled ??
+                    GAME_CONFIG.DF_BORDER_HQ_ENABLED}
                 onchange={(e) => {
                     const v = (e.target as HTMLInputElement).checked;
-                    GAME_CONFIG.DF_BORDER_HQ_ENABLED = v;
                     updatePanel("dfBorderHqEnabled", v);
                 }}
             />
@@ -1419,8 +1408,12 @@
         {#if panel.dfBorderHqEnabled ?? GAME_CONFIG.DF_BORDER_HQ_ENABLED}
             <div class="var-row">
                 <div class="row-top">
-                    <span class="var-name">HQ Supersample</span><span class="val"
-                        >{(panel.dfBorderHqScale ?? GAME_CONFIG.DF_BORDER_HQ_SCALE).toFixed(1)}x</span
+                    <span class="var-name">HQ Supersample</span><span
+                        class="val"
+                        >{(
+                            panel.dfBorderHqScale ??
+                            GAME_CONFIG.DF_BORDER_HQ_SCALE
+                        ).toFixed(1)}x</span
                     >
                 </div>
                 <input
@@ -1428,10 +1421,10 @@
                     min="1.0"
                     max="4.0"
                     step="0.5"
-                    value={panel.dfBorderHqScale ?? GAME_CONFIG.DF_BORDER_HQ_SCALE}
+                    value={panel.dfBorderHqScale ??
+                        GAME_CONFIG.DF_BORDER_HQ_SCALE}
                     oninput={(e) => {
                         const v = +(e.target as HTMLInputElement).value;
-                        GAME_CONFIG.DF_BORDER_HQ_SCALE = v;
                         updatePanel("dfBorderHqScale", v);
                     }}
                 />
@@ -1439,8 +1432,10 @@
 
             <div class="var-row">
                 <div class="row-top">
-                    <span class="var-name">HQ Max Texture</span><span class="val"
-                        >{panel.dfBorderHqMaxDim ?? GAME_CONFIG.DF_BORDER_HQ_MAX_DIM}px</span
+                    <span class="var-name">HQ Max Texture</span><span
+                        class="val"
+                        >{panel.dfBorderHqMaxDim ??
+                            GAME_CONFIG.DF_BORDER_HQ_MAX_DIM}px</span
                     >
                 </div>
                 <input
@@ -1448,10 +1443,10 @@
                     min="4096"
                     max="8192"
                     step="512"
-                    value={panel.dfBorderHqMaxDim ?? GAME_CONFIG.DF_BORDER_HQ_MAX_DIM}
+                    value={panel.dfBorderHqMaxDim ??
+                        GAME_CONFIG.DF_BORDER_HQ_MAX_DIM}
                     oninput={(e) => {
                         const v = +(e.target as HTMLInputElement).value;
-                        GAME_CONFIG.DF_BORDER_HQ_MAX_DIM = v;
                         updatePanel("dfBorderHqMaxDim", v);
                     }}
                 />
@@ -1461,17 +1456,18 @@
         <div class="var-row">
             <div class="row-top">
                 <span class="var-name">Vector Borders</span><span class="val"
-                    >{panel.dfVectorBordersEnabled ?? GAME_CONFIG.DF_VECTOR_BORDERS_ENABLED
+                    >{(panel.dfVectorBordersEnabled ??
+                    GAME_CONFIG.DF_VECTOR_BORDERS_ENABLED)
                         ? "ON"
                         : "OFF"}</span
                 >
             </div>
             <input
                 type="checkbox"
-                checked={panel.dfVectorBordersEnabled ?? GAME_CONFIG.DF_VECTOR_BORDERS_ENABLED}
+                checked={panel.dfVectorBordersEnabled ??
+                    GAME_CONFIG.DF_VECTOR_BORDERS_ENABLED}
                 onchange={(e) => {
                     const v = (e.target as HTMLInputElement).checked;
-                    GAME_CONFIG.DF_VECTOR_BORDERS_ENABLED = v;
                     updatePanel("dfVectorBordersEnabled", v);
                 }}
             />
@@ -1481,7 +1477,8 @@
             <div class="var-row">
                 <div class="row-top">
                     <span class="var-name">Vector Grid</span><span class="val"
-                        >{panel.dfVectorGridResolution ?? GAME_CONFIG.DF_VECTOR_GRID_RESOLUTION}px</span
+                        >{panel.dfVectorGridResolution ??
+                            GAME_CONFIG.DF_VECTOR_GRID_RESOLUTION}px</span
                     >
                 </div>
                 <input
@@ -1489,10 +1486,10 @@
                     min="64"
                     max="512"
                     step="16"
-                    value={panel.dfVectorGridResolution ?? GAME_CONFIG.DF_VECTOR_GRID_RESOLUTION}
+                    value={panel.dfVectorGridResolution ??
+                        GAME_CONFIG.DF_VECTOR_GRID_RESOLUTION}
                     oninput={(e) => {
                         const v = +(e.target as HTMLInputElement).value;
-                        GAME_CONFIG.DF_VECTOR_GRID_RESOLUTION = v;
                         updatePanel("dfVectorGridResolution", v);
                     }}
                 />
@@ -1500,19 +1497,21 @@
 
             <div class="var-row">
                 <div class="row-top">
-                    <span class="var-name">Vector Smoothing</span><span class="val"
-                        >{panel.dfVectorSmoothing ?? GAME_CONFIG.DF_VECTOR_SMOOTHING}</span
+                    <span class="var-name">Vector Smoothing</span><span
+                        class="val"
+                        >{panel.dfVectorSmoothing ??
+                            GAME_CONFIG.DF_VECTOR_SMOOTHING}</span
                     >
                 </div>
                 <input
                     type="range"
                     min="0"
-                    max="4"
+                    max="50"
                     step="1"
-                    value={panel.dfVectorSmoothing ?? GAME_CONFIG.DF_VECTOR_SMOOTHING}
+                    value={panel.dfVectorSmoothing ??
+                        GAME_CONFIG.DF_VECTOR_SMOOTHING}
                     oninput={(e) => {
                         const v = +(e.target as HTMLInputElement).value;
-                        GAME_CONFIG.DF_VECTOR_SMOOTHING = v;
                         updatePanel("dfVectorSmoothing", v);
                     }}
                 />
@@ -1520,8 +1519,12 @@
 
             <div class="var-row">
                 <div class="row-top">
-                    <span class="var-name">Vector Simplify</span><span class="val"
-                        >{(panel.dfVectorSimplify ?? GAME_CONFIG.DF_VECTOR_SIMPLIFY).toFixed(1)}px</span
+                    <span class="var-name">Vector Simplify</span><span
+                        class="val"
+                        >{(
+                            panel.dfVectorSimplify ??
+                            GAME_CONFIG.DF_VECTOR_SIMPLIFY
+                        ).toFixed(1)}px</span
                     >
                 </div>
                 <input
@@ -1529,10 +1532,10 @@
                     min="0"
                     max="3"
                     step="0.1"
-                    value={panel.dfVectorSimplify ?? GAME_CONFIG.DF_VECTOR_SIMPLIFY}
+                    value={panel.dfVectorSimplify ??
+                        GAME_CONFIG.DF_VECTOR_SIMPLIFY}
                     oninput={(e) => {
                         const v = +(e.target as HTMLInputElement).value;
-                        GAME_CONFIG.DF_VECTOR_SIMPLIFY = v;
                         updatePanel("dfVectorSimplify", v);
                     }}
                 />
@@ -1541,7 +1544,8 @@
             <div class="var-row">
                 <div class="row-top">
                     <span class="var-name">Vector Update</span><span class="val"
-                        >{panel.dfVectorUpdateMs ?? GAME_CONFIG.DF_VECTOR_UPDATE_MS}ms</span
+                        >{panel.dfVectorUpdateMs ??
+                            GAME_CONFIG.DF_VECTOR_UPDATE_MS}ms</span
                     >
                 </div>
                 <input
@@ -1549,10 +1553,10 @@
                     min="0"
                     max="200"
                     step="5"
-                    value={panel.dfVectorUpdateMs ?? GAME_CONFIG.DF_VECTOR_UPDATE_MS}
+                    value={panel.dfVectorUpdateMs ??
+                        GAME_CONFIG.DF_VECTOR_UPDATE_MS}
                     oninput={(e) => {
                         const v = +(e.target as HTMLInputElement).value;
-                        GAME_CONFIG.DF_VECTOR_UPDATE_MS = v;
                         updatePanel("dfVectorUpdateMs", v);
                     }}
                 />
@@ -1575,7 +1579,6 @@
             value={panel.dfInfluenceWeight ?? 1.0}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.DF_INFLUENCE_WEIGHT = v;
                 updatePanel("dfInfluenceWeight", v);
             }}
         />
@@ -1598,7 +1601,6 @@
                 GAME_CONFIG.TERRITORY_TRANSITION_MS}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.TERRITORY_TRANSITION_MS = v;
                 updatePanel("territoryTransitionMs", v);
             }}
         />
@@ -1609,21 +1611,20 @@
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">🔗 Corridor Sites</span><span class="val"
-                >{panel.dfCorridorEnabled ? "ON" : "OFF"}</span
+                >{(panel.dfCorridorEnabled ?? GAME_CONFIG.DF_CORRIDOR_ENABLED) ? "ON" : "OFF"}</span
             >
         </div>
         <input
             type="checkbox"
-            checked={panel.dfCorridorEnabled ?? false}
+            checked={panel.dfCorridorEnabled ?? GAME_CONFIG.DF_CORRIDOR_ENABLED}
             onchange={(e) => {
                 const v = (e.target as HTMLInputElement).checked;
-                GAME_CONFIG.DF_CORRIDOR_ENABLED = v;
                 updatePanel("dfCorridorEnabled", v);
             }}
         />
     </div>
 
-    {#if panel.dfCorridorEnabled}
+    {#if panel.dfCorridorEnabled ?? GAME_CONFIG.DF_CORRIDOR_ENABLED}
         <!-- Virtual Star Spacing mode: radio + slider side by side -->
         <div
             class="var-row"
@@ -1641,7 +1642,6 @@
                         checked={(panel.dfCorridorMode ?? "spacing") ===
                             "spacing"}
                         onchange={() => {
-                            GAME_CONFIG.DF_CORRIDOR_MODE = "spacing";
                             updatePanel("dfCorridorMode", "spacing");
                         }}
                         style="margin:0;width:14px;height:14px"
@@ -1665,7 +1665,6 @@
                     GAME_CONFIG.DF_CORRIDOR_SPACING}
                 oninput={(e) => {
                     const v = +(e.target as HTMLInputElement).value;
-                    GAME_CONFIG.DF_CORRIDOR_SPACING = v;
                     updatePanel("dfCorridorSpacing", v);
                 }}
             />
@@ -1688,7 +1687,6 @@
                         checked={(panel.dfCorridorMode ?? "spacing") ===
                             "count"}
                         onchange={() => {
-                            GAME_CONFIG.DF_CORRIDOR_MODE = "count";
                             updatePanel("dfCorridorMode", "count");
                         }}
                         style="margin:0;width:14px;height:14px"
@@ -1711,7 +1709,6 @@
                 value={panel.dfCorridorCount ?? GAME_CONFIG.DF_CORRIDOR_COUNT}
                 oninput={(e) => {
                     const v = +(e.target as HTMLInputElement).value;
-                    GAME_CONFIG.DF_CORRIDOR_COUNT = v;
                     updatePanel("dfCorridorCount", v);
                 }}
             />
@@ -1734,7 +1731,6 @@
                 value={panel.dfCorridorWeight ?? GAME_CONFIG.DF_CORRIDOR_WEIGHT}
                 oninput={(e) => {
                     const v = +(e.target as HTMLInputElement).value;
-                    GAME_CONFIG.DF_CORRIDOR_WEIGHT = v;
                     updatePanel("dfCorridorWeight", v);
                 }}
             />
@@ -1744,21 +1740,20 @@
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">✂️ Disconnect Buffer</span><span class="val"
-                >{panel.dfDisconnectEnabled ? "ON" : "OFF"}</span
+                >{(panel.dfDisconnectEnabled ?? GAME_CONFIG.DF_DISCONNECT_ENABLED) ? "ON" : "OFF"}</span
             >
         </div>
         <input
             type="checkbox"
-            checked={panel.dfDisconnectEnabled ?? false}
+            checked={panel.dfDisconnectEnabled ?? GAME_CONFIG.DF_DISCONNECT_ENABLED}
             onchange={(e) => {
                 const v = (e.target as HTMLInputElement).checked;
-                GAME_CONFIG.DF_DISCONNECT_ENABLED = v;
                 updatePanel("dfDisconnectEnabled", v);
             }}
         />
     </div>
 
-    {#if panel.dfDisconnectEnabled}
+    {#if panel.dfDisconnectEnabled ?? GAME_CONFIG.DF_DISCONNECT_ENABLED}
         <div class="var-row">
             <div class="row-top">
                 <span class="var-name">📏 Disconnect Distance</span><span
@@ -1776,7 +1771,6 @@
                     GAME_CONFIG.DF_DISCONNECT_DISTANCE}
                 oninput={(e) => {
                     const v = +(e.target as HTMLInputElement).value;
-                    GAME_CONFIG.DF_DISCONNECT_DISTANCE = v;
                     updatePanel("dfDisconnectDistance", v);
                 }}
             />
@@ -1801,7 +1795,6 @@
                     GAME_CONFIG.DF_DISCONNECT_WEIGHT}
                 oninput={(e) => {
                     const v = +(e.target as HTMLInputElement).value;
-                    GAME_CONFIG.DF_DISCONNECT_WEIGHT = v;
                     updatePanel("dfDisconnectWeight", v);
                 }}
             />
@@ -3076,3 +3069,5 @@
         color: #888;
     }
 </style>
+
+

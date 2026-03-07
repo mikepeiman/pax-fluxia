@@ -15,6 +15,7 @@
         LOG_CATEGORIES,
     } from "./settingsDefs";
     import { nudgeSliders } from "./settings/nudgeSliders";
+    import { setSetting } from "./settingsState";
     import {
         STORAGE_KEY,
         PANEL_STORAGE_KEY,
@@ -160,9 +161,7 @@
     let animLockModes = $state(loadAnimLockModes());
 
     function updatePanel(key: string, value: any) {
-        (panel as any)[key] = value;
-        savePanelSettings(panel);
-        applyPanelToConfig(panel);
+        panel = setSetting(panel, key, value, savePanelSettings);
     }
 
     function updateVisual(key: string, value: any) {

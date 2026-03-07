@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Settings Panel Data Definitions
  *
  * Pure data arrays extracted from GameSettingsPanel.svelte.
@@ -345,8 +345,11 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'modifiedVoronoiDisconnectDistance', configKey: 'MODIFIED_VORONOI_DISCONNECT_DISTANCE' },
     // Distance Field Territory (F-138)
     { panelKey: 'territoryDistanceField', configKey: 'TERRITORY_DISTANCE_FIELD' },
+    { panelKey: 'dfResolution', configKey: 'DF_RESOLUTION' },
+    { panelKey: 'dfBlur', configKey: 'DF_BLUR' },
+    { panelKey: 'dfEdgeFade', configKey: 'DF_EDGE_FADE' },
     { panelKey: 'dfAlpha', configKey: 'DF_ALPHA' },
-    { panelKey: 'dfHueShift', configKey: 'DF_HUE_SHIFT' },
+    { panelKey: 'dfHue', configKey: 'DF_HUE' },
     { panelKey: 'dfSaturation', configKey: 'DF_SATURATION' },
     { panelKey: 'dfLightness', configKey: 'DF_LIGHTNESS' },
     { panelKey: 'dfExpansion', configKey: 'DF_EXPANSION' },
