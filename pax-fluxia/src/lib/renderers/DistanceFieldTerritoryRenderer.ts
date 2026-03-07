@@ -45,6 +45,47 @@ interface LaneData {
     starBIdx: number;
 }
 
+type AlignmentContractStage = 'prebuild' | 'uniforms';
+
+interface AlignmentBounds {
+    minX: number;
+    minY: number;
+    maxX: number;
+    maxY: number;
+    width: number;
+    height: number;
+}
+
+interface AlignmentSample {
+    starId: string;
+    worldX: number;
+    worldY: number;
+    normalizedX: number;
+    normalizedY: number;
+}
+
+interface AlignmentDiagnosticsPayload {
+    stage: AlignmentContractStage;
+    world: AlignmentBounds;
+    content: AlignmentBounds;
+    mesh: AlignmentBounds;
+    padding: number;
+    expansion: number;
+    issues: string[];
+    samples: AlignmentSample[];
+}
+
+interface AlignmentContract {
+    contentMinX: number;
+    contentMinY: number;
+    diagnostics: AlignmentDiagnosticsPayload;
+}
+
+const DF_CONTENT_BOUNDS_PADDING = 80;
+const DF_ALIGNMENT_EPSILON = 0.5;
+const DF_ALIGNMENT_SAMPLE_LIMIT = 6;
+const DF_ALIGNMENT_HISTORY_LIMIT = 24;
+
 // Ã¢â€â‚¬Ã¢â€â‚¬ Shader Bit for Territory Distance Field Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 // Uses PIXI's compileHighShaderGlProgram() with shader bits.
 // MVP = uProjectionMatrix * uWorldTransformMatrix * modelMatrix
@@ -337,6 +378,10 @@ let laneCellSize = 50;
 // GPU pipeline
 let starDataTexture: PIXI.Texture | null = null;
 
+let latestAlignmentDiagnostics: AlignmentDiagnosticsPayload | null = null;
+let alignmentDiagnosticsHistory: AlignmentDiagnosticsPayload[] = [];
+let lastAlignmentIssueFp = '';
+
 
 // ============================================================================
 // Multi-Source Dijkstra Ã¢â‚¬â€ per-player distances (PRESERVED FROM V1)
@@ -493,6 +538,133 @@ function buildGeomFp(stars: StarState[]): string {
         fp += `${s.id}:${Math.round(s.x * 10)}:${Math.round(s.y * 10)}|`;
     }
     return fp;
+}
+
+function makeBounds(minX: number, minY: number, maxX: number, maxY: number): AlignmentBounds {
+    return {
+        minX,
+        minY,
+        maxX,
+        maxY,
+        width: maxX - minX,
+        height: maxY - minY,
+    };
+}
+
+function computeStarBounds(stars: StarState[]): AlignmentBounds {
+    if (stars.length === 0) {
+        return makeBounds(0, 0, 0, 0);
+    }
+
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    for (const s of stars) {
+        if (s.x < minX) minX = s.x;
+        if (s.y < minY) minY = s.y;
+        if (s.x > maxX) maxX = s.x;
+        if (s.y > maxY) maxY = s.y;
+    }
+
+    return makeBounds(minX, minY, maxX, maxY);
+}
+
+function pickAlignmentSamples(stars: StarState[], worldWidth: number, worldHeight: number): AlignmentSample[] {
+    if (stars.length === 0) return [];
+
+    const sorted = [...stars].sort((a, b) => a.id.localeCompare(b.id));
+    const stride = Math.max(1, Math.floor(sorted.length / DF_ALIGNMENT_SAMPLE_LIMIT));
+    const samples: AlignmentSample[] = [];
+
+    for (let i = 0; i < sorted.length && samples.length < DF_ALIGNMENT_SAMPLE_LIMIT; i += stride) {
+        const star = sorted[i];
+        samples.push({
+            starId: star.id,
+            worldX: star.x,
+            worldY: star.y,
+            normalizedX: worldWidth > 0 ? star.x / worldWidth : 0,
+            normalizedY: worldHeight > 0 ? star.y / worldHeight : 0,
+        });
+    }
+
+    return samples;
+}
+
+function buildAlignmentContract(
+    stars: StarState[],
+    worldWidth: number,
+    worldHeight: number,
+    stage: AlignmentContractStage,
+): AlignmentContract {
+    const padding = DF_CONTENT_BOUNDS_PADDING;
+    const edgeFade = GAME_CONFIG.DF_EDGE_FADE ?? 200;
+    const expansion = GAME_CONFIG.DF_EXPANSION ?? 0.10;
+    const issues: string[] = [];
+
+    const world = makeBounds(0, 0, worldWidth, worldHeight);
+    const starBounds = computeStarBounds(stars);
+    const content = stars.length > 0
+        ? makeBounds(
+            starBounds.minX - padding,
+            starBounds.minY - padding,
+            starBounds.maxX + padding,
+            starBounds.maxY + padding,
+        )
+        : makeBounds(0, 0, worldWidth, worldHeight);
+    const mesh = makeBounds(
+        -edgeFade - worldWidth * expansion,
+        -edgeFade - worldHeight * expansion,
+        worldWidth + edgeFade + worldWidth * expansion,
+        worldHeight + edgeFade + worldHeight * expansion,
+    );
+
+    if (!Number.isFinite(worldWidth) || !Number.isFinite(worldHeight) || worldWidth <= 0 || worldHeight <= 0) {
+        issues.push('world dimensions must be finite positive numbers');
+    }
+
+    if (stars.some((s) => !Number.isFinite(s.x) || !Number.isFinite(s.y))) {
+        issues.push('star positions must be finite numbers');
+    }
+
+    if (content.minX < mesh.minX - DF_ALIGNMENT_EPSILON || content.maxX > mesh.maxX + DF_ALIGNMENT_EPSILON
+        || content.minY < mesh.minY - DF_ALIGNMENT_EPSILON || content.maxY > mesh.maxY + DF_ALIGNMENT_EPSILON) {
+        issues.push('content bounds exceed mesh coverage after padding/expansion');
+    }
+
+    if (content.maxX > worldWidth + DF_ALIGNMENT_EPSILON || content.maxY > worldHeight + DF_ALIGNMENT_EPSILON) {
+        issues.push('content max exceeds world extent; check world-bounds mapping inputs');
+    }
+
+    const diagnostics: AlignmentDiagnosticsPayload = {
+        stage,
+        world,
+        content,
+        mesh,
+        padding,
+        expansion,
+        issues,
+        samples: pickAlignmentSamples(stars, worldWidth, worldHeight),
+    };
+
+    latestAlignmentDiagnostics = diagnostics;
+    alignmentDiagnosticsHistory.push(diagnostics);
+    if (alignmentDiagnosticsHistory.length > DF_ALIGNMENT_HISTORY_LIMIT) {
+        alignmentDiagnosticsHistory.shift();
+    }
+
+    const issueFp = issues.join('|');
+    if (issues.length > 0 && issueFp !== lastAlignmentIssueFp) {
+        console.warn(`[DF_ALIGN] ${issues.join('; ')}`, diagnostics);
+    }
+    lastAlignmentIssueFp = issueFp;
+
+    return {
+        contentMinX: content.minX,
+        contentMinY: content.minY,
+        diagnostics,
+    };
 }
 
 // ============================================================================
@@ -835,6 +1007,7 @@ function updateFilterUniforms(
     colorUtils: ColorUtils,
     worldWidth: number,
     worldHeight: number,
+    alignment: AlignmentContract,
 ): void {
     if (!cachedMeshShader) return;
 
@@ -861,15 +1034,9 @@ function updateFilterUniforms(
     u.uLightMult = GAME_CONFIG.DF_LIGHTNESS ?? 0.5;
     u.uInfluenceWeight = GAME_CONFIG.DF_INFLUENCE_WEIGHT ?? 1.0;
 
-    // Compute content min bounds for symmetric edge fade
-    let minX = Infinity, minY = Infinity;
-    for (const s of stars) {
-        if (s.x < minX) minX = s.x;
-        if (s.y < minY) minY = s.y;
-    }
-    const pad = 80; // Same padding as updateWorldBounds in GameCanvas
-    u.uContentMinX = stars.length > 0 ? minX - pad : 0;
-    u.uContentMinY = stars.length > 0 ? minY - pad : 0;
+    // Alignment contract owns content bounds so mesh/data/shader stay in one coordinate space.
+    u.uContentMinX = alignment.contentMinX;
+    u.uContentMinY = alignment.contentMinY;
     u.uSmoothing = GAME_CONFIG.DF_SMOOTHING ?? 30;
     u.uMinStarRadius = GAME_CONFIG.DF_MIN_STAR_RADIUS ?? 40;
     // Note: corridor/disconnect boosts are encoded per-site in the data texture,
@@ -942,6 +1109,13 @@ export function renderDistanceFieldTerritory(
     const metricChanged = cachedDistanceMetric !== metric;
     cachedDistanceMetric = metric;
 
+    const alignmentContract = buildAlignmentContract(stars, worldWidth, worldHeight, 'prebuild');
+    const hasInvalidWorld = alignmentContract.diagnostics.issues.includes('world dimensions must be finite positive numbers');
+    if (hasInvalidWorld) {
+        if (cachedMesh) cachedMesh.visible = false;
+        return;
+    }
+
     const geomFp = buildGeomFp(stars);
     const geomChanged = geomFp !== cachedGeomFp;
     if (geomChanged) {
@@ -1012,6 +1186,10 @@ export function renderDistanceFieldTerritory(
     cachedConfigFp = configFp;
 
     if (needsRebuild) {
+        if (alignmentContract.diagnostics.issues.length > 0) {
+            console.assert(false, '[DF_ALIGN] alignment contract issues detected before DF rebuild', alignmentContract.diagnostics);
+        }
+
         // Compute virtual sites (corridors + disconnects)
         const ownedStars = stars.filter(s => s.ownerId);
         let virtuals: VirtualSite[] = [];
@@ -1060,10 +1238,22 @@ export function renderDistanceFieldTerritory(
     if (cachedMeshShader) {
         cachedMeshShader.resources.territoryUniforms.uniforms.uMorphFactor = morphFactor;
     }
-    updateFilterUniforms(stars, colorUtils, worldWidth, worldHeight);
+    updateFilterUniforms(stars, colorUtils, worldWidth, worldHeight, alignmentContract);
 
     // —— Apply filter pipeline ——
     applyBlur();
+}
+
+// ============================================================================
+// Alignment Diagnostics
+// ============================================================================
+
+export function getDistanceFieldAlignmentDiagnostics(): AlignmentDiagnosticsPayload | null {
+    return latestAlignmentDiagnostics;
+}
+
+export function getDistanceFieldAlignmentDiagnosticsHistory(): AlignmentDiagnosticsPayload[] {
+    return [...alignmentDiagnosticsHistory];
 }
 
 // ============================================================================
@@ -1098,5 +1288,8 @@ export function resetDistanceFieldTerritoryCache(): void {
     cachedBlurStrength = -1;
     laneArray = [];
     laneCells = new Map();
+    latestAlignmentDiagnostics = null;
+    alignmentDiagnosticsHistory = [];
+    lastAlignmentIssueFp = '';
 }
 
