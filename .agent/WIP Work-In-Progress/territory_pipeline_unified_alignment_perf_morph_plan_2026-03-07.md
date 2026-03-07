@@ -168,3 +168,11 @@ Acceptance:
 
 ## Immediate Next Action
 Start Step 1 implementation in `DistanceFieldTerritoryRenderer.ts` and related callsites.
+
+## Progress Update (2026-03-07)
+- Implemented ownership snapshot contract for vector borders in DistanceFieldTerritoryRenderer.ts.
+- Added explicit snapshot IDs to vector build jobs and render context, plus stale-job publish guard.
+- Extended vector rebuild fingerprint to include influence/min-star-radius and player ID ordering.
+- Added clear inline comments for future maintainers/agents around the fill/border snapshot lock semantics.
+- Gated high-volume DF debug logs behind DF_DEBUG_LOGS=false to reduce runtime overhead.
+- Reset path now clears vector published snapshot state to avoid stale carryover after cache resets.

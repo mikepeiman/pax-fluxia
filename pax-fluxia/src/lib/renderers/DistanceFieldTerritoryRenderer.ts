@@ -166,6 +166,9 @@ interface VectorBorderPolyline {
 }
 
 interface VectorBorderBuildJob {
+    // Snapshot identity captured when this chunked job is created.
+    // If the ownership snapshot changes mid-build, this job must never publish.
+    ownershipSnapshotId: string;
     staticFp: string;
     gridW: number;
     gridH: number;
@@ -191,6 +194,7 @@ interface BorderFamilyRenderContext {
     dist: number[][];
     prevDistArr: number[][] | null;
     playerIds: string[];
+    ownershipSnapshotId: string;
     morphFactor: number;
     now: number;
     forceRebuild: boolean;
@@ -216,6 +220,7 @@ const DF_VECTOR_MORPH_MIN_UPDATE_MS = 16;
 const DF_VECTOR_MORPH_HEAVY_MIN_UPDATE_MS = 66;
 const DF_VECTOR_ADAPTIVE_OPS_PER_MS = 140000;
 const DF_VECTOR_REBUILD_BUDGET_MS = 2.0;
+const DF_DEBUG_LOGS = false;
 
 // ============================================================================
 // Shader Bit: Territory Distance Field (single-pass fill + optional inline border)
@@ -974,6 +979,8 @@ let cachedVectorBorderGraphics: PIXI.Graphics | null = null;
 let cachedVectorBorderFingerprint = '';
 let cachedVectorBorderLastBuildMs = 0;
 let cachedVectorBuildJob: VectorBorderBuildJob | null = null;
+// Identity of the last border geometry actually drawn to screen.
+let cachedVectorPublishedSnapshotId = '';
 let warnedCurvedBorderFamilyFallback = false;
 let warnedSegmentedBorderFamilyFallback = false;
 
@@ -1798,6 +1805,7 @@ function extractVectorBorderPolylines(
 }
 function hideVectorBorderOverlay(): void {
     cachedVectorBuildJob = null;
+    cachedVectorPublishedSnapshotId = '';
     if (cachedVectorBorderGraphics) {
         cachedVectorBorderGraphics.visible = false;
     }
@@ -1831,6 +1839,7 @@ function renderBorderFamilyOverlay(family: BorderFamilyId, ctx: BorderFamilyRend
         ctx.dist,
         ctx.prevDistArr,
         ctx.playerIds,
+        ctx.ownershipSnapshotId,
         ctx.morphFactor,
         ctx.now,
         ctx.forceRebuild,
@@ -1890,6 +1899,8 @@ function renderVectorBorderOverlay(
     dist: number[][],
     prevDistArr: number[][] | null,
     playerIds: string[],
+    // Ownership snapshot contract: vector borders and DF fills must derive from the same data snapshot.
+    ownershipSnapshotId: string,
     morphFactor: number,
     now: number,
     forceRebuild: boolean,
@@ -1915,11 +1926,18 @@ function renderVectorBorderOverlay(
     const updateMs = Math.max(0, GAME_CONFIG.DF_VECTOR_UPDATE_MS ?? 33);
     const estimatedSiteCount = Math.max(1, stars.length + virtualSites.length);
     const effectiveUpdateMs = computeAdaptiveVectorUpdateMs(updateMs, gridW, gridH, estimatedSiteCount, morphFactor);
+    const influenceWeight = GAME_CONFIG.DF_INFLUENCE_WEIGHT ?? 1.0;
+    const minStarRadius = GAME_CONFIG.DF_MIN_STAR_RADIUS ?? 0;
 
     const staticFp = `${cachedGeometryFp}:${cachedTopologyFp}:${cachedRenderOriginX}:${cachedRenderOriginY}:${extentW}:${extentH}:`
-        + `${borderWidth}:${borderSoftness}:${borderAlpha}:${GAME_CONFIG.DF_BORDER_BRIGHTEN}:${gridW}:${gridH}:${straightnessPasses}:${simplifyTolerance}`;
+        + `${borderWidth}:${borderSoftness}:${borderAlpha}:${GAME_CONFIG.DF_BORDER_BRIGHTEN}:${gridW}:${gridH}:${straightnessPasses}:${simplifyTolerance}:`
+        + `${influenceWeight}:${minStarRadius}:${playerIds.join(',')}`;
     const intervalDue = morphFactor > 0 && (now - cachedVectorBorderLastBuildMs >= effectiveUpdateMs);
-    const needsRebuild = forceRebuild || staticFp !== cachedVectorBorderFingerprint || intervalDue || !cachedVectorBorderGraphics;
+    const needsRebuild = forceRebuild
+        || staticFp !== cachedVectorBorderFingerprint
+        || intervalDue
+        || !cachedVectorBorderGraphics
+        || cachedVectorPublishedSnapshotId !== ownershipSnapshotId;
 
     if (!needsRebuild) {
         if (cachedVectorBorderGraphics && !cachedVectorBorderGraphics.parent) {
@@ -1931,11 +1949,9 @@ function renderVectorBorderOverlay(
         return;
     }
 
-    const influenceWeight = GAME_CONFIG.DF_INFLUENCE_WEIGHT ?? 1.0;
-    const minStarRadius = GAME_CONFIG.DF_MIN_STAR_RADIUS ?? 0;
-
     const canReuseBuildJob = Boolean(
         cachedVectorBuildJob
+        && cachedVectorBuildJob.ownershipSnapshotId === ownershipSnapshotId
         && cachedVectorBuildJob.staticFp === staticFp
         && cachedVectorBuildJob.gridW === gridW
         && cachedVectorBuildJob.gridH === gridH
@@ -1953,6 +1969,7 @@ function renderVectorBorderOverlay(
         }
 
         cachedVectorBuildJob = {
+            ownershipSnapshotId,
             staticFp,
             gridW,
             gridH,
@@ -1975,6 +1992,16 @@ function renderVectorBorderOverlay(
     }
 
     cachedVectorBuildJob.morphFactor = morphFactor;
+    cachedVectorBuildJob.influenceWeight = influenceWeight;
+    cachedVectorBuildJob.minStarRadius = minStarRadius;
+
+    // Guard against stale async/chunked job completion.
+    if (cachedVectorBuildJob.ownershipSnapshotId !== ownershipSnapshotId) {
+        cachedVectorBuildJob = null;
+        cachedVectorPublishedSnapshotId = '';
+        if (cachedVectorBorderGraphics) cachedVectorBorderGraphics.visible = false;
+        return;
+    }
 
     const rebuildBudgetMs = DF_VECTOR_REBUILD_BUDGET_MS;
     const buildCompleted = stepVectorBorderBuildJob(cachedVectorBuildJob, rebuildBudgetMs);
@@ -2060,6 +2087,7 @@ function renderVectorBorderOverlay(
     cachedVectorBuildJob = null;
     cachedVectorBorderFingerprint = staticFp;
     cachedVectorBorderLastBuildMs = now;
+    cachedVectorPublishedSnapshotId = ownershipSnapshotId;
 }
 function makeBounds(minX: number, minY: number, maxX: number, maxY: number): AlignmentBounds {
     return {
@@ -2384,7 +2412,7 @@ function buildStarDataTexture(
     totalPackedStars = nRealStars + nVirtual;
 
     // DEBUG: Verify star position encoding roundtrip
-    if (nRealStars > 0) {
+    if (DF_DEBUG_LOGS && nRealStars > 0) {
         for (let i = 0; i < Math.min(3, nRealStars); i++) {
             const row0 = (0 * texW + i) * 4;
             const bytes = [starDataBuffer[row0], starDataBuffer[row0 + 1], starDataBuffer[row0 + 2], starDataBuffer[row0 + 3]];
@@ -3192,6 +3220,8 @@ export function renderDistanceFieldTerritory(
         const forceVectorRebuild = changeClassification.geometryChanged
             || changeClassification.topologyChanged
             || changeClassification.visualChanged;
+        // Ownership snapshot contract key shared with vector border extraction.
+        const ownershipSnapshotId = `${changeClassification.geometryFp}|${changeClassification.topologyFp}|${currentPlayerIds.join(',')}|${canonicalStars.length + activeVirtualSites.length}`;
         renderBorderFamilyOverlay(borderFamily, {
             container,
             colorUtils,
@@ -3200,6 +3230,7 @@ export function renderDistanceFieldTerritory(
             dist: currentDist,
             prevDistArr: prevDist,
             playerIds: currentPlayerIds,
+            ownershipSnapshotId,
             morphFactor,
             now,
             forceRebuild: forceVectorRebuild,
@@ -3332,6 +3363,7 @@ export function resetDistanceFieldTerritoryCache(): void {
     cachedVectorBorderFingerprint = '';
     cachedVectorBorderLastBuildMs = 0;
     cachedVectorBuildJob = null;
+    cachedVectorPublishedSnapshotId = '';
     laneArray = [];
     laneCells = new Map();
     latestAlignmentDiagnostics = null;
@@ -3349,3 +3381,4 @@ export function resetDistanceFieldTerritoryCache(): void {
     warnedCurvedBorderFamilyFallback = false;
     warnedSegmentedBorderFamilyFallback = false;
 }
+
