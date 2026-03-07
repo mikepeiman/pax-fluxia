@@ -1686,6 +1686,7 @@ function renderVectorBorderOverlay(
     forceRebuild: boolean,
 ): void {
     const borderWidth = GAME_CONFIG.DF_BORDER_WIDTH ?? 0;
+    const borderSoftness = GAME_CONFIG.DF_BORDER_SOFTNESS ?? 0;
     const borderAlpha = GAME_CONFIG.DF_BORDER_ALPHA ?? 0;
     if (borderWidth <= 0 || borderAlpha <= 0 || stars.length === 0 || playerIds.length === 0) {
         hideVectorBorderOverlay();
@@ -1704,7 +1705,7 @@ function renderVectorBorderOverlay(
     const updateMs = Math.max(0, GAME_CONFIG.DF_VECTOR_UPDATE_MS ?? 33);
 
     const staticFp = `${cachedGeometryFp}:${cachedTopologyFp}:${cachedRenderOriginX}:${cachedRenderOriginY}:${extentW}:${extentH}:`
-        + `${borderWidth}:${borderAlpha}:${GAME_CONFIG.DF_BORDER_BRIGHTEN}:${gridW}:${gridH}:${smoothIterations}:${simplifyTolerance}`;
+        + `${borderWidth}:${borderSoftness}:${borderAlpha}:${GAME_CONFIG.DF_BORDER_BRIGHTEN}:${gridW}:${gridH}:${smoothIterations}:${simplifyTolerance}`;
     const intervalDue = morphFactor > 0 && (now - cachedVectorBorderLastBuildMs >= updateMs);
     const needsRebuild = forceRebuild || staticFp !== cachedVectorBorderFingerprint || intervalDue || !cachedVectorBorderGraphics;
 
@@ -1786,6 +1787,22 @@ function renderVectorBorderOverlay(
         for (let i = 2; i < points.length; i += 2) {
             cachedVectorBorderGraphics.lineTo(points[i], points[i + 1]);
         }
+
+        if (borderSoftness > 0) {
+            cachedVectorBorderGraphics.stroke({
+                width: borderWidth + borderSoftness * 2,
+                color: strokeColor,
+                alpha: Math.max(0, borderAlpha * 0.35),
+                cap: 'round',
+                join: 'round',
+            } as any);
+
+            cachedVectorBorderGraphics.moveTo(points[0], points[1]);
+            for (let i = 2; i < points.length; i += 2) {
+                cachedVectorBorderGraphics.lineTo(points[i], points[i + 1]);
+            }
+        }
+
         cachedVectorBorderGraphics.stroke({
             width: borderWidth,
             color: strokeColor,
