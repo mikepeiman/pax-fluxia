@@ -73,3 +73,16 @@ Refactor settings/state flow to eliminate dual-write drift, fix transient DX beh
 - Straight-line border family is the first production target.
 - Theme/sub-theme compatibility is preserved via transactional `setManySettings`.
 - Work is committed as one commit per numbered implementation step.
+
+## Execution Status (2026-03-07)
+
+- [x] Step 1 completed (`c8a5b7c`)
+- [x] Step 2 completed (`09b8aeb`)
+- [x] Step 3 completed (`c1618c5`)
+- [x] Step 4 completed (`f0f9d54`)
+- [x] Step 5 completed (`03ab2f7`)
+- [x] Step 6 completed (pending commit in this step)
+
+### Carry-Forward Items
+- Curved and segmented border families are intentionally stubbed and currently fall back to straight mode.
+- User-side visual verification is still required for DX persistence and final border quality/performance acceptance.

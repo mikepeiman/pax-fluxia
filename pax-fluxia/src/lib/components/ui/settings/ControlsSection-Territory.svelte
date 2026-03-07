@@ -12,29 +12,14 @@
     let { panel, updatePanel, syncFromConfig }: Props = $props();
     import CategoryThemeBar from "./CategoryThemeBar.svelte";
 
-    // Debounce config writes to prevent expensive recomputation per slider pixel
-    const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
+    // Bridge compatibility: keep legacy call sites, route to panel writes only.
     function debouncedConfigUpdate(
-        configKey: string,
+        _configKey: string,
         panelKey: string,
         value: any,
-        delayMs = 100,
+        _delayMs = 100,
     ) {
-        // Update panel immediately for responsive UI
         updatePanel(panelKey, value);
-        // Debounce the config write that triggers recomputation
-        const existing = debounceTimers.get(configKey);
-        if (existing) clearTimeout(existing);
-        debounceTimers.set(
-            configKey,
-            setTimeout(() => {
-                if ((import.meta as any).env?.DEV) {
-                    console.warn(`[settings][guard] Direct UI write to GAME_CONFIG.${configKey}; prefer updatePanel-only flow.`);
-                }
-                (GAME_CONFIG as any)[configKey] = value;
-                debounceTimers.delete(configKey);
-            }, delayMs),
-        );
     }
 
     const TERRITORY_KEYS = [
@@ -47,17 +32,6 @@
         "territoryContour",
         "territoryDistanceField",
     ] as const;
-    const CONFIG_KEYS = [
-        "TERRITORY_VORONOI",
-        "TERRITORY_MODIFIED_VORONOI",
-        "TERRITORY_POWER_VORONOI",
-        "TERRITORY_METABALL",
-        "TERRITORY_PIXEL",
-        "TERRITORY_GRAPH",
-        "TERRITORY_CONTOUR",
-        "TERRITORY_DISTANCE_FIELD",
-    ] as const;
-
     function selectTerritory(
         chosen: (typeof TERRITORY_KEYS)[number],
         enabled: boolean,
@@ -66,13 +40,10 @@
             // Turn all off, then enable chosen exclusively
             for (let i = 0; i < TERRITORY_KEYS.length; i++) {
                 const isChosen = TERRITORY_KEYS[i] === chosen;
-                (GAME_CONFIG as any)[CONFIG_KEYS[i]] = isChosen;
                 updatePanel(TERRITORY_KEYS[i], isChosen);
             }
         } else {
             // Allow turning off without forcing another on
-            (GAME_CONFIG as any)[CONFIG_KEYS[TERRITORY_KEYS.indexOf(chosen)]] =
-                false;
             updatePanel(chosen, false);
         }
     }
@@ -246,7 +217,6 @@
                     GAME_CONFIG.TERRITORY_CLUSTER_SPLIT}
                 onchange={(e) => {
                     const v = (e.target as HTMLInputElement).checked;
-                    GAME_CONFIG.TERRITORY_CLUSTER_SPLIT = v;
                     updatePanel("territoryClusterSplit", v);
                 }}
             />
@@ -375,7 +345,6 @@
             checked={GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED}
             onchange={(e) => {
                 const v = (e.target as HTMLInputElement).checked;
-                GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED = v;
                 updatePanel("modifiedVoronoiCorridorEnabled", v);
             }}
         />
@@ -446,7 +415,6 @@
             checked={GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED}
             onchange={(e) => {
                 const v = (e.target as HTMLInputElement).checked;
-                GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED = v;
                 updatePanel("modifiedVoronoiCorridorEnabled", v);
             }}
         />
@@ -488,7 +456,6 @@
             checked={GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED}
             onchange={(e) => {
                 const v = (e.target as HTMLInputElement).checked;
-                GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED = v;
                 updatePanel("modifiedVoronoiDisconnectEnabled", v);
             }}
         />
@@ -712,7 +679,6 @@
             value={panel.graphSaturation ?? 1}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.GRAPH_SATURATION = v;
                 updatePanel("graphSaturation", v);
             }}
         />
@@ -731,7 +697,6 @@
             value={panel.graphLightness ?? 1}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.GRAPH_LIGHTNESS = v;
                 updatePanel("graphLightness", v);
             }}
         />
@@ -750,7 +715,6 @@
             value={panel.graphAlpha ?? 0.15}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.GRAPH_ALPHA = v;
                 updatePanel("graphAlpha", v);
             }}
         />
@@ -774,7 +738,6 @@
             value={panel.laneInfluence ?? 5}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.LANE_INFLUENCE = v;
                 updatePanel("laneInfluence", v);
             }}
         />
@@ -793,7 +756,6 @@
             value={panel.laneWidth ?? 60}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.LANE_WIDTH = v;
                 updatePanel("laneWidth", v);
             }}
         />
@@ -817,7 +779,6 @@
             value={panel.laneDirectFalloff ?? 1.0}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.LANE_DIRECT_FALLOFF = v;
                 updatePanel("laneDirectFalloff", v);
             }}
         />
@@ -836,7 +797,6 @@
             value={panel.graphResolution ?? 4}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.GRAPH_RESOLUTION = v;
                 updatePanel("graphResolution", v);
             }}
         />
@@ -855,7 +815,6 @@
             value={panel.graphBlur ?? 4}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.GRAPH_BLUR = v;
                 updatePanel("graphBlur", v);
             }}
         />
@@ -875,7 +834,6 @@
             value={panel.graphPressure ?? 0}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.GRAPH_PRESSURE = v;
                 updatePanel("graphPressure", v);
             }}
         />
@@ -894,7 +852,6 @@
             value={panel.graphEdgeFade ?? 120}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.GRAPH_EDGE_FADE = v;
                 updatePanel("graphEdgeFade", v);
             }}
         />
@@ -919,7 +876,6 @@
             value={panel.graphBorderWidth ?? 1}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.GRAPH_BORDER_WIDTH = v;
                 updatePanel("graphBorderWidth", v);
             }}
         />
@@ -938,7 +894,6 @@
             value={panel.graphBorderAlpha ?? 0.6}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.GRAPH_BORDER_ALPHA = v;
                 updatePanel("graphBorderAlpha", v);
             }}
         />
@@ -960,7 +915,6 @@
             value={panel.graphPattern ?? "none"}
             onchange={(e) => {
                 const v = (e.target as HTMLSelectElement).value as any;
-                GAME_CONFIG.GRAPH_PATTERN = v;
                 updatePanel("graphPattern", v);
             }}
         >
@@ -984,7 +938,6 @@
             value={panel.graphPatternScale ?? 14}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.GRAPH_PATTERN_SCALE = v;
                 updatePanel("graphPatternScale", v);
             }}
         />
@@ -1004,7 +957,6 @@
             value={panel.graphPatternRotation ?? 0}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.GRAPH_PATTERN_ROTATION = v;
                 updatePanel("graphPatternRotation", v);
             }}
         />
@@ -1026,7 +978,6 @@
             value={panel.borderFeel ?? "raw"}
             onchange={(e) => {
                 const v = (e.target as HTMLSelectElement).value as any;
-                GAME_CONFIG.BORDER_FEEL = v;
                 updatePanel("borderFeel", v);
             }}
         >
@@ -1055,7 +1006,6 @@
             disabled={(panel.borderFeel ?? "raw") === "raw"}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.BORDER_SMOOTH = v;
                 updatePanel("borderSmooth", v);
             }}
         />
@@ -1836,7 +1786,6 @@
             value={panel.contourSaturation ?? 1}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.CONTOUR_SATURATION = v;
                 updatePanel("contourSaturation", v);
             }}
         />
@@ -1855,7 +1804,6 @@
             value={panel.contourLightness ?? 1}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.CONTOUR_LIGHTNESS = v;
                 updatePanel("contourLightness", v);
             }}
         />
@@ -1874,7 +1822,6 @@
             value={panel.contourFillAlpha ?? 0.15}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.CONTOUR_FILL_ALPHA = v;
                 updatePanel("contourFillAlpha", v);
             }}
         />
@@ -1893,7 +1840,6 @@
             value={panel.contourResolution ?? 128}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.CONTOUR_RESOLUTION = v;
                 updatePanel("contourResolution", v);
             }}
         />
@@ -1917,7 +1863,6 @@
             value={panel.contourSimplify ?? 5}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.CONTOUR_SIMPLIFY = v;
                 updatePanel("contourSimplify", v);
             }}
         />
@@ -1941,7 +1886,6 @@
             value={panel.contourSmooth ?? 0}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.CONTOUR_SMOOTH = v;
                 updatePanel("contourSmooth", v);
             }}
         />
@@ -1966,7 +1910,6 @@
             value={panel.contourBorderWidth ?? 2}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.CONTOUR_BORDER_WIDTH = v;
                 updatePanel("contourBorderWidth", v);
             }}
         />
@@ -1985,7 +1928,6 @@
             value={panel.contourBorderAlpha ?? 0.6}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.CONTOUR_BORDER_ALPHA = v;
                 updatePanel("contourBorderAlpha", v);
             }}
         />
@@ -2010,7 +1952,6 @@
             value={panel.contourCornerRadius ?? 3}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.CONTOUR_CORNER_RADIUS = v;
                 updatePanel("contourCornerRadius", v);
             }}
         />
@@ -2029,7 +1970,6 @@
             value={panel.contourCornerThreshold ?? 120}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.CONTOUR_CORNER_THRESHOLD = v;
                 updatePanel("contourCornerThreshold", v);
             }}
         />
@@ -2054,7 +1994,6 @@
             value={panel.contourPeripheryStrength ?? 1}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.CONTOUR_PERIPHERY_STRENGTH = v;
                 updatePanel("contourPeripheryStrength", v);
             }}
         />
@@ -2073,7 +2012,6 @@
             value={panel.contourPeripheryInset ?? 0}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.CONTOUR_PERIPHERY_INSET = v;
                 updatePanel("contourPeripheryInset", v);
             }}
         />
@@ -2105,7 +2043,6 @@
             value={panel.contourJunctionCorrection ?? 50}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.CONTOUR_JUNCTION_CORRECTION = v;
                 updatePanel("contourJunctionCorrection", v);
             }}
         />
@@ -2131,7 +2068,6 @@
             value={panel.voronoiSaturation ?? 0.75}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.VORONOI_SATURATION = v;
                 updatePanel("voronoiSaturation", v);
             }}
         />
@@ -2150,7 +2086,6 @@
             value={panel.voronoiLightness ?? 0.75}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.VORONOI_LIGHTNESS = v;
                 updatePanel("voronoiLightness", v);
             }}
         />
@@ -2169,7 +2104,6 @@
             value={panel.voronoiAlpha}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.VORONOI_ALPHA = v;
                 updatePanel("voronoiAlpha", v);
             }}
         />
@@ -2188,7 +2122,6 @@
             value={panel.voronoiBlur}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.VORONOI_BLUR = v;
                 updatePanel("voronoiBlur", v);
             }}
         />
@@ -2207,7 +2140,6 @@
             value={panel.voronoiSmoothing}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.VORONOI_SMOOTHING = v;
                 updatePanel("voronoiSmoothing", v);
             }}
         />
@@ -2221,7 +2153,6 @@
                     checked={panel.voronoiGradientBlend}
                     onchange={(e) => {
                         const v = (e.target as HTMLInputElement).checked;
-                        GAME_CONFIG.VORONOI_GRADIENT_BLEND = v;
                         updatePanel("voronoiGradientBlend", v);
                     }}
                 />
@@ -2244,7 +2175,6 @@
             disabled={!panel.voronoiGradientBlend}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.VORONOI_BLEND_WIDTH = v;
                 updatePanel("voronoiBlendWidth", v);
             }}
         />
@@ -2270,7 +2200,6 @@
             value={panel.voronoiBorderWidth}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.VORONOI_BORDER_WIDTH = v;
                 updatePanel("voronoiBorderWidth", v);
             }}
         />
@@ -2289,7 +2218,6 @@
             value={panel.voronoiBorderAlpha}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.VORONOI_BORDER_ALPHA = v;
                 updatePanel("voronoiBorderAlpha", v);
             }}
         />
@@ -2308,7 +2236,6 @@
             value={panel.voronoiBorderBrighten}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.VORONOI_BORDER_BRIGHTEN = v;
                 updatePanel("voronoiBorderBrighten", v);
             }}
         />
@@ -2332,7 +2259,6 @@
             value={panel.pixelSaturation ?? 1}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.PIXEL_SATURATION = v;
                 updatePanel("pixelSaturation", v);
             }}
         />
@@ -2351,7 +2277,6 @@
             value={panel.pixelLightness ?? 1}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.PIXEL_LIGHTNESS = v;
                 updatePanel("pixelLightness", v);
             }}
         />
@@ -2370,7 +2295,6 @@
             value={panel.pixelAlpha ?? 0.15}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.PIXEL_ALPHA = v;
                 updatePanel("pixelAlpha", v);
             }}
         />
@@ -2389,7 +2313,6 @@
             value={panel.pixelResolution ?? 4}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.PIXEL_RESOLUTION = v;
                 updatePanel("pixelResolution", v);
             }}
         />
@@ -2411,7 +2334,6 @@
             value={panel.pixelEdgeBlend ?? 0}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.PIXEL_EDGE_BLEND = v;
                 updatePanel("pixelEdgeBlend", v);
             }}
         />
@@ -2430,7 +2352,6 @@
             value={panel.pixelBlur ?? 4}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.PIXEL_BLUR = v;
                 updatePanel("pixelBlur", v);
             }}
         />
@@ -2458,7 +2379,6 @@
             value={panel.pixelCorridorBoost ?? 0.3}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.PIXEL_CORRIDOR_BOOST = v;
                 updatePanel("pixelCorridorBoost", v);
             }}
         />
@@ -2484,7 +2404,6 @@
             value={panel.pixelLaneConstrain ?? 0.5}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.PIXEL_LANE_CONSTRAIN = v;
                 updatePanel("pixelLaneConstrain", v);
             }}
         />
@@ -2510,7 +2429,6 @@
             value={panel.pixelPressure ?? 0}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.PIXEL_PRESSURE = v;
                 updatePanel("pixelPressure", v);
             }}
         />
@@ -2530,7 +2448,6 @@
             value={panel.pixelHueShift ?? 0}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.PIXEL_HUE_SHIFT = v;
                 updatePanel("pixelHueShift", v);
             }}
         />
@@ -2549,7 +2466,6 @@
             value={panel.pixelBorderWidth ?? 1}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.PIXEL_BORDER_WIDTH = v;
                 updatePanel("pixelBorderWidth", v);
             }}
         />
@@ -2568,7 +2484,6 @@
             value={panel.pixelBorderAlpha ?? 0.6}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.PIXEL_BORDER_ALPHA = v;
                 updatePanel("pixelBorderAlpha", v);
             }}
         />
@@ -2587,7 +2502,6 @@
             value={panel.pixelBorderBrighten ?? 80}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.PIXEL_BORDER_BRIGHTEN = v;
                 updatePanel("pixelBorderBrighten", v);
             }}
         />
@@ -2608,7 +2522,6 @@
                     | "stripes"
                     | "crosshatch"
                     | "dots";
-                GAME_CONFIG.PIXEL_PATTERN = v;
                 updatePanel("pixelPattern", v);
             }}
         >
@@ -2632,7 +2545,6 @@
             value={panel.pixelPatternScale ?? 4}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.PIXEL_PATTERN_SCALE = v;
                 updatePanel("pixelPatternScale", v);
             }}
         />
@@ -2652,7 +2564,6 @@
             value={panel.pixelPatternRotation ?? 1}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.PIXEL_PATTERN_ROTATION = v;
                 updatePanel("pixelPatternRotation", v);
             }}
         />
@@ -2671,7 +2582,6 @@
             value={panel.pixelEdgeFade ?? 200}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.PIXEL_EDGE_FADE = v;
                 updatePanel("pixelEdgeFade", v);
             }}
         />
@@ -2695,7 +2605,6 @@
             value={panel.metaballSaturation ?? 1}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.METABALL_SATURATION = v;
                 updatePanel("metaballSaturation", v);
             }}
         />
@@ -2714,7 +2623,6 @@
             value={panel.metaballLightness ?? 1}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.METABALL_LIGHTNESS = v;
                 updatePanel("metaballLightness", v);
             }}
         />
@@ -2733,7 +2641,6 @@
             value={panel.metaballRadius ?? 120}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.METABALL_INFLUENCE_RADIUS = v;
                 updatePanel("metaballRadius", v);
             }}
         />
@@ -2746,7 +2653,6 @@
                 value={panel.metaballFalloff ?? "inverse-square"}
                 onchange={(e) => {
                     const v = (e.target as HTMLSelectElement).value as any;
-                    GAME_CONFIG.METABALL_FALLOFF = v;
                     updatePanel("metaballFalloff", v);
                 }}
             >
@@ -2770,7 +2676,6 @@
             value={panel.metaballSharpness ?? 3.0}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.METABALL_BLEND_SHARPNESS = v;
                 updatePanel("metaballSharpness", v);
             }}
         />
@@ -2789,7 +2694,6 @@
             value={panel.metaballAlpha ?? 0.5}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.METABALL_ALPHA = v;
                 updatePanel("metaballAlpha", v);
             }}
         />
@@ -2815,7 +2719,6 @@
             value={panel.metaballCellSize ?? 8}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.METABALL_CELL_SIZE = v;
                 updatePanel("metaballCellSize", v);
             }}
         />
@@ -2834,7 +2737,6 @@
             value={panel.metaballThreshold ?? 0.05}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.METABALL_THRESHOLD = v;
                 updatePanel("metaballThreshold", v);
             }}
         />
@@ -2853,7 +2755,6 @@
             value={panel.metaballStrength ?? 1.0}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.METABALL_STRENGTH_MULT = v;
                 updatePanel("metaballStrength", v);
             }}
         />
@@ -2872,7 +2773,6 @@
             value={panel.metaballEdgeFade ?? 3.0}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.METABALL_EDGE_FADE = v;
                 updatePanel("metaballEdgeFade", v);
             }}
         />
@@ -2891,7 +2791,6 @@
             value={panel.metaballCoverage ?? 0.3}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.METABALL_COVERAGE = v;
                 updatePanel("metaballCoverage", v);
             }}
         />
@@ -2910,7 +2809,6 @@
             value={panel.metaballBlur ?? 4}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.METABALL_BLUR = v;
                 updatePanel("metaballBlur", v);
             }}
         />
@@ -2936,7 +2834,6 @@
             value={panel.metaballBorderWidth ?? 1.5}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.METABALL_BORDER_WIDTH = v;
                 updatePanel("metaballBorderWidth", v);
             }}
         />
@@ -2955,7 +2852,6 @@
             value={panel.metaballBorderAlpha ?? 0.6}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.METABALL_BORDER_ALPHA = v;
                 updatePanel("metaballBorderAlpha", v);
             }}
         />

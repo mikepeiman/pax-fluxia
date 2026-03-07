@@ -296,6 +296,8 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'graphPattern', configKey: 'GRAPH_PATTERN' },
     { panelKey: 'graphPatternScale', configKey: 'GRAPH_PATTERN_SCALE' },
     { panelKey: 'graphPatternRotation', configKey: 'GRAPH_PATTERN_ROTATION' },
+    { panelKey: 'borderFeel', configKey: 'BORDER_FEEL' },
+    { panelKey: 'borderSmooth', configKey: 'BORDER_SMOOTH' },
     { panelKey: 'laneInfluence', configKey: 'LANE_INFLUENCE' },
     { panelKey: 'laneWidth', configKey: 'LANE_WIDTH' },
     { panelKey: 'laneDirectFalloff', configKey: 'LANE_DIRECT_FALLOFF' },
