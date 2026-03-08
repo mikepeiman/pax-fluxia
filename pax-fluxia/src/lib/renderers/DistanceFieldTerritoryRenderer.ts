@@ -234,6 +234,9 @@ const DF_TWO_PASS_BORDERS_ENABLED = true;
 // - `field`: pass-2 boundary distance texture stroke (fast fallback)
 // - `geometry`: centerline-derived world-space strokes (canonical quality path)
 const DF_BORDER_RENDERER_CANONICAL: BorderRendererId = 'geometry';
+// Phase 1 recovery: canonical frontier wiring stays present but inactive until
+// published owner-grid snapshots and field contour grouping satisfy readiness checks.
+const DF_CANONICAL_FRONTIER_RUNTIME_MODE: 'disabled' | 'diagnostic' | 'production' = 'disabled';
 const DF_PASS1_GAP_SCALE = 512.0;
 const DF_PASS1_BASE_MAX_TEXTURE_DIM = 4096;
 const DF_PASS1_ABSOLUTE_MAX_TEXTURE_DIM = 8192;
@@ -1162,6 +1165,11 @@ let cachedVectorBuildJob: VectorBorderBuildJob | null = null;
 let cachedVectorPolylines: VectorBorderPolyline[] = [];
 // Identity of the last border geometry actually drawn to screen.
 let cachedVectorPublishedSnapshotId = '';
+interface PublishedOwnerGridSnapshot extends OwnerGridInfo {
+    ownershipSnapshotId: string;
+    geometryFingerprint: string;
+}
+let cachedPublishedOwnerGridSnapshot: PublishedOwnerGridSnapshot | null = null;
 interface StrokeMeshRecord {
     ownerA: number;
     ownerB: number;
@@ -2287,37 +2295,9 @@ function assertMeshCenterStrokeAlignment(
 }
 
 function renderMeshBorderOverlay(ctx: BorderFamilyRenderContext, alignmentContract: AlignmentContract): boolean {
-    // === Canonical frontier pipeline ===
-    // Build graph-native distance view from the renderer's cached Dijkstra result.
-    const graphView: GraphNativeDistanceView = {
-        distToPlayer: ctx.dist,
-        top2ByStar: ctx.top2ByStar,
-    };
-
-    // Build owner grid info from the cached vector build job (for Stage 2B field frontiers).
-    let ownerGridInfo: OwnerGridInfo | undefined;
-    if (cachedVectorBuildJob && cachedVectorBuildJob.ownerGrid.length > 0) {
-        ownerGridInfo = {
-            ownerGrid: cachedVectorBuildJob.ownerGrid,
-            gridW: cachedVectorBuildJob.gridW,
-            gridH: cachedVectorBuildJob.gridH,
-            originX: cachedVectorBuildJob.originX,
-            originY: cachedVectorBuildJob.originY,
-            extentW: cachedVectorBuildJob.extentW,
-            extentH: cachedVectorBuildJob.extentH,
-        };
-    }
-
-    // Use canonical frontier polylines (Stage 2A lane + Stage 2B field)
-    const canonicalPolylines = buildCanonicalFrontierPolylines(
-        ctx.stars,
-        ctx.connections,
-        graphView,
-        ownerGridInfo,
-    );
-
-    // Also run the legacy path to keep the owner grid warm for Stage 2B.
-    // This builds the ownerGrid that extractFieldFrontiersFromOwnerGrid uses.
+    // Always publish the legacy vector path first. Phase 1 recovery keeps mesh mode
+    // on the stable published legacy geometry until canonical frontier inputs satisfy
+    // explicit readiness checks.
     const legacyPathReady = renderVectorBorderOverlay(
         ctx.container,
         ctx.colorUtils,
@@ -2331,13 +2311,52 @@ function renderMeshBorderOverlay(ctx: BorderFamilyRenderContext, alignmentContra
         ctx.now,
         ctx.forceRebuild,
     );
-    // Hide the legacy Graphics strokes — we draw via mesh only.
+    // Hide the legacy Graphics strokes - we draw via mesh only.
     hideVectorBorderOverlay(false);
 
-    // Prefer legacy centerline polylines (they trace actual territory boundaries).
-    // Fall back to canonical frontier polylines only when legacy is empty.
-    const useLegacy = cachedVectorPolylines.length > 0;
-    const activePolylines = useLegacy ? cachedVectorPolylines : canonicalPolylines;
+    const hasPublishedLegacyPolylines = legacyPathReady
+        && cachedVectorPublishedSnapshotId === ctx.ownershipSnapshotId
+        && cachedVectorPolylines.length > 0;
+    const hasPublishedOwnerGridSnapshot = Boolean(
+        cachedPublishedOwnerGridSnapshot
+        && cachedPublishedOwnerGridSnapshot.ownershipSnapshotId === ctx.ownershipSnapshotId
+        && cachedPublishedOwnerGridSnapshot.geometryFingerprint === cachedVectorGeometryFingerprint
+        && !cachedVectorBuildJob,
+    );
+
+    let canonicalPolylines: FrontierPolyline[] = [];
+    let canonicalPolylineSetValid = false;
+    if (DF_CANONICAL_FRONTIER_RUNTIME_MODE !== 'disabled' && hasPublishedOwnerGridSnapshot) {
+        const graphView: GraphNativeDistanceView = {
+            distToPlayer: ctx.dist,
+            top2ByStar: ctx.top2ByStar,
+        };
+        const ownerGridInfo: OwnerGridInfo | undefined = cachedPublishedOwnerGridSnapshot
+            ? {
+                ownerGrid: cachedPublishedOwnerGridSnapshot.ownerGrid,
+                gridW: cachedPublishedOwnerGridSnapshot.gridW,
+                gridH: cachedPublishedOwnerGridSnapshot.gridH,
+                originX: cachedPublishedOwnerGridSnapshot.originX,
+                originY: cachedPublishedOwnerGridSnapshot.originY,
+                extentW: cachedPublishedOwnerGridSnapshot.extentW,
+                extentH: cachedPublishedOwnerGridSnapshot.extentH,
+            }
+            : undefined;
+
+        canonicalPolylines = buildCanonicalFrontierPolylines(
+            ctx.stars,
+            ctx.connections,
+            graphView,
+            ownerGridInfo,
+        );
+        canonicalPolylineSetValid = canonicalPolylines.length > 0;
+    }
+
+    const useCanonical = DF_CANONICAL_FRONTIER_RUNTIME_MODE === 'production'
+        && canonicalPolylineSetValid;
+    const activePolylines = useCanonical
+        ? canonicalPolylines
+        : (hasPublishedLegacyPolylines ? cachedVectorPolylines : []);
 
     if (activePolylines.length === 0) {
         hideStrokeMeshOverlay();
@@ -2677,6 +2696,7 @@ function renderVectorBorderOverlay(
         if (cachedVectorBuildJob.ownershipSnapshotId !== ownershipSnapshotId) {
             cachedVectorBuildJob = null;
             cachedVectorPublishedSnapshotId = '';
+            cachedPublishedOwnerGridSnapshot = null;
             if (cachedVectorBorderGraphics) cachedVectorBorderGraphics.visible = false;
             return false;
         }
@@ -2694,8 +2714,9 @@ function renderVectorBorderOverlay(
             return hasPublishedGeometry;
         }
 
+        const publishedOwnerGrid = new Int16Array(cachedVectorBuildJob.ownerGrid);
         cachedVectorPolylines = extractVectorBorderPolylines(
-            cachedVectorBuildJob.ownerGrid,
+            publishedOwnerGrid,
             gridW,
             gridH,
             cachedRenderOriginX,
@@ -2706,6 +2727,17 @@ function renderVectorBorderOverlay(
             straightnessPasses,
         );
 
+        cachedPublishedOwnerGridSnapshot = {
+            ownerGrid: publishedOwnerGrid,
+            gridW,
+            gridH,
+            originX: cachedRenderOriginX,
+            originY: cachedRenderOriginY,
+            extentW,
+            extentH,
+            ownershipSnapshotId,
+            geometryFingerprint: geometryFp,
+        };
         cachedVectorBuildJob = null;
         cachedVectorGeometryFingerprint = geometryFp;
         cachedVectorBorderLastBuildMs = now;
@@ -4272,6 +4304,7 @@ export function resetDistanceFieldTerritoryCache(): void {
     cachedVectorBuildJob = null;
     cachedVectorPolylines = [];
     cachedVectorPublishedSnapshotId = '';
+    cachedPublishedOwnerGridSnapshot = null;
     laneArray = [];
     laneCells = new Map();
     latestAlignmentDiagnostics = null;
@@ -4289,6 +4322,10 @@ export function resetDistanceFieldTerritoryCache(): void {
     warnedCurvedBorderFamilyFallback = false;
     warnedSegmentedBorderFamilyFallback = false;
 }
+
+
+
+
 
 
 
