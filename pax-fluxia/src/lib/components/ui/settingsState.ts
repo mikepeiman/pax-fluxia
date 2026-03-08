@@ -102,3 +102,25 @@ export function setSettingsFromConfigPatch(
     persist(nextPanel);
     return nextPanel;
 }
+
+/**
+ * Read-only config->panel sync used by initialization and reload paths.
+ * Unlike setSettingsFromConfigPatch, this does not mutate GAME_CONFIG.
+ */
+export function syncPanelFromConfigPatch(
+    currentPanel: Record<string, any>,
+    configPatch: Record<string, unknown>,
+    persist: (panel: Record<string, any>) => void,
+): Record<string, any> {
+    const nextPanel = { ...currentPanel };
+    for (const [configKey, value] of Object.entries(configPatch)) {
+        if (value === undefined) continue;
+        const mapping = SETTINGS_BY_CONFIG_KEY.get(configKey);
+        if (!mapping) continue;
+        const panelValue =
+            mapping.transform === 'inverse' ? 1 / (value as number) : value;
+        nextPanel[mapping.panelKey] = panelValue;
+    }
+    persist(nextPanel);
+    return nextPanel;
+}

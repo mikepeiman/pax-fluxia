@@ -19,7 +19,7 @@
         LOG_CATEGORIES,
     } from "./settingsDefs";
     import { nudgeSliders } from "./settings/nudgeSliders";
-    import { setSetting, setSettingsFromConfigPatch } from "./settingsState";
+    import { setSetting, setSettingsFromConfigPatch, syncPanelFromConfigPatch } from "./settingsState";
     import {
         STORAGE_KEY,
         PANEL_STORAGE_KEY,
@@ -34,7 +34,6 @@
         loadPanelSettings,
         panelDefaultsFromConfig,
         savePanelSettings,
-        syncPanelFromConfig,
         loadAnimLockRatios,
         saveAnimLockRatios,
         loadAnimLockModes,
@@ -209,12 +208,9 @@
         animValues = nextAnimValues;
     }
 
-    function syncAllFromConfig(
+    function syncRuntimeViewsFromConfig(
         configSource: Record<string, any> = GAME_CONFIG as Record<string, any>,
     ) {
-        const nextPanel = syncPanelFromConfig(panel, configSource);
-        panel = nextPanel;
-        savePanelSettings(nextPanel);
         syncVisualsFromConfig(configSource);
         syncCombatValuesFromConfig(configSource);
         syncAnimValuesFromConfig(configSource);
@@ -223,9 +219,16 @@
         animationStore.setAnimationSpeed(configSource.ANIMATION_SPEED_MS);
     }
 
+    function syncAllFromConfig(
+        configSource: Record<string, any> = GAME_CONFIG as Record<string, any>,
+    ) {
+        panel = syncPanelFromConfigPatch(panel, configSource, savePanelSettings);
+        syncRuntimeViewsFromConfig(configSource);
+    }
+
     function applyConfigPatch(configPatch: Record<string, unknown>) {
         panel = setSettingsFromConfigPatch(panel, configPatch, savePanelSettings);
-        syncAllFromConfig();
+        syncRuntimeViewsFromConfig();
     }
 
     function applyThemeValues(valuesPatch: Record<string, number | string | boolean>) {
@@ -1866,6 +1869,10 @@
         border-color: rgba(74, 222, 128, 0.6);
     }
 </style>
+
+
+
+
 
 
 
