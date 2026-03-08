@@ -396,26 +396,42 @@ export function buildStrokeMeshGeometryBuffers(
     };
 }
 
-export function createStrokeMeshGeometry(
-    paths: FittedPath[],
-    options: StrokeMeshBuildOptions,
+export function createStrokeMeshGeometryFromBuffers(
+    buffers: StrokeMeshGeometryBuffers,
+    previousPositions?: Float32Array,
 ): PIXI.MeshGeometry {
-    const buffers = buildStrokeMeshGeometryBuffers(paths, options);
+    const prev = previousPositions && previousPositions.length === buffers.positions.length
+        ? previousPositions
+        : buffers.positions;
+
     return new PIXI.MeshGeometry({
         positions: buffers.positions,
+        aPrevPosition: new Float32Array(prev),
         aSide: buffers.side,
         indices: buffers.indices,
     });
+}
+
+export function createStrokeMeshGeometry(
+    paths: FittedPath[],
+    options: StrokeMeshBuildOptions,
+    previousPositions?: Float32Array,
+): PIXI.MeshGeometry {
+    const buffers = buildStrokeMeshGeometryBuffers(paths, options);
+    return createStrokeMeshGeometryFromBuffers(buffers, previousPositions);
 }
 
 const strokeMeshBitGl = {
     name: 'stroke-mesh-border-bit',
     vertex: {
         header: /* glsl */ `
+            in vec2 aPrevPosition;
             in float aSide;
+            uniform float uMorphMix;
             out float vSideAbs;
         `,
         main: /* glsl */ `
+            position = mix(aPrevPosition, position, uMorphMix);
             vSideAbs = abs(aSide);
         `,
     },
@@ -440,6 +456,7 @@ export interface StrokeMeshShaderOptions {
     alpha: number;
     width: number;
     softness: number;
+    morphMix?: number;
 }
 
 export function createStrokeMeshShader(options: StrokeMeshShaderOptions): PIXI.Shader {
@@ -461,6 +478,7 @@ export function createStrokeMeshShader(options: StrokeMeshShaderOptions): PIXI.S
                 uStrokeColor: new Float32Array(options.color),
                 uStrokeAlpha: options.alpha,
                 uInnerSide: innerSide,
+                uMorphMix: Math.max(0, Math.min(1, options.morphMix ?? 1)),
             },
         },
     });

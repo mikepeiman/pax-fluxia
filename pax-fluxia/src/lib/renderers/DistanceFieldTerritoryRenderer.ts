@@ -31,7 +31,7 @@ import type { StarState, StarConnection } from '$lib/types/game.types';
 import type { ColorUtils } from './RenderContext';
 import { computeCorridorVirtuals, computeDisconnectVirtuals, type VirtualSite } from './territoryFeatures';
 import { buildCenterlineGraphsFromOwnerGrid, type CenterlineGraphPair } from './centerlineGraph';
-import { createStrokeMeshGeometry, createStrokeMeshShader, type FittedPath } from './strokeMeshBorders';
+import { buildStrokeMeshGeometryBuffers, createStrokeMeshGeometryFromBuffers, createStrokeMeshShader, type FittedPath } from './strokeMeshBorders';
 
 
 // ============================================================================
@@ -1162,10 +1162,16 @@ let cachedVectorPublishedSnapshotId = '';
 interface StrokeMeshRecord {
     ownerA: number;
     ownerB: number;
+    pairKey: string;
     mesh: PIXI.Mesh;
+    positions: Float32Array;
+    hasMorphSource: boolean;
 }
 let cachedStrokeMeshContainer: PIXI.Container | null = null;
 let cachedStrokeMeshRecords: StrokeMeshRecord[] = [];
+let cachedStrokeMeshFallbackGraphics: PIXI.Graphics | null = null;
+let cachedStrokeMeshFallbackPairFingerprint = '';
+let cachedStrokeMeshFallbackStyleFingerprint = '';
 let cachedStrokeMeshGeometryFingerprint = '';
 let cachedStrokeMeshStyleFingerprint = '';
 let warnedCurvedBorderFamilyFallback = false;
@@ -2046,6 +2052,7 @@ function hideVectorBorderOverlay(resetBuildState = true): void {
 
 function hideStrokeMeshOverlay(): void {
     if (cachedStrokeMeshContainer) cachedStrokeMeshContainer.visible = false;
+    if (cachedStrokeMeshFallbackGraphics) cachedStrokeMeshFallbackGraphics.visible = false;
 }
 
 function destroyStrokeMeshOverlay(): void {
@@ -2057,11 +2064,19 @@ function destroyStrokeMeshOverlay(): void {
         cachedStrokeMeshContainer.destroy();
         cachedStrokeMeshContainer = null;
     }
+    if (cachedStrokeMeshFallbackGraphics) {
+        if (cachedStrokeMeshFallbackGraphics.parent) {
+            cachedStrokeMeshFallbackGraphics.parent.removeChild(cachedStrokeMeshFallbackGraphics);
+        }
+        cachedStrokeMeshFallbackGraphics.destroy();
+        cachedStrokeMeshFallbackGraphics = null;
+    }
     cachedStrokeMeshRecords = [];
+    cachedStrokeMeshFallbackPairFingerprint = '';
+    cachedStrokeMeshFallbackStyleFingerprint = '';
     cachedStrokeMeshGeometryFingerprint = '';
     cachedStrokeMeshStyleFingerprint = '';
 }
-
 
 function normalizeBorderFamily(rawFamily: unknown): BorderFamilyId {
     if (rawFamily === 'curved' || rawFamily === 'segmented' || rawFamily === 'straight') return rawFamily;
@@ -2153,6 +2168,75 @@ function computePairStrokeColorRgb(
     return [r / 255, g / 255, b / 255];
 }
 
+function buildOwnerPairKey(ownerA: number, ownerB: number): string {
+    return ownerA < ownerB ? `${ownerA}|${ownerB}` : `${ownerB}|${ownerA}`;
+}
+
+function drawVectorPolylines(
+    graphics: PIXI.Graphics,
+    polylines: VectorBorderPolyline[],
+    colorUtils: ColorUtils,
+    playerIds: string[],
+    borderWidth: number,
+    borderSoftness: number,
+    borderAlpha: number,
+    borderBrighten: number,
+    pairFilter?: Set<string>,
+): number {
+    let drawnCount = 0;
+
+    for (const polyline of polylines) {
+        const pairKey = buildOwnerPairKey(polyline.ownerA, polyline.ownerB);
+        if (pairFilter && !pairFilter.has(pairKey)) continue;
+
+        const ownerAId = playerIds[polyline.ownerA];
+        const ownerBId = playerIds[polyline.ownerB];
+        if (!ownerAId || !ownerBId) continue;
+
+        const colorA = colorUtils.getPlayerColor(ownerAId);
+        const colorB = colorUtils.getPlayerColor(ownerBId);
+        const r = Math.min(255, Math.round((((colorA >> 16) & 0xff) + ((colorB >> 16) & 0xff)) * 0.5 + borderBrighten));
+        const g = Math.min(255, Math.round((((colorA >> 8) & 0xff) + ((colorB >> 8) & 0xff)) * 0.5 + borderBrighten));
+        const b = Math.min(255, Math.round(((colorA & 0xff) + (colorB & 0xff)) * 0.5 + borderBrighten));
+        const strokeColor = (r << 16) | (g << 8) | b;
+
+        const points = polyline.points;
+        if (points.length < 4) continue;
+
+        graphics.moveTo(points[0], points[1]);
+        for (let i = 2; i < points.length; i += 2) {
+            graphics.lineTo(points[i], points[i + 1]);
+        }
+
+        if (borderSoftness > 0) {
+            graphics.stroke({
+                width: borderWidth + borderSoftness * 2,
+                color: strokeColor,
+                alpha: Math.max(0, borderAlpha * 0.35),
+                cap: 'round',
+                join: 'round',
+            } as any);
+
+            graphics.moveTo(points[0], points[1]);
+            for (let i = 2; i < points.length; i += 2) {
+                graphics.lineTo(points[i], points[i + 1]);
+            }
+        }
+
+        graphics.stroke({
+            width: borderWidth,
+            color: strokeColor,
+            alpha: borderAlpha,
+            cap: 'round',
+            join: 'round',
+        } as any);
+
+        drawnCount++;
+    }
+
+    return drawnCount;
+}
+
 function computeStrokeInnerSide(width: number, softness: number): number {
     const safeHalfWidth = Math.max(0, width * 0.5);
     const safeHalfExtent = Math.max(0.00001, safeHalfWidth + Math.max(0, softness));
@@ -2237,6 +2321,8 @@ function renderMeshBorderOverlay(ctx: BorderFamilyRenderContext, alignmentContra
     const borderSoftness = Math.max(0, GAME_CONFIG.DF_BORDER_SOFTNESS ?? 0);
     const borderAlpha = Math.max(0, GAME_CONFIG.DF_BORDER_ALPHA ?? 0);
     const borderBrighten = Math.max(0, GAME_CONFIG.DF_BORDER_BRIGHTEN ?? 0);
+    const morphMix = Math.max(0, Math.min(1, 1 - ctx.morphFactor));
+    const morphActive = ctx.morphFactor > 0.0001;
 
     const geometryFp = `${cachedVectorGeometryFingerprint}|w:${borderWidth.toFixed(3)}|s:${borderSoftness.toFixed(3)}`;
     const styleFp = `${cachedVectorStyleFingerprint}|a:${borderAlpha.toFixed(3)}|br:${borderBrighten.toFixed(3)}`;
@@ -2246,6 +2332,10 @@ function renderMeshBorderOverlay(ctx: BorderFamilyRenderContext, alignmentContra
         || cachedStrokeMeshRecords.length === 0;
 
     if (needsGeometryRebuild) {
+        const previousPositionsByPair = new Map<string, Float32Array>();
+        for (const record of cachedStrokeMeshRecords) {
+            previousPositionsByPair.set(record.pairKey, record.positions);
+        }
         for (const record of cachedStrokeMeshRecords) {
             if (record.mesh.parent) record.mesh.parent.removeChild(record.mesh);
             record.mesh.destroy();
@@ -2254,7 +2344,7 @@ function renderMeshBorderOverlay(ctx: BorderFamilyRenderContext, alignmentContra
 
         const grouped = new Map<string, VectorBorderPolyline[]>();
         for (const polyline of cachedVectorPolylines) {
-            const key = `${polyline.ownerA}|${polyline.ownerB}`;
+            const key = buildOwnerPairKey(polyline.ownerA, polyline.ownerB);
             const list = grouped.get(key) ?? [];
             list.push(polyline);
             grouped.set(key, list);
@@ -2283,22 +2373,42 @@ function renderMeshBorderOverlay(ctx: BorderFamilyRenderContext, alignmentContra
             }
             if (fittedPaths.length === 0) continue;
 
-            const geometry = createStrokeMeshGeometry(fittedPaths, {
+            const buffers = buildStrokeMeshGeometryBuffers(fittedPaths, {
                 width: borderWidth,
                 softness: borderSoftness,
                 miterLimit: 3,
             });
+            if (buffers.positions.length === 0 || buffers.indices.length === 0) continue;
+
+            const previousPositions = previousPositionsByPair.get(key);
+            const hasMorphSource = Boolean(previousPositions && previousPositions.length === buffers.positions.length);
+            const geometry = createStrokeMeshGeometryFromBuffers(
+                buffers,
+                hasMorphSource ? previousPositions : undefined,
+            );
+
             const rgb = computePairStrokeColorRgb(ctx.colorUtils, ctx.playerIds, ownerA, ownerB, borderBrighten);
             const shader = createStrokeMeshShader({
                 color: rgb,
                 alpha: borderAlpha,
                 width: borderWidth,
                 softness: borderSoftness,
+                morphMix: hasMorphSource ? morphMix : 1,
             });
+
             const mesh = new PIXI.Mesh({ geometry, shader }) as PIXI.Mesh;
             mesh.roundPixels = true;
             cachedStrokeMeshContainer.addChild(mesh);
-            cachedStrokeMeshRecords.push({ ownerA, ownerB, mesh });
+            cachedStrokeMeshRecords.push({
+                ownerA,
+                ownerB,
+                pairKey: key,
+                mesh,
+                positions: buffers.positions,
+                hasMorphSource,
+            });
+
+
         }
 
         cachedStrokeMeshGeometryFingerprint = geometryFp;
@@ -2307,12 +2417,20 @@ function renderMeshBorderOverlay(ctx: BorderFamilyRenderContext, alignmentContra
     }
 
     const needsStyleUpdate = cachedStrokeMeshStyleFingerprint !== styleFp;
-    if (needsStyleUpdate) {
-        const innerSide = computeStrokeInnerSide(borderWidth, borderSoftness);
+    const fallbackPairs = new Set<string>();
+    if (morphActive) {
         for (const record of cachedStrokeMeshRecords) {
+            if (!record.hasMorphSource) fallbackPairs.add(record.pairKey);
+        }
+    }
+
+    const innerSide = computeStrokeInnerSide(borderWidth, borderSoftness);
+    for (const record of cachedStrokeMeshRecords) {
+        const uniforms = (record.mesh.shader.resources as any)?.strokeMeshUniforms?.uniforms;
+        if (!uniforms) continue;
+
+        if (needsStyleUpdate) {
             const rgb = computePairStrokeColorRgb(ctx.colorUtils, ctx.playerIds, record.ownerA, record.ownerB, borderBrighten);
-            const uniforms = (record.mesh.shader.resources as any)?.strokeMeshUniforms?.uniforms;
-            if (!uniforms) continue;
             const colorUniform = uniforms.uStrokeColor as Float32Array;
             colorUniform[0] = rgb[0];
             colorUniform[1] = rgb[1];
@@ -2320,10 +2438,56 @@ function renderMeshBorderOverlay(ctx: BorderFamilyRenderContext, alignmentContra
             uniforms.uStrokeAlpha = borderAlpha;
             uniforms.uInnerSide = innerSide;
         }
+
+        uniforms.uMorphMix = record.hasMorphSource ? morphMix : 1;
+        record.mesh.visible = !fallbackPairs.has(record.pairKey);
+    }
+
+    if (needsStyleUpdate) {
         cachedStrokeMeshStyleFingerprint = styleFp;
     }
 
-    const hasVisibleMeshes = cachedStrokeMeshRecords.length > 0;
+    const fallbackPairFingerprint = [...fallbackPairs].sort((a, b) => a.localeCompare(b)).join(',');
+    if (fallbackPairs.size > 0) {
+        if (!cachedStrokeMeshFallbackGraphics) {
+            cachedStrokeMeshFallbackGraphics = new PIXI.Graphics();
+        }
+        if (!cachedStrokeMeshFallbackGraphics.parent) {
+            ctx.container.addChild(cachedStrokeMeshFallbackGraphics);
+        }
+
+        const fallbackStyleFp = `${styleFp}|pairs:${fallbackPairFingerprint}`;
+        const needsFallbackRedraw = cachedStrokeMeshFallbackStyleFingerprint !== fallbackStyleFp
+            || cachedStrokeMeshFallbackPairFingerprint !== fallbackPairFingerprint
+            || !cachedStrokeMeshFallbackGraphics.visible;
+
+        if (needsFallbackRedraw) {
+            cachedStrokeMeshFallbackGraphics.clear();
+            const drawn = drawVectorPolylines(
+                cachedStrokeMeshFallbackGraphics,
+                cachedVectorPolylines,
+                ctx.colorUtils,
+                ctx.playerIds,
+                borderWidth,
+                borderSoftness,
+                borderAlpha,
+                borderBrighten,
+                fallbackPairs,
+            );
+            cachedStrokeMeshFallbackGraphics.visible = drawn > 0;
+            cachedStrokeMeshFallbackPairFingerprint = fallbackPairFingerprint;
+            cachedStrokeMeshFallbackStyleFingerprint = fallbackStyleFp;
+        } else {
+            cachedStrokeMeshFallbackGraphics.visible = true;
+        }
+    } else if (cachedStrokeMeshFallbackGraphics) {
+        cachedStrokeMeshFallbackGraphics.visible = false;
+        cachedStrokeMeshFallbackPairFingerprint = '';
+        cachedStrokeMeshFallbackStyleFingerprint = '';
+    }
+
+    const hasVisibleMeshes = cachedStrokeMeshRecords.some((record) => record.mesh.visible)
+        || Boolean(cachedStrokeMeshFallbackGraphics?.visible);
     if (cachedStrokeMeshContainer) cachedStrokeMeshContainer.visible = hasVisibleMeshes;
     return hasVisibleMeshes;
 }
@@ -2533,50 +2697,16 @@ function renderVectorBorderOverlay(
 
     cachedVectorBorderGraphics.clear();
     const brighten = GAME_CONFIG.DF_BORDER_BRIGHTEN ?? 0;
-
-    for (const polyline of cachedVectorPolylines) {
-        const ownerAId = playerIds[polyline.ownerA];
-        const ownerBId = playerIds[polyline.ownerB];
-        if (!ownerAId || !ownerBId) continue;
-
-        const colorA = colorUtils.getPlayerColor(ownerAId);
-        const colorB = colorUtils.getPlayerColor(ownerBId);
-        const r = Math.min(255, Math.round((((colorA >> 16) & 0xff) + ((colorB >> 16) & 0xff)) * 0.5 + brighten));
-        const g = Math.min(255, Math.round((((colorA >> 8) & 0xff) + ((colorB >> 8) & 0xff)) * 0.5 + brighten));
-        const b = Math.min(255, Math.round(((colorA & 0xff) + (colorB & 0xff)) * 0.5 + brighten));
-        const strokeColor = (r << 16) | (g << 8) | b;
-
-        const points = polyline.points;
-        if (points.length < 4) continue;
-
-        cachedVectorBorderGraphics.moveTo(points[0], points[1]);
-        for (let i = 2; i < points.length; i += 2) {
-            cachedVectorBorderGraphics.lineTo(points[i], points[i + 1]);
-        }
-
-        if (borderSoftness > 0) {
-            cachedVectorBorderGraphics.stroke({
-                width: borderWidth + borderSoftness * 2,
-                color: strokeColor,
-                alpha: Math.max(0, borderAlpha * 0.35),
-                cap: 'round',
-                join: 'round',
-            } as any);
-
-            cachedVectorBorderGraphics.moveTo(points[0], points[1]);
-            for (let i = 2; i < points.length; i += 2) {
-                cachedVectorBorderGraphics.lineTo(points[i], points[i + 1]);
-            }
-        }
-
-        cachedVectorBorderGraphics.stroke({
-            width: borderWidth,
-            color: strokeColor,
-            alpha: borderAlpha,
-            cap: 'round',
-            join: 'round',
-        } as any);
-    }
+    drawVectorPolylines(
+        cachedVectorBorderGraphics,
+        cachedVectorPolylines,
+        colorUtils,
+        playerIds,
+        borderWidth,
+        borderSoftness,
+        borderAlpha,
+        brighten,
+    );
 
     cachedVectorStyleFingerprint = styleFp;
     cachedVectorBorderGraphics.visible = true;
