@@ -5,26 +5,67 @@
 - Super-sampling (`DF_BORDER_HQ`) improves quality but is too expensive for gameplay.
 - Requirement is explicit: clean, even-width, SVG-like borders with fluid morph support, without breaking ownership alignment.
 
+## Cross-Check With Research Note (`2026-03-07 territory render research.md`)
+
+### What We Keep From That Analysis
+- C+ core direction is correct: low-res ownership field as canonical truth + cheap fill/border passes.
+- Ping-pong ownership textures are the right morph primitive.
+- Ownership pass must be change-gated in steady state (not full recompute every frame).
+- Zoom-adaptive quality is required, but must be scoped to visible content to avoid runaway cost.
+
+### What We Adjust
+- We do **not** replace canonical borders with simple 4-neighbor edge detect as final solution; it is too grid-dependent for SVG-like quality.
+- We keep distance-based border masking (current field path) as a fallback while geometry borders are brought online.
+- We treat geometry borders as a first-class renderer over the same ownership snapshot contract, not a separate visual experiment.
+
 ## Non-Negotiable Constraints
 - Border and fill must remain in one coordinate contract (no drift).
 - Border must be center-stroked on the ownership interface.
 - Style updates (width/softness/alpha/color/blend) must be cheap and not force topology recompute.
 - Topology rebuilds only on geometry/topology deltas, not every frame.
 
-## Decision
-- Keep ownership-field fill as canonical source of truth.
-- Introduce a **geometry border pipeline** as the canonical border renderer (replacing texture-distance border rendering when enabled).
-- Geometry pipeline consumes ownership snapshots and emits stroke primitives in world space.
+## Direction to Success (Revised)
 
-## Border Families (Shared Contracts)
-- `straight`: piecewise linear segments, round joins/caps, even width.
-- `curved`: biarc/cubic fit over same centerline graph with deterministic error bounds.
-- `segmented`: quantized-angle line family for stylized "faceted" borders.
+### Track A: C+ Runtime Stabilization (Immediate)
+1. Ownership pass invalidation
+- Recompute ownership RT only on geometry/topology change and while morphing.
+- Visual-only slider edits update pass-2 uniforms only.
 
-All families share:
-- same centerline graph input,
-- same owner-pair color blend input,
-- same stroke width/softness/alpha/brighten controls.
+2. Ping-pong ownership textures
+- Maintain `prevOwnershipRT` and `currOwnershipRT`.
+- On ownership change: swap, render new current, start morph timer.
+
+3. Morph shading at texture level
+- Fill morph blends computed fill colors from prev/curr ownership textures.
+- Border morph blends prev/curr border masks similarly; do not decode owner from blended owner index.
+
+4. Adaptive RT sizing (viewport-scoped)
+- Scale ownership RT quality by zoom but cap by viewport dimensions and max budget.
+- Reallocate only when crossing hysteresis thresholds to avoid thrash.
+
+### Track B: Geometry Border Canonicalization (Primary Quality Goal)
+5. Centerline graph extraction from ownership snapshot
+- Build owner-pair boundary graph with sub-texel crossing localization.
+- Keep deterministic ordering and stable IDs for morph correspondence.
+
+6. Stroke mesh renderer (world-space)
+- Render even-width, round-join/cap border meshes in world space.
+- Style controls become material/uniform updates, not graph rebuilds.
+
+7. Border families over shared centerline
+- `straight`: constrained line fit with max-error.
+- `curved`: deterministic biarc/cubic fit.
+- `segmented`: angle-quantized fit.
+
+### Track C: Safety/Perf Controls
+8. Fallbacks and guards
+- If centerline extraction confidence drops locally, fallback to field border for that boundary fragment.
+- Keep canonical ownership fill active in all modes.
+
+9. Dirty-bucket invalidation
+- `topology`: rebuild graph + mesh.
+- `geometry-style`: rebuild fitter/mesh.
+- `visual-style`: uniforms only.
 
 ## Pipeline Architecture
 1. Ownership Snapshot (existing canonical pass)
@@ -68,11 +109,12 @@ All families share:
 
 ## Immediate Execution Steps
 1. Done: center-stroke correction in current field border path (half-width per side + boundary center bias).
-2. Implement centerline graph extraction from canonical ownership snapshot.
-3. Implement `straight` family fitter with deterministic error bounds.
-4. Implement stroke mesh builder and gate into canonical path.
-5. Add family switch plumbing (`straight/curved/segmented`) over shared graph contracts.
-6. Add curved/segmented fitters with same deterministic constraints.
+2. Implement ownership pass invalidation + ping-pong RT morph baseline.
+3. Implement viewport-scoped adaptive RT sizing and hysteresis.
+4. Implement centerline graph extraction from canonical ownership snapshot.
+5. Implement `straight` family fitter with deterministic error bounds.
+6. Implement stroke mesh builder and gate into canonical path.
+7. Add curved/segmented fitters with same deterministic contracts.
 
 ## Acceptance Criteria
 - Borders are visually centered on ownership interfaces at all zoom levels.
