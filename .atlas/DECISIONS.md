@@ -146,3 +146,5 @@
 
 
 - 2026-03-07: Territory borders in production now use GPU ownership-field two-pass rendering as canonical path; CPU vector overlay remains debug-only due non-zero divergence risk from simplify/straighten operations.
+
+- 2026-03-07: DF border width semantics changed to center-stroke (half-width per side) in both single-pass and canonical two-pass shaders; two-pass now subtracts half-texel boundary-center bias so the stroke centers on the ownership interface instead of sitting fully inside one territory.

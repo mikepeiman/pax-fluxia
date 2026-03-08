@@ -446,12 +446,13 @@ const territoryBitGl = {
                 if (enemyOwner >= 0 && uBorderWidth > 0.0) {
                     float gap = enemyInfluence - bestInfluence;
                     float borderMask = 0.0;
+                    float halfWidth = max(uBorderWidth * 0.5, 0.0);
 
                     if (uBorderMode == 0) {
                         // Mode 0: "Gap" — raw influence gap threshold (organic, variable width)
                         borderMask = 1.0 - smoothstep(
-                            max(uBorderWidth - uBorderSoftness, 0.0),
-                            uBorderWidth + uBorderSoftness,
+                            max(halfWidth - uBorderSoftness, 0.0),
+                            halfWidth + uBorderSoftness,
                             gap
                         );
                     } else if (uBorderMode == 1) {
@@ -459,8 +460,8 @@ const territoryBitGl = {
                         float gradMag = max(fwidth(bestInfluence), 0.5);
                         float normGap = gap / gradMag;
                         borderMask = 1.0 - smoothstep(
-                            max(uBorderWidth - uBorderSoftness, 0.0),
-                            uBorderWidth + uBorderSoftness,
+                            max(halfWidth - uBorderSoftness, 0.0),
+                            halfWidth + uBorderSoftness,
                             normGap
                         );
                     } else {
@@ -468,8 +469,8 @@ const territoryBitGl = {
                         float gradMag = max(fwidth(gap), 1.0);
                         float normGap = gap / gradMag;
                         borderMask = 1.0 - smoothstep(
-                            max(uBorderWidth - uBorderSoftness, 0.0),
-                            uBorderWidth + uBorderSoftness,
+                            max(halfWidth - uBorderSoftness, 0.0),
+                            halfWidth + uBorderSoftness,
                             normGap
                         );
                     }
@@ -887,11 +888,17 @@ const borderPassBitGl = {
             vec2 texelWorld = uRenderExtent / max(uBoundaryTexSize, vec2(1.0));
             float sd = length(deltaTex * texelWorld);
 
-            float inner = max(uBorderWidth - uBorderSoftness, 0.0);
-            float outer = uBorderWidth + uBorderSoftness;
+            // Seed points live on texel centers while the true ownership boundary
+            // lies between opposing texels. Subtract half-texel footprint to recenter.
+            float texelCenterBias = max(length(texelWorld) * 0.5, 0.0);
+            float centeredSd = max(sd - texelCenterBias, 0.0);
+            // Center-stroke contract: each side contributes half the width inward.
+            float halfWidth = max(uBorderWidth * 0.5, 0.0);
+            float inner = max(halfWidth - uBorderSoftness, 0.0);
+            float outer = halfWidth + uBorderSoftness;
             // Screen-space AA softens the border edge even when softness=0.
-            float aa = max(fwidth(sd), 0.0001);
-            float borderMask = 1.0 - smoothstep(inner - aa, outer + aa, sd);
+            float aa = max(fwidth(centeredSd), 0.0001);
+            float borderMask = 1.0 - smoothstep(inner - aa, outer + aa, centeredSd);
             if (borderMask <= 0.0) {
                 discard;
             }
