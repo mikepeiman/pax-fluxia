@@ -30,6 +30,7 @@ import { getSettingWrites, type SettingWriteTelemetry } from '$lib/config/settin
 import type { StarState, StarConnection } from '$lib/types/game.types';
 import type { ColorUtils } from './RenderContext';
 import { computeCorridorVirtuals, computeDisconnectVirtuals, type VirtualSite } from './territoryFeatures';
+import { buildCenterlineGraphsFromOwnerGrid, type CenterlineGraphPair } from './centerlineGraph';
 
 
 // ============================================================================
@@ -1884,80 +1885,6 @@ function linearizeOpenPolyline(points: number[], maxError: number): number[] {
     return deduped.length >= 4 ? deduped : points;
 }
 
-interface CenterlineGraphPair {
-    ownerA: number;
-    ownerB: number;
-    adjacency: Map<string, string[]>;
-}
-
-function buildCenterlineGraphsFromOwnerGrid(ownerGrid: Int16Array, gridW: number, gridH: number): CenterlineGraphPair[] {
-    type Edge = [number, number, number, number];
-    const pairEdges = new Map<string, Edge[]>();
-
-    const addPairEdge = (ownerA: number, ownerB: number, x1: number, y1: number, x2: number, y2: number) => {
-        if (ownerA < 0 || ownerB < 0 || ownerA === ownerB) return;
-        const a = Math.min(ownerA, ownerB);
-        const b = Math.max(ownerA, ownerB);
-        const key = `${a}|${b}`;
-        let edges = pairEdges.get(key);
-        if (!edges) {
-            edges = [];
-            pairEdges.set(key, edges);
-        }
-        edges.push([x1, y1, x2, y2]);
-    };
-
-    // Scan ownership lattice once and emit centerline edge samples between dissimilar neighboring owners.
-    for (let y = 0; y < gridH; y++) {
-        for (let x = 0; x < gridW; x++) {
-            const owner = ownerGrid[y * gridW + x];
-            if (owner < 0) continue;
-
-            if (x + 1 < gridW) {
-                const rightOwner = ownerGrid[y * gridW + x + 1];
-                if (rightOwner >= 0 && rightOwner !== owner) {
-                    addPairEdge(owner, rightOwner, x + 1, y, x + 1, y + 1);
-                }
-            }
-
-            if (y + 1 < gridH) {
-                const downOwner = ownerGrid[(y + 1) * gridW + x];
-                if (downOwner >= 0 && downOwner !== owner) {
-                    addPairEdge(owner, downOwner, x, y + 1, x + 1, y + 1);
-                }
-            }
-        }
-    }
-
-    const out: CenterlineGraphPair[] = [];
-    const sortedPairKeys = [...pairEdges.keys()].sort((a, b) => a.localeCompare(b));
-
-    for (const pairKey of sortedPairKeys) {
-        const edges = pairEdges.get(pairKey);
-        if (!edges || edges.length === 0) continue;
-
-        const [pairA, pairB] = pairKey.split('|').map(Number);
-        const adjacency = new Map<string, string[]>();
-
-        const addAdjacency = (from: string, to: string) => {
-            const list = adjacency.get(from) ?? [];
-            if (!list.includes(to)) list.push(to);
-            adjacency.set(from, list);
-        };
-
-        for (const [x1, y1, x2, y2] of edges) {
-            const v1 = `${x1},${y1}`;
-            const v2 = `${x2},${y2}`;
-            addAdjacency(v1, v2);
-            addAdjacency(v2, v1);
-        }
-
-        out.push({ ownerA: pairA, ownerB: pairB, adjacency });
-    }
-
-    return out;
-}
-
 function fitStraightPolylinesFromCenterlineGraphs(
     graphs: CenterlineGraphPair[],
     gridW: number,
@@ -1969,15 +1896,14 @@ function fitStraightPolylinesFromCenterlineGraphs(
     simplifyTolerance: number,
     straightnessPasses: number,
 ): VectorBorderPolyline[] {
-    const toWorldPoints = (path: string[]): number[] => {
+    const toWorldPoints = (path: string[], nodes: Map<string, { x: number; y: number }>): number[] => {
         const points: number[] = [];
-        for (const key of path) {
-            const [sx, sy] = key.split(',');
-            const vx = Number(sx);
-            const vy = Number(sy);
+        for (const nodeId of path) {
+            const node = nodes.get(nodeId);
+            if (!node) continue;
             points.push(
-                originX + (vx / gridW) * extentW,
-                originY + (vy / gridH) * extentH,
+                originX + (node.x / gridW) * extentW,
+                originY + (node.y / gridH) * extentH,
             );
         }
         return points;
@@ -1991,6 +1917,7 @@ function fitStraightPolylinesFromCenterlineGraphs(
         const adjacency = graph.adjacency;
         const usedEdges = new Set<string>();
         const edgeKey = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`);
+        const sortedVertices = [...adjacency.keys()].sort((a, b) => a.localeCompare(b));
 
         const consumePath = (start: string, next: string): string[] => {
             const path = [start, next];
@@ -2027,7 +1954,7 @@ function fitStraightPolylinesFromCenterlineGraphs(
             const uniquePath = isClosed ? path.slice(0, -1) : path;
             if (uniquePath.length < 2) return;
 
-            let worldPoints = toWorldPoints(uniquePath);
+            let worldPoints = toWorldPoints(uniquePath, graph.nodes);
             // Clamp straightening tolerance by grid-cell drift so geometry borders stay visually locked to fill ownership.
             const requestedTolerance = Math.max(0, simplifyTolerance);
             const baseTolerance = Math.min(requestedTolerance, maxAlignmentTolerance);
@@ -2049,7 +1976,8 @@ function fitStraightPolylinesFromCenterlineGraphs(
         };
 
         // Start from branching/junction vertices first so output paths are stable.
-        for (const [vertex, neighbors] of adjacency) {
+        for (const vertex of sortedVertices) {
+            const neighbors = adjacency.get(vertex) ?? [];
             if (neighbors.length === 2) continue;
             for (const neighbor of neighbors) {
                 const key = edgeKey(vertex, neighbor);
@@ -2058,7 +1986,8 @@ function fitStraightPolylinesFromCenterlineGraphs(
             }
         }
 
-        for (const [vertex, neighbors] of adjacency) {
+        for (const vertex of sortedVertices) {
+            const neighbors = adjacency.get(vertex) ?? [];
             for (const neighbor of neighbors) {
                 const key = edgeKey(vertex, neighbor);
                 if (usedEdges.has(key)) continue;
