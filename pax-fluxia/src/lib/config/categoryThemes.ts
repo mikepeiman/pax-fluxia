@@ -528,6 +528,13 @@ function persistPresets(category: ThemeCategory, presets: CategoryPreset[]): voi
 // Lazy-init cache
 const _cache = new Map<ThemeCategory, CategoryPreset[]>();
 
+type CategoryPresetApplyCallback = ((preset: CategoryPreset) => void) | null;
+let _applyPresetCallback: CategoryPresetApplyCallback = null;
+
+export function registerCategoryPresetApplyCallback(cb: CategoryPresetApplyCallback): void {
+    _applyPresetCallback = cb;
+}
+
 function getUserPresets(category: ThemeCategory): CategoryPreset[] {
     if (!_cache.has(category)) {
         _cache.set(category, loadPresets(category));
@@ -557,6 +564,10 @@ export function snapshotCategory(category: ThemeCategory): Record<string, unknow
  * Only touches keys belonging to the preset's category.
  */
 export function applyCategoryPreset(preset: CategoryPreset): void {
+    if (_applyPresetCallback) {
+        _applyPresetCallback(preset);
+        return;
+    }
     const allowedKeys = new Set(CATEGORY_KEYS[preset.category]);
     for (const [key, val] of Object.entries(preset.values)) {
         if (allowedKeys.has(key) && key in GAME_CONFIG) {
@@ -615,3 +626,4 @@ export function deleteCategoryPreset(category: ThemeCategory, name: string): voi
     _cache.set(category, presets);
     persistPresets(category, presets);
 }
+

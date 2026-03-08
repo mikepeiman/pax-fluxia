@@ -1,7 +1,11 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import { GAME_CONFIG } from "$lib/config/game.config";
+    import { DEFAULT_GAME_CONFIG, GAME_CONFIG } from "$lib/config/game.config";
     import { type GameTheme } from "$lib/config/themes";
+    import {
+        registerCategoryPresetApplyCallback,
+        type CategoryPreset,
+    } from "$lib/config/categoryThemes";
     import { themeStore } from "$lib/stores/themeStore.svelte";
     import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
     import { selectedStarStore } from "$lib/stores/selectedStarStore.svelte";
@@ -15,7 +19,7 @@
         LOG_CATEGORIES,
     } from "./settingsDefs";
     import { nudgeSliders } from "./settings/nudgeSliders";
-    import { setSetting } from "./settingsState";
+    import { setSetting, setSettingsFromConfigPatch } from "./settingsState";
     import {
         STORAGE_KEY,
         PANEL_STORAGE_KEY,
@@ -24,14 +28,12 @@
         TIER_STORAGE_KEY,
         loadCombatTuning,
         saveCombatTuning,
-        VISUAL_DEFAULTS,
         loadVisuals,
         saveVisuals,
         applyVisuals,
         loadPanelSettings,
         panelDefaultsFromConfig,
         savePanelSettings,
-        applyPanelToConfig,
         syncPanelFromConfig,
         loadAnimLockRatios,
         saveAnimLockRatios,
@@ -39,7 +41,6 @@
         saveAnimLockModes,
         loadTier,
         saveTier,
-        exportConfigJSON as exportConfigJSONBase,
         type AnimLockMode,
     } from "./panelSync";
     import ControlsSectionTiming from "./settings/ControlsSection-Timing.svelte";
@@ -97,6 +98,10 @@
         DENSITY_TIERS: GAME_CONFIG.DENSITY_TIERS,
     };
 
+    const PRISTINE_CONFIG_PATCH = Object.fromEntries(
+        Object.entries(DEFAULT_GAME_CONFIG).filter(([key]) => !key.startsWith("_")),
+    ) as Record<string, unknown>;
+
     // Default values — single source of truth for reset + disabled toggle state
 
     let enabled = $state({
@@ -130,23 +135,14 @@
     let savedValues = $state({ ...initialValues });
 
     onMount(() => {
-        Object.entries(values).forEach(([key, val]) => {
-            (GAME_CONFIG as any)[key] = val;
-        });
+        syncAllFromConfig();
+        themeStore.registerApplyCallback(applyThemeValues);
+        registerCategoryPresetApplyCallback(applyCategoryPresetValues);
 
-        // Push initial panel config to GAME_CONFIG
-        applyPanelToConfig(panel);
-
-        // Push timing values to active game stores
-        if (panel.tickInterval) {
-            activeGameStore.updateTickInterval(panel.tickInterval);
-        }
-        if (panel.animSpeed) {
-            animationStore.setAnimationSpeed(panel.animSpeed);
-        }
-
-        // Apply visual config (triggers 'pax-bg-change' if needed)
-        applyVisuals(vis);
+        return () => {
+            themeStore.registerApplyCallback(null);
+            registerCategoryPresetApplyCallback(null);
+        };
     });
 
     let tickInterval = $state(GAME_CONFIG.BASE_TICK_MS);
@@ -168,6 +164,76 @@
         (vis as any)[key] = value;
         saveVisuals(vis);
         applyVisuals(vis);
+    }
+
+    function syncVisualsFromConfig(
+        configSource: Record<string, any> = GAME_CONFIG as Record<string, any>,
+    ) {
+        const nextVis = {
+            ...vis,
+            laneWidth: configSource.CONNECTION_WIDTH,
+            laneAlpha: configSource.CONNECTION_ALPHA,
+            shadowWidth: configSource.CONNECTION_SHADOW_WIDTH,
+            shadowAlpha: configSource.CONNECTION_SHADOW_ALPHA,
+            bgImage: configSource.BG_IMAGE_URL,
+        };
+        vis = nextVis;
+        saveVisuals(nextVis);
+        applyVisuals(nextVis);
+    }
+
+    function syncCombatValuesFromConfig(
+        configSource: Record<string, any> = GAME_CONFIG as Record<string, any>,
+    ) {
+        const freshValues = { ...values };
+        for (const k of Object.keys(freshValues)) {
+            if (k in configSource) {
+                (freshValues as any)[k] = configSource[k];
+            }
+        }
+        values = freshValues;
+        savedValues = { ...freshValues };
+        transferRate = Math.round(((freshValues.TRANSFER_RATE ?? 0) as number) * 100);
+        saveCombatTuning(freshValues);
+    }
+
+    function syncAnimValuesFromConfig(
+        configSource: Record<string, any> = GAME_CONFIG as Record<string, any>,
+    ) {
+        const nextAnimValues = { ...animValues };
+        for (const slider of ANIM_SLIDERS) {
+            if (configSource[slider.key] !== undefined) {
+                nextAnimValues[slider.key] = configSource[slider.key] as number;
+            }
+        }
+        animValues = nextAnimValues;
+    }
+
+    function syncAllFromConfig(
+        configSource: Record<string, any> = GAME_CONFIG as Record<string, any>,
+    ) {
+        const nextPanel = syncPanelFromConfig(panel, configSource);
+        panel = nextPanel;
+        savePanelSettings(nextPanel);
+        syncVisualsFromConfig(configSource);
+        syncCombatValuesFromConfig(configSource);
+        syncAnimValuesFromConfig(configSource);
+        tickInterval = configSource.BASE_TICK_MS;
+        activeGameStore.updateTickInterval(configSource.BASE_TICK_MS);
+        animationStore.setAnimationSpeed(configSource.ANIMATION_SPEED_MS);
+    }
+
+    function applyConfigPatch(configPatch: Record<string, unknown>) {
+        panel = setSettingsFromConfigPatch(panel, configPatch, savePanelSettings);
+        syncAllFromConfig();
+    }
+
+    function applyThemeValues(valuesPatch: Record<string, number | string | boolean>) {
+        applyConfigPatch(valuesPatch);
+    }
+
+    function applyCategoryPresetValues(preset: CategoryPreset) {
+        applyConfigPatch(preset.values as Record<string, unknown>);
     }
 
     function setTier(tier: SettingsTier) {
@@ -346,7 +412,6 @@
                     return;
                 }
 
-                // Must be a plain object
                 if (!data || typeof data !== "object" || Array.isArray(data)) {
                     configStatus = "❌ Expected a JSON object with config keys";
                     configStatusColor = "#f87171";
@@ -359,75 +424,41 @@
                 let applied = 0;
                 let skipped = 0;
                 let typeErrors = 0;
+                const acceptedPatch: Record<string, unknown> = {};
 
                 for (const [k, v] of Object.entries(incoming)) {
                     if (!(k in cfg)) {
                         skipped++;
                         continue;
                     }
-                    // Type guard: only apply if types match
+
                     const existing = cfg[k];
                     if (
                         typeof existing === "number" &&
                         typeof v === "number" &&
                         isFinite(v)
                     ) {
-                        cfg[k] = v;
+                        acceptedPatch[k] = v;
                         applied++;
                     } else if (
                         typeof existing === "boolean" &&
                         typeof v === "boolean"
                     ) {
-                        cfg[k] = v;
+                        acceptedPatch[k] = v;
                         applied++;
                     } else if (
                         typeof existing === "string" &&
                         typeof v === "string"
                     ) {
-                        cfg[k] = v;
+                        acceptedPatch[k] = v;
                         applied++;
                     } else {
                         typeErrors++;
                     }
                 }
 
-                // Sync combat tuning values to localStorage + reactive state
-                const stored = loadCombatTuning(defaultValues);
-                for (const k of Object.keys(stored)) {
-                    if (
-                        k in incoming &&
-                        typeof incoming[k] === typeof (stored as any)[k]
-                    ) {
-                        (stored as any)[k] = incoming[k];
-                    }
-                }
-                saveCombatTuning(stored);
-                // Refresh reactive slider values
-                Object.assign(values, stored);
-
-                // Also persist visual settings if they exist
-                try {
-                    const visuals = localStorage.getItem(VISUALS_STORAGE_KEY);
-                    if (visuals) {
-                        const vObj = JSON.parse(visuals);
-                        let changed = false;
-                        for (const k of Object.keys(vObj)) {
-                            if (
-                                k in incoming &&
-                                typeof incoming[k] === typeof vObj[k]
-                            ) {
-                                vObj[k] = incoming[k];
-                                changed = true;
-                            }
-                        }
-                        if (changed)
-                            localStorage.setItem(
-                                VISUALS_STORAGE_KEY,
-                                JSON.stringify(vObj),
-                            );
-                    }
-                } catch {
-                    /* ignore */
+                if (applied > 0) {
+                    applyConfigPatch(acceptedPatch);
                 }
 
                 const parts = [`✅ ${applied} applied`];
@@ -439,21 +470,12 @@
                 configStatus = `❌ Import failed: ${(err as Error).message}`;
                 configStatusColor = "#f87171";
             }
-            // Reset input so same file can be re-imported
             input.value = "";
         };
         reader.readAsText(file);
     }
 
-    onMount(() => {
-        GAME_CONFIG.CONNECTION_WIDTH = vis.laneWidth;
-        GAME_CONFIG.CONNECTION_ALPHA = vis.laneAlpha;
-        GAME_CONFIG.CONNECTION_SHADOW_WIDTH = vis.shadowWidth;
-        GAME_CONFIG.CONNECTION_SHADOW_ALPHA = vis.shadowAlpha;
-        applyPanelToConfig(panel);
-        tickInterval = panel.tickInterval;
-        activeGameStore.updateTickInterval(panel.tickInterval);
-    });
+
 
     // =========================================================================
     // Tick-Ratio Locking — bind animation durations proportionally to tick
@@ -616,31 +638,24 @@
     }
 
     function resetToDefaults() {
-        panel = syncPanelFromConfig(panel);
-        applyPanelToConfig(panel);
         localStorage.removeItem(PANEL_STORAGE_KEY);
-        // Reset combat vars
-        variables.forEach((v) => {
-            const key = v.key as VarKey;
-            enabled = { ...enabled, [key]: true };
-            values = { ...values, [key]: defaultValues[key] };
-            savedValues = { ...savedValues, [key]: defaultValues[key] };
-            (GAME_CONFIG as any)[key] = defaultValues[key];
-        });
-        transferRate = defaultValues.TRANSFER_RATE;
-        GAME_CONFIG.TRANSFER_RATE = defaultValues.TRANSFER_RATE / 100;
-        aiVariables.forEach((v) => {
-            const key = v.key as VarKey;
-            enabled = { ...enabled, [key]: true };
-            values = { ...values, [key]: defaultValues[key] };
-            savedValues = { ...savedValues, [key]: defaultValues[key] };
-            (GAME_CONFIG as any)[key] = defaultValues[key];
-        });
-        saveCombatTuning(values);
-        // Reset timing
-        tickInterval = 1200;
-        activeGameStore.updateTickInterval(1200);
-        animationStore.setAnimationSpeed(1200);
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(VISUALS_STORAGE_KEY);
+        localStorage.removeItem(ANIM_LOCK_STORAGE_KEY);
+        localStorage.removeItem(ANIM_LOCK_STORAGE_KEY + "-modes");
+
+        enabled = Object.fromEntries(
+            Object.keys(enabled).map((key) => [key, true]),
+        ) as typeof enabled;
+        animLockRatios = {};
+        animLockModes = {};
+
+        panel = setSettingsFromConfigPatch(
+            panel,
+            PRISTINE_CONFIG_PATCH,
+            savePanelSettings,
+        );
+        syncAllFromConfig(DEFAULT_GAME_CONFIG as Record<string, any>);
     }
 
     // =========================================================================
@@ -652,194 +667,12 @@
     let fullSaveName = $state("");
     let fullSaveFlash = $state(false);
 
-    // Register syncAllFromConfig so the store can trigger it after theme apply
-    $effect(() => {
-        themeStore.registerSyncCallback(syncAllFromConfig);
-    });
 
     function handleApplyTheme(name: string) {
         themeStore.applyTheme(name);
         configStatus = `\u2705 Theme \"${name}\" applied`;
         configStatusColor = "#4ade80";
     }
-
-    /** After applyTheme writes to GAME_CONFIG, sync all reactive layers back */
-    function syncAllFromConfig() {
-        // 1. Sync panel (all fields read back from GAME_CONFIG)
-        panel = {
-            ...panel,
-            tickInterval: GAME_CONFIG.BASE_TICK_MS,
-            animSpeed: GAME_CONFIG.ANIMATION_SPEED_MS,
-            production: GAME_CONFIG.BASE_PRODUCTION,
-            repair: GAME_CONFIG.REPAIR_RATE,
-            defense: 1 / GAME_CONFIG.AGGRESSOR_ADVANTAGE,
-            globalDamage: GAME_CONFIG.GLOBAL_DAMAGE_MODIFIER,
-            arrowLength: GAME_CONFIG.ARROW_LENGTH_FRACTION,
-            departMode: GAME_CONFIG.DEPART_MODE,
-            settleDuration: GAME_CONFIG.SETTLE_DURATION_MS,
-            arrivalSpread: GAME_CONFIG.ARRIVAL_SPREAD,
-            wobbleAmp: GAME_CONFIG.WOBBLE_AMP,
-            travelEasing: GAME_CONFIG.TRAVEL_EASING,
-            travelMode: GAME_CONFIG.TRAVEL_MODE,
-            travelEasingPower: GAME_CONFIG.TRAVEL_EASING_POWER,
-            travelDurationMult: GAME_CONFIG.TRAVEL_DURATION_MULT,
-            travelArcIntensity: GAME_CONFIG.TRAVEL_ARC_INTENSITY,
-            departStagger: GAME_CONFIG.DEPART_STAGGER,
-            departArcIntensity: GAME_CONFIG.DEPART_ARC_INTENSITY,
-            arrivalArcIntensity: GAME_CONFIG.ARRIVAL_ARC_INTENSITY,
-            orbitDensity: GAME_CONFIG.ORBIT_DENSITY,
-            attackSurgeMult: GAME_CONFIG.ATTACK_SURGE_MULT,
-            attackSurgeProportional: GAME_CONFIG.ATTACK_SURGE_PROPORTIONAL,
-            attackSurgeForceCofactor: GAME_CONFIG.ATTACK_SURGE_FORCE_COFACTOR,
-            attackSurgeRampMs: GAME_CONFIG.ATTACK_SURGE_RAMP_MS,
-            attackSurgeShape: GAME_CONFIG.ATTACK_SURGE_SHAPE,
-            conquestTravelSpeed: GAME_CONFIG.CONQUEST_TRAVEL_SPEED,
-            conquestLerpDelayMs: GAME_CONFIG.CONQUEST_LERP_DELAY_MS,
-            conquestColorDelayTicks: GAME_CONFIG.CONQUEST_COLOR_DELAY_TICKS,
-            conquestFlashTicks: GAME_CONFIG.CONQUEST_FLASH_TICKS,
-            conquestAnimMode: GAME_CONFIG.CONQUEST_ANIMATION_MODE,
-            conquestSettleMs: GAME_CONFIG.CONQUEST_SETTLE_MS,
-            conquestSurgeRadius: GAME_CONFIG.CONQUEST_SURGE_RADIUS,
-            conquestSurgeStaggerMs: GAME_CONFIG.CONQUEST_SURGE_STAGGER_MS,
-            arrowTaper: GAME_CONFIG.ARROW_TAPER,
-            arrowWidth: GAME_CONFIG.ARROW_WIDTH,
-            arrowSpeed: GAME_CONFIG.ARROW_SPEED,
-            arrowEasing: GAME_CONFIG.ARROW_EASING,
-            arrowEngulfMode: GAME_CONFIG.ARROW_ENGULF_MODE,
-            arrowEngulfRadius: GAME_CONFIG.ARROW_ENGULF_RADIUS,
-            arrowSpiralMinDeg: GAME_CONFIG.ARROW_SPIRAL_MIN_DEG,
-            arrowSpiralMaxDeg: GAME_CONFIG.ARROW_SPIRAL_MAX_DEG,
-            arrowSpiralRandom: GAME_CONFIG.ARROW_SPIRAL_RANDOM,
-            arrowSpiralDurationMs: GAME_CONFIG.ARROW_SPIRAL_DURATION_MS,
-            arrowStaggerMs: GAME_CONFIG.ARROW_STAGGER_MS,
-            arrowStaggerAuto: GAME_CONFIG.ARROW_STAGGER_AUTO,
-            orbTravel: GAME_CONFIG.ORB_TRAVEL,
-            orbitBias: GAME_CONFIG.ORBIT_BIAS_STRENGTH,
-            oscillate: GAME_CONFIG.ORBIT_BIAS_OSCILLATE,
-            oscMin: GAME_CONFIG.ORBIT_BIAS_MIN,
-            oscMax: GAME_CONFIG.ORBIT_BIAS_MAX,
-            oscFreq: GAME_CONFIG.ORBIT_BIAS_FREQ,
-            departFraction: GAME_CONFIG.DEPART_FRACTION,
-            departJitter: GAME_CONFIG.DEPART_JITTER_MS,
-            orbBaseRadius: GAME_CONFIG.ORB_BASE_RADIUS,
-            orbRadiusScale: GAME_CONFIG.ORB_RADIUS_SCALE,
-            orbGlowMult: GAME_CONFIG.ORB_GLOW_MULT,
-            orbOuterAlpha: GAME_CONFIG.ORB_OUTER_ALPHA,
-            orbMidAlpha: GAME_CONFIG.ORB_MID_ALPHA,
-            orbCoreAlpha: GAME_CONFIG.ORB_CORE_ALPHA,
-            orbCenterAlpha: GAME_CONFIG.ORB_CENTER_ALPHA,
-            orbOuterScale: GAME_CONFIG.ORB_OUTER_SCALE,
-            orbMidScale: GAME_CONFIG.ORB_MID_SCALE,
-            orbCoreScale: GAME_CONFIG.ORB_CORE_SCALE,
-            shipBaseSize: GAME_CONFIG.SHIP_BASE_SIZE,
-            orbitBaseRadius: GAME_CONFIG.ORBIT_BASE_RADIUS,
-            starRenderRadius: GAME_CONFIG.STAR_RENDER_RADIUS,
-            orbitRingMult: GAME_CONFIG.ORBIT_RING_MULT,
-            damagedOrbitRadius: GAME_CONFIG.DAMAGED_ORBIT_RADIUS,
-            damagedOrbitEvade: GAME_CONFIG.DAMAGED_ORBIT_EVADE,
-            shipOutlineOn: GAME_CONFIG.SHIP_OUTLINE_ON,
-            shipOutlinePx: GAME_CONFIG.SHIP_OUTLINE_PX,
-            shipGlowIntensity: GAME_CONFIG.SHIP_GLOW_INTENSITY,
-            shipGlowRadius: GAME_CONFIG.SHIP_GLOW_RADIUS,
-            minColorLightness: GAME_CONFIG.MIN_COLOR_LIGHTNESS,
-            shipScaleMult: GAME_CONFIG.SHIP_SCALE_MULT,
-            maxVisualShips: GAME_CONFIG.MAX_VISUAL_SHIPS,
-            showStarPower: GAME_CONFIG.SHOW_STAR_POWER,
-            starPowerAlpha: GAME_CONFIG.STAR_POWER_ALPHA,
-            starPowerRadiusMult: GAME_CONFIG.STAR_POWER_RADIUS_MULT,
-            starPowerLayers: GAME_CONFIG.STAR_POWER_LAYERS,
-            starPowerBlur: GAME_CONFIG.STAR_POWER_BLUR,
-            haloFleetScale: GAME_CONFIG.HALO_FLEET_SCALE,
-            haloFleetIntensity: GAME_CONFIG.HALO_FLEET_INTENSITY,
-            haloFleetMode: GAME_CONFIG.HALO_FLEET_MODE,
-            haloFleetStepSize: GAME_CONFIG.HALO_FLEET_STEP_SIZE,
-            haloFleetMaxShips: GAME_CONFIG.HALO_FLEET_MAX_SHIPS,
-            showVoronoi: GAME_CONFIG.SHOW_VORONOI,
-            voronoiAlpha: GAME_CONFIG.VORONOI_ALPHA,
-            voronoiResolution: GAME_CONFIG.VORONOI_RESOLUTION,
-            voronoiEdgeBlend: GAME_CONFIG.VORONOI_EDGE_BLEND,
-            voronoiBorderWidth: GAME_CONFIG.VORONOI_BORDER_WIDTH,
-            voronoiBorderAlpha: GAME_CONFIG.VORONOI_BORDER_ALPHA,
-            voronoiBorderBrighten: GAME_CONFIG.VORONOI_BORDER_BRIGHTEN,
-            voronoiSaturation: GAME_CONFIG.VORONOI_SATURATION,
-            voronoiLightness: GAME_CONFIG.VORONOI_LIGHTNESS,
-            voronoiGlowRadius: GAME_CONFIG.VORONOI_GLOW_RADIUS,
-            voronoiGlowAlpha: GAME_CONFIG.VORONOI_GLOW_ALPHA,
-            voronoiGlowLayers: GAME_CONFIG.VORONOI_GLOW_LAYERS,
-            voronoiBlur: GAME_CONFIG.VORONOI_BLUR,
-            voronoiSmoothing: GAME_CONFIG.VORONOI_SMOOTHING,
-            voronoiGradientBlend: GAME_CONFIG.VORONOI_GRADIENT_BLEND,
-            voronoiBlendWidth: GAME_CONFIG.VORONOI_BLEND_WIDTH,
-            territoryVoronoi: GAME_CONFIG.TERRITORY_VORONOI,
-            territoryMetaball: GAME_CONFIG.TERRITORY_METABALL,
-            territoryPixel: GAME_CONFIG.TERRITORY_PIXEL,
-            territoryContour: GAME_CONFIG.TERRITORY_CONTOUR,
-            contourFillAlpha: GAME_CONFIG.CONTOUR_FILL_ALPHA,
-            contourBorderWidth: GAME_CONFIG.CONTOUR_BORDER_WIDTH,
-            contourBorderAlpha: GAME_CONFIG.CONTOUR_BORDER_ALPHA,
-            contourResolution: GAME_CONFIG.CONTOUR_RESOLUTION,
-            contourSimplify: GAME_CONFIG.CONTOUR_SIMPLIFY,
-            contourSmooth: GAME_CONFIG.CONTOUR_SMOOTH,
-            contourSaturation: GAME_CONFIG.CONTOUR_SATURATION,
-            contourLightness: GAME_CONFIG.CONTOUR_LIGHTNESS,
-            contourCornerRadius: GAME_CONFIG.CONTOUR_CORNER_RADIUS,
-            contourCornerThreshold: GAME_CONFIG.CONTOUR_CORNER_THRESHOLD,
-            contourPeripheryStrength: GAME_CONFIG.CONTOUR_PERIPHERY_STRENGTH,
-            contourPeripheryInset: GAME_CONFIG.CONTOUR_PERIPHERY_INSET,
-            pixelAlpha: GAME_CONFIG.PIXEL_ALPHA,
-            pixelResolution: GAME_CONFIG.PIXEL_RESOLUTION,
-            pixelEdgeBlend: GAME_CONFIG.PIXEL_EDGE_BLEND,
-            pixelBlur: GAME_CONFIG.PIXEL_BLUR,
-            pixelBlendPower: GAME_CONFIG.PIXEL_BLEND_POWER,
-            pixelCorridorBoost: GAME_CONFIG.PIXEL_CORRIDOR_BOOST,
-            pixelHueShift: GAME_CONFIG.PIXEL_HUE_SHIFT,
-            pixelBorderWidth: GAME_CONFIG.PIXEL_BORDER_WIDTH,
-            pixelBorderAlpha: GAME_CONFIG.PIXEL_BORDER_ALPHA,
-            pixelBorderBrighten: GAME_CONFIG.PIXEL_BORDER_BRIGHTEN,
-            pixelPattern: GAME_CONFIG.PIXEL_PATTERN,
-            pixelPatternScale: GAME_CONFIG.PIXEL_PATTERN_SCALE,
-            metaballRadius: GAME_CONFIG.METABALL_INFLUENCE_RADIUS,
-            metaballFalloff: GAME_CONFIG.METABALL_FALLOFF,
-            metaballSharpness: GAME_CONFIG.METABALL_BLEND_SHARPNESS,
-            metaballAlpha: GAME_CONFIG.METABALL_ALPHA,
-            metaballCellSize: GAME_CONFIG.METABALL_CELL_SIZE,
-            metaballThreshold: GAME_CONFIG.METABALL_THRESHOLD,
-            metaballStrength: GAME_CONFIG.METABALL_STRENGTH_MULT,
-            metaballEdgeFade: GAME_CONFIG.METABALL_EDGE_FADE,
-            metaballBlur: GAME_CONFIG.METABALL_BLUR,
-            metaballBorderWidth: GAME_CONFIG.METABALL_BORDER_WIDTH,
-            metaballBorderAlpha: GAME_CONFIG.METABALL_BORDER_ALPHA,
-            numberTransitionMs: GAME_CONFIG.NUMBER_TRANSITION_MS,
-            labelAnimMode: GAME_CONFIG.LABEL_ANIM_MODE ?? "rolling",
-            bindAnimToTick: GAME_CONFIG.BIND_ANIMATION_TO_TICK,
-        };
-        savePanelSettings(panel);
-
-        // 2. Sync vis (connection visuals)
-        vis = {
-            ...vis,
-            laneWidth: GAME_CONFIG.CONNECTION_WIDTH,
-            laneAlpha: GAME_CONFIG.CONNECTION_ALPHA,
-            shadowWidth: GAME_CONFIG.CONNECTION_SHADOW_WIDTH,
-            shadowAlpha: GAME_CONFIG.CONNECTION_SHADOW_ALPHA,
-        };
-        saveVisuals(vis);
-
-        // 3. Sync values (combat tuning state)
-        const freshValues = { ...values };
-        for (const k of Object.keys(freshValues)) {
-            if (k in GAME_CONFIG) {
-                (freshValues as any)[k] = (GAME_CONFIG as any)[k];
-            }
-        }
-        values = freshValues;
-        saveCombatTuning(values);
-
-        // 4. Sync tick interval display
-        tickInterval = GAME_CONFIG.BASE_TICK_MS;
-        activeGameStore.updateTickInterval(GAME_CONFIG.BASE_TICK_MS);
-    }
-
     function handleSaveTheme() {
         const name = fullSaveName.trim();
         if (!name) return;
@@ -2033,3 +1866,15 @@
         border-color: rgba(74, 222, 128, 0.6);
     }
 </style>
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1231,6 +1231,8 @@ const _rawConfig: GameConfigType = {
     AUDIO_OFFSET_STARLOSS: 0,
 };
 
+export const DEFAULT_GAME_CONFIG: Readonly<GameConfigType> = Object.freeze({ ..._rawConfig });
+
 // Apply saved settings on top of defaults
 const _savedOverrides = loadSavedConfig();
 for (const [k, v] of Object.entries(_savedOverrides)) {
@@ -1319,4 +1321,5 @@ export function calculateCombatV4(
         disabledOnB: result.disabledOnB
     };
 }
+
 

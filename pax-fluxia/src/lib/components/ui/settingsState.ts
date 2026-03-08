@@ -7,6 +7,7 @@ export interface SettingsSchemaEntry extends PanelConfigMapping {}
 export const SETTINGS_SCHEMA: SettingsSchemaEntry[] = PANEL_CONFIG_MAP;
 
 const SETTINGS_BY_PANEL_KEY = new Map(SETTINGS_SCHEMA.map((entry) => [entry.panelKey, entry] as const));
+const SETTINGS_BY_CONFIG_KEY = new Map(SETTINGS_SCHEMA.map((entry) => [entry.configKey, entry] as const));
 
 function applyMappedSetting(panelKey: string, value: unknown): void {
     const mapping = SETTINGS_BY_PANEL_KEY.get(panelKey);
@@ -66,6 +67,37 @@ export function setManySettings(
     for (const [key, value] of Object.entries(patch)) {
         nextPanel[key] = value;
         applyMappedSetting(key, value);
+    }
+    persist(nextPanel);
+    return nextPanel;
+}
+export function setSettingsFromConfigPatch(
+    currentPanel: Record<string, any>,
+    configPatch: Record<string, unknown>,
+    persist: (panel: Record<string, any>) => void,
+): Record<string, any> {
+    const nextPanel = { ...currentPanel };
+    for (const [configKey, value] of Object.entries(configPatch)) {
+        if (value === undefined) continue;
+        (GAME_CONFIG as any)[configKey] = value;
+
+        const mapping = SETTINGS_BY_CONFIG_KEY.get(configKey);
+        const panelKey = mapping?.panelKey ?? `config:${configKey}`;
+        const panelValue =
+            mapping?.transform === 'inverse' ? 1 / (value as number) : value;
+
+        if (mapping) {
+            nextPanel[mapping.panelKey] = panelValue;
+        }
+
+        recordSettingWrite({
+            panelKey,
+            configKey,
+            inputValue: value,
+            panelValue,
+            appliedValue: value,
+            atMs: performance.now(),
+        });
     }
     persist(nextPanel);
     return nextPanel;
