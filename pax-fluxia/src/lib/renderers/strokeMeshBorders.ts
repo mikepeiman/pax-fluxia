@@ -476,10 +476,10 @@ export function createStrokeMeshShader(options: StrokeMeshShaderOptions): PIXI.S
         glProgram,
         resources: {
             strokeMeshUniforms: {
-                uStrokeColor: new Float32Array(options.color),
-                uStrokeAlpha: options.alpha,
-                uInnerSide: innerSide,
-                uMorphMix: Math.max(0, Math.min(1, options.morphMix ?? 1)),
+                uStrokeColor: { value: new Float32Array(options.color), type: 'vec3<f32>' },
+                uStrokeAlpha: { value: options.alpha, type: 'f32' },
+                uInnerSide: { value: innerSide, type: 'f32' },
+                uMorphMix: { value: Math.max(0, Math.min(1, options.morphMix ?? 1)), type: 'f32' },
             },
         },
     });
