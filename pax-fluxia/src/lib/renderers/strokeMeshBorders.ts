@@ -1,5 +1,5 @@
 import * as PIXI from 'pixi.js';
-import { compileHighShaderGlProgram, localUniformBitGl } from 'pixi.js';
+import { compileHighShaderGlProgram, localUniformBitGl, roundPixelsBitGl } from 'pixi.js';
 import type { CenterlineGraphPair } from './centerlineGraph';
 
 export interface FittedPath {
@@ -468,7 +468,7 @@ export function createStrokeMeshShader(options: StrokeMeshShaderOptions): PIXI.S
     const innerSide = Math.max(0, Math.min(1, halfWidth / halfExtent));
 
     const glProgram = compileHighShaderGlProgram({
-        bits: [localUniformBitGl, strokeMeshBitGl],
+        bits: [localUniformBitGl, strokeMeshBitGl, roundPixelsBitGl],
         name: 'distance-field-border-stroke-mesh',
     });
 
