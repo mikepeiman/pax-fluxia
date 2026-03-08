@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
     import { GAME_CONFIG } from "$lib/config/game.config";
 
     // ControlsSection-Territory -- Territory Rendering (Voronoi + Metaball)
@@ -53,13 +53,14 @@
         { id: "legacy_grid", label: "Legacy Grid (Reference)" },
     ] as const;
 
-    $: activeBorderEngine =
+    let activeBorderEngine = $derived(
         (panel.dfBorderEngine ?? GAME_CONFIG.DF_BORDER_ENGINE ?? "mesh") as
             | "mesh"
             | "legacy_field"
-            | "legacy_grid";
-    $: isLegacyFieldEngine = activeBorderEngine === "legacy_field";
-    $: isLegacyGridEngine = activeBorderEngine === "legacy_grid";
+            | "legacy_grid",
+    );
+    let isLegacyFieldEngine = $derived(activeBorderEngine === "legacy_field");
+    let isLegacyGridEngine = $derived(activeBorderEngine === "legacy_grid");
 </script>
 
 <CategoryThemeBar category="territory" onApply={() => syncFromConfig?.()} />
@@ -1322,7 +1323,9 @@
                 {#each [{ id: "straight", label: "Straight" }, { id: "curved", label: "Curved" }, { id: "segmented", label: "Segmented" }] as family}
                     <button
                         class="mode-btn"
-                        class:active={(panel.dfBorderFamily ?? GAME_CONFIG.DF_BORDER_FAMILY ?? "straight") === family.id}
+                        class:active={(panel.dfBorderFamily ??
+                            GAME_CONFIG.DF_BORDER_FAMILY ??
+                            "straight") === family.id}
                         onclick={() => {
                             updatePanel("dfBorderFamily", family.id);
                         }}>{family.label}</button
@@ -1386,189 +1389,192 @@
             />
         </div>
         {#if isLegacyFieldEngine}
-        <div class="var-row">
-            <div class="row-top">
-                <span class="var-name">High Quality Borders</span><span
-                    class="val"
-                    >{(panel.dfBorderHqEnabled ??
-                    GAME_CONFIG.DF_BORDER_HQ_ENABLED)
-                        ? "ON"
-                        : "OFF"}</span
-                >
-            </div>
-            <input
-                type="checkbox"
-                checked={panel.dfBorderHqEnabled ??
-                    GAME_CONFIG.DF_BORDER_HQ_ENABLED}
-                onchange={(e) => {
-                    const v = (e.target as HTMLInputElement).checked;
-                    updatePanel("dfBorderHqEnabled", v);
-                }}
-            />
-        </div>
-
-        {#if panel.dfBorderHqEnabled ?? GAME_CONFIG.DF_BORDER_HQ_ENABLED}
             <div class="var-row">
                 <div class="row-top">
-                    <span class="var-name">HQ Supersample</span><span
+                    <span class="var-name">High Quality Borders</span><span
                         class="val"
-                        >{(
-                            panel.dfBorderHqScale ??
-                            GAME_CONFIG.DF_BORDER_HQ_SCALE
-                        ).toFixed(1)}x</span
+                        >{(panel.dfBorderHqEnabled ??
+                        GAME_CONFIG.DF_BORDER_HQ_ENABLED)
+                            ? "ON"
+                            : "OFF"}</span
                     >
                 </div>
                 <input
-                    type="range"
-                    min="1.0"
-                    max="4.0"
-                    step="0.5"
-                    value={panel.dfBorderHqScale ??
-                        GAME_CONFIG.DF_BORDER_HQ_SCALE}
-                    oninput={(e) => {
-                        const v = +(e.target as HTMLInputElement).value;
-                        updatePanel("dfBorderHqScale", v);
+                    type="checkbox"
+                    checked={panel.dfBorderHqEnabled ??
+                        GAME_CONFIG.DF_BORDER_HQ_ENABLED}
+                    onchange={(e) => {
+                        const v = (e.target as HTMLInputElement).checked;
+                        updatePanel("dfBorderHqEnabled", v);
                     }}
                 />
             </div>
 
-            <div class="var-row">
-                <div class="row-top">
-                    <span class="var-name">HQ Max Texture</span><span
-                        class="val"
-                        >{panel.dfBorderHqMaxDim ??
-                            GAME_CONFIG.DF_BORDER_HQ_MAX_DIM}px</span
-                    >
+            {#if panel.dfBorderHqEnabled ?? GAME_CONFIG.DF_BORDER_HQ_ENABLED}
+                <div class="var-row">
+                    <div class="row-top">
+                        <span class="var-name">HQ Supersample</span><span
+                            class="val"
+                            >{(
+                                panel.dfBorderHqScale ??
+                                GAME_CONFIG.DF_BORDER_HQ_SCALE
+                            ).toFixed(1)}x</span
+                        >
+                    </div>
+                    <input
+                        type="range"
+                        min="1.0"
+                        max="4.0"
+                        step="0.5"
+                        value={panel.dfBorderHqScale ??
+                            GAME_CONFIG.DF_BORDER_HQ_SCALE}
+                        oninput={(e) => {
+                            const v = +(e.target as HTMLInputElement).value;
+                            updatePanel("dfBorderHqScale", v);
+                        }}
+                    />
                 </div>
-                <input
-                    type="range"
-                    min="4096"
-                    max="8192"
-                    step="512"
-                    value={panel.dfBorderHqMaxDim ??
-                        GAME_CONFIG.DF_BORDER_HQ_MAX_DIM}
-                    oninput={(e) => {
-                        const v = +(e.target as HTMLInputElement).value;
-                        updatePanel("dfBorderHqMaxDim", v);
-                    }}
-                />
-            </div>
-        {/if}
+
+                <div class="var-row">
+                    <div class="row-top">
+                        <span class="var-name">HQ Max Texture</span><span
+                            class="val"
+                            >{panel.dfBorderHqMaxDim ??
+                                GAME_CONFIG.DF_BORDER_HQ_MAX_DIM}px</span
+                        >
+                    </div>
+                    <input
+                        type="range"
+                        min="4096"
+                        max="8192"
+                        step="512"
+                        value={panel.dfBorderHqMaxDim ??
+                            GAME_CONFIG.DF_BORDER_HQ_MAX_DIM}
+                        oninput={(e) => {
+                            const v = +(e.target as HTMLInputElement).value;
+                            updatePanel("dfBorderHqMaxDim", v);
+                        }}
+                    />
+                </div>
+            {/if}
         {/if}
 
         {#if isLegacyGridEngine}
-        <div class="var-row">
-            <div class="row-top">
-                <span class="var-name">Vector Borders</span><span class="val"
-                    >{(panel.dfVectorBordersEnabled ??
-                    GAME_CONFIG.DF_VECTOR_BORDERS_ENABLED)
-                        ? "ON"
-                        : "OFF"}</span
-                >
-            </div>
-            <input
-                type="checkbox"
-                checked={panel.dfVectorBordersEnabled ??
-                    GAME_CONFIG.DF_VECTOR_BORDERS_ENABLED}
-                onchange={(e) => {
-                    const v = (e.target as HTMLInputElement).checked;
-                    updatePanel("dfVectorBordersEnabled", v);
-                    if (!v) {
-                        updatePanel("dfBorderEngine", "legacy_field");
-                    }
-                }}
-            />
-        </div>
-
-        {#if panel.dfVectorBordersEnabled ?? GAME_CONFIG.DF_VECTOR_BORDERS_ENABLED}
             <div class="var-row">
                 <div class="row-top">
-                    <span class="var-name">Vector Grid</span><span class="val"
-                        >{panel.dfVectorGridResolution ??
-                            GAME_CONFIG.DF_VECTOR_GRID_RESOLUTION}px</span
-                    >
-                </div>
-                <input
-                    type="range"
-                    min="64"
-                    max="512"
-                    step="16"
-                    value={panel.dfVectorGridResolution ??
-                        GAME_CONFIG.DF_VECTOR_GRID_RESOLUTION}
-                    oninput={(e) => {
-                        const v = +(e.target as HTMLInputElement).value;
-                        updatePanel("dfVectorGridResolution", v);
-                    }}
-                />
-            </div>
-
-            <div class="var-row">
-                <div class="row-top">
-                    <span class="var-name">Vector Straighten</span><span
+                    <span class="var-name">Vector Borders</span><span
                         class="val"
-                        >{panel.dfVectorSmoothing ??
-                            GAME_CONFIG.DF_VECTOR_SMOOTHING}</span
+                        >{(panel.dfVectorBordersEnabled ??
+                        GAME_CONFIG.DF_VECTOR_BORDERS_ENABLED)
+                            ? "ON"
+                            : "OFF"}</span
                     >
                 </div>
                 <input
-                    type="range"
-                    min="0"
-                    max="4"
-                    step="1"
-                    value={panel.dfVectorSmoothing ??
-                        GAME_CONFIG.DF_VECTOR_SMOOTHING}
-                    oninput={(e) => {
-                        const v = +(e.target as HTMLInputElement).value;
-                        updatePanel("dfVectorSmoothing", v);
+                    type="checkbox"
+                    checked={panel.dfVectorBordersEnabled ??
+                        GAME_CONFIG.DF_VECTOR_BORDERS_ENABLED}
+                    onchange={(e) => {
+                        const v = (e.target as HTMLInputElement).checked;
+                        updatePanel("dfVectorBordersEnabled", v);
+                        if (!v) {
+                            updatePanel("dfBorderEngine", "legacy_field");
+                        }
                     }}
                 />
             </div>
 
-            <div class="var-row">
-                <div class="row-top">
-                    <span class="var-name">Vector Simplify</span><span
-                        class="val"
-                        >{(
-                            panel.dfVectorSimplify ??
-                            GAME_CONFIG.DF_VECTOR_SIMPLIFY
-                        ).toFixed(1)}px</span
-                    >
+            {#if panel.dfVectorBordersEnabled ?? GAME_CONFIG.DF_VECTOR_BORDERS_ENABLED}
+                <div class="var-row">
+                    <div class="row-top">
+                        <span class="var-name">Vector Grid</span><span
+                            class="val"
+                            >{panel.dfVectorGridResolution ??
+                                GAME_CONFIG.DF_VECTOR_GRID_RESOLUTION}px</span
+                        >
+                    </div>
+                    <input
+                        type="range"
+                        min="64"
+                        max="512"
+                        step="16"
+                        value={panel.dfVectorGridResolution ??
+                            GAME_CONFIG.DF_VECTOR_GRID_RESOLUTION}
+                        oninput={(e) => {
+                            const v = +(e.target as HTMLInputElement).value;
+                            updatePanel("dfVectorGridResolution", v);
+                        }}
+                    />
                 </div>
-                <input
-                    type="range"
-                    min="0"
-                    max="3"
-                    step="0.1"
-                    value={panel.dfVectorSimplify ??
-                        GAME_CONFIG.DF_VECTOR_SIMPLIFY}
-                    oninput={(e) => {
-                        const v = +(e.target as HTMLInputElement).value;
-                        updatePanel("dfVectorSimplify", v);
-                    }}
-                />
-            </div>
 
-            <div class="var-row">
-                <div class="row-top">
-                    <span class="var-name">Vector Update</span><span class="val"
-                        >{panel.dfVectorUpdateMs ??
-                            GAME_CONFIG.DF_VECTOR_UPDATE_MS}ms</span
-                    >
+                <div class="var-row">
+                    <div class="row-top">
+                        <span class="var-name">Vector Straighten</span><span
+                            class="val"
+                            >{panel.dfVectorSmoothing ??
+                                GAME_CONFIG.DF_VECTOR_SMOOTHING}</span
+                        >
+                    </div>
+                    <input
+                        type="range"
+                        min="0"
+                        max="4"
+                        step="1"
+                        value={panel.dfVectorSmoothing ??
+                            GAME_CONFIG.DF_VECTOR_SMOOTHING}
+                        oninput={(e) => {
+                            const v = +(e.target as HTMLInputElement).value;
+                            updatePanel("dfVectorSmoothing", v);
+                        }}
+                    />
                 </div>
-                <input
-                    type="range"
-                    min="0"
-                    max="200"
-                    step="5"
-                    value={panel.dfVectorUpdateMs ??
-                        GAME_CONFIG.DF_VECTOR_UPDATE_MS}
-                    oninput={(e) => {
-                        const v = +(e.target as HTMLInputElement).value;
-                        updatePanel("dfVectorUpdateMs", v);
-                    }}
-                />
-            </div>
-        {/if}
+
+                <div class="var-row">
+                    <div class="row-top">
+                        <span class="var-name">Vector Simplify</span><span
+                            class="val"
+                            >{(
+                                panel.dfVectorSimplify ??
+                                GAME_CONFIG.DF_VECTOR_SIMPLIFY
+                            ).toFixed(1)}px</span
+                        >
+                    </div>
+                    <input
+                        type="range"
+                        min="0"
+                        max="3"
+                        step="0.1"
+                        value={panel.dfVectorSimplify ??
+                            GAME_CONFIG.DF_VECTOR_SIMPLIFY}
+                        oninput={(e) => {
+                            const v = +(e.target as HTMLInputElement).value;
+                            updatePanel("dfVectorSimplify", v);
+                        }}
+                    />
+                </div>
+
+                <div class="var-row">
+                    <div class="row-top">
+                        <span class="var-name">Vector Update</span><span
+                            class="val"
+                            >{panel.dfVectorUpdateMs ??
+                                GAME_CONFIG.DF_VECTOR_UPDATE_MS}ms</span
+                        >
+                    </div>
+                    <input
+                        type="range"
+                        min="0"
+                        max="200"
+                        step="5"
+                        value={panel.dfVectorUpdateMs ??
+                            GAME_CONFIG.DF_VECTOR_UPDATE_MS}
+                        oninput={(e) => {
+                            const v = +(e.target as HTMLInputElement).value;
+                            updatePanel("dfVectorUpdateMs", v);
+                        }}
+                    />
+                </div>
+            {/if}
         {/if}
     {/if}
 
@@ -1620,15 +1626,12 @@
             <span class="var-name">Morph Easing</span>
         </div>
         <div style="display:flex;gap:4px;padding:2px 0;flex-wrap:wrap">
-            {#each [
-                { id: "linear", label: "Linear" },
-                { id: "smoothstep", label: "Smooth" },
-                { id: "easeInOutQuad", label: "Quad" },
-                { id: "easeInOutCubic", label: "Cubic" }
-            ] as easing}
+            {#each [{ id: "linear", label: "Linear" }, { id: "smoothstep", label: "Smooth" }, { id: "easeInOutQuad", label: "Quad" }, { id: "easeInOutCubic", label: "Cubic" }] as easing}
                 <button
                     class="mode-btn"
-                    class:active={(panel.dfMorphEasing ?? GAME_CONFIG.DF_MORPH_EASING ?? "linear") === easing.id}
+                    class:active={(panel.dfMorphEasing ??
+                        GAME_CONFIG.DF_MORPH_EASING ??
+                        "linear") === easing.id}
                     onclick={() => {
                         updatePanel("dfMorphEasing", easing.id);
                     }}>{easing.label}</button
@@ -1640,7 +1643,9 @@
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">🔗 Corridor Sites</span><span class="val"
-                >{(panel.dfCorridorEnabled ?? GAME_CONFIG.DF_CORRIDOR_ENABLED) ? "ON" : "OFF"}</span
+                >{(panel.dfCorridorEnabled ?? GAME_CONFIG.DF_CORRIDOR_ENABLED)
+                    ? "ON"
+                    : "OFF"}</span
             >
         </div>
         <input
@@ -1769,12 +1774,16 @@
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">✂️ Disconnect Buffer</span><span class="val"
-                >{(panel.dfDisconnectEnabled ?? GAME_CONFIG.DF_DISCONNECT_ENABLED) ? "ON" : "OFF"}</span
+                >{(panel.dfDisconnectEnabled ??
+                GAME_CONFIG.DF_DISCONNECT_ENABLED)
+                    ? "ON"
+                    : "OFF"}</span
             >
         </div>
         <input
             type="checkbox"
-            checked={panel.dfDisconnectEnabled ?? GAME_CONFIG.DF_DISCONNECT_ENABLED}
+            checked={panel.dfDisconnectEnabled ??
+                GAME_CONFIG.DF_DISCONNECT_ENABLED}
             onchange={(e) => {
                 const v = (e.target as HTMLInputElement).checked;
                 updatePanel("dfDisconnectEnabled", v);
@@ -3044,4 +3053,3 @@
         color: #888;
     }
 </style>
-

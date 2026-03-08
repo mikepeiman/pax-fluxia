@@ -404,12 +404,14 @@ export function createStrokeMeshGeometryFromBuffers(
         ? previousPositions
         : buffers.positions;
 
-    return new PIXI.MeshGeometry({
+    const geometry = new PIXI.MeshGeometry({
         positions: buffers.positions,
-        aPrevPosition: new Float32Array(prev),
-        aSide: buffers.side,
         indices: buffers.indices,
     });
+    // Custom vertex attributes for morph + SDF edge
+    (geometry as any).addAttribute('aPrevPosition', new Float32Array(prev));
+    (geometry as any).addAttribute('aSide', buffers.side);
+    return geometry;
 }
 
 export function createStrokeMeshGeometry(
@@ -437,7 +439,6 @@ const strokeMeshBitGl = {
     },
     fragment: {
         header: /* glsl */ `
-            #version 300 es
             in float vSideAbs;
             uniform vec3 uStrokeColor;
             uniform float uStrokeAlpha;
