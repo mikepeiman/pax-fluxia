@@ -200,6 +200,7 @@ interface VectorBorderBuildJob {
 
 type BorderFamilyId = 'straight' | 'curved' | 'segmented';
 type BorderRendererId = 'field' | 'geometry';
+type BorderEngineId = 'mesh' | 'legacy_field' | 'legacy_grid';
 type DfMorphEasingId = 'linear' | 'easeInOutQuad' | 'easeInOutCubic' | 'smoothstep';
 
 interface BorderFamilyRenderContext {
@@ -2108,6 +2109,12 @@ function normalizeBorderFamily(rawFamily: unknown): BorderFamilyId {
     return 'straight';
 }
 
+function normalizeBorderEngine(rawEngine: unknown, legacyVectorBordersEnabled: boolean): BorderEngineId {
+    if (rawEngine === 'mesh' || rawEngine === 'legacy_field' || rawEngine === 'legacy_grid') return rawEngine;
+    // Compatibility bridge for settings/themes that predate DF_BORDER_ENGINE.
+    return legacyVectorBordersEnabled ? 'legacy_grid' : 'legacy_field';
+}
+
 function normalizeMorphEasing(raw: unknown): DfMorphEasingId {
     if (raw === 'easeInOutQuad' || raw === 'easeInOutCubic' || raw === 'smoothstep' || raw === 'linear') return raw;
     return 'linear';
@@ -2128,10 +2135,13 @@ function applyMorphEasing(rawT: number, easing: DfMorphEasingId): number {
     }
 }
 
-function resolveBorderRenderer(useTwoPassBorders: boolean, vectorBordersEnabled: boolean): BorderRendererId {
+function resolveBorderRenderer(useTwoPassBorders: boolean, borderEngine: BorderEngineId): BorderRendererId {
     // Geometry borders depend on the two-pass ownership snapshot pipeline.
     if (!useTwoPassBorders) return 'field';
-    if (DF_BORDER_RENDERER_CANONICAL === 'geometry' && vectorBordersEnabled) return 'geometry';
+    if (borderEngine === 'legacy_field') return 'field';
+    // Bridge phase: both mesh and legacy_grid route through the geometry pipeline.
+    // A dedicated stroke-mesh backend is introduced in subsequent commits.
+    if (DF_BORDER_RENDERER_CANONICAL === 'geometry') return 'geometry';
     return 'field';
 }
 
@@ -3525,14 +3535,15 @@ export function renderDistanceFieldTerritory(
         return;
     }
 
-    const vectorBordersEnabled = Boolean(GAME_CONFIG.DF_VECTOR_BORDERS_ENABLED ?? false);
+    const legacyVectorBordersEnabled = Boolean(GAME_CONFIG.DF_VECTOR_BORDERS_ENABLED ?? false);
+    const borderEngine = normalizeBorderEngine(GAME_CONFIG.DF_BORDER_ENGINE, legacyVectorBordersEnabled);
     const borderFamily = normalizeBorderFamily(GAME_CONFIG.DF_BORDER_FAMILY);
     const useTwoPassBorders = DF_TWO_PASS_BORDERS_ENABLED && !!renderer;
     if (DF_TWO_PASS_BORDERS_ENABLED && !renderer && !warnedMissingRendererForTwoPass) {
         warnedMissingRendererForTwoPass = true;
         console.warn('[DF_TWOPASS] renderer unavailable; falling back to inline borders');
     }
-    const borderRenderer = resolveBorderRenderer(useTwoPassBorders, vectorBordersEnabled);
+    const borderRenderer = resolveBorderRenderer(useTwoPassBorders, borderEngine);
 
     const changeClassification = classifyDfChanges(canonicalInput, metric);
 

@@ -381,6 +381,7 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'dfDisconnectEnabled', configKey: 'DF_DISCONNECT_ENABLED' },
     { panelKey: 'dfBorderMode', configKey: 'DF_BORDER_MODE' },
     { panelKey: 'dfBorderFamily', configKey: 'DF_BORDER_FAMILY' },
+    { panelKey: 'dfBorderEngine', configKey: 'DF_BORDER_ENGINE' },
     { panelKey: 'dfDisconnectDistance', configKey: 'DF_DISCONNECT_DISTANCE' },
     { panelKey: 'dfDisconnectWeight', configKey: 'DF_DISCONNECT_WEIGHT' },
     // Contour Territory
