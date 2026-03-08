@@ -148,6 +148,20 @@ interface DfDxDiagnosticsPayload {
     settingWrites: Record<string, SettingWriteTelemetry | null>;
 }
 
+interface NodeTop2Distance {
+    ownerIdx: number;
+    distance: number;
+}
+
+interface NodeTop2Pair {
+    best: NodeTop2Distance | null;
+    second: NodeTop2Distance | null;
+}
+
+interface GraphNativeDistanceResult {
+    distToPlayer: number[][];
+    top2ByStar: NodeTop2Pair[];
+}
 interface OwnershipSampleSite {
     x: number;
     y: number;
@@ -1068,6 +1082,8 @@ let cachedBlurStrength = -1;
 let currentDist: number[][] | null = null;
 let prevDist: number[][] | null = null;
 let currentPlayerIds: string[] = [];
+let latestTop2ByStar: NodeTop2Pair[] = [];
+let latestTop2PlayerIds: string[] = [];
 
 // Temporal blend
 let morphStartTime = 0;
@@ -1168,15 +1184,44 @@ function buildDxConfigSnapshot(): DfDxConfigSnapshot {
 // ============================================================================
 // Multi-Source Dijkstra - per-player distances (preserved from V1)
 // ============================================================================
-// Returns distToPlayer[starIdx][playerIdx] = shortest graph distance
-// from star to nearest star owned by that player.
+// Graph-native Dijkstra solver (top-2 + compatibility matrix)
+// ============================================================================
+// Returns:
+// - distToPlayer[starIdx][playerIdx] for compatibility with existing code paths.
+// - top2ByStar[starIdx] = { best, second } nearest owner distances for graph-native ownership semantics.
 
-function computeDistToPlayer(
+function rankTop2Owners(ownerDistances: number[]): NodeTop2Pair {
+    let best: NodeTop2Distance | null = null;
+    let second: NodeTop2Distance | null = null;
+
+    for (let ownerIdx = 0; ownerIdx < ownerDistances.length; ownerIdx++) {
+        const distance = ownerDistances[ownerIdx];
+        if (!Number.isFinite(distance)) continue;
+
+        if (!best
+            || distance < best.distance
+            || (distance === best.distance && ownerIdx < best.ownerIdx)) {
+            second = best;
+            best = { ownerIdx, distance };
+            continue;
+        }
+
+        if (!second
+            || distance < second.distance
+            || (distance === second.distance && ownerIdx < second.ownerIdx)) {
+            second = { ownerIdx, distance };
+        }
+    }
+
+    return { best, second };
+}
+
+function computeGraphNativeDistanceResult(
     stars: StarState[],
     connections: StarConnection[],
     playerIds: string[],
     metric: 'hops' | 'length',
-): number[][] {
+): GraphNativeDistanceResult {
     const nStars = stars.length;
     const nPlayers = playerIds.length;
     const playerIdx = new Map<string, number>();
@@ -1198,10 +1243,10 @@ function computeDistToPlayer(
         adj[b].push({ neighbor: a, cost });
     }
 
-    // Initialize distances
-    const dist: number[][] = new Array(nStars);
+    // Compatibility matrix used by existing ownership/rendering code.
+    const distToPlayer: number[][] = new Array(nStars);
     for (let s = 0; s < nStars; s++) {
-        dist[s] = new Array(nPlayers).fill(Infinity);
+        distToPlayer[s] = new Array(nPlayers).fill(Infinity);
     }
 
     // Priority queue: [distance, starIdx, playerIdx]
@@ -1213,7 +1258,7 @@ function computeDistToPlayer(
         if (!ownerId) continue;
         const pi = playerIdx.get(ownerId);
         if (pi === undefined) continue;
-        dist[s][pi] = 0;
+        distToPlayer[s][pi] = 0;
         pq.push([0, s, pi]);
     }
 
@@ -1221,13 +1266,12 @@ function computeDistToPlayer(
 
     while (pq.length > 0) {
         const [d, si, pi] = pq.shift()!;
-
-        if (d > dist[si][pi]) continue;
+        if (d > distToPlayer[si][pi]) continue;
 
         for (const { neighbor, cost } of adj[si]) {
             const nd = d + cost;
-            if (nd < dist[neighbor][pi]) {
-                dist[neighbor][pi] = nd;
+            if (nd < distToPlayer[neighbor][pi]) {
+                distToPlayer[neighbor][pi] = nd;
                 let inserted = false;
                 for (let i = 0; i < pq.length; i++) {
                     if (nd < pq[i][0]) {
@@ -1241,9 +1285,41 @@ function computeDistToPlayer(
         }
     }
 
-    return dist;
+    const top2ByStar: NodeTop2Pair[] = new Array(nStars);
+    for (let i = 0; i < nStars; i++) {
+        top2ByStar[i] = rankTop2Owners(distToPlayer[i]);
+    }
+
+    return {
+        distToPlayer,
+        top2ByStar,
+    };
 }
 
+// Compatibility wrapper: keeps existing matrix return contract while caching top-2 results.
+function computeDistToPlayer(
+    stars: StarState[],
+    connections: StarConnection[],
+    playerIds: string[],
+    metric: 'hops' | 'length',
+): number[][] {
+    const result = computeGraphNativeDistanceResult(stars, connections, playerIds, metric);
+    latestTop2ByStar = result.top2ByStar;
+    latestTop2PlayerIds = [...playerIds];
+    return result.distToPlayer;
+}
+
+function getOwnerDistanceFromTop2(starIdx: number, ownerIdx: number, fallback: number): number {
+    if (starIdx < 0 || starIdx >= latestTop2ByStar.length) return fallback;
+    if (ownerIdx < 0 || ownerIdx >= latestTop2PlayerIds.length) return fallback;
+    const pair = latestTop2ByStar[starIdx];
+    const best = pair.best;
+    const second = pair.second;
+
+    if (best && best.ownerIdx === ownerIdx) return best.distance;
+    if (second && second.ownerIdx === ownerIdx) return second.distance;
+    return fallback;
+}
 // ============================================================================
 // Lane Spatial Index (PRESERVED FROM V1)
 // ============================================================================
@@ -1583,7 +1659,8 @@ function buildOwnershipSampleSites(
         const ownerIdx = playerIdxById.get(star.ownerId ?? '');
         if (ownerIdx === undefined) continue;
 
-        const curDijkstra = dist[i]?.[ownerIdx] ?? Infinity;
+        const fallbackDijkstra = dist[i]?.[ownerIdx] ?? Infinity;
+        const curDijkstra = getOwnerDistanceFromTop2(i, ownerIdx, fallbackDijkstra);
         if (!Number.isFinite(curDijkstra)) continue;
         const prevDijkstra = prevDistArr?.[i]?.[ownerIdx] ?? curDijkstra;
 
@@ -3628,6 +3705,8 @@ export function resetDistanceFieldTerritoryCache(): void {
     isMorphing = false;
     morphStartTime = 0;
     currentPlayerIds = [];
+    latestTop2ByStar = [];
+    latestTop2PlayerIds = [];
 
     if (cachedMesh) {
         if (cachedMesh.parent) cachedMesh.parent.removeChild(cachedMesh);
