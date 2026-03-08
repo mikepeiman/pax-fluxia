@@ -148,3 +148,11 @@
 - 2026-03-07: Territory borders in production now use GPU ownership-field two-pass rendering as canonical path; CPU vector overlay remains debug-only due non-zero divergence risk from simplify/straighten operations.
 
 - 2026-03-07: DF border width semantics changed to center-stroke (half-width per side) in both single-pass and canonical two-pass shaders; two-pass now subtracts half-texel boundary-center bias so the stroke centers on the ownership interface instead of sitting fully inside one territory.
+
+### D-39: Territory Architecture v3 — Final Hybrid (2026-03-07)
+- **Decision**: Adopt a three-source hybrid architecture for territory rendering:
+  1. **Solver**: Graph-native multi-source top-2 Dijkstra (replaces per-player `computeDistToPlayer`). Disconnects solved by construction — no virtual sites or Union-Find needed.
+  2. **Fills**: Low-res ownership RT (512–2048²) computed only on topology delta, sampled via fill shader with ping-pong RT morph.
+  3. **Borders**: Geometry pipeline — centerline graph from analytical lane borders + field-derived interstitial borders → family fitters (straight/curved/segmented) → stroke mesh with round joins/caps.
+- **Rationale**: Synthesizes insights from three independent analyses. Graph-metric Dijkstra handles disconnects intrinsically. Ownership RT provides full-field fill coverage. Geometry borders give resolution-independent even-width strokes. Distance-lerp morph produces physically accurate border drift.
+- **Full spec**: `.agent/WIP Work-In-Progress/proposals/TERRITORY_ARCHITECTURE_v3.md`

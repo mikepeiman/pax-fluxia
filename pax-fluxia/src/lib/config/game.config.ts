@@ -518,22 +518,22 @@ const _rawConfig: GameConfigType = {
     // ========================================================================
 
     /** Tilts damage toward attacker (>1) or defender (<1). 1.0 = symmetric. */
-    AGGRESSOR_ADVANTAGE: 0.8333333333333334,
+    AGGRESSOR_ADVANTAGE: 0.7,
 
     /** Global damage scalar (percentage). 100 = full, 50 = half, 200 = double */
-    GLOBAL_DAMAGE_MODIFIER: 100,
+    GLOBAL_DAMAGE_MODIFIER: 8,
 
     /** Fraction of damage that destroys ships (rest disables). Range: 0-1 */
-    LETHALITY: 0.1,
+    LETHALITY: 0.25,
 
     /** How much numerical superiority matters. 0 = none, 1 = dominant */
     FORCE_RATIO_EFFECT: 0,
 
     /** Overwhelm ratio for instant conquest (need Nx enemy ships) */
-    CONQUEST_THRESHOLD: 12,
+    CONQUEST_THRESHOLD: 25,
 
     /** percentage each damaged ship contributes to defense, as a percentage x 100 */
-    DAMAGED_SHIP_EFFECTIVENESS: 0.1,
+    DAMAGED_SHIP_EFFECTIVENESS: 0.5,
 
     // ========================================================================
     // PRODUCTION
@@ -556,14 +556,14 @@ const _rawConfig: GameConfigType = {
     /** Repair multiplier when under attack (0.0 - 1.0) */
     REPAIR_COMBAT_PENALTY: 0.1,
     REPAIR_SUPPRESS_ATTACKER: 0.5,
-    REPAIR_SUPPRESS_DEFENDER: 0.1,
+    REPAIR_SUPPRESS_DEFENDER: 0.9,
 
     // ========================================================================
     // CONQUEST
     // ========================================================================
 
     /** Percentage of remaining ships that transfer on capture */
-    CONQUEST_TRANSFER_PERCENTAGE: 30,
+    CONQUEST_TRANSFER_PERCENTAGE: 40,
 
     /** Defender strength ratio below which they are instantly overwhelmed (e.g. 0.1 = 10% of attackers) */
     OVERWHELM_THRESHOLD: 0.1,
@@ -587,20 +587,20 @@ const _rawConfig: GameConfigType = {
     // ========================================================================
 
     /** % of ships captured when defender is actively retreating to friendly star */
-    RETREAT_CAPTURE_RATE: 0.25,
+    RETREAT_CAPTURE_RATE: 0.1,
 
     /** % of ships captured when defender has escape routes but not retreating */
-    SCATTER_CAPTURE_RATE: 0.4,
+    SCATTER_CAPTURE_RATE: 0.2,
 
     /** % of non-captured ships destroyed during scatter (rest escape) */
     SCATTER_DESTROY_RATE: 0.5,
 
     /** % of damaged ships converted to active on retreat/scatter (0=stay damaged, 1=all activate) */
-    RETREAT_DAMAGED_ACTIVATION_RATE: 0,
+    RETREAT_DAMAGED_ACTIVATION_RATE: 0.1,
 
 
     /** Starting ships per star at game start */
-    STARTING_SHIPS: 40,
+    STARTING_SHIPS: 70,
 
     // ========================================================================
     // AI BEHAVIOR
@@ -773,11 +773,11 @@ const _rawConfig: GameConfigType = {
     /** Star glow settings */
     STAR_GLOW_ON: true,
     /** Ownership ring offset from star center (% of radius) */
-    STAR_RING_OFFSET: 20,
+    STAR_RING_OFFSET: 18,
     /** Ownership ring stroke width (px) */
-    STAR_RING_WIDTH: 2,
+    STAR_RING_WIDTH: 2.5,
     /** Ownership ring alpha (0-1) */
-    STAR_RING_ALPHA: 0.8,
+    STAR_RING_ALPHA: 1,
     STAR_GLOW_RADIUS_MULT: 1.3,
     STAR_GLOW_INTENSITY: 0.25,
     STAR_GLOW_LAYERS: 4,
@@ -853,14 +853,14 @@ const _rawConfig: GameConfigType = {
     /** Show star power alpha overlay behind stars (F-47) */
     SHOW_STAR_POWER: true,
     /** Star power overlay alpha (0-1) */
-    STAR_POWER_ALPHA: 0.3,
+    STAR_POWER_ALPHA: 0.195,
     /** Star power radius multiplier relative to star radius */
-    STAR_POWER_RADIUS_MULT: 3,
+    STAR_POWER_RADIUS_MULT: 2.5,
     /** Number of concentric gradient layers */
-    STAR_POWER_LAYERS: 4,
+    STAR_POWER_LAYERS: 8,
     /** GPU blur on star power halos (0=off) */
-    STAR_POWER_BLUR: 4,
-    HALO_FLEET_SCALE: true,
+    STAR_POWER_BLUR: 16,
+    HALO_FLEET_SCALE: false,
     /** Fleet halo mode: 'stepped' or 'linear' */
     HALO_FLEET_MODE: 'stepped',
     /** Fleet halo intensity multiplier (0=off, 1=default, 2=strong) */
@@ -875,10 +875,10 @@ const _rawConfig: GameConfigType = {
     /** Enable Modified Voronoi territory renderer (F-138) */
     TERRITORY_MODIFIED_VORONOI: false,
     /** Enable Power Voronoi V2 territory renderer (F-138v2) */
-    TERRITORY_POWER_VORONOI: false,
+    TERRITORY_POWER_VORONOI: true,
     /** Duration of territory morph/crossfade animation in ms (0=instant) */
-    TERRITORY_TRANSITION_MS: 400,
-    TERRITORY_BOUNDARY_MODE: 'smooth' as const,
+    TERRITORY_TRANSITION_MS: 350,
+    TERRITORY_BOUNDARY_MODE: 'segment' as const,
     /** Enable Metaball territory renderer */
     TERRITORY_METABALL: false,
     /** Enable Pixel (nearest-neighbor) territory renderer */
@@ -891,19 +891,19 @@ const _rawConfig: GameConfigType = {
     /** Show contiguous Voronoi territory fill */
     SHOW_VORONOI: false,
     /** Voronoi territory alpha (0-1) */
-    VORONOI_ALPHA: 0.25,
+    VORONOI_ALPHA: 0.23,
     /** Voronoi canvas downscale factor (higher = faster/blockier) */
     VORONOI_RESOLUTION: 2,
     /** Legacy (unused with d3-delaunay) */
     VORONOI_EDGE_BLEND: 2.3,
     /** Voronoi border line width between territories (0=off) */
-    VORONOI_BORDER_WIDTH: 8,
+    VORONOI_BORDER_WIDTH: 2,
     /** Voronoi border alpha */
     VORONOI_BORDER_ALPHA: 0.35,
     /** How much to brighten border color (0-255) */
     VORONOI_BORDER_BRIGHTEN: 20,
     /** Voronoi color saturation multiplier (0=grey, 1=original, 2=vivid) */
-    VORONOI_SATURATION: 0.75,
+    VORONOI_SATURATION: 1,
     /** Voronoi color lightness multiplier (0=dark, 1=original, 2=bright) */
     VORONOI_LIGHTNESS: 0.75,
     /** Territory glow bleed radius as fraction of map size */
@@ -919,7 +919,7 @@ const _rawConfig: GameConfigType = {
     /** Enable gradient blending at territory borders */
     VORONOI_GRADIENT_BLEND: true,
     /** Gradient blend strip width in px */
-    VORONOI_BLEND_WIDTH: 80,
+    VORONOI_BLEND_WIDTH: 15,
 
     // ── Modified Voronoi Territory (F-138) ──
     /** Min boundary distance from star centers in px (0=off, 45=default) */
@@ -933,41 +933,41 @@ const _rawConfig: GameConfigType = {
     /** Whether to inject virtual Voronoi sites along same-owner lanes */
     MODIFIED_VORONOI_CORRIDOR_ENABLED: true,
     /** Distance between virtual corridor sites in px (lower=more sites=denser corridor) */
-    MODIFIED_VORONOI_CORRIDOR_SPACING: 80,
+    MODIFIED_VORONOI_CORRIDOR_SPACING: 20,
     /** Whether to inject enemy virtual sites to separate non-connected same-owner territories */
-    MODIFIED_VORONOI_DISCONNECT_ENABLED: true,
+    MODIFIED_VORONOI_DISCONNECT_ENABLED: false,
     /** Max distance between same-owner stars for disconnect injection (px) */
-    MODIFIED_VORONOI_DISCONNECT_DISTANCE: 400,
+    MODIFIED_VORONOI_DISCONNECT_DISTANCE: 50,
 
     // ── Metaball Territory ──
     /** How far each star's influence field extends (px) */
-    METABALL_INFLUENCE_RADIUS: 300,
+    METABALL_INFLUENCE_RADIUS: 90,
     /** Falloff curve for influence: 'inverse-square' (organic), 'gaussian' (fluid), 'smoothstep' (defined edges) */
     METABALL_FALLOFF: 'gaussian' as 'inverse-square' | 'gaussian' | 'smoothstep',
     /** Faction boundary sharpness (higher = crisper borders, lower = softer blend) */
-    METABALL_BLEND_SHARPNESS: 6,
+    METABALL_BLEND_SHARPNESS: 20,
     /** Overall metaball territory alpha (0-1) */
-    METABALL_ALPHA: 0.6,
+    METABALL_ALPHA: 0.5,
     /** Grid resolution in px per cell (lower = sharper but slower, 4-16 typical) */
-    METABALL_CELL_SIZE: 12,
+    METABALL_CELL_SIZE: 2,
     /** Minimum influence to draw (lower = more coverage, 0.01-0.2 typical) */
-    METABALL_THRESHOLD: 0.05,
+    METABALL_THRESHOLD: 0.01,
     /** Star strength multiplier (scales all influence, default 1.0) */
-    METABALL_STRENGTH_MULT: 2,
+    METABALL_STRENGTH_MULT: 4.3,
     /** Edge alpha falloff steepness (higher = sharper edges, default 3.0) */
-    METABALL_EDGE_FADE: 3.0,
+    METABALL_EDGE_FADE: 0.5,
     /** GPU blur on metaball output (0=pixelated, 4=smooth, higher=very soft) */
-    METABALL_BLUR: 4,
+    METABALL_BLUR: 0,
     /** Border line width between metaball territories */
-    METABALL_BORDER_WIDTH: 2,
+    METABALL_BORDER_WIDTH: 3,
     /** Border line alpha */
-    METABALL_BORDER_ALPHA: 0.05,
+    METABALL_BORDER_ALPHA: 1,
     /** Grid padding factor (0=compact, 0.3=extended) */
     METABALL_COVERAGE: 0,
     /** Metaball color saturation multiplier (0=grey, 1=original, 2=vivid) */
-    METABALL_SATURATION: 1.0,
+    METABALL_SATURATION: 1.05,
     /** Metaball color lightness multiplier (0=dark, 1=original, 2=bright) */
-    METABALL_LIGHTNESS: 1.0,
+    METABALL_LIGHTNESS: 0.65,
 
     // ── Pixel Territory ──
     /** Pixel territory alpha (0-1, lower = more transparent) */
@@ -1008,7 +1008,7 @@ const _rawConfig: GameConfigType = {
     PIXEL_LIGHTNESS: 1.0,
 
     // ── Graph Territory (4th mode) ──
-    TERRITORY_GRAPH: true,
+    TERRITORY_GRAPH: false,
     GRAPH_ALPHA: 0.5,
     GRAPH_RESOLUTION: 1,
     GRAPH_BLUR: 1,
@@ -1037,46 +1037,46 @@ const _rawConfig: GameConfigType = {
 
     // ── Distance Field Territory (6th mode) ──
     TERRITORY_DISTANCE_FIELD: false,
-    DF_RESOLUTION: 4,
-    DF_ALPHA: 0.15,
-    DF_BORDER_WIDTH: 15,
-    DF_BORDER_SOFTNESS: 10,
-    DF_BORDER_ALPHA: 0.6,
-    DF_BORDER_BRIGHTEN: 60,
-    DF_BORDER_MODE: 1,
+    DF_RESOLUTION: 1,
+    DF_ALPHA: 0.56,
+    DF_BORDER_WIDTH: 11,
+    DF_BORDER_SOFTNESS: 0,
+    DF_BORDER_ALPHA: 0.5,
+    DF_BORDER_BRIGHTEN: 15,
+    DF_BORDER_MODE: 0,
     DF_BORDER_FAMILY: 'straight',
     DF_BORDER_HQ_ENABLED: false,
-    DF_BORDER_HQ_SCALE: 2.0,
-    DF_BORDER_HQ_MAX_DIM: 8192,
-    DF_VECTOR_BORDERS_ENABLED: false,
+    DF_BORDER_HQ_SCALE: 3,
+    DF_BORDER_HQ_MAX_DIM: 5120,
+    DF_VECTOR_BORDERS_ENABLED: true,
     DF_VECTOR_GRID_RESOLUTION: 192,
-    DF_VECTOR_SMOOTHING: 1,
-    DF_VECTOR_SIMPLIFY: 0.5,
-    DF_VECTOR_UPDATE_MS: 33,
+    DF_VECTOR_SMOOTHING: 2,
+    DF_VECTOR_SIMPLIFY: 0,
+    DF_VECTOR_UPDATE_MS: 45,
     DF_DISTANCE_METRIC: 'length' as const,
-    DF_BLUR: 2,
+    DF_BLUR: 0,
     DF_HUE: 0,
-    DF_SATURATION: 0.5,
+    DF_SATURATION: 1.7,
     DF_LIGHTNESS: 0.4,
-    DF_EDGE_FADE: 200,
-    DF_ROUNDING: 5,
-    DF_INFLUENCE_WEIGHT: 1.0,
-    DF_EXPANSION: 0.10,
-    DF_SMOOTHING: 30,
-    DF_MIN_STAR_RADIUS: 0,
-    DF_CORRIDOR_ENABLED: false,
+    DF_EDGE_FADE: 0,
+    DF_ROUNDING: 0,
+    DF_INFLUENCE_WEIGHT: 0,
+    DF_EXPANSION: 0,
+    DF_SMOOTHING: 0,
+    DF_MIN_STAR_RADIUS: 90,
+    DF_CORRIDOR_ENABLED: true,
     DF_CORRIDOR_MODE: 'spacing',
-    DF_CORRIDOR_SPACING: 60,
-    DF_CORRIDOR_COUNT: 3,
-    DF_CORRIDOR_WEIGHT: 1.0,
-    DF_DISCONNECT_ENABLED: false,
-    DF_DISCONNECT_DISTANCE: 400,
-    DF_DISCONNECT_WEIGHT: 0.3,
+    DF_CORRIDOR_SPACING: 90,
+    DF_CORRIDOR_COUNT: 1,
+    DF_CORRIDOR_WEIGHT: 0.1,
+    DF_DISCONNECT_ENABLED: true,
+    DF_DISCONNECT_DISTANCE: 225,
+    DF_DISCONNECT_WEIGHT: 0.05,
 
     // ── Contour Territory (5th mode — vector contour extraction) ──
     TERRITORY_CONTOUR: false,
     CONTOUR_RESOLUTION: 128,
-    CONTOUR_SIMPLIFY: 5,
+    CONTOUR_SIMPLIFY: 0,
     CONTOUR_SMOOTH: 0,
     CONTOUR_FILL_ALPHA: 0.15,
     CONTOUR_BORDER_WIDTH: 2,
