@@ -495,13 +495,14 @@ export function extractPolylinesFromFrontierGraph(frontier: FrontierGraph): Fron
             }
             if (worldPoints.length >= 4) {
                 polylines.push({
-                    ownerA: pairSample.ownerA,
-                    ownerB: pairSample.ownerB,
+                    ownerA: pairSample!.ownerA,
+                    ownerB: pairSample!.ownerB,
                     points: worldPoints,
                 });
             }
         };
 
+        // Start from branching/junction vertices first for stable output
         for (const vertex of sortedVertices) {
             const neighbors = adjacency.get(vertex) ?? [];
             if (neighbors.length === 2) continue;
@@ -512,6 +513,7 @@ export function extractPolylinesFromFrontierGraph(frontier: FrontierGraph): Fron
             }
         }
 
+        // Pick up remaining cycles
         for (const vertex of sortedVertices) {
             const neighbors = adjacency.get(vertex) ?? [];
             for (const neighbor of neighbors) {
@@ -525,5 +527,100 @@ export function extractPolylinesFromFrontierGraph(frontier: FrontierGraph): Fron
     return polylines;
 }
 
+// ============================================================================
+// Stage 2B: Field Frontier Extraction from CPU Owner Grid
+// ============================================================================
 
+export interface OwnerGridInfo {
+    ownerGrid: Int16Array;
+    gridW: number;
+    gridH: number;
+    originX: number;
+    originY: number;
+    extentW: number;
+    extentH: number;
+}
 
+export function extractFieldFrontiersFromOwnerGrid(info: OwnerGridInfo): FieldFrontierPoint[] {
+    const { ownerGrid, gridW, gridH, originX, originY, extentW, extentH } = info;
+    const cellW = extentW / gridW;
+    const cellH = extentH / gridH;
+    const points: FieldFrontierPoint[] = [];
+    let nextId = 0;
+
+    const getOwner = (gx: number, gy: number): number => {
+        if (gx < 0 || gx >= gridW || gy < 0 || gy >= gridH) return -1;
+        return ownerGrid[gy * gridW + gx];
+    };
+
+    for (let gy = 0; gy < gridH; gy++) {
+        for (let gx = 0; gx < gridW; gx++) {
+            const owner = getOwner(gx, gy);
+            if (owner < 0) continue;
+
+            // Check horizontal neighbor (right)
+            const rightOwner = getOwner(gx + 1, gy);
+            if (rightOwner >= 0 && rightOwner !== owner) {
+                const ownerA = Math.min(owner, rightOwner);
+                const ownerB = Math.max(owner, rightOwner);
+                const worldX = originX + (gx + 1) * cellW;
+                const worldY = originY + (gy + 0.5) * cellH;
+                const pairId = makePairId(ownerA, ownerB);
+                points.push({
+                    id: `field:h:${nextId++}`,
+                    x: worldX,
+                    y: worldY,
+                    ownerA,
+                    ownerB,
+                    source: 'field',
+                    sourceRef: `grid:${pairId}`,
+                    sortKey: worldX + worldY * 0.001,
+                });
+            }
+
+            // Check vertical neighbor (down)
+            const downOwner = getOwner(gx, gy + 1);
+            if (downOwner >= 0 && downOwner !== owner) {
+                const ownerA = Math.min(owner, downOwner);
+                const ownerB = Math.max(owner, downOwner);
+                const worldX = originX + (gx + 0.5) * cellW;
+                const worldY = originY + (gy + 1) * cellH;
+                const pairId = makePairId(ownerA, ownerB);
+                points.push({
+                    id: `field:v:${nextId++}`,
+                    x: worldX,
+                    y: worldY,
+                    ownerA,
+                    ownerB,
+                    source: 'field',
+                    sourceRef: `grid:${pairId}`,
+                    sortKey: worldX + worldY * 0.001,
+                });
+            }
+        }
+    }
+
+    return points;
+}
+
+// ============================================================================
+// Convenience: Build canonical polylines from graph distances + owner grid
+// ============================================================================
+
+export function buildCanonicalFrontierPolylines(
+    stars: StarState[],
+    connections: StarConnection[],
+    graphResult: GraphNativeDistanceView,
+    ownerGridInfo?: OwnerGridInfo,
+): FrontierPolyline[] {
+    const fieldFrontiers = ownerGridInfo
+        ? extractFieldFrontiersFromOwnerGrid(ownerGridInfo)
+        : [];
+
+    const frontier = buildFrontierGraphFromGraph(stars, connections, graphResult, {
+        includeFieldFrontiers: fieldFrontiers.length > 0,
+        fieldFrontiers,
+    });
+
+    return extractPolylinesFromFrontierGraph(frontier);
+}

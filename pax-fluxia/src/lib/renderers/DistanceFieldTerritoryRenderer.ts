@@ -32,6 +32,7 @@ import type { ColorUtils } from './RenderContext';
 import { computeCorridorVirtuals, computeDisconnectVirtuals, type VirtualSite } from './territoryFeatures';
 import { buildLegacyCenterlineGraphsFromOwnerGrid, type CenterlineGraphPair } from './centerlineGraph';
 import { buildStrokeMeshGeometryBuffers, createStrokeMeshGeometryFromBuffers, createStrokeMeshShader, type FittedPath } from './strokeMeshBorders';
+import { buildCanonicalFrontierPolylines, type GraphNativeDistanceView, type OwnerGridInfo, type FrontierPolyline } from './frontierGraph';
 
 
 // ============================================================================
@@ -210,7 +211,9 @@ interface BorderFamilyRenderContext {
     colorUtils: ColorUtils;
     stars: StarState[];
     virtualSites: VirtualSite[];
+    connections: StarConnection[];
     dist: number[][];
+    top2ByStar: NodeTop2Pair[];
     prevDistArr: number[][] | null;
     playerIds: string[];
     ownershipSnapshotId: string;
@@ -2284,7 +2287,38 @@ function assertMeshCenterStrokeAlignment(
 }
 
 function renderMeshBorderOverlay(ctx: BorderFamilyRenderContext, alignmentContract: AlignmentContract): boolean {
-    const pathReady = renderVectorBorderOverlay(
+    // === Canonical frontier pipeline ===
+    // Build graph-native distance view from the renderer's cached Dijkstra result.
+    const graphView: GraphNativeDistanceView = {
+        distToPlayer: ctx.dist,
+        top2ByStar: ctx.top2ByStar,
+    };
+
+    // Build owner grid info from the cached vector build job (for Stage 2B field frontiers).
+    let ownerGridInfo: OwnerGridInfo | undefined;
+    if (cachedVectorBuildJob && cachedVectorBuildJob.ownerGrid.length > 0) {
+        ownerGridInfo = {
+            ownerGrid: cachedVectorBuildJob.ownerGrid,
+            gridW: cachedVectorBuildJob.gridW,
+            gridH: cachedVectorBuildJob.gridH,
+            originX: cachedVectorBuildJob.originX,
+            originY: cachedVectorBuildJob.originY,
+            extentW: cachedVectorBuildJob.extentW,
+            extentH: cachedVectorBuildJob.extentH,
+        };
+    }
+
+    // Use canonical frontier polylines (Stage 2A lane + Stage 2B field)
+    const canonicalPolylines = buildCanonicalFrontierPolylines(
+        ctx.stars,
+        ctx.connections,
+        graphView,
+        ownerGridInfo,
+    );
+
+    // Also run the legacy path to keep the owner grid warm for Stage 2B.
+    // This builds the ownerGrid that extractFieldFrontiersFromOwnerGrid uses.
+    const legacyPathReady = renderVectorBorderOverlay(
         ctx.container,
         ctx.colorUtils,
         ctx.stars,
@@ -2297,15 +2331,15 @@ function renderMeshBorderOverlay(ctx: BorderFamilyRenderContext, alignmentContra
         ctx.now,
         ctx.forceRebuild,
     );
-
-    // Mesh mode uses vector extraction as input but draws via mesh, never Graphics strokes.
+    // Hide the legacy Graphics strokes — we draw via mesh only.
     hideVectorBorderOverlay(false);
 
-    if (!pathReady && cachedVectorPolylines.length === 0) {
-        hideStrokeMeshOverlay();
-        return false;
-    }
-    if (cachedVectorPolylines.length === 0) {
+    // Prefer legacy centerline polylines (they trace actual territory boundaries).
+    // Fall back to canonical frontier polylines only when legacy is empty.
+    const useLegacy = cachedVectorPolylines.length > 0;
+    const activePolylines = useLegacy ? cachedVectorPolylines : canonicalPolylines;
+
+    if (activePolylines.length === 0) {
         hideStrokeMeshOverlay();
         return false;
     }
@@ -2343,7 +2377,7 @@ function renderMeshBorderOverlay(ctx: BorderFamilyRenderContext, alignmentContra
         cachedStrokeMeshRecords = [];
 
         const grouped = new Map<string, VectorBorderPolyline[]>();
-        for (const polyline of cachedVectorPolylines) {
+        for (const polyline of activePolylines) {
             const key = buildOwnerPairKey(polyline.ownerA, polyline.ownerB);
             const list = grouped.get(key) ?? [];
             list.push(polyline);
@@ -2413,7 +2447,7 @@ function renderMeshBorderOverlay(ctx: BorderFamilyRenderContext, alignmentContra
 
         cachedStrokeMeshGeometryFingerprint = geometryFp;
         cachedStrokeMeshStyleFingerprint = '';
-        assertMeshCenterStrokeAlignment(alignmentContract, cachedVectorPolylines, borderWidth);
+        assertMeshCenterStrokeAlignment(alignmentContract, activePolylines, borderWidth);
     }
 
     const needsStyleUpdate = cachedStrokeMeshStyleFingerprint !== styleFp;
@@ -4059,7 +4093,9 @@ export function renderDistanceFieldTerritory(
                 colorUtils,
                 stars: canonicalStars,
                 virtualSites: activeVirtualSites,
+                connections: canonicalConnections,
                 dist: currentDist,
+                top2ByStar: latestTop2ByStar,
                 prevDistArr: prevDist,
                 playerIds: currentPlayerIds,
                 ownershipSnapshotId,
