@@ -389,3 +389,141 @@ export function buildFrontierGraphFromGraph(
 }
 
 
+
+export interface FrontierPolyline {
+    ownerA: number;
+    ownerB: number;
+    points: number[];
+}
+
+export function extractPolylinesFromFrontierGraph(frontier: FrontierGraph): FrontierPolyline[] {
+    const pairAdjacency = new Map<string, Map<string, string[]>>();
+    const pairNodes = new Map<string, Map<string, FrontierNode>>();
+
+    for (const node of frontier.nodes.values()) {
+        let nodes = pairNodes.get(node.pairId);
+        if (!nodes) {
+            nodes = new Map<string, FrontierNode>();
+            pairNodes.set(node.pairId, nodes);
+        }
+        nodes.set(node.id, node);
+    }
+
+    for (const edge of frontier.edges.values()) {
+        let adjacency = pairAdjacency.get(edge.pairId);
+        if (!adjacency) {
+            adjacency = new Map<string, string[]>();
+            pairAdjacency.set(edge.pairId, adjacency);
+        }
+
+        const addNeighbor = (from: string, to: string) => {
+            const neighbors = adjacency!.get(from) ?? [];
+            neighbors.push(to);
+            neighbors.sort((a, b) => a.localeCompare(b));
+            adjacency!.set(from, neighbors);
+        };
+
+        addNeighbor(edge.a, edge.b);
+        addNeighbor(edge.b, edge.a);
+    }
+
+    const polylines: FrontierPolyline[] = [];
+    for (const [pairId, adjacency] of pairAdjacency.entries()) {
+        const nodes = pairNodes.get(pairId);
+        if (!nodes) continue;
+
+        let pairSample: FrontierEdge | null = null;
+        for (const edge of frontier.edges.values()) {
+            if (edge.pairId === pairId) {
+                pairSample = edge;
+                break;
+            }
+        }
+        if (!pairSample) continue;
+
+        const usedEdges = new Set<string>();
+        const edgeKey = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`);
+        const sortedVertices = [...adjacency.keys()].sort((a, b) => a.localeCompare(b));
+
+        const toWorldPoints = (path: string[]): number[] => {
+            const points: number[] = [];
+            for (const nodeId of path) {
+                const node = nodes.get(nodeId);
+                if (!node) continue;
+                points.push(node.x, node.y);
+            }
+            return points;
+        };
+
+        const consumePath = (start: string, next: string): string[] => {
+            const path = [start, next];
+            usedEdges.add(edgeKey(start, next));
+
+            let safety = 0;
+            while (safety++ < 100000) {
+                const prev = path[path.length - 2];
+                const current = path[path.length - 1];
+                const neighbors = adjacency.get(current) ?? [];
+
+                let candidate: string | null = null;
+                for (const neighbor of neighbors) {
+                    const key = edgeKey(current, neighbor);
+                    if (usedEdges.has(key)) continue;
+                    if (neighbor === prev && neighbors.length > 1) continue;
+                    candidate = neighbor;
+                    break;
+                }
+
+                if (!candidate) break;
+                path.push(candidate);
+                usedEdges.add(edgeKey(current, candidate));
+                if (candidate === start) break;
+            }
+
+            return path;
+        };
+
+        const tryAddPolyline = (path: string[]) => {
+            if (path.length < 2) return;
+            const isClosed = path[0] === path[path.length - 1];
+            const uniquePath = isClosed ? path.slice(0, -1) : path;
+            if (uniquePath.length < 2) return;
+
+            let worldPoints = toWorldPoints(uniquePath);
+            if (isClosed && worldPoints.length >= 4) {
+                worldPoints = [...worldPoints, worldPoints[0], worldPoints[1]];
+            }
+            if (worldPoints.length >= 4) {
+                polylines.push({
+                    ownerA: pairSample.ownerA,
+                    ownerB: pairSample.ownerB,
+                    points: worldPoints,
+                });
+            }
+        };
+
+        for (const vertex of sortedVertices) {
+            const neighbors = adjacency.get(vertex) ?? [];
+            if (neighbors.length === 2) continue;
+            for (const neighbor of neighbors) {
+                const key = edgeKey(vertex, neighbor);
+                if (usedEdges.has(key)) continue;
+                tryAddPolyline(consumePath(vertex, neighbor));
+            }
+        }
+
+        for (const vertex of sortedVertices) {
+            const neighbors = adjacency.get(vertex) ?? [];
+            for (const neighbor of neighbors) {
+                const key = edgeKey(vertex, neighbor);
+                if (usedEdges.has(key)) continue;
+                tryAddPolyline(consumePath(vertex, neighbor));
+            }
+        }
+    }
+
+    return polylines;
+}
+
+
+
