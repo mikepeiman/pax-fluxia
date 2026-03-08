@@ -30,7 +30,7 @@ import { getSettingWrites, type SettingWriteTelemetry } from '$lib/config/settin
 import type { StarState, StarConnection } from '$lib/types/game.types';
 import type { ColorUtils } from './RenderContext';
 import { computeCorridorVirtuals, computeDisconnectVirtuals, type VirtualSite } from './territoryFeatures';
-import { buildCenterlineGraphsFromOwnerGrid, type CenterlineGraphPair } from './centerlineGraph';
+import { buildLegacyCenterlineGraphsFromOwnerGrid, type CenterlineGraphPair } from './centerlineGraph';
 import { buildStrokeMeshGeometryBuffers, createStrokeMeshGeometryFromBuffers, createStrokeMeshShader, type FittedPath } from './strokeMeshBorders';
 
 
@@ -2027,7 +2027,7 @@ function extractVectorBorderPolylines(
     simplifyTolerance: number,
     straightnessPasses: number,
 ): VectorBorderPolyline[] {
-    const centerlineGraphs = buildCenterlineGraphsFromOwnerGrid(ownerGrid, gridW, gridH);
+    const centerlineGraphs = buildLegacyCenterlineGraphsFromOwnerGrid(ownerGrid, gridW, gridH);
     return fitStraightPolylinesFromCenterlineGraphs(
         centerlineGraphs,
         gridW,
@@ -4253,6 +4253,7 @@ export function resetDistanceFieldTerritoryCache(): void {
     warnedCurvedBorderFamilyFallback = false;
     warnedSegmentedBorderFamilyFallback = false;
 }
+
 
 
 

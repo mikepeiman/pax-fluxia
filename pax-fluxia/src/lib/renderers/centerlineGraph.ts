@@ -1,10 +1,8 @@
-﻿/**
- * centerlineGraph.ts
+/**
+ * LEGACY: Extract owner-pair centerline graphs from a rasterized ownership lattice.
  *
- * Deterministic extraction of owner-pair centerline graphs from an ownership lattice.
- *
- * This module is intentionally renderer-agnostic so different border families
- * (straight / curved / segmented) can reuse the same canonical centerline graph.
+ * This path is not canonical graph-native border geometry. It preserves the
+ * historical owner-grid workflow for debugging and reference modes only.
  */
 
 export interface CenterlineNode {
@@ -45,14 +43,12 @@ function compareNodesByGridPosition(a: CenterlineNode, b: CenterlineNode): numbe
 }
 
 /**
- * Convert an ownership grid into owner-pair centerline graphs.
+ * LEGACY: Extract owner-pair centerline graphs from a rasterized ownership lattice.
  *
- * Determinism guarantees:
- * - owner-pairs are emitted in stable ascending `(ownerA, ownerB)` order
- * - node ids are stable (`node:pair:a:b:x:y`)
- * - adjacency neighbor lists are sorted by grid position
+ * This path is not canonical graph-native border geometry. It preserves the
+ * historical owner-grid workflow for debugging and reference modes only.
  */
-export function buildCenterlineGraphsFromOwnerGrid(
+export function buildLegacyCenterlineGraphsFromOwnerGrid(
     ownerGrid: Int16Array,
     gridW: number,
     gridH: number,
@@ -172,3 +168,5 @@ export function buildCenterlineGraphsFromOwnerGrid(
 
     return out;
 }
+
+
