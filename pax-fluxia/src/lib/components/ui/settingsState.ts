@@ -124,3 +124,29 @@ export function syncPanelFromConfigPatch(
     persist(nextPanel);
     return nextPanel;
 }
+
+/**
+ * Dev-only guard to catch territory config keys that do not have schema coverage.
+ */
+export function warnOnMissingTerritorySchemaCoverage(
+    configSource: Record<string, unknown> = GAME_CONFIG as Record<string, unknown>,
+): void {
+    if (!(import.meta as any).env?.DEV) return;
+
+    const territoryPrefixes = ['TERRITORY_', 'DF_', 'VORONOI_', 'MODIFIED_VORONOI_'];
+    const missing: string[] = [];
+
+    for (const key of Object.keys(configSource)) {
+        const isTerritoryKey = territoryPrefixes.some((prefix) => key.startsWith(prefix));
+        if (!isTerritoryKey) continue;
+        if (!SETTINGS_BY_CONFIG_KEY.has(key)) {
+            missing.push(key);
+        }
+    }
+
+    if (missing.length > 0) {
+        console.warn(
+            `[settings] Missing territory schema coverage for ${missing.length} keys: ${missing.sort().join(', ')}`,
+        );
+    }
+}

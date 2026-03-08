@@ -19,7 +19,7 @@
         LOG_CATEGORIES,
     } from "./settingsDefs";
     import { nudgeSliders } from "./settings/nudgeSliders";
-    import { setSetting, setSettingsFromConfigPatch, syncPanelFromConfigPatch } from "./settingsState";
+    import { setSetting, setSettingsFromConfigPatch, syncPanelFromConfigPatch, warnOnMissingTerritorySchemaCoverage } from "./settingsState";
     import {
         STORAGE_KEY,
         PANEL_STORAGE_KEY,
@@ -134,6 +134,7 @@
     let savedValues = $state({ ...initialValues });
 
     onMount(() => {
+        warnOnMissingTerritorySchemaCoverage();
         syncAllFromConfig();
         themeStore.registerApplyCallback(applyThemeValues);
         registerCategoryPresetApplyCallback(applyCategoryPresetValues);
@@ -1869,6 +1870,10 @@
         border-color: rgba(74, 222, 128, 0.6);
     }
 </style>
+
+
+
+
 
 
 
