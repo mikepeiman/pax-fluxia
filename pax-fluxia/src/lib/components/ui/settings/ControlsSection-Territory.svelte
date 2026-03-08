@@ -47,6 +47,19 @@
             updatePanel(chosen, false);
         }
     }
+    const BORDER_ENGINE_OPTIONS = [
+        { id: "mesh", label: "Mesh (Clean)" },
+        { id: "legacy_field", label: "Legacy Field (Reference)" },
+        { id: "legacy_grid", label: "Legacy Grid (Reference)" },
+    ] as const;
+
+    $: activeBorderEngine =
+        (panel.dfBorderEngine ?? GAME_CONFIG.DF_BORDER_ENGINE ?? "mesh") as
+            | "mesh"
+            | "legacy_field"
+            | "legacy_grid";
+    $: isLegacyFieldEngine = activeBorderEngine === "legacy_field";
+    $: isLegacyGridEngine = activeBorderEngine === "legacy_grid";
 </script>
 
 <CategoryThemeBar category="territory" onApply={() => syncFromConfig?.()} />
@@ -1261,6 +1274,28 @@
                 {/each}
             </div>
         </div>
+
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">Border Engine</span>
+            </div>
+            <div style="display:flex;gap:4px;padding:2px 0;flex-wrap:wrap">
+                {#each BORDER_ENGINE_OPTIONS as engine}
+                    <button
+                        class="mode-btn"
+                        class:active={activeBorderEngine === engine.id}
+                        onclick={() => {
+                            updatePanel("dfBorderEngine", engine.id);
+                            if (engine.id === "legacy_grid") {
+                                // Keep legacy compatibility toggle in sync for older theme snapshots.
+                                updatePanel("dfVectorBordersEnabled", true);
+                            }
+                        }}>{engine.label}</button
+                    >
+                {/each}
+            </div>
+        </div>
+
         <div class="var-row">
             <div class="row-top">
                 <span class="var-name">Border Width</span><span class="val"
@@ -1350,7 +1385,7 @@
                 }}
             />
         </div>
-
+        {#if isLegacyFieldEngine}
         <div class="var-row">
             <div class="row-top">
                 <span class="var-name">High Quality Borders</span><span
@@ -1419,7 +1454,9 @@
                 />
             </div>
         {/if}
+        {/if}
 
+        {#if isLegacyGridEngine}
         <div class="var-row">
             <div class="row-top">
                 <span class="var-name">Vector Borders</span><span class="val"
@@ -1436,6 +1473,9 @@
                 onchange={(e) => {
                     const v = (e.target as HTMLInputElement).checked;
                     updatePanel("dfVectorBordersEnabled", v);
+                    if (!v) {
+                        updatePanel("dfBorderEngine", "legacy_field");
+                    }
                 }}
             />
         </div>
@@ -1528,6 +1568,7 @@
                     }}
                 />
             </div>
+        {/if}
         {/if}
     {/if}
 
