@@ -1877,18 +1877,13 @@ function linearizeOpenPolyline(points: number[], maxError: number): number[] {
     return deduped.length >= 4 ? deduped : points;
 }
 
-// Converts sampled ownership boundaries into straightened world-space border polylines.
-function extractVectorBorderPolylines(
-    ownerGrid: Int16Array,
-    gridW: number,
-    gridH: number,
-    originX: number,
-    originY: number,
-    extentW: number,
-    extentH: number,
-    simplifyTolerance: number,
-    straightnessPasses: number,
-): VectorBorderPolyline[] {
+interface CenterlineGraphPair {
+    ownerA: number;
+    ownerB: number;
+    adjacency: Map<string, string[]>;
+}
+
+function buildCenterlineGraphsFromOwnerGrid(ownerGrid: Int16Array, gridW: number, gridH: number): CenterlineGraphPair[] {
     type Edge = [number, number, number, number];
     const pairEdges = new Map<string, Edge[]>();
 
@@ -1905,6 +1900,7 @@ function extractVectorBorderPolylines(
         edges.push([x1, y1, x2, y2]);
     };
 
+    // Scan ownership lattice once and emit centerline edge samples between dissimilar neighboring owners.
     for (let y = 0; y < gridH; y++) {
         for (let x = 0; x < gridW; x++) {
             const owner = ownerGrid[y * gridW + x];
@@ -1926,6 +1922,46 @@ function extractVectorBorderPolylines(
         }
     }
 
+    const out: CenterlineGraphPair[] = [];
+    const sortedPairKeys = [...pairEdges.keys()].sort((a, b) => a.localeCompare(b));
+
+    for (const pairKey of sortedPairKeys) {
+        const edges = pairEdges.get(pairKey);
+        if (!edges || edges.length === 0) continue;
+
+        const [pairA, pairB] = pairKey.split('|').map(Number);
+        const adjacency = new Map<string, string[]>();
+
+        const addAdjacency = (from: string, to: string) => {
+            const list = adjacency.get(from) ?? [];
+            if (!list.includes(to)) list.push(to);
+            adjacency.set(from, list);
+        };
+
+        for (const [x1, y1, x2, y2] of edges) {
+            const v1 = `${x1},${y1}`;
+            const v2 = `${x2},${y2}`;
+            addAdjacency(v1, v2);
+            addAdjacency(v2, v1);
+        }
+
+        out.push({ ownerA: pairA, ownerB: pairB, adjacency });
+    }
+
+    return out;
+}
+
+function fitStraightPolylinesFromCenterlineGraphs(
+    graphs: CenterlineGraphPair[],
+    gridW: number,
+    gridH: number,
+    originX: number,
+    originY: number,
+    extentW: number,
+    extentH: number,
+    simplifyTolerance: number,
+    straightnessPasses: number,
+): VectorBorderPolyline[] {
     const toWorldPoints = (path: string[]): number[] => {
         const points: number[] = [];
         for (const key of path) {
@@ -1943,23 +1979,8 @@ function extractVectorBorderPolylines(
     const polylines: VectorBorderPolyline[] = [];
     const quantizationTolerance = Math.max(extentW / Math.max(gridW, 1), extentH / Math.max(gridH, 1)) * 0.85;
 
-    for (const [pairKey, edges] of pairEdges) {
-        const [pairA, pairB] = pairKey.split('|').map(Number);
-
-        const adjacency = new Map<string, string[]>();
-        const addAdjacency = (from: string, to: string) => {
-            const list = adjacency.get(from) ?? [];
-            if (!list.includes(to)) list.push(to);
-            adjacency.set(from, list);
-        };
-
-        for (const [x1, y1, x2, y2] of edges) {
-            const v1 = `${x1},${y1}`;
-            const v2 = `${x2},${y2}`;
-            addAdjacency(v1, v2);
-            addAdjacency(v2, v1);
-        }
-
+    for (const graph of graphs) {
+        const adjacency = graph.adjacency;
         const usedEdges = new Set<string>();
         const edgeKey = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`);
 
@@ -2013,10 +2034,11 @@ function extractVectorBorderPolylines(
             }
 
             if (worldPoints.length >= 4) {
-                polylines.push({ ownerA: pairA, ownerB: pairB, points: worldPoints });
+                polylines.push({ ownerA: graph.ownerA, ownerB: graph.ownerB, points: worldPoints });
             }
         };
 
+        // Start from branching/junction vertices first so output paths are stable.
         for (const [vertex, neighbors] of adjacency) {
             if (neighbors.length === 2) continue;
             for (const neighbor of neighbors) {
@@ -2036,6 +2058,32 @@ function extractVectorBorderPolylines(
     }
 
     return polylines;
+}
+
+// Converts sampled ownership boundaries into straightened world-space border polylines.
+function extractVectorBorderPolylines(
+    ownerGrid: Int16Array,
+    gridW: number,
+    gridH: number,
+    originX: number,
+    originY: number,
+    extentW: number,
+    extentH: number,
+    simplifyTolerance: number,
+    straightnessPasses: number,
+): VectorBorderPolyline[] {
+    const centerlineGraphs = buildCenterlineGraphsFromOwnerGrid(ownerGrid, gridW, gridH);
+    return fitStraightPolylinesFromCenterlineGraphs(
+        centerlineGraphs,
+        gridW,
+        gridH,
+        originX,
+        originY,
+        extentW,
+        extentH,
+        simplifyTolerance,
+        straightnessPasses,
+    );
 }
 function hideVectorBorderOverlay(): void {
     cachedVectorBuildJob = null;
