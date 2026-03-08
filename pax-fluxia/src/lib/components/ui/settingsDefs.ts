@@ -372,6 +372,7 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'dfVectorUpdateMs', configKey: 'DF_VECTOR_UPDATE_MS' },
     { panelKey: 'dfInfluenceWeight', configKey: 'DF_INFLUENCE_WEIGHT' },
     { panelKey: 'territoryTransitionMs', configKey: 'TERRITORY_TRANSITION_MS' },
+    { panelKey: 'dfMorphEasing', configKey: 'DF_MORPH_EASING' },
     { panelKey: 'dfCorridorEnabled', configKey: 'DF_CORRIDOR_ENABLED' },
     { panelKey: 'dfCorridorMode', configKey: 'DF_CORRIDOR_MODE' },
     { panelKey: 'dfCorridorSpacing', configKey: 'DF_CORRIDOR_SPACING' },

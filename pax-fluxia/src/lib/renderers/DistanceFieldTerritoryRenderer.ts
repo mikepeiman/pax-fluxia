@@ -200,6 +200,7 @@ interface VectorBorderBuildJob {
 
 type BorderFamilyId = 'straight' | 'curved' | 'segmented';
 type BorderRendererId = 'field' | 'geometry';
+type DfMorphEasingId = 'linear' | 'easeInOutQuad' | 'easeInOutCubic' | 'smoothstep';
 
 interface BorderFamilyRenderContext {
     container: PIXI.Container;
@@ -1417,7 +1418,7 @@ function buildVisualFp(): string {
         + `${GAME_CONFIG.DF_BLUR}:${GAME_CONFIG.DF_HUE}:${GAME_CONFIG.DF_SATURATION}:${GAME_CONFIG.DF_LIGHTNESS}:`
         + `${GAME_CONFIG.DF_EDGE_FADE}:${GAME_CONFIG.DF_RESOLUTION}:${GAME_CONFIG.DF_ROUNDING}:`
         + `${GAME_CONFIG.DF_INFLUENCE_WEIGHT}:${GAME_CONFIG.DF_EXPANSION}:${GAME_CONFIG.DF_SMOOTHING}:`
-        + `${GAME_CONFIG.DF_MIN_STAR_RADIUS}:${GAME_CONFIG.TERRITORY_TRANSITION_MS}`;
+        + `${GAME_CONFIG.DF_MIN_STAR_RADIUS}:${GAME_CONFIG.TERRITORY_TRANSITION_MS}:${GAME_CONFIG.DF_MORPH_EASING}`;
 }
 
 function buildOwnershipControlFp(): string {
@@ -2107,6 +2108,26 @@ function normalizeBorderFamily(rawFamily: unknown): BorderFamilyId {
     return 'straight';
 }
 
+function normalizeMorphEasing(raw: unknown): DfMorphEasingId {
+    if (raw === 'easeInOutQuad' || raw === 'easeInOutCubic' || raw === 'smoothstep' || raw === 'linear') return raw;
+    return 'linear';
+}
+
+function applyMorphEasing(rawT: number, easing: DfMorphEasingId): number {
+    const t = Math.max(0, Math.min(1, rawT));
+    switch (easing) {
+        case 'easeInOutQuad':
+            return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) * 0.5;
+        case 'easeInOutCubic':
+            return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) * 0.5;
+        case 'smoothstep':
+            return t * t * (3 - 2 * t);
+        case 'linear':
+        default:
+            return t;
+    }
+}
+
 function resolveBorderRenderer(useTwoPassBorders: boolean, vectorBordersEnabled: boolean): BorderRendererId {
     // Geometry borders depend on the two-pass ownership snapshot pipeline.
     if (!useTwoPassBorders) return 'field';
@@ -2114,7 +2135,7 @@ function resolveBorderRenderer(useTwoPassBorders: boolean, vectorBordersEnabled:
     return 'field';
 }
 
-function renderBorderFamilyOverlay(family: BorderFamilyId, ctx: BorderFamilyRenderContext): void {
+function renderBorderFamilyOverlay(family: BorderFamilyId, ctx: BorderFamilyRenderContext): boolean {
     if (family === 'curved') {
         if (!warnedCurvedBorderFamilyFallback) {
             warnedCurvedBorderFamilyFallback = true;
@@ -2128,7 +2149,7 @@ function renderBorderFamilyOverlay(family: BorderFamilyId, ctx: BorderFamilyRend
     }
 
     // Straight renderer is the canonical implementation for this migration step.
-    renderVectorBorderOverlay(
+    return renderVectorBorderOverlay(
         ctx.container,
         ctx.colorUtils,
         ctx.stars,
@@ -2201,13 +2222,13 @@ function renderVectorBorderOverlay(
     morphFactor: number,
     now: number,
     forceRebuild: boolean,
-): void {
+): boolean {
     const borderWidth = GAME_CONFIG.DF_BORDER_WIDTH ?? 0;
     const borderSoftness = GAME_CONFIG.DF_BORDER_SOFTNESS ?? 0;
     const borderAlpha = GAME_CONFIG.DF_BORDER_ALPHA ?? 0;
     if (borderWidth <= 0 || borderAlpha <= 0 || stars.length === 0 || playerIds.length === 0) {
         hideVectorBorderOverlay();
-        return;
+        return false;
     }
 
     const extentW = Math.max(1, cachedRenderExtentW);
@@ -2260,7 +2281,7 @@ function renderVectorBorderOverlay(
             const ownershipSites = buildOwnershipSampleSites(stars, virtualSites, dist, prevDistArr, playerIds);
             if (ownershipSites.length === 0) {
                 hideVectorBorderOverlay();
-                return;
+                return false;
             }
 
             cachedVectorBuildJob = {
@@ -2283,7 +2304,7 @@ function renderVectorBorderOverlay(
 
         if (!cachedVectorBuildJob) {
             hideVectorBorderOverlay();
-            return;
+            return false;
         }
 
         cachedVectorBuildJob.morphFactor = morphFactor;
@@ -2295,7 +2316,7 @@ function renderVectorBorderOverlay(
             cachedVectorBuildJob = null;
             cachedVectorPublishedSnapshotId = '';
             if (cachedVectorBorderGraphics) cachedVectorBorderGraphics.visible = false;
-            return;
+            return false;
         }
 
         const buildCompleted = stepVectorBorderBuildJob(cachedVectorBuildJob, DF_VECTOR_REBUILD_BUDGET_MS);
@@ -2306,7 +2327,9 @@ function renderVectorBorderOverlay(
             if (cachedVectorBorderGraphics) {
                 cachedVectorBorderGraphics.visible = true;
             }
-            return;
+            const hasPublishedGeometry = cachedVectorPublishedSnapshotId === ownershipSnapshotId
+                && Boolean(cachedVectorBorderGraphics?.visible);
+            return hasPublishedGeometry;
         }
 
         cachedVectorPolylines = extractVectorBorderPolylines(
@@ -2341,7 +2364,7 @@ function renderVectorBorderOverlay(
 
     if (!needsStyleRedraw) {
         cachedVectorBorderGraphics.visible = true;
-        return;
+        return true;
     }
 
     cachedVectorBorderGraphics.clear();
@@ -2393,6 +2416,7 @@ function renderVectorBorderOverlay(
 
     cachedVectorStyleFingerprint = styleFp;
     cachedVectorBorderGraphics.visible = true;
+    return true;
 }
 function makeBounds(minX: number, minY: number, maxX: number, maxY: number): AlignmentBounds {
     return {
@@ -3336,6 +3360,36 @@ function updateTwoPassBorderUniforms(
     if (ug && typeof ug.update === 'function') ug.update();
     return true;
 }
+
+function renderFieldBorderOverlay(
+    renderer: PIXI.Renderer,
+    container: PIXI.Container,
+    colorUtils: ColorUtils,
+    worldWidth: number,
+    worldHeight: number,
+    alignment: AlignmentContract,
+): boolean {
+    const hasBoundaryField = cachedBoundaryDistanceDirty || !cachedBoundaryDistanceTexture
+        ? renderBoundaryDistancePass(renderer)
+        : true;
+    if (hasBoundaryField) {
+        cachedBoundaryDistanceDirty = false;
+    }
+
+    const borderReady = hasBoundaryField
+        && updateTwoPassBorderUniforms(colorUtils, worldWidth, worldHeight, alignment);
+
+    if (cachedBorderMesh && !cachedBorderMesh.parent) {
+        container.addChild(cachedBorderMesh);
+    }
+    if (cachedBorderMesh) {
+        cachedBorderMesh.visible = borderReady
+            && (GAME_CONFIG.DF_BORDER_WIDTH ?? 0) > 0
+            && (GAME_CONFIG.DF_BORDER_ALPHA ?? 0) > 0;
+    }
+
+    return borderReady;
+}
 // Update GPU uniforms from current state
 // ============================================================================
 
@@ -3453,6 +3507,7 @@ export function renderDistanceFieldTerritory(
 
     const now = performance.now();
     const transitionMs = GAME_CONFIG.TERRITORY_TRANSITION_MS ?? 400;
+    const morphEasing = normalizeMorphEasing(GAME_CONFIG.DF_MORPH_EASING);
     const metric = (GAME_CONFIG.DF_DISTANCE_METRIC ?? 'length') as 'hops' | 'length';
     cachedDistanceMetric = metric;
 
@@ -3531,7 +3586,8 @@ export function renderDistanceFieldTerritory(
             prevDist = null;
             morphFactor = 0;
         } else {
-            morphFactor = 1 - rawT;
+            const easedT = applyMorphEasing(rawT, morphEasing);
+            morphFactor = 1 - easedT;
         }
     }
 
@@ -3687,23 +3743,7 @@ export function renderDistanceFieldTerritory(
         const usesFieldBorders = borderRenderer === 'field';
 
         if (usesFieldBorders) {
-            const hasBoundaryField = cachedBoundaryDistanceDirty || !cachedBoundaryDistanceTexture
-                ? renderBoundaryDistancePass(renderer!)
-                : true;
-            if (hasBoundaryField) {
-                cachedBoundaryDistanceDirty = false;
-            }
-            const borderReady = hasBoundaryField
-                && updateTwoPassBorderUniforms(colorUtils, worldWidth, worldHeight, alignmentContract);
-
-            if (cachedBorderMesh && !cachedBorderMesh.parent) {
-                container.addChild(cachedBorderMesh);
-            }
-            if (cachedBorderMesh) {
-                cachedBorderMesh.visible = borderReady
-                    && (GAME_CONFIG.DF_BORDER_WIDTH ?? 0) > 0
-                    && (GAME_CONFIG.DF_BORDER_ALPHA ?? 0) > 0;
-            }
+            renderFieldBorderOverlay(renderer!, container, colorUtils, worldWidth, worldHeight, alignmentContract);
             hideVectorBorderOverlay();
         } else {
             if (cachedBorderMesh) cachedBorderMesh.visible = false;
@@ -3715,7 +3755,7 @@ export function renderDistanceFieldTerritory(
             // Ownership snapshot contract key shared with vector border extraction.
             const ownershipSnapshotId = `${changeClassification.geometryFp}|${changeClassification.topologyFp}|${currentPlayerIds.join(',')}|${canonicalStars.length + activeVirtualSites.length}|${ownershipControlFp}`;
 
-            renderBorderFamilyOverlay(borderFamily, {
+            const geometryReady = renderBorderFamilyOverlay(borderFamily, {
                 container,
                 colorUtils,
                 stars: canonicalStars,
@@ -3728,6 +3768,11 @@ export function renderDistanceFieldTerritory(
                 now,
                 forceRebuild: forceVectorRebuild,
             });
+
+            if (!geometryReady) {
+                // Local fallback ladder: keep borders visible while geometry chunk build is in-flight.
+                renderFieldBorderOverlay(renderer!, container, colorUtils, worldWidth, worldHeight, alignmentContract);
+            }
         }
     } else {
         if (cachedBorderMesh) cachedBorderMesh.visible = false;

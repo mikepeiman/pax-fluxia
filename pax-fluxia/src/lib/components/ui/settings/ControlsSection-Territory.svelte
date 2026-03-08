@@ -1574,6 +1574,27 @@
     </div>
 
     <!-- ── Corridor Virtual Sites ── -->
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Morph Easing</span>
+        </div>
+        <div style="display:flex;gap:4px;padding:2px 0;flex-wrap:wrap">
+            {#each [
+                { id: "linear", label: "Linear" },
+                { id: "smoothstep", label: "Smooth" },
+                { id: "easeInOutQuad", label: "Quad" },
+                { id: "easeInOutCubic", label: "Cubic" }
+            ] as easing}
+                <button
+                    class="mode-btn"
+                    class:active={(panel.dfMorphEasing ?? GAME_CONFIG.DF_MORPH_EASING ?? "linear") === easing.id}
+                    onclick={() => {
+                        updatePanel("dfMorphEasing", easing.id);
+                    }}>{easing.label}</button
+                >
+            {/each}
+        </div>
+    </div>
     <h4 class="sub-heading">Corridor / Disconnect</h4>
     <div class="var-row">
         <div class="row-top">

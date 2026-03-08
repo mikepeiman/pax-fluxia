@@ -279,6 +279,7 @@ interface GameConfigType {
     DF_VECTOR_SMOOTHING: number;        // Straight-line regularization passes for vector borders (default 1)
     DF_VECTOR_SIMPLIFY: number;         // Polyline simplify tolerance in world px (default 0.5)
     DF_VECTOR_UPDATE_MS: number;        // Rebuild interval while morphing (ms, default 33)
+    DF_MORPH_EASING: 'linear' | 'easeInOutQuad' | 'easeInOutCubic' | 'smoothstep'; // Fill/border morph easing curve (default 'linear')
     DF_DISTANCE_METRIC: 'hops' | 'length'; // Distance metric (default 'length')
     DF_BLUR: number;                // Post-render blur strength (default 2)
     DF_HUE: number;                 // Hue shift in degrees -180..180 (default 0)
@@ -1107,6 +1108,7 @@ const _rawConfig: GameConfigType = {
     DF_VECTOR_SMOOTHING: 2,
     DF_VECTOR_SIMPLIFY: 0,
     DF_VECTOR_UPDATE_MS: 45,
+    DF_MORPH_EASING: 'linear',
     DF_DISTANCE_METRIC: 'length' as const,
     DF_BLUR: 0,
     DF_HUE: 0,
