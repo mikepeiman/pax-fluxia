@@ -31,6 +31,7 @@ import type { StarState, StarConnection } from '$lib/types/game.types';
 import type { ColorUtils } from './RenderContext';
 import { computeCorridorVirtuals, computeDisconnectVirtuals, type VirtualSite } from './territoryFeatures';
 import { buildCenterlineGraphsFromOwnerGrid, type CenterlineGraphPair } from './centerlineGraph';
+import { createStrokeMeshGeometry, createStrokeMeshShader, type FittedPath } from './strokeMeshBorders';
 
 
 // ============================================================================
@@ -463,7 +464,7 @@ const territoryBitGl = {
                     alpha *= junctionFade;
                 }
 
-                // ── Border rendering (3 modes) ──
+                // Border rendering (3 modes)
                 // gap = 0 at boundary, grows into territory interior
                 if (enemyOwner >= 0 && uBorderWidth > 0.0) {
                     float gap = enemyInfluence - bestInfluence;
@@ -471,14 +472,14 @@ const territoryBitGl = {
                     float halfWidth = max(uBorderWidth * 0.5, 0.0);
 
                     if (uBorderMode == 0) {
-                        // Mode 0: "Gap" — raw influence gap threshold (organic, variable width)
+                        // Mode 0: "Gap" - raw influence gap threshold (organic, variable width)
                         borderMask = 1.0 - smoothstep(
                             max(halfWidth - uBorderSoftness, 0.0),
                             halfWidth + uBorderSoftness,
                             gap
                         );
                     } else if (uBorderMode == 1) {
-                        // Mode 1: "Even" — normalize by bestInfluence gradient for uniform screen-width
+                        // Mode 1: "Even" - normalize by bestInfluence gradient for uniform screen-width
                         float gradMag = max(fwidth(bestInfluence), 0.5);
                         float normGap = gap / gradMag;
                         borderMask = 1.0 - smoothstep(
@@ -487,7 +488,7 @@ const territoryBitGl = {
                             normGap
                         );
                     } else {
-                        // Mode 2: "Layered" — normalize by gap gradient (variable, layered look)
+                        // Mode 2: "Layered" - normalize by gap gradient (variable, layered look)
                         float gradMag = max(fwidth(gap), 1.0);
                         float normGap = gap / gradMag;
                         borderMask = 1.0 - smoothstep(
@@ -517,7 +518,7 @@ const territoryBitGl = {
                     }
                 }
 
-                // Edge fade at world boundaries — symmetric using content min bounds
+                // Edge fade at world boundaries - symmetric using content min bounds
                 float edgeX = min(worldPos.x - uContentMinX, uWorldWidth - worldPos.x);
                 float edgeY = min(worldPos.y - uContentMinY, uWorldHeight - worldPos.y);
                 float edgeDist = min(edgeX, edgeY);
@@ -1158,6 +1159,15 @@ let cachedVectorBuildJob: VectorBorderBuildJob | null = null;
 let cachedVectorPolylines: VectorBorderPolyline[] = [];
 // Identity of the last border geometry actually drawn to screen.
 let cachedVectorPublishedSnapshotId = '';
+interface StrokeMeshRecord {
+    ownerA: number;
+    ownerB: number;
+    mesh: PIXI.Mesh;
+}
+let cachedStrokeMeshContainer: PIXI.Container | null = null;
+let cachedStrokeMeshRecords: StrokeMeshRecord[] = [];
+let cachedStrokeMeshGeometryFingerprint = '';
+let cachedStrokeMeshStyleFingerprint = '';
 let warnedCurvedBorderFamilyFallback = false;
 let warnedSegmentedBorderFamilyFallback = false;
 
@@ -2024,12 +2034,32 @@ function extractVectorBorderPolylines(
         straightnessPasses,
     );
 }
-function hideVectorBorderOverlay(): void {
-    cachedVectorBuildJob = null;
-    cachedVectorPublishedSnapshotId = '';
+function hideVectorBorderOverlay(resetBuildState = true): void {
+    if (resetBuildState) {
+        cachedVectorBuildJob = null;
+        cachedVectorPublishedSnapshotId = '';
+    }
     if (cachedVectorBorderGraphics) {
         cachedVectorBorderGraphics.visible = false;
     }
+}
+
+function hideStrokeMeshOverlay(): void {
+    if (cachedStrokeMeshContainer) cachedStrokeMeshContainer.visible = false;
+}
+
+function destroyStrokeMeshOverlay(): void {
+    if (cachedStrokeMeshContainer) {
+        if (cachedStrokeMeshContainer.parent) cachedStrokeMeshContainer.parent.removeChild(cachedStrokeMeshContainer);
+        for (const child of cachedStrokeMeshContainer.children) {
+            (child as PIXI.DisplayObject).destroy();
+        }
+        cachedStrokeMeshContainer.destroy();
+        cachedStrokeMeshContainer = null;
+    }
+    cachedStrokeMeshRecords = [];
+    cachedStrokeMeshGeometryFingerprint = '';
+    cachedStrokeMeshStyleFingerprint = '';
 }
 
 
@@ -2101,6 +2131,201 @@ function renderBorderFamilyOverlay(family: BorderFamilyId, ctx: BorderFamilyRend
         ctx.now,
         ctx.forceRebuild,
     );
+}
+
+
+function computePairStrokeColorRgb(
+    colorUtils: ColorUtils,
+    playerIds: string[],
+    ownerA: number,
+    ownerB: number,
+    brighten: number,
+): [number, number, number] {
+    const ownerAId = playerIds[ownerA];
+    const ownerBId = playerIds[ownerB];
+    if (!ownerAId || !ownerBId) return [0.5, 0.5, 0.5];
+
+    const colorA = colorUtils.getPlayerColor(ownerAId);
+    const colorB = colorUtils.getPlayerColor(ownerBId);
+    const r = Math.min(255, Math.round((((colorA >> 16) & 0xff) + ((colorB >> 16) & 0xff)) * 0.5 + brighten));
+    const g = Math.min(255, Math.round((((colorA >> 8) & 0xff) + ((colorB >> 8) & 0xff)) * 0.5 + brighten));
+    const b = Math.min(255, Math.round(((colorA & 0xff) + (colorB & 0xff)) * 0.5 + brighten));
+    return [r / 255, g / 255, b / 255];
+}
+
+function computeStrokeInnerSide(width: number, softness: number): number {
+    const safeHalfWidth = Math.max(0, width * 0.5);
+    const safeHalfExtent = Math.max(0.00001, safeHalfWidth + Math.max(0, softness));
+    return Math.max(0, Math.min(1, safeHalfWidth / safeHalfExtent));
+}
+
+function assertMeshCenterStrokeAlignment(
+    contract: AlignmentContract,
+    polylines: VectorBorderPolyline[],
+    borderWidth: number,
+): void {
+    if (polylines.length === 0) return;
+    const bounds = contract.contentBounds;
+    const halfWidth = Math.max(0, borderWidth * 0.5);
+    const margin = halfWidth + DF_ALIGNMENT_EPSILON + 1;
+    let sampled = 0;
+    const issues: string[] = [];
+
+    for (const polyline of polylines) {
+        if (sampled >= DF_ALIGNMENT_SAMPLE_LIMIT) break;
+        const points = polyline.points;
+        if (points.length < 4) continue;
+        const checkpoints = [0, Math.floor((points.length / 2 - 1) * 0.5), Math.floor(points.length / 2 - 1)];
+        for (const pointIndex of checkpoints) {
+            if (sampled >= DF_ALIGNMENT_SAMPLE_LIMIT) break;
+            const x = points[pointIndex * 2];
+            const y = points[pointIndex * 2 + 1];
+            const inX = x >= bounds.minX - margin && x <= bounds.maxX + margin;
+            const inY = y >= bounds.minY - margin && y <= bounds.maxY + margin;
+            sampled++;
+            if (!inX || !inY) {
+                issues.push(`mesh centerline sample escaped content bounds at (${x.toFixed(2)}, ${y.toFixed(2)})`);
+            }
+        }
+    }
+
+    if (issues.length > 0) {
+        console.assert(false, '[DF_ALIGN][MESH_BORDER] center-stroke alignment check failed', {
+            issues,
+            sampled,
+            bounds,
+            borderWidth,
+        });
+    }
+}
+
+function renderMeshBorderOverlay(ctx: BorderFamilyRenderContext, alignmentContract: AlignmentContract): boolean {
+    const pathReady = renderVectorBorderOverlay(
+        ctx.container,
+        ctx.colorUtils,
+        ctx.stars,
+        ctx.virtualSites,
+        ctx.dist,
+        ctx.prevDistArr,
+        ctx.playerIds,
+        ctx.ownershipSnapshotId,
+        ctx.morphFactor,
+        ctx.now,
+        ctx.forceRebuild,
+    );
+
+    // Mesh mode uses vector extraction as input but draws via mesh, never Graphics strokes.
+    hideVectorBorderOverlay(false);
+
+    if (!pathReady && cachedVectorPolylines.length === 0) {
+        hideStrokeMeshOverlay();
+        return false;
+    }
+    if (cachedVectorPolylines.length === 0) {
+        hideStrokeMeshOverlay();
+        return false;
+    }
+
+    if (!cachedStrokeMeshContainer) {
+        cachedStrokeMeshContainer = new PIXI.Container();
+    }
+    if (!cachedStrokeMeshContainer.parent) {
+        ctx.container.addChild(cachedStrokeMeshContainer);
+    }
+
+    const borderWidth = Math.max(0, GAME_CONFIG.DF_BORDER_WIDTH ?? 0);
+    const borderSoftness = Math.max(0, GAME_CONFIG.DF_BORDER_SOFTNESS ?? 0);
+    const borderAlpha = Math.max(0, GAME_CONFIG.DF_BORDER_ALPHA ?? 0);
+    const borderBrighten = Math.max(0, GAME_CONFIG.DF_BORDER_BRIGHTEN ?? 0);
+
+    const geometryFp = `${cachedVectorGeometryFingerprint}|w:${borderWidth.toFixed(3)}|s:${borderSoftness.toFixed(3)}`;
+    const styleFp = `${cachedVectorStyleFingerprint}|a:${borderAlpha.toFixed(3)}|br:${borderBrighten.toFixed(3)}`;
+
+    const needsGeometryRebuild = ctx.forceRebuild
+        || cachedStrokeMeshGeometryFingerprint !== geometryFp
+        || cachedStrokeMeshRecords.length === 0;
+
+    if (needsGeometryRebuild) {
+        for (const record of cachedStrokeMeshRecords) {
+            if (record.mesh.parent) record.mesh.parent.removeChild(record.mesh);
+            record.mesh.destroy();
+        }
+        cachedStrokeMeshRecords = [];
+
+        const grouped = new Map<string, VectorBorderPolyline[]>();
+        for (const polyline of cachedVectorPolylines) {
+            const key = `${polyline.ownerA}|${polyline.ownerB}`;
+            const list = grouped.get(key) ?? [];
+            list.push(polyline);
+            grouped.set(key, list);
+        }
+
+        const sortedKeys = [...grouped.keys()].sort((a, b) => a.localeCompare(b));
+        for (const key of sortedKeys) {
+            const list = grouped.get(key);
+            if (!list || list.length === 0) continue;
+
+            const [ownerAStr, ownerBStr] = key.split('|');
+            const ownerA = Number(ownerAStr);
+            const ownerB = Number(ownerBStr);
+            if (!Number.isFinite(ownerA) || !Number.isFinite(ownerB)) continue;
+
+            const fittedPaths: FittedPath[] = [];
+            for (let i = 0; i < list.length; i++) {
+                const polyline = list[i];
+                if (polyline.points.length < 4) continue;
+                fittedPaths.push({
+                    id: `mesh:${key}:${i}`,
+                    ownerA,
+                    ownerB,
+                    points: polyline.points,
+                });
+            }
+            if (fittedPaths.length === 0) continue;
+
+            const geometry = createStrokeMeshGeometry(fittedPaths, {
+                width: borderWidth,
+                softness: borderSoftness,
+                miterLimit: 3,
+            });
+            const rgb = computePairStrokeColorRgb(ctx.colorUtils, ctx.playerIds, ownerA, ownerB, borderBrighten);
+            const shader = createStrokeMeshShader({
+                color: rgb,
+                alpha: borderAlpha,
+                width: borderWidth,
+                softness: borderSoftness,
+            });
+            const mesh = new PIXI.Mesh({ geometry, shader }) as PIXI.Mesh;
+            mesh.roundPixels = true;
+            cachedStrokeMeshContainer.addChild(mesh);
+            cachedStrokeMeshRecords.push({ ownerA, ownerB, mesh });
+        }
+
+        cachedStrokeMeshGeometryFingerprint = geometryFp;
+        cachedStrokeMeshStyleFingerprint = '';
+        assertMeshCenterStrokeAlignment(alignmentContract, cachedVectorPolylines, borderWidth);
+    }
+
+    const needsStyleUpdate = cachedStrokeMeshStyleFingerprint !== styleFp;
+    if (needsStyleUpdate) {
+        const innerSide = computeStrokeInnerSide(borderWidth, borderSoftness);
+        for (const record of cachedStrokeMeshRecords) {
+            const rgb = computePairStrokeColorRgb(ctx.colorUtils, ctx.playerIds, record.ownerA, record.ownerB, borderBrighten);
+            const uniforms = (record.mesh.shader.resources as any)?.strokeMeshUniforms?.uniforms;
+            if (!uniforms) continue;
+            const colorUniform = uniforms.uStrokeColor as Float32Array;
+            colorUniform[0] = rgb[0];
+            colorUniform[1] = rgb[1];
+            colorUniform[2] = rgb[2];
+            uniforms.uStrokeAlpha = borderAlpha;
+            uniforms.uInnerSide = innerSide;
+        }
+        cachedStrokeMeshStyleFingerprint = styleFp;
+    }
+
+    const hasVisibleMeshes = cachedStrokeMeshRecords.length > 0;
+    if (cachedStrokeMeshContainer) cachedStrokeMeshContainer.visible = hasVisibleMeshes;
+    return hasVisibleMeshes;
 }
 
 function stepVectorBorderBuildJob(job: VectorBorderBuildJob, maxMs: number): boolean {
@@ -2645,7 +2870,7 @@ function buildStarDataTexture(
             const starB = stars.find(s => s.id === vs.sourceStarB);
             if (starA && starB) {
                 const halfDist = Math.hypot(starB.x - starA.x, starB.y - starA.y) / 2;
-                // Weight controls how competitive: higher weight → lower Dijkstra → stronger gap
+                // Weight controls competitiveness: higher weight -> lower Dijkstra -> stronger gap
                 // At weight=1.0, Dijkstra = halfDist (neutral). At weight=0.1, Dijkstra = halfDist*10 (very weak).
                 dijkForVirtual = Math.round(halfDist / Math.max(vs.weight, 0.01));
             }
@@ -2656,7 +2881,7 @@ function buildStarDataTexture(
         starDataBuffer[row1 + 2] = 0;
         starDataBuffer[row1 + 3] = 0;
 
-        // Row 2: owner — resolve to player index + influence boost
+        // Row 2: owner - resolve to player index + influence boost
         const row2 = (2 * texW + i) * 4;
         const pIdx = playerIds.indexOf(vs.ownerId);
         starDataBuffer[row2] = pIdx >= 0 ? pIdx + 1 : 0;
@@ -3373,7 +3598,7 @@ function updateFilterUniforms(
     u.uSmoothing = GAME_CONFIG.DF_SMOOTHING ?? 30;
     u.uMinStarRadius = GAME_CONFIG.DF_MIN_STAR_RADIUS ?? 40;
     // Note: corridor/disconnect boosts are encoded per-site in the data texture,
-    // not as uniforms. The weights are applied via vs.weight → encode16 → shader decode.
+    // not as uniforms. Weights are applied via vs.weight -> encode16 -> shader decode.
 
     // Pack player colors (0-1 range)
     for (let i = 0; i < Math.min(nPlayers, MAX_PLAYERS); i++) {
@@ -3441,6 +3666,7 @@ export function renderDistanceFieldTerritory(
         if (cachedBorderMesh) cachedBorderMesh.visible = false;
         if (cachedOwnershipFillMesh) cachedOwnershipFillMesh.visible = false;
         hideVectorBorderOverlay();
+        hideStrokeMeshOverlay();
         return;
     }
 
@@ -3461,6 +3687,7 @@ export function renderDistanceFieldTerritory(
         if (cachedBorderMesh) cachedBorderMesh.visible = false;
         if (cachedOwnershipFillMesh) cachedOwnershipFillMesh.visible = false;
         hideVectorBorderOverlay();
+        hideStrokeMeshOverlay();
         return;
     }
 
@@ -3513,6 +3740,7 @@ export function renderDistanceFieldTerritory(
         if (cachedMesh) cachedMesh.visible = false;
         if (cachedOwnershipFillMesh) cachedOwnershipFillMesh.visible = false;
         hideVectorBorderOverlay();
+        hideStrokeMeshOverlay();
         return;
     }
 
@@ -3685,6 +3913,7 @@ export function renderDistanceFieldTerritory(
         if (usesFieldBorders) {
             renderFieldBorderOverlay(renderer!, container, colorUtils, worldWidth, worldHeight, alignmentContract);
             hideVectorBorderOverlay();
+            hideStrokeMeshOverlay();
         } else {
             if (cachedBorderMesh) cachedBorderMesh.visible = false;
 
@@ -3695,7 +3924,7 @@ export function renderDistanceFieldTerritory(
             // Ownership snapshot contract key shared with vector border extraction.
             const ownershipSnapshotId = `${changeClassification.geometryFp}|${changeClassification.topologyFp}|${currentPlayerIds.join(',')}|${canonicalStars.length + activeVirtualSites.length}|${ownershipControlFp}`;
 
-            const geometryReady = renderBorderFamilyOverlay(borderFamily, {
+            const borderCtx: BorderFamilyRenderContext = {
                 container,
                 colorUtils,
                 stars: canonicalStars,
@@ -3707,7 +3936,13 @@ export function renderDistanceFieldTerritory(
                 morphFactor,
                 now,
                 forceRebuild: forceVectorRebuild,
-            });
+            };
+
+            const geometryReady = borderEngine === 'mesh'
+                ? renderMeshBorderOverlay(borderCtx, alignmentContract)
+                : renderBorderFamilyOverlay(borderFamily, borderCtx);
+
+            if (borderEngine !== 'mesh') hideStrokeMeshOverlay();
 
             if (!geometryReady) {
                 // Local fallback ladder: keep borders visible while geometry chunk build is in-flight.
@@ -3718,6 +3953,7 @@ export function renderDistanceFieldTerritory(
         if (cachedBorderMesh) cachedBorderMesh.visible = false;
         if (cachedOwnershipFillMesh) cachedOwnershipFillMesh.visible = false;
         hideVectorBorderOverlay();
+        hideStrokeMeshOverlay();
     }
     applyBlur();
 }
@@ -3817,6 +4053,7 @@ export function resetDistanceFieldTerritoryCache(): void {
         cachedVectorBorderGraphics.destroy();
         cachedVectorBorderGraphics = null;
     }
+    destroyStrokeMeshOverlay();
     if (cachedJumpFloodTextureA) {
         cachedJumpFloodTextureA.destroy(true);
         cachedJumpFloodTextureA = null;
