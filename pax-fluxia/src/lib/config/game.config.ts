@@ -1101,7 +1101,7 @@ const _rawConfig: GameConfigType = {
     DF_BORDER_BRIGHTEN: 15,
     DF_BORDER_MODE: 0,
     DF_BORDER_FAMILY: 'straight',
-    DF_BORDER_ENGINE: 'mesh',
+    DF_BORDER_ENGINE: 'legacy_field',
     DF_BORDER_HQ_ENABLED: false,
     DF_BORDER_HQ_SCALE: 3,
     DF_BORDER_HQ_MAX_DIM: 5120,
