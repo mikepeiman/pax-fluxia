@@ -1,5 +1,6 @@
 import { log } from "$lib/utils/logger";
 import { getFilesForSoundType, type SoundFileEntry } from "$lib/config/soundManifest";
+import { GAME_CONFIG } from "$lib/config/game.config";
 
 export type SoundType =
     | "click"
@@ -61,9 +62,87 @@ const SOUND_CONFIGS: Record<SoundType, SoundConfig> = {
 /** All sound type keys, exported for UI iteration */
 export const ALL_SOUND_TYPES: SoundType[] = Object.keys(SOUND_CONFIGS) as SoundType[];
 
-const STORAGE_PREFIX = "pax-audio";
+// ── Config Key Helpers ──────────────────────────────────────────────────────
+// Convert between SoundType and GAME_CONFIG key names.
+// SoundType "conquest_retreat" → config key suffix "CONQUEST_RETREAT"
 
-// ── Audio Theme Type ────────────────────────────────────────────────────────
+function soundTypeToSuffix(type: SoundType): string {
+    return type.toUpperCase();
+}
+
+function volKey(type: SoundType): keyof typeof GAME_CONFIG {
+    return `AUDIO_VOL_${soundTypeToSuffix(type)}` as keyof typeof GAME_CONFIG;
+}
+
+function fileKey(type: SoundType): keyof typeof GAME_CONFIG {
+    return `AUDIO_FILE_${soundTypeToSuffix(type)}` as keyof typeof GAME_CONFIG;
+}
+
+function offsetKey(type: SoundType): keyof typeof GAME_CONFIG {
+    return `AUDIO_OFFSET_${soundTypeToSuffix(type)}` as keyof typeof GAME_CONFIG;
+}
+
+// ── Legacy Migration ────────────────────────────────────────────────────────
+
+const LEGACY_STORAGE_PREFIX = "pax-audio";
+
+function migrateLegacyAudioSettings(): boolean {
+    if (typeof window === "undefined") return false;
+
+    // Check if legacy keys exist
+    const legacyVol = localStorage.getItem(`${LEGACY_STORAGE_PREFIX}-volume`);
+    if (legacyVol === null) return false; // No legacy data
+
+    log.sys("AudioManager", "Migrating legacy pax-audio-* localStorage keys to GAME_CONFIG...");
+
+    // Master volume
+    const savedVol = localStorage.getItem(`${LEGACY_STORAGE_PREFIX}-volume`);
+    if (savedVol !== null) GAME_CONFIG.AUDIO_MASTER_VOLUME = parseFloat(savedVol);
+
+    // Muted
+    const savedMute = localStorage.getItem(`${LEGACY_STORAGE_PREFIX}-muted`);
+    if (savedMute !== null) GAME_CONFIG.AUDIO_MUTED = savedMute === "true";
+
+    // Separate conquest sounds
+    const savedSepConquest = localStorage.getItem(`${LEGACY_STORAGE_PREFIX}-separate-conquest`);
+    if (savedSepConquest !== null) GAME_CONFIG.AUDIO_SEPARATE_CONQUEST = savedSepConquest === "true";
+
+    // Per-sound volumes, files, offsets
+    for (const type of ALL_SOUND_TYPES) {
+        const savedTypeVol = localStorage.getItem(`${LEGACY_STORAGE_PREFIX}-vol-${type}`);
+        if (savedTypeVol !== null) {
+            (GAME_CONFIG as any)[volKey(type)] = parseFloat(savedTypeVol);
+        }
+
+        const savedFile = localStorage.getItem(`${LEGACY_STORAGE_PREFIX}-file-${type}`);
+        if (savedFile !== null) {
+            (GAME_CONFIG as any)[fileKey(type)] = savedFile;
+        }
+
+        const savedOffset = localStorage.getItem(`${LEGACY_STORAGE_PREFIX}-offset-${type}`);
+        if (savedOffset !== null) {
+            (GAME_CONFIG as any)[offsetKey(type)] = parseFloat(savedOffset);
+        }
+    }
+
+    // Clean up legacy keys
+    localStorage.removeItem(`${LEGACY_STORAGE_PREFIX}-volume`);
+    localStorage.removeItem(`${LEGACY_STORAGE_PREFIX}-muted`);
+    localStorage.removeItem(`${LEGACY_STORAGE_PREFIX}-separate-conquest`);
+    for (const type of ALL_SOUND_TYPES) {
+        localStorage.removeItem(`${LEGACY_STORAGE_PREFIX}-vol-${type}`);
+        localStorage.removeItem(`${LEGACY_STORAGE_PREFIX}-file-${type}`);
+        localStorage.removeItem(`${LEGACY_STORAGE_PREFIX}-offset-${type}`);
+    }
+    // Also clean legacy theme storage
+    localStorage.removeItem(`${LEGACY_STORAGE_PREFIX}-themes`);
+    localStorage.removeItem(`${LEGACY_STORAGE_PREFIX}-selected-theme`);
+
+    log.sys("AudioManager", "Legacy migration complete — old pax-audio-* keys removed");
+    return true;
+}
+
+// ── Audio Theme Type (kept for backward compat / import) ────────────────────
 
 export interface AudioTheme {
     name: string;
@@ -75,15 +154,16 @@ export interface AudioTheme {
     builtIn?: boolean;
 }
 
-const AUDIO_THEMES_KEY = `${STORAGE_PREFIX}-themes`;
-const AUDIO_SELECTED_THEME_KEY = `${STORAGE_PREFIX}-selected-theme`;
+// ── AudioManager ────────────────────────────────────────────────────────────
+// Now reads/writes GAME_CONFIG for all audio settings.
+// Reactive $state mirrors are synced from GAME_CONFIG on init and on every set.
 
 class AudioManager {
     private pools: Map<SoundType, HTMLAudioElement[]> = new Map();
     private lastPlayTime: Map<SoundType, number> = new Map();
     private initialized: boolean = false;
 
-    // ── Reactive state ──
+    // ── Reactive state (mirrors of GAME_CONFIG for Svelte binding) ──
     public masterVolume = $state(0.5);
     public muted = $state(false);
     /** Per-sound volumes (0–1), user-adjustable */
@@ -106,7 +186,7 @@ class AudioManager {
     );
     /** When true, conquest plays subtype-specific sound; when false, plays generic 'conquest' */
     public separateConquestSounds = $state(true);
-    /** Available audio themes */
+    /** Available audio themes (legacy — now use category themes) */
     public savedThemes = $state<AudioTheme[]>([]);
     /** Currently selected theme name */
     public selectedThemeName = $state("");
@@ -115,45 +195,11 @@ class AudioManager {
     init() {
         if (this.initialized || typeof window === "undefined") return;
 
-        // Load master settings
-        const savedVol = localStorage.getItem(`${STORAGE_PREFIX}-volume`);
-        if (savedVol !== null) this.masterVolume = parseFloat(savedVol);
+        // Migrate legacy pax-audio-* keys to GAME_CONFIG if present
+        migrateLegacyAudioSettings();
 
-        const savedMute = localStorage.getItem(`${STORAGE_PREFIX}-muted`);
-        if (savedMute !== null) this.muted = savedMute === "true";
-
-        // Load per-sound volumes
-        for (const type of ALL_SOUND_TYPES) {
-            const saved = localStorage.getItem(`${STORAGE_PREFIX}-vol-${type}`);
-            if (saved !== null) {
-                this.soundVolumes[type] = parseFloat(saved);
-            }
-        }
-
-        // Load per-sound file assignments
-        for (const type of ALL_SOUND_TYPES) {
-            const savedFile = localStorage.getItem(`${STORAGE_PREFIX}-file-${type}`);
-            if (savedFile !== null) {
-                this.soundFiles[type] = savedFile;
-            }
-        }
-
-        // Load per-sound start offsets
-        for (const type of ALL_SOUND_TYPES) {
-            const savedOffset = localStorage.getItem(`${STORAGE_PREFIX}-offset-${type}`);
-            if (savedOffset !== null) {
-                this.soundOffsets[type] = parseFloat(savedOffset);
-            }
-        }
-
-        // Load separate conquest sounds toggle
-        const savedSepConquest = localStorage.getItem(`${STORAGE_PREFIX}-separate-conquest`);
-        if (savedSepConquest !== null) this.separateConquestSounds = savedSepConquest === "true";
-
-        // Load saved themes
-        this.savedThemes = this.loadThemesFromStorage();
-        const selectedName = localStorage.getItem(AUDIO_SELECTED_THEME_KEY);
-        if (selectedName) this.selectedThemeName = selectedName;
+        // Sync reactive state from GAME_CONFIG
+        this.syncFromConfig();
 
         // Preload sound pools
         for (const type of ALL_SOUND_TYPES) {
@@ -161,7 +207,31 @@ class AudioManager {
         }
 
         this.initialized = true;
-        log.sys("AudioManager", `Initialized: master=${this.masterVolume}, muted=${this.muted}, ${ALL_SOUND_TYPES.length} sound types`);
+        log.sys("AudioManager", `Initialized: master=${this.masterVolume}, muted=${this.muted}, ${ALL_SOUND_TYPES.length} sound types (via GAME_CONFIG)`);
+    }
+
+    /**
+     * Pull all audio reactive state from GAME_CONFIG.
+     * Called on init and when themes are applied externally.
+     */
+    syncFromConfig() {
+        this.masterVolume = GAME_CONFIG.AUDIO_MASTER_VOLUME;
+        this.muted = GAME_CONFIG.AUDIO_MUTED;
+        this.separateConquestSounds = GAME_CONFIG.AUDIO_SEPARATE_CONQUEST;
+
+        for (const type of ALL_SOUND_TYPES) {
+            this.soundVolumes[type] = (GAME_CONFIG as any)[volKey(type)] as number;
+            this.soundFiles[type] = (GAME_CONFIG as any)[fileKey(type)] as string;
+            this.soundOffsets[type] = (GAME_CONFIG as any)[offsetKey(type)] as number;
+        }
+
+        // Rebuild pools if already initialized (file may have changed)
+        if (this.initialized) {
+            for (const type of ALL_SOUND_TYPES) {
+                this.rebuildPool(type);
+            }
+            this.updatePoolVolumes();
+        }
     }
 
     // ── Pool Management ──
@@ -170,9 +240,7 @@ class AudioManager {
         const config = SOUND_CONFIGS[type];
         const filePath = this.soundFiles[type];
         const pool: HTMLAudioElement[] = [];
-        // Determine full URL: if path contains '/', it's a subdirectory path;
-        // otherwise it's a legacy root file
-        const url = filePath.includes('/') ? `/sounds/${filePath}` : `/sounds/${filePath}`;
+        const url = `/sounds/${filePath}`;
         for (let i = 0; i < config.poolSize; i++) {
             const audio = new Audio(url);
             audio.volume = this.getEffectiveVolume(type);
@@ -184,26 +252,6 @@ class AudioManager {
     // ── Helpers ──
     private getEffectiveVolume(type: SoundType): number {
         return this.soundVolumes[type] * this.masterVolume;
-    }
-
-    private persistMaster() {
-        if (typeof window === "undefined") return;
-        localStorage.setItem(`${STORAGE_PREFIX}-volume`, this.masterVolume.toString());
-    }
-
-    private persistMute() {
-        if (typeof window === "undefined") return;
-        localStorage.setItem(`${STORAGE_PREFIX}-muted`, this.muted.toString());
-    }
-
-    private persistSoundVolume(type: SoundType) {
-        if (typeof window === "undefined") return;
-        localStorage.setItem(`${STORAGE_PREFIX}-vol-${type}`, this.soundVolumes[type].toString());
-    }
-
-    private persistSoundFile(type: SoundType) {
-        if (typeof window === "undefined") return;
-        localStorage.setItem(`${STORAGE_PREFIX}-file-${type}`, this.soundFiles[type]);
     }
 
     private updatePoolVolumes() {
@@ -252,13 +300,13 @@ class AudioManager {
 
     setMasterVolume(volume: number) {
         this.masterVolume = Math.max(0, Math.min(1, volume));
-        this.persistMaster();
+        GAME_CONFIG.AUDIO_MASTER_VOLUME = this.masterVolume;
         this.updatePoolVolumes();
     }
 
     setSoundVolume(type: SoundType, volume: number) {
         this.soundVolumes[type] = Math.max(0, Math.min(1, volume));
-        this.persistSoundVolume(type);
+        (GAME_CONFIG as any)[volKey(type)] = this.soundVolumes[type];
         // Update the pool for this sound type
         const pool = this.pools.get(type);
         if (pool) {
@@ -269,8 +317,17 @@ class AudioManager {
 
     /** Change which audio file is used for a sound type */
     setSoundFile(type: SoundType, filePath: string) {
+        const oldFile = this.soundFiles[type];
         this.soundFiles[type] = filePath;
-        this.persistSoundFile(type);
+        (GAME_CONFIG as any)[fileKey(type)] = filePath;
+
+        // File-linked offset: when file changes, reset offset to 0
+        // (old offset was tuned for the old file)
+        if (oldFile !== filePath) {
+            this.soundOffsets[type] = 0;
+            (GAME_CONFIG as any)[offsetKey(type)] = 0;
+        }
+
         // Rebuild audio pool with new file
         if (this.initialized) {
             this.rebuildPool(type);
@@ -286,18 +343,18 @@ class AudioManager {
     /** Set per-sound start offset in seconds (trims ramp-up) */
     setSoundOffset(type: SoundType, offsetSec: number) {
         this.soundOffsets[type] = Math.max(0, offsetSec);
-        localStorage.setItem(`${STORAGE_PREFIX}-offset-${type}`, String(this.soundOffsets[type]));
+        (GAME_CONFIG as any)[offsetKey(type)] = this.soundOffsets[type];
     }
 
     /** Toggle separate conquest sounds (subtype-specific vs generic) */
     setSeparateConquestSounds(value: boolean) {
         this.separateConquestSounds = value;
-        localStorage.setItem(`${STORAGE_PREFIX}-separate-conquest`, String(value));
+        GAME_CONFIG.AUDIO_SEPARATE_CONQUEST = value;
     }
 
     toggleMute() {
         this.muted = !this.muted;
-        this.persistMute();
+        GAME_CONFIG.AUDIO_MUTED = this.muted;
 
         if (this.muted) {
             for (const pool of this.pools.values()) {
@@ -310,14 +367,18 @@ class AudioManager {
     resetDefaults() {
         this.masterVolume = 0.5;
         this.muted = false;
-        this.persistMaster();
-        this.persistMute();
+        GAME_CONFIG.AUDIO_MASTER_VOLUME = 0.5;
+        GAME_CONFIG.AUDIO_MUTED = false;
+        GAME_CONFIG.AUDIO_SEPARATE_CONQUEST = true;
+        this.separateConquestSounds = true;
 
         for (const type of ALL_SOUND_TYPES) {
             this.soundVolumes[type] = SOUND_CONFIGS[type].defaultVolume;
             this.soundFiles[type] = SOUND_CONFIGS[type].file;
-            this.persistSoundVolume(type);
-            this.persistSoundFile(type);
+            this.soundOffsets[type] = 0;
+            (GAME_CONFIG as any)[volKey(type)] = this.soundVolumes[type];
+            (GAME_CONFIG as any)[fileKey(type)] = this.soundFiles[type];
+            (GAME_CONFIG as any)[offsetKey(type)] = 0;
         }
         // Rebuild all pools
         if (this.initialized) {
@@ -339,19 +400,9 @@ class AudioManager {
         return SOUND_CONFIGS[type].file;
     }
 
-    // ── Audio Theme API ──
-
-    private loadThemesFromStorage(): AudioTheme[] {
-        try {
-            const raw = localStorage.getItem(AUDIO_THEMES_KEY);
-            return raw ? JSON.parse(raw) : [];
-        } catch { return []; }
-    }
-
-    private persistThemes() {
-        if (typeof window === "undefined") return;
-        localStorage.setItem(AUDIO_THEMES_KEY, JSON.stringify(this.savedThemes));
-    }
+    // ── Audio Theme API (kept for backward compat) ──
+    // These now work through GAME_CONFIG. The category theme system is the
+    // primary mechanism; these methods exist so existing UI code doesn't break.
 
     /** Export current audio settings as a named theme */
     exportAudioTheme(name: string): AudioTheme {
@@ -365,21 +416,32 @@ class AudioManager {
         };
     }
 
-    /** Apply an audio theme — sets all volumes and file assignments */
+    /**
+     * Apply an audio theme — sets all audio GAME_CONFIG keys.
+     * File-linked offsets: offsets only apply when the theme's file matches.
+     */
     applyAudioTheme(theme: AudioTheme) {
         this.masterVolume = theme.masterVolume;
         this.muted = theme.muted;
-        this.persistMaster();
-        this.persistMute();
+        GAME_CONFIG.AUDIO_MASTER_VOLUME = theme.masterVolume;
+        GAME_CONFIG.AUDIO_MUTED = theme.muted;
 
         for (const type of ALL_SOUND_TYPES) {
             if (theme.soundVolumes[type] !== undefined) {
                 this.soundVolumes[type] = theme.soundVolumes[type];
-                this.persistSoundVolume(type);
+                (GAME_CONFIG as any)[volKey(type)] = theme.soundVolumes[type];
             }
             if (theme.soundFiles[type] !== undefined) {
-                this.soundFiles[type] = theme.soundFiles[type];
-                this.persistSoundFile(type);
+                const newFile = theme.soundFiles[type];
+                const oldFile = this.soundFiles[type];
+                this.soundFiles[type] = newFile;
+                (GAME_CONFIG as any)[fileKey(type)] = newFile;
+
+                // File-linked offset: only apply offset if file matches
+                if (newFile !== oldFile) {
+                    this.soundOffsets[type] = 0;
+                    (GAME_CONFIG as any)[offsetKey(type)] = 0;
+                }
             }
         }
 
@@ -391,19 +453,15 @@ class AudioManager {
         }
 
         this.selectedThemeName = theme.name;
-        localStorage.setItem(AUDIO_SELECTED_THEME_KEY, theme.name);
         log.sys("AudioManager", `Applied audio theme: ${theme.name}`);
     }
 
-    /** Save current settings as a named theme */
+    /** Save current settings as a named theme (legacy — prefer category themes) */
     saveAudioTheme(name: string): AudioTheme {
         const theme = this.exportAudioTheme(name);
-        // Replace if same name exists
         this.savedThemes = this.savedThemes.filter(t => t.name !== name);
         this.savedThemes = [theme, ...this.savedThemes];
-        this.persistThemes();
         this.selectedThemeName = name;
-        localStorage.setItem(AUDIO_SELECTED_THEME_KEY, name);
         log.sys("AudioManager", `Saved audio theme: ${name}`);
         return theme;
     }
@@ -411,10 +469,8 @@ class AudioManager {
     /** Delete a saved audio theme */
     deleteAudioTheme(name: string) {
         this.savedThemes = this.savedThemes.filter(t => t.name !== name);
-        this.persistThemes();
         if (this.selectedThemeName === name) {
             this.selectedThemeName = "";
-            localStorage.removeItem(AUDIO_SELECTED_THEME_KEY);
         }
         log.sys("AudioManager", `Deleted audio theme: ${name}`);
     }

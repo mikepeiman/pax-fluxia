@@ -422,6 +422,60 @@ interface GameConfigType {
     // Link Connectivity
     MIN_LINKS_PER_STAR: number;
     MAX_LINKS_PER_STAR: number;
+
+    // ── Audio Settings ──────────────────────────────────────────────────────
+    AUDIO_MASTER_VOLUME: number;         // Master volume (0-1, default 0.5)
+    AUDIO_MUTED: boolean;                // Global mute (default false)
+    AUDIO_SEPARATE_CONQUEST: boolean;    // Use subtype-specific conquest sounds (default true)
+
+    // Per-sound volumes (0-1)
+    AUDIO_VOL_CLICK: number;
+    AUDIO_VOL_MOVE: number;
+    AUDIO_VOL_ATTACK: number;
+    AUDIO_VOL_CHAT: number;
+    AUDIO_VOL_TICK: number;
+    AUDIO_VOL_PLAY: number;
+    AUDIO_VOL_LOSE: number;
+    AUDIO_VOL_WIN: number;
+    AUDIO_VOL_NEW_PLAYER: number;
+    AUDIO_VOL_CONQUEST: number;
+    AUDIO_VOL_CONQUEST_RETREAT: number;
+    AUDIO_VOL_CONQUEST_SCATTER: number;
+    AUDIO_VOL_CONQUEST_COMPLETE: number;
+    AUDIO_VOL_STARLOSS: number;
+
+    // Per-sound file paths (relative to /sounds/)
+    AUDIO_FILE_CLICK: string;
+    AUDIO_FILE_MOVE: string;
+    AUDIO_FILE_ATTACK: string;
+    AUDIO_FILE_CHAT: string;
+    AUDIO_FILE_TICK: string;
+    AUDIO_FILE_PLAY: string;
+    AUDIO_FILE_LOSE: string;
+    AUDIO_FILE_WIN: string;
+    AUDIO_FILE_NEW_PLAYER: string;
+    AUDIO_FILE_CONQUEST: string;
+    AUDIO_FILE_CONQUEST_RETREAT: string;
+    AUDIO_FILE_CONQUEST_SCATTER: string;
+    AUDIO_FILE_CONQUEST_COMPLETE: string;
+    AUDIO_FILE_STARLOSS: string;
+
+    // Per-sound start offset in seconds — keyed to the current file.
+    // When loading a theme, offsets only apply if the file path matches.
+    AUDIO_OFFSET_CLICK: number;
+    AUDIO_OFFSET_MOVE: number;
+    AUDIO_OFFSET_ATTACK: number;
+    AUDIO_OFFSET_CHAT: number;
+    AUDIO_OFFSET_TICK: number;
+    AUDIO_OFFSET_PLAY: number;
+    AUDIO_OFFSET_LOSE: number;
+    AUDIO_OFFSET_WIN: number;
+    AUDIO_OFFSET_NEW_PLAYER: number;
+    AUDIO_OFFSET_CONQUEST: number;
+    AUDIO_OFFSET_CONQUEST_RETREAT: number;
+    AUDIO_OFFSET_CONQUEST_SCATTER: number;
+    AUDIO_OFFSET_CONQUEST_COMPLETE: number;
+    AUDIO_OFFSET_STARLOSS: number;
 }
 
 /**
@@ -1112,6 +1166,65 @@ const _rawConfig: GameConfigType = {
 
     /** Maximum connections per star (4-8 typical) */
     MAX_LINKS_PER_STAR: 8,
+
+    // ========================================================================
+    // AUDIO
+    // ========================================================================
+
+    /** Master audio volume (0-1) */
+    AUDIO_MASTER_VOLUME: 0.5,
+    /** Global mute */
+    AUDIO_MUTED: false,
+    /** Use subtype-specific conquest sounds instead of generic */
+    AUDIO_SEPARATE_CONQUEST: true,
+
+    // Per-sound volumes
+    AUDIO_VOL_CLICK: 0.3,
+    AUDIO_VOL_MOVE: 0.5,
+    AUDIO_VOL_ATTACK: 0.3,
+    AUDIO_VOL_CHAT: 0.6,
+    AUDIO_VOL_TICK: 0.4,
+    AUDIO_VOL_PLAY: 0.6,
+    AUDIO_VOL_LOSE: 0.6,
+    AUDIO_VOL_WIN: 0.6,
+    AUDIO_VOL_NEW_PLAYER: 0.8,
+    AUDIO_VOL_CONQUEST: 0.8,
+    AUDIO_VOL_CONQUEST_RETREAT: 0.7,
+    AUDIO_VOL_CONQUEST_SCATTER: 0.7,
+    AUDIO_VOL_CONQUEST_COMPLETE: 0.8,
+    AUDIO_VOL_STARLOSS: 0.6,
+
+    // Per-sound file paths (relative to /sounds/)
+    AUDIO_FILE_CLICK: 'ui/click.wav',
+    AUDIO_FILE_MOVE: 'move/move.wav',
+    AUDIO_FILE_ATTACK: 'attack/attack.wav',
+    AUDIO_FILE_CHAT: 'ui/chat.wav',
+    AUDIO_FILE_TICK: 'tick/tick.wav',
+    AUDIO_FILE_PLAY: 'ui/PLAY.WAV',
+    AUDIO_FILE_LOSE: 'gameloss/lose.ogg',
+    AUDIO_FILE_WIN: 'gamewin/win.ogg',
+    AUDIO_FILE_NEW_PLAYER: 'ui/new_player.ogg',
+    AUDIO_FILE_CONQUEST: 'conquest/mixkit-fast-small-sweep-transition-166.wav',
+    AUDIO_FILE_CONQUEST_RETREAT: 'conquest/SWSH_Swish Fused Small 04_RSCPC_PX.wav',
+    AUDIO_FILE_CONQUEST_SCATTER: 'conquest/WHSH_Whoosh Plasma 04_RSCPC_SFEW.wav',
+    AUDIO_FILE_CONQUEST_COMPLETE: 'conquest/SWSH_Swish Crisp Large 01_RSCPC_PX.wav',
+    AUDIO_FILE_STARLOSS: 'starloss/mixkit-arcade-mechanical-bling-210.wav',
+
+    // Per-sound start offsets in seconds (file-linked: only applied when file matches)
+    AUDIO_OFFSET_CLICK: 0,
+    AUDIO_OFFSET_MOVE: 0,
+    AUDIO_OFFSET_ATTACK: 0,
+    AUDIO_OFFSET_CHAT: 0,
+    AUDIO_OFFSET_TICK: 0,
+    AUDIO_OFFSET_PLAY: 0,
+    AUDIO_OFFSET_LOSE: 0,
+    AUDIO_OFFSET_WIN: 0,
+    AUDIO_OFFSET_NEW_PLAYER: 0,
+    AUDIO_OFFSET_CONQUEST: 0,
+    AUDIO_OFFSET_CONQUEST_RETREAT: 0,
+    AUDIO_OFFSET_CONQUEST_SCATTER: 0,
+    AUDIO_OFFSET_CONQUEST_COMPLETE: 0,
+    AUDIO_OFFSET_STARLOSS: 0,
 };
 
 // Apply saved settings on top of defaults

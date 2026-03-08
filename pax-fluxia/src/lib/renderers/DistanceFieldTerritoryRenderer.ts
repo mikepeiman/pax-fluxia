@@ -199,6 +199,7 @@ interface VectorBorderBuildJob {
 }
 
 type BorderFamilyId = 'straight' | 'curved' | 'segmented';
+type BorderRendererId = 'field' | 'geometry';
 
 interface BorderFamilyRenderContext {
     container: PIXI.Container;
@@ -222,9 +223,10 @@ const DF_TIE_EPSILON = 0.01;
 const DF_INTERNAL_TWO_PASS_TRACK = false;
 const DF_INTERNAL_TWO_PASS_LEGACY_CONTENT_ORIGIN = false;
 const DF_TWO_PASS_BORDERS_ENABLED = true;
-// CPU-extracted vector overlays are intentionally disabled in the canonical path because
-// simplification/straightening can move borders off the ownership field. Keep for debug only.
-const DF_VECTOR_OVERLAY_DEBUG_PATH = false;
+// Border renderer switch for the hybrid migration:
+// - `field`: pass-2 boundary distance texture stroke (fast fallback)
+// - `geometry`: centerline-derived world-space strokes (canonical quality path)
+const DF_BORDER_RENDERER_CANONICAL: BorderRendererId = 'geometry';
 const DF_PASS1_GAP_SCALE = 512.0;
 const DF_PASS1_BASE_MAX_TEXTURE_DIM = 4096;
 const DF_PASS1_ABSOLUTE_MAX_TEXTURE_DIM = 8192;
@@ -234,6 +236,9 @@ const DF_BORDER_HQ_MAX_SCALE = 4.0;
 const DF_VECTOR_MIN_GRID = 128;
 const DF_VECTOR_MAX_GRID = 1024;
 const DF_VECTOR_MAX_STRAIGHT_PASSES = 4;
+// Alignment guardrail for straightened vector borders.
+// 0.35 means path simplification cannot deviate more than ~35% of one grid cell from the sampled centerline.
+const DF_VECTOR_MAX_ALIGNMENT_DRIFT_CELLS = 0.35;
 const DF_VECTOR_MORPH_MIN_UPDATE_MS = 16;
 const DF_VECTOR_MORPH_HEAVY_MIN_UPDATE_MS = 66;
 const DF_VECTOR_ADAPTIVE_OPS_PER_MS = 140000;
@@ -1977,7 +1982,8 @@ function fitStraightPolylinesFromCenterlineGraphs(
     };
 
     const polylines: VectorBorderPolyline[] = [];
-    const quantizationTolerance = Math.max(extentW / Math.max(gridW, 1), extentH / Math.max(gridH, 1)) * 0.85;
+    const cellSize = Math.max(extentW / Math.max(gridW, 1), extentH / Math.max(gridH, 1));
+    const maxAlignmentTolerance = cellSize * DF_VECTOR_MAX_ALIGNMENT_DRIFT_CELLS;
 
     for (const graph of graphs) {
         const adjacency = graph.adjacency;
@@ -2020,12 +2026,14 @@ function fitStraightPolylinesFromCenterlineGraphs(
             if (uniquePath.length < 2) return;
 
             let worldPoints = toWorldPoints(uniquePath);
-            const baseTolerance = Math.max(simplifyTolerance, quantizationTolerance);
+            // Clamp straightening tolerance by grid-cell drift so geometry borders stay visually locked to fill ownership.
+            const requestedTolerance = Math.max(0, simplifyTolerance);
+            const baseTolerance = Math.min(requestedTolerance, maxAlignmentTolerance);
             worldPoints = simplifyOpenPolyline(worldPoints, baseTolerance);
 
             const passes = Math.max(1, straightnessPasses + 1);
             for (let pass = 0; pass < passes; pass++) {
-                const passTolerance = baseTolerance * (1 + pass * 0.35);
+                const passTolerance = Math.min(baseTolerance * (1 + pass * 0.35), maxAlignmentTolerance);
                 worldPoints = linearizeOpenPolyline(worldPoints, passTolerance);
             }
 
@@ -2097,6 +2105,13 @@ function hideVectorBorderOverlay(): void {
 function normalizeBorderFamily(rawFamily: unknown): BorderFamilyId {
     if (rawFamily === 'curved' || rawFamily === 'segmented' || rawFamily === 'straight') return rawFamily;
     return 'straight';
+}
+
+function resolveBorderRenderer(useTwoPassBorders: boolean, vectorBordersEnabled: boolean): BorderRendererId {
+    // Geometry borders depend on the two-pass ownership snapshot pipeline.
+    if (!useTwoPassBorders) return 'field';
+    if (DF_BORDER_RENDERER_CANONICAL === 'geometry' && vectorBordersEnabled) return 'geometry';
+    return 'field';
 }
 
 function renderBorderFamilyOverlay(family: BorderFamilyId, ctx: BorderFamilyRenderContext): void {
@@ -3462,6 +3477,7 @@ export function renderDistanceFieldTerritory(
         warnedMissingRendererForTwoPass = true;
         console.warn('[DF_TWOPASS] renderer unavailable; falling back to inline borders');
     }
+    const borderRenderer = resolveBorderRenderer(useTwoPassBorders, vectorBordersEnabled);
 
     const changeClassification = classifyDfChanges(canonicalInput, metric);
 
@@ -3635,7 +3651,7 @@ export function renderDistanceFieldTerritory(
             worldWidth,
             worldHeight,
             alignmentContract,
-            vectorBordersEnabled && DF_VECTOR_OVERLAY_DEBUG_PATH,
+            false,
         );
     } else if (cachedMesh) {
         // Two-pass ownership fill is canonical in this mode. Hide single-pass fill mesh.
@@ -3668,52 +3684,63 @@ export function renderDistanceFieldTerritory(
             cachedOwnershipFillMesh.visible = fillReady && (GAME_CONFIG.DF_ALPHA ?? 0) > 0;
         }
 
-        const hasBoundaryField = cachedBoundaryDistanceDirty || !cachedBoundaryDistanceTexture
-            ? renderBoundaryDistancePass(renderer!)
-            : true;
-        if (hasBoundaryField) {
-            cachedBoundaryDistanceDirty = false;
-        }
-        const borderReady = hasBoundaryField
-            && updateTwoPassBorderUniforms(colorUtils, worldWidth, worldHeight, alignmentContract);
+        const usesFieldBorders = borderRenderer === 'field';
+        const usesGeometryBorders = borderRenderer === 'geometry';
 
-        if (cachedBorderMesh && !cachedBorderMesh.parent) {
-            container.addChild(cachedBorderMesh);
+        if (usesFieldBorders) {
+            const hasBoundaryField = cachedBoundaryDistanceDirty || !cachedBoundaryDistanceTexture
+                ? renderBoundaryDistancePass(renderer!)
+                : true;
+            if (hasBoundaryField) {
+                cachedBoundaryDistanceDirty = false;
+            }
+            const borderReady = hasBoundaryField
+                && updateTwoPassBorderUniforms(colorUtils, worldWidth, worldHeight, alignmentContract);
+
+            if (cachedBorderMesh && !cachedBorderMesh.parent) {
+                container.addChild(cachedBorderMesh);
+            }
+            if (cachedBorderMesh) {
+                cachedBorderMesh.visible = borderReady
+                    && (GAME_CONFIG.DF_BORDER_WIDTH ?? 0) > 0
+                    && (GAME_CONFIG.DF_BORDER_ALPHA ?? 0) > 0;
+            }
+            hideVectorBorderOverlay();
+        } else {
+            if (cachedBorderMesh) cachedBorderMesh.visible = false;
+
+            const forceVectorRebuild = changeClassification.geometryChanged
+                || changeClassification.topologyChanged
+                || changeClassification.visualChanged
+                || ownershipPassNeedsUpdate;
+            // Ownership snapshot contract key shared with vector border extraction.
+            const ownershipSnapshotId = `${changeClassification.geometryFp}|${changeClassification.topologyFp}|${currentPlayerIds.join(',')}|${canonicalStars.length + activeVirtualSites.length}|${ownershipControlFp}`;
+
+            renderBorderFamilyOverlay(borderFamily, {
+                container,
+                colorUtils,
+                stars: canonicalStars,
+                virtualSites: activeVirtualSites,
+                dist: currentDist,
+                prevDistArr: prevDist,
+                playerIds: currentPlayerIds,
+                ownershipSnapshotId,
+                morphFactor,
+                now,
+                forceRebuild: forceVectorRebuild,
+            });
+
+            // Geometry renderer path currently requires vector extraction to be enabled.
+            // If disabled by user, fail safe to no border overlay instead of stale field borders.
+            if (!usesGeometryBorders) {
+                hideVectorBorderOverlay();
+            }
         }
-        if (cachedBorderMesh) {
-            cachedBorderMesh.visible = borderReady
-                && (GAME_CONFIG.DF_BORDER_WIDTH ?? 0) > 0
-                && (GAME_CONFIG.DF_BORDER_ALPHA ?? 0) > 0;
-        }
-        hideVectorBorderOverlay();
     } else {
         if (cachedBorderMesh) cachedBorderMesh.visible = false;
         if (cachedOwnershipFillMesh) cachedOwnershipFillMesh.visible = false;
-    }
-
-    if (vectorBordersEnabled && DF_VECTOR_OVERLAY_DEBUG_PATH) {
-        const forceVectorRebuild = changeClassification.geometryChanged
-            || changeClassification.topologyChanged
-            || changeClassification.visualChanged;
-        // Ownership snapshot contract key shared with vector border extraction.
-        const ownershipSnapshotId = `${changeClassification.geometryFp}|${changeClassification.topologyFp}|${currentPlayerIds.join(',')}|${canonicalStars.length + activeVirtualSites.length}`;
-        renderBorderFamilyOverlay(borderFamily, {
-            container,
-            colorUtils,
-            stars: canonicalStars,
-            virtualSites: activeVirtualSites,
-            dist: currentDist,
-            prevDistArr: prevDist,
-            playerIds: currentPlayerIds,
-            ownershipSnapshotId,
-            morphFactor,
-            now,
-            forceRebuild: forceVectorRebuild,
-        });
-    } else {
         hideVectorBorderOverlay();
     }
-
     applyBlur();
 }
 // ============================================================================

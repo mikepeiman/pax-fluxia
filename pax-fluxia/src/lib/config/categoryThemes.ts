@@ -23,6 +23,7 @@ export type ThemeCategory =
     | 'territory'
     | 'ships'
     | 'visuals'
+    | 'audio'
     | 'ai'
     | 'rules'
     | 'logging';
@@ -46,6 +47,7 @@ export const CATEGORY_META: Record<ThemeCategory, CategoryMeta> = {
     territory: { id: 'territory', icon: '🌍', label: 'Territory', color: '#66ccaa' },
     ships: { id: 'ships', icon: '🚀', label: 'Ships', color: '#44ccff' },
     visuals: { id: 'visuals', icon: '🗺️', label: 'Map & Grid', color: '#cc66ff' },
+    audio: { id: 'audio', icon: '🔊', label: 'Audio', color: '#44ddbb' },
     ai: { id: 'ai', icon: '🤖', label: 'AI Behavior', color: '#ff8844' },
     rules: { id: 'rules', icon: '📜', label: 'Rules', color: '#aabb44' },
     logging: { id: 'logging', icon: '📋', label: 'Logging', color: '#88aacc' },
@@ -312,6 +314,57 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
         // Logging keys are UI-only, no GAME_CONFIG keys currently
         // This category exists for the panel but has no themeable keys
     ],
+
+    audio: [
+        'AUDIO_MASTER_VOLUME',
+        'AUDIO_MUTED',
+        'AUDIO_SEPARATE_CONQUEST',
+        // Per-sound volumes
+        'AUDIO_VOL_CLICK',
+        'AUDIO_VOL_MOVE',
+        'AUDIO_VOL_ATTACK',
+        'AUDIO_VOL_CHAT',
+        'AUDIO_VOL_TICK',
+        'AUDIO_VOL_PLAY',
+        'AUDIO_VOL_LOSE',
+        'AUDIO_VOL_WIN',
+        'AUDIO_VOL_NEW_PLAYER',
+        'AUDIO_VOL_CONQUEST',
+        'AUDIO_VOL_CONQUEST_RETREAT',
+        'AUDIO_VOL_CONQUEST_SCATTER',
+        'AUDIO_VOL_CONQUEST_COMPLETE',
+        'AUDIO_VOL_STARLOSS',
+        // Per-sound file paths
+        'AUDIO_FILE_CLICK',
+        'AUDIO_FILE_MOVE',
+        'AUDIO_FILE_ATTACK',
+        'AUDIO_FILE_CHAT',
+        'AUDIO_FILE_TICK',
+        'AUDIO_FILE_PLAY',
+        'AUDIO_FILE_LOSE',
+        'AUDIO_FILE_WIN',
+        'AUDIO_FILE_NEW_PLAYER',
+        'AUDIO_FILE_CONQUEST',
+        'AUDIO_FILE_CONQUEST_RETREAT',
+        'AUDIO_FILE_CONQUEST_SCATTER',
+        'AUDIO_FILE_CONQUEST_COMPLETE',
+        'AUDIO_FILE_STARLOSS',
+        // Per-sound start offsets (file-linked)
+        'AUDIO_OFFSET_CLICK',
+        'AUDIO_OFFSET_MOVE',
+        'AUDIO_OFFSET_ATTACK',
+        'AUDIO_OFFSET_CHAT',
+        'AUDIO_OFFSET_TICK',
+        'AUDIO_OFFSET_PLAY',
+        'AUDIO_OFFSET_LOSE',
+        'AUDIO_OFFSET_WIN',
+        'AUDIO_OFFSET_NEW_PLAYER',
+        'AUDIO_OFFSET_CONQUEST',
+        'AUDIO_OFFSET_CONQUEST_RETREAT',
+        'AUDIO_OFFSET_CONQUEST_SCATTER',
+        'AUDIO_OFFSET_CONQUEST_COMPLETE',
+        'AUDIO_OFFSET_STARLOSS',
+    ],
 };
 
 // ── Super-Categories (Tier 2) ───────────────────────────────────────────────
@@ -348,7 +401,7 @@ export const SUPER_CATEGORIES: Record<ThemeSuperCategory, SuperCategoryMeta> = {
         icon: '✨',
         label: 'Appearance',
         color: '#cc66ff',
-        children: ['ships', 'territory', 'visuals'],
+        children: ['ships', 'territory', 'visuals', 'audio'],
     },
     intelligence: {
         id: 'intelligence',
