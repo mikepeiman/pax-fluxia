@@ -3685,7 +3685,6 @@ export function renderDistanceFieldTerritory(
         }
 
         const usesFieldBorders = borderRenderer === 'field';
-        const usesGeometryBorders = borderRenderer === 'geometry';
 
         if (usesFieldBorders) {
             const hasBoundaryField = cachedBoundaryDistanceDirty || !cachedBoundaryDistanceTexture
@@ -3729,12 +3728,6 @@ export function renderDistanceFieldTerritory(
                 now,
                 forceRebuild: forceVectorRebuild,
             });
-
-            // Geometry renderer path currently requires vector extraction to be enabled.
-            // If disabled by user, fail safe to no border overlay instead of stale field borders.
-            if (!usesGeometryBorders) {
-                hideVectorBorderOverlay();
-            }
         }
     } else {
         if (cachedBorderMesh) cachedBorderMesh.visible = false;
@@ -3908,4 +3901,5 @@ export function resetDistanceFieldTerritoryCache(): void {
     warnedCurvedBorderFamilyFallback = false;
     warnedSegmentedBorderFamilyFallback = false;
 }
+
 
