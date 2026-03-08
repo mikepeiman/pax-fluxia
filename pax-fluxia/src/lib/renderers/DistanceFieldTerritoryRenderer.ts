@@ -2255,12 +2255,19 @@ function computeStrokeInnerSide(width: number, softness: number): number {
 }
 
 function assertMeshCenterStrokeAlignment(
-    contract: AlignmentContract,
+    contract: AlignmentContract | null | undefined,
     polylines: VectorBorderPolyline[],
     borderWidth: number,
 ): void {
-    if (polylines.length === 0) return;
+    if (!contract || polylines.length === 0) return;
     const bounds = contract.contentBounds;
+    if (!bounds
+        || !Number.isFinite(bounds.minX)
+        || !Number.isFinite(bounds.minY)
+        || !Number.isFinite(bounds.maxX)
+        || !Number.isFinite(bounds.maxY)) {
+        return;
+    }
     const halfWidth = Math.max(0, borderWidth * 0.5);
     const margin = halfWidth + DF_ALIGNMENT_EPSILON + 1;
     let sampled = 0;
@@ -4322,6 +4329,8 @@ export function resetDistanceFieldTerritoryCache(): void {
     warnedCurvedBorderFamilyFallback = false;
     warnedSegmentedBorderFamilyFallback = false;
 }
+
+
 
 
 
