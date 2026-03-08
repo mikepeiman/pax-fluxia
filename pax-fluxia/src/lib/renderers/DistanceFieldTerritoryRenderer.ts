@@ -937,12 +937,14 @@ const ownershipFillPassBitGl = {
             #version 300 es
             in vec2 vLocalPos;
             uniform sampler2D uOwnershipTex;
+            uniform sampler2D uPrevOwnershipTex;
             uniform vec2 uRenderOrigin;
             uniform vec2 uRenderExtent;
             uniform float uFillAlpha;
             uniform float uHueShift;
             uniform float uSatMult;
             uniform float uLightMult;
+            uniform float uMorphFactor;
             uniform float uWorldWidth;
             uniform float uWorldHeight;
             uniform float uContentMinX;
@@ -974,6 +976,36 @@ const ownershipFillPassBitGl = {
                 if (owner == 7) return uPlayerColor7;
                 return vec3(0.5);
             }
+
+            vec3 applyHsl(vec3 pc) {
+                float cmax = max(pc.r, max(pc.g, pc.b));
+                float cmin = min(pc.r, min(pc.g, pc.b));
+                float delta = cmax - cmin;
+                float L = (cmax + cmin) * 0.5;
+                float S = delta < 0.001 ? 0.0 : delta / (1.0 - abs(2.0 * L - 1.0));
+                float H = 0.0;
+                if (delta > 0.001) {
+                    if (cmax == pc.r) H = mod((pc.g - pc.b) / delta, 6.0);
+                    else if (cmax == pc.g) H = (pc.b - pc.r) / delta + 2.0;
+                    else H = (pc.r - pc.g) / delta + 4.0;
+                    H /= 6.0;
+                }
+                H = fract(H + uHueShift / 360.0);
+                S *= uSatMult;
+                L *= uLightMult;
+                float c2 = (1.0 - abs(2.0 * L - 1.0)) * S;
+                float x2 = c2 * (1.0 - abs(mod(H * 6.0, 2.0) - 1.0));
+                float m2 = L - c2 * 0.5;
+                vec3 rgb;
+                float h6 = H * 6.0;
+                if (h6 < 1.0) rgb = vec3(c2, x2, 0.0);
+                else if (h6 < 2.0) rgb = vec3(x2, c2, 0.0);
+                else if (h6 < 3.0) rgb = vec3(0.0, c2, x2);
+                else if (h6 < 4.0) rgb = vec3(0.0, x2, c2);
+                else if (h6 < 5.0) rgb = vec3(x2, 0.0, c2);
+                else rgb = vec3(c2, 0.0, x2);
+                return rgb + vec3(m2);
+            }
         `,
         main: /* glsl */ `
             vec2 worldPos = vLocalPos;
@@ -982,45 +1014,27 @@ const ownershipFillPassBitGl = {
                 discard;
             }
 
-            vec4 center = texture(uOwnershipTex, uv);
-            int owner = decodeOwner(center.r);
-            if (owner < 0) {
+            vec4 centerCurr = texture(uOwnershipTex, uv);
+            vec4 centerPrev = texture(uPrevOwnershipTex, uv);
+
+            int ownerCurr = decodeOwner(centerCurr.r);
+            int ownerPrev = decodeOwner(centerPrev.r);
+            float morph = clamp(uMorphFactor, 0.0, 1.0);
+
+            float currCoverage = ownerCurr >= 0 ? 1.0 : 0.0;
+            float prevCoverage = ownerPrev >= 0 ? 1.0 : 0.0;
+            float ownershipCoverage = mix(currCoverage, prevCoverage, morph);
+            if (ownershipCoverage <= 0.0) {
                 discard;
             }
 
-            vec3 pc = getPlayerColor(owner);
+            vec3 currColor = ownerCurr >= 0 ? applyHsl(getPlayerColor(ownerCurr)) : vec3(0.0);
+            vec3 prevColor = ownerPrev >= 0 ? applyHsl(getPlayerColor(ownerPrev)) : vec3(0.0);
+            vec3 finalRGB = mix(currColor, prevColor, morph);
 
-            float cmax = max(pc.r, max(pc.g, pc.b));
-            float cmin = min(pc.r, min(pc.g, pc.b));
-            float delta = cmax - cmin;
-            float L = (cmax + cmin) * 0.5;
-            float S = delta < 0.001 ? 0.0 : delta / (1.0 - abs(2.0 * L - 1.0));
-            float H = 0.0;
-            if (delta > 0.001) {
-                if (cmax == pc.r) H = mod((pc.g - pc.b) / delta, 6.0);
-                else if (cmax == pc.g) H = (pc.b - pc.r) / delta + 2.0;
-                else H = (pc.r - pc.g) / delta + 4.0;
-                H /= 6.0;
-            }
-            H = fract(H + uHueShift / 360.0);
-            S *= uSatMult;
-            L *= uLightMult;
-            float c2 = (1.0 - abs(2.0 * L - 1.0)) * S;
-            float x2 = c2 * (1.0 - abs(mod(H * 6.0, 2.0) - 1.0));
-            float m2 = L - c2 * 0.5;
-            vec3 rgb;
-            float h6 = H * 6.0;
-            if (h6 < 1.0) rgb = vec3(c2, x2, 0.0);
-            else if (h6 < 2.0) rgb = vec3(x2, c2, 0.0);
-            else if (h6 < 3.0) rgb = vec3(0.0, c2, x2);
-            else if (h6 < 4.0) rgb = vec3(0.0, x2, c2);
-            else if (h6 < 5.0) rgb = vec3(x2, 0.0, c2);
-            else rgb = vec3(c2, 0.0, x2);
-            vec3 finalRGB = rgb + vec3(m2);
-
-            float alpha = uFillAlpha;
+            float alpha = uFillAlpha * ownershipCoverage;
             if (uSmoothing > 0.0) {
-                float junctionGap = center.b * uGapScale;
+                float junctionGap = mix(centerCurr.b, centerPrev.b, morph) * uGapScale;
                 alpha *= smoothstep(0.0, uSmoothing, junctionGap);
             }
 
@@ -1080,6 +1094,7 @@ let cachedDisconnectSiteCount = 0;
 let cachedPackedVirtualCount = 0;
 let warnedMissingRendererForTwoPass = false;
 let cachedOwnershipTexture: PIXI.RenderTexture | null = null;
+let cachedPrevOwnershipTexture: PIXI.RenderTexture | null = null;
 let cachedOwnershipShader: PIXI.Shader | null = null;
 let cachedOwnershipMesh: PIXI.Mesh | null = null;
 let cachedBoundarySeedShader: PIXI.Shader | null = null;
@@ -1093,6 +1108,14 @@ let cachedOwnershipTexW = 0;
 let cachedOwnershipTexH = 0;
 let cachedOwnershipExtentW = 0;
 let cachedOwnershipExtentH = 0;
+let cachedOwnershipFieldValid = false;
+let cachedOwnershipFieldDirty = true;
+let cachedBoundaryDistanceDirty = true;
+let cachedOwnershipControlFp = '';
+let cachedOwnershipPassOriginX = Number.NaN;
+let cachedOwnershipPassOriginY = Number.NaN;
+let cachedOwnershipPassExtentW = Number.NaN;
+let cachedOwnershipPassExtentH = Number.NaN;
 
 let cachedBorderShader: PIXI.Shader | null = null;
 let cachedBorderMesh: PIXI.Mesh | null = null;
@@ -1316,6 +1339,10 @@ function buildVisualFp(): string {
         + `${GAME_CONFIG.DF_MIN_STAR_RADIUS}:${GAME_CONFIG.TERRITORY_TRANSITION_MS}`;
 }
 
+function buildOwnershipControlFp(): string {
+    // Only include controls that change ownership classification. Pure visual style controls are excluded.
+    return `${GAME_CONFIG.DF_INFLUENCE_WEIGHT}:${GAME_CONFIG.DF_MIN_STAR_RADIUS}`;
+}
 function buildTopologyFp(snapshot: CanonicalDfInputSnapshot, metric: 'hops' | 'length'): string {
     let ownerFp = '';
     for (const s of snapshot.stars) {
@@ -2751,8 +2778,8 @@ function getTwoPassTextureSizing(extentW: number, extentH: number): {
     };
 }
 
-function ensureTwoPassBorderResources(): void {
-    if (!DF_TWO_PASS_BORDERS_ENABLED) return;
+function ensureTwoPassBorderResources(): { textureChanged: boolean } {
+    if (!DF_TWO_PASS_BORDERS_ENABLED) return { textureChanged: false };
 
     const extentW = Math.max(1, cachedRenderExtentW);
     const extentH = Math.max(1, cachedRenderExtentH);
@@ -2761,15 +2788,20 @@ function ensureTwoPassBorderResources(): void {
     const textureChanged = !cachedOwnershipTexture || texW !== cachedOwnershipTexW || texH !== cachedOwnershipTexH;
     if (textureChanged) {
         if (cachedOwnershipTexture) cachedOwnershipTexture.destroy(true);
+        if (cachedPrevOwnershipTexture) cachedPrevOwnershipTexture.destroy(true);
         if (cachedJumpFloodTextureA) cachedJumpFloodTextureA.destroy(true);
         if (cachedJumpFloodTextureB) cachedJumpFloodTextureB.destroy(true);
 
         cachedOwnershipTexture = createNearestRenderTexture(texW, texH);
+        cachedPrevOwnershipTexture = createNearestRenderTexture(texW, texH);
         cachedJumpFloodTextureA = createNearestRenderTexture(texW, texH);
         cachedJumpFloodTextureB = createNearestRenderTexture(texW, texH);
         cachedBoundaryDistanceTexture = null;
         cachedOwnershipTexW = texW;
         cachedOwnershipTexH = texH;
+        cachedOwnershipFieldValid = false;
+        cachedOwnershipFieldDirty = true;
+        cachedBoundaryDistanceDirty = true;
     }
 
     if (!cachedOwnershipShader) {
@@ -2880,6 +2912,7 @@ function ensureTwoPassBorderResources(): void {
                     uHueShift: { value: 0, type: 'f32' },
                     uSatMult: { value: 0.5, type: 'f32' },
                     uLightMult: { value: 0.4, type: 'f32' },
+                    uMorphFactor: { value: 0, type: 'f32' },
                     uWorldWidth: { value: 0, type: 'f32' },
                     uWorldHeight: { value: 0, type: 'f32' },
                     uContentMinX: { value: 0, type: 'f32' },
@@ -2897,6 +2930,7 @@ function ensureTwoPassBorderResources(): void {
                     uPlayerColor7: { value: new Float32Array([0.5, 0, 1]), type: 'vec3<f32>' },
                 },
                 uOwnershipTex: cachedOwnershipTexture?.source ?? makeGradientTestTexture().source,
+                uPrevOwnershipTex: cachedPrevOwnershipTexture?.source ?? makeGradientTestTexture().source,
             },
         });
     }
@@ -2965,9 +2999,11 @@ function ensureTwoPassBorderResources(): void {
         cachedBorderExtentW = cachedRenderExtentW;
         cachedBorderExtentH = cachedRenderExtentH;
     }
+
+    return { textureChanged };
 }
 
-// Pass 1 runs every frame so morphing and influence sliders remain fluid.
+// Pass 1 writes a deterministic ownership snapshot into the "current" ownership RT.
 function updateOwnershipPassUniforms(stars: StarState[], morphFactor: number): void {
     if (!cachedOwnershipShader) return;
 
@@ -2994,6 +3030,35 @@ function updateOwnershipPassUniforms(stars: StarState[], morphFactor: number): v
 function renderOwnershipPass(renderer: PIXI.Renderer): void {
     if (!cachedOwnershipMesh || !cachedOwnershipTexture) return;
     (renderer as any).render({ container: cachedOwnershipMesh, target: cachedOwnershipTexture, clear: true });
+    cachedOwnershipFieldValid = true;
+    cachedOwnershipFieldDirty = false;
+    cachedBoundaryDistanceDirty = true;
+    cachedOwnershipPassOriginX = cachedRenderOriginX;
+    cachedOwnershipPassOriginY = cachedRenderOriginY;
+    cachedOwnershipPassExtentW = cachedRenderExtentW;
+    cachedOwnershipPassExtentH = cachedRenderExtentH;
+}
+
+function rotateOwnershipTexturesForMorph(): boolean {
+    if (!cachedOwnershipTexture || !cachedPrevOwnershipTexture) return false;
+    const prevTexture = cachedPrevOwnershipTexture;
+    cachedPrevOwnershipTexture = cachedOwnershipTexture;
+    cachedOwnershipTexture = prevTexture;
+    return true;
+}
+
+function hasOwnershipPassMappingChanged(): boolean {
+    if (!Number.isFinite(cachedOwnershipPassOriginX)
+        || !Number.isFinite(cachedOwnershipPassOriginY)
+        || !Number.isFinite(cachedOwnershipPassExtentW)
+        || !Number.isFinite(cachedOwnershipPassExtentH)) {
+        return true;
+    }
+
+    return Math.abs(cachedOwnershipPassOriginX - cachedRenderOriginX) > 0.5
+        || Math.abs(cachedOwnershipPassOriginY - cachedRenderOriginY) > 0.5
+        || Math.abs(cachedOwnershipPassExtentW - cachedRenderExtentW) > 0.5
+        || Math.abs(cachedOwnershipPassExtentH - cachedRenderExtentH) > 0.5;
 }
 
 function renderBoundaryDistancePass(renderer: PIXI.Renderer): boolean {
@@ -3054,6 +3119,7 @@ function updateTwoPassFillUniforms(
     worldWidth: number,
     worldHeight: number,
     alignment: AlignmentContract,
+    morphFactor: number,
 ): boolean {
     if (!cachedOwnershipFillShader || !cachedOwnershipTexture) return false;
 
@@ -3065,6 +3131,7 @@ function updateTwoPassFillUniforms(
     u.uHueShift = GAME_CONFIG.DF_HUE ?? 0;
     u.uSatMult = GAME_CONFIG.DF_SATURATION ?? 0.5;
     u.uLightMult = GAME_CONFIG.DF_LIGHTNESS ?? 0.4;
+    u.uMorphFactor = morphFactor;
     u.uWorldWidth = worldWidth;
     u.uWorldHeight = worldHeight;
     u.uContentMinX = alignment.contentMinX;
@@ -3083,6 +3150,7 @@ function updateTwoPassFillUniforms(
     }
 
     cachedOwnershipFillShader.resources.uOwnershipTex = cachedOwnershipTexture.source;
+    cachedOwnershipFillShader.resources.uPrevOwnershipTex = (cachedPrevOwnershipTexture ?? cachedOwnershipTexture).source;
     const ug = cachedOwnershipFillShader.resources.fillPassUniforms as any;
     if (ug && typeof ug.update === 'function') ug.update();
     return true;
@@ -3326,11 +3394,15 @@ export function renderDistanceFieldTerritory(
         }
     }
 
-    const needsRebuild = changeClassification.geometryChanged
+    const ownershipControlFp = buildOwnershipControlFp();
+    const ownershipControlChanged = ownershipControlFp !== cachedOwnershipControlFp;
+    cachedOwnershipControlFp = ownershipControlFp;
+
+    const topologyDataNeedsRebuild = changeClassification.geometryChanged
         || changeClassification.topologyChanged
-        || isMorphing
         || !starDataTexture
         || uiWriteNeedsRebuild;
+    const needsRebuild = topologyDataNeedsRebuild;
 
     let activeVirtualSites = cachedVirtualSites;
 
@@ -3377,6 +3449,8 @@ export function renderDistanceFieldTerritory(
         cachedCorridorSiteCount = corridorSitesCount;
         cachedDisconnectSiteCount = disconnectSitesCount;
         cachedPackedVirtualCount = stableVirtuals.length;
+        cachedOwnershipFieldDirty = true;
+        cachedBoundaryDistanceDirty = true;
         latestDxDiagnostics = {
             rebuilt: true,
             reasons: [
@@ -3444,11 +3518,24 @@ export function renderDistanceFieldTerritory(
     }
 
     if (useTwoPassBorders) {
-        ensureTwoPassBorderResources();
-        updateOwnershipPassUniforms(canonicalStars, morphFactor);
-        renderOwnershipPass(renderer!);
+        const resourceState = ensureTwoPassBorderResources();
+        const ownershipMappingChanged = hasOwnershipPassMappingChanged();
+        const ownershipPassNeedsUpdate = resourceState.textureChanged
+            || topologyDataNeedsRebuild
+            || ownershipControlChanged
+            || cachedOwnershipFieldDirty
+            || ownershipMappingChanged
+            || !cachedOwnershipFieldValid;
 
-        const fillReady = updateTwoPassFillUniforms(colorUtils, worldWidth, worldHeight, alignmentContract);
+        if (ownershipPassNeedsUpdate) {
+            const canRotateForMorph = cachedOwnershipFieldValid && !resourceState.textureChanged;
+            if (canRotateForMorph) rotateOwnershipTexturesForMorph();
+            // Pass-1 ownership snapshots are deterministic; temporal morph is blended in pass-2 fill.
+            updateOwnershipPassUniforms(canonicalStars, 0);
+            renderOwnershipPass(renderer!);
+        }
+
+        const fillReady = updateTwoPassFillUniforms(colorUtils, worldWidth, worldHeight, alignmentContract, morphFactor);
         if (cachedOwnershipFillMesh && !cachedOwnershipFillMesh.parent) {
             container.addChild(cachedOwnershipFillMesh);
         }
@@ -3456,7 +3543,12 @@ export function renderDistanceFieldTerritory(
             cachedOwnershipFillMesh.visible = fillReady && (GAME_CONFIG.DF_ALPHA ?? 0) > 0;
         }
 
-        const hasBoundaryField = renderBoundaryDistancePass(renderer!);
+        const hasBoundaryField = cachedBoundaryDistanceDirty || !cachedBoundaryDistanceTexture
+            ? renderBoundaryDistancePass(renderer!)
+            : true;
+        if (hasBoundaryField) {
+            cachedBoundaryDistanceDirty = false;
+        }
         const borderReady = hasBoundaryField
             && updateTwoPassBorderUniforms(colorUtils, worldWidth, worldHeight, alignmentContract);
 
@@ -3605,6 +3697,10 @@ export function resetDistanceFieldTerritoryCache(): void {
         cachedOwnershipTexture.destroy(true);
         cachedOwnershipTexture = null;
     }
+    if (cachedPrevOwnershipTexture) {
+        cachedPrevOwnershipTexture.destroy(true);
+        cachedPrevOwnershipTexture = null;
+    }
 
     starDataTexture = null;
     starDataBuffer = null;
@@ -3622,6 +3718,14 @@ export function resetDistanceFieldTerritoryCache(): void {
     cachedOwnershipTexH = 0;
     cachedOwnershipExtentW = 0;
     cachedOwnershipExtentH = 0;
+    cachedOwnershipFieldValid = false;
+    cachedOwnershipFieldDirty = true;
+    cachedBoundaryDistanceDirty = true;
+    cachedOwnershipControlFp = '';
+    cachedOwnershipPassOriginX = Number.NaN;
+    cachedOwnershipPassOriginY = Number.NaN;
+    cachedOwnershipPassExtentW = Number.NaN;
+    cachedOwnershipPassExtentH = Number.NaN;
     cachedBoundaryDistanceTexture = null;
     cachedBorderOriginX = 0;
     cachedBorderOriginY = 0;
