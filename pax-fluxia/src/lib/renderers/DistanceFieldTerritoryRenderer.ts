@@ -912,6 +912,121 @@ const borderPassBitGl = {
     },
 };
 // ============================================================================
+// Two-Pass Fill Pipeline: Ownership backfill from canonical ownership texture
+// ============================================================================
+
+const ownershipFillPassBitGl = {
+    name: 'territory-distance-field-ownership-fill-pass-bit',
+    vertex: {
+        header: /* glsl */ `
+            out vec2 vLocalPos;
+        `,
+        main: /* glsl */ `
+            vLocalPos = position;
+        `,
+    },
+    fragment: {
+        header: /* glsl */ `
+            #version 300 es
+            in vec2 vLocalPos;
+            uniform sampler2D uOwnershipTex;
+            uniform vec2 uRenderOrigin;
+            uniform vec2 uRenderExtent;
+            uniform float uFillAlpha;
+            uniform float uHueShift;
+            uniform float uSatMult;
+            uniform float uLightMult;
+            uniform float uWorldWidth;
+            uniform float uWorldHeight;
+            uniform float uContentMinX;
+            uniform float uContentMinY;
+            uniform float uEdgeFade;
+            uniform float uGapScale;
+            uniform float uSmoothing;
+            uniform vec3 uPlayerColor0;
+            uniform vec3 uPlayerColor1;
+            uniform vec3 uPlayerColor2;
+            uniform vec3 uPlayerColor3;
+            uniform vec3 uPlayerColor4;
+            uniform vec3 uPlayerColor5;
+            uniform vec3 uPlayerColor6;
+            uniform vec3 uPlayerColor7;
+
+            int decodeOwner(float enc) {
+                return int(floor(enc * 255.0 + 0.5)) - 1;
+            }
+
+            vec3 getPlayerColor(int owner) {
+                if (owner == 0) return uPlayerColor0;
+                if (owner == 1) return uPlayerColor1;
+                if (owner == 2) return uPlayerColor2;
+                if (owner == 3) return uPlayerColor3;
+                if (owner == 4) return uPlayerColor4;
+                if (owner == 5) return uPlayerColor5;
+                if (owner == 6) return uPlayerColor6;
+                if (owner == 7) return uPlayerColor7;
+                return vec3(0.5);
+            }
+        `,
+        main: /* glsl */ `
+            vec2 worldPos = vLocalPos;
+            vec2 uv = (worldPos - uRenderOrigin) / uRenderExtent;
+            if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
+                discard;
+            }
+
+            vec4 center = texture(uOwnershipTex, uv);
+            int owner = decodeOwner(center.r);
+            if (owner < 0) {
+                discard;
+            }
+
+            vec3 pc = getPlayerColor(owner);
+
+            float cmax = max(pc.r, max(pc.g, pc.b));
+            float cmin = min(pc.r, min(pc.g, pc.b));
+            float delta = cmax - cmin;
+            float L = (cmax + cmin) * 0.5;
+            float S = delta < 0.001 ? 0.0 : delta / (1.0 - abs(2.0 * L - 1.0));
+            float H = 0.0;
+            if (delta > 0.001) {
+                if (cmax == pc.r) H = mod((pc.g - pc.b) / delta, 6.0);
+                else if (cmax == pc.g) H = (pc.b - pc.r) / delta + 2.0;
+                else H = (pc.r - pc.g) / delta + 4.0;
+                H /= 6.0;
+            }
+            H = fract(H + uHueShift / 360.0);
+            S *= uSatMult;
+            L *= uLightMult;
+            float c2 = (1.0 - abs(2.0 * L - 1.0)) * S;
+            float x2 = c2 * (1.0 - abs(mod(H * 6.0, 2.0) - 1.0));
+            float m2 = L - c2 * 0.5;
+            vec3 rgb;
+            float h6 = H * 6.0;
+            if (h6 < 1.0) rgb = vec3(c2, x2, 0.0);
+            else if (h6 < 2.0) rgb = vec3(x2, c2, 0.0);
+            else if (h6 < 3.0) rgb = vec3(0.0, c2, x2);
+            else if (h6 < 4.0) rgb = vec3(0.0, x2, c2);
+            else if (h6 < 5.0) rgb = vec3(x2, 0.0, c2);
+            else rgb = vec3(c2, 0.0, x2);
+            vec3 finalRGB = rgb + vec3(m2);
+
+            float alpha = uFillAlpha;
+            if (uSmoothing > 0.0) {
+                float junctionGap = center.b * uGapScale;
+                alpha *= smoothstep(0.0, uSmoothing, junctionGap);
+            }
+
+            float edgeX = min(worldPos.x - uContentMinX, uWorldWidth - worldPos.x);
+            float edgeY = min(worldPos.y - uContentMinY, uWorldHeight - worldPos.y);
+            float edgeDist = min(edgeX, edgeY);
+            alpha *= smoothstep(0.0, uEdgeFade, edgeDist);
+
+            outColor = vec4(finalRGB * alpha, alpha);
+        `,
+    },
+};
+// ============================================================================
 // Module State
 // ============================================================================
 
@@ -974,6 +1089,8 @@ let cachedOwnershipExtentH = 0;
 
 let cachedBorderShader: PIXI.Shader | null = null;
 let cachedBorderMesh: PIXI.Mesh | null = null;
+let cachedOwnershipFillShader: PIXI.Shader | null = null;
+let cachedOwnershipFillMesh: PIXI.Mesh | null = null;
 let cachedBorderOriginX = 0;
 let cachedBorderOriginY = 0;
 let cachedBorderExtentW = 0;
@@ -2741,6 +2858,41 @@ function ensureTwoPassBorderResources(): void {
         });
     }
 
+    if (!cachedOwnershipFillShader) {
+        const fillProgram = compileHighShaderGlProgram({
+            bits: [localUniformBitGl, ownershipFillPassBitGl, roundPixelsBitGl],
+            name: 'territory-distance-field-ownership-fill-pass',
+        });
+        cachedOwnershipFillShader = new PIXI.Shader({
+            glProgram: fillProgram,
+            resources: {
+                fillPassUniforms: {
+                    uRenderOrigin: { value: new Float32Array([0, 0]), type: 'vec2<f32>' },
+                    uRenderExtent: { value: new Float32Array([1, 1]), type: 'vec2<f32>' },
+                    uFillAlpha: { value: 0.2, type: 'f32' },
+                    uHueShift: { value: 0, type: 'f32' },
+                    uSatMult: { value: 0.5, type: 'f32' },
+                    uLightMult: { value: 0.4, type: 'f32' },
+                    uWorldWidth: { value: 0, type: 'f32' },
+                    uWorldHeight: { value: 0, type: 'f32' },
+                    uContentMinX: { value: 0, type: 'f32' },
+                    uContentMinY: { value: 0, type: 'f32' },
+                    uEdgeFade: { value: 200, type: 'f32' },
+                    uGapScale: { value: DF_PASS1_GAP_SCALE, type: 'f32' },
+                    uSmoothing: { value: 30, type: 'f32' },
+                    uPlayerColor0: { value: new Float32Array([1, 0, 0]), type: 'vec3<f32>' },
+                    uPlayerColor1: { value: new Float32Array([0, 0, 1]), type: 'vec3<f32>' },
+                    uPlayerColor2: { value: new Float32Array([0, 1, 0]), type: 'vec3<f32>' },
+                    uPlayerColor3: { value: new Float32Array([1, 1, 0]), type: 'vec3<f32>' },
+                    uPlayerColor4: { value: new Float32Array([1, 0, 1]), type: 'vec3<f32>' },
+                    uPlayerColor5: { value: new Float32Array([0, 1, 1]), type: 'vec3<f32>' },
+                    uPlayerColor6: { value: new Float32Array([1, 0.5, 0]), type: 'vec3<f32>' },
+                    uPlayerColor7: { value: new Float32Array([0.5, 0, 1]), type: 'vec3<f32>' },
+                },
+                uOwnershipTex: cachedOwnershipTexture?.source ?? makeGradientTestTexture().source,
+            },
+        });
+    }
     const targetMeshNeedsRebuild = textureChanged
         || !cachedOwnershipMesh
         || !cachedBoundarySeedMesh
@@ -2759,6 +2911,7 @@ function ensureTwoPassBorderResources(): void {
     }
 
     const borderMeshNeedsRebuild = !cachedBorderMesh
+        || !cachedOwnershipFillMesh
         || Math.abs(cachedRenderOriginX - cachedBorderOriginX) > 0.5
         || Math.abs(cachedRenderOriginY - cachedBorderOriginY) > 0.5
         || Math.abs(cachedRenderExtentW - cachedBorderExtentW) > 0.5
@@ -2770,7 +2923,13 @@ function ensureTwoPassBorderResources(): void {
         const x1 = x0 + cachedRenderExtentW;
         const y1 = y0 + cachedRenderExtentH;
 
-        const geometry = new PIXI.MeshGeometry({
+        const borderGeometry = new PIXI.MeshGeometry({
+            positions: new Float32Array([x0, y0, x1, y0, x1, y1, x0, y1]),
+            uvs: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
+            indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
+            topology: 'triangle-list',
+        });
+        const fillGeometry = new PIXI.MeshGeometry({
             positions: new Float32Array([x0, y0, x1, y0, x1, y1, x0, y1]),
             uvs: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
             indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
@@ -2781,10 +2940,19 @@ function ensureTwoPassBorderResources(): void {
             if (cachedBorderMesh.parent) cachedBorderMesh.parent.removeChild(cachedBorderMesh);
             cachedBorderMesh.destroy();
         }
+        if (cachedOwnershipFillMesh) {
+            if (cachedOwnershipFillMesh.parent) cachedOwnershipFillMesh.parent.removeChild(cachedOwnershipFillMesh);
+            cachedOwnershipFillMesh.destroy();
+        }
 
-        const borderMesh = new PIXI.Mesh({ geometry, shader: cachedBorderShader! }) as PIXI.Mesh;
+        const borderMesh = new PIXI.Mesh({ geometry: borderGeometry, shader: cachedBorderShader! }) as PIXI.Mesh;
         borderMesh.filters = [];
         cachedBorderMesh = borderMesh;
+
+        const fillMesh = new PIXI.Mesh({ geometry: fillGeometry, shader: cachedOwnershipFillShader! }) as PIXI.Mesh;
+        fillMesh.filters = [];
+        cachedOwnershipFillMesh = fillMesh;
+
         cachedBorderOriginX = cachedRenderOriginX;
         cachedBorderOriginY = cachedRenderOriginY;
         cachedBorderExtentW = cachedRenderExtentW;
@@ -2870,6 +3038,46 @@ function renderBoundaryDistancePass(renderer: PIXI.Renderer): boolean {
     }
 
     cachedBoundaryDistanceTexture = inputTex;
+    return true;
+}
+
+// Pass 2A backfills territory fill directly from the canonical ownership field.
+function updateTwoPassFillUniforms(
+    colorUtils: ColorUtils,
+    worldWidth: number,
+    worldHeight: number,
+    alignment: AlignmentContract,
+): boolean {
+    if (!cachedOwnershipFillShader || !cachedOwnershipTexture) return false;
+
+    const nPlayers = currentPlayerIds.length;
+    const u = cachedOwnershipFillShader.resources.fillPassUniforms.uniforms;
+    u.uRenderOrigin = new Float32Array([cachedRenderOriginX, cachedRenderOriginY]);
+    u.uRenderExtent = new Float32Array([Math.max(1, cachedRenderExtentW), Math.max(1, cachedRenderExtentH)]);
+    u.uFillAlpha = GAME_CONFIG.DF_ALPHA ?? 0.2;
+    u.uHueShift = GAME_CONFIG.DF_HUE ?? 0;
+    u.uSatMult = GAME_CONFIG.DF_SATURATION ?? 0.5;
+    u.uLightMult = GAME_CONFIG.DF_LIGHTNESS ?? 0.4;
+    u.uWorldWidth = worldWidth;
+    u.uWorldHeight = worldHeight;
+    u.uContentMinX = alignment.contentMinX;
+    u.uContentMinY = alignment.contentMinY;
+    u.uEdgeFade = GAME_CONFIG.DF_EDGE_FADE ?? 200;
+    u.uGapScale = DF_PASS1_GAP_SCALE;
+    u.uSmoothing = GAME_CONFIG.DF_SMOOTHING ?? 30;
+
+    for (let i = 0; i < Math.min(nPlayers, MAX_PLAYERS); i++) {
+        const hex = colorUtils.getPlayerColor(currentPlayerIds[i]);
+        const r = ((hex >> 16) & 0xff) / 255;
+        const g = ((hex >> 8) & 0xff) / 255;
+        const b = (hex & 0xff) / 255;
+        const colorArr = new Float32Array([r, g, b]);
+        (u as any)[`uPlayerColor${i}`] = colorArr;
+    }
+
+    cachedOwnershipFillShader.resources.uOwnershipTex = cachedOwnershipTexture.source;
+    const ug = cachedOwnershipFillShader.resources.fillPassUniforms as any;
+    if (ug && typeof ug.update === 'function') ug.update();
     return true;
 }
 
@@ -2986,22 +3194,27 @@ function updateFilterUniforms(
 // ============================================================================
 
 function applyBlur(): void {
-    if (!cachedMesh) return;
+    const activeFillMesh = (cachedOwnershipFillMesh && cachedOwnershipFillMesh.visible)
+        ? cachedOwnershipFillMesh
+        : cachedMesh;
+    if (!activeFillMesh) return;
+
     const blur = GAME_CONFIG.DF_BLUR ?? 0;
     if (blur > 0) {
         if (cachedBlurStrength !== blur) {
             cachedBlurFilter = new PIXI.BlurFilter({ strength: blur, quality: 3 });
             cachedBlurStrength = blur;
         }
-        // With mesh approach, the custom shader is built in - only add blur as extra filter
-        cachedMesh.filters = cachedBlurFilter ? [cachedBlurFilter] : [];
+        activeFillMesh.filters = cachedBlurFilter ? [cachedBlurFilter] : [];
     } else {
-        cachedMesh.filters = [];
+        activeFillMesh.filters = [];
         cachedBlurFilter = null;
         cachedBlurStrength = -1;
     }
-}
 
+    if (cachedMesh && cachedMesh !== activeFillMesh) cachedMesh.filters = [];
+    if (cachedOwnershipFillMesh && cachedOwnershipFillMesh !== activeFillMesh) cachedOwnershipFillMesh.filters = [];
+}
 // ============================================================================
 // Main Renderer
 // ============================================================================
@@ -3018,6 +3231,7 @@ export function renderDistanceFieldTerritory(
     if (!GAME_CONFIG.TERRITORY_DISTANCE_FIELD) {
         if (cachedMesh) cachedMesh.visible = false;
         if (cachedBorderMesh) cachedBorderMesh.visible = false;
+        if (cachedOwnershipFillMesh) cachedOwnershipFillMesh.visible = false;
         hideVectorBorderOverlay();
         return;
     }
@@ -3036,6 +3250,7 @@ export function renderDistanceFieldTerritory(
     if (hasInvalidWorld) {
         if (cachedMesh) cachedMesh.visible = false;
         if (cachedBorderMesh) cachedBorderMesh.visible = false;
+        if (cachedOwnershipFillMesh) cachedOwnershipFillMesh.visible = false;
         hideVectorBorderOverlay();
         return;
     }
@@ -3085,6 +3300,7 @@ export function renderDistanceFieldTerritory(
 
     if (!currentDist || currentPlayerIds.length === 0) {
         if (cachedMesh) cachedMesh.visible = false;
+        if (cachedOwnershipFillMesh) cachedOwnershipFillMesh.visible = false;
         hideVectorBorderOverlay();
         return;
     }
@@ -3200,19 +3416,39 @@ export function renderDistanceFieldTerritory(
     if (cachedMesh && !cachedMesh.parent) {
         container.addChild(cachedMesh);
     }
-    if (cachedMesh) {
-        cachedMesh.visible = true;
-    }
-
     if (cachedMeshShader) {
         cachedMeshShader.resources.territoryUniforms.uniforms.uMorphFactor = morphFactor;
     }
-    updateFilterUniforms(canonicalStars, colorUtils, worldWidth, worldHeight, alignmentContract, useTwoPassBorders || (vectorBordersEnabled && DF_VECTOR_OVERLAY_DEBUG_PATH));
+    if (!useTwoPassBorders) {
+        if (cachedMesh) {
+            cachedMesh.visible = true;
+        }
+        updateFilterUniforms(
+            canonicalStars,
+            colorUtils,
+            worldWidth,
+            worldHeight,
+            alignmentContract,
+            vectorBordersEnabled && DF_VECTOR_OVERLAY_DEBUG_PATH,
+        );
+    } else if (cachedMesh) {
+        // Two-pass ownership fill is canonical in this mode. Hide single-pass fill mesh.
+        cachedMesh.visible = false;
+    }
 
     if (useTwoPassBorders) {
         ensureTwoPassBorderResources();
         updateOwnershipPassUniforms(canonicalStars, morphFactor);
         renderOwnershipPass(renderer!);
+
+        const fillReady = updateTwoPassFillUniforms(colorUtils, worldWidth, worldHeight, alignmentContract);
+        if (cachedOwnershipFillMesh && !cachedOwnershipFillMesh.parent) {
+            container.addChild(cachedOwnershipFillMesh);
+        }
+        if (cachedOwnershipFillMesh) {
+            cachedOwnershipFillMesh.visible = fillReady && (GAME_CONFIG.DF_ALPHA ?? 0) > 0;
+        }
+
         const hasBoundaryField = renderBoundaryDistancePass(renderer!);
         const borderReady = hasBoundaryField
             && updateTwoPassBorderUniforms(colorUtils, worldWidth, worldHeight, alignmentContract);
@@ -3226,8 +3462,9 @@ export function renderDistanceFieldTerritory(
                 && (GAME_CONFIG.DF_BORDER_ALPHA ?? 0) > 0;
         }
         hideVectorBorderOverlay();
-    } else if (cachedBorderMesh) {
-        cachedBorderMesh.visible = false;
+    } else {
+        if (cachedBorderMesh) cachedBorderMesh.visible = false;
+        if (cachedOwnershipFillMesh) cachedOwnershipFillMesh.visible = false;
     }
 
     if (vectorBordersEnabled && DF_VECTOR_OVERLAY_DEBUG_PATH) {
@@ -3302,6 +3539,11 @@ export function resetDistanceFieldTerritoryCache(): void {
         cachedMeshShader.destroy();
         cachedMeshShader = null;
     }
+    if (cachedOwnershipFillMesh) {
+        if (cachedOwnershipFillMesh.parent) cachedOwnershipFillMesh.parent.removeChild(cachedOwnershipFillMesh);
+        cachedOwnershipFillMesh.destroy();
+        cachedOwnershipFillMesh = null;
+    }
     if (cachedOwnershipMesh) {
         cachedOwnershipMesh.destroy();
         cachedOwnershipMesh = null;
@@ -3334,6 +3576,10 @@ export function resetDistanceFieldTerritoryCache(): void {
     if (cachedBorderShader) {
         cachedBorderShader.destroy();
         cachedBorderShader = null;
+    }
+    if (cachedOwnershipFillShader) {
+        cachedOwnershipFillShader.destroy();
+        cachedOwnershipFillShader = null;
     }
     if (cachedVectorBorderGraphics) {
         if (cachedVectorBorderGraphics.parent) cachedVectorBorderGraphics.parent.removeChild(cachedVectorBorderGraphics);
@@ -3397,6 +3643,4 @@ export function resetDistanceFieldTerritoryCache(): void {
     warnedCurvedBorderFamilyFallback = false;
     warnedSegmentedBorderFamilyFallback = false;
 }
-
-
 
