@@ -452,6 +452,17 @@ const strokeMeshBitGl = {
     },
 };
 
+let cachedStrokeMeshGlProgram: ReturnType<typeof compileHighShaderGlProgram> | null = null;
+
+function getStrokeMeshGlProgram() {
+    if (!cachedStrokeMeshGlProgram) {
+        cachedStrokeMeshGlProgram = compileHighShaderGlProgram({
+            bits: [localUniformBitGl, strokeMeshBitGl, roundPixelsBitGl],
+            name: 'distance-field-border-stroke-mesh',
+        });
+    }
+    return cachedStrokeMeshGlProgram;
+}
 export interface StrokeMeshShaderOptions {
     color: [number, number, number];
     alpha: number;
@@ -467,10 +478,7 @@ export function createStrokeMeshShader(options: StrokeMeshShaderOptions): PIXI.S
     const halfExtent = Math.max(EPS, halfWidth + safeSoftness);
     const innerSide = Math.max(0, Math.min(1, halfWidth / halfExtent));
 
-    const glProgram = compileHighShaderGlProgram({
-        bits: [localUniformBitGl, strokeMeshBitGl, roundPixelsBitGl],
-        name: 'distance-field-border-stroke-mesh',
-    });
+    const glProgram = getStrokeMeshGlProgram();
 
     return new PIXI.Shader({
         glProgram,

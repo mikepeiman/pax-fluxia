@@ -2477,8 +2477,9 @@ function renderMeshBorderOverlay(ctx: BorderFamilyRenderContext, alignmentContra
     }
 
     const needsStyleUpdate = cachedStrokeMeshStyleFingerprint !== styleFp;
+    const enableMorphFallback = useCanonical && morphActive;
     const fallbackPairs = new Set<string>();
-    if (morphActive) {
+    if (enableMorphFallback) {
         for (const record of cachedStrokeMeshRecords) {
             if (!record.hasMorphSource) fallbackPairs.add(record.pairKey);
         }
@@ -2500,7 +2501,7 @@ function renderMeshBorderOverlay(ctx: BorderFamilyRenderContext, alignmentContra
         }
 
         uniforms.uMorphMix = record.hasMorphSource ? morphMix : 1;
-        record.mesh.visible = !fallbackPairs.has(record.pairKey);
+        record.mesh.visible = !enableMorphFallback || !fallbackPairs.has(record.pairKey);
     }
 
     if (needsStyleUpdate) {
@@ -2508,7 +2509,7 @@ function renderMeshBorderOverlay(ctx: BorderFamilyRenderContext, alignmentContra
     }
 
     const fallbackPairFingerprint = [...fallbackPairs].sort((a, b) => a.localeCompare(b)).join(',');
-    if (fallbackPairs.size > 0) {
+    if (enableMorphFallback && fallbackPairs.size > 0) {
         if (!cachedStrokeMeshFallbackGraphics) {
             cachedStrokeMeshFallbackGraphics = new PIXI.Graphics();
         }
