@@ -1196,6 +1196,7 @@ let lastBorderPerfWarnFp = '';
 let lastBorderMeshWarnFp = '';
 let lastCanonicalSmoothingWarnFp = '';
 let lastCanonicalPublishWarningFp = '';
+let lastCanonicalFallbackWarnFp = '';
 let lastBorderMeshSourceWarnFp = '';
 let cachedCorridorSiteCount = 0;
 let cachedDisconnectSiteCount = 0;
@@ -2980,6 +2981,25 @@ function renderMeshBorderOverlay(ctx: BorderFamilyRenderContext, alignmentContra
             ?? legacyCurrentPublished;
     } else {
         activeSource = legacyCurrentPublished;
+    }
+
+    if (shouldPreferCanonical && activeSource && activeSource.sourceKind !== 'canonical') {
+        const fallbackDiagnosticReason = latestBorderPublishDiagnostics?.reason ?? 'NO_PUBLISHED_CANONICAL';
+        const fallbackFp = `${ctx.ownershipSnapshotId}|${activeSource.key.samplingKey}|${fallbackDiagnosticReason}`;
+        if (fallbackFp !== lastCanonicalFallbackWarnFp) {
+            lastCanonicalFallbackWarnFp = fallbackFp;
+            console.warn('[DF_BORDER][CANONICAL_FALLBACK]', {
+                canonicalRuntimeMode,
+                fallbackSourceKind: activeSource.sourceKind,
+                fallbackDiagnosticReason,
+                canonicalCurrentPolylineCount: canonicalCurrentPublished?.polylines.length ?? 0,
+                canonicalLastValidPolylineCount: canonicalLastValidPublished?.polylines.length ?? 0,
+                legacyCurrentPolylineCount: legacyCurrentPublished?.polylines.length ?? 0,
+                needsLegacyBuild,
+                requestedCanonicalKey: canonicalRequestedKey?.samplingKey ?? null,
+                requestedLegacyKey: legacyRequestedKey?.samplingKey ?? null,
+            });
+        }
     }
 
     if (!activeSource || activeSource.polylines.length === 0) {
@@ -5091,6 +5111,7 @@ export function resetDistanceFieldTerritoryCache(): void {
     lastBorderMeshWarnFp = '';
     lastCanonicalSmoothingWarnFp = '';
     lastCanonicalPublishWarningFp = '';
+    lastCanonicalFallbackWarnFp = '';
     lastBorderMeshSourceWarnFp = '';
     warnedCurvedBorderFamilyFallback = false;
     warnedSegmentedBorderFamilyFallback = false;
