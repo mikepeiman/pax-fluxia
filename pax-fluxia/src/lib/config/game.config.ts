@@ -272,6 +272,8 @@ interface GameConfigType {
     DF_BORDER_MODE: number;         // Border rendering mode: 0=gap (organic), 1=even (uniform width), 2=layered (fwidth-diff)
     DF_BORDER_FAMILY: 'straight' | 'curved' | 'segmented'; // Vector border family dispatch (default 'straight')
     DF_BORDER_ENGINE: 'mesh' | 'legacy_field' | 'legacy_grid'; // Border engine routing: mesh canonical + legacy reference modes
+    DF_CANONICAL_FRONTIER_RUNTIME_MODE: 'disabled' | 'diagnostic' | 'production'; // Canonical frontier rollout gate (default 'disabled')
+    DF_CANONICAL_FRONTIER_DIAGNOSTIC_SHOW: boolean; // Render canonical frontier in diagnostic mode when true
     DF_BORDER_HQ_ENABLED: boolean;  // Enable supersampled border field for smoother edges (default false)
     DF_BORDER_HQ_SCALE: number;     // Supersample factor for ownership/JFA pass (1.0-4.0, default 2.0)
     DF_BORDER_HQ_MAX_DIM: number;   // Max ownership/JFA texture dimension in HQ mode (default 8192)
@@ -1101,7 +1103,9 @@ const _rawConfig: GameConfigType = {
     DF_BORDER_BRIGHTEN: 15,
     DF_BORDER_MODE: 0,
     DF_BORDER_FAMILY: 'straight',
-    DF_BORDER_ENGINE: 'legacy_field',
+    DF_BORDER_ENGINE: 'mesh',
+    DF_CANONICAL_FRONTIER_RUNTIME_MODE: 'production',
+    DF_CANONICAL_FRONTIER_DIAGNOSTIC_SHOW: false,
     DF_BORDER_HQ_ENABLED: false,
     DF_BORDER_HQ_SCALE: 3,
     DF_BORDER_HQ_MAX_DIM: 5120,
@@ -1321,5 +1325,4 @@ export function calculateCombatV4(
         disabledOnB: result.disabledOnB
     };
 }
-
 

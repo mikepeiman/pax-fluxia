@@ -129,7 +129,7 @@ export function syncPanelFromConfigPatch(
  * Dev-only guard to catch territory config keys that do not have schema coverage.
  */
 export function warnOnMissingTerritorySchemaCoverage(
-    configSource: Record<string, unknown> = GAME_CONFIG as Record<string, unknown>,
+    configSource: Record<string, unknown> = GAME_CONFIG as unknown as Record<string, unknown>,
 ): void {
     if (!(import.meta as any).env?.DEV) return;
 

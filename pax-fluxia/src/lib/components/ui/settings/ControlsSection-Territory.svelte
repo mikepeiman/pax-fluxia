@@ -52,12 +52,29 @@
         { id: "legacy_field", label: "Legacy Field (Reference)" },
         { id: "legacy_grid", label: "Legacy Grid (Reference)" },
     ] as const;
+    const CANONICAL_FRONTIER_MODE_OPTIONS = [
+        { id: "disabled", label: "Disabled" },
+        { id: "diagnostic", label: "Diagnostic" },
+        { id: "production", label: "Production" },
+    ] as const;
 
     let activeBorderEngine = $derived(
         (panel.dfBorderEngine ?? GAME_CONFIG.DF_BORDER_ENGINE ?? "mesh") as
             | "mesh"
             | "legacy_field"
             | "legacy_grid",
+    );
+    let activeCanonicalFrontierRuntimeMode = $derived(
+        (panel.dfCanonicalFrontierRuntimeMode ??
+            GAME_CONFIG.DF_CANONICAL_FRONTIER_RUNTIME_MODE ??
+            "production") as "disabled" | "diagnostic" | "production",
+    );
+    let canonicalFrontierDiagnosticShow = $derived(
+        Boolean(
+            panel.dfCanonicalFrontierDiagnosticShow ??
+                GAME_CONFIG.DF_CANONICAL_FRONTIER_DIAGNOSTIC_SHOW ??
+                false,
+        ),
     );
     let isLegacyFieldEngine = $derived(activeBorderEngine === "legacy_field");
     let isLegacyGridEngine = $derived(activeBorderEngine === "legacy_grid");
@@ -1296,6 +1313,45 @@
                 {/each}
             </div>
         </div>
+
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">Canonical Frontier</span>
+            </div>
+            <div style="display:flex;gap:4px;padding:2px 0;flex-wrap:wrap">
+                {#each CANONICAL_FRONTIER_MODE_OPTIONS as mode}
+                    <button
+                        class="mode-btn"
+                        class:active={activeCanonicalFrontierRuntimeMode === mode.id}
+                        onclick={() => {
+                            updatePanel("dfCanonicalFrontierRuntimeMode", mode.id);
+                            if (mode.id !== "disabled") {
+                                updatePanel("dfBorderEngine", "mesh");
+                            }
+                        }}>{mode.label}</button
+                    >
+                {/each}
+            </div>
+        </div>
+
+        {#if activeCanonicalFrontierRuntimeMode === "diagnostic"}
+            <div class="var-row">
+                <div class="row-top">
+                    <span class="var-name">Show Canonical Overlay</span><span
+                        class="val"
+                        >{canonicalFrontierDiagnosticShow ? "ON" : "OFF"}</span
+                    >
+                </div>
+                <input
+                    type="checkbox"
+                    checked={canonicalFrontierDiagnosticShow}
+                    onchange={(e) => {
+                        const v = (e.target as HTMLInputElement).checked;
+                        updatePanel("dfCanonicalFrontierDiagnosticShow", v);
+                    }}
+                />
+            </div>
+        {/if}
 
         <div class="var-row">
             <div class="row-top">
@@ -3053,3 +3109,4 @@
         color: #888;
     }
 </style>
+

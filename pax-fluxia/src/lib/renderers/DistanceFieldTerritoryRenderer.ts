@@ -32,7 +32,7 @@ import type { ColorUtils } from './RenderContext';
 import { computeCorridorVirtuals, computeDisconnectVirtuals, type VirtualSite } from './territoryFeatures';
 import { buildLegacyCenterlineGraphsFromOwnerGrid, type CenterlineGraphPair } from './centerlineGraph';
 import { buildStrokeMeshGeometryBuffers, createStrokeMeshGeometryFromBuffers, createStrokeMeshShader, type FittedPath } from './strokeMeshBorders';
-import { buildCanonicalFrontierPolylines, type GraphNativeDistanceView, type OwnerGridInfo, type FrontierPolyline } from './frontierGraph';
+import { buildCanonicalFrontierPolylineSet, type GraphNativeDistanceView, type OwnerGridInfo, type FrontierPolyline } from './frontierGraph';
 
 
 // ============================================================================
@@ -204,6 +204,8 @@ interface VectorBorderBuildJob {
 type BorderFamilyId = 'straight' | 'curved' | 'segmented';
 type BorderRendererId = 'field' | 'geometry';
 type BorderEngineId = 'mesh' | 'legacy_field' | 'legacy_grid';
+type CanonicalFrontierRuntimeModeId = 'disabled' | 'diagnostic' | 'production';
+type VectorBorderSamplingContractId = 'legacy' | 'canonical';
 type DfMorphEasingId = 'linear' | 'easeInOutQuad' | 'easeInOutCubic' | 'smoothstep';
 
 interface BorderFamilyRenderContext {
@@ -222,6 +224,9 @@ interface BorderFamilyRenderContext {
     forceRebuild: boolean;
 }
 
+interface VectorBorderOverlayOptions {
+    samplingContract?: VectorBorderSamplingContractId;
+}
 const DF_CONTENT_BOUNDS_PADDING = 80;
 const DF_ALIGNMENT_EPSILON = 0.5;
 const DF_ALIGNMENT_SAMPLE_LIMIT = 6;
@@ -234,9 +239,9 @@ const DF_TWO_PASS_BORDERS_ENABLED = true;
 // - `field`: pass-2 boundary distance texture stroke (fast fallback)
 // - `geometry`: centerline-derived world-space strokes (canonical quality path)
 const DF_BORDER_RENDERER_CANONICAL: BorderRendererId = 'geometry';
-// Phase 1 recovery: canonical frontier wiring stays present but inactive until
-// published owner-grid snapshots and field contour grouping satisfy readiness checks.
-const DF_CANONICAL_FRONTIER_RUNTIME_MODE: 'disabled' | 'diagnostic' | 'production' = 'disabled';
+// Defaults for canonical frontier rollout; runtime values come from GAME_CONFIG.
+const DF_CANONICAL_FRONTIER_RUNTIME_MODE_DEFAULT: CanonicalFrontierRuntimeModeId = 'disabled';
+const DF_CANONICAL_FRONTIER_DIAGNOSTIC_SHOW_DEFAULT = false;
 const DF_PASS1_GAP_SCALE = 512.0;
 const DF_PASS1_BASE_MAX_TEXTURE_DIM = 4096;
 const DF_PASS1_ABSOLUTE_MAX_TEXTURE_DIM = 8192;
@@ -253,6 +258,10 @@ const DF_VECTOR_MORPH_MIN_UPDATE_MS = 16;
 const DF_VECTOR_MORPH_HEAVY_MIN_UPDATE_MS = 66;
 const DF_VECTOR_ADAPTIVE_OPS_PER_MS = 140000;
 const DF_VECTOR_REBUILD_BUDGET_MS = 2.0;
+const DF_CANONICAL_OWNER_GRID_RESOLUTION = 256;
+const DF_CANONICAL_STRAIGHT_PASSES = 2;
+const DF_CANONICAL_SIMPLIFY_TOLERANCE = 1.0;
+const DF_CANONICAL_MIN_SOFTNESS_PX = 0.75;
 const DF_DEBUG_LOGS = false;
 
 // ============================================================================
@@ -1120,6 +1129,8 @@ let cachedVirtualSites: VirtualSite[] = [];
 let latestTwoPassDiagnostics: TwoPassDiagnosticsPayload | null = null;
 let latestDxDiagnostics: DfDxDiagnosticsPayload | null = null;
 let lastDxWriteAt = 0;
+let lastCanonicalValidationWarnFp = '';
+let lastMeshVisibilityWarnFp = '';
 let cachedCorridorSiteCount = 0;
 let cachedDisconnectSiteCount = 0;
 let cachedPackedVirtualCount = 0;
@@ -1185,6 +1196,8 @@ let cachedStrokeMeshFallbackPairFingerprint = '';
 let cachedStrokeMeshFallbackStyleFingerprint = '';
 let cachedStrokeMeshGeometryFingerprint = '';
 let cachedStrokeMeshStyleFingerprint = '';
+let cachedCanonicalLastValidPolylines: FrontierPolyline[] = [];
+let cachedCanonicalLastValidSnapshotId = '';
 let warnedCurvedBorderFamilyFallback = false;
 let warnedSegmentedBorderFamilyFallback = false;
 
@@ -2070,7 +2083,7 @@ function destroyStrokeMeshOverlay(): void {
     if (cachedStrokeMeshContainer) {
         if (cachedStrokeMeshContainer.parent) cachedStrokeMeshContainer.parent.removeChild(cachedStrokeMeshContainer);
         for (const child of cachedStrokeMeshContainer.children) {
-            (child as PIXI.DisplayObject).destroy();
+            child.destroy();
         }
         cachedStrokeMeshContainer.destroy();
         cachedStrokeMeshContainer = null;
@@ -2098,6 +2111,11 @@ function normalizeBorderEngine(rawEngine: unknown, legacyVectorBordersEnabled: b
     if (rawEngine === 'mesh' || rawEngine === 'legacy_field' || rawEngine === 'legacy_grid') return rawEngine;
     // Compatibility bridge for settings/themes that predate DF_BORDER_ENGINE.
     return legacyVectorBordersEnabled ? 'legacy_grid' : 'legacy_field';
+}
+
+function normalizeCanonicalFrontierRuntimeMode(raw: unknown): CanonicalFrontierRuntimeModeId {
+    if (raw === 'disabled' || raw === 'diagnostic' || raw === 'production') return raw;
+    return DF_CANONICAL_FRONTIER_RUNTIME_MODE_DEFAULT;
 }
 
 function normalizeMorphEasing(raw: unknown): DfMorphEasingId {
@@ -2156,6 +2174,7 @@ function renderBorderFamilyOverlay(family: BorderFamilyId, ctx: BorderFamilyRend
         ctx.morphFactor,
         ctx.now,
         ctx.forceRebuild,
+        { samplingContract: 'legacy' },
     );
 }
 
@@ -2260,7 +2279,7 @@ function assertMeshCenterStrokeAlignment(
     borderWidth: number,
 ): void {
     if (!contract || polylines.length === 0) return;
-    const bounds = contract.contentBounds;
+    const bounds = contract.diagnostics?.content;
     if (!bounds
         || !Number.isFinite(bounds.minX)
         || !Number.isFinite(bounds.minY)
@@ -2302,10 +2321,18 @@ function assertMeshCenterStrokeAlignment(
 }
 
 function renderMeshBorderOverlay(ctx: BorderFamilyRenderContext, alignmentContract: AlignmentContract): boolean {
-    // Always publish the legacy vector path first. Phase 1 recovery keeps mesh mode
-    // on the stable published legacy geometry until canonical frontier inputs satisfy
-    // explicit readiness checks.
-    const legacyPathReady = renderVectorBorderOverlay(
+    const canonicalRuntimeMode = normalizeCanonicalFrontierRuntimeMode(
+        GAME_CONFIG.DF_CANONICAL_FRONTIER_RUNTIME_MODE,
+    );
+    const canonicalDiagnosticShow = Boolean(
+        GAME_CONFIG.DF_CANONICAL_FRONTIER_DIAGNOSTIC_SHOW
+            ?? DF_CANONICAL_FRONTIER_DIAGNOSTIC_SHOW_DEFAULT,
+    );
+    const vectorSamplingContract: VectorBorderSamplingContractId = canonicalRuntimeMode === 'disabled'
+        ? 'legacy'
+        : 'canonical';
+
+    const vectorPathReady = renderVectorBorderOverlay(
         ctx.container,
         ctx.colorUtils,
         ctx.stars,
@@ -2317,12 +2344,12 @@ function renderMeshBorderOverlay(ctx: BorderFamilyRenderContext, alignmentContra
         ctx.morphFactor,
         ctx.now,
         ctx.forceRebuild,
+        { samplingContract: vectorSamplingContract },
     );
-    // Hide the legacy Graphics strokes - we draw via mesh only.
+    // Hide the vector Graphics strokes - we draw via mesh only.
     hideVectorBorderOverlay(false);
 
-    const hasPublishedLegacyPolylines = legacyPathReady
-        && cachedVectorPublishedSnapshotId === ctx.ownershipSnapshotId
+    const hasPublishedVectorPolylines = cachedVectorPublishedSnapshotId === ctx.ownershipSnapshotId
         && cachedVectorPolylines.length > 0;
     const hasPublishedOwnerGridSnapshot = Boolean(
         cachedPublishedOwnerGridSnapshot
@@ -2333,7 +2360,7 @@ function renderMeshBorderOverlay(ctx: BorderFamilyRenderContext, alignmentContra
 
     let canonicalPolylines: FrontierPolyline[] = [];
     let canonicalPolylineSetValid = false;
-    if (DF_CANONICAL_FRONTIER_RUNTIME_MODE !== 'disabled' && hasPublishedOwnerGridSnapshot) {
+    if (canonicalRuntimeMode !== 'disabled' && hasPublishedOwnerGridSnapshot) {
         const graphView: GraphNativeDistanceView = {
             distToPlayer: ctx.dist,
             top2ByStar: ctx.top2ByStar,
@@ -2350,25 +2377,67 @@ function renderMeshBorderOverlay(ctx: BorderFamilyRenderContext, alignmentContra
             }
             : undefined;
 
-        canonicalPolylines = buildCanonicalFrontierPolylines(
+        const canonicalSet = buildCanonicalFrontierPolylineSet(
             ctx.stars,
             ctx.connections,
             graphView,
             ownerGridInfo,
         );
-        canonicalPolylineSetValid = canonicalPolylines.length > 0;
+        canonicalPolylines = canonicalSet.polylines;
+        canonicalPolylineSetValid = canonicalSet.validation.valid;
+
+        if (canonicalPolylineSetValid) {
+            cachedCanonicalLastValidPolylines = canonicalPolylines.map((polyline) => ({
+                ownerA: polyline.ownerA,
+                ownerB: polyline.ownerB,
+                points: [...polyline.points],
+            }));
+            cachedCanonicalLastValidSnapshotId = ctx.ownershipSnapshotId;
+        } else if (canonicalRuntimeMode === 'production') {
+            const warnFp = canonicalSet.validation.reasons.join('|');
+            if (warnFp !== lastCanonicalValidationWarnFp) {
+                console.warn('[DF_BORDER][CANONICAL] validation failed; retaining last valid canonical mesh snapshot', canonicalSet.validation);
+                lastCanonicalValidationWarnFp = warnFp;
+            }
+        }
     }
 
-    const useCanonical = DF_CANONICAL_FRONTIER_RUNTIME_MODE === 'production'
-        && canonicalPolylineSetValid;
+    if (!canonicalPolylineSetValid && canonicalRuntimeMode === 'production' && cachedCanonicalLastValidPolylines.length > 0) {
+        canonicalPolylines = cachedCanonicalLastValidPolylines;
+    }
+
+    const useCanonical = canonicalRuntimeMode === 'production'
+        ? canonicalPolylines.length > 0
+        : (canonicalRuntimeMode === 'diagnostic'
+            && canonicalDiagnosticShow
+            && canonicalPolylineSetValid);
     const activePolylines = useCanonical
         ? canonicalPolylines
-        : (hasPublishedLegacyPolylines ? cachedVectorPolylines : []);
+        : (hasPublishedVectorPolylines ? cachedVectorPolylines : []);
 
     if (activePolylines.length === 0) {
+        const buildProgress = cachedVectorBuildJob
+            ? `${cachedVectorBuildJob.nextRow}/${cachedVectorBuildJob.gridH}`
+            : 'none';
+        const warnFp = `${ctx.ownershipSnapshotId}|${canonicalRuntimeMode}|vp:${vectorPathReady ? 1 : 0}|pv:${hasPublishedVectorPolylines ? 1 : 0}|og:${hasPublishedOwnerGridSnapshot ? 1 : 0}|cv:${canonicalPolylineSetValid ? 1 : 0}|cp:${canonicalPolylines.length}|vv:${cachedVectorPolylines.length}|job:${buildProgress}`;
+        if (warnFp !== lastMeshVisibilityWarnFp) {
+            console.warn('[DF_BORDER][MESH] no active polylines in mesh renderer', {
+                ownershipSnapshotId: ctx.ownershipSnapshotId,
+                canonicalRuntimeMode,
+                vectorPathReady,
+                hasPublishedVectorPolylines,
+                hasPublishedOwnerGridSnapshot,
+                canonicalPolylineSetValid,
+                canonicalPolylineCount: canonicalPolylines.length,
+                cachedVectorPolylineCount: cachedVectorPolylines.length,
+                buildProgress,
+            });
+            lastMeshVisibilityWarnFp = warnFp;
+        }
         hideStrokeMeshOverlay();
         return false;
     }
+    lastMeshVisibilityWarnFp = '';
 
     if (!cachedStrokeMeshContainer) {
         cachedStrokeMeshContainer = new PIXI.Container();
@@ -2378,16 +2447,26 @@ function renderMeshBorderOverlay(ctx: BorderFamilyRenderContext, alignmentContra
     }
 
     const borderWidth = Math.max(0, GAME_CONFIG.DF_BORDER_WIDTH ?? 0);
-    const borderSoftness = Math.max(0, GAME_CONFIG.DF_BORDER_SOFTNESS ?? 0);
+    const configuredBorderSoftness = Math.max(0, GAME_CONFIG.DF_BORDER_SOFTNESS ?? 0);
+    const borderSoftness = useCanonical && canonicalRuntimeMode === 'production'
+        ? Math.max(configuredBorderSoftness, DF_CANONICAL_MIN_SOFTNESS_PX)
+        : configuredBorderSoftness;
     const borderAlpha = Math.max(0, GAME_CONFIG.DF_BORDER_ALPHA ?? 0);
     const borderBrighten = Math.max(0, GAME_CONFIG.DF_BORDER_BRIGHTEN ?? 0);
     const morphMix = Math.max(0, Math.min(1, 1 - ctx.morphFactor));
     const morphActive = ctx.morphFactor > 0.0001;
+    const enablePixelSnap = !(useCanonical && canonicalRuntimeMode === 'production');
+    const canonicalSourceSnapshotId = canonicalPolylineSetValid
+        ? ctx.ownershipSnapshotId
+        : cachedCanonicalLastValidSnapshotId;
 
-    const geometryFp = `${cachedVectorGeometryFingerprint}|w:${borderWidth.toFixed(3)}|s:${borderSoftness.toFixed(3)}`;
-    const styleFp = `${cachedVectorStyleFingerprint}|a:${borderAlpha.toFixed(3)}|br:${borderBrighten.toFixed(3)}`;
+    const geometrySourceKey = useCanonical
+        ? `canonical:${canonicalSourceSnapshotId ?? 'none'}`
+        : `legacy:${cachedVectorGeometryFingerprint}:${cachedVectorPublishedSnapshotId}`;
+    const geometryFp = `${geometrySourceKey}|w:${borderWidth.toFixed(3)}|s:${borderSoftness.toFixed(3)}`;
+    const styleFp = `${geometrySourceKey}|a:${borderAlpha.toFixed(3)}|br:${borderBrighten.toFixed(3)}`;
 
-    const needsGeometryRebuild = ctx.forceRebuild
+    const needsGeometryRebuild = (useCanonical ? false : ctx.forceRebuild)
         || cachedStrokeMeshGeometryFingerprint !== geometryFp
         || cachedStrokeMeshRecords.length === 0;
 
@@ -2454,10 +2533,11 @@ function renderMeshBorderOverlay(ctx: BorderFamilyRenderContext, alignmentContra
                 width: borderWidth,
                 softness: borderSoftness,
                 morphMix: hasMorphSource ? morphMix : 1,
+                pixelSnap: enablePixelSnap,
             });
 
             const mesh = new PIXI.Mesh({ geometry, shader }) as PIXI.Mesh;
-            mesh.roundPixels = true;
+            mesh.roundPixels = enablePixelSnap;
             cachedStrokeMeshContainer.addChild(mesh);
             cachedStrokeMeshRecords.push({
                 ownerA,
@@ -2473,11 +2553,14 @@ function renderMeshBorderOverlay(ctx: BorderFamilyRenderContext, alignmentContra
 
         cachedStrokeMeshGeometryFingerprint = geometryFp;
         cachedStrokeMeshStyleFingerprint = '';
-        assertMeshCenterStrokeAlignment(alignmentContract, activePolylines, borderWidth);
+        const shouldAssertAlignment = !useCanonical;
+        if (shouldAssertAlignment) {
+            assertMeshCenterStrokeAlignment(alignmentContract, activePolylines, borderWidth);
+        }
     }
 
     const needsStyleUpdate = cachedStrokeMeshStyleFingerprint !== styleFp;
-    const enableMorphFallback = useCanonical && morphActive;
+    const enableMorphFallback = useCanonical && morphActive && canonicalRuntimeMode !== 'production';
     const fallbackPairs = new Set<string>();
     if (enableMorphFallback) {
         for (const record of cachedStrokeMeshRecords) {
@@ -2487,7 +2570,7 @@ function renderMeshBorderOverlay(ctx: BorderFamilyRenderContext, alignmentContra
 
     const innerSide = computeStrokeInnerSide(borderWidth, borderSoftness);
     for (const record of cachedStrokeMeshRecords) {
-        const uniforms = (record.mesh.shader.resources as any)?.strokeMeshUniforms?.uniforms;
+        const uniforms = (record.mesh.shader?.resources as any)?.strokeMeshUniforms?.uniforms;
         if (!uniforms) continue;
 
         if (needsStyleUpdate) {
@@ -2611,6 +2694,7 @@ function renderVectorBorderOverlay(
     morphFactor: number,
     now: number,
     forceRebuild: boolean,
+    options?: VectorBorderOverlayOptions,
 ): boolean {
     const borderWidth = GAME_CONFIG.DF_BORDER_WIDTH ?? 0;
     const borderSoftness = GAME_CONFIG.DF_BORDER_SOFTNESS ?? 0;
@@ -2623,29 +2707,45 @@ function renderVectorBorderOverlay(
     const extentW = Math.max(1, cachedRenderExtentW);
     const extentH = Math.max(1, cachedRenderExtentH);
 
-    const requestedGrid = GAME_CONFIG.DF_VECTOR_GRID_RESOLUTION ?? 192;
-    const zoomScale = Math.max(1, Math.min(4, Math.max(Math.abs(container.worldTransform.a), Math.abs(container.worldTransform.d))));
+    const samplingContract = options?.samplingContract ?? 'legacy';
+    const isCanonicalSampling = samplingContract === 'canonical';
+
+    const requestedGrid = isCanonicalSampling
+        ? DF_CANONICAL_OWNER_GRID_RESOLUTION
+        : (GAME_CONFIG.DF_VECTOR_GRID_RESOLUTION ?? 192);
+    const zoomScale = isCanonicalSampling
+        ? 1
+        : Math.max(1, Math.min(4, Math.max(Math.abs(container.worldTransform.a), Math.abs(container.worldTransform.d))));
     const effectiveRequestedGrid = Math.round(requestedGrid * zoomScale);
     const gridW = Math.max(DF_VECTOR_MIN_GRID, Math.min(DF_VECTOR_MAX_GRID, effectiveRequestedGrid));
     const gridH = Math.max(DF_VECTOR_MIN_GRID, Math.min(DF_VECTOR_MAX_GRID, Math.round(gridW * (extentH / extentW))));
 
-    // Reuse existing DF_VECTOR_SMOOTHING as an integer straightening pass count.
-    const straightnessPasses = Math.max(0, Math.min(DF_VECTOR_MAX_STRAIGHT_PASSES, Math.round(GAME_CONFIG.DF_VECTOR_SMOOTHING ?? 1)));
-    const simplifyTolerance = Math.max(0, GAME_CONFIG.DF_VECTOR_SIMPLIFY ?? 0.5);
-    const updateMs = Math.max(0, GAME_CONFIG.DF_VECTOR_UPDATE_MS ?? 33);
+    const straightnessPasses = isCanonicalSampling
+        ? DF_CANONICAL_STRAIGHT_PASSES
+        : Math.max(0, Math.min(DF_VECTOR_MAX_STRAIGHT_PASSES, Math.round(GAME_CONFIG.DF_VECTOR_SMOOTHING ?? 1)));
+    const simplifyTolerance = isCanonicalSampling
+        ? DF_CANONICAL_SIMPLIFY_TOLERANCE
+        : Math.max(0, GAME_CONFIG.DF_VECTOR_SIMPLIFY ?? 0.5);
+    const updateMs = isCanonicalSampling ? 0 : Math.max(0, GAME_CONFIG.DF_VECTOR_UPDATE_MS ?? 33);
     const estimatedSiteCount = Math.max(1, stars.length + virtualSites.length);
-    const effectiveUpdateMs = computeAdaptiveVectorUpdateMs(updateMs, gridW, gridH, estimatedSiteCount, morphFactor);
+    const effectiveUpdateMs = isCanonicalSampling
+        ? 0
+        : computeAdaptiveVectorUpdateMs(updateMs, gridW, gridH, estimatedSiteCount, morphFactor);
+    const sampleMorphFactor = isCanonicalSampling ? 0 : morphFactor;
     const influenceWeight = GAME_CONFIG.DF_INFLUENCE_WEIGHT ?? 1.0;
     const minStarRadius = GAME_CONFIG.DF_MIN_STAR_RADIUS ?? 0;
 
     // Geometry fingerprint controls expensive ownership sampling + polyline extraction.
     const geometryFp = `${cachedGeometryFp}:${cachedTopologyFp}:${cachedRenderOriginX}:${cachedRenderOriginY}:${extentW}:${extentH}:`
-        + `${gridW}:${gridH}:${straightnessPasses}:${simplifyTolerance}:${influenceWeight}:${minStarRadius}:${playerIds.join(',')}`;
+        + `${samplingContract}:${gridW}:${gridH}:${straightnessPasses}:${simplifyTolerance}:${influenceWeight}:${minStarRadius}:${playerIds.join(',')}`;
     // Style fingerprint controls inexpensive polyline stroke redraw only.
     const styleFp = `${borderWidth}:${borderSoftness}:${borderAlpha}:${GAME_CONFIG.DF_BORDER_BRIGHTEN}`;
 
-    const intervalDue = morphFactor > 0 && (now - cachedVectorBorderLastBuildMs >= effectiveUpdateMs);
-    const needsGeometryRebuild = forceRebuild
+    const intervalDue = !isCanonicalSampling && morphFactor > 0 && (now - cachedVectorBorderLastBuildMs >= effectiveUpdateMs);
+    const effectiveForceRebuild = isCanonicalSampling
+        ? (forceRebuild && cachedVectorPublishedSnapshotId !== ownershipSnapshotId)
+        : forceRebuild;
+    const needsGeometryRebuild = effectiveForceRebuild
         || geometryFp !== cachedVectorGeometryFingerprint
         || intervalDue
         || cachedVectorPublishedSnapshotId !== ownershipSnapshotId
@@ -2684,7 +2784,7 @@ function renderVectorBorderOverlay(
                 extentH,
                 influenceWeight,
                 minStarRadius,
-                morphFactor,
+                morphFactor: sampleMorphFactor,
                 ownershipSites,
                 ownerGrid: new Int16Array(gridW * gridH),
                 nextRow: 0,
@@ -2696,7 +2796,7 @@ function renderVectorBorderOverlay(
             return false;
         }
 
-        cachedVectorBuildJob.morphFactor = morphFactor;
+        cachedVectorBuildJob.morphFactor = sampleMorphFactor;
         cachedVectorBuildJob.influenceWeight = influenceWeight;
         cachedVectorBuildJob.minStarRadius = minStarRadius;
 
@@ -2709,7 +2809,8 @@ function renderVectorBorderOverlay(
             return false;
         }
 
-        const buildCompleted = stepVectorBorderBuildJob(cachedVectorBuildJob, DF_VECTOR_REBUILD_BUDGET_MS);
+        const buildBudgetMs = isCanonicalSampling ? Number.POSITIVE_INFINITY : DF_VECTOR_REBUILD_BUDGET_MS;
+        const buildCompleted = stepVectorBorderBuildJob(cachedVectorBuildJob, buildBudgetMs);
         if (!buildCompleted) {
             if (cachedVectorBorderGraphics && !cachedVectorBorderGraphics.parent) {
                 container.addChild(cachedVectorBorderGraphics);
@@ -4313,6 +4414,8 @@ export function resetDistanceFieldTerritoryCache(): void {
     cachedVectorPolylines = [];
     cachedVectorPublishedSnapshotId = '';
     cachedPublishedOwnerGridSnapshot = null;
+    cachedCanonicalLastValidPolylines = [];
+    cachedCanonicalLastValidSnapshotId = '';
     laneArray = [];
     laneCells = new Map();
     latestAlignmentDiagnostics = null;
@@ -4327,15 +4430,11 @@ export function resetDistanceFieldTerritoryCache(): void {
     cachedDisconnectSiteCount = 0;
     cachedPackedVirtualCount = 0;
     warnedMissingRendererForTwoPass = false;
+    lastCanonicalValidationWarnFp = '';
+    lastMeshVisibilityWarnFp = '';
     warnedCurvedBorderFamilyFallback = false;
     warnedSegmentedBorderFamilyFallback = false;
 }
-
-
-
-
-
-
 
 
 

@@ -452,16 +452,27 @@ const strokeMeshBitGl = {
     },
 };
 
-let cachedStrokeMeshGlProgram: ReturnType<typeof compileHighShaderGlProgram> | null = null;
+let cachedStrokeMeshGlProgramSnap: ReturnType<typeof compileHighShaderGlProgram> | null = null;
+let cachedStrokeMeshGlProgramNoSnap: ReturnType<typeof compileHighShaderGlProgram> | null = null;
 
-function getStrokeMeshGlProgram() {
-    if (!cachedStrokeMeshGlProgram) {
-        cachedStrokeMeshGlProgram = compileHighShaderGlProgram({
+function getStrokeMeshGlProgram(pixelSnap: boolean) {
+    if (pixelSnap) {
+        if (!cachedStrokeMeshGlProgramSnap) {
+            cachedStrokeMeshGlProgramSnap = compileHighShaderGlProgram({
+                bits: [localUniformBitGl, strokeMeshBitGl, roundPixelsBitGl],
+                name: 'distance-field-border-stroke-mesh-snap',
+            });
+        }
+        return cachedStrokeMeshGlProgramSnap;
+    }
+
+    if (!cachedStrokeMeshGlProgramNoSnap) {
+        cachedStrokeMeshGlProgramNoSnap = compileHighShaderGlProgram({
             bits: [localUniformBitGl, strokeMeshBitGl, roundPixelsBitGl],
-            name: 'distance-field-border-stroke-mesh',
+            name: 'distance-field-border-stroke-mesh-nosnap',
         });
     }
-    return cachedStrokeMeshGlProgram;
+    return cachedStrokeMeshGlProgramNoSnap;
 }
 export interface StrokeMeshShaderOptions {
     color: [number, number, number];
@@ -469,6 +480,7 @@ export interface StrokeMeshShaderOptions {
     width: number;
     softness: number;
     morphMix?: number;
+    pixelSnap?: boolean;
 }
 
 export function createStrokeMeshShader(options: StrokeMeshShaderOptions): PIXI.Shader {
@@ -478,7 +490,7 @@ export function createStrokeMeshShader(options: StrokeMeshShaderOptions): PIXI.S
     const halfExtent = Math.max(EPS, halfWidth + safeSoftness);
     const innerSide = Math.max(0, Math.min(1, halfWidth / halfExtent));
 
-    const glProgram = getStrokeMeshGlProgram();
+    const glProgram = getStrokeMeshGlProgram(options.pixelSnap ?? true);
 
     return new PIXI.Shader({
         glProgram,

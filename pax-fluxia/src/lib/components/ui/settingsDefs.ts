@@ -382,6 +382,8 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'dfBorderMode', configKey: 'DF_BORDER_MODE' },
     { panelKey: 'dfBorderFamily', configKey: 'DF_BORDER_FAMILY' },
     { panelKey: 'dfBorderEngine', configKey: 'DF_BORDER_ENGINE' },
+    { panelKey: 'dfCanonicalFrontierRuntimeMode', configKey: 'DF_CANONICAL_FRONTIER_RUNTIME_MODE' },
+    { panelKey: 'dfCanonicalFrontierDiagnosticShow', configKey: 'DF_CANONICAL_FRONTIER_DIAGNOSTIC_SHOW' },
     { panelKey: 'dfDisconnectDistance', configKey: 'DF_DISCONNECT_DISTANCE' },
     { panelKey: 'dfDisconnectWeight', configKey: 'DF_DISCONNECT_WEIGHT' },
     // Contour Territory
@@ -440,3 +442,4 @@ export function formatAnimValue(val: number, unit: string): string {
     if (unit === 'ms') return `${Math.round(val)}${unit}`;
     return `${val.toFixed(2)}${unit}`;
 }
+
