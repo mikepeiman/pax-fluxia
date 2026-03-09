@@ -315,6 +315,8 @@ const DF_VECTOR_MORPH_MIN_UPDATE_MS = 16;
 const DF_VECTOR_MORPH_HEAVY_MIN_UPDATE_MS = 66;
 const DF_VECTOR_ADAPTIVE_OPS_PER_MS = 140000;
 const DF_VECTOR_REBUILD_BUDGET_MS = 2.0;
+// First publish must be visible quickly; allow a one-time full build budget when no source is published yet.
+const DF_VECTOR_BOOTSTRAP_REBUILD_BUDGET_MS = Number.POSITIVE_INFINITY;
 const DF_CANONICAL_OWNER_GRID_RESOLUTION = 256;
 const DF_CANONICAL_STRAIGHT_PASSES = 2;
 const DF_CANONICAL_SIMPLIFY_TOLERANCE = 1.0;
@@ -1189,6 +1191,7 @@ let lastDxWriteAt = 0;
 let lastCanonicalValidationWarnFp = '';
 let lastBorderPublishDiagnosticFp = '';
 let lastBorderPerfWarnFp = '';
+let lastBorderMeshWarnFp = '';
 let cachedCorridorSiteCount = 0;
 let cachedDisconnectSiteCount = 0;
 let cachedPackedVirtualCount = 0;
@@ -2270,6 +2273,16 @@ function recordBorderPerfSample(sample: BorderPerfSample): void {
     });
 }
 
+function computeBorderBuildBudgetMs(hasPublishedSource: boolean): number {
+    return hasPublishedSource ? DF_VECTOR_REBUILD_BUDGET_MS : DF_VECTOR_BOOTSTRAP_REBUILD_BUDGET_MS;
+}
+
+function logBorderMeshDiagnostic(payload: Record<string, unknown>): void {
+    const fp = JSON.stringify(payload);
+    if (fp === lastBorderMeshWarnFp) return;
+    lastBorderMeshWarnFp = fp;
+    console.warn('[DF_BORDER][MESH]', payload);
+}
 function getPublishedCurrentSource(
     state: PublishedBorderSourceState | null,
     classificationKey: string,
@@ -2524,6 +2537,7 @@ function produceCanonicalBorderSource(ctx: BorderFamilyRenderContext): Published
     );
 
     const currentPublished = getPublishedCurrentSource(cachedCanonicalCurrentPublished, classificationKey);
+    const hasPublishedSource = Boolean(currentPublished || cachedCanonicalLastValidPublished);
     if (cachedCanonicalBuildJob && cachedCanonicalBuildJob.key.classificationKey !== classificationKey) {
         logBorderPublishDiagnostic({
             sourceKind: 'canonical',
@@ -2607,7 +2621,8 @@ function produceCanonicalBorderSource(ctx: BorderFamilyRenderContext): Published
     canonicalBuildJob.influenceWeight = influenceWeight;
     canonicalBuildJob.minStarRadius = minStarRadius;
     const fillStartedAt = performance.now();
-    const buildCompleted = stepVectorBorderBuildJob(canonicalBuildJob, DF_VECTOR_REBUILD_BUDGET_MS);
+    const buildBudgetMs = computeBorderBuildBudgetMs(hasPublishedSource);
+    const buildCompleted = stepVectorBorderBuildJob(canonicalBuildJob, buildBudgetMs);
     canonicalBuildJob.ownerGridFillMs = (canonicalBuildJob.ownerGridFillMs ?? 0) + (performance.now() - fillStartedAt);
     if (!buildCompleted) {
         logBorderPublishDiagnostic({
@@ -2979,8 +2994,28 @@ function renderMeshBorderOverlay(ctx: BorderFamilyRenderContext, alignmentContra
         cachedStrokeMeshFallbackStyleFingerprint = '';
     }
 
-    const hasVisibleMeshes = cachedStrokeMeshRecords.some((record) => record.mesh.visible)
+    const visibleMeshCount = cachedStrokeMeshRecords.reduce((count, record) => count + (record.mesh.visible ? 1 : 0), 0);
+    const hasVisibleMeshes = visibleMeshCount > 0
         || Boolean(cachedStrokeMeshFallbackGraphics?.visible);
+    if (!hasVisibleMeshes) {
+        logBorderMeshDiagnostic({
+            reason: 'NO_VISIBLE_MESH_OUTPUT',
+            sourceKind: selectedSource.sourceKind,
+            sourceSamplingKey: selectedSource.key.samplingKey,
+            canonicalCurrentPolylineCount: canonicalCurrentPublished?.polylines.length ?? 0,
+            canonicalLastValidPolylineCount: canonicalLastValidPublished?.polylines.length ?? 0,
+            legacyCurrentPolylineCount: legacyCurrentPublished?.polylines.length ?? 0,
+            selectedPolylineCount: activePolylines.length,
+            meshRecordCount: cachedStrokeMeshRecords.length,
+            visibleMeshCount,
+            fallbackVisible: Boolean(cachedStrokeMeshFallbackGraphics?.visible),
+            borderWidth,
+            borderAlpha,
+            borderSoftness,
+            enableMorphFallback,
+            forceRebuild: ctx.forceRebuild,
+        });
+    }
     if (cachedStrokeMeshContainer) cachedStrokeMeshContainer.visible = hasVisibleMeshes;
     return hasVisibleMeshes;
 }
@@ -3091,6 +3126,7 @@ function renderVectorBorderOverlay(
 
     const styleFp = `${borderWidth}:${borderSoftness}:${borderAlpha}:${GAME_CONFIG.DF_BORDER_BRIGHTEN}`;
     const currentPublished = getPublishedCurrentSource(cachedLegacyCurrentPublished, ownershipSnapshotId);
+    const hasPublishedSource = Boolean(currentPublished || cachedLegacyCurrentPublished);
     const intervalDue = morphFactor > 0 && (now - cachedVectorBorderLastBuildMs >= effectiveUpdateMs);
     const needsGeometryRebuild = forceRebuild
         || key.samplingKey !== cachedVectorGeometryFingerprint
@@ -3160,7 +3196,8 @@ function renderVectorBorderOverlay(
         }
 
         const fillStartedAt = performance.now();
-        const buildCompleted = stepVectorBorderBuildJob(cachedVectorBuildJob, DF_VECTOR_REBUILD_BUDGET_MS);
+        const buildBudgetMs = computeBorderBuildBudgetMs(hasPublishedSource);
+        const buildCompleted = stepVectorBorderBuildJob(cachedVectorBuildJob, buildBudgetMs);
         cachedVectorBuildJob.ownerGridFillMs = (cachedVectorBuildJob.ownerGridFillMs ?? 0) + (performance.now() - fillStartedAt);
         if (!buildCompleted) {
             if (drawGraphics && cachedVectorBorderGraphics && !cachedVectorBorderGraphics.parent) {
@@ -4616,10 +4653,10 @@ export function renderDistanceFieldTerritory(
         } else {
             if (cachedBorderMesh) cachedBorderMesh.visible = false;
 
+            // Border source geometry should rebuild only on ownership/classification topology changes.
             const forceVectorRebuild = changeClassification.geometryChanged
                 || changeClassification.topologyChanged
-                || changeClassification.visualChanged
-                || ownershipPassNeedsUpdate;
+                || ownershipControlChanged;
             // Ownership snapshot contract key shared with vector border extraction.
             const ownershipSnapshotId = `${changeClassification.geometryFp}|${changeClassification.topologyFp}|${currentPlayerIds.join(',')}|${canonicalStars.length + activeVirtualSites.length}|${ownershipControlFp}`;
 
@@ -4831,6 +4868,7 @@ export function resetDistanceFieldTerritoryCache(): void {
     lastCanonicalValidationWarnFp = '';
     lastBorderPublishDiagnosticFp = '';
     lastBorderPerfWarnFp = '';
+    lastBorderMeshWarnFp = '';
     warnedCurvedBorderFamilyFallback = false;
     warnedSegmentedBorderFamilyFallback = false;
 }
