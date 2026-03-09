@@ -268,6 +268,7 @@ type DfMorphEasingId = 'linear' | 'easeInOutQuad' | 'easeInOutCubic' | 'smoothst
 
 interface BorderFamilyRenderContext {
     container: PIXI.Container;
+    renderer: PIXI.Renderer | null;
     colorUtils: ColorUtils;
     stars: StarState[];
     virtualSites: VirtualSite[];
@@ -316,12 +317,11 @@ const DF_VECTOR_MAX_ALIGNMENT_DRIFT_CELLS = 0.35;
 const DF_VECTOR_MORPH_MIN_UPDATE_MS = 16;
 const DF_VECTOR_MORPH_HEAVY_MIN_UPDATE_MS = 66;
 const DF_VECTOR_ADAPTIVE_OPS_PER_MS = 140000;
-const DF_VECTOR_REBUILD_BUDGET_MS = 2.0;
-// First publish must be visible quickly; allow a one-time full build budget when no source is published yet.
-const DF_VECTOR_BOOTSTRAP_REBUILD_BUDGET_MS = Number.POSITIVE_INFINITY;
+const DF_VECTOR_REBUILD_BUDGET_MS = Number.POSITIVE_INFINITY;
+// Chunk budgets are temporarily disabled to prioritize visual correctness during border lock.
 const DF_CANONICAL_OWNER_GRID_RESOLUTION = 256;
-const DF_CANONICAL_STRAIGHT_PASSES = 2;
-const DF_CANONICAL_SIMPLIFY_TOLERANCE = 1.0;
+const DF_CANONICAL_STRAIGHT_PASSES = 3;
+const DF_CANONICAL_SIMPLIFY_TOLERANCE = 2.0;
 const DF_CANONICAL_MIN_SOFTNESS_PX = 0.75;
 const DF_DEBUG_LOGS = false;
 
@@ -1194,6 +1194,8 @@ let lastCanonicalValidationWarnFp = '';
 let lastBorderPublishDiagnosticFp = '';
 let lastBorderPerfWarnFp = '';
 let lastBorderMeshWarnFp = '';
+let lastCanonicalSmoothingWarnFp = '';
+let lastBorderMeshSourceWarnFp = '';
 let cachedCorridorSiteCount = 0;
 let cachedDisconnectSiteCount = 0;
 let cachedPackedVirtualCount = 0;
@@ -2275,8 +2277,65 @@ function recordBorderPerfSample(sample: BorderPerfSample): void {
     });
 }
 
-function computeBorderBuildBudgetMs(hasPublishedSource: boolean): number {
-    return hasPublishedSource ? DF_VECTOR_REBUILD_BUDGET_MS : DF_VECTOR_BOOTSTRAP_REBUILD_BUDGET_MS;
+function computeBorderBuildBudgetMs(_hasPublishedSource: boolean): number {
+    return DF_VECTOR_REBUILD_BUDGET_MS;
+}
+
+function extractOwnerGridInfoFromOwnershipTexture(renderer: PIXI.Renderer | null): OwnerGridInfo | null {
+    if (!renderer || !cachedOwnershipTexture || !cachedOwnershipFieldValid) return null;
+    if (cachedOwnershipTexW <= 0 || cachedOwnershipTexH <= 0) return null;
+
+    const extractor = (renderer as any).extract;
+    if (!extractor || typeof extractor.pixels !== 'function') {
+        const fp = 'extractor-unavailable';
+        if (fp !== lastBorderMeshWarnFp) {
+            lastBorderMeshWarnFp = fp;
+            console.warn('[DF_BORDER][CANONICAL] ownership texture extractor unavailable; falling back to CPU ownership sampling');
+        }
+        return null;
+    }
+
+    let pixels: Uint8Array | Uint8ClampedArray;
+    try {
+        pixels = extractor.pixels(cachedOwnershipTexture) as Uint8Array | Uint8ClampedArray;
+    } catch (error) {
+        console.warn('[DF_BORDER][CANONICAL] ownership texture readback failed; falling back to CPU ownership sampling', error);
+        return null;
+    }
+
+    const expectedLength = cachedOwnershipTexW * cachedOwnershipTexH * 4;
+    if (!pixels || pixels.length < expectedLength) {
+        console.warn('[DF_BORDER][CANONICAL] ownership texture readback returned invalid buffer; falling back to CPU ownership sampling', {
+            expectedLength,
+            actualLength: pixels?.length ?? 0,
+            texW: cachedOwnershipTexW,
+            texH: cachedOwnershipTexH,
+        });
+        return null;
+    }
+
+    const ownerGrid = new Int16Array(cachedOwnershipTexW * cachedOwnershipTexH);
+    let hasOwnedCell = false;
+    for (let i = 0; i < ownerGrid.length; i++) {
+        const owner = Math.max(-1, pixels[i * 4] - 1);
+        ownerGrid[i] = owner;
+        if (owner >= 0) hasOwnedCell = true;
+    }
+
+    if (!hasOwnedCell) {
+        console.warn('[DF_BORDER][CANONICAL] ownership texture readback had no owned cells; falling back to CPU ownership sampling');
+        return null;
+    }
+
+    return {
+        ownerGrid,
+        gridW: cachedOwnershipTexW,
+        gridH: cachedOwnershipTexH,
+        originX: cachedRenderOriginX,
+        originY: cachedRenderOriginY,
+        extentW: Math.max(1, cachedRenderExtentW),
+        extentH: Math.max(1, cachedRenderExtentH),
+    };
 }
 
 function logBorderMeshDiagnostic(payload: Record<string, unknown>): void {
@@ -2516,8 +2575,19 @@ function produceCanonicalBorderSource(ctx: BorderFamilyRenderContext): Published
     const extentH = Math.max(1, cachedRenderExtentH);
     const samplingContract: VectorBorderSamplingContractId = 'canonical';
     const classificationKey = ctx.ownershipSnapshotId;
-    const gridW = Math.max(DF_VECTOR_MIN_GRID, Math.min(DF_VECTOR_MAX_GRID, DF_CANONICAL_OWNER_GRID_RESOLUTION));
-    const gridH = Math.max(DF_VECTOR_MIN_GRID, Math.min(DF_VECTOR_MAX_GRID, Math.round(gridW * (extentH / extentW))));
+    const hasOwnershipTextureGrid = Boolean(
+        ctx.renderer
+        && cachedOwnershipTexture
+        && cachedOwnershipFieldValid
+        && cachedOwnershipTexW > 0
+        && cachedOwnershipTexH > 0,
+    );
+    const gridW = hasOwnershipTextureGrid
+        ? cachedOwnershipTexW
+        : Math.max(DF_VECTOR_MIN_GRID, Math.min(DF_VECTOR_MAX_GRID, DF_CANONICAL_OWNER_GRID_RESOLUTION));
+    const gridH = hasOwnershipTextureGrid
+        ? cachedOwnershipTexH
+        : Math.max(DF_VECTOR_MIN_GRID, Math.min(DF_VECTOR_MAX_GRID, Math.round(gridW * (extentH / extentW))));
     const straightnessPasses = DF_CANONICAL_STRAIGHT_PASSES;
     const simplifyTolerance = DF_CANONICAL_SIMPLIFY_TOLERANCE;
     const influenceWeight = GAME_CONFIG.DF_INFLUENCE_WEIGHT ?? 1.0;
@@ -2561,6 +2631,85 @@ function produceCanonicalBorderSource(ctx: BorderFamilyRenderContext): Published
 
     if (!needsBuild) {
         return currentPublished;
+    }
+
+    if (hasOwnershipTextureGrid) {
+        const ownershipReadStartedAt = performance.now();
+        const ownerGridInfo = extractOwnerGridInfoFromOwnershipTexture(ctx.renderer);
+        const ownershipReadMs = performance.now() - ownershipReadStartedAt;
+
+        if (ownerGridInfo) {
+            const canonicalStartedAt = performance.now();
+            const canonicalSet = buildCanonicalFrontierPolylineSet(
+                ctx.stars,
+                ctx.connections,
+                {
+                    distToPlayer: ctx.dist,
+                    top2ByStar: ctx.top2ByStar,
+                },
+                ownerGridInfo,
+            );
+            const canonicalFrontierMs = performance.now() - canonicalStartedAt;
+            const validationReasons = canonicalSet.validation.reasons;
+            const hasPolylines = canonicalSet.polylines.length > 0;
+
+            if (!hasPolylines || !canonicalSet.validation.valid) {
+                logBorderPublishDiagnostic({
+                    sourceKind: 'canonical',
+                    phase: 'candidate_ready',
+                    reason: hasPolylines ? 'CANONICAL_VALIDATION_FAILED' : 'EMPTY_POLYLINES',
+                    requestedKey: key,
+                    publishedKey: cachedCanonicalCurrentPublished?.key ?? null,
+                    buildProgress: 'complete',
+                    polylineCount: canonicalSet.polylines.length,
+                    validationReasons,
+                });
+                if (hasPolylines && validationReasons.join('|') !== lastCanonicalValidationWarnFp) {
+                    console.warn('[DF_BORDER][CANONICAL] validation failed; retaining last valid canonical mesh snapshot', canonicalSet.validation);
+                    lastCanonicalValidationWarnFp = validationReasons.join('|');
+                }
+                return currentPublished ?? cachedCanonicalLastValidPublished;
+            }
+
+            const smoothingFallbackCount = canonicalSet.validation.smoothingFallbackCount;
+            if (smoothingFallbackCount > 0) {
+                const smoothingFp = `${key.samplingKey}|${smoothingFallbackCount}|${canonicalSet.validation.polylineCount}`;
+                if (smoothingFp !== lastCanonicalSmoothingWarnFp) {
+                    lastCanonicalSmoothingWarnFp = smoothingFp;
+                    console.warn('[DF_BORDER][CANONICAL_SMOOTHING]', {
+                        smoothingFallbackCount,
+                        polylineCount: canonicalSet.validation.polylineCount,
+                        pairCount: canonicalSet.validation.pairCount,
+                        maxPointsPerPolyline: canonicalSet.validation.maxPointsPerPolyline,
+                        maxPointsPerPair: canonicalSet.validation.maxPointsPerPair,
+                    });
+                }
+            }
+
+            const publishedState: PublishedBorderSourceState = {
+                sourceKind: 'canonical',
+                phase: 'published',
+                key,
+                polylines: cloneVectorBorderPolylines(canonicalSet.polylines),
+                ownerGridInfo: cloneOwnerGridInfo(ownerGridInfo),
+                builtAtMs: ctx.now,
+                valid: true,
+                validationReasons: [],
+            };
+            cachedCanonicalCurrentPublished = publishedState;
+            cachedCanonicalLastValidPublished = clonePublishedBorderSourceState(publishedState);
+            recordBorderPerfSample({
+                sourceKind: 'canonical',
+                ownershipSitesMs: 0,
+                ownerGridFillMs: ownershipReadMs,
+                polylineExtractionMs: 0,
+                canonicalFrontierMs,
+                meshGeometryMs: 0,
+                builtAtMs: ctx.now,
+            });
+            cachedCanonicalBuildJob = null;
+            return cachedCanonicalCurrentPublished;
+        }
     }
 
     const canReuseBuildJob = Boolean(
@@ -2684,6 +2833,21 @@ function produceCanonicalBorderSource(ctx: BorderFamilyRenderContext): Published
         return currentPublished ?? cachedCanonicalLastValidPublished;
     }
 
+    const smoothingFallbackCount = canonicalSet.validation.smoothingFallbackCount;
+    if (smoothingFallbackCount > 0) {
+        const smoothingFp = `${key.samplingKey}|${smoothingFallbackCount}|${canonicalSet.validation.polylineCount}`;
+        if (smoothingFp !== lastCanonicalSmoothingWarnFp) {
+            lastCanonicalSmoothingWarnFp = smoothingFp;
+            console.warn('[DF_BORDER][CANONICAL_SMOOTHING]', {
+                smoothingFallbackCount,
+                polylineCount: canonicalSet.validation.polylineCount,
+                pairCount: canonicalSet.validation.pairCount,
+                maxPointsPerPolyline: canonicalSet.validation.maxPointsPerPolyline,
+                maxPointsPerPair: canonicalSet.validation.maxPointsPerPair,
+            });
+        }
+    }
+
     const publishedState: PublishedBorderSourceState = {
         sourceKind: 'canonical',
         phase: 'published',
@@ -2798,6 +2962,17 @@ function renderMeshBorderOverlay(ctx: BorderFamilyRenderContext, alignmentContra
     }
 
     const selectedSource = activeSource;
+    const selectedSourceFp = `${selectedSource.sourceKind}|${selectedSource.key.samplingKey}`;
+    if (selectedSourceFp !== lastBorderMeshSourceWarnFp) {
+        lastBorderMeshSourceWarnFp = selectedSourceFp;
+        console.warn('[DF_BORDER][MESH_SOURCE]', {
+            selectedSourceKind: selectedSource.sourceKind,
+            selectedSamplingKey: selectedSource.key.samplingKey,
+            canonicalCurrentPolylineCount: canonicalCurrentPublished?.polylines.length ?? 0,
+            canonicalLastValidPolylineCount: canonicalLastValidPublished?.polylines.length ?? 0,
+            legacyCurrentPolylineCount: legacyCurrentPublished?.polylines.length ?? 0,
+        });
+    }
     const activePolylines = selectedSource.polylines;
     const useCanonical = selectedSource.sourceKind === 'canonical';
     const legacyFallbackPolylines = legacyCurrentPublished?.polylines ?? [];
@@ -2910,7 +3085,7 @@ function renderMeshBorderOverlay(ctx: BorderFamilyRenderContext, alignmentContra
 
         cachedStrokeMeshGeometryFingerprint = geometryFp;
         cachedStrokeMeshStyleFingerprint = '';
-        const shouldAssertAlignment = !useCanonical && canonicalRuntimeMode === 'disabled';
+        const shouldAssertAlignment = DF_DEBUG_LOGS && !useCanonical && canonicalRuntimeMode === 'disabled';
         if (shouldAssertAlignment) {
             assertMeshCenterStrokeAlignment(alignmentContract, activePolylines, borderWidth);
         }
@@ -4669,6 +4844,7 @@ export function renderDistanceFieldTerritory(
 
             const borderCtx: BorderFamilyRenderContext = {
                 container,
+                renderer,
                 colorUtils,
                 stars: canonicalStars,
                 virtualSites: activeVirtualSites,
@@ -4876,10 +5052,8 @@ export function resetDistanceFieldTerritoryCache(): void {
     lastBorderPublishDiagnosticFp = '';
     lastBorderPerfWarnFp = '';
     lastBorderMeshWarnFp = '';
+    lastCanonicalSmoothingWarnFp = '';
+    lastBorderMeshSourceWarnFp = '';
     warnedCurvedBorderFamilyFallback = false;
     warnedSegmentedBorderFamilyFallback = false;
 }
-
-
-
-

@@ -408,9 +408,19 @@ export function createStrokeMeshGeometryFromBuffers(
         positions: buffers.positions,
         indices: buffers.indices,
     });
-    // Custom vertex attributes for morph + SDF edge
-    (geometry as any).addAttribute('aPrevPosition', new Float32Array(prev));
-    (geometry as any).addAttribute('aSide', buffers.side);
+    // Explicit formats avoid shader-inference ambiguity for custom attributes.
+    geometry.addAttribute('aPrevPosition', {
+        buffer: new Float32Array(prev),
+        format: 'float32x2',
+        stride: 2 * 4,
+        offset: 0,
+    });
+    geometry.addAttribute('aSide', {
+        buffer: buffers.side,
+        format: 'float32',
+        stride: 1 * 4,
+        offset: 0,
+    });
     return geometry;
 }
 
@@ -430,22 +440,23 @@ const strokeMeshBitGl = {
             in vec2 aPrevPosition;
             in float aSide;
             uniform float uMorphMix;
-            out float vSideAbs;
+            out float vSide;
         `,
         main: /* glsl */ `
             position = mix(aPrevPosition, position, uMorphMix);
-            vSideAbs = abs(aSide);
+            vSide = aSide;
         `,
     },
     fragment: {
         header: /* glsl */ `
-            in float vSideAbs;
+            in float vSide;
             uniform vec3 uStrokeColor;
             uniform float uStrokeAlpha;
             uniform float uInnerSide;
         `,
         main: /* glsl */ `
-            float edgeMask = 1.0 - smoothstep(uInnerSide, 1.0, vSideAbs);
+            float sideAbs = abs(vSide);
+            float edgeMask = 1.0 - smoothstep(uInnerSide, 1.0, sideAbs);
             float alpha = edgeMask * uStrokeAlpha;
             outColor = vec4(uStrokeColor * alpha, alpha);
         `,
