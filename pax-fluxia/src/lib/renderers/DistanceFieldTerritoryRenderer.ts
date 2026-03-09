@@ -199,6 +199,62 @@ interface VectorBorderBuildJob {
     ownershipSites: OwnershipSampleSite[];
     ownerGrid: Int16Array;
     nextRow: number;
+    startedAtMs?: number;
+    ownershipSitesMs?: number;
+    ownerGridFillMs?: number;
+}
+type BorderSourceKind = 'legacy' | 'canonical';
+type BorderPublishPhaseId = 'idle' | 'building' | 'candidate_ready' | 'published' | 'published_stale_reused';
+type BorderPublishFailureReason =
+    | 'NO_OWNERSHIP_SITES'
+    | 'BUILD_IN_PROGRESS'
+    | 'STALE_BUILD_KEY'
+    | 'EMPTY_POLYLINES'
+    | 'CANONICAL_VALIDATION_FAILED'
+    | 'NO_PUBLISHED_CANONICAL'
+    | 'NO_PUBLISHED_LEGACY';
+
+interface BorderBuildKey {
+    classificationKey: string;
+    samplingKey: string;
+}
+
+interface InFlightBorderBuildState extends VectorBorderBuildJob {
+    sourceKind: BorderSourceKind;
+    key: BorderBuildKey;
+    startedAtMs: number;
+}
+
+interface PublishedBorderSourceState {
+    sourceKind: BorderSourceKind;
+    phase: BorderPublishPhaseId;
+    key: BorderBuildKey;
+    polylines: VectorBorderPolyline[];
+    ownerGridInfo?: OwnerGridInfo;
+    builtAtMs: number;
+    valid: boolean;
+    validationReasons: string[];
+}
+
+interface BorderPublishDiagnostics {
+    sourceKind: BorderSourceKind;
+    phase: BorderPublishPhaseId;
+    reason: BorderPublishFailureReason;
+    requestedKey: BorderBuildKey | null;
+    publishedKey: BorderBuildKey | null;
+    buildProgress: string;
+    polylineCount: number;
+    validationReasons: string[];
+}
+
+interface BorderPerfSample {
+    sourceKind: BorderSourceKind;
+    ownershipSitesMs: number;
+    ownerGridFillMs: number;
+    polylineExtractionMs: number;
+    canonicalFrontierMs: number;
+    meshGeometryMs: number;
+    builtAtMs: number;
 }
 
 type BorderFamilyId = 'straight' | 'curved' | 'segmented';
@@ -226,6 +282,7 @@ interface BorderFamilyRenderContext {
 
 interface VectorBorderOverlayOptions {
     samplingContract?: VectorBorderSamplingContractId;
+    drawGraphics?: boolean;
 }
 const DF_CONTENT_BOUNDS_PADDING = 80;
 const DF_ALIGNMENT_EPSILON = 0.5;
@@ -1130,7 +1187,8 @@ let latestTwoPassDiagnostics: TwoPassDiagnosticsPayload | null = null;
 let latestDxDiagnostics: DfDxDiagnosticsPayload | null = null;
 let lastDxWriteAt = 0;
 let lastCanonicalValidationWarnFp = '';
-let lastMeshVisibilityWarnFp = '';
+let lastBorderPublishDiagnosticFp = '';
+let lastBorderPerfWarnFp = '';
 let cachedCorridorSiteCount = 0;
 let cachedDisconnectSiteCount = 0;
 let cachedPackedVirtualCount = 0;
@@ -1181,6 +1239,12 @@ interface PublishedOwnerGridSnapshot extends OwnerGridInfo {
     geometryFingerprint: string;
 }
 let cachedPublishedOwnerGridSnapshot: PublishedOwnerGridSnapshot | null = null;
+let cachedLegacyCurrentPublished: PublishedBorderSourceState | null = null;
+let cachedCanonicalBuildJob: InFlightBorderBuildState | null = null;
+let cachedCanonicalCurrentPublished: PublishedBorderSourceState | null = null;
+let cachedCanonicalLastValidPublished: PublishedBorderSourceState | null = null;
+let latestBorderPublishDiagnostics: BorderPublishDiagnostics | null = null;
+let latestBorderPerfSample: BorderPerfSample | null = null;
 interface StrokeMeshRecord {
     ownerA: number;
     ownerB: number;
@@ -1196,8 +1260,6 @@ let cachedStrokeMeshFallbackPairFingerprint = '';
 let cachedStrokeMeshFallbackStyleFingerprint = '';
 let cachedStrokeMeshGeometryFingerprint = '';
 let cachedStrokeMeshStyleFingerprint = '';
-let cachedCanonicalLastValidPolylines: FrontierPolyline[] = [];
-let cachedCanonicalLastValidSnapshotId = '';
 let warnedCurvedBorderFamilyFallback = false;
 let warnedSegmentedBorderFamilyFallback = false;
 
@@ -2067,7 +2129,6 @@ function extractVectorBorderPolylines(
 function hideVectorBorderOverlay(resetBuildState = true): void {
     if (resetBuildState) {
         cachedVectorBuildJob = null;
-        cachedVectorPublishedSnapshotId = '';
     }
     if (cachedVectorBorderGraphics) {
         cachedVectorBorderGraphics.visible = false;
@@ -2102,6 +2163,120 @@ function destroyStrokeMeshOverlay(): void {
     cachedStrokeMeshStyleFingerprint = '';
 }
 
+
+function cloneVectorBorderPolylines(polylines: VectorBorderPolyline[]): VectorBorderPolyline[] {
+    return polylines.map((polyline) => ({
+        ownerA: polyline.ownerA,
+        ownerB: polyline.ownerB,
+        points: [...polyline.points],
+    }));
+}
+
+function cloneOwnerGridInfo(info?: OwnerGridInfo): OwnerGridInfo | undefined {
+    if (!info) return undefined;
+    return {
+        ownerGrid: new Int16Array(info.ownerGrid),
+        gridW: info.gridW,
+        gridH: info.gridH,
+        originX: info.originX,
+        originY: info.originY,
+        extentW: info.extentW,
+        extentH: info.extentH,
+    };
+}
+
+function clonePublishedBorderSourceState(state: PublishedBorderSourceState): PublishedBorderSourceState {
+    return {
+        sourceKind: state.sourceKind,
+        phase: state.phase,
+        key: {
+            classificationKey: state.key.classificationKey,
+            samplingKey: state.key.samplingKey,
+        },
+        polylines: cloneVectorBorderPolylines(state.polylines),
+        ownerGridInfo: cloneOwnerGridInfo(state.ownerGridInfo),
+        builtAtMs: state.builtAtMs,
+        valid: state.valid,
+        validationReasons: [...state.validationReasons],
+    };
+}
+
+function buildBorderBuildKey(
+    classificationKey: string,
+    samplingContract: VectorBorderSamplingContractId,
+    gridW: number,
+    gridH: number,
+    originX: number,
+    originY: number,
+    extentW: number,
+    extentH: number,
+    straightnessPasses: number,
+    simplifyTolerance: number,
+    influenceWeight: number,
+    minStarRadius: number,
+    playerIds: string[],
+): BorderBuildKey {
+    return {
+        classificationKey,
+        samplingKey: `${classificationKey}|${samplingContract}|${gridW}|${gridH}|${originX}|${originY}|${extentW}|${extentH}|${straightnessPasses}|${simplifyTolerance}|${influenceWeight}|${minStarRadius}|${playerIds.join(',')}`,
+    };
+}
+
+function getBuildProgress(job: VectorBorderBuildJob | InFlightBorderBuildState | null): string {
+    return job ? `${job.nextRow}/${job.gridH}` : 'none';
+}
+
+function logBorderPublishDiagnostic(diagnostic: BorderPublishDiagnostics): void {
+    latestBorderPublishDiagnostics = diagnostic;
+    const fp = `${diagnostic.sourceKind}|${diagnostic.phase}|${diagnostic.reason}|${diagnostic.requestedKey?.samplingKey ?? 'none'}|${diagnostic.publishedKey?.samplingKey ?? 'none'}|${diagnostic.buildProgress}|${diagnostic.polylineCount}|${diagnostic.validationReasons.join(',')}`;
+    if (fp === lastBorderPublishDiagnosticFp) return;
+    lastBorderPublishDiagnosticFp = fp;
+    console.warn('[DF_BORDER][PUBLISH]', diagnostic);
+}
+
+function createEmptyBorderPerfSample(sourceKind: BorderSourceKind, builtAtMs: number): BorderPerfSample {
+    return {
+        sourceKind,
+        ownershipSitesMs: 0,
+        ownerGridFillMs: 0,
+        polylineExtractionMs: 0,
+        canonicalFrontierMs: 0,
+        meshGeometryMs: 0,
+        builtAtMs,
+    };
+}
+
+function recordBorderPerfSample(sample: BorderPerfSample): void {
+    latestBorderPerfSample = sample;
+    const steadyStateMs = sample.ownershipSitesMs
+        + sample.ownerGridFillMs
+        + sample.polylineExtractionMs
+        + sample.canonicalFrontierMs
+        + sample.meshGeometryMs;
+    const publishMs = sample.ownershipSitesMs
+        + sample.ownerGridFillMs
+        + sample.polylineExtractionMs
+        + sample.canonicalFrontierMs;
+    const overBudget = steadyStateMs > 1.0 || publishMs > 24.0;
+    if (!overBudget) return;
+    const fp = `${sample.sourceKind}|${steadyStateMs.toFixed(2)}|${publishMs.toFixed(2)}`;
+    if (fp === lastBorderPerfWarnFp) return;
+    lastBorderPerfWarnFp = fp;
+    console.warn('[DF_BORDER][PERF]', {
+        sourceKind: sample.sourceKind,
+        steadyStateMs,
+        publishMs,
+        sample,
+    });
+}
+
+function getPublishedCurrentSource(
+    state: PublishedBorderSourceState | null,
+    classificationKey: string,
+): PublishedBorderSourceState | null {
+    if (!state) return null;
+    return state.key.classificationKey === classificationKey ? state : null;
+}
 function normalizeBorderFamily(rawFamily: unknown): BorderFamilyId {
     if (rawFamily === 'curved' || rawFamily === 'segmented' || rawFamily === 'straight') return rawFamily;
     return 'straight';
@@ -2320,6 +2495,199 @@ function assertMeshCenterStrokeAlignment(
     }
 }
 
+
+function produceCanonicalBorderSource(ctx: BorderFamilyRenderContext): PublishedBorderSourceState | null {
+    const extentW = Math.max(1, cachedRenderExtentW);
+    const extentH = Math.max(1, cachedRenderExtentH);
+    const samplingContract: VectorBorderSamplingContractId = 'canonical';
+    const classificationKey = ctx.ownershipSnapshotId;
+    const gridW = Math.max(DF_VECTOR_MIN_GRID, Math.min(DF_VECTOR_MAX_GRID, DF_CANONICAL_OWNER_GRID_RESOLUTION));
+    const gridH = Math.max(DF_VECTOR_MIN_GRID, Math.min(DF_VECTOR_MAX_GRID, Math.round(gridW * (extentH / extentW))));
+    const straightnessPasses = DF_CANONICAL_STRAIGHT_PASSES;
+    const simplifyTolerance = DF_CANONICAL_SIMPLIFY_TOLERANCE;
+    const influenceWeight = GAME_CONFIG.DF_INFLUENCE_WEIGHT ?? 1.0;
+    const minStarRadius = GAME_CONFIG.DF_MIN_STAR_RADIUS ?? 0;
+    const key = buildBorderBuildKey(
+        classificationKey,
+        samplingContract,
+        gridW,
+        gridH,
+        cachedRenderOriginX,
+        cachedRenderOriginY,
+        extentW,
+        extentH,
+        straightnessPasses,
+        simplifyTolerance,
+        influenceWeight,
+        minStarRadius,
+        ctx.playerIds,
+    );
+
+    const currentPublished = getPublishedCurrentSource(cachedCanonicalCurrentPublished, classificationKey);
+    if (cachedCanonicalBuildJob && cachedCanonicalBuildJob.key.classificationKey !== classificationKey) {
+        logBorderPublishDiagnostic({
+            sourceKind: 'canonical',
+            phase: 'building',
+            reason: 'STALE_BUILD_KEY',
+            requestedKey: key,
+            publishedKey: cachedCanonicalCurrentPublished?.key ?? null,
+            buildProgress: getBuildProgress(cachedCanonicalBuildJob),
+            polylineCount: cachedCanonicalCurrentPublished?.polylines.length ?? 0,
+            validationReasons: [],
+        });
+        cachedCanonicalBuildJob = null;
+    }
+
+    const needsBuild = ctx.forceRebuild
+        || !currentPublished
+        || currentPublished.key.samplingKey !== key.samplingKey;
+
+    if (!needsBuild) {
+        return currentPublished;
+    }
+
+    const canReuseBuildJob = Boolean(
+        cachedCanonicalBuildJob
+        && cachedCanonicalBuildJob.key.samplingKey === key.samplingKey,
+    );
+
+    if (!canReuseBuildJob) {
+        const siteStartedAt = performance.now();
+        const ownershipSites = buildOwnershipSampleSites(
+            ctx.stars,
+            ctx.virtualSites,
+            ctx.dist,
+            ctx.prevDistArr,
+            ctx.playerIds,
+        );
+        const ownershipSitesMs = performance.now() - siteStartedAt;
+        if (ownershipSites.length === 0) {
+            logBorderPublishDiagnostic({
+                sourceKind: 'canonical',
+                phase: 'idle',
+                reason: 'NO_OWNERSHIP_SITES',
+                requestedKey: key,
+                publishedKey: cachedCanonicalCurrentPublished?.key ?? null,
+                buildProgress: 'none',
+                polylineCount: cachedCanonicalCurrentPublished?.polylines.length ?? 0,
+                validationReasons: [],
+            });
+            return currentPublished ?? cachedCanonicalLastValidPublished;
+        }
+
+        cachedCanonicalBuildJob = {
+            sourceKind: 'canonical',
+            key,
+            startedAtMs: ctx.now,
+            ownershipSitesMs,
+            ownerGridFillMs: 0,
+            ownershipSnapshotId: classificationKey,
+            staticFp: key.samplingKey,
+            gridW,
+            gridH,
+            originX: cachedRenderOriginX,
+            originY: cachedRenderOriginY,
+            extentW,
+            extentH,
+            influenceWeight,
+            minStarRadius,
+            morphFactor: 0,
+            ownershipSites,
+            ownerGrid: new Int16Array(gridW * gridH),
+            nextRow: 0,
+        };
+    }
+
+    if (!cachedCanonicalBuildJob) {
+        return currentPublished ?? cachedCanonicalLastValidPublished;
+    }
+
+    const canonicalBuildJob = cachedCanonicalBuildJob;
+    canonicalBuildJob.morphFactor = 0;
+    canonicalBuildJob.influenceWeight = influenceWeight;
+    canonicalBuildJob.minStarRadius = minStarRadius;
+    const fillStartedAt = performance.now();
+    const buildCompleted = stepVectorBorderBuildJob(canonicalBuildJob, DF_VECTOR_REBUILD_BUDGET_MS);
+    canonicalBuildJob.ownerGridFillMs = (canonicalBuildJob.ownerGridFillMs ?? 0) + (performance.now() - fillStartedAt);
+    if (!buildCompleted) {
+        logBorderPublishDiagnostic({
+            sourceKind: 'canonical',
+            phase: 'building',
+            reason: 'BUILD_IN_PROGRESS',
+            requestedKey: key,
+            publishedKey: cachedCanonicalCurrentPublished?.key ?? null,
+            buildProgress: getBuildProgress(cachedCanonicalBuildJob),
+            polylineCount: cachedCanonicalCurrentPublished?.polylines.length ?? 0,
+            validationReasons: [],
+        });
+        return currentPublished ?? cachedCanonicalLastValidPublished;
+    }
+
+    const ownerGridInfo: OwnerGridInfo = {
+        ownerGrid: new Int16Array(canonicalBuildJob.ownerGrid),
+        gridW,
+        gridH,
+        originX: cachedRenderOriginX,
+        originY: cachedRenderOriginY,
+        extentW,
+        extentH,
+    };
+    const canonicalStartedAt = performance.now();
+    const canonicalSet = buildCanonicalFrontierPolylineSet(
+        ctx.stars,
+        ctx.connections,
+        {
+            distToPlayer: ctx.dist,
+            top2ByStar: ctx.top2ByStar,
+        },
+        ownerGridInfo,
+    );
+    const canonicalFrontierMs = performance.now() - canonicalStartedAt;
+    const validationReasons = canonicalSet.validation.reasons;
+    const hasPolylines = canonicalSet.polylines.length > 0;
+    if (!hasPolylines || !canonicalSet.validation.valid) {
+        logBorderPublishDiagnostic({
+            sourceKind: 'canonical',
+            phase: 'candidate_ready',
+            reason: hasPolylines ? 'CANONICAL_VALIDATION_FAILED' : 'EMPTY_POLYLINES',
+            requestedKey: key,
+            publishedKey: cachedCanonicalCurrentPublished?.key ?? null,
+            buildProgress: 'complete',
+            polylineCount: canonicalSet.polylines.length,
+            validationReasons,
+        });
+        cachedCanonicalBuildJob = null;
+        if (hasPolylines && validationReasons.join('|') !== lastCanonicalValidationWarnFp) {
+            console.warn('[DF_BORDER][CANONICAL] validation failed; retaining last valid canonical mesh snapshot', canonicalSet.validation);
+            lastCanonicalValidationWarnFp = validationReasons.join('|');
+        }
+        return currentPublished ?? cachedCanonicalLastValidPublished;
+    }
+
+    const publishedState: PublishedBorderSourceState = {
+        sourceKind: 'canonical',
+        phase: 'published',
+        key,
+        polylines: cloneVectorBorderPolylines(canonicalSet.polylines),
+        ownerGridInfo: cloneOwnerGridInfo(ownerGridInfo),
+        builtAtMs: ctx.now,
+        valid: true,
+        validationReasons: [],
+    };
+    cachedCanonicalCurrentPublished = publishedState;
+    cachedCanonicalLastValidPublished = clonePublishedBorderSourceState(publishedState);
+    recordBorderPerfSample({
+        sourceKind: 'canonical',
+        ownershipSitesMs: canonicalBuildJob.ownershipSitesMs ?? 0,
+        ownerGridFillMs: canonicalBuildJob.ownerGridFillMs ?? 0,
+        polylineExtractionMs: 0,
+        canonicalFrontierMs,
+        meshGeometryMs: 0,
+        builtAtMs: ctx.now,
+    });
+    cachedCanonicalBuildJob = null;
+    return cachedCanonicalCurrentPublished;
+}
 function renderMeshBorderOverlay(ctx: BorderFamilyRenderContext, alignmentContract: AlignmentContract): boolean {
     const canonicalRuntimeMode = normalizeCanonicalFrontierRuntimeMode(
         GAME_CONFIG.DF_CANONICAL_FRONTIER_RUNTIME_MODE,
@@ -2328,11 +2696,10 @@ function renderMeshBorderOverlay(ctx: BorderFamilyRenderContext, alignmentContra
         GAME_CONFIG.DF_CANONICAL_FRONTIER_DIAGNOSTIC_SHOW
             ?? DF_CANONICAL_FRONTIER_DIAGNOSTIC_SHOW_DEFAULT,
     );
-    const vectorSamplingContract: VectorBorderSamplingContractId = canonicalRuntimeMode === 'disabled'
-        ? 'legacy'
-        : 'canonical';
+    const shouldPreferCanonical = canonicalRuntimeMode === 'production'
+        || (canonicalRuntimeMode === 'diagnostic' && canonicalDiagnosticShow);
 
-    const vectorPathReady = renderVectorBorderOverlay(
+    renderVectorBorderOverlay(
         ctx.container,
         ctx.colorUtils,
         ctx.stars,
@@ -2344,100 +2711,74 @@ function renderMeshBorderOverlay(ctx: BorderFamilyRenderContext, alignmentContra
         ctx.morphFactor,
         ctx.now,
         ctx.forceRebuild,
-        { samplingContract: vectorSamplingContract },
+        { samplingContract: 'legacy', drawGraphics: false },
     );
-    // Hide the vector Graphics strokes - we draw via mesh only.
+
+    if (canonicalRuntimeMode !== 'disabled') {
+        produceCanonicalBorderSource(ctx);
+    }
+
+    const canonicalCurrentPublished = getPublishedCurrentSource(
+        cachedCanonicalCurrentPublished,
+        ctx.ownershipSnapshotId,
+    );
+    const canonicalLastValidPublished = cachedCanonicalLastValidPublished;
+    const legacyCurrentPublished = getPublishedCurrentSource(
+        cachedLegacyCurrentPublished,
+        ctx.ownershipSnapshotId,
+    );
+
     hideVectorBorderOverlay(false);
 
-    const hasPublishedVectorPolylines = cachedVectorPublishedSnapshotId === ctx.ownershipSnapshotId
-        && cachedVectorPolylines.length > 0;
-    const hasPublishedOwnerGridSnapshot = Boolean(
-        cachedPublishedOwnerGridSnapshot
-        && cachedPublishedOwnerGridSnapshot.ownershipSnapshotId === ctx.ownershipSnapshotId
-        && cachedPublishedOwnerGridSnapshot.geometryFingerprint === cachedVectorGeometryFingerprint
-        && !cachedVectorBuildJob,
-    );
-
-    let canonicalPolylines: FrontierPolyline[] = [];
-    let canonicalPolylineSetValid = false;
-    if (canonicalRuntimeMode !== 'disabled' && hasPublishedOwnerGridSnapshot) {
-        const graphView: GraphNativeDistanceView = {
-            distToPlayer: ctx.dist,
-            top2ByStar: ctx.top2ByStar,
-        };
-        const ownerGridInfo: OwnerGridInfo | undefined = cachedPublishedOwnerGridSnapshot
-            ? {
-                ownerGrid: cachedPublishedOwnerGridSnapshot.ownerGrid,
-                gridW: cachedPublishedOwnerGridSnapshot.gridW,
-                gridH: cachedPublishedOwnerGridSnapshot.gridH,
-                originX: cachedPublishedOwnerGridSnapshot.originX,
-                originY: cachedPublishedOwnerGridSnapshot.originY,
-                extentW: cachedPublishedOwnerGridSnapshot.extentW,
-                extentH: cachedPublishedOwnerGridSnapshot.extentH,
-            }
-            : undefined;
-
-        const canonicalSet = buildCanonicalFrontierPolylineSet(
-            ctx.stars,
-            ctx.connections,
-            graphView,
-            ownerGridInfo,
-        );
-        canonicalPolylines = canonicalSet.polylines;
-        canonicalPolylineSetValid = canonicalSet.validation.valid;
-
-        if (canonicalPolylineSetValid) {
-            cachedCanonicalLastValidPolylines = canonicalPolylines.map((polyline) => ({
-                ownerA: polyline.ownerA,
-                ownerB: polyline.ownerB,
-                points: [...polyline.points],
-            }));
-            cachedCanonicalLastValidSnapshotId = ctx.ownershipSnapshotId;
-        } else if (canonicalRuntimeMode === 'production') {
-            const warnFp = canonicalSet.validation.reasons.join('|');
-            if (warnFp !== lastCanonicalValidationWarnFp) {
-                console.warn('[DF_BORDER][CANONICAL] validation failed; retaining last valid canonical mesh snapshot', canonicalSet.validation);
-                lastCanonicalValidationWarnFp = warnFp;
-            }
+    const canonicalRequestedKey: BorderBuildKey | null = cachedCanonicalBuildJob ? cachedCanonicalBuildJob.key : null;
+    const legacyRequestedKey: BorderBuildKey | null = cachedVectorBuildJob
+        ? {
+            classificationKey: cachedVectorBuildJob.ownershipSnapshotId,
+            samplingKey: cachedVectorBuildJob.staticFp,
         }
+        : null;
+
+    if (shouldPreferCanonical && !canonicalCurrentPublished && !canonicalLastValidPublished) {
+        logBorderPublishDiagnostic({
+            sourceKind: 'canonical',
+            phase: cachedCanonicalBuildJob ? 'building' : 'idle',
+            reason: 'NO_PUBLISHED_CANONICAL',
+            requestedKey: canonicalRequestedKey,
+            publishedKey: cachedCanonicalCurrentPublished?.key ?? null,
+            buildProgress: getBuildProgress(cachedCanonicalBuildJob),
+            polylineCount: cachedCanonicalCurrentPublished?.polylines.length ?? 0,
+            validationReasons: cachedCanonicalCurrentPublished?.validationReasons ?? [],
+        });
     }
 
-    if (!canonicalPolylineSetValid && canonicalRuntimeMode === 'production' && cachedCanonicalLastValidPolylines.length > 0) {
-        canonicalPolylines = cachedCanonicalLastValidPolylines;
+    let activeSource: PublishedBorderSourceState | null;
+    if (shouldPreferCanonical) {
+        activeSource = canonicalCurrentPublished
+            ?? canonicalLastValidPublished
+            ?? legacyCurrentPublished;
+    } else {
+        activeSource = legacyCurrentPublished;
     }
 
-    const useCanonical = canonicalRuntimeMode === 'production'
-        ? canonicalPolylines.length > 0
-        : (canonicalRuntimeMode === 'diagnostic'
-            && canonicalDiagnosticShow
-            && canonicalPolylineSetValid);
-    const activePolylines = useCanonical
-        ? canonicalPolylines
-        : (hasPublishedVectorPolylines ? cachedVectorPolylines : []);
-
-    if (activePolylines.length === 0) {
-        const buildProgress = cachedVectorBuildJob
-            ? `${cachedVectorBuildJob.nextRow}/${cachedVectorBuildJob.gridH}`
-            : 'none';
-        const warnFp = `${ctx.ownershipSnapshotId}|${canonicalRuntimeMode}|vp:${vectorPathReady ? 1 : 0}|pv:${hasPublishedVectorPolylines ? 1 : 0}|og:${hasPublishedOwnerGridSnapshot ? 1 : 0}|cv:${canonicalPolylineSetValid ? 1 : 0}|cp:${canonicalPolylines.length}|vv:${cachedVectorPolylines.length}|job:${buildProgress}`;
-        if (warnFp !== lastMeshVisibilityWarnFp) {
-            console.warn('[DF_BORDER][MESH] no active polylines in mesh renderer', {
-                ownershipSnapshotId: ctx.ownershipSnapshotId,
-                canonicalRuntimeMode,
-                vectorPathReady,
-                hasPublishedVectorPolylines,
-                hasPublishedOwnerGridSnapshot,
-                canonicalPolylineSetValid,
-                canonicalPolylineCount: canonicalPolylines.length,
-                cachedVectorPolylineCount: cachedVectorPolylines.length,
-                buildProgress,
-            });
-            lastMeshVisibilityWarnFp = warnFp;
-        }
+    if (!activeSource || activeSource.polylines.length === 0) {
+        logBorderPublishDiagnostic({
+            sourceKind: 'legacy',
+            phase: cachedVectorBuildJob ? 'building' : 'idle',
+            reason: 'NO_PUBLISHED_LEGACY',
+            requestedKey: legacyRequestedKey,
+            publishedKey: cachedLegacyCurrentPublished?.key ?? null,
+            buildProgress: getBuildProgress(cachedVectorBuildJob),
+            polylineCount: cachedLegacyCurrentPublished?.polylines.length ?? 0,
+            validationReasons: cachedLegacyCurrentPublished?.validationReasons ?? [],
+        });
         hideStrokeMeshOverlay();
         return false;
     }
-    lastMeshVisibilityWarnFp = '';
+
+    const selectedSource = activeSource;
+    const activePolylines = selectedSource.polylines;
+    const useCanonical = selectedSource.sourceKind === 'canonical';
+    const legacyFallbackPolylines = legacyCurrentPublished?.polylines ?? [];
 
     if (!cachedStrokeMeshContainer) {
         cachedStrokeMeshContainer = new PIXI.Container();
@@ -2456,21 +2797,17 @@ function renderMeshBorderOverlay(ctx: BorderFamilyRenderContext, alignmentContra
     const morphMix = Math.max(0, Math.min(1, 1 - ctx.morphFactor));
     const morphActive = ctx.morphFactor > 0.0001;
     const enablePixelSnap = !(useCanonical && canonicalRuntimeMode === 'production');
-    const canonicalSourceSnapshotId = canonicalPolylineSetValid
-        ? ctx.ownershipSnapshotId
-        : cachedCanonicalLastValidSnapshotId;
 
-    const geometrySourceKey = useCanonical
-        ? `canonical:${canonicalSourceSnapshotId ?? 'none'}`
-        : `legacy:${cachedVectorGeometryFingerprint}:${cachedVectorPublishedSnapshotId}`;
+    const geometrySourceKey = `${selectedSource.sourceKind}:${selectedSource.key.samplingKey}`;
     const geometryFp = `${geometrySourceKey}|w:${borderWidth.toFixed(3)}|s:${borderSoftness.toFixed(3)}`;
     const styleFp = `${geometrySourceKey}|a:${borderAlpha.toFixed(3)}|br:${borderBrighten.toFixed(3)}`;
 
-    const needsGeometryRebuild = (useCanonical ? false : ctx.forceRebuild)
+    const needsGeometryRebuild = ctx.forceRebuild
         || cachedStrokeMeshGeometryFingerprint !== geometryFp
         || cachedStrokeMeshRecords.length === 0;
 
     if (needsGeometryRebuild) {
+        const meshGeometryStartedAt = performance.now();
         const previousPositionsByPair = new Map<string, Float32Array>();
         for (const record of cachedStrokeMeshRecords) {
             previousPositionsByPair.set(record.pairKey, record.positions);
@@ -2547,20 +2884,32 @@ function renderMeshBorderOverlay(ctx: BorderFamilyRenderContext, alignmentContra
                 positions: buffers.positions,
                 hasMorphSource,
             });
-
-
         }
 
         cachedStrokeMeshGeometryFingerprint = geometryFp;
         cachedStrokeMeshStyleFingerprint = '';
-        const shouldAssertAlignment = !useCanonical;
+        const shouldAssertAlignment = !useCanonical && canonicalRuntimeMode === 'disabled';
         if (shouldAssertAlignment) {
             assertMeshCenterStrokeAlignment(alignmentContract, activePolylines, borderWidth);
         }
+
+        const meshGeometryMs = performance.now() - meshGeometryStartedAt;
+        const perfBase = latestBorderPerfSample?.sourceKind === selectedSource.sourceKind
+            ? latestBorderPerfSample
+            : createEmptyBorderPerfSample(selectedSource.sourceKind, ctx.now);
+        recordBorderPerfSample({
+            ...perfBase,
+            sourceKind: selectedSource.sourceKind,
+            meshGeometryMs,
+            builtAtMs: ctx.now,
+        });
     }
 
     const needsStyleUpdate = cachedStrokeMeshStyleFingerprint !== styleFp;
-    const enableMorphFallback = useCanonical && morphActive && canonicalRuntimeMode !== 'production';
+    const enableMorphFallback = useCanonical
+        && morphActive
+        && canonicalRuntimeMode !== 'production'
+        && legacyFallbackPolylines.length > 0;
     const fallbackPairs = new Set<string>();
     if (enableMorphFallback) {
         for (const record of cachedStrokeMeshRecords) {
@@ -2609,7 +2958,7 @@ function renderMeshBorderOverlay(ctx: BorderFamilyRenderContext, alignmentContra
             cachedStrokeMeshFallbackGraphics.clear();
             const drawn = drawVectorPolylines(
                 cachedStrokeMeshFallbackGraphics,
-                cachedVectorPolylines,
+                legacyFallbackPolylines,
                 ctx.colorUtils,
                 ctx.playerIds,
                 borderWidth,
@@ -2635,7 +2984,6 @@ function renderMeshBorderOverlay(ctx: BorderFamilyRenderContext, alignmentContra
     if (cachedStrokeMeshContainer) cachedStrokeMeshContainer.visible = hasVisibleMeshes;
     return hasVisibleMeshes;
 }
-
 function stepVectorBorderBuildJob(job: VectorBorderBuildJob, maxMs: number): boolean {
     const startedAt = performance.now();
 
@@ -2696,65 +3044,65 @@ function renderVectorBorderOverlay(
     forceRebuild: boolean,
     options?: VectorBorderOverlayOptions,
 ): boolean {
+    const drawGraphics = options?.drawGraphics ?? true;
+    const samplingContract = options?.samplingContract ?? 'legacy';
+    if (samplingContract !== 'legacy') {
+        return false;
+    }
+
     const borderWidth = GAME_CONFIG.DF_BORDER_WIDTH ?? 0;
     const borderSoftness = GAME_CONFIG.DF_BORDER_SOFTNESS ?? 0;
     const borderAlpha = GAME_CONFIG.DF_BORDER_ALPHA ?? 0;
     if (borderWidth <= 0 || borderAlpha <= 0 || stars.length === 0 || playerIds.length === 0) {
-        hideVectorBorderOverlay();
+        if (drawGraphics) hideVectorBorderOverlay();
         return false;
     }
 
     const extentW = Math.max(1, cachedRenderExtentW);
     const extentH = Math.max(1, cachedRenderExtentH);
-
-    const samplingContract = options?.samplingContract ?? 'legacy';
-    const isCanonicalSampling = samplingContract === 'canonical';
-
-    const requestedGrid = isCanonicalSampling
-        ? DF_CANONICAL_OWNER_GRID_RESOLUTION
-        : (GAME_CONFIG.DF_VECTOR_GRID_RESOLUTION ?? 192);
-    const zoomScale = isCanonicalSampling
-        ? 1
-        : Math.max(1, Math.min(4, Math.max(Math.abs(container.worldTransform.a), Math.abs(container.worldTransform.d))));
+    const requestedGrid = GAME_CONFIG.DF_VECTOR_GRID_RESOLUTION ?? 192;
+    const zoomScale = Math.max(1, Math.min(4, Math.max(Math.abs(container.worldTransform.a), Math.abs(container.worldTransform.d))));
     const effectiveRequestedGrid = Math.round(requestedGrid * zoomScale);
     const gridW = Math.max(DF_VECTOR_MIN_GRID, Math.min(DF_VECTOR_MAX_GRID, effectiveRequestedGrid));
     const gridH = Math.max(DF_VECTOR_MIN_GRID, Math.min(DF_VECTOR_MAX_GRID, Math.round(gridW * (extentH / extentW))));
 
-    const straightnessPasses = isCanonicalSampling
-        ? DF_CANONICAL_STRAIGHT_PASSES
-        : Math.max(0, Math.min(DF_VECTOR_MAX_STRAIGHT_PASSES, Math.round(GAME_CONFIG.DF_VECTOR_SMOOTHING ?? 1)));
-    const simplifyTolerance = isCanonicalSampling
-        ? DF_CANONICAL_SIMPLIFY_TOLERANCE
-        : Math.max(0, GAME_CONFIG.DF_VECTOR_SIMPLIFY ?? 0.5);
-    const updateMs = isCanonicalSampling ? 0 : Math.max(0, GAME_CONFIG.DF_VECTOR_UPDATE_MS ?? 33);
+    const straightnessPasses = Math.max(0, Math.min(DF_VECTOR_MAX_STRAIGHT_PASSES, Math.round(GAME_CONFIG.DF_VECTOR_SMOOTHING ?? 1)));
+    const simplifyTolerance = Math.max(0, GAME_CONFIG.DF_VECTOR_SIMPLIFY ?? 0.5);
+    const updateMs = Math.max(0, GAME_CONFIG.DF_VECTOR_UPDATE_MS ?? 33);
     const estimatedSiteCount = Math.max(1, stars.length + virtualSites.length);
-    const effectiveUpdateMs = isCanonicalSampling
-        ? 0
-        : computeAdaptiveVectorUpdateMs(updateMs, gridW, gridH, estimatedSiteCount, morphFactor);
-    const sampleMorphFactor = isCanonicalSampling ? 0 : morphFactor;
+    const effectiveUpdateMs = computeAdaptiveVectorUpdateMs(updateMs, gridW, gridH, estimatedSiteCount, morphFactor);
     const influenceWeight = GAME_CONFIG.DF_INFLUENCE_WEIGHT ?? 1.0;
     const minStarRadius = GAME_CONFIG.DF_MIN_STAR_RADIUS ?? 0;
+    const key = buildBorderBuildKey(
+        ownershipSnapshotId,
+        'legacy',
+        gridW,
+        gridH,
+        cachedRenderOriginX,
+        cachedRenderOriginY,
+        extentW,
+        extentH,
+        straightnessPasses,
+        simplifyTolerance,
+        influenceWeight,
+        minStarRadius,
+        playerIds,
+    );
 
-    // Geometry fingerprint controls expensive ownership sampling + polyline extraction.
-    const geometryFp = `${cachedGeometryFp}:${cachedTopologyFp}:${cachedRenderOriginX}:${cachedRenderOriginY}:${extentW}:${extentH}:`
-        + `${samplingContract}:${gridW}:${gridH}:${straightnessPasses}:${simplifyTolerance}:${influenceWeight}:${minStarRadius}:${playerIds.join(',')}`;
-    // Style fingerprint controls inexpensive polyline stroke redraw only.
     const styleFp = `${borderWidth}:${borderSoftness}:${borderAlpha}:${GAME_CONFIG.DF_BORDER_BRIGHTEN}`;
-
-    const intervalDue = !isCanonicalSampling && morphFactor > 0 && (now - cachedVectorBorderLastBuildMs >= effectiveUpdateMs);
-    const effectiveForceRebuild = isCanonicalSampling
-        ? (forceRebuild && cachedVectorPublishedSnapshotId !== ownershipSnapshotId)
-        : forceRebuild;
-    const needsGeometryRebuild = effectiveForceRebuild
-        || geometryFp !== cachedVectorGeometryFingerprint
+    const currentPublished = getPublishedCurrentSource(cachedLegacyCurrentPublished, ownershipSnapshotId);
+    const intervalDue = morphFactor > 0 && (now - cachedVectorBorderLastBuildMs >= effectiveUpdateMs);
+    const needsGeometryRebuild = forceRebuild
+        || key.samplingKey !== cachedVectorGeometryFingerprint
         || intervalDue
-        || cachedVectorPublishedSnapshotId !== ownershipSnapshotId
+        || !currentPublished
+        || currentPublished.key.samplingKey !== key.samplingKey
         || cachedVectorPolylines.length === 0;
 
     const canReuseBuildJob = Boolean(
         cachedVectorBuildJob
         && cachedVectorBuildJob.ownershipSnapshotId === ownershipSnapshotId
-        && cachedVectorBuildJob.staticFp === geometryFp
+        && cachedVectorBuildJob.staticFp === key.samplingKey
         && cachedVectorBuildJob.gridW === gridW
         && cachedVectorBuildJob.gridH === gridH
         && cachedVectorBuildJob.originX === cachedRenderOriginX
@@ -2767,15 +3115,17 @@ function renderVectorBorderOverlay(
 
     if (needsGeometryRebuild) {
         if (!canReuseBuildJob) {
+            const ownershipSitesStartedAt = performance.now();
             const ownershipSites = buildOwnershipSampleSites(stars, virtualSites, dist, prevDistArr, playerIds);
+            const ownershipSitesMs = performance.now() - ownershipSitesStartedAt;
             if (ownershipSites.length === 0) {
-                hideVectorBorderOverlay();
+                if (drawGraphics) hideVectorBorderOverlay();
                 return false;
             }
 
             cachedVectorBuildJob = {
                 ownershipSnapshotId,
-                staticFp: geometryFp,
+                staticFp: key.samplingKey,
                 gridW,
                 gridH,
                 originX: cachedRenderOriginX,
@@ -2784,47 +3134,47 @@ function renderVectorBorderOverlay(
                 extentH,
                 influenceWeight,
                 minStarRadius,
-                morphFactor: sampleMorphFactor,
+                morphFactor,
                 ownershipSites,
                 ownerGrid: new Int16Array(gridW * gridH),
                 nextRow: 0,
+                startedAtMs: now,
+                ownershipSitesMs,
+                ownerGridFillMs: 0,
             };
         }
 
         if (!cachedVectorBuildJob) {
-            hideVectorBorderOverlay();
+            if (drawGraphics) hideVectorBorderOverlay();
             return false;
         }
 
-        cachedVectorBuildJob.morphFactor = sampleMorphFactor;
+        cachedVectorBuildJob.morphFactor = morphFactor;
         cachedVectorBuildJob.influenceWeight = influenceWeight;
         cachedVectorBuildJob.minStarRadius = minStarRadius;
 
-        // Guard against stale async/chunked job completion.
         if (cachedVectorBuildJob.ownershipSnapshotId !== ownershipSnapshotId) {
             cachedVectorBuildJob = null;
-            cachedVectorPublishedSnapshotId = '';
-            cachedPublishedOwnerGridSnapshot = null;
-            if (cachedVectorBorderGraphics) cachedVectorBorderGraphics.visible = false;
-            return false;
+            if (drawGraphics && cachedVectorBorderGraphics) cachedVectorBorderGraphics.visible = false;
+            return Boolean(currentPublished?.polylines.length);
         }
 
-        const buildBudgetMs = isCanonicalSampling ? Number.POSITIVE_INFINITY : DF_VECTOR_REBUILD_BUDGET_MS;
-        const buildCompleted = stepVectorBorderBuildJob(cachedVectorBuildJob, buildBudgetMs);
+        const fillStartedAt = performance.now();
+        const buildCompleted = stepVectorBorderBuildJob(cachedVectorBuildJob, DF_VECTOR_REBUILD_BUDGET_MS);
+        cachedVectorBuildJob.ownerGridFillMs = (cachedVectorBuildJob.ownerGridFillMs ?? 0) + (performance.now() - fillStartedAt);
         if (!buildCompleted) {
-            if (cachedVectorBorderGraphics && !cachedVectorBorderGraphics.parent) {
+            if (drawGraphics && cachedVectorBorderGraphics && !cachedVectorBorderGraphics.parent) {
                 container.addChild(cachedVectorBorderGraphics);
             }
-            if (cachedVectorBorderGraphics) {
+            if (drawGraphics && cachedVectorBorderGraphics) {
                 cachedVectorBorderGraphics.visible = true;
             }
-            const hasPublishedGeometry = cachedVectorPublishedSnapshotId === ownershipSnapshotId
-                && Boolean(cachedVectorBorderGraphics?.visible);
-            return hasPublishedGeometry;
+            return Boolean(currentPublished?.polylines.length);
         }
 
         const publishedOwnerGrid = new Int16Array(cachedVectorBuildJob.ownerGrid);
-        cachedVectorPolylines = extractVectorBorderPolylines(
+        const polylineExtractionStartedAt = performance.now();
+        const extractedPolylines = extractVectorBorderPolylines(
             publishedOwnerGrid,
             gridW,
             gridH,
@@ -2835,8 +3185,8 @@ function renderVectorBorderOverlay(
             simplifyTolerance,
             straightnessPasses,
         );
-
-        cachedPublishedOwnerGridSnapshot = {
+        const polylineExtractionMs = performance.now() - polylineExtractionStartedAt;
+        const ownerGridInfo: OwnerGridInfo = {
             ownerGrid: publishedOwnerGrid,
             gridW,
             gridH,
@@ -2844,14 +3194,58 @@ function renderVectorBorderOverlay(
             originY: cachedRenderOriginY,
             extentW,
             extentH,
-            ownershipSnapshotId,
-            geometryFingerprint: geometryFp,
         };
+
+        if (extractedPolylines.length > 0) {
+            cachedVectorPolylines = extractedPolylines;
+            cachedPublishedOwnerGridSnapshot = {
+                ...ownerGridInfo,
+                ownershipSnapshotId,
+                geometryFingerprint: key.samplingKey,
+            };
+            cachedVectorGeometryFingerprint = key.samplingKey;
+            cachedVectorBorderLastBuildMs = now;
+            cachedVectorPublishedSnapshotId = ownershipSnapshotId;
+            cachedLegacyCurrentPublished = {
+                sourceKind: 'legacy',
+                phase: 'published',
+                key,
+                polylines: cloneVectorBorderPolylines(extractedPolylines),
+                ownerGridInfo: cloneOwnerGridInfo(ownerGridInfo),
+                builtAtMs: now,
+                valid: true,
+                validationReasons: [],
+            };
+            geometryBuiltThisFrame = true;
+            recordBorderPerfSample({
+                sourceKind: 'legacy',
+                ownershipSitesMs: cachedVectorBuildJob.ownershipSitesMs ?? 0,
+                ownerGridFillMs: cachedVectorBuildJob.ownerGridFillMs ?? 0,
+                polylineExtractionMs,
+                canonicalFrontierMs: 0,
+                meshGeometryMs: 0,
+                builtAtMs: now,
+            });
+        } else if (currentPublished) {
+            cachedVectorPolylines = cloneVectorBorderPolylines(currentPublished.polylines);
+            cachedPublishedOwnerGridSnapshot = currentPublished.ownerGridInfo
+                ? {
+                    ...cloneOwnerGridInfo(currentPublished.ownerGridInfo)!,
+                    ownershipSnapshotId: currentPublished.key.classificationKey,
+                    geometryFingerprint: currentPublished.key.samplingKey,
+                }
+                : null;
+        } else {
+            cachedVectorPolylines = [];
+            cachedPublishedOwnerGridSnapshot = null;
+        }
+
         cachedVectorBuildJob = null;
-        cachedVectorGeometryFingerprint = geometryFp;
-        cachedVectorBorderLastBuildMs = now;
-        cachedVectorPublishedSnapshotId = ownershipSnapshotId;
-        geometryBuiltThisFrame = true;
+    }
+
+    const visiblePublished = getPublishedCurrentSource(cachedLegacyCurrentPublished, ownershipSnapshotId);
+    if (!drawGraphics) {
+        return Boolean(visiblePublished?.polylines.length);
     }
 
     if (!cachedVectorBorderGraphics) {
@@ -2867,12 +3261,12 @@ function renderVectorBorderOverlay(
 
     if (!needsStyleRedraw) {
         cachedVectorBorderGraphics.visible = true;
-        return true;
+        return Boolean(visiblePublished?.polylines.length);
     }
 
     cachedVectorBorderGraphics.clear();
     const brighten = GAME_CONFIG.DF_BORDER_BRIGHTEN ?? 0;
-    drawVectorPolylines(
+    const drawn = drawVectorPolylines(
         cachedVectorBorderGraphics,
         cachedVectorPolylines,
         colorUtils,
@@ -2884,8 +3278,8 @@ function renderVectorBorderOverlay(
     );
 
     cachedVectorStyleFingerprint = styleFp;
-    cachedVectorBorderGraphics.visible = true;
-    return true;
+    cachedVectorBorderGraphics.visible = drawn > 0;
+    return drawn > 0;
 }
 function makeBounds(minX: number, minY: number, maxX: number, maxY: number): AlignmentBounds {
     return {
@@ -4414,8 +4808,12 @@ export function resetDistanceFieldTerritoryCache(): void {
     cachedVectorPolylines = [];
     cachedVectorPublishedSnapshotId = '';
     cachedPublishedOwnerGridSnapshot = null;
-    cachedCanonicalLastValidPolylines = [];
-    cachedCanonicalLastValidSnapshotId = '';
+    cachedLegacyCurrentPublished = null;
+    cachedCanonicalBuildJob = null;
+    cachedCanonicalCurrentPublished = null;
+    cachedCanonicalLastValidPublished = null;
+    latestBorderPublishDiagnostics = null;
+    latestBorderPerfSample = null;
     laneArray = [];
     laneCells = new Map();
     latestAlignmentDiagnostics = null;
@@ -4431,7 +4829,8 @@ export function resetDistanceFieldTerritoryCache(): void {
     cachedPackedVirtualCount = 0;
     warnedMissingRendererForTwoPass = false;
     lastCanonicalValidationWarnFp = '';
-    lastMeshVisibilityWarnFp = '';
+    lastBorderPublishDiagnosticFp = '';
+    lastBorderPerfWarnFp = '';
     warnedCurvedBorderFamilyFallback = false;
     warnedSegmentedBorderFamilyFallback = false;
 }
