@@ -245,6 +245,8 @@ interface BorderPublishDiagnostics {
     buildProgress: string;
     polylineCount: number;
     validationReasons: string[];
+    buildBudgetMs?: number;
+    hasPublishedSource?: boolean;
 }
 
 interface BorderPerfSample {
@@ -2548,6 +2550,7 @@ function produceCanonicalBorderSource(ctx: BorderFamilyRenderContext): Published
             buildProgress: getBuildProgress(cachedCanonicalBuildJob),
             polylineCount: cachedCanonicalCurrentPublished?.polylines.length ?? 0,
             validationReasons: [],
+            hasPublishedSource,
         });
         cachedCanonicalBuildJob = null;
     }
@@ -2634,6 +2637,8 @@ function produceCanonicalBorderSource(ctx: BorderFamilyRenderContext): Published
             buildProgress: getBuildProgress(cachedCanonicalBuildJob),
             polylineCount: cachedCanonicalCurrentPublished?.polylines.length ?? 0,
             validationReasons: [],
+            buildBudgetMs,
+            hasPublishedSource,
         });
         return currentPublished ?? cachedCanonicalLastValidPublished;
     }
@@ -2763,6 +2768,7 @@ function renderMeshBorderOverlay(ctx: BorderFamilyRenderContext, alignmentContra
             buildProgress: getBuildProgress(cachedCanonicalBuildJob),
             polylineCount: cachedCanonicalCurrentPublished?.polylines.length ?? 0,
             validationReasons: cachedCanonicalCurrentPublished?.validationReasons ?? [],
+            hasPublishedSource: Boolean(canonicalCurrentPublished || canonicalLastValidPublished),
         });
     }
 
@@ -2785,6 +2791,7 @@ function renderMeshBorderOverlay(ctx: BorderFamilyRenderContext, alignmentContra
             buildProgress: getBuildProgress(cachedVectorBuildJob),
             polylineCount: cachedLegacyCurrentPublished?.polylines.length ?? 0,
             validationReasons: cachedLegacyCurrentPublished?.validationReasons ?? [],
+            hasPublishedSource: Boolean(legacyCurrentPublished),
         });
         hideStrokeMeshOverlay();
         return false;
