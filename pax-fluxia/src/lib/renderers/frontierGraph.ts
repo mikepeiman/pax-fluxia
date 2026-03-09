@@ -827,6 +827,8 @@ function smoothCanonicalFrontierPolylines(
 
 export interface OwnerGridInfo {
     ownerGrid: Int16Array;
+    enemyGrid?: Int16Array;
+    gapNorm?: Float32Array;
     gridW: number;
     gridH: number;
     originX: number;
@@ -852,7 +854,7 @@ interface GridFrontierNode {
 }
 
 function makeGridFrontierNodeId(pairId: string, x: number, y: number): string {
-    return `field-node:${pairId}:${x}:${y}`;
+    return `field-node:${pairId}:${x.toFixed(4)}:${y.toFixed(4)}`;
 }
 
 function parsePairOwners(pairId: string): { ownerA: number; ownerB: number } | null {
@@ -956,14 +958,16 @@ function buildFieldFrontierPointsFromSegments(
         const adjacencySets = new Map<string, Set<string>>();
 
         const ensureNode = (x: number, y: number): GridFrontierNode => {
-            const coordKey = `${x},${y}`;
+            const qx = Math.round(x * 1024) / 1024;
+            const qy = Math.round(y * 1024) / 1024;
+            const coordKey = `${qx.toFixed(4)},${qy.toFixed(4)}`;
             const existing = nodesByCoord.get(coordKey);
             if (existing) return existing;
 
             const node: GridFrontierNode = {
-                id: makeGridFrontierNodeId(pairId, x, y),
-                x,
-                y,
+                id: makeGridFrontierNodeId(pairId, qx, qy),
+                x: qx,
+                y: qy,
             };
             nodesByCoord.set(coordKey, node);
             nodesById.set(node.id, node);
@@ -1066,45 +1070,212 @@ export function extractFieldFrontiersFromOwnerGrid(info: OwnerGridInfo): FieldFr
         return ownerGrid[gy * gridW + gx];
     };
 
-    const segments: GridFrontierSegment[] = [];
+    const enemyGrid = info.enemyGrid;
+    const gapNorm = info.gapNorm;
+    const hasRefinedField = Boolean(
+        enemyGrid
+        && enemyGrid.length >= ownerGrid.length
+        && gapNorm
+        && gapNorm.length >= ownerGrid.length,
+    );
 
-    for (let gy = 0; gy < gridH; gy++) {
-        for (let gx = 0; gx < gridW; gx++) {
-            const owner = getOwner(gx, gy);
-            if (owner < 0) continue;
-
-            const rightOwner = getOwner(gx + 1, gy);
-            if (rightOwner >= 0 && rightOwner !== owner) {
-                const ownerA = Math.min(owner, rightOwner);
-                const ownerB = Math.max(owner, rightOwner);
-                segments.push({
-                    pairId: makePairId(ownerA, ownerB),
-                    ownerA,
-                    ownerB,
-                    x1: gx + 1,
-                    y1: gy,
-                    x2: gx + 1,
-                    y2: gy + 1,
-                });
-            }
-
-            const downOwner = getOwner(gx, gy + 1);
-            if (downOwner >= 0 && downOwner !== owner) {
-                const ownerA = Math.min(owner, downOwner);
-                const ownerB = Math.max(owner, downOwner);
-                segments.push({
-                    pairId: makePairId(ownerA, ownerB),
-                    ownerA,
-                    ownerB,
-                    x1: gx,
-                    y1: gy + 1,
-                    x2: gx + 1,
-                    y2: gy + 1,
-                });
-            }
-        }
+    interface OwnershipSample {
+        owner: number;
+        enemy: number;
+        gap: number;
+        x: number;
+        y: number;
     }
 
+    const clamp01 = (v: number): number => Math.max(0, Math.min(1, v));
+    const epsilonGap = 1 / 255;
+
+    const interpolateCrossing = (
+        sampleA: OwnershipSample,
+        sampleB: OwnershipSample,
+        ownerA: number,
+        ownerB: number,
+    ): { x: number; y: number } => {
+        const signedGap = (sample: OwnershipSample): number => {
+            if (sample.owner === ownerA) return Math.max(sample.gap, epsilonGap);
+            if (sample.owner === ownerB) return -Math.max(sample.gap, epsilonGap);
+            return Number.NaN;
+        };
+
+        let t = 0.5;
+        const sa = signedGap(sampleA);
+        const sb = signedGap(sampleB);
+        if (Number.isFinite(sa) && Number.isFinite(sb) && sa * sb < 0 && Math.abs(sa - sb) > EPS) {
+            t = clamp01(sa / (sa - sb));
+        } else {
+            const ga = Math.max(sampleA.gap, epsilonGap);
+            const gb = Math.max(sampleB.gap, epsilonGap);
+            t = clamp01(ga / (ga + gb));
+        }
+
+        return {
+            x: sampleA.x + (sampleB.x - sampleA.x) * t,
+            y: sampleA.y + (sampleB.y - sampleA.y) * t,
+        };
+    };
+
+    const extractLegacySegments = (): GridFrontierSegment[] => {
+        const segments: GridFrontierSegment[] = [];
+
+        for (let gy = 0; gy < gridH; gy++) {
+            for (let gx = 0; gx < gridW; gx++) {
+                const owner = getOwner(gx, gy);
+                if (owner < 0) continue;
+
+                const rightOwner = getOwner(gx + 1, gy);
+                if (rightOwner >= 0 && rightOwner !== owner) {
+                    const ownerA = Math.min(owner, rightOwner);
+                    const ownerB = Math.max(owner, rightOwner);
+                    segments.push({
+                        pairId: makePairId(ownerA, ownerB),
+                        ownerA,
+                        ownerB,
+                        x1: gx + 1,
+                        y1: gy,
+                        x2: gx + 1,
+                        y2: gy + 1,
+                    });
+                }
+
+                const downOwner = getOwner(gx, gy + 1);
+                if (downOwner >= 0 && downOwner !== owner) {
+                    const ownerA = Math.min(owner, downOwner);
+                    const ownerB = Math.max(owner, downOwner);
+                    segments.push({
+                        pairId: makePairId(ownerA, ownerB),
+                        ownerA,
+                        ownerB,
+                        x1: gx,
+                        y1: gy + 1,
+                        x2: gx + 1,
+                        y2: gy + 1,
+                    });
+                }
+            }
+        }
+
+        return segments;
+    };
+
+    const extractRefinedSegments = (): GridFrontierSegment[] => {
+        if (!enemyGrid || !gapNorm) return extractLegacySegments();
+        const segments: GridFrontierSegment[] = [];
+        const idx = (gx: number, gy: number): number => gy * gridW + gx;
+        const sampleAt = (gx: number, gy: number): OwnershipSample => {
+            const i = idx(gx, gy);
+            return {
+                owner: ownerGrid[i] ?? -1,
+                enemy: enemyGrid[i] ?? -1,
+                gap: clamp01(gapNorm[i] ?? 0),
+                x: gx + 0.5,
+                y: gy + 0.5,
+            };
+        };
+
+        const segmentLengthSq = (a: { x: number; y: number }, b: { x: number; y: number }): number => {
+            const dx = a.x - b.x;
+            const dy = a.y - b.y;
+            return dx * dx + dy * dy;
+        };
+
+        for (let gy = 0; gy < gridH - 1; gy++) {
+            for (let gx = 0; gx < gridW - 1; gx++) {
+                const tl = sampleAt(gx, gy);
+                const tr = sampleAt(gx + 1, gy);
+                const br = sampleAt(gx + 1, gy + 1);
+                const bl = sampleAt(gx, gy + 1);
+
+                const pairCrossings = new Map<string, { ownerA: number; ownerB: number; points: Array<{ x: number; y: number }> }>();
+                const registerEdgeCrossing = (a: OwnershipSample, b: OwnershipSample): void => {
+                    if (a.owner < 0 || b.owner < 0 || a.owner === b.owner) return;
+
+                    const ownerA = Math.min(a.owner, b.owner);
+                    const ownerB = Math.max(a.owner, b.owner);
+                    const pairMatched = (a.owner === ownerA && b.owner === ownerB) || (a.owner === ownerB && b.owner === ownerA);
+                    if (!pairMatched) return;
+
+                    const rivalryWitnessed = ((a.owner === ownerA && a.enemy === ownerB) || (a.owner === ownerB && a.enemy === ownerA) || (b.owner === ownerA && b.enemy === ownerB) || (b.owner === ownerB && b.enemy === ownerA));
+                    if (!rivalryWitnessed) return;
+
+                    const pairId = makePairId(ownerA, ownerB);
+                    const crossing = interpolateCrossing(a, b, ownerA, ownerB);
+                    const existing = pairCrossings.get(pairId) ?? { ownerA, ownerB, points: [] };
+                    existing.points.push(crossing);
+                    pairCrossings.set(pairId, existing);
+                };
+
+                registerEdgeCrossing(tl, tr);
+                registerEdgeCrossing(tr, br);
+                registerEdgeCrossing(bl, br);
+                registerEdgeCrossing(tl, bl);
+
+                for (const [pairId, data] of pairCrossings.entries()) {
+                    const points = data.points;
+                    if (points.length < 2) continue;
+
+                    if (points.length === 2) {
+                        segments.push({
+                            pairId,
+                            ownerA: data.ownerA,
+                            ownerB: data.ownerB,
+                            x1: points[0].x,
+                            y1: points[0].y,
+                            x2: points[1].x,
+                            y2: points[1].y,
+                        });
+                        continue;
+                    }
+
+                    if (points.length === 4) {
+                        const pairings: Array<[number, number, number, number]> = [
+                            [0, 1, 2, 3],
+                            [0, 2, 1, 3],
+                            [0, 3, 1, 2],
+                        ];
+                        let best: [number, number, number, number] | null = null;
+                        let bestCost = Infinity;
+                        for (const pairing of pairings) {
+                            const cost = segmentLengthSq(points[pairing[0]], points[pairing[1]])
+                                + segmentLengthSq(points[pairing[2]], points[pairing[3]]);
+                            if (cost < bestCost) {
+                                bestCost = cost;
+                                best = pairing;
+                            }
+                        }
+                        if (!best) continue;
+
+                        segments.push({
+                            pairId,
+                            ownerA: data.ownerA,
+                            ownerB: data.ownerB,
+                            x1: points[best[0]].x,
+                            y1: points[best[0]].y,
+                            x2: points[best[1]].x,
+                            y2: points[best[1]].y,
+                        });
+                        segments.push({
+                            pairId,
+                            ownerA: data.ownerA,
+                            ownerB: data.ownerB,
+                            x1: points[best[2]].x,
+                            y1: points[best[2]].y,
+                            x2: points[best[3]].x,
+                            y2: points[best[3]].y,
+                        });
+                    }
+                }
+            }
+        }
+
+        return segments;
+    };
+
+    const segments = hasRefinedField ? extractRefinedSegments() : extractLegacySegments();
     return buildFieldFrontierPointsFromSegments(segments, info);
 }
 
@@ -1133,7 +1304,8 @@ function validateCanonicalFrontierPolylines(
     ownerGridInfo?: OwnerGridInfo,
     smoothingFallbackCount = 0,
 ): CanonicalFrontierValidation {
-    const reasons: string[] = [];
+    const hardReasons: string[] = [];
+    const warningReasons: string[] = [];
 
     const pairStats = new Map<string, { polylines: number; points: number }>();
     let maxPointsPerPolyline = 0;
@@ -1157,14 +1329,14 @@ function validateCanonicalFrontierPolylines(
     for (const polyline of polylines) {
         const pointCount = Math.floor(polyline.points.length / 2);
         if (!Number.isFinite(polyline.ownerA) || !Number.isFinite(polyline.ownerB)) {
-            reasons.push('polyline owner ids must be finite numbers');
+            hardReasons.push('polyline owner ids must be finite numbers');
             continue;
         }
         if (polyline.ownerA > polyline.ownerB) {
-            reasons.push('polyline owner ordering must be canonical (ownerA <= ownerB)');
+            hardReasons.push('polyline owner ordering must be canonical (ownerA <= ownerB)');
         }
         if (polyline.points.length < 4 || polyline.points.length % 2 !== 0) {
-            reasons.push('polyline must contain at least two world-space points');
+            hardReasons.push('polyline must contain at least two world-space points');
             continue;
         }
 
@@ -1180,18 +1352,18 @@ function validateCanonicalFrontierPolylines(
             const x = polyline.points[i];
             const y = polyline.points[i + 1];
             if (!Number.isFinite(x) || !Number.isFinite(y)) {
-                reasons.push('polyline points must be finite numbers');
+                hardReasons.push('polyline points must be finite numbers');
                 break;
             }
             if (x < minX || x > maxX || y < minY || y > maxY) {
-                reasons.push('polyline points escaped expected ownership-grid world bounds');
+                hardReasons.push('polyline points escaped expected ownership-grid world bounds');
                 break;
             }
         }
     }
 
     if (polylines.length === 0) {
-        reasons.push('canonical frontier build produced no polylines');
+        hardReasons.push('canonical frontier build produced no polylines');
     }
 
     const maxPolylinesPerPair = [...pairStats.values()].reduce((m, s) => Math.max(m, s.polylines), 0);
@@ -1202,16 +1374,16 @@ function validateCanonicalFrontierPolylines(
         : 4096;
 
     if (maxPointsPerPolyline > chainThreshold) {
-        reasons.push('detected oversized frontier chain; possible pair-global stitching regression');
+        warningReasons.push('detected oversized frontier chain; possible pair-global stitching regression');
     }
 
     if (maxPointsPerPair > chainThreshold * 4) {
-        reasons.push('detected oversized owner-pair frontier budget; possible contour merge regression');
+        warningReasons.push('detected oversized owner-pair frontier budget; possible contour merge regression');
     }
 
     return {
-        valid: reasons.length === 0,
-        reasons: [...new Set(reasons)],
+        valid: hardReasons.length === 0,
+        reasons: [...new Set([...hardReasons, ...warningReasons])],
         polylineCount: polylines.length,
         pairCount: pairStats.size,
         maxPointsPerPolyline,
