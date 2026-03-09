@@ -651,12 +651,100 @@ function linearizeOpenPolyline(points: number[], maxError: number): number[] {
     return deduped.length >= 4 ? deduped : points;
 }
 
+interface CanonicalPolylineSmoothingResult {
+    polylines: FrontierPolyline[];
+    smoothingFallbackCount: number;
+}
+
+function countPolylineVertices(points: number[]): number {
+    return Math.floor(points.length / 2);
+}
+
+function computePolylineArcLength(points: number[]): number {
+    let length = 0;
+    for (let i = 2; i < points.length; i += 2) {
+        length += Math.hypot(points[i] - points[i - 2], points[i + 1] - points[i - 1]);
+    }
+    return length;
+}
+
+function computePolylineBoundsArea(points: number[]): number {
+    if (points.length < 4) return 0;
+
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (let i = 0; i < points.length; i += 2) {
+        const x = points[i];
+        const y = points[i + 1];
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+    }
+
+    return Math.max(0, maxX - minX) * Math.max(0, maxY - minY);
+}
+
+function pointToSegmentDistance(px: number, py: number, ax: number, ay: number, bx: number, by: number): number {
+    const abx = bx - ax;
+    const aby = by - ay;
+    const lengthSq = abx * abx + aby * aby;
+    if (lengthSq <= EPS) return Math.hypot(px - ax, py - ay);
+
+    const t = Math.max(0, Math.min(1, ((px - ax) * abx + (py - ay) * aby) / lengthSq));
+    const projX = ax + abx * t;
+    const projY = ay + aby * t;
+    return Math.hypot(px - projX, py - projY);
+}
+
+function maxPointSetToPolylineDistance(samplePoints: number[], polylinePoints: number[]): number {
+    if (samplePoints.length < 2 || polylinePoints.length < 4) return 0;
+
+    let maxDistance = 0;
+    for (let i = 0; i < samplePoints.length; i += 2) {
+        const px = samplePoints[i];
+        const py = samplePoints[i + 1];
+        let minDistance = Infinity;
+        for (let j = 2; j < polylinePoints.length; j += 2) {
+            const distance = pointToSegmentDistance(
+                px,
+                py,
+                polylinePoints[j - 2],
+                polylinePoints[j - 1],
+                polylinePoints[j],
+                polylinePoints[j + 1],
+            );
+            if (distance < minDistance) minDistance = distance;
+        }
+        if (minDistance > maxDistance) maxDistance = minDistance;
+    }
+
+    return maxDistance;
+}
+
+function exceedsPolylineDriftTolerance(rawPoints: number[], smoothedPoints: number[], tolerance: number): boolean {
+    if (tolerance <= EPS || rawPoints.length < 4 || smoothedPoints.length < 4) return false;
+
+    const rawToSmoothed = maxPointSetToPolylineDistance(rawPoints, smoothedPoints);
+    if (rawToSmoothed > tolerance) return true;
+
+    const smoothedToRaw = maxPointSetToPolylineDistance(smoothedPoints, rawPoints);
+    return smoothedToRaw > tolerance;
+}
+
 function smoothCanonicalFrontierPolylines(
     polylines: FrontierPolyline[],
     ownerGridInfo?: OwnerGridInfo,
     options: CanonicalPolylineSmoothingOptions = DEFAULT_CANONICAL_SMOOTHING_OPTIONS,
-): FrontierPolyline[] {
-    if (polylines.length === 0) return polylines;
+): CanonicalPolylineSmoothingResult {
+    if (polylines.length === 0) {
+        return {
+            polylines,
+            smoothingFallbackCount: 0,
+        };
+    }
 
     const requestedTolerance = Math.max(0, options.simplifyTolerance);
     const passes = Math.max(1, options.straightnessPasses + 1);
@@ -670,27 +758,55 @@ function smoothCanonicalFrontierPolylines(
     }
 
     const baseTolerance = Math.min(requestedTolerance, maxAlignmentTolerance);
+    let smoothingFallbackCount = 0;
 
-    return polylines.map((polyline) => {
+    const smoothedPolylines = polylines.map((polyline) => {
         if (polyline.points.length < 4) return polyline;
 
         const isClosed = polyline.points.length >= 4
             && Math.abs(polyline.points[0] - polyline.points[polyline.points.length - 2]) <= EPS
             && Math.abs(polyline.points[1] - polyline.points[polyline.points.length - 1]) <= EPS;
 
-        const openPoints = isClosed
+        const rawOpenPoints = isClosed
             ? polyline.points.slice(0, polyline.points.length - 2)
             : [...polyline.points];
 
-        let smoothed = simplifyOpenPolyline(openPoints, baseTolerance);
+        const rawVertexCount = countPolylineVertices(rawOpenPoints);
+        const rawArcLength = computePolylineArcLength(rawOpenPoints);
+        const rawBoundsArea = isClosed ? computePolylineBoundsArea(rawOpenPoints) : 0;
+
+        let smoothed = simplifyOpenPolyline(rawOpenPoints, baseTolerance);
         for (let pass = 0; pass < passes; pass++) {
             const passTolerance = Math.min(baseTolerance * (1 + pass * 0.35), maxAlignmentTolerance);
             smoothed = linearizeOpenPolyline(smoothed, passTolerance);
         }
 
-        const points = isClosed && smoothed.length >= 4
-            ? [...smoothed, smoothed[0], smoothed[1]]
-            : smoothed;
+        const smoothedVertexCount = countPolylineVertices(smoothed);
+        const smoothedArcLength = computePolylineArcLength(smoothed);
+        const smoothedBoundsArea = isClosed ? computePolylineBoundsArea(smoothed) : 0;
+        const collapseByVertexRatio = rawVertexCount >= 12
+            && rawVertexCount > 0
+            && (smoothedVertexCount / rawVertexCount) < 0.20;
+        const collapseByArcLength = rawArcLength > EPS
+            && (smoothedArcLength / rawArcLength) < 0.60;
+        const collapseByArea = isClosed
+            && rawBoundsArea > EPS
+            && (smoothedBoundsArea / rawBoundsArea) < 0.50;
+        const collapseByDrift = exceedsPolylineDriftTolerance(rawOpenPoints, smoothed, maxAlignmentTolerance);
+        const needsRawFallback = smoothed.length < 4
+            || collapseByVertexRatio
+            || collapseByArcLength
+            || collapseByArea
+            || collapseByDrift;
+
+        const outputOpenPoints = needsRawFallback ? rawOpenPoints : smoothed;
+        if (needsRawFallback) {
+            smoothingFallbackCount++;
+        }
+
+        const points = isClosed && outputOpenPoints.length >= 4
+            ? [...outputOpenPoints, outputOpenPoints[0], outputOpenPoints[1]]
+            : outputOpenPoints;
 
         return {
             ownerA: polyline.ownerA,
@@ -698,6 +814,11 @@ function smoothCanonicalFrontierPolylines(
             points,
         };
     }).filter((polyline) => polyline.points.length >= 4);
+
+    return {
+        polylines: smoothedPolylines,
+        smoothingFallbackCount,
+    };
 }
 
 // ============================================================================
@@ -999,6 +1120,7 @@ export interface CanonicalFrontierValidation {
     maxPointsPerPolyline: number;
     maxPolylinesPerPair: number;
     maxPointsPerPair: number;
+    smoothingFallbackCount: number;
 }
 
 export interface CanonicalFrontierBuildResult {
@@ -1009,6 +1131,7 @@ export interface CanonicalFrontierBuildResult {
 function validateCanonicalFrontierPolylines(
     polylines: FrontierPolyline[],
     ownerGridInfo?: OwnerGridInfo,
+    smoothingFallbackCount = 0,
 ): CanonicalFrontierValidation {
     const reasons: string[] = [];
 
@@ -1094,6 +1217,7 @@ function validateCanonicalFrontierPolylines(
         maxPointsPerPolyline,
         maxPolylinesPerPair,
         maxPointsPerPair,
+        smoothingFallbackCount,
     };
 }
 
@@ -1117,11 +1241,15 @@ export function buildCanonicalFrontierPolylineSet(
     });
 
     const rawPolylines = extractPolylinesFromFrontierGraph(frontier);
-    const polylines = smoothCanonicalFrontierPolylines(rawPolylines, ownerGridInfo);
-    const validation = validateCanonicalFrontierPolylines(polylines, ownerGridInfo);
+    const smoothingResult = smoothCanonicalFrontierPolylines(rawPolylines, ownerGridInfo);
+    const validation = validateCanonicalFrontierPolylines(
+        smoothingResult.polylines,
+        ownerGridInfo,
+        smoothingResult.smoothingFallbackCount,
+    );
 
     return {
-        polylines,
+        polylines: smoothingResult.polylines,
         validation,
     };
 }
