@@ -75,8 +75,9 @@ let isBorderTransitioning = false;
 /** A continuous polyline of chained shared border edges between two owners. */
 interface SharedPolyline {
     points: [number, number][];  // ordered points of the chained polyline
-    ownerPairKey: string;        // sorted owner pair key for matching
+    ownerPairKey: string;        // sorted owner pair key for rendering
     color: number;               // blended color for rendering
+    adjacentSiteIds: Set<string>; // stars this frontier section borders (for matching)
 }
 
 let prevSharedPolylines: SharedPolyline[] | null = null;
@@ -413,7 +414,9 @@ function chainSharedEdgesIntoPolylines(edges: SharedBorderEdge[], colorLookup?: 
 
             // Simple: just trace edges greedily
             const chain: [number, number][] = [];
+            const chainEdgeIndices: number[] = [];  // track which edges this chain consumed
             used[startIdx] = true;
+            chainEdgeIndices.push(startIdx);
             const e = pairEdges[startIdx];
             chain.push([e.x1, e.y1]);
             chain.push([e.x2, e.y2]);
@@ -430,12 +433,14 @@ function chainSharedEdgesIntoPolylines(edges: SharedBorderEdge[], colorLookup?: 
                     if (ptKey(ei.x1, ei.y1) === lk) {
                         chain.push([ei.x2, ei.y2]);
                         used[i] = true;
+                        chainEdgeIndices.push(i);
                         extended = true;
                         break;
                     }
                     if (ptKey(ei.x2, ei.y2) === lk) {
                         chain.push([ei.x1, ei.y1]);
                         used[i] = true;
+                        chainEdgeIndices.push(i);
                         extended = true;
                         break;
                     }
@@ -454,12 +459,14 @@ function chainSharedEdgesIntoPolylines(edges: SharedBorderEdge[], colorLookup?: 
                     if (ptKey(ei.x2, ei.y2) === fk) {
                         chain.unshift([ei.x1, ei.y1]);
                         used[i] = true;
+                        chainEdgeIndices.push(i);
                         extended = true;
                         break;
                     }
                     if (ptKey(ei.x1, ei.y1) === fk) {
                         chain.unshift([ei.x2, ei.y2]);
                         used[i] = true;
+                        chainEdgeIndices.push(i);
                         extended = true;
                         break;
                     }
@@ -469,9 +476,16 @@ function chainSharedEdgesIntoPolylines(edges: SharedBorderEdge[], colorLookup?: 
             const [ownerA, ownerB] = pairKey.split('|');
             const color = colorLookup ? colorLookup(ownerA, ownerB) : 0x888888;
 
+            // Collect which stars this chain borders (only from edges in THIS chain)
+            const adjacentSiteIds = new Set<string>();
+            for (const idx of chainEdgeIndices) {
+                adjacentSiteIds.add(pairEdges[idx].siteIdA);
+                adjacentSiteIds.add(pairEdges[idx].siteIdB);
+            }
+
             // Apply Chaikin smoothing to convert straight Voronoi edges into smooth arcs
             const smoothed = smoothPasses > 0 ? chaikinSmoothPolyline(chain, smoothPasses) : chain;
-            result.push({ points: smoothed, ownerPairKey: pairKey, color });
+            result.push({ points: smoothed, ownerPairKey: pairKey, color, adjacentSiteIds });
         }
     }
 
@@ -527,77 +541,79 @@ function drawBorderPolylines(
     log.renderer('drawBorderPolylines', `drew ${drawn}/${polylines.length} polylines (smooth=${smoothPasses}, w=${width.toFixed(1)}, a=${alpha.toFixed(2)}, bezier=true)`);
 }
 
-/** Build lerped polylines from prev → target for transition animation.
- *  Matches polylines by ownerPairKey + nearest centroid, resamples + lerps.
- *  Returns an array suitable for drawBorderPolylines. */
-function buildLerpedPolylines(
+/** Morph frontier from F1 (prev) to F2 (target) positions.
+ *  Matches frontier sections by STAR ADJACENCY overlap — deterministic and
+ *  handles conquest-changed frontiers (e.g., Red-Yellow → Red-Green near
+ *  conquered star) because the adjacent star IDs overlap.
+ *  Unmatched sections grow/shrink geometrically to/from centroid.
+ *  Returns interpolated frontier sections for rendering. */
+function morphFrontierToTarget(
     prev: SharedPolyline[], target: SharedPolyline[],
     t: number,
+    controlPointCount: number = 32,
 ): { points: [number, number][]; color: number }[] {
-    const RESAMPLE_N = 32;
     const result: { points: [number, number][]; color: number }[] = [];
+    const usedTargets = new Set<number>();
 
-    // Group by ownerPairKey for matching
-    const prevByKey = new Map<string, SharedPolyline[]>();
-    for (const p of prev) {
-        if (!prevByKey.has(p.ownerPairKey)) prevByKey.set(p.ownerPairKey, []);
-        prevByKey.get(p.ownerPairKey)!.push(p);
-    }
-    const targetByKey = new Map<string, SharedPolyline[]>();
-    for (const p of target) {
-        if (!targetByKey.has(p.ownerPairKey)) targetByKey.set(p.ownerPairKey, []);
-        targetByKey.get(p.ownerPairKey)!.push(p);
-    }
+    // Match by star adjacency overlap — how many stars are shared between
+    // a prev polyline and a target polyline? The pair with most overlap
+    // represents the same geographic frontier section.
+    for (const pLine of prev) {
+        let bestOverlap = 0;
+        let bestIdx = -1;
 
-    const allKeys = new Set([...prevByKey.keys(), ...targetByKey.keys()]);
-
-    for (const key of allKeys) {
-        const pLines = prevByKey.get(key) ?? [];
-        const tLines = targetByKey.get(key) ?? [];
-        const usedTargets = new Set<number>();
-
-        for (const pLine of pLines) {
-            const pC = polygonCentroid(pLine.points);
-            let bestDist = Infinity;
-            let bestIdx = -1;
-            for (let ti = 0; ti < tLines.length; ti++) {
-                if (usedTargets.has(ti)) continue;
-                const tC = polygonCentroid(tLines[ti].points);
-                const d = Math.hypot(pC[0] - tC[0], pC[1] - tC[1]);
-                if (d < bestDist) { bestDist = d; bestIdx = ti; }
-            }
-
-            if (bestIdx >= 0) {
-                usedTargets.add(bestIdx);
-                const tLine = tLines[bestIdx];
-                const pSampled = resamplePolyline(pLine.points, RESAMPLE_N);
-                let tSampled = resamplePolyline(tLine.points, RESAMPLE_N);
-
-                // Fix flipping: ensure polylines are oriented the same direction.
-                // If start-of-prev is closer to end-of-target than start-of-target,
-                // reverse the target to match orientation.
-                const p0 = pSampled[0];
-                const t0 = tSampled[0];
-                const tN = tSampled[tSampled.length - 1];
-                const distSameDir = Math.hypot(p0[0] - t0[0], p0[1] - t0[1]);
-                const distReversed = Math.hypot(p0[0] - tN[0], p0[1] - tN[1]);
-                if (distReversed < distSameDir) {
-                    tSampled = tSampled.slice().reverse() as [number, number][];
-                }
-
-                result.push({ points: lerpPolygon(pSampled, tSampled, t), color: tLine.color });
-            } else {
-                // Prev-only: use prev points (will fade out via alpha in caller)
-                result.push({ points: pLine.points, color: pLine.color });
-            }
-        }
-
-        // Target-only polylines: use target points (fade in via alpha in caller)
-        for (let ti = 0; ti < tLines.length; ti++) {
+        for (let ti = 0; ti < target.length; ti++) {
             if (usedTargets.has(ti)) continue;
-            result.push({ points: tLines[ti].points, color: tLines[ti].color });
+            // Count shared star IDs
+            let overlap = 0;
+            for (const sid of pLine.adjacentSiteIds) {
+                if (target[ti].adjacentSiteIds.has(sid)) overlap++;
+            }
+            if (overlap > bestOverlap) {
+                bestOverlap = overlap;
+                bestIdx = ti;
+            }
+        }
+
+        if (bestIdx >= 0 && bestOverlap > 0) {
+            // Matched: resample to N control points and interpolate
+            usedTargets.add(bestIdx);
+            const tLine = target[bestIdx];
+            const pSampled = resamplePolyline(pLine.points, controlPointCount);
+            let tSampled = resamplePolyline(tLine.points, controlPointCount);
+
+            // Fix flipping: ensure polylines are oriented the same direction
+            const p0 = pSampled[0];
+            const t0 = tSampled[0];
+            const tN = tSampled[tSampled.length - 1];
+            const distSameDir = Math.hypot(p0[0] - t0[0], p0[1] - t0[1]);
+            const distReversed = Math.hypot(p0[0] - tN[0], p0[1] - tN[1]);
+            if (distReversed < distSameDir) {
+                tSampled = tSampled.slice().reverse() as [number, number][];
+            }
+
+            // Interpolate positions + blend color
+            const lerpedColor = blendColors(pLine.color, tLine.color, t);
+            result.push({ points: lerpPolygon(pSampled, tSampled, t), color: lerpedColor });
+        } else {
+            // Unmatched prev (disappearing): geometric collapse toward centroid
+            const pC = polygonCentroid(pLine.points);
+            const pSampled = resamplePolyline(pLine.points, controlPointCount);
+            const centroidPts: [number, number][] = pSampled.map(() => [pC[0], pC[1]] as [number, number]);
+            result.push({ points: lerpPolygon(pSampled, centroidPts, t), color: pLine.color });
         }
     }
+
+    // Unmatched targets (appearing): geometric grow from centroid
+    for (let ti = 0; ti < target.length; ti++) {
+        if (usedTargets.has(ti)) continue;
+        const tLine = target[ti];
+        const tC = polygonCentroid(tLine.points);
+        const tSampled = resamplePolyline(tLine.points, controlPointCount);
+        const centroidPts: [number, number][] = tSampled.map(() => [tC[0], tC[1]] as [number, number]);
+        result.push({ points: lerpPolygon(centroidPts, tSampled, t), color: tLine.color });
+    }
+
     return result;
 }
 
@@ -914,7 +930,7 @@ export function renderPowerVoronoi(
             const borderWidth = GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 1.5;
             const borderAlpha = GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.4;
             const t0 = performance.now();
-            const lerped = buildLerpedPolylines(prevSharedPolylines, targetSharedPolylines, eased);
+            const lerped = morphFrontierToTarget(prevSharedPolylines, targetSharedPolylines, eased);
             const t1 = performance.now();
             drawBorderPolylines(borderGraphics, lerped, smoothPasses, borderWidth, borderAlpha);
             const t2 = performance.now();
