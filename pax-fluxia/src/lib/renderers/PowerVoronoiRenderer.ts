@@ -85,6 +85,12 @@ let smoothTransitionStart = 0;
 let isSmoothTransitioning = false;
 let lastMergedTerritories: MergedTerritory[] | null = null;  // stored for smooth mode snapshot
 
+// ── Frontier Loop State (arc-length morphing) ──────────────────────────────
+let prevFrontierLoops: Map<string, FrontierLoop[]> | null = null;
+let targetFrontierLoops: Map<string, FrontierLoop[]> | null = null;
+let frontierTransitionStart = 0;
+let isFrontierTransitioning = false;
+
 // ── Cell Change Tracking (frontier-first rendering) ────────────────────
 let lastCells: TerritoryCell[] | null = null;  // cells from previous rebuild
 let changedSiteIds: Set<string> | null = null; // stars that changed owner in this conquest
@@ -472,6 +478,154 @@ function chainSharedEdgesIntoPolylines(edges: SharedBorderEdge[], colorLookup?: 
             // Apply Chaikin smoothing to convert straight Voronoi edges into smooth arcs
             const smoothed = smoothPasses > 0 ? chaikinSmoothPolyline(chain, smoothPasses) : chain;
             result.push({ points: smoothed, ownerPairKey: pairKey, color });
+        }
+    }
+
+    return result;
+}
+
+// ── Frontier Loop Assembly ─────────────────────────────────────────────────
+
+/** A continuous closed frontier loop for one player's territory boundary. */
+interface FrontierLoop {
+    points: [number, number][];  // closed loop — first point ≈ last point
+    ownerId: string;
+}
+
+/**
+ * Assemble per-pair polylines into per-player closed frontier loops.
+ *
+ * Each SharedPolyline represents a boundary between two owners. A player's
+ * complete frontier is formed by chaining all polylines involving that player
+ * end-to-end at junction points (where 3+ territories meet).
+ *
+ * Returns a Map from ownerId → array of closed loops (multiple loops if
+ * the player has disconnected territory regions).
+ */
+function assembleFrontierLoops(
+    polylines: SharedPolyline[],
+): Map<string, FrontierLoop[]> {
+    const SNAP = 4;  // junction snapping tolerance (px)
+    const ptKey = (x: number, y: number) =>
+        `${Math.round(x / SNAP) * SNAP},${Math.round(y / SNAP) * SNAP}`;
+
+    // Group polylines by each owner they touch
+    const byOwner = new Map<string, { points: [number, number][]; startKey: string; endKey: string }[]>();
+
+    for (const poly of polylines) {
+        const [ownerA, ownerB] = poly.ownerPairKey.split('|');
+        const pts = poly.points;
+        if (pts.length < 2) continue;
+
+        const startKey = ptKey(pts[0][0], pts[0][1]);
+        const endKey = ptKey(pts[pts.length - 1][0], pts[pts.length - 1][1]);
+        const segment = { points: pts, startKey, endKey };
+
+        for (const owner of [ownerA, ownerB]) {
+            if (!byOwner.has(owner)) byOwner.set(owner, []);
+            byOwner.get(owner)!.push(segment);
+        }
+    }
+
+    const result = new Map<string, FrontierLoop[]>();
+
+    for (const [ownerId, segments] of byOwner) {
+        const loops: FrontierLoop[] = [];
+        const used = new Array(segments.length).fill(false);
+
+        while (true) {
+            // Find first unused segment
+            let startIdx = -1;
+            for (let i = 0; i < segments.length; i++) {
+                if (!used[i]) { startIdx = i; break; }
+            }
+            if (startIdx < 0) break;
+
+            // Start a chain from this segment
+            used[startIdx] = true;
+            const chain: [number, number][] = [...segments[startIdx].points];
+
+            // Extend forward: find next segment whose start matches our end
+            let extended = true;
+            while (extended) {
+                extended = false;
+                const lastPt = chain[chain.length - 1];
+                const lastKey = ptKey(lastPt[0], lastPt[1]);
+
+                for (let i = 0; i < segments.length; i++) {
+                    if (used[i]) continue;
+                    const seg = segments[i];
+
+                    if (seg.startKey === lastKey) {
+                        // Append forward (skip first point — it's the junction we already have)
+                        for (let j = 1; j < seg.points.length; j++) {
+                            chain.push(seg.points[j]);
+                        }
+                        used[i] = true;
+                        extended = true;
+                        break;
+                    }
+                    if (seg.endKey === lastKey) {
+                        // Append reversed (skip last point — it's the junction)
+                        for (let j = seg.points.length - 2; j >= 0; j--) {
+                            chain.push(seg.points[j]);
+                        }
+                        used[i] = true;
+                        extended = true;
+                        break;
+                    }
+                }
+            }
+
+            // Extend backward: find next segment whose end matches our start
+            extended = true;
+            while (extended) {
+                extended = false;
+                const firstPt = chain[0];
+                const firstKey = ptKey(firstPt[0], firstPt[1]);
+
+                for (let i = 0; i < segments.length; i++) {
+                    if (used[i]) continue;
+                    const seg = segments[i];
+
+                    if (seg.endKey === firstKey) {
+                        // Prepend forward (skip last point — it's the junction)
+                        for (let j = seg.points.length - 2; j >= 0; j--) {
+                            chain.unshift(seg.points[j]);
+                        }
+                        used[i] = true;
+                        extended = true;
+                        break;
+                    }
+                    if (seg.startKey === firstKey) {
+                        // Prepend reversed (skip first point — it's the junction)
+                        for (let j = 1; j < seg.points.length; j++) {
+                            chain.unshift(seg.points[j]);
+                        }
+                        used[i] = true;
+                        extended = true;
+                        break;
+                    }
+                }
+            }
+
+            // Close the loop if endpoints are near each other
+            const first = chain[0];
+            const last = chain[chain.length - 1];
+            if (ptKey(first[0], first[1]) === ptKey(last[0], last[1])) {
+                // Already closed — force exact closure
+                chain[chain.length - 1] = [first[0], first[1]];
+            } else {
+                // Not closed — add first point to close
+                chain.push([first[0], first[1]]);
+            }
+
+            loops.push({ points: chain, ownerId });
+        }
+
+        if (loops.length > 0) {
+            result.set(ownerId, loops);
+            log.sys('FrontierLoops', `${ownerId}: ${loops.length} loop(s), total pts=${loops.reduce((s, l) => s + l.points.length, 0)}`);
         }
     }
 
@@ -961,6 +1115,10 @@ export function renderPowerVoronoi(
         if (lastMergedTerritories && lastMergedTerritories.length > 0) {
             prevMergedTerritories = lastMergedTerritories;
         }
+        // Frontier loop snapshot for arc-length morphing
+        if (targetFrontierLoops && targetFrontierLoops.size > 0) {
+            prevFrontierLoops = targetFrontierLoops;
+        }
         // Cell change detection: snapshot previous cells for ownership comparison
         // (changedSiteIds populated after new cells are computed — see Stage 2c below)
     }
@@ -1252,6 +1410,9 @@ export function renderPowerVoronoi(
             const key = a < b ? `${a}|${b}` : `${b}|${a}`;
             return cMap.get(key) ?? 0x888888;
         }, smoothN);
+
+        // Assemble frontier loops from the polylines (Step A)
+        targetFrontierLoops = assembleFrontierLoops(targetSharedPolylines);
     }
 
     // Start transition based on mode
@@ -1267,6 +1428,13 @@ export function renderPowerVoronoi(
             smoothTransitionStart = now;
             isSmoothTransitioning = true;
             log.renderer('PVV2', `TRANSITION STARTED | prev=${prevSharedPolylines.length} target=${targetSharedPolylines?.length ?? 0} | transitionMs=${transitionMs}`);
+        }
+
+        // Frontier loop morph (arc-length mode)
+        if (prevFrontierLoops && prevFrontierLoops.size > 0) {
+            frontierTransitionStart = now;
+            isFrontierTransitioning = true;
+            log.renderer('PVV2', `FRONTIER LOOP MORPH STARTED | prev=${prevFrontierLoops.size} owners, target=${targetFrontierLoops?.size ?? 0} owners`);
         }
 
         // Fill crossfade (mode-independent)
