@@ -620,7 +620,12 @@ function assembleFrontierLoops(
                 chain.push([first[0], first[1]]);
             }
 
-            loops.push({ points: chain, ownerId });
+            // Only accept loops with enough points to form a real polygon
+            if (chain.length >= 4) {
+                loops.push({ points: chain, ownerId });
+            } else {
+                log.sys('FrontierLoops', `Skipping degenerate chain for ${ownerId}: only ${chain.length} points`);
+            }
         }
 
         if (loops.length > 0) {
@@ -1113,7 +1118,8 @@ export function renderPowerVoronoi(
     }
 
     // ── Per-frame fill crossfade (mode-independent) ──────────────────────
-    if (isFillTransitioning && prevMergedTerritories && lastMergedTerritories && fillGraphics && transitionMs > 0) {
+    // Skip when frontier loop morph is active — morph handles its own fills
+    if (!isFrontierTransitioning && isFillTransitioning && prevMergedTerritories && lastMergedTerritories && fillGraphics && transitionMs > 0) {
         const elapsed = now - fillTransitionStart;
         const rawT = Math.min(1, elapsed / transitionMs);
         const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
@@ -1256,7 +1262,7 @@ export function renderPowerVoronoi(
         const allOwners = new Set([...prevFrontierLoops.keys(), ...targetFrontierLoops.keys()]);
 
         if (fillGraphics) fillGraphics.clear();
-        if (borderGraphics) borderGraphics.clear();
+        // Don't clear borderGraphics — let steady-state borders stay for non-morphing owners
 
         for (const ownerId of allOwners) {
             const prevLoops = prevFrontierLoops.get(ownerId) ?? [];
