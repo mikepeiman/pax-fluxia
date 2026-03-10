@@ -204,6 +204,7 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
         'VORONOI_BORDER_WIDTH',
         'VORONOI_BORDER_ALPHA',
         'VORONOI_BORDER_BRIGHTEN',
+        'VORONOI_BORDER_SMOOTH',
         'VORONOI_SATURATION',
         'VORONOI_LIGHTNESS',
         'VORONOI_GLOW_RADIUS',

@@ -14,7 +14,7 @@
 //   2. Build shared edge graph from cells
 //   3. Merge: remove same-owner internal edges
 //   4. Arc smoothing on shared edges (future)
-//   5. Chaikin smoothing on shared edges (future)
+//   5. Chaikin smoothing on shared edges
 //   6. Trace edges → polygon contours → PIXI render
 //
 // Performance: Only recomputed when ownership fingerprint changes.
@@ -99,6 +99,7 @@ function buildShapeFingerprint(stars: StarState[]): string {
     fp += `:${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}`;
     fp += `:${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED}`;
     fp += `:${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE}`;
+    fp += `:${GAME_CONFIG.VORONOI_BORDER_SMOOTH}`;
     return fp;
 }
 
@@ -322,9 +323,42 @@ function lerpPolygon(from: [number, number][], to: [number, number][], t: number
     return result;
 }
 
+/**
+ * Chaikin corner-cutting subdivision for open polylines.
+ * Preserves first and last points; interior corners are smoothed by
+ * replacing each segment midpoint region with 25%/75% cut points.
+ * @param pts Open polyline as array of [x, y] tuples
+ * @param passes Number of smoothing iterations (0 = no change)
+ */
+function chaikinSmoothPolyline(pts: [number, number][], passes: number): [number, number][] {
+    if (passes <= 0 || pts.length < 3) return pts;
+
+    let current = pts;
+    for (let iter = 0; iter < passes; iter++) {
+        const n = current.length;
+        const next: [number, number][] = [current[0]]; // preserve start
+        for (let i = 0; i < n - 1; i++) {
+            const [ax, ay] = current[i];
+            const [bx, by] = current[i + 1];
+            // For first/last segment: keep the original endpoint and add one cut point
+            if (i === 0) {
+                next.push([ax * 0.25 + bx * 0.75, ay * 0.25 + by * 0.75]);
+            } else if (i === n - 2) {
+                next.push([ax * 0.75 + bx * 0.25, ay * 0.75 + by * 0.25]);
+            } else {
+                next.push([ax * 0.75 + bx * 0.25, ay * 0.75 + by * 0.25]);
+                next.push([ax * 0.25 + bx * 0.75, ay * 0.25 + by * 0.75]);
+            }
+        }
+        next.push(current[n - 1]); // preserve end
+        current = next;
+    }
+    return current;
+}
+
 /** Chain shared border edges into continuous polylines, grouped by owner-pair.
  *  Edges between the same two owners that share endpoints get merged into polylines. */
-function chainSharedEdgesIntoPolylines(edges: SharedBorderEdge[], colorLookup?: (ownerA: string, ownerB: string) => number): SharedPolyline[] {
+function chainSharedEdgesIntoPolylines(edges: SharedBorderEdge[], colorLookup?: (ownerA: string, ownerB: string) => number, smoothPasses = 0): SharedPolyline[] {
     // Group edges by sorted owner pair
     const byPair = new Map<string, SharedBorderEdge[]>();
     for (const e of edges) {
@@ -419,7 +453,9 @@ function chainSharedEdgesIntoPolylines(edges: SharedBorderEdge[], colorLookup?: 
             const [ownerA, ownerB] = pairKey.split('|');
             const color = colorLookup ? colorLookup(ownerA, ownerB) : 0x888888;
 
-            result.push({ points: chain, ownerPairKey: pairKey, color });
+            // Apply Chaikin smoothing to convert straight Voronoi edges into smooth arcs
+            const smoothed = smoothPasses > 0 ? chaikinSmoothPolyline(chain, smoothPasses) : chain;
+            result.push({ points: smoothed, ownerPairKey: pairKey, color });
         }
     }
 
@@ -1032,10 +1068,11 @@ export function renderPowerVoronoi(
             colorMap.set(key, blendColors(edge.colorA, edge.colorB, 0.5));
         }
     }
+    const borderSmoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
     targetSharedPolylines = chainSharedEdgesIntoPolylines(sharedEdges, (a, b) => {
         const key = a < b ? `${a}|${b}` : `${b}|${a}`;
         return colorMap.get(key) ?? 0x888888;
-    });
+    }, borderSmoothPasses);
 
     // Start transition based on mode
     if (shapeChanged && transitionMs > 0) {
