@@ -85,10 +85,10 @@ let smoothTransitionStart = 0;
 let isSmoothTransitioning = false;
 let lastMergedTerritories: MergedTerritory[] | null = null;  // stored for smooth mode snapshot
 
-// ── Fill Transition State (geometry-clipped per-frame fills) ────────────────
-let prevMergedForFill: MergedTerritory[] | null = null;
+// ── Fill Transition State (mode-independent crossfade) ─────────────────────
+let prevMergedTerritories: MergedTerritory[] | null = null;
+let fillTransitionStart = 0;
 let isFillTransitioning = false;
-
 
 // ── Fingerprint ────────────────────────────────────────────────────────────
 
@@ -327,58 +327,6 @@ function lerpPolygon(from: [number, number][], to: [number, number][], t: number
     return result;
 }
 
-/** Clip a polygon to one side of a polyline using Sutherland-Hodgman.
- *  `side` > 0 keeps points to the LEFT of the polyline (walking direction).
- *  `side` < 0 keeps points to the RIGHT.
- *  Returns the clipped polygon (may be empty if entirely on the other side). */
-function clipPolygonByPolyline(
-    polygon: [number, number][],
-    frontier: [number, number][],
-    side: number,  // +1 = left, -1 = right
-): [number, number][] {
-    if (frontier.length < 2) return polygon;
-    let output = polygon.slice();
-
-    // Clip against each segment of the frontier polyline
-    for (let i = 0; i < frontier.length - 1 && output.length > 0; i++) {
-        const ax = frontier[i][0], ay = frontier[i][1];
-        const bx = frontier[i + 1][0], by = frontier[i + 1][1];
-        // Edge normal direction (perpendicular to segment, pointing left)
-        const dx = bx - ax, dy = by - ay;
-
-        const inside = (px: number, py: number): boolean => {
-            const cross = dx * (py - ay) - dy * (px - ax);
-            return side > 0 ? cross >= 0 : cross <= 0;
-        };
-
-        const intersect = (p1: [number, number], p2: [number, number]): [number, number] => {
-            const c1 = dx * (p1[1] - ay) - dy * (p1[0] - ax);
-            const c2 = dx * (p2[1] - ay) - dy * (p2[0] - ax);
-            const denom = c1 - c2;
-            if (Math.abs(denom) < 1e-10) return p1;
-            const t = c1 / denom;
-            return [p1[0] + (p2[0] - p1[0]) * t, p1[1] + (p2[1] - p1[1]) * t];
-        };
-
-        const input = output;
-        output = [];
-        for (let j = 0; j < input.length; j++) {
-            const cur = input[j];
-            const prev = input[(j + input.length - 1) % input.length];
-            const curIn = inside(cur[0], cur[1]);
-            const prevIn = inside(prev[0], prev[1]);
-
-            if (curIn) {
-                if (!prevIn) output.push(intersect(prev, cur));
-                output.push(cur);
-            } else if (prevIn) {
-                output.push(intersect(prev, cur));
-            }
-        }
-    }
-    return output;
-}
-
 /**
  * Chaikin corner-cutting subdivision for open polylines.
  * Preserves first and last points; interior corners are smoothed by
@@ -568,11 +516,7 @@ function drawBorderPolylines(
 }
 
 /** Build lerped polylines from prev → target for transition animation.
- *  Matches polylines by GEOGRAPHIC PROXIMITY (centroid distance), regardless
- *  of ownerPairKey. This correctly handles conquest-changed frontiers where
- *  the owner-pair identity changes (e.g., green-red → green-blue) but the
- *  frontier stays in the same geographic area.
- *  Unmatched polylines grow/shrink geometrically to/from centroid.
+ *  Matches polylines by ownerPairKey + nearest centroid, resamples + lerps.
  *  Returns an array suitable for drawBorderPolylines. */
 function buildLerpedPolylines(
     prev: SharedPolyline[], target: SharedPolyline[],
@@ -580,59 +524,68 @@ function buildLerpedPolylines(
 ): { points: [number, number][]; color: number }[] {
     const RESAMPLE_N = 32;
     const result: { points: [number, number][]; color: number }[] = [];
-    const usedTargets = new Set<number>();
 
-    // Pre-compute all target centroids
-    const targetCentroids: [number, number][] = target.map(tl => polygonCentroid(tl.points));
+    // Group by ownerPairKey for matching
+    const prevByKey = new Map<string, SharedPolyline[]>();
+    for (const p of prev) {
+        if (!prevByKey.has(p.ownerPairKey)) prevByKey.set(p.ownerPairKey, []);
+        prevByKey.get(p.ownerPairKey)!.push(p);
+    }
+    const targetByKey = new Map<string, SharedPolyline[]>();
+    for (const p of target) {
+        if (!targetByKey.has(p.ownerPairKey)) targetByKey.set(p.ownerPairKey, []);
+        targetByKey.get(p.ownerPairKey)!.push(p);
+    }
 
-    // Match each prev polyline to nearest unmatched target by centroid proximity
-    for (const pLine of prev) {
-        const pC = polygonCentroid(pLine.points);
-        let bestDist = Infinity;
-        let bestIdx = -1;
-        for (let ti = 0; ti < target.length; ti++) {
-            if (usedTargets.has(ti)) continue;
-            const d = Math.hypot(pC[0] - targetCentroids[ti][0], pC[1] - targetCentroids[ti][1]);
-            if (d < bestDist) { bestDist = d; bestIdx = ti; }
-        }
+    const allKeys = new Set([...prevByKey.keys(), ...targetByKey.keys()]);
 
-        if (bestIdx >= 0) {
-            usedTargets.add(bestIdx);
-            const tLine = target[bestIdx];
-            const pSampled = resamplePolyline(pLine.points, RESAMPLE_N);
-            let tSampled = resamplePolyline(tLine.points, RESAMPLE_N);
+    for (const key of allKeys) {
+        const pLines = prevByKey.get(key) ?? [];
+        const tLines = targetByKey.get(key) ?? [];
+        const usedTargets = new Set<number>();
 
-            // Fix flipping: ensure polylines are oriented the same direction.
-            const p0 = pSampled[0];
-            const t0 = tSampled[0];
-            const tN = tSampled[tSampled.length - 1];
-            const distSameDir = Math.hypot(p0[0] - t0[0], p0[1] - t0[1]);
-            const distReversed = Math.hypot(p0[0] - tN[0], p0[1] - tN[1]);
-            if (distReversed < distSameDir) {
-                tSampled = tSampled.slice().reverse() as [number, number][];
+        for (const pLine of pLines) {
+            const pC = polygonCentroid(pLine.points);
+            let bestDist = Infinity;
+            let bestIdx = -1;
+            for (let ti = 0; ti < tLines.length; ti++) {
+                if (usedTargets.has(ti)) continue;
+                const tC = polygonCentroid(tLines[ti].points);
+                const d = Math.hypot(pC[0] - tC[0], pC[1] - tC[1]);
+                if (d < bestDist) { bestDist = d; bestIdx = ti; }
             }
 
-            // Interpolate color from prev→target during morph
-            const lerpedColor = blendColors(pLine.color, tLine.color, t);
-            result.push({ points: lerpPolygon(pSampled, tSampled, t), color: lerpedColor });
-        } else {
-            // Prev-only (disappearing): geometrically shrink toward centroid
-            const pSampled = resamplePolyline(pLine.points, RESAMPLE_N);
-            const centroidPts: [number, number][] = pSampled.map(() => [pC[0], pC[1]] as [number, number]);
-            result.push({ points: lerpPolygon(pSampled, centroidPts, t), color: pLine.color });
+            if (bestIdx >= 0) {
+                usedTargets.add(bestIdx);
+                const tLine = tLines[bestIdx];
+                const pSampled = resamplePolyline(pLine.points, RESAMPLE_N);
+                let tSampled = resamplePolyline(tLine.points, RESAMPLE_N);
+
+                // Fix flipping: ensure polylines are oriented the same direction.
+                // If start-of-prev is closer to end-of-target than start-of-target,
+                // reverse the target to match orientation.
+                const p0 = pSampled[0];
+                const t0 = tSampled[0];
+                const tN = tSampled[tSampled.length - 1];
+                const distSameDir = Math.hypot(p0[0] - t0[0], p0[1] - t0[1]);
+                const distReversed = Math.hypot(p0[0] - tN[0], p0[1] - tN[1]);
+                if (distReversed < distSameDir) {
+                    tSampled = tSampled.slice().reverse() as [number, number][];
+                }
+
+                result.push({ points: lerpPolygon(pSampled, tSampled, t), color: tLine.color });
+            } else {
+                // Prev-only: use prev points (will fade out via alpha in caller)
+                result.push({ points: pLine.points, color: pLine.color });
+            }
+        }
+
+        // Target-only polylines: use target points (fade in via alpha in caller)
+        for (let ti = 0; ti < tLines.length; ti++) {
+            if (usedTargets.has(ti)) continue;
+            result.push({ points: tLines[ti].points, color: tLines[ti].color });
         }
     }
-
-    // Target-only polylines (appearing): geometrically grow from centroid
-    for (let ti = 0; ti < target.length; ti++) {
-        if (usedTargets.has(ti)) continue;
-        const tLine = target[ti];
-        const tC = targetCentroids[ti];
-        const tSampled = resamplePolyline(tLine.points, RESAMPLE_N);
-        const centroidPts: [number, number][] = tSampled.map(() => [tC[0], tC[1]] as [number, number]);
-        result.push({ points: lerpPolygon(centroidPts, tSampled, t), color: tLine.color });
-    }
-
     return result;
 }
 
@@ -843,9 +796,34 @@ export function renderPowerVoronoi(
     const modeKey = `${boundaryMode}|${isSmoothTransitioning}|${isBorderTransitioning}`;
     if ((drawBorderPolylines as any).__lastModeKey !== modeKey) {
         (drawBorderPolylines as any).__lastModeKey = modeKey;
-        log.renderer('PVV2', `mode=${boundaryMode} smoothTransition=${isSmoothTransitioning} segmentTransition=${isBorderTransitioning}`);
+        log.renderer('PVV2', `mode=${boundaryMode} smoothTransition=${isSmoothTransitioning} segmentTransition=${isBorderTransitioning} fillTransition=${isFillTransitioning}`);
     }
 
+    // ── Per-frame fill crossfade (mode-independent) ──────────────────────
+    if (isFillTransitioning && prevMergedTerritories && lastMergedTerritories && fillGraphics && transitionMs > 0) {
+        const elapsed = now - fillTransitionStart;
+        const rawT = Math.min(1, elapsed / transitionMs);
+        const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
+        const alpha = GAME_CONFIG.VORONOI_ALPHA ?? 0.25;
+
+        fillGraphics.clear();
+        // Prev fills fading out
+        for (const territory of prevMergedTerritories) {
+            fillGraphics.poly(territory.points.flat());
+            fillGraphics.fill({ color: territory.color, alpha: alpha * (1 - eased) });
+        }
+        // Target fills fading in
+        for (const territory of lastMergedTerritories) {
+            fillGraphics.poly(territory.points.flat());
+            fillGraphics.fill({ color: territory.color, alpha: alpha * eased });
+        }
+
+        if (rawT >= 1) {
+            isFillTransitioning = false;
+            prevMergedTerritories = null;
+            log.renderer('PVV2', 'fill crossfade complete');
+        }
+    }
 
     // Segment mode: chain lerped edges into polylines, render via canonical draw
     if (boundaryMode === 'segment' && isBorderTransitioning && transitionMs > 0 && prevBorderEdges && targetBorderEdges) {
@@ -916,60 +894,21 @@ export function renderPowerVoronoi(
         const rawT = Math.min(1, elapsed / transitionMs);
         const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
 
-        // Compute lerped polylines (used for both border drawing and fill clipping)
-        const lerped = buildLerpedPolylines(prevSharedPolylines, targetSharedPolylines, eased);
-
-        // Draw lerped borders into borderGraphics
+        // Draw lerped borders into borderGraphics (single layer — no outlineGraphics)
         if (borderGraphics) {
             borderGraphics.clear();
             const smoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
             const borderWidth = GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 1.5;
             const borderAlpha = GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.4;
+            const t0 = performance.now();
+            const lerped = buildLerpedPolylines(prevSharedPolylines, targetSharedPolylines, eased);
+            const t1 = performance.now();
             drawBorderPolylines(borderGraphics, lerped, smoothPasses, borderWidth, borderAlpha);
-        }
-
-        // ── Per-frame frontier-bounded fills ──────────────────────────────
-        // Draw prev fills as base layer, then overdraw target fills clipped
-        // to each territory's interior side of the lerped frontiers.
-        // This creates the sweep: new color appears behind the moving frontier.
-        if (isFillTransitioning && prevMergedForFill && lastMergedTerritories && fillGraphics) {
-            const alpha = GAME_CONFIG.VORONOI_ALPHA ?? 0.25;
-            fillGraphics.clear();
-
-            // Base layer: prev fills (old territory state)
-            for (const territory of prevMergedForFill) {
-                fillGraphics.poly(territory.points.flat());
-                fillGraphics.fill({ color: territory.color, alpha });
-            }
-
-            // Overdraw: target fills clipped to their interior side of frontiers
-            for (const territory of lastMergedTerritories) {
-                const centroid = polygonCentroid(territory.points);
-                let clipped: [number, number][] = territory.points;
-
-                // Clip against each lerped frontier polyline
-                for (const polyline of lerped) {
-                    if (polyline.points.length < 2) continue;
-                    // Determine which side of the frontier this territory's centroid is on
-                    const fx = polyline.points[0][0], fy = polyline.points[0][1];
-                    const fxn = polyline.points[1][0], fyn = polyline.points[1][1];
-                    const dx = fxn - fx, dy = fyn - fy;
-                    const cross = dx * (centroid[1] - fy) - dy * (centroid[0] - fx);
-                    const side = cross >= 0 ? 1 : -1;
-                    clipped = clipPolygonByPolyline(clipped, polyline.points, side);
-                    if (clipped.length < 3) break;
-                }
-
-                if (clipped.length >= 3) {
-                    fillGraphics.poly(clipped.flat());
-                    fillGraphics.fill({ color: territory.color, alpha });
-                }
-            }
-
-            if (rawT >= 1) {
-                isFillTransitioning = false;
-                prevMergedForFill = null;
-            }
+            const t2 = performance.now();
+            const avgPts = lerped.length > 0 ? (lerped.reduce((s, p) => s + p.points.length, 0) / lerped.length).toFixed(0) : '0';
+            log.renderer('PVV2', `TRANSITION t=${eased.toFixed(3)} | lerp=${(t1 - t0).toFixed(1)}ms draw=${(t2 - t1).toFixed(1)}ms | ${lerped.length} polylines avgPts=${avgPts} smooth=${smoothPasses} | prev=${prevSharedPolylines.length} target=${targetSharedPolylines.length}`);
+        } else {
+            log.renderer('PVV2', `TRANSITION SKIPPED — borderGraphics is null`);
         }
 
         if (rawT >= 1) {
@@ -980,6 +919,7 @@ export function renderPowerVoronoi(
         const shapeFpCheck = buildShapeFingerprint(stars);
         const visualFpCheck = buildVisualFingerprint();
         if (shapeFpCheck === cachedShapeFingerprint && visualFpCheck === cachedVisualFingerprint) {
+            log.renderer('PVV2', `early return — fingerprints unchanged during transition`);
             return;
         }
         log.renderer('PVV2', `fingerprints changed DURING transition — falling through to rebuild`);
@@ -1004,9 +944,9 @@ export function renderPowerVoronoi(
         if (targetSharedPolylines && targetSharedPolylines.length > 0) {
             prevSharedPolylines = targetSharedPolylines;
         }
-        // Fill transition: snapshot current merged territories (with colors)
+        // Fill crossfade: snapshot current merged territories
         if (lastMergedTerritories && lastMergedTerritories.length > 0) {
-            prevMergedForFill = lastMergedTerritories;
+            prevMergedTerritories = lastMergedTerritories;
         }
     }
 
@@ -1185,9 +1125,34 @@ export function renderPowerVoronoi(
     fillGraphics.clear();
     fillGraphics.visible = true;
 
-    for (const territory of merged) {
-        fillGraphics.poly(territory.points.flat());
-        fillGraphics.fill({ color: territory.color, alpha });
+    // Fill crossfade: during transition, draw prev fills fading out + target fills fading in
+    if (isFillTransitioning && prevMergedTerritories && transitionMs > 0) {
+        const elapsed = now - fillTransitionStart;
+        const rawT = Math.min(1, elapsed / transitionMs);
+        const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
+
+        // Prev fills fading out
+        for (const territory of prevMergedTerritories) {
+            fillGraphics.poly(territory.points.flat());
+            fillGraphics.fill({ color: territory.color, alpha: alpha * (1 - eased) });
+        }
+        // Target fills fading in
+        for (const territory of merged) {
+            fillGraphics.poly(territory.points.flat());
+            fillGraphics.fill({ color: territory.color, alpha: alpha * eased });
+        }
+
+        if (rawT >= 1) {
+            isFillTransitioning = false;
+            prevMergedTerritories = null;
+            log.renderer('PVV2', 'fill crossfade complete');
+        }
+    } else {
+        // Steady-state: draw target fills at full alpha
+        for (const territory of merged) {
+            fillGraphics.poly(territory.points.flat());
+            fillGraphics.fill({ color: territory.color, alpha });
+        }
     }
 
     // Borders — smoothed shared edges via canonical drawBorderPolylines
@@ -1271,10 +1236,11 @@ export function renderPowerVoronoi(
             log.renderer('PVV2', `TRANSITION STARTED | prev=${prevSharedPolylines.length} target=${targetSharedPolylines?.length ?? 0} | transitionMs=${transitionMs}`);
         }
 
-        // Fill transition: start alongside border transition
-        if (prevMergedForFill && prevMergedForFill.length > 0) {
+        // Fill crossfade (mode-independent)
+        if (prevMergedTerritories && prevMergedTerritories.length > 0) {
+            fillTransitionStart = now;
             isFillTransitioning = true;
-            log.renderer('PVV2', `FILL TRANSITION STARTED | prev=${prevMergedForFill.length} target=${merged.length}`);
+            log.renderer('PVV2', `FILL CROSSFADE STARTED | prev=${prevMergedTerritories.length} target=${merged.length}`);
         }
     }
     log.renderer('PVV2', `◀ rebuild complete | total=${(performance.now() - now).toFixed(1)}ms`);
@@ -1296,9 +1262,10 @@ export function resetPowerVoronoiCache(): void {
     targetSharedPolylines = null;
     smoothTransitionStart = 0;
     lastMergedTerritories = null;
-    // Fill transition state
+    // Fill crossfade state
     isFillTransitioning = false;
-    prevMergedForFill = null;
+    prevMergedTerritories = null;
+    fillTransitionStart = 0;
     log.renderer('PVV2', 'cache reset');
     if (fillGraphics) {
         if (fillGraphics.parent) fillGraphics.parent.removeChild(fillGraphics);
