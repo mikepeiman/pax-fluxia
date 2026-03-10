@@ -1,21 +1,21 @@
-﻿// ============================================================================
-// PowerVoronoiRenderer â€” F-138v2: Territory fill via weighted Voronoi (power diagram)
+// ============================================================================
+// PowerVoronoiRenderer — F-138v2: Territory fill via weighted Voronoi (power diagram)
 // ============================================================================
 //
 // FRESH implementation using d3-weighted-voronoi for gap-free territory rendering.
-// Star margin is baked into the Voronoi as site weights â€” no post-processing needed.
+// Star margin is baked into the Voronoi as site weights — no post-processing needed.
 //
 // Architecture: Edge-graph aware. All boundary edges are shared between adjacent
 // territories. Modifications move shared edges, not individual polygon vertices.
 //
 // Pipeline:
 //   0. Build site array (owned stars + corridor virtuals + disconnect virtuals)
-//   1. Power diagram via d3-weighted-voronoi (weight = starMarginÂ²)
+//   1. Power diagram via d3-weighted-voronoi (weight = starMargin²)
 //   2. Build shared edge graph from cells
 //   3. Merge: remove same-owner internal edges
 //   4. Arc smoothing on shared edges (future)
 //   5. Chaikin smoothing on shared edges
-//   6. Trace edges â†’ polygon contours â†’ PIXI render
+//   6. Trace edges → polygon contours → PIXI render
 //
 // Performance: Only recomputed when ownership fingerprint changes.
 // ============================================================================
@@ -29,9 +29,9 @@ import { computeCorridorVirtuals, computeDisconnectVirtuals, DISCONNECT_OWNER_ID
 import type { ColorUtils } from './RenderContext';
 import { log } from '$lib/utils/logger';
 
-// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Types ──────────────────────────────────────────────────────────────────
 
-/** A site in the power diagram â€” star or virtual point with weight. */
+/** A site in the power diagram — star or virtual point with weight. */
 interface PowerSite {
     x: number;
     y: number;
@@ -55,14 +55,14 @@ interface MergedTerritory {
     color: number;          // hex fill color
 }
 
-// â”€â”€ Cache â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Cache ──────────────────────────────────────────────────────────────────
 
 let cachedShapeFingerprint = '';
 let cachedVisualFingerprint = '';
 let fillGraphics: PIXI.Graphics | null = null;
 let borderGraphics: PIXI.Graphics | null = null;
 
-// â”€â”€ Border Transition State (Segment Mode) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Border Transition State (Segment Mode) ─────────────────────────────────
 
 /** Previous shared border edge positions for segment mode animation. */
 let prevBorderEdges: SharedBorderEdge[] | null = null;
@@ -70,7 +70,7 @@ let targetBorderEdges: SharedBorderEdge[] | null = null;
 let borderTransitionStart = 0;
 let isBorderTransitioning = false;
 
-// â”€â”€ Smooth Transition State (Contested Border Mode) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Smooth Transition State (Contested Border Mode) ─────────────────────────
 
 /** A continuous polyline of chained shared border edges between two owners. */
 interface SharedPolyline {
@@ -85,22 +85,22 @@ let smoothTransitionStart = 0;
 let isSmoothTransitioning = false;
 let lastMergedTerritories: MergedTerritory[] | null = null;  // stored for smooth mode snapshot
 
-// â”€â”€ Frontier Loop State (arc-length morphing) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Frontier Loop State (arc-length morphing) ──────────────────────────────
 let prevFrontierLoops: Map<string, FrontierLoop[]> | null = null;
 let targetFrontierLoops: Map<string, FrontierLoop[]> | null = null;
 let frontierTransitionStart = 0;
 let isFrontierTransitioning = false;
 
-// â”€â”€ Cell Change Tracking (frontier-first rendering) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Cell Change Tracking (frontier-first rendering) ────────────────────
 let lastCells: TerritoryCell[] | null = null;  // cells from previous rebuild
 let changedSiteIds: Set<string> | null = null; // stars that changed owner in this conquest
 
-// â”€â”€ Fill Transition State (mode-independent crossfade) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Fill Transition State (mode-independent crossfade) ─────────────────────
 let prevMergedTerritories: MergedTerritory[] | null = null;
 let fillTransitionStart = 0;
 let isFillTransitioning = false;
 
-// â”€â”€ Fingerprint â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Fingerprint ────────────────────────────────────────────────────────────
 
 function buildShapeFingerprint(stars: StarState[]): string {
     let fp = 'shape:';
@@ -125,7 +125,7 @@ function buildVisualFingerprint(): string {
     return fp;
 }
 
-// â”€â”€ Color Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Color Helpers ──────────────────────────────────────────────────────────
 
 function hexToRGB(hex: number): [number, number, number] {
     return [(hex >> 16) & 0xff, (hex >> 8) & 0xff, hex & 0xff];
@@ -175,9 +175,9 @@ function adjustColorHSL(hex: number, satMult: number, lightMult: number): number
     return (nr << 16) | (ng << 8) | nb;
 }
 
-// â”€â”€ Edge Key Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Edge Key Helpers ───────────────────────────────────────────────────────
 
-/** Canonical edge key â€” direction-independent, snapped to 2dp. */
+/** Canonical edge key — direction-independent, snapped to 2dp. */
 function edgeKey(x1: number, y1: number, x2: number, y2: number): string {
     const ax = +x1.toFixed(2), ay = +y1.toFixed(2);
     const bx = +x2.toFixed(2), by = +y2.toFixed(2);
@@ -189,7 +189,7 @@ function ptKey(x: number, y: number): string {
     return `${+x.toFixed(2)},${+y.toFixed(2)}`;
 }
 
-// â”€â”€ Shared Border Edge Extraction â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Shared Border Edge Extraction ──────────────────────────────────────────
 
 /** A border edge segment shared between two different owners. */
 interface SharedBorderEdge {
@@ -205,11 +205,11 @@ interface SharedBorderEdge {
 
 /**
  * Extract edges shared between cells of DIFFERENT owners (contested borders).
- * Each edge appears once with ownerA/ownerB â€” these are the boundaries where
+ * Each edge appears once with ownerA/ownerB — these are the boundaries where
  * territory borders should overlap and blend.
  */
 function extractSharedEdges(cells: TerritoryCell[]): SharedBorderEdge[] {
-    // Map: edgeKey â†’ { owners+siteIds per side, coordinates }
+    // Map: edgeKey → { owners+siteIds per side, coordinates }
     const edgeOwners = new Map<string, {
         sides: { ownerId: string; siteId: string }[];
         pts: [number, number, number, number];
@@ -267,9 +267,9 @@ function blendColors(colorA: number, colorB: number, t: number): number {
     );
 }
 
-// â”€â”€ Polygon Morph Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Polygon Morph Helpers ─────────────────────────────────────────────────
 
-/** Resample a polygon to `n` evenly-spaced points along its perimeter (CLOSED â€” wraps last to first). */
+/** Resample a polygon to `n` evenly-spaced points along its perimeter (CLOSED — wraps last to first). */
 function resamplePolygon(pts: [number, number][], n: number): [number, number][] {
     if (pts.length <= 1 || n <= 1) return pts.slice();
 
@@ -484,11 +484,11 @@ function chainSharedEdgesIntoPolylines(edges: SharedBorderEdge[], colorLookup?: 
     return result;
 }
 
-// â”€â”€ Frontier Loop Assembly â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Frontier Loop Assembly ─────────────────────────────────────────────────
 
 /** A continuous closed frontier loop for one player's territory boundary. */
 interface FrontierLoop {
-    points: [number, number][];  // closed loop â€” first point â‰ˆ last point
+    points: [number, number][];  // closed loop — first point ≈ last point
     ownerId: string;
 }
 
@@ -499,7 +499,7 @@ interface FrontierLoop {
  * complete frontier is formed by chaining all polylines involving that player
  * end-to-end at junction points (where 3+ territories meet).
  *
- * Returns a Map from ownerId â†’ array of closed loops (multiple loops if
+ * Returns a Map from ownerId → array of closed loops (multiple loops if
  * the player has disconnected territory regions).
  */
 function assembleFrontierLoops(
@@ -509,17 +509,17 @@ function assembleFrontierLoops(
     const ptKey = (x: number, y: number) =>
         `${Math.round(x / SNAP) * SNAP},${Math.round(y / SNAP) * SNAP}`;
 
-    // â”€â”€ DIAGNOSTIC: Log all input polylines â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    log.renderer('FrontierDiag', `â•â•â• assembleFrontierLoops INPUT: ${polylines.length} polylines â•â•â•`);
+    // ── DIAGNOSTIC: Log all input polylines ──────────────────────────────
+    log.sys('FrontierDiag', `═══ assembleFrontierLoops INPUT: ${polylines.length} polylines ═══`);
     for (let pi = 0; pi < polylines.length; pi++) {
         const p = polylines[pi];
         const pts = p.points;
         const startKey = pts.length >= 2 ? ptKey(pts[0][0], pts[0][1]) : 'N/A';
         const endKey = pts.length >= 2 ? ptKey(pts[pts.length - 1][0], pts[pts.length - 1][1]) : 'N/A';
-        log.renderer('FrontierDiag', `  poly[${pi}] pair=${p.ownerPairKey} pts=${pts.length} start=(${pts[0]?.[0]?.toFixed(1)},${pts[0]?.[1]?.toFixed(1)}) [${startKey}] end=(${pts[pts.length - 1]?.[0]?.toFixed(1)},${pts[pts.length - 1]?.[1]?.toFixed(1)}) [${endKey}]`);
+        log.sys('FrontierDiag', `  poly[${pi}] pair=${p.ownerPairKey} pts=${pts.length} start=(${pts[0]?.[0]?.toFixed(1)},${pts[0]?.[1]?.toFixed(1)}) [${startKey}] end=(${pts[pts.length - 1]?.[0]?.toFixed(1)},${pts[pts.length - 1]?.[1]?.toFixed(1)}) [${endKey}]`);
     }
 
-    // â”€â”€ DIAGNOSTIC: Endpoint adjacency table â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── DIAGNOSTIC: Endpoint adjacency table ─────────────────────────────
     const endpointCounts = new Map<string, number>();
     for (const poly of polylines) {
         const pts = poly.points;
@@ -534,9 +534,9 @@ function assembleFrontierLoops(
         if (count === 1) danglingEndpoints.push(key);
     }
     if (danglingEndpoints.length > 0) {
-        log.renderer('FrontierDiag', `âš  ${danglingEndpoints.length} DANGLING endpoints (count=1): ${danglingEndpoints.slice(0, 10).join(', ')}${danglingEndpoints.length > 10 ? '...' : ''}`);
+        log.sys('FrontierDiag', `⚠ ${danglingEndpoints.length} DANGLING endpoints (count=1): ${danglingEndpoints.slice(0, 10).join(', ')}${danglingEndpoints.length > 10 ? '...' : ''}`);
     } else {
-        log.renderer('FrontierDiag', `âœ“ All endpoints paired (no dangles)`);
+        log.sys('FrontierDiag', `✓ All endpoints paired (no dangles)`);
     }
 
     // Group polylines by each owner they touch
@@ -575,7 +575,7 @@ function assembleFrontierLoops(
             // Start a chain from this segment
             used[startIdx] = true;
             const chain: [number, number][] = [...segments[startIdx].points];
-            log.renderer('FrontierDiag', `  [${ownerId}] chain START from seg[${segments[startIdx].polyIdx}] pts=${chain.length} startKey=${segments[startIdx].startKey} endKey=${segments[startIdx].endKey}`);
+            log.sys('FrontierDiag', `  [${ownerId}] chain START from seg[${segments[startIdx].polyIdx}] pts=${chain.length} startKey=${segments[startIdx].startKey} endKey=${segments[startIdx].endKey}`);
 
             // Extend forward: find next segment whose start matches our end
             let extended = true;
@@ -590,25 +590,25 @@ function assembleFrontierLoops(
                     const seg = segments[i];
 
                     if (seg.startKey === lastKey) {
-                        // Append forward (skip first point â€” it's the junction we already have)
+                        // Append forward (skip first point — it's the junction we already have)
                         for (let j = 1; j < seg.points.length; j++) {
                             chain.push(seg.points[j]);
                         }
                         used[i] = true;
                         extended = true;
                         fwdExtensions++;
-                        log.renderer('FrontierDiag', `    +FWD seg[${seg.polyIdx}] (startKey match) â†’ chain=${chain.length} pts`);
+                        log.sys('FrontierDiag', `    +FWD seg[${seg.polyIdx}] (startKey match) → chain=${chain.length} pts`);
                         break;
                     }
                     if (seg.endKey === lastKey) {
-                        // Append reversed (skip last point â€” it's the junction)
+                        // Append reversed (skip last point — it's the junction)
                         for (let j = seg.points.length - 2; j >= 0; j--) {
                             chain.push(seg.points[j]);
                         }
                         used[i] = true;
                         extended = true;
                         fwdExtensions++;
-                        log.renderer('FrontierDiag', `    +FWD seg[${seg.polyIdx}] (endKey match, REVERSED) â†’ chain=${chain.length} pts`);
+                        log.sys('FrontierDiag', `    +FWD seg[${seg.polyIdx}] (endKey match, REVERSED) → chain=${chain.length} pts`);
                         break;
                     }
                 }
@@ -627,25 +627,25 @@ function assembleFrontierLoops(
                     const seg = segments[i];
 
                     if (seg.endKey === firstKey) {
-                        // Prepend forward (skip last point â€” it's the junction)
+                        // Prepend forward (skip last point — it's the junction)
                         for (let j = seg.points.length - 2; j >= 0; j--) {
                             chain.unshift(seg.points[j]);
                         }
                         used[i] = true;
                         extended = true;
                         bwdExtensions++;
-                        log.renderer('FrontierDiag', `    +BWD seg[${seg.polyIdx}] (endKey match) â†’ chain=${chain.length} pts`);
+                        log.sys('FrontierDiag', `    +BWD seg[${seg.polyIdx}] (endKey match) → chain=${chain.length} pts`);
                         break;
                     }
                     if (seg.startKey === firstKey) {
-                        // Prepend reversed (skip first point â€” it's the junction)
+                        // Prepend reversed (skip first point — it's the junction)
                         for (let j = 1; j < seg.points.length; j++) {
                             chain.unshift(seg.points[j]);
                         }
                         used[i] = true;
                         extended = true;
                         bwdExtensions++;
-                        log.renderer('FrontierDiag', `    +BWD seg[${seg.polyIdx}] (startKey match, REVERSED) â†’ chain=${chain.length} pts`);
+                        log.sys('FrontierDiag', `    +BWD seg[${seg.polyIdx}] (startKey match, REVERSED) → chain=${chain.length} pts`);
                         break;
                     }
                 }
@@ -656,32 +656,32 @@ function assembleFrontierLoops(
             const last = chain[chain.length - 1];
             const isClosed = ptKey(first[0], first[1]) === ptKey(last[0], last[1]);
             if (isClosed) {
-                // Already closed â€” force exact closure
+                // Already closed — force exact closure
                 chain[chain.length - 1] = [first[0], first[1]];
             } else {
-                // Not closed â€” add first point to close
+                // Not closed — add first point to close
                 chain.push([first[0], first[1]]);
             }
-            log.renderer('FrontierDiag', `  [${ownerId}] chain DONE: ${chain.length} pts, fwd=${fwdExtensions} bwd=${bwdExtensions} closed=${isClosed}`);
+            log.sys('FrontierDiag', `  [${ownerId}] chain DONE: ${chain.length} pts, fwd=${fwdExtensions} bwd=${bwdExtensions} closed=${isClosed}`);
 
             // Only accept loops with enough points to form a real polygon
             if (chain.length >= 4) {
                 loops.push({ points: chain, ownerId });
             } else {
-                log.renderer('FrontierDiag', `  âš  REJECTED degenerate chain for ${ownerId}: only ${chain.length} points`);
+                log.sys('FrontierDiag', `  ⚠ REJECTED degenerate chain for ${ownerId}: only ${chain.length} points`);
             }
         }
 
         if (loops.length > 0) {
             result.set(ownerId, loops);
-            log.renderer('FrontierLoops', `${ownerId}: ${loops.length} loop(s), total pts=${loops.reduce((s, l) => s + l.points.length, 0)}`);
+            log.sys('FrontierLoops', `${ownerId}: ${loops.length} loop(s), total pts=${loops.reduce((s, l) => s + l.points.length, 0)}`);
         }
     }
 
     return result;
 }
 
-// â”€â”€ Frontier Loop Parameterization (Step C) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Frontier Loop Parameterization (Step C) ───────────────────────────────
 
 /**
  * Parameterize two frontier loops (F1, F2) to N control points and align
@@ -690,11 +690,11 @@ function assembleFrontierLoops(
  * Algorithm:
  * 1. Resample both loops to N evenly-spaced CPs via arc-length
  * 2. For each possible rotation offset k of F2 relative to F1:
- *    count how many CPs are "static" (within Îµ pixels of each other)
+ *    count how many CPs are "static" (within ε pixels of each other)
  * 3. Find the rotation that maximizes the longest contiguous run of statics
  * 4. Rotate F2's CPs by that offset so CP[0] aligns at the static anchor
  *
- * Returns { f1CPs, f2CPs } â€” same length, aligned, ready for lerp.
+ * Returns { f1CPs, f2CPs } — same length, aligned, ready for lerp.
  */
 function parameterizeAndAlign(
     f1Loop: [number, number][],
@@ -704,7 +704,7 @@ function parameterizeAndAlign(
 ): { f1CPs: [number, number][]; f2CPs: [number, number][] } {
     // Guard: degenerate loops (< 3 points can't form a polygon)
     if (f1Loop.length < 3 || f2Loop.length < 3) {
-        // Return single-point arrays â€” caller will handle gracefully
+        // Return single-point arrays — caller will handle gracefully
         const fallback: [number, number] = f1Loop[0] ?? f2Loop[0] ?? [0, 0];
         const arr = Array.from({ length: n }, () => [fallback[0], fallback[1]] as [number, number]);
         return { f1CPs: arr, f2CPs: arr };
@@ -720,7 +720,7 @@ function parameterizeAndAlign(
 
     // Validate: ensure both arrays have exactly n entries
     if (f1CPs.length < n || f2CPs.length < n) {
-        log.renderer('FrontierAlign', `WARNING: resample produced ${f1CPs.length}/${f2CPs.length} CPs instead of ${n} â€” skipping alignment`);
+        log.sys('FrontierAlign', `WARNING: resample produced ${f1CPs.length}/${f2CPs.length} CPs instead of ${n} — skipping alignment`);
         // Pad to n if needed
         while (f1CPs.length < n) f1CPs.push(f1CPs[f1CPs.length - 1] ?? [0, 0]);
         while (f2CPs.length < n) f2CPs.push(f2CPs[f2CPs.length - 1] ?? [0, 0]);
@@ -785,17 +785,17 @@ function parameterizeAndAlign(
         for (let i = 0; i < n; i++) {
             rotated[i] = f2CPs[(i + bestOffset) % n];
         }
-        log.renderer('FrontierAlign', `Aligned with offset=${bestOffset}, longestStaticRun=${bestLongestRun}/${n} CPs`);
+        log.sys('FrontierAlign', `Aligned with offset=${bestOffset}, longestStaticRun=${bestLongestRun}/${n} CPs`);
         return { f1CPs, f2CPs: rotated };
     }
 
-    log.renderer('FrontierAlign', `No rotation needed, longestStaticRun=${bestLongestRun}/${n} CPs`);
+    log.sys('FrontierAlign', `No rotation needed, longestStaticRun=${bestLongestRun}/${n} CPs`);
     return { f1CPs, f2CPs };
 }
 
 /**
  * Lerp between two aligned CP arrays.
- * Static CPs (within Îµ) stay fixed. Changed CPs interpolate linearly.
+ * Static CPs (within ε) stay fixed. Changed CPs interpolate linearly.
  */
 function lerpFrontierCPs(
     f1CPs: [number, number][],
@@ -812,10 +812,10 @@ function lerpFrontierCPs(
         const dy = f1CPs[i][1] - f2CPs[i][1];
 
         if (dx * dx + dy * dy <= eps2) {
-            // Static CP â€” stays at F1 position (no flicker)
+            // Static CP — stays at F1 position (no flicker)
             result[i] = [f1CPs[i][0], f1CPs[i][1]];
         } else {
-            // Changed CP â€” interpolate
+            // Changed CP — interpolate
             result[i] = [
                 f1CPs[i][0] + (f2CPs[i][0] - f1CPs[i][0]) * t,
                 f1CPs[i][1] + (f2CPs[i][1] - f1CPs[i][1]) * t,
@@ -828,16 +828,16 @@ function lerpFrontierCPs(
     return result;
 }
 
-// â”€â”€ Canonical Border Drawing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Canonical Border Drawing ───────────────────────────────────────────────
 
 /**
- * Draw border polylines into a Graphics object as smooth BÃ©zier curves.
+ * Draw border polylines into a Graphics object as smooth Bézier curves.
  * Uses quadraticCurveTo through midpoints for smooth arc geometry.
- * This is the SINGLE canonical function for all border rendering â€” steady-state,
+ * This is the SINGLE canonical function for all border rendering — steady-state,
  * transition animation, and segment mode all use this function.
  * 
  * If smoothPasses > 0, Chaikin subdivision is applied first to generate more
- * control points for the BÃ©zier interpolation. Round caps and joins ensure
+ * control points for the Bézier interpolation. Round caps and joins ensure
  * clean visual connections at polyline junctions.
  */
 function drawBorderPolylines(
@@ -858,7 +858,7 @@ function drawBorderPolylines(
             graphics.moveTo(pts[0][0], pts[0][1]);
             graphics.lineTo(pts[1][0], pts[1][1]);
         } else {
-            // Quadratic BÃ©zier through midpoints for smooth arc geometry
+            // Quadratic Bézier through midpoints for smooth arc geometry
             graphics.moveTo(pts[0][0], pts[0][1]);
             const mid0x = (pts[0][0] + pts[1][0]) / 2;
             const mid0y = (pts[0][1] + pts[1][1]) / 2;
@@ -877,7 +877,7 @@ function drawBorderPolylines(
     log.renderer('drawBorderPolylines', `drew ${drawn}/${polylines.length} polylines (smooth=${smoothPasses}, w=${width.toFixed(1)}, a=${alpha.toFixed(2)}, bezier=true)`);
 }
 
-/** Build lerped polylines from prev â†’ target for transition animation.
+/** Build lerped polylines from prev → target for transition animation.
  *  Matches polylines by ownerPairKey + nearest centroid, resamples + lerps.
  *  Returns an array suitable for drawBorderPolylines. */
 function buildLerpedPolylines(
@@ -987,7 +987,7 @@ function renderInterpolatedBorders(
         }
 
         if (bestIdx >= 0 && bestDist < 200) {
-            // Matched pair â€” lerp endpoints
+            // Matched pair — lerp endpoints
             targetUsed.add(bestIdx);
             const tEdge = target[bestIdx];
             const x1 = pEdge.x1 + (tEdge.x1 - pEdge.x1) * t;
@@ -1000,14 +1000,14 @@ function renderInterpolatedBorders(
             borderGraphics.lineTo(x2, y2);
             borderGraphics.stroke({ width: blendWidth, color, alpha: borderAlpha });
         } else {
-            // Prev edge fading out (no match) â€” draw at prev position with decreasing alpha
+            // Prev edge fading out (no match) — draw at prev position with decreasing alpha
             borderGraphics.moveTo(pEdge.x1, pEdge.y1);
             borderGraphics.lineTo(pEdge.x2, pEdge.y2);
             borderGraphics.stroke({ width: blendWidth, color: pEdge.colorA || 0x888888, alpha: borderAlpha * (1 - t) });
         }
     }
 
-    // Unmatched target edges â€” fade in
+    // Unmatched target edges — fade in
     for (let ti = 0; ti < target.length; ti++) {
         if (targetUsed.has(ti)) continue;
         const tEdge = target[ti];
@@ -1060,7 +1060,7 @@ function mergeSameOwnerCells(
             const key = edgeKey(pts[j][0], pts[j][1], pts[j + 1][0], pts[j + 1][1]);
             const count = edgeCount.get(key) ?? 0;
             const clusters = edgeClusters.get(key)!;
-            // Internal: shared by 2+ cells of the SAME cluster â†’ skip
+            // Internal: shared by 2+ cells of the SAME cluster → skip
             if (count >= 2 && clusters.size === 1) continue;
             clusterEdges.get(ck)!.push({
                 x1: pts[j][0], y1: pts[j][1],
@@ -1134,7 +1134,7 @@ function mergeSameOwnerCells(
     return result;
 }
 
-// â”€â”€ Main Renderer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Main Renderer ──────────────────────────────────────────────────────────
 
 export function renderPowerVoronoi(
     stars: StarState[],
@@ -1147,21 +1147,21 @@ export function renderPowerVoronoi(
     const transitionMs = GAME_CONFIG.TERRITORY_TRANSITION_MS ?? 400;
     const now = performance.now();
 
-    // Re-show graphics â€” voronoiContainer blanket-hides every frame
+    // Re-show graphics — voronoiContainer blanket-hides every frame
     if (fillGraphics) fillGraphics.visible = true;
     if (borderGraphics) borderGraphics.visible = true;
 
-    // â”€â”€ Per-frame animation (both modes) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Per-frame animation (both modes) ────────────────────────────────
     const boundaryMode = GAME_CONFIG.TERRITORY_BOUNDARY_MODE ?? 'smooth';
 
-    // Throttled mode log â€” only on state change
+    // Throttled mode log — only on state change
     const modeKey = `${boundaryMode}|${isSmoothTransitioning}|${isBorderTransitioning}`;
     if ((drawBorderPolylines as any).__lastModeKey !== modeKey) {
         (drawBorderPolylines as any).__lastModeKey = modeKey;
         log.renderer('PVV2', `mode=${boundaryMode} smoothTransition=${isSmoothTransitioning} segmentTransition=${isBorderTransitioning} fillTransition=${isFillTransitioning}`);
     }
 
-    // â”€â”€ Per-frame fill crossfade (mode-independent) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Per-frame fill crossfade (mode-independent) ──────────────────────
     // Only runs when TERRITORY_FILL_MODE = 'crossfade' (legacy alpha-fade)
     const fillMode = GAME_CONFIG.TERRITORY_FILL_MODE ?? 'frontier';
     if (fillMode === 'crossfade' && isFillTransitioning && prevMergedTerritories && lastMergedTerritories && fillGraphics && transitionMs > 0) {
@@ -1239,7 +1239,7 @@ export function renderPowerVoronoi(
             const polylines = chainSharedEdgesIntoPolylines(lerpedEdges, (a, b) => {
                 const cA = lerpedEdges.find(e => (e.ownerA === a && e.ownerB === b) || (e.ownerA === b && e.ownerB === a));
                 return cA ? blendColors(cA.colorA, cA.colorB, 0.5) : 0x888888;
-            }, 0);  // don't smooth inside chain â€” smooth in draw
+            }, 0);  // don't smooth inside chain — smooth in draw
             drawBorderPolylines(borderGraphics, polylines, smoothPasses, borderWidth, borderAlpha);
             log.renderer('PVV2', `SEGMENT TRANSITION t=${eased.toFixed(3)} | ${polylines.length} polylines from ${lerpedEdges.length} edges`);
         }
@@ -1259,7 +1259,7 @@ export function renderPowerVoronoi(
         const rawT = Math.min(1, elapsed / transitionMs);
         const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
 
-        // Draw lerped borders into borderGraphics (single layer â€” no outlineGraphics)
+        // Draw lerped borders into borderGraphics (single layer — no outlineGraphics)
         if (borderGraphics) {
             borderGraphics.clear();
             const smoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
@@ -1273,24 +1273,24 @@ export function renderPowerVoronoi(
             const avgPts = lerped.length > 0 ? (lerped.reduce((s, p) => s + p.points.length, 0) / lerped.length).toFixed(0) : '0';
             log.renderer('PVV2', `TRANSITION t=${eased.toFixed(3)} | lerp=${(t1 - t0).toFixed(1)}ms draw=${(t2 - t1).toFixed(1)}ms | ${lerped.length} polylines avgPts=${avgPts} smooth=${smoothPasses} | prev=${prevSharedPolylines.length} target=${targetSharedPolylines.length}`);
         } else {
-            log.renderer('PVV2', `TRANSITION SKIPPED â€” borderGraphics is null`);
+            log.renderer('PVV2', `TRANSITION SKIPPED — borderGraphics is null`);
         }
 
         if (rawT >= 1) {
             isSmoothTransitioning = false;
             prevSharedPolylines = null;
-            log.renderer('PVV2', 'smooth transition complete â€” next frame will rebuild steady-state');
+            log.renderer('PVV2', 'smooth transition complete — next frame will rebuild steady-state');
         }
         const shapeFpCheck = buildShapeFingerprint(stars);
         const visualFpCheck = buildVisualFingerprint();
         if (shapeFpCheck === cachedShapeFingerprint && visualFpCheck === cachedVisualFingerprint) {
-            log.renderer('PVV2', `early return â€” fingerprints unchanged during transition`);
+            log.renderer('PVV2', `early return — fingerprints unchanged during transition`);
             return;
         }
-        log.renderer('PVV2', `fingerprints changed DURING transition â€” falling through to rebuild`);
+        log.renderer('PVV2', `fingerprints changed DURING transition — falling through to rebuild`);
     }
 
-    // â”€â”€ Frontier loop morph (arc-length parameterization) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Frontier loop morph (arc-length parameterization) ────────────────
     // Only runs when TERRITORY_FILL_MODE = 'frontier'
     if (fillMode === 'frontier' && isFrontierTransitioning && prevFrontierLoops && targetFrontierLoops && transitionMs > 0) {
         const elapsed = now - frontierTransitionStart;
@@ -1308,14 +1308,14 @@ export function renderPowerVoronoi(
         const allOwners = new Set([...prevFrontierLoops.keys(), ...targetFrontierLoops.keys()]);
 
         if (fillGraphics) fillGraphics.clear();
-        // Don't clear borderGraphics â€” let steady-state borders stay for non-morphing owners
+        // Don't clear borderGraphics — let steady-state borders stay for non-morphing owners
 
         for (const ownerId of allOwners) {
             const prevLoops = prevFrontierLoops.get(ownerId) ?? [];
             const targetLoops = targetFrontierLoops.get(ownerId) ?? [];
 
             // For now: morph first loop of each player (1:1 case)
-            // Territory splitting (1â†’2 or 2â†’1) handled in Step F
+            // Territory splitting (1→2 or 2→1) handled in Step F
             const maxLoops = Math.max(prevLoops.length, targetLoops.length);
 
             for (let li = 0; li < maxLoops; li++) {
@@ -1325,16 +1325,16 @@ export function renderPowerVoronoi(
                 let interpolatedPts: [number, number][];
 
                 if (prevLoop && targetLoop) {
-                    // Both exist â€” parameterize, align, lerp
+                    // Both exist — parameterize, align, lerp
                     const { f1CPs, f2CPs } = parameterizeAndAlign(
                         prevLoop.points, targetLoop.points, numCPs
                     );
                     interpolatedPts = lerpFrontierCPs(f1CPs, f2CPs, eased);
                 } else if (prevLoop && !targetLoop) {
-                    // Disappearing loop â€” use prev, will shrink at t=1
+                    // Disappearing loop — use prev, will shrink at t=1
                     interpolatedPts = prevLoop.points;
                 } else if (!prevLoop && targetLoop) {
-                    // Appearing loop â€” use target
+                    // Appearing loop — use target
                     interpolatedPts = targetLoop.points;
                 } else {
                     continue;
@@ -1380,7 +1380,7 @@ export function renderPowerVoronoi(
 
     log.renderer('PVV2', `REBUILD | shapeChanged=${shapeChanged} visualChanged=${visualChanged} | t+${(performance.now() - now).toFixed(1)}ms`);
 
-    // â”€â”€ Shape changed: snapshot for transition animation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Shape changed: snapshot for transition animation ─────────────────
     if (shapeChanged && transitionMs > 0) {
         // Segment mode: snapshot border edges
         if (targetBorderEdges && targetBorderEdges.length > 0) {
@@ -1399,7 +1399,7 @@ export function renderPowerVoronoi(
             prevFrontierLoops = targetFrontierLoops;
         }
         // Cell change detection: snapshot previous cells for ownership comparison
-        // (changedSiteIds populated after new cells are computed â€” see Stage 2c below)
+        // (changedSiteIds populated after new cells are computed — see Stage 2c below)
     }
 
     cachedShapeFingerprint = shapeFp;
@@ -1412,7 +1412,7 @@ export function renderPowerVoronoi(
     const lightMult = GAME_CONFIG.VORONOI_LIGHTNESS ?? 0.7;
     const starMargin = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45;
 
-    // â”€â”€ Stage 0: Build site array â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Stage 0: Build site array ──────────────────────────────────────────
     const ownedStars = stars.filter(s => s.ownerId);
     if (ownedStars.length < 2) return;
 
@@ -1459,7 +1459,7 @@ export function renderPowerVoronoi(
         }
     }
 
-    // â”€â”€ Stage 1: Power diagram â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Stage 1: Power diagram ─────────────────────────────────────────────
     const pad = 50;
     const clip: [number, number][] = [
         [-pad, -pad],
@@ -1504,7 +1504,7 @@ export function renderPowerVoronoi(
             let nearestDist = Infinity;
             let nearestOwner = '';
             for (const s of ownedStars) {
-                // Skip same-owner stars â€” we want the ENEMY fill
+                // Skip same-owner stars — we want the ENEMY fill
                 if (s.ownerId === sourceOwner) continue;
                 const dx = s.x - site.x;
                 const dy = s.y - site.y;
@@ -1518,7 +1518,7 @@ export function renderPowerVoronoi(
             } else {
                 effectiveOwner = nearestOwner;
             }
-            log.renderer('PVV2', `disconnect cell (${site.x.toFixed(0)},${site.y.toFixed(0)}) src=${sourceOwner} â†’ enemy fill ${effectiveOwner}`);
+            log.renderer('PVV2', `disconnect cell (${site.x.toFixed(0)},${site.y.toFixed(0)}) src=${sourceOwner} → enemy fill ${effectiveOwner}`);
         }
 
         // Ensure closed polygon
@@ -1536,7 +1536,7 @@ export function renderPowerVoronoi(
 
     log.sys('PowerVoronoi', `${cells.length} cells from ${sites.length} sites (${sites.filter(s => s.virtual).length} virtual)`);
 
-    // â”€â”€ Stage 1c: Detect changed-owner stars â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Stage 1c: Detect changed-owner stars ───────────────────────────────
     changedSiteIds = null;
     if (lastCells && shapeChanged) {
         const prevOwnerMap = new Map(lastCells.map(c => [c.siteId, c.ownerId]));
@@ -1554,7 +1554,7 @@ export function renderPowerVoronoi(
     }
     lastCells = cells;
 
-    // â”€â”€ Stage 2: Build cluster map â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Stage 2: Build cluster map ─────────────────────────────────────────
     const clusterMap = new Map<string, number>();
     if (GAME_CONFIG.TERRITORY_CLUSTER_SPLIT && connections) {
         const starById = new Map(ownedStars.map(s => [s.id, s]));
@@ -1572,11 +1572,11 @@ export function renderPowerVoronoi(
         }
     }
 
-    // â”€â”€ Stage 2b: Extract shared edges (before merge removes internal edges) â”€â”€
+    // ── Stage 2b: Extract shared edges (before merge removes internal edges) ──
     const sharedEdges = extractSharedEdges(cells);
 
 
-    // â”€â”€ Stage 3: Merge same-owner cells â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Stage 3: Merge same-owner cells ────────────────────────────────────
     const merged = mergeSameOwnerCells(cells, GAME_CONFIG.TERRITORY_CLUSTER_SPLIT, clusterMap);
 
     // Assign colors
@@ -1587,7 +1587,7 @@ export function renderPowerVoronoi(
 
     log.sys('PowerVoronoi', `Merged to ${merged.length} territories`);
 
-    // â”€â”€ Stage 4: Render Fills â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Stage 4: Render Fills ──────────────────────────────────────────────
     if (!fillGraphics) {
         fillGraphics = new PIXI.Graphics();
         voronoiContainer.addChild(fillGraphics);
@@ -1625,7 +1625,7 @@ export function renderPowerVoronoi(
         }
     }
 
-    // Borders â€” smoothed shared edges via canonical drawBorderPolylines
+    // Borders — smoothed shared edges via canonical drawBorderPolylines
     if (borderWidth > 0 && borderAlpha > 0) {
         if (!borderGraphics) {
             borderGraphics = new PIXI.Graphics();
@@ -1655,7 +1655,7 @@ export function renderPowerVoronoi(
             return colorMap.get(key) ?? 0x888888;
         }, borderSmoothPasses);
 
-        // chainSharedEdgesIntoPolylines already applies Chaikin â€” pass 0 to drawBorderPolylines
+        // chainSharedEdgesIntoPolylines already applies Chaikin — pass 0 to drawBorderPolylines
         // to avoid double-smoothing. Transition path passes smoothPasses because lerp destroys curves.
         const t0b = performance.now();
         drawBorderPolylines(borderGraphics, builtPolylines, 0, borderWidth, borderAlpha);
@@ -1666,7 +1666,7 @@ export function renderPowerVoronoi(
         borderGraphics.clear();
     }
 
-    // â”€â”€ Store targets + start transition â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Store targets + start transition ────────────────────────────────
     // Assign colors if not already done in the border render block
     if (borderWidth <= 0 || borderAlpha <= 0) {
         for (const edge of sharedEdges) {
@@ -1723,10 +1723,10 @@ export function renderPowerVoronoi(
             log.renderer('PVV2', `FILL CROSSFADE STARTED | prev=${prevMergedTerritories.length} target=${merged.length}`);
         }
     }
-    log.renderer('PVV2', `â—€ rebuild complete | total=${(performance.now() - now).toFixed(1)}ms`);
+    log.renderer('PVV2', `◀ rebuild complete | total=${(performance.now() - now).toFixed(1)}ms`);
 }
 
-// â”€â”€ Cache Reset â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Cache Reset ────────────────────────────────────────────────────────────
 
 export function resetPowerVoronoiCache(): void {
     cachedShapeFingerprint = '';
@@ -1761,4 +1761,3 @@ export function resetPowerVoronoiCache(): void {
         borderGraphics = null;
     }
 }
-
