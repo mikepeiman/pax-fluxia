@@ -509,17 +509,48 @@ function assembleFrontierLoops(
     const ptKey = (x: number, y: number) =>
         `${Math.round(x / SNAP) * SNAP},${Math.round(y / SNAP) * SNAP}`;
 
-    // Group polylines by each owner they touch
-    const byOwner = new Map<string, { points: [number, number][]; startKey: string; endKey: string }[]>();
+    // ── DIAGNOSTIC: Log all input polylines ──────────────────────────────
+    log.sys('FrontierDiag', `═══ assembleFrontierLoops INPUT: ${polylines.length} polylines ═══`);
+    for (let pi = 0; pi < polylines.length; pi++) {
+        const p = polylines[pi];
+        const pts = p.points;
+        const startKey = pts.length >= 2 ? ptKey(pts[0][0], pts[0][1]) : 'N/A';
+        const endKey = pts.length >= 2 ? ptKey(pts[pts.length - 1][0], pts[pts.length - 1][1]) : 'N/A';
+        log.sys('FrontierDiag', `  poly[${pi}] pair=${p.ownerPairKey} pts=${pts.length} start=(${pts[0]?.[0]?.toFixed(1)},${pts[0]?.[1]?.toFixed(1)}) [${startKey}] end=(${pts[pts.length - 1]?.[0]?.toFixed(1)},${pts[pts.length - 1]?.[1]?.toFixed(1)}) [${endKey}]`);
+    }
 
+    // ── DIAGNOSTIC: Endpoint adjacency table ─────────────────────────────
+    const endpointCounts = new Map<string, number>();
     for (const poly of polylines) {
+        const pts = poly.points;
+        if (pts.length < 2) continue;
+        const sk = ptKey(pts[0][0], pts[0][1]);
+        const ek = ptKey(pts[pts.length - 1][0], pts[pts.length - 1][1]);
+        endpointCounts.set(sk, (endpointCounts.get(sk) ?? 0) + 1);
+        endpointCounts.set(ek, (endpointCounts.get(ek) ?? 0) + 1);
+    }
+    const danglingEndpoints: string[] = [];
+    for (const [key, count] of endpointCounts) {
+        if (count === 1) danglingEndpoints.push(key);
+    }
+    if (danglingEndpoints.length > 0) {
+        log.sys('FrontierDiag', `⚠ ${danglingEndpoints.length} DANGLING endpoints (count=1): ${danglingEndpoints.slice(0, 10).join(', ')}${danglingEndpoints.length > 10 ? '...' : ''}`);
+    } else {
+        log.sys('FrontierDiag', `✓ All endpoints paired (no dangles)`);
+    }
+
+    // Group polylines by each owner they touch
+    const byOwner = new Map<string, { points: [number, number][]; startKey: string; endKey: string; polyIdx: number }[]>();
+
+    for (let pi = 0; pi < polylines.length; pi++) {
+        const poly = polylines[pi];
         const [ownerA, ownerB] = poly.ownerPairKey.split('|');
         const pts = poly.points;
         if (pts.length < 2) continue;
 
         const startKey = ptKey(pts[0][0], pts[0][1]);
         const endKey = ptKey(pts[pts.length - 1][0], pts[pts.length - 1][1]);
-        const segment = { points: pts, startKey, endKey };
+        const segment = { points: pts, startKey, endKey, polyIdx: pi };
 
         for (const owner of [ownerA, ownerB]) {
             if (!byOwner.has(owner)) byOwner.set(owner, []);
@@ -544,9 +575,11 @@ function assembleFrontierLoops(
             // Start a chain from this segment
             used[startIdx] = true;
             const chain: [number, number][] = [...segments[startIdx].points];
+            log.sys('FrontierDiag', `  [${ownerId}] chain START from seg[${segments[startIdx].polyIdx}] pts=${chain.length} startKey=${segments[startIdx].startKey} endKey=${segments[startIdx].endKey}`);
 
             // Extend forward: find next segment whose start matches our end
             let extended = true;
+            let fwdExtensions = 0;
             while (extended) {
                 extended = false;
                 const lastPt = chain[chain.length - 1];
@@ -563,6 +596,8 @@ function assembleFrontierLoops(
                         }
                         used[i] = true;
                         extended = true;
+                        fwdExtensions++;
+                        log.sys('FrontierDiag', `    +FWD seg[${seg.polyIdx}] (startKey match) → chain=${chain.length} pts`);
                         break;
                     }
                     if (seg.endKey === lastKey) {
@@ -572,6 +607,8 @@ function assembleFrontierLoops(
                         }
                         used[i] = true;
                         extended = true;
+                        fwdExtensions++;
+                        log.sys('FrontierDiag', `    +FWD seg[${seg.polyIdx}] (endKey match, REVERSED) → chain=${chain.length} pts`);
                         break;
                     }
                 }
@@ -579,6 +616,7 @@ function assembleFrontierLoops(
 
             // Extend backward: find next segment whose end matches our start
             extended = true;
+            let bwdExtensions = 0;
             while (extended) {
                 extended = false;
                 const firstPt = chain[0];
@@ -595,6 +633,8 @@ function assembleFrontierLoops(
                         }
                         used[i] = true;
                         extended = true;
+                        bwdExtensions++;
+                        log.sys('FrontierDiag', `    +BWD seg[${seg.polyIdx}] (endKey match) → chain=${chain.length} pts`);
                         break;
                     }
                     if (seg.startKey === firstKey) {
@@ -604,6 +644,8 @@ function assembleFrontierLoops(
                         }
                         used[i] = true;
                         extended = true;
+                        bwdExtensions++;
+                        log.sys('FrontierDiag', `    +BWD seg[${seg.polyIdx}] (startKey match, REVERSED) → chain=${chain.length} pts`);
                         break;
                     }
                 }
@@ -612,19 +654,21 @@ function assembleFrontierLoops(
             // Close the loop if endpoints are near each other
             const first = chain[0];
             const last = chain[chain.length - 1];
-            if (ptKey(first[0], first[1]) === ptKey(last[0], last[1])) {
+            const isClosed = ptKey(first[0], first[1]) === ptKey(last[0], last[1]);
+            if (isClosed) {
                 // Already closed — force exact closure
                 chain[chain.length - 1] = [first[0], first[1]];
             } else {
                 // Not closed — add first point to close
                 chain.push([first[0], first[1]]);
             }
+            log.sys('FrontierDiag', `  [${ownerId}] chain DONE: ${chain.length} pts, fwd=${fwdExtensions} bwd=${bwdExtensions} closed=${isClosed}`);
 
             // Only accept loops with enough points to form a real polygon
             if (chain.length >= 4) {
                 loops.push({ points: chain, ownerId });
             } else {
-                log.sys('FrontierLoops', `Skipping degenerate chain for ${ownerId}: only ${chain.length} points`);
+                log.sys('FrontierDiag', `  ⚠ REJECTED degenerate chain for ${ownerId}: only ${chain.length} points`);
             }
         }
 
@@ -1118,8 +1162,9 @@ export function renderPowerVoronoi(
     }
 
     // ── Per-frame fill crossfade (mode-independent) ──────────────────────
-    // Skip when frontier loop morph is active — morph handles its own fills
-    if (!isFrontierTransitioning && isFillTransitioning && prevMergedTerritories && lastMergedTerritories && fillGraphics && transitionMs > 0) {
+    // Only runs when TERRITORY_FILL_MODE = 'crossfade' (legacy alpha-fade)
+    const fillMode = GAME_CONFIG.TERRITORY_FILL_MODE ?? 'frontier';
+    if (fillMode === 'crossfade' && isFillTransitioning && prevMergedTerritories && lastMergedTerritories && fillGraphics && transitionMs > 0) {
         const elapsed = now - fillTransitionStart;
         const rawT = Math.min(1, elapsed / transitionMs);
         const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
@@ -1246,7 +1291,8 @@ export function renderPowerVoronoi(
     }
 
     // ── Frontier loop morph (arc-length parameterization) ────────────────
-    if (isFrontierTransitioning && prevFrontierLoops && targetFrontierLoops && transitionMs > 0) {
+    // Only runs when TERRITORY_FILL_MODE = 'frontier'
+    if (fillMode === 'frontier' && isFrontierTransitioning && prevFrontierLoops && targetFrontierLoops && transitionMs > 0) {
         const elapsed = now - frontierTransitionStart;
         const rawT = Math.min(1, elapsed / transitionMs);
         const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;

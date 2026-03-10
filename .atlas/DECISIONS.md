@@ -156,3 +156,13 @@
   3. **Borders**: Geometry pipeline — centerline graph from analytical lane borders + field-derived interstitial borders → family fitters (straight/curved/segmented) → stroke mesh with round joins/caps.
 - **Rationale**: Synthesizes insights from three independent analyses. Graph-metric Dijkstra handles disconnects intrinsically. Ownership RT provides full-field fill coverage. Geometry borders give resolution-independent even-width strokes. Distance-lerp morph produces physically accurate border drift.
 - **Full spec**: `.agent/WIP Work-In-Progress/proposals/TERRITORY_ARCHITECTURE_v3.md`
+
+## 2026-03-10
+
+### D-40: Frontier Normalization — Region-Sequential Smoothing (F-138v2)
+- **Decision**: Territory polygons must be built from stars (contiguous groups by ownership, constrained by graph relationships). The entire map is first computed as angular Voronoi with all adjustments (CX corridors, DX disconnect zones, MSR minimum star radius). Then Chaikin + arc smoothing is applied **region by region** in a deterministic order (topmost-leftmost first), including rectangular world-bound corners. Each subsequent abutting region **normalizes its shared frontier** to use the exact same coordinates as the already-processed neighbor.
+- **Rationale**: Current system applies Chaikin smoothing independently per owner-pair polyline. When these are chained at junctions, endpoints don't match because smoothing displaced them independently → junction gaps, degenerate chains, failed loops. Building sequentially with shared-edge normalization eliminates this class of bugs entirely.
+- **Key terms**:
+  - **Frontier normalization**: Ensuring that where two regions share a border, both sides reference identical vertex coordinates
+  - **Region-sequential smoothing**: Process regions in deterministic order; later regions adopt the already-smoothed edge from earlier neighbors
+- **Status**: Planned. Requires rewrite of `assembleFrontierLoops` pipeline. Current polyline-chaining approach is a scaffold.

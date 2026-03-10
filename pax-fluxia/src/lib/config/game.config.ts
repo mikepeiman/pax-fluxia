@@ -257,6 +257,7 @@ interface GameConfigType {
     TERRITORY_TRANSITION_MS: number;      // Duration of territory morph animation in ms (0 = instant, default 400)
     TERRITORY_MORPH_CONTROL_POINTS: number; // Number of control points for frontier loop morphing (5-300, default 32)
     TERRITORY_BOUNDARY_MODE: 'segment' | 'smooth';  // 'segment' = edge-level lerp, 'smooth' = flubber polygon morph
+    TERRITORY_FILL_MODE: 'crossfade' | 'frontier';  // 'crossfade' = alpha-fade fills, 'frontier' = infill from frontier loops
     TERRITORY_METABALL: boolean;   // Enable Metaball territory renderer (default false)
     TERRITORY_PIXEL: boolean;      // Enable Pixel (nearest-neighbor) territory renderer (default false)
     TERRITORY_CLUSTER_SPLIT: boolean; // Split disconnected same-owner stars into separate territory blobs (default false)
@@ -941,6 +942,8 @@ const _rawConfig: GameConfigType = {
     /** Number of control points for frontier loop morphing (5-300) */
     TERRITORY_MORPH_CONTROL_POINTS: 32,
     TERRITORY_BOUNDARY_MODE: 'segment' as const,
+    /** Fill transition mode: 'crossfade' = alpha-fade, 'frontier' = infill from frontier loops */
+    TERRITORY_FILL_MODE: 'frontier' as const,
     /** Enable Metaball territory renderer */
     TERRITORY_METABALL: false,
     /** Enable Pixel (nearest-neighbor) territory renderer */
