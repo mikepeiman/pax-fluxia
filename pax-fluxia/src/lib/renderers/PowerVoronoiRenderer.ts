@@ -99,7 +99,6 @@ function buildShapeFingerprint(stars: StarState[]): string {
     fp += `:${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}`;
     fp += `:${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED}`;
     fp += `:${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE}`;
-    fp += `:${GAME_CONFIG.VORONOI_BORDER_SMOOTH}`;
     return fp;
 }
 
@@ -108,6 +107,7 @@ function buildVisualFingerprint(): string {
     fp += `${GAME_CONFIG.VORONOI_ALPHA}:${GAME_CONFIG.VORONOI_BORDER_WIDTH}`;
     fp += `:${GAME_CONFIG.VORONOI_BORDER_ALPHA}:${GAME_CONFIG.VORONOI_SATURATION}`;
     fp += `:${GAME_CONFIG.VORONOI_LIGHTNESS}`;
+    fp += `:${GAME_CONFIG.VORONOI_BORDER_SMOOTH}`;
     return fp;
 }
 
@@ -739,7 +739,8 @@ export function renderPowerVoronoi(
 
     // Re-show graphics — voronoiContainer blanket-hides every frame
     if (fillGraphics) fillGraphics.visible = true;
-    if (borderGraphics) borderGraphics.visible = true;
+    // During smooth transitions, hide steady-state borders to prevent stale straight edges showing
+    if (borderGraphics) borderGraphics.visible = !isSmoothTransitioning;
     if (outlineGraphics) outlineGraphics.visible = true;
 
     // ── Per-frame animation (both modes) ────────────────────────────────
@@ -959,38 +960,7 @@ export function renderPowerVoronoi(
         borderGraphics.clear();
         borderGraphics.visible = true;
 
-        // Layer 1: Each territory's own border in its territory color
-        for (const territory of merged) {
-            const [r, g, b] = hexToRGB(territory.color);
-            const borderColor = (Math.min(255, r + 40) << 16) |
-                (Math.min(255, g + 40) << 8) |
-                Math.min(255, b + 40);
-            const pts = territory.points;
-            if (pts.length > 1) {
-                borderGraphics.moveTo(pts[0][0], pts[0][1]);
-                for (let i = 1; i < pts.length; i++) {
-                    borderGraphics.lineTo(pts[i][0], pts[i][1]);
-                }
-                borderGraphics.closePath();
-                borderGraphics.stroke({ width: borderWidth, color: borderColor, alpha: borderAlpha });
-            }
-        }
-
-        // Layer 2: Shared edges — dual overlapping strokes with strength blend
-        // Build nearest-star lookup per owner for proximity gradient
-        const ownerStars = new Map<string, StarState[]>();
-        for (const s of ownedStars) {
-            if (!ownerStars.has(s.ownerId!)) ownerStars.set(s.ownerId!, []);
-            ownerStars.get(s.ownerId!)!.push(s);
-        }
-
-
-        // ── Ship strength per owner (available for FX: power influence, border blend) ──
-        const ownerStrength = new Map<string, number>();
-        for (const s of ownedStars) {
-            ownerStrength.set(s.ownerId!, (ownerStrength.get(s.ownerId!) ?? 0) + (s.activeShips ?? 0) + (s.damagedShips ?? 0));
-        }
-
+        // Shared-edge borders only (no territory contour outlines — smoothed polylines handle all borders)
         // Assign colors to shared edges
         for (const edge of sharedEdges) {
             edge.colorA = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerA), satMult, lightMult);
