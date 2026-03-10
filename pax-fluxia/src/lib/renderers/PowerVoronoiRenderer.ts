@@ -755,6 +755,7 @@ export function renderPowerVoronoi(
 
     // ── Per-frame animation (both modes) ────────────────────────────────
     const boundaryMode = GAME_CONFIG.TERRITORY_BOUNDARY_MODE ?? 'smooth';
+    log.renderer('PVV2', `▶ render called | mode=${boundaryMode} transitioning=${isSmoothTransitioning} borderGfx=${!!borderGraphics} t+${(performance.now() - now).toFixed(1)}ms`);
 
     // Segment mode: edge-level lerp
     if (boundaryMode === 'segment' && isBorderTransitioning && transitionMs > 0 && prevBorderEdges && targetBorderEdges) {
@@ -786,19 +787,29 @@ export function renderPowerVoronoi(
             const smoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
             const borderWidth = GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 1.5;
             const borderAlpha = GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.4;
+            const t0 = performance.now();
             const lerped = buildLerpedPolylines(prevSharedPolylines, targetSharedPolylines, eased);
+            const t1 = performance.now();
             drawBorderPolylines(borderGraphics, lerped, smoothPasses, borderWidth * 2.5, borderAlpha * 1.5);
-            log.renderer('PVV2', `transition frame t=${eased.toFixed(2)} lerped=${lerped.length} polylines`);
+            const t2 = performance.now();
+            const avgPts = lerped.length > 0 ? (lerped.reduce((s, p) => s + p.points.length, 0) / lerped.length).toFixed(0) : '0';
+            log.renderer('PVV2', `TRANSITION t=${eased.toFixed(3)} | lerp=${(t1 - t0).toFixed(1)}ms draw=${(t2 - t1).toFixed(1)}ms | ${lerped.length} polylines avgPts=${avgPts} smooth=${smoothPasses} | prev=${prevSharedPolylines.length} target=${targetSharedPolylines.length}`);
+        } else {
+            log.renderer('PVV2', `TRANSITION SKIPPED — borderGraphics is null`);
         }
 
         if (rawT >= 1) {
             isSmoothTransitioning = false;
             prevSharedPolylines = null;
-            log.renderer('PVV2', 'smooth transition complete');
+            log.renderer('PVV2', 'smooth transition complete — next frame will rebuild steady-state');
         }
         const shapeFpCheck = buildShapeFingerprint(stars);
         const visualFpCheck = buildVisualFingerprint();
-        if (shapeFpCheck === cachedShapeFingerprint && visualFpCheck === cachedVisualFingerprint) return;
+        if (shapeFpCheck === cachedShapeFingerprint && visualFpCheck === cachedVisualFingerprint) {
+            log.renderer('PVV2', `early return — fingerprints unchanged during transition`);
+            return;
+        }
+        log.renderer('PVV2', `fingerprints changed DURING transition — falling through to rebuild`);
     }
 
     const shapeFp = buildShapeFingerprint(stars);
@@ -807,6 +818,8 @@ export function renderPowerVoronoi(
     const visualChanged = visualFp !== cachedVisualFingerprint;
 
     if (!shapeChanged && !visualChanged) return;  // nothing changed
+
+    log.renderer('PVV2', `REBUILD | shapeChanged=${shapeChanged} visualChanged=${visualChanged} | t+${(performance.now() - now).toFixed(1)}ms`);
 
     // ── Shape changed: snapshot for transition animation ─────────────────
     if (shapeChanged && transitionMs > 0) {
@@ -908,21 +921,35 @@ export function renderPowerVoronoi(
         const site = (poly as any).site?.originalObject as PowerSite | undefined;
         if (!site) continue;
 
-        // Disconnect cells: assign to nearest real-owner star for fill rendering
-        // (Absence Test: unlike pixel-based DF, skipping a polygon creates empty space)
+        // Disconnect cells: assign to nearest ENEMY owner for fill rendering.
+        // In DF, disconnect sites push same-owner territory apart; the gap is filled by
+        // whatever enemy is closest. We replicate this by finding the source owner
+        // (the same-owner pair being disconnected) and assigning to nearest OTHER owner.
         let effectiveOwner = site.ownerId;
         if (site.ownerId === DISCONNECT_OWNER_ID) {
+            // Extract source owner: starId = 'disconnect_{starA}_{starB}'
+            const parts = site.starId.split('_');
+            const sourceStarA = parts[1];
+            const sourceOwner = ownedStars.find(s => s.id === sourceStarA)?.ownerId;
+
             let nearestDist = Infinity;
             let nearestOwner = '';
             for (const s of ownedStars) {
+                // Skip same-owner stars — we want the ENEMY fill
+                if (s.ownerId === sourceOwner) continue;
                 const dx = s.x - site.x;
                 const dy = s.y - site.y;
                 const d = dx * dx + dy * dy;
                 if (d < nearestDist) { nearestDist = d; nearestOwner = s.ownerId!; }
             }
-            if (!nearestOwner) continue;
-            effectiveOwner = nearestOwner;
-            log.renderer('PVV2', `disconnect cell at (${site.x.toFixed(0)},${site.y.toFixed(0)}) → fill as ${nearestOwner}`);
+            if (!nearestOwner) {
+                // Fallback: if no enemy exists, use source owner (solo player edge case)
+                effectiveOwner = sourceOwner ?? '';
+                if (!effectiveOwner) continue;
+            } else {
+                effectiveOwner = nearestOwner;
+            }
+            log.renderer('PVV2', `disconnect cell (${site.x.toFixed(0)},${site.y.toFixed(0)}) src=${sourceOwner} → enemy fill ${effectiveOwner}`);
         }
 
         // Ensure closed polygon
@@ -1016,9 +1043,13 @@ export function renderPowerVoronoi(
             return colorMap.get(key) ?? 0x888888;
         }, borderSmoothPasses);
 
-        // Canonical draw — always smoothed
-        drawBorderPolylines(borderGraphics, builtPolylines, borderSmoothPasses, borderWidth * 2.5, borderAlpha * 1.5);
-        log.renderer('PVV2', `steady-state borders: ${builtPolylines.length} polylines, ${sharedEdges.length} edges, smooth=${borderSmoothPasses}`);
+        // chainSharedEdgesIntoPolylines already applies Chaikin — pass 0 to drawBorderPolylines
+        // to avoid double-smoothing. Transition path passes smoothPasses because lerp destroys curves.
+        const t0b = performance.now();
+        drawBorderPolylines(borderGraphics, builtPolylines, 0, borderWidth * 2.5, borderAlpha * 1.5);
+        const t1b = performance.now();
+        const avgPts = builtPolylines.length > 0 ? (builtPolylines.reduce((s, p) => s + p.points.length, 0) / builtPolylines.length).toFixed(0) : '0';
+        log.renderer('PVV2', `STEADY-STATE borders | ${builtPolylines.length} polylines, ${sharedEdges.length} edges, smooth=${borderSmoothPasses} avgPts=${avgPts} | draw=${(t1b - t0b).toFixed(1)}ms | t+${(performance.now() - now).toFixed(1)}ms`);
     } else if (borderGraphics) {
         borderGraphics.clear();
     }
@@ -1060,8 +1091,10 @@ export function renderPowerVoronoi(
         if (prevSharedPolylines && prevSharedPolylines.length > 0) {
             smoothTransitionStart = now;
             isSmoothTransitioning = true;
+            log.renderer('PVV2', `TRANSITION STARTED | prev=${prevSharedPolylines.length} target=${targetSharedPolylines?.length ?? 0} | transitionMs=${transitionMs}`);
         }
     }
+    log.renderer('PVV2', `◀ rebuild complete | total=${(performance.now() - now).toFixed(1)}ms`);
 }
 
 // ── Cache Reset ────────────────────────────────────────────────────────────
