@@ -232,6 +232,7 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'voronoiBorderWidth', configKey: 'VORONOI_BORDER_WIDTH' },
     { panelKey: 'voronoiBorderAlpha', configKey: 'VORONOI_BORDER_ALPHA' },
     { panelKey: 'voronoiBorderBrighten', configKey: 'VORONOI_BORDER_BRIGHTEN' },
+    { panelKey: 'voronoiBorderSmooth', configKey: 'VORONOI_BORDER_SMOOTH' },
     { panelKey: 'voronoiSaturation', configKey: 'VORONOI_SATURATION' },
     { panelKey: 'voronoiLightness', configKey: 'VORONOI_LIGHTNESS' },
     { panelKey: 'voronoiGlowRadius', configKey: 'VORONOI_GLOW_RADIUS' },

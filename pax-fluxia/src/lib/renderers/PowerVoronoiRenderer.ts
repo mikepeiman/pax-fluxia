@@ -997,82 +997,62 @@ export function renderPowerVoronoi(
             edge.colorB = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerB), satMult, lightMult);
         }
 
-        // Render shared edges with proximity-based gradient
-        const blendWidth = borderWidth * 2.5;  // shared edges are wider for visual impact
-
+        // ── Build smoothed shared-edge polylines ──────────────────────────
+        const colorMap = new Map<string, number>();
         for (const edge of sharedEdges) {
-            const starsA = ownerStars.get(edge.ownerA) ?? [];
-            const starsB = ownerStars.get(edge.ownerB) ?? [];
-
-            // Strength data available for future FX (not used in fingerprint/animation loop)
-            const _strengthA = ownerStrength.get(edge.ownerA) ?? 1;
-            const _strengthB = ownerStrength.get(edge.ownerB) ?? 1;
-            // TODO: Wire to UI toggle for strength-weighted border blend
-            // const totalStrength = _strengthA + _strengthB;
-            // const strengthRatio = totalStrength > 0 ? _strengthB / totalStrength : 0.5;
-
-            // Edge midpoint for proximity check
-            const mx = (edge.x1 + edge.x2) / 2;
-            const my = (edge.y1 + edge.y2) / 2;
-
-            // Find nearest star of each owner to edge midpoint
-            let distA = Infinity, distB = Infinity;
-            for (const s of starsA) {
-                const d = Math.hypot(s.x - mx, s.y - my);
-                if (d < distA) distA = d;
+            const key = edge.ownerA < edge.ownerB ? `${edge.ownerA}|${edge.ownerB}` : `${edge.ownerB}|${edge.ownerA}`;
+            if (!colorMap.has(key)) {
+                colorMap.set(key, blendColors(edge.colorA, edge.colorB, 0.5));
             }
-            for (const s of starsB) {
-                const d = Math.hypot(s.x - mx, s.y - my);
-                if (d < distB) distB = d;
+        }
+
+        const borderSmoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
+        const builtPolylines = chainSharedEdgesIntoPolylines(sharedEdges, (a, b) => {
+            const key = a < b ? `${a}|${b}` : `${b}|${a}`;
+            return colorMap.get(key) ?? 0x888888;
+        }, borderSmoothPasses);
+
+        // Layer 2: Draw smoothed shared-edge polylines as continuous paths
+        const blendWidth = borderWidth * 2.5;
+
+        for (const polyline of builtPolylines) {
+            const pts = polyline.points;
+            if (pts.length < 2) continue;
+
+            borderGraphics.moveTo(pts[0][0], pts[0][1]);
+            for (let i = 1; i < pts.length; i++) {
+                borderGraphics.lineTo(pts[i][0], pts[i][1]);
             }
-
-            // Proximity-only blend (strength blend ready but flagged out of animation loop)
-            const totalDist = distA + distB;
-            const blendT = totalDist > 0 ? distA / totalDist : 0.5;
-
-            // Boost saturation and lightness based on dominance
-            const dominance = Math.abs(blendT - 0.5) * 2;  // 0 = equal, 1 = fully dominant
-            const blendedColor = blendColors(edge.colorA, edge.colorB, blendT);
-
-            // Boost the blended color's saturation and lightness based on dominance
-            const [bR, bG, bB] = hexToRGB(blendedColor);
-            const [bH, bS, bL] = rgbToHSL(bR, bG, bB);
-            const boostedSat = Math.min(1, bS + dominance * 0.3);
-            const boostedLight = Math.min(0.85, bL + dominance * 0.15);
-            const [fR, fG, fB] = hslToRGB(bH, boostedSat, boostedLight);
-            const finalColor = (fR << 16) | (fG << 8) | fB;
-
-            // Draw the shared edge with the blended color
-            borderGraphics.moveTo(edge.x1, edge.y1);
-            borderGraphics.lineTo(edge.x2, edge.y2);
-            borderGraphics.stroke({ width: blendWidth, color: finalColor, alpha: borderAlpha * 1.5 });
+            borderGraphics.stroke({ width: blendWidth, color: polyline.color, alpha: borderAlpha * 1.5 });
         }
     } else if (borderGraphics) {
         borderGraphics.clear();
     }
 
     // ── Store targets + start transition ────────────────────────────────
-    // Assign colors to shared edges
-    for (const edge of sharedEdges) {
-        edge.colorA = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerA), satMult, lightMult);
-        edge.colorB = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerB), satMult, lightMult);
+    // Assign colors if not already done in the border render block
+    if (borderWidth <= 0 || borderAlpha <= 0) {
+        for (const edge of sharedEdges) {
+            edge.colorA = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerA), satMult, lightMult);
+            edge.colorB = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerB), satMult, lightMult);
+        }
     }
     targetBorderEdges = sharedEdges;
     lastMergedTerritories = merged;
 
-    // Always build shared polylines for smooth mode (so they're available for snapshot next frame)
-    const colorMap = new Map<string, number>();
-    for (const edge of sharedEdges) {
-        const key = edge.ownerA < edge.ownerB ? `${edge.ownerA}|${edge.ownerB}` : `${edge.ownerB}|${edge.ownerA}`;
-        if (!colorMap.has(key)) {
-            colorMap.set(key, blendColors(edge.colorA, edge.colorB, 0.5));
+    // Build polylines for morph transition (reuse from render block if available)
+    {
+        const smoothN = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
+        const cMap = new Map<string, number>();
+        for (const edge of sharedEdges) {
+            const key = edge.ownerA < edge.ownerB ? `${edge.ownerA}|${edge.ownerB}` : `${edge.ownerB}|${edge.ownerA}`;
+            if (!cMap.has(key)) cMap.set(key, blendColors(edge.colorA, edge.colorB, 0.5));
         }
+        targetSharedPolylines = chainSharedEdgesIntoPolylines(sharedEdges, (a, b) => {
+            const key = a < b ? `${a}|${b}` : `${b}|${a}`;
+            return cMap.get(key) ?? 0x888888;
+        }, smoothN);
     }
-    const borderSmoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
-    targetSharedPolylines = chainSharedEdgesIntoPolylines(sharedEdges, (a, b) => {
-        const key = a < b ? `${a}|${b}` : `${b}|${a}`;
-        return colorMap.get(key) ?? 0x888888;
-    }, borderSmoothPasses);
 
     // Start transition based on mode
     if (shapeChanged && transitionMs > 0) {

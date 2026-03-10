@@ -366,14 +366,16 @@
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">🛤️ Corridor Sites</span><span class="val"
-                >{(panel.modifiedVoronoiCorridorEnabled ?? GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED)
+                >{(panel.modifiedVoronoiCorridorEnabled ??
+                GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED)
                     ? "ON"
                     : "OFF"}</span
             >
         </div>
         <input
             type="checkbox"
-            checked={(panel.modifiedVoronoiCorridorEnabled ?? GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED)}
+            checked={panel.modifiedVoronoiCorridorEnabled ??
+                GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED}
             onchange={(e) => {
                 const v = (e.target as HTMLInputElement).checked;
                 updatePanel("modifiedVoronoiCorridorEnabled", v);
@@ -436,14 +438,16 @@
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">🛤️ Corridor Sites</span><span class="val"
-                >{(panel.modifiedVoronoiCorridorEnabled ?? GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED)
+                >{(panel.modifiedVoronoiCorridorEnabled ??
+                GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED)
                     ? "ON"
                     : "OFF"}</span
             >
         </div>
         <input
             type="checkbox"
-            checked={(panel.modifiedVoronoiCorridorEnabled ?? GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED)}
+            checked={panel.modifiedVoronoiCorridorEnabled ??
+                GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED}
             onchange={(e) => {
                 const v = (e.target as HTMLInputElement).checked;
                 updatePanel("modifiedVoronoiCorridorEnabled", v);
@@ -477,14 +481,16 @@
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">🚫 Disconnect Buffer</span><span class="val"
-                >{(panel.modifiedVoronoiDisconnectEnabled ?? GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED)
+                >{(panel.modifiedVoronoiDisconnectEnabled ??
+                GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED)
                     ? "ON"
                     : "OFF"}</span
             >
         </div>
         <input
             type="checkbox"
-            checked={(panel.modifiedVoronoiDisconnectEnabled ?? GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED)}
+            checked={panel.modifiedVoronoiDisconnectEnabled ??
+                GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED}
             onchange={(e) => {
                 const v = (e.target as HTMLInputElement).checked;
                 updatePanel("modifiedVoronoiDisconnectEnabled", v);
@@ -639,6 +645,40 @@
                 debouncedConfigUpdate(
                     "VORONOI_BORDER_ALPHA",
                     "voronoiBorderAlpha",
+                    v,
+                );
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">🌀 Border Smooth</span><span class="val"
+                >{panel.voronoiBorderSmooth ??
+                    GAME_CONFIG.VORONOI_BORDER_SMOOTH}
+                {(panel.voronoiBorderSmooth ??
+                    GAME_CONFIG.VORONOI_BORDER_SMOOTH) === 0
+                    ? "(angular)"
+                    : (panel.voronoiBorderSmooth ??
+                            GAME_CONFIG.VORONOI_BORDER_SMOOTH) <= 2
+                      ? "(light)"
+                      : (panel.voronoiBorderSmooth ??
+                              GAME_CONFIG.VORONOI_BORDER_SMOOTH) <= 3
+                        ? "(smooth)"
+                        : "(very smooth)"}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="5"
+            step="1"
+            value={panel.voronoiBorderSmooth ??
+                GAME_CONFIG.VORONOI_BORDER_SMOOTH}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "VORONOI_BORDER_SMOOTH",
+                    "voronoiBorderSmooth",
                     v,
                 );
             }}
@@ -1322,9 +1362,13 @@
                 {#each CANONICAL_FRONTIER_MODE_OPTIONS as mode}
                     <button
                         class="mode-btn"
-                        class:active={activeCanonicalFrontierRuntimeMode === mode.id}
+                        class:active={activeCanonicalFrontierRuntimeMode ===
+                            mode.id}
                         onclick={() => {
-                            updatePanel("dfCanonicalFrontierRuntimeMode", mode.id);
+                            updatePanel(
+                                "dfCanonicalFrontierRuntimeMode",
+                                mode.id,
+                            );
                             if (mode.id !== "disabled") {
                                 updatePanel("dfBorderEngine", "mesh");
                             }
@@ -3109,4 +3153,3 @@
         color: #888;
     }
 </style>
-
