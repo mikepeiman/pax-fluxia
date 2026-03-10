@@ -83,7 +83,6 @@ let prevSharedPolylines: SharedPolyline[] | null = null;
 let targetSharedPolylines: SharedPolyline[] | null = null;
 let smoothTransitionStart = 0;
 let isSmoothTransitioning = false;
-let outlineGraphics: PIXI.Graphics | null = null;
 let lastMergedTerritories: MergedTerritory[] | null = null;  // stored for smooth mode snapshot
 
 // ── Fingerprint ────────────────────────────────────────────────────────────
@@ -462,33 +461,46 @@ function chainSharedEdgesIntoPolylines(edges: SharedBorderEdge[], colorLookup?: 
     return result;
 }
 
-/** Draw contested border polylines at interpolated positions (prev → target).
- *  Matches polylines by ownerPairKey + nearest centroid, resamples + lerps. */
-function renderContestedBorders(
-    container: PIXI.Container,
+// ── Canonical Border Drawing ───────────────────────────────────────────────
+
+/**
+ * Draw border polylines into a Graphics object with Chaikin smoothing.
+ * This is the SINGLE canonical function for all border rendering — steady-state,
+ * transition animation, and segment mode all use this function.
+ */
+function drawBorderPolylines(
+    graphics: PIXI.Graphics,
+    polylines: { points: [number, number][]; color: number }[],
+    smoothPasses: number,
+    width: number,
+    alpha: number,
+): void {
+    let drawn = 0;
+    for (const polyline of polylines) {
+        const smoothed = smoothPasses > 0
+            ? chaikinSmoothPolyline(polyline.points, smoothPasses)
+            : polyline.points;
+        if (smoothed.length < 2) continue;
+
+        graphics.moveTo(smoothed[0][0], smoothed[0][1]);
+        for (let i = 1; i < smoothed.length; i++) {
+            graphics.lineTo(smoothed[i][0], smoothed[i][1]);
+        }
+        graphics.stroke({ width, color: polyline.color, alpha });
+        drawn++;
+    }
+    log.renderer('drawBorderPolylines', `drew ${drawn}/${polylines.length} polylines (smooth=${smoothPasses}, w=${width.toFixed(1)}, a=${alpha.toFixed(2)})`);
+}
+
+/** Build lerped polylines from prev → target for transition animation.
+ *  Matches polylines by ownerPairKey + nearest centroid, resamples + lerps.
+ *  Returns an array suitable for drawBorderPolylines. */
+function buildLerpedPolylines(
     prev: SharedPolyline[], target: SharedPolyline[],
     t: number,
-    borderWidth: number, borderAlpha: number,
-): void {
-    if (!outlineGraphics) {
-        outlineGraphics = new PIXI.Graphics();
-        container.addChild(outlineGraphics);
-    }
-    outlineGraphics.clear();
-    outlineGraphics.visible = true;
-
-    const blendWidth = borderWidth * 2.5;
+): { points: [number, number][]; color: number }[] {
     const RESAMPLE_N = 32;
-    const smoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
-
-    // Helper: draw a polyline into outlineGraphics with optional Chaikin smoothing
-    function drawSmoothedPolyline(pts: [number, number][], color: number, alpha: number) {
-        const smoothed = chaikinSmoothPolyline(pts, smoothPasses);
-        if (smoothed.length < 2) return;
-        outlineGraphics!.moveTo(smoothed[0][0], smoothed[0][1]);
-        for (let i = 1; i < smoothed.length; i++) outlineGraphics!.lineTo(smoothed[i][0], smoothed[i][1]);
-        outlineGraphics!.stroke({ width: blendWidth, color, alpha });
-    }
+    const result: { points: [number, number][]; color: number }[] = [];
 
     // Group by ownerPairKey for matching
     const prevByKey = new Map<string, SharedPolyline[]>();
@@ -521,26 +533,24 @@ function renderContestedBorders(
             }
 
             if (bestIdx >= 0) {
-                // Matched: resample both to same point count, lerp, then smooth
                 usedTargets.add(bestIdx);
                 const tLine = tLines[bestIdx];
                 const pSampled = resamplePolyline(pLine.points, RESAMPLE_N);
                 const tSampled = resamplePolyline(tLine.points, RESAMPLE_N);
-                const lerped = lerpPolygon(pSampled, tSampled, t);
-
-                drawSmoothedPolyline(lerped, tLine.color, borderAlpha * 1.5);
+                result.push({ points: lerpPolygon(pSampled, tSampled, t), color: tLine.color });
             } else {
-                // Prev-only polyline: fade out (already smooth from prior build)
-                drawSmoothedPolyline(pLine.points, pLine.color, borderAlpha * 1.5 * (1 - t));
+                // Prev-only: use prev points (will fade out via alpha in caller)
+                result.push({ points: pLine.points, color: pLine.color });
             }
         }
 
-        // Target-only polylines: fade in (already smooth from target build)
+        // Target-only polylines: use target points (fade in via alpha in caller)
         for (let ti = 0; ti < tLines.length; ti++) {
             if (usedTargets.has(ti)) continue;
-            drawSmoothedPolyline(tLines[ti].points, tLines[ti].color, borderAlpha * 1.5 * t);
+            result.push({ points: tLines[ti].points, color: tLines[ti].color });
         }
     }
+    return result;
 }
 
 /** Draw shared border edges at interpolated positions between prev and target.
@@ -742,7 +752,6 @@ export function renderPowerVoronoi(
     // Re-show graphics — voronoiContainer blanket-hides every frame
     if (fillGraphics) fillGraphics.visible = true;
     if (borderGraphics) borderGraphics.visible = true;
-    if (outlineGraphics) outlineGraphics.visible = true;
 
     // ── Per-frame animation (both modes) ────────────────────────────────
     const boundaryMode = GAME_CONFIG.TERRITORY_BOUNDARY_MODE ?? 'smooth';
@@ -771,13 +780,21 @@ export function renderPowerVoronoi(
         const rawT = Math.min(1, elapsed / transitionMs);
         const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
 
-        renderContestedBorders(voronoiContainer, prevSharedPolylines, targetSharedPolylines,
-            eased, GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 1.5, GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.4);
+        // Draw lerped borders into borderGraphics (single layer — no outlineGraphics)
+        if (borderGraphics) {
+            borderGraphics.clear();
+            const smoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
+            const borderWidth = GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 1.5;
+            const borderAlpha = GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.4;
+            const lerped = buildLerpedPolylines(prevSharedPolylines, targetSharedPolylines, eased);
+            drawBorderPolylines(borderGraphics, lerped, smoothPasses, borderWidth * 2.5, borderAlpha * 1.5);
+            log.renderer('PVV2', `transition frame t=${eased.toFixed(2)} lerped=${lerped.length} polylines`);
+        }
 
         if (rawT >= 1) {
             isSmoothTransitioning = false;
             prevSharedPolylines = null;
-            if (outlineGraphics) { outlineGraphics.clear(); outlineGraphics.visible = false; }
+            log.renderer('PVV2', 'smooth transition complete');
         }
         const shapeFpCheck = buildShapeFingerprint(stars);
         const visualFpCheck = buildVisualFingerprint();
@@ -953,7 +970,7 @@ export function renderPowerVoronoi(
         fillGraphics.fill({ color: territory.color, alpha });
     }
 
-    // Borders — strength-blended shared edges (F-142)
+    // Borders — smoothed shared edges via canonical drawBorderPolylines
     if (borderWidth > 0 && borderAlpha > 0) {
         if (!borderGraphics) {
             borderGraphics = new PIXI.Graphics();
@@ -962,14 +979,13 @@ export function renderPowerVoronoi(
         borderGraphics.clear();
         borderGraphics.visible = true;
 
-        // Shared-edge borders only (no territory contour outlines — smoothed polylines handle all borders)
         // Assign colors to shared edges
         for (const edge of sharedEdges) {
             edge.colorA = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerA), satMult, lightMult);
             edge.colorB = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerB), satMult, lightMult);
         }
 
-        // ── Build smoothed shared-edge polylines ──────────────────────────
+        // Build color map for polyline construction
         const colorMap = new Map<string, number>();
         for (const edge of sharedEdges) {
             const key = edge.ownerA < edge.ownerB ? `${edge.ownerA}|${edge.ownerB}` : `${edge.ownerB}|${edge.ownerA}`;
@@ -984,19 +1000,9 @@ export function renderPowerVoronoi(
             return colorMap.get(key) ?? 0x888888;
         }, borderSmoothPasses);
 
-
-        const blendWidth = borderWidth * 2.5;
-
-        for (const polyline of builtPolylines) {
-            const pts = polyline.points;
-            if (pts.length < 2) continue;
-
-            borderGraphics.moveTo(pts[0][0], pts[0][1]);
-            for (let i = 1; i < pts.length; i++) {
-                borderGraphics.lineTo(pts[i][0], pts[i][1]);
-            }
-            borderGraphics.stroke({ width: blendWidth, color: polyline.color, alpha: borderAlpha * 1.5 });
-        }
+        // Canonical draw — always smoothed
+        drawBorderPolylines(borderGraphics, builtPolylines, borderSmoothPasses, borderWidth * 2.5, borderAlpha * 1.5);
+        log.renderer('PVV2', `steady-state borders: ${builtPolylines.length} polylines, ${sharedEdges.length} edges, smooth=${borderSmoothPasses}`);
     } else if (borderGraphics) {
         borderGraphics.clear();
     }
@@ -1058,6 +1064,7 @@ export function resetPowerVoronoiCache(): void {
     targetSharedPolylines = null;
     smoothTransitionStart = 0;
     lastMergedTerritories = null;
+    log.renderer('PVV2', 'cache reset');
     if (fillGraphics) {
         if (fillGraphics.parent) fillGraphics.parent.removeChild(fillGraphics);
         fillGraphics.destroy();
@@ -1067,10 +1074,5 @@ export function resetPowerVoronoiCache(): void {
         if (borderGraphics.parent) borderGraphics.parent.removeChild(borderGraphics);
         borderGraphics.destroy();
         borderGraphics = null;
-    }
-    if (outlineGraphics) {
-        if (outlineGraphics.parent) outlineGraphics.parent.removeChild(outlineGraphics);
-        outlineGraphics.destroy();
-        outlineGraphics = null;
     }
 }
