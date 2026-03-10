@@ -479,6 +479,16 @@ function renderContestedBorders(
 
     const blendWidth = borderWidth * 2.5;
     const RESAMPLE_N = 32;
+    const smoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
+
+    // Helper: draw a polyline into outlineGraphics with optional Chaikin smoothing
+    function drawSmoothedPolyline(pts: [number, number][], color: number, alpha: number) {
+        const smoothed = chaikinSmoothPolyline(pts, smoothPasses);
+        if (smoothed.length < 2) return;
+        outlineGraphics!.moveTo(smoothed[0][0], smoothed[0][1]);
+        for (let i = 1; i < smoothed.length; i++) outlineGraphics!.lineTo(smoothed[i][0], smoothed[i][1]);
+        outlineGraphics!.stroke({ width: blendWidth, color, alpha });
+    }
 
     // Group by ownerPairKey for matching
     const prevByKey = new Map<string, SharedPolyline[]>();
@@ -511,32 +521,24 @@ function renderContestedBorders(
             }
 
             if (bestIdx >= 0) {
-                // Matched: resample both to same point count and lerp
+                // Matched: resample both to same point count, lerp, then smooth
                 usedTargets.add(bestIdx);
                 const tLine = tLines[bestIdx];
                 const pSampled = resamplePolyline(pLine.points, RESAMPLE_N);
                 const tSampled = resamplePolyline(tLine.points, RESAMPLE_N);
                 const lerped = lerpPolygon(pSampled, tSampled, t);
 
-                outlineGraphics.moveTo(lerped[0][0], lerped[0][1]);
-                for (let i = 1; i < lerped.length; i++) outlineGraphics.lineTo(lerped[i][0], lerped[i][1]);
-                outlineGraphics.stroke({ width: blendWidth, color: tLine.color, alpha: borderAlpha * 1.5 });
+                drawSmoothedPolyline(lerped, tLine.color, borderAlpha * 1.5);
             } else {
-                // Prev-only polyline: fade out
-                const pts = pLine.points;
-                outlineGraphics.moveTo(pts[0][0], pts[0][1]);
-                for (let i = 1; i < pts.length; i++) outlineGraphics.lineTo(pts[i][0], pts[i][1]);
-                outlineGraphics.stroke({ width: blendWidth, color: pLine.color, alpha: borderAlpha * 1.5 * (1 - t) });
+                // Prev-only polyline: fade out (already smooth from prior build)
+                drawSmoothedPolyline(pLine.points, pLine.color, borderAlpha * 1.5 * (1 - t));
             }
         }
 
-        // Target-only polylines: fade in
+        // Target-only polylines: fade in (already smooth from target build)
         for (let ti = 0; ti < tLines.length; ti++) {
             if (usedTargets.has(ti)) continue;
-            const pts = tLines[ti].points;
-            outlineGraphics.moveTo(pts[0][0], pts[0][1]);
-            for (let i = 1; i < pts.length; i++) outlineGraphics.lineTo(pts[i][0], pts[i][1]);
-            outlineGraphics.stroke({ width: blendWidth, color: tLines[ti].color, alpha: borderAlpha * 1.5 * t });
+            drawSmoothedPolyline(tLines[ti].points, tLines[ti].color, borderAlpha * 1.5 * t);
         }
     }
 }
@@ -926,6 +928,7 @@ export function renderPowerVoronoi(
     // ── Stage 2b: Extract shared edges (before merge removes internal edges) ──
     const sharedEdges = extractSharedEdges(cells);
 
+
     // ── Stage 3: Merge same-owner cells ────────────────────────────────────
     const merged = mergeSameOwnerCells(cells, GAME_CONFIG.TERRITORY_CLUSTER_SPLIT, clusterMap);
 
@@ -981,7 +984,7 @@ export function renderPowerVoronoi(
             return colorMap.get(key) ?? 0x888888;
         }, borderSmoothPasses);
 
-        // Layer 2: Draw smoothed shared-edge polylines as continuous paths
+
         const blendWidth = borderWidth * 2.5;
 
         for (const polyline of builtPolylines) {
