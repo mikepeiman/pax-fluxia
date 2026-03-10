@@ -488,28 +488,19 @@ function drawBorderPolylines(
         if (pts.length < 2) continue;
 
         if (pts.length === 2) {
-            // Simple line segment — just draw it
             graphics.moveTo(pts[0][0], pts[0][1]);
             graphics.lineTo(pts[1][0], pts[1][1]);
         } else {
-            // Quadratic Bézier through midpoints for smooth arc geometry:
-            // Start at first point, use each point as a control point,
-            // draw curves through midpoints between consecutive points.
+            // Quadratic Bézier through midpoints for smooth arc geometry
             graphics.moveTo(pts[0][0], pts[0][1]);
-
-            // First segment: curve from start to midpoint of first two points
             const mid0x = (pts[0][0] + pts[1][0]) / 2;
             const mid0y = (pts[0][1] + pts[1][1]) / 2;
             graphics.lineTo(mid0x, mid0y);
-
-            // Middle segments: draw quadratic curves through midpoints
             for (let i = 1; i < pts.length - 1; i++) {
                 const midX = (pts[i][0] + pts[i + 1][0]) / 2;
                 const midY = (pts[i][1] + pts[i + 1][1]) / 2;
                 graphics.quadraticCurveTo(pts[i][0], pts[i][1], midX, midY);
             }
-
-            // Final segment: curve to last point
             const last = pts[pts.length - 1];
             graphics.lineTo(last[0], last[1]);
         }
@@ -563,7 +554,20 @@ function buildLerpedPolylines(
                 usedTargets.add(bestIdx);
                 const tLine = tLines[bestIdx];
                 const pSampled = resamplePolyline(pLine.points, RESAMPLE_N);
-                const tSampled = resamplePolyline(tLine.points, RESAMPLE_N);
+                let tSampled = resamplePolyline(tLine.points, RESAMPLE_N);
+
+                // Fix flipping: ensure polylines are oriented the same direction.
+                // If start-of-prev is closer to end-of-target than start-of-target,
+                // reverse the target to match orientation.
+                const p0 = pSampled[0];
+                const t0 = tSampled[0];
+                const tN = tSampled[tSampled.length - 1];
+                const distSameDir = Math.hypot(p0[0] - t0[0], p0[1] - t0[1]);
+                const distReversed = Math.hypot(p0[0] - tN[0], p0[1] - tN[1]);
+                if (distReversed < distSameDir) {
+                    tSampled = tSampled.slice().reverse() as [number, number][];
+                }
+
                 result.push({ points: lerpPolygon(pSampled, tSampled, t), color: tLine.color });
             } else {
                 // Prev-only: use prev points (will fade out via alpha in caller)
@@ -627,12 +631,12 @@ function renderInterpolatedBorders(
             const color = tEdge.colorA || pEdge.colorA || 0x888888;
             borderGraphics.moveTo(x1, y1);
             borderGraphics.lineTo(x2, y2);
-            borderGraphics.stroke({ width: blendWidth, color, alpha: borderAlpha * 1.5 });
+            borderGraphics.stroke({ width: blendWidth, color, alpha: borderAlpha });
         } else {
             // Prev edge fading out (no match) — draw at prev position with decreasing alpha
             borderGraphics.moveTo(pEdge.x1, pEdge.y1);
             borderGraphics.lineTo(pEdge.x2, pEdge.y2);
-            borderGraphics.stroke({ width: blendWidth, color: pEdge.colorA || 0x888888, alpha: borderAlpha * 1.5 * (1 - t) });
+            borderGraphics.stroke({ width: blendWidth, color: pEdge.colorA || 0x888888, alpha: borderAlpha * (1 - t) });
         }
     }
 
@@ -642,7 +646,7 @@ function renderInterpolatedBorders(
         const tEdge = target[ti];
         borderGraphics.moveTo(tEdge.x1, tEdge.y1);
         borderGraphics.lineTo(tEdge.x2, tEdge.y2);
-        borderGraphics.stroke({ width: blendWidth, color: tEdge.colorA || 0x888888, alpha: borderAlpha * 1.5 * t });
+        borderGraphics.stroke({ width: blendWidth, color: tEdge.colorA || 0x888888, alpha: borderAlpha * t });
     }
 }
 
@@ -783,6 +787,13 @@ export function renderPowerVoronoi(
     // ── Per-frame animation (both modes) ────────────────────────────────
     const boundaryMode = GAME_CONFIG.TERRITORY_BOUNDARY_MODE ?? 'smooth';
 
+    // Throttled mode log — only on state change
+    const modeKey = `${boundaryMode}|${isSmoothTransitioning}|${isBorderTransitioning}`;
+    if ((drawBorderPolylines as any).__lastModeKey !== modeKey) {
+        (drawBorderPolylines as any).__lastModeKey = modeKey;
+        log.renderer('PVV2', `mode=${boundaryMode} smoothTransition=${isSmoothTransitioning} segmentTransition=${isBorderTransitioning}`);
+    }
+
     // Segment mode: chain lerped edges into polylines, render via canonical draw
     if (boundaryMode === 'segment' && isBorderTransitioning && transitionMs > 0 && prevBorderEdges && targetBorderEdges) {
         const elapsed = now - borderTransitionStart;
@@ -833,7 +844,7 @@ export function renderPowerVoronoi(
                 const cA = lerpedEdges.find(e => (e.ownerA === a && e.ownerB === b) || (e.ownerA === b && e.ownerB === a));
                 return cA ? blendColors(cA.colorA, cA.colorB, 0.5) : 0x888888;
             }, 0);  // don't smooth inside chain — smooth in draw
-            drawBorderPolylines(borderGraphics, polylines, smoothPasses, borderWidth * 2.5, borderAlpha * 1.5);
+            drawBorderPolylines(borderGraphics, polylines, smoothPasses, borderWidth, borderAlpha);
             log.renderer('PVV2', `SEGMENT TRANSITION t=${eased.toFixed(3)} | ${polylines.length} polylines from ${lerpedEdges.length} edges`);
         }
 
@@ -861,7 +872,7 @@ export function renderPowerVoronoi(
             const t0 = performance.now();
             const lerped = buildLerpedPolylines(prevSharedPolylines, targetSharedPolylines, eased);
             const t1 = performance.now();
-            drawBorderPolylines(borderGraphics, lerped, smoothPasses, borderWidth * 2.5, borderAlpha * 1.5);
+            drawBorderPolylines(borderGraphics, lerped, smoothPasses, borderWidth, borderAlpha);
             const t2 = performance.now();
             const avgPts = lerped.length > 0 ? (lerped.reduce((s, p) => s + p.points.length, 0) / lerped.length).toFixed(0) : '0';
             log.renderer('PVV2', `TRANSITION t=${eased.toFixed(3)} | lerp=${(t1 - t0).toFixed(1)}ms draw=${(t2 - t1).toFixed(1)}ms | ${lerped.length} polylines avgPts=${avgPts} smooth=${smoothPasses} | prev=${prevSharedPolylines.length} target=${targetSharedPolylines.length}`);
@@ -1117,7 +1128,7 @@ export function renderPowerVoronoi(
         // chainSharedEdgesIntoPolylines already applies Chaikin — pass 0 to drawBorderPolylines
         // to avoid double-smoothing. Transition path passes smoothPasses because lerp destroys curves.
         const t0b = performance.now();
-        drawBorderPolylines(borderGraphics, builtPolylines, 0, borderWidth * 2.5, borderAlpha * 1.5);
+        drawBorderPolylines(borderGraphics, builtPolylines, 0, borderWidth, borderAlpha);
         const t1b = performance.now();
         const avgPts = builtPolylines.length > 0 ? (builtPolylines.reduce((s, p) => s + p.points.length, 0) / builtPolylines.length).toFixed(0) : '0';
         log.renderer('PVV2', `STEADY-STATE borders | ${builtPolylines.length} polylines, ${sharedEdges.length} edges, smooth=${borderSmoothPasses} avgPts=${avgPts} | draw=${(t1b - t0b).toFixed(1)}ms | t+${(performance.now() - now).toFixed(1)}ms`);
