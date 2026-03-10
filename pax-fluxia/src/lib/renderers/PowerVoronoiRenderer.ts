@@ -1223,6 +1223,86 @@ export function renderPowerVoronoi(
         log.renderer('PVV2', `fingerprints changed DURING transition — falling through to rebuild`);
     }
 
+    // ── Frontier loop morph (arc-length parameterization) ────────────────
+    if (isFrontierTransitioning && prevFrontierLoops && targetFrontierLoops && transitionMs > 0) {
+        const elapsed = now - frontierTransitionStart;
+        const rawT = Math.min(1, elapsed / transitionMs);
+        const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
+        const numCPs = Math.max(5, Math.min(300, Math.round(GAME_CONFIG.TERRITORY_MORPH_CONTROL_POINTS ?? 32)));
+        const smoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
+        const alpha = GAME_CONFIG.VORONOI_ALPHA ?? 0.25;
+        const borderWidth = GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 1.5;
+        const borderAlpha = GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.4;
+        const satMult = GAME_CONFIG.VORONOI_SATURATION ?? 0.8;
+        const lightMult = GAME_CONFIG.VORONOI_LIGHTNESS ?? 0.6;
+
+        // Collect all player IDs present in either prev or target
+        const allOwners = new Set([...prevFrontierLoops.keys(), ...targetFrontierLoops.keys()]);
+
+        if (fillGraphics) fillGraphics.clear();
+        if (borderGraphics) borderGraphics.clear();
+
+        for (const ownerId of allOwners) {
+            const prevLoops = prevFrontierLoops.get(ownerId) ?? [];
+            const targetLoops = targetFrontierLoops.get(ownerId) ?? [];
+
+            // For now: morph first loop of each player (1:1 case)
+            // Territory splitting (1→2 or 2→1) handled in Step F
+            const maxLoops = Math.max(prevLoops.length, targetLoops.length);
+
+            for (let li = 0; li < maxLoops; li++) {
+                const prevLoop = prevLoops[li];
+                const targetLoop = targetLoops[li];
+
+                let interpolatedPts: [number, number][];
+
+                if (prevLoop && targetLoop) {
+                    // Both exist — parameterize, align, lerp
+                    const { f1CPs, f2CPs } = parameterizeAndAlign(
+                        prevLoop.points, targetLoop.points, numCPs
+                    );
+                    interpolatedPts = lerpFrontierCPs(f1CPs, f2CPs, eased);
+                } else if (prevLoop && !targetLoop) {
+                    // Disappearing loop — use prev, will shrink at t=1
+                    interpolatedPts = prevLoop.points;
+                } else if (!prevLoop && targetLoop) {
+                    // Appearing loop — use target
+                    interpolatedPts = targetLoop.points;
+                } else {
+                    continue;
+                }
+
+                // Apply Chaikin smoothing to interpolated CPs
+                const smoothed = smoothPasses > 0
+                    ? chaikinSmoothPolyline(interpolatedPts, smoothPasses)
+                    : interpolatedPts;
+
+                // Draw fill inside frontier
+                if (fillGraphics && smoothed.length >= 3) {
+                    const rawColor = colorUtils.getPlayerColor(ownerId);
+                    const fillColor = adjustColorHSL(rawColor, satMult, lightMult);
+                    fillGraphics.poly(smoothed.flat());
+                    fillGraphics.fill({ color: fillColor, alpha });
+                }
+
+                // Draw border stroke at frontier
+                if (borderGraphics && borderWidth > 0 && borderAlpha > 0 && smoothed.length >= 2) {
+                    const rawColor = colorUtils.getPlayerColor(ownerId);
+                    const borderColor = adjustColorHSL(rawColor, satMult, lightMult);
+                    drawBorderPolylines(borderGraphics, [{ points: smoothed as [number, number][], color: borderColor }], 0, borderWidth, borderAlpha);
+                }
+            }
+        }
+
+        log.renderer('PVV2', `FRONTIER MORPH t=${eased.toFixed(3)} | ${allOwners.size} owners, ${numCPs} CPs`);
+
+        if (rawT >= 1) {
+            isFrontierTransitioning = false;
+            prevFrontierLoops = null;
+            log.renderer('PVV2', 'frontier loop morph complete');
+        }
+    }
+
     const shapeFp = buildShapeFingerprint(stars);
     const visualFp = buildVisualFingerprint();
     const shapeChanged = shapeFp !== cachedShapeFingerprint;
