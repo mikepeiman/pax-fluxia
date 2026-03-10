@@ -495,7 +495,7 @@ function drawTypeIcon(
         g.lineTo(cx + size * Math.cos(angle), cy + size * Math.sin(angle));
     }
     g.fill({ color, alpha });
-    g.stroke({ color: 0xffffff, width: 1, alpha: alpha * 0.6 });
+    g.stroke({ color: 0xffffff, width: 1, alpha });
 }
 
 function drawHexBorder(

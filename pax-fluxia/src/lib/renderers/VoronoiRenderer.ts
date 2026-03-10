@@ -327,7 +327,7 @@ export function renderVoronoi(
                                 const blendT = t;
                                 const blended = blendRGB(starColors[i].rgb, starColors[neighborIdx].rgb, blendT);
                                 const blendColor = rgbToHex(blended[0], blended[1], blended[2]);
-                                const stripAlpha = borderAlpha * (1 - Math.abs(t - 0.5) * 2) * 0.6;
+                                const stripAlpha = borderAlpha * (1 - Math.abs(t - 0.5) * 2);
 
                                 borderGraphics.moveTo(
                                     x1 + nnx * offset,

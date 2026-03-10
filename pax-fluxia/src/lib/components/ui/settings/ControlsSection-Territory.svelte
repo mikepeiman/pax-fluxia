@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
     import { GAME_CONFIG } from "$lib/config/game.config";
 
     // ControlsSection-Territory -- Territory Rendering (Voronoi + Metaball)
@@ -613,7 +613,7 @@
         <input
             type="range"
             min="0"
-            max="6"
+            max="30"
             step="0.5"
             value={panel.voronoiBorderWidth ?? GAME_CONFIG.VORONOI_BORDER_WIDTH}
             oninput={(e) => {
@@ -942,8 +942,8 @@
         <input
             type="range"
             min="0"
-            max="4"
-            step="1"
+            max="30"
+            step="0.5"
             value={panel.graphBorderWidth ?? 1}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
@@ -2076,7 +2076,7 @@
         <input
             type="range"
             min="0"
-            max="8"
+            max="30"
             step="0.5"
             value={panel.contourBorderWidth ?? 2}
             oninput={(e) => {
@@ -2366,7 +2366,7 @@
         <input
             type="range"
             min="0"
-            max="8"
+            max="30"
             step="0.5"
             value={panel.voronoiBorderWidth}
             oninput={(e) => {
@@ -2632,8 +2632,8 @@
         <input
             type="range"
             min="0"
-            max="4"
-            step="1"
+            max="30"
+            step="0.5"
             value={panel.pixelBorderWidth ?? 1}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
@@ -3000,7 +3000,7 @@
         <input
             type="range"
             min="0"
-            max="6"
+            max="30"
             step="0.5"
             value={panel.metaballBorderWidth ?? 1.5}
             oninput={(e) => {

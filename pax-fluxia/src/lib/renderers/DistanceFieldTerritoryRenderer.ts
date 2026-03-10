@@ -2504,7 +2504,7 @@ function drawVectorPolylines(
             graphics.stroke({
                 width: borderWidth + borderSoftness * 2,
                 color: strokeColor,
-                alpha: Math.max(0, borderAlpha * 0.35),
+                alpha: Math.max(0, borderAlpha),
                 cap: 'round',
                 join: 'round',
             } as any);
@@ -2913,7 +2913,7 @@ function renderMeshBorderOverlay(ctx: BorderFamilyRenderContext, alignmentContra
     );
     const canonicalDiagnosticShow = Boolean(
         GAME_CONFIG.DF_CANONICAL_FRONTIER_DIAGNOSTIC_SHOW
-            ?? DF_CANONICAL_FRONTIER_DIAGNOSTIC_SHOW_DEFAULT,
+        ?? DF_CANONICAL_FRONTIER_DIAGNOSTIC_SHOW_DEFAULT,
     );
     const shouldPreferCanonical = canonicalRuntimeMode === 'production'
         || (canonicalRuntimeMode === 'diagnostic' && canonicalDiagnosticShow);
