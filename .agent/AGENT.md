@@ -210,6 +210,7 @@ Use `git ac "message"` alias for add+commit. Run commands separately, never chai
 | Ignoring user's exact words | User words are specifications |
 | Setting timid slider ranges for new FX | **10X rule**: provide at least 10× the "reasonable" range. You can't debug what you can't see. |
 | Interpreting silence as confirmation | **Absence of feedback ≠ confirmation.** Only explicit user statements count as verification. Never claim "confirmed" or "verified" without a direct user statement. |
+| Substituting own framing for user spec | **Spec-validate before coding.** Every time you have a direction/solution, check it against the user's exact words: "What is the user's intent, and what do their words mean?" Verify your idea satisfies the correct specifications, conditions, and description — not your own restatement. |
 
 ---
 

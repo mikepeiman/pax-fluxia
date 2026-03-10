@@ -464,9 +464,14 @@ function chainSharedEdgesIntoPolylines(edges: SharedBorderEdge[], colorLookup?: 
 // ── Canonical Border Drawing ───────────────────────────────────────────────
 
 /**
- * Draw border polylines into a Graphics object with Chaikin smoothing.
+ * Draw border polylines into a Graphics object as smooth Bézier curves.
+ * Uses quadraticCurveTo through midpoints for smooth arc geometry.
  * This is the SINGLE canonical function for all border rendering — steady-state,
  * transition animation, and segment mode all use this function.
+ * 
+ * If smoothPasses > 0, Chaikin subdivision is applied first to generate more
+ * control points for the Bézier interpolation. Round caps and joins ensure
+ * clean visual connections at polyline junctions.
  */
 function drawBorderPolylines(
     graphics: PIXI.Graphics,
@@ -477,19 +482,41 @@ function drawBorderPolylines(
 ): void {
     let drawn = 0;
     for (const polyline of polylines) {
-        const smoothed = smoothPasses > 0
+        const pts = smoothPasses > 0
             ? chaikinSmoothPolyline(polyline.points, smoothPasses)
             : polyline.points;
-        if (smoothed.length < 2) continue;
+        if (pts.length < 2) continue;
 
-        graphics.moveTo(smoothed[0][0], smoothed[0][1]);
-        for (let i = 1; i < smoothed.length; i++) {
-            graphics.lineTo(smoothed[i][0], smoothed[i][1]);
+        if (pts.length === 2) {
+            // Simple line segment — just draw it
+            graphics.moveTo(pts[0][0], pts[0][1]);
+            graphics.lineTo(pts[1][0], pts[1][1]);
+        } else {
+            // Quadratic Bézier through midpoints for smooth arc geometry:
+            // Start at first point, use each point as a control point,
+            // draw curves through midpoints between consecutive points.
+            graphics.moveTo(pts[0][0], pts[0][1]);
+
+            // First segment: curve from start to midpoint of first two points
+            const mid0x = (pts[0][0] + pts[1][0]) / 2;
+            const mid0y = (pts[0][1] + pts[1][1]) / 2;
+            graphics.lineTo(mid0x, mid0y);
+
+            // Middle segments: draw quadratic curves through midpoints
+            for (let i = 1; i < pts.length - 1; i++) {
+                const midX = (pts[i][0] + pts[i + 1][0]) / 2;
+                const midY = (pts[i][1] + pts[i + 1][1]) / 2;
+                graphics.quadraticCurveTo(pts[i][0], pts[i][1], midX, midY);
+            }
+
+            // Final segment: curve to last point
+            const last = pts[pts.length - 1];
+            graphics.lineTo(last[0], last[1]);
         }
-        graphics.stroke({ width, color: polyline.color, alpha });
+        graphics.stroke({ width, color: polyline.color, alpha, cap: 'round', join: 'round' });
         drawn++;
     }
-    log.renderer('drawBorderPolylines', `drew ${drawn}/${polylines.length} polylines (smooth=${smoothPasses}, w=${width.toFixed(1)}, a=${alpha.toFixed(2)})`);
+    log.renderer('drawBorderPolylines', `drew ${drawn}/${polylines.length} polylines (smooth=${smoothPasses}, w=${width.toFixed(1)}, a=${alpha.toFixed(2)}, bezier=true)`);
 }
 
 /** Build lerped polylines from prev → target for transition animation.
@@ -755,16 +782,60 @@ export function renderPowerVoronoi(
 
     // ── Per-frame animation (both modes) ────────────────────────────────
     const boundaryMode = GAME_CONFIG.TERRITORY_BOUNDARY_MODE ?? 'smooth';
-    log.renderer('PVV2', `▶ render called | mode=${boundaryMode} transitioning=${isSmoothTransitioning} borderGfx=${!!borderGraphics} t+${(performance.now() - now).toFixed(1)}ms`);
 
-    // Segment mode: edge-level lerp
+    // Segment mode: chain lerped edges into polylines, render via canonical draw
     if (boundaryMode === 'segment' && isBorderTransitioning && transitionMs > 0 && prevBorderEdges && targetBorderEdges) {
         const elapsed = now - borderTransitionStart;
         const rawT = Math.min(1, elapsed / transitionMs);
         const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
 
-        renderInterpolatedBorders(voronoiContainer, prevBorderEdges, targetBorderEdges,
-            eased, GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 1.5, GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.4);
+        // Lerp edge positions, then chain into polylines for canonical draw
+        const lerpedEdges: SharedBorderEdge[] = [];
+        const targetUsed = new Set<number>();
+        for (const pEdge of prevBorderEdges) {
+            const pMx = (pEdge.x1 + pEdge.x2) / 2;
+            const pMy = (pEdge.y1 + pEdge.y2) / 2;
+            let bestDist = Infinity;
+            let bestIdx = -1;
+            for (let ti = 0; ti < targetBorderEdges.length; ti++) {
+                if (targetUsed.has(ti)) continue;
+                const tMx = (targetBorderEdges[ti].x1 + targetBorderEdges[ti].x2) / 2;
+                const tMy = (targetBorderEdges[ti].y1 + targetBorderEdges[ti].y2) / 2;
+                const d = Math.hypot(pMx - tMx, pMy - tMy);
+                if (d < bestDist) { bestDist = d; bestIdx = ti; }
+            }
+            if (bestIdx >= 0 && bestDist < 200) {
+                targetUsed.add(bestIdx);
+                const tEdge = targetBorderEdges[bestIdx];
+                lerpedEdges.push({
+                    x1: pEdge.x1 + (tEdge.x1 - pEdge.x1) * eased,
+                    y1: pEdge.y1 + (tEdge.y1 - pEdge.y1) * eased,
+                    x2: pEdge.x2 + (tEdge.x2 - pEdge.x2) * eased,
+                    y2: pEdge.y2 + (tEdge.y2 - pEdge.y2) * eased,
+                    ownerA: tEdge.ownerA, ownerB: tEdge.ownerB,
+                    colorA: tEdge.colorA, colorB: tEdge.colorB,
+                });
+            }
+        }
+        // Unmatched target edges
+        for (let ti = 0; ti < targetBorderEdges.length; ti++) {
+            if (targetUsed.has(ti)) continue;
+            lerpedEdges.push(targetBorderEdges[ti]);
+        }
+
+        // Chain lerped edges into polylines + draw via canonical function
+        if (borderGraphics) {
+            borderGraphics.clear();
+            const smoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
+            const borderWidth = GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 1.5;
+            const borderAlpha = GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.4;
+            const polylines = chainSharedEdgesIntoPolylines(lerpedEdges, (a, b) => {
+                const cA = lerpedEdges.find(e => (e.ownerA === a && e.ownerB === b) || (e.ownerA === b && e.ownerB === a));
+                return cA ? blendColors(cA.colorA, cA.colorB, 0.5) : 0x888888;
+            }, 0);  // don't smooth inside chain — smooth in draw
+            drawBorderPolylines(borderGraphics, polylines, smoothPasses, borderWidth * 2.5, borderAlpha * 1.5);
+            log.renderer('PVV2', `SEGMENT TRANSITION t=${eased.toFixed(3)} | ${polylines.length} polylines from ${lerpedEdges.length} edges`);
+        }
 
         if (rawT >= 1) {
             isBorderTransitioning = false;

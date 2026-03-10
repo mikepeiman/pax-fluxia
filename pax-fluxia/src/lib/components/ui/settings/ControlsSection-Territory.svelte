@@ -3152,4 +3152,27 @@
     .grayed {
         color: #888;
     }
+    .mini-btn {
+        padding: 3px 10px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.06);
+        color: rgba(255, 255, 255, 0.5);
+        font-size: 11px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        letter-spacing: 0.5px;
+    }
+    .mini-btn:hover {
+        background: rgba(255, 255, 255, 0.12);
+        color: rgba(255, 255, 255, 0.8);
+        border-color: rgba(255, 255, 255, 0.25);
+    }
+    .mini-btn.active {
+        background: rgba(74, 222, 128, 0.2);
+        border-color: #4ade80;
+        color: #4ade80;
+        box-shadow: 0 0 6px rgba(74, 222, 128, 0.25);
+    }
 </style>

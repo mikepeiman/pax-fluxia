@@ -244,6 +244,7 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'voronoiGradientBlend', configKey: 'VORONOI_GRADIENT_BLEND' },
     { panelKey: 'voronoiBlendWidth', configKey: 'VORONOI_BLEND_WIDTH' },
     // Territory toggles
+    { panelKey: 'territoryBoundaryMode', configKey: 'TERRITORY_BOUNDARY_MODE' },
     { panelKey: 'territoryVoronoi', configKey: 'TERRITORY_VORONOI' },
     { panelKey: 'territoryMetaball', configKey: 'TERRITORY_METABALL' },
     { panelKey: 'territoryPixel', configKey: 'TERRITORY_PIXEL' },
