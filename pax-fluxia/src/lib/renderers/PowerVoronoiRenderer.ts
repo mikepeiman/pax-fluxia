@@ -512,7 +512,10 @@ function drawBorderPolylines(
 }
 
 /** Build lerped polylines from prev → target for transition animation.
- *  Matches polylines by ownerPairKey + nearest centroid (distance-capped).
+ *  Matches polylines by GEOGRAPHIC PROXIMITY (centroid distance), regardless
+ *  of ownerPairKey. This correctly handles conquest-changed frontiers where
+ *  the owner-pair identity changes (e.g., green-red → green-blue) but the
+ *  frontier stays in the same geographic area.
  *  Unmatched polylines grow/shrink geometrically to/from centroid.
  *  Returns an array suitable for drawBorderPolylines. */
 function buildLerpedPolylines(
@@ -520,78 +523,60 @@ function buildLerpedPolylines(
     t: number,
 ): { points: [number, number][]; color: number }[] {
     const RESAMPLE_N = 32;
-    const MAX_MATCH_DIST = 200;  // px — beyond this, treat as unrelated
     const result: { points: [number, number][]; color: number }[] = [];
+    const usedTargets = new Set<number>();
 
-    // Group by ownerPairKey for matching
-    const prevByKey = new Map<string, SharedPolyline[]>();
-    for (const p of prev) {
-        if (!prevByKey.has(p.ownerPairKey)) prevByKey.set(p.ownerPairKey, []);
-        prevByKey.get(p.ownerPairKey)!.push(p);
-    }
-    const targetByKey = new Map<string, SharedPolyline[]>();
-    for (const p of target) {
-        if (!targetByKey.has(p.ownerPairKey)) targetByKey.set(p.ownerPairKey, []);
-        targetByKey.get(p.ownerPairKey)!.push(p);
-    }
+    // Pre-compute all target centroids
+    const targetCentroids: [number, number][] = target.map(tl => polygonCentroid(tl.points));
 
-    const allKeys = new Set([...prevByKey.keys(), ...targetByKey.keys()]);
-
-    for (const key of allKeys) {
-        const pLines = prevByKey.get(key) ?? [];
-        const tLines = targetByKey.get(key) ?? [];
-        const usedTargets = new Set<number>();
-
-        for (const pLine of pLines) {
-            const pC = polygonCentroid(pLine.points);
-            let bestDist = Infinity;
-            let bestIdx = -1;
-            for (let ti = 0; ti < tLines.length; ti++) {
-                if (usedTargets.has(ti)) continue;
-                const tC = polygonCentroid(tLines[ti].points);
-                const d = Math.hypot(pC[0] - tC[0], pC[1] - tC[1]);
-                if (d < bestDist) { bestDist = d; bestIdx = ti; }
-            }
-
-            if (bestIdx >= 0 && bestDist <= MAX_MATCH_DIST) {
-                // Matched pair: resample both to same point count and lerp
-                usedTargets.add(bestIdx);
-                const tLine = tLines[bestIdx];
-                const pSampled = resamplePolyline(pLine.points, RESAMPLE_N);
-                let tSampled = resamplePolyline(tLine.points, RESAMPLE_N);
-
-                // Fix flipping: ensure polylines are oriented the same direction.
-                const p0 = pSampled[0];
-                const t0 = tSampled[0];
-                const tN = tSampled[tSampled.length - 1];
-                const distSameDir = Math.hypot(p0[0] - t0[0], p0[1] - t0[1]);
-                const distReversed = Math.hypot(p0[0] - tN[0], p0[1] - tN[1]);
-                if (distReversed < distSameDir) {
-                    tSampled = tSampled.slice().reverse() as [number, number][];
-                }
-
-                result.push({ points: lerpPolygon(pSampled, tSampled, t), color: tLine.color });
-            } else {
-                // Prev-only (disappearing): geometrically shrink toward centroid
-                const pC2 = polygonCentroid(pLine.points);
-                const pSampled = resamplePolyline(pLine.points, RESAMPLE_N);
-                // Build centroid array (all points = centroid = collapsed to a point)
-                const centroidPts: [number, number][] = pSampled.map(() => [pC2[0], pC2[1]] as [number, number]);
-                result.push({ points: lerpPolygon(pSampled, centroidPts, t), color: pLine.color });
-            }
-        }
-
-        // Target-only polylines (appearing): geometrically grow from centroid
-        for (let ti = 0; ti < tLines.length; ti++) {
+    // Match each prev polyline to nearest unmatched target by centroid proximity
+    for (const pLine of prev) {
+        const pC = polygonCentroid(pLine.points);
+        let bestDist = Infinity;
+        let bestIdx = -1;
+        for (let ti = 0; ti < target.length; ti++) {
             if (usedTargets.has(ti)) continue;
-            const tLine = tLines[ti];
-            const tC = polygonCentroid(tLine.points);
-            const tSampled = resamplePolyline(tLine.points, RESAMPLE_N);
-            // Build centroid array (start as a point, grow to full shape)
-            const centroidPts: [number, number][] = tSampled.map(() => [tC[0], tC[1]] as [number, number]);
-            result.push({ points: lerpPolygon(centroidPts, tSampled, t), color: tLine.color });
+            const d = Math.hypot(pC[0] - targetCentroids[ti][0], pC[1] - targetCentroids[ti][1]);
+            if (d < bestDist) { bestDist = d; bestIdx = ti; }
+        }
+
+        if (bestIdx >= 0) {
+            usedTargets.add(bestIdx);
+            const tLine = target[bestIdx];
+            const pSampled = resamplePolyline(pLine.points, RESAMPLE_N);
+            let tSampled = resamplePolyline(tLine.points, RESAMPLE_N);
+
+            // Fix flipping: ensure polylines are oriented the same direction.
+            const p0 = pSampled[0];
+            const t0 = tSampled[0];
+            const tN = tSampled[tSampled.length - 1];
+            const distSameDir = Math.hypot(p0[0] - t0[0], p0[1] - t0[1]);
+            const distReversed = Math.hypot(p0[0] - tN[0], p0[1] - tN[1]);
+            if (distReversed < distSameDir) {
+                tSampled = tSampled.slice().reverse() as [number, number][];
+            }
+
+            // Interpolate color from prev→target during morph
+            const lerpedColor = blendColors(pLine.color, tLine.color, t);
+            result.push({ points: lerpPolygon(pSampled, tSampled, t), color: lerpedColor });
+        } else {
+            // Prev-only (disappearing): geometrically shrink toward centroid
+            const pSampled = resamplePolyline(pLine.points, RESAMPLE_N);
+            const centroidPts: [number, number][] = pSampled.map(() => [pC[0], pC[1]] as [number, number]);
+            result.push({ points: lerpPolygon(pSampled, centroidPts, t), color: pLine.color });
         }
     }
+
+    // Target-only polylines (appearing): geometrically grow from centroid
+    for (let ti = 0; ti < target.length; ti++) {
+        if (usedTargets.has(ti)) continue;
+        const tLine = target[ti];
+        const tC = targetCentroids[ti];
+        const tSampled = resamplePolyline(tLine.points, RESAMPLE_N);
+        const centroidPts: [number, number][] = tSampled.map(() => [tC[0], tC[1]] as [number, number]);
+        result.push({ points: lerpPolygon(centroidPts, tSampled, t), color: tLine.color });
+    }
+
     return result;
 }
 
