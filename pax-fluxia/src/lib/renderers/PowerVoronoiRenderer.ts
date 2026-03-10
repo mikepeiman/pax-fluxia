@@ -632,6 +632,137 @@ function assembleFrontierLoops(
     return result;
 }
 
+// ── Frontier Loop Parameterization (Step C) ───────────────────────────────
+
+/**
+ * Parameterize two frontier loops (F1, F2) to N control points and align
+ * them at the longest static section.
+ *
+ * Algorithm:
+ * 1. Resample both loops to N evenly-spaced CPs via arc-length
+ * 2. For each possible rotation offset k of F2 relative to F1:
+ *    count how many CPs are "static" (within ε pixels of each other)
+ * 3. Find the rotation that maximizes the longest contiguous run of statics
+ * 4. Rotate F2's CPs by that offset so CP[0] aligns at the static anchor
+ *
+ * Returns { f1CPs, f2CPs } — same length, aligned, ready for lerp.
+ */
+function parameterizeAndAlign(
+    f1Loop: [number, number][],
+    f2Loop: [number, number][],
+    n: number,
+    epsilon: number = 2,
+): { f1CPs: [number, number][]; f2CPs: [number, number][] } {
+    // Resample both to N CPs (arc-length parameterization)
+    const f1Raw = resamplePolygon(f1Loop, n);
+    const f2Raw = resamplePolygon(f2Loop, n);
+
+    // Remove closure point (resamplePolygon adds pts[n] = pts[0])
+    const f1CPs = f1Raw.slice(0, n) as [number, number][];
+    const f2CPs = f2Raw.slice(0, n) as [number, number][];
+
+    // Find best rotation: maximize the longest contiguous static run
+    let bestOffset = 0;
+    let bestLongestRun = 0;
+    const eps2 = epsilon * epsilon;
+
+    for (let offset = 0; offset < n; offset++) {
+        // Count longest contiguous run of static CPs at this rotation
+        let longestRun = 0;
+        let currentRun = 0;
+
+        for (let i = 0; i < n; i++) {
+            const j = (i + offset) % n;
+            const dx = f1CPs[i][0] - f2CPs[j][0];
+            const dy = f1CPs[i][1] - f2CPs[j][1];
+            if (dx * dx + dy * dy <= eps2) {
+                currentRun++;
+                if (currentRun > longestRun) longestRun = currentRun;
+            } else {
+                currentRun = 0;
+            }
+        }
+
+        // Also check wrap-around: a run that spans the array boundary
+        if (longestRun < n) {
+            // Check if the run wraps from end to start
+            let wrapRun = 0;
+            // Count from end backward
+            for (let i = n - 1; i >= 0; i--) {
+                const j = (i + offset) % n;
+                const dx = f1CPs[i][0] - f2CPs[j][0];
+                const dy = f1CPs[i][1] - f2CPs[j][1];
+                if (dx * dx + dy * dy <= eps2) wrapRun++;
+                else break;
+            }
+            // Count from start forward
+            let startRun = 0;
+            for (let i = 0; i < n; i++) {
+                const j = (i + offset) % n;
+                const dx = f1CPs[i][0] - f2CPs[j][0];
+                const dy = f1CPs[i][1] - f2CPs[j][1];
+                if (dx * dx + dy * dy <= eps2) startRun++;
+                else break;
+            }
+            const wrapTotal = wrapRun + startRun;
+            if (wrapTotal > longestRun && wrapTotal <= n) longestRun = wrapTotal;
+        }
+
+        if (longestRun > bestLongestRun) {
+            bestLongestRun = longestRun;
+            bestOffset = offset;
+        }
+    }
+
+    // Rotate F2 CPs by bestOffset so they align with F1
+    if (bestOffset !== 0) {
+        const rotated: [number, number][] = new Array(n);
+        for (let i = 0; i < n; i++) {
+            rotated[i] = f2CPs[(i + bestOffset) % n];
+        }
+        log.sys('FrontierAlign', `Aligned with offset=${bestOffset}, longestStaticRun=${bestLongestRun}/${n} CPs`);
+        return { f1CPs, f2CPs: rotated };
+    }
+
+    log.sys('FrontierAlign', `No rotation needed, longestStaticRun=${bestLongestRun}/${n} CPs`);
+    return { f1CPs, f2CPs };
+}
+
+/**
+ * Lerp between two aligned CP arrays.
+ * Static CPs (within ε) stay fixed. Changed CPs interpolate linearly.
+ */
+function lerpFrontierCPs(
+    f1CPs: [number, number][],
+    f2CPs: [number, number][],
+    t: number,
+    epsilon: number = 2,
+): [number, number][] {
+    const n = f1CPs.length;
+    const result: [number, number][] = new Array(n);
+    const eps2 = epsilon * epsilon;
+
+    for (let i = 0; i < n; i++) {
+        const dx = f1CPs[i][0] - f2CPs[i][0];
+        const dy = f1CPs[i][1] - f2CPs[i][1];
+
+        if (dx * dx + dy * dy <= eps2) {
+            // Static CP — stays at F1 position (no flicker)
+            result[i] = [f1CPs[i][0], f1CPs[i][1]];
+        } else {
+            // Changed CP — interpolate
+            result[i] = [
+                f1CPs[i][0] + (f2CPs[i][0] - f1CPs[i][0]) * t,
+                f1CPs[i][1] + (f2CPs[i][1] - f1CPs[i][1]) * t,
+            ];
+        }
+    }
+
+    // Close the loop
+    result.push([result[0][0], result[0][1]]);
+    return result;
+}
+
 // ── Canonical Border Drawing ───────────────────────────────────────────────
 
 /**
