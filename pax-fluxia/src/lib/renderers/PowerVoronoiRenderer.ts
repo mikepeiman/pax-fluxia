@@ -85,10 +85,6 @@ let smoothTransitionStart = 0;
 let isSmoothTransitioning = false;
 let lastMergedTerritories: MergedTerritory[] | null = null;  // stored for smooth mode snapshot
 
-// ── Fill Transition State (mode-independent crossfade) ─────────────────────
-let prevMergedTerritories: MergedTerritory[] | null = null;
-let fillTransitionStart = 0;
-let isFillTransitioning = false;
 
 // ── Fingerprint ────────────────────────────────────────────────────────────
 
@@ -516,13 +512,15 @@ function drawBorderPolylines(
 }
 
 /** Build lerped polylines from prev → target for transition animation.
- *  Matches polylines by ownerPairKey + nearest centroid, resamples + lerps.
+ *  Matches polylines by ownerPairKey + nearest centroid (distance-capped).
+ *  Unmatched polylines grow/shrink geometrically to/from centroid.
  *  Returns an array suitable for drawBorderPolylines. */
 function buildLerpedPolylines(
     prev: SharedPolyline[], target: SharedPolyline[],
     t: number,
 ): { points: [number, number][]; color: number }[] {
     const RESAMPLE_N = 32;
+    const MAX_MATCH_DIST = 200;  // px — beyond this, treat as unrelated
     const result: { points: [number, number][]; color: number }[] = [];
 
     // Group by ownerPairKey for matching
@@ -555,15 +553,14 @@ function buildLerpedPolylines(
                 if (d < bestDist) { bestDist = d; bestIdx = ti; }
             }
 
-            if (bestIdx >= 0) {
+            if (bestIdx >= 0 && bestDist <= MAX_MATCH_DIST) {
+                // Matched pair: resample both to same point count and lerp
                 usedTargets.add(bestIdx);
                 const tLine = tLines[bestIdx];
                 const pSampled = resamplePolyline(pLine.points, RESAMPLE_N);
                 let tSampled = resamplePolyline(tLine.points, RESAMPLE_N);
 
                 // Fix flipping: ensure polylines are oriented the same direction.
-                // If start-of-prev is closer to end-of-target than start-of-target,
-                // reverse the target to match orientation.
                 const p0 = pSampled[0];
                 const t0 = tSampled[0];
                 const tN = tSampled[tSampled.length - 1];
@@ -575,15 +572,24 @@ function buildLerpedPolylines(
 
                 result.push({ points: lerpPolygon(pSampled, tSampled, t), color: tLine.color });
             } else {
-                // Prev-only: use prev points (will fade out via alpha in caller)
-                result.push({ points: pLine.points, color: pLine.color });
+                // Prev-only (disappearing): geometrically shrink toward centroid
+                const pC2 = polygonCentroid(pLine.points);
+                const pSampled = resamplePolyline(pLine.points, RESAMPLE_N);
+                // Build centroid array (all points = centroid = collapsed to a point)
+                const centroidPts: [number, number][] = pSampled.map(() => [pC2[0], pC2[1]] as [number, number]);
+                result.push({ points: lerpPolygon(pSampled, centroidPts, t), color: pLine.color });
             }
         }
 
-        // Target-only polylines: use target points (fade in via alpha in caller)
+        // Target-only polylines (appearing): geometrically grow from centroid
         for (let ti = 0; ti < tLines.length; ti++) {
             if (usedTargets.has(ti)) continue;
-            result.push({ points: tLines[ti].points, color: tLines[ti].color });
+            const tLine = tLines[ti];
+            const tC = polygonCentroid(tLine.points);
+            const tSampled = resamplePolyline(tLine.points, RESAMPLE_N);
+            // Build centroid array (start as a point, grow to full shape)
+            const centroidPts: [number, number][] = tSampled.map(() => [tC[0], tC[1]] as [number, number]);
+            result.push({ points: lerpPolygon(centroidPts, tSampled, t), color: tLine.color });
         }
     }
     return result;
@@ -796,34 +802,9 @@ export function renderPowerVoronoi(
     const modeKey = `${boundaryMode}|${isSmoothTransitioning}|${isBorderTransitioning}`;
     if ((drawBorderPolylines as any).__lastModeKey !== modeKey) {
         (drawBorderPolylines as any).__lastModeKey = modeKey;
-        log.renderer('PVV2', `mode=${boundaryMode} smoothTransition=${isSmoothTransitioning} segmentTransition=${isBorderTransitioning} fillTransition=${isFillTransitioning}`);
+        log.renderer('PVV2', `mode=${boundaryMode} smoothTransition=${isSmoothTransitioning} segmentTransition=${isBorderTransitioning}`);
     }
 
-    // ── Per-frame fill crossfade (mode-independent) ──────────────────────
-    if (isFillTransitioning && prevMergedTerritories && lastMergedTerritories && fillGraphics && transitionMs > 0) {
-        const elapsed = now - fillTransitionStart;
-        const rawT = Math.min(1, elapsed / transitionMs);
-        const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
-        const alpha = GAME_CONFIG.VORONOI_ALPHA ?? 0.25;
-
-        fillGraphics.clear();
-        // Prev fills fading out
-        for (const territory of prevMergedTerritories) {
-            fillGraphics.poly(territory.points.flat());
-            fillGraphics.fill({ color: territory.color, alpha: alpha * (1 - eased) });
-        }
-        // Target fills fading in
-        for (const territory of lastMergedTerritories) {
-            fillGraphics.poly(territory.points.flat());
-            fillGraphics.fill({ color: territory.color, alpha: alpha * eased });
-        }
-
-        if (rawT >= 1) {
-            isFillTransitioning = false;
-            prevMergedTerritories = null;
-            log.renderer('PVV2', 'fill crossfade complete');
-        }
-    }
 
     // Segment mode: chain lerped edges into polylines, render via canonical draw
     if (boundaryMode === 'segment' && isBorderTransitioning && transitionMs > 0 && prevBorderEdges && targetBorderEdges) {
@@ -944,10 +925,7 @@ export function renderPowerVoronoi(
         if (targetSharedPolylines && targetSharedPolylines.length > 0) {
             prevSharedPolylines = targetSharedPolylines;
         }
-        // Fill crossfade: snapshot current merged territories
-        if (lastMergedTerritories && lastMergedTerritories.length > 0) {
-            prevMergedTerritories = lastMergedTerritories;
-        }
+
     }
 
     cachedShapeFingerprint = shapeFp;
@@ -1125,34 +1103,9 @@ export function renderPowerVoronoi(
     fillGraphics.clear();
     fillGraphics.visible = true;
 
-    // Fill crossfade: during transition, draw prev fills fading out + target fills fading in
-    if (isFillTransitioning && prevMergedTerritories && transitionMs > 0) {
-        const elapsed = now - fillTransitionStart;
-        const rawT = Math.min(1, elapsed / transitionMs);
-        const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
-
-        // Prev fills fading out
-        for (const territory of prevMergedTerritories) {
-            fillGraphics.poly(territory.points.flat());
-            fillGraphics.fill({ color: territory.color, alpha: alpha * (1 - eased) });
-        }
-        // Target fills fading in
-        for (const territory of merged) {
-            fillGraphics.poly(territory.points.flat());
-            fillGraphics.fill({ color: territory.color, alpha: alpha * eased });
-        }
-
-        if (rawT >= 1) {
-            isFillTransitioning = false;
-            prevMergedTerritories = null;
-            log.renderer('PVV2', 'fill crossfade complete');
-        }
-    } else {
-        // Steady-state: draw target fills at full alpha
-        for (const territory of merged) {
-            fillGraphics.poly(territory.points.flat());
-            fillGraphics.fill({ color: territory.color, alpha });
-        }
+    for (const territory of merged) {
+        fillGraphics.poly(territory.points.flat());
+        fillGraphics.fill({ color: territory.color, alpha });
     }
 
     // Borders — smoothed shared edges via canonical drawBorderPolylines
@@ -1236,12 +1189,7 @@ export function renderPowerVoronoi(
             log.renderer('PVV2', `TRANSITION STARTED | prev=${prevSharedPolylines.length} target=${targetSharedPolylines?.length ?? 0} | transitionMs=${transitionMs}`);
         }
 
-        // Fill crossfade (mode-independent)
-        if (prevMergedTerritories && prevMergedTerritories.length > 0) {
-            fillTransitionStart = now;
-            isFillTransitioning = true;
-            log.renderer('PVV2', `FILL CROSSFADE STARTED | prev=${prevMergedTerritories.length} target=${merged.length}`);
-        }
+
     }
     log.renderer('PVV2', `◀ rebuild complete | total=${(performance.now() - now).toFixed(1)}ms`);
 }
@@ -1262,10 +1210,7 @@ export function resetPowerVoronoiCache(): void {
     targetSharedPolylines = null;
     smoothTransitionStart = 0;
     lastMergedTerritories = null;
-    // Fill crossfade state
-    isFillTransitioning = false;
-    prevMergedTerritories = null;
-    fillTransitionStart = 0;
+
     log.renderer('PVV2', 'cache reset');
     if (fillGraphics) {
         if (fillGraphics.parent) fillGraphics.parent.removeChild(fillGraphics);
