@@ -653,6 +653,14 @@ function parameterizeAndAlign(
     n: number,
     epsilon: number = 2,
 ): { f1CPs: [number, number][]; f2CPs: [number, number][] } {
+    // Guard: degenerate loops (< 3 points can't form a polygon)
+    if (f1Loop.length < 3 || f2Loop.length < 3) {
+        // Return single-point arrays — caller will handle gracefully
+        const fallback: [number, number] = f1Loop[0] ?? f2Loop[0] ?? [0, 0];
+        const arr = Array.from({ length: n }, () => [fallback[0], fallback[1]] as [number, number]);
+        return { f1CPs: arr, f2CPs: arr };
+    }
+
     // Resample both to N CPs (arc-length parameterization)
     const f1Raw = resamplePolygon(f1Loop, n);
     const f2Raw = resamplePolygon(f2Loop, n);
@@ -660,6 +668,14 @@ function parameterizeAndAlign(
     // Remove closure point (resamplePolygon adds pts[n] = pts[0])
     const f1CPs = f1Raw.slice(0, n) as [number, number][];
     const f2CPs = f2Raw.slice(0, n) as [number, number][];
+
+    // Validate: ensure both arrays have exactly n entries
+    if (f1CPs.length < n || f2CPs.length < n) {
+        log.sys('FrontierAlign', `WARNING: resample produced ${f1CPs.length}/${f2CPs.length} CPs instead of ${n} — skipping alignment`);
+        // Pad to n if needed
+        while (f1CPs.length < n) f1CPs.push(f1CPs[f1CPs.length - 1] ?? [0, 0]);
+        while (f2CPs.length < n) f2CPs.push(f2CPs[f2CPs.length - 1] ?? [0, 0]);
+    }
 
     // Find best rotation: maximize the longest contiguous static run
     let bestOffset = 0;
