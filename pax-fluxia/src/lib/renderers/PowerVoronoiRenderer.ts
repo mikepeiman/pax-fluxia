@@ -739,8 +739,7 @@ export function renderPowerVoronoi(
 
     // Re-show graphics — voronoiContainer blanket-hides every frame
     if (fillGraphics) fillGraphics.visible = true;
-    // During smooth transitions, hide steady-state borders to prevent stale straight edges showing
-    if (borderGraphics) borderGraphics.visible = !isSmoothTransitioning;
+    if (borderGraphics) borderGraphics.visible = true;
     if (outlineGraphics) outlineGraphics.visible = true;
 
     // ── Per-frame animation (both modes) ────────────────────────────────
