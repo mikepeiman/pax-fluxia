@@ -65,6 +65,7 @@ export const LOG_CATEGORIES = [
     { key: 'input', label: '🖱️ Input', desc: 'User clicks' },
     { key: 'repair', label: '🔧 Repair', desc: 'Ship repair' },
     { key: 'canvas', label: '🖥️ Canvas', desc: 'Viewport, scale, center' },
+    { key: 'renderer', label: '🎨 Renderer', desc: 'Territory borders, fills' },
 ] as const;
 
 // ── Animation Slider Definitions ────────────────────────────────────────────

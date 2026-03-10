@@ -907,7 +907,23 @@ export function renderPowerVoronoi(
         if (!poly || poly.length < 3) continue;
         const site = (poly as any).site?.originalObject as PowerSite | undefined;
         if (!site) continue;
-        if (site.ownerId === '__disconnect__') continue;  // disconnect cells are invisible boundary pushers
+
+        // Disconnect cells: assign to nearest real-owner star for fill rendering
+        // (Absence Test: unlike pixel-based DF, skipping a polygon creates empty space)
+        let effectiveOwner = site.ownerId;
+        if (site.ownerId === DISCONNECT_OWNER_ID) {
+            let nearestDist = Infinity;
+            let nearestOwner = '';
+            for (const s of ownedStars) {
+                const dx = s.x - site.x;
+                const dy = s.y - site.y;
+                const d = dx * dx + dy * dy;
+                if (d < nearestDist) { nearestDist = d; nearestOwner = s.ownerId!; }
+            }
+            if (!nearestOwner) continue;
+            effectiveOwner = nearestOwner;
+            log.renderer('PVV2', `disconnect cell at (${site.x.toFixed(0)},${site.y.toFixed(0)}) → fill as ${nearestOwner}`);
+        }
 
         // Ensure closed polygon
         const pts: [number, number][] = poly.map((p: number[]) => [p[0], p[1]] as [number, number]);
@@ -917,7 +933,7 @@ export function renderPowerVoronoi(
 
         cells.push({
             points: pts,
-            ownerId: site.ownerId,
+            ownerId: effectiveOwner,
             siteId: site.starId,
         });
     }
