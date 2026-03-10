@@ -73,4 +73,5 @@
 | F-147 | Border "layers" mode — current neighbor-sampling borders show per-player layered borders (each side colored separately). Keep as optional setting alongside blended single-border mode | Medium | 2026-03-06 |
 | F-148 | Default map loading — toggle+select in Main Menu to load a saved map by default instead of generating random. Persist preference. | High | 2026-03-06 |
 | F-149 | Audio config integration — move audio settings (master vol, per-sound volumes, file selections, offsets, mute, separate conquest toggle) from standalone AudioManager into GAME_CONFIG + categoryThemes as `'audio'` category. Full theme export/import captures audio. | High | 2026-03-07 |
+| F-150 | Power-weighted border colors — territory borders alpha/lightness weighted by ship count ratio. Player A (500 ships) vs Player B (100 ships) → border color weighted toward A with higher alpha and lightness. Requires accessing ship counts per-star during border rendering. | Medium | 2026-03-10 |
 
