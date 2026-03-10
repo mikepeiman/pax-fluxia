@@ -85,6 +85,10 @@ let smoothTransitionStart = 0;
 let isSmoothTransitioning = false;
 let lastMergedTerritories: MergedTerritory[] | null = null;  // stored for smooth mode snapshot
 
+// ── Cell Change Tracking (frontier-first rendering) ────────────────────
+let lastCells: TerritoryCell[] | null = null;  // cells from previous rebuild
+let changedSiteIds: Set<string> | null = null; // stars that changed owner in this conquest
+
 // ── Fill Transition State (mode-independent crossfade) ─────────────────────
 let prevMergedTerritories: MergedTerritory[] | null = null;
 let fillTransitionStart = 0;
@@ -189,6 +193,8 @@ interface SharedBorderEdge {
     ownerB: string;
     colorA: number;
     colorB: number;
+    siteIdA: string;  // star/cell identity on side A
+    siteIdB: string;  // star/cell identity on side B
 }
 
 /**
@@ -197,8 +203,11 @@ interface SharedBorderEdge {
  * territory borders should overlap and blend.
  */
 function extractSharedEdges(cells: TerritoryCell[]): SharedBorderEdge[] {
-    // Map: edgeKey → { owners: Set<string>, ownerPerCell: string[] }
-    const edgeOwners = new Map<string, { owners: string[]; pts: [number, number, number, number] }>();
+    // Map: edgeKey → { owners+siteIds per side, coordinates }
+    const edgeOwners = new Map<string, {
+        sides: { ownerId: string; siteId: string }[];
+        pts: [number, number, number, number];
+    }>();
 
     for (const cell of cells) {
         const pts = cell.points;
@@ -206,13 +215,14 @@ function extractSharedEdges(cells: TerritoryCell[]): SharedBorderEdge[] {
             const key = edgeKey(pts[j][0], pts[j][1], pts[j + 1][0], pts[j + 1][1]);
             if (!edgeOwners.has(key)) {
                 edgeOwners.set(key, {
-                    owners: [cell.ownerId],
+                    sides: [{ ownerId: cell.ownerId, siteId: cell.siteId }],
                     pts: [pts[j][0], pts[j][1], pts[j + 1][0], pts[j + 1][1]],
                 });
             } else {
                 const entry = edgeOwners.get(key)!;
-                if (!entry.owners.includes(cell.ownerId)) {
-                    entry.owners.push(cell.ownerId);
+                // Only add if this is a different cell (same edge shared by two cells)
+                if (!entry.sides.some(s => s.siteId === cell.siteId)) {
+                    entry.sides.push({ ownerId: cell.ownerId, siteId: cell.siteId });
                 }
             }
         }
@@ -221,17 +231,19 @@ function extractSharedEdges(cells: TerritoryCell[]): SharedBorderEdge[] {
     // Collect only edges with exactly 2 different owners (contested boundaries)
     const shared: SharedBorderEdge[] = [];
     for (const [, entry] of edgeOwners) {
-        if (entry.owners.length === 2 &&
-            entry.owners[0] !== entry.owners[1] &&
-            entry.owners[0] !== '__disconnect__' &&
-            entry.owners[1] !== '__disconnect__') {
+        if (entry.sides.length === 2 &&
+            entry.sides[0].ownerId !== entry.sides[1].ownerId &&
+            entry.sides[0].ownerId !== '__disconnect__' &&
+            entry.sides[1].ownerId !== '__disconnect__') {
             shared.push({
                 x1: entry.pts[0], y1: entry.pts[1],
                 x2: entry.pts[2], y2: entry.pts[3],
-                ownerA: entry.owners[0],
-                ownerB: entry.owners[1],
+                ownerA: entry.sides[0].ownerId,
+                ownerB: entry.sides[1].ownerId,
                 colorA: 0,
                 colorB: 0,
+                siteIdA: entry.sides[0].siteId,
+                siteIdB: entry.sides[1].siteId,
             });
         }
     }
@@ -856,6 +868,7 @@ export function renderPowerVoronoi(
                     y2: pEdge.y2 + (tEdge.y2 - pEdge.y2) * eased,
                     ownerA: tEdge.ownerA, ownerB: tEdge.ownerB,
                     colorA: tEdge.colorA, colorB: tEdge.colorB,
+                    siteIdA: tEdge.siteIdA, siteIdB: tEdge.siteIdB,
                 });
             }
         }
@@ -948,6 +961,8 @@ export function renderPowerVoronoi(
         if (lastMergedTerritories && lastMergedTerritories.length > 0) {
             prevMergedTerritories = lastMergedTerritories;
         }
+        // Cell change detection: snapshot previous cells for ownership comparison
+        // (changedSiteIds populated after new cells are computed — see Stage 2c below)
     }
 
     cachedShapeFingerprint = shapeFp;
@@ -1083,6 +1098,24 @@ export function renderPowerVoronoi(
     }
 
     log.sys('PowerVoronoi', `${cells.length} cells from ${sites.length} sites (${sites.filter(s => s.virtual).length} virtual)`);
+
+    // ── Stage 1c: Detect changed-owner stars ───────────────────────────────
+    changedSiteIds = null;
+    if (lastCells && shapeChanged) {
+        const prevOwnerMap = new Map(lastCells.map(c => [c.siteId, c.ownerId]));
+        const changed = new Set<string>();
+        for (const cell of cells) {
+            const prevOwner = prevOwnerMap.get(cell.siteId);
+            if (prevOwner && prevOwner !== cell.ownerId) {
+                changed.add(cell.siteId);
+            }
+        }
+        if (changed.size > 0) {
+            changedSiteIds = changed;
+            log.sys('PowerVoronoi', `Conquest detected: ${changed.size} stars changed owner: ${[...changed].join(', ')}`);
+        }
+    }
+    lastCells = cells;
 
     // ── Stage 2: Build cluster map ─────────────────────────────────────────
     const clusterMap = new Map<string, number>();
@@ -1266,6 +1299,9 @@ export function resetPowerVoronoiCache(): void {
     isFillTransitioning = false;
     prevMergedTerritories = null;
     fillTransitionStart = 0;
+    // Cell change tracking state
+    lastCells = null;
+    changedSiteIds = null;
     log.renderer('PVV2', 'cache reset');
     if (fillGraphics) {
         if (fillGraphics.parent) fillGraphics.parent.removeChild(fillGraphics);
