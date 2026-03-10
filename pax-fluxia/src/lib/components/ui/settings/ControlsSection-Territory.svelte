@@ -584,6 +584,41 @@
     </div>
     <div class="var-row">
         <div class="row-top">
+            <span class="var-name">🎨 Fill Mode</span><span class="val"
+                >{panel.territoryFillMode ??
+                    GAME_CONFIG.TERRITORY_FILL_MODE ??
+                    "frontier"}</span
+            >
+        </div>
+        <div style="display:flex; gap:4px;">
+            <button
+                class="mini-btn"
+                class:active={(panel.territoryFillMode ??
+                    GAME_CONFIG.TERRITORY_FILL_MODE) === "crossfade"}
+                onclick={() => {
+                    debouncedConfigUpdate(
+                        "TERRITORY_FILL_MODE",
+                        "territoryFillMode",
+                        "crossfade",
+                    );
+                }}>Crossfade</button
+            >
+            <button
+                class="mini-btn"
+                class:active={(panel.territoryFillMode ??
+                    GAME_CONFIG.TERRITORY_FILL_MODE) === "frontier"}
+                onclick={() => {
+                    debouncedConfigUpdate(
+                        "TERRITORY_FILL_MODE",
+                        "territoryFillMode",
+                        "frontier",
+                    );
+                }}>Frontier</button
+            >
+        </div>
+    </div>
+    <div class="var-row">
+        <div class="row-top">
             <span class="var-name">🎨 Fill Alpha</span><span class="val"
                 >{(panel.voronoiAlpha ?? GAME_CONFIG.VORONOI_ALPHA).toFixed(
                     2,
