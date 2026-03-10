@@ -510,13 +510,13 @@ function assembleFrontierLoops(
         `${Math.round(x / SNAP) * SNAP},${Math.round(y / SNAP) * SNAP}`;
 
     // ── DIAGNOSTIC: Log all input polylines ──────────────────────────────
-    log.sys('FrontierDiag', `═══ assembleFrontierLoops INPUT: ${polylines.length} polylines ═══`);
+    log.renderer('FrontierDiag', `═══ assembleFrontierLoops INPUT: ${polylines.length} polylines ═══`);
     for (let pi = 0; pi < polylines.length; pi++) {
         const p = polylines[pi];
         const pts = p.points;
         const startKey = pts.length >= 2 ? ptKey(pts[0][0], pts[0][1]) : 'N/A';
         const endKey = pts.length >= 2 ? ptKey(pts[pts.length - 1][0], pts[pts.length - 1][1]) : 'N/A';
-        log.sys('FrontierDiag', `  poly[${pi}] pair=${p.ownerPairKey} pts=${pts.length} start=(${pts[0]?.[0]?.toFixed(1)},${pts[0]?.[1]?.toFixed(1)}) [${startKey}] end=(${pts[pts.length - 1]?.[0]?.toFixed(1)},${pts[pts.length - 1]?.[1]?.toFixed(1)}) [${endKey}]`);
+        log.renderer('FrontierDiag', `  poly[${pi}] pair=${p.ownerPairKey} pts=${pts.length} start=(${pts[0]?.[0]?.toFixed(1)},${pts[0]?.[1]?.toFixed(1)}) [${startKey}] end=(${pts[pts.length - 1]?.[0]?.toFixed(1)},${pts[pts.length - 1]?.[1]?.toFixed(1)}) [${endKey}]`);
     }
 
     // ── DIAGNOSTIC: Endpoint adjacency table ─────────────────────────────
@@ -534,9 +534,9 @@ function assembleFrontierLoops(
         if (count === 1) danglingEndpoints.push(key);
     }
     if (danglingEndpoints.length > 0) {
-        log.sys('FrontierDiag', `⚠ ${danglingEndpoints.length} DANGLING endpoints (count=1): ${danglingEndpoints.slice(0, 10).join(', ')}${danglingEndpoints.length > 10 ? '...' : ''}`);
+        log.renderer('FrontierDiag', `⚠ ${danglingEndpoints.length} DANGLING endpoints (count=1): ${danglingEndpoints.slice(0, 10).join(', ')}${danglingEndpoints.length > 10 ? '...' : ''}`);
     } else {
-        log.sys('FrontierDiag', `✓ All endpoints paired (no dangles)`);
+        log.renderer('FrontierDiag', `✓ All endpoints paired (no dangles)`);
     }
 
     // Group polylines by each owner they touch
@@ -575,7 +575,7 @@ function assembleFrontierLoops(
             // Start a chain from this segment
             used[startIdx] = true;
             const chain: [number, number][] = [...segments[startIdx].points];
-            log.sys('FrontierDiag', `  [${ownerId}] chain START from seg[${segments[startIdx].polyIdx}] pts=${chain.length} startKey=${segments[startIdx].startKey} endKey=${segments[startIdx].endKey}`);
+            log.renderer('FrontierDiag', `  [${ownerId}] chain START from seg[${segments[startIdx].polyIdx}] pts=${chain.length} startKey=${segments[startIdx].startKey} endKey=${segments[startIdx].endKey}`);
 
             // Extend forward: find next segment whose start matches our end
             let extended = true;
@@ -597,7 +597,7 @@ function assembleFrontierLoops(
                         used[i] = true;
                         extended = true;
                         fwdExtensions++;
-                        log.sys('FrontierDiag', `    +FWD seg[${seg.polyIdx}] (startKey match) → chain=${chain.length} pts`);
+                        log.renderer('FrontierDiag', `    +FWD seg[${seg.polyIdx}] (startKey match) → chain=${chain.length} pts`);
                         break;
                     }
                     if (seg.endKey === lastKey) {
@@ -608,7 +608,7 @@ function assembleFrontierLoops(
                         used[i] = true;
                         extended = true;
                         fwdExtensions++;
-                        log.sys('FrontierDiag', `    +FWD seg[${seg.polyIdx}] (endKey match, REVERSED) → chain=${chain.length} pts`);
+                        log.renderer('FrontierDiag', `    +FWD seg[${seg.polyIdx}] (endKey match, REVERSED) → chain=${chain.length} pts`);
                         break;
                     }
                 }
@@ -634,7 +634,7 @@ function assembleFrontierLoops(
                         used[i] = true;
                         extended = true;
                         bwdExtensions++;
-                        log.sys('FrontierDiag', `    +BWD seg[${seg.polyIdx}] (endKey match) → chain=${chain.length} pts`);
+                        log.renderer('FrontierDiag', `    +BWD seg[${seg.polyIdx}] (endKey match) → chain=${chain.length} pts`);
                         break;
                     }
                     if (seg.startKey === firstKey) {
@@ -645,7 +645,7 @@ function assembleFrontierLoops(
                         used[i] = true;
                         extended = true;
                         bwdExtensions++;
-                        log.sys('FrontierDiag', `    +BWD seg[${seg.polyIdx}] (startKey match, REVERSED) → chain=${chain.length} pts`);
+                        log.renderer('FrontierDiag', `    +BWD seg[${seg.polyIdx}] (startKey match, REVERSED) → chain=${chain.length} pts`);
                         break;
                     }
                 }
@@ -662,19 +662,19 @@ function assembleFrontierLoops(
                 // Not closed — add first point to close
                 chain.push([first[0], first[1]]);
             }
-            log.sys('FrontierDiag', `  [${ownerId}] chain DONE: ${chain.length} pts, fwd=${fwdExtensions} bwd=${bwdExtensions} closed=${isClosed}`);
+            log.renderer('FrontierDiag', `  [${ownerId}] chain DONE: ${chain.length} pts, fwd=${fwdExtensions} bwd=${bwdExtensions} closed=${isClosed}`);
 
             // Only accept loops with enough points to form a real polygon
             if (chain.length >= 4) {
                 loops.push({ points: chain, ownerId });
             } else {
-                log.sys('FrontierDiag', `  ⚠ REJECTED degenerate chain for ${ownerId}: only ${chain.length} points`);
+                log.renderer('FrontierDiag', `  ⚠ REJECTED degenerate chain for ${ownerId}: only ${chain.length} points`);
             }
         }
 
         if (loops.length > 0) {
             result.set(ownerId, loops);
-            log.sys('FrontierLoops', `${ownerId}: ${loops.length} loop(s), total pts=${loops.reduce((s, l) => s + l.points.length, 0)}`);
+            log.renderer('FrontierLoops', `${ownerId}: ${loops.length} loop(s), total pts=${loops.reduce((s, l) => s + l.points.length, 0)}`);
         }
     }
 
@@ -785,11 +785,11 @@ function parameterizeAndAlign(
         for (let i = 0; i < n; i++) {
             rotated[i] = f2CPs[(i + bestOffset) % n];
         }
-        log.sys('FrontierAlign', `Aligned with offset=${bestOffset}, longestStaticRun=${bestLongestRun}/${n} CPs`);
+        log.renderer('FrontierAlign', `Aligned with offset=${bestOffset}, longestStaticRun=${bestLongestRun}/${n} CPs`);
         return { f1CPs, f2CPs: rotated };
     }
 
-    log.sys('FrontierAlign', `No rotation needed, longestStaticRun=${bestLongestRun}/${n} CPs`);
+    log.renderer('FrontierAlign', `No rotation needed, longestStaticRun=${bestLongestRun}/${n} CPs`);
     return { f1CPs, f2CPs };
 }
 
