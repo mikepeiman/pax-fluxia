@@ -427,8 +427,8 @@
     </div>
 {/if}
 
-{#if panel.territoryPowerVoronoi}
-    <!-- ── Power Voronoi V2 Settings ── -->
+{#if panel.territoryPowerVoronoi || panel.territoryPVV3}
+    <!-- ── Power Voronoi V2 / PVV3 Settings ── -->
     <h4 class="sub-heading">⚡ Power Voronoi Settings</h4>
     <div class="var-row">
         <div class="row-top">

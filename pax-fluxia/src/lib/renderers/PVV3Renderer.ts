@@ -1681,45 +1681,7 @@ export function renderPVV3(
         }
     }
 
-    // Borders — smoothed shared edges via canonical drawBorderPolylines
-    if (borderWidth > 0 && borderAlpha > 0) {
-        if (!borderGraphics) {
-            borderGraphics = new PIXI.Graphics();
-            voronoiContainer.addChild(borderGraphics);
-        }
-        borderGraphics.clear();
-        borderGraphics.visible = true;
 
-        // Assign colors to shared edges
-        for (const edge of sharedEdges) {
-            edge.colorA = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerA), satMult, lightMult);
-            edge.colorB = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerB), satMult, lightMult);
-        }
-
-        // Build color map for polyline construction
-        const colorMap = new Map<string, number>();
-        for (const edge of sharedEdges) {
-            const key = edge.ownerA < edge.ownerB ? `${edge.ownerA}|${edge.ownerB}` : `${edge.ownerB}|${edge.ownerA}`;
-            if (!colorMap.has(key)) {
-                colorMap.set(key, blendColors(edge.colorA, edge.colorB, 0.5));
-            }
-        }
-
-        const borderSmoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
-        const builtPolylines = chainSharedEdgesIntoPolylines(sharedEdges, (a, b) => {
-            const key = a < b ? `${a}|${b}` : `${b}|${a}`;
-            return colorMap.get(key) ?? 0x888888;
-        }, borderSmoothPasses);
-
-        // chainSharedEdgesIntoPolylines already applies Chaikin — pass 0 to drawBorderPolylines
-        // to avoid double-smoothing. Transition path passes smoothPasses because lerp destroys curves.
-        const t0b = performance.now();
-        drawBorderPolylines(borderGraphics, builtPolylines, 0, borderWidth, borderAlpha);
-        const t1b = performance.now();
-        const avgPts = builtPolylines.length > 0 ? (builtPolylines.reduce((s, p) => s + p.points.length, 0) / builtPolylines.length).toFixed(0) : '0';
-        log.renderer('PVV3', `STEADY-STATE borders | ${builtPolylines.length} polylines, ${sharedEdges.length} edges, smooth=${borderSmoothPasses} avgPts=${avgPts} | draw=${(t1b - t0b).toFixed(1)}ms | t+${(performance.now() - now).toFixed(1)}ms`);
-    } else if (borderGraphics) {
-        borderGraphics.clear();
     }
 
     // ── Store targets + start transition ────────────────────────────────
