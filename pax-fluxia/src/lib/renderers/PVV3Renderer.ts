@@ -62,13 +62,7 @@ let cachedVisualFingerprint = '';
 let fillGraphics: PIXI.Graphics | null = null;
 let borderGraphics: PIXI.Graphics | null = null;
 
-// ── Border Transition State (Segment Mode) ─────────────────────────────────
 
-/** Previous shared border edge positions for segment mode animation. */
-let prevBorderEdges: SharedBorderEdge[] | null = null;
-let targetBorderEdges: SharedBorderEdge[] | null = null;
-let borderTransitionStart = 0;
-let isBorderTransitioning = false;
 
 // ── Smooth Transition State (Contested Border Mode) ─────────────────────────
 
@@ -95,10 +89,7 @@ let isFrontierTransitioning = false;
 let lastCells: TerritoryCell[] | null = null;  // cells from previous rebuild
 let changedSiteIds: Set<string> | null = null; // stars that changed owner in this conquest
 
-// ── Fill Transition State (mode-independent crossfade) ─────────────────────
-let prevMergedTerritories: MergedTerritory[] | null = null;
-let fillTransitionStart = 0;
-let isFillTransitioning = false;
+
 
 // ── Fingerprint ────────────────────────────────────────────────────────────
 
@@ -1310,110 +1301,16 @@ export function renderPVV3(
     if (fillGraphics) fillGraphics.visible = true;
     if (borderGraphics) borderGraphics.visible = true;
 
-    // ── Per-frame animation (both modes) ────────────────────────────────
-    const boundaryMode = GAME_CONFIG.TERRITORY_BOUNDARY_MODE ?? 'smooth';
+    // ── Per-frame animation ────────────────────────────────────────────
 
-    // Throttled mode log — only on state change
-    const modeKey = `${boundaryMode}|${isSmoothTransitioning}|${isBorderTransitioning}`;
-    if ((drawBorderPolylines as any).__lastModeKey !== modeKey) {
-        (drawBorderPolylines as any).__lastModeKey = modeKey;
-        log.renderer('PVV2', `mode=${boundaryMode} smoothTransition=${isSmoothTransitioning} segmentTransition=${isBorderTransitioning} fillTransition=${isFillTransitioning}`);
+    // Throttled transition state log
+    const transKey = `${isSmoothTransitioning}|${isFrontierTransitioning}`;
+    if ((drawBorderPolylines as any).__lastTransKey !== transKey) {
+        (drawBorderPolylines as any).__lastTransKey = transKey;
+        log.renderer('PVV3', `smoothTransition=${isSmoothTransitioning} frontierTransition=${isFrontierTransitioning}`);
     }
-
-    // ── Per-frame fill crossfade (mode-independent) ──────────────────────
-    // Only runs when TERRITORY_FILL_MODE = 'crossfade' (legacy alpha-fade)
-    const fillMode = GAME_CONFIG.TERRITORY_FILL_MODE ?? 'frontier';
-    if (fillMode === 'crossfade' && isFillTransitioning && prevMergedTerritories && lastMergedTerritories && fillGraphics && transitionMs > 0) {
-        const elapsed = now - fillTransitionStart;
-        const rawT = Math.min(1, elapsed / transitionMs);
-        const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
-        const alpha = GAME_CONFIG.VORONOI_ALPHA ?? 0.25;
-
-        fillGraphics.clear();
-        // Prev fills fading out
-        for (const territory of prevMergedTerritories) {
-            fillGraphics.poly(territory.points.flat());
-            fillGraphics.fill({ color: territory.color, alpha: alpha * (1 - eased) });
-        }
-        // Target fills fading in
-        for (const territory of lastMergedTerritories) {
-            fillGraphics.poly(territory.points.flat());
-            fillGraphics.fill({ color: territory.color, alpha: alpha * eased });
-        }
-
-        if (rawT >= 1) {
-            isFillTransitioning = false;
-            prevMergedTerritories = null;
-            log.renderer('PVV2', 'fill crossfade complete');
-        }
-    }
-
-    // Segment mode: chain lerped edges into polylines, render via canonical draw
-    if (boundaryMode === 'segment' && isBorderTransitioning && transitionMs > 0 && prevBorderEdges && targetBorderEdges) {
-        const elapsed = now - borderTransitionStart;
-        const rawT = Math.min(1, elapsed / transitionMs);
-        const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
-
-        // Lerp edge positions, then chain into polylines for canonical draw
-        const lerpedEdges: SharedBorderEdge[] = [];
-        const targetUsed = new Set<number>();
-        for (const pEdge of prevBorderEdges) {
-            const pMx = (pEdge.x1 + pEdge.x2) / 2;
-            const pMy = (pEdge.y1 + pEdge.y2) / 2;
-            let bestDist = Infinity;
-            let bestIdx = -1;
-            for (let ti = 0; ti < targetBorderEdges.length; ti++) {
-                if (targetUsed.has(ti)) continue;
-                const tMx = (targetBorderEdges[ti].x1 + targetBorderEdges[ti].x2) / 2;
-                const tMy = (targetBorderEdges[ti].y1 + targetBorderEdges[ti].y2) / 2;
-                const d = Math.hypot(pMx - tMx, pMy - tMy);
-                if (d < bestDist) { bestDist = d; bestIdx = ti; }
-            }
-            if (bestIdx >= 0 && bestDist < 200) {
-                targetUsed.add(bestIdx);
-                const tEdge = targetBorderEdges[bestIdx];
-                lerpedEdges.push({
-                    x1: pEdge.x1 + (tEdge.x1 - pEdge.x1) * eased,
-                    y1: pEdge.y1 + (tEdge.y1 - pEdge.y1) * eased,
-                    x2: pEdge.x2 + (tEdge.x2 - pEdge.x2) * eased,
-                    y2: pEdge.y2 + (tEdge.y2 - pEdge.y2) * eased,
-                    ownerA: tEdge.ownerA, ownerB: tEdge.ownerB,
-                    colorA: tEdge.colorA, colorB: tEdge.colorB,
-                    siteIdA: tEdge.siteIdA, siteIdB: tEdge.siteIdB,
-                });
-            }
-        }
-        // Unmatched target edges
-        for (let ti = 0; ti < targetBorderEdges.length; ti++) {
-            if (targetUsed.has(ti)) continue;
-            lerpedEdges.push(targetBorderEdges[ti]);
-        }
-
-        // Chain lerped edges into polylines + draw via canonical function
-        if (borderGraphics) {
-            borderGraphics.clear();
-            const smoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
-            const borderWidth = GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 1.5;
-            const borderAlpha = GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.4;
-            const polylines = chainSharedEdgesIntoPolylines(lerpedEdges, (a, b) => {
-                const cA = lerpedEdges.find(e => (e.ownerA === a && e.ownerB === b) || (e.ownerA === b && e.ownerB === a));
-                return cA ? blendColors(cA.colorA, cA.colorB, 0.5) : 0x888888;
-            }, 0);  // don't smooth inside chain — smooth in draw
-            drawBorderPolylines(borderGraphics, polylines, smoothPasses, borderWidth, borderAlpha);
-            log.renderer('PVV2', `SEGMENT TRANSITION t=${eased.toFixed(3)} | ${polylines.length} polylines from ${lerpedEdges.length} edges`);
-        }
-
-        if (rawT >= 1) {
-            isBorderTransitioning = false;
-            prevBorderEdges = null;
-        }
-        const shapeFpCheck = buildShapeFingerprint(stars);
-        const visualFpCheck = buildVisualFingerprint();
-        if (shapeFpCheck === cachedShapeFingerprint && visualFpCheck === cachedVisualFingerprint) return;
-    }
-
     // Smooth mode: contested shared border polyline morph
-    if (boundaryMode === 'smooth' && isSmoothTransitioning && transitionMs > 0 && prevSharedPolylines && targetSharedPolylines) {
+    if (isSmoothTransitioning && transitionMs > 0 && prevSharedPolylines && targetSharedPolylines) {
         const elapsed = now - smoothTransitionStart;
         const rawT = Math.min(1, elapsed / transitionMs);
         const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
@@ -1430,28 +1327,27 @@ export function renderPVV3(
             drawBorderPolylines(borderGraphics, lerped, smoothPasses, borderWidth, borderAlpha);
             const t2 = performance.now();
             const avgPts = lerped.length > 0 ? (lerped.reduce((s, p) => s + p.points.length, 0) / lerped.length).toFixed(0) : '0';
-            // log.renderer('PVV2', `TRANSITION t=${eased.toFixed(3)} ...`); // THROTTLED: per-frame
+            // log.renderer('PVV3', `TRANSITION t=${eased.toFixed(3)} ...`); // THROTTLED: per-frame
         } else {
-            log.renderer('PVV2', `TRANSITION SKIPPED — borderGraphics is null`);
+            log.renderer('PVV3', `TRANSITION SKIPPED — borderGraphics is null`);
         }
 
         if (rawT >= 1) {
             isSmoothTransitioning = false;
             prevSharedPolylines = null;
-            log.renderer('PVV2', 'smooth transition complete — next frame will rebuild steady-state');
+            log.renderer('PVV3', 'smooth transition complete — next frame will rebuild steady-state');
         }
         const shapeFpCheck = buildShapeFingerprint(stars);
         const visualFpCheck = buildVisualFingerprint();
         if (shapeFpCheck === cachedShapeFingerprint && visualFpCheck === cachedVisualFingerprint) {
-            // log.renderer('PVV2', `early return — fingerprints unchanged during transition`); // THROTTLED: per-frame
+            // log.renderer('PVV3', `early return — fingerprints unchanged during transition`); // THROTTLED: per-frame
             return;
         }
-        log.renderer('PVV2', `fingerprints changed DURING transition — falling through to rebuild`);
+        log.renderer('PVV3', `fingerprints changed DURING transition — falling through to rebuild`);
     }
 
     // ── Frontier loop morph (arc-length parameterization) ────────────────
-    // Only runs when TERRITORY_FILL_MODE = 'frontier'
-    if (fillMode === 'frontier' && isFrontierTransitioning && prevFrontierLoops && targetFrontierLoops && transitionMs > 0) {
+    if (isFrontierTransitioning && prevFrontierLoops && targetFrontierLoops && transitionMs > 0) {
         const elapsed = now - frontierTransitionStart;
         const rawT = Math.min(1, elapsed / transitionMs);
         const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
@@ -1521,12 +1417,12 @@ export function renderPVV3(
             }
         }
 
-        // log.renderer('PVV2', `FRONTIER MORPH t=${eased.toFixed(3)} | ${allOwners.size} owners, ${numCPs} CPs`); // THROTTLED: per-frame
+        // log.renderer('PVV3', `FRONTIER MORPH t=${eased.toFixed(3)} | ${allOwners.size} owners, ${numCPs} CPs`); // THROTTLED: per-frame
 
         if (rawT >= 1) {
             isFrontierTransitioning = false;
             prevFrontierLoops = null;
-            log.renderer('PVV2', 'frontier loop morph complete');
+            log.renderer('PVV3', 'frontier loop morph complete');
         }
     }
 
@@ -1537,23 +1433,18 @@ export function renderPVV3(
 
     if (!shapeChanged && !visualChanged) return;  // nothing changed
 
-    log.renderer('PVV2', `REBUILD | shapeChanged=${shapeChanged} visualChanged=${visualChanged} | t+${(performance.now() - now).toFixed(1)}ms`);
+    log.renderer('PVV3', `REBUILD | shapeChanged=${shapeChanged} visualChanged=${visualChanged} | t+${(performance.now() - now).toFixed(1)}ms`);
 
     // ── Shape changed: snapshot for transition animation ─────────────────
     if (shapeChanged && transitionMs > 0) {
-        // Segment mode: snapshot border edges
-        if (targetBorderEdges && targetBorderEdges.length > 0) {
-            prevBorderEdges = targetBorderEdges;
-        }
         // Smooth mode: snapshot current shared polylines
         if (targetSharedPolylines && targetSharedPolylines.length > 0) {
             prevSharedPolylines = targetSharedPolylines;
         }
-        // Fill crossfade: snapshot current merged territories
-        if (lastMergedTerritories && lastMergedTerritories.length > 0) {
-            prevMergedTerritories = lastMergedTerritories;
-        }
         // Frontier loop snapshot for arc-length morphing
+        if (targetFrontierLoops && targetFrontierLoops.size > 0) {
+            prevFrontierLoops = targetFrontierLoops;
+        }
         if (targetFrontierLoops && targetFrontierLoops.size > 0) {
             prevFrontierLoops = targetFrontierLoops;
         }
@@ -1677,7 +1568,7 @@ export function renderPVV3(
             } else {
                 effectiveOwner = nearestOwner;
             }
-            log.renderer('PVV2', `disconnect cell (${site.x.toFixed(0)},${site.y.toFixed(0)}) src=${sourceOwner} → enemy fill ${effectiveOwner}`);
+            log.renderer('PVV3', `disconnect cell (${site.x.toFixed(0)},${site.y.toFixed(0)}) src=${sourceOwner} → enemy fill ${effectiveOwner}`);
         }
 
         // Ensure closed polygon
@@ -1754,34 +1645,10 @@ export function renderPVV3(
     fillGraphics.clear();
     fillGraphics.visible = true;
 
-    // Fill crossfade: during transition, draw prev fills fading out + target fills fading in
-    if (isFillTransitioning && prevMergedTerritories && transitionMs > 0) {
-        const elapsed = now - fillTransitionStart;
-        const rawT = Math.min(1, elapsed / transitionMs);
-        const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
-
-        // Prev fills fading out
-        for (const territory of prevMergedTerritories) {
-            fillGraphics.poly(territory.points.flat());
-            fillGraphics.fill({ color: territory.color, alpha: alpha * (1 - eased) });
-        }
-        // Target fills fading in
-        for (const territory of merged) {
-            fillGraphics.poly(territory.points.flat());
-            fillGraphics.fill({ color: territory.color, alpha: alpha * eased });
-        }
-
-        if (rawT >= 1) {
-            isFillTransitioning = false;
-            prevMergedTerritories = null;
-            log.renderer('PVV2', 'fill crossfade complete');
-        }
-    } else {
-        // Steady-state: draw target fills at full alpha
-        for (const territory of merged) {
-            fillGraphics.poly(territory.points.flat());
-            fillGraphics.fill({ color: territory.color, alpha });
-        }
+    // Steady-state: draw fills at full alpha
+    for (const territory of merged) {
+        fillGraphics.poly(territory.points.flat());
+        fillGraphics.fill({ color: territory.color, alpha });
     }
 
     // Borders — smoothed shared edges via canonical drawBorderPolylines
@@ -1820,7 +1687,7 @@ export function renderPVV3(
         drawBorderPolylines(borderGraphics, builtPolylines, 0, borderWidth, borderAlpha);
         const t1b = performance.now();
         const avgPts = builtPolylines.length > 0 ? (builtPolylines.reduce((s, p) => s + p.points.length, 0) / builtPolylines.length).toFixed(0) : '0';
-        log.renderer('PVV2', `STEADY-STATE borders | ${builtPolylines.length} polylines, ${sharedEdges.length} edges, smooth=${borderSmoothPasses} avgPts=${avgPts} | draw=${(t1b - t0b).toFixed(1)}ms | t+${(performance.now() - now).toFixed(1)}ms`);
+        log.renderer('PVV3', `STEADY-STATE borders | ${builtPolylines.length} polylines, ${sharedEdges.length} edges, smooth=${borderSmoothPasses} avgPts=${avgPts} | draw=${(t1b - t0b).toFixed(1)}ms | t+${(performance.now() - now).toFixed(1)}ms`);
     } else if (borderGraphics) {
         borderGraphics.clear();
     }
@@ -1833,7 +1700,6 @@ export function renderPVV3(
             edge.colorB = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerB), satMult, lightMult);
         }
     }
-    targetBorderEdges = sharedEdges;
     lastMergedTerritories = merged;
 
     // Build polylines for morph transition (reuse from render block if available)
@@ -1859,34 +1725,21 @@ export function renderPVV3(
 
     // Start transition based on mode
     if (shapeChanged && transitionMs > 0) {
-        // Segment mode
-        if (prevBorderEdges && prevBorderEdges.length > 0) {
-            borderTransitionStart = now;
-            isBorderTransitioning = true;
-        }
-
         // Smooth mode
         if (prevSharedPolylines && prevSharedPolylines.length > 0) {
             smoothTransitionStart = now;
             isSmoothTransitioning = true;
-            log.renderer('PVV2', `TRANSITION STARTED | prev=${prevSharedPolylines.length} target=${targetSharedPolylines?.length ?? 0} | transitionMs=${transitionMs}`);
+            log.renderer('PVV3', `TRANSITION STARTED | prev=${prevSharedPolylines.length} target=${targetSharedPolylines?.length ?? 0} | transitionMs=${transitionMs}`);
         }
 
         // Frontier loop morph (arc-length mode)
         if (prevFrontierLoops && prevFrontierLoops.size > 0) {
             frontierTransitionStart = now;
             isFrontierTransitioning = true;
-            log.renderer('PVV2', `FRONTIER LOOP MORPH STARTED | prev=${prevFrontierLoops.size} owners, target=${targetFrontierLoops?.size ?? 0} owners`);
-        }
-
-        // Fill crossfade (mode-independent)
-        if (prevMergedTerritories && prevMergedTerritories.length > 0) {
-            fillTransitionStart = now;
-            isFillTransitioning = true;
-            log.renderer('PVV2', `FILL CROSSFADE STARTED | prev=${prevMergedTerritories.length} target=${merged.length}`);
+            log.renderer('PVV3', `FRONTIER LOOP MORPH STARTED | prev=${prevFrontierLoops.size} owners, target=${targetFrontierLoops?.size ?? 0} owners`);
         }
     }
-    log.renderer('PVV2', `◀ rebuild complete | total=${(performance.now() - now).toFixed(1)}ms`);
+    log.renderer('PVV3', `◀ rebuild complete | total=${(performance.now() - now).toFixed(1)}ms`);
 }
 
 // ── Cache Reset ────────────────────────────────────────────────────────────
@@ -1894,21 +1747,17 @@ export function renderPVV3(
 export function resetPVV3Cache(): void {
     cachedShapeFingerprint = '';
     cachedVisualFingerprint = '';
-    // Segment mode state
-    isBorderTransitioning = false;
-    prevBorderEdges = null;
-    targetBorderEdges = null;
-    borderTransitionStart = 0;
     // Smooth mode state
     isSmoothTransitioning = false;
     prevSharedPolylines = null;
     targetSharedPolylines = null;
     smoothTransitionStart = 0;
     lastMergedTerritories = null;
-    // Fill crossfade state
-    isFillTransitioning = false;
-    prevMergedTerritories = null;
-    fillTransitionStart = 0;
+    // Frontier loop state
+    isFrontierTransitioning = false;
+    prevFrontierLoops = null;
+    targetFrontierLoops = null;
+    frontierTransitionStart = 0;
     // Cell change tracking state
     lastCells = null;
     changedSiteIds = null;
