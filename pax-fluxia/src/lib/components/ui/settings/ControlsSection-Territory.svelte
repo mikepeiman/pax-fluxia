@@ -26,6 +26,7 @@
         "territoryVoronoi",
         "territoryModifiedVoronoi",
         "territoryPowerVoronoi",
+        "territoryPVV3",
         "territoryMetaball",
         "territoryPixel",
         "territoryGraph",
@@ -209,6 +210,24 @@
                 onchange={(e) => {
                     selectTerritory(
                         "territoryPowerVoronoi",
+                        (e.target as HTMLInputElement).checked,
+                    );
+                }}
+            />
+            <span class="toggle-slider"></span>
+        </label>
+    </div>
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">🔬 PVV3 (Frontier-First)</span>
+        <label class="toggle-switch">
+            <input
+                type="checkbox"
+                checked={panel.territoryPVV3 ?? GAME_CONFIG.TERRITORY_PVV3}
+                onchange={(e) => {
+                    selectTerritory(
+                        "territoryPVV3",
                         (e.target as HTMLInputElement).checked,
                     );
                 }}

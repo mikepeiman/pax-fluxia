@@ -254,6 +254,7 @@ interface GameConfigType {
     TERRITORY_VORONOI: boolean;    // Enable Voronoi territory renderer (default true)
     TERRITORY_MODIFIED_VORONOI: boolean; // Enable Modified Voronoi territory renderer (F-138, default false)
     TERRITORY_POWER_VORONOI: boolean;    // Enable Power Voronoi V2 territory renderer (F-138v2, default false)
+    TERRITORY_PVV3: boolean;              // Enable PVV3 frontier-first territory renderer (default false)
     TERRITORY_TRANSITION_MS: number;      // Duration of territory morph animation in ms (0 = instant, default 400)
     TERRITORY_MORPH_CONTROL_POINTS: number; // Number of control points for frontier loop morphing (5-300, default 32)
     TERRITORY_BOUNDARY_MODE: 'segment' | 'smooth';  // 'segment' = edge-level lerp, 'smooth' = flubber polygon morph
@@ -937,6 +938,8 @@ const _rawConfig: GameConfigType = {
     TERRITORY_MODIFIED_VORONOI: false,
     /** Enable Power Voronoi V2 territory renderer (F-138v2) */
     TERRITORY_POWER_VORONOI: true,
+    /** Enable PVV3 frontier-first territory renderer */
+    TERRITORY_PVV3: false,
     /** Duration of territory morph/crossfade animation in ms (0=instant) */
     TERRITORY_TRANSITION_MS: 350,
     /** Number of control points for frontier loop morphing (5-300) */

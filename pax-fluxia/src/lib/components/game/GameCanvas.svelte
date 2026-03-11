@@ -77,6 +77,10 @@
         resetPowerVoronoiCache,
     } from "$lib/renderers/PowerVoronoiRenderer";
     import {
+        renderPVV3 as renderPVV3Module,
+        resetPVV3Cache,
+    } from "$lib/renderers/PVV3Renderer";
+    import {
         renderDistanceFieldTerritory as renderDistanceFieldTerritoryModule,
         resetDistanceFieldTerritoryCache,
     } from "$lib/renderers/DistanceFieldTerritoryRenderer";
@@ -1155,6 +1159,17 @@
 
             if (GAME_CONFIG.TERRITORY_POWER_VORONOI) {
                 renderPowerVoronoiModule(
+                    stars,
+                    voronoiContainer,
+                    colorUtils,
+                    GAME_WIDTH,
+                    GAME_HEIGHT,
+                    activeGameStore.connections as StarConnection[],
+                );
+            }
+
+            if (GAME_CONFIG.TERRITORY_PVV3) {
+                renderPVV3Module(
                     stars,
                     voronoiContainer,
                     colorUtils,
