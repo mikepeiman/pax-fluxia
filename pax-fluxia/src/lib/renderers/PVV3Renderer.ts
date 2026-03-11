@@ -1318,7 +1318,6 @@ export function renderPVV3(
 
     // Re-show graphics — voronoiContainer blanket-hides every frame
     if (fillGraphics) fillGraphics.visible = true;
-    if (borderGraphics) borderGraphics.visible = true;
 
     // ── Per-frame animation ────────────────────────────────────────────
 
@@ -1334,16 +1333,15 @@ export function renderPVV3(
         const rawT = Math.min(1, elapsed / transitionMs);
         const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
 
-        // Draw lerped borders into borderGraphics (single layer — no outlineGraphics)
-        if (borderGraphics) {
-            borderGraphics.clear();
+        // Draw lerped borders into fillGraphics (unified layer — no outlineGraphics)
+        if (fillGraphics) {
             const smoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
             const borderWidth = GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 1.5;
             const borderAlpha = GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.4;
             const t0 = performance.now();
             const lerped = buildLerpedPolylines(prevSharedPolylines, targetSharedPolylines, eased);
             const t1 = performance.now();
-            drawBorderPolylines(borderGraphics, lerped, smoothPasses, borderWidth, borderAlpha);
+            drawBorderPolylines(fillGraphics, lerped, smoothPasses, borderWidth, borderAlpha);
             const t2 = performance.now();
             const avgPts = lerped.length > 0 ? (lerped.reduce((s, p) => s + p.points.length, 0) / lerped.length).toFixed(0) : '0';
             // log.renderer('PVV3', `TRANSITION t=${eased.toFixed(3)} ...`); // THROTTLED: per-frame
@@ -1431,7 +1429,7 @@ export function renderPVV3(
                 if (borderGraphics && borderWidth > 0 && borderAlpha > 0 && smoothed.length >= 2) {
                     const rawColor = colorUtils.getPlayerColor(ownerId);
                     const borderColor = adjustColorHSL(rawColor, satMult, lightMult);
-                    drawBorderPolylines(borderGraphics, [{ points: smoothed as [number, number][], color: borderColor }], 0, borderWidth, borderAlpha);
+                    drawBorderPolylines(fillGraphics, [{ points: smoothed as [number, number][], color: borderColor }], 0, borderWidth, borderAlpha);
                 }
             }
         }

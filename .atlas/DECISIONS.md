@@ -166,3 +166,9 @@
   - **Frontier normalization**: Ensuring that where two regions share a border, both sides reference identical vertex coordinates
   - **Region-sequential smoothing**: Process regions in deterministic order; later regions adopt the already-smoothed edge from earlier neighbors
 - **Status**: Planned. Requires rewrite of `assembleFrontierLoops` pipeline. Current polyline-chaining approach is a scaffold.
+
+## [2026-03-10] PVV3 Territory Smoothing Architecture
+- World bounding box required: all outer frontiers must connect to map-edge rectangle
+- Smoothing must happen on shared boundaries, NOT independently per territory polygon
+- Independent per-territory Chaikin causes visible gaps at shared edges
+- Fill crossfade (alpha-fade transition) intentionally cut for focus, NOT rejected — trivial to restore
