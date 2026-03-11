@@ -341,6 +341,7 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     // Modified Voronoi Territory (F-138)
     { panelKey: 'territoryModifiedVoronoi', configKey: 'TERRITORY_MODIFIED_VORONOI' },
     { panelKey: 'territoryPowerVoronoi', configKey: 'TERRITORY_POWER_VORONOI' },
+    { panelKey: 'territoryPVV3', configKey: 'TERRITORY_PVV3' },
     { panelKey: 'modifiedVoronoiStarMargin', configKey: 'MODIFIED_VORONOI_STAR_MARGIN' },
     { panelKey: 'modifiedVoronoiArcStrength', configKey: 'MODIFIED_VORONOI_ARC_STRENGTH' },
     { panelKey: 'modifiedVoronoiArcThreshold', configKey: 'MODIFIED_VORONOI_ARC_THRESHOLD' },
