@@ -501,9 +501,63 @@ interface FrontierLoop {
  *
  * Returns a Map from ownerId → array of closed loops (multiple loops if
  * the player has disconnected territory regions).
+ *
+ * mapBounds: { xMin, yMin, xMax, yMax } — the Voronoi clip rectangle.
+ * Open chains whose endpoints lie on the boundary are closed by walking
+ * the map perimeter clockwise.
  */
+
+/** Classify which edge of a rectangle a point lies on (within tolerance). */
+function classifyEdge(
+    x: number, y: number,
+    xMin: number, yMin: number, xMax: number, yMax: number,
+    tol: number = 8,
+): 'top' | 'right' | 'bottom' | 'left' | null {
+    // Check edges in priority order (corners go to the first edge found)
+    if (Math.abs(y - yMin) <= tol) return 'top';
+    if (Math.abs(x - xMax) <= tol) return 'right';
+    if (Math.abs(y - yMax) <= tol) return 'bottom';
+    if (Math.abs(x - xMin) <= tol) return 'left';
+    return null;
+}
+
+/** Walk clockwise from point A to point B along rectangle perimeter,
+ *  returning intermediate corner points (NOT including A or B themselves). */
+function walkBoundaryCW(
+    ax: number, ay: number, edgeA: string,
+    bx: number, by: number, edgeB: string,
+    xMin: number, yMin: number, xMax: number, yMax: number,
+): [number, number][] {
+    // CW edge order: top → right → bottom → left
+    const edgeOrder = ['top', 'right', 'bottom', 'left'];
+    const corners: Record<string, [number, number]> = {
+        'top→right': [xMax, yMin],
+        'right→bottom': [xMax, yMax],
+        'bottom→left': [xMin, yMax],
+        'left→top': [xMin, yMin],
+    };
+
+    const pts: [number, number][] = [];
+    let current = edgeA;
+    let safety = 0;
+
+    while (current !== edgeB && safety < 5) {
+        const idx = edgeOrder.indexOf(current);
+        const next = edgeOrder[(idx + 1) % 4];
+        const cornerKey = `${current}→${next}`;
+        if (corners[cornerKey]) {
+            pts.push(corners[cornerKey]);
+        }
+        current = next;
+        safety++;
+    }
+
+    return pts;
+}
+
 function assembleFrontierLoops(
     polylines: SharedPolyline[],
+    mapBounds?: { xMin: number; yMin: number; xMax: number; yMax: number },
 ): Map<string, FrontierLoop[]> {
     const SNAP = 4;  // junction snapping tolerance (px)
     const ptKey = (x: number, y: number) =>
@@ -656,14 +710,39 @@ function assembleFrontierLoops(
             const first = chain[0];
             const last = chain[chain.length - 1];
             const isClosed = ptKey(first[0], first[1]) === ptKey(last[0], last[1]);
+
             if (isClosed) {
+                // Already naturally closed — force exact same point
                 chain[chain.length - 1] = [first[0], first[1]];
+            } else if (mapBounds) {
+                // Attempt boundary-walk closure: classify both endpoints
+                const { xMin, yMin, xMax, yMax } = mapBounds;
+                const edgeEnd = classifyEdge(last[0], last[1], xMin, yMin, xMax, yMax);
+                const edgeStart = classifyEdge(first[0], first[1], xMin, yMin, xMax, yMax);
+
+                if (edgeEnd && edgeStart) {
+                    // Both endpoints on boundary — walk CW from end to start
+                    const walkPts = walkBoundaryCW(
+                        last[0], last[1], edgeEnd,
+                        first[0], first[1], edgeStart,
+                        xMin, yMin, xMax, yMax,
+                    );
+                    for (const wp of walkPts) chain.push(wp);
+                    chain.push([first[0], first[1]]); // close
+                    chainLog.push(`⇥WALK(${edgeEnd}→${edgeStart},+${walkPts.length}corners)`);
+                } else {
+                    // One or both endpoints not on boundary — force close
+                    chain.push([first[0], first[1]]);
+                    chainLog.push('⚠force-close');
+                }
             } else {
+                // No map bounds available — force close
                 chain.push([first[0], first[1]]);
             }
 
+            const wasClosed = isClosed || (mapBounds != null);
             const status = chain.length >= 4 ? '✓' : '⚠REJECTED';
-            diag.push(`  [${ownerId}] ${status} ${chain.length}pts f=${fwdExtensions} b=${bwdExtensions} closed=${isClosed} | ${chainLog.join(' → ')}`);
+            diag.push(`  [${ownerId}] ${status} ${chain.length}pts f=${fwdExtensions} b=${bwdExtensions} closed=${wasClosed} | ${chainLog.join(' → ')}`);
 
             if (chain.length >= 4) {
                 loops.push({ points: chain, ownerId });
@@ -1695,7 +1774,11 @@ export function renderPowerVoronoi(
         }, smoothN);
 
         // Assemble frontier loops from the polylines (Step A)
-        targetFrontierLoops = assembleFrontierLoops(targetSharedPolylines);
+        // Pass map bounds (Voronoi clip rect) for boundary-walk closure of open chains
+        targetFrontierLoops = assembleFrontierLoops(targetSharedPolylines, {
+            xMin: -pad, yMin: -pad,
+            xMax: worldWidth + pad, yMax: worldHeight + pad,
+        });
     }
 
     // Start transition based on mode
