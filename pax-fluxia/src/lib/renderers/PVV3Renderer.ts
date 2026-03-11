@@ -369,6 +369,25 @@ function chaikinSmoothPolyline(pts: [number, number][], passes: number): [number
     return current;
 }
 
+
+/** Closed-polygon Chaikin: every edge including last->first gets corner-cut uniformly. */
+function chaikinSmoothPolygon(pts: [number, number][], passes: number): [number, number][] {
+    if (passes <= 0 || pts.length < 3) return pts;
+
+    let current = pts;
+    for (let iter = 0; iter < passes; iter++) {
+        const n = current.length;
+        const next: [number, number][] = [];
+        for (let i = 0; i < n; i++) {
+            const [ax, ay] = current[i];
+            const [bx, by] = current[(i + 1) % n];
+            next.push([ax * 0.75 + bx * 0.25, ay * 0.75 + by * 0.25]);
+            next.push([ax * 0.25 + bx * 0.75, ay * 0.25 + by * 0.75]);
+        }
+        current = next;
+    }
+    return current;
+}
 /** Chain shared border edges into continuous polylines, grouped by owner-pair.
  *  Edges between the same two owners that share endpoints get merged into polylines. */
 function chainSharedEdgesIntoPolylines(edges: SharedBorderEdge[], colorLookup?: (ownerA: string, ownerB: string) => number, smoothPasses = 0): SharedPolyline[] {
@@ -1637,6 +1656,14 @@ export function renderPVV3(
 
     log.sys('PowerVoronoi', `Merged to ${merged.length} territories`);
 
+    // -- Stage 3b: Smooth merged polygons (closed Chaikin) ------------------
+    const smoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
+    for (const territory of merged) {
+        if (smoothPasses > 0 && territory.points.length >= 3) {
+            territory.points = chaikinSmoothPolygon(territory.points, smoothPasses);
+        }
+    };
+
     // ── Stage 4: Render Fills ──────────────────────────────────────────────
     if (!fillGraphics) {
         fillGraphics = new PIXI.Graphics();
@@ -1645,10 +1672,13 @@ export function renderPVV3(
     fillGraphics.clear();
     fillGraphics.visible = true;
 
-    // Steady-state: draw fills at full alpha
+    // Unified fill + stroke per territory (smoothed polygons)
     for (const territory of merged) {
         fillGraphics.poly(territory.points.flat());
         fillGraphics.fill({ color: territory.color, alpha });
+        if (borderWidth > 0 && borderAlpha > 0) {
+            fillGraphics.stroke({ width: borderWidth, color: territory.color, alpha: borderAlpha });
+        }
     }
 
     // Borders — smoothed shared edges via canonical drawBorderPolylines
@@ -1715,12 +1745,13 @@ export function renderPVV3(
             return cMap.get(key) ?? 0x888888;
         }, smoothN);
 
-        // Assemble frontier loops from the polylines (Step A)
-        // Pass map bounds (Voronoi clip rect) for boundary-walk closure of open chains
-        targetFrontierLoops = assembleFrontierLoops(targetSharedPolylines, {
-            xMin: -pad, yMin: -pad,
-            xMax: worldWidth + pad, yMax: worldHeight + pad,
-        });
+        // Build frontier loops from smoothed merged territory polygons
+        targetFrontierLoops = new Map<string, FrontierLoop[]>();
+        for (const territory of merged) {
+            const loops = targetFrontierLoops.get(territory.ownerId) ?? [];
+            loops.push({ points: territory.points, ownerId: territory.ownerId });
+            targetFrontierLoops.set(territory.ownerId, loops);
+        }
     }
 
     // Start transition based on mode
