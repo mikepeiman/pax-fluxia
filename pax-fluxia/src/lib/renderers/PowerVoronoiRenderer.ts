@@ -621,6 +621,7 @@ function assembleFrontierLoops(
 
     for (const [ownerId, segments] of byOwner) {
         const loops: FrontierLoop[] = [];
+        const openChains: { points: [number, number][]; chainLog: string[] }[] = [];
         const used = new Array(segments.length).fill(false);
 
         while (true) {
@@ -706,46 +707,121 @@ function assembleFrontierLoops(
                 }
             }
 
-            // Close the loop if endpoints are near each other
+            // Check if naturally closed
             const first = chain[0];
             const last = chain[chain.length - 1];
             const isClosed = ptKey(first[0], first[1]) === ptKey(last[0], last[1]);
 
             if (isClosed) {
-                // Already naturally closed — force exact same point
                 chain[chain.length - 1] = [first[0], first[1]];
-            } else if (mapBounds) {
-                // Attempt boundary-walk closure: classify both endpoints
-                const { xMin, yMin, xMax, yMax } = mapBounds;
-                const edgeEnd = classifyEdge(last[0], last[1], xMin, yMin, xMax, yMax);
-                const edgeStart = classifyEdge(first[0], first[1], xMin, yMin, xMax, yMax);
-
-                if (edgeEnd && edgeStart) {
-                    // Both endpoints on boundary — walk CW from end to start
-                    const walkPts = walkBoundaryCW(
-                        last[0], last[1], edgeEnd,
-                        first[0], first[1], edgeStart,
-                        xMin, yMin, xMax, yMax,
-                    );
-                    for (const wp of walkPts) chain.push(wp);
-                    chain.push([first[0], first[1]]); // close
-                    chainLog.push(`⇥WALK(${edgeEnd}→${edgeStart},+${walkPts.length}corners)`);
-                } else {
-                    // One or both endpoints not on boundary — force close
-                    chain.push([first[0], first[1]]);
-                    chainLog.push('⚠force-close');
+                const status = chain.length >= 4 ? '✓' : '⚠REJECTED';
+                diag.push(`  [${ownerId}] ${status} ${chain.length}pts f=${fwdExtensions} b=${bwdExtensions} closed=true | ${chainLog.join(' → ')}`);
+                if (chain.length >= 4) {
+                    loops.push({ points: chain, ownerId });
                 }
             } else {
-                // No map bounds available — force close
-                chain.push([first[0], first[1]]);
+                // Open chain — collect for boundary merge below
+                diag.push(`  [${ownerId}] OPEN ${chain.length}pts f=${fwdExtensions} b=${bwdExtensions} | ${chainLog.join(' → ')}`);
+                if (chain.length >= 2) {
+                    openChains.push({ points: chain, chainLog });
+                }
+            }
+        }
+
+        // ── Boundary merge: stitch all open chains into one closed polygon ──
+        if (openChains.length > 0 && mapBounds) {
+            const { xMin, yMin, xMax, yMax } = mapBounds;
+
+            // Compute CW perimeter position (0..4) for a point on the boundary
+            // top=0→1, right=1→2, bottom=2→3, left=3→4
+            const perimPos = (x: number, y: number): number => {
+                const edge = classifyEdge(x, y, xMin, yMin, xMax, yMax);
+                const w = xMax - xMin, h = yMax - yMin;
+                if (edge === 'top') return 0 + (x - xMin) / w;
+                if (edge === 'right') return 1 + (y - yMin) / h;
+                if (edge === 'bottom') return 2 + (xMax - x) / w;
+                if (edge === 'left') return 3 + (yMax - y) / h;
+                return -1; // not on boundary
+            };
+
+            // For each open chain, compute perimeter pos of its endpoints
+            type OpenChainEntry = {
+                points: [number, number][];
+                startPerim: number;
+                endPerim: number;
+                startEdge: string;
+                endEdge: string;
+                chainLog: string[];
+            };
+            const entries: OpenChainEntry[] = [];
+            for (const oc of openChains) {
+                const pts = oc.points;
+                const s = pts[0], e = pts[pts.length - 1];
+                const sEdge = classifyEdge(s[0], s[1], xMin, yMin, xMax, yMax);
+                const eEdge = classifyEdge(e[0], e[1], xMin, yMin, xMax, yMax);
+                if (sEdge && eEdge) {
+                    entries.push({
+                        points: pts,
+                        startPerim: perimPos(s[0], s[1]),
+                        endPerim: perimPos(e[0], e[1]),
+                        startEdge: sEdge,
+                        endEdge: eEdge,
+                        chainLog: oc.chainLog,
+                    });
+                } else {
+                    // Can't classify — push as individual loop (force close)
+                    pts.push([pts[0][0], pts[0][1]]);
+                    if (pts.length >= 4) loops.push({ points: pts, ownerId });
+                    diag.push(`  [${ownerId}] ⚠force-closed ${pts.length}pts (non-boundary endpoint)`);
+                }
             }
 
-            const wasClosed = isClosed || (mapBounds != null);
-            const status = chain.length >= 4 ? '✓' : '⚠REJECTED';
-            diag.push(`  [${ownerId}] ${status} ${chain.length}pts f=${fwdExtensions} b=${bwdExtensions} closed=${wasClosed} | ${chainLog.join(' → ')}`);
+            if (entries.length > 0) {
+                // Sort by endPerim (CW order around perimeter)
+                entries.sort((a, b) => a.endPerim - b.endPerim);
 
-            if (chain.length >= 4) {
-                loops.push({ points: chain, ownerId });
+                // Stitch: chain1-end →(walk)→ chain2-start → chain2 → chain2-end →(walk)→ ...
+                const merged: [number, number][] = [];
+                const mergeLog: string[] = [];
+
+                for (let i = 0; i < entries.length; i++) {
+                    const entry = entries[i];
+                    const nextEntry = entries[(i + 1) % entries.length];
+
+                    // Append this chain's points
+                    for (const pt of entry.points) merged.push(pt);
+                    mergeLog.push(`C${i}(${entry.points.length}pts)`);
+
+                    // Walk from this chain's end to next chain's start
+                    const walkPts = walkBoundaryCW(
+                        entry.points[entry.points.length - 1][0],
+                        entry.points[entry.points.length - 1][1],
+                        entry.endEdge,
+                        nextEntry.points[0][0],
+                        nextEntry.points[0][1],
+                        nextEntry.startEdge,
+                        xMin, yMin, xMax, yMax,
+                    );
+                    for (const wp of walkPts) merged.push(wp);
+                    if (walkPts.length > 0) mergeLog.push(`W+${walkPts.length}`);
+                }
+
+                // Close the merged polygon
+                if (merged.length >= 2) {
+                    merged.push([merged[0][0], merged[0][1]]);
+                }
+
+                diag.push(`  [${ownerId}] ✓MERGED ${merged.length}pts from ${entries.length} open chains | ${mergeLog.join(' → ')}`);
+
+                if (merged.length >= 4) {
+                    loops.push({ points: merged, ownerId });
+                }
+            }
+        } else if (openChains.length > 0) {
+            // No map bounds — force close each open chain individually
+            for (const oc of openChains) {
+                oc.points.push([oc.points[0][0], oc.points[0][1]]);
+                if (oc.points.length >= 4) loops.push({ points: oc.points, ownerId });
             }
         }
 
