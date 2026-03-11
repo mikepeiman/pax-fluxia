@@ -1707,8 +1707,6 @@ export function renderPVV3(
             return cMap.get(key) ?? 0x888888;
         }, smoothN);
 
-        // Build frontier loops from smoothed merged territory polygons
-        targetFrontierLoops = new Map<string, FrontierLoop[]>();
         for (const territory of merged) {
             const loops = targetFrontierLoops.get(territory.ownerId) ?? [];
             loops.push({ points: territory.points, ownerId: territory.ownerId });
