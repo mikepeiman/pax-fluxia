@@ -14,7 +14,7 @@
 - **Build**: Bun only. `bun install`, `bun run dev`, `bunx`. Never npm/npx/yarn.
 - **Port**: Dev server on `localhost:1420` (Tauri). 
 - **Shell**: PowerShell on Windows. **Never use `&&` to chain commands.**
-
+- **MCPServer**: `mcp_server.json` - use for all CLI commands
 ---
 
 ## 2. Agent Behavior — Non-Negotiable

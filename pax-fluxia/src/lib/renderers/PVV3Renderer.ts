@@ -1432,121 +1432,11 @@ export function renderPVV3(
         (drawBorderPolylines as any).__lastTransKey = transKey;
         log.renderer('PVV3', `smoothTransition=${isSmoothTransitioning} frontierTransition=${isFrontierTransitioning}`);
     }
-    // Smooth mode: contested shared border polyline morph
-    if (isSmoothTransitioning && transitionMs > 0 && prevSharedPolylines && targetSharedPolylines) {
-        const elapsed = now - smoothTransitionStart;
-        const rawT = Math.min(1, elapsed / transitionMs);
-        const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
-
-        // Draw lerped borders into fillGraphics (unified layer — no outlineGraphics)
-        if (fillGraphics) {
-            const smoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
-            const borderWidth = GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 1.5;
-            const borderAlpha = GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.4;
-            const t0 = performance.now();
-            const lerped = buildLerpedPolylines(prevSharedPolylines, targetSharedPolylines, eased);
-            const t1 = performance.now();
-            drawBorderPolylines(fillGraphics, lerped, smoothPasses, borderWidth, borderAlpha);
-            const t2 = performance.now();
-            const avgPts = lerped.length > 0 ? (lerped.reduce((s, p) => s + p.points.length, 0) / lerped.length).toFixed(0) : '0';
-            // log.renderer('PVV3', `TRANSITION t=${eased.toFixed(3)} ...`); // THROTTLED: per-frame
-        } else {
-            log.renderer('PVV3', `TRANSITION SKIPPED — borderGraphics is null`);
-        }
-
-        if (rawT >= 1) {
-            isSmoothTransitioning = false;
-            prevSharedPolylines = null;
-            log.renderer('PVV3', 'smooth transition complete — next frame will rebuild steady-state');
-        }
-        const shapeFpCheck = buildShapeFingerprint(stars);
-        const visualFpCheck = buildVisualFingerprint();
-        if (shapeFpCheck === cachedShapeFingerprint && visualFpCheck === cachedVisualFingerprint) {
-            // log.renderer('PVV3', `early return — fingerprints unchanged during transition`); // THROTTLED: per-frame
-            return;
-        }
-        log.renderer('PVV3', `fingerprints changed DURING transition — falling through to rebuild`);
-    }
-
-    // ── Frontier loop morph (arc-length parameterization) ────────────────
-    if (isFrontierTransitioning && prevFrontierLoops && targetFrontierLoops && transitionMs > 0) {
-        const elapsed = now - frontierTransitionStart;
-        const rawT = Math.min(1, elapsed / transitionMs);
-        const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
-        const numCPs = Math.max(5, Math.min(300, Math.round(GAME_CONFIG.TERRITORY_MORPH_CONTROL_POINTS ?? 32)));
-        const smoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
-        const alpha = GAME_CONFIG.VORONOI_ALPHA ?? 0.25;
-        const borderWidth = GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 1.5;
-        const borderAlpha = GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.4;
-        const satMult = GAME_CONFIG.VORONOI_SATURATION ?? 0.8;
-        const lightMult = GAME_CONFIG.VORONOI_LIGHTNESS ?? 0.6;
-
-        // Collect all player IDs present in either prev or target
-        const allOwners = new Set([...prevFrontierLoops.keys(), ...targetFrontierLoops.keys()]);
-
-        if (fillGraphics) fillGraphics.clear();
-        // Don't clear borderGraphics — let steady-state borders stay for non-morphing owners
-
-        for (const ownerId of allOwners) {
-            const prevLoops = prevFrontierLoops.get(ownerId) ?? [];
-            const targetLoops = targetFrontierLoops.get(ownerId) ?? [];
-
-            // For now: morph first loop of each player (1:1 case)
-            // Territory splitting (1→2 or 2→1) handled in Step F
-            const maxLoops = Math.max(prevLoops.length, targetLoops.length);
-
-            for (let li = 0; li < maxLoops; li++) {
-                const prevLoop = prevLoops[li];
-                const targetLoop = targetLoops[li];
-
-                let interpolatedPts: [number, number][];
-
-                if (prevLoop && targetLoop) {
-                    // Both exist — parameterize, align, lerp
-                    const { f1CPs, f2CPs } = parameterizeAndAlign(
-                        prevLoop.points, targetLoop.points, numCPs
-                    );
-                    interpolatedPts = lerpFrontierCPs(f1CPs, f2CPs, eased);
-                } else if (prevLoop && !targetLoop) {
-                    // Disappearing loop — use prev, will shrink at t=1
-                    interpolatedPts = prevLoop.points;
-                } else if (!prevLoop && targetLoop) {
-                    // Appearing loop — use target
-                    interpolatedPts = targetLoop.points;
-                } else {
-                    continue;
-                }
-
-                // Apply Chaikin smoothing to interpolated CPs
-                const smoothed = smoothPasses > 0
-                    ? chaikinSmoothPolyline(interpolatedPts, smoothPasses)
-                    : interpolatedPts;
-
-                // Draw fill inside frontier
-                if (fillGraphics && smoothed.length >= 3) {
-                    const rawColor = colorUtils.getPlayerColor(ownerId);
-                    const fillColor = adjustColorHSL(rawColor, satMult, lightMult);
-                    fillGraphics.poly(smoothed.flat());
-                    fillGraphics.fill({ color: fillColor, alpha });
-                }
-
-                // Draw border stroke at frontier
-                if (borderGraphics && borderWidth > 0 && borderAlpha > 0 && smoothed.length >= 2) {
-                    const rawColor = colorUtils.getPlayerColor(ownerId);
-                    const borderColor = adjustColorHSL(rawColor, satMult, lightMult);
-                    drawBorderPolylines(fillGraphics, [{ points: smoothed as [number, number][], color: borderColor }], 0, borderWidth, borderAlpha);
-                }
-            }
-        }
-
-        // log.renderer('PVV3', `FRONTIER MORPH t=${eased.toFixed(3)} | ${allOwners.size} owners, ${numCPs} CPs`); // THROTTLED: per-frame
-
-        if (rawT >= 1) {
-            isFrontierTransitioning = false;
-            prevFrontierLoops = null;
-            log.renderer('PVV3', 'frontier loop morph complete');
-        }
-    }
+    // -- PVV3: Per-frame animations DISABLED ------------------------------
+    // Smooth border morph and frontier loop morph are incompatible with
+    // unified fill+stroke model (they draw on fillGraphics without clearing).
+    // Territories snap on rebuild instead of morphing.
+    // TODO: restore with proper clear-and-redraw-all-per-frame approach.
 
     const shapeFp = buildShapeFingerprint(stars);
     const visualFp = buildVisualFingerprint();
@@ -1558,21 +1448,7 @@ export function renderPVV3(
     log.renderer('PVV3', `REBUILD | shapeChanged=${shapeChanged} visualChanged=${visualChanged} | t+${(performance.now() - now).toFixed(1)}ms`);
 
     // ── Shape changed: snapshot for transition animation ─────────────────
-    if (shapeChanged && transitionMs > 0) {
-        // Smooth mode: snapshot current shared polylines
-        if (targetSharedPolylines && targetSharedPolylines.length > 0) {
-            prevSharedPolylines = targetSharedPolylines;
-        }
-        // Frontier loop snapshot for arc-length morphing
-        if (targetFrontierLoops && targetFrontierLoops.size > 0) {
-            prevFrontierLoops = targetFrontierLoops;
-        }
-        if (targetFrontierLoops && targetFrontierLoops.size > 0) {
-            prevFrontierLoops = targetFrontierLoops;
-        }
-        // Cell change detection: snapshot previous cells for ownership comparison
-        // (changedSiteIds populated after new cells are computed — see Stage 2c below)
-    }
+    // Transition snapshots disabled � no per-frame morph to feed
 
     cachedShapeFingerprint = shapeFp;
     cachedVisualFingerprint = visualFp;
