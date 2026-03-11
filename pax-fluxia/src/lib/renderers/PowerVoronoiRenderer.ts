@@ -509,34 +509,39 @@ function assembleFrontierLoops(
     const ptKey = (x: number, y: number) =>
         `${Math.round(x / SNAP) * SNAP},${Math.round(y / SNAP) * SNAP}`;
 
-    // ── DIAGNOSTIC: Log all input polylines ──────────────────────────────
-    log.renderer('FrontierDiag', `═══ assembleFrontierLoops INPUT: ${polylines.length} polylines ═══`);
+    // Accumulate all diagnostic lines into one string
+    const diag: string[] = [];
+    diag.push(`═══ assembleFrontierLoops: ${polylines.length} polylines ═══`);
+
+    // Build endpoint adjacency table
+    const endpointCounts = new Map<string, number>();
+    const polyTable: { idx: number; pair: string; pts: number; start: string; end: string; startKey: string; endKey: string }[] = [];
+
     for (let pi = 0; pi < polylines.length; pi++) {
         const p = polylines[pi];
         const pts = p.points;
-        const startKey = pts.length >= 2 ? ptKey(pts[0][0], pts[0][1]) : 'N/A';
-        const endKey = pts.length >= 2 ? ptKey(pts[pts.length - 1][0], pts[pts.length - 1][1]) : 'N/A';
-        log.renderer('FrontierDiag', `  poly[${pi}] pair=${p.ownerPairKey} pts=${pts.length} start=(${pts[0]?.[0]?.toFixed(1)},${pts[0]?.[1]?.toFixed(1)}) [${startKey}] end=(${pts[pts.length - 1]?.[0]?.toFixed(1)},${pts[pts.length - 1]?.[1]?.toFixed(1)}) [${endKey}]`);
-    }
-
-    // ── DIAGNOSTIC: Endpoint adjacency table ─────────────────────────────
-    const endpointCounts = new Map<string, number>();
-    for (const poly of polylines) {
-        const pts = poly.points;
-        if (pts.length < 2) continue;
+        if (pts.length < 2) { diag.push(`  poly[${pi}] SKIP (${pts.length} pts)`); continue; }
         const sk = ptKey(pts[0][0], pts[0][1]);
         const ek = ptKey(pts[pts.length - 1][0], pts[pts.length - 1][1]);
         endpointCounts.set(sk, (endpointCounts.get(sk) ?? 0) + 1);
         endpointCounts.set(ek, (endpointCounts.get(ek) ?? 0) + 1);
+        polyTable.push({
+            idx: pi, pair: p.ownerPairKey, pts: pts.length,
+            start: `(${pts[0][0].toFixed(0)},${pts[0][1].toFixed(0)})`,
+            end: `(${pts[pts.length - 1][0].toFixed(0)},${pts[pts.length - 1][1].toFixed(0)})`,
+            startKey: sk, endKey: ek,
+        });
     }
-    const danglingEndpoints: string[] = [];
+
+    // Flag dangles
+    const dangles: string[] = [];
     for (const [key, count] of endpointCounts) {
-        if (count === 1) danglingEndpoints.push(key);
+        if (count === 1) dangles.push(key);
     }
-    if (danglingEndpoints.length > 0) {
-        log.renderer('FrontierDiag', `⚠ ${danglingEndpoints.length} DANGLING endpoints (count=1): ${danglingEndpoints.slice(0, 10).join(', ')}${danglingEndpoints.length > 10 ? '...' : ''}`);
+    if (dangles.length > 0) {
+        diag.push(`⚠ ${dangles.length} DANGLING endpoints: ${dangles.join(', ')}`);
     } else {
-        log.renderer('FrontierDiag', `✓ All endpoints paired (no dangles)`);
+        diag.push(`✓ All endpoints paired`);
     }
 
     // Group polylines by each owner they touch
@@ -575,7 +580,7 @@ function assembleFrontierLoops(
             // Start a chain from this segment
             used[startIdx] = true;
             const chain: [number, number][] = [...segments[startIdx].points];
-            log.renderer('FrontierDiag', `  [${ownerId}] chain START from seg[${segments[startIdx].polyIdx}] pts=${chain.length} startKey=${segments[startIdx].startKey} endKey=${segments[startIdx].endKey}`);
+            const chainLog: string[] = [`seg[${segments[startIdx].polyIdx}]`];
 
             // Extend forward: find next segment whose start matches our end
             let extended = true;
@@ -590,25 +595,23 @@ function assembleFrontierLoops(
                     const seg = segments[i];
 
                     if (seg.startKey === lastKey) {
-                        // Append forward (skip first point — it's the junction we already have)
                         for (let j = 1; j < seg.points.length; j++) {
                             chain.push(seg.points[j]);
                         }
                         used[i] = true;
                         extended = true;
                         fwdExtensions++;
-                        log.renderer('FrontierDiag', `    +FWD seg[${seg.polyIdx}] (startKey match) → chain=${chain.length} pts`);
+                        chainLog.push(`+F[${seg.polyIdx}]`);
                         break;
                     }
                     if (seg.endKey === lastKey) {
-                        // Append reversed (skip last point — it's the junction)
                         for (let j = seg.points.length - 2; j >= 0; j--) {
                             chain.push(seg.points[j]);
                         }
                         used[i] = true;
                         extended = true;
                         fwdExtensions++;
-                        log.renderer('FrontierDiag', `    +FWD seg[${seg.polyIdx}] (endKey match, REVERSED) → chain=${chain.length} pts`);
+                        chainLog.push(`+F[${seg.polyIdx}]R`);
                         break;
                     }
                 }
@@ -627,25 +630,23 @@ function assembleFrontierLoops(
                     const seg = segments[i];
 
                     if (seg.endKey === firstKey) {
-                        // Prepend forward (skip last point — it's the junction)
                         for (let j = seg.points.length - 2; j >= 0; j--) {
                             chain.unshift(seg.points[j]);
                         }
                         used[i] = true;
                         extended = true;
                         bwdExtensions++;
-                        log.renderer('FrontierDiag', `    +BWD seg[${seg.polyIdx}] (endKey match) → chain=${chain.length} pts`);
+                        chainLog.unshift(`+B[${seg.polyIdx}]`);
                         break;
                     }
                     if (seg.startKey === firstKey) {
-                        // Prepend reversed (skip first point — it's the junction)
                         for (let j = 1; j < seg.points.length; j++) {
                             chain.unshift(seg.points[j]);
                         }
                         used[i] = true;
                         extended = true;
                         bwdExtensions++;
-                        log.renderer('FrontierDiag', `    +BWD seg[${seg.polyIdx}] (startKey match, REVERSED) → chain=${chain.length} pts`);
+                        chainLog.unshift(`+B[${seg.polyIdx}]R`);
                         break;
                     }
                 }
@@ -656,27 +657,30 @@ function assembleFrontierLoops(
             const last = chain[chain.length - 1];
             const isClosed = ptKey(first[0], first[1]) === ptKey(last[0], last[1]);
             if (isClosed) {
-                // Already closed — force exact closure
                 chain[chain.length - 1] = [first[0], first[1]];
             } else {
-                // Not closed — add first point to close
                 chain.push([first[0], first[1]]);
             }
-            log.renderer('FrontierDiag', `  [${ownerId}] chain DONE: ${chain.length} pts, fwd=${fwdExtensions} bwd=${bwdExtensions} closed=${isClosed}`);
 
-            // Only accept loops with enough points to form a real polygon
+            const status = chain.length >= 4 ? '✓' : '⚠REJECTED';
+            diag.push(`  [${ownerId}] ${status} ${chain.length}pts f=${fwdExtensions} b=${bwdExtensions} closed=${isClosed} | ${chainLog.join(' → ')}`);
+
             if (chain.length >= 4) {
                 loops.push({ points: chain, ownerId });
-            } else {
-                log.renderer('FrontierDiag', `  ⚠ REJECTED degenerate chain for ${ownerId}: only ${chain.length} points`);
             }
         }
 
         if (loops.length > 0) {
             result.set(ownerId, loops);
-            log.renderer('FrontierLoops', `${ownerId}: ${loops.length} loop(s), total pts=${loops.reduce((s, l) => s + l.points.length, 0)}`);
         }
     }
+
+    // Emit one consolidated log + table
+    log.renderer('FrontierDiag', diag.join('\n'));
+    if (polyTable.length > 0) {
+        console.table(polyTable);
+    }
+
 
     return result;
 }
@@ -874,7 +878,7 @@ function drawBorderPolylines(
         graphics.stroke({ width, color: polyline.color, alpha, cap: 'round', join: 'round' });
         drawn++;
     }
-    log.renderer('drawBorderPolylines', `drew ${drawn}/${polylines.length} polylines (smooth=${smoothPasses}, w=${width.toFixed(1)}, a=${alpha.toFixed(2)}, bezier=true)`);
+    // log.renderer('drawBorderPolylines', `drew ${drawn}/${polylines.length} polylines (smooth=${smoothPasses}, w=${width.toFixed(1)}, a=${alpha.toFixed(2)}, bezier=true)`); // THROTTLED: per-frame
 }
 
 /** Build lerped polylines from prev → target for transition animation.
@@ -1271,7 +1275,7 @@ export function renderPowerVoronoi(
             drawBorderPolylines(borderGraphics, lerped, smoothPasses, borderWidth, borderAlpha);
             const t2 = performance.now();
             const avgPts = lerped.length > 0 ? (lerped.reduce((s, p) => s + p.points.length, 0) / lerped.length).toFixed(0) : '0';
-            log.renderer('PVV2', `TRANSITION t=${eased.toFixed(3)} | lerp=${(t1 - t0).toFixed(1)}ms draw=${(t2 - t1).toFixed(1)}ms | ${lerped.length} polylines avgPts=${avgPts} smooth=${smoothPasses} | prev=${prevSharedPolylines.length} target=${targetSharedPolylines.length}`);
+            // log.renderer('PVV2', `TRANSITION t=${eased.toFixed(3)} ...`); // THROTTLED: per-frame
         } else {
             log.renderer('PVV2', `TRANSITION SKIPPED — borderGraphics is null`);
         }
@@ -1284,7 +1288,7 @@ export function renderPowerVoronoi(
         const shapeFpCheck = buildShapeFingerprint(stars);
         const visualFpCheck = buildVisualFingerprint();
         if (shapeFpCheck === cachedShapeFingerprint && visualFpCheck === cachedVisualFingerprint) {
-            log.renderer('PVV2', `early return — fingerprints unchanged during transition`);
+            // log.renderer('PVV2', `early return — fingerprints unchanged during transition`); // THROTTLED: per-frame
             return;
         }
         log.renderer('PVV2', `fingerprints changed DURING transition — falling through to rebuild`);
@@ -1362,7 +1366,7 @@ export function renderPowerVoronoi(
             }
         }
 
-        log.renderer('PVV2', `FRONTIER MORPH t=${eased.toFixed(3)} | ${allOwners.size} owners, ${numCPs} CPs`);
+        // log.renderer('PVV2', `FRONTIER MORPH t=${eased.toFixed(3)} | ${allOwners.size} owners, ${numCPs} CPs`); // THROTTLED: per-frame
 
         if (rawT >= 1) {
             isFrontierTransitioning = false;
