@@ -1682,7 +1682,6 @@ export function renderPVV3(
     }
 
 
-    }
 
     // ── Store targets + start transition ────────────────────────────────
     // Assign colors if not already done in the border render block
@@ -1693,7 +1692,7 @@ export function renderPVV3(
         }
     }
     lastMergedTerritories = merged;
-
+    
     // Build polylines for morph transition (reuse from render block if available)
     {
         const smoothN = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
@@ -1706,14 +1705,14 @@ export function renderPVV3(
             const key = a < b ? `${a}|${b}` : `${b}|${a}`;
             return cMap.get(key) ?? 0x888888;
         }, smoothN);
-
+    
         for (const territory of merged) {
             const loops = targetFrontierLoops.get(territory.ownerId) ?? [];
             loops.push({ points: territory.points, ownerId: territory.ownerId });
             targetFrontierLoops.set(territory.ownerId, loops);
         }
     }
-
+    
     // Start transition based on mode
     if (shapeChanged && transitionMs > 0) {
         // Smooth mode
@@ -1722,7 +1721,7 @@ export function renderPVV3(
             isSmoothTransitioning = true;
             log.renderer('PVV3', `TRANSITION STARTED | prev=${prevSharedPolylines.length} target=${targetSharedPolylines?.length ?? 0} | transitionMs=${transitionMs}`);
         }
-
+    
         // Frontier loop morph (arc-length mode)
         if (prevFrontierLoops && prevFrontierLoops.size > 0) {
             frontierTransitionStart = now;
@@ -1731,6 +1730,7 @@ export function renderPVV3(
         }
     }
     log.renderer('PVV3', `◀ rebuild complete | total=${(performance.now() - now).toFixed(1)}ms`);
+    
 }
 
 // ── Cache Reset ────────────────────────────────────────────────────────────
