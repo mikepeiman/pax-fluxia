@@ -85,12 +85,6 @@ let smoothTransitionStart = 0;
 let isSmoothTransitioning = false;
 let lastMergedTerritories: MergedTerritory[] | null = null;  // stored for smooth mode snapshot
 
-// ── Frontier Loop State (arc-length morphing) ──────────────────────────────
-let prevFrontierLoops: Map<string, FrontierLoop[]> | null = null;
-let targetFrontierLoops: Map<string, FrontierLoop[]> | null = null;
-let frontierTransitionStart = 0;
-let isFrontierTransitioning = false;
-
 // ── Cell Change Tracking (frontier-first rendering) ────────────────────
 let lastCells: TerritoryCell[] | null = null;  // cells from previous rebuild
 let changedSiteIds: Set<string> | null = null; // stars that changed owner in this conquest
@@ -484,509 +478,6 @@ function chainSharedEdgesIntoPolylines(edges: SharedBorderEdge[], colorLookup?: 
     return result;
 }
 
-// ── Frontier Loop Assembly ─────────────────────────────────────────────────
-
-/** A continuous closed frontier loop for one player's territory boundary. */
-interface FrontierLoop {
-    points: [number, number][];  // closed loop — first point ≈ last point
-    ownerId: string;
-}
-
-/**
- * Assemble per-pair polylines into per-player closed frontier loops.
- *
- * Each SharedPolyline represents a boundary between two owners. A player's
- * complete frontier is formed by chaining all polylines involving that player
- * end-to-end at junction points (where 3+ territories meet).
- *
- * Returns a Map from ownerId → array of closed loops (multiple loops if
- * the player has disconnected territory regions).
- *
- * mapBounds: { xMin, yMin, xMax, yMax } — the Voronoi clip rectangle.
- * Open chains whose endpoints lie on the boundary are closed by walking
- * the map perimeter clockwise.
- */
-
-/** Classify which edge of a rectangle a point lies on (within tolerance). */
-function classifyEdge(
-    x: number, y: number,
-    xMin: number, yMin: number, xMax: number, yMax: number,
-    tol: number = 8,
-): 'top' | 'right' | 'bottom' | 'left' | null {
-    // Check edges in priority order (corners go to the first edge found)
-    if (Math.abs(y - yMin) <= tol) return 'top';
-    if (Math.abs(x - xMax) <= tol) return 'right';
-    if (Math.abs(y - yMax) <= tol) return 'bottom';
-    if (Math.abs(x - xMin) <= tol) return 'left';
-    return null;
-}
-
-/** Walk clockwise from point A to point B along rectangle perimeter,
- *  returning intermediate corner points (NOT including A or B themselves). */
-function walkBoundaryCW(
-    ax: number, ay: number, edgeA: string,
-    bx: number, by: number, edgeB: string,
-    xMin: number, yMin: number, xMax: number, yMax: number,
-): [number, number][] {
-    // CW edge order: top → right → bottom → left
-    const edgeOrder = ['top', 'right', 'bottom', 'left'];
-    const corners: Record<string, [number, number]> = {
-        'top→right': [xMax, yMin],
-        'right→bottom': [xMax, yMax],
-        'bottom→left': [xMin, yMax],
-        'left→top': [xMin, yMin],
-    };
-
-    const pts: [number, number][] = [];
-    let current = edgeA;
-    let safety = 0;
-
-    while (current !== edgeB && safety < 5) {
-        const idx = edgeOrder.indexOf(current);
-        const next = edgeOrder[(idx + 1) % 4];
-        const cornerKey = `${current}→${next}`;
-        if (corners[cornerKey]) {
-            pts.push(corners[cornerKey]);
-        }
-        current = next;
-        safety++;
-    }
-
-    return pts;
-}
-
-function assembleFrontierLoops(
-    polylines: SharedPolyline[],
-    mapBounds?: { xMin: number; yMin: number; xMax: number; yMax: number },
-): Map<string, FrontierLoop[]> {
-    const SNAP = 4;  // junction snapping tolerance (px)
-    const ptKey = (x: number, y: number) =>
-        `${Math.round(x / SNAP) * SNAP},${Math.round(y / SNAP) * SNAP}`;
-
-    // Accumulate all diagnostic lines into one string
-    const diag: string[] = [];
-    diag.push(`═══ assembleFrontierLoops: ${polylines.length} polylines ═══`);
-
-    // Build endpoint adjacency table
-    const endpointCounts = new Map<string, number>();
-    const polyTable: { idx: number; pair: string; pts: number; start: string; end: string; startKey: string; endKey: string }[] = [];
-
-    for (let pi = 0; pi < polylines.length; pi++) {
-        const p = polylines[pi];
-        const pts = p.points;
-        if (pts.length < 2) { diag.push(`  poly[${pi}] SKIP (${pts.length} pts)`); continue; }
-        const sk = ptKey(pts[0][0], pts[0][1]);
-        const ek = ptKey(pts[pts.length - 1][0], pts[pts.length - 1][1]);
-        endpointCounts.set(sk, (endpointCounts.get(sk) ?? 0) + 1);
-        endpointCounts.set(ek, (endpointCounts.get(ek) ?? 0) + 1);
-        polyTable.push({
-            idx: pi, pair: p.ownerPairKey, pts: pts.length,
-            start: `(${pts[0][0].toFixed(0)},${pts[0][1].toFixed(0)})`,
-            end: `(${pts[pts.length - 1][0].toFixed(0)},${pts[pts.length - 1][1].toFixed(0)})`,
-            startKey: sk, endKey: ek,
-        });
-    }
-
-    // Flag dangles
-    const dangles: string[] = [];
-    for (const [key, count] of endpointCounts) {
-        if (count === 1) dangles.push(key);
-    }
-    if (dangles.length > 0) {
-        diag.push(`⚠ ${dangles.length} DANGLING endpoints: ${dangles.join(', ')}`);
-    } else {
-        diag.push(`✓ All endpoints paired`);
-    }
-
-    // Group polylines by each owner they touch
-    const byOwner = new Map<string, { points: [number, number][]; startKey: string; endKey: string; polyIdx: number }[]>();
-
-    for (let pi = 0; pi < polylines.length; pi++) {
-        const poly = polylines[pi];
-        const [ownerA, ownerB] = poly.ownerPairKey.split('|');
-        const pts = poly.points;
-        if (pts.length < 2) continue;
-
-        const startKey = ptKey(pts[0][0], pts[0][1]);
-        const endKey = ptKey(pts[pts.length - 1][0], pts[pts.length - 1][1]);
-        const segment = { points: pts, startKey, endKey, polyIdx: pi };
-
-        for (const owner of [ownerA, ownerB]) {
-            if (!byOwner.has(owner)) byOwner.set(owner, []);
-            byOwner.get(owner)!.push(segment);
-        }
-    }
-
-    const result = new Map<string, FrontierLoop[]>();
-
-    for (const [ownerId, segments] of byOwner) {
-        const loops: FrontierLoop[] = [];
-        const openChains: { points: [number, number][]; chainLog: string[] }[] = [];
-        const used = new Array(segments.length).fill(false);
-
-        while (true) {
-            // Find first unused segment
-            let startIdx = -1;
-            for (let i = 0; i < segments.length; i++) {
-                if (!used[i]) { startIdx = i; break; }
-            }
-            if (startIdx < 0) break;
-
-            // Start a chain from this segment
-            used[startIdx] = true;
-            const chain: [number, number][] = [...segments[startIdx].points];
-            const chainLog: string[] = [`seg[${segments[startIdx].polyIdx}]`];
-
-            // Extend forward: find next segment whose start matches our end
-            let extended = true;
-            let fwdExtensions = 0;
-            while (extended) {
-                extended = false;
-                const lastPt = chain[chain.length - 1];
-                const lastKey = ptKey(lastPt[0], lastPt[1]);
-
-                for (let i = 0; i < segments.length; i++) {
-                    if (used[i]) continue;
-                    const seg = segments[i];
-
-                    if (seg.startKey === lastKey) {
-                        for (let j = 1; j < seg.points.length; j++) {
-                            chain.push(seg.points[j]);
-                        }
-                        used[i] = true;
-                        extended = true;
-                        fwdExtensions++;
-                        chainLog.push(`+F[${seg.polyIdx}]`);
-                        break;
-                    }
-                    if (seg.endKey === lastKey) {
-                        for (let j = seg.points.length - 2; j >= 0; j--) {
-                            chain.push(seg.points[j]);
-                        }
-                        used[i] = true;
-                        extended = true;
-                        fwdExtensions++;
-                        chainLog.push(`+F[${seg.polyIdx}]R`);
-                        break;
-                    }
-                }
-            }
-
-            // Extend backward: find next segment whose end matches our start
-            extended = true;
-            let bwdExtensions = 0;
-            while (extended) {
-                extended = false;
-                const firstPt = chain[0];
-                const firstKey = ptKey(firstPt[0], firstPt[1]);
-
-                for (let i = 0; i < segments.length; i++) {
-                    if (used[i]) continue;
-                    const seg = segments[i];
-
-                    if (seg.endKey === firstKey) {
-                        for (let j = seg.points.length - 2; j >= 0; j--) {
-                            chain.unshift(seg.points[j]);
-                        }
-                        used[i] = true;
-                        extended = true;
-                        bwdExtensions++;
-                        chainLog.unshift(`+B[${seg.polyIdx}]`);
-                        break;
-                    }
-                    if (seg.startKey === firstKey) {
-                        for (let j = 1; j < seg.points.length; j++) {
-                            chain.unshift(seg.points[j]);
-                        }
-                        used[i] = true;
-                        extended = true;
-                        bwdExtensions++;
-                        chainLog.unshift(`+B[${seg.polyIdx}]R`);
-                        break;
-                    }
-                }
-            }
-
-            // Check if naturally closed
-            const first = chain[0];
-            const last = chain[chain.length - 1];
-            const isClosed = ptKey(first[0], first[1]) === ptKey(last[0], last[1]);
-
-            if (isClosed) {
-                chain[chain.length - 1] = [first[0], first[1]];
-                const status = chain.length >= 4 ? '✓' : '⚠REJECTED';
-                diag.push(`  [${ownerId}] ${status} ${chain.length}pts f=${fwdExtensions} b=${bwdExtensions} closed=true | ${chainLog.join(' → ')}`);
-                if (chain.length >= 4) {
-                    loops.push({ points: chain, ownerId });
-                }
-            } else {
-                // Open chain — collect for boundary merge below
-                diag.push(`  [${ownerId}] OPEN ${chain.length}pts f=${fwdExtensions} b=${bwdExtensions} | ${chainLog.join(' → ')}`);
-                if (chain.length >= 2) {
-                    openChains.push({ points: chain, chainLog });
-                }
-            }
-        }
-
-        // ── Boundary merge: stitch all open chains into one closed polygon ──
-        if (openChains.length > 0 && mapBounds) {
-            const { xMin, yMin, xMax, yMax } = mapBounds;
-
-            // Compute CW perimeter position (0..4) for a point on the boundary
-            // top=0→1, right=1→2, bottom=2→3, left=3→4
-            const perimPos = (x: number, y: number): number => {
-                const edge = classifyEdge(x, y, xMin, yMin, xMax, yMax);
-                const w = xMax - xMin, h = yMax - yMin;
-                if (edge === 'top') return 0 + (x - xMin) / w;
-                if (edge === 'right') return 1 + (y - yMin) / h;
-                if (edge === 'bottom') return 2 + (xMax - x) / w;
-                if (edge === 'left') return 3 + (yMax - y) / h;
-                return -1; // not on boundary
-            };
-
-            // For each open chain, compute perimeter pos of its endpoints
-            type OpenChainEntry = {
-                points: [number, number][];
-                startPerim: number;
-                endPerim: number;
-                startEdge: string;
-                endEdge: string;
-                chainLog: string[];
-            };
-            const entries: OpenChainEntry[] = [];
-            for (const oc of openChains) {
-                const pts = oc.points;
-                const s = pts[0], e = pts[pts.length - 1];
-                const sEdge = classifyEdge(s[0], s[1], xMin, yMin, xMax, yMax);
-                const eEdge = classifyEdge(e[0], e[1], xMin, yMin, xMax, yMax);
-                if (sEdge && eEdge) {
-                    entries.push({
-                        points: pts,
-                        startPerim: perimPos(s[0], s[1]),
-                        endPerim: perimPos(e[0], e[1]),
-                        startEdge: sEdge,
-                        endEdge: eEdge,
-                        chainLog: oc.chainLog,
-                    });
-                } else {
-                    // Can't classify — push as individual loop (force close)
-                    pts.push([pts[0][0], pts[0][1]]);
-                    if (pts.length >= 4) loops.push({ points: pts, ownerId });
-                    diag.push(`  [${ownerId}] ⚠force-closed ${pts.length}pts (non-boundary endpoint)`);
-                }
-            }
-
-            if (entries.length > 0) {
-                // Sort by endPerim (CW order around perimeter)
-                entries.sort((a, b) => a.endPerim - b.endPerim);
-
-                // Stitch: chain1-end →(walk)→ chain2-start → chain2 → chain2-end →(walk)→ ...
-                const merged: [number, number][] = [];
-                const mergeLog: string[] = [];
-
-                for (let i = 0; i < entries.length; i++) {
-                    const entry = entries[i];
-                    const nextEntry = entries[(i + 1) % entries.length];
-
-                    // Append this chain's points
-                    for (const pt of entry.points) merged.push(pt);
-                    mergeLog.push(`C${i}(${entry.points.length}pts)`);
-
-                    // Walk from this chain's end to next chain's start
-                    const walkPts = walkBoundaryCW(
-                        entry.points[entry.points.length - 1][0],
-                        entry.points[entry.points.length - 1][1],
-                        entry.endEdge,
-                        nextEntry.points[0][0],
-                        nextEntry.points[0][1],
-                        nextEntry.startEdge,
-                        xMin, yMin, xMax, yMax,
-                    );
-                    for (const wp of walkPts) merged.push(wp);
-                    if (walkPts.length > 0) mergeLog.push(`W+${walkPts.length}`);
-                }
-
-                // Close the merged polygon
-                if (merged.length >= 2) {
-                    merged.push([merged[0][0], merged[0][1]]);
-                }
-
-                diag.push(`  [${ownerId}] ✓MERGED ${merged.length}pts from ${entries.length} open chains | ${mergeLog.join(' → ')}`);
-
-                if (merged.length >= 4) {
-                    loops.push({ points: merged, ownerId });
-                }
-            }
-        } else if (openChains.length > 0) {
-            // No map bounds — force close each open chain individually
-            for (const oc of openChains) {
-                oc.points.push([oc.points[0][0], oc.points[0][1]]);
-                if (oc.points.length >= 4) loops.push({ points: oc.points, ownerId });
-            }
-        }
-
-        if (loops.length > 0) {
-            result.set(ownerId, loops);
-        }
-    }
-
-    // Emit one consolidated log + table
-    log.renderer('FrontierDiag', diag.join('\n'));
-    if (polyTable.length > 0) {
-        console.table(polyTable);
-    }
-
-
-    return result;
-}
-
-// ── Frontier Loop Parameterization (Step C) ───────────────────────────────
-
-/**
- * Parameterize two frontier loops (F1, F2) to N control points and align
- * them at the longest static section.
- *
- * Algorithm:
- * 1. Resample both loops to N evenly-spaced CPs via arc-length
- * 2. For each possible rotation offset k of F2 relative to F1:
- *    count how many CPs are "static" (within ε pixels of each other)
- * 3. Find the rotation that maximizes the longest contiguous run of statics
- * 4. Rotate F2's CPs by that offset so CP[0] aligns at the static anchor
- *
- * Returns { f1CPs, f2CPs } — same length, aligned, ready for lerp.
- */
-function parameterizeAndAlign(
-    f1Loop: [number, number][],
-    f2Loop: [number, number][],
-    n: number,
-    epsilon: number = 2,
-): { f1CPs: [number, number][]; f2CPs: [number, number][] } {
-    // Guard: degenerate loops (< 3 points can't form a polygon)
-    if (f1Loop.length < 3 || f2Loop.length < 3) {
-        // Return single-point arrays — caller will handle gracefully
-        const fallback: [number, number] = f1Loop[0] ?? f2Loop[0] ?? [0, 0];
-        const arr = Array.from({ length: n }, () => [fallback[0], fallback[1]] as [number, number]);
-        return { f1CPs: arr, f2CPs: arr };
-    }
-
-    // Resample both to N CPs (arc-length parameterization)
-    const f1Raw = resamplePolygon(f1Loop, n);
-    const f2Raw = resamplePolygon(f2Loop, n);
-
-    // Remove closure point (resamplePolygon adds pts[n] = pts[0])
-    const f1CPs = f1Raw.slice(0, n) as [number, number][];
-    const f2CPs = f2Raw.slice(0, n) as [number, number][];
-
-    // Validate: ensure both arrays have exactly n entries
-    if (f1CPs.length < n || f2CPs.length < n) {
-        log.sys('FrontierAlign', `WARNING: resample produced ${f1CPs.length}/${f2CPs.length} CPs instead of ${n} — skipping alignment`);
-        // Pad to n if needed
-        while (f1CPs.length < n) f1CPs.push(f1CPs[f1CPs.length - 1] ?? [0, 0]);
-        while (f2CPs.length < n) f2CPs.push(f2CPs[f2CPs.length - 1] ?? [0, 0]);
-    }
-
-    // Find best rotation: maximize the longest contiguous static run
-    let bestOffset = 0;
-    let bestLongestRun = 0;
-    const eps2 = epsilon * epsilon;
-
-    for (let offset = 0; offset < n; offset++) {
-        // Count longest contiguous run of static CPs at this rotation
-        let longestRun = 0;
-        let currentRun = 0;
-
-        for (let i = 0; i < n; i++) {
-            const j = (i + offset) % n;
-            const dx = f1CPs[i][0] - f2CPs[j][0];
-            const dy = f1CPs[i][1] - f2CPs[j][1];
-            if (dx * dx + dy * dy <= eps2) {
-                currentRun++;
-                if (currentRun > longestRun) longestRun = currentRun;
-            } else {
-                currentRun = 0;
-            }
-        }
-
-        // Also check wrap-around: a run that spans the array boundary
-        if (longestRun < n) {
-            // Check if the run wraps from end to start
-            let wrapRun = 0;
-            // Count from end backward
-            for (let i = n - 1; i >= 0; i--) {
-                const j = (i + offset) % n;
-                const dx = f1CPs[i][0] - f2CPs[j][0];
-                const dy = f1CPs[i][1] - f2CPs[j][1];
-                if (dx * dx + dy * dy <= eps2) wrapRun++;
-                else break;
-            }
-            // Count from start forward
-            let startRun = 0;
-            for (let i = 0; i < n; i++) {
-                const j = (i + offset) % n;
-                const dx = f1CPs[i][0] - f2CPs[j][0];
-                const dy = f1CPs[i][1] - f2CPs[j][1];
-                if (dx * dx + dy * dy <= eps2) startRun++;
-                else break;
-            }
-            const wrapTotal = wrapRun + startRun;
-            if (wrapTotal > longestRun && wrapTotal <= n) longestRun = wrapTotal;
-        }
-
-        if (longestRun > bestLongestRun) {
-            bestLongestRun = longestRun;
-            bestOffset = offset;
-        }
-    }
-
-    // Rotate F2 CPs by bestOffset so they align with F1
-    if (bestOffset !== 0) {
-        const rotated: [number, number][] = new Array(n);
-        for (let i = 0; i < n; i++) {
-            rotated[i] = f2CPs[(i + bestOffset) % n];
-        }
-        log.renderer('FrontierAlign', `Aligned with offset=${bestOffset}, longestStaticRun=${bestLongestRun}/${n} CPs`);
-        return { f1CPs, f2CPs: rotated };
-    }
-
-    log.renderer('FrontierAlign', `No rotation needed, longestStaticRun=${bestLongestRun}/${n} CPs`);
-    return { f1CPs, f2CPs };
-}
-
-/**
- * Lerp between two aligned CP arrays.
- * Static CPs (within ε) stay fixed. Changed CPs interpolate linearly.
- */
-function lerpFrontierCPs(
-    f1CPs: [number, number][],
-    f2CPs: [number, number][],
-    t: number,
-    epsilon: number = 2,
-): [number, number][] {
-    const n = f1CPs.length;
-    const result: [number, number][] = new Array(n);
-    const eps2 = epsilon * epsilon;
-
-    for (let i = 0; i < n; i++) {
-        const dx = f1CPs[i][0] - f2CPs[i][0];
-        const dy = f1CPs[i][1] - f2CPs[i][1];
-
-        if (dx * dx + dy * dy <= eps2) {
-            // Static CP — stays at F1 position (no flicker)
-            result[i] = [f1CPs[i][0], f1CPs[i][1]];
-        } else {
-            // Changed CP — interpolate
-            result[i] = [
-                f1CPs[i][0] + (f2CPs[i][0] - f1CPs[i][0]) * t,
-                f1CPs[i][1] + (f2CPs[i][1] - f1CPs[i][1]) * t,
-            ];
-        }
-    }
-
-    // Close the loop
-    result.push([result[0][0], result[0][1]]);
-    return result;
-}
-
 // ── Canonical Border Drawing ───────────────────────────────────────────────
 
 /**
@@ -1033,7 +524,7 @@ function drawBorderPolylines(
         graphics.stroke({ width, color: polyline.color, alpha, cap: 'round', join: 'round' });
         drawn++;
     }
-    // log.renderer('drawBorderPolylines', `drew ${drawn}/${polylines.length} polylines (smooth=${smoothPasses}, w=${width.toFixed(1)}, a=${alpha.toFixed(2)}, bezier=true)`); // THROTTLED: per-frame
+    log.renderer('drawBorderPolylines', `drew ${drawn}/${polylines.length} polylines (smooth=${smoothPasses}, w=${width.toFixed(1)}, a=${alpha.toFixed(2)}, bezier=true)`);
 }
 
 /** Build lerped polylines from prev → target for transition animation.
@@ -1321,9 +812,7 @@ export function renderPowerVoronoi(
     }
 
     // ── Per-frame fill crossfade (mode-independent) ──────────────────────
-    // Only runs when TERRITORY_FILL_MODE = 'crossfade' (legacy alpha-fade)
-    const fillMode = GAME_CONFIG.TERRITORY_FILL_MODE ?? 'frontier';
-    if (fillMode === 'crossfade' && isFillTransitioning && prevMergedTerritories && lastMergedTerritories && fillGraphics && transitionMs > 0) {
+    if (isFillTransitioning && prevMergedTerritories && lastMergedTerritories && fillGraphics && transitionMs > 0) {
         const elapsed = now - fillTransitionStart;
         const rawT = Math.min(1, elapsed / transitionMs);
         const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
@@ -1430,7 +919,7 @@ export function renderPowerVoronoi(
             drawBorderPolylines(borderGraphics, lerped, smoothPasses, borderWidth, borderAlpha);
             const t2 = performance.now();
             const avgPts = lerped.length > 0 ? (lerped.reduce((s, p) => s + p.points.length, 0) / lerped.length).toFixed(0) : '0';
-            // log.renderer('PVV2', `TRANSITION t=${eased.toFixed(3)} ...`); // THROTTLED: per-frame
+            log.renderer('PVV2', `TRANSITION t=${eased.toFixed(3)} | lerp=${(t1 - t0).toFixed(1)}ms draw=${(t2 - t1).toFixed(1)}ms | ${lerped.length} polylines avgPts=${avgPts} smooth=${smoothPasses} | prev=${prevSharedPolylines.length} target=${targetSharedPolylines.length}`);
         } else {
             log.renderer('PVV2', `TRANSITION SKIPPED — borderGraphics is null`);
         }
@@ -1443,91 +932,10 @@ export function renderPowerVoronoi(
         const shapeFpCheck = buildShapeFingerprint(stars);
         const visualFpCheck = buildVisualFingerprint();
         if (shapeFpCheck === cachedShapeFingerprint && visualFpCheck === cachedVisualFingerprint) {
-            // log.renderer('PVV2', `early return — fingerprints unchanged during transition`); // THROTTLED: per-frame
+            log.renderer('PVV2', `early return — fingerprints unchanged during transition`);
             return;
         }
         log.renderer('PVV2', `fingerprints changed DURING transition — falling through to rebuild`);
-    }
-
-    // ── Frontier loop morph (arc-length parameterization) ────────────────
-    // Only runs when TERRITORY_FILL_MODE = 'frontier'
-    if (fillMode === 'frontier' && isFrontierTransitioning && prevFrontierLoops && targetFrontierLoops && transitionMs > 0) {
-        const elapsed = now - frontierTransitionStart;
-        const rawT = Math.min(1, elapsed / transitionMs);
-        const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
-        const numCPs = Math.max(5, Math.min(300, Math.round(GAME_CONFIG.TERRITORY_MORPH_CONTROL_POINTS ?? 32)));
-        const smoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
-        const alpha = GAME_CONFIG.VORONOI_ALPHA ?? 0.25;
-        const borderWidth = GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 1.5;
-        const borderAlpha = GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.4;
-        const satMult = GAME_CONFIG.VORONOI_SATURATION ?? 0.8;
-        const lightMult = GAME_CONFIG.VORONOI_LIGHTNESS ?? 0.6;
-
-        // Collect all player IDs present in either prev or target
-        const allOwners = new Set([...prevFrontierLoops.keys(), ...targetFrontierLoops.keys()]);
-
-        if (fillGraphics) fillGraphics.clear();
-        // Don't clear borderGraphics — let steady-state borders stay for non-morphing owners
-
-        for (const ownerId of allOwners) {
-            const prevLoops = prevFrontierLoops.get(ownerId) ?? [];
-            const targetLoops = targetFrontierLoops.get(ownerId) ?? [];
-
-            // For now: morph first loop of each player (1:1 case)
-            // Territory splitting (1→2 or 2→1) handled in Step F
-            const maxLoops = Math.max(prevLoops.length, targetLoops.length);
-
-            for (let li = 0; li < maxLoops; li++) {
-                const prevLoop = prevLoops[li];
-                const targetLoop = targetLoops[li];
-
-                let interpolatedPts: [number, number][];
-
-                if (prevLoop && targetLoop) {
-                    // Both exist — parameterize, align, lerp
-                    const { f1CPs, f2CPs } = parameterizeAndAlign(
-                        prevLoop.points, targetLoop.points, numCPs
-                    );
-                    interpolatedPts = lerpFrontierCPs(f1CPs, f2CPs, eased);
-                } else if (prevLoop && !targetLoop) {
-                    // Disappearing loop — use prev, will shrink at t=1
-                    interpolatedPts = prevLoop.points;
-                } else if (!prevLoop && targetLoop) {
-                    // Appearing loop — use target
-                    interpolatedPts = targetLoop.points;
-                } else {
-                    continue;
-                }
-
-                // Apply Chaikin smoothing to interpolated CPs
-                const smoothed = smoothPasses > 0
-                    ? chaikinSmoothPolyline(interpolatedPts, smoothPasses)
-                    : interpolatedPts;
-
-                // Draw fill inside frontier
-                if (fillGraphics && smoothed.length >= 3) {
-                    const rawColor = colorUtils.getPlayerColor(ownerId);
-                    const fillColor = adjustColorHSL(rawColor, satMult, lightMult);
-                    fillGraphics.poly(smoothed.flat());
-                    fillGraphics.fill({ color: fillColor, alpha });
-                }
-
-                // Draw border stroke at frontier
-                if (borderGraphics && borderWidth > 0 && borderAlpha > 0 && smoothed.length >= 2) {
-                    const rawColor = colorUtils.getPlayerColor(ownerId);
-                    const borderColor = adjustColorHSL(rawColor, satMult, lightMult);
-                    drawBorderPolylines(borderGraphics, [{ points: smoothed as [number, number][], color: borderColor }], 0, borderWidth, borderAlpha);
-                }
-            }
-        }
-
-        // log.renderer('PVV2', `FRONTIER MORPH t=${eased.toFixed(3)} | ${allOwners.size} owners, ${numCPs} CPs`); // THROTTLED: per-frame
-
-        if (rawT >= 1) {
-            isFrontierTransitioning = false;
-            prevFrontierLoops = null;
-            log.renderer('PVV2', 'frontier loop morph complete');
-        }
     }
 
     const shapeFp = buildShapeFingerprint(stars);
@@ -1552,10 +960,6 @@ export function renderPowerVoronoi(
         // Fill crossfade: snapshot current merged territories
         if (lastMergedTerritories && lastMergedTerritories.length > 0) {
             prevMergedTerritories = lastMergedTerritories;
-        }
-        // Frontier loop snapshot for arc-length morphing
-        if (targetFrontierLoops && targetFrontierLoops.size > 0) {
-            prevFrontierLoops = targetFrontierLoops;
         }
         // Cell change detection: snapshot previous cells for ownership comparison
         // (changedSiteIds populated after new cells are computed — see Stage 2c below)
@@ -1848,13 +1252,6 @@ export function renderPowerVoronoi(
             const key = a < b ? `${a}|${b}` : `${b}|${a}`;
             return cMap.get(key) ?? 0x888888;
         }, smoothN);
-
-        // Assemble frontier loops from the polylines (Step A)
-        // Pass map bounds (Voronoi clip rect) for boundary-walk closure of open chains
-        targetFrontierLoops = assembleFrontierLoops(targetSharedPolylines, {
-            xMin: -pad, yMin: -pad,
-            xMax: worldWidth + pad, yMax: worldHeight + pad,
-        });
     }
 
     // Start transition based on mode
@@ -1870,13 +1267,6 @@ export function renderPowerVoronoi(
             smoothTransitionStart = now;
             isSmoothTransitioning = true;
             log.renderer('PVV2', `TRANSITION STARTED | prev=${prevSharedPolylines.length} target=${targetSharedPolylines?.length ?? 0} | transitionMs=${transitionMs}`);
-        }
-
-        // Frontier loop morph (arc-length mode)
-        if (prevFrontierLoops && prevFrontierLoops.size > 0) {
-            frontierTransitionStart = now;
-            isFrontierTransitioning = true;
-            log.renderer('PVV2', `FRONTIER LOOP MORPH STARTED | prev=${prevFrontierLoops.size} owners, target=${targetFrontierLoops?.size ?? 0} owners`);
         }
 
         // Fill crossfade (mode-independent)
