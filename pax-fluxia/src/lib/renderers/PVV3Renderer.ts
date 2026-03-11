@@ -494,6 +494,111 @@ function chainSharedEdgesIntoPolylines(edges: SharedBorderEdge[], colorLookup?: 
     return result;
 }
 
+
+// -- Shared-Boundary Smoothing ----------------------------------------------
+
+/**
+ * Replace shared-edge segments in territory polygons with smoothed polyline coordinates.
+ * World-boundary vertices (not matched to any shared polyline) stay straight.
+ * Adjacent territories get identical smoothed coordinates at their shared border.
+ */
+function substituteSmoothedEdges(
+    merged: MergedTerritory[],
+    rawPolylines: SharedPolyline[],
+    smoothedPolylines: SharedPolyline[]
+): void {
+    const SNAP = 3;
+    const ptKey = (x: number, y: number) => `${Math.round(x / SNAP) * SNAP},${Math.round(y / SNAP) * SNAP}`;
+
+    // Build mappings: raw polyline vertex keys ? smoothed polyline points
+    interface PolylineMapping {
+        rawKeys: string[];
+        smoothedPoints: [number, number][];
+        ownerPairKey: string;
+    }
+    const mappings: PolylineMapping[] = [];
+    for (let pi = 0; pi < rawPolylines.length && pi < smoothedPolylines.length; pi++) {
+        const raw = rawPolylines[pi];
+        const smoothed = smoothedPolylines[pi];
+        mappings.push({
+            rawKeys: raw.points.map(p => ptKey(p[0], p[1])),
+            smoothedPoints: smoothed.points as [number, number][],
+            ownerPairKey: raw.ownerPairKey,
+        });
+    }
+
+    for (const territory of merged) {
+        const pts = territory.points;
+        if (pts.length < 3) continue;
+
+        const result: [number, number][] = [];
+        let i = 0;
+
+        while (i < pts.length) {
+            const vKey = ptKey(pts[i][0], pts[i][1]);
+            let matched = false;
+
+            for (const mapping of mappings) {
+                // Only consider polylines involving this territory's owner
+                const [oA, oB] = mapping.ownerPairKey.split('|');
+                if (territory.ownerId !== oA && territory.ownerId !== oB) continue;
+
+                const rk = mapping.rawKeys;
+
+                // Forward match: polygon vertices align with raw polyline start?end
+                if (vKey === rk[0] && rk.length >= 2) {
+                    let matchLen = 1;
+                    for (let r = 1; r < rk.length && (i + matchLen) < pts.length; r++) {
+                        if (ptKey(pts[i + matchLen][0], pts[i + matchLen][1]) === rk[r]) matchLen++;
+                        else break;
+                    }
+                    if (matchLen >= 2) {
+                        for (const sp of mapping.smoothedPoints) {
+                            if (result.length > 0) {
+                                const last = result[result.length - 1];
+                                if (ptKey(last[0], last[1]) === ptKey(sp[0], sp[1])) continue;
+                            }
+                            result.push(sp);
+                        }
+                        i += matchLen;
+                        matched = true;
+                        break;
+                    }
+                }
+
+                // Reverse match: polygon traverses polyline end?start
+                if (vKey === rk[rk.length - 1] && rk.length >= 2) {
+                    let matchLen = 1;
+                    for (let r = rk.length - 2; r >= 0 && (i + matchLen) < pts.length; r--) {
+                        if (ptKey(pts[i + matchLen][0], pts[i + matchLen][1]) === rk[r]) matchLen++;
+                        else break;
+                    }
+                    if (matchLen >= 2) {
+                        const reversed = [...mapping.smoothedPoints].reverse();
+                        for (const sp of reversed) {
+                            if (result.length > 0) {
+                                const last = result[result.length - 1];
+                                if (ptKey(last[0], last[1]) === ptKey(sp[0], sp[1])) continue;
+                            }
+                            result.push(sp);
+                        }
+                        i += matchLen;
+                        matched = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!matched) {
+                // World-boundary vertex or unmatched � keep as-is
+                result.push(pts[i]);
+                i++;
+            }
+        }
+
+        territory.points = result;
+    }
+}
 // ── Frontier Loop Assembly ─────────────────────────────────────────────────
 
 /** A continuous closed frontier loop for one player's territory boundary. */
@@ -1654,13 +1759,31 @@ export function renderPVV3(
 
     log.sys('PowerVoronoi', `Merged to ${merged.length} territories`);
 
-    // -- Stage 3b: Smooth merged polygons (closed Chaikin) ------------------
+    // -- Stage 3b: Shared-boundary smoothing --------------------------------
+    // Smooth shared edges ONCE, then substitute into territory polygons.
+    // Adjacent territories share identical smoothed coordinates ? no gaps.
     const smoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
-    for (const territory of merged) {
-        if (smoothPasses > 0 && territory.points.length >= 3) {
-            territory.points = chaikinSmoothPolygon(territory.points, smoothPasses);
+    if (smoothPasses > 0 && sharedEdges.length > 0) {
+        // Assign colors for polyline construction
+        for (const edge of sharedEdges) {
+            edge.colorA = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerA), satMult, lightMult);
+            edge.colorB = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerB), satMult, lightMult);
         }
-    };
+        const colorMap = new Map<string, number>();
+        for (const edge of sharedEdges) {
+            const key = edge.ownerA < edge.ownerB ? `${edge.ownerA}|${edge.ownerB}` : `${edge.ownerB}|${edge.ownerA}`;
+            if (!colorMap.has(key)) colorMap.set(key, blendColors(edge.colorA, edge.colorB, 0.5));
+        }
+        const colorLookup = (a: string, b: string) => {
+            const key = a < b ? `${a}|${b}` : `${b}|${a}`;
+            return colorMap.get(key) ?? 0x888888;
+        };
+
+        const rawPolylines = chainSharedEdgesIntoPolylines(sharedEdges, colorLookup, 0);
+        const smoothedPolylines = chainSharedEdgesIntoPolylines(sharedEdges, colorLookup, smoothPasses);
+        substituteSmoothedEdges(merged, rawPolylines, smoothedPolylines);
+        log.renderer(`PVV3`, `Stage 3b: substituted ${rawPolylines.length} shared polylines, smooth=${smoothPasses}`);
+    }
 
     // ── Stage 4: Render Fills ──────────────────────────────────────────────
     if (!fillGraphics) {
