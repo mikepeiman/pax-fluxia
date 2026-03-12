@@ -1623,6 +1623,17 @@ export function renderPVV3(
     // ── Stage 2b: Extract shared edges (before merge removes internal edges) ──
     const sharedEdges = extractSharedEdges(cells);
 
+    // DIAGNOSTIC: shared edge extraction
+    {
+        const pairCounts = new Map<string, number>();
+        for (const e of sharedEdges) {
+            const pk = e.ownerA < e.ownerB ? `${e.ownerA}|${e.ownerB}` : `${e.ownerB}|${e.ownerA}`;
+            pairCounts.set(pk, (pairCounts.get(pk) ?? 0) + 1);
+        }
+        const pairSummary = [...pairCounts.entries()].map(([k, v]) => `${k}:${v}`).join(", ");
+        log.renderer(`PVV3`, `Stage 2b: ${sharedEdges.length} shared edges across ${pairCounts.size} owner-pairs | ${pairSummary}`);
+    }
+
 
     // ── Stage 3: Merge same-owner cells ────────────────────────────────────
     const merged = mergeSameOwnerCells(cells, GAME_CONFIG.TERRITORY_CLUSTER_SPLIT, clusterMap);
@@ -1634,6 +1645,10 @@ export function renderPVV3(
     }
 
     log.sys('PowerVoronoi', `Merged to ${merged.length} territories`);
+    // DIAGNOSTIC: merged territory polygons
+    for (const t of merged) {
+        log.renderer(`PVV3`, `  Territory ${t.ownerId}: ${t.points.length} vertices`);
+    }
 
     // -- Stage 3b: Shared-boundary smoothing --------------------------------
     // Smooth shared edges ONCE, then substitute into territory polygons.
@@ -1658,7 +1673,18 @@ export function renderPVV3(
         const rawPolylines = chainSharedEdgesIntoPolylines(sharedEdges, colorLookup, 0);
         const smoothedPolylines = chainSharedEdgesIntoPolylines(sharedEdges, colorLookup, smoothPasses);
         substituteSmoothedEdges(merged, rawPolylines, smoothedPolylines);
+        // DIAGNOSTIC: raw vs smoothed polylines
+        for (let pi = 0; pi < rawPolylines.length; pi++) {
+            const rp = rawPolylines[pi];
+            const sp = smoothedPolylines[pi];
+            log.renderer(`PVV3`, `  Polyline[${pi}] ${rp.ownerPairKey}: raw=${rp.points.length}pts smooth=${sp.points.length}pts`);
+            log.renderer(`PVV3`, `    raw start=(${rp.points[0][0].toFixed(0)},${rp.points[0][1].toFixed(0)}) end=(${rp.points[rp.points.length-1][0].toFixed(0)},${rp.points[rp.points.length-1][1].toFixed(0)})`);
+        }
         log.renderer(`PVV3`, `Stage 3b: substituted ${rawPolylines.length} shared polylines, smooth=${smoothPasses}`);
+        // DIAGNOSTIC: per-territory vertex counts after substitution
+        for (const t of merged) {
+            log.renderer(`PVV3`, `  After sub: ${t.ownerId} ${t.points.length} vertices`);
+        }
     }
 
     // ── Stage 4: Render Fills ──────────────────────────────────────────────
