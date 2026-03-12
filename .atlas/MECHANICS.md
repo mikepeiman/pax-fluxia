@@ -308,3 +308,8 @@ Territory computation runs through ordered stages:
 - Topology stage groups seeds per owner pair, then per star, and links angular neighbors around a shared star.
 - Geometry stage treats those links as a pair-local frontier graph and extracts edge-disjoint open chains or closed cycles.
 - This is a deterministic scaffold for future half-edge traversal, shared-edge canonicalization, and fill-loop reconstruction.
+
+### 16.7. Native Stage Dispatch (Current)
+- Native territory methods register stage executors through a shared dispatch layer.
+- Engine stage execution first offers each stage to the native dispatcher, then falls back to generic placeholder/legacy-adapter behavior if no native method claims it.
+- Purpose: native method rollout should add registrations, not new engine-specific wiring.

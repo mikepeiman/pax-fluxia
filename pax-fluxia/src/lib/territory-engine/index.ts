@@ -15,14 +15,16 @@ export {
 } from './registry';
 
 export type {
-    TerritoryEngineInput,
-    TerritoryEngineMode,
     TerritoryDynamicMethodDescriptor,
     TerritoryDynamicMethodId,
+    TerritoryEngineInput,
+    TerritoryEngineMode,
     TerritoryHybridPlanDescriptor,
     TerritoryHybridPlanId,
     TerritoryMethodSelection,
+    TerritoryNativeStageExecutor,
     TerritoryPipelineArtifacts,
+    TerritoryPipelineRuntime,
     TerritoryPipelineStageId,
     TerritoryStageTraceStep,
     TerritoryStaticMethodDescriptor,

@@ -9,7 +9,7 @@ import {
 } from '$lib/renderers/PowerVoronoiRenderer';
 import { renderPVV3, resetPVV3Cache } from '$lib/renderers/PVV3Renderer';
 import { log } from '$lib/utils/logger';
-import { executeFG2Stage } from './methods/fg2SeedGraph';
+import { executeNativeTerritoryStage } from './methods';
 import {
     DEFAULT_TERRITORY_DYNAMIC_METHOD,
     DEFAULT_TERRITORY_HYBRID_PLAN,
@@ -27,17 +27,13 @@ import type {
     TerritoryLegacyAdapterId,
     TerritoryMethodSelection,
     TerritoryPipelineArtifacts,
+    TerritoryPipelineRuntime,
     TerritoryPipelineStageId,
     TerritoryStageTraceStep,
     TerritoryStaticMethodId,
     TerritoryTraceRun,
 } from './types';
 
-interface StageRuntimeContext {
-    input: TerritoryEngineInput;
-    selection: TerritoryMethodSelection;
-    artifacts: TerritoryPipelineArtifacts;
-}
 
 interface InteractiveRunState {
     fingerprint: string;
@@ -245,7 +241,7 @@ function buildConnectionAdjacency(input: TerritoryEngineInput): Record<string, s
 
 function executeStage(
     stageId: TerritoryPipelineStageId,
-    runtime: StageRuntimeContext,
+    runtime: TerritoryPipelineRuntime,
 ): TerritoryStageTraceStep {
     const startedAtMs = Date.now();
     const implemented = runtime.selection.implementedStages.includes(stageId);
@@ -257,7 +253,7 @@ function executeStage(
         hybridPlanId: runtime.selection.hybridPlanId,
     };
 
-    if (executeFG2Stage(stageId, runtime, summary)) {
+    if (executeNativeTerritoryStage(stageId, runtime, summary)) {
         return {
             stageId,
             label: `${stageId}:${implemented ? 'implemented' : 'placeholder'}`,
@@ -454,7 +450,7 @@ function runFullPipeline(
     const startedAtMs = input.gameNowMs;
     const startedWallMs = Date.now();
     const artifacts: TerritoryPipelineArtifacts = {};
-    const runtime: StageRuntimeContext = {
+    const runtime: TerritoryPipelineRuntime = {
         input,
         selection,
         artifacts,
@@ -567,7 +563,7 @@ export function renderTerritoryEngine(input: TerritoryEngineInput): void {
         return;
     }
 
-    const runtime: StageRuntimeContext = {
+    const runtime: TerritoryPipelineRuntime = {
         input,
         selection,
         artifacts: interactiveRunState.artifacts,

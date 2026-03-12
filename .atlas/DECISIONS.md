@@ -198,3 +198,7 @@
 ### D-46: FG2 Geometry Uses Pair-Topology Graphs Instead of Nearest-Neighbor Ordering
 - **Decision**: FG2 geometry now assembles frontier lines from owner-pair topology graphs derived from star incidence and angular local links, then extracts edge-disjoint chains/cycles for rendering.
 - **Rationale**: Nearest-neighbor ordering is not topology-aware and produces unstable chain construction. Pair-topology graphs are still heuristic, but they preserve graph-local structure and create a deterministic stepping surface for the next half-edge/junction phase.
+
+### D-47: Native Territory Stages Register Through a Shared Dispatch Layer
+- **Decision**: Native territory methods now plug into a shared dispatcher in `territory-engine/methods/index.ts`, and the engine calls that dispatcher before generic fallback logic.
+- **Rationale**: The engine must remain stable while FG/DY/HY native methods multiply. Centralized native dispatch removes method-specific imports from the engine and makes branch-by-branch method rollout modular.

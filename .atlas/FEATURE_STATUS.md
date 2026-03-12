@@ -100,3 +100,4 @@
 - Native FG2 stage pipeline now runs in territory engine (metric/world/seed/topology/geometry/loop/animation/render) with initial biased lane tie seeding.
 - FG2 geometry no longer uses nearest-neighbor ordering; it now builds pair-topology graphs from star incidence and extracts edge-disjoint frontier chains/cycles.
 - Trace mode now exposes both FG2 seeds and local topology links for step-by-step inspection.
+- F-152 now includes a native stage-dispatch layer on branch `codex/territory-engine-epic-native-stage-dispatch`, removing the engine's direct dependency on FG2.

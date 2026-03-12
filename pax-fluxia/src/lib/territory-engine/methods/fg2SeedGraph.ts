@@ -1,12 +1,7 @@
 import * as PIXI from 'pixi.js';
 import { GAME_CONFIG } from '$lib/config/game.config';
 import type { StarState } from '$lib/types/game.types';
-import type {
-    TerritoryEngineInput,
-    TerritoryMethodSelection,
-    TerritoryPipelineArtifacts,
-    TerritoryPipelineStageId,
-} from '../types';
+import type { TerritoryPipelineRuntime, TerritoryPipelineStageId } from '../types';
 
 interface FG2SeedPoint {
     seedId: string;
@@ -57,11 +52,7 @@ interface FG2FrontierPolyline {
     points: [number, number][];
 }
 
-export interface FG2StageRuntime {
-    input: TerritoryEngineInput;
-    selection: TerritoryMethodSelection;
-    artifacts: TerritoryPipelineArtifacts;
-}
+type FG2StageRuntime = TerritoryPipelineRuntime;
 
 const FG2_GRAPHICS_NAME = 'territory-engine-fg2-frontier-graphics';
 const TAU = Math.PI * 2;

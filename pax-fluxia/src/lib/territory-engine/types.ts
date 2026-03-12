@@ -57,6 +57,29 @@ export interface TerritoryMethodSelection {
     implementedStages: TerritoryPipelineStageId[];
 }
 
+export interface TerritoryPipelineArtifacts {
+    metric?: Record<string, unknown>;
+    world_extension?: Record<string, unknown>;
+    seed?: Record<string, unknown>;
+    topology?: Record<string, unknown>;
+    geometry?: Record<string, unknown>;
+    loop?: Record<string, unknown>;
+    animation?: Record<string, unknown>;
+    render?: Record<string, unknown>;
+}
+
+export interface TerritoryPipelineRuntime {
+    input: TerritoryEngineInput;
+    selection: TerritoryMethodSelection;
+    artifacts: TerritoryPipelineArtifacts;
+}
+
+export type TerritoryNativeStageExecutor = (
+    stageId: TerritoryPipelineStageId,
+    runtime: TerritoryPipelineRuntime,
+    summary: Record<string, unknown>,
+) => boolean;
+
 export interface TerritoryStageTraceStep {
     stageId: TerritoryPipelineStageId;
     label: string;
@@ -100,15 +123,4 @@ export interface TerritoryHybridPlanDescriptor {
     dynamicMethodId: TerritoryDynamicMethodId;
     implementedStages: TerritoryPipelineStageId[];
     adapter: TerritoryLegacyAdapterId;
-}
-
-export interface TerritoryPipelineArtifacts {
-    metric?: Record<string, unknown>;
-    world_extension?: Record<string, unknown>;
-    seed?: Record<string, unknown>;
-    topology?: Record<string, unknown>;
-    geometry?: Record<string, unknown>;
-    loop?: Record<string, unknown>;
-    animation?: Record<string, unknown>;
-    render?: Record<string, unknown>;
 }
