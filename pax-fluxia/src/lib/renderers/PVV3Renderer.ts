@@ -90,6 +90,10 @@ let lastCells: TerritoryCell[] | null = null;  // cells from previous rebuild
 let changedSiteIds: Set<string> | null = null; // stars that changed owner in this conquest
 
 
+// Diagnostic logging - enable in browser console: window.__PVV3_DIAG = true
+const isPVV3Diag = () => typeof globalThis !== 'undefined' && (globalThis as any).__PVV3_DIAG;
+
+
 
 // ── Fingerprint ────────────────────────────────────────────────────────────
 
@@ -1624,7 +1628,7 @@ export function renderPVV3(
     const sharedEdges = extractSharedEdges(cells);
 
     // DIAGNOSTIC: shared edge extraction
-    {
+    if (isPVV3Diag()) {
         const pairCounts = new Map<string, number>();
         for (const e of sharedEdges) {
             const pk = e.ownerA < e.ownerB ? `${e.ownerA}|${e.ownerB}` : `${e.ownerB}|${e.ownerA}`;
@@ -1646,7 +1650,7 @@ export function renderPVV3(
 
     log.sys('PowerVoronoi', `Merged to ${merged.length} territories`);
     // DIAGNOSTIC: merged territory polygons
-    for (const t of merged) {
+    if (isPVV3Diag()) for (const t of merged) {
         log.renderer(`PVV3`, `  Territory ${t.ownerId}: ${t.points.length} vertices`);
     }
 
@@ -1674,7 +1678,7 @@ export function renderPVV3(
         const smoothedPolylines = chainSharedEdgesIntoPolylines(sharedEdges, colorLookup, smoothPasses);
         substituteSmoothedEdges(merged, rawPolylines, smoothedPolylines);
         // DIAGNOSTIC: raw vs smoothed polylines
-        for (let pi = 0; pi < rawPolylines.length; pi++) {
+        if (isPVV3Diag()) for (let pi = 0; pi < rawPolylines.length; pi++) {
             const rp = rawPolylines[pi];
             const sp = smoothedPolylines[pi];
             log.renderer(`PVV3`, `  Polyline[${pi}] ${rp.ownerPairKey}: raw=${rp.points.length}pts smooth=${sp.points.length}pts`);
@@ -1682,7 +1686,7 @@ export function renderPVV3(
         }
         log.renderer(`PVV3`, `Stage 3b: substituted ${rawPolylines.length} shared polylines, smooth=${smoothPasses}`);
         // DIAGNOSTIC: per-territory vertex counts after substitution
-        for (const t of merged) {
+        if (isPVV3Diag()) for (const t of merged) {
             log.renderer(`PVV3`, `  After sub: ${t.ownerId} ${t.points.length} vertices`);
         }
     }
@@ -1755,7 +1759,11 @@ export function renderPVV3(
         }
     }
     log.renderer('PVV3', `◀ rebuild complete | total=${(performance.now() - now).toFixed(1)}ms`);
-    
+
+
+    // Snapshot targets for next rebuild's transition source
+    prevSharedPolylines = targetSharedPolylines;
+    prevFrontierLoops = targetFrontierLoops;    
 }
 
 // ── Cache Reset ────────────────────────────────────────────────────────────
