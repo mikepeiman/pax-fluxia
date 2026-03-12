@@ -33,6 +33,7 @@
 1. Replace lane midpoint tie with biased equal-distance solve.
 2. Add junction synthesis and branch-aware chain assembly.
 3. Emit canonical owner loops and shared edges for fill reconstruction.
+<<<<<<< HEAD
 4. Add deterministic frontier IDs for delta-patch compatibility.
 ## Step 1.1 Enhancement (same day)
 - Replaced fixed midpoint seed placement with a biased lane tie solve:
@@ -68,3 +69,6 @@
 - World-edge closure and outer-boundary handling are still pending.
 - Canonical shared-edge and owner-loop emitters for fill reconstruction remain pending.
 - MSR/CX/DX are still represented by a bootstrap bias model rather than a full modified-distance solver.
+=======
+4. Add deterministic frontier IDs for delta-patch compatibility.
+>>>>>>> 5af4393 (fix(PVV3): snapshot prev state after rebuild + gate diagnostic logs behind __PVV3_DIAG)
