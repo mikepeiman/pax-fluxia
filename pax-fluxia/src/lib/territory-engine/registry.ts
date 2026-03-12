@@ -32,8 +32,17 @@ export const TERRITORY_STATIC_METHODS: TerritoryStaticMethodDescriptor[] = [
         id: 'fg2_seed_graph',
         label: 'FG2 Seed Graph',
         description:
-            'Frontier-genesis seed graph method. Bootstrap adapter currently maps to legacy PVV3 renderer.',
-        implementedStages: ['render'],
+            'Frontier-genesis seed graph method. Bootstrap path now includes a native FG2 stage implementation.',
+        implementedStages: [
+            'metric',
+            'world_extension',
+            'seed',
+            'topology',
+            'geometry',
+            'loop',
+            'animation',
+            'render',
+        ],
         adapter: 'legacy_pvv3',
     },
     {

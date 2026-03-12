@@ -94,3 +94,7 @@
 | F-154 | FG1-FG5 frontier geometry implementation program with shared canonical frontier truth for border/fill coincidence. | ?? Planned | Critical | 2026-03-12 |
 | F-155 | HY1-HY5 dynamic territory program for local delta updates, temporal coherence, and geometry-only transitions. | ?? Planned | Critical | 2026-03-12 |
 | F-156 | Territory method benchmarking harness with map-stress suite and mode-switch comparison reporting. | ?? Planned | High | 2026-03-12 |
+
+### Progress Notes - 2026-03-12 (FG2 Epic)
+- F-154 moved from planning into first implementation slice on branch `codex/territory-engine-epic-fg2-canonical`.
+- Native FG2 stage pipeline now runs in territory engine (metric/world/seed/topology/geometry/loop/animation/render) with initial biased lane tie seeding.

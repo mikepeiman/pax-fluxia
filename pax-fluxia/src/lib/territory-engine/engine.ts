@@ -9,6 +9,7 @@ import {
 } from '$lib/renderers/PowerVoronoiRenderer';
 import { renderPVV3, resetPVV3Cache } from '$lib/renderers/PVV3Renderer';
 import { log } from '$lib/utils/logger';
+import { executeFG2Stage } from './methods/fg2SeedGraph';
 import {
     DEFAULT_TERRITORY_DYNAMIC_METHOD,
     DEFAULT_TERRITORY_HYBRID_PLAN,
@@ -255,6 +256,17 @@ function executeStage(
         dynamicMethodId: runtime.selection.dynamicMethodId,
         hybridPlanId: runtime.selection.hybridPlanId,
     };
+
+    if (executeFG2Stage(stageId, runtime, summary)) {
+        return {
+            stageId,
+            label: `${stageId}:${implemented ? 'implemented' : 'placeholder'}`,
+            startedAtMs,
+            durationMs: Date.now() - startedAtMs,
+            implemented,
+            summary,
+        };
+    }
 
     if (stageId === 'metric') {
         const distances = (runtime.input.connections ?? []).map((connection) =>

@@ -297,3 +297,8 @@ Territory computation runs through ordered stages:
 - When step mode is enabled, pipeline execution advances one stage per token increment.
 - Each stage emits trace metadata (stage id, duration, summary payload).
 - Purpose: deterministic inspection of data flow and frontier artifacts.
+
+### 16.5. FG2 Seed Genesis (Current)
+- Contested lane seed points are generated from a solved tie parameter along the lane, not a fixed midpoint.
+- Tie solve uses a bootstrap bias model derived from star strength and lane pressure signals.
+- Resulting seed graph is chained into owner-pair frontier polylines for render-stage output.

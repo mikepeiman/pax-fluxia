@@ -34,3 +34,14 @@
 2. Add junction synthesis and branch-aware chain assembly.
 3. Emit canonical owner loops and shared edges for fill reconstruction.
 4. Add deterministic frontier IDs for delta-patch compatibility.
+## Step 1.1 Enhancement (same day)
+- Replaced fixed midpoint seed placement with a biased lane tie solve:
+  - `dA(t)=biasA+t*L`
+  - `dB(t)=biasB+(1-t)*L`
+  - solved tie parameter `t`, clamped to `[0.1, 0.9]`.
+- Bias components currently include:
+  - active/damaged ship influence,
+  - star radius influence,
+  - order-direction pressure (`targetId` lane alignment),
+  - global margin/corridor feature factors.
+- This is still a bootstrap approximation for MSR/CX/DX integration, but it moves FG2 from static midpoint behavior toward force-aware frontier seeds.

@@ -190,3 +190,7 @@
 ### D-44: Bootstrap Legacy Adapters Are Allowed During Architecture Phase
 - **Decision**: Until native FG/DY/HY implementations are complete, render stage may use legacy adapters (PVV2/PVV3/DF) behind the modular engine.
 - **Rationale**: Preserves momentum: architecture and diagnostics land first, native geometry methods follow in dedicated epic branches.
+
+### D-45: FG2 Seed Placement Uses Lane Tie Solve (Bootstrap Bias Model)
+- **Decision**: FG2 no longer seeds contested lanes at fixed midpoint. It solves a lane tie parameter from two linearized influence distances and clamps to a safe interval.
+- **Rationale**: Midpoint seeding cannot represent force asymmetry and produces visually rigid frontiers. Tie solving is the first step toward MSR/CX/DX-aware frontier genesis.
