@@ -171,7 +171,7 @@
 - World bounding box required: all outer frontiers must connect to map-edge rectangle
 - Smoothing must happen on shared boundaries, NOT independently per territory polygon
 - Independent per-territory Chaikin causes visible gaps at shared edges
-- Fill crossfade (alpha-fade transition) intentionally cut for focus, NOT rejected — trivial to restore
+- Fill crossfade (alpha-fade transition) intentionally cut for focus, NOT rejected ï¿½ trivial to restore
 
 ## 2026-03-12
 
@@ -194,3 +194,7 @@
 ### D-45: FG2 Seed Placement Uses Lane Tie Solve (Bootstrap Bias Model)
 - **Decision**: FG2 no longer seeds contested lanes at fixed midpoint. It solves a lane tie parameter from two linearized influence distances and clamps to a safe interval.
 - **Rationale**: Midpoint seeding cannot represent force asymmetry and produces visually rigid frontiers. Tie solving is the first step toward MSR/CX/DX-aware frontier genesis.
+
+### D-46: FG2 Geometry Uses Pair-Topology Graphs Instead of Nearest-Neighbor Ordering
+- **Decision**: FG2 geometry now assembles frontier lines from owner-pair topology graphs derived from star incidence and angular local links, then extracts edge-disjoint chains/cycles for rendering.
+- **Rationale**: Nearest-neighbor ordering is not topology-aware and produces unstable chain construction. Pair-topology graphs are still heuristic, but they preserve graph-local structure and create a deterministic stepping surface for the next half-edge/junction phase.

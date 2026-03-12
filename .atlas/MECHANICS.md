@@ -302,3 +302,9 @@ Territory computation runs through ordered stages:
 - Contested lane seed points are generated from a solved tie parameter along the lane, not a fixed midpoint.
 - Tie solve uses a bootstrap bias model derived from star strength and lane pressure signals.
 - Resulting seed graph is chained into owner-pair frontier polylines for render-stage output.
+
+### 16.6. FG2 Pair-Topology Assembly (Current)
+- Each contested seed belongs to an owner pair and carries deterministic identity plus endpoint-angle metadata.
+- Topology stage groups seeds per owner pair, then per star, and links angular neighbors around a shared star.
+- Geometry stage treats those links as a pair-local frontier graph and extracts edge-disjoint open chains or closed cycles.
+- This is a deterministic scaffold for future half-edge traversal, shared-edge canonicalization, and fill-loop reconstruction.

@@ -45,3 +45,26 @@
   - order-direction pressure (`targetId` lane alignment),
   - global margin/corridor feature factors.
 - This is still a bootstrap approximation for MSR/CX/DX integration, but it moves FG2 from static midpoint behavior toward force-aware frontier seeds.
+
+## Step 1.2 Enhancement (same day)
+- Added deterministic FG2 seed identity and lane metadata:
+  - `seedId`
+  - `laneId`
+  - per-endpoint lane angles
+- Replaced owner-pair nearest-neighbor chaining with a pair-topology graph:
+  - star-incidence buckets per owner pair
+  - angular neighbor links around each shared star
+  - per-pair adjacency graph
+  - edge-disjoint chain/cycle extraction into frontier polylines
+- Geometry stage now emits richer summaries:
+  - frontier count
+  - frontier point count
+  - open frontier count
+  - closed frontier count
+- Trace mode now visualizes local topology links in addition to seed markers.
+
+## Remaining Limitations After Step 1.2
+- Local angular adjacency is still a heuristic scaffold, not yet a true half-edge frontier traversal.
+- World-edge closure and outer-boundary handling are still pending.
+- Canonical shared-edge and owner-loop emitters for fill reconstruction remain pending.
+- MSR/CX/DX are still represented by a bootstrap bias model rather than a full modified-distance solver.
