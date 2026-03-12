@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
     import { GAME_CONFIG } from "$lib/config/game.config";
 
     // ControlsSection-Territory -- Territory Rendering (Voronoi + Metaball)
@@ -27,6 +27,7 @@
         "territoryModifiedVoronoi",
         "territoryPowerVoronoi",
         "territoryPVV3",
+        "territoryEngine",
         "territoryMetaball",
         "territoryPixel",
         "territoryGraph",
@@ -58,6 +59,32 @@
         { id: "diagnostic", label: "Diagnostic" },
         { id: "production", label: "Production" },
     ] as const;
+    const TERRITORY_ENGINE_METHOD_OPTIONS = [
+        { id: "fg1_adaptive_field", label: "FG1 Adaptive Field" },
+        { id: "fg2_seed_graph", label: "FG2 Seed Graph" },
+        { id: "fg3_implicit_trace", label: "FG3 Implicit Trace" },
+        { id: "fg4_pairwise_arrangement", label: "FG4 Pairwise Arrangement" },
+        { id: "fg5_rt_assisted_publish", label: "FG5 RT-Assisted Publish" },
+    ] as const;
+    const TERRITORY_ENGINE_MODE_OPTIONS = [
+        { id: "static", label: "Static" },
+        { id: "dynamic", label: "Dynamic" },
+        { id: "hybrid", label: "Hybrid" },
+    ] as const;
+    const TERRITORY_ENGINE_DYNAMIC_OPTIONS = [
+        { id: "dy1_span_graph_morph", label: "DY1 Span Graph Morph" },
+        { id: "dy2_local_delta_patch", label: "DY2 Local Delta Patch" },
+        { id: "dy3_field_interp_stabilized", label: "DY3 Field Interp" },
+        { id: "dy4_optimal_transport", label: "DY4 Optimal Transport" },
+        { id: "dy5_corridor_event_decomposition", label: "DY5 Corridor Events" },
+    ] as const;
+    const TERRITORY_ENGINE_HYBRID_OPTIONS = [
+        { id: "hy1_static_backbone_dynamic_refine", label: "HY1 Backbone+Refine" },
+        { id: "hy2_seed_graph_local_delta", label: "HY2 Seed+Delta" },
+        { id: "hy3_implicit_field_transport", label: "HY3 Implicit+Transport" },
+        { id: "hy4_pairwise_patch_transport", label: "HY4 Pairwise+Patch" },
+        { id: "hy5_rt_publish_corridor_events", label: "HY5 RT+Corridor" },
+    ] as const;
 
     let activeBorderEngine = $derived(
         (panel.dfBorderEngine ?? GAME_CONFIG.DF_BORDER_ENGINE ?? "mesh") as
@@ -83,11 +110,11 @@
 
 <CategoryThemeBar category="territory" onApply={() => syncFromConfig?.()} />
 
-<!-- ── Territory Toggles ── -->
+<!-- -- Territory Toggles -- -->
 <h4 class="sub-heading">Active Layers</h4>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">🔷 Voronoi</span>
+        <span class="var-name">?? Voronoi</span>
         <label class="toggle-switch">
             <input
                 type="checkbox"
@@ -106,7 +133,7 @@
 </div>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">🫧 Metaball</span>
+        <span class="var-name">?? Metaball</span>
         <label class="toggle-switch">
             <input
                 type="checkbox"
@@ -125,7 +152,7 @@
 </div>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">🖼️ Pixel (Classic)</span>
+        <span class="var-name">??? Pixel (Classic)</span>
         <label class="toggle-switch">
             <input
                 type="checkbox"
@@ -143,7 +170,7 @@
 </div>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">🔗 Lane Territory</span>
+        <span class="var-name">?? Lane Territory</span>
         <label class="toggle-switch">
             <input
                 type="checkbox"
@@ -161,7 +188,7 @@
 </div>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">✏️ Contour (Vector)</span>
+        <span class="var-name">?? Contour (Vector)</span>
         <label class="toggle-switch">
             <input
                 type="checkbox"
@@ -178,10 +205,10 @@
         </label>
     </div>
 </div>
-<!-- DISABLED: Modified Voronoi freezes game — F-138 needs architecture fix
+<!-- DISABLED: Modified Voronoi freezes game � F-138 needs architecture fix
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">🔶 Modified Voronoi</span>
+        <span class="var-name">?? Modified Voronoi</span>
         <label class="toggle-switch">
             <input
                 type="checkbox"
@@ -201,7 +228,7 @@
 -->
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">⚡ Power Voronoi V2</span>
+        <span class="var-name">? Power Voronoi V2</span>
         <label class="toggle-switch">
             <input
                 type="checkbox"
@@ -220,7 +247,7 @@
 </div>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">🔬 PVV3 (Frontier-First)</span>
+        <span class="var-name">?? PVV3 (Frontier-First)</span>
         <label class="toggle-switch">
             <input
                 type="checkbox"
@@ -238,7 +265,25 @@
 </div>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">🌊 Distance Field</span>
+        <span class="var-name">?? Territory Engine</span>
+        <label class="toggle-switch">
+            <input
+                type="checkbox"
+                checked={panel.territoryEngine ?? GAME_CONFIG.TERRITORY_ENGINE_ENABLED}
+                onchange={(e) => {
+                    selectTerritory(
+                        "territoryEngine",
+                        (e.target as HTMLInputElement).checked,
+                    );
+                }}
+            />
+            <span class="toggle-slider"></span>
+        </label>
+    </div>
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">?? Distance Field</span>
         <label class="toggle-switch">
             <input
                 type="checkbox"
@@ -259,7 +304,7 @@
 <!-- Cluster Split (applies to any active renderer) -->
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">🧩 Cluster Split</span>
+        <span class="var-name">?? Cluster Split</span>
         <label class="toggle-switch">
             <input
                 type="checkbox"
@@ -277,16 +322,16 @@
         class="row-bottom"
         style="font-size: 10px; opacity: 0.6; padding: 2px 4px;"
     >
-        Disconnected stars → separate territory blobs
+        Disconnected stars ? separate territory blobs
     </div>
 </div>
 
 {#if panel.territoryModifiedVoronoi}
-    <!-- ── Modified Voronoi Settings (F-138) ── -->
+    <!-- -- Modified Voronoi Settings (F-138) -- -->
     <h4 class="sub-heading">Modified Voronoi Settings</h4>
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name">⭐ Star Margin</span><span class="val"
+            <span class="var-name">? Star Margin</span><span class="val"
                 >{panel.modifiedVoronoiStarMargin ??
                     GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN}px</span
             >
@@ -310,7 +355,7 @@
     </div>
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name">⤴️ Arc Strength</span><span class="val"
+            <span class="var-name">?? Arc Strength</span><span class="val"
                 >{(
                     panel.modifiedVoronoiArcStrength ??
                     GAME_CONFIG.MODIFIED_VORONOI_ARC_STRENGTH
@@ -336,9 +381,9 @@
     </div>
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name">📐 Arc Threshold</span><span class="val"
+            <span class="var-name">?? Arc Threshold</span><span class="val"
                 >{panel.modifiedVoronoiArcThreshold ??
-                    GAME_CONFIG.MODIFIED_VORONOI_ARC_THRESHOLD}°</span
+                    GAME_CONFIG.MODIFIED_VORONOI_ARC_THRESHOLD}�</span
             >
         </div>
         <input
@@ -360,7 +405,7 @@
     </div>
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name">🔗 Arc Min Segment</span><span class="val"
+            <span class="var-name">?? Arc Min Segment</span><span class="val"
                 >{panel.modifiedVoronoiArcMinSegment ??
                     GAME_CONFIG.MODIFIED_VORONOI_ARC_MIN_SEGMENT}px</span
             >
@@ -384,7 +429,7 @@
     </div>
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name">🛤️ Corridor Sites</span><span class="val"
+            <span class="var-name">??? Corridor Sites</span><span class="val"
                 >{(panel.modifiedVoronoiCorridorEnabled ??
                 GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED)
                     ? "ON"
@@ -403,7 +448,7 @@
     </div>
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name">📏 Corridor Spacing</span><span class="val"
+            <span class="var-name">?? Corridor Spacing</span><span class="val"
                 >{panel.modifiedVoronoiCorridorSpacing ??
                     GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}px</span
             >
@@ -427,12 +472,163 @@
     </div>
 {/if}
 
-{#if panel.territoryPowerVoronoi || panel.territoryPVV3}
-    <!-- ── Power Voronoi V2 / PVV3 Settings ── -->
-    <h4 class="sub-heading">⚡ Power Voronoi Settings</h4>
+{#if panel.territoryEngine}
+    <h4 class="sub-heading">?? Territory Engine Settings</h4>
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name">⭐ Star Margin</span><span class="val"
+            <span class="var-name">Mode</span>
+            <span class="val">{panel.territoryEngineMode ?? GAME_CONFIG.TERRITORY_ENGINE_MODE}</span>
+        </div>
+        <div style="display:flex; gap:4px; flex-wrap:wrap;">
+            {#each TERRITORY_ENGINE_MODE_OPTIONS as option}
+                <button
+                    class="mini-btn"
+                    class:active={(panel.territoryEngineMode ??
+                        GAME_CONFIG.TERRITORY_ENGINE_MODE) === option.id}
+                    onclick={() => {
+                        debouncedConfigUpdate(
+                            "TERRITORY_ENGINE_MODE",
+                            "territoryEngineMode",
+                            option.id,
+                        );
+                    }}>{option.label}</button
+                >
+            {/each}
+        </div>
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Static Method</span>
+            <span class="val">{panel.territoryEngineStaticMethod ?? GAME_CONFIG.TERRITORY_ENGINE_STATIC_METHOD}</span>
+        </div>
+        <div style="display:flex; gap:4px; flex-wrap:wrap;">
+            {#each TERRITORY_ENGINE_METHOD_OPTIONS as option}
+                <button
+                    class="mini-btn"
+                    class:active={(panel.territoryEngineStaticMethod ??
+                        GAME_CONFIG.TERRITORY_ENGINE_STATIC_METHOD) === option.id}
+                    onclick={() => {
+                        debouncedConfigUpdate(
+                            "TERRITORY_ENGINE_STATIC_METHOD",
+                            "territoryEngineStaticMethod",
+                            option.id,
+                        );
+                    }}>{option.label}</button
+                >
+            {/each}
+        </div>
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Dynamic Method</span>
+            <span class="val">{panel.territoryEngineDynamicMethod ?? GAME_CONFIG.TERRITORY_ENGINE_DYNAMIC_METHOD}</span>
+        </div>
+        <div style="display:flex; gap:4px; flex-wrap:wrap;">
+            {#each TERRITORY_ENGINE_DYNAMIC_OPTIONS as option}
+                <button
+                    class="mini-btn"
+                    class:active={(panel.territoryEngineDynamicMethod ??
+                        GAME_CONFIG.TERRITORY_ENGINE_DYNAMIC_METHOD) === option.id}
+                    onclick={() => {
+                        debouncedConfigUpdate(
+                            "TERRITORY_ENGINE_DYNAMIC_METHOD",
+                            "territoryEngineDynamicMethod",
+                            option.id,
+                        );
+                    }}>{option.label}</button
+                >
+            {/each}
+        </div>
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Hybrid Plan</span>
+            <span class="val">{panel.territoryEngineHybridPlan ?? GAME_CONFIG.TERRITORY_ENGINE_HYBRID_PLAN}</span>
+        </div>
+        <div style="display:flex; gap:4px; flex-wrap:wrap;">
+            {#each TERRITORY_ENGINE_HYBRID_OPTIONS as option}
+                <button
+                    class="mini-btn"
+                    class:active={(panel.territoryEngineHybridPlan ??
+                        GAME_CONFIG.TERRITORY_ENGINE_HYBRID_PLAN) === option.id}
+                    onclick={() => {
+                        debouncedConfigUpdate(
+                            "TERRITORY_ENGINE_HYBRID_PLAN",
+                            "territoryEngineHybridPlan",
+                            option.id,
+                        );
+                    }}>{option.label}</button
+                >
+            {/each}
+        </div>
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Trace Mode</span>
+            <label class="toggle-switch">
+                <input
+                    type="checkbox"
+                    checked={panel.territoryEngineTraceMode ??
+                        GAME_CONFIG.TERRITORY_ENGINE_TRACE_MODE}
+                    onchange={(e) => {
+                        const v = (e.target as HTMLInputElement).checked;
+                        updatePanel("territoryEngineTraceMode", v);
+                    }}
+                />
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Step Mode</span>
+            <label class="toggle-switch">
+                <input
+                    type="checkbox"
+                    checked={panel.territoryEngineStepMode ??
+                        GAME_CONFIG.TERRITORY_ENGINE_STEP_MODE}
+                    onchange={(e) => {
+                        const v = (e.target as HTMLInputElement).checked;
+                        updatePanel("territoryEngineStepMode", v);
+                    }}
+                />
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+    </div>
+    {#if panel.territoryEngineStepMode ?? GAME_CONFIG.TERRITORY_ENGINE_STEP_MODE}
+        <div class="var-row compact">
+            <div class="row-top">
+                <span class="var-name">Advance Stage</span>
+                <span class="val">{panel.territoryEngineStepAdvanceToken ?? GAME_CONFIG.TERRITORY_ENGINE_STEP_ADVANCE_TOKEN}</span>
+            </div>
+            <div style="display:flex; gap:6px;">
+                <button
+                    class="mini-btn"
+                    onclick={() => {
+                        const nextToken =
+                            (panel.territoryEngineStepAdvanceToken ??
+                                GAME_CONFIG.TERRITORY_ENGINE_STEP_ADVANCE_TOKEN) + 1;
+                        updatePanel("territoryEngineStepAdvanceToken", nextToken);
+                    }}>Advance</button
+                >
+                <button
+                    class="mini-btn"
+                    onclick={() => {
+                        updatePanel("territoryEngineStepAdvanceToken", 0);
+                    }}>Reset</button
+                >
+            </div>
+        </div>
+    {/if}
+{/if}
+
+{#if panel.territoryPowerVoronoi || panel.territoryPVV3}
+    <!-- -- Power Voronoi V2 / PVV3 Settings -- -->
+    <h4 class="sub-heading">? Power Voronoi Settings</h4>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">? Star Margin</span><span class="val"
                 >{panel.modifiedVoronoiStarMargin ??
                     GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN}px</span
             >
@@ -456,7 +652,7 @@
     </div>
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name">🛤️ Corridor Sites</span><span class="val"
+            <span class="var-name">??? Corridor Sites</span><span class="val"
                 >{(panel.modifiedVoronoiCorridorEnabled ??
                 GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED)
                     ? "ON"
@@ -475,7 +671,7 @@
     </div>
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name">📏 Corridor Spacing</span><span class="val"
+            <span class="var-name">?? Corridor Spacing</span><span class="val"
                 >{panel.modifiedVoronoiCorridorSpacing ??
                     GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}px</span
             >
@@ -499,7 +695,7 @@
     </div>
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name">🚫 Disconnect Buffer</span><span class="val"
+            <span class="var-name">?? Disconnect Buffer</span><span class="val"
                 >{(panel.modifiedVoronoiDisconnectEnabled ??
                 GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED)
                     ? "ON"
@@ -518,7 +714,7 @@
     </div>
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name">📐 Disconnect Distance</span><span
+            <span class="var-name">?? Disconnect Distance</span><span
                 class="val"
                 >{panel.modifiedVoronoiDisconnectDistance ??
                     GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE}px</span
@@ -544,7 +740,7 @@
     <h4 class="sub-heading">Visual Settings</h4>
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name">🌊 Morph Speed</span><span class="val"
+            <span class="var-name">?? Morph Speed</span><span class="val"
                 >{panel.territoryTransitionMs ??
                     GAME_CONFIG.TERRITORY_TRANSITION_MS}ms</span
             >
@@ -568,7 +764,7 @@
     </div>
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name">🔀 Boundary Mode</span><span class="val"
+            <span class="var-name">?? Boundary Mode</span><span class="val"
                 >{panel.territoryBoundaryMode ??
                     GAME_CONFIG.TERRITORY_BOUNDARY_MODE ??
                     "smooth"}</span
@@ -603,7 +799,7 @@
     </div>
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name">🎨 Fill Mode</span><span class="val"
+            <span class="var-name">?? Fill Mode</span><span class="val"
                 >{panel.territoryFillMode ??
                     GAME_CONFIG.TERRITORY_FILL_MODE ??
                     "frontier"}</span
@@ -638,7 +834,7 @@
     </div>
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name">🎨 Fill Alpha</span><span class="val"
+            <span class="var-name">?? Fill Alpha</span><span class="val"
                 >{(panel.voronoiAlpha ?? GAME_CONFIG.VORONOI_ALPHA).toFixed(
                     2,
                 )}</span
@@ -658,7 +854,7 @@
     </div>
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name">📏 Border Width</span><span class="val"
+            <span class="var-name">?? Border Width</span><span class="val"
                 >{(
                     panel.voronoiBorderWidth ?? GAME_CONFIG.VORONOI_BORDER_WIDTH
                 ).toFixed(1)}px</span
@@ -682,7 +878,7 @@
     </div>
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name">💫 Border Alpha</span><span class="val"
+            <span class="var-name">?? Border Alpha</span><span class="val"
                 >{(
                     panel.voronoiBorderAlpha ?? GAME_CONFIG.VORONOI_BORDER_ALPHA
                 ).toFixed(2)}</span
@@ -706,7 +902,7 @@
     </div>
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name">🌀 Border Smooth</span><span class="val"
+            <span class="var-name">?? Border Smooth</span><span class="val"
                 >{panel.voronoiBorderSmooth ??
                     GAME_CONFIG.VORONOI_BORDER_SMOOTH}
                 {(panel.voronoiBorderSmooth ??
@@ -740,7 +936,7 @@
     </div>
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name">🌈 Saturation</span><span class="val"
+            <span class="var-name">?? Saturation</span><span class="val"
                 >{(
                     panel.voronoiSaturation ?? GAME_CONFIG.VORONOI_SATURATION
                 ).toFixed(2)}</span
@@ -764,7 +960,7 @@
     </div>
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name">☀️ Lightness</span><span class="val"
+            <span class="var-name">?? Lightness</span><span class="val"
                 >{(
                     panel.voronoiLightness ?? GAME_CONFIG.VORONOI_LIGHTNESS
                 ).toFixed(2)}</span
@@ -788,7 +984,7 @@
     </div>
 {/if}
 {#if panel.territoryGraph}
-    <!-- ── Lane Territory Controls ── -->
+    <!-- -- Lane Territory Controls -- -->
     <h4 class="sub-heading">Lane Territory Settings</h4>
     <div class="var-row">
         <div class="row-top">
@@ -847,7 +1043,7 @@
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Lane Influence</span><span class="val"
-                >{(panel.laneInfluence ?? 5).toFixed(1)}×
+                >{(panel.laneInfluence ?? 5).toFixed(1)}�
                 {(panel.laneInfluence ?? 5) <= 2
                     ? "(subtle)"
                     : (panel.laneInfluence ?? 5) <= 5
@@ -911,7 +1107,7 @@
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Resolution</span><span class="val"
-                >{panel.graphResolution ?? 4}× downsample</span
+                >{panel.graphResolution ?? 4}� downsample</span
             >
         </div>
         <input
@@ -985,7 +1181,7 @@
         class="var-row grayed"
         style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"
     >
-        🔲 Borders
+        ?? Borders
     </div>
     <div class="var-row">
         <div class="row-top">
@@ -1027,7 +1223,7 @@
         class="var-row grayed"
         style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"
     >
-        🔲 Pattern
+        ?? Pattern
     </div>
     <div class="var-row">
         <div class="row-top">
@@ -1090,7 +1286,7 @@
         class="var-row grayed"
         style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"
     >
-        🎨 Border Feel
+        ?? Border Feel
     </div>
     <div class="var-row">
         <div class="row-top">
@@ -1138,8 +1334,8 @@
 {/if}
 
 {#if panel.territoryDistanceField}
-    <!-- ── Distance Field Controls ── -->
-    <h4 class="sub-heading">🌊 Distance Field Settings</h4>
+    <!-- -- Distance Field Controls -- -->
+    <h4 class="sub-heading">?? Distance Field Settings</h4>
 
     <!-- General -->
     <div class="var-row">
@@ -1259,7 +1455,7 @@
 
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name">⭐ Min Star Radius</span><span class="val"
+            <span class="var-name">? Min Star Radius</span><span class="val"
                 >{(
                     panel.dfMinStarRadius ?? GAME_CONFIG.DF_MIN_STAR_RADIUS
                 ).toFixed(0)}px</span
@@ -1279,7 +1475,7 @@
     </div>
 
     <!-- Color (HSLA) -->
-    <h4 class="sub-heading">🎨 Color (HSLA)</h4>
+    <h4 class="sub-heading">?? Color (HSLA)</h4>
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Alpha</span><span class="val"
@@ -1301,7 +1497,7 @@
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Hue Shift</span><span class="val"
-                >{(panel.dfHue ?? 0).toFixed(0)}°</span
+                >{(panel.dfHue ?? 0).toFixed(0)}�</span
             >
         </div>
         <input
@@ -1319,7 +1515,7 @@
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Saturation</span><span class="val"
-                >{(panel.dfSaturation ?? 0.7).toFixed(2)}×</span
+                >{(panel.dfSaturation ?? 0.7).toFixed(2)}�</span
             >
         </div>
         <input
@@ -1337,7 +1533,7 @@
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Lightness</span><span class="val"
-                >{(panel.dfLightness ?? 0.5).toFixed(2)}×</span
+                >{(panel.dfLightness ?? 0.5).toFixed(2)}�</span
             >
         </div>
         <input
@@ -1736,7 +1932,7 @@
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Influence Weight</span><span class="val"
-                >{(panel.dfInfluenceWeight ?? 1.0).toFixed(2)}×</span
+                >{(panel.dfInfluenceWeight ?? 1.0).toFixed(2)}�</span
             >
         </div>
         <input
@@ -1774,7 +1970,7 @@
         />
     </div>
 
-    <!-- ── Corridor Virtual Sites ── -->
+    <!-- -- Corridor Virtual Sites -- -->
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Morph Easing</span>
@@ -1796,7 +1992,7 @@
     <h4 class="sub-heading">Corridor / Disconnect</h4>
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name">🔗 Corridor Sites</span><span class="val"
+            <span class="var-name">?? Corridor Sites</span><span class="val"
                 >{(panel.dfCorridorEnabled ?? GAME_CONFIG.DF_CORRIDOR_ENABLED)
                     ? "ON"
                     : "OFF"}</span
@@ -1904,7 +2100,7 @@
 
         <div class="var-row">
             <div class="row-top">
-                <span class="var-name">⚖️ Corridor Weight</span><span
+                <span class="var-name">?? Corridor Weight</span><span
                     class="val"
                     >{(
                         panel.dfCorridorWeight ?? GAME_CONFIG.DF_CORRIDOR_WEIGHT
@@ -1927,7 +2123,7 @@
 
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name">✂️ Disconnect Buffer</span><span class="val"
+            <span class="var-name">?? Disconnect Buffer</span><span class="val"
                 >{(panel.dfDisconnectEnabled ??
                 GAME_CONFIG.DF_DISCONNECT_ENABLED)
                     ? "ON"
@@ -1948,7 +2144,7 @@
     {#if panel.dfDisconnectEnabled ?? GAME_CONFIG.DF_DISCONNECT_ENABLED}
         <div class="var-row">
             <div class="row-top">
-                <span class="var-name">📏 Disconnect Distance</span><span
+                <span class="var-name">?? Disconnect Distance</span><span
                     class="val"
                     >{panel.dfDisconnectDistance ??
                         GAME_CONFIG.DF_DISCONNECT_DISTANCE}px</span
@@ -1970,7 +2166,7 @@
 
         <div class="var-row">
             <div class="row-top">
-                <span class="var-name">⚖️ Disconnect Weight</span><span
+                <span class="var-name">?? Disconnect Weight</span><span
                     class="val"
                     >{(
                         panel.dfDisconnectWeight ??
@@ -1995,7 +2191,7 @@
 {/if}
 
 {#if panel.territoryContour}
-    <!-- ── Contour Controls ── -->
+    <!-- -- Contour Controls -- -->
     <h4 class="sub-heading">Contour (Vector) Settings</h4>
     <div class="var-row">
         <div class="row-top">
@@ -2119,7 +2315,7 @@
         class="var-row grayed"
         style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"
     >
-        🔲 Borders
+        ?? Borders
     </div>
     <div class="var-row">
         <div class="row-top">
@@ -2161,7 +2357,7 @@
         class="var-row grayed"
         style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"
     >
-        🔄 Corner Rounding
+        ?? Corner Rounding
     </div>
     <div class="var-row">
         <div class="row-top">
@@ -2184,7 +2380,7 @@
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Corner Threshold</span><span class="val"
-                >{panel.contourCornerThreshold ?? 120}°</span
+                >{panel.contourCornerThreshold ?? 120}�</span
             >
         </div>
         <input
@@ -2203,7 +2399,7 @@
         class="var-row grayed"
         style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"
     >
-        🏔️ Periphery Ownership
+        ??? Periphery Ownership
     </div>
     <div class="var-row">
         <div class="row-top">
@@ -2245,7 +2441,7 @@
         class="var-row grayed"
         style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"
     >
-        🔀 Junction Correction (F-135)
+        ?? Junction Correction (F-135)
     </div>
     <div class="var-row">
         <div class="row-top">
@@ -2275,7 +2471,7 @@
 {/if}
 
 {#if panel.territoryVoronoi}
-    <!-- ── Voronoi Controls ── -->
+    <!-- -- Voronoi Controls -- -->
     <h4 class="sub-heading">Voronoi Settings</h4>
     <div class="var-row">
         <div class="row-top">
@@ -2409,7 +2605,7 @@
         class="var-row grayed"
         style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"
     >
-        🔲 Borders
+        ?? Borders
     </div>
     <div class="var-row">
         <div class="row-top">
@@ -2468,7 +2664,7 @@
 {/if}
 
 {#if panel.territoryPixel}
-    <!-- ── Pixel (Classic) Controls ── -->
+    <!-- -- Pixel (Classic) Controls -- -->
     <h4 class="sub-heading">Pixel (Classic) Settings</h4>
     <div class="var-row">
         <div class="row-top">
@@ -2527,7 +2723,7 @@
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Resolution</span><span class="val"
-                >{panel.pixelResolution ?? 4}× downsample</span
+                >{panel.pixelResolution ?? 4}� downsample</span
             >
         </div>
         <input
@@ -2658,11 +2854,11 @@
             }}
         />
     </div>
-    <h4 class="sub-heading">🎨 Hue & Borders</h4>
+    <h4 class="sub-heading">?? Hue & Borders</h4>
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Hue Shift</span><span class="val"
-                >{panel.pixelHueShift ?? 0}°</span
+                >{panel.pixelHueShift ?? 0}�</span
             >
         </div>
         <input
@@ -2731,7 +2927,7 @@
             }}
         />
     </div>
-    <h4 class="sub-heading">🔲 Pattern</h4>
+    <h4 class="sub-heading">?? Pattern</h4>
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Pattern</span><span class="val"
@@ -2814,7 +3010,7 @@
 {/if}
 
 {#if panel.territoryMetaball}
-    <!-- ── Metaball Controls ── -->
+    <!-- -- Metaball Controls -- -->
     <h4 class="sub-heading">Metaball Settings</h4>
     <div class="var-row">
         <div class="row-top">
@@ -2928,7 +3124,7 @@
         class="var-row grayed"
         style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"
     >
-        ⚙️ Advanced
+        ?? Advanced
     </div>
     <div class="var-row">
         <div class="row-top">
@@ -2969,7 +3165,7 @@
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Strength</span><span class="val"
-                >{(panel.metaballStrength ?? 1.0).toFixed(1)}×</span
+                >{(panel.metaballStrength ?? 1.0).toFixed(1)}�</span
             >
         </div>
         <input
@@ -3043,7 +3239,7 @@
         class="var-row grayed"
         style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"
     >
-        🔲 Borders
+        ?? Borders
     </div>
     <div class="var-row">
         <div class="row-top">

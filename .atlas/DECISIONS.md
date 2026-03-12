@@ -172,3 +172,21 @@
 - Smoothing must happen on shared boundaries, NOT independently per territory polygon
 - Independent per-territory Chaikin causes visible gaps at shared edges
 - Fill crossfade (alpha-fade transition) intentionally cut for focus, NOT rejected — trivial to restore
+
+## 2026-03-12
+
+### D-41: Territory Engine Must Be Mode-Modular (Static/Dynamic/Hybrid)
+- **Decision**: Territory rendering is routed through a single modular engine that selects `static`, `dynamic`, or `hybrid` mode at runtime using config keys.
+- **Rationale**: User requires side-by-side evaluation of method families without rewiring renderer entry points.
+
+### D-42: Preserve FG/DY/HY Method IDs as Stable Contracts
+- **Decision**: Lock method identity contracts as `FG1..FG5`, `DY1..DY5`, `HY1..HY5` and keep them registry-driven.
+- **Rationale**: Enables interchangeable implementation and benchmark reporting while preventing ad-hoc method drift.
+
+### D-43: Step Debugging Is a First-Class Runtime Path
+- **Decision**: Territory pipeline supports interactive stepping via `TERRITORY_ENGINE_STEP_MODE` and `TERRITORY_ENGINE_STEP_ADVANCE_TOKEN`.
+- **Rationale**: User requires pause-and-inspect computation visibility beyond final visuals.
+
+### D-44: Bootstrap Legacy Adapters Are Allowed During Architecture Phase
+- **Decision**: Until native FG/DY/HY implementations are complete, render stage may use legacy adapters (PVV2/PVV3/DF) behind the modular engine.
+- **Rationale**: Preserves momentum: architecture and diagnostics land first, native geometry methods follow in dedicated epic branches.

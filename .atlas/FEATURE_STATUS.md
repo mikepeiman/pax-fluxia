@@ -76,3 +76,21 @@
 | F-150 | Power-weighted border colors — territory borders alpha/lightness weighted by ship count ratio. Player A (500 ships) vs Player B (100 ships) → border color weighted toward A with higher alpha and lightness. Requires accessing ship counts per-star during border rendering. | Medium | 2026-03-10 |
 | F-151 | Junction overlap blending — where border lines overlap at junctions, they should be blended (not additive stacking). Requires compositing or pre-pass deduplication. | Medium | 2026-03-10 |
 
+
+## 2026-03-12 Territory Engine Program Additions
+
+### Known Regressions (PVV3 / Frontier)
+
+| ID | Description | Status | Date |
+|----|-------------|--------|------|
+| R-3 | PVV3 interim state: frontiers are not unified, territory adjacency has visible mismatch, border visibility toggles inconsistently with settings/gameplay, and transition animation behavior is geometrically incorrect. | ?? Active | 2026-03-12 |
+
+### Planned Features (Territory Engine)
+
+| ID | Feature | Status | Priority | Date |
+|----|---------|--------|----------|------|
+| F-152 | Modular Territory Engine runtime with interchangeable static/dynamic/hybrid method registries and stage pipeline contracts. | ?? In Progress | Critical | 2026-03-12 |
+| F-153 | Interactive territory computation step mode (stage-by-stage execution + trace payloads + manual advance token). | ?? In Progress | High | 2026-03-12 |
+| F-154 | FG1-FG5 frontier geometry implementation program with shared canonical frontier truth for border/fill coincidence. | ?? Planned | Critical | 2026-03-12 |
+| F-155 | HY1-HY5 dynamic territory program for local delta updates, temporal coherence, and geometry-only transitions. | ?? Planned | Critical | 2026-03-12 |
+| F-156 | Territory method benchmarking harness with map-stress suite and mode-switch comparison reporting. | ?? Planned | High | 2026-03-12 |

@@ -266,3 +266,34 @@ Stars are placed on a hex grid and connected via Delaunay triangulation.
 ## 13. Victory
 
 The last player with at least one star wins. A player is eliminated when they lose all stars.
+
+---
+
+## 16. Territory Rendering Mechanics (Visual System)
+
+> This section defines visual-territory computation behavior. It does not change core combat/production game mechanics.
+
+### 16.1. Canonical Frontier Truth
+- Territory borders and territory fills must derive from the same frontier geometry source.
+- Any transition is geometric (frontier movement / topology update), not alpha-only substitution.
+
+### 16.2. Territory Engine Modes
+- `static`: builds canonical frontier from full snapshot.
+- `dynamic`: updates frontiers incrementally from deltas.
+- `hybrid`: combines static baseline with dynamic refinement.
+
+### 16.3. Stage Pipeline
+Territory computation runs through ordered stages:
+1. `metric`
+2. `world_extension`
+3. `seed`
+4. `topology`
+5. `geometry`
+6. `loop`
+7. `animation`
+8. `render`
+
+### 16.4. Interactive Step Diagnostics
+- When step mode is enabled, pipeline execution advances one stage per token increment.
+- Each stage emits trace metadata (stage id, duration, summary payload).
+- Purpose: deterministic inspection of data flow and frontier artifacts.

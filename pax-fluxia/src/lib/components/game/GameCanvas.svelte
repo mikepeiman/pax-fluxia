@@ -84,6 +84,10 @@
         renderDistanceFieldTerritory as renderDistanceFieldTerritoryModule,
         resetDistanceFieldTerritoryCache,
     } from "$lib/renderers/DistanceFieldTerritoryRenderer";
+    import {
+        renderTerritoryEngine,
+        resetTerritoryEngineCaches,
+    } from "$lib/territory-engine";
 
     // ============================================================================
     // PixiJS Application
@@ -758,6 +762,7 @@
         resetContourTerritoryCache();
         resetModifiedVoronoiCache();
         resetPowerVoronoiCache();
+        resetTerritoryEngineCaches();
         resetDistanceFieldTerritoryCache();
         // Clear ALL visual ship positions so they re-spawn at transposed coords
         // (ships store x/y, laneStartX/Y, laneEndX/Y in old coordinate space)
@@ -1036,6 +1041,7 @@
             resetContourTerritoryCache();
             resetModifiedVoronoiCache();
             resetPowerVoronoiCache();
+            resetTerritoryEngineCaches();
             resetDistanceFieldTerritoryCache();
             activeSurges.clear();
             nextShipId = 0;
@@ -1090,7 +1096,19 @@
                 child.visible = false;
             }
 
-            if (GAME_CONFIG.TERRITORY_VORONOI) {
+            if (GAME_CONFIG.TERRITORY_ENGINE_ENABLED) {
+                renderTerritoryEngine({
+                    stars,
+                    container: voronoiContainer,
+                    colorUtils,
+                    worldWidth: GAME_WIDTH,
+                    worldHeight: GAME_HEIGHT,
+                    connections: activeGameStore.connections as StarConnection[],
+                    renderer: app?.renderer ?? undefined,
+                    gameNowMs: fxOrchestrator.gameTime,
+                });
+            } else {
+                if (GAME_CONFIG.TERRITORY_VORONOI) {
                 renderVoronoiModule(
                     stars,
                     voronoiContainer,
@@ -1190,6 +1208,7 @@
                     // Two-pass DF borders need the renderer for pass-1 offscreen rendering.
                     app?.renderer ?? undefined,
                 );
+            }
             }
         }
 
@@ -2169,3 +2188,7 @@
         }
     }
 </style>
+
+
+
+

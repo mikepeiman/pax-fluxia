@@ -255,6 +255,14 @@ interface GameConfigType {
     TERRITORY_MODIFIED_VORONOI: boolean; // Enable Modified Voronoi territory renderer (F-138, default false)
     TERRITORY_POWER_VORONOI: boolean;    // Enable Power Voronoi V2 territory renderer (F-138v2, default false)
     TERRITORY_PVV3: boolean;              // Enable PVV3 frontier-first territory renderer (default false)
+    TERRITORY_ENGINE_ENABLED: boolean;    // Enable modular territory engine router (default false)
+    TERRITORY_ENGINE_STATIC_METHOD: 'fg1_adaptive_field' | 'fg2_seed_graph' | 'fg3_implicit_trace' | 'fg4_pairwise_arrangement' | 'fg5_rt_assisted_publish';
+    TERRITORY_ENGINE_TRACE_MODE: boolean; // Emit staged trace snapshots for the modular engine (default false)
+    TERRITORY_ENGINE_MODE: 'static' | 'dynamic' | 'hybrid'; // Select static frontier build, dynamic update, or hybrid program
+    TERRITORY_ENGINE_DYNAMIC_METHOD: 'dy1_span_graph_morph' | 'dy2_local_delta_patch' | 'dy3_field_interp_stabilized' | 'dy4_optimal_transport' | 'dy5_corridor_event_decomposition';
+    TERRITORY_ENGINE_HYBRID_PLAN: 'hy1_static_backbone_dynamic_refine' | 'hy2_seed_graph_local_delta' | 'hy3_implicit_field_transport' | 'hy4_pairwise_patch_transport' | 'hy5_rt_publish_corridor_events';
+    TERRITORY_ENGINE_STEP_MODE: boolean; // Interactive stage stepping for territory engine diagnostics
+    TERRITORY_ENGINE_STEP_ADVANCE_TOKEN: number; // Increment to advance one stage when step mode is enabled
     TERRITORY_TRANSITION_MS: number;      // Duration of territory morph animation in ms (0 = instant, default 400)
     TERRITORY_MORPH_CONTROL_POINTS: number; // Number of control points for frontier loop morphing (5-300, default 32)
     TERRITORY_BOUNDARY_MODE: 'segment' | 'smooth';  // 'segment' = edge-level lerp, 'smooth' = flubber polygon morph
@@ -940,6 +948,22 @@ const _rawConfig: GameConfigType = {
     TERRITORY_POWER_VORONOI: true,
     /** Enable PVV3 frontier-first territory renderer */
     TERRITORY_PVV3: false,
+    /** Enable modular territory engine router */
+    TERRITORY_ENGINE_ENABLED: false,
+    /** Active static frontier method when modular territory engine is enabled */
+    TERRITORY_ENGINE_STATIC_METHOD: 'fg2_seed_graph' as const,
+    /** Emit staged trace snapshots in modular engine */
+    TERRITORY_ENGINE_TRACE_MODE: false,
+    /** Territory engine execution mode: static frontier build, dynamic update pass, or hybrid plan */
+    TERRITORY_ENGINE_MODE: 'static' as const,
+    /** Active dynamic update method when territory engine mode is dynamic */
+    TERRITORY_ENGINE_DYNAMIC_METHOD: 'dy2_local_delta_patch' as const,
+    /** Active hybrid program when territory engine mode is hybrid */
+    TERRITORY_ENGINE_HYBRID_PLAN: 'hy2_seed_graph_local_delta' as const,
+    /** Step through pipeline stages one-by-one (diagnostic mode) */
+    TERRITORY_ENGINE_STEP_MODE: false,
+    /** Incrementing token used to advance one stage in step mode */
+    TERRITORY_ENGINE_STEP_ADVANCE_TOKEN: 0,
     /** Duration of territory morph/crossfade animation in ms (0=instant) */
     TERRITORY_TRANSITION_MS: 350,
     /** Number of control points for frontier loop morphing (5-300) */
@@ -1337,4 +1361,5 @@ export function calculateCombatV4(
         disabledOnB: result.disabledOnB
     };
 }
+
 
