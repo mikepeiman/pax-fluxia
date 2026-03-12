@@ -202,3 +202,11 @@
 ### D-47: Native Territory Stages Register Through a Shared Dispatch Layer
 - **Decision**: Native territory methods now plug into a shared dispatcher in `territory-engine/methods/index.ts`, and the engine calls that dispatcher before generic fallback logic.
 - **Rationale**: The engine must remain stable while FG/DY/HY native methods multiply. Centralized native dispatch removes method-specific imports from the engine and makes branch-by-branch method rollout modular.
+
+### D-48: FG2 Pair Graphs Use Explicit Node and Link Types
+- **Decision**: FG2 owner-pair topology graphs now model typed nodes (`seed`, `junction`, `boundary`) and typed links (`star_arc`, `boundary_extension`) instead of seed-only adjacency.
+- **Rationale**: Half-edge/world-closure work needs a graph that can represent frontier turns around stars and explicit terminations at map edges. Seed-only links cannot support later face walking or fill reconstruction.
+
+### D-49: FG2 Open Frontier Ends Project to the World Rectangle
+- **Decision**: When a contested seed has no second continuation on a star side, FG2 extends that side by ray projection to the world rectangle and creates a boundary anchor node.
+- **Rationale**: Frontier chains must terminate on canonical map edges rather than arbitrary local cutoffs. This is the first step toward world-corner stitching and closed region recovery.

@@ -3,6 +3,16 @@ import { GAME_CONFIG } from '$lib/config/game.config';
 import type { StarState } from '$lib/types/game.types';
 import type { TerritoryPipelineRuntime, TerritoryPipelineStageId } from '../types';
 
+type FG2StageRuntime = TerritoryPipelineRuntime;
+type FG2BoundarySide = 'top' | 'right' | 'bottom' | 'left';
+
+interface FG2WorldBounds {
+    minX: number;
+    minY: number;
+    maxX: number;
+    maxY: number;
+}
+
 interface FG2SeedPoint {
     seedId: string;
     laneId: string;
@@ -21,13 +31,24 @@ interface FG2SeedPoint {
     targetAngle: number;
 }
 
+interface FG2GraphNode {
+    nodeId: string;
+    ownerPair: string;
+    nodeType: 'seed' | 'junction' | 'boundary';
+    x: number;
+    y: number;
+    starId?: string;
+    boundarySide?: FG2BoundarySide;
+}
+
 interface FG2TopologyLink {
     linkId: string;
     ownerPair: string;
-    viaStarId: string;
-    viaOwner: string;
-    seedAId: string;
-    seedBId: string;
+    nodeAId: string;
+    nodeBId: string;
+    linkKind: 'star_arc' | 'boundary_extension';
+    viaStarId?: string;
+    viaOwner?: string;
     linkLength: number;
     angleSpan: number;
 }
@@ -36,12 +57,15 @@ interface FG2PairTopologyGraph {
     ownerPair: string;
     ownerA: string;
     ownerB: string;
-    seedIds: string[];
+    nodeIds: string[];
+    nodes: FG2GraphNode[];
     links: FG2TopologyLink[];
     adjacency: Record<string, string[]>;
     starIncidence: Record<string, string[]>;
     isolatedSeedIds: string[];
     openSeedIds: string[];
+    boundaryAnchorIds: string[];
+    junctionIds: string[];
 }
 
 interface FG2FrontierPolyline {
@@ -52,10 +76,16 @@ interface FG2FrontierPolyline {
     points: [number, number][];
 }
 
-type FG2StageRuntime = TerritoryPipelineRuntime;
+interface FG2BoundaryAnchorResult {
+    x: number;
+    y: number;
+    boundarySide: FG2BoundarySide;
+    distance: number;
+}
 
 const FG2_GRAPHICS_NAME = 'territory-engine-fg2-frontier-graphics';
 const TAU = Math.PI * 2;
+const EPSILON = 0.0001;
 
 function clamp(value: number, min: number, max: number): number {
     return Math.max(min, Math.min(max, value));
@@ -77,6 +107,28 @@ function normalizeAngle(angle: number): number {
 function angleSpan(angleA: number, angleB: number): number {
     const diff = Math.abs(angleA - angleB) % TAU;
     return diff > Math.PI ? TAU - diff : diff;
+}
+
+function orderedAngleDelta(angleA: number, angleB: number): number {
+    const normalizedA = normalizeAngle(angleA);
+    const normalizedB = normalizeAngle(angleB);
+    const delta = normalizedB - normalizedA;
+    return delta < 0 ? delta + TAU : delta;
+}
+
+function shortestSignedAngleDelta(angleA: number, angleB: number): number {
+    let delta = normalizeAngle(angleB) - normalizeAngle(angleA);
+    if (delta > Math.PI) delta -= TAU;
+    if (delta < -Math.PI) delta += TAU;
+    return delta;
+}
+
+function directedMidAngle(angleA: number, angleB: number): number {
+    return normalizeAngle(angleA + orderedAngleDelta(angleA, angleB) * 0.5);
+}
+
+function shortestMidAngle(angleA: number, angleB: number): number {
+    return normalizeAngle(angleA + shortestSignedAngleDelta(angleA, angleB) * 0.5);
 }
 
 function blendColors(colorA: number, colorB: number): number {
@@ -148,53 +200,175 @@ function getSeedAngleAtStar(seed: FG2SeedPoint, starId: string): number {
     return seed.sourceId === starId ? seed.sourceAngle : seed.targetAngle;
 }
 
-function getOppositeSeedId(link: FG2TopologyLink, seedId: string): string {
-    return link.seedAId === seedId ? link.seedBId : link.seedAId;
+function getOppositeNodeId(link: FG2TopologyLink, nodeId: string): string {
+    return link.nodeAId === nodeId ? link.nodeBId : link.nodeAId;
+}
+
+function computeJunctionRadius(star: StarState | undefined): number {
+    const starRadius = star?.radius ?? 20;
+    const starMargin = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 0;
+    return starRadius + Math.max(8, starMargin * 0.28);
+}
+
+function projectRayToWorldBounds(
+    originX: number,
+    originY: number,
+    directionX: number,
+    directionY: number,
+    bounds: FG2WorldBounds,
+): FG2BoundaryAnchorResult {
+    const candidates: FG2BoundaryAnchorResult[] = [];
+
+    if (Math.abs(directionX) > EPSILON) {
+        const targetX = directionX > 0 ? bounds.maxX : bounds.minX;
+        const t = (targetX - originX) / directionX;
+        if (t > EPSILON) {
+            const y = originY + directionY * t;
+            if (y >= bounds.minY - EPSILON && y <= bounds.maxY + EPSILON) {
+                candidates.push({
+                    x: targetX,
+                    y: clamp(y, bounds.minY, bounds.maxY),
+                    boundarySide: directionX > 0 ? 'right' : 'left',
+                    distance: Math.hypot(directionX * t, directionY * t),
+                });
+            }
+        }
+    }
+
+    if (Math.abs(directionY) > EPSILON) {
+        const targetY = directionY > 0 ? bounds.maxY : bounds.minY;
+        const t = (targetY - originY) / directionY;
+        if (t > EPSILON) {
+            const x = originX + directionX * t;
+            if (x >= bounds.minX - EPSILON && x <= bounds.maxX + EPSILON) {
+                candidates.push({
+                    x: clamp(x, bounds.minX, bounds.maxX),
+                    y: targetY,
+                    boundarySide: directionY > 0 ? 'bottom' : 'top',
+                    distance: Math.hypot(directionX * t, directionY * t),
+                });
+            }
+        }
+    }
+
+    if (candidates.length > 0) {
+        return candidates.sort((a, b) => a.distance - b.distance)[0];
+    }
+
+    const fallback = [
+        {
+            x: bounds.minX,
+            y: clamp(originY, bounds.minY, bounds.maxY),
+            boundarySide: 'left' as const,
+            distance: Math.abs(originX - bounds.minX),
+        },
+        {
+            x: bounds.maxX,
+            y: clamp(originY, bounds.minY, bounds.maxY),
+            boundarySide: 'right' as const,
+            distance: Math.abs(bounds.maxX - originX),
+        },
+        {
+            x: clamp(originX, bounds.minX, bounds.maxX),
+            y: bounds.minY,
+            boundarySide: 'top' as const,
+            distance: Math.abs(originY - bounds.minY),
+        },
+        {
+            x: clamp(originX, bounds.minX, bounds.maxX),
+            y: bounds.maxY,
+            boundarySide: 'bottom' as const,
+            distance: Math.abs(bounds.maxY - originY),
+        },
+    ];
+
+    return fallback.sort((a, b) => a.distance - b.distance)[0];
+}
+
+function createBoundaryAnchor(
+    seed: FG2SeedPoint,
+    star: StarState,
+    bounds: FG2WorldBounds,
+): FG2BoundaryAnchorResult {
+    const rawDirectionX = seed.x - star.x;
+    const rawDirectionY = seed.y - star.y;
+    const magnitude = Math.hypot(rawDirectionX, rawDirectionY);
+    const directionX = magnitude > EPSILON ? rawDirectionX / magnitude : 1;
+    const directionY = magnitude > EPSILON ? rawDirectionY / magnitude : 0;
+
+    return projectRayToWorldBounds(seed.x, seed.y, directionX, directionY, bounds);
 }
 
 function chooseNextLink(
-    previousSeedId: string | null,
-    currentSeedId: string,
+    previousNodeId: string | null,
+    previousLinkId: string | null,
+    currentNodeId: string,
     candidateLinkIds: string[],
     linkById: Map<string, FG2TopologyLink>,
-    seedById: Map<string, FG2SeedPoint>,
+    nodeById: Map<string, FG2GraphNode>,
 ): string | null {
     if (candidateLinkIds.length === 0) return null;
-    if (!previousSeedId || candidateLinkIds.length === 1) {
-        return candidateLinkIds.slice().sort((a, b) => a.localeCompare(b))[0];
+
+    let eligibleLinkIds = candidateLinkIds.slice();
+    const currentNode = nodeById.get(currentNodeId);
+    const previousLink = previousLinkId ? linkById.get(previousLinkId) : null;
+    if (currentNode?.nodeType === 'seed' && previousLink?.viaStarId) {
+        const oppositeSideLinks = eligibleLinkIds.filter((linkId) => {
+            const link = linkById.get(linkId);
+            return link?.viaStarId !== previousLink.viaStarId;
+        });
+        if (oppositeSideLinks.length > 0) {
+            eligibleLinkIds = oppositeSideLinks;
+        }
     }
 
-    const previousSeed = seedById.get(previousSeedId);
-    const currentSeed = seedById.get(currentSeedId);
-    if (!previousSeed || !currentSeed) {
-        return candidateLinkIds.slice().sort((a, b) => a.localeCompare(b))[0];
+    if (!previousNodeId || eligibleLinkIds.length === 1) {
+        return eligibleLinkIds.sort((a, b) => a.localeCompare(b))[0];
     }
 
-    const incomingX = currentSeed.x - previousSeed.x;
-    const incomingY = currentSeed.y - previousSeed.y;
+    const previousNode = nodeById.get(previousNodeId);
+    if (!previousNode || !currentNode) {
+        return eligibleLinkIds.sort((a, b) => a.localeCompare(b))[0];
+    }
+
+    const incomingX = currentNode.x - previousNode.x;
+    const incomingY = currentNode.y - previousNode.y;
     const incomingLength = Math.hypot(incomingX, incomingY);
-    if (incomingLength <= 0.0001) {
-        return candidateLinkIds.slice().sort((a, b) => a.localeCompare(b))[0];
+    if (incomingLength <= EPSILON) {
+        return eligibleLinkIds.sort((a, b) => a.localeCompare(b))[0];
     }
 
     let bestLinkId: string | null = null;
     let bestScore = Number.NEGATIVE_INFINITY;
 
-    for (const linkId of candidateLinkIds) {
+    for (const linkId of eligibleLinkIds) {
         const link = linkById.get(linkId);
         if (!link) continue;
-        const nextSeed = seedById.get(getOppositeSeedId(link, currentSeedId));
-        if (!nextSeed) continue;
+        const nextNode = nodeById.get(getOppositeNodeId(link, currentNodeId));
+        if (!nextNode) continue;
 
-        const outgoingX = nextSeed.x - currentSeed.x;
-        const outgoingY = nextSeed.y - currentSeed.y;
+        const outgoingX = nextNode.x - currentNode.x;
+        const outgoingY = nextNode.y - currentNode.y;
         const outgoingLength = Math.hypot(outgoingX, outgoingY);
-        if (outgoingLength <= 0.0001) continue;
+        if (outgoingLength <= EPSILON) continue;
 
         const straightness =
             (incomingX * outgoingX + incomingY * outgoingY) /
             (incomingLength * outgoingLength);
-        const score = straightness - link.angleSpan * 0.01 - link.linkLength * 0.0001;
+        const sideSwitchBonus =
+            currentNode.nodeType === 'seed' &&
+            previousLink?.viaStarId &&
+            link.viaStarId &&
+            link.viaStarId !== previousLink.viaStarId
+                ? 0.35
+                : 0;
+        const boundaryPenalty = link.linkKind === 'boundary_extension' ? 0.05 : 0;
+        const score =
+            straightness +
+            sideSwitchBonus -
+            boundaryPenalty -
+            link.angleSpan * 0.002 -
+            link.linkLength * 0.0001;
 
         if (
             score > bestScore ||
@@ -207,20 +381,19 @@ function chooseNextLink(
         }
     }
 
-    return bestLinkId ?? candidateLinkIds.slice().sort((a, b) => a.localeCompare(b))[0];
+    return bestLinkId ?? eligibleLinkIds.sort((a, b) => a.localeCompare(b))[0];
 }
 
 function walkChain(
-    startSeedId: string,
+    startNodeId: string,
     startLinkId: string,
     adjacency: Record<string, string[]>,
     linkById: Map<string, FG2TopologyLink>,
-    seedById: Map<string, FG2SeedPoint>,
+    nodeById: Map<string, FG2GraphNode>,
     visitedLinkIds: Set<string>,
-): { seedIds: string[]; closed: boolean } {
-    const seedIds = [startSeedId];
-    let previousSeedId: string | null = null;
-    let currentSeedId = startSeedId;
+): { nodeIds: string[]; closed: boolean } {
+    const nodeIds = [startNodeId];
+    let currentNodeId = startNodeId;
     let currentLinkId: string | null = startLinkId;
     let closed = false;
 
@@ -231,15 +404,15 @@ function walkChain(
         const currentLink = linkById.get(currentLinkId);
         if (!currentLink) break;
 
-        const nextSeedId = getOppositeSeedId(currentLink, currentSeedId);
-        if (nextSeedId === startSeedId && seedIds.length > 2) {
+        const nextNodeId = getOppositeNodeId(currentLink, currentNodeId);
+        if (nextNodeId === startNodeId && nodeIds.length > 2) {
             closed = true;
             break;
         }
 
-        seedIds.push(nextSeedId);
+        nodeIds.push(nextNodeId);
 
-        const candidateLinkIds = (adjacency[nextSeedId] ?? []).filter(
+        const candidateLinkIds = (adjacency[nextNodeId] ?? []).filter(
             (linkId) => !visitedLinkIds.has(linkId),
         );
         if (candidateLinkIds.length === 0) {
@@ -247,34 +420,66 @@ function walkChain(
         }
 
         const nextLinkId = chooseNextLink(
-            currentSeedId,
-            nextSeedId,
+            currentNodeId,
+            currentLinkId,
+            nextNodeId,
             candidateLinkIds,
             linkById,
-            seedById,
+            nodeById,
         );
         if (!nextLinkId) {
             break;
         }
 
-        previousSeedId = currentSeedId;
-        currentSeedId = nextSeedId;
+        currentNodeId = nextNodeId;
         currentLinkId = nextLinkId;
     }
 
-    return { seedIds, closed };
+    return { nodeIds, closed };
 }
 
 function buildPairTopologyGraph(
     ownerPair: string,
     seeds: FG2SeedPoint[],
     starById: Map<string, StarState>,
+    bounds: FG2WorldBounds,
 ): FG2PairTopologyGraph {
     const [ownerA, ownerB] = ownerPair.split('::');
     const seedById = new Map(seeds.map((seed) => [seed.seedId, seed]));
     const starIncidence: Record<string, string[]> = {};
+    const nodes: FG2GraphNode[] = [];
+    const nodeById = new Map<string, FG2GraphNode>();
+    const links: FG2TopologyLink[] = [];
+    const linkById = new Map<string, FG2TopologyLink>();
+    const adjacency: Record<string, string[]> = {};
+    const junctionIds: string[] = [];
+    const boundaryAnchorIds: string[] = [];
+
+    function addNode(node: FG2GraphNode): void {
+        if (nodeById.has(node.nodeId)) return;
+        nodeById.set(node.nodeId, node);
+        nodes.push(node);
+        adjacency[node.nodeId] = [];
+        if (node.nodeType === 'junction') junctionIds.push(node.nodeId);
+        if (node.nodeType === 'boundary') boundaryAnchorIds.push(node.nodeId);
+    }
+
+    function addLink(link: FG2TopologyLink): void {
+        if (linkById.has(link.linkId)) return;
+        linkById.set(link.linkId, link);
+        links.push(link);
+        adjacency[link.nodeAId].push(link.linkId);
+        adjacency[link.nodeBId].push(link.linkId);
+    }
 
     for (const seed of seeds) {
+        addNode({
+            nodeId: seed.seedId,
+            ownerPair: seed.ownerPair,
+            nodeType: 'seed',
+            x: seed.x,
+            y: seed.y,
+        });
         if (!starIncidence[seed.sourceId]) {
             starIncidence[seed.sourceId] = [];
         }
@@ -285,11 +490,10 @@ function buildPairTopologyGraph(
         starIncidence[seed.targetId].push(seed.seedId);
     }
 
-    const links: FG2TopologyLink[] = [];
-
     for (const [starId, incidentSeedIds] of Object.entries(starIncidence)) {
         if (incidentSeedIds.length < 2) continue;
 
+        const star = starById.get(starId);
         const sortedSeedIds = incidentSeedIds.slice().sort((seedAId, seedBId) => {
             const seedA = seedById.get(seedAId);
             const seedB = seedById.get(seedBId);
@@ -302,8 +506,8 @@ function buildPairTopologyGraph(
             return seedAId.localeCompare(seedBId);
         });
 
-        const segmentCount = sortedSeedIds.length === 2 ? 1 : sortedSeedIds.length;
-        for (let i = 0; i < segmentCount; i += 1) {
+        const pairCount = sortedSeedIds.length === 2 ? 1 : sortedSeedIds.length;
+        for (let i = 0; i < pairCount; i += 1) {
             const seedAId = sortedSeedIds[i];
             const seedBId = sortedSeedIds[(i + 1) % sortedSeedIds.length];
             if (!seedAId || !seedBId || seedAId === seedBId) continue;
@@ -312,32 +516,118 @@ function buildPairTopologyGraph(
             const seedB = seedById.get(seedBId);
             if (!seedA || !seedB) continue;
 
-            const linkId = `${ownerPair}|${starId}|${seedAId <= seedBId ? `${seedAId}::${seedBId}` : `${seedBId}::${seedAId}`}`;
-            const linkLength = Math.hypot(seedB.x - seedA.x, seedB.y - seedA.y);
             const seedAngleA = getSeedAngleAtStar(seedA, starId);
             const seedAngleB = getSeedAngleAtStar(seedB, starId);
-
-            links.push({
-                linkId,
+            const localAngleSpan =
+                sortedSeedIds.length === 2
+                    ? angleSpan(seedAngleA, seedAngleB)
+                    : orderedAngleDelta(seedAngleA, seedAngleB);
+            const midAngle =
+                sortedSeedIds.length === 2
+                    ? shortestMidAngle(seedAngleA, seedAngleB)
+                    : directedMidAngle(seedAngleA, seedAngleB);
+            const junctionRadius = computeJunctionRadius(star);
+            const junctionId =
+                `${ownerPair}|junction|${starId}|` +
+                `${seedAId <= seedBId ? `${seedAId}::${seedBId}` : `${seedBId}::${seedAId}`}`;
+            const junctionNode: FG2GraphNode = {
+                nodeId: junctionId,
                 ownerPair,
+                nodeType: 'junction',
+                x: (star?.x ?? 0) + Math.cos(midAngle) * junctionRadius,
+                y: (star?.y ?? 0) + Math.sin(midAngle) * junctionRadius,
+                starId,
+            };
+            addNode(junctionNode);
+
+            const linkA: FG2TopologyLink = {
+                linkId: `${ownerPair}|star_arc|${starId}|${seedAId}|${junctionId}`,
+                ownerPair,
+                nodeAId: seedAId,
+                nodeBId: junctionId,
+                linkKind: 'star_arc',
                 viaStarId: starId,
-                viaOwner: starById.get(starId)?.ownerId ?? '',
-                seedAId,
-                seedBId,
-                linkLength,
-                angleSpan: angleSpan(seedAngleA, seedAngleB),
-            });
+                viaOwner: star?.ownerId ?? '',
+                linkLength: Math.hypot(junctionNode.x - seedA.x, junctionNode.y - seedA.y),
+                angleSpan: localAngleSpan * 0.5,
+            };
+            const linkB: FG2TopologyLink = {
+                linkId: `${ownerPair}|star_arc|${starId}|${junctionId}|${seedBId}`,
+                ownerPair,
+                nodeAId: junctionId,
+                nodeBId: seedBId,
+                linkKind: 'star_arc',
+                viaStarId: starId,
+                viaOwner: star?.ownerId ?? '',
+                linkLength: Math.hypot(junctionNode.x - seedB.x, junctionNode.y - seedB.y),
+                angleSpan: localAngleSpan * 0.5,
+            };
+            addLink(linkA);
+            addLink(linkB);
         }
     }
 
-    const adjacency: Record<string, string[]> = {};
     for (const seed of seeds) {
-        adjacency[seed.seedId] = [];
-    }
+        const sourceIncidentCount = starIncidence[seed.sourceId]?.length ?? 0;
+        const targetIncidentCount = starIncidence[seed.targetId]?.length ?? 0;
 
-    for (const link of links) {
-        adjacency[link.seedAId].push(link.linkId);
-        adjacency[link.seedBId].push(link.linkId);
+        if (sourceIncidentCount <= 1) {
+            const star = starById.get(seed.sourceId);
+            if (star) {
+                const boundaryAnchor = createBoundaryAnchor(seed, star, bounds);
+                const boundaryNodeId =
+                    `${ownerPair}|boundary|${seed.seedId}|${star.id}|${boundaryAnchor.boundarySide}`;
+                addNode({
+                    nodeId: boundaryNodeId,
+                    ownerPair,
+                    nodeType: 'boundary',
+                    x: boundaryAnchor.x,
+                    y: boundaryAnchor.y,
+                    starId: star.id,
+                    boundarySide: boundaryAnchor.boundarySide,
+                });
+                addLink({
+                    linkId: `${ownerPair}|boundary_extension|${star.id}|${seed.seedId}|${boundaryNodeId}`,
+                    ownerPair,
+                    nodeAId: seed.seedId,
+                    nodeBId: boundaryNodeId,
+                    linkKind: 'boundary_extension',
+                    viaStarId: star.id,
+                    viaOwner: star.ownerId,
+                    linkLength: boundaryAnchor.distance,
+                    angleSpan: 0,
+                });
+            }
+        }
+
+        if (targetIncidentCount <= 1) {
+            const star = starById.get(seed.targetId);
+            if (star) {
+                const boundaryAnchor = createBoundaryAnchor(seed, star, bounds);
+                const boundaryNodeId =
+                    `${ownerPair}|boundary|${seed.seedId}|${star.id}|${boundaryAnchor.boundarySide}`;
+                addNode({
+                    nodeId: boundaryNodeId,
+                    ownerPair,
+                    nodeType: 'boundary',
+                    x: boundaryAnchor.x,
+                    y: boundaryAnchor.y,
+                    starId: star.id,
+                    boundarySide: boundaryAnchor.boundarySide,
+                });
+                addLink({
+                    linkId: `${ownerPair}|boundary_extension|${star.id}|${seed.seedId}|${boundaryNodeId}`,
+                    ownerPair,
+                    nodeAId: seed.seedId,
+                    nodeBId: boundaryNodeId,
+                    linkKind: 'boundary_extension',
+                    viaStarId: star.id,
+                    viaOwner: star.ownerId,
+                    linkLength: boundaryAnchor.distance,
+                    angleSpan: 0,
+                });
+            }
+        }
     }
 
     for (const linkIds of Object.values(adjacency)) {
@@ -357,82 +647,101 @@ function buildPairTopologyGraph(
         ownerPair,
         ownerA,
         ownerB,
-        seedIds: seeds.map((seed) => seed.seedId).sort((a, b) => a.localeCompare(b)),
+        nodeIds: nodes.map((node) => node.nodeId).sort((a, b) => a.localeCompare(b)),
+        nodes,
         links,
         adjacency,
         starIncidence,
         isolatedSeedIds,
         openSeedIds,
+        boundaryAnchorIds: boundaryAnchorIds.sort((a, b) => a.localeCompare(b)),
+        junctionIds: junctionIds.sort((a, b) => a.localeCompare(b)),
     };
 }
 
-function extractFrontiersFromPairGraph(
-    graph: FG2PairTopologyGraph,
-    seedById: Map<string, FG2SeedPoint>,
-): FG2FrontierPolyline[] {
+function extractFrontiersFromPairGraph(graph: FG2PairTopologyGraph): FG2FrontierPolyline[] {
     const frontiers: FG2FrontierPolyline[] = [];
+    const nodeById = new Map(graph.nodes.map((node) => [node.nodeId, node]));
     const linkById = new Map(graph.links.map((link) => [link.linkId, link]));
     const visitedLinkIds = new Set<string>();
-    const degreeBySeedId = new Map(
-        graph.seedIds.map((seedId) => [seedId, graph.adjacency[seedId]?.length ?? 0]),
+    const degreeByNodeId = new Map(
+        graph.nodeIds.map((nodeId) => [nodeId, graph.adjacency[nodeId]?.length ?? 0]),
     );
+    const nodeTypePriority: Record<FG2GraphNode['nodeType'], number> = {
+        boundary: 0,
+        seed: 1,
+        junction: 2,
+    };
 
-    const singletonSeedIds = graph.seedIds
-        .filter((seedId) => (degreeBySeedId.get(seedId) ?? 0) === 0)
-        .sort((a, b) => a.localeCompare(b));
+    const singletonNodeIds = graph.nodeIds
+        .filter((nodeId) => (degreeByNodeId.get(nodeId) ?? 0) === 0)
+        .sort((nodeAId, nodeBId) => {
+            const nodeA = nodeById.get(nodeAId);
+            const nodeB = nodeById.get(nodeBId);
+            if (nodeA && nodeB && nodeA.nodeType !== nodeB.nodeType) {
+                return nodeTypePriority[nodeA.nodeType] - nodeTypePriority[nodeB.nodeType];
+            }
+            return nodeAId.localeCompare(nodeBId);
+        });
 
-    for (const seedId of singletonSeedIds) {
-        const seed = seedById.get(seedId);
-        if (!seed) continue;
+    for (const nodeId of singletonNodeIds) {
+        const node = nodeById.get(nodeId);
+        if (!node) continue;
         frontiers.push({
             ownerPair: graph.ownerPair,
             ownerA: graph.ownerA,
             ownerB: graph.ownerB,
             closed: false,
-            points: [[seed.x, seed.y]],
+            points: [[node.x, node.y]],
         });
     }
 
-    const orderedStartSeedIds = graph.seedIds
-        .filter((seedId) => (degreeBySeedId.get(seedId) ?? 0) > 0)
-        .sort((seedAId, seedBId) => {
-            const degreeA = degreeBySeedId.get(seedAId) ?? 0;
-            const degreeB = degreeBySeedId.get(seedBId) ?? 0;
+    const orderedStartNodeIds = graph.nodeIds
+        .filter((nodeId) => (degreeByNodeId.get(nodeId) ?? 0) > 0)
+        .sort((nodeAId, nodeBId) => {
+            const degreeA = degreeByNodeId.get(nodeAId) ?? 0;
+            const degreeB = degreeByNodeId.get(nodeBId) ?? 0;
             if ((degreeA === 2) !== (degreeB === 2)) {
                 return degreeA === 2 ? 1 : -1;
+            }
+            const nodeA = nodeById.get(nodeAId);
+            const nodeB = nodeById.get(nodeBId);
+            if (nodeA && nodeB && nodeA.nodeType !== nodeB.nodeType) {
+                return nodeTypePriority[nodeA.nodeType] - nodeTypePriority[nodeB.nodeType];
             }
             if (degreeA !== degreeB) {
                 return degreeA - degreeB;
             }
-            return seedAId.localeCompare(seedBId);
+            return nodeAId.localeCompare(nodeBId);
         });
 
-    for (const startSeedId of orderedStartSeedIds) {
-        let remainingLinkIds = (graph.adjacency[startSeedId] ?? []).filter(
+    for (const startNodeId of orderedStartNodeIds) {
+        let remainingLinkIds = (graph.adjacency[startNodeId] ?? []).filter(
             (linkId) => !visitedLinkIds.has(linkId),
         );
         while (remainingLinkIds.length > 0) {
             const startLinkId = chooseNextLink(
                 null,
-                startSeedId,
+                null,
+                startNodeId,
                 remainingLinkIds,
                 linkById,
-                seedById,
+                nodeById,
             );
             if (!startLinkId) break;
 
             const chain = walkChain(
-                startSeedId,
+                startNodeId,
                 startLinkId,
                 graph.adjacency,
                 linkById,
-                seedById,
+                nodeById,
                 visitedLinkIds,
             );
-            const points = chain.seedIds
-                .map((seedId) => seedById.get(seedId))
-                .filter((seed): seed is FG2SeedPoint => Boolean(seed))
-                .map((seed) => [seed.x, seed.y] as [number, number]);
+            const points = chain.nodeIds
+                .map((nodeId) => nodeById.get(nodeId))
+                .filter((node): node is FG2GraphNode => Boolean(node))
+                .map((node) => [node.x, node.y] as [number, number]);
 
             if (points.length > 0) {
                 frontiers.push({
@@ -444,7 +753,7 @@ function extractFrontiersFromPairGraph(
                 });
             }
 
-            remainingLinkIds = (graph.adjacency[startSeedId] ?? []).filter(
+            remainingLinkIds = (graph.adjacency[startNodeId] ?? []).filter(
                 (linkId) => !visitedLinkIds.has(linkId),
             );
         }
@@ -461,17 +770,17 @@ function extractFrontiersFromPairGraph(
         if (!link) continue;
 
         const chain = walkChain(
-            link.seedAId,
+            link.nodeAId,
             link.linkId,
             graph.adjacency,
             linkById,
-            seedById,
+            nodeById,
             visitedLinkIds,
         );
-        const points = chain.seedIds
-            .map((seedId) => seedById.get(seedId))
-            .filter((seed): seed is FG2SeedPoint => Boolean(seed))
-            .map((seed) => [seed.x, seed.y] as [number, number]);
+        const points = chain.nodeIds
+            .map((nodeId) => nodeById.get(nodeId))
+            .filter((node): node is FG2GraphNode => Boolean(node))
+            .map((node) => [node.x, node.y] as [number, number]);
 
         if (points.length > 0) {
             frontiers.push({
@@ -563,10 +872,17 @@ function executeSeedStage(runtime: FG2StageRuntime, summary: Record<string, unkn
 }
 
 function executeTopologyStage(runtime: FG2StageRuntime, summary: Record<string, unknown>): void {
+    const worldExtensionArtifact = runtime.artifacts.world_extension as FG2WorldBounds | undefined;
     const seedArtifact = runtime.artifacts.seed as { seeds?: FG2SeedPoint[] } | undefined;
     const seeds = seedArtifact?.seeds ?? [];
     const starById = new Map(runtime.input.stars.map((star) => [star.id, star]));
     const pairGroups: Record<string, FG2SeedPoint[]> = {};
+    const bounds: FG2WorldBounds = worldExtensionArtifact ?? {
+        minX: 0,
+        minY: 0,
+        maxX: runtime.input.worldWidth,
+        maxY: runtime.input.worldHeight,
+    };
 
     for (const seed of seeds) {
         if (!pairGroups[seed.ownerPair]) {
@@ -577,11 +893,17 @@ function executeTopologyStage(runtime: FG2StageRuntime, summary: Record<string, 
 
     const pairGraphs: Record<string, FG2PairTopologyGraph> = {};
     let topologyLinkCount = 0;
+    let graphNodeCount = 0;
+    let junctionCount = 0;
+    let boundaryAnchorCount = 0;
 
     for (const [ownerPair, pairSeeds] of Object.entries(pairGroups)) {
-        const pairGraph = buildPairTopologyGraph(ownerPair, pairSeeds, starById);
+        const pairGraph = buildPairTopologyGraph(ownerPair, pairSeeds, starById, bounds);
         pairGraphs[ownerPair] = pairGraph;
         topologyLinkCount += pairGraph.links.length;
+        graphNodeCount += pairGraph.nodes.length;
+        junctionCount += pairGraph.junctionIds.length;
+        boundaryAnchorCount += pairGraph.boundaryAnchorIds.length;
     }
 
     runtime.artifacts.topology = {
@@ -589,10 +911,16 @@ function executeTopologyStage(runtime: FG2StageRuntime, summary: Record<string, 
         pairGraphs,
         pairCount: Object.keys(pairGraphs).length,
         topologyLinkCount,
+        graphNodeCount,
+        junctionCount,
+        boundaryAnchorCount,
     };
 
     summary.ownerPairCount = Object.keys(pairGraphs).length;
     summary.topologyLinkCount = topologyLinkCount;
+    summary.graphNodeCount = graphNodeCount;
+    summary.junctionCount = junctionCount;
+    summary.boundaryAnchorCount = boundaryAnchorCount;
     summary.isolatedSeedCount = Object.values(pairGraphs).reduce(
         (sum, pairGraph) => sum + pairGraph.isolatedSeedIds.length,
         0,
@@ -600,19 +928,16 @@ function executeTopologyStage(runtime: FG2StageRuntime, summary: Record<string, 
 }
 
 function executeGeometryStage(runtime: FG2StageRuntime, summary: Record<string, unknown>): void {
-    const seedArtifact = runtime.artifacts.seed as { seeds?: FG2SeedPoint[] } | undefined;
     const topologyArtifact = runtime.artifacts.topology as
         | {
               pairGraphs?: Record<string, FG2PairTopologyGraph>;
           }
         | undefined;
-    const seeds = seedArtifact?.seeds ?? [];
-    const seedById = new Map(seeds.map((seed) => [seed.seedId, seed]));
     const pairGraphs = topologyArtifact?.pairGraphs ?? {};
     const frontiers: FG2FrontierPolyline[] = [];
 
     for (const pairGraph of Object.values(pairGraphs)) {
-        frontiers.push(...extractFrontiersFromPairGraph(pairGraph, seedById));
+        frontiers.push(...extractFrontiersFromPairGraph(pairGraph));
     }
 
     const closedFrontierCount = frontiers.filter((frontier) => frontier.closed).length;
@@ -694,19 +1019,28 @@ function executeRenderStage(runtime: FG2StageRuntime, summary: Record<string, un
                 runtime.input.colorUtils.getPlayerColor(pairGraph.ownerA),
                 runtime.input.colorUtils.getPlayerColor(pairGraph.ownerB),
             );
+            const nodeById = new Map(pairGraph.nodes.map((node) => [node.nodeId, node]));
             for (const link of pairGraph.links) {
-                const seedA = seeds.find((seed) => seed.seedId === link.seedAId);
-                const seedB = seeds.find((seed) => seed.seedId === link.seedBId);
-                if (!seedA || !seedB) continue;
-                graphics.moveTo(seedA.x, seedA.y);
-                graphics.lineTo(seedB.x, seedB.y);
+                const nodeA = nodeById.get(link.nodeAId);
+                const nodeB = nodeById.get(link.nodeBId);
+                if (!nodeA || !nodeB) continue;
+                graphics.moveTo(nodeA.x, nodeA.y);
+                graphics.lineTo(nodeB.x, nodeB.y);
                 graphics.stroke({
                     color: traceColor,
-                    width: Math.max(1, borderWidth * 0.33),
-                    alpha: borderAlpha * 0.2,
+                    width: Math.max(1, borderWidth * 0.3),
+                    alpha: borderAlpha * 0.18,
                     cap: 'round',
                     join: 'round',
                 });
+            }
+
+            for (const node of pairGraph.nodes) {
+                if (node.nodeType === 'seed') continue;
+                const color = node.nodeType === 'junction' ? 0xffd166 : 0x7bdff2;
+                const radius = node.nodeType === 'junction' ? 1.4 : 2.1;
+                graphics.circle(node.x, node.y, radius);
+                graphics.fill({ color, alpha: 0.9 });
             }
         }
     }

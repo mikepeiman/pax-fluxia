@@ -301,15 +301,21 @@ Territory computation runs through ordered stages:
 ### 16.5. FG2 Seed Genesis (Current)
 - Contested lane seed points are generated from a solved tie parameter along the lane, not a fixed midpoint.
 - Tie solve uses a bootstrap bias model derived from star strength and lane pressure signals.
-- Resulting seed graph is chained into owner-pair frontier polylines for render-stage output.
+- Resulting seeds carry deterministic lane/owner identities plus endpoint-angle metadata.
 
-### 16.6. FG2 Pair-Topology Assembly (Current)
-- Each contested seed belongs to an owner pair and carries deterministic identity plus endpoint-angle metadata.
-- Topology stage groups seeds per owner pair, then per star, and links angular neighbors around a shared star.
-- Geometry stage treats those links as a pair-local frontier graph and extracts edge-disjoint open chains or closed cycles.
-- This is a deterministic scaffold for future half-edge traversal, shared-edge canonicalization, and fill-loop reconstruction.
+### 16.6. FG2 Node-Graph Assembly (Current)
+- Each owner-pair topology graph contains typed nodes: `seed`, `junction`, and `boundary`.
+- Around a star with multiple incident contested seeds, topology sorts seeds by angle and synthesizes star-junction nodes between adjacent seed pairs on the star-margin ring.
+- When a seed side has no paired continuation at a star, that side projects outward to the world rectangle and becomes a boundary-anchor node.
+- Links are typed as `star_arc` or `boundary_extension`, creating a generalized shared-frontier graph instead of seed-only adjacency.
 
-### 16.7. Native Stage Dispatch (Current)
+### 16.7. FG2 Frontier Extraction (Current)
+- Geometry stage walks the node/link graph and emits open or closed frontier polylines.
+- Traversal prefers switching star side when passing through a seed, approximating half-edge continuity across contested lanes.
+- Trace mode exposes seeds, pair-graph links, and synthesized junction/boundary nodes.
+- This remains a scaffold for future full half-edge face walking, world-corner stitching, shared-edge canonicalization, and fill-loop reconstruction.
+
+### 16.8. Native Stage Dispatch (Current)
 - Native territory methods register stage executors through a shared dispatch layer.
 - Engine stage execution first offers each stage to the native dispatcher, then falls back to generic placeholder/legacy-adapter behavior if no native method claims it.
 - Purpose: native method rollout should add registrations, not new engine-specific wiring.

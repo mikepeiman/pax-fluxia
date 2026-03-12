@@ -101,3 +101,6 @@
 - FG2 geometry no longer uses nearest-neighbor ordering; it now builds pair-topology graphs from star incidence and extracts edge-disjoint frontier chains/cycles.
 - Trace mode now exposes both FG2 seeds and local topology links for step-by-step inspection.
 - F-152 now includes a native stage-dispatch layer on branch `codex/territory-engine-epic-native-stage-dispatch`, removing the engine's direct dependency on FG2.
+- F-154 branch `codex/territory-engine-epic-fg2-halfedge-closure` now promotes pair-topology graphs into explicit node/link graphs with `seed`, `junction`, and `boundary` node types.
+- Open frontier ends now extend to world-edge boundary anchors, and geometry extraction walks that generalized graph to emit open or closed frontiers.
+- Trace mode now reveals synthesized junction and boundary nodes, while topology summaries expose graph node, junction, and boundary-anchor counts for step inspection.
