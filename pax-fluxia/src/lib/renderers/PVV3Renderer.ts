@@ -62,8 +62,6 @@ let cachedVisualFingerprint = '';
 let fillGraphics: PIXI.Graphics | null = null;
 let borderGraphics: PIXI.Graphics | null = null;
 
-/** Vertex snapping tolerance (px) for all geometric matching in PVV3. */
-const SNAP_PX = 10;
 
 
 
@@ -407,11 +405,11 @@ function chainSharedEdgesIntoPolylines(edges: SharedBorderEdge[], colorLookup?: 
     }
 
     const result: SharedPolyline[] = [];
-    // Uses module-level SNAP_PX
+    // Matches edgeKey precision (toFixed(2))
 
     for (const [pairKey, pairEdges] of byPair) {
         // Build adjacency by endpoint
-        const ptKey = (x: number, y: number) => `${Math.round(x / SNAP_PX) * SNAP_PX},${Math.round(y / SNAP_PX) * SNAP_PX}`;
+        const ptKey = (x: number, y: number) => `${+x.toFixed(2)},${+y.toFixed(2)}`;
         const adj = new Map<string, { x: number; y: number; next: string }[]>();
         const used = new Array(pairEdges.length).fill(false);
 
@@ -514,8 +512,8 @@ function substituteSmoothedEdges(
     rawPolylines: SharedPolyline[],
     smoothedPolylines: SharedPolyline[]
 ): void {
-    // Uses module-level SNAP_PX
-    const ptKey = (x: number, y: number) => `${Math.round(x / SNAP_PX) * SNAP_PX},${Math.round(y / SNAP_PX) * SNAP_PX}`;
+    // Matches edgeKey precision (toFixed(2))
+    const ptKey = (x: number, y: number) => `${+x.toFixed(2)},${+y.toFixed(2)}`;
 
     // Build mappings: raw polyline vertex keys ? smoothed polyline points
     interface PolylineMapping {
@@ -597,7 +595,7 @@ function substituteSmoothedEdges(
             }
 
             if (!matched) {
-                // World-boundary vertex or unmatched � keep as-is
+                // World-boundary vertex or unmatched � keep as-is
                 result.push(pts[i]);
                 i++;
             }
@@ -681,9 +679,9 @@ function assembleFrontierLoops(
     polylines: SharedPolyline[],
     mapBounds?: { xMin: number; yMin: number; xMax: number; yMax: number },
 ): Map<string, FrontierLoop[]> {
-    // Uses module-level SNAP_PX
+    // Matches edgeKey precision (toFixed(2))
     const ptKey = (x: number, y: number) =>
-        `${Math.round(x / SNAP_PX) * SNAP_PX},${Math.round(y / SNAP_PX) * SNAP_PX}`;
+        `${+x.toFixed(2)},${+y.toFixed(2)}`;
 
     // Accumulate all diagnostic lines into one string
     const diag: string[] = [];
@@ -1455,7 +1453,7 @@ export function renderPVV3(
     log.renderer('PVV3', `REBUILD | shapeChanged=${shapeChanged} visualChanged=${visualChanged} | t+${(performance.now() - now).toFixed(1)}ms`);
 
     // ── Shape changed: snapshot for transition animation ─────────────────
-    // Transition snapshots disabled � no per-frame morph to feed
+    // Transition snapshots disabled � no per-frame morph to feed
 
     cachedShapeFingerprint = shapeFp;
     cachedVisualFingerprint = visualFp;
@@ -1685,7 +1683,7 @@ export function renderPVV3(
             const rp = rawPolylines[pi];
             const sp = smoothedPolylines[pi];
             log.renderer(`PVV3`, `  Polyline[${pi}] ${rp.ownerPairKey}: raw=${rp.points.length}pts smooth=${sp.points.length}pts`);
-            log.renderer(`PVV3`, `    raw start=(${rp.points[0][0].toFixed(0)},${rp.points[0][1].toFixed(0)}) end=(${rp.points[rp.points.length-1][0].toFixed(0)},${rp.points[rp.points.length-1][1].toFixed(0)})`);
+            log.renderer(`PVV3`, `    raw start=(${rp.points[0][0].toFixed(0)},${rp.points[0][1].toFixed(0)}) end=(${rp.points[rp.points.length - 1][0].toFixed(0)},${rp.points[rp.points.length - 1][1].toFixed(0)})`);
         }
         log.renderer(`PVV3`, `Stage 3b: substituted ${rawPolylines.length} shared polylines, smooth=${smoothPasses}`);
         // DIAGNOSTIC: per-territory vertex counts after substitution
@@ -1722,7 +1720,7 @@ export function renderPVV3(
         }
     }
     lastMergedTerritories = merged;
-    
+
     // Build polylines for morph transition (reuse from render block if available)
     {
         const smoothN = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
@@ -1735,7 +1733,7 @@ export function renderPVV3(
             const key = a < b ? `${a}|${b}` : `${b}|${a}`;
             return cMap.get(key) ?? 0x888888;
         }, smoothN);
-    
+
         // Build frontier loops from smoothed merged territory polygons
         targetFrontierLoops = new Map<string, FrontierLoop[]>();
         for (const territory of merged) {
@@ -1744,7 +1742,7 @@ export function renderPVV3(
             targetFrontierLoops.set(territory.ownerId, loops);
         }
     }
-    
+
     // Start transition based on mode
     if (shapeChanged && transitionMs > 0) {
         // Smooth mode
@@ -1753,7 +1751,7 @@ export function renderPVV3(
             isSmoothTransitioning = true;
             log.renderer('PVV3', `TRANSITION STARTED | prev=${prevSharedPolylines.length} target=${targetSharedPolylines?.length ?? 0} | transitionMs=${transitionMs}`);
         }
-    
+
         // Frontier loop morph (arc-length mode)
         if (prevFrontierLoops && prevFrontierLoops.size > 0) {
             frontierTransitionStart = now;
@@ -1766,7 +1764,7 @@ export function renderPVV3(
 
     // Snapshot targets for next rebuild's transition source
     prevSharedPolylines = targetSharedPolylines;
-    prevFrontierLoops = targetFrontierLoops;    
+    prevFrontierLoops = targetFrontierLoops;
 }
 
 // ── Cache Reset ────────────────────────────────────────────────────────────
