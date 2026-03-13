@@ -19,6 +19,7 @@ import {
     TERRITORY_PIPELINE_STAGE_ORDER,
     TERRITORY_STATIC_METHOD_BY_ID,
 } from './registry';
+import { territoryTraceRun } from './traceStore';
 import type {
     TerritoryDynamicMethodId,
     TerritoryEngineInput,
@@ -52,6 +53,15 @@ let lastTraceRun: TerritoryTraceRun | null = null;
 let lastLoggedSelectionKey: string | null = null;
 let interactiveRunState: InteractiveRunState | null = null;
 const adapterFallbackLogged = new Set<string>();
+
+function setLastTerritoryTraceRun(run: TerritoryTraceRun | null): void {
+    lastTraceRun = run;
+    if (run) {
+        territoryTraceRun.set(run);
+        return;
+    }
+    territoryTraceRun.clear();
+}
 
 function resolveEngineMode(rawValue: unknown): TerritoryEngineMode {
     if (rawValue === 'static' || rawValue === 'dynamic' || rawValue === 'hybrid') {
@@ -431,6 +441,7 @@ function buildTraceRun(
         totalDurationMs: Date.now() - startedWallMs,
         selection,
         steps,
+        artifacts,
         meta: {
             stars: input.stars.length,
             connections: input.connections?.length ?? 0,
@@ -468,14 +479,16 @@ function runFullPipeline(
         return;
     }
 
-    lastTraceRun = buildTraceRun(
-        runId,
-        startedAtMs,
-        startedWallMs,
-        selection,
-        steps,
-        artifacts,
-        input,
+    setLastTerritoryTraceRun(
+        buildTraceRun(
+            runId,
+            startedAtMs,
+            startedWallMs,
+            selection,
+            steps,
+            artifacts,
+            input,
+        ),
     );
 }
 
@@ -502,14 +515,16 @@ function publishInteractiveTrace(
     selection: TerritoryMethodSelection,
     run: InteractiveRunState,
 ): void {
-    lastTraceRun = buildTraceRun(
-        run.runId,
-        run.startedAtMs,
-        run.startedWallMs,
-        selection,
-        run.steps,
-        run.artifacts,
-        input,
+    setLastTerritoryTraceRun(
+        buildTraceRun(
+            run.runId,
+            run.startedAtMs,
+            run.startedWallMs,
+            selection,
+            run.steps,
+            run.artifacts,
+            input,
+        ),
     );
 }
 
@@ -521,7 +536,7 @@ export function resetTerritoryEngineCaches(): void {
     resetPowerVoronoiCache();
     resetPVV3Cache();
     resetDistanceFieldTerritoryCache();
-    lastTraceRun = null;
+    setLastTerritoryTraceRun(null);
     lastLoggedSelectionKey = null;
     interactiveRunState = null;
 }

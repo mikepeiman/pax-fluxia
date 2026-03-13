@@ -95,6 +95,7 @@ export interface TerritoryTraceRun {
     totalDurationMs: number;
     selection: TerritoryMethodSelection;
     steps: TerritoryStageTraceStep[];
+    artifacts: TerritoryPipelineArtifacts;
     meta: Record<string, unknown>;
 }
 

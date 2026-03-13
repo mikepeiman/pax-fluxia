@@ -3,6 +3,7 @@ export {
     resetTerritoryEngineCaches,
     getLastTerritoryTraceRun,
 } from './engine';
+export { territoryTraceRun } from './traceStore';
 
 export {
     TERRITORY_STATIC_METHODS,

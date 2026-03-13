@@ -210,3 +210,27 @@
 ### D-49: FG2 Open Frontier Ends Project to the World Rectangle
 - **Decision**: When a contested seed has no second continuation on a star side, FG2 extends that side by ray projection to the world rectangle and creates a boundary anchor node.
 - **Rationale**: Frontier chains must terminate on canonical map edges rather than arbitrary local cutoffs. This is the first step toward world-corner stitching and closed region recovery.
+
+### D-50: FG2 Boundary Anchors Stitch Along the World Perimeter
+- **Decision**: FG2 now orders owner-pair boundary anchors along the world rectangle, pairs them into perimeter paths, and connects them through explicit corner nodes plus `boundary_perimeter` links.
+- **Rationale**: Half-edge face walking and eventual canonical fills need frontier continuity on the actual map boundary, not isolated edge anchors that die at the rectangle.
+
+### D-51: FG2 Loop Stage Must Explicitly Mark Exterior vs Canonical Face Candidates
+- **Decision**: FG2 half-edge loop artifacts now classify closed left-face walks into one deterministic exterior-face candidate and the remaining canonical-face candidates per owner pair.
+- **Rationale**: Canonical fill reconstruction cannot start from raw closed walks alone. The pipeline needs an explicit diagnostic partition between the rectangle exterior and plausible interior frontier faces before ownership reconstruction can be made reliable.
+
+### D-52: FG2 Canonical Loops Must Be Owner-Attributed Before Fill Reconstruction
+- **Decision**: FG2 now converts canonical owner-pair face walks into owner-attributed `ownerRegionLoops` using link-level `viaOwner` provenance from `star_arc` and `boundary_extension` edges. Tied attributions remain diagnostic-only and are not promoted.
+- **Rationale**: Pairwise frontier faces are not yet usable as territory candidates. Fill reconstruction and meaningful trace visuals require player-colored region pieces, but that ownership signal should remain modular and derived from link provenance rather than hard-coded into geometry extraction.
+
+### D-53: Territory Trace Runs Must Be Published to UI-Readable State
+- **Decision**: The last territory-engine trace run is published through a live store and exposed in the territory controls UI, including full artifact snapshots.
+- **Rationale**: Step-debugging only matters if the user can inspect staged data without relying on console spelunking.
+
+### D-54: FG2 Star-Side Junctions Must Use Global Angular Incidence
+- **Decision**: FG2 now synthesizes star-side junctions from the globally ordered contested seeds around each star, then lets owner-pair graphs reuse those shared junction nodes.
+- **Rationale**: Pair-local junction synthesis creates fake local closures and prevents different owner-pairs from meeting at the same real frontier junction.
+
+### D-55: FG2 Owner Region Candidates Prefer Global Face Resolution Over Pair-Local Loops
+- **Decision**: When available, `ownerRegionLoops` are now sourced from a global face walk over the merged FG2 topology graph; pair-local owner loops remain fallback diagnostics.
+- **Rationale**: Pairwise canonical loops are useful scaffolding, but they cannot serve as the final ground truth once frontier continuity begins to span multiple owner-pairs at shared junctions.

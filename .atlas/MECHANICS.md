@@ -258,64 +258,17 @@ Stars are placed on a hex grid and connected via Delaunay triangulation.
 |----------|---------|-------------|
 | `STARS_PER_PLAYER` | 5 | Stars each player starts with |
 | `MIN_LINKS_PER_STAR` | 1 | Minimum connections per star |
-| `MAX_LINKS_PER_STAR` | 6 | Maximum connections per star |
-| `STARTING_SHIPS` | 40 | Ships per star at game start |
 
 ---
 
-## 13. Victory
+## 25. Territory Engine Diagnostic Geometry (2026-03-12)
 
-The last player with at least one star wins. A player is eliminated when they lose all stars.
+These notes describe current FG2 diagnostic semantics for frontier geometry development.
 
----
-
-## 16. Territory Rendering Mechanics (Visual System)
-
-> This section defines visual-territory computation behavior. It does not change core combat/production game mechanics.
-
-### 16.1. Canonical Frontier Truth
-- Territory borders and territory fills must derive from the same frontier geometry source.
-- Any transition is geometric (frontier movement / topology update), not alpha-only substitution.
-
-### 16.2. Territory Engine Modes
-- `static`: builds canonical frontier from full snapshot.
-- `dynamic`: updates frontiers incrementally from deltas.
-- `hybrid`: combines static baseline with dynamic refinement.
-
-### 16.3. Stage Pipeline
-Territory computation runs through ordered stages:
-1. `metric`
-2. `world_extension`
-3. `seed`
-4. `topology`
-5. `geometry`
-6. `loop`
-7. `animation`
-8. `render`
-
-### 16.4. Interactive Step Diagnostics
-- When step mode is enabled, pipeline execution advances one stage per token increment.
-- Each stage emits trace metadata (stage id, duration, summary payload).
-- Purpose: deterministic inspection of data flow and frontier artifacts.
-
-### 16.5. FG2 Seed Genesis (Current)
-- Contested lane seed points are generated from a solved tie parameter along the lane, not a fixed midpoint.
-- Tie solve uses a bootstrap bias model derived from star strength and lane pressure signals.
-- Resulting seeds carry deterministic lane/owner identities plus endpoint-angle metadata.
-
-### 16.6. FG2 Node-Graph Assembly (Current)
-- Each owner-pair topology graph contains typed nodes: `seed`, `junction`, and `boundary`.
-- Around a star with multiple incident contested seeds, topology sorts seeds by angle and synthesizes star-junction nodes between adjacent seed pairs on the star-margin ring.
-- When a seed side has no paired continuation at a star, that side projects outward to the world rectangle and becomes a boundary-anchor node.
-- Links are typed as `star_arc` or `boundary_extension`, creating a generalized shared-frontier graph instead of seed-only adjacency.
-
-### 16.7. FG2 Frontier Extraction (Current)
-- Geometry stage walks the node/link graph and emits open or closed frontier polylines.
-- Traversal prefers switching star side when passing through a seed, approximating half-edge continuity across contested lanes.
-- Trace mode exposes seeds, pair-graph links, and synthesized junction/boundary nodes.
-- This remains a scaffold for future full half-edge face walking, world-corner stitching, shared-edge canonicalization, and fill-loop reconstruction.
-
-### 16.8. Native Stage Dispatch (Current)
-- Native territory methods register stage executors through a shared dispatch layer.
-- Engine stage execution first offers each stage to the native dispatcher, then falls back to generic placeholder/legacy-adapter behavior if no native method claims it.
-- Purpose: native method rollout should add registrations, not new engine-specific wiring.
+- `regionLoops` are owner-pair loop artifacts extracted from half-edge face walking. They remain pairwise diagnostic surfaces, including the current exterior-face candidate.
+- `ownerRegionLoops` are promoted only from canonical pairwise loops that have a strict owner attribution from link provenance (`viaOwner` on `star_arc` and `boundary_extension` edges).
+- Tied owner attribution is intentionally kept out of owner-region promotion. Ambiguous loops remain diagnostic-only until a stronger ownership classifier exists.
+- In trace mode, owner-region loops should be interpreted as the first candidate territory pieces presently available from FG2, while pairwise region loops remain scaffolding for debugging frontier topology and exterior/canonical partitioning.
+- FG2 star-side junctions now come from the global angular order of all contested seeds incident to a star, not from owner-pair-local incidence only. Different owner-pairs can therefore terminate at the same synthesized junction.
+- FG2 only projects a frontier side to the world boundary when the corresponding star truly has `<= 1` global contested seed on that side.
+- `ownerRegionLoops` now prefers globally resolved owner-region candidates from a merged face walk when available; pair-local owner-region loops remain the fallback diagnostic set.
