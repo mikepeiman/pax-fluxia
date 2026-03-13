@@ -62,6 +62,9 @@ let cachedVisualFingerprint = '';
 let fillGraphics: PIXI.Graphics | null = null;
 let borderGraphics: PIXI.Graphics | null = null;
 
+/** Vertex snapping tolerance (px) for all geometric matching in PVV3. */
+const SNAP_PX = 10;
+
 
 
 // ── Smooth Transition State (Contested Border Mode) ─────────────────────────
@@ -404,11 +407,11 @@ function chainSharedEdgesIntoPolylines(edges: SharedBorderEdge[], colorLookup?: 
     }
 
     const result: SharedPolyline[] = [];
-    const SNAP = 3;  // endpoint snapping tolerance (pixels)
+    // Uses module-level SNAP_PX
 
     for (const [pairKey, pairEdges] of byPair) {
         // Build adjacency by endpoint
-        const ptKey = (x: number, y: number) => `${Math.round(x / SNAP) * SNAP},${Math.round(y / SNAP) * SNAP}`;
+        const ptKey = (x: number, y: number) => `${Math.round(x / SNAP_PX) * SNAP_PX},${Math.round(y / SNAP_PX) * SNAP_PX}`;
         const adj = new Map<string, { x: number; y: number; next: string }[]>();
         const used = new Array(pairEdges.length).fill(false);
 
@@ -511,8 +514,8 @@ function substituteSmoothedEdges(
     rawPolylines: SharedPolyline[],
     smoothedPolylines: SharedPolyline[]
 ): void {
-    const SNAP = 10;  // fuzzy match tolerance (wider to catch snapping discrepancies)
-    const ptKey = (x: number, y: number) => `${Math.round(x / SNAP) * SNAP},${Math.round(y / SNAP) * SNAP}`;
+    // Uses module-level SNAP_PX
+    const ptKey = (x: number, y: number) => `${Math.round(x / SNAP_PX) * SNAP_PX},${Math.round(y / SNAP_PX) * SNAP_PX}`;
 
     // Build mappings: raw polyline vertex keys ? smoothed polyline points
     interface PolylineMapping {
@@ -678,9 +681,9 @@ function assembleFrontierLoops(
     polylines: SharedPolyline[],
     mapBounds?: { xMin: number; yMin: number; xMax: number; yMax: number },
 ): Map<string, FrontierLoop[]> {
-    const SNAP = 4;  // junction snapping tolerance (px)
+    // Uses module-level SNAP_PX
     const ptKey = (x: number, y: number) =>
-        `${Math.round(x / SNAP) * SNAP},${Math.round(y / SNAP) * SNAP}`;
+        `${Math.round(x / SNAP_PX) * SNAP_PX},${Math.round(y / SNAP_PX) * SNAP_PX}`;
 
     // Accumulate all diagnostic lines into one string
     const diag: string[] = [];
