@@ -92,7 +92,7 @@
 | F-152 | Modular Territory Engine runtime with interchangeable static/dynamic/hybrid method registries and stage pipeline contracts. | ?? In Progress | Critical | 2026-03-12 |
 | F-153 | Interactive territory computation step mode (stage-by-stage execution + trace payloads + manual advance token). | ?? In Progress | High | 2026-03-12 |
 | F-154 | FG1-FG5 frontier geometry implementation program with shared canonical frontier truth for border/fill coincidence. | ?? In Progress | Critical | 2026-03-12 |
-| F-155 | HY1-HY5 dynamic territory program for local delta updates, temporal coherence, and geometry-only transitions. | ?? Planned | Critical | 2026-03-12 |
+| F-155 | HY1-HY5 dynamic territory program for local delta updates, temporal coherence, and geometry-only transitions. | ?? In Progress | Critical | 2026-03-12 |
 | F-156 | Territory method benchmarking harness with map-stress suite and mode-switch comparison reporting. | ?? Planned | High | 2026-03-12 |
 
 ### Progress Notes - 2026-03-12 (FG2 Epic)
@@ -104,3 +104,18 @@
 - F-154 branch `codex/territory-engine-epic-fg2-halfedge-closure` now promotes pair-topology graphs into explicit node/link graphs with `seed`, `junction`, and `boundary` node types.
 - Open frontier ends now extend to world-edge boundary anchors, and geometry extraction walks that generalized graph to emit open or closed frontiers.
 - Trace mode now reveals synthesized junction and boundary nodes, while topology summaries expose graph node, junction, and boundary-anchor counts for step inspection.
+
+- F-154 in `PRISM-territory-work` now derives `ownerShells` from owner-exposed edges of the globally resolved FG2 arrangement and uses those shells as the native fill artifact.
+- Loop diagnostics now include owner shell counts, hole counts, open shell-loop counts, and owner-shell graph counts for trace/debug review.
+- The FG2 native renderer now paints shell-oriented owner fills before frontier strokes, creating a more meaningful demo checkpoint than raw owner-region candidate loops alone.
+- F-155 has now started in `PRISM-territory-work` through owner-shell correspondence, contour-based shell playback interpolation, and animated shell-frame publication.
+- Animation diagnostics now expose `displayedOwnerShells`, `displayedOwnerShellFrame`, transition progress, transition counts, and contour-distance metrics for trace/debug review.
+- During active shell playback, displayed border presentation now uses animated shell contours instead of static target frontier polylines, reducing border/fill desynchronization during morphs.
+- FG2 now keeps owner-shell contours as the displayed border source even after playback settles, so static borders and static fills stay on the same geometry family whenever shell data exists.
+- Static FG2 owner-shell fills now subtract classified hole loops via Pixi `cut()`, which is the first real enclave-preserving fill behavior in the shell renderer.
+- Owner-shell frame snapshots and transitions now carry explicit hole-loop geometry, and shell fingerprints now react to hole-only changes instead of only shell outer-contour changes.
+- Displayed interpolated shells now publish usable hole cutouts with previous/current fallback during playback; true hole-to-hole interpolation remains pending.
+- F-155 now uses global non-conflicting shell correspondence per owner instead of greedy current-shell matching, reducing shell identity flicker during split, merge, and other topology-shift transitions.
+- Hole playback inside a shell transition now also uses global non-conflicting correspondence, and diagnostics expose `ownerShellHoleTransitionCount` plus persisted, spawned, vanished, and contour-sample counts.
+- Animated shell artifacts now sanitize interpolated hole loops against the displayed shell polygon, suppressing invalid negative cutout geometry before render use.
+- Verification remains green at the worktree slice level: `bun run check` succeeded with `0 errors` and baseline warnings only, and `bun run build` succeeded.

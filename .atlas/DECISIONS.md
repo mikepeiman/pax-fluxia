@@ -165,7 +165,7 @@
 - **Key terms**:
   - **Frontier normalization**: Ensuring that where two regions share a border, both sides reference identical vertex coordinates
   - **Region-sequential smoothing**: Process regions in deterministic order; later regions adopt the already-smoothed edge from earlier neighbors
-- **Status**: Planned. Requires rewrite of `assembleFrontierLoops` pipeline. Current polyline-chaining approach is a scaffold.
+- **Status**: Planned. Requires rewrite of `assembleFrontierLoops` pipeline.
 
 ## [2026-03-10] PVV3 Territory Smoothing Architecture
 - World bounding box required: all outer frontiers must connect to map-edge rectangle
@@ -211,8 +211,8 @@
 - **Decision**: When a contested seed has no second continuation on a star side, FG2 extends that side by ray projection to the world rectangle and creates a boundary anchor node.
 - **Rationale**: Frontier chains must terminate on canonical map edges rather than arbitrary local cutoffs. This is the first step toward world-corner stitching and closed region recovery.
 
+<<<<<<< HEAD
 ## 2026-03-13
-
 ### D-50: Architecture-Level Debugging Heuristic
 - **Rule**: If fixing the same class of bug requires patching 3+ different functions in the same pipeline, the architecture is wrong — not the code. Stop debugging and redesign the data flow.
 - **Anti-pattern name**: "Compensating for wrong architecture with correct debugging"
@@ -222,3 +222,61 @@
 ### D-51: FG2 Is Part of PVV3, Not Separate
 - **Decision**: FG2 (frontier graph method 2) is PVV3's internal frontier-construction pipeline. It is NOT a separate system. Agents must not treat these as independent components in tension.
 - **Rationale**: The naming "FG2 vs PVV3" created a false dichotomy that led to thinking about them as competing systems rather than producer (FG2 constructs geometry) and consumer (PVV3 renders it) within one unified renderer.
+
+### D-52: FG2 Boundary Anchors Stitch Along the World Perimeter
+- **Decision**: FG2 now orders owner-pair boundary anchors along the world rectangle, pairs them into perimeter paths, and connects them through explicit corner nodes plus `boundary_perimeter` links.
+- **Rationale**: Half-edge face walking and eventual canonical fills need frontier continuity on the actual map boundary, not isolated edge anchors that die at the rectangle.
+
+### D-53: FG2 Loop Stage Must Explicitly Mark Exterior vs Canonical Face Candidates
+- **Decision**: FG2 half-edge loop artifacts now classify closed left-face walks into one deterministic exterior-face candidate and the remaining canonical-face candidates per owner pair.
+- **Rationale**: Canonical fill reconstruction cannot start from raw closed walks alone. The pipeline needs an explicit diagnostic partition between the rectangle exterior and plausible interior frontier faces before ownership reconstruction can be made reliable.
+
+### D-54: FG2 Canonical Loops Must Be Owner-Attributed Before Fill Reconstruction
+- **Decision**: FG2 now converts canonical owner-pair face walks into owner-attributed `ownerRegionLoops` using link-level `viaOwner` provenance from `star_arc` and `boundary_extension` edges. Tied attributions remain diagnostic-only and are not promoted.
+- **Rationale**: Pairwise frontier faces are not yet usable as territory candidates. Fill reconstruction and meaningful trace visuals require player-colored region pieces, but that ownership signal should remain modular and derived from link provenance rather than hard-coded into geometry extraction.
+
+### D-55: Territory Trace Runs Must Be Published to UI-Readable State
+- **Decision**: The last territory-engine trace run is published through a live store and exposed in the territory controls UI, including full artifact snapshots.
+- **Rationale**: Step-debugging only matters if the user can inspect staged data without relying on console spelunking.
+
+### D-56: FG2 Star-Side Junctions Must Use Global Angular Incidence
+- **Decision**: FG2 now synthesizes star-side junctions from the globally ordered contested seeds around each star, then lets owner-pair graphs reuse those shared junction nodes.
+- **Rationale**: Pair-local junction synthesis creates fake local closures and prevents different owner-pairs from meeting at the same real frontier junction.
+
+### D-57: FG2 Owner Region Candidates Prefer Global Face Resolution Over Pair-Local Loops
+- **Decision**: When available, `ownerRegionLoops` are now sourced from a global face walk over the merged FG2 topology graph; pair-local owner loops remain fallback diagnostics.
+- **Rationale**: Pairwise canonical loops are useful scaffolding, but they cannot serve as the final ground truth once frontier continuity begins to span multiple owner-pairs at shared junctions.
+
+### D-58: FG2 Fill Geometry Must Be Synthesized From Owner-Exposed Edges of the Global Arrangement
+- **Decision**: FG2 now derives `ownerShells` by projecting the globally resolved face ownership onto the merged half-edge arrangement and keeping only owner-exposed links; shell loops are then classified by containment into shells vs holes.
+- **Rationale**: Raw owner-region face candidates are not yet owner-level fill geometry. The owner shell graph removes same-owner internal shared edges and produces a materially better canonical fill artifact for later morphing and border/fill coincidence.
+
+### D-59: FG2 Dynamic Playback Starts From Owner-Shell Correspondence
+- **Decision**: FG2 shell transitions now match previous/current owner shells using centroid, area, perimeter, hole-count, and world-boundary heuristics, then build explicit contour correspondences. Spawn and vanish events use centroid-collapsed contour fallbacks.
+- **Rationale**: Dynamic territory playback needs a modular geometry bridge between discrete owner-shell states before full frontier-native morphing is ready.
+
+### D-60: Displayed Borders Must Follow Animated Geometry During Territory Morphs
+- **Decision**: While FG2 shell playback is active, render-stage border presentation switches from static target `frontiers` to animated shell contours.
+- **Rationale**: Showing target frontier strokes before the displayed fill arrives recreates the exact border/fill desynchronization this program is meant to eliminate. The displayed border source must stay temporally aligned with the displayed fill geometry.
+
+### D-61: FG2 Static Borders Must Reuse Owner-Shell Geometry When Available
+- **Decision**: FG2 render-stage border presentation now uses owner-shell contours whenever owner-shell geometry exists, regardless of whether shell playback is currently active. Pair-frontier polylines are fallback-only.
+- **Rationale**: Border/fill coincidence is required in settled states too, not only during active transitions. If static fills come from owner shells while borders fall back to pair frontiers, the engine reintroduces the exact adjacency mismatch it is supposed to eliminate.
+
+### D-62: FG2 Static Owner-Shell Fills Must Subtract Classified Hole Loops
+- **Decision**: Static FG2 owner-shell fills now cut their classified `holeLoopIds` out of the filled shell path during render.
+- **Rationale**: Hole classification is not meaningful if enclaves are still painted over. Fill-ready shell geometry must preserve empty interior regions as actual negative space.
+
+### D-63: FG2 Shell Playback Must Carry Hole Geometry, Not Only Hole Counts
+- **Decision**: FG2 owner-shell frame snapshots, transition artifacts, and displayed interpolated shells now carry explicit hole-loop geometry in addition to aggregate hole counts.
+- **Rationale**: Hole-only topology changes must be able to trigger playback and preserve visible cutouts during morphs. Hole counts alone are insufficient for either change detection or renderable animated cutouts.
+
+## 2026-03-13
+
+### D-64: FG2 Shell and Hole Playback Must Use Global Non-Conflicting Correspondence
+- **Decision**: FG2 shell transitions now select shell matches globally per owner from all previous/current candidates, and hole transitions now select hole matches globally within each shell transition. Candidate selection is one-to-one and score-ordered rather than greedy by current item iteration.
+- **Rationale**: Greedy local matching reuses previous shapes incorrectly, causes shell identity flicker, and pairs the wrong enclaves during split, merge, or strong topology-shift frames.
+
+### D-65: Animated Hole Geometry Must Be Sanitized Against the Displayed Shell
+- **Decision**: Interpolated hole loops are now filtered against the displayed shell polygon before render use, and degenerate or clearly out-of-shell hole loops are dropped.
+- **Rationale**: Negative geometry that escapes the shell or collapses numerically creates invalid cutouts and visible playback artifacts. The displayed hole set must remain a subset of the displayed shell geometry.
