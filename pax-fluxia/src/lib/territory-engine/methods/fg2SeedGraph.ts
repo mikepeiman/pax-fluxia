@@ -68,6 +68,34 @@ interface FG2PairTopologyGraph {
     junctionIds: string[];
 }
 
+interface FG2HalfEdge {
+    halfEdgeId: string;
+    ownerPair: string;
+    linkId: string;
+    fromNodeId: string;
+    toNodeId: string;
+    twinHalfEdgeId: string;
+    angle: number;
+    leftNextHalfEdgeId: string | null;
+    rightNextHalfEdgeId: string | null;
+}
+
+interface FG2FaceWalk {
+    ownerPair: string;
+    closed: boolean;
+    halfEdgeIds: string[];
+    nodeIds: string[];
+    area: number;
+}
+
+interface FG2PairHalfEdgeGraph {
+    ownerPair: string;
+    halfEdges: FG2HalfEdge[];
+    leftFaceWalks: FG2FaceWalk[];
+    closedLeftFaceCount: number;
+    openLeftWalkCount: number;
+}
+
 interface FG2FrontierPolyline {
     ownerPair: string;
     ownerA: string;
@@ -76,6 +104,12 @@ interface FG2FrontierPolyline {
     points: [number, number][];
 }
 
+interface FG2BoundaryAnchorResult {
+    x: number;
+    y: number;
+    boundarySide: FG2BoundarySide;
+    distance: number;
+}
 interface FG2BoundaryAnchorResult {
     x: number;
     y: number;
@@ -796,6 +830,166 @@ function extractFrontiersFromPairGraph(graph: FG2PairTopologyGraph): FG2Frontier
     return frontiers;
 }
 
+function computeSignedArea(points: [number, number][]): number {
+    if (points.length < 3) return 0;
+
+    let area = 0;
+    for (let i = 0; i < points.length; i += 1) {
+        const current = points[i];
+        const next = points[(i + 1) % points.length];
+        area += current[0] * next[1] - next[0] * current[1];
+    }
+
+    return area * 0.5;
+}
+
+function buildPairHalfEdgeGraph(graph: FG2PairTopologyGraph): FG2PairHalfEdgeGraph {
+    const nodeById = new Map(graph.nodes.map((node) => [node.nodeId, node]));
+    const halfEdges: FG2HalfEdge[] = [];
+    const halfEdgeById = new Map<string, FG2HalfEdge>();
+    const outgoingByNodeId: Record<string, string[]> = {};
+
+    function registerHalfEdge(halfEdge: FG2HalfEdge): void {
+        halfEdges.push(halfEdge);
+        halfEdgeById.set(halfEdge.halfEdgeId, halfEdge);
+        if (!outgoingByNodeId[halfEdge.fromNodeId]) {
+            outgoingByNodeId[halfEdge.fromNodeId] = [];
+        }
+        outgoingByNodeId[halfEdge.fromNodeId].push(halfEdge.halfEdgeId);
+    }
+
+    for (const link of graph.links) {
+        const nodeA = nodeById.get(link.nodeAId);
+        const nodeB = nodeById.get(link.nodeBId);
+        if (!nodeA || !nodeB) continue;
+
+        const forwardHalfEdgeId = `${link.linkId}|forward`;
+        const reverseHalfEdgeId = `${link.linkId}|reverse`;
+        registerHalfEdge({
+            halfEdgeId: forwardHalfEdgeId,
+            ownerPair: graph.ownerPair,
+            linkId: link.linkId,
+            fromNodeId: link.nodeAId,
+            toNodeId: link.nodeBId,
+            twinHalfEdgeId: reverseHalfEdgeId,
+            angle: normalizeAngle(Math.atan2(nodeB.y - nodeA.y, nodeB.x - nodeA.x)),
+            leftNextHalfEdgeId: null,
+            rightNextHalfEdgeId: null,
+        });
+        registerHalfEdge({
+            halfEdgeId: reverseHalfEdgeId,
+            ownerPair: graph.ownerPair,
+            linkId: link.linkId,
+            fromNodeId: link.nodeBId,
+            toNodeId: link.nodeAId,
+            twinHalfEdgeId: forwardHalfEdgeId,
+            angle: normalizeAngle(Math.atan2(nodeA.y - nodeB.y, nodeA.x - nodeB.x)),
+            leftNextHalfEdgeId: null,
+            rightNextHalfEdgeId: null,
+        });
+    }
+
+    for (const halfEdgeIds of Object.values(outgoingByNodeId)) {
+        halfEdgeIds.sort((halfEdgeAId, halfEdgeBId) => {
+            const halfEdgeA = halfEdgeById.get(halfEdgeAId);
+            const halfEdgeB = halfEdgeById.get(halfEdgeBId);
+            if (!halfEdgeA || !halfEdgeB) {
+                return halfEdgeAId.localeCompare(halfEdgeBId);
+            }
+            if (Math.abs(halfEdgeA.angle - halfEdgeB.angle) > 1e-6) {
+                return halfEdgeA.angle - halfEdgeB.angle;
+            }
+            return halfEdgeAId.localeCompare(halfEdgeBId);
+        });
+    }
+
+    for (const halfEdge of halfEdges) {
+        const outgoingAtDestination = outgoingByNodeId[halfEdge.toNodeId] ?? [];
+        if (outgoingAtDestination.length <= 1) continue;
+        const twinIndex = outgoingAtDestination.indexOf(halfEdge.twinHalfEdgeId);
+        if (twinIndex === -1) continue;
+
+        halfEdge.leftNextHalfEdgeId =
+            outgoingAtDestination[
+                (twinIndex - 1 + outgoingAtDestination.length) % outgoingAtDestination.length
+            ] ?? null;
+        halfEdge.rightNextHalfEdgeId =
+            outgoingAtDestination[(twinIndex + 1) % outgoingAtDestination.length] ?? null;
+    }
+
+    const leftFaceWalks: FG2FaceWalk[] = [];
+    const visitedLeftHalfEdgeIds = new Set<string>();
+    const orderedHalfEdgeIds = halfEdges
+        .map((halfEdge) => halfEdge.halfEdgeId)
+        .sort((a, b) => a.localeCompare(b));
+
+    for (const startHalfEdgeId of orderedHalfEdgeIds) {
+        if (visitedLeftHalfEdgeIds.has(startHalfEdgeId)) continue;
+
+        const walkHalfEdgeIds: string[] = [];
+        const walkNodeIds: string[] = [];
+        const seenIndices = new Map<string, number>();
+        let currentHalfEdgeId: string | null = startHalfEdgeId;
+        let closed = false;
+        let terminatedAtNodeId: string | null = null;
+
+        while (currentHalfEdgeId) {
+            if (seenIndices.has(currentHalfEdgeId)) {
+                closed = currentHalfEdgeId === startHalfEdgeId;
+                break;
+            }
+            seenIndices.set(currentHalfEdgeId, walkHalfEdgeIds.length);
+
+            const halfEdge = halfEdgeById.get(currentHalfEdgeId);
+            if (!halfEdge) break;
+
+            walkHalfEdgeIds.push(currentHalfEdgeId);
+            walkNodeIds.push(halfEdge.fromNodeId);
+            visitedLeftHalfEdgeIds.add(currentHalfEdgeId);
+
+            if (!halfEdge.leftNextHalfEdgeId) {
+                terminatedAtNodeId = halfEdge.toNodeId;
+                break;
+            }
+
+            currentHalfEdgeId = halfEdge.leftNextHalfEdgeId;
+            if (currentHalfEdgeId === startHalfEdgeId) {
+                closed = true;
+                break;
+            }
+        }
+
+        const nodeIds = closed
+            ? walkNodeIds
+            : terminatedAtNodeId
+              ? [...walkNodeIds, terminatedAtNodeId]
+              : walkNodeIds;
+        if (walkHalfEdgeIds.length === 0 || nodeIds.length === 0) continue;
+
+        const points = nodeIds
+            .map((nodeId) => nodeById.get(nodeId))
+            .filter((node): node is FG2GraphNode => Boolean(node))
+            .map((node) => [node.x, node.y] as [number, number]);
+
+        leftFaceWalks.push({
+            ownerPair: graph.ownerPair,
+            closed,
+            halfEdgeIds: walkHalfEdgeIds,
+            nodeIds,
+            area: closed ? computeSignedArea(points) : 0,
+        });
+    }
+
+    const closedLeftFaceCount = leftFaceWalks.filter((walk) => walk.closed).length;
+    return {
+        ownerPair: graph.ownerPair,
+        halfEdges,
+        leftFaceWalks,
+        closedLeftFaceCount,
+        openLeftWalkCount: leftFaceWalks.length - closedLeftFaceCount,
+    };
+}
+
 function executeMetricStage(runtime: FG2StageRuntime, summary: Record<string, unknown>): void {
     const starById = new Map(runtime.input.stars.map((star) => [star.id, star]));
     const contestedLaneCount = (runtime.input.connections ?? []).filter((connection) => {
@@ -959,12 +1153,30 @@ function executeGeometryStage(runtime: FG2StageRuntime, summary: Record<string, 
 }
 
 function executeLoopStage(runtime: FG2StageRuntime, summary: Record<string, unknown>): void {
+    const topologyArtifact = runtime.artifacts.topology as
+        | {
+              pairGraphs?: Record<string, FG2PairTopologyGraph>;
+          }
+        | undefined;
     const geometryArtifact = runtime.artifacts.geometry as
         | { frontiers?: FG2FrontierPolyline[] }
         | undefined;
+    const pairGraphs = topologyArtifact?.pairGraphs ?? {};
     const frontiers = geometryArtifact?.frontiers ?? [];
     const ownerLoopHints: Record<string, number> = {};
+    const pairHalfEdgeGraphs: Record<string, FG2PairHalfEdgeGraph> = {};
     let closedFrontierCount = 0;
+    let halfEdgeCount = 0;
+    let faceWalkCount = 0;
+    let closedFaceWalkCount = 0;
+
+    for (const [ownerPair, pairGraph] of Object.entries(pairGraphs)) {
+        const pairHalfEdgeGraph = buildPairHalfEdgeGraph(pairGraph);
+        pairHalfEdgeGraphs[ownerPair] = pairHalfEdgeGraph;
+        halfEdgeCount += pairHalfEdgeGraph.halfEdges.length;
+        faceWalkCount += pairHalfEdgeGraph.leftFaceWalks.length;
+        closedFaceWalkCount += pairHalfEdgeGraph.closedLeftFaceCount;
+    }
 
     for (const frontier of frontiers) {
         ownerLoopHints[frontier.ownerA] = (ownerLoopHints[frontier.ownerA] ?? 0) + 1;
@@ -978,10 +1190,17 @@ function executeLoopStage(runtime: FG2StageRuntime, summary: Record<string, unkn
         ownerLoopHints,
         ownerCount: Object.keys(ownerLoopHints).length,
         closedFrontierCount,
+        pairHalfEdgeGraphs,
+        halfEdgeCount,
+        faceWalkCount,
+        closedFaceWalkCount,
     };
 
     summary.ownerLoopHintCount = Object.keys(ownerLoopHints).length;
     summary.closedFrontierCount = closedFrontierCount;
+    summary.halfEdgeCount = halfEdgeCount;
+    summary.faceWalkCount = faceWalkCount;
+    summary.closedFaceWalkCount = closedFaceWalkCount;
 }
 
 function executeAnimationStage(runtime: FG2StageRuntime, summary: Record<string, unknown>): void {
