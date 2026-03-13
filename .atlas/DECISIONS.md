@@ -246,3 +246,16 @@
 ### D-58: Displayed Borders Must Follow Animated Geometry During Territory Morphs
 - **Decision**: While FG2 shell playback is active, render-stage border presentation switches from static target `frontiers` to animated shell contours.
 - **Rationale**: Showing target frontier strokes before the displayed fill arrives recreates the exact border/fill desynchronization this program is meant to eliminate. The displayed border source must stay temporally aligned with the displayed fill geometry.
+
+### D-59: FG2 Static Borders Must Reuse Owner-Shell Geometry When Available
+- **Decision**: FG2 render-stage border presentation now uses owner-shell contours whenever owner-shell geometry exists, regardless of whether shell playback is currently active. Pair-frontier polylines are fallback-only.
+- **Rationale**: Border/fill coincidence is required in settled states too, not only during active transitions. If static fills come from owner shells while borders fall back to pair frontiers, the engine reintroduces the exact adjacency mismatch it is supposed to eliminate.
+
+### D-60: FG2 Static Owner-Shell Fills Must Subtract Classified Hole Loops
+- **Decision**: Static FG2 owner-shell fills now cut their classified `holeLoopIds` out of the filled shell path during render.
+- **Rationale**: Hole classification is not meaningful if enclaves are still painted over. Fill-ready shell geometry must preserve empty interior regions as actual negative space.
+
+### D-61: FG2 Shell Playback Must Carry Hole Geometry, Not Only Hole Counts
+- **Decision**: FG2 owner-shell frame snapshots, transition artifacts, and displayed interpolated shells now carry explicit hole-loop geometry in addition to aggregate hole counts.
+- **Rationale**: Hole-only topology changes must be able to trigger playback and preserve visible cutouts during morphs. Hole counts alone are insufficient for either change detection or renderable animated cutouts.
+

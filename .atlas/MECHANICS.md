@@ -274,5 +274,9 @@ These notes describe current FG2 diagnostic semantics for frontier geometry deve
 - `ownerRegionLoops` now prefers globally resolved owner-region candidates from a merged face walk when available; pair-local owner-region loops remain the fallback diagnostic set.
 - `ownerShells` are snapshotted into shell frames and fingerprinted so FG2 can detect shell-geometry or shell-topology changes between updates.
 - `ownerShellTransitions` pair shells per owner using centroid, area, perimeter, hole-count, and world-boundary heuristics, then attach explicit contour correspondences; spawn/vanish transitions collapse to the shell centroid.
-- `displayedOwnerShells` are interpolated shell artifacts published during `TERRITORY_TRANSITION_MS`, along with transition progress and contour-distance diagnostics.
-- While shell playback is active, displayed border presentation now uses animated shell contours (`animated_shell_contours`) instead of the target frame's static pair-frontier polylines. Static `frontiers` remain the border source once playback settles.
+- While shell playback is active, displayed border presentation now uses animated shell contours (`animated_shell_contours`) instead of the target frame's static pair-frontier polylines.
+- FG2 now keeps owner-shell contours as the displayed border source whenever shell geometry exists. `pair_frontiers` are render-stage fallback only when shell geometry is unavailable.
+- Static owner-shell fills now draw the outer shell path, then subtract each classified `holeLoopId` using Pixi `Graphics.cut()`, so enclave holes survive in the visible fill artifact.
+- Owner-shell frame snapshots and transition artifacts now carry explicit hole-loop geometry, and shell-frame fingerprints include hole geometry rather than only hole counts.
+- Interpolated displayed shells now publish a usable hole-loop set chosen from previous/current shell state so playback can continue cutting holes; true hole-to-hole interpolation is still pending.
+

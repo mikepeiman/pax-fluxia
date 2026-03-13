@@ -111,3 +111,7 @@
 - F-155 has now started in `PRISM-territory-work` through owner-shell correspondence, contour-based shell playback interpolation, and animated shell-frame publication.
 - Animation diagnostics now expose `displayedOwnerShells`, `displayedOwnerShellFrame`, transition progress, transition counts, and contour-distance metrics for trace/debug review.
 - During active shell playback, displayed border presentation now uses animated shell contours instead of static target frontier polylines, reducing border/fill desynchronization during morphs.
+- FG2 now keeps owner-shell contours as the displayed border source even after playback settles, so static borders and static fills stay on the same geometry family whenever shell data exists.
+- Static FG2 owner-shell fills now subtract classified hole loops via Pixi `cut()`, which is the first real enclave-preserving fill behavior in the shell renderer.
+- Owner-shell frame snapshots and transitions now carry explicit hole-loop geometry, and shell fingerprints now react to hole-only changes instead of only shell outer-contour changes.
+- Displayed interpolated shells now publish usable hole cutouts with previous/current fallback during playback; true hole-to-hole interpolation remains pending.
