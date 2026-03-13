@@ -1644,15 +1644,17 @@ export function renderPVV3(
     });
     const fg2LoopArtifact = fg2Artifacts.loop as
 
-        | { ownerShells?: Array<{ shellId: string; ownerId: string; points: [number, number][]; area: number; absArea: number; confidence: number; holeLoopIds: string[] }>;
+        | {
+            ownerShells?: Array<{ shellId: string; ownerId: string; points: [number, number][]; area: number; absArea: number; confidence: number; holeLoopIds: string[] }>;
             ownerShellLoops?: Array<{ shellLoopId: string; ownerId: string; points: [number, number][]; classification: string }>;
-          }
+        }
         | undefined;
     const fg2AnimArtifact = fg2Artifacts.animation as
 
-        | { displayedOwnerShells?: Array<{ shellId: string; ownerId: string; points: [number, number][]; area: number; absArea: number; confidence: number; holeLoops: Array<{ holeLoopId: string; points: [number, number][] }> }>;
+        | {
+            displayedOwnerShells?: Array<{ shellId: string; ownerId: string; points: [number, number][]; area: number; absArea: number; confidence: number; holeLoops: Array<{ holeLoopId: string; points: [number, number][] }> }>;
             ownerShellTransitionActive?: boolean;
-          }
+        }
         | undefined;
     const fg2Shells = fg2LoopArtifact?.ownerShells ?? [];
     const fg2ShellLoops = fg2LoopArtifact?.ownerShellLoops ?? [];
@@ -1696,10 +1698,10 @@ export function renderPVV3(
                 'holeLoops' in shell && Array.isArray((shell as any).holeLoops)
                     ? (shell as any).holeLoops
                     : 'holeLoopIds' in shell && Array.isArray((shell as any).holeLoopIds)
-                      ? (shell as any).holeLoopIds
+                        ? (shell as any).holeLoopIds
                             .map((id: string) => shellLoopById.get(id))
                             .filter((l: any) => l && l.points?.length >= 3)
-                      : [];
+                        : [];
             for (const hole of holeLoops) {
                 if (hole.points.length < 3) continue;
                 fillGraphics.poly(hole.points.flat());
@@ -1758,7 +1760,7 @@ export function renderPVV3(
                     first: pts[0] ? [+pts[0][0].toFixed(1), +pts[0][1].toFixed(1)] : null,
                     last: pts[pts.length - 1] ? [+pts[pts.length - 1][0].toFixed(1), +pts[pts.length - 1][1].toFixed(1)] : null,
                     holeCount: 'holeLoopIds' in shell ? (shell as any).holeLoopIds?.length ?? 0
-                             : 'holeLoops' in shell ? (shell as any).holeLoops?.length ?? 0 : 0,
+                        : 'holeLoops' in shell ? (shell as any).holeLoops?.length ?? 0 : 0,
                     points: pts,  // full geometry for detailed inspection
                 };
             }),
@@ -1853,7 +1855,7 @@ export function renderPVV3(
         })));
         console.log(`Adjacency: ${dumpData.adjacencyReport.sharedBetweenOwners} shared edges, ${dumpData.adjacencyReport.overlapSameOwner} overlaps`);
         if (dumpData.nearMissReport.nearMissCount > 0) {
-            console.warn(`NEAR-MISS VERTICES: ${dumpData.nearMissReport.nearMissCount} pairs within ${NEAR_THRESHOLD ?? 5}px`);
+            console.warn(`NEAR-MISS VERTICES: ${dumpData.nearMissReport.nearMissCount} pairs within ${dumpData.nearMissReport.threshold}px`);
             console.table(dumpData.nearMissReport.issues.slice(0, 20).map(i => ({
                 shellA: i.shellA.slice(-6),
                 shellB: i.shellB.slice(-6),
