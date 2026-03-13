@@ -246,6 +246,14 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     // Territory toggles
     { panelKey: 'territoryBoundaryMode', configKey: 'TERRITORY_BOUNDARY_MODE' },
     { panelKey: 'territoryFillMode', configKey: 'TERRITORY_FILL_MODE' },
+    { panelKey: 'territoryEngine', configKey: 'TERRITORY_ENGINE_ENABLED' },
+    { panelKey: 'territoryEngineMode', configKey: 'TERRITORY_ENGINE_MODE' },
+    { panelKey: 'territoryEngineStaticMethod', configKey: 'TERRITORY_ENGINE_STATIC_METHOD' },
+    { panelKey: 'territoryEngineDynamicMethod', configKey: 'TERRITORY_ENGINE_DYNAMIC_METHOD' },
+    { panelKey: 'territoryEngineHybridPlan', configKey: 'TERRITORY_ENGINE_HYBRID_PLAN' },
+    { panelKey: 'territoryEngineTraceMode', configKey: 'TERRITORY_ENGINE_TRACE_MODE' },
+    { panelKey: 'territoryEngineStepMode', configKey: 'TERRITORY_ENGINE_STEP_MODE' },
+    { panelKey: 'territoryEngineStepAdvanceToken', configKey: 'TERRITORY_ENGINE_STEP_ADVANCE_TOKEN' },
     { panelKey: 'territoryVoronoi', configKey: 'TERRITORY_VORONOI' },
     { panelKey: 'territoryMetaball', configKey: 'TERRITORY_METABALL' },
     { panelKey: 'territoryPixel', configKey: 'TERRITORY_PIXEL' },
@@ -447,4 +455,5 @@ export function formatAnimValue(val: number, unit: string): string {
     if (unit === 'ms') return `${Math.round(val)}${unit}`;
     return `${val.toFixed(2)}${unit}`;
 }
+
 
