@@ -92,7 +92,7 @@
 | F-152 | Modular Territory Engine runtime with interchangeable static/dynamic/hybrid method registries and stage pipeline contracts. | ?? In Progress | Critical | 2026-03-12 |
 | F-153 | Interactive territory computation step mode (stage-by-stage execution + trace payloads + manual advance token). | ?? In Progress | High | 2026-03-12 |
 | F-154 | FG1-FG5 frontier geometry implementation program with shared canonical frontier truth for border/fill coincidence. | ?? In Progress | Critical | 2026-03-12 |
-| F-155 | HY1-HY5 dynamic territory program for local delta updates, temporal coherence, and geometry-only transitions. | ?? Planned | Critical | 2026-03-12 |
+| F-155 | HY1-HY5 dynamic territory program for local delta updates, temporal coherence, and geometry-only transitions. | ?? In Progress | Critical | 2026-03-12 |
 | F-156 | Territory method benchmarking harness with map-stress suite and mode-switch comparison reporting. | ?? Planned | High | 2026-03-12 |
 
 ### Progress Notes - 2026-03-12 (FG2 Epic)
@@ -108,3 +108,6 @@
 - F-154 in `PRISM-territory-work` now derives `ownerShells` from owner-exposed edges of the globally resolved FG2 arrangement and uses those shells as the native fill artifact.
 - Loop diagnostics now include owner shell counts, hole counts, open shell-loop counts, and owner-shell graph counts for trace/debug review.
 - The FG2 native renderer now paints shell-oriented owner fills before frontier strokes, creating a more meaningful demo checkpoint than raw owner-region candidate loops alone.
+- F-155 has now started in `PRISM-territory-work` through owner-shell correspondence, contour-based shell playback interpolation, and animated shell-frame publication.
+- Animation diagnostics now expose `displayedOwnerShells`, `displayedOwnerShellFrame`, transition progress, transition counts, and contour-distance metrics for trace/debug review.
+- During active shell playback, displayed border presentation now uses animated shell contours instead of static target frontier polylines, reducing border/fill desynchronization during morphs.

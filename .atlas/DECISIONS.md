@@ -165,7 +165,7 @@
 - **Key terms**:
   - **Frontier normalization**: Ensuring that where two regions share a border, both sides reference identical vertex coordinates
   - **Region-sequential smoothing**: Process regions in deterministic order; later regions adopt the already-smoothed edge from earlier neighbors
-- **Status**: Planned. Requires rewrite of `assembleFrontierLoops` pipeline. Current polyline-chaining approach is a scaffold.
+- **Status**: Planned. Requires rewrite of `assembleFrontierLoops` pipeline.
 
 ## [2026-03-10] PVV3 Territory Smoothing Architecture
 - World bounding box required: all outer frontiers must connect to map-edge rectangle
@@ -238,3 +238,11 @@
 ### D-56: FG2 Fill Geometry Must Be Synthesized From Owner-Exposed Edges of the Global Arrangement
 - **Decision**: FG2 now derives `ownerShells` by projecting the globally resolved face ownership onto the merged half-edge arrangement and keeping only owner-exposed links; shell loops are then classified by containment into shells vs holes.
 - **Rationale**: Raw owner-region face candidates are not yet owner-level fill geometry. The owner shell graph removes same-owner internal shared edges and produces a materially better canonical fill artifact for later morphing and border/fill coincidence.
+
+### D-57: FG2 Dynamic Playback Starts From Owner-Shell Correspondence
+- **Decision**: FG2 shell transitions now match previous/current owner shells using centroid, area, perimeter, hole-count, and world-boundary heuristics, then build explicit contour correspondences. Spawn and vanish events use centroid-collapsed contour fallbacks.
+- **Rationale**: Dynamic territory playback needs a modular geometry bridge between discrete owner-shell states before full frontier-native morphing is ready.
+
+### D-58: Displayed Borders Must Follow Animated Geometry During Territory Morphs
+- **Decision**: While FG2 shell playback is active, render-stage border presentation switches from static target `frontiers` to animated shell contours.
+- **Rationale**: Showing target frontier strokes before the displayed fill arrives recreates the exact border/fill desynchronization this program is meant to eliminate. The displayed border source must stay temporally aligned with the displayed fill geometry.

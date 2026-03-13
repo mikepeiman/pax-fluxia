@@ -1,4 +1,4 @@
-import { executeFG2Stage } from './fg2SeedGraph';
+import { executeFG2Stage, resetFG2StageCaches } from './fg2SeedGraph';
 import type {
     TerritoryNativeStageExecutor,
     TerritoryPipelineRuntime,
@@ -6,6 +6,7 @@ import type {
 } from '../types';
 
 const TERRITORY_NATIVE_STAGE_EXECUTORS: TerritoryNativeStageExecutor[] = [executeFG2Stage];
+const TERRITORY_NATIVE_STAGE_RESETS: Array<() => void> = [resetFG2StageCaches];
 
 export function executeNativeTerritoryStage(
     stageId: TerritoryPipelineStageId,
@@ -19,4 +20,10 @@ export function executeNativeTerritoryStage(
     }
 
     return false;
+}
+
+export function resetNativeTerritoryStageCaches(): void {
+    for (const resetStageCaches of TERRITORY_NATIVE_STAGE_RESETS) {
+        resetStageCaches();
+    }
 }

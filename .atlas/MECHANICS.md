@@ -272,3 +272,7 @@ These notes describe current FG2 diagnostic semantics for frontier geometry deve
 - FG2 star-side junctions now come from the global angular order of all contested seeds incident to a star, not from owner-pair-local incidence only. Different owner-pairs can therefore terminate at the same synthesized junction.
 - FG2 only projects a frontier side to the world boundary when the corresponding star truly has `<= 1` global contested seed on that side.
 - `ownerRegionLoops` now prefers globally resolved owner-region candidates from a merged face walk when available; pair-local owner-region loops remain the fallback diagnostic set.
+- `ownerShells` are snapshotted into shell frames and fingerprinted so FG2 can detect shell-geometry or shell-topology changes between updates.
+- `ownerShellTransitions` pair shells per owner using centroid, area, perimeter, hole-count, and world-boundary heuristics, then attach explicit contour correspondences; spawn/vanish transitions collapse to the shell centroid.
+- `displayedOwnerShells` are interpolated shell artifacts published during `TERRITORY_TRANSITION_MS`, along with transition progress and contour-distance diagnostics.
+- While shell playback is active, displayed border presentation now uses animated shell contours (`animated_shell_contours`) instead of the target frame's static pair-frontier polylines. Static `frontiers` remain the border source once playback settles.

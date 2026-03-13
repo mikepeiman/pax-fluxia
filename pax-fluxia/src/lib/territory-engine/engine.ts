@@ -9,7 +9,8 @@ import {
 } from '$lib/renderers/PowerVoronoiRenderer';
 import { renderPVV3, resetPVV3Cache } from '$lib/renderers/PVV3Renderer';
 import { log } from '$lib/utils/logger';
-import { executeNativeTerritoryStage } from './methods';
+import { executeNativeTerritoryStage, resetNativeTerritoryStageCaches } from './methods';
+
 import {
     DEFAULT_TERRITORY_DYNAMIC_METHOD,
     DEFAULT_TERRITORY_HYBRID_PLAN,
@@ -536,10 +537,12 @@ export function resetTerritoryEngineCaches(): void {
     resetPowerVoronoiCache();
     resetPVV3Cache();
     resetDistanceFieldTerritoryCache();
+    resetNativeTerritoryStageCaches();
     setLastTerritoryTraceRun(null);
     lastLoggedSelectionKey = null;
     interactiveRunState = null;
 }
+
 
 export function renderTerritoryEngine(input: TerritoryEngineInput): void {
     const selection = resolveMethodSelection();

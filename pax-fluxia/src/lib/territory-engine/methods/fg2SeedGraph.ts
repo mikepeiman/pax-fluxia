@@ -204,6 +204,101 @@ interface FG2OwnerShellArtifact {
     holeLoopIds: string[];
 }
 
+interface FG2LoopBounds {
+    minX: number;
+    minY: number;
+    maxX: number;
+    maxY: number;
+}
+
+interface FG2OwnerShellFrameShell {
+    shellId: string;
+    ownerId: string;
+    points: [number, number][];
+    signedArea: number;
+    centroid: [number, number];
+    bounds: FG2LoopBounds;
+    area: number;
+    absArea: number;
+    perimeter: number;
+    holeCount: number;
+    touchesWorldBoundary: boolean;
+    confidence: number;
+}
+
+interface FG2OwnerShellContourCorrespondenceArtifact {
+    sampleCount: number;
+    orientation: 'preserved' | 'reversed';
+    offset: number;
+    meanDistance: number;
+    maxDistance: number;
+    previousPoints: [number, number][];
+    currentPoints: [number, number][];
+}
+
+interface FG2OwnerShellTransitionArtifact {
+    transitionId: string;
+    ownerId: string;
+    kind: 'persist' | 'grow' | 'shrink' | 'spawn' | 'vanish';
+    currentShellId: string | null;
+    previousShellId: string | null;
+    currentCentroid: [number, number] | null;
+    previousCentroid: [number, number] | null;
+    currentHoleCount: number | null;
+    previousHoleCount: number | null;
+    centroidDistance: number;
+    areaRatio: number;
+    holeDelta: number;
+    touchesWorldBoundaryChanged: boolean;
+    currentTouchesWorldBoundary: boolean | null;
+    previousTouchesWorldBoundary: boolean | null;
+    confidence: number;
+    contourSampleCount: number;
+    meanContourDistance: number;
+    maxContourDistance: number;
+    contourAlignmentOffset: number;
+    contourOrientation: 'preserved' | 'reversed';
+    contour: FG2OwnerShellContourCorrespondenceArtifact | null;
+}
+
+interface FG2OwnerShellFrameSnapshot {
+    capturedAtMs: number;
+    worldWidth: number;
+    worldHeight: number;
+    shells: FG2OwnerShellFrameShell[];
+}
+
+interface FG2InterpolatedOwnerShellArtifact {
+    shellId: string;
+    ownerId: string;
+    transitionId: string;
+    kind: FG2OwnerShellTransitionArtifact['kind'];
+    progress: number;
+    points: [number, number][];
+    signedArea: number;
+    area: number;
+    absArea: number;
+    centroid: [number, number];
+    bounds: FG2LoopBounds;
+    perimeter: number;
+    holeCount: number;
+    touchesWorldBoundary: boolean;
+    confidence: number;
+    currentShellId: string | null;
+    previousShellId: string | null;
+}
+
+interface FG2ActiveShellAnimationState {
+    sourceFrame: FG2OwnerShellFrameSnapshot;
+    targetFrame: FG2OwnerShellFrameSnapshot;
+    transitions: FG2OwnerShellTransitionArtifact[];
+    startedAtMs: number;
+    durationMs: number;
+    targetFingerprint: string;
+}
+
+let fg2PreviousShellFrame: FG2OwnerShellFrameSnapshot | null = null;
+let fg2ActiveShellAnimation: FG2ActiveShellAnimationState | null = null;
 const FG2_GRAPHICS_NAME = 'territory-engine-fg2-frontier-graphics';
 const TAU = Math.PI * 2;
 const EPSILON = 0.0001;
@@ -1195,6 +1290,296 @@ function computeLoopCentroid(points: [number, number][]): [number, number] {
     return [sumX / points.length, sumY / points.length];
 }
 
+function computeLoopBounds(points: [number, number][]): FG2LoopBounds {
+    if (points.length === 0) {
+        return { minX: 0, minY: 0, maxX: 0, maxY: 0 };
+    }
+
+    let minX = points[0][0];
+    let minY = points[0][1];
+    let maxX = points[0][0];
+    let maxY = points[0][1];
+    for (const [x, y] of points) {
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
+    }
+
+    return { minX, minY, maxX, maxY };
+}
+
+function computeLoopPerimeter(points: [number, number][], closed = true): number {
+    if (points.length < 2) return 0;
+
+    let total = 0;
+    for (let i = 1; i < points.length; i += 1) {
+        const previousPoint = points[i - 1];
+        const currentPoint = points[i];
+        total += Math.hypot(currentPoint[0] - previousPoint[0], currentPoint[1] - previousPoint[1]);
+    }
+
+    if (closed && points.length > 2) {
+        total += Math.hypot(
+            points[0][0] - points[points.length - 1][0],
+            points[0][1] - points[points.length - 1][1],
+        );
+    }
+
+    return total;
+}
+
+function normalizeClosedLoopPoints(points: [number, number][]): [number, number][] {
+    if (points.length === 0) return [];
+
+    const normalized: [number, number][] = [];
+    for (const [x, y] of points) {
+        const previousPoint = normalized[normalized.length - 1];
+        if (previousPoint && Math.hypot(previousPoint[0] - x, previousPoint[1] - y) <= EPSILON) {
+            continue;
+        }
+        normalized.push([x, y]);
+    }
+
+    if (normalized.length > 1) {
+        const firstPoint = normalized[0];
+        const lastPoint = normalized[normalized.length - 1];
+        if (Math.hypot(firstPoint[0] - lastPoint[0], firstPoint[1] - lastPoint[1]) <= EPSILON) {
+            normalized.pop();
+        }
+    }
+
+    return normalized;
+}
+
+function rotateLoopPoints(points: [number, number][], offset: number): [number, number][] {
+    if (points.length === 0) return [];
+    const normalizedOffset = ((offset % points.length) + points.length) % points.length;
+    if (normalizedOffset === 0) return points.slice();
+    return points.slice(normalizedOffset).concat(points.slice(0, normalizedOffset));
+}
+
+function reverseLoopPoints(points: [number, number][]): [number, number][] {
+    return points.slice().reverse();
+}
+
+function interpolatePoint(
+    startPoint: [number, number],
+    endPoint: [number, number],
+    t: number,
+): [number, number] {
+    return [
+        startPoint[0] + (endPoint[0] - startPoint[0]) * t,
+        startPoint[1] + (endPoint[1] - startPoint[1]) * t,
+    ];
+}
+
+function buildCollapsedContour(
+    anchorPoint: [number, number],
+    sampleCount: number,
+): [number, number][] {
+    return Array.from({ length: sampleCount }, () => [anchorPoint[0], anchorPoint[1]] as [number, number]);
+}
+
+function resampleClosedLoop(points: [number, number][], sampleCount: number): [number, number][] {
+    const normalizedPoints = normalizeClosedLoopPoints(points);
+    if (normalizedPoints.length === 0) return [];
+    if (normalizedPoints.length === 1) {
+        return buildCollapsedContour(normalizedPoints[0], sampleCount);
+    }
+
+    const segments: Array<{
+        startPoint: [number, number];
+        endPoint: [number, number];
+        startDistance: number;
+        length: number;
+    }> = [];
+    let perimeter = 0;
+    for (let i = 0; i < normalizedPoints.length; i += 1) {
+        const startPoint = normalizedPoints[i];
+        const endPoint = normalizedPoints[(i + 1) % normalizedPoints.length];
+        const length = Math.hypot(endPoint[0] - startPoint[0], endPoint[1] - startPoint[1]);
+        if (length <= EPSILON) continue;
+        segments.push({
+            startPoint,
+            endPoint,
+            startDistance: perimeter,
+            length,
+        });
+        perimeter += length;
+    }
+
+    if (segments.length === 0 || perimeter <= EPSILON) {
+        return buildCollapsedContour(normalizedPoints[0], sampleCount);
+    }
+
+    const resampledPoints: [number, number][] = [];
+    let segmentIndex = 0;
+    for (let sampleIndex = 0; sampleIndex < sampleCount; sampleIndex += 1) {
+        const targetDistance = (perimeter * sampleIndex) / sampleCount;
+        while (
+            segmentIndex < segments.length - 1 &&
+            targetDistance > segments[segmentIndex].startDistance + segments[segmentIndex].length
+        ) {
+            segmentIndex += 1;
+        }
+
+        const segment = segments[segmentIndex];
+        const localDistance = targetDistance - segment.startDistance;
+        const t = segment.length > EPSILON ? clamp(localDistance / segment.length, 0, 1) : 0;
+        resampledPoints.push(interpolatePoint(segment.startPoint, segment.endPoint, t));
+    }
+
+    return resampledPoints;
+}
+
+function computeContourDistanceStats(
+    previousPoints: [number, number][],
+    currentPoints: [number, number][],
+): { meanDistance: number; maxDistance: number } {
+    const pairCount = Math.min(previousPoints.length, currentPoints.length);
+    if (pairCount === 0) {
+        return { meanDistance: 0, maxDistance: 0 };
+    }
+
+    let totalDistance = 0;
+    let maxDistance = 0;
+    for (let i = 0; i < pairCount; i += 1) {
+        const distance = Math.hypot(
+            currentPoints[i][0] - previousPoints[i][0],
+            currentPoints[i][1] - previousPoints[i][1],
+        );
+        totalDistance += distance;
+        maxDistance = Math.max(maxDistance, distance);
+    }
+
+    return {
+        meanDistance: totalDistance / pairCount,
+        maxDistance,
+    };
+}
+
+function alignResampledContours(
+    referencePoints: [number, number][],
+    candidatePoints: [number, number][],
+): {
+    orientation: 'preserved' | 'reversed';
+    offset: number;
+    alignedCurrentPoints: [number, number][];
+    meanDistance: number;
+    maxDistance: number;
+} {
+    if (referencePoints.length === 0 || candidatePoints.length === 0) {
+        return {
+            orientation: 'preserved',
+            offset: 0,
+            alignedCurrentPoints: candidatePoints.slice(),
+            meanDistance: 0,
+            maxDistance: 0,
+        };
+    }
+
+    let bestOrientation: 'preserved' | 'reversed' = 'preserved';
+    let bestOffset = 0;
+    let bestPoints = candidatePoints.slice();
+    let bestMeanDistance = Number.POSITIVE_INFINITY;
+    let bestMaxDistance = Number.POSITIVE_INFINITY;
+    let bestCost = Number.POSITIVE_INFINITY;
+
+    const orientationVariants: Array<{
+        orientation: 'preserved' | 'reversed';
+        points: [number, number][];
+    }> = [
+        { orientation: 'preserved', points: candidatePoints.slice() },
+        { orientation: 'reversed', points: reverseLoopPoints(candidatePoints) },
+    ];
+
+    for (const variant of orientationVariants) {
+        for (let offset = 0; offset < variant.points.length; offset += 1) {
+            const alignedCurrentPoints = rotateLoopPoints(variant.points, offset);
+            const { meanDistance, maxDistance } = computeContourDistanceStats(
+                referencePoints,
+                alignedCurrentPoints,
+            );
+            const cost = meanDistance + maxDistance * 0.18;
+            if (cost + EPSILON < bestCost) {
+                bestOrientation = variant.orientation;
+                bestOffset = offset;
+                bestPoints = alignedCurrentPoints;
+                bestMeanDistance = meanDistance;
+                bestMaxDistance = maxDistance;
+                bestCost = cost;
+            }
+        }
+    }
+
+    return {
+        orientation: bestOrientation,
+        offset: bestOffset,
+        alignedCurrentPoints: bestPoints,
+        meanDistance: Number.isFinite(bestMeanDistance) ? bestMeanDistance : 0,
+        maxDistance: Number.isFinite(bestMaxDistance) ? bestMaxDistance : 0,
+    };
+}
+
+function computeContourSampleCount(
+    ...shells: Array<FG2OwnerShellFrameShell | null | undefined>
+): number {
+    const shellPointCount = shells.reduce(
+        (maxCount, shell) => Math.max(maxCount, shell?.points.length ?? 0),
+        0,
+    );
+    const shellPerimeter = shells.reduce(
+        (maxPerimeter, shell) => Math.max(maxPerimeter, shell?.perimeter ?? 0),
+        0,
+    );
+    const perimeterDrivenCount = Math.round(shellPerimeter / 96);
+    return Math.max(12, Math.min(64, Math.max(shellPointCount, perimeterDrivenCount)));
+}
+
+function buildOwnerShellContourCorrespondence(
+    previousShell: FG2OwnerShellFrameShell,
+    currentShell: FG2OwnerShellFrameShell,
+): FG2OwnerShellContourCorrespondenceArtifact {
+    const sampleCount = computeContourSampleCount(previousShell, currentShell);
+    const previousPoints = resampleClosedLoop(previousShell.points, sampleCount);
+    const currentPoints = resampleClosedLoop(currentShell.points, sampleCount);
+    const aligned = alignResampledContours(previousPoints, currentPoints);
+
+    return {
+        sampleCount,
+        orientation: aligned.orientation,
+        offset: aligned.offset,
+        meanDistance: aligned.meanDistance,
+        maxDistance: aligned.maxDistance,
+        previousPoints,
+        currentPoints: aligned.alignedCurrentPoints,
+    };
+}
+
+function buildCollapsedShellContourCorrespondence(
+    shell: FG2OwnerShellFrameShell,
+    collapseTo: [number, number],
+    mode: 'spawn' | 'vanish',
+): FG2OwnerShellContourCorrespondenceArtifact {
+    const sampleCount = computeContourSampleCount(shell);
+    const shellPoints = resampleClosedLoop(shell.points, sampleCount);
+    const collapsedPoints = buildCollapsedContour(collapseTo, sampleCount);
+    const previousPoints = mode === 'spawn' ? collapsedPoints : shellPoints;
+    const currentPoints = mode === 'spawn' ? shellPoints : collapsedPoints;
+    const { meanDistance, maxDistance } = computeContourDistanceStats(previousPoints, currentPoints);
+
+    return {
+        sampleCount,
+        orientation: 'preserved',
+        offset: 0,
+        meanDistance,
+        maxDistance,
+        previousPoints,
+        currentPoints,
+    };
+}
+
 function isPointOnSegment(
     pointX: number,
     pointY: number,
@@ -1203,32 +1588,47 @@ function isPointOnSegment(
     endX: number,
     endY: number,
 ): boolean {
-    const cross = (pointY - startY) * (endX - startX) - (pointX - startX) * (endY - startY);
-    if (Math.abs(cross) > EPSILON) return false;
+    const deltaX = endX - startX;
+    const deltaY = endY - startY;
+    const segmentLength = Math.hypot(deltaX, deltaY);
+    if (segmentLength <= EPSILON) {
+        return Math.hypot(pointX - startX, pointY - startY) <= EPSILON;
+    }
 
-    const dot = (pointX - startX) * (endX - startX) + (pointY - startY) * (endY - startY);
-    if (dot < -EPSILON) return false;
+    const cross = (pointX - startX) * deltaY - (pointY - startY) * deltaX;
+    if (Math.abs(cross) > EPSILON * Math.max(1, segmentLength)) {
+        return false;
+    }
 
-    const lengthSquared = (endX - startX) ** 2 + (endY - startY) ** 2;
-    return dot <= lengthSquared + EPSILON;
+    const dot = (pointX - startX) * (pointX - endX) + (pointY - startY) * (pointY - endY);
+    return dot <= EPSILON * Math.max(1, segmentLength);
 }
 
-function isPointInsidePolygon(point: [number, number], polygon: [number, number][]): boolean {
+function isPointInsidePolygon(
+    point: [number, number],
+    polygon: [number, number][],
+): boolean {
     if (polygon.length < 3) return false;
 
     const [pointX, pointY] = point;
     let inside = false;
+
     for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i, i += 1) {
-        const [xi, yi] = polygon[i];
-        const [xj, yj] = polygon[j];
-        if (isPointOnSegment(pointX, pointY, xi, yi, xj, yj)) {
+        const [startX, startY] = polygon[j];
+        const [endX, endY] = polygon[i];
+
+        if (isPointOnSegment(pointX, pointY, startX, startY, endX, endY)) {
             return true;
         }
 
-        const intersects =
-            yi > pointY !== yj > pointY &&
-            pointX < ((xj - xi) * (pointY - yi)) / ((yj - yi) || EPSILON) + xi;
-        if (intersects) {
+        const crossesY = (startY > pointY) !== (endY > pointY);
+        if (!crossesY) continue;
+
+        const denominator = endY - startY;
+        if (Math.abs(denominator) <= EPSILON) continue;
+
+        const intersectX = ((endX - startX) * (pointY - startY)) / denominator + startX;
+        if (intersectX >= pointX - EPSILON) {
             inside = !inside;
         }
     }
@@ -1236,6 +1636,432 @@ function isPointInsidePolygon(point: [number, number], polygon: [number, number]
     return inside;
 }
 
+function sortOwnerShellFrameShells(
+    shells: FG2OwnerShellFrameShell[],
+): FG2OwnerShellFrameShell[] {
+    return shells.slice().sort((shellA, shellB) => {
+        if (shellA.ownerId !== shellB.ownerId) {
+            return shellA.ownerId.localeCompare(shellB.ownerId);
+        }
+        if (Math.abs(shellA.absArea - shellB.absArea) > EPSILON) {
+            return shellB.absArea - shellA.absArea;
+        }
+        return shellA.shellId.localeCompare(shellB.shellId);
+    });
+}
+
+function buildOwnerShellFrameSnapshotFromShells(
+    shells: FG2OwnerShellFrameShell[],
+    capturedAtMs: number,
+    worldWidth: number,
+    worldHeight: number,
+): FG2OwnerShellFrameSnapshot {
+    return {
+        capturedAtMs,
+        worldWidth,
+        worldHeight,
+        shells: sortOwnerShellFrameShells(shells),
+    };
+}
+
+function buildOwnerShellFrameFingerprint(frame: FG2OwnerShellFrameSnapshot): string {
+    return frame.shells
+        .map((shell) => {
+            const pointsKey = shell.points
+                .map(([x, y]) => `${Math.round(x * 4) / 4},${Math.round(y * 4) / 4}`)
+                .join(';');
+            return [
+                shell.ownerId,
+                shell.shellId,
+                Math.round(shell.centroid[0] * 10) / 10,
+                Math.round(shell.centroid[1] * 10) / 10,
+                Math.round(shell.absArea * 10) / 10,
+                Math.round(shell.perimeter * 10) / 10,
+                shell.holeCount,
+                shell.touchesWorldBoundary ? 1 : 0,
+                pointsKey,
+            ].join('|');
+        })
+        .join('||');
+}
+
+function computeShellAnimationProgress(
+    startedAtMs: number,
+    durationMs: number,
+    nowMs: number,
+): number {
+    if (durationMs <= EPSILON) return 1;
+    return clamp((nowMs - startedAtMs) / durationMs, 0, 1);
+}
+
+function easeShellAnimationProgress(progress: number): number {
+    const clampedProgress = clamp(progress, 0, 1);
+    const easing = GAME_CONFIG.DF_MORPH_EASING ?? 'smoothstep';
+    if (easing === 'linear') return clampedProgress;
+    if (easing === 'easeInOutQuad') {
+        return clampedProgress < 0.5
+            ? 2 * clampedProgress * clampedProgress
+            : 1 - ((-2 * clampedProgress + 2) ** 2) * 0.5;
+    }
+    if (easing === 'easeInOutCubic') {
+        return clampedProgress < 0.5
+            ? 4 * clampedProgress ** 3
+            : 1 - ((-2 * clampedProgress + 2) ** 3) * 0.5;
+    }
+    return clampedProgress * clampedProgress * (3 - 2 * clampedProgress);
+}
+
+function interpolateContourPoints(
+    previousPoints: [number, number][],
+    currentPoints: [number, number][],
+    progress: number,
+): [number, number][] {
+    const pointCount = Math.min(previousPoints.length, currentPoints.length);
+    const interpolated: [number, number][] = [];
+    for (let i = 0; i < pointCount; i += 1) {
+        interpolated.push(interpolatePoint(previousPoints[i], currentPoints[i], progress));
+    }
+    return normalizeClosedLoopPoints(interpolated);
+}
+
+function buildInterpolatedOwnerShellArtifact(
+    transition: FG2OwnerShellTransitionArtifact,
+    progress: number,
+): FG2InterpolatedOwnerShellArtifact | null {
+    const contour = transition.contour;
+    if (!contour || contour.previousPoints.length === 0 || contour.currentPoints.length === 0) {
+        return null;
+    }
+
+    const points = interpolateContourPoints(
+        contour.previousPoints,
+        contour.currentPoints,
+        progress,
+    );
+    const signedArea = computeSignedArea(points);
+    const absArea = Math.abs(signedArea);
+
+    return {
+        shellId:
+            transition.currentShellId ??
+            transition.previousShellId ??
+            `animated|${transition.transitionId}`,
+        ownerId: transition.ownerId,
+        transitionId: transition.transitionId,
+        kind: transition.kind,
+        progress,
+        points,
+        signedArea,
+        area: signedArea,
+        absArea,
+        centroid: computeLoopCentroid(points),
+        bounds: computeLoopBounds(points),
+        perimeter: computeLoopPerimeter(points, true),
+        holeCount:
+            progress >= 0.5
+                ? (transition.currentHoleCount ?? transition.previousHoleCount ?? 0)
+                : (transition.previousHoleCount ?? transition.currentHoleCount ?? 0),
+        touchesWorldBoundary:
+            progress >= 0.5
+                ? (transition.currentTouchesWorldBoundary ??
+                  transition.previousTouchesWorldBoundary ??
+                  false)
+                : (transition.previousTouchesWorldBoundary ??
+                  transition.currentTouchesWorldBoundary ??
+                  false),
+        confidence: transition.confidence,
+        currentShellId: transition.currentShellId,
+        previousShellId: transition.previousShellId,
+    };
+}
+
+function buildInterpolatedOwnerShells(
+    transitions: FG2OwnerShellTransitionArtifact[],
+    progress: number,
+): FG2InterpolatedOwnerShellArtifact[] {
+    return transitions
+        .map((transition) => buildInterpolatedOwnerShellArtifact(transition, progress))
+        .filter(
+            (
+                interpolatedShell,
+            ): interpolatedShell is FG2InterpolatedOwnerShellArtifact => Boolean(interpolatedShell),
+        )
+        .sort((shellA, shellB) => {
+            if (shellA.ownerId !== shellB.ownerId) {
+                return shellA.ownerId.localeCompare(shellB.ownerId);
+            }
+            if (Math.abs(shellA.absArea - shellB.absArea) > EPSILON) {
+                return shellB.absArea - shellA.absArea;
+            }
+            return shellA.shellId.localeCompare(shellB.shellId);
+        });
+}
+
+function buildInterpolatedOwnerShellFrame(
+    animationState: FG2ActiveShellAnimationState,
+    nowMs: number,
+): {
+    progress: number;
+    easedProgress: number;
+    shells: FG2InterpolatedOwnerShellArtifact[];
+    frame: FG2OwnerShellFrameSnapshot;
+} {
+    const progress = computeShellAnimationProgress(
+        animationState.startedAtMs,
+        animationState.durationMs,
+        nowMs,
+    );
+    const easedProgress = easeShellAnimationProgress(progress);
+    const shells = buildInterpolatedOwnerShells(animationState.transitions, easedProgress);
+    const frame = buildOwnerShellFrameSnapshotFromShells(
+        shells.map((shell) => ({
+            shellId: shell.shellId,
+            ownerId: shell.ownerId,
+            points: shell.points,
+            signedArea: shell.signedArea,
+            centroid: shell.centroid,
+            bounds: shell.bounds,
+            area: shell.area,
+            absArea: shell.absArea,
+            perimeter: shell.perimeter,
+            holeCount: shell.holeCount,
+            touchesWorldBoundary: shell.touchesWorldBoundary,
+            confidence: shell.confidence,
+        })),
+        nowMs,
+        animationState.targetFrame.worldWidth,
+        animationState.targetFrame.worldHeight,
+    );
+    return {
+        progress,
+        easedProgress,
+        shells,
+        frame,
+    };
+}
+
+function buildOwnerShellFrameSnapshot(
+    ownerShells: FG2OwnerShellArtifact[],
+    capturedAtMs: number,
+    worldWidth: number,
+    worldHeight: number,
+): FG2OwnerShellFrameSnapshot {
+    return buildOwnerShellFrameSnapshotFromShells(
+        ownerShells.map((ownerShell) => {
+            const normalizedPoints = normalizeClosedLoopPoints(ownerShell.points);
+            const points =
+                normalizedPoints.length >= 3
+                    ? normalizedPoints
+                    : ownerShell.points.map(([x, y]) => [x, y] as [number, number]);
+            return {
+                shellId: ownerShell.shellId,
+                ownerId: ownerShell.ownerId,
+                points,
+                signedArea: computeSignedArea(points),
+                centroid: computeLoopCentroid(points),
+                bounds: computeLoopBounds(points),
+                area: ownerShell.area,
+                absArea: ownerShell.absArea,
+                perimeter: computeLoopPerimeter(points, true),
+                holeCount: ownerShell.holeLoopIds.length,
+                touchesWorldBoundary: ownerShell.touchesWorldBoundary,
+                confidence: ownerShell.confidence,
+            };
+        }),
+        capturedAtMs,
+        worldWidth,
+        worldHeight,
+    );
+}
+
+function buildOwnerShellTransitions(
+    previousFrame: FG2OwnerShellFrameSnapshot | null,
+    currentFrame: FG2OwnerShellFrameSnapshot,
+): FG2OwnerShellTransitionArtifact[] {
+    const transitions: FG2OwnerShellTransitionArtifact[] = [];
+    const previousShells = previousFrame?.shells ?? [];
+    const worldDiagonal = Math.max(
+        EPSILON,
+        Math.hypot(
+            Math.max(previousFrame?.worldWidth ?? 0, currentFrame.worldWidth),
+            Math.max(previousFrame?.worldHeight ?? 0, currentFrame.worldHeight),
+        ),
+    );
+    const matchThreshold = 2.35;
+
+    const ownerIds = Array.from(
+        new Set([
+            ...previousShells.map((shell) => shell.ownerId),
+            ...currentFrame.shells.map((shell) => shell.ownerId),
+        ]),
+    ).sort((ownerA, ownerB) => ownerA.localeCompare(ownerB));
+
+    for (const ownerId of ownerIds) {
+        const previousOwnerShells = sortOwnerShellFrameShells(
+            previousShells.filter((shell) => shell.ownerId === ownerId),
+        );
+        const currentOwnerShells = sortOwnerShellFrameShells(
+            currentFrame.shells.filter((shell) => shell.ownerId === ownerId),
+        );
+        const unusedPreviousShellIds = new Set(previousOwnerShells.map((shell) => shell.shellId));
+
+        for (const currentShell of currentOwnerShells) {
+            let bestPreviousShell: FG2OwnerShellFrameShell | null = null;
+            let bestCost = Number.POSITIVE_INFINITY;
+            let bestCentroidDistance = 0;
+            let bestAreaRatio = 1;
+            let bestHoleDelta = 0;
+            let bestTouchesWorldBoundaryChanged = false;
+
+            for (const previousShell of previousOwnerShells) {
+                if (!unusedPreviousShellIds.has(previousShell.shellId)) continue;
+
+                const centroidDistance = Math.hypot(
+                    currentShell.centroid[0] - previousShell.centroid[0],
+                    currentShell.centroid[1] - previousShell.centroid[1],
+                );
+                const areaRatio =
+                    previousShell.absArea > EPSILON ? currentShell.absArea / previousShell.absArea : 1;
+                const perimeterRatio =
+                    previousShell.perimeter > EPSILON
+                        ? currentShell.perimeter / previousShell.perimeter
+                        : 1;
+                const areaCost = Math.abs(Math.log(Math.max(EPSILON, areaRatio)));
+                const perimeterCost = Math.abs(Math.log(Math.max(EPSILON, perimeterRatio)));
+                const holeDelta = Math.abs(currentShell.holeCount - previousShell.holeCount);
+                const touchesWorldBoundaryChanged =
+                    currentShell.touchesWorldBoundary !== previousShell.touchesWorldBoundary;
+                const confidenceCost = 1 - Math.min(currentShell.confidence, previousShell.confidence);
+                const totalCost =
+                    (centroidDistance / worldDiagonal) * 4.2 +
+                    areaCost * 1.35 +
+                    perimeterCost * 0.85 +
+                    holeDelta * 0.4 +
+                    (touchesWorldBoundaryChanged ? 0.35 : 0) +
+                    confidenceCost * 0.25;
+
+                if (totalCost + EPSILON < bestCost) {
+                    bestPreviousShell = previousShell;
+                    bestCost = totalCost;
+                    bestCentroidDistance = centroidDistance;
+                    bestAreaRatio = areaRatio;
+                    bestHoleDelta = holeDelta;
+                    bestTouchesWorldBoundaryChanged = touchesWorldBoundaryChanged;
+                }
+            }
+
+            if (bestPreviousShell && bestCost <= matchThreshold) {
+                unusedPreviousShellIds.delete(bestPreviousShell.shellId);
+                let kind: FG2OwnerShellTransitionArtifact['kind'] = 'persist';
+                if (bestAreaRatio > 1.08) {
+                    kind = 'grow';
+                } else if (bestAreaRatio < 0.92) {
+                    kind = 'shrink';
+                }
+
+                const contour = buildOwnerShellContourCorrespondence(bestPreviousShell, currentShell);
+                transitions.push({
+                    transitionId: `${ownerId}|${bestPreviousShell.shellId}|${currentShell.shellId}`,
+                    ownerId,
+                    kind,
+                    currentShellId: currentShell.shellId,
+                    previousShellId: bestPreviousShell.shellId,
+                    currentCentroid: currentShell.centroid,
+                    previousCentroid: bestPreviousShell.centroid,
+                    currentHoleCount: currentShell.holeCount,
+                    previousHoleCount: bestPreviousShell.holeCount,
+                    centroidDistance: bestCentroidDistance,
+                    areaRatio: bestAreaRatio,
+                    holeDelta: bestHoleDelta,
+                    touchesWorldBoundaryChanged: bestTouchesWorldBoundaryChanged,
+                    currentTouchesWorldBoundary: currentShell.touchesWorldBoundary,
+                    previousTouchesWorldBoundary: bestPreviousShell.touchesWorldBoundary,
+                    confidence: clamp(1 - bestCost / matchThreshold, 0, 1),
+                    contourSampleCount: contour.sampleCount,
+                    meanContourDistance: contour.meanDistance,
+                    maxContourDistance: contour.maxDistance,
+                    contourAlignmentOffset: contour.offset,
+                    contourOrientation: contour.orientation,
+                    contour,
+                });
+                continue;
+            }
+
+            const contour = buildCollapsedShellContourCorrespondence(
+                currentShell,
+                currentShell.centroid,
+                'spawn',
+            );
+            transitions.push({
+                transitionId: `${ownerId}|spawn|${currentShell.shellId}`,
+                ownerId,
+                kind: 'spawn',
+                currentShellId: currentShell.shellId,
+                previousShellId: null,
+                currentCentroid: currentShell.centroid,
+                previousCentroid: null,
+                currentHoleCount: currentShell.holeCount,
+                previousHoleCount: null,
+                centroidDistance: 0,
+                areaRatio: 1,
+                holeDelta: currentShell.holeCount,
+                touchesWorldBoundaryChanged: currentShell.touchesWorldBoundary,
+                currentTouchesWorldBoundary: currentShell.touchesWorldBoundary,
+                previousTouchesWorldBoundary: null,
+                confidence: clamp(0.25 + currentShell.confidence * 0.45, 0, 1),
+                contourSampleCount: contour.sampleCount,
+                meanContourDistance: contour.meanDistance,
+                maxContourDistance: contour.maxDistance,
+                contourAlignmentOffset: contour.offset,
+                contourOrientation: contour.orientation,
+                contour,
+            });
+        }
+
+        for (const previousShell of previousOwnerShells) {
+            if (!unusedPreviousShellIds.has(previousShell.shellId)) continue;
+            const contour = buildCollapsedShellContourCorrespondence(
+                previousShell,
+                previousShell.centroid,
+                'vanish',
+            );
+            transitions.push({
+                transitionId: `${ownerId}|vanish|${previousShell.shellId}`,
+                ownerId,
+                kind: 'vanish',
+                currentShellId: null,
+                previousShellId: previousShell.shellId,
+                currentCentroid: null,
+                previousCentroid: previousShell.centroid,
+                currentHoleCount: null,
+                previousHoleCount: previousShell.holeCount,
+                centroidDistance: 0,
+                areaRatio: 1,
+                holeDelta: previousShell.holeCount,
+                touchesWorldBoundaryChanged: previousShell.touchesWorldBoundary,
+                currentTouchesWorldBoundary: null,
+                previousTouchesWorldBoundary: previousShell.touchesWorldBoundary,
+                confidence: clamp(0.25 + previousShell.confidence * 0.35, 0, 1),
+                contourSampleCount: contour.sampleCount,
+                meanContourDistance: contour.meanDistance,
+                maxContourDistance: contour.maxDistance,
+                contourAlignmentOffset: contour.offset,
+                contourOrientation: contour.orientation,
+                contour,
+            });
+        }
+    }
+
+    return transitions.sort((transitionA, transitionB) => {
+        if (transitionA.ownerId !== transitionB.ownerId) {
+            return transitionA.ownerId.localeCompare(transitionB.ownerId);
+        }
+        if (transitionA.kind !== transitionB.kind) {
+            return transitionA.kind.localeCompare(transitionB.kind);
+        }
+        return transitionA.transitionId.localeCompare(transitionB.transitionId);
+    });
+}
 
 function buildPairHalfEdgeGraph(graph: FG2PairTopologyGraph): FG2PairHalfEdgeGraph {
     const nodeById = new Map(graph.nodes.map((node) => [node.nodeId, node]));
@@ -2368,12 +3194,176 @@ function executeLoopStage(runtime: FG2StageRuntime, summary: Record<string, unkn
 }
 
 function executeAnimationStage(runtime: FG2StageRuntime, summary: Record<string, unknown>): void {
+    const loopArtifact = runtime.artifacts.loop as
+        | {
+              ownerShells?: FG2OwnerShellArtifact[];
+          }
+        | undefined;
+    const ownerShells = loopArtifact?.ownerShells ?? [];
+    const currentFrame = buildOwnerShellFrameSnapshot(
+        ownerShells,
+        runtime.input.gameNowMs,
+        runtime.input.worldWidth,
+        runtime.input.worldHeight,
+    );
+    const currentFingerprint = buildOwnerShellFrameFingerprint(currentFrame);
+    const transitionDurationMs = Math.max(0, GAME_CONFIG.TERRITORY_TRANSITION_MS ?? 0);
+
+    let ownerShellTransitions = buildOwnerShellTransitions(fg2PreviousShellFrame, currentFrame);
+    let displayedOwnerShells: FG2InterpolatedOwnerShellArtifact[] = [];
+    let displayedOwnerShellFrame = currentFrame;
+    let ownerShellTransitionProgress = 1;
+    let ownerShellTransitionEasedProgress = 1;
+    let ownerShellTransitionActive = false;
+
+    if (!fg2PreviousShellFrame) {
+        fg2PreviousShellFrame = currentFrame;
+        fg2ActiveShellAnimation = null;
+    } else {
+        const previousFingerprint = buildOwnerShellFrameFingerprint(fg2PreviousShellFrame);
+        if (currentFingerprint !== previousFingerprint) {
+            const sourceDisplay = fg2ActiveShellAnimation
+                ? buildInterpolatedOwnerShellFrame(
+                      fg2ActiveShellAnimation,
+                      runtime.input.gameNowMs,
+                  )
+                : null;
+            const sourceFrame = sourceDisplay?.frame ?? fg2PreviousShellFrame;
+            ownerShellTransitions = buildOwnerShellTransitions(sourceFrame, currentFrame);
+            fg2PreviousShellFrame = currentFrame;
+
+            if (transitionDurationMs > EPSILON && ownerShellTransitions.length > 0) {
+                fg2ActiveShellAnimation = {
+                    sourceFrame,
+                    targetFrame: currentFrame,
+                    transitions: ownerShellTransitions,
+                    startedAtMs: runtime.input.gameNowMs,
+                    durationMs: transitionDurationMs,
+                    targetFingerprint: currentFingerprint,
+                };
+                const display = buildInterpolatedOwnerShellFrame(
+                    fg2ActiveShellAnimation,
+                    runtime.input.gameNowMs,
+                );
+                displayedOwnerShells = display.shells;
+                displayedOwnerShellFrame = display.frame;
+                ownerShellTransitionProgress = display.progress;
+                ownerShellTransitionEasedProgress = display.easedProgress;
+                ownerShellTransitionActive = display.progress < 1 - EPSILON;
+            } else {
+                fg2ActiveShellAnimation = null;
+            }
+        } else if (
+            fg2ActiveShellAnimation &&
+            fg2ActiveShellAnimation.targetFingerprint === currentFingerprint
+        ) {
+            const display = buildInterpolatedOwnerShellFrame(
+                fg2ActiveShellAnimation,
+                runtime.input.gameNowMs,
+            );
+            ownerShellTransitions = fg2ActiveShellAnimation.transitions;
+            displayedOwnerShells = display.shells;
+            displayedOwnerShellFrame = display.frame;
+            ownerShellTransitionProgress = display.progress;
+            ownerShellTransitionEasedProgress = display.easedProgress;
+            ownerShellTransitionActive = display.progress < 1 - EPSILON;
+            if (!ownerShellTransitionActive) {
+                fg2ActiveShellAnimation = null;
+            }
+        } else {
+            fg2ActiveShellAnimation = null;
+            fg2PreviousShellFrame = currentFrame;
+        }
+    }
+
+    if (!ownerShellTransitionActive) {
+        displayedOwnerShells = [];
+        displayedOwnerShellFrame = currentFrame;
+        ownerShellTransitionProgress = 1;
+        ownerShellTransitionEasedProgress = 1;
+    }
+
+    const matchedOwnerShellTransitions = ownerShellTransitions.filter(
+        (transition) =>
+            transition.kind === 'persist' ||
+            transition.kind === 'grow' ||
+            transition.kind === 'shrink',
+    );
+    const matchedOwnerShellCount = matchedOwnerShellTransitions.length;
+    const displayedOwnerShellCount = ownerShellTransitionActive
+        ? displayedOwnerShells.length
+        : displayedOwnerShellFrame.shells.length;
+    const spawnedOwnerShellCount = ownerShellTransitions.filter(
+        (transition) => transition.kind === 'spawn',
+    ).length;
+    const vanishedOwnerShellCount = ownerShellTransitions.filter(
+        (transition) => transition.kind === 'vanish',
+    ).length;
+    const grewOwnerShellCount = ownerShellTransitions.filter(
+        (transition) => transition.kind === 'grow',
+    ).length;
+    const shrankOwnerShellCount = ownerShellTransitions.filter(
+        (transition) => transition.kind === 'shrink',
+    ).length;
+    const ownerShellContourSampleCount = ownerShellTransitions.reduce(
+        (total, transition) => total + transition.contourSampleCount,
+        0,
+    );
+    const matchedOwnerShellContourSampleCount = matchedOwnerShellTransitions.reduce(
+        (total, transition) => total + transition.contourSampleCount,
+        0,
+    );
+    const meanMatchedOwnerShellContourDistance =
+        matchedOwnerShellContourSampleCount > 0
+            ? matchedOwnerShellTransitions.reduce(
+                  (total, transition) =>
+                      total + transition.meanContourDistance * transition.contourSampleCount,
+                  0,
+              ) / matchedOwnerShellContourSampleCount
+            : 0;
+    const maxMatchedOwnerShellContourDistance = matchedOwnerShellTransitions.reduce(
+        (maxDistance, transition) => Math.max(maxDistance, transition.maxContourDistance),
+        0,
+    );
+
     runtime.artifacts.animation = {
         transitionMode: runtime.selection.mode,
         gameNowMs: runtime.input.gameNowMs,
+        ownerShellTransitionActive,
+        ownerShellTransitionProgress,
+        ownerShellTransitionEasedProgress,
+        displayedOwnerShellCount,
+        ownerShellTransitions,
+        displayedOwnerShells,
+        currentOwnerShellFrame: currentFrame,
+        displayedOwnerShellFrame,
+        ownerShellTransitionCount: ownerShellTransitions.length,
+        matchedOwnerShellCount,
+        spawnedOwnerShellCount,
+        vanishedOwnerShellCount,
+        grewOwnerShellCount,
+        shrankOwnerShellCount,
+        ownerShellContourSampleCount,
+        matchedOwnerShellContourSampleCount,
+        meanMatchedOwnerShellContourDistance,
+        maxMatchedOwnerShellContourDistance,
     };
 
     summary.animationReady = true;
+    summary.ownerShellTransitionActive = ownerShellTransitionActive;
+    summary.ownerShellTransitionProgress = ownerShellTransitionProgress;
+    summary.ownerShellTransitionEasedProgress = ownerShellTransitionEasedProgress;
+    summary.displayedOwnerShellCount = displayedOwnerShellCount;
+    summary.ownerShellTransitionCount = ownerShellTransitions.length;
+    summary.matchedOwnerShellCount = matchedOwnerShellCount;
+    summary.spawnedOwnerShellCount = spawnedOwnerShellCount;
+    summary.vanishedOwnerShellCount = vanishedOwnerShellCount;
+    summary.grewOwnerShellCount = grewOwnerShellCount;
+    summary.shrankOwnerShellCount = shrankOwnerShellCount;
+    summary.ownerShellContourSampleCount = ownerShellContourSampleCount;
+    summary.matchedOwnerShellContourSampleCount = matchedOwnerShellContourSampleCount;
+    summary.meanMatchedOwnerShellContourDistance = meanMatchedOwnerShellContourDistance;
+    summary.maxMatchedOwnerShellContourDistance = maxMatchedOwnerShellContourDistance;
 }
 
 function executeRenderStage(runtime: FG2StageRuntime, summary: Record<string, unknown>): void {
@@ -2393,6 +3383,14 @@ function executeRenderStage(runtime: FG2StageRuntime, summary: Record<string, un
               ownerShells?: FG2OwnerShellArtifact[];
           }
         | undefined;
+    const animationArtifact = runtime.artifacts.animation as
+        | {
+              ownerShellTransitions?: FG2OwnerShellTransitionArtifact[];
+              ownerShellTransitionActive?: boolean;
+              ownerShellTransitionProgress?: number;
+              displayedOwnerShells?: FG2InterpolatedOwnerShellArtifact[];
+          }
+        | undefined;
     const seedArtifact = runtime.artifacts.seed as { seeds?: FG2SeedPoint[] } | undefined;
     const pairGraphs = topologyArtifact?.pairGraphs ?? {};
     const frontiers = geometryArtifact?.frontiers ?? [];
@@ -2400,6 +3398,16 @@ function executeRenderStage(runtime: FG2StageRuntime, summary: Record<string, un
     const ownerRegionLoops = loopArtifact?.ownerRegionLoops ?? [];
     const ownerShellLoops = loopArtifact?.ownerShellLoops ?? [];
     const ownerShells = loopArtifact?.ownerShells ?? [];
+    const ownerShellTransitions = animationArtifact?.ownerShellTransitions ?? [];
+    const displayedOwnerShells = animationArtifact?.displayedOwnerShells ?? [];
+    const ownerShellTransitionActive = Boolean(
+        animationArtifact?.ownerShellTransitionActive ?? false,
+    );
+    const ownerShellTransitionProgress = clamp(
+        Number(animationArtifact?.ownerShellTransitionProgress ?? 1),
+        0,
+        1,
+    );
     const seeds = seedArtifact?.seeds ?? [];
 
     const graphics = getOrCreateGraphics(runtime.input.container);
@@ -2409,13 +3417,25 @@ function executeRenderStage(runtime: FG2StageRuntime, summary: Record<string, un
     const borderAlpha = Math.max(0, Math.min(1, GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.9));
     const fillAlpha = Math.max(0, Math.min(0.6, GAME_CONFIG.GRAPH_ALPHA ?? 0.15));
 
-    const shellsForRender = ownerShells.slice().sort((shellA, shellB) => {
+    const shellsForRender: Array<FG2OwnerShellArtifact | FG2InterpolatedOwnerShellArtifact> =
+        ownerShellTransitionActive && displayedOwnerShells.length > 0
+            ? displayedOwnerShells
+            : ownerShells;
+    const sortedShellsForRender = shellsForRender.slice().sort((shellA, shellB) => {
         if (Math.abs(shellA.absArea - shellB.absArea) > EPSILON) {
             return shellB.absArea - shellA.absArea;
         }
         return shellA.shellId.localeCompare(shellB.shellId);
     });
-    for (const ownerShell of shellsForRender) {
+    const useAnimatedShellContoursForFrontiers =
+        ownerShellTransitionActive && displayedOwnerShells.length > 0;
+    const displayedFrontierMode = useAnimatedShellContoursForFrontiers
+        ? 'animated_shell_contours'
+        : 'pair_frontiers';
+    const displayedFrontierCount = useAnimatedShellContoursForFrontiers
+        ? sortedShellsForRender.length
+        : frontiers.length;
+    for (const ownerShell of sortedShellsForRender) {
         if (ownerShell.points.length < 3) continue;
         const shellColor = runtime.input.colorUtils.getPlayerColor(ownerShell.ownerId);
         graphics.moveTo(ownerShell.points[0][0], ownerShell.points[0][1]);
@@ -2543,62 +3563,155 @@ function executeRenderStage(runtime: FG2StageRuntime, summary: Record<string, un
         }
     }
 
-    for (const frontier of frontiers) {
-        const colorA = runtime.input.colorUtils.getPlayerColor(frontier.ownerA);
-        const colorB = runtime.input.colorUtils.getPlayerColor(frontier.ownerB);
-        const color = blendColors(colorA, colorB);
+    if (useAnimatedShellContoursForFrontiers) {
+        const animatedFrontierColor = 0xffffff;
+        for (const ownerShell of sortedShellsForRender) {
+            if (ownerShell.points.length < 2) continue;
+            graphics.moveTo(ownerShell.points[0][0], ownerShell.points[0][1]);
+            for (let i = 1; i < ownerShell.points.length; i += 1) {
+                const point = ownerShell.points[i];
+                graphics.lineTo(point[0], point[1]);
+            }
+            if (ownerShell.points.length > 2) {
+                graphics.lineTo(ownerShell.points[0][0], ownerShell.points[0][1]);
+            }
+            graphics.stroke({
+                color: animatedFrontierColor,
+                width: borderWidth,
+                alpha: borderAlpha * (0.72 + ownerShell.confidence * 0.16),
+                cap: 'round',
+                join: 'round',
+            });
+        }
+    } else {
+        for (const frontier of frontiers) {
+            const colorA = runtime.input.colorUtils.getPlayerColor(frontier.ownerA);
+            const colorB = runtime.input.colorUtils.getPlayerColor(frontier.ownerB);
+            const color = blendColors(colorA, colorB);
 
-        if (frontier.points.length === 1) {
-            const [x, y] = frontier.points[0];
-            graphics.circle(x, y, Math.max(2, borderWidth));
-            graphics.fill({ color, alpha: borderAlpha });
-            continue;
-        }
+            if (frontier.points.length === 1) {
+                const [x, y] = frontier.points[0];
+                graphics.circle(x, y, Math.max(2, borderWidth));
+                graphics.fill({ color, alpha: borderAlpha });
+                continue;
+            }
 
-        graphics.moveTo(frontier.points[0][0], frontier.points[0][1]);
-        for (let i = 1; i < frontier.points.length; i += 1) {
-            const point = frontier.points[i];
-            graphics.lineTo(point[0], point[1]);
+            graphics.moveTo(frontier.points[0][0], frontier.points[0][1]);
+            for (let i = 1; i < frontier.points.length; i += 1) {
+                const point = frontier.points[i];
+                graphics.lineTo(point[0], point[1]);
+            }
+            if (frontier.closed && frontier.points.length > 2) {
+                graphics.lineTo(frontier.points[0][0], frontier.points[0][1]);
+            }
+            graphics.stroke({
+                color,
+                width: borderWidth,
+                alpha: borderAlpha,
+                cap: 'round',
+                join: 'round',
+            });
         }
-        if (frontier.closed && frontier.points.length > 2) {
-            graphics.lineTo(frontier.points[0][0], frontier.points[0][1]);
-        }
-        graphics.stroke({
-            color,
-            width: borderWidth,
-            alpha: borderAlpha,
-            cap: 'round',
-            join: 'round',
-        });
     }
 
     if (GAME_CONFIG.TERRITORY_ENGINE_TRACE_MODE) {
+        for (const transition of ownerShellTransitions) {
+            const transitionColor = runtime.input.colorUtils.getPlayerColor(transition.ownerId);
+            const contour = transition.contour;
+            if (contour) {
+                const sampleStride = Math.max(1, Math.floor(contour.sampleCount / 10));
+                for (let sampleIndex = 0; sampleIndex < contour.sampleCount; sampleIndex += sampleStride) {
+                    const previousPoint = contour.previousPoints[sampleIndex];
+                    const currentPoint = contour.currentPoints[sampleIndex];
+                    if (!previousPoint || !currentPoint) continue;
+                    graphics.moveTo(previousPoint[0], previousPoint[1]);
+                    graphics.lineTo(currentPoint[0], currentPoint[1]);
+                    graphics.stroke({
+                        color: transitionColor,
+                        width: Math.max(1, borderWidth * 0.08),
+                        alpha: 0.04 + transition.confidence * 0.08,
+                        cap: 'round',
+                        join: 'round',
+                    });
+                }
+            }
+
+            if (transition.previousCentroid && transition.currentCentroid) {
+                graphics.moveTo(transition.previousCentroid[0], transition.previousCentroid[1]);
+                graphics.lineTo(transition.currentCentroid[0], transition.currentCentroid[1]);
+                graphics.stroke({
+                    color: transitionColor,
+                    width: Math.max(1, borderWidth * 0.14),
+                    alpha: 0.12 + transition.confidence * 0.16,
+                    cap: 'round',
+                    join: 'round',
+                });
+            }
+
+            const anchorPoint = transition.currentCentroid ?? transition.previousCentroid;
+            if (anchorPoint) {
+                graphics.circle(
+                    anchorPoint[0],
+                    anchorPoint[1],
+                    transition.kind === 'spawn' || transition.kind === 'vanish' ? 2.6 : 1.9,
+                );
+                graphics.fill({
+                    color: transitionColor,
+                    alpha:
+                        transition.kind === 'vanish'
+                            ? 0.18
+                            : 0.24 + transition.confidence * 0.2,
+                });
+            }
+        }
+
         for (const seed of seeds) {
             graphics.circle(seed.x, seed.y, 1.5);
             graphics.fill({ color: 0xffffff, alpha: 0.95 });
         }
     }
 
+    const ownerShellContourSampleCount = ownerShellTransitions.reduce(
+        (total, transition) => total + transition.contourSampleCount,
+        0,
+    );
+
     runtime.artifacts.render = {
         renderer: 'fg2_seed_graph_native',
-        frontierCount: frontiers.length,
+        frontierCount: displayedFrontierCount,
+        displayedFrontierCount,
+        displayedFrontierMode,
+        sourceFrontierCount: frontiers.length,
         regionLoopCount: regionLoops.length,
         ownerRegionLoopCount: ownerRegionLoops.length,
-        ownerShellCount: ownerShells.length,
+        ownerShellCount: sortedShellsForRender.length,
         ownerShellLoopCount: ownerShellLoops.length,
+        ownerShellTransitionActive,
+        ownerShellTransitionProgress,
+        ownerShellTransitionCount: ownerShellTransitions.length,
+        ownerShellContourSampleCount,
+        displayedOwnerShellCount: sortedShellsForRender.length,
         seedCount: seeds.length,
     };
 
     summary.nativeRenderer = 'fg2_seed_graph_native';
-    summary.frontierCount = frontiers.length;
+    summary.frontierCount = displayedFrontierCount;
+    summary.displayedFrontierCount = displayedFrontierCount;
+    summary.displayedFrontierMode = displayedFrontierMode;
+    summary.sourceFrontierCount = frontiers.length;
     summary.regionLoopCount = regionLoops.length;
-    summary.ownerRegionLoopCount = ownerRegionLoops.length;
-    summary.ownerShellCount = ownerShells.length;
-    summary.ownerShellLoopCount = ownerShellLoops.length;
+    summary.ownerShellTransitionActive = ownerShellTransitionActive;
+    summary.ownerShellTransitionProgress = ownerShellTransitionProgress;
+    summary.ownerShellTransitionCount = ownerShellTransitions.length;
+    summary.ownerShellContourSampleCount = ownerShellContourSampleCount;
+    summary.displayedOwnerShellCount = sortedShellsForRender.length;
     summary.seedCount = seeds.length;
 }
 
-
+export function resetFG2StageCaches(): void {
+    fg2PreviousShellFrame = null;
+    fg2ActiveShellAnimation = null;
+}
 
 export function executeFG2Stage(
     stageId: TerritoryPipelineStageId,
