@@ -533,6 +533,35 @@ export function getLastTerritoryTraceRun(): TerritoryTraceRun | null {
     return lastTraceRun;
 }
 
+/**
+ * Run FG2 data pipeline stages (metric → world_extension → seed → topology →
+ * geometry → loop → animation) WITHOUT the render stage. Returns the artifact
+ * bag so a consumer renderer (e.g. PVV3) can draw from canonical shell data.
+ *
+ * This is the mechanism for renderers to drive FG2 computation without
+ * requiring the Territory Engine toggle to be enabled.
+ */
+export function runFG2DataPipeline(input: TerritoryEngineInput): TerritoryPipelineArtifacts {
+    const selection = resolveMethodSelection();
+    const artifacts: TerritoryPipelineArtifacts = {};
+    const runtime: TerritoryPipelineRuntime = { input, selection, artifacts };
+
+    for (const stageId of TERRITORY_PIPELINE_STAGE_ORDER) {
+        if (stageId === 'render') continue;  // skip — caller handles rendering
+        executeStage(stageId, runtime);
+    }
+
+    // Also store into lastTraceRun so diagnostic tools can inspect
+    const runId = ++traceRunCounter;
+    setLastTerritoryTraceRun(
+        buildTraceRun(runId, input.gameNowMs, Date.now(), selection, [], artifacts, input),
+    );
+
+    return artifacts;
+}
+
+
+
 export function resetTerritoryEngineCaches(): void {
     resetPowerVoronoiCache();
     resetPVV3Cache();

@@ -28,7 +28,8 @@ import { findConnectedClustersOptimized } from './territoryUtils';
 import { computeCorridorVirtuals, computeDisconnectVirtuals, DISCONNECT_OWNER_ID } from './territoryFeatures';
 import type { ColorUtils } from './RenderContext';
 import { log } from '$lib/utils/logger';
-import { getLastTerritoryTraceRun } from '$lib/territory-engine/engine';
+import { runFG2DataPipeline } from '$lib/territory-engine/engine';
+
 
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -1631,13 +1632,24 @@ export function renderPVV3(
     // If the territory engine has FG2 shell data available, use it directly.
     // This gives us canonical polygons where shared edges are shared by
     // construction — no gaps possible.
-    const fg2TraceRun = getLastTerritoryTraceRun();
-    const fg2LoopArtifact = fg2TraceRun?.artifacts?.loop as
+    // PVV3 drives FG2 directly — no need for Territory Engine toggle
+    const fg2Artifacts = runFG2DataPipeline({
+        stars,
+        container: voronoiContainer,
+        colorUtils,
+        worldWidth,
+        worldHeight,
+        connections,
+        gameNowMs: performance.now(),
+    });
+    const fg2LoopArtifact = fg2Artifacts.loop as
+
         | { ownerShells?: Array<{ shellId: string; ownerId: string; points: [number, number][]; area: number; absArea: number; confidence: number; holeLoopIds: string[] }>;
             ownerShellLoops?: Array<{ shellLoopId: string; ownerId: string; points: [number, number][]; classification: string }>;
           }
         | undefined;
-    const fg2AnimArtifact = fg2TraceRun?.artifacts?.animation as
+    const fg2AnimArtifact = fg2Artifacts.animation as
+
         | { displayedOwnerShells?: Array<{ shellId: string; ownerId: string; points: [number, number][]; area: number; absArea: number; confidence: number; holeLoops: Array<{ holeLoopId: string; points: [number, number][] }> }>;
             ownerShellTransitionActive?: boolean;
           }
@@ -1722,7 +1734,8 @@ export function renderPVV3(
             timestamp: Date.now(),
             shellCount: sorted.length,
             animActive: fg2AnimActive,
-            traceRunId: (fg2TraceRun as any)?.runId ?? null,
+            traceRunId: null,
+
             shells: sorted.map((shell, idx) => {
                 const pts = shell.points;
                 const closed = pts.length >= 3 &&
@@ -1870,7 +1883,8 @@ export function renderPVV3(
 
     // FG2 not used — falling through to legacy merge+substitute pipeline
     console.log('%c[PVV3] LEGACY PATH — FG2 shells not available', 'color: #ffa500; font-weight: bold',
-        `traceRun=${!!fg2TraceRun}, loopArtifact=${!!fg2LoopArtifact}, shellCount=${fg2Shells.length}`);
+        `loopArtifact=${!!fg2LoopArtifact}, shellCount=${fg2Shells.length}`);
+
 
 
 
