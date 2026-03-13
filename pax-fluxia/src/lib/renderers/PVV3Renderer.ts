@@ -505,6 +505,9 @@ function chainSharedEdgesIntoPolylines(edges: SharedBorderEdge[], colorLookup?: 
  * Replace shared-edge segments in territory polygons with smoothed polyline coordinates.
  * World-boundary vertices (not matched to any shared polyline) stay straight.
  * Adjacent territories get identical smoothed coordinates at their shared border.
+ *
+ * FIX: Rotates polygon to start at a non-interior vertex (junction / world boundary)
+ * so shared edges never span the wrap-around point.
  */
 function substituteSmoothedEdges(
     merged: MergedTerritory[],
@@ -514,7 +517,7 @@ function substituteSmoothedEdges(
     const SNAP = 3;
     const ptKey = (x: number, y: number) => `${Math.round(x / SNAP) * SNAP},${Math.round(y / SNAP) * SNAP}`;
 
-    // Build mappings: raw polyline vertex keys ? smoothed polyline points
+    // Build mappings: raw polyline vertex keys -> smoothed polyline points
     interface PolylineMapping {
         rawKeys: string[];
         smoothedPoints: [number, number][];
@@ -531,10 +534,33 @@ function substituteSmoothedEdges(
         });
     }
 
+    // Collect interior vertex keys (not endpoints) across all polylines.
+    // Starting a polygon scan at an interior vertex causes wrap-around mismatches.
+    const interiorKeys = new Set<string>();
+    for (const m of mappings) {
+        for (let k = 1; k < m.rawKeys.length - 1; k++) {
+            interiorKeys.add(m.rawKeys[k]);
+        }
+    }
+
     for (const territory of merged) {
-        const pts = territory.points;
+        let pts = territory.points;
         if (pts.length < 3) continue;
 
+        // ---- Rotate polygon to start at a non-interior vertex ----
+        // This guarantees shared edges are encountered as complete runs.
+        let rotateIdx = 0;
+        for (let ri = 0; ri < pts.length; ri++) {
+            if (!interiorKeys.has(ptKey(pts[ri][0], pts[ri][1]))) {
+                rotateIdx = ri;
+                break;
+            }
+        }
+        if (rotateIdx > 0) {
+            pts = [...pts.slice(rotateIdx), ...pts.slice(0, rotateIdx)];
+        }
+
+        // ---- Linear scan with forward/reverse matching ----
         const result: [number, number][] = [];
         let i = 0;
 
@@ -549,7 +575,7 @@ function substituteSmoothedEdges(
 
                 const rk = mapping.rawKeys;
 
-                // Forward match: polygon vertices align with raw polyline start?end
+                // Forward match: polygon vertices align with raw polyline start->end
                 if (vKey === rk[0] && rk.length >= 2) {
                     let matchLen = 1;
                     for (let r = 1; r < rk.length && (i + matchLen) < pts.length; r++) {
@@ -570,7 +596,7 @@ function substituteSmoothedEdges(
                     }
                 }
 
-                // Reverse match: polygon traverses polyline end?start
+                // Reverse match: polygon traverses polyline end->start
                 if (vKey === rk[rk.length - 1] && rk.length >= 2) {
                     let matchLen = 1;
                     for (let r = rk.length - 2; r >= 0 && (i + matchLen) < pts.length; r--) {
@@ -594,7 +620,7 @@ function substituteSmoothedEdges(
             }
 
             if (!matched) {
-                // World-boundary vertex or unmatched — keep as-is
+                // World-boundary vertex or unmatched - keep as-is
                 result.push(pts[i]);
                 i++;
             }
