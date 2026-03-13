@@ -511,7 +511,7 @@ function substituteSmoothedEdges(
     rawPolylines: SharedPolyline[],
     smoothedPolylines: SharedPolyline[]
 ): void {
-    const SNAP = 3;
+    const SNAP = 10;  // fuzzy match tolerance (wider to catch snapping discrepancies)
     const ptKey = (x: number, y: number) => `${Math.round(x / SNAP) * SNAP},${Math.round(y / SNAP) * SNAP}`;
 
     // Build mappings: raw polyline vertex keys ? smoothed polyline points
