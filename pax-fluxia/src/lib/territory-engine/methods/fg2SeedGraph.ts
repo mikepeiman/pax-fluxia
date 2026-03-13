@@ -2025,6 +2025,28 @@ function computeContourSampleCount(
     return Math.max(12, Math.min(64, Math.max(loopPointCount, perimeterDrivenCount)));
 }
 
+function blendContourReferencePoints(
+    primaryPoints: [number, number][],
+    secondaryPoints: [number, number][],
+    blendFactor: number,
+): [number, number][] {
+    if (primaryPoints.length === 0) return [];
+    if (secondaryPoints.length !== primaryPoints.length) {
+        return primaryPoints.map(([x, y]) => [x, y] as [number, number]);
+    }
+
+    const t = clamp(blendFactor, 0, 1);
+    return normalizeClosedLoopPoints(
+        primaryPoints.map(([primaryX, primaryY], index) => {
+            const [secondaryX, secondaryY] = secondaryPoints[index];
+            return [
+                primaryX + (secondaryX - primaryX) * t,
+                primaryY + (secondaryY - primaryY) * t,
+            ] as [number, number];
+        }),
+    );
+}
+
 function buildOwnerShellContourCorrespondence(
     previousShell: FG2OwnerShellFrameShell,
     currentShell: FG2OwnerShellFrameShell,
@@ -2152,16 +2174,32 @@ function buildCollapsedShellContourCorrespondence(
 
     const anchorOffset = findNearestLoopSampleIndex(collapseTo, shellPoints);
     const orientedShellPoints = rotateLoopPoints(shellPoints, anchorOffset);
+    let collapsedReferencePoints = orientedShellPoints;
     const anchorScaleRatio = anchorShell
         ? Math.sqrt(
               Math.min(shell.absArea, anchorShell.absArea) /
                   Math.max(EPSILON, Math.max(shell.absArea, anchorShell.absArea)),
           )
         : 0;
+    if (anchorShell) {
+        const anchorPoints = resampleClosedLoop(anchorShell.points, sampleCount);
+        if (anchorPoints.length === sampleCount) {
+            const alignedAnchor = alignResampledContours(orientedShellPoints, anchorPoints);
+            collapsedReferencePoints = blendContourReferencePoints(
+                orientedShellPoints,
+                alignedAnchor.alignedCurrentPoints,
+                clamp(0.32 + anchorScaleRatio * 0.4, 0.32, 0.72),
+            );
+        }
+    }
     const collapsedScale = anchorShell
-        ? clamp(0.08 + anchorScaleRatio * 0.2, 0.08, 0.32)
-        : 0.06;
-    const collapsedPoints = scaleLoopAroundPoint(orientedShellPoints, collapseTo, collapsedScale);
+        ? clamp(0.18 + anchorScaleRatio * 0.24, 0.18, 0.42)
+        : 0.08;
+    const collapsedPoints = scaleLoopAroundPoint(
+        collapsedReferencePoints,
+        collapseTo,
+        collapsedScale,
+    );
     const previousPoints = mode === 'spawn' ? collapsedPoints : orientedShellPoints;
     const currentPoints = mode === 'spawn' ? orientedShellPoints : collapsedPoints;
     const { meanDistance, maxDistance } = computeContourDistanceStats(previousPoints, currentPoints);
@@ -2175,6 +2213,15 @@ function buildCollapsedShellContourCorrespondence(
         previousPoints,
         currentPoints,
     };
+}
+
+function isRenderableClosedLoop(points: [number, number][]): boolean {
+    const normalizedPoints = normalizeClosedLoopPoints(points);
+    return (
+        normalizedPoints.length >= 3 &&
+        Math.abs(computeSignedArea(normalizedPoints)) > EPSILON &&
+        !hasSelfIntersectingLoop(normalizedPoints)
+    );
 }
 
 function sortOwnerShellHoleFrameLoops(
@@ -2924,40 +2971,35 @@ function resolveInterpolatedOwnerShellGeometry(
     const interpolatedPoints = normalizeClosedLoopPoints(
         interpolateContourPoints(contour.previousPoints, contour.currentPoints, progress),
     );
-    const interpolatedAbsArea = Math.abs(computeSignedArea(interpolatedPoints));
-    if (
-        interpolatedPoints.length >= 3 &&
-        interpolatedAbsArea > EPSILON &&
-        !hasSelfIntersectingLoop(interpolatedPoints)
-    ) {
+    if (isRenderableClosedLoop(interpolatedPoints)) {
         return {
             points: interpolatedPoints,
             geometrySource: 'interpolated',
         };
     }
 
-    if (
-        transition.kind !== 'persist' &&
-        transition.kind !== 'grow' &&
-        transition.kind !== 'shrink'
-    ) {
-        return null;
-    }
-
     const useCurrentFallback = progress >= 0.5;
-    const fallbackPoints = useCurrentFallback ? currentPoints : previousPoints;
-    if (
-        fallbackPoints.length < 3 ||
-        Math.abs(computeSignedArea(fallbackPoints)) <= EPSILON ||
-        hasSelfIntersectingLoop(fallbackPoints)
-    ) {
-        return null;
+    const fallbackCandidates: Array<{
+        points: [number, number][];
+        geometrySource: FG2InterpolatedOwnerShellArtifact['geometrySource'];
+    }> = useCurrentFallback
+        ? [
+              { points: currentPoints, geometrySource: 'current_fallback' },
+              { points: previousPoints, geometrySource: 'previous_fallback' },
+          ]
+        : [
+              { points: previousPoints, geometrySource: 'previous_fallback' },
+              { points: currentPoints, geometrySource: 'current_fallback' },
+          ];
+    for (const fallbackCandidate of fallbackCandidates) {
+        if (!isRenderableClosedLoop(fallbackCandidate.points)) continue;
+        return {
+            points: fallbackCandidate.points.map(([x, y]) => [x, y] as [number, number]),
+            geometrySource: fallbackCandidate.geometrySource,
+        };
     }
 
-    return {
-        points: fallbackPoints.map(([x, y]) => [x, y] as [number, number]),
-        geometrySource: useCurrentFallback ? 'current_fallback' : 'previous_fallback',
-    };
+    return null;
 }
 
 function buildInterpolatedOwnerShellArtifact(

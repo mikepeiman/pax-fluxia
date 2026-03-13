@@ -110,6 +110,52 @@
             };
         });
     }
+
+    function getOwnerHoldingTransitionSummary(
+        artifacts: TerritoryPipelineArtifacts | undefined,
+    ): string[] {
+        const animation = (artifacts?.animation ?? undefined) as Record<string, unknown> | undefined;
+        if (!animation) return [];
+
+        return [
+            `transitions=${formatTraceValue(animation.ownerShellTransitionCount)}`,
+            `matched=${formatTraceValue(animation.matchedOwnerShellCount)}`,
+            `spawn=${formatTraceValue(animation.spawnedOwnerShellCount)}`,
+            `vanish=${formatTraceValue(animation.vanishedOwnerShellCount)}`,
+            `grow=${formatTraceValue(animation.grewOwnerShellCount)}`,
+            `shrink=${formatTraceValue(animation.shrankOwnerShellCount)}`,
+            `split=${formatTraceValue(animation.splitAnchoredSpawnCount)}`,
+            `merge=${formatTraceValue(animation.mergeAnchoredVanishCount)}`,
+            `fallback=${formatTraceValue(animation.ownerShellGeometryFallbackCount)}`,
+            `holeTransitions=${formatTraceValue(animation.ownerShellHoleTransitionCount)}`,
+        ];
+    }
+
+    function getOwnerHoldingTransitionPreviewEntries(
+        artifacts: TerritoryPipelineArtifacts | undefined,
+    ): Array<{ id: string; summary: string }> {
+        const transitions =
+            ((artifacts?.animation as { ownerShellTransitions?: Array<Record<string, unknown>> } | undefined)
+                ?.ownerShellTransitions ?? []) as Array<Record<string, unknown>>;
+        return transitions.slice(0, 6).map((transition, index) => {
+            const ownerId = typeof transition.ownerId === "string" ? transition.ownerId : "?";
+            const kind = typeof transition.kind === "string" ? transition.kind : "?";
+            const anchorRelation =
+                typeof transition.anchorRelation === "string" ? transition.anchorRelation : "none";
+            const relationLabel = anchorRelation !== "none" ? `/${anchorRelation}` : "";
+            return {
+                id:
+                    typeof transition.transitionId === "string"
+                        ? transition.transitionId
+                        : `owner-shell-transition-${index}`,
+                summary:
+                    `${ownerId} | ${kind}${relationLabel} | ` +
+                    `conf=${formatTraceValue(transition.confidence)} | ` +
+                    `contour=${formatTraceValue(transition.meanContourDistance)}/${formatTraceValue(transition.maxContourDistance)} | ` +
+                    `holes=${formatTraceValue(transition.previousHoleCount)}->${formatTraceValue(transition.currentHoleCount)}`,
+            };
+        });
+    }
     const TERRITORY_KEYS = [
         "territoryVoronoi",
         "territoryModifiedVoronoi",
@@ -744,6 +790,16 @@
             <div class="trace-section">
                 <div class="trace-section-title">Owner Shells</div>
                 {#each getOwnerShellPreviewEntries($territoryTraceRun.artifacts) as entry}
+                    <div class="trace-detail-line">{entry.summary}</div>
+                {/each}
+            </div>
+
+            <div class="trace-section">
+                <div class="trace-section-title">Holding Transitions</div>
+                <div class="trace-summary">
+                    {getOwnerHoldingTransitionSummary($territoryTraceRun.artifacts).join(" | ")}
+                </div>
+                {#each getOwnerHoldingTransitionPreviewEntries($territoryTraceRun.artifacts) as entry}
                     <div class="trace-detail-line">{entry.summary}</div>
                 {/each}
             </div>

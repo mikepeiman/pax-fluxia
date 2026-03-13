@@ -76,7 +76,6 @@
 | F-150 | Power-weighted border colors — territory borders alpha/lightness weighted by ship count ratio. Player A (500 ships) vs Player B (100 ships) → border color weighted toward A with higher alpha and lightness. Requires accessing ship counts per-star during border rendering. | Medium | 2026-03-10 |
 | F-151 | Junction overlap blending — where border lines overlap at junctions, they should be blended (not additive stacking). Requires compositing or pre-pass deduplication. | Medium | 2026-03-10 |
 
-
 ## 2026-03-12 Territory Engine Program Additions
 
 ### Known Regressions (PVV3 / Frontier)
@@ -118,4 +117,6 @@
 - F-155 now uses global non-conflicting shell correspondence per owner instead of greedy current-shell matching, reducing shell identity flicker during split, merge, and other topology-shift transitions.
 - Hole playback inside a shell transition now also uses global non-conflicting correspondence, and diagnostics expose `ownerShellHoleTransitionCount` plus persisted, spawned, vanished, and contour-sample counts.
 - Animated shell artifacts now sanitize interpolated hole loops against the displayed shell polygon, suppressing invalid negative cutout geometry before render use.
-- Verification remains green at the worktree slice level: `bun run check` succeeded with `0 errors` and baseline warnings only, and `bun run build` succeeded.
+- F-155 now blends unmatched spawn/vanish transitions toward anchor-shaped contours and allows endpoint fallback for all transition kinds, reducing dropped holdings and brittle point-collapse motion.
+- The Territory Trace Inspector now exposes a `Holding Transitions` section so split/merge anchoring, fallback counts, and per-transition contour metrics are visible without digging through raw artifacts.
+- Verification remains green at the build level on `master`: filtered diagnostics for the modified files were clean, and `bun run build` succeeded. Direct unprivileged `check` paths still suffer from Bun remap and sandbox/esbuild noise in this environment.

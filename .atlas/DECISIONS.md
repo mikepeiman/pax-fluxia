@@ -144,7 +144,6 @@
 - **Root cause**: Agent substituted speculation for investigation. Instead of examining the actual pipeline code to identify where shared vertices diverge, fabricated a theory that fit the symptom.
 - **Prevention**: Before proposing a root cause for any rendering bug, verify the claim against actual data (star ownership status, vertex coordinates before/after each stage). Never repeat a diagnosis the user has already corrected.
 
-
 - 2026-03-07: Territory borders in production now use GPU ownership-field two-pass rendering as canonical path; CPU vector overlay remains debug-only due non-zero divergence risk from simplify/straighten operations.
 
 - 2026-03-07: DF border width semantics changed to center-stroke (half-width per side) in both single-pass and canonical two-pass shaders; two-pass now subtracts half-texel boundary-center bias so the stroke centers on the ownership interface instead of sitting fully inside one territory.
@@ -171,7 +170,7 @@
 - World bounding box required: all outer frontiers must connect to map-edge rectangle
 - Smoothing must happen on shared boundaries, NOT independently per territory polygon
 - Independent per-territory Chaikin causes visible gaps at shared edges
-- Fill crossfade (alpha-fade transition) intentionally cut for focus, NOT rejected � trivial to restore
+- Fill crossfade (alpha-fade transition) intentionally cut for focus, NOT rejected — trivial to restore
 
 ## 2026-03-12
 
@@ -211,8 +210,8 @@
 - **Decision**: When a contested seed has no second continuation on a star side, FG2 extends that side by ray projection to the world rectangle and creates a boundary anchor node.
 - **Rationale**: Frontier chains must terminate on canonical map edges rather than arbitrary local cutoffs. This is the first step toward world-corner stitching and closed region recovery.
 
-<<<<<<< HEAD
 ## 2026-03-13
+
 ### D-50: Architecture-Level Debugging Heuristic
 - **Rule**: If fixing the same class of bug requires patching 3+ different functions in the same pipeline, the architecture is wrong — not the code. Stop debugging and redesign the data flow.
 - **Anti-pattern name**: "Compensating for wrong architecture with correct debugging"
@@ -271,8 +270,6 @@
 - **Decision**: FG2 owner-shell frame snapshots, transition artifacts, and displayed interpolated shells now carry explicit hole-loop geometry in addition to aggregate hole counts.
 - **Rationale**: Hole-only topology changes must be able to trigger playback and preserve visible cutouts during morphs. Hole counts alone are insufficient for either change detection or renderable animated cutouts.
 
-## 2026-03-13
-
 ### D-64: FG2 Shell and Hole Playback Must Use Global Non-Conflicting Correspondence
 - **Decision**: FG2 shell transitions now select shell matches globally per owner from all previous/current candidates, and hole transitions now select hole matches globally within each shell transition. Candidate selection is one-to-one and score-ordered rather than greedy by current item iteration.
 - **Rationale**: Greedy local matching reuses previous shapes incorrectly, causes shell identity flicker, and pairs the wrong enclaves during split, merge, or strong topology-shift frames.
@@ -280,3 +277,11 @@
 ### D-65: Animated Hole Geometry Must Be Sanitized Against the Displayed Shell
 - **Decision**: Interpolated hole loops are now filtered against the displayed shell polygon before render use, and degenerate or clearly out-of-shell hole loops are dropped.
 - **Rationale**: Negative geometry that escapes the shell or collapses numerically creates invalid cutouts and visible playback artifacts. The displayed hole set must remain a subset of the displayed shell geometry.
+
+### D-66: FG2 Spawn and Vanish Playback Must Collapse Toward Anchor-Shaped Contours
+- **Decision**: When FG2 builds unmatched `spawn` or `vanish` transitions and an anchor holding exists, the collapsed contour now blends toward the aligned anchor contour before scaling around the anchor point. Endpoint fallback is also allowed for all transition kinds if interpolation becomes invalid.
+- **Rationale**: Collapsing unmatched holdings toward a near-point version of themselves produces brittle split/merge motion and can drop geometry entirely when interpolation becomes invalid. The fallback should preserve recognizable nearby geometry and degrade to a valid displayed loop rather than disappear.
+
+### D-67: Territory Trace Inspector Must Expose Holding-Transition Diagnostics
+- **Decision**: The Trace Inspector now includes a `Holding Transitions` section with transition-count summary metrics and per-transition preview lines sourced from the FG2 animation artifact.
+- **Rationale**: Dynamic territory debugging depends on seeing transition kind, anchor relation, fallback counts, and contour-distance signals directly in the UI. Artifact dumps alone are too indirect for rapid evaluation.
