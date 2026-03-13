@@ -210,3 +210,15 @@
 ### D-49: FG2 Open Frontier Ends Project to the World Rectangle
 - **Decision**: When a contested seed has no second continuation on a star side, FG2 extends that side by ray projection to the world rectangle and creates a boundary anchor node.
 - **Rationale**: Frontier chains must terminate on canonical map edges rather than arbitrary local cutoffs. This is the first step toward world-corner stitching and closed region recovery.
+
+## 2026-03-13
+
+### D-50: Architecture-Level Debugging Heuristic
+- **Rule**: If fixing the same class of bug requires patching 3+ different functions in the same pipeline, the architecture is wrong — not the code. Stop debugging and redesign the data flow.
+- **Anti-pattern name**: "Compensating for wrong architecture with correct debugging"
+- **Extracted from**: 200+ hours of territory rendering work across 8-10 approaches. Each mode independently derived frontier geometry and each had gaps/misalignment. The fix was never better matching/substitution — it was always ensuring a single canonical geometry source.
+- **Heuristic**: When two consumers need the same data, that data must be computed once and shared by reference — never independently derived and reconciled.
+
+### D-51: FG2 Is Part of PVV3, Not Separate
+- **Decision**: FG2 (frontier graph method 2) is PVV3's internal frontier-construction pipeline. It is NOT a separate system. Agents must not treat these as independent components in tension.
+- **Rationale**: The naming "FG2 vs PVV3" created a false dichotomy that led to thinking about them as competing systems rather than producer (FG2 constructs geometry) and consumer (PVV3 renders it) within one unified renderer.
