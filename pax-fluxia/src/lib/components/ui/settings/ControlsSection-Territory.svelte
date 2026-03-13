@@ -87,6 +87,29 @@
             };
         });
     }
+
+    function getOwnerShellPreviewEntries(
+        artifacts: TerritoryPipelineArtifacts | undefined,
+    ): Array<{ id: string; summary: string }> {
+        const ownerShells =
+            ((artifacts?.loop as { ownerShells?: Array<Record<string, unknown>> } | undefined)
+                ?.ownerShells ?? []) as Array<Record<string, unknown>>;
+        return ownerShells.slice(0, 4).map((shell, index) => {
+            const ownerId = typeof shell.ownerId === "string" ? shell.ownerId : "?";
+            const holeCount = Array.isArray(shell.holeLoopIds) ? shell.holeLoopIds.length : 0;
+            return {
+                id:
+                    typeof shell.shellId === "string"
+                        ? shell.shellId
+                        : `owner-shell-${index}`,
+                summary:
+                    `${ownerId} | ` +
+                    `area=${formatTraceValue(shell.absArea)} | ` +
+                    `holes=${formatTraceValue(holeCount)} | ` +
+                    `conf=${formatTraceValue(shell.confidence)}`,
+            };
+        });
+    }
     const TERRITORY_KEYS = [
         "territoryVoronoi",
         "territoryModifiedVoronoi",
@@ -718,6 +741,12 @@
                 {/each}
             </div>
 
+            <div class="trace-section">
+                <div class="trace-section-title">Owner Shells</div>
+                {#each getOwnerShellPreviewEntries($territoryTraceRun.artifacts) as entry}
+                    <div class="trace-detail-line">{entry.summary}</div>
+                {/each}
+            </div>
             <div class="trace-section">
                 <div class="trace-section-title">Artifacts</div>
                 {#each getTraceArtifactEntries($territoryTraceRun.artifacts) as entry}
