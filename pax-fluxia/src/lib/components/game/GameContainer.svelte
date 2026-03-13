@@ -63,23 +63,26 @@
   ); // Default: ON
   let wasPausedBeforeSettings = false;
 
-  function toggleSettingsPanel() {
-    showSettingsPanel = !showSettingsPanel;
-    localStorage.setItem("pax-settings-open", String(showSettingsPanel));
-    // Auto-pause logic
+  function setSettingsPanelOpen(nextOpen: boolean) {
+    if (showSettingsPanel === nextOpen) return;
+    showSettingsPanel = nextOpen;
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem("pax-settings-open", String(showSettingsPanel));
+    }
     if (pauseOnSettings && activeGameStore.phase === "playing") {
       if (showSettingsPanel) {
         wasPausedBeforeSettings = activeGameStore.isPaused;
         if (!activeGameStore.isPaused) {
           activeGameStore.pauseGame();
         }
-      } else {
-        // Restore previous pause state
-        if (!wasPausedBeforeSettings && activeGameStore.isPaused) {
-          activeGameStore.resumeGame();
-        }
+      } else if (!wasPausedBeforeSettings && activeGameStore.isPaused) {
+        activeGameStore.resumeGame();
       }
     }
+  }
+
+  function toggleSettingsPanel() {
+    setSettingsPanelOpen(!showSettingsPanel);
   }
 
   // ── In-game menu collapse ──
@@ -147,6 +150,10 @@
   const SIDEBAR_MIN = 280;
   const SIDEBAR_MAX = 600;
   const SIDEBAR_DEFAULT = 320;
+  const SETTINGS_PANEL_STORAGE_KEY = "pax-settings-panel-width";
+  const SETTINGS_PANEL_MIN = 280;
+  const SETTINGS_PANEL_MAX = 720;
+  const SETTINGS_PANEL_DEFAULT = 360;
 
   function loadSidebarWidth(): number {
     if (typeof localStorage === "undefined") return SIDEBAR_DEFAULT;
@@ -158,8 +165,22 @@
     return SIDEBAR_DEFAULT;
   }
 
+  function loadSettingsPanelWidth(): number {
+    if (typeof localStorage === "undefined") return SETTINGS_PANEL_DEFAULT;
+    const v = localStorage.getItem(SETTINGS_PANEL_STORAGE_KEY);
+    if (v) {
+      const n = parseInt(v);
+      if (!isNaN(n)) {
+        return Math.max(SETTINGS_PANEL_MIN, Math.min(SETTINGS_PANEL_MAX, n));
+      }
+    }
+    return SETTINGS_PANEL_DEFAULT;
+  }
+
   let sidebarWidth = $state(loadSidebarWidth());
   let isResizing = $state(false);
+  let settingsPanelWidth = $state(loadSettingsPanelWidth());
+  let isSettingsResizing = $state(false);
 
   function startResize(e: PointerEvent) {
     e.preventDefault();
@@ -180,6 +201,36 @@
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       localStorage.setItem(SIDEBAR_STORAGE_KEY, String(sidebarWidth));
+    }
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }
+
+  function startSettingsResize(e: PointerEvent) {
+    e.preventDefault();
+    isSettingsResizing = true;
+    const startX = e.clientX;
+    const startWidth = settingsPanelWidth;
+
+    function onMove(ev: PointerEvent) {
+      const delta = startX - ev.clientX;
+      settingsPanelWidth = Math.max(
+        SETTINGS_PANEL_MIN,
+        Math.min(SETTINGS_PANEL_MAX, startWidth + delta),
+      );
+    }
+
+    function onUp() {
+      isSettingsResizing = false;
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      if (typeof localStorage !== "undefined") {
+        localStorage.setItem(
+          SETTINGS_PANEL_STORAGE_KEY,
+          String(settingsPanelWidth),
+        );
+      }
     }
 
     window.addEventListener("pointermove", onMove);
@@ -215,8 +266,7 @@
 
       // Close overlays in priority order
       if (showSettingsPanel) {
-        showSettingsPanel = false;
-        localStorage.setItem("pax-settings-open", "false");
+        setSettingsPanelOpen(false);
         return;
       }
       if (mobileDrawerOpen) {
@@ -382,10 +432,18 @@
 
       <!-- SECONDARY CONTROLS COLUMN (toggled by gear icon) -->
       {#if showSettingsPanel}
-        <div class="area-controls">
+        <div class="area-controls" style="width: {settingsPanelWidth}px;">
+          <div
+            class="controls-resize-handle"
+            class:active={isSettingsResizing}
+            onpointerdown={startSettingsResize}
+            role="separator"
+            aria-orientation="vertical"
+            title="Drag to resize settings panel"
+          ></div>
           <button
             class="settings-overlay-close"
-            onclick={() => (showSettingsPanel = false)}
+            onclick={() => setSettingsPanelOpen(false)}
             title="Close Settings">✕</button
           >
           <div class="panel-section section-tuning">
@@ -1260,6 +1318,7 @@
   /* ═══ SECONDARY CONTROLS COLUMN ═══ */
   .area-controls {
     grid-area: controls;
+    position: relative;
     background: rgba(10, 10, 15, 0.95);
     border-left: 1px solid #223;
     border-right: 1px solid #223;
@@ -1271,6 +1330,7 @@
     overflow-y: auto;
     width: 340px;
     min-width: 280px;
+    flex-shrink: 0;
   }
 
   .section-tuning {
@@ -1297,6 +1357,7 @@
     flex-shrink: 0;
   }
 
+  .controls-resize-handle,
   .resize-handle {
     position: absolute;
     top: 0;
@@ -1309,7 +1370,9 @@
     transition: background 0.15s;
   }
   .resize-handle:hover,
-  .resize-handle.active {
+  .resize-handle.active,
+  .controls-resize-handle:hover,
+  .controls-resize-handle.active {
     background: rgba(0, 224, 255, 0.3);
   }
 

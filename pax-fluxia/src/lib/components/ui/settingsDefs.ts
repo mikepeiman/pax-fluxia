@@ -246,6 +246,8 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     // Territory toggles
     { panelKey: 'territoryBoundaryMode', configKey: 'TERRITORY_BOUNDARY_MODE' },
     { panelKey: 'territoryFillMode', configKey: 'TERRITORY_FILL_MODE' },
+    { panelKey: 'territoryMorphControlPoints', configKey: 'TERRITORY_MORPH_CONTROL_POINTS' },
+    { panelKey: 'territoryMode', configKey: 'TERRITORY_MODE' },
     { panelKey: 'territoryEngine', configKey: 'TERRITORY_ENGINE_ENABLED' },
     { panelKey: 'territoryEngineMode', configKey: 'TERRITORY_ENGINE_MODE' },
     { panelKey: 'territoryEngineStaticMethod', configKey: 'TERRITORY_ENGINE_STATIC_METHOD' },
@@ -384,6 +386,7 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'dfVectorSimplify', configKey: 'DF_VECTOR_SIMPLIFY' },
     { panelKey: 'dfVectorUpdateMs', configKey: 'DF_VECTOR_UPDATE_MS' },
     { panelKey: 'dfInfluenceWeight', configKey: 'DF_INFLUENCE_WEIGHT' },
+    { panelKey: 'dfDistanceMetric', configKey: 'DF_DISTANCE_METRIC' },
     { panelKey: 'territoryTransitionMs', configKey: 'TERRITORY_TRANSITION_MS' },
     { panelKey: 'dfMorphEasing', configKey: 'DF_MORPH_EASING' },
     { panelKey: 'dfCorridorEnabled', configKey: 'DF_CORRIDOR_ENABLED' },

@@ -5,6 +5,14 @@
         type TerritoryPipelineArtifacts,
         type TerritoryPipelineStageId,
     } from "$lib/territory-engine";
+    import {
+        DEFAULT_TERRITORY_DYNAMIC_METHOD,
+        DEFAULT_TERRITORY_HYBRID_PLAN,
+        DEFAULT_TERRITORY_STATIC_METHOD,
+        TERRITORY_DYNAMIC_METHOD_BY_ID,
+        TERRITORY_HYBRID_PLAN_BY_ID,
+        TERRITORY_STATIC_METHOD_BY_ID,
+    } from "$lib/territory-engine/registry";
     import { territoryTraceRun } from "$lib/territory-engine/traceStore";
     import CategoryThemeBar from "./CategoryThemeBar.svelte";
 
@@ -219,6 +227,224 @@
         { id: "hy4_pairwise_patch_transport", label: "HY4 Pairwise+Patch" },
         { id: "hy5_rt_publish_corridor_events", label: "HY5 RT+Corridor" },
     ] as const;
+
+    const MORPH_EASING_OPTIONS = [
+        { id: "linear", label: "Linear" },
+        { id: "smoothstep", label: "Smooth" },
+        { id: "easeInOutQuad", label: "Quad" },
+        { id: "easeInOutCubic", label: "Cubic" },
+    ] as const;
+
+    function lookupOptionLabel(
+        options: ReadonlyArray<{ id: string; label: string }>,
+        id: string,
+    ): string {
+        return options.find((option) => option.id === id)?.label ?? id;
+    }
+
+    function formatAdapterLabel(adapter: string): string {
+        if (adapter === "legacy_pvv2") return "Legacy PVV2";
+        if (adapter === "legacy_pvv3") return "Legacy PVV3";
+        if (adapter === "legacy_df") return "Legacy Distance Field";
+        return adapter;
+    }
+
+    function resolveStaticMethodId(rawValue: unknown): string {
+        if (typeof rawValue !== "string") return DEFAULT_TERRITORY_STATIC_METHOD;
+        return Object.prototype.hasOwnProperty.call(TERRITORY_STATIC_METHOD_BY_ID, rawValue)
+            ? rawValue
+            : DEFAULT_TERRITORY_STATIC_METHOD;
+    }
+
+    function resolveDynamicMethodId(rawValue: unknown): string {
+        if (typeof rawValue !== "string") return DEFAULT_TERRITORY_DYNAMIC_METHOD;
+        return Object.prototype.hasOwnProperty.call(TERRITORY_DYNAMIC_METHOD_BY_ID, rawValue)
+            ? rawValue
+            : DEFAULT_TERRITORY_DYNAMIC_METHOD;
+    }
+
+    function resolveHybridPlanId(rawValue: unknown): string {
+        if (typeof rawValue !== "string") return DEFAULT_TERRITORY_HYBRID_PLAN;
+        return Object.prototype.hasOwnProperty.call(TERRITORY_HYBRID_PLAN_BY_ID, rawValue)
+            ? rawValue
+            : DEFAULT_TERRITORY_HYBRID_PLAN;
+    }
+
+    function getTerritoryEngineRoute() {
+        const modeValue = panel.territoryEngineMode ?? GAME_CONFIG.TERRITORY_ENGINE_MODE ?? "static";
+        const mode = modeValue === "dynamic" || modeValue === "hybrid" ? modeValue : "static";
+        const staticMethodId = resolveStaticMethodId(
+            panel.territoryEngineStaticMethod ?? GAME_CONFIG.TERRITORY_ENGINE_STATIC_METHOD,
+        );
+        const dynamicMethodId = resolveDynamicMethodId(
+            panel.territoryEngineDynamicMethod ?? GAME_CONFIG.TERRITORY_ENGINE_DYNAMIC_METHOD,
+        );
+        const hybridPlanId = resolveHybridPlanId(
+            panel.territoryEngineHybridPlan ?? GAME_CONFIG.TERRITORY_ENGINE_HYBRID_PLAN,
+        );
+
+        if (mode === "dynamic") {
+            const dynamicMethod =
+                TERRITORY_DYNAMIC_METHOD_BY_ID[
+                    dynamicMethodId as keyof typeof TERRITORY_DYNAMIC_METHOD_BY_ID
+                ];
+            const anchorStaticMethodId = dynamicMethod.anchorStaticMethodId;
+            return {
+                mode,
+                staticMethodId: anchorStaticMethodId,
+                dynamicMethodId,
+                hybridPlanId,
+                adapter: dynamicMethod.adapter,
+                adapterLabel: formatAdapterLabel(dynamicMethod.adapter),
+                staticLabel: lookupOptionLabel(
+                    TERRITORY_ENGINE_METHOD_OPTIONS,
+                    anchorStaticMethodId,
+                ),
+                dynamicLabel: lookupOptionLabel(
+                    TERRITORY_ENGINE_DYNAMIC_OPTIONS,
+                    dynamicMethodId,
+                ),
+                hybridLabel: lookupOptionLabel(
+                    TERRITORY_ENGINE_HYBRID_OPTIONS,
+                    hybridPlanId,
+                ),
+            };
+        }
+
+        if (mode === "hybrid") {
+            const hybridPlan =
+                TERRITORY_HYBRID_PLAN_BY_ID[
+                    hybridPlanId as keyof typeof TERRITORY_HYBRID_PLAN_BY_ID
+                ];
+            return {
+                mode,
+                staticMethodId: hybridPlan.staticMethodId,
+                dynamicMethodId: hybridPlan.dynamicMethodId,
+                hybridPlanId,
+                adapter: hybridPlan.adapter,
+                adapterLabel: formatAdapterLabel(hybridPlan.adapter),
+                staticLabel: lookupOptionLabel(
+                    TERRITORY_ENGINE_METHOD_OPTIONS,
+                    hybridPlan.staticMethodId,
+                ),
+                dynamicLabel: lookupOptionLabel(
+                    TERRITORY_ENGINE_DYNAMIC_OPTIONS,
+                    hybridPlan.dynamicMethodId,
+                ),
+                hybridLabel: lookupOptionLabel(
+                    TERRITORY_ENGINE_HYBRID_OPTIONS,
+                    hybridPlanId,
+                ),
+            };
+        }
+
+        const staticMethod =
+            TERRITORY_STATIC_METHOD_BY_ID[
+                staticMethodId as keyof typeof TERRITORY_STATIC_METHOD_BY_ID
+            ];
+        return {
+            mode,
+            staticMethodId,
+            dynamicMethodId,
+            hybridPlanId,
+            adapter: staticMethod.adapter,
+            adapterLabel: formatAdapterLabel(staticMethod.adapter),
+            staticLabel: lookupOptionLabel(TERRITORY_ENGINE_METHOD_OPTIONS, staticMethodId),
+            dynamicLabel: lookupOptionLabel(
+                TERRITORY_ENGINE_DYNAMIC_OPTIONS,
+                dynamicMethodId,
+            ),
+            hybridLabel: lookupOptionLabel(
+                TERRITORY_ENGINE_HYBRID_OPTIONS,
+                hybridPlanId,
+            ),
+        };
+    }
+
+    let territoryEngineRoute = $derived.by(() => getTerritoryEngineRoute());
+    let territoryEngineRouteNote = $derived.by(() => {
+        if (territoryEngineRoute.mode === "dynamic") {
+            return `${territoryEngineRoute.dynamicLabel} uses ${territoryEngineRoute.staticLabel} as its static anchor.`;
+        }
+        if (territoryEngineRoute.mode === "hybrid") {
+            return `${territoryEngineRoute.hybridLabel} fixes both the static and dynamic legs together.`;
+        }
+        return `${territoryEngineRoute.staticLabel} is the active static route.`;
+    });
+    let territoryEngineInteropNote = $derived.by(() => {
+        if (
+            territoryEngineRoute.mode === "dynamic" &&
+            territoryEngineRoute.dynamicMethodId === "dy5_corridor_event_decomposition"
+        ) {
+            return "DY5 currently anchors to FG2 Seed Graph. Selecting FG1 separately does not change the live dynamic route.";
+        }
+        if (territoryEngineRoute.mode === "dynamic") {
+            return "Dynamic mode is exclusive. The Dynamic Method picker wins and the standalone Static Method choice becomes reference only.";
+        }
+        if (territoryEngineRoute.mode === "hybrid") {
+            return "Hybrid mode is exclusive. The Hybrid Plan picker wins and the standalone Static/Dynamic picks become reference only.";
+        }
+        return "Static mode is exclusive. Dynamic and Hybrid selections are stored, but inactive until you switch modes.";
+    });
+
+    let staticMethodControlState = $derived.by(() => {
+        if (territoryEngineRoute.mode === "static") {
+            return {
+                badge: "active",
+                note: "Static mode is live. Picking a static method changes the current route.",
+                disabled: false,
+            };
+        }
+        if (territoryEngineRoute.mode === "dynamic") {
+            return {
+                badge: "anchor only",
+                note: `${territoryEngineRoute.dynamicLabel} pins the static anchor to ${territoryEngineRoute.staticLabel}.`,
+                disabled: true,
+            };
+        }
+        return {
+            badge: "plan reference",
+            note: `${territoryEngineRoute.hybridLabel} owns the static leg while hybrid mode is active.`,
+            disabled: true,
+        };
+    });
+
+    let dynamicMethodControlState = $derived.by(() => {
+        if (territoryEngineRoute.mode === "dynamic") {
+            return {
+                badge: "active",
+                note: "Dynamic mode is live. Picking a dynamic method changes the current route.",
+                disabled: false,
+            };
+        }
+        if (territoryEngineRoute.mode === "hybrid") {
+            return {
+                badge: "plan reference",
+                note: `${territoryEngineRoute.hybridLabel} owns the dynamic leg while hybrid mode is active.`,
+                disabled: true,
+            };
+        }
+        return {
+            badge: "stored",
+            note: "Dynamic selections are stored, but inactive until you switch to Dynamic mode.",
+            disabled: true,
+        };
+    });
+
+    let hybridPlanControlState = $derived.by(() => {
+        if (territoryEngineRoute.mode === "hybrid") {
+            return {
+                badge: "active",
+                note: "Hybrid mode is live. Picking a hybrid plan changes the current route.",
+                disabled: false,
+            };
+        }
+        return {
+            badge: "stored",
+            note: "Hybrid plans are stored only until you switch to Hybrid mode.",
+            disabled: true,
+        };
+    });
 
     let activeBorderEngine = $derived(
         (panel.dfBorderEngine ?? GAME_CONFIG.DF_BORDER_ENGINE ?? "mesh") as
@@ -630,17 +856,20 @@
             {/each}
         </div>
     </div>
-    <div class="var-row">
+    <div class="var-row engine-control-group" class:reference-only={staticMethodControlState.disabled}>
         <div class="row-top">
             <span class="var-name">Static Method</span>
-            <span class="val">{panel.territoryEngineStaticMethod ?? GAME_CONFIG.TERRITORY_ENGINE_STATIC_METHOD}</span>
+            <span class="val">{staticMethodControlState.badge}</span>
         </div>
+        <div class="row-bottom engine-route-hint">{staticMethodControlState.note}</div>
         <div style="display:flex; gap:4px; flex-wrap:wrap;">
             {#each TERRITORY_ENGINE_METHOD_OPTIONS as option}
                 <button
                     class="mini-btn"
                     class:active={(panel.territoryEngineStaticMethod ??
                         GAME_CONFIG.TERRITORY_ENGINE_STATIC_METHOD) === option.id}
+                    class:reference-only={staticMethodControlState.disabled}
+                    disabled={staticMethodControlState.disabled}
                     onclick={() => {
                         debouncedConfigUpdate(
                             "TERRITORY_ENGINE_STATIC_METHOD",
@@ -652,17 +881,20 @@
             {/each}
         </div>
     </div>
-    <div class="var-row">
+    <div class="var-row engine-control-group" class:reference-only={dynamicMethodControlState.disabled}>
         <div class="row-top">
             <span class="var-name">Dynamic Method</span>
-            <span class="val">{panel.territoryEngineDynamicMethod ?? GAME_CONFIG.TERRITORY_ENGINE_DYNAMIC_METHOD}</span>
+            <span class="val">{dynamicMethodControlState.badge}</span>
         </div>
+        <div class="row-bottom engine-route-hint">{dynamicMethodControlState.note}</div>
         <div style="display:flex; gap:4px; flex-wrap:wrap;">
             {#each TERRITORY_ENGINE_DYNAMIC_OPTIONS as option}
                 <button
                     class="mini-btn"
                     class:active={(panel.territoryEngineDynamicMethod ??
                         GAME_CONFIG.TERRITORY_ENGINE_DYNAMIC_METHOD) === option.id}
+                    class:reference-only={dynamicMethodControlState.disabled}
+                    disabled={dynamicMethodControlState.disabled}
                     onclick={() => {
                         debouncedConfigUpdate(
                             "TERRITORY_ENGINE_DYNAMIC_METHOD",
@@ -674,17 +906,20 @@
             {/each}
         </div>
     </div>
-    <div class="var-row">
+    <div class="var-row engine-control-group" class:reference-only={hybridPlanControlState.disabled}>
         <div class="row-top">
             <span class="var-name">Hybrid Plan</span>
-            <span class="val">{panel.territoryEngineHybridPlan ?? GAME_CONFIG.TERRITORY_ENGINE_HYBRID_PLAN}</span>
+            <span class="val">{hybridPlanControlState.badge}</span>
         </div>
+        <div class="row-bottom engine-route-hint">{hybridPlanControlState.note}</div>
         <div style="display:flex; gap:4px; flex-wrap:wrap;">
             {#each TERRITORY_ENGINE_HYBRID_OPTIONS as option}
                 <button
                     class="mini-btn"
                     class:active={(panel.territoryEngineHybridPlan ??
                         GAME_CONFIG.TERRITORY_ENGINE_HYBRID_PLAN) === option.id}
+                    class:reference-only={hybridPlanControlState.disabled}
+                    disabled={hybridPlanControlState.disabled}
                     onclick={() => {
                         debouncedConfigUpdate(
                             "TERRITORY_ENGINE_HYBRID_PLAN",
@@ -695,6 +930,414 @@
                 >
             {/each}
         </div>
+    </div>
+    <div class="var-row compact">
+        <div class="row-top">
+            <span class="var-name">Effective Route</span>
+            <span class="val">{territoryEngineRoute.adapterLabel}</span>
+        </div>
+        <div class="trace-chip-row">
+            <span class="trace-chip">mode {territoryEngineRoute.mode}</span>
+            <span class="trace-chip">static {territoryEngineRoute.staticLabel}</span>
+            <span class="trace-chip">dynamic {territoryEngineRoute.dynamicLabel}</span>
+            <span class="trace-chip">hybrid {territoryEngineRoute.hybridLabel}</span>
+        </div>
+        <div class="row-bottom" style="font-size:10px; opacity:0.74; padding:4px 0 0;">
+            {territoryEngineRouteNote}
+        </div>
+        <div class="row-bottom" style="font-size:10px; opacity:0.58; padding:2px 0 0;">
+            {territoryEngineInteropNote}
+        </div>
+    </div>
+    <h4 class="sub-heading">Shape / Motion</h4>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Distance Metric</span>
+            <span class="val">{panel.dfDistanceMetric ?? GAME_CONFIG.DF_DISTANCE_METRIC}</span>
+        </div>
+        <div style="display:flex; gap:4px; flex-wrap:wrap;">
+            <button
+                class="mini-btn"
+                class:active={(panel.dfDistanceMetric ?? GAME_CONFIG.DF_DISTANCE_METRIC) === "length"}
+                onclick={() => updatePanel("dfDistanceMetric", "length")}>Length</button
+            >
+            <button
+                class="mini-btn"
+                class:active={(panel.dfDistanceMetric ?? GAME_CONFIG.DF_DISTANCE_METRIC) === "hops"}
+                onclick={() => updatePanel("dfDistanceMetric", "hops")}>Hops</button
+            >
+        </div>
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Morph Speed</span><span class="val"
+                >{panel.territoryTransitionMs ??
+                    GAME_CONFIG.TERRITORY_TRANSITION_MS}ms</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="2000"
+            step="50"
+            value={panel.territoryTransitionMs ??
+                GAME_CONFIG.TERRITORY_TRANSITION_MS}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "TERRITORY_TRANSITION_MS",
+                    "territoryTransitionMs",
+                    v,
+                );
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Morph Control Points</span><span class="val"
+                >{panel.territoryMorphControlPoints ??
+                    GAME_CONFIG.TERRITORY_MORPH_CONTROL_POINTS}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="5"
+            max="300"
+            step="1"
+            value={panel.territoryMorphControlPoints ??
+                GAME_CONFIG.TERRITORY_MORPH_CONTROL_POINTS}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                updatePanel("territoryMorphControlPoints", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Morph Easing</span>
+        </div>
+        <div style="display:flex;gap:4px;padding:2px 0;flex-wrap:wrap">
+            {#each MORPH_EASING_OPTIONS as easing}
+                <button
+                    class="mini-btn"
+                    class:active={(panel.dfMorphEasing ??
+                        GAME_CONFIG.DF_MORPH_EASING ??
+                        "linear") === easing.id}
+                    onclick={() => updatePanel("dfMorphEasing", easing.id)}>{easing.label}</button
+                >
+            {/each}
+        </div>
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Boundary Mode</span><span class="val"
+                >{panel.territoryBoundaryMode ??
+                    GAME_CONFIG.TERRITORY_BOUNDARY_MODE ??
+                    "smooth"}</span
+            >
+        </div>
+        <div style="display:flex; gap:4px;">
+            <button
+                class="mini-btn"
+                class:active={(panel.territoryBoundaryMode ??
+                    GAME_CONFIG.TERRITORY_BOUNDARY_MODE) === "segment"}
+                onclick={() => debouncedConfigUpdate(
+                    "TERRITORY_BOUNDARY_MODE",
+                    "territoryBoundaryMode",
+                    "segment",
+                )}>Segment</button
+            >
+            <button
+                class="mini-btn"
+                class:active={(panel.territoryBoundaryMode ??
+                    GAME_CONFIG.TERRITORY_BOUNDARY_MODE) === "smooth"}
+                onclick={() => debouncedConfigUpdate(
+                    "TERRITORY_BOUNDARY_MODE",
+                    "territoryBoundaryMode",
+                    "smooth",
+                )}>Smooth</button
+            >
+        </div>
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Fill Mode</span><span class="val"
+                >{panel.territoryFillMode ??
+                    GAME_CONFIG.TERRITORY_FILL_MODE ??
+                    "frontier"}</span
+            >
+        </div>
+        <div style="display:flex; gap:4px;">
+            <button
+                class="mini-btn"
+                class:active={(panel.territoryFillMode ??
+                    GAME_CONFIG.TERRITORY_FILL_MODE) === "crossfade"}
+                onclick={() => debouncedConfigUpdate(
+                    "TERRITORY_FILL_MODE",
+                    "territoryFillMode",
+                    "crossfade",
+                )}>Crossfade</button
+            >
+            <button
+                class="mini-btn"
+                class:active={(panel.territoryFillMode ??
+                    GAME_CONFIG.TERRITORY_FILL_MODE) === "frontier"}
+                onclick={() => debouncedConfigUpdate(
+                    "TERRITORY_FILL_MODE",
+                    "territoryFillMode",
+                    "frontier",
+                )}>Frontier</button
+            >
+        </div>
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Fill Alpha</span><span class="val"
+                >{(panel.voronoiAlpha ?? GAME_CONFIG.VORONOI_ALPHA).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value={panel.voronoiAlpha ?? GAME_CONFIG.VORONOI_ALPHA}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate("VORONOI_ALPHA", "voronoiAlpha", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Border Width</span><span class="val"
+                >{(
+                    panel.voronoiBorderWidth ?? GAME_CONFIG.VORONOI_BORDER_WIDTH
+                ).toFixed(1)}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="30"
+            step="0.5"
+            value={panel.voronoiBorderWidth ?? GAME_CONFIG.VORONOI_BORDER_WIDTH}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "VORONOI_BORDER_WIDTH",
+                    "voronoiBorderWidth",
+                    v,
+                );
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Border Alpha</span><span class="val"
+                >{(
+                    panel.voronoiBorderAlpha ?? GAME_CONFIG.VORONOI_BORDER_ALPHA
+                ).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={panel.voronoiBorderAlpha ?? GAME_CONFIG.VORONOI_BORDER_ALPHA}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "VORONOI_BORDER_ALPHA",
+                    "voronoiBorderAlpha",
+                    v,
+                );
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Border Smooth</span><span class="val"
+                >{panel.voronoiBorderSmooth ??
+                    GAME_CONFIG.VORONOI_BORDER_SMOOTH}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="5"
+            step="1"
+            value={panel.voronoiBorderSmooth ??
+                GAME_CONFIG.VORONOI_BORDER_SMOOTH}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "VORONOI_BORDER_SMOOTH",
+                    "voronoiBorderSmooth",
+                    v,
+                );
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Saturation</span><span class="val"
+                >{(
+                    panel.voronoiSaturation ?? GAME_CONFIG.VORONOI_SATURATION
+                ).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="2"
+            step="0.05"
+            value={panel.voronoiSaturation ?? GAME_CONFIG.VORONOI_SATURATION}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "VORONOI_SATURATION",
+                    "voronoiSaturation",
+                    v,
+                );
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Lightness</span><span class="val"
+                >{(
+                    panel.voronoiLightness ?? GAME_CONFIG.VORONOI_LIGHTNESS
+                ).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="2"
+            step="0.05"
+            value={panel.voronoiLightness ?? GAME_CONFIG.VORONOI_LIGHTNESS}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "VORONOI_LIGHTNESS",
+                    "voronoiLightness",
+                    v,
+                );
+            }}
+        />
+    </div>
+    <h4 class="sub-heading">Bias / Pressure</h4>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">MSR Star Margin</span><span class="val"
+                >{panel.modifiedVoronoiStarMargin ??
+                    GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="500"
+            step="5"
+            value={panel.modifiedVoronoiStarMargin ??
+                GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "MODIFIED_VORONOI_STAR_MARGIN",
+                    "modifiedVoronoiStarMargin",
+                    v,
+                );
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">CX Corridor Sites</span><span class="val"
+                >{(panel.modifiedVoronoiCorridorEnabled ??
+                GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED)
+                    ? "ON"
+                    : "OFF"}</span
+            >
+        </div>
+        <input
+            type="checkbox"
+            checked={panel.modifiedVoronoiCorridorEnabled ??
+                GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED}
+            onchange={(e) => {
+                const v = (e.target as HTMLInputElement).checked;
+                updatePanel("modifiedVoronoiCorridorEnabled", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">CX Corridor Spacing</span><span class="val"
+                >{panel.modifiedVoronoiCorridorSpacing ??
+                    GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="20"
+            max="200"
+            step="5"
+            value={panel.modifiedVoronoiCorridorSpacing ??
+                GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "MODIFIED_VORONOI_CORRIDOR_SPACING",
+                    "modifiedVoronoiCorridorSpacing",
+                    v,
+                );
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">DX Disconnect Buffer</span><span class="val"
+                >{(panel.modifiedVoronoiDisconnectEnabled ??
+                GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED)
+                    ? "ON"
+                    : "OFF"}</span
+            >
+        </div>
+        <input
+            type="checkbox"
+            checked={panel.modifiedVoronoiDisconnectEnabled ??
+                GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED}
+            onchange={(e) => {
+                const v = (e.target as HTMLInputElement).checked;
+                updatePanel("modifiedVoronoiDisconnectEnabled", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">DX Disconnect Distance</span><span class="val"
+                >{panel.modifiedVoronoiDisconnectDistance ??
+                    GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="50"
+            max="800"
+            step="25"
+            value={panel.modifiedVoronoiDisconnectDistance ??
+                GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "MODIFIED_VORONOI_DISCONNECT_DISTANCE",
+                    "modifiedVoronoiDisconnectDistance",
+                    v,
+                );
+            }}
+        />
     </div>
     <div class="var-row">
         <div class="row-top">
@@ -3641,6 +4284,27 @@
         border-color: #4ade80;
         color: #4ade80;
         box-shadow: 0 0 6px rgba(74, 222, 128, 0.25);
+    }
+    .mini-btn.reference-only,
+    .mini-btn:disabled {
+        cursor: not-allowed;
+        opacity: 0.42;
+        box-shadow: none;
+    }
+    .mini-btn.reference-only:hover,
+    .mini-btn:disabled:hover {
+        background: rgba(255, 255, 255, 0.06);
+        color: rgba(255, 255, 255, 0.5);
+        border-color: rgba(255, 255, 255, 0.15);
+    }
+    .engine-control-group.reference-only {
+        opacity: 0.78;
+    }
+    .engine-route-hint {
+        font-size: 10px;
+        line-height: 1.35;
+        color: rgba(255, 255, 255, 0.58);
+        padding: 1px 0 4px;
     }
     .trace-panel {
         display: flex;

@@ -1136,12 +1136,13 @@ function drawBorderPolylines(
             : polyline.points;
         if (pts.length < 2) continue;
 
-        if (pts.length === 2) {
-            graphics.moveTo(pts[0][0], pts[0][1]);
-            graphics.lineTo(pts[1][0], pts[1][1]);
+        graphics.moveTo(pts[0][0], pts[0][1]);
+        if (smoothPasses <= 0 || pts.length === 2) {
+            for (let i = 1; i < pts.length; i++) {
+                graphics.lineTo(pts[i][0], pts[i][1]);
+            }
         } else {
             // Quadratic Bézier through midpoints for smooth arc geometry
-            graphics.moveTo(pts[0][0], pts[0][1]);
             const mid0x = (pts[0][0] + pts[1][0]) / 2;
             const mid0y = (pts[0][1] + pts[1][1]) / 2;
             graphics.lineTo(mid0x, mid0y);
@@ -1156,6 +1157,7 @@ function drawBorderPolylines(
         graphics.stroke({ width, color: polyline.color, alpha, cap: 'round', join: 'round' });
         drawn++;
     }
+
     // log.renderer('drawBorderPolylines', `drew ${drawn}/${polylines.length} polylines (smooth=${smoothPasses}, w=${width.toFixed(1)}, a=${alpha.toFixed(2)}, bezier=true)`); // THROTTLED: per-frame
 }
 
@@ -1717,12 +1719,12 @@ export function renderPVV3(
                 if (shell.points.length > 2) {
                     fillGraphics.lineTo(shell.points[0][0], shell.points[0][1]);
                 }
+                // Keep the stroke aligned with the raw shell polygon.
+                // Round joins on unsmoothed shell points can expose small fill spikes.
                 fillGraphics.stroke({
                     width: borderWidth,
                     color: shellColor,
                     alpha: borderAlpha,
-                    cap: 'round',
-                    join: 'round',
                 });
             }
         }
@@ -1922,42 +1924,48 @@ export function renderPVV3(
 
     // -- Stage 3b: Shared-boundary smoothing --------------------------------
     // Smooth shared edges ONCE, then substitute into territory polygons.
-    // Adjacent territories share identical smoothed coordinates ? no gaps.
-    const smoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
-    if (smoothPasses > 0 && sharedEdges.length > 0) {
-        // Assign colors for polyline construction
-        for (const edge of sharedEdges) {
-            edge.colorA = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerA), satMult, lightMult);
-            edge.colorB = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerB), satMult, lightMult);
+    // Adjacent territories share identical coordinates at their shared border.
+    for (const edge of sharedEdges) {
+        edge.colorA = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerA), satMult, lightMult);
+        edge.colorB = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerB), satMult, lightMult);
+    }
+    const ownerPairColorMap = new Map<string, number>();
+    for (const edge of sharedEdges) {
+        const key = edge.ownerA < edge.ownerB ? `${edge.ownerA}|${edge.ownerB}` : `${edge.ownerB}|${edge.ownerA}`;
+        if (!ownerPairColorMap.has(key)) {
+            ownerPairColorMap.set(key, blendColors(edge.colorA, edge.colorB, 0.5));
         }
-        const colorMap = new Map<string, number>();
-        for (const edge of sharedEdges) {
-            const key = edge.ownerA < edge.ownerB ? `${edge.ownerA}|${edge.ownerB}` : `${edge.ownerB}|${edge.ownerA}`;
-            if (!colorMap.has(key)) colorMap.set(key, blendColors(edge.colorA, edge.colorB, 0.5));
-        }
-        const colorLookup = (a: string, b: string) => {
-            const key = a < b ? `${a}|${b}` : `${b}|${a}`;
-            return colorMap.get(key) ?? 0x888888;
-        };
-
-        const rawPolylines = chainSharedEdgesIntoPolylines(sharedEdges, colorLookup, 0);
-        const smoothedPolylines = chainSharedEdgesIntoPolylines(sharedEdges, colorLookup, smoothPasses);
-        substituteSmoothedEdges(merged, rawPolylines, smoothedPolylines);
-        // DIAGNOSTIC: raw vs smoothed polylines
-        if (isPVV3Diag()) for (let pi = 0; pi < rawPolylines.length; pi++) {
-            const rp = rawPolylines[pi];
+    }
+    const ownerPairColorLookup = (a: string, b: string) => {
+        const key = a < b ? `${a}|${b}` : `${b}|${a}`;
+        return ownerPairColorMap.get(key) ?? 0x888888;
+    };
+    const boundaryMode = GAME_CONFIG.TERRITORY_BOUNDARY_MODE ?? 'smooth';
+    const requestedSmoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
+    const appliedSmoothPasses = boundaryMode === 'smooth' ? requestedSmoothPasses : 0;
+    const rawBorderPolylines = sharedEdges.length > 0
+        ? chainSharedEdgesIntoPolylines(sharedEdges, ownerPairColorLookup, 0)
+        : [];
+    if (appliedSmoothPasses > 0 && rawBorderPolylines.length > 0) {
+        const smoothedPolylines = chainSharedEdgesIntoPolylines(
+            sharedEdges,
+            ownerPairColorLookup,
+            appliedSmoothPasses,
+        );
+        substituteSmoothedEdges(merged, rawBorderPolylines, smoothedPolylines);
+        if (isPVV3Diag()) for (let pi = 0; pi < rawBorderPolylines.length; pi++) {
+            const rp = rawBorderPolylines[pi];
             const sp = smoothedPolylines[pi];
             log.renderer(`PVV3`, `  Polyline[${pi}] ${rp.ownerPairKey}: raw=${rp.points.length}pts smooth=${sp.points.length}pts`);
             log.renderer(`PVV3`, `    raw start=(${rp.points[0][0].toFixed(0)},${rp.points[0][1].toFixed(0)}) end=(${rp.points[rp.points.length - 1][0].toFixed(0)},${rp.points[rp.points.length - 1][1].toFixed(0)})`);
         }
-        log.renderer(`PVV3`, `Stage 3b: substituted ${rawPolylines.length} shared polylines, smooth=${smoothPasses}`);
-        // DIAGNOSTIC: per-territory vertex counts after substitution
+        log.renderer(`PVV3`, `Stage 3b: substituted ${rawBorderPolylines.length} shared polylines, smooth=${appliedSmoothPasses}`);
         if (isPVV3Diag()) for (const t of merged) {
             log.renderer(`PVV3`, `  After sub: ${t.ownerId} ${t.points.length} vertices`);
         }
     }
 
-    // ── Stage 4: Render Fills ──────────────────────────────────────────────
+    // ── Stage 4: Render Fills + unified shared borders ─────────────────────
     if (!fillGraphics) {
         fillGraphics = new PIXI.Graphics();
         voronoiContainer.addChild(fillGraphics);
@@ -1965,47 +1973,42 @@ export function renderPVV3(
     fillGraphics.clear();
     fillGraphics.visible = true;
 
-    // Unified fill + stroke per territory (smoothed polygons)
+    if (!borderGraphics) {
+        borderGraphics = new PIXI.Graphics();
+        voronoiContainer.addChild(borderGraphics);
+    }
+    borderGraphics.clear();
+    borderGraphics.visible = borderWidth > 0 && borderAlpha > 0 && rawBorderPolylines.length > 0;
+
     for (const territory of merged) {
         fillGraphics.poly(territory.points.flat());
         fillGraphics.fill({ color: territory.color, alpha });
-        if (borderWidth > 0 && borderAlpha > 0) {
-            fillGraphics.stroke({ width: borderWidth, color: territory.color, alpha: borderAlpha });
-        }
     }
-
-
+    if (borderGraphics.visible) {
+        drawBorderPolylines(
+            borderGraphics,
+            rawBorderPolylines,
+            appliedSmoothPasses,
+            borderWidth,
+            borderAlpha,
+        );
+    }
 
     // ── Store targets + start transition ────────────────────────────────
-    // Assign colors if not already done in the border render block
-    if (borderWidth <= 0 || borderAlpha <= 0) {
-        for (const edge of sharedEdges) {
-            edge.colorA = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerA), satMult, lightMult);
-            edge.colorB = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerB), satMult, lightMult);
-        }
-    }
     lastMergedTerritories = merged;
 
-    // Build polylines for morph transition (reuse from render block if available)
-    {
-        const smoothN = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
-        const cMap = new Map<string, number>();
-        for (const edge of sharedEdges) {
-            const key = edge.ownerA < edge.ownerB ? `${edge.ownerA}|${edge.ownerB}` : `${edge.ownerB}|${edge.ownerA}`;
-            if (!cMap.has(key)) cMap.set(key, blendColors(edge.colorA, edge.colorB, 0.5));
-        }
-        targetSharedPolylines = chainSharedEdgesIntoPolylines(sharedEdges, (a, b) => {
-            const key = a < b ? `${a}|${b}` : `${b}|${a}`;
-            return cMap.get(key) ?? 0x888888;
-        }, smoothN);
+    targetSharedPolylines = chainSharedEdgesIntoPolylines(
+        sharedEdges,
+        ownerPairColorLookup,
+        appliedSmoothPasses,
+    );
 
-        // Build frontier loops from smoothed merged territory polygons
-        targetFrontierLoops = new Map<string, FrontierLoop[]>();
-        for (const territory of merged) {
-            const loops = targetFrontierLoops.get(territory.ownerId) ?? [];
-            loops.push({ points: territory.points, ownerId: territory.ownerId });
-            targetFrontierLoops.set(territory.ownerId, loops);
-        }
+    // Build frontier loops from the merged territory polygons used for fills.
+    targetFrontierLoops = new Map<string, FrontierLoop[]>();
+    for (const territory of merged) {
+        const loops = targetFrontierLoops.get(territory.ownerId) ?? [];
+        loops.push({ points: territory.points, ownerId: territory.ownerId });
+        targetFrontierLoops.set(territory.ownerId, loops);
     }
 
     // Start transition based on mode
