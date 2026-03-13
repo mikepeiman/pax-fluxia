@@ -1715,6 +1715,148 @@ export function renderPVV3(
 
         log.renderer('PVV3', `FG2 canonical path: ${sorted.length} shells rendered (anim=${fg2AnimActive})`);
 
+        // ── FG2 DIAGNOSTIC DUMP ─────────────────────────────────────────────
+        // Expose full shell data for inspection via browser console
+        const dumpData = {
+            path: 'FG2_CANONICAL',
+            timestamp: Date.now(),
+            shellCount: sorted.length,
+            animActive: fg2AnimActive,
+            traceRunId: (fg2TraceRun as any)?.runId ?? null,
+            shells: sorted.map((shell, idx) => {
+                const pts = shell.points;
+                const closed = pts.length >= 3 &&
+                    Math.abs(pts[0][0] - pts[pts.length - 1][0]) < 0.01 &&
+                    Math.abs(pts[0][1] - pts[pts.length - 1][1]) < 0.01;
+                // Compute perimeter
+                let perimeter = 0;
+                for (let i = 1; i < pts.length; i++) {
+                    perimeter += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+                }
+                return {
+                    idx,
+                    shellId: shell.shellId,
+                    ownerId: shell.ownerId,
+                    pointCount: pts.length,
+                    area: Math.round(shell.absArea),
+                    perimeter: Math.round(perimeter),
+                    confidence: shell.confidence,
+                    closed,
+                    first: pts[0] ? [+pts[0][0].toFixed(1), +pts[0][1].toFixed(1)] : null,
+                    last: pts[pts.length - 1] ? [+pts[pts.length - 1][0].toFixed(1), +pts[pts.length - 1][1].toFixed(1)] : null,
+                    holeCount: 'holeLoopIds' in shell ? (shell as any).holeLoopIds?.length ?? 0
+                             : 'holeLoops' in shell ? (shell as any).holeLoops?.length ?? 0 : 0,
+                    points: pts,  // full geometry for detailed inspection
+                };
+            }),
+            // Adjacency analysis: find shared edges between shells
+            adjacencyReport: (() => {
+                const edgeOwners = new Map<string, string[]>();
+                for (const shell of sorted) {
+                    const pts = shell.points;
+                    for (let i = 0; i < pts.length - 1; i++) {
+                        const ax = +pts[i][0].toFixed(2), ay = +pts[i][1].toFixed(2);
+                        const bx = +pts[i + 1][0].toFixed(2), by = +pts[i + 1][1].toFixed(2);
+                        const key = ax < bx || (ax === bx && ay < by)
+                            ? `${ax},${ay}-${bx},${by}`
+                            : `${bx},${by}-${ax},${ay}`;
+                        if (!edgeOwners.has(key)) edgeOwners.set(key, []);
+                        edgeOwners.get(key)!.push(shell.ownerId);
+                    }
+                }
+                let sharedEdgeCount = 0;
+                let overlapEdgeCount = 0;
+                const overlapSamples: string[] = [];
+                for (const [key, owners] of edgeOwners) {
+                    if (owners.length === 2 && owners[0] !== owners[1]) sharedEdgeCount++;
+                    if (owners.length === 2 && owners[0] === owners[1]) {
+                        overlapEdgeCount++;
+                        if (overlapSamples.length < 5) overlapSamples.push(`${key} (${owners[0]})`);
+                    }
+                    if (owners.length > 2) {
+                        overlapEdgeCount++;
+                        if (overlapSamples.length < 5) overlapSamples.push(`${key} (${owners.join(',')})`);
+                    }
+                }
+                return {
+                    totalEdges: edgeOwners.size,
+                    sharedBetweenOwners: sharedEdgeCount,
+                    overlapSameOwner: overlapEdgeCount,
+                    overlapSamples,
+                };
+            })(),
+            // Vertex proximity analysis: find near-miss vertices between different shells
+            nearMissReport: (() => {
+                const issues: Array<{ shellA: string; shellB: string; ownerA: string; ownerB: string; ptA: [number, number]; ptB: [number, number]; dist: number }> = [];
+                const NEAR_THRESHOLD = 5; // pixels
+                for (let a = 0; a < sorted.length; a++) {
+                    for (let b = a + 1; b < sorted.length; b++) {
+                        if (sorted[a].ownerId === sorted[b].ownerId) continue;
+                        const ptsA = sorted[a].points;
+                        const ptsB = sorted[b].points;
+                        for (let i = 0; i < ptsA.length; i++) {
+                            for (let j = 0; j < ptsB.length; j++) {
+                                const dx = ptsA[i][0] - ptsB[j][0];
+                                const dy = ptsA[i][1] - ptsB[j][1];
+                                const dist = Math.sqrt(dx * dx + dy * dy);
+                                if (dist > 0.01 && dist < NEAR_THRESHOLD) {
+                                    issues.push({
+                                        shellA: sorted[a].shellId,
+                                        shellB: sorted[b].shellId,
+                                        ownerA: sorted[a].ownerId,
+                                        ownerB: sorted[b].ownerId,
+                                        ptA: [+ptsA[i][0].toFixed(2), +ptsA[i][1].toFixed(2)],
+                                        ptB: [+ptsB[j][0].toFixed(2), +ptsB[j][1].toFixed(2)],
+                                        dist: +dist.toFixed(2),
+                                    });
+                                    if (issues.length >= 50) break;
+                                }
+                            }
+                            if (issues.length >= 50) break;
+                        }
+                        if (issues.length >= 50) break;
+                    }
+                    if (issues.length >= 50) break;
+                }
+                return { nearMissCount: issues.length, threshold: NEAR_THRESHOLD, issues };
+            })(),
+        };
+        (window as any).__FG2_DUMP = dumpData;
+
+        // Log summary table to console
+        console.group('%c[PVV3 FG2 Diagnostic]', 'color: #7bdff2; font-weight: bold');
+        console.log(`Path: FG2 CANONICAL | Shells: ${sorted.length} | Anim: ${fg2AnimActive}`);
+        console.table(dumpData.shells.map(s => ({
+            '#': s.idx,
+            owner: s.ownerId,
+            pts: s.pointCount,
+            area: s.area,
+            perim: s.perimeter,
+            conf: s.confidence.toFixed(2),
+            closed: s.closed ? 'Y' : 'N',
+            holes: s.holeCount,
+            first: s.first?.join(',') ?? '-',
+            last: s.last?.join(',') ?? '-',
+        })));
+        console.log(`Adjacency: ${dumpData.adjacencyReport.sharedBetweenOwners} shared edges, ${dumpData.adjacencyReport.overlapSameOwner} overlaps`);
+        if (dumpData.nearMissReport.nearMissCount > 0) {
+            console.warn(`NEAR-MISS VERTICES: ${dumpData.nearMissReport.nearMissCount} pairs within ${NEAR_THRESHOLD ?? 5}px`);
+            console.table(dumpData.nearMissReport.issues.slice(0, 20).map(i => ({
+                shellA: i.shellA.slice(-6),
+                shellB: i.shellB.slice(-6),
+                ownerA: i.ownerA,
+                ownerB: i.ownerB,
+                ptA: i.ptA.join(','),
+                ptB: i.ptB.join(','),
+                dist: i.dist,
+            })));
+        } else {
+            console.log('No near-miss vertices found (all shared edges exact)');
+        }
+        console.log('Full data: window.__FG2_DUMP');
+        console.groupEnd();
+
+
         // Snapshot + transition state (minimal — FG2 handles its own animation)
         prevSharedPolylines = null;
         targetSharedPolylines = null;
@@ -1725,6 +1867,11 @@ export function renderPVV3(
         log.renderer('PVV3', `rebuild complete (FG2) | total=${(performance.now() - now).toFixed(1)}ms`);
         return;  // Skip legacy pipeline entirely
     }
+
+    // FG2 not used — falling through to legacy merge+substitute pipeline
+    console.log('%c[PVV3] LEGACY PATH — FG2 shells not available', 'color: #ffa500; font-weight: bold',
+        `traceRun=${!!fg2TraceRun}, loopArtifact=${!!fg2LoopArtifact}, shellCount=${fg2Shells.length}`);
+
 
 
     // ── Stage 2b: Extract shared edges (before merge removes internal edges) ──
