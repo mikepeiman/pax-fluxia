@@ -28,6 +28,8 @@ import { findConnectedClustersOptimized } from './territoryUtils';
 import { computeCorridorVirtuals, computeDisconnectVirtuals, DISCONNECT_OWNER_ID } from './territoryFeatures';
 import type { ColorUtils } from './RenderContext';
 import { log } from '$lib/utils/logger';
+import { getLastTerritoryTraceRun } from '$lib/territory-engine/engine';
+
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -1624,6 +1626,106 @@ export function renderPVV3(
             }
         }
     }
+
+    // ── FG2 CANONICAL PATH ──────────────────────────────────────────────────
+    // If the territory engine has FG2 shell data available, use it directly.
+    // This gives us canonical polygons where shared edges are shared by
+    // construction — no gaps possible.
+    const fg2TraceRun = getLastTerritoryTraceRun();
+    const fg2LoopArtifact = fg2TraceRun?.artifacts?.loop as
+        | { ownerShells?: Array<{ shellId: string; ownerId: string; points: [number, number][]; area: number; absArea: number; confidence: number; holeLoopIds: string[] }>;
+            ownerShellLoops?: Array<{ shellLoopId: string; ownerId: string; points: [number, number][]; classification: string }>;
+          }
+        | undefined;
+    const fg2AnimArtifact = fg2TraceRun?.artifacts?.animation as
+        | { displayedOwnerShells?: Array<{ shellId: string; ownerId: string; points: [number, number][]; area: number; absArea: number; confidence: number; holeLoops: Array<{ holeLoopId: string; points: [number, number][] }> }>;
+            ownerShellTransitionActive?: boolean;
+          }
+        | undefined;
+    const fg2Shells = fg2LoopArtifact?.ownerShells ?? [];
+    const fg2ShellLoops = fg2LoopArtifact?.ownerShellLoops ?? [];
+    const fg2AnimShells = fg2AnimArtifact?.displayedOwnerShells ?? [];
+    const fg2AnimActive = Boolean(fg2AnimArtifact?.ownerShellTransitionActive);
+    const useFG2 = fg2Shells.length > 0;
+
+    if (useFG2) {
+        // ── FG2 Fill + Border Rendering ──────────────────────────────────────
+        if (!fillGraphics) {
+            fillGraphics = new PIXI.Graphics();
+            voronoiContainer.addChild(fillGraphics);
+        }
+        fillGraphics.clear();
+        fillGraphics.visible = true;
+
+        // Choose shells: animated if transition active, otherwise static
+        const shellsForRender = fg2AnimActive && fg2AnimShells.length > 0
+            ? fg2AnimShells
+            : fg2Shells;
+
+        // Sort largest-first (painter's algorithm)
+        const sorted = shellsForRender.slice().sort((a, b) => b.absArea - a.absArea);
+
+        // Build hole loop lookup from ownerShellLoops
+        const shellLoopById = new Map(
+            fg2ShellLoops.map((loop: any) => [loop.shellLoopId, loop])
+        );
+
+        for (const shell of sorted) {
+            if (shell.points.length < 3) continue;
+            const rawColor = colorUtils.getPlayerColor(shell.ownerId);
+            const shellColor = adjustColorHSL(rawColor, satMult, lightMult);
+
+            // Draw fill polygon
+            fillGraphics.poly(shell.points.flat());
+            fillGraphics.fill({ color: shellColor, alpha });
+
+            // Cut holes
+            const holeLoops: Array<{ points: [number, number][] }> =
+                'holeLoops' in shell && Array.isArray((shell as any).holeLoops)
+                    ? (shell as any).holeLoops
+                    : 'holeLoopIds' in shell && Array.isArray((shell as any).holeLoopIds)
+                      ? (shell as any).holeLoopIds
+                            .map((id: string) => shellLoopById.get(id))
+                            .filter((l: any) => l && l.points?.length >= 3)
+                      : [];
+            for (const hole of holeLoops) {
+                if (hole.points.length < 3) continue;
+                fillGraphics.poly(hole.points.flat());
+                fillGraphics.cut();
+            }
+
+            // Draw border stroke on shell contour
+            if (borderWidth > 0 && borderAlpha > 0) {
+                fillGraphics.moveTo(shell.points[0][0], shell.points[0][1]);
+                for (let i = 1; i < shell.points.length; i++) {
+                    fillGraphics.lineTo(shell.points[i][0], shell.points[i][1]);
+                }
+                if (shell.points.length > 2) {
+                    fillGraphics.lineTo(shell.points[0][0], shell.points[0][1]);
+                }
+                fillGraphics.stroke({
+                    width: borderWidth,
+                    color: shellColor,
+                    alpha: borderAlpha,
+                    cap: 'round',
+                    join: 'round',
+                });
+            }
+        }
+
+        log.renderer('PVV3', `FG2 canonical path: ${sorted.length} shells rendered (anim=${fg2AnimActive})`);
+
+        // Snapshot + transition state (minimal — FG2 handles its own animation)
+        prevSharedPolylines = null;
+        targetSharedPolylines = null;
+        lastMergedTerritories = null;
+        prevFrontierLoops = null;
+        targetFrontierLoops = null;
+
+        log.renderer('PVV3', `rebuild complete (FG2) | total=${(performance.now() - now).toFixed(1)}ms`);
+        return;  // Skip legacy pipeline entirely
+    }
+
 
     // ── Stage 2b: Extract shared edges (before merge removes internal edges) ──
     const sharedEdges = extractSharedEdges(cells);
