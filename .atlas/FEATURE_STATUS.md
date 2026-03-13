@@ -104,3 +104,7 @@
 - F-154 branch `codex/territory-engine-epic-fg2-halfedge-closure` now promotes pair-topology graphs into explicit node/link graphs with `seed`, `junction`, and `boundary` node types.
 - Open frontier ends now extend to world-edge boundary anchors, and geometry extraction walks that generalized graph to emit open or closed frontiers.
 - Trace mode now reveals synthesized junction and boundary nodes, while topology summaries expose graph node, junction, and boundary-anchor counts for step inspection.
+
+- F-154 in `PRISM-territory-work` now derives `ownerShells` from owner-exposed edges of the globally resolved FG2 arrangement and uses those shells as the native fill artifact.
+- Loop diagnostics now include owner shell counts, hole counts, open shell-loop counts, and owner-shell graph counts for trace/debug review.
+- The FG2 native renderer now paints shell-oriented owner fills before frontier strokes, creating a more meaningful demo checkpoint than raw owner-region candidate loops alone.

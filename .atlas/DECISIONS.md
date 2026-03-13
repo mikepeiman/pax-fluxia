@@ -234,3 +234,7 @@
 ### D-55: FG2 Owner Region Candidates Prefer Global Face Resolution Over Pair-Local Loops
 - **Decision**: When available, `ownerRegionLoops` are now sourced from a global face walk over the merged FG2 topology graph; pair-local owner loops remain fallback diagnostics.
 - **Rationale**: Pairwise canonical loops are useful scaffolding, but they cannot serve as the final ground truth once frontier continuity begins to span multiple owner-pairs at shared junctions.
+
+### D-56: FG2 Fill Geometry Must Be Synthesized From Owner-Exposed Edges of the Global Arrangement
+- **Decision**: FG2 now derives `ownerShells` by projecting the globally resolved face ownership onto the merged half-edge arrangement and keeping only owner-exposed links; shell loops are then classified by containment into shells vs holes.
+- **Rationale**: Raw owner-region face candidates are not yet owner-level fill geometry. The owner shell graph removes same-owner internal shared edges and produces a materially better canonical fill artifact for later morphing and border/fill coincidence.

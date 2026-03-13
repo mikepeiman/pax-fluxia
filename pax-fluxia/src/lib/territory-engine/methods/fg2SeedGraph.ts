@@ -162,11 +162,46 @@ interface FG2FrontierPolyline {
     points: [number, number][];
 }
 
+interface FG2GraphChain {
+    nodeIds: string[];
+    linkIds: string[];
+    closed: boolean;
+}
+
 interface FG2BoundaryAnchorResult {
     x: number;
     y: number;
     boundarySide: FG2BoundarySide;
     distance: number;
+}
+
+interface FG2OwnerShellLoopArtifact {
+    shellLoopId: string;
+    ownerId: string;
+    points: [number, number][];
+    area: number;
+    absArea: number;
+    touchesWorldBoundary: boolean;
+    boundaryEdgeCount: number;
+    sourceRegionLoopCount: number;
+    confidence: number;
+    classification: 'shell' | 'hole';
+    nestingDepth: number;
+    parentLoopId: string | null;
+}
+
+interface FG2OwnerShellArtifact {
+    shellId: string;
+    ownerId: string;
+    outerLoopId: string;
+    points: [number, number][];
+    area: number;
+    absArea: number;
+    touchesWorldBoundary: boolean;
+    boundaryEdgeCount: number;
+    sourceRegionLoopCount: number;
+    confidence: number;
+    holeLoopIds: string[];
 }
 
 const FG2_GRAPHICS_NAME = 'territory-engine-fg2-frontier-graphics';
@@ -698,8 +733,9 @@ function walkChain(
     linkById: Map<string, FG2TopologyLink>,
     nodeById: Map<string, FG2GraphNode>,
     visitedLinkIds: Set<string>,
-): { nodeIds: string[]; closed: boolean } {
+): FG2GraphChain {
     const nodeIds = [startNodeId];
+    const linkIds: string[] = [];
     let currentNodeId = startNodeId;
     let currentLinkId: string | null = startLinkId;
     let closed = false;
@@ -707,6 +743,7 @@ function walkChain(
     while (currentLinkId) {
         if (visitedLinkIds.has(currentLinkId)) break;
         visitedLinkIds.add(currentLinkId);
+        linkIds.push(currentLinkId);
 
         const currentLink = linkById.get(currentLinkId);
         if (!currentLink) break;
@@ -742,8 +779,9 @@ function walkChain(
         currentLinkId = nextLinkId;
     }
 
-    return { nodeIds, closed };
+    return { nodeIds, linkIds, closed };
 }
+
 
 function buildPairTopologyGraph(
     ownerPair: string,
@@ -996,8 +1034,8 @@ function buildPairTopologyGraph(
         boundaryPerimeterLinkCount,
     };
 }
-function extractFrontiersFromPairGraph(graph: FG2PairTopologyGraph): FG2FrontierPolyline[] {
-    const frontiers: FG2FrontierPolyline[] = [];
+function extractGraphChains(graph: FG2PairTopologyGraph): FG2GraphChain[] {
+    const chains: FG2GraphChain[] = [];
     const nodeById = new Map(graph.nodes.map((node) => [node.nodeId, node]));
     const linkById = new Map(graph.links.map((link) => [link.linkId, link]));
     const visitedLinkIds = new Set<string>();
@@ -1025,12 +1063,10 @@ function extractFrontiersFromPairGraph(graph: FG2PairTopologyGraph): FG2Frontier
     for (const nodeId of singletonNodeIds) {
         const node = nodeById.get(nodeId);
         if (!node) continue;
-        frontiers.push({
-            ownerPair: graph.ownerPair,
-            ownerA: graph.ownerA,
-            ownerB: graph.ownerB,
+        chains.push({
+            nodeIds: [node.nodeId],
+            linkIds: [],
             closed: false,
-            points: [[node.x, node.y]],
         });
     }
 
@@ -1068,28 +1104,16 @@ function extractFrontiersFromPairGraph(graph: FG2PairTopologyGraph): FG2Frontier
             );
             if (!startLinkId) break;
 
-            const chain = walkChain(
-                startNodeId,
-                startLinkId,
-                graph.adjacency,
-                linkById,
-                nodeById,
-                visitedLinkIds,
+            chains.push(
+                walkChain(
+                    startNodeId,
+                    startLinkId,
+                    graph.adjacency,
+                    linkById,
+                    nodeById,
+                    visitedLinkIds,
+                ),
             );
-            const points = chain.nodeIds
-                .map((nodeId) => nodeById.get(nodeId))
-                .filter((node): node is FG2GraphNode => Boolean(node))
-                .map((node) => [node.x, node.y] as [number, number]);
-
-            if (points.length > 0) {
-                frontiers.push({
-                    ownerPair: graph.ownerPair,
-                    ownerA: graph.ownerA,
-                    ownerB: graph.ownerB,
-                    closed: chain.closed,
-                    points,
-                });
-            }
 
             remainingLinkIds = (graph.adjacency[startNodeId] ?? []).filter(
                 (linkId) => !visitedLinkIds.has(linkId),
@@ -1107,28 +1131,39 @@ function extractFrontiersFromPairGraph(graph: FG2PairTopologyGraph): FG2Frontier
         const link = linkById.get(linkId);
         if (!link) continue;
 
-        const chain = walkChain(
-            link.nodeAId,
-            link.linkId,
-            graph.adjacency,
-            linkById,
-            nodeById,
-            visitedLinkIds,
+        chains.push(
+            walkChain(
+                link.nodeAId,
+                link.linkId,
+                graph.adjacency,
+                linkById,
+                nodeById,
+                visitedLinkIds,
+            ),
         );
+    }
+
+    return chains;
+}
+
+function extractFrontiersFromPairGraph(graph: FG2PairTopologyGraph): FG2FrontierPolyline[] {
+    const nodeById = new Map(graph.nodes.map((node) => [node.nodeId, node]));
+    const frontiers: FG2FrontierPolyline[] = [];
+
+    for (const chain of extractGraphChains(graph)) {
         const points = chain.nodeIds
             .map((nodeId) => nodeById.get(nodeId))
             .filter((node): node is FG2GraphNode => Boolean(node))
             .map((node) => [node.x, node.y] as [number, number]);
+        if (points.length === 0) continue;
 
-        if (points.length > 0) {
-            frontiers.push({
-                ownerPair: graph.ownerPair,
-                ownerA: graph.ownerA,
-                ownerB: graph.ownerB,
-                closed: chain.closed,
-                points,
-            });
-        }
+        frontiers.push({
+            ownerPair: graph.ownerPair,
+            ownerA: graph.ownerA,
+            ownerB: graph.ownerB,
+            closed: chain.closed,
+            points,
+        });
     }
 
     return frontiers;
@@ -1146,6 +1181,61 @@ function computeSignedArea(points: [number, number][]): number {
 
     return area * 0.5;
 }
+
+function computeLoopCentroid(points: [number, number][]): [number, number] {
+    if (points.length === 0) return [0, 0];
+
+    let sumX = 0;
+    let sumY = 0;
+    for (const point of points) {
+        sumX += point[0];
+        sumY += point[1];
+    }
+
+    return [sumX / points.length, sumY / points.length];
+}
+
+function isPointOnSegment(
+    pointX: number,
+    pointY: number,
+    startX: number,
+    startY: number,
+    endX: number,
+    endY: number,
+): boolean {
+    const cross = (pointY - startY) * (endX - startX) - (pointX - startX) * (endY - startY);
+    if (Math.abs(cross) > EPSILON) return false;
+
+    const dot = (pointX - startX) * (endX - startX) + (pointY - startY) * (endY - startY);
+    if (dot < -EPSILON) return false;
+
+    const lengthSquared = (endX - startX) ** 2 + (endY - startY) ** 2;
+    return dot <= lengthSquared + EPSILON;
+}
+
+function isPointInsidePolygon(point: [number, number], polygon: [number, number][]): boolean {
+    if (polygon.length < 3) return false;
+
+    const [pointX, pointY] = point;
+    let inside = false;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i, i += 1) {
+        const [xi, yi] = polygon[i];
+        const [xj, yj] = polygon[j];
+        if (isPointOnSegment(pointX, pointY, xi, yi, xj, yj)) {
+            return true;
+        }
+
+        const intersects =
+            yi > pointY !== yj > pointY &&
+            pointX < ((xj - xi) * (pointY - yi)) / ((yj - yi) || EPSILON) + xi;
+        if (intersects) {
+            inside = !inside;
+        }
+    }
+
+    return inside;
+}
+
 
 function buildPairHalfEdgeGraph(graph: FG2PairTopologyGraph): FG2PairHalfEdgeGraph {
     const nodeById = new Map(graph.nodes.map((node) => [node.nodeId, node]));
@@ -1543,6 +1633,315 @@ function buildResolvedOwnerRegionLoopArtifact(
     };
 }
 
+function buildOwnerShellGraphs(
+    globalTopologyGraph: FG2PairTopologyGraph,
+    globalHalfEdgeGraph: FG2PairHalfEdgeGraph,
+    globalOwnerRegionLoops: FG2OwnerRegionLoopArtifact[],
+): {
+    ownerShellGraphs: Record<string, FG2PairTopologyGraph>;
+    ownerSourceStats: Record<string, { sourceRegionLoopCount: number; confidence: number }>;
+} {
+    const nodeById = new Map(globalTopologyGraph.nodes.map((node) => [node.nodeId, node]));
+    const ownerRegionLoopByFaceWalkId = new Map(
+        globalOwnerRegionLoops.map((loop) => [loop.sourceFaceWalkId, loop]),
+    );
+    const faceOwnerByHalfEdgeId = new Map<string, string>();
+    for (const walk of globalHalfEdgeGraph.leftFaceWalks) {
+        const ownerRegionLoop = ownerRegionLoopByFaceWalkId.get(walk.faceWalkId);
+        if (!ownerRegionLoop) continue;
+        for (const halfEdgeId of walk.halfEdgeIds) {
+            faceOwnerByHalfEdgeId.set(halfEdgeId, ownerRegionLoop.ownerId);
+        }
+    }
+
+    const ownerSourceStats: Record<
+        string,
+        { sourceRegionLoopCount: number; confidenceTotal: number; confidence: number }
+    > = {};
+    for (const ownerRegionLoop of globalOwnerRegionLoops) {
+        const stats =
+            ownerSourceStats[ownerRegionLoop.ownerId] ??
+            { sourceRegionLoopCount: 0, confidenceTotal: 0, confidence: 0 };
+        stats.sourceRegionLoopCount += 1;
+        stats.confidenceTotal += ownerRegionLoop.confidence;
+        ownerSourceStats[ownerRegionLoop.ownerId] = stats;
+    }
+    for (const stats of Object.values(ownerSourceStats)) {
+        stats.confidence =
+            stats.sourceRegionLoopCount > 0 ? stats.confidenceTotal / stats.sourceRegionLoopCount : 0;
+    }
+
+    const builders: Record<
+        string,
+        {
+            nodeById: Map<string, FG2GraphNode>;
+            linkById: Map<string, FG2TopologyLink>;
+            adjacency: Record<string, string[]>;
+            boundaryAnchorIds: string[];
+            cornerIds: string[];
+            junctionIds: string[];
+            boundaryPerimeterLinkCount: number;
+        }
+    > = {};
+
+    function getBuilder(ownerId: string) {
+        if (!builders[ownerId]) {
+            builders[ownerId] = {
+                nodeById: new Map<string, FG2GraphNode>(),
+                linkById: new Map<string, FG2TopologyLink>(),
+                adjacency: {},
+                boundaryAnchorIds: [],
+                cornerIds: [],
+                junctionIds: [],
+                boundaryPerimeterLinkCount: 0,
+            };
+        }
+        return builders[ownerId];
+    }
+
+    function addNode(ownerId: string, nodeId: string): void {
+        const builder = getBuilder(ownerId);
+        if (builder.nodeById.has(nodeId)) return;
+        const sourceNode = nodeById.get(nodeId);
+        if (!sourceNode) return;
+
+        const node: FG2GraphNode = {
+            ...sourceNode,
+            ownerPair: `owner-shell::${ownerId}`,
+        };
+        builder.nodeById.set(node.nodeId, node);
+        builder.adjacency[node.nodeId] = [];
+        if (node.nodeType === 'boundary') builder.boundaryAnchorIds.push(node.nodeId);
+        if (node.nodeType === 'corner') builder.cornerIds.push(node.nodeId);
+        if (node.nodeType === 'junction') builder.junctionIds.push(node.nodeId);
+    }
+
+    function addLink(ownerId: string, link: FG2TopologyLink): void {
+        const builder = getBuilder(ownerId);
+        const shellLinkId = `owner-shell|${ownerId}|${link.linkId}`;
+        if (builder.linkById.has(shellLinkId)) return;
+
+        addNode(ownerId, link.nodeAId);
+        addNode(ownerId, link.nodeBId);
+
+        const shellLink: FG2TopologyLink = {
+            ...link,
+            linkId: shellLinkId,
+            ownerPair: `owner-shell::${ownerId}`,
+            viaOwner: ownerId,
+        };
+        builder.linkById.set(shellLink.linkId, shellLink);
+        builder.adjacency[shellLink.nodeAId].push(shellLink.linkId);
+        builder.adjacency[shellLink.nodeBId].push(shellLink.linkId);
+        if (shellLink.linkKind === 'boundary_perimeter') {
+            builder.boundaryPerimeterLinkCount += 1;
+        }
+    }
+
+    for (const link of globalTopologyGraph.links) {
+        const forwardOwnerId = faceOwnerByHalfEdgeId.get(`${link.linkId}|forward`) ?? null;
+        const reverseOwnerId = faceOwnerByHalfEdgeId.get(`${link.linkId}|reverse`) ?? null;
+        const exposedOwnerIds = new Set<string>();
+        if (forwardOwnerId && forwardOwnerId !== reverseOwnerId) {
+            exposedOwnerIds.add(forwardOwnerId);
+        }
+        if (reverseOwnerId && reverseOwnerId !== forwardOwnerId) {
+            exposedOwnerIds.add(reverseOwnerId);
+        }
+        for (const ownerId of exposedOwnerIds) {
+            addLink(ownerId, link);
+        }
+    }
+
+    const ownerShellGraphs: Record<string, FG2PairTopologyGraph> = {};
+    for (const ownerId of Object.keys(builders).sort((a, b) => a.localeCompare(b))) {
+        const builder = builders[ownerId];
+        for (const linkIds of Object.values(builder.adjacency)) {
+            linkIds.sort((a, b) => a.localeCompare(b));
+        }
+
+        const nodes = Array.from(builder.nodeById.values()).sort((nodeA, nodeB) =>
+            nodeA.nodeId.localeCompare(nodeB.nodeId),
+        );
+        const links = Array.from(builder.linkById.values()).sort((linkA, linkB) =>
+            linkA.linkId.localeCompare(linkB.linkId),
+        );
+        const nodeIds = nodes.map((node) => node.nodeId);
+        ownerShellGraphs[ownerId] = {
+            ownerPair: `owner-shell::${ownerId}`,
+            ownerA: ownerId,
+            ownerB: '__shell__',
+            nodeIds,
+            nodes,
+            links,
+            adjacency: builder.adjacency,
+            starIncidence: {},
+            isolatedSeedIds: nodeIds
+                .filter((nodeId) => (builder.adjacency[nodeId]?.length ?? 0) === 0)
+                .sort((a, b) => a.localeCompare(b)),
+            openSeedIds: nodeIds
+                .filter((nodeId) => (builder.adjacency[nodeId]?.length ?? 0) <= 1)
+                .sort((a, b) => a.localeCompare(b)),
+            boundaryAnchorIds: builder.boundaryAnchorIds.sort((a, b) => a.localeCompare(b)),
+            cornerIds: builder.cornerIds.sort((a, b) => a.localeCompare(b)),
+            junctionIds: builder.junctionIds.sort((a, b) => a.localeCompare(b)),
+            boundaryPerimeterLinkCount: builder.boundaryPerimeterLinkCount,
+        };
+    }
+
+    return {
+        ownerShellGraphs,
+        ownerSourceStats: Object.fromEntries(
+            Object.entries(ownerSourceStats).map(([ownerId, stats]) => [
+                ownerId,
+                {
+                    sourceRegionLoopCount: stats.sourceRegionLoopCount,
+                    confidence: stats.confidence,
+                },
+            ]),
+        ),
+    };
+}
+
+function buildOwnerShellArtifacts(
+    ownerShellGraphs: Record<string, FG2PairTopologyGraph>,
+    ownerSourceStats: Record<string, { sourceRegionLoopCount: number; confidence: number }>,
+): {
+    ownerShellLoops: FG2OwnerShellLoopArtifact[];
+    ownerShells: FG2OwnerShellArtifact[];
+    openOwnerShellLoopCount: number;
+    ownerShellHoleCount: number;
+} {
+    const ownerShellLoops: FG2OwnerShellLoopArtifact[] = [];
+    let openOwnerShellLoopCount = 0;
+
+    for (const [ownerId, ownerShellGraph] of Object.entries(ownerShellGraphs)) {
+        const nodeById = new Map(ownerShellGraph.nodes.map((node) => [node.nodeId, node]));
+        const sourceStats = ownerSourceStats[ownerId] ?? {
+            sourceRegionLoopCount: 0,
+            confidence: 0,
+        };
+        const ownerLoops: FG2OwnerShellLoopArtifact[] = [];
+
+        extractGraphChains(ownerShellGraph).forEach((chain, index) => {
+            if (!chain.closed) {
+                openOwnerShellLoopCount += 1;
+                return;
+            }
+
+            const points = chain.nodeIds
+                .map((nodeId) => nodeById.get(nodeId))
+                .filter((node): node is FG2GraphNode => Boolean(node))
+                .map((node) => [node.x, node.y] as [number, number]);
+            if (points.length < 3) return;
+
+            const area = computeSignedArea(points);
+            const absArea = Math.abs(area);
+            if (absArea <= EPSILON) return;
+
+            ownerLoops.push({
+                shellLoopId: `${ownerId}|shell-loop|${chain.linkIds[0] ?? chain.nodeIds[0] ?? index}`,
+                ownerId,
+                points,
+                area,
+                absArea,
+                touchesWorldBoundary: chain.nodeIds.some((nodeId) => {
+                    const node = nodeById.get(nodeId);
+                    return node?.nodeType === 'boundary' || node?.nodeType === 'corner';
+                }),
+                boundaryEdgeCount: chain.linkIds.length,
+                sourceRegionLoopCount: sourceStats.sourceRegionLoopCount,
+                confidence: sourceStats.confidence,
+                classification: 'shell',
+                nestingDepth: 0,
+                parentLoopId: null,
+            });
+        });
+
+        ownerLoops.sort((loopA, loopB) => {
+            if (Math.abs(loopA.absArea - loopB.absArea) > EPSILON) {
+                return loopB.absArea - loopA.absArea;
+            }
+            return loopA.shellLoopId.localeCompare(loopB.shellLoopId);
+        });
+
+        for (const ownerLoop of ownerLoops) {
+            const samplePoint = computeLoopCentroid(ownerLoop.points);
+            let parentLoop: FG2OwnerShellLoopArtifact | null = null;
+            for (const candidateLoop of ownerLoops) {
+                if (candidateLoop.shellLoopId === ownerLoop.shellLoopId) continue;
+                if (candidateLoop.absArea <= ownerLoop.absArea + EPSILON) continue;
+                if (!isPointInsidePolygon(samplePoint, candidateLoop.points)) continue;
+                if (
+                    !parentLoop ||
+                    candidateLoop.absArea < parentLoop.absArea - EPSILON ||
+                    (Math.abs(candidateLoop.absArea - parentLoop.absArea) <= EPSILON &&
+                        candidateLoop.shellLoopId.localeCompare(parentLoop.shellLoopId) < 0)
+                ) {
+                    parentLoop = candidateLoop;
+                }
+            }
+
+            ownerLoop.parentLoopId = parentLoop?.shellLoopId ?? null;
+            ownerLoop.nestingDepth = parentLoop ? parentLoop.nestingDepth + 1 : 0;
+            ownerLoop.classification = ownerLoop.nestingDepth % 2 === 0 ? 'shell' : 'hole';
+            const shouldReversePoints =
+                (ownerLoop.classification === 'shell' && ownerLoop.area < 0) ||
+                (ownerLoop.classification === 'hole' && ownerLoop.area > 0);
+            if (shouldReversePoints) {
+                ownerLoop.points = ownerLoop.points.slice().reverse();
+                ownerLoop.area = computeSignedArea(ownerLoop.points);
+            }
+        }
+
+        ownerShellLoops.push(...ownerLoops);
+    }
+
+    ownerShellLoops.sort((loopA, loopB) => {
+        if (loopA.ownerId !== loopB.ownerId) return loopA.ownerId.localeCompare(loopB.ownerId);
+        if (Math.abs(loopA.absArea - loopB.absArea) > EPSILON) {
+            return loopB.absArea - loopA.absArea;
+        }
+        return loopA.shellLoopId.localeCompare(loopB.shellLoopId);
+    });
+
+    const ownerShells = ownerShellLoops
+        .filter((ownerLoop) => ownerLoop.classification === 'shell')
+        .map((ownerLoop) => ({
+            shellId: `${ownerLoop.ownerId}|shell|${ownerLoop.shellLoopId}`,
+            ownerId: ownerLoop.ownerId,
+            outerLoopId: ownerLoop.shellLoopId,
+            points: ownerLoop.points,
+            area: ownerLoop.area,
+            absArea: ownerLoop.absArea,
+            touchesWorldBoundary: ownerLoop.touchesWorldBoundary,
+            boundaryEdgeCount: ownerLoop.boundaryEdgeCount,
+            sourceRegionLoopCount: ownerLoop.sourceRegionLoopCount,
+            confidence: ownerLoop.confidence,
+            holeLoopIds: ownerShellLoops
+                .filter(
+                    (candidateLoop) =>
+                        candidateLoop.ownerId === ownerLoop.ownerId &&
+                        candidateLoop.classification === 'hole' &&
+                        candidateLoop.parentLoopId === ownerLoop.shellLoopId,
+                )
+                .map((candidateLoop) => candidateLoop.shellLoopId),
+        }))
+        .sort((shellA, shellB) => {
+            if (Math.abs(shellA.absArea - shellB.absArea) > EPSILON) {
+                return shellB.absArea - shellA.absArea;
+            }
+            return shellA.shellId.localeCompare(shellB.shellId);
+        });
+
+    return {
+        ownerShellLoops,
+        ownerShells,
+        openOwnerShellLoopCount,
+        ownerShellHoleCount: ownerShellLoops.filter((loop) => loop.classification === 'hole').length,
+    };
+}
+
 function executeMetricStage(runtime: FG2StageRuntime, summary: Record<string, unknown>): void {
     const starById = new Map(runtime.input.stars.map((star) => [star.id, star]));
     const contestedLaneCount = (runtime.input.connections ?? []).filter((connection) => {
@@ -1747,6 +2146,11 @@ function executeLoopStage(runtime: FG2StageRuntime, summary: Record<string, unkn
     const regionLoops: FG2RegionLoopArtifact[] = [];
     const pairOwnerRegionLoops: FG2OwnerRegionLoopArtifact[] = [];
     const resolvedOwnerRegionLoops: FG2OwnerRegionLoopArtifact[] = [];
+    const ownerShellLoops: FG2OwnerShellLoopArtifact[] = [];
+    const ownerShells: FG2OwnerShellArtifact[] = [];
+    let ownerShellHoleCount = 0;
+    let openOwnerShellLoopCount = 0;
+    let ownerShellGraphCount = 0;
     let closedFrontierCount = 0;
     let halfEdgeCount = 0;
     let faceWalkCount = 0;
@@ -1854,6 +2258,57 @@ function executeLoopStage(runtime: FG2StageRuntime, summary: Record<string, unkn
         ownerLoopHints[ownerRegionLoop.ownerId] = (ownerLoopHints[ownerRegionLoop.ownerId] ?? 0) + 1;
     }
 
+    if (resolvedOwnerRegionLoops.length > 0) {
+        const shellGraphResult = buildOwnerShellGraphs(
+            globalTopologyGraph,
+            globalHalfEdgeGraph,
+            resolvedOwnerRegionLoops,
+        );
+        ownerShellGraphCount = Object.keys(shellGraphResult.ownerShellGraphs).length;
+        const shellArtifacts = buildOwnerShellArtifacts(
+            shellGraphResult.ownerShellGraphs,
+            shellGraphResult.ownerSourceStats,
+        );
+        ownerShellLoops.push(...shellArtifacts.ownerShellLoops);
+        ownerShells.push(...shellArtifacts.ownerShells);
+        ownerShellHoleCount = shellArtifacts.ownerShellHoleCount;
+        openOwnerShellLoopCount = shellArtifacts.openOwnerShellLoopCount;
+    }
+
+    if (ownerShells.length === 0 && ownerRegionLoops.length > 0) {
+        ownerShellGraphCount = Math.max(ownerShellGraphCount, Object.keys(ownerLoopHints).length);
+        for (const ownerRegionLoop of ownerRegionLoops) {
+            const fallbackShellLoopId = `${ownerRegionLoop.ownerId}|shell-loop|fallback|${ownerRegionLoop.regionLoopId}`;
+            ownerShellLoops.push({
+                shellLoopId: fallbackShellLoopId,
+                ownerId: ownerRegionLoop.ownerId,
+                points: ownerRegionLoop.points,
+                area: ownerRegionLoop.area,
+                absArea: ownerRegionLoop.absArea,
+                touchesWorldBoundary: ownerRegionLoop.touchesWorldBoundary,
+                boundaryEdgeCount: ownerRegionLoop.points.length,
+                sourceRegionLoopCount: 1,
+                confidence: ownerRegionLoop.confidence,
+                classification: 'shell',
+                nestingDepth: 0,
+                parentLoopId: null,
+            });
+            ownerShells.push({
+                shellId: `${ownerRegionLoop.ownerId}|shell|fallback|${ownerRegionLoop.regionLoopId}`,
+                ownerId: ownerRegionLoop.ownerId,
+                outerLoopId: fallbackShellLoopId,
+                points: ownerRegionLoop.points,
+                area: ownerRegionLoop.area,
+                absArea: ownerRegionLoop.absArea,
+                touchesWorldBoundary: ownerRegionLoop.touchesWorldBoundary,
+                boundaryEdgeCount: ownerRegionLoop.points.length,
+                sourceRegionLoopCount: 1,
+                confidence: ownerRegionLoop.confidence,
+                holeLoopIds: [],
+            });
+        }
+    }
+
     for (const frontier of frontiers) {
         if (frontier.closed) {
             closedFrontierCount += 1;
@@ -1867,6 +2322,13 @@ function executeLoopStage(runtime: FG2StageRuntime, summary: Record<string, unkn
         pairHalfEdgeGraphs,
         regionLoops,
         ownerRegionLoops,
+        ownerShellLoops,
+        ownerShells,
+        ownerShellCount: ownerShells.length,
+        ownerShellLoopCount: ownerShellLoops.length,
+        ownerShellHoleCount,
+        openOwnerShellLoopCount,
+        ownerShellGraphCount,
         pairOwnerRegionLoops,
         resolvedOwnerRegionLoops,
         halfEdgeCount,
@@ -1891,6 +2353,11 @@ function executeLoopStage(runtime: FG2StageRuntime, summary: Record<string, unkn
     summary.exteriorFaceWalkCount = exteriorFaceWalkCount;
     summary.regionLoopCount = regionLoops.length;
     summary.ownerRegionLoopCount = ownerRegionLoops.length;
+    summary.ownerShellCount = ownerShells.length;
+    summary.ownerShellLoopCount = ownerShellLoops.length;
+    summary.ownerShellHoleCount = ownerShellHoleCount;
+    summary.openOwnerShellLoopCount = openOwnerShellLoopCount;
+    summary.ownerShellGraphCount = ownerShellGraphCount;
     summary.pairOwnerRegionLoopCount = pairOwnerRegionLoops.length;
     summary.resolvedOwnerRegionLoopCount = resolvedOwnerRegionLoops.length;
     summary.ambiguousCanonicalFaceWalkCount = ambiguousCanonicalFaceWalkCount;
@@ -1922,6 +2389,8 @@ function executeRenderStage(runtime: FG2StageRuntime, summary: Record<string, un
         | {
               regionLoops?: FG2RegionLoopArtifact[];
               ownerRegionLoops?: FG2OwnerRegionLoopArtifact[];
+              ownerShellLoops?: FG2OwnerShellLoopArtifact[];
+              ownerShells?: FG2OwnerShellArtifact[];
           }
         | undefined;
     const seedArtifact = runtime.artifacts.seed as { seeds?: FG2SeedPoint[] } | undefined;
@@ -1929,6 +2398,8 @@ function executeRenderStage(runtime: FG2StageRuntime, summary: Record<string, un
     const frontiers = geometryArtifact?.frontiers ?? [];
     const regionLoops = loopArtifact?.regionLoops ?? [];
     const ownerRegionLoops = loopArtifact?.ownerRegionLoops ?? [];
+    const ownerShellLoops = loopArtifact?.ownerShellLoops ?? [];
+    const ownerShells = loopArtifact?.ownerShells ?? [];
     const seeds = seedArtifact?.seeds ?? [];
 
     const graphics = getOrCreateGraphics(runtime.input.container);
@@ -1936,8 +2407,59 @@ function executeRenderStage(runtime: FG2StageRuntime, summary: Record<string, un
 
     const borderWidth = Math.max(1, GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 3);
     const borderAlpha = Math.max(0, Math.min(1, GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.9));
+    const fillAlpha = Math.max(0, Math.min(0.6, GAME_CONFIG.GRAPH_ALPHA ?? 0.15));
+
+    const shellsForRender = ownerShells.slice().sort((shellA, shellB) => {
+        if (Math.abs(shellA.absArea - shellB.absArea) > EPSILON) {
+            return shellB.absArea - shellA.absArea;
+        }
+        return shellA.shellId.localeCompare(shellB.shellId);
+    });
+    for (const ownerShell of shellsForRender) {
+        if (ownerShell.points.length < 3) continue;
+        const shellColor = runtime.input.colorUtils.getPlayerColor(ownerShell.ownerId);
+        graphics.moveTo(ownerShell.points[0][0], ownerShell.points[0][1]);
+        for (let i = 1; i < ownerShell.points.length; i += 1) {
+            const point = ownerShell.points[i];
+            graphics.lineTo(point[0], point[1]);
+        }
+        graphics.lineTo(ownerShell.points[0][0], ownerShell.points[0][1]);
+        graphics.fill({
+            color: shellColor,
+            alpha: GAME_CONFIG.TERRITORY_ENGINE_TRACE_MODE
+                ? fillAlpha * (0.45 + ownerShell.confidence * 0.25)
+                : fillAlpha,
+        });
+        if (GAME_CONFIG.TERRITORY_ENGINE_TRACE_MODE) {
+            graphics.stroke({
+                color: shellColor,
+                width: Math.max(1, borderWidth * 0.2),
+                alpha: 0.12 + ownerShell.confidence * 0.16,
+                cap: 'round',
+                join: 'round',
+            });
+        }
+    }
 
     if (GAME_CONFIG.TERRITORY_ENGINE_TRACE_MODE) {
+        for (const ownerShellLoop of ownerShellLoops) {
+            if (ownerShellLoop.classification !== 'hole' || ownerShellLoop.points.length < 3) continue;
+            const loopColor = runtime.input.colorUtils.getPlayerColor(ownerShellLoop.ownerId);
+            graphics.moveTo(ownerShellLoop.points[0][0], ownerShellLoop.points[0][1]);
+            for (let i = 1; i < ownerShellLoop.points.length; i += 1) {
+                const point = ownerShellLoop.points[i];
+                graphics.lineTo(point[0], point[1]);
+            }
+            graphics.lineTo(ownerShellLoop.points[0][0], ownerShellLoop.points[0][1]);
+            graphics.stroke({
+                color: loopColor,
+                width: Math.max(1, borderWidth * 0.18),
+                alpha: 0.22,
+                cap: 'round',
+                join: 'round',
+            });
+        }
+
         for (const ownerRegionLoop of ownerRegionLoops) {
             const loopColor = runtime.input.colorUtils.getPlayerColor(ownerRegionLoop.ownerId);
             graphics.moveTo(ownerRegionLoop.points[0][0], ownerRegionLoop.points[0][1]);
@@ -1948,12 +2470,12 @@ function executeRenderStage(runtime: FG2StageRuntime, summary: Record<string, un
             graphics.lineTo(ownerRegionLoop.points[0][0], ownerRegionLoop.points[0][1]);
             graphics.fill({
                 color: loopColor,
-                alpha: 0.04 + ownerRegionLoop.confidence * 0.08,
+                alpha: 0.03 + ownerRegionLoop.confidence * 0.05,
             });
             graphics.stroke({
                 color: loopColor,
-                width: Math.max(1, borderWidth * (0.4 + ownerRegionLoop.confidence * 0.3)),
-                alpha: 0.18 + ownerRegionLoop.confidence * 0.24,
+                width: Math.max(1, borderWidth * (0.35 + ownerRegionLoop.confidence * 0.2)),
+                alpha: 0.16 + ownerRegionLoop.confidence * 0.18,
                 cap: 'round',
                 join: 'round',
             });
@@ -1972,12 +2494,12 @@ function executeRenderStage(runtime: FG2StageRuntime, summary: Record<string, un
             graphics.lineTo(regionLoop.points[0][0], regionLoop.points[0][1]);
             graphics.fill({
                 color: loopColor,
-                alpha: regionLoop.kind === 'exterior_candidate' ? 0.015 : 0.035,
+                alpha: regionLoop.kind === 'exterior_candidate' ? 0.015 : 0.03,
             });
             graphics.stroke({
                 color: loopColor,
-                width: regionLoop.kind === 'exterior_candidate' ? 1 : Math.max(1, borderWidth * 0.3),
-                alpha: regionLoop.kind === 'exterior_candidate' ? 0.12 : 0.18,
+                width: regionLoop.kind === 'exterior_candidate' ? 1 : Math.max(1, borderWidth * 0.28),
+                alpha: regionLoop.kind === 'exterior_candidate' ? 0.12 : 0.16,
                 cap: 'round',
                 join: 'round',
             });
@@ -2062,6 +2584,8 @@ function executeRenderStage(runtime: FG2StageRuntime, summary: Record<string, un
         frontierCount: frontiers.length,
         regionLoopCount: regionLoops.length,
         ownerRegionLoopCount: ownerRegionLoops.length,
+        ownerShellCount: ownerShells.length,
+        ownerShellLoopCount: ownerShellLoops.length,
         seedCount: seeds.length,
     };
 
@@ -2069,6 +2593,8 @@ function executeRenderStage(runtime: FG2StageRuntime, summary: Record<string, un
     summary.frontierCount = frontiers.length;
     summary.regionLoopCount = regionLoops.length;
     summary.ownerRegionLoopCount = ownerRegionLoops.length;
+    summary.ownerShellCount = ownerShells.length;
+    summary.ownerShellLoopCount = ownerShellLoops.length;
     summary.seedCount = seeds.length;
 }
 
