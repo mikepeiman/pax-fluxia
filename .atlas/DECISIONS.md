@@ -259,3 +259,12 @@
 - **Decision**: FG2 owner-shell frame snapshots, transition artifacts, and displayed interpolated shells now carry explicit hole-loop geometry in addition to aggregate hole counts.
 - **Rationale**: Hole-only topology changes must be able to trigger playback and preserve visible cutouts during morphs. Hole counts alone are insufficient for either change detection or renderable animated cutouts.
 
+## 2026-03-13
+
+### D-62: FG2 Shell and Hole Playback Must Use Global Non-Conflicting Correspondence
+- **Decision**: FG2 shell transitions now select shell matches globally per owner from all previous/current candidates, and hole transitions now select hole matches globally within each shell transition. Candidate selection is one-to-one and score-ordered rather than greedy by current item iteration.
+- **Rationale**: Greedy local matching reuses previous shapes incorrectly, causes shell identity flicker, and pairs the wrong enclaves during split, merge, or strong topology-shift frames.
+
+### D-63: Animated Hole Geometry Must Be Sanitized Against the Displayed Shell
+- **Decision**: Interpolated hole loops are now filtered against the displayed shell polygon before render use, and degenerate or clearly out-of-shell hole loops are dropped.
+- **Rationale**: Negative geometry that escapes the shell or collapses numerically creates invalid cutouts and visible playback artifacts. The displayed hole set must remain a subset of the displayed shell geometry.

@@ -242,6 +242,32 @@ interface FG2OwnerShellContourCorrespondenceArtifact {
     currentPoints: [number, number][];
 }
 
+interface FG2OwnerShellHoleFrameLoop {
+    holeLoopId: string;
+    points: [number, number][];
+    signedArea: number;
+    absArea: number;
+    centroid: [number, number];
+    bounds: FG2LoopBounds;
+    perimeter: number;
+}
+
+interface FG2OwnerShellHoleTransitionArtifact {
+    transitionId: string;
+    kind: 'persist' | 'spawn' | 'vanish';
+    currentHoleLoopId: string | null;
+    previousHoleLoopId: string | null;
+    currentCentroid: [number, number] | null;
+    previousCentroid: [number, number] | null;
+    confidence: number;
+    contourSampleCount: number;
+    meanContourDistance: number;
+    maxContourDistance: number;
+    contourAlignmentOffset: number;
+    contourOrientation: 'preserved' | 'reversed';
+    contour: FG2OwnerShellContourCorrespondenceArtifact | null;
+}
+
 interface FG2OwnerShellTransitionArtifact {
     transitionId: string;
     ownerId: string;
@@ -269,6 +295,7 @@ interface FG2OwnerShellTransitionArtifact {
     contourAlignmentOffset: number;
     contourOrientation: 'preserved' | 'reversed';
     contour: FG2OwnerShellContourCorrespondenceArtifact | null;
+    holeTransitions: FG2OwnerShellHoleTransitionArtifact[];
 }
 
 interface FG2OwnerShellFrameSnapshot {
@@ -1405,6 +1432,117 @@ function computeOwnerShellMatchMetrics(
     };
 }
 
+function selectOwnerShellMatches(
+    previousShells: FG2OwnerShellFrameShell[],
+    currentShells: FG2OwnerShellFrameShell[],
+    worldDiagonal: number,
+): Array<{
+    previousShell: FG2OwnerShellFrameShell;
+    currentShell: FG2OwnerShellFrameShell;
+    metrics: ReturnType<typeof computeOwnerShellMatchMetrics>;
+}> {
+    const matchThreshold = 2.35;
+    const previousOrder = new Map(previousShells.map((shell, index) => [shell.shellId, index]));
+    const currentOrder = new Map(currentShells.map((shell, index) => [shell.shellId, index]));
+    const candidates: Array<{
+        previousShell: FG2OwnerShellFrameShell;
+        currentShell: FG2OwnerShellFrameShell;
+        metrics: ReturnType<typeof computeOwnerShellMatchMetrics>;
+        strongOverlap: boolean;
+    }> = [];
+
+    for (const previousShell of previousShells) {
+        for (const currentShell of currentShells) {
+            const metrics = computeOwnerShellMatchMetrics(previousShell, currentShell, worldDiagonal);
+            const strongOverlap =
+                metrics.currentCentroidInsidePrevious ||
+                metrics.previousCentroidInsideCurrent ||
+                metrics.boundsOverlap >= 0.18;
+            if (!strongOverlap && metrics.totalCost > matchThreshold) {
+                continue;
+            }
+            candidates.push({
+                previousShell,
+                currentShell,
+                metrics,
+                strongOverlap,
+            });
+        }
+    }
+
+    candidates.sort((candidateA, candidateB) => {
+        if (candidateA.strongOverlap !== candidateB.strongOverlap) {
+            return candidateA.strongOverlap ? -1 : 1;
+        }
+        if (Math.abs(candidateA.metrics.totalCost - candidateB.metrics.totalCost) > EPSILON) {
+            return candidateA.metrics.totalCost - candidateB.metrics.totalCost;
+        }
+        if (Math.abs(candidateA.metrics.boundsOverlap - candidateB.metrics.boundsOverlap) > EPSILON) {
+            return candidateB.metrics.boundsOverlap - candidateA.metrics.boundsOverlap;
+        }
+        if (Math.abs(candidateA.metrics.anchorCost - candidateB.metrics.anchorCost) > EPSILON) {
+            return candidateA.metrics.anchorCost - candidateB.metrics.anchorCost;
+        }
+        const currentOrderDelta =
+            (currentOrder.get(candidateA.currentShell.shellId) ?? 0) -
+            (currentOrder.get(candidateB.currentShell.shellId) ?? 0);
+        if (currentOrderDelta !== 0) {
+            return currentOrderDelta;
+        }
+        const previousOrderDelta =
+            (previousOrder.get(candidateA.previousShell.shellId) ?? 0) -
+            (previousOrder.get(candidateB.previousShell.shellId) ?? 0);
+        if (previousOrderDelta !== 0) {
+            return previousOrderDelta;
+        }
+        const previousIdDelta = candidateA.previousShell.shellId.localeCompare(candidateB.previousShell.shellId);
+        if (previousIdDelta !== 0) {
+            return previousIdDelta;
+        }
+        return candidateA.currentShell.shellId.localeCompare(candidateB.currentShell.shellId);
+    });
+
+    const matchedPreviousShellIds = new Set<string>();
+    const matchedCurrentShellIds = new Set<string>();
+    const matches: Array<{
+        previousShell: FG2OwnerShellFrameShell;
+        currentShell: FG2OwnerShellFrameShell;
+        metrics: ReturnType<typeof computeOwnerShellMatchMetrics>;
+    }> = [];
+
+    for (const candidate of candidates) {
+        if (
+            matchedPreviousShellIds.has(candidate.previousShell.shellId) ||
+            matchedCurrentShellIds.has(candidate.currentShell.shellId)
+        ) {
+            continue;
+        }
+        matchedPreviousShellIds.add(candidate.previousShell.shellId);
+        matchedCurrentShellIds.add(candidate.currentShell.shellId);
+        matches.push({
+            previousShell: candidate.previousShell,
+            currentShell: candidate.currentShell,
+            metrics: candidate.metrics,
+        });
+    }
+
+    return matches.sort((matchA, matchB) => {
+        const currentOrderDelta =
+            (currentOrder.get(matchA.currentShell.shellId) ?? 0) -
+            (currentOrder.get(matchB.currentShell.shellId) ?? 0);
+        if (currentOrderDelta !== 0) {
+            return currentOrderDelta;
+        }
+        const previousOrderDelta =
+            (previousOrder.get(matchA.previousShell.shellId) ?? 0) -
+            (previousOrder.get(matchB.previousShell.shellId) ?? 0);
+        if (previousOrderDelta !== 0) {
+            return previousOrderDelta;
+        }
+        return matchA.previousShell.shellId.localeCompare(matchB.previousShell.shellId);
+    });
+}
+
 function findBestOwnerShellAnchor(
     unmatchedShell: FG2OwnerShellFrameShell,
     candidateShells: FG2OwnerShellFrameShell[],
@@ -1675,18 +1813,22 @@ function alignResampledContours(
 }
 
 function computeContourSampleCount(
-    ...shells: Array<FG2OwnerShellFrameShell | null | undefined>
+    ...loops: Array<
+        | {
+              points: [number, number][];
+              perimeter: number;
+          }
+        | null
+        | undefined
+    >
 ): number {
-    const shellPointCount = shells.reduce(
-        (maxCount, shell) => Math.max(maxCount, shell?.points.length ?? 0),
+    const loopPointCount = loops.reduce((maxCount, loop) => Math.max(maxCount, loop?.points.length ?? 0), 0);
+    const loopPerimeter = loops.reduce(
+        (maxPerimeter, loop) => Math.max(maxPerimeter, loop?.perimeter ?? 0),
         0,
     );
-    const shellPerimeter = shells.reduce(
-        (maxPerimeter, shell) => Math.max(maxPerimeter, shell?.perimeter ?? 0),
-        0,
-    );
-    const perimeterDrivenCount = Math.round(shellPerimeter / 96);
-    return Math.max(12, Math.min(64, Math.max(shellPointCount, perimeterDrivenCount)));
+    const perimeterDrivenCount = Math.round(loopPerimeter / 96);
+    return Math.max(12, Math.min(64, Math.max(loopPointCount, perimeterDrivenCount)));
 }
 
 function buildOwnerShellContourCorrespondence(
@@ -1841,6 +1983,379 @@ function buildCollapsedShellContourCorrespondence(
     };
 }
 
+function sortOwnerShellHoleFrameLoops(
+    holeLoops: FG2OwnerShellHoleFrameLoop[],
+): FG2OwnerShellHoleFrameLoop[] {
+    return holeLoops.slice().sort((holeLoopA, holeLoopB) => {
+        if (Math.abs(holeLoopA.absArea - holeLoopB.absArea) > EPSILON) {
+            return holeLoopB.absArea - holeLoopA.absArea;
+        }
+        return holeLoopA.holeLoopId.localeCompare(holeLoopB.holeLoopId);
+    });
+}
+
+function buildOwnerShellHoleFrameLoops(
+    holeLoops: FG2OwnerShellHoleLoopGeometry[],
+): FG2OwnerShellHoleFrameLoop[] {
+    return sortOwnerShellHoleFrameLoops(
+        holeLoops
+            .map((holeLoop) => {
+                const normalizedPoints = normalizeClosedLoopPoints(holeLoop.points);
+                const points =
+                    normalizedPoints.length >= 3
+                        ? normalizedPoints
+                        : holeLoop.points.map(([x, y]) => [x, y] as [number, number]);
+                const signedArea = computeSignedArea(points);
+                return {
+                    holeLoopId: holeLoop.holeLoopId,
+                    points,
+                    signedArea,
+                    absArea: Math.abs(signedArea),
+                    centroid: computeLoopCentroid(points),
+                    bounds: computeLoopBounds(points),
+                    perimeter: computeLoopPerimeter(points, true),
+                };
+            })
+            .filter((holeLoop) => holeLoop.points.length >= 3),
+    );
+}
+
+function computeOwnerShellHoleMatchMetrics(
+    previousHole: FG2OwnerShellHoleFrameLoop,
+    currentHole: FG2OwnerShellHoleFrameLoop,
+    shellDiagonal: number,
+): {
+    centroidDistance: number;
+    areaRatio: number;
+    totalCost: number;
+    currentCentroidInsidePrevious: boolean;
+    previousCentroidInsideCurrent: boolean;
+    boundsOverlap: number;
+} {
+    const centroidDistance = Math.hypot(
+        currentHole.centroid[0] - previousHole.centroid[0],
+        currentHole.centroid[1] - previousHole.centroid[1],
+    );
+    const areaRatio = previousHole.absArea > EPSILON ? currentHole.absArea / previousHole.absArea : 1;
+    const perimeterRatio =
+        previousHole.perimeter > EPSILON ? currentHole.perimeter / previousHole.perimeter : 1;
+    const areaCost = Math.abs(Math.log(Math.max(EPSILON, areaRatio)));
+    const perimeterCost = Math.abs(Math.log(Math.max(EPSILON, perimeterRatio)));
+    const currentCentroidInsidePrevious = isPointInsidePolygon(currentHole.centroid, previousHole.points);
+    const previousCentroidInsideCurrent = isPointInsidePolygon(previousHole.centroid, currentHole.points);
+    const boundsOverlap = computeNormalizedBoundsOverlap(previousHole.bounds, currentHole.bounds);
+    const overlapBonus =
+        (currentCentroidInsidePrevious ? 0.75 : 0) +
+        (previousCentroidInsideCurrent ? 0.4 : 0) +
+        Math.min(0.55, boundsOverlap * 1.2);
+
+    return {
+        centroidDistance,
+        areaRatio,
+        totalCost:
+            (centroidDistance / shellDiagonal) * 4.8 +
+            areaCost * 1.1 +
+            perimeterCost * 0.65 -
+            overlapBonus,
+        currentCentroidInsidePrevious,
+        previousCentroidInsideCurrent,
+        boundsOverlap,
+    };
+}
+
+function selectOwnerShellHoleMatches(
+    previousHoles: FG2OwnerShellHoleFrameLoop[],
+    currentHoles: FG2OwnerShellHoleFrameLoop[],
+    shellDiagonal: number,
+): Array<{
+    previousHole: FG2OwnerShellHoleFrameLoop;
+    currentHole: FG2OwnerShellHoleFrameLoop;
+    metrics: ReturnType<typeof computeOwnerShellHoleMatchMetrics>;
+}> {
+    const matchThreshold = 1.95;
+    const previousOrder = new Map(previousHoles.map((holeLoop, index) => [holeLoop.holeLoopId, index]));
+    const currentOrder = new Map(currentHoles.map((holeLoop, index) => [holeLoop.holeLoopId, index]));
+    const candidates: Array<{
+        previousHole: FG2OwnerShellHoleFrameLoop;
+        currentHole: FG2OwnerShellHoleFrameLoop;
+        metrics: ReturnType<typeof computeOwnerShellHoleMatchMetrics>;
+        strongOverlap: boolean;
+    }> = [];
+
+    for (const previousHole of previousHoles) {
+        for (const currentHole of currentHoles) {
+            const metrics = computeOwnerShellHoleMatchMetrics(previousHole, currentHole, shellDiagonal);
+            const strongOverlap =
+                metrics.currentCentroidInsidePrevious ||
+                metrics.previousCentroidInsideCurrent ||
+                metrics.boundsOverlap >= 0.12;
+            if (!strongOverlap && metrics.totalCost > matchThreshold) {
+                continue;
+            }
+            candidates.push({
+                previousHole,
+                currentHole,
+                metrics,
+                strongOverlap,
+            });
+        }
+    }
+
+    candidates.sort((candidateA, candidateB) => {
+        if (candidateA.strongOverlap !== candidateB.strongOverlap) {
+            return candidateA.strongOverlap ? -1 : 1;
+        }
+        if (Math.abs(candidateA.metrics.totalCost - candidateB.metrics.totalCost) > EPSILON) {
+            return candidateA.metrics.totalCost - candidateB.metrics.totalCost;
+        }
+        if (Math.abs(candidateA.metrics.boundsOverlap - candidateB.metrics.boundsOverlap) > EPSILON) {
+            return candidateB.metrics.boundsOverlap - candidateA.metrics.boundsOverlap;
+        }
+        const currentOrderDelta =
+            (currentOrder.get(candidateA.currentHole.holeLoopId) ?? 0) -
+            (currentOrder.get(candidateB.currentHole.holeLoopId) ?? 0);
+        if (currentOrderDelta !== 0) {
+            return currentOrderDelta;
+        }
+        const previousOrderDelta =
+            (previousOrder.get(candidateA.previousHole.holeLoopId) ?? 0) -
+            (previousOrder.get(candidateB.previousHole.holeLoopId) ?? 0);
+        if (previousOrderDelta !== 0) {
+            return previousOrderDelta;
+        }
+        const previousIdDelta = candidateA.previousHole.holeLoopId.localeCompare(
+            candidateB.previousHole.holeLoopId,
+        );
+        if (previousIdDelta !== 0) {
+            return previousIdDelta;
+        }
+        return candidateA.currentHole.holeLoopId.localeCompare(candidateB.currentHole.holeLoopId);
+    });
+
+    const matchedPreviousHoleIds = new Set<string>();
+    const matchedCurrentHoleIds = new Set<string>();
+    const matches: Array<{
+        previousHole: FG2OwnerShellHoleFrameLoop;
+        currentHole: FG2OwnerShellHoleFrameLoop;
+        metrics: ReturnType<typeof computeOwnerShellHoleMatchMetrics>;
+    }> = [];
+
+    for (const candidate of candidates) {
+        if (
+            matchedPreviousHoleIds.has(candidate.previousHole.holeLoopId) ||
+            matchedCurrentHoleIds.has(candidate.currentHole.holeLoopId)
+        ) {
+            continue;
+        }
+        matchedPreviousHoleIds.add(candidate.previousHole.holeLoopId);
+        matchedCurrentHoleIds.add(candidate.currentHole.holeLoopId);
+        matches.push({
+            previousHole: candidate.previousHole,
+            currentHole: candidate.currentHole,
+            metrics: candidate.metrics,
+        });
+    }
+
+    return matches.sort((matchA, matchB) => {
+        const currentOrderDelta =
+            (currentOrder.get(matchA.currentHole.holeLoopId) ?? 0) -
+            (currentOrder.get(matchB.currentHole.holeLoopId) ?? 0);
+        if (currentOrderDelta !== 0) {
+            return currentOrderDelta;
+        }
+        const previousOrderDelta =
+            (previousOrder.get(matchA.previousHole.holeLoopId) ?? 0) -
+            (previousOrder.get(matchB.previousHole.holeLoopId) ?? 0);
+        if (previousOrderDelta !== 0) {
+            return previousOrderDelta;
+        }
+        return matchA.previousHole.holeLoopId.localeCompare(matchB.previousHole.holeLoopId);
+    });
+}
+
+function buildOwnerShellHoleContourCorrespondence(
+    previousHole: FG2OwnerShellHoleFrameLoop,
+    currentHole: FG2OwnerShellHoleFrameLoop,
+): FG2OwnerShellContourCorrespondenceArtifact {
+    const sampleCount = computeContourSampleCount(previousHole, currentHole);
+    const previousPoints = resampleClosedLoop(previousHole.points, sampleCount);
+    const currentPoints = resampleClosedLoop(currentHole.points, sampleCount);
+    const aligned = alignResampledContours(previousPoints, currentPoints);
+
+    return {
+        sampleCount,
+        orientation: aligned.orientation,
+        offset: aligned.offset,
+        meanDistance: aligned.meanDistance,
+        maxDistance: aligned.maxDistance,
+        previousPoints,
+        currentPoints: aligned.alignedCurrentPoints,
+    };
+}
+
+function buildCollapsedOwnerShellHoleContourCorrespondence(
+    holeLoop: FG2OwnerShellHoleFrameLoop,
+    collapseTo: [number, number],
+    mode: 'spawn' | 'vanish',
+): FG2OwnerShellContourCorrespondenceArtifact {
+    const sampleCount = computeContourSampleCount(holeLoop);
+    const holePoints = resampleClosedLoop(holeLoop.points, sampleCount);
+    if (holePoints.length === 0) {
+        return {
+            sampleCount,
+            orientation: 'preserved',
+            offset: 0,
+            meanDistance: 0,
+            maxDistance: 0,
+            previousPoints: [],
+            currentPoints: [],
+        };
+    }
+
+    const anchorOffset = findNearestLoopSampleIndex(collapseTo, holePoints);
+    const orientedHolePoints = rotateLoopPoints(holePoints, anchorOffset);
+    const collapsedPoints = scaleLoopAroundPoint(orientedHolePoints, collapseTo, 0.12);
+    const previousPoints = mode === 'spawn' ? collapsedPoints : orientedHolePoints;
+    const currentPoints = mode === 'spawn' ? orientedHolePoints : collapsedPoints;
+    const { meanDistance, maxDistance } = computeContourDistanceStats(previousPoints, currentPoints);
+
+    return {
+        sampleCount,
+        orientation: 'preserved',
+        offset: anchorOffset,
+        meanDistance,
+        maxDistance,
+        previousPoints,
+        currentPoints,
+    };
+}
+
+function buildOwnerShellHoleTransitions(
+    transitionId: string,
+    shellConfidence: number,
+    previousHoleLoops: FG2OwnerShellHoleLoopGeometry[],
+    currentHoleLoops: FG2OwnerShellHoleLoopGeometry[],
+    previousShellPoints: [number, number][],
+    currentShellPoints: [number, number][],
+): FG2OwnerShellHoleTransitionArtifact[] {
+    const previousHoles = buildOwnerShellHoleFrameLoops(previousHoleLoops);
+    const currentHoles = buildOwnerShellHoleFrameLoops(currentHoleLoops);
+    if (previousHoles.length === 0 && currentHoles.length === 0) {
+        return [];
+    }
+
+    const fallbackShellPoints = [
+        ...previousShellPoints,
+        ...currentShellPoints,
+        ...previousHoles.flatMap((holeLoop) => holeLoop.points),
+        ...currentHoles.flatMap((holeLoop) => holeLoop.points),
+    ];
+    const shellBounds = computeLoopBounds(fallbackShellPoints);
+    const shellDiagonal = Math.max(
+        EPSILON,
+        Math.hypot(shellBounds.maxX - shellBounds.minX, shellBounds.maxY - shellBounds.minY),
+    );
+    const holeMatches = selectOwnerShellHoleMatches(previousHoles, currentHoles, shellDiagonal);
+    const matchedPreviousHoleIds = new Set(
+        holeMatches.map((match) => match.previousHole.holeLoopId),
+    );
+    const matchedCurrentHoleIds = new Set(
+        holeMatches.map((match) => match.currentHole.holeLoopId),
+    );
+    const holeTransitions: FG2OwnerShellHoleTransitionArtifact[] = [];
+
+    for (const holeMatch of holeMatches) {
+        const { previousHole, currentHole, metrics } = holeMatch;
+        const contour = buildOwnerShellHoleContourCorrespondence(previousHole, currentHole);
+        holeTransitions.push({
+            transitionId: `${transitionId}|hole|${previousHole.holeLoopId}|${currentHole.holeLoopId}`,
+            kind: 'persist',
+            currentHoleLoopId: currentHole.holeLoopId,
+            previousHoleLoopId: previousHole.holeLoopId,
+            currentCentroid: currentHole.centroid,
+            previousCentroid: previousHole.centroid,
+            confidence: clamp(
+                0.28 + shellConfidence * 0.22 + (1 - metrics.totalCost / 1.95) * 0.5,
+                0,
+                1,
+            ),
+            contourSampleCount: contour.sampleCount,
+            meanContourDistance: contour.meanDistance,
+            maxContourDistance: contour.maxDistance,
+            contourAlignmentOffset: contour.offset,
+            contourOrientation: contour.orientation,
+            contour,
+        });
+    }
+
+    for (const currentHole of currentHoles) {
+        if (matchedCurrentHoleIds.has(currentHole.holeLoopId)) continue;
+        const collapseTo =
+            currentShellPoints.length > 0
+                ? findNearestPointOnLoop(currentHole.centroid, currentShellPoints)
+                : currentHole.centroid;
+        const contour = buildCollapsedOwnerShellHoleContourCorrespondence(currentHole, collapseTo, 'spawn');
+        holeTransitions.push({
+            transitionId: `${transitionId}|hole|spawn|${currentHole.holeLoopId}`,
+            kind: 'spawn',
+            currentHoleLoopId: currentHole.holeLoopId,
+            previousHoleLoopId: null,
+            currentCentroid: currentHole.centroid,
+            previousCentroid: collapseTo,
+            confidence: clamp(0.18 + shellConfidence * 0.42, 0, 1),
+            contourSampleCount: contour.sampleCount,
+            meanContourDistance: contour.meanDistance,
+            maxContourDistance: contour.maxDistance,
+            contourAlignmentOffset: contour.offset,
+            contourOrientation: contour.orientation,
+            contour,
+        });
+    }
+
+    for (const previousHole of previousHoles) {
+        if (matchedPreviousHoleIds.has(previousHole.holeLoopId)) continue;
+        const collapseTo =
+            previousShellPoints.length > 0
+                ? findNearestPointOnLoop(previousHole.centroid, previousShellPoints)
+                : previousHole.centroid;
+        const contour = buildCollapsedOwnerShellHoleContourCorrespondence(previousHole, collapseTo, 'vanish');
+        holeTransitions.push({
+            transitionId: `${transitionId}|hole|vanish|${previousHole.holeLoopId}`,
+            kind: 'vanish',
+            currentHoleLoopId: null,
+            previousHoleLoopId: previousHole.holeLoopId,
+            currentCentroid: collapseTo,
+            previousCentroid: previousHole.centroid,
+            confidence: clamp(0.18 + shellConfidence * 0.36, 0, 1),
+            contourSampleCount: contour.sampleCount,
+            meanContourDistance: contour.meanDistance,
+            maxContourDistance: contour.maxDistance,
+            contourAlignmentOffset: contour.offset,
+            contourOrientation: contour.orientation,
+            contour,
+        });
+    }
+
+    const kindOrder: Record<FG2OwnerShellHoleTransitionArtifact['kind'], number> = {
+        persist: 0,
+        spawn: 1,
+        vanish: 2,
+    };
+    return holeTransitions.sort((holeTransitionA, holeTransitionB) => {
+        if (kindOrder[holeTransitionA.kind] !== kindOrder[holeTransitionB.kind]) {
+            return kindOrder[holeTransitionA.kind] - kindOrder[holeTransitionB.kind];
+        }
+        const idA =
+            holeTransitionA.currentHoleLoopId ??
+            holeTransitionA.previousHoleLoopId ??
+            holeTransitionA.transitionId;
+        const idB =
+            holeTransitionB.currentHoleLoopId ??
+            holeTransitionB.previousHoleLoopId ??
+            holeTransitionB.transitionId;
+        return idA.localeCompare(idB);
+    });
+}
 
 function isPointOnSegment(
     pointX: number,
@@ -1995,6 +2510,71 @@ function interpolateContourPoints(
     return normalizeClosedLoopPoints(interpolated);
 }
 
+function buildInterpolatedOwnerShellHoleLoop(
+    holeTransition: FG2OwnerShellHoleTransitionArtifact,
+    progress: number,
+): FG2OwnerShellHoleLoopGeometry | null {
+    const contour = holeTransition.contour;
+    if (!contour || contour.previousPoints.length === 0 || contour.currentPoints.length === 0) {
+        return null;
+    }
+
+    const points = interpolateContourPoints(contour.previousPoints, contour.currentPoints, progress);
+    if (points.length < 3 || Math.abs(computeSignedArea(points)) <= EPSILON) {
+        return null;
+    }
+
+    return {
+        holeLoopId:
+            holeTransition.currentHoleLoopId ??
+            holeTransition.previousHoleLoopId ??
+            `animated-hole|${holeTransition.transitionId}`,
+        points,
+    };
+}
+
+function buildInterpolatedOwnerShellHoleLoops(
+    holeTransitions: FG2OwnerShellHoleTransitionArtifact[],
+    progress: number,
+): FG2OwnerShellHoleLoopGeometry[] {
+    return holeTransitions
+        .map((holeTransition) => buildInterpolatedOwnerShellHoleLoop(holeTransition, progress))
+        .filter((holeLoop): holeLoop is FG2OwnerShellHoleLoopGeometry => Boolean(holeLoop))
+        .sort((holeLoopA, holeLoopB) => holeLoopA.holeLoopId.localeCompare(holeLoopB.holeLoopId));
+}
+
+function sanitizeInterpolatedOwnerShellHoleLoops(
+    shellPoints: [number, number][],
+    holeLoops: FG2OwnerShellHoleLoopGeometry[],
+): FG2OwnerShellHoleLoopGeometry[] {
+    if (shellPoints.length < 3 || holeLoops.length === 0) {
+        return [];
+    }
+
+    return holeLoops
+        .map((holeLoop) => {
+            const points = normalizeClosedLoopPoints(holeLoop.points);
+            if (points.length < 3 || Math.abs(computeSignedArea(points)) <= EPSILON) {
+                return null;
+            }
+            const centroid = computeLoopCentroid(points);
+            const insideSampleCount = points.reduce(
+                (count, point) => (isPointInsidePolygon(point, shellPoints) ? count + 1 : count),
+                0,
+            );
+            const insideRatio = insideSampleCount / points.length;
+            if (!isPointInsidePolygon(centroid, shellPoints) && insideRatio < 0.6) {
+                return null;
+            }
+            return {
+                holeLoopId: holeLoop.holeLoopId,
+                points,
+            };
+        })
+        .filter((holeLoop): holeLoop is FG2OwnerShellHoleLoopGeometry => Boolean(holeLoop))
+        .sort((holeLoopA, holeLoopB) => holeLoopA.holeLoopId.localeCompare(holeLoopB.holeLoopId));
+}
+
 function buildInterpolatedOwnerShellArtifact(
     transition: FG2OwnerShellTransitionArtifact,
     progress: number,
@@ -2011,18 +2591,24 @@ function buildInterpolatedOwnerShellArtifact(
     );
     const signedArea = computeSignedArea(points);
     const absArea = Math.abs(signedArea);
-    const holeLoops = (
-        progress >= 0.5
-            ? transition.currentHoleLoops.length > 0
-                ? transition.currentHoleLoops
-                : transition.previousHoleLoops
-            : transition.previousHoleLoops.length > 0
-              ? transition.previousHoleLoops
-              : transition.currentHoleLoops
-    ).map((holeLoop) => ({
-        holeLoopId: holeLoop.holeLoopId,
-        points: holeLoop.points.map(([x, y]) => [x, y] as [number, number]),
-    }));
+    const rawHoleLoops =
+        transition.holeTransitions.length > 0
+            ? buildInterpolatedOwnerShellHoleLoops(transition.holeTransitions, progress)
+            : (
+                  progress >= 0.5
+                      ? transition.currentHoleLoops.length > 0
+                          ? transition.currentHoleLoops
+                          : transition.previousHoleLoops
+                      : transition.previousHoleLoops.length > 0
+                        ? transition.previousHoleLoops
+                        : transition.currentHoleLoops
+              ).map((holeLoop) => ({
+                  holeLoopId: holeLoop.holeLoopId,
+                  points: holeLoop.points.map(([x, y]) => [x, y] as [number, number]),
+              }));
+    const holeLoops = sanitizeInterpolatedOwnerShellHoleLoops(points, rawHoleLoops);
+
+
 
     return {
         shellId:
@@ -2196,7 +2782,6 @@ function buildOwnerShellTransitions(
             Math.max(previousFrame?.worldHeight ?? 0, currentFrame.worldHeight),
         ),
     );
-    const matchThreshold = 2.35;
 
     const ownerIds = Array.from(
         new Set([
@@ -2212,67 +2797,69 @@ function buildOwnerShellTransitions(
         const currentOwnerShells = sortOwnerShellFrameShells(
             currentFrame.shells.filter((shell) => shell.ownerId === ownerId),
         );
-        const unusedPreviousShellIds = new Set(previousOwnerShells.map((shell) => shell.shellId));
+        const shellMatches = selectOwnerShellMatches(
+            previousOwnerShells,
+            currentOwnerShells,
+            worldDiagonal,
+        );
+        const matchedPreviousShellIds = new Set(
+            shellMatches.map((match) => match.previousShell.shellId),
+        );
+        const matchedCurrentShellIds = new Set(shellMatches.map((match) => match.currentShell.shellId));
+
+        for (const shellMatch of shellMatches) {
+            const { previousShell, currentShell, metrics } = shellMatch;
+            let kind: FG2OwnerShellTransitionArtifact['kind'] = 'persist';
+            if (metrics.areaRatio > 1.08) {
+                kind = 'grow';
+            } else if (metrics.areaRatio < 0.92) {
+                kind = 'shrink';
+            }
+
+            const transitionId = `${ownerId}|${previousShell.shellId}|${currentShell.shellId}`;
+            const transitionConfidence = clamp(1 - metrics.totalCost / 2.35, 0, 1);
+            const contour = buildOwnerShellContourCorrespondence(previousShell, currentShell);
+            const holeTransitions = buildOwnerShellHoleTransitions(
+                transitionId,
+                transitionConfidence,
+                previousShell.holeLoops,
+                currentShell.holeLoops,
+                contour.previousPoints,
+                contour.currentPoints,
+            );
+            transitions.push({
+                transitionId,
+                ownerId,
+                kind,
+                currentShellId: currentShell.shellId,
+                previousShellId: previousShell.shellId,
+                currentCentroid: currentShell.centroid,
+                previousCentroid: previousShell.centroid,
+                currentHoleCount: currentShell.holeCount,
+                previousHoleCount: previousShell.holeCount,
+                currentHoleLoops: currentShell.holeLoops,
+                previousHoleLoops: previousShell.holeLoops,
+                centroidDistance: metrics.centroidDistance,
+                areaRatio: metrics.areaRatio,
+                holeDelta: metrics.holeDelta,
+                touchesWorldBoundaryChanged: metrics.touchesWorldBoundaryChanged,
+                currentTouchesWorldBoundary: currentShell.touchesWorldBoundary,
+                previousTouchesWorldBoundary: previousShell.touchesWorldBoundary,
+                anchorShellId: null,
+                anchorRelation: 'none',
+                confidence: transitionConfidence,
+                contourSampleCount: contour.sampleCount,
+                meanContourDistance: contour.meanDistance,
+                maxContourDistance: contour.maxDistance,
+                contourAlignmentOffset: contour.offset,
+                contourOrientation: contour.orientation,
+                contour,
+                holeTransitions,
+            });
+        }
 
         for (const currentShell of currentOwnerShells) {
-            let bestPreviousShell: FG2OwnerShellFrameShell | null = null;
-            let bestMetrics: ReturnType<typeof computeOwnerShellMatchMetrics> | null = null;
-
-            for (const previousShell of previousOwnerShells) {
-                if (!unusedPreviousShellIds.has(previousShell.shellId)) continue;
-                const metrics = computeOwnerShellMatchMetrics(previousShell, currentShell, worldDiagonal);
-                if (
-                    !bestMetrics ||
-                    metrics.totalCost + EPSILON < bestMetrics.totalCost ||
-                    (Math.abs(metrics.totalCost - bestMetrics.totalCost) <= EPSILON &&
-                        previousShell.shellId.localeCompare(bestPreviousShell?.shellId ?? '') < 0)
-                ) {
-                    bestPreviousShell = previousShell;
-                    bestMetrics = metrics;
-                }
-            }
-
-            if (bestPreviousShell && bestMetrics && bestMetrics.totalCost <= matchThreshold) {
-                unusedPreviousShellIds.delete(bestPreviousShell.shellId);
-                let kind: FG2OwnerShellTransitionArtifact['kind'] = 'persist';
-                if (bestMetrics.areaRatio > 1.08) {
-                    kind = 'grow';
-                } else if (bestMetrics.areaRatio < 0.92) {
-                    kind = 'shrink';
-                }
-
-                const contour = buildOwnerShellContourCorrespondence(bestPreviousShell, currentShell);
-                transitions.push({
-                    transitionId: `${ownerId}|${bestPreviousShell.shellId}|${currentShell.shellId}`,
-                    ownerId,
-                    kind,
-                    currentShellId: currentShell.shellId,
-                    previousShellId: bestPreviousShell.shellId,
-                    currentCentroid: currentShell.centroid,
-                    previousCentroid: bestPreviousShell.centroid,
-                    currentHoleCount: currentShell.holeCount,
-                    previousHoleCount: bestPreviousShell.holeCount,
-                    currentHoleLoops: currentShell.holeLoops,
-                    previousHoleLoops: bestPreviousShell.holeLoops,
-                    centroidDistance: bestMetrics.centroidDistance,
-                    areaRatio: bestMetrics.areaRatio,
-                    holeDelta: bestMetrics.holeDelta,
-                    touchesWorldBoundaryChanged: bestMetrics.touchesWorldBoundaryChanged,
-                    currentTouchesWorldBoundary: currentShell.touchesWorldBoundary,
-                    previousTouchesWorldBoundary: bestPreviousShell.touchesWorldBoundary,
-                    anchorShellId: null,
-                    anchorRelation: 'none',
-                    confidence: clamp(1 - bestMetrics.totalCost / matchThreshold, 0, 1),
-                    contourSampleCount: contour.sampleCount,
-                    meanContourDistance: contour.meanDistance,
-                    maxContourDistance: contour.maxDistance,
-                    contourAlignmentOffset: contour.offset,
-                    contourOrientation: contour.orientation,
-                    contour,
-                });
-                continue;
-            }
-
+            if (matchedCurrentShellIds.has(currentShell.shellId)) continue;
             const splitAnchor = findBestOwnerShellAnchor(
                 currentShell,
                 previousOwnerShells,
@@ -2288,8 +2875,21 @@ function buildOwnerShellTransitions(
                 'spawn',
                 splitAnchor?.shell ?? null,
             );
+            const transitionId = `${ownerId}|spawn|${currentShell.shellId}`;
+            const transitionConfidence = computeShellAnchorConfidence(
+                currentShell.confidence,
+                splitAnchor?.metrics ?? null,
+            );
+            const holeTransitions = buildOwnerShellHoleTransitions(
+                transitionId,
+                transitionConfidence,
+                splitAnchor?.shell.holeLoops ?? [],
+                currentShell.holeLoops,
+                contour.previousPoints,
+                contour.currentPoints,
+            );
             transitions.push({
-                transitionId: `${ownerId}|spawn|${currentShell.shellId}`,
+                transitionId,
                 ownerId,
                 kind: 'spawn',
                 currentShellId: currentShell.shellId,
@@ -2309,18 +2909,19 @@ function buildOwnerShellTransitions(
                 previousTouchesWorldBoundary: splitAnchor?.shell.touchesWorldBoundary ?? null,
                 anchorShellId: splitAnchor?.shell.shellId ?? null,
                 anchorRelation: splitAnchor ? 'split' : 'none',
-                confidence: computeShellAnchorConfidence(currentShell.confidence, splitAnchor?.metrics ?? null),
+                confidence: transitionConfidence,
                 contourSampleCount: contour.sampleCount,
                 meanContourDistance: contour.meanDistance,
                 maxContourDistance: contour.maxDistance,
                 contourAlignmentOffset: contour.offset,
                 contourOrientation: contour.orientation,
                 contour,
+                holeTransitions,
             });
         }
 
         for (const previousShell of previousOwnerShells) {
-            if (!unusedPreviousShellIds.has(previousShell.shellId)) continue;
+            if (matchedPreviousShellIds.has(previousShell.shellId)) continue;
             const mergeAnchor = findBestOwnerShellAnchor(
                 previousShell,
                 currentOwnerShells,
@@ -2336,8 +2937,21 @@ function buildOwnerShellTransitions(
                 'vanish',
                 mergeAnchor?.shell ?? null,
             );
+            const transitionId = `${ownerId}|vanish|${previousShell.shellId}`;
+            const transitionConfidence = computeShellAnchorConfidence(
+                previousShell.confidence,
+                mergeAnchor?.metrics ?? null,
+            );
+            const holeTransitions = buildOwnerShellHoleTransitions(
+                transitionId,
+                transitionConfidence,
+                previousShell.holeLoops,
+                mergeAnchor?.shell.holeLoops ?? [],
+                contour.previousPoints,
+                contour.currentPoints,
+            );
             transitions.push({
-                transitionId: `${ownerId}|vanish|${previousShell.shellId}`,
+                transitionId,
                 ownerId,
                 kind: 'vanish',
                 currentShellId: mergeAnchor?.shell.shellId ?? null,
@@ -2357,13 +2971,14 @@ function buildOwnerShellTransitions(
                 previousTouchesWorldBoundary: previousShell.touchesWorldBoundary,
                 anchorShellId: mergeAnchor?.shell.shellId ?? null,
                 anchorRelation: mergeAnchor ? 'merge' : 'none',
-                confidence: computeShellAnchorConfidence(previousShell.confidence, mergeAnchor?.metrics ?? null),
+                confidence: transitionConfidence,
                 contourSampleCount: contour.sampleCount,
                 meanContourDistance: contour.meanDistance,
                 maxContourDistance: contour.maxDistance,
                 contourAlignmentOffset: contour.offset,
                 contourOrientation: contour.orientation,
                 contour,
+                holeTransitions,
             });
         }
     }
@@ -3652,6 +4267,22 @@ function executeAnimationStage(runtime: FG2StageRuntime, summary: Record<string,
         (maxDistance, transition) => Math.max(maxDistance, transition.maxContourDistance),
         0,
     );
+    const ownerShellHoleTransitions = ownerShellTransitions.flatMap(
+        (transition) => transition.holeTransitions,
+    );
+    const persistedOwnerShellHoleCount = ownerShellHoleTransitions.filter(
+        (transition) => transition.kind === 'persist',
+    ).length;
+    const spawnedOwnerShellHoleCount = ownerShellHoleTransitions.filter(
+        (transition) => transition.kind === 'spawn',
+    ).length;
+    const vanishedOwnerShellHoleCount = ownerShellHoleTransitions.filter(
+        (transition) => transition.kind === 'vanish',
+    ).length;
+    const ownerShellHoleContourSampleCount = ownerShellHoleTransitions.reduce(
+        (total, transition) => total + transition.contourSampleCount,
+        0,
+    );
 
     runtime.artifacts.animation = {
         transitionMode: runtime.selection.mode,
@@ -3661,6 +4292,7 @@ function executeAnimationStage(runtime: FG2StageRuntime, summary: Record<string,
         ownerShellTransitionEasedProgress,
         displayedOwnerShellCount,
         ownerShellTransitions,
+        ownerShellHoleTransitions,
         displayedOwnerShells,
         currentOwnerShellFrame: currentFrame,
         displayedOwnerShellFrame,
@@ -3673,10 +4305,16 @@ function executeAnimationStage(runtime: FG2StageRuntime, summary: Record<string,
         splitAnchoredSpawnCount,
         mergeAnchoredVanishCount,
         ownerShellContourSampleCount,
+        ownerShellHoleTransitionCount: ownerShellHoleTransitions.length,
+        persistedOwnerShellHoleCount,
+        spawnedOwnerShellHoleCount,
+        vanishedOwnerShellHoleCount,
+        ownerShellHoleContourSampleCount,
         matchedOwnerShellContourSampleCount,
         meanMatchedOwnerShellContourDistance,
         maxMatchedOwnerShellContourDistance,
     };
+
 
     summary.animationReady = true;
     summary.ownerShellTransitionActive = ownerShellTransitionActive;
@@ -3692,9 +4330,15 @@ function executeAnimationStage(runtime: FG2StageRuntime, summary: Record<string,
     summary.splitAnchoredSpawnCount = splitAnchoredSpawnCount;
     summary.mergeAnchoredVanishCount = mergeAnchoredVanishCount;
     summary.ownerShellContourSampleCount = ownerShellContourSampleCount;
+    summary.ownerShellHoleTransitionCount = ownerShellHoleTransitions.length;
+    summary.persistedOwnerShellHoleCount = persistedOwnerShellHoleCount;
+    summary.spawnedOwnerShellHoleCount = spawnedOwnerShellHoleCount;
+    summary.vanishedOwnerShellHoleCount = vanishedOwnerShellHoleCount;
+    summary.ownerShellHoleContourSampleCount = ownerShellHoleContourSampleCount;
     summary.matchedOwnerShellContourSampleCount = matchedOwnerShellContourSampleCount;
     summary.meanMatchedOwnerShellContourDistance = meanMatchedOwnerShellContourDistance;
     summary.maxMatchedOwnerShellContourDistance = maxMatchedOwnerShellContourDistance;
+
 }
 
 function executeRenderStage(runtime: FG2StageRuntime, summary: Record<string, unknown>): void {
@@ -4044,6 +4688,19 @@ function executeRenderStage(runtime: FG2StageRuntime, summary: Record<string, un
         (total, transition) => total + transition.contourSampleCount,
         0,
     );
+    const ownerShellHoleTransitionCount = ownerShellTransitions.reduce(
+        (total, transition) => total + transition.holeTransitions.length,
+        0,
+    );
+    const ownerShellHoleContourSampleCount = ownerShellTransitions.reduce(
+        (total, transition) =>
+            total +
+            transition.holeTransitions.reduce(
+                (holeTotal, holeTransition) => holeTotal + holeTransition.contourSampleCount,
+                0,
+            ),
+        0,
+    );
 
     runtime.artifacts.render = {
         renderer: 'fg2_seed_graph_native',
@@ -4059,10 +4716,13 @@ function executeRenderStage(runtime: FG2StageRuntime, summary: Record<string, un
         ownerShellTransitionProgress,
         ownerShellTransitionCount: ownerShellTransitions.length,
         ownerShellContourSampleCount,
+        ownerShellHoleTransitionCount,
+        ownerShellHoleContourSampleCount,
         displayedOwnerShellCount: sortedShellsForRender.length,
         seedCount: seeds.length,
     };
 
+        seedCount: seeds.length,
     summary.nativeRenderer = 'fg2_seed_graph_native';
     summary.frontierCount = displayedFrontierCount;
     summary.displayedFrontierCount = displayedFrontierCount;
@@ -4073,6 +4733,11 @@ function executeRenderStage(runtime: FG2StageRuntime, summary: Record<string, un
     summary.ownerShellTransitionProgress = ownerShellTransitionProgress;
     summary.ownerShellTransitionCount = ownerShellTransitions.length;
     summary.ownerShellContourSampleCount = ownerShellContourSampleCount;
+    summary.ownerShellHoleTransitionCount = ownerShellHoleTransitionCount;
+    summary.ownerShellHoleContourSampleCount = ownerShellHoleContourSampleCount;
+    summary.displayedOwnerShellCount = sortedShellsForRender.length;
+    summary.seedCount = seeds.length;
+
     summary.displayedOwnerShellCount = sortedShellsForRender.length;
     summary.seedCount = seeds.length;
 }

@@ -115,3 +115,7 @@
 - Static FG2 owner-shell fills now subtract classified hole loops via Pixi `cut()`, which is the first real enclave-preserving fill behavior in the shell renderer.
 - Owner-shell frame snapshots and transitions now carry explicit hole-loop geometry, and shell fingerprints now react to hole-only changes instead of only shell outer-contour changes.
 - Displayed interpolated shells now publish usable hole cutouts with previous/current fallback during playback; true hole-to-hole interpolation remains pending.
+- F-155 now uses global non-conflicting shell correspondence per owner instead of greedy current-shell matching, reducing shell identity flicker during split, merge, and other topology-shift transitions.
+- Hole playback inside a shell transition now also uses global non-conflicting correspondence, and diagnostics expose `ownerShellHoleTransitionCount` plus persisted, spawned, vanished, and contour-sample counts.
+- Animated shell artifacts now sanitize interpolated hole loops against the displayed shell polygon, suppressing invalid negative cutout geometry before render use.
+- Verification remains green at the worktree slice level: `bun run check` succeeded with `0 errors` and baseline warnings only, and `bun run build` succeeded.
