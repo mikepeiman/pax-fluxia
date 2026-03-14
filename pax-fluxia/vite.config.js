@@ -7,11 +7,12 @@ import path from "node:path";
 function settingsDumpPlugin() {
   return {
     name: "settings-dump",
+    /** @param {import('vite').ViteDevServer} server */
     configureServer(server) {
-      server.middlewares.use("/__settings-dump", (req, res) => {
+      server.middlewares.use("/__settings-dump", (/** @type {import('http').IncomingMessage} */ req, /** @type {import('http').ServerResponse} */ res) => {
         if (req.method !== "POST") { res.statusCode = 405; res.end(); return; }
         let body = "";
-        req.on("data", (chunk) => (body += chunk));
+        req.on("data", (/** @type {string} */ chunk) => (body += chunk));
         req.on("end", () => {
           try {
             const dir = path.resolve(server.config.root, "..", "common", "resources", "settings-live");

@@ -1,36 +1,45 @@
 <script lang="ts">
-  import { fade, fly } from 'svelte/transition';
+  import { fade, fly } from "svelte/transition";
 
-  let activeTab = $state("visible");
+  let activeTab: "visible" | "attrition" | "pinning" | "overwhelm" =
+    $state("visible");
 
   const tabs = [
-    { id: "visible", label: "VISIBLE STRATEGY", color: "var(--color-accent-cyan)" },
+    {
+      id: "visible",
+      label: "VISIBLE STRATEGY",
+      color: "var(--color-accent-cyan)",
+    },
     { id: "attrition", label: "ATTRITION", color: "var(--color-accent-red)" },
     { id: "pinning", label: "PINNING", color: "var(--color-accent-yellow)" },
-    { id: "overwhelm", label: "OVERWHELM", color: "var(--color-player-purple)" }
+    {
+      id: "overwhelm",
+      label: "OVERWHELM",
+      color: "var(--color-player-purple)",
+    },
   ];
 
   const content = {
     visible: {
       title: "Visible Strategy, Critical Decisions",
       desc: "Every ship is a visible dot. Every flow is a river of force. You don't need a spreadsheet to understand the battle—just look at the screen. The thickness of the flow tells you everything.",
-      color: "var(--color-accent-cyan)"
+      color: "var(--color-accent-cyan)",
     },
     attrition: {
       title: "Symmetric Attrition",
       desc: "Both attacker and defender take simultaneous damage each tick. Every assault has a cost. There are no free wins; you spend your fleet to destroy theirs.",
-      color: "var(--color-accent-red)"
+      color: "var(--color-accent-red)",
     },
     pinning: {
       title: "Pinning Mechanic",
       desc: "Suppress a defender's repair rate by 90% with even a single attacking ship. This enables complex multi-front sieges where a small force can pin a star while the main fleet strikes elsewhere.",
-      color: "var(--color-accent-yellow)"
+      color: "var(--color-accent-yellow)",
     },
     overwhelm: {
       title: "Overwhelm Surrender",
       desc: "Achieve massive force advantage to trigger immediate conquest without combat rolls. If you outnumber them 10 to 1, they surrender instantly. Speed matters.",
-      color: "var(--color-player-purple)"
-    }
+      color: "var(--color-player-purple)",
+    },
   };
 </script>
 
@@ -38,11 +47,11 @@
   <div class="container">
     <div class="tabs">
       {#each tabs as tab}
-        <button 
-          class="tab-btn" 
+        <button
+          class="tab-btn"
           class:active={activeTab === tab.id}
           style="--accent-color: {tab.color}"
-          onclick={() => activeTab = tab.id}
+          onclick={() => (activeTab = tab.id as typeof activeTab)}
         >
           {tab.label}
         </button>
@@ -52,7 +61,10 @@
     <div class="content-panel glass-panel">
       <!-- Visual Side (Left) -->
       <div class="visual">
-        <div class="visual-placeholder" style="border-color: {content[activeTab].color}">
+        <div
+          class="visual-placeholder"
+          style="border-color: {content[activeTab].color}"
+        >
           <div class="scanline"></div>
           <div class="overlay-text font-display">
             {activeTab.toUpperCase()} PROTOCOL ACTIVE
@@ -64,7 +76,10 @@
       <div class="text-content">
         {#key activeTab}
           <div in:fly={{ y: 20, duration: 300 }} out:fade>
-            <h2 class="section-title font-display" style="color: {content[activeTab].color}">
+            <h2
+              class="section-title font-display"
+              style="color: {content[activeTab].color}"
+            >
               {content[activeTab].title}
             </h2>
             <p class="section-desc font-body">
@@ -116,7 +131,7 @@
   }
 
   .tab-btn.active::after {
-    content: '';
+    content: "";
     position: absolute;
     bottom: -1px;
     left: 0;
@@ -150,8 +165,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: 
-      linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)),
+    background: linear-gradient(rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.8)),
       url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0h40v40H0V0zm1 1h38v38H1V1z' fill='%23222' fill-opacity='0.4' fill-rule='evenodd'/%3E%3C/svg%3E");
     position: relative;
   }
@@ -186,8 +200,12 @@
   }
 
   @keyframes scan {
-    0% { top: 0%; }
-    100% { top: 100%; }
+    0% {
+      top: 0%;
+    }
+    100% {
+      top: 100%;
+    }
   }
 
   @media (max-width: 768px) {

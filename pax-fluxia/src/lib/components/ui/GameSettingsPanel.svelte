@@ -19,7 +19,12 @@
         LOG_CATEGORIES,
     } from "./settingsDefs";
     import { nudgeSliders } from "./settings/nudgeSliders";
-    import { setSetting, setSettingsFromConfigPatch, syncPanelFromConfigPatch, warnOnMissingTerritorySchemaCoverage } from "./settingsState";
+    import {
+        setSetting,
+        setSettingsFromConfigPatch,
+        syncPanelFromConfigPatch,
+        warnOnMissingTerritorySchemaCoverage,
+    } from "./settingsState";
     import {
         STORAGE_KEY,
         PANEL_STORAGE_KEY,
@@ -98,7 +103,9 @@
     };
 
     const PRISTINE_CONFIG_PATCH = Object.fromEntries(
-        Object.entries(DEFAULT_GAME_CONFIG).filter(([key]) => !key.startsWith("_")),
+        Object.entries(DEFAULT_GAME_CONFIG).filter(
+            ([key]) => !key.startsWith("_"),
+        ),
     ) as Record<string, unknown>;
 
     // Default values — single source of truth for reset + disabled toggle state
@@ -193,7 +200,9 @@
         }
         values = freshValues;
         savedValues = { ...freshValues };
-        transferRate = Math.round(((freshValues.TRANSFER_RATE ?? 0) as number) * 100);
+        transferRate = Math.round(
+            ((freshValues.TRANSFER_RATE ?? 0) as number) * 100,
+        );
         saveCombatTuning(freshValues);
     }
 
@@ -223,16 +232,26 @@
     function syncAllFromConfig(
         configSource: Record<string, any> = GAME_CONFIG as Record<string, any>,
     ) {
-        panel = syncPanelFromConfigPatch(panel, configSource, savePanelSettings);
+        panel = syncPanelFromConfigPatch(
+            panel,
+            configSource,
+            savePanelSettings,
+        );
         syncRuntimeViewsFromConfig(configSource);
     }
 
     function applyConfigPatch(configPatch: Record<string, unknown>) {
-        panel = setSettingsFromConfigPatch(panel, configPatch, savePanelSettings);
+        panel = setSettingsFromConfigPatch(
+            panel,
+            configPatch,
+            savePanelSettings,
+        );
         syncRuntimeViewsFromConfig();
     }
 
-    function applyThemeValues(valuesPatch: Record<string, number | string | boolean>) {
+    function applyThemeValues(
+        valuesPatch: Record<string, number | string | boolean>,
+    ) {
         applyConfigPatch(valuesPatch);
     }
 
@@ -479,8 +498,6 @@
         reader.readAsText(file);
     }
 
-
-
     // =========================================================================
     // Tick-Ratio Locking — bind animation durations proportionally to tick
     // =========================================================================
@@ -670,7 +687,6 @@
     let showFullSaveInput = $state(false);
     let fullSaveName = $state("");
     let fullSaveFlash = $state(false);
-
 
     function handleApplyTheme(name: string) {
         themeStore.applyTheme(name);
@@ -1096,8 +1112,8 @@
                         {updatePanel}
                         {values}
                         {enabled}
-                        {updateValue}
-                        {toggle}
+                        updateValue={updateValue as any}
+                        toggle={toggle as any}
                         syncFromConfig={syncAllFromConfig}
                     />
                 {:else if sec.id === "economy"}
@@ -1114,8 +1130,8 @@
                         {updatePanel}
                         {values}
                         {enabled}
-                        {updateValue}
-                        {toggle}
+                        updateValue={updateValue as any}
+                        toggle={toggle as any}
                         syncFromConfig={syncAllFromConfig}
                     />
                 {:else if sec.id === "travel"}
@@ -1870,23 +1886,3 @@
         border-color: rgba(74, 222, 128, 0.6);
     }
 </style>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

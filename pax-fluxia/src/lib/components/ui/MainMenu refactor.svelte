@@ -560,8 +560,8 @@
                                                 <line
                                                     x1={m.stars[a].x}
                                                     y1={m.stars[a].y}
-                                                    x2={m.stars[b].x}
-                                                    y2={m.stars[b].y}
+                                                    x2={m.stars[b]!.x}
+                                                    y2={m.stars[b]!.y}
                                                     stroke={mapType === m.id
                                                         ? "#4488ff44"
                                                         : "#334466"}

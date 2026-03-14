@@ -1,11 +1,13 @@
 <script lang="ts">
-    import { COMBAT_VARIABLES, AI_VARIABLES } from "../settingsDefs";
-    type VarKey = string;
-    const aiVariables = AI_VARIABLES;
+    import { AI_VARIABLES } from "../settingsDefs";
     import { GAME_CONFIG } from "$lib/config/game.config";
+    import CategoryThemeBar from "./CategoryThemeBar.svelte";
 
     // ControlsSection-AI — In-Game Settings Controls: AI Behavior
     // Extracted from GameSettingsPanel.svelte
+
+    type VarKey = string;
+    const aiVariables = AI_VARIABLES;
 
     interface Props {
         panel: Record<string, any>;
@@ -24,8 +26,7 @@
         updateValue,
         toggle,
         syncFromConfig,
-    } = $props() as Props;
-    import CategoryThemeBar from "./CategoryThemeBar.svelte";
+    }: Props = $props();
 </script>
 
 <CategoryThemeBar category="ai" onApply={() => syncFromConfig?.()} />
