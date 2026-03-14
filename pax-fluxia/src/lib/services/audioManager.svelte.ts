@@ -1,6 +1,38 @@
 import { log } from "$lib/utils/logger";
 import { getFilesForSoundType, type SoundFileEntry } from "$lib/config/soundManifest";
 import { GAME_CONFIG } from "$lib/config/game.config";
+import { CATEGORY_KEYS } from "$lib/config/categoryThemes";
+
+const AUDIO_STORAGE_KEY = 'pax-fluxia-audio-config';
+
+/** Save all AUDIO_* GAME_CONFIG keys to localStorage */
+function persistAudioConfig(): void {
+    if (typeof window === 'undefined') return;
+    try {
+        const audioKeys = CATEGORY_KEYS.audio;
+        const snapshot: Record<string, unknown> = {};
+        for (const key of audioKeys) {
+            snapshot[key] = (GAME_CONFIG as any)[key];
+        }
+        localStorage.setItem(AUDIO_STORAGE_KEY, JSON.stringify(snapshot));
+    } catch { /* ignore quota errors */ }
+}
+
+/** Load persisted audio config from localStorage into GAME_CONFIG */
+function loadAudioConfig(): boolean {
+    if (typeof window === 'undefined') return false;
+    try {
+        const stored = localStorage.getItem(AUDIO_STORAGE_KEY);
+        if (!stored) return false;
+        const parsed = JSON.parse(stored);
+        for (const [key, val] of Object.entries(parsed)) {
+            if (key in GAME_CONFIG) {
+                (GAME_CONFIG as any)[key] = val;
+            }
+        }
+        return true;
+    } catch { return false; }
+}
 
 export type SoundType =
     | "click"
@@ -198,6 +230,9 @@ class AudioManager {
         // Migrate legacy pax-audio-* keys to GAME_CONFIG if present
         migrateLegacyAudioSettings();
 
+        // Load persisted audio config from localStorage
+        loadAudioConfig();
+
         // Sync reactive state from GAME_CONFIG
         this.syncFromConfig();
 
@@ -302,6 +337,7 @@ class AudioManager {
         this.masterVolume = Math.max(0, Math.min(1, volume));
         GAME_CONFIG.AUDIO_MASTER_VOLUME = this.masterVolume;
         this.updatePoolVolumes();
+        persistAudioConfig();
     }
 
     setSoundVolume(type: SoundType, volume: number) {
@@ -313,6 +349,7 @@ class AudioManager {
             const vol = this.getEffectiveVolume(type);
             pool.forEach(a => { a.volume = vol; });
         }
+        persistAudioConfig();
     }
 
     /** Change which audio file is used for a sound type */
@@ -333,6 +370,7 @@ class AudioManager {
             this.rebuildPool(type);
         }
         log.sys("AudioManager", `Changed ${type} file → ${filePath}`);
+        persistAudioConfig();
     }
 
     /** Get available files for a sound type from the manifest */
@@ -344,12 +382,14 @@ class AudioManager {
     setSoundOffset(type: SoundType, offsetSec: number) {
         this.soundOffsets[type] = Math.max(0, offsetSec);
         (GAME_CONFIG as any)[offsetKey(type)] = this.soundOffsets[type];
+        persistAudioConfig();
     }
 
     /** Toggle separate conquest sounds (subtype-specific vs generic) */
     setSeparateConquestSounds(value: boolean) {
         this.separateConquestSounds = value;
         GAME_CONFIG.AUDIO_SEPARATE_CONQUEST = value;
+        persistAudioConfig();
     }
 
     toggleMute() {
@@ -361,6 +401,7 @@ class AudioManager {
                 pool.forEach(a => { a.pause(); a.currentTime = 0; });
             }
         }
+        persistAudioConfig();
     }
 
     /** Reset all volumes and file assignments to defaults */
@@ -387,6 +428,7 @@ class AudioManager {
             }
         }
         this.updatePoolVolumes();
+        persistAudioConfig();
         log.sys("AudioManager", "Reset all volumes and files to defaults");
     }
 
