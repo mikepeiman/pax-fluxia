@@ -46,6 +46,8 @@
 | F-142 | Strength-blended shared borders: overlapping territory borders with alpha blending reflecting relative player strength. Gradient concentrated by proximity to nearest star (opposition radiating outward). Stronger player → more color influence, higher saturation, higher lightness | ✅ Done | High | 2026-03-03 |
 | F-143 | Animated territory transitions: two Boundary Modes — **Segment** (edge-level lerp) and **Smooth** (flubber polygon morph). Fills render target state instantly (no flicker). UI toggle in Power Voronoi Visual Settings panel. Config: `TERRITORY_BOUNDARY_MODE`, `TERRITORY_TRANSITION_MS` | 🔄 Testing | Medium | 2026-03-03 |
 | F-144 | Distance Field territory renderer V1 (CPU): graph-metric Dijkstra + lane projection + per-frame rasterization. **Shelved** — CPU rasterization too slow (0fps). V2 planned: GPU pipeline via PIXI.Shader + RenderTexture per Deep Technical Guidance. | 🔴 V1 Shelved / V2 Planned | High | 2026-03-03 |
+| F-145 | Built-in filesystem themes: 5 curated + 3 hybrid composed themes, survives localStorage wipe. Themes embedded in `builtinThemes.ts`. | 🔄 In Progress | Medium | 2026-03-14 |
+| F-146 | Reusable HSLA widget for territory fill & border color controls. Replaces 6× duplicated inline sliders. Compact Grid+Flex layout, responsive. | 🔄 In Progress | Medium | 2026-03-14 |
 
 ## Known Regressions
 
