@@ -52,9 +52,10 @@ export function renderConnections(
         // Collect gap intervals [tStart, tEnd] along the lane (0..1 parameterization)
         const gaps: [number, number][] = [];
 
-        // Gap at source and target star edges
-        const srcGap = source.radius / laneDist;
-        const tgtGap = target.radius / laneDist;
+        // Gap at source and target — use visual ownership-ring radius for terminus blending
+        const ringGap = GAME_CONFIG.STAR_RING_RADIUS + (GAME_CONFIG.STAR_RING_WIDTH ?? 2) * 0.5;
+        const srcGap = ringGap / laneDist;
+        const tgtGap = ringGap / laneDist;
         gaps.push([0, srcGap]);
         gaps.push([1 - tgtGap, 1]);
 
@@ -72,7 +73,8 @@ export function renderConnections(
             const projY = source.y + ndy * t * laneDist;
             const perpDist = Math.sqrt((star.x - projX) ** 2 + (star.y - projY) ** 2);
 
-            const clearance = star.radius + 6;
+            // Use ownership-ring radius for intervening star clearance too
+            const clearance = ringGap + 6;
             if (perpDist < clearance) {
                 const halfChord = Math.sqrt(Math.max(0, clearance * clearance - perpDist * perpDist));
                 const gapStart = Math.max(0, t - halfChord / laneDist);

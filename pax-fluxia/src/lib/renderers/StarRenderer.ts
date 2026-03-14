@@ -196,13 +196,24 @@ export function renderStars(
         const usePolygon = GAME_CONFIG.STAR_SHAPE_MODE === 'polygon' && sides > 0;
         const cornerRadius = GAME_CONFIG.STAR_CORNER_RADIUS ?? 0.3;
 
-        // Player Ownership Ring (Solid circle replacing the colored shape outline)
-        const ringOffset = GAME_CONFIG.STAR_RING_OFFSET ?? 20;
+        // Player Ownership-Ring (absolute radius from center)
+        const ringRadius = GAME_CONFIG.STAR_RING_RADIUS;
         const ringWidth = GAME_CONFIG.STAR_RING_WIDTH ?? 2;
         const ringAlpha = GAME_CONFIG.STAR_RING_ALPHA ?? 0.8;
-        const ringRadius = radius * (1 + ringOffset / 100);
+        // Apply SLA transforms to player color for ownership-ring
+        let ringColor = isActive ? 0xffffff : color;
+        if (!isActive) {
+            const hsl = colorUtils.hexToHSL(color);
+            const satMult = GAME_CONFIG.STAR_RING_SATURATION ?? 1.0;
+            const litMult = GAME_CONFIG.STAR_RING_LIGHTNESS ?? 1.0;
+            ringColor = colorUtils.hslToHex(
+                hsl.h,
+                Math.min(1, hsl.s * satMult),
+                Math.min(1, hsl.l * litMult),
+            );
+        }
         graphics.circle(star.x, star.y, ringRadius);
-        graphics.stroke({ color: isActive ? 0xffffff : color, width: isActive ? ringWidth + 2 : ringWidth, alpha: isActive ? Math.min(1, ringAlpha + 0.1) : ringAlpha });
+        graphics.stroke({ color: ringColor, width: isActive ? ringWidth + 2 : ringWidth, alpha: isActive ? Math.min(1, ringAlpha + 0.1) : ringAlpha });
 
         // Outer glow ring (pulses slightly, stronger when active)
         const starFxTime = state.gameNowMs / 1000;
@@ -361,9 +372,9 @@ export function renderStars(
             damagedText.visible = true;
         }
 
-        // Label offset from star center (bottom-right diagonal)
-        const labelOffsetX = 45;
-        const labelOffsetY = 35;
+        // Label offset from star center (configurable)
+        const labelOffsetX = GAME_CONFIG.STAR_LABEL_OFFSET_X ?? 45;
+        const labelOffsetY = GAME_CONFIG.STAR_LABEL_OFFSET_Y ?? 35;
         label.x = star.x + labelOffsetX;
         label.y = star.y + labelOffsetY;
 
@@ -419,7 +430,7 @@ function createStarLabel(star: StarState): PIXI.Container {
         text: star.id.replace('star-', '#'),
         style: {
             fontFamily: 'JetBrains Mono, monospace',
-            fontSize: 14,
+            fontSize: GAME_CONFIG.STAR_LABEL_ID_FONT_SIZE ?? 14,
             fontWeight: 'bold',
             fill: 0x88aaff,
             align: 'center',
@@ -437,7 +448,7 @@ function createStarLabel(star: StarState): PIXI.Container {
         text: '0',
         style: {
             fontFamily: 'JetBrains Mono, monospace',
-            fontSize: 22,
+            fontSize: GAME_CONFIG.STAR_LABEL_FONT_SIZE ?? 22,
             fontWeight: 'bold',
             fill: 0xffffff,
             align: 'center',

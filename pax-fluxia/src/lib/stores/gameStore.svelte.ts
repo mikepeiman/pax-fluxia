@@ -838,8 +838,9 @@ function initSavedMap(playerIds: string[], map: MapDefinition): void {
     const targetH = isPortrait ? 1600 : 900;
     // Only scale if the map is small (legacy), leave modern maps as-is
     const needsScale = maxX < 1000 && maxY < 600;
-    const scaleX = needsScale ? (targetW * 0.85) / (maxX || 1) : 1;
-    const scaleY = needsScale ? (targetH * 0.85) / (maxY || 1) : 1;
+    const spacingMult = GAME_CONFIG.CLASSIC_MAP_SPACING ?? 1.0;
+    const scaleX = needsScale ? (targetW * 0.85) / (maxX || 1) * spacingMult : 1;
+    const scaleY = needsScale ? (targetH * 0.85) / (maxY || 1) * spacingMult : 1;
     const offsetX = needsScale ? targetW * 0.075 : 0;
     const offsetY = needsScale ? targetH * 0.075 : 0;
 

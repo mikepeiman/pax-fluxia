@@ -140,8 +140,11 @@ export function getOrbitSlot(
     const PADDING = 2 + (GAME_CONFIG.ORBIT_BASE_RADIUS || 0);
     const RING_SPACING = BASE_SIZE * (GAME_CONFIG.ORBIT_RING_MULT || 1.4);
 
+    // Orbit starts at ownership-ring edge (visual radius), not game-logic starRadius
+    const orbitBase = GAME_CONFIG.STAR_RING_RADIUS ?? starRadius;
+
     // Calculate total capacity for 10 layers
-    const { layerCapacities, totalCapacity } = calculateTotalCapacity(starRadius);
+    const { layerCapacities, totalCapacity } = calculateTotalCapacity(orbitBase);
 
     // Calculate which "wrap cycle" we're in and the effective index within that cycle
     const wrapCycle = Math.floor(index / totalCapacity);
@@ -151,7 +154,7 @@ export function getOrbitSlot(
     // Find which layer this effective index belongs to
     let layer = 0;
     let countInInnerLayers = 0;
-    let currentRadius = starRadius + PADDING + BASE_SIZE;
+    let currentRadius = orbitBase + PADDING + BASE_SIZE;
 
     for (layer = 0; layer < MAX_ORBIT_LAYERS; layer++) {
         const capacity = layerCapacities[layer];

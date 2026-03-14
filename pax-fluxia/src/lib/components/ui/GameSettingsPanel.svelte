@@ -856,7 +856,7 @@
         {
             id: "ships",
             icon: "🎨",
-            label: "Stars & Ships",
+            label: "Star System",
             color: "#88ccff",
             tier: "advanced",
         },

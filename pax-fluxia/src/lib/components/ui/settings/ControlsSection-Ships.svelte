@@ -5,7 +5,7 @@
     import { logFlags } from "$lib/utils/logger";
     import { exportConfigJSON as exportConfigJSONBase } from "../panelSync";
 
-    // ControlsSection-SHIPS -- Ship Appearance (extracted from GameSettingsPanel.svelte)
+    // ControlsSection-STAR SYSTEM -- Star System Appearance (extracted from GameSettingsPanel.svelte)
 
     interface Props {
         panel: Record<string, any>;
@@ -45,6 +45,50 @@
 </script>
 
 <CategoryThemeBar category="ships" onApply={() => syncFromConfig?.()} />
+
+<!-- ── Master Star System Scale ── -->
+<h4 class="sub-heading">⚡ Star System Scale</h4>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">System Scale</span><span class="val"
+            >{((panel.starSystemScale ?? 1) as number).toFixed(2)}×</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0.3"
+        max="3.0"
+        step="0.05"
+        value={panel.starSystemScale ?? 1}
+        oninput={(e) => {
+            const newScale = +(e.target as HTMLInputElement).value;
+            const oldScale = panel.starSystemScale ?? 1;
+            const ratio = newScale / oldScale;
+            // Scale all bound sub-values proportionally
+            const scaleKey = (
+                panelKey: string,
+                configKey: string,
+                fallback: number,
+            ) => {
+                const old = (panel[panelKey] ?? fallback) as number;
+                const v = old * ratio;
+                (GAME_CONFIG as any)[configKey] = v;
+                updatePanel(panelKey, v);
+            };
+            scaleKey("starRenderRadius", "STAR_RENDER_RADIUS", 25);
+            scaleKey("starRingRadius", "STAR_RING_RADIUS", 30);
+            scaleKey("orbitBaseRadius", "ORBIT_BASE_RADIUS", 5);
+            scaleKey("damagedOrbitRadius", "DAMAGED_ORBIT_RADIUS", 15);
+            scaleKey("starIconScale", "STAR_ICON_SCALE", 0.55);
+            scaleKey("starLabelOffsetX", "STAR_LABEL_OFFSET_X", 45);
+            scaleKey("starLabelOffsetY", "STAR_LABEL_OFFSET_Y", 35);
+            scaleKey("starLabelFontSize", "STAR_LABEL_FONT_SIZE", 22);
+            scaleKey("starLabelIdFontSize", "STAR_LABEL_ID_FONT_SIZE", 14);
+            GAME_CONFIG.STAR_SYSTEM_SCALE = newScale;
+            updatePanel("starSystemScale", newScale);
+        }}
+    />
+</div>
 
 <!-- ── Ship Size & Shape ── -->
 <h4 class="sub-heading">Ship Size & Shape</h4>
@@ -565,11 +609,29 @@
     </div>
 {/if}
 
-<!-- ── Player Color Ring ── -->
-<h4 class="sub-heading">Player Ring</h4>
+<h4 class="sub-heading">Ownership Ring</h4>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Ring Offset</span><span class="val"
+        <span class="var-name">Ring Radius</span><span class="val"
+            >{((panel.starRingRadius ?? 30) as number).toFixed(0)}px</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="60"
+        step="1"
+        value={panel.starRingRadius ?? 30}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.STAR_RING_RADIUS = v;
+            updatePanel("starRingRadius", v);
+        }}
+    />
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Ring Offset (Legacy)</span><span class="val"
             >{((panel.starRingOffset ?? 20) as number).toFixed(0)}px</span
         >
     </div>
@@ -621,6 +683,45 @@
             const v = +(e.target as HTMLInputElement).value;
             GAME_CONFIG.STAR_RING_ALPHA = v;
             updatePanel("starRingAlpha", v);
+        }}
+    />
+</div>
+<!-- Ownership-ring SLA -->
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Ring Saturation</span><span class="val"
+            >{((panel.starRingSaturation ?? 1.0) as number).toFixed(2)}</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="2"
+        step="0.05"
+        value={panel.starRingSaturation ?? 1.0}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.STAR_RING_SATURATION = v;
+            updatePanel("starRingSaturation", v);
+        }}
+    />
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Ring Lightness</span><span class="val"
+            >{((panel.starRingLightness ?? 1.0) as number).toFixed(2)}</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="2"
+        step="0.05"
+        value={panel.starRingLightness ?? 1.0}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.STAR_RING_LIGHTNESS = v;
+            updatePanel("starRingLightness", v);
         }}
     />
 </div>

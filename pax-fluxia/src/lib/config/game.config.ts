@@ -215,12 +215,21 @@ interface GameConfigType {
 
     // Star glow — radial gradient behind ships showing fleet power
     STAR_GLOW_ON: boolean;         // Enable star glow effect (default true)
-    STAR_RING_OFFSET: number;      // Distance of ownership ring from star center in % of radius (default 20)
-    STAR_RING_WIDTH: number;       // Ownership ring stroke width in px (default 2)
-    STAR_RING_ALPHA: number;       // Ownership ring opacity (0-1, default 0.8)
-    STAR_GLOW_RADIUS_MULT: number; // Glow radius as multiplier of outermost orbit ring (default 1.3)
-    STAR_GLOW_INTENSITY: number;   // Peak glow alpha (0-1, default 0.25)
-    STAR_GLOW_LAYERS: number;      // Number of concentric gradient layers (default 4)
+    STAR_RING_RADIUS: number;       // Absolute ownership-ring radius from star center in px (default 30)
+    STAR_RING_OFFSET: number;       // LEGACY — kept for compat, prefer STAR_RING_RADIUS
+    STAR_RING_WIDTH: number;        // Ownership-ring stroke width in px (default 2)
+    STAR_RING_ALPHA: number;        // Ownership-ring opacity (0-1, default 0.8)
+    STAR_RING_SATURATION: number;   // Ownership-ring saturation multiplier (0-2, default 1.0)
+    STAR_RING_LIGHTNESS: number;    // Ownership-ring lightness multiplier (0-2, default 1.0)
+    STAR_SYSTEM_SCALE: number;      // Master scale for entire star system (0.3-3.0, default 1.0)
+    STAR_LABEL_OFFSET_X: number;    // Label offset from star center X (default 45)
+    STAR_LABEL_OFFSET_Y: number;    // Label offset from star center Y (default 35)
+    STAR_LABEL_FONT_SIZE: number;   // Active ships font size (default 22)
+    STAR_LABEL_ID_FONT_SIZE: number;// Star ID font size (default 14)
+    CLASSIC_MAP_SPACING: number;    // Classic map coordinate spacing multiplier (0.5-2.0, default 1.0)
+    STAR_GLOW_RADIUS_MULT: number;  // Glow radius as multiplier of outermost orbit ring (default 1.3)
+    STAR_GLOW_INTENSITY: number;    // Peak glow alpha (0-1, default 0.25)
+    STAR_GLOW_LAYERS: number;       // Number of concentric gradient layers (default 4)
 
     /** How far order arrows extend along the lane (0.0-1.0, 1.0 = full distance to target edge) */
     ARROW_LENGTH_FRACTION: number;
@@ -842,12 +851,30 @@ const _rawConfig: GameConfigType = {
     SHIP_VISUAL_RADIUS: 3,
     /** Star glow settings */
     STAR_GLOW_ON: true,
-    /** Ownership ring offset from star center (% of radius) */
+    /** Ownership-ring absolute radius from star center (px) */
+    STAR_RING_RADIUS: 30,
+    /** Ownership-ring offset from star center (% of radius) — LEGACY compat */
     STAR_RING_OFFSET: 18,
-    /** Ownership ring stroke width (px) */
+    /** Ownership-ring stroke width (px) */
     STAR_RING_WIDTH: 2.5,
-    /** Ownership ring alpha (0-1) */
+    /** Ownership-ring alpha (0-1) */
     STAR_RING_ALPHA: 1,
+    /** Ownership-ring saturation multiplier (0-2) */
+    STAR_RING_SATURATION: 1.0,
+    /** Ownership-ring lightness multiplier (0-2) */
+    STAR_RING_LIGHTNESS: 1.0,
+    /** Master scale for entire star system (0.3-3.0) */
+    STAR_SYSTEM_SCALE: 1.0,
+    /** Label offset from star center X */
+    STAR_LABEL_OFFSET_X: 45,
+    /** Label offset from star center Y */
+    STAR_LABEL_OFFSET_Y: 35,
+    /** Active ships font size */
+    STAR_LABEL_FONT_SIZE: 22,
+    /** Star ID font size */
+    STAR_LABEL_ID_FONT_SIZE: 14,
+    /** Classic map coordinate spacing multiplier */
+    CLASSIC_MAP_SPACING: 1.0,
     STAR_GLOW_RADIUS_MULT: 1.3,
     STAR_GLOW_INTENSITY: 0.25,
     STAR_GLOW_LAYERS: 4,
@@ -1161,7 +1188,7 @@ const _rawConfig: GameConfigType = {
     DF_INFLUENCE_WEIGHT: 0,
     DF_EXPANSION: 0,
     DF_SMOOTHING: 0,
-    DF_MIN_STAR_RADIUS: 90,
+    DF_MIN_STAR_RADIUS: 100,
     DF_CORRIDOR_ENABLED: true,
     DF_CORRIDOR_MODE: 'spacing',
     DF_CORRIDOR_SPACING: 90,
