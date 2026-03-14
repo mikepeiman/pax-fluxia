@@ -48,6 +48,7 @@
 | F-144 | Distance Field territory renderer V1 (CPU): graph-metric Dijkstra + lane projection + per-frame rasterization. **Shelved** — CPU rasterization too slow (0fps). V2 planned: GPU pipeline via PIXI.Shader + RenderTexture per Deep Technical Guidance. | 🔴 V1 Shelved / V2 Planned | High | 2026-03-03 |
 | F-145 | Built-in filesystem themes: 5 curated + 3 hybrid composed themes, survives localStorage wipe. Themes embedded in `builtinThemes.ts`. | 🔄 In Progress | Medium | 2026-03-14 |
 | F-146 | Reusable HSLA widget for territory fill & border color controls. Replaces 6× duplicated inline sliders. Compact Grid+Flex layout, responsive. | 🔄 In Progress | Medium | 2026-03-14 |
+| F-147 | Built-in filesystem maps: saved maps embedded in build via `import.meta.glob`, survives localStorage wipe. Set deployment defaults + player map options. | 📋 Planned | Medium | 2026-03-14 |
 
 ## Known Regressions
 
@@ -67,6 +68,7 @@
 | B-36 | Saved themes lost when localStorage cleared — themes only stored in LS, not persisted to disk. User-created data from intentional save actions MUST persist to file (see `common/resources/settings-themes/` for existing format) | 🔴 Open | 2026-03-06 |
 | B-37 | Territory (fills+borders) offset from starmap — entire DF territory layer misaligned with star positions. Stars not centered in their territories. Borders+fills align with each other but NOT with starmap. | 🔴 Active | 2026-03-06 |
 | B-38 | PVV2 enclave fill bug: when an outer holding completely surrounds an inner opponent holding, the outer fill covers the inner holding entirely. Outer owner's territory color overwrites the enclave. PVV2 `mergeSameOwnerCells` produces correct polygon boundaries but fill rendering has no hole/enclave subtraction — `fillGraphics.poly()` draws solid fills without cutting enclosed opponent regions. Visible in Territory Engine → FG1/DY4 route. FG2/PVV3 already solved via `ownerShells` + classified hole loops + PIXI `cut()` (D-62). | 🔴 Active | 2026-03-14 |
+| B-39 | Theme export uses selected preset name instead of user-given name — "export" button downloads JSON with the wrong `name` field | 🔴 Open | 2026-03-14 |
 
 ## Feature Ideas
 

@@ -1,504 +1,122 @@
 // ============================================================================
-// Built-in Themes — Curated presets shipped with the game
+// Built-In Themes — Filesystem-resident, survives localStorage wipes
+// ============================================================================
+//
+// Uses Vite's import.meta.glob to load all JSON files from builtin-themes/
+// at build time. Theme JSON files can be in either format:
+//   (a) Standard: { name, description?, created?, values: { ... } }
+//   (b) Legacy flat: { KEY: val, ... }
+//
+// All themes are converted to ComposedTheme format for the theme picker.
 // ============================================================================
 
-import type { GameTheme } from './themes';
+import { type ComposedTheme, type ThemeCategory, CATEGORY_KEYS } from './categoryThemes';
 
-/**
- * "Smooth Bezier" — User's tuned settings from 2026-02-16.
- * Characterized by:
- * - Slow, deliberate tick rate (1850ms)
- * - Bezier travel with strong arc intensity (2.0) and easeInOut power 3.5
- * - Minimal wobble (1px), nearside departure mode
- * - Slow attack surge ramp (1000ms) with proportional surge
- * - No ship glow, subtle outline (0.8px)
- * - Tight orbit density (1.8)
- */
-export const SMOOTH_BEZIER: GameTheme = {
-    name: 'Smooth Bezier',
-    description: 'Deliberate pacing with graceful curved ship arcs. Minimal wobble, strong easing.',
-    created: '2026-02-16T21:24:44Z',
-    values: {
-        // Timing
-        BASE_TICK_MS: 1850,
-        MIN_TICK_MS: 100,
-        ANIMATION_SPEED_MS: 1150,
+// ── Load all JSON files at build time ──────────────────────────────────────
 
-        // Transfer mechanics
-        TRANSFER_RATE: 0.12,
-        MIN_SHIPS_PER_TRANSFER: 0,
-        MAX_SHIPS_PER_TRANSFER: 0,
+const themeModules = import.meta.glob<Record<string, unknown>>('./builtin-themes/*.json', { eager: true });
 
-        // Combat
-        AGGRESSOR_ADVANTAGE: 0.8333333333333334,
-        LETHALITY: 0.35,
-        FORCE_RATIO_EFFECT: 0,
-        CONQUEST_THRESHOLD: 25,
-        DAMAGED_SHIP_EFFECTIVENESS: 0.5,
+// ── Human-readable names (override the JSON "name" field for keepers) ──────
 
-        // Production & Repair
-        BASE_PRODUCTION: 0.6,
-        REPAIR_RATE: 3,
-        MIN_REPAIR: 1,
-        REPAIR_COMBAT_PENALTY: 0.1,
-
-        // Conquest mechanics
-        CONQUEST_TRANSFER_PERCENTAGE: 40,
-        OVERWHELM_THRESHOLD: 0.1,
-        ORDERS_PERSIST_AFTER_CONQUEST: true,
-        RETAIN_ORDER_ON_CONQUEST: true,
-        ALLOW_OPPOSING_ORDERS: false,
-
-        CONQUEST_DAMAGED_CAPTURE_RATE: 1,
-        CONQUEST_DAMAGED_DESTROY_RATE: 0,
-        RETREAT_CAPTURE_RATE: 0.1,
-        SCATTER_CAPTURE_RATE: 0.2,
-        SCATTER_DESTROY_RATE: 0.5,
-        RETREAT_DAMAGED_ACTIVATION_RATE: 0.1,
-
-        // Starting
-        STARTING_SHIPS: 100,
-
-        // Visual layout
-        SHIP_BASE_SIZE: 3.5,
-        STAR_RENDER_RADIUS: 20,
-        ORBIT_RING_MULT: 1.6,
-        TRANSFER_ANIMATION_MS: 600,
-        STATIC_ORBITS: false,
-        ORBIT_DENSITY: 1.8,
-        MAX_VISUAL_SHIPS: 500,
-
-        // Animation tuning
-        ORBIT_BIAS_STRENGTH: 0,
-        DEPART_FRACTION: 0.55,
-        DEPART_JITTER_MS: 20,
-        LANE_OFFSET_PX: 8,
-        DEPART_MODE: 'nearside',
-        SETTLE_DURATION_MS: 830,
-        ARRIVAL_SPREAD: 0,
-        WOBBLE_AMP: 1,
-        TRAVEL_MODE: 'bezier',
-        TRAVEL_EASING: 'easeInOut',
-        TRAVEL_EASING_POWER: 3.5,
-        TRAVEL_DURATION_MULT: 1.9,
-        TRAVEL_ARC_INTENSITY: 2,
-
-        // Attack surge
-        ATTACK_SURGE_MULT: 0.65,
-        ATTACK_SURGE_PROPORTIONAL: true,
-        ATTACK_SURGE_FORCE_COFACTOR: 0.5,
-        ATTACK_SURGE_RAMP_MS: 1000,
-        ATTACK_SURGE_SHAPE: 1,
-
-        // Conquest animation
-        CONQUEST_ANIMATION_MODE: 'travel',
-        CONQUEST_SETTLE_MS: 1350,
-        CONQUEST_SURGE_RADIUS: 40,
-        CONQUEST_SURGE_STAGGER_MS: 0,
-        CONQUEST_TRAVEL_SPEED: 5,
-        CONQUEST_LERP_DELAY_MS: 0,
-        CONQUEST_COLOR_DELAY_TICKS: 0,
-        CONQUEST_FLASH_TICKS: 2,
-        CONQUEST_SLOWMO_ENABLED: false,
-        CONQUEST_SLOWMO_FACTOR: 5,
-        CONQUEST_SLOWMO_DURATION_MS: 5000,
-
-        // Ship appearance
-        SHIP_OUTLINE_ON: true,
-        SHIP_OUTLINE_PX: 0.8,
-        SHIP_GLOW_INTENSITY: 0,
-        SHIP_SCALE_MULT: 0.6,
-        SHIP_VISUAL_RADIUS: 3,
-
-        // Density VFX
-        DENSITY_HUE_STEP: 20,
-        DENSITY_SAT_STEP: 0.13,
-        DENSITY_LIGHT_STEP: 0.06,
-        DENSITY_TIERS: 6,
-        DENSITY_DARKEN_ALT: true,
-
-        // Star glow
-        STAR_GLOW_ON: true,
-        STAR_GLOW_RADIUS_MULT: 1.3,
-        STAR_GLOW_INTENSITY: 0.25,
-        STAR_GLOW_LAYERS: 4,
-
-        // Orbit bias oscillation
-        ORBIT_BIAS_OSCILLATE: false,
-        ORBIT_BIAS_MIN: 0,
-        ORBIT_BIAS_MAX: 0.95,
-        ORBIT_BIAS_FREQ: 0.25,
-
-        // Orb travel
-        ORB_TRAVEL: false,
-        ORB_BASE_RADIUS: 1.5,
-        ORB_RADIUS_SCALE: 0.5,
-        ORB_GLOW_MULT: 1.3,
-        ORB_OUTER_ALPHA: 0.06,
-        ORB_MID_ALPHA: 0.34,
-        ORB_CORE_ALPHA: 0.74,
-        ORB_CENTER_ALPHA: 1.2,
-        ORB_OUTER_SCALE: 3.6,
-        ORB_MID_SCALE: 1.5,
-        ORB_CORE_SCALE: 0.4,
-
-        // Arrow
-        ARROW_LENGTH_FRACTION: 0.5,
-    },
+const NAME_OVERRIDES: Record<string, string> = {
+    'clean-mode': 'Clean Mode (Mar 14)',
+    'smooth-bezier': 'Smooth Bezier',
+    'arrow-capture': 'Arrow Capture',
+    'flow-ships': 'Flow Ships',
+    'feb27-default': 'Feb 27 Default',
+    'mar07-default': 'Mar 07 Default',
+    'clean-voronoi': 'Clean Voronoi',
+    'distance-field': 'Distance Field',
+    'streaming-ships': 'Streaming Ships',
 };
 
-/**
- * "Flow Ships" — Tuned for smooth bezier arcs with flowing ship movement.
- * - 1400ms tick, bezier travel with easeInOut 1.9 power
- * - Strong arc intensity (1.8), moderate lane convergence
- * - High orbit density (1.7), glow + outline enabled
- * - Travel conquest mode with staggered arrow animation
- */
-export const FLOW_SHIPS: GameTheme = {
-    name: 'Flow Ships',
-    description: 'Smooth bezier arcs with flowing ship movement. Moderate pacing, strong arc intensity.',
-    created: '2026-02-18T20:14:25Z',
-    values: {
-        BASE_TICK_MS: 1150,
-        MIN_TICK_MS: 100,
-        ANIMATION_SPEED_MS: 1150,
-        TRANSFER_RATE: 0.07,
-        MIN_SHIPS_PER_TRANSFER: 0,
-        MAX_SHIPS_PER_TRANSFER: 0,
-        AGGRESSOR_ADVANTAGE: 0.8333333333333334,
-        LETHALITY: 0.35,
-        FORCE_RATIO_EFFECT: 0,
-        CONQUEST_THRESHOLD: 25,
-        DAMAGED_SHIP_EFFECTIVENESS: 0.5,
-        BASE_PRODUCTION: 0.6,
-        REPAIR_RATE: 31,
-        MIN_REPAIR: 1,
-        REPAIR_COMBAT_PENALTY: 0.1,
-        CONQUEST_TRANSFER_PERCENTAGE: 60,
-        CONQUEST_DAMAGED_CAPTURE_RATE: 1,
-        CONQUEST_DAMAGED_DESTROY_RATE: 0,
-        OVERWHELM_THRESHOLD: 0.1,
-        ORDERS_PERSIST_AFTER_CONQUEST: true,
-        RETAIN_ORDER_ON_CONQUEST: true,
-        ALLOW_OPPOSING_ORDERS: false,
-        RETREAT_CAPTURE_RATE: 0.1,
-        SCATTER_CAPTURE_RATE: 0.2,
-        SCATTER_DESTROY_RATE: 0.5,
-        RETREAT_DAMAGED_ACTIVATION_RATE: 0.1,
-        STARTING_SHIPS: 110,
-        SHIP_BASE_SIZE: 3,
-        STAR_RENDER_RADIUS: 25,
-        ORBIT_RING_MULT: 1.6,
-        TRANSFER_ANIMATION_MS: 1150,
-        STATIC_ORBITS: false,
-        ORBIT_DENSITY: 1.7,
-        MAX_VISUAL_SHIPS: 500,
-        ORBIT_BIAS_STRENGTH: 0,
-        DEPART_FRACTION: 0.55,
-        DEPART_JITTER_MS: 200,
-        LANE_OFFSET_PX: 30,
-        DEPART_MODE: 'nearside',
-        SETTLE_DURATION_MS: 80,
-        ARRIVAL_SPREAD: 0.65,
-        WOBBLE_AMP: 0,
-        TRAVEL_MODE: 'bezier',
-        TRAVEL_EASING: 'easeInOut',
-        TRAVEL_EASING_POWER: 1.9,
-        TRAVEL_DURATION_MULT: 1,
-        TRAVEL_ARC_INTENSITY: 1.8,
-        LANE_CONVERGENCE: 0.25,
-        LANE_CONVERGENCE_POINT: 50,
-        ATTACK_SURGE_MULT: 0.6,
-        ATTACK_SURGE_PROPORTIONAL: true,
-        ATTACK_SURGE_FORCE_COFACTOR: 0.6,
-        ATTACK_SURGE_RAMP_MS: 1150,
-        ATTACK_SURGE_SHAPE: 1,
-        CONQUEST_ANIMATION_MODE: 'travel',
-        CONQUEST_SETTLE_MS: 500,
-        CONQUEST_SURGE_RADIUS: 50,
-        CONQUEST_SURGE_STAGGER_MS: 70,
-        CONQUEST_TRAVEL_SPEED: 0.1,
-        CONQUEST_LERP_DELAY_MS: 0,
-        CONQUEST_COLOR_DELAY_TICKS: 0,
-        CONQUEST_FLASH_TICKS: 3,
-        CONQUEST_SLOWMO_ENABLED: false,
-        CONQUEST_SLOWMO_FACTOR: 5,
-        CONQUEST_SLOWMO_DURATION_MS: 5000,
-        SHIP_OUTLINE_ON: true,
-        SHIP_OUTLINE_PX: 1,
-        SHIP_GLOW_INTENSITY: 0.3,
-        SHIP_SCALE_MULT: 0.4,
-        SHIP_VISUAL_RADIUS: 3,
-        DENSITY_HUE_STEP: 20,
-        DENSITY_SAT_STEP: 0.13,
-        DENSITY_LIGHT_STEP: 0.06,
-        DENSITY_TIERS: 6,
-        DENSITY_DARKEN_ALT: true,
-        STAR_GLOW_ON: true,
-        STAR_GLOW_RADIUS_MULT: 1.3,
-        STAR_GLOW_INTENSITY: 0.25,
-        STAR_GLOW_LAYERS: 4,
-        ORBIT_BIAS_OSCILLATE: false,
-        ORBIT_BIAS_MIN: 0,
-        ORBIT_BIAS_MAX: 0.95,
-        ORBIT_BIAS_FREQ: 0.25,
-        ORB_TRAVEL: false,
-        ORB_BASE_RADIUS: 1.5,
-        ORB_RADIUS_SCALE: 0.5,
-        ORB_GLOW_MULT: 1.3,
-        ORB_OUTER_ALPHA: 0.32,
-        ORB_MID_ALPHA: 0.34,
-        ORB_CORE_ALPHA: 0.74,
-        ORB_CENTER_ALPHA: 1.2,
-        ORB_OUTER_SCALE: 3.6,
-        ORB_MID_SCALE: 1.5,
-        ORB_CORE_SCALE: 0.4,
-        ARROW_LENGTH_FRACTION: 0.5,
-    },
-};
+// ── Helper: split flat values into per-category snapshots ──────────────────
+
+function splitIntoCategories(
+    values: Record<string, unknown>,
+): Partial<Record<ThemeCategory, Record<string, unknown>>> {
+    const result: Partial<Record<ThemeCategory, Record<string, unknown>>> = {};
+    const keyToCategory = new Map<string, ThemeCategory>();
+
+    for (const [cat, keys] of Object.entries(CATEGORY_KEYS) as [ThemeCategory, string[]][]) {
+        for (const k of keys) {
+            keyToCategory.set(k, cat);
+        }
+    }
+
+    for (const [key, val] of Object.entries(values)) {
+        const cat = keyToCategory.get(key);
+        if (cat) {
+            if (!result[cat]) result[cat] = {};
+            result[cat]![key] = val;
+        }
+    }
+
+    return result;
+}
+
+// ── Convert loaded modules to ComposedTheme[] ──────────────────────────────
+
+function buildBuiltinThemes(): ComposedTheme[] {
+    const themes: ComposedTheme[] = [];
+
+    for (const [path, mod] of Object.entries(themeModules)) {
+        // Extract slug from path: './builtin-themes/clean-mode.json' → 'clean-mode'
+        const slug = path.replace(/^.*\//, '').replace(/\.json$/, '');
+        const data = (mod as any).default ?? mod;
+
+        // Detect format: standard (has "values" key) vs legacy flat
+        const isStandard = typeof data.values === 'object' && data.values !== null;
+        const values: Record<string, unknown> = isStandard ? data.values : data;
+
+        // Determine name
+        const name = NAME_OVERRIDES[slug]
+            ?? (isStandard && data.name ? String(data.name) : slug);
+
+        const theme: ComposedTheme = {
+            name,
+            createdAt: isStandard && data.created ? String(data.created) : new Date().toISOString(),
+            builtIn: true,
+            categories: splitIntoCategories(values),
+        };
+
+        themes.push(theme);
+    }
+
+    // Sort: newest first
+    themes.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
+    return themes;
+}
+
+/** All built-in themes, computed once at module load. */
+export const BUILTIN_THEMES: ComposedTheme[] = buildBuiltinThemes();
 
 /**
- * "Arrow Capture" — Lane-based travel with fast arrow conquest animation.
- * - 1500ms tick, lane travel mode with linear easing
- * - Wide arrival spread (2.0), high travel duration mult (3.2)
- * - Fast collapse-mode arrows with minimal surge ramp
- * - Travel conquest with quick flash
+ * Extract per-category built-in presets from full themes.
+ * Returns built-in CategoryPresets for a given category.
  */
-export const ARROW_CAPTURE: GameTheme = {
-    name: 'Arrow Capture',
-    description: 'Lane-based travel with fast arrow-style conquests. Linear easing, dramatic arrival spread.',
-    created: '2026-02-18T18:51:51Z',
-    values: {
-        BASE_TICK_MS: 1150,
-        MIN_TICK_MS: 100,
-        ANIMATION_SPEED_MS: 1150,
-        TRANSFER_RATE: 0.07,
-        MIN_SHIPS_PER_TRANSFER: 0,
-        MAX_SHIPS_PER_TRANSFER: 0,
-        AGGRESSOR_ADVANTAGE: 0.8333333333333334,
-        LETHALITY: 0.35,
-        FORCE_RATIO_EFFECT: 0,
-        CONQUEST_THRESHOLD: 25,
-        DAMAGED_SHIP_EFFECTIVENESS: 0.5,
-        BASE_PRODUCTION: 0.6,
-        REPAIR_RATE: 31,
-        MIN_REPAIR: 1,
-        REPAIR_COMBAT_PENALTY: 0.1,
-        CONQUEST_TRANSFER_PERCENTAGE: 60,
-        CONQUEST_DAMAGED_CAPTURE_RATE: 1,
-        CONQUEST_DAMAGED_DESTROY_RATE: 0,
-        OVERWHELM_THRESHOLD: 0.1,
-        ORDERS_PERSIST_AFTER_CONQUEST: true,
-        RETAIN_ORDER_ON_CONQUEST: true,
-        ALLOW_OPPOSING_ORDERS: false,
-        RETREAT_CAPTURE_RATE: 0.1,
-        SCATTER_CAPTURE_RATE: 0.2,
-        SCATTER_DESTROY_RATE: 0.5,
-        RETREAT_DAMAGED_ACTIVATION_RATE: 0.1,
-        STARTING_SHIPS: 110,
-        SHIP_BASE_SIZE: 3,
-        STAR_RENDER_RADIUS: 25,
-        ORBIT_RING_MULT: 1.6,
-        TRANSFER_ANIMATION_MS: 1150,
-        STATIC_ORBITS: false,
-        ORBIT_DENSITY: 1.7,
-        MAX_VISUAL_SHIPS: 500,
-        ORBIT_BIAS_STRENGTH: 0,
-        DEPART_FRACTION: 0.55,
-        DEPART_JITTER_MS: 200,
-        LANE_OFFSET_PX: 30,
-        DEPART_MODE: 'nearside',
-        SETTLE_DURATION_MS: 80,
-        ARRIVAL_SPREAD: 2,
-        WOBBLE_AMP: 0,
-        TRAVEL_MODE: 'lane',
-        TRAVEL_EASING: 'linear',
-        TRAVEL_EASING_POWER: 5,
-        TRAVEL_DURATION_MULT: 3.2,
-        TRAVEL_ARC_INTENSITY: 0.6,
-        LANE_CONVERGENCE: 0.25,
-        LANE_CONVERGENCE_POINT: 50,
-        ATTACK_SURGE_MULT: 0.6,
-        ATTACK_SURGE_PROPORTIONAL: true,
-        ATTACK_SURGE_FORCE_COFACTOR: 0.6,
-        ATTACK_SURGE_RAMP_MS: 80,
-        ATTACK_SURGE_SHAPE: 1,
-        CONQUEST_ANIMATION_MODE: 'arrowhead',
-        CONQUEST_SETTLE_MS: 500,
-        CONQUEST_SURGE_RADIUS: 35,
-        CONQUEST_SURGE_STAGGER_MS: 15,
-        CONQUEST_TRAVEL_SPEED: 0.8,
-        CONQUEST_LERP_DELAY_MS: 0,
-        CONQUEST_COLOR_DELAY_TICKS: 0,
-        CONQUEST_FLASH_TICKS: 1.25,
-        CONQUEST_SLOWMO_ENABLED: false,
-        CONQUEST_SLOWMO_FACTOR: 5,
-        CONQUEST_SLOWMO_DURATION_MS: 5000,
-        SHIP_OUTLINE_ON: true,
-        SHIP_OUTLINE_PX: 1,
-        SHIP_GLOW_INTENSITY: 0.3,
-        SHIP_SCALE_MULT: 0.4,
-        SHIP_VISUAL_RADIUS: 3,
-        DENSITY_HUE_STEP: 20,
-        DENSITY_SAT_STEP: 0.13,
-        DENSITY_LIGHT_STEP: 0.06,
-        DENSITY_TIERS: 6,
-        DENSITY_DARKEN_ALT: true,
-        STAR_GLOW_ON: true,
-        STAR_GLOW_RADIUS_MULT: 1.3,
-        STAR_GLOW_INTENSITY: 0.25,
-        STAR_GLOW_LAYERS: 4,
-        ORBIT_BIAS_OSCILLATE: false,
-        ORBIT_BIAS_MIN: 0,
-        ORBIT_BIAS_MAX: 0.95,
-        ORBIT_BIAS_FREQ: 0.25,
-        ORB_TRAVEL: false,
-        ORB_BASE_RADIUS: 1.5,
-        ORB_RADIUS_SCALE: 0.5,
-        ORB_GLOW_MULT: 1.3,
-        ORB_OUTER_ALPHA: 0.32,
-        ORB_MID_ALPHA: 0.34,
-        ORB_CORE_ALPHA: 0.74,
-        ORB_CENTER_ALPHA: 1.2,
-        ORB_OUTER_SCALE: 3.6,
-        ORB_MID_SCALE: 1.5,
-        ORB_CORE_SCALE: 0.4,
-        ARROW_LENGTH_FRACTION: 0.5,
-    },
-};
+export function getBuiltinCategoryPresets(category: ThemeCategory) {
+    const presets: Array<{
+        name: string;
+        category: ThemeCategory;
+        values: Record<string, unknown>;
+        createdAt: string;
+        builtIn: true;
+    }> = [];
 
-// ── All Built-in Themes ─────────────────────────────────────────────────────
+    for (const theme of BUILTIN_THEMES) {
+        const catValues = theme.categories[category];
+        if (catValues && Object.keys(catValues).length > 0) {
+            presets.push({
+                name: `${theme.name}`,
+                category,
+                values: { ...catValues },
+                createdAt: theme.createdAt,
+                builtIn: true,
+            });
+        }
+    }
 
-/**
- * "Orb Flow" — User's tuned orb travel settings from 2026-02-19.
- * Characterized by:
- * - 1400ms tick, lane travel with easeInOut 0.5 power
- * - ORB_TRAVEL enabled with tuned orb radii/alphas
- * - Strong surge ramp (2600ms), proportional surge
- * - High repair rate (31), moderate production (0.6)
- * - Staggered departures, 0.1 arc intensity
- */
-export const ORB_FLOW: GameTheme = {
-    name: 'Orb Flow',
-    description: 'Glowing energy orbs replace individual ships during travel. Warm, ambient feel with smooth convergence.',
-    created: '2026-02-19T01:36:47Z',
-    values: {
-        BASE_TICK_MS: 1400,
-        MIN_TICK_MS: 100,
-        ANIMATION_SPEED_MS: 1150,
-        TRANSFER_RATE: 0.07,
-        MIN_SHIPS_PER_TRANSFER: 0,
-        MAX_SHIPS_PER_TRANSFER: 0,
-        AGGRESSOR_ADVANTAGE: 0.8333333333333334,
-        LETHALITY: 0.35,
-        FORCE_RATIO_EFFECT: 0,
-        CONQUEST_THRESHOLD: 25,
-        DAMAGED_SHIP_EFFECTIVENESS: 0.5,
-        BASE_PRODUCTION: 0.6,
-        REPAIR_RATE: 31,
-        MIN_REPAIR: 1,
-        REPAIR_COMBAT_PENALTY: 0.1,
-        CONQUEST_TRANSFER_PERCENTAGE: 60,
-        OVERWHELM_THRESHOLD: 0.1,
-        ORDERS_PERSIST_AFTER_CONQUEST: true,
-        RETAIN_ORDER_ON_CONQUEST: true,
-        ALLOW_OPPOSING_ORDERS: false,
-        CONQUEST_DAMAGED_CAPTURE_RATE: 1,
-        CONQUEST_DAMAGED_DESTROY_RATE: 0,
-        RETREAT_CAPTURE_RATE: 0.1,
-        SCATTER_CAPTURE_RATE: 0.2,
-        SCATTER_DESTROY_RATE: 0.5,
-        RETREAT_DAMAGED_ACTIVATION_RATE: 0.1,
-        STARTING_SHIPS: 110,
-        SHIP_BASE_SIZE: 3,
-        STAR_RENDER_RADIUS: 25,
-        ORBIT_RING_MULT: 1.6,
-        TRANSFER_ANIMATION_MS: 2880,
-        STATIC_ORBITS: false,
-        ORBIT_BIAS_STRENGTH: 0,
-        DEPART_FRACTION: 0.55,
-        DEPART_JITTER_MS: 0,
-        LANE_OFFSET_PX: 12,
-        DEPART_MODE: 'fifo',
-        SETTLE_DURATION_MS: 100,
-        ARRIVAL_SPREAD: 0.65,
-        WOBBLE_AMP: 0,
-        DEPART_STAGGER: true,
-        DEPART_ARC_INTENSITY: 0.1,
-        ARRIVAL_ARC_INTENSITY: 0.1,
-        TRAVEL_MODE: 'lane',
-        TRAVEL_EASING: 'easeInOut',
-        TRAVEL_EASING_POWER: 0.5,
-        TRAVEL_DURATION_MULT: 1.6,
-        TRAVEL_ARC_INTENSITY: 0.75,
-        LANE_CONVERGENCE: 0.85,
-        LANE_CONVERGENCE_POINT: 100,
-        ORBIT_DENSITY: 1.7,
-        ATTACK_SURGE_MULT: 0.6,
-        ATTACK_SURGE_PROPORTIONAL: true,
-        ATTACK_SURGE_FORCE_COFACTOR: 0.6,
-        ATTACK_SURGE_RAMP_MS: 2600,
-        ATTACK_SURGE_SHAPE: 1,
-        SURGE_PULSE_DURATION_MS: 1150,
-        CONQUEST_ANIMATION_MODE: 'travel',
-        CONQUEST_SETTLE_MS: 500,
-        CONQUEST_SURGE_RADIUS: 50,
-        CONQUEST_SURGE_STAGGER_MS: 70,
-        CONQUEST_TRAVEL_SPEED: 0.1,
-        CONQUEST_LERP_DELAY_MS: 0,
-        CONQUEST_COLOR_DELAY_TICKS: 0,
-        CONQUEST_FLASH_TICKS: 3,
-        ARROW_TAPER: 0.35,
-        ARROW_WIDTH: 115,
-        ARROW_SPEED: 2.8,
-        ARROW_EASING: 'easeIn',
-        ARROW_ENGULF_MODE: 'collapse',
-        ARROW_ENGULF_RADIUS: 85,
-        ARROW_SPIRAL_MIN_DEG: 60,
-        ARROW_SPIRAL_MAX_DEG: 300,
-        ARROW_SPIRAL_RANDOM: true,
-        ARROW_SPIRAL_DURATION_MS: 250,
-        ARROW_STAGGER_MS: 60,
-        CONQUEST_SLOWMO_ENABLED: false,
-        CONQUEST_SLOWMO_FACTOR: 5,
-        CONQUEST_SLOWMO_DURATION_MS: 5000,
-        SHIP_OUTLINE_ON: true,
-        SHIP_OUTLINE_PX: 1,
-        SHIP_GLOW_INTENSITY: 0.3,
-        SHIP_SCALE_MULT: 0.4,
-        MAX_VISUAL_SHIPS: 500,
-        DENSITY_HUE_STEP: 20,
-        DENSITY_SAT_STEP: 0.13,
-        DENSITY_LIGHT_STEP: 0.06,
-        DENSITY_TIERS: 6,
-        DENSITY_DARKEN_ALT: true,
-        SHIP_VISUAL_RADIUS: 3,
-        STAR_GLOW_ON: true,
-        STAR_GLOW_RADIUS_MULT: 1.3,
-        STAR_GLOW_INTENSITY: 0.25,
-        STAR_GLOW_LAYERS: 4,
-        ORBIT_BIAS_OSCILLATE: false,
-        ORBIT_BIAS_MIN: 0,
-        ORBIT_BIAS_MAX: 0.95,
-        ORBIT_BIAS_FREQ: 0.25,
-        ORB_TRAVEL: true,
-        ORB_BASE_RADIUS: 1.5,
-        ORB_RADIUS_SCALE: 0.5,
-        ORB_GLOW_MULT: 1.3,
-        ORB_OUTER_ALPHA: 0.32,
-        ORB_MID_ALPHA: 0.34,
-        ORB_CORE_ALPHA: 0.74,
-        ORB_CENTER_ALPHA: 1.2,
-        ORB_OUTER_SCALE: 3.6,
-        ORB_MID_SCALE: 1.5,
-        ORB_CORE_SCALE: 0.4,
-        ARROW_LENGTH_FRACTION: 0.5,
-    },
-};
-
-export const BUILTIN_THEMES: GameTheme[] = [
-    SMOOTH_BEZIER,
-    FLOW_SHIPS,
-    ARROW_CAPTURE,
-    ORB_FLOW,
-];
+    return presets;
+}

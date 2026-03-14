@@ -10,6 +10,7 @@
 // ============================================================================
 
 import { GAME_CONFIG } from '$lib/config/game.config';
+import { BUILTIN_THEMES, getBuiltinCategoryPresets } from './builtinThemes';
 
 // ── Category IDs ────────────────────────────────────────────────────────────
 
@@ -482,7 +483,13 @@ let _composedCache: ComposedTheme[] | null = null;
 
 export function listComposedThemes(): ComposedTheme[] {
     if (_composedCache === null) _composedCache = loadComposedThemes();
-    return [..._composedCache];
+    // Merge user themes (first) with filesystem built-ins (last)
+    const userThemes = [..._composedCache];
+    const builtInNames = new Set(BUILTIN_THEMES.map(t => t.name));
+    // Don't duplicate if user saved one with same name as built-in
+    const merged = userThemes.filter(t => !builtInNames.has(t.name));
+    merged.push(...BUILTIN_THEMES);
+    return merged;
 }
 
 export function saveComposedTheme(name: string): ComposedTheme {
@@ -495,8 +502,11 @@ export function saveComposedTheme(name: string): ComposedTheme {
 }
 
 export function deleteComposedTheme(name: string): void {
-    _composedCache = listComposedThemes().filter(t => t.name !== name);
-    persistComposedThemes(_composedCache);
+    // Block deletion of built-in themes
+    if (BUILTIN_THEMES.some(t => t.name === name)) return;
+    const userOnly = (_composedCache ?? loadComposedThemes()).filter(t => t.name !== name);
+    _composedCache = userOnly;
+    persistComposedThemes(userOnly);
 }
 
 // ── Category Preset ─────────────────────────────────────────────────────────
@@ -583,9 +593,15 @@ export function applyCategoryPreset(preset: CategoryPreset): void {
  * List all presets (builtin + user) for a category.
  */
 export function listCategoryPresets(category: ThemeCategory): CategoryPreset[] {
-    // Built-in presets will be added in builtinCategoryThemes.ts
-    // For now, just return user presets
-    return [...getUserPresets(category)];
+    const userPresets = getUserPresets(category);
+    const builtinPresets = getBuiltinCategoryPresets(category);
+    // User presets first, built-ins after
+    const userNames = new Set(userPresets.map(p => p.name));
+    const merged = [...userPresets];
+    for (const bp of builtinPresets) {
+        if (!userNames.has(bp.name)) merged.push(bp);
+    }
+    return merged;
 }
 
 /**
