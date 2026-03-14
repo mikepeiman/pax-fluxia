@@ -494,6 +494,7 @@ function drawTypeIcon(
         const angle = startAngle + angleStep * i;
         g.lineTo(cx + size * Math.cos(angle), cy + size * Math.sin(angle));
     }
+    g.closePath();
     g.fill({ color, alpha });
     g.stroke({ color: 0xffffff, width: 1, alpha });
 }
@@ -511,6 +512,7 @@ function drawHexBorder(
     for (let i = 1; i <= 6; i++) {
         graphics.lineTo(cx + radius * Math.cos(a * i), cy + radius * Math.sin(a * i));
     }
+    graphics.closePath();
     graphics.stroke({ color, width: lineWidth, alpha: 0.9 });
 }
 
