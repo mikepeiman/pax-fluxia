@@ -285,3 +285,7 @@
 ### D-67: Territory Trace Inspector Must Expose Holding-Transition Diagnostics
 - **Decision**: The Trace Inspector now includes a `Holding Transitions` section with transition-count summary metrics and per-transition preview lines sourced from the FG2 animation artifact.
 - **Rationale**: Dynamic territory debugging depends on seeing transition kind, anchor relation, fallback counts, and contour-distance signals directly in the UI. Artifact dumps alone are too indirect for rapid evaluation.
+
+### D-68: PVV3 Is An Active Territory Runtime, Not A Legacy Method Bucket
+- **Decision**: PVV3 is now treated as an active runtime/backend and renderer host for the territory engine, not as a "legacy method" category. The `FG/DY/HY` identifiers remain the method contracts; PVV3 is the execution surface that can host them.
+- **Rationale**: FG2 now runs natively and PVV3 already consumes FG2 artifacts directly for fills, borders, and playback while still hosting adapter-backed routes for incomplete methods. Treating PVV3 as merely "legacy" obscures the actual architecture and leads to incorrect reasoning about how the 15 modes fit together.
