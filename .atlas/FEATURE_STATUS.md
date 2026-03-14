@@ -48,7 +48,7 @@
 | F-144 | Distance Field territory renderer V1 (CPU): graph-metric Dijkstra + lane projection + per-frame rasterization. **Shelved** — CPU rasterization too slow (0fps). V2 planned: GPU pipeline via PIXI.Shader + RenderTexture per Deep Technical Guidance. | 🔴 V1 Shelved / V2 Planned | High | 2026-03-03 |
 | F-145 | Built-in filesystem themes: 5 curated + 3 hybrid composed themes, survives localStorage wipe. Themes embedded in `builtinThemes.ts`. | 🔄 In Progress | Medium | 2026-03-14 |
 | F-146 | Reusable HSLA widget for territory fill & border color controls. Replaces 6× duplicated inline sliders. Compact Grid+Flex layout, responsive. | 🔄 In Progress | Medium | 2026-03-14 |
-| F-147 | Built-in filesystem maps: saved maps embedded in build via `import.meta.glob`, survives localStorage wipe. Set deployment defaults + player map options. | 📋 Planned | Medium | 2026-03-14 |
+| F-147 | Built-in filesystem maps: embed maps via `import.meta.glob` (survive localStorage wipe). Import 8 classic Pax Galaxia `.txt` maps from `resources/pax-galaxia-maps/` (Arena, Boxed, CrissCross, DSpokes, Empire, Bigun, Crazy, Frontline). | 🔄 In Progress | Medium | 2026-03-14 |
 
 ## Known Regressions
 

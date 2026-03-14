@@ -39,6 +39,7 @@ import { audioManager } from '$lib/services/audioManager.svelte';
 import { GAME_CONFIG, buildEngineConfig } from '$lib/config/game.config';
 import { animationStore } from '$lib/stores/animationStore.svelte';
 import { activeGameStore } from '$lib/stores/activeGameStore.svelte';
+import { getBuiltinMaps } from '$lib/config/builtinMaps';
 
 // ============================================================================
 // Constants
@@ -671,13 +672,72 @@ let defaultMapName: string = $state(localStorage.getItem('pax_defaultMap') || ''
 function loadSavedMaps(): MapDefinition[] {
     try {
         const raw = localStorage.getItem('pax_savedMaps');
-        return raw ? JSON.parse(raw) : [];
-    } catch { return []; }
+        const userMaps: MapDefinition[] = raw ? JSON.parse(raw) : [];
+
+        // Merge built-in maps (builtIn flag set), dedup by name
+        const builtins = getBuiltinMaps();
+        const userNames = new Set(userMaps.map(m => m.metadata.name));
+        const merged = [...userMaps];
+        for (const bm of builtins) {
+            if (!userNames.has(bm.metadata.name)) {
+                merged.push(bm);
+            }
+        }
+        return merged;
+    } catch { return getBuiltinMaps(); }
 }
 
 function persistSavedMaps(): void {
     localStorage.setItem('pax_savedMaps', JSON.stringify(savedMaps));
 }
+
+/** Save a single map to filesystem (fire-and-forget) */
+function persistMapToFilesystem(map: MapDefinition): void {
+    try {
+        fetch('/__maps', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(map),
+        }).catch(() => { /* dev server may not be running */ });
+    } catch { /* noop */ }
+}
+
+/** Delete a map from filesystem (fire-and-forget) */
+function deleteMapFromFilesystem(name: string): void {
+    try {
+        fetch(`/__maps?name=${encodeURIComponent(name)}`, {
+            method: 'DELETE',
+        }).catch(() => { /* dev server may not be running */ });
+    } catch { /* noop */ }
+}
+
+/** Load maps from filesystem and merge with localStorage (async, called once at init) */
+async function loadFilesystemMaps(): Promise<void> {
+    try {
+        const res = await fetch('/__maps');
+        if (!res.ok) return;
+        const fsMaps: MapDefinition[] = await res.json();
+        if (!fsMaps.length) return;
+
+        // Merge: filesystem maps that aren't already in localStorage
+        const existingNames = new Set(savedMaps.map(m => m.metadata.name));
+        let added = 0;
+        for (const fsMap of fsMaps) {
+            if (!existingNames.has(fsMap.metadata.name)) {
+                savedMaps = [...savedMaps, fsMap];
+                existingNames.add(fsMap.metadata.name);
+                added++;
+            }
+        }
+        if (added > 0) {
+            persistSavedMaps(); // sync localStorage with filesystem discoveries
+            console.log(`[MAP] Loaded ${added} map(s) from filesystem`);
+        }
+    } catch { /* dev server may not be running */ }
+}
+
+// Trigger async filesystem load at module init
+loadFilesystemMaps();
 
 function setDefaultMap(name: string): void {
     defaultMapName = name;
@@ -726,12 +786,18 @@ function saveCurrentMap(name: string): void {
     savedMaps = savedMaps.filter(m => m.metadata.name !== name);
     savedMaps = [map, ...savedMaps];
     persistSavedMaps();
+    persistMapToFilesystem(map);
 }
 
 /** Delete a saved map by name */
 function deleteSavedMap(name: string): void {
+    // Block deletion of built-in maps
+    const map = savedMaps.find(m => m.metadata.name === name);
+    if (map && (map as any).builtIn) return;
+
     savedMaps = savedMaps.filter(m => m.metadata.name !== name);
     persistSavedMaps();
+    deleteMapFromFilesystem(name);
 }
 
 /** Set a saved map to be loaded on next startGame() */
@@ -742,15 +808,51 @@ function loadSavedMap(map: MapDefinition): void {
 /** Initialize from a saved MapDefinition */
 function initSavedMap(playerIds: string[], map: MapDefinition): void {
     const starTypes: StarType[] = ['grey', 'yellow', 'blue', 'purple', 'red', 'green'];
-    map.stars.forEach((s: MapDefinition['stars'][0], i: number) => {
-        const ownerId = playerIds[i % playerIds.length] ?? playerIds[0];
+
+    // Build faction → playerID remap table for classic maps
+    // Classic maps use 'player-A', 'player-B', etc. as ownerIds
+    // We need to remap these to actual playerIds ('human-player', 'ai-1', etc.)
+    const factionRemap = new Map<string, string>();
+    const mapFactions = new Set<string>();
+    for (const s of map.stars) {
+        if (s.ownerId && s.ownerId !== 'neutral' && s.ownerId !== '') {
+            mapFactions.add(s.ownerId);
+        }
+    }
+    const sortedFactions = Array.from(mapFactions).sort();
+    sortedFactions.forEach((faction, i) => {
+        if (i < playerIds.length) {
+            factionRemap.set(faction, playerIds[i]);
+        } else {
+            // More factions than players → assign to neutral
+            factionRemap.set(faction, 'neutral');
+        }
+    });
+
+    // Calculate coordinate scale — classic maps use ~800×500 coordinate space;
+    // scale to match current viewport if coordinates are in that range
+    const maxX = Math.max(...map.stars.map(s => s.x));
+    const maxY = Math.max(...map.stars.map(s => s.y));
+    const isPortrait = typeof window !== 'undefined' && window.innerHeight > window.innerWidth;
+    const targetW = isPortrait ? 900 : 1600;
+    const targetH = isPortrait ? 1600 : 900;
+    // Only scale if the map is small (legacy), leave modern maps as-is
+    const needsScale = maxX < 1000 && maxY < 600;
+    const scaleX = needsScale ? (targetW * 0.85) / (maxX || 1) : 1;
+    const scaleY = needsScale ? (targetH * 0.85) / (maxY || 1) : 1;
+    const offsetX = needsScale ? targetW * 0.075 : 0;
+    const offsetY = needsScale ? targetH * 0.075 : 0;
+
+    map.stars.forEach((s: MapDefinition['stars'][0]) => {
+        const isNeutral = !s.ownerId || s.ownerId === 'neutral' || s.ownerId === '';
+        const ownerId = isNeutral ? 'neutral' : (factionRemap.get(s.ownerId) ?? s.ownerId);
         const starType = s.starType || starTypes[Math.floor(Math.random() * starTypes.length)];
         const stats = STAR_TYPE_STATS[starType] || STAR_TYPE_STATS['grey'];
         const star = new StarSchema();
         star.id = s.id;
-        star.x = s.x;
-        star.y = s.y;
-        star.ownerId = s.ownerId || ownerId;
+        star.x = s.x * scaleX + offsetX;
+        star.y = s.y * scaleY + offsetY;
+        star.ownerId = ownerId;
         star.starType = starType;
         star.activeShips = s.activeShips ?? GAME_CONFIG.STARTING_SHIPS;
         star.damagedShips = 0;

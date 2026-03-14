@@ -30,11 +30,90 @@ function settingsDumpPlugin() {
   };
 }
 
+// Dev-only plugin: CRUD endpoints for saved maps at /__maps
+function mapPersistPlugin() {
+  return {
+    name: "map-persist",
+    /** @param {import('vite').ViteDevServer} server */
+    configureServer(server) {
+      const mapsDir = () => {
+        const dir = path.resolve(server.config.root, "..", "common", "resources", "saved-maps");
+        fs.mkdirSync(dir, { recursive: true });
+        return dir;
+      };
+
+      // GET /__maps → list all saved maps
+      // POST /__maps → save a map (body = MapDefinition JSON)
+      // DELETE /__maps?name=X → delete a map
+      server.middlewares.use("/__maps", (/** @type {import('http').IncomingMessage} */ req, /** @type {import('http').ServerResponse} */ res) => {
+        res.setHeader("Content-Type", "application/json");
+
+        if (req.method === "GET") {
+          try {
+            const dir = mapsDir();
+            const files = fs.readdirSync(dir).filter((/** @type {string} */ f) => f.endsWith(".json"));
+            const maps = files.map((/** @type {string} */ f) => {
+              const content = fs.readFileSync(path.join(dir, f), "utf-8");
+              return JSON.parse(content);
+            });
+            res.statusCode = 200;
+            res.end(JSON.stringify(maps));
+          } catch (e) {
+            res.statusCode = 500;
+            res.end(JSON.stringify({ error: String(e) }));
+          }
+          return;
+        }
+
+        if (req.method === "DELETE") {
+          try {
+            const url = new URL(req.url || "", "http://localhost");
+            const name = url.searchParams.get("name");
+            if (!name) { res.statusCode = 400; res.end(JSON.stringify({ error: "name required" })); return; }
+            const slug = name.replace(/[^a-zA-Z0-9_-]/g, "_").toLowerCase();
+            const filePath = path.join(mapsDir(), `${slug}.json`);
+            if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+            res.statusCode = 200;
+            res.end(JSON.stringify({ ok: true }));
+          } catch (e) {
+            res.statusCode = 500;
+            res.end(JSON.stringify({ error: String(e) }));
+          }
+          return;
+        }
+
+        if (req.method === "POST") {
+          let body = "";
+          req.on("data", (/** @type {string} */ chunk) => (body += chunk));
+          req.on("end", () => {
+            try {
+              const map = JSON.parse(body);
+              const name = map?.metadata?.name || "untitled";
+              const slug = name.replace(/[^a-zA-Z0-9_-]/g, "_").toLowerCase();
+              const filePath = path.join(mapsDir(), `${slug}.json`);
+              fs.writeFileSync(filePath, JSON.stringify(map, null, 2), "utf-8");
+              res.statusCode = 200;
+              res.end(JSON.stringify({ ok: true, file: `${slug}.json` }));
+            } catch (e) {
+              res.statusCode = 500;
+              res.end(JSON.stringify({ error: String(e) }));
+            }
+          });
+          return;
+        }
+
+        res.statusCode = 405;
+        res.end(JSON.stringify({ error: "Method not allowed" }));
+      });
+    },
+  };
+}
+
 const host = process.env.TAURI_DEV_HOST;
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
-  plugins: [sveltekit(), settingsDumpPlugin()],
+  plugins: [sveltekit(), settingsDumpPlugin(), mapPersistPlugin()],
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //

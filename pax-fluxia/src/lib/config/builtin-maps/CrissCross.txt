@@ -1,0 +1,67 @@
+players=4
+stars=60
+registered=0
+scalex=1.0
+scaley=1.0
+dx=0
+dy=0
+Y-A-s20-x157-y55-n1-sup0-blo0 22
+Y-0-s0-x159-y127-n2-sup0-blo0 22 54
+Y-0-s0-x259-y56-n3-sup0-blo0 22 56 4
+Y-0-s0-x206-y202-n2-sup0-blo0 23 54
+Y-0-s0-x315-y110-n3-sup0-blo0 23 56 2
+Y-C-s20-x745-y56-n1-sup0-blo0 24
+Y-0-s0-x654-y54-n2-sup0-blo0 24 59
+Y-0-s0-x747-y136-n2-sup0-blo0 24 55
+Y-0-s0-x566-y107-n2-sup0-blo0 25 59
+Y-0-s0-x699-y206-n2-sup0-blo0 25 55
+Y-D-s20-x747-y489-n1-sup0-blo0 26
+Y-0-s0-x745-y380-n2-sup0-blo0 26 55
+Y-0-s0-x663-y488-n2-sup0-blo0 26 57
+Y-0-s0-x542-y434-n2-sup0-blo0 27 57
+Y-0-s0-x663-y308-n2-sup0-blo0 27 55
+Y-B-s20-x154-y487-n1-sup0-blo0 20
+Y-0-s0-x156-y402-n2-sup0-blo0 20 54
+Y-0-s0-x257-y487-n2-sup0-blo0 20 58
+Y-0-s0-x360-y433-n2-sup0-blo0 21 58
+Y-0-s0-x207-y332-n2-sup0-blo0 21 54
+B-0-s0-x213-y441-n5-sup0-blo0 15 16 17 21 58
+B-0-s0-x275-y384-n5-sup0-blo0 20 19 18 30 58
+B-0-s0-x212-y103-n4-sup0-blo0 0 1 2 23
+B-0-s0-x272-y153-n4-sup0-blo0 22 3 4 31
+B-0-s0-x690-y117-n5-sup0-blo0 25 6 7 5 59
+B-0-s0-x644-y146-n5-sup0-blo0 28 8 9 24 59
+B-0-s0-x703-y441-n5-sup0-blo0 27 12 11 10 57
+B-0-s0-x603-y377-n5-sup0-blo0 29 13 14 26 57
+R-0-s0-x580-y185-n4-sup0-blo0 40 39 41 25
+R-0-s0-x567-y339-n4-sup0-blo0 37 38 46 27
+R-0-s0-x313-y347-n4-sup0-blo0 21 35 36 53
+R-0-s0-x325-y184-n4-sup0-blo0 23 34 32 33
+V-0-s0-x368-y150-n2-sup0-blo0 33 31
+V-0-s0-x365-y217-n4-sup0-blo0 34 32 31 42
+V-0-s0-x289-y223-n2-sup0-blo0 31 33
+V-0-s0-x274-y312-n2-sup0-blo0 30 53
+V-0-s0-x349-y382-n2-sup0-blo0 30 53
+V-0-s0-x532-y378-n2-sup0-blo0 46 29
+V-0-s0-x604-y300-n2-sup0-blo0 29 46
+V-0-s0-x625-y227-n2-sup0-blo0 28 41
+V-0-s0-x541-y153-n2-sup0-blo0 41 28
+V-0-s0-x538-y214-n4-sup0-blo0 43 40 39 28
+G-A-s3-x416-y174-n2-sup0-blo0 33 49
+G-C-s3-x494-y173-n2-sup0-blo0 41 50
+G-B-s3-x399-y355-n2-sup0-blo0 53 51
+G-D-s3-x484-y354-n2-sup0-blo0 46 52
+V-0-s0-x530-y305-n4-sup0-blo0 45 37 38 29
+O-0-s0-x315-y268-n3-sup0-blo0 54 51 49
+O-0-s0-x560-y260-n3-sup0-blo0 55 52 50
+O-0-s0-x417-y236-n5-sup0-blo0 47 42 50 52 51
+O-0-s0-x484-y235-n5-sup0-blo0 43 49 48 51 52
+O-0-s0-x405-y302-n5-sup0-blo0 47 44 52 50 49
+O-0-s0-x475-y300-n5-sup0-blo0 51 45 48 50 49
+V-0-s0-x354-y314-n4-sup0-blo0 35 30 36 44
+T-0-s0-x162-y267-n5-sup0-blo0 19 16 3 1 47
+T-0-s0-x749-y266-n5-sup0-blo0 7 11 14 9 48
+2-0-s0-x368-y54-n2-sup0-blo0 4 2
+2-0-s0-x574-y489-n4-sup0-blo0 13 12 27 26
+3-0-s0-x345-y485-n4-sup0-blo0 18 17 20 21
+3-0-s0-x576-y56-n4-sup0-blo0 8 6 24 25
