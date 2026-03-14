@@ -289,3 +289,34 @@
 ### D-68: PVV3 Is An Active Territory Runtime, Not A Legacy Method Bucket
 - **Decision**: PVV3 is now treated as an active runtime/backend and renderer host for the territory engine, not as a "legacy method" category. The `FG/DY/HY` identifiers remain the method contracts; PVV3 is the execution surface that can host them.
 - **Rationale**: FG2 now runs natively and PVV3 already consumes FG2 artifacts directly for fills, borders, and playback while still hosting adapter-backed routes for incomplete methods. Treating PVV3 as merely "legacy" obscures the actual architecture and leads to incorrect reasoning about how the 15 modes fit together.
+
+### D-69: Terminology Evaluation — Method vs Backend vs Contract vs Renderer Host (2026-03-14)
+- **Decision**: Of the four architectural terms used in the planning docs, two are **fully valid** and two are **partially valid**:
+  - ✅ **Algorithm family** (FG/DY/HY): Fully valid separation — static frontier, dynamic update, and hybrid orchestration are genuinely independent concerns.
+  - ✅ **Runtime/backend** (PVV2/PVV3/DF): Fully valid — the execution surface that renders is genuinely separate from the method that produces geometry.
+  - ⚠️ **Contract**: Aspirational, not enforced. Method descriptors have stable IDs but `TerritoryPipelineArtifacts` is generic `Record<string, unknown>`. Only FG2 produces real typed artifacts; other methods skip to adapter calls.
+  - ⚠️ **Renderer host**: Currently conflated with "backend" — PVV3 does artifact consumption and pixel drawing in the same function. Distinction becomes real only if a separate artifact-consumption layer exists.
+- **Implication**: The useful architectural axis is **method ≠ renderer**. The contract gap is the biggest risk for functional modularity — without typed method outputs, methods can't freely target different renderers.
+
+### D-70: Canonical Terminology — Territory / Front / Holding / Sector (2026-03-14)
+- **Decision**: All code, docs, and variables adopt this terminology going forward:
+  - **Territory**: A grouping of connected stars and all the space within its bounds
+  - **Front**: The line where opposing territories meet (replaces "frontier" in gameplay context)
+  - **Holding**: The sum total of a player's territories
+  - **Sector**: The game map
+  - (Future roadmap) **Frontier**: fronts facing unexplored space; **District**: higher-level map of sectors; **Quadrant**: higher-level map of districts; **Galaxy**: highest-level map of quadrants
+- **Action**: Variable/file rename inventory and migration plan to be created as a separate task. Code variable names like `ownerShells`, `frontierGraph`, `holdings` will be mapped to new canonical terms.
+
+### D-71: Renderer Inventory — 10 Renderers, Not 3 (2026-03-14)
+- **Decision**: The project has **10 territory renderers** available in the UI (9 active + 1 disabled), not 3. The territory engine's 15 sub-modes route through 3 of them via adapters, but they are not the only renderers:
+  1. Voronoi (basic d3-voronoi)
+  2. Modified Voronoi (disabled — causes freeze)
+  3. Metaball (WebGL shader)
+  4. Pixel (classic pixel-based)
+  5. Lane Territory (graph lanes)
+  6. Contour (vector marching-squares)
+  7. Power Voronoi V2 / PVV2 (weighted Voronoi, d3-weighted-voronoi)
+  8. PVV3 (frontier-first, consumes FG2 artifacts)
+  9. Territory Engine (15-mode orchestrator routing to PVV2/PVV3/DF)
+  10. Distance Field (GPU shader)
+- **Implication**: "Backend" and "renderer host" are retired terms. Use **renderer** for all. The territory engine is a mode selector that routes to renderers, not a renderer itself.

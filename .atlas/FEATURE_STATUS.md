@@ -64,6 +64,7 @@
 | B-35 | Vector borders (Pass 3) not rendering — PIXI v8 `extract.pixels()` is async (returns Promise), drawVectorBorders doesn't await it. Original `221241c` code has non-async call, causing silent failure. Same regression as previous session. | 🔴 Open | 2026-03-05 |
 | B-36 | Saved themes lost when localStorage cleared — themes only stored in LS, not persisted to disk. User-created data from intentional save actions MUST persist to file (see `common/resources/settings-themes/` for existing format) | 🔴 Open | 2026-03-06 |
 | B-37 | Territory (fills+borders) offset from starmap — entire DF territory layer misaligned with star positions. Stars not centered in their territories. Borders+fills align with each other but NOT with starmap. | 🔴 Active | 2026-03-06 |
+| B-38 | PVV2 enclave fill bug: when an outer holding completely surrounds an inner opponent holding, the outer fill covers the inner holding entirely. Outer owner's territory color overwrites the enclave. PVV2 `mergeSameOwnerCells` produces correct polygon boundaries but fill rendering has no hole/enclave subtraction — `fillGraphics.poly()` draws solid fills without cutting enclosed opponent regions. Visible in Territory Engine → FG1/DY4 route. FG2/PVV3 already solved via `ownerShells` + classified hole loops + PIXI `cut()` (D-62). | 🔴 Active | 2026-03-14 |
 
 ## Feature Ideas
 
@@ -82,7 +83,7 @@
 
 | ID | Description | Status | Date |
 |----|-------------|--------|------|
-| R-3 | PVV3 interim state: frontiers are not unified, territory adjacency has visible mismatch, border visibility toggles inconsistently with settings/gameplay, and transition animation behavior is geometrically incorrect. | ?? Active | 2026-03-12 |
+| R-3 | PVV3 interim state: frontiers are not unified, territory adjacency has visible mismatch, border visibility toggles inconsistently with settings/gameplay, and transition animation behavior is geometrically incorrect. | ✅ Fills fixed via FG2 canonical shells (`2f6234b`) | 2026-03-13 |
 
 ### Planned Features (Territory Engine)
 

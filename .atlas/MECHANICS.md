@@ -7,6 +7,31 @@ This document is the canonical, definitive specification of all game mechanics. 
 
 ---
 
+## 0. Canonical Terminology (D-70, 2026-03-14)
+
+All code, documentation, and agent communications use these terms:
+
+| Term | Definition |
+|------|-----------|
+| **Territory** | A grouping of connected same-owner stars and all the space within its bounds |
+| **Front** | The line/curve where two opposing territories meet |
+| **Holding** | The sum total of a player's territories across the sector |
+| **Sector** | The game map |
+
+**Future roadmap terms** (not yet in game):
+
+| Term | Definition |
+|------|-----------|
+| **Frontier** | A front that faces unexplored space |
+| **District** | A higher-level map composed of sectors |
+| **Quadrant** | A higher-level map composed of districts |
+| **Galaxy** | The highest-level map composed of quadrants |
+
+> [!NOTE]
+> Variable rename migration is tracked as a separate task. Code currently uses legacy names like `frontierGraph`, `ownerShells`, `holdings` etc. that will be mapped to canonical terms.
+
+---
+
 ## 1. Star Types
 
 Each star type has a **2× bonus** in one specialty. All other multipliers are 1.0.

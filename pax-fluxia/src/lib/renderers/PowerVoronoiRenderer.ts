@@ -93,6 +93,8 @@ let changedSiteIds: Set<string> | null = null; // stars that changed owner in th
 let prevMergedTerritories: MergedTerritory[] | null = null;
 let fillTransitionStart = 0;
 let isFillTransitioning = false;
+let lastEnclaveMap: Map<number, [number, number][][]> | null = null;
+let prevEnclaveMap: Map<number, [number, number][][]> | null = null;
 
 // ── Fingerprint ────────────────────────────────────────────────────────────
 
@@ -784,6 +786,74 @@ function mergeSameOwnerCells(
     return result;
 }
 
+// ── Enclave Detection (B-38) ──────────────────────────────────────────────
+
+/** Ray-casting point-in-polygon test. */
+function pointInPolygon(px: number, py: number, polygon: [number, number][]): boolean {
+    let inside = false;
+    const n = polygon.length;
+    for (let i = 0, j = n - 1; i < n; j = i++) {
+        const xi = polygon[i][0], yi = polygon[i][1];
+        const xj = polygon[j][0], yj = polygon[j][1];
+        if (((yi > py) !== (yj > py)) && (px < (xj - xi) * (py - yi) / (yj - yi) + xi)) {
+            inside = !inside;
+        }
+    }
+    return inside;
+}
+
+/** Compute centroid of a polygon (for enclave containment test). */
+function mergedCentroid(pts: [number, number][]): [number, number] {
+    let cx = 0, cy = 0;
+    const len = pts.length > 0 && pts[0][0] === pts[pts.length - 1][0] && pts[0][1] === pts[pts.length - 1][1]
+        ? pts.length - 1 : pts.length;
+    for (let i = 0; i < len; i++) { cx += pts[i][0]; cy += pts[i][1]; }
+    return len > 0 ? [cx / len, cy / len] : [0, 0];
+}
+
+/**
+ * Detect enclaves: for each merged territory, find other differently-owned
+ * territories whose centroid falls inside it. Returns a Map of territory
+ * index → array of enclave polygon point arrays to cut.
+ */
+function detectEnclaves(merged: MergedTerritory[]): Map<number, [number, number][][]> {
+    const enclaveMap = new Map<number, [number, number][][]>();
+    for (let outerIdx = 0; outerIdx < merged.length; outerIdx++) {
+        const outer = merged[outerIdx];
+        const holes: [number, number][][] = [];
+        for (let innerIdx = 0; innerIdx < merged.length; innerIdx++) {
+            if (innerIdx === outerIdx) continue;
+            const inner = merged[innerIdx];
+            if (inner.ownerId === outer.ownerId) continue;
+            const [cx, cy] = mergedCentroid(inner.points);
+            if (pointInPolygon(cx, cy, outer.points)) {
+                holes.push(inner.points);
+            }
+        }
+        if (holes.length > 0) {
+            enclaveMap.set(outerIdx, holes);
+        }
+    }
+    return enclaveMap;
+}
+
+/** Draw a territory fill with enclave holes cut out. */
+function drawTerritoryFillWithHoles(
+    graphics: PIXI.Graphics,
+    territory: MergedTerritory,
+    holes: [number, number][][] | undefined,
+    alpha: number,
+): void {
+    graphics.poly(territory.points.flat());
+    graphics.fill({ color: territory.color, alpha });
+    if (holes) {
+        for (const hole of holes) {
+            graphics.poly(hole.flat());
+            graphics.cut();
+        }
+    }
+}
+
 // ── Main Renderer ──────────────────────────────────────────────────────────
 
 export function renderPowerVoronoi(
@@ -819,20 +889,19 @@ export function renderPowerVoronoi(
         const alpha = GAME_CONFIG.VORONOI_ALPHA ?? 0.25;
 
         fillGraphics.clear();
-        // Prev fills fading out
-        for (const territory of prevMergedTerritories) {
-            fillGraphics.poly(territory.points.flat());
-            fillGraphics.fill({ color: territory.color, alpha: alpha * (1 - eased) });
+        // Prev fills fading out (with enclave holes)
+        for (let i = 0; i < prevMergedTerritories.length; i++) {
+            drawTerritoryFillWithHoles(fillGraphics, prevMergedTerritories[i], prevEnclaveMap?.get(i), alpha * (1 - eased));
         }
-        // Target fills fading in
-        for (const territory of lastMergedTerritories) {
-            fillGraphics.poly(territory.points.flat());
-            fillGraphics.fill({ color: territory.color, alpha: alpha * eased });
+        // Target fills fading in (with enclave holes)
+        for (let i = 0; i < lastMergedTerritories.length; i++) {
+            drawTerritoryFillWithHoles(fillGraphics, lastMergedTerritories[i], lastEnclaveMap?.get(i), alpha * eased);
         }
 
         if (rawT >= 1) {
             isFillTransitioning = false;
             prevMergedTerritories = null;
+            prevEnclaveMap = null;
             log.renderer('PVV2', 'fill crossfade complete');
         }
     }
@@ -960,6 +1029,7 @@ export function renderPowerVoronoi(
         // Fill crossfade: snapshot current merged territories
         if (lastMergedTerritories && lastMergedTerritories.length > 0) {
             prevMergedTerritories = lastMergedTerritories;
+            prevEnclaveMap = lastEnclaveMap;
         }
         // Cell change detection: snapshot previous cells for ownership comparison
         // (changedSiteIds populated after new cells are computed — see Stage 2c below)
@@ -1158,33 +1228,37 @@ export function renderPowerVoronoi(
     fillGraphics.clear();
     fillGraphics.visible = true;
 
+    // B-38: Detect enclaves (opponent territories fully inside another territory)
+    const enclaveMap = detectEnclaves(merged);
+    if (enclaveMap.size > 0) {
+        log.renderer('PVV2', `B-38 enclave detection: ${enclaveMap.size} territories contain enclaves`);
+    }
+
     // Fill crossfade: during transition, draw prev fills fading out + target fills fading in
     if (isFillTransitioning && prevMergedTerritories && transitionMs > 0) {
         const elapsed = now - fillTransitionStart;
         const rawT = Math.min(1, elapsed / transitionMs);
         const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
 
-        // Prev fills fading out
-        for (const territory of prevMergedTerritories) {
-            fillGraphics.poly(territory.points.flat());
-            fillGraphics.fill({ color: territory.color, alpha: alpha * (1 - eased) });
+        // Prev fills fading out (with enclave holes)
+        for (let i = 0; i < prevMergedTerritories.length; i++) {
+            drawTerritoryFillWithHoles(fillGraphics, prevMergedTerritories[i], prevEnclaveMap?.get(i), alpha * (1 - eased));
         }
-        // Target fills fading in
-        for (const territory of merged) {
-            fillGraphics.poly(territory.points.flat());
-            fillGraphics.fill({ color: territory.color, alpha: alpha * eased });
+        // Target fills fading in (with enclave holes)
+        for (let i = 0; i < merged.length; i++) {
+            drawTerritoryFillWithHoles(fillGraphics, merged[i], enclaveMap.get(i), alpha * eased);
         }
 
         if (rawT >= 1) {
             isFillTransitioning = false;
             prevMergedTerritories = null;
+            prevEnclaveMap = null;
             log.renderer('PVV2', 'fill crossfade complete');
         }
     } else {
-        // Steady-state: draw target fills at full alpha
-        for (const territory of merged) {
-            fillGraphics.poly(territory.points.flat());
-            fillGraphics.fill({ color: territory.color, alpha });
+        // Steady-state: draw target fills at full alpha (with enclave holes)
+        for (let i = 0; i < merged.length; i++) {
+            drawTerritoryFillWithHoles(fillGraphics, merged[i], enclaveMap.get(i), alpha);
         }
     }
 
@@ -1239,6 +1313,7 @@ export function renderPowerVoronoi(
     }
     targetBorderEdges = sharedEdges;
     lastMergedTerritories = merged;
+    lastEnclaveMap = enclaveMap;
 
     // Build polylines for morph transition (reuse from render block if available)
     {
@@ -1298,6 +1373,8 @@ export function resetPowerVoronoiCache(): void {
     // Fill crossfade state
     isFillTransitioning = false;
     prevMergedTerritories = null;
+    prevEnclaveMap = null;
+    lastEnclaveMap = null;
     fillTransitionStart = 0;
     // Cell change tracking state
     lastCells = null;
