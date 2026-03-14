@@ -5,7 +5,7 @@
 // Both components now import from this reactive store.
 // ============================================================================
 
-import { BUILTIN_THEMES } from '$lib/config/builtinThemes';
+import { BUILTIN_GAME_THEMES } from '$lib/config/builtinThemes';
 import {
     type GameTheme,
     applyTheme as applyThemeToConfig,
@@ -73,7 +73,7 @@ let _selectedThemeName = $state('');
 
 // ── Derived ─────────────────────────────────────────────────────────────────
 
-const allThemes = $derived([...BUILTIN_THEMES, ..._userThemes]);
+const allThemes = $derived([...BUILTIN_GAME_THEMES, ..._userThemes]);
 
 // ── Callbacks ───────────────────────────────────────────────────────────────
 
@@ -138,17 +138,10 @@ export const themeStore = {
         _userThemes = loadThemes();
     },
 
-    /** Export a theme as JSON download */
+    /** Export a theme as JSON download — always snapshots current GAME_CONFIG */
     exportTheme(name?: string): void {
-        if (name) {
-            const theme = allThemes.find(t => t.name === name);
-            if (theme) {
-                exportThemeJSON(theme);
-                return;
-            }
-        }
-        // Export current config as "Custom"
-        const t = extractTheme('Custom', 'Exported settings');
+        const themeName = name || 'Custom';
+        const t = extractTheme(themeName, 'Exported settings');
         exportThemeJSON(t);
     },
 

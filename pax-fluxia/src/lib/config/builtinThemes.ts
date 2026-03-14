@@ -89,8 +89,38 @@ function buildBuiltinThemes(): ComposedTheme[] {
     return themes;
 }
 
-/** All built-in themes, computed once at module load. */
+/** All built-in themes as ComposedTheme, computed once at module load. */
 export const BUILTIN_THEMES: ComposedTheme[] = buildBuiltinThemes();
+
+/**
+ * Built-in themes as GameTheme format (flat values) for themeStore compatibility.
+ * GameTheme has { name, description, created, values: Record<string, ...> }
+ */
+export const BUILTIN_GAME_THEMES: Array<{
+    name: string;
+    description: string;
+    created: string;
+    values: Record<string, number | string | boolean>;
+    builtIn: true;
+}> = BUILTIN_THEMES.map(t => {
+    const values: Record<string, number | string | boolean> = {};
+    for (const catValues of Object.values(t.categories)) {
+        if (catValues) {
+            for (const [k, v] of Object.entries(catValues)) {
+                if (typeof v === 'number' || typeof v === 'string' || typeof v === 'boolean') {
+                    values[k] = v;
+                }
+            }
+        }
+    }
+    return {
+        name: t.name,
+        description: '',
+        created: t.createdAt,
+        values,
+        builtIn: true as const,
+    };
+});
 
 /**
  * Extract per-category built-in presets from full themes.
