@@ -48,7 +48,9 @@
 | F-144 | Distance Field territory renderer V1 (CPU): graph-metric Dijkstra + lane projection + per-frame rasterization. **Shelved** — CPU rasterization too slow (0fps). V2 planned: GPU pipeline via PIXI.Shader + RenderTexture per Deep Technical Guidance. | 🔴 V1 Shelved / V2 Planned | High | 2026-03-03 |
 | F-145 | Built-in filesystem themes: 5 curated + 3 hybrid composed themes, survives localStorage wipe. Themes embedded in `builtinThemes.ts`. | 🔄 In Progress | Medium | 2026-03-14 |
 | F-146 | Reusable HSLA widget for territory fill & border color controls. Replaces 6× duplicated inline sliders. Compact Grid+Flex layout, responsive. | 🔄 In Progress | Medium | 2026-03-14 |
-| F-147 | Built-in filesystem maps: embed maps via `import.meta.glob` (survive localStorage wipe). Import 8 classic Pax Galaxia `.txt` maps from `resources/pax-galaxia-maps/` (Arena, Boxed, CrissCross, DSpokes, Empire, Bigun, Crazy, Frontline). | 🔄 In Progress | Medium | 2026-03-14 |
+| F-147 | Built-in filesystem maps: embed maps via `import.meta.glob` (survive localStorage wipe). Import 8 classic Pax Galaxia `.txt` maps. Filesystem CRUD via Vite `/__maps` endpoint. Faction remap, neutral preservation, coordinate scaling. | ✅ Done | Medium | 2026-03-14 |
+| F-149 | **Star System Scaling**: master slider binding sub-settings (star size, orbit radii, icon scale, ring offset, font size, data label location). Inner orbit padding needs negative range. Ownership ring needs full HSLA. Star size vs ring should be independent except via master. Lanes should terminate at/blend with ownership ring. | 📋 Planned | High | 2026-03-14 |
+| F-150 | Classic map spacing factor adjustment — allow user to control star spacing multiplier when loading classic maps (they are densely packed in ~800×500 space). | 📋 Planned | Medium | 2026-03-14 |
 
 ## Known Regressions
 
@@ -68,6 +70,8 @@
 | B-36 | Saved themes lost when localStorage cleared — themes only stored in LS, not persisted to disk. User-created data from intentional save actions MUST persist to file (see `common/resources/settings-themes/` for existing format) | 🔴 Open | 2026-03-06 |
 | B-37 | Territory (fills+borders) offset from starmap — entire DF territory layer misaligned with star positions. Stars not centered in their territories. Borders+fills align with each other but NOT with starmap. | 🔴 Active | 2026-03-06 |
 | B-38 | PVV2 enclave fill bug: when an outer holding completely surrounds an inner opponent holding, the outer fill covers the inner holding entirely. Outer owner's territory color overwrites the enclave. PVV2 `mergeSameOwnerCells` produces correct polygon boundaries but fill rendering has no hole/enclave subtraction — `fillGraphics.poly()` draws solid fills without cutting enclosed opponent regions. Visible in Territory Engine → FG1/DY4 route. FG2/PVV3 already solved via `ownerShells` + classified hole loops + PIXI `cut()` (D-62). | 🔴 Active | 2026-03-14 |
+| B-40 | Diagonal line render artifacts visible on classic maps — lines that appear as diagonal rendering glitches between star regions. May be territory shader or lane rendering issue. | 🔴 Open | 2026-03-14 |
+| B-41 | MSR (Min Star Radius?) should default to 100 in every theme and default settings but currently does not. | 🔴 Open | 2026-03-14 |
 | B-39 | Theme export uses selected preset name instead of user-given name — "export" button downloads JSON with the wrong `name` field | 🔴 Open | 2026-03-14 |
 
 ## Feature Ideas
