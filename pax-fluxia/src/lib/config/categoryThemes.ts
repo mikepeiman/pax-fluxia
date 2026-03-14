@@ -10,7 +10,7 @@
 // ============================================================================
 
 import { GAME_CONFIG } from '$lib/config/game.config';
-import { BUILTIN_THEMES, getBuiltinCategoryPresets } from './builtinThemes';
+import { getBuiltinThemes, getBuiltinCategoryPresets } from './builtinThemes';
 
 // ── Category IDs ────────────────────────────────────────────────────────────
 
@@ -485,10 +485,10 @@ export function listComposedThemes(): ComposedTheme[] {
     if (_composedCache === null) _composedCache = loadComposedThemes();
     // Merge user themes (first) with filesystem built-ins (last)
     const userThemes = [..._composedCache];
-    const builtInNames = new Set(BUILTIN_THEMES.map(t => t.name));
+    const builtInNames = new Set(getBuiltinThemes().map(t => t.name));
     // Don't duplicate if user saved one with same name as built-in
     const merged = userThemes.filter(t => !builtInNames.has(t.name));
-    merged.push(...BUILTIN_THEMES);
+    merged.push(...getBuiltinThemes());
     return merged;
 }
 
@@ -503,7 +503,7 @@ export function saveComposedTheme(name: string): ComposedTheme {
 
 export function deleteComposedTheme(name: string): void {
     // Block deletion of built-in themes
-    if (BUILTIN_THEMES.some(t => t.name === name)) return;
+    if (getBuiltinThemes().some(t => t.name === name)) return;
     const userOnly = (_composedCache ?? loadComposedThemes()).filter(t => t.name !== name);
     _composedCache = userOnly;
     persistComposedThemes(userOnly);

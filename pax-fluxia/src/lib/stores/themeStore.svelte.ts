@@ -5,7 +5,7 @@
 // Both components now import from this reactive store.
 // ============================================================================
 
-import { BUILTIN_GAME_THEMES } from '$lib/config/builtinThemes';
+import { getBuiltinGameThemes } from '$lib/config/builtinThemes';
 import {
     type GameTheme,
     applyTheme as applyThemeToConfig,
@@ -73,7 +73,7 @@ let _selectedThemeName = $state('');
 
 // ── Derived ─────────────────────────────────────────────────────────────────
 
-const allThemes = $derived([...BUILTIN_GAME_THEMES, ..._userThemes]);
+const allThemes = $derived([...getBuiltinGameThemes(), ..._userThemes]);
 
 // ── Callbacks ───────────────────────────────────────────────────────────────
 

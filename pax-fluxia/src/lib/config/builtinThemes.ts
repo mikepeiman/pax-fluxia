@@ -89,38 +89,49 @@ function buildBuiltinThemes(): ComposedTheme[] {
     return themes;
 }
 
-/** All built-in themes as ComposedTheme, computed once at module load. */
-export const BUILTIN_THEMES: ComposedTheme[] = buildBuiltinThemes();
+/** All built-in themes as ComposedTheme, lazily computed on first access. */
+let _builtinThemesCache: ComposedTheme[] | null = null;
+export function getBuiltinThemes(): ComposedTheme[] {
+    if (!_builtinThemesCache) _builtinThemesCache = buildBuiltinThemes();
+    return _builtinThemesCache;
+}
 
 /**
  * Built-in themes as GameTheme format (flat values) for themeStore compatibility.
  * GameTheme has { name, description, created, values: Record<string, ...> }
  */
-export const BUILTIN_GAME_THEMES: Array<{
+let _builtinGameThemesCache: Array<{
     name: string;
     description: string;
     created: string;
     values: Record<string, number | string | boolean>;
     builtIn: true;
-}> = BUILTIN_THEMES.map(t => {
-    const values: Record<string, number | string | boolean> = {};
-    for (const catValues of Object.values(t.categories)) {
-        if (catValues) {
-            for (const [k, v] of Object.entries(catValues)) {
-                if (typeof v === 'number' || typeof v === 'string' || typeof v === 'boolean') {
-                    values[k] = v;
+}> | null = null;
+
+export function getBuiltinGameThemes() {
+    if (!_builtinGameThemesCache) {
+        _builtinGameThemesCache = getBuiltinThemes().map(t => {
+            const values: Record<string, number | string | boolean> = {};
+            for (const catValues of Object.values(t.categories)) {
+                if (catValues) {
+                    for (const [k, v] of Object.entries(catValues)) {
+                        if (typeof v === 'number' || typeof v === 'string' || typeof v === 'boolean') {
+                            values[k] = v;
+                        }
+                    }
                 }
             }
-        }
+            return {
+                name: t.name,
+                description: '',
+                created: t.createdAt,
+                values,
+                builtIn: true as const,
+            };
+        });
     }
-    return {
-        name: t.name,
-        description: '',
-        created: t.createdAt,
-        values,
-        builtIn: true as const,
-    };
-});
+    return _builtinGameThemesCache;
+}
 
 /**
  * Extract per-category built-in presets from full themes.
@@ -135,7 +146,7 @@ export function getBuiltinCategoryPresets(category: ThemeCategory) {
         builtIn: true;
     }> = [];
 
-    for (const theme of BUILTIN_THEMES) {
+    for (const theme of getBuiltinThemes()) {
         const catValues = theme.categories[category];
         if (catValues && Object.keys(catValues).length > 0) {
             presets.push({
@@ -150,3 +161,4 @@ export function getBuiltinCategoryPresets(category: ThemeCategory) {
 
     return presets;
 }
+
