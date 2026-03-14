@@ -77,8 +77,10 @@ const allThemes = $derived([...BUILTIN_THEMES, ..._userThemes]);
 
 // ── Callbacks ───────────────────────────────────────────────────────────────
 
-type SyncCallback = () => void;
-let _syncCallback: SyncCallback | null = null;
+type SyncCallback = (() => void) | null;
+type ApplyCallback = ((values: Record<string, number | string | boolean>) => void) | null;
+let _syncCallback: SyncCallback = null;
+let _applyCallback: ApplyCallback = null;
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
@@ -93,11 +95,17 @@ export const themeStore = {
         _syncCallback = cb;
     },
 
+    /** Register a canonical apply callback so theme values update panel + runtime together */
+    registerApplyCallback(cb: ApplyCallback) {
+        _applyCallback = cb;
+    },
+
     /** Apply a theme by name — writes to GAME_CONFIG, triggers sync */
     applyTheme(name: string): boolean {
         const theme = allThemes.find(t => t.name === name);
         if (!theme) return false;
-        applyThemeToConfig(theme);
+        if (_applyCallback) _applyCallback(theme.values as Record<string, number | string | boolean>);
+        else applyThemeToConfig(theme);
         _selectedThemeName = name;
         _syncCallback?.();
         // Dispatch event for any listeners (e.g., sidebar ↔ settings panel)
@@ -150,7 +158,8 @@ export const themeStore = {
             return false;
         }
         persistTheme(theme);
-        applyThemeToConfig(theme);
+        if (_applyCallback) _applyCallback(theme.values as Record<string, number | string | boolean>);
+        else applyThemeToConfig(theme);
         _userThemes = loadThemes();
         _selectedThemeName = theme.name;
         _syncCallback?.();
@@ -162,3 +171,4 @@ export const themeStore = {
         return _userThemes.some(t => t.name === name);
     },
 };
+

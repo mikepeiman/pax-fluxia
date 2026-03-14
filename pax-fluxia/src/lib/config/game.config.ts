@@ -252,10 +252,77 @@ interface GameConfigType {
 
     // ── Territory Toggles ──────────────────────────────────────────────────────
     TERRITORY_VORONOI: boolean;    // Enable Voronoi territory renderer (default true)
+    TERRITORY_MODIFIED_VORONOI: boolean; // Enable Modified Voronoi territory renderer (F-138, default false)
+    TERRITORY_POWER_VORONOI: boolean;    // Enable Power Voronoi V2 territory renderer (F-138v2, default false)
+    TERRITORY_PVV3: boolean;              // Enable PVV3 frontier-first territory renderer (default false)
+    TERRITORY_ENGINE_ENABLED: boolean;    // Enable modular territory engine router (default false)
+    TERRITORY_ENGINE_STATIC_METHOD: 'fg1_adaptive_field' | 'fg2_seed_graph' | 'fg3_implicit_trace' | 'fg4_pairwise_arrangement' | 'fg5_rt_assisted_publish';
+    TERRITORY_ENGINE_TRACE_MODE: boolean; // Emit staged trace snapshots for the modular engine (default false)
+    TERRITORY_ENGINE_MODE: 'static' | 'dynamic' | 'hybrid'; // Select static frontier build, dynamic update, or hybrid program
+    TERRITORY_ENGINE_DYNAMIC_METHOD: 'dy1_span_graph_morph' | 'dy2_local_delta_patch' | 'dy3_field_interp_stabilized' | 'dy4_optimal_transport' | 'dy5_corridor_event_decomposition';
+    TERRITORY_ENGINE_HYBRID_PLAN: 'hy1_static_backbone_dynamic_refine' | 'hy2_seed_graph_local_delta' | 'hy3_implicit_field_transport' | 'hy4_pairwise_patch_transport' | 'hy5_rt_publish_corridor_events';
+    TERRITORY_ENGINE_STEP_MODE: boolean; // Interactive stage stepping for territory engine diagnostics
+    TERRITORY_ENGINE_STEP_ADVANCE_TOKEN: number; // Increment to advance one stage when step mode is enabled
+    TERRITORY_TRANSITION_MS: number;      // Duration of territory morph animation in ms (0 = instant, default 400)
+    TERRITORY_MORPH_CONTROL_POINTS: number; // Number of control points for frontier loop morphing (5-300, default 32)
+    TERRITORY_BOUNDARY_MODE: 'segment' | 'smooth';  // 'segment' = edge-level lerp, 'smooth' = flubber polygon morph
+    TERRITORY_FILL_MODE: 'crossfade' | 'frontier';  // 'crossfade' = alpha-fade fills, 'frontier' = infill from frontier loops
     TERRITORY_METABALL: boolean;   // Enable Metaball territory renderer (default false)
     TERRITORY_PIXEL: boolean;      // Enable Pixel (nearest-neighbor) territory renderer (default false)
     TERRITORY_CLUSTER_SPLIT: boolean; // Split disconnected same-owner stars into separate territory blobs (default false)
     TERRITORY_MODE: 'voronoi' | 'metaball' | 'off';  // LEGACY — kept for compat
+    TERRITORY_DISTANCE_FIELD: boolean; // Enable distance-field territory renderer (default false)
+
+    // ── Distance Field Territory ──────────────────────────────────────────────
+    DF_RESOLUTION: number;          // Grid resolution divisor (4 = quarter res, default 4)
+    DF_ALPHA: number;               // Fill opacity (default 0.3)
+    DF_BORDER_WIDTH: number;        // Border band width in world px (default 15)
+    DF_BORDER_SOFTNESS: number;     // Border feather width in world px (default 8)
+    DF_BORDER_ALPHA: number;        // Border opacity multiplier (default 0.8)
+    DF_BORDER_BRIGHTEN: number;     // Border color brightening amount 0-255 (default 40)
+    DF_BORDER_MODE: number;         // Border rendering mode: 0=gap (organic), 1=even (uniform width), 2=layered (fwidth-diff)
+    DF_BORDER_FAMILY: 'straight' | 'curved' | 'segmented'; // Vector border family dispatch (default 'straight')
+    DF_BORDER_ENGINE: 'mesh' | 'legacy_field' | 'legacy_grid'; // Border engine routing: mesh canonical + legacy reference modes
+    DF_CANONICAL_FRONTIER_RUNTIME_MODE: 'disabled' | 'diagnostic' | 'production'; // Canonical frontier rollout gate (default 'disabled')
+    DF_CANONICAL_FRONTIER_DIAGNOSTIC_SHOW: boolean; // Render canonical frontier in diagnostic mode when true
+    DF_BORDER_HQ_ENABLED: boolean;  // Enable supersampled border field for smoother edges (default false)
+    DF_BORDER_HQ_SCALE: number;     // Supersample factor for ownership/JFA pass (1.0-4.0, default 2.0)
+    DF_BORDER_HQ_MAX_DIM: number;   // Max ownership/JFA texture dimension in HQ mode (default 8192)
+    DF_VECTOR_BORDERS_ENABLED: boolean; // Draw DF borders using vector polylines (default false)
+    DF_VECTOR_GRID_RESOLUTION: number;  // Ownership sampling grid on long axis (default 192)
+    DF_VECTOR_SMOOTHING: number;        // Straight-line regularization passes for vector borders (default 1)
+    DF_VECTOR_SIMPLIFY: number;         // Polyline simplify tolerance in world px (default 0.5)
+    DF_VECTOR_UPDATE_MS: number;        // Rebuild interval while morphing (ms, default 33)
+    DF_MORPH_EASING: 'linear' | 'easeInOutQuad' | 'easeInOutCubic' | 'smoothstep'; // Fill/border morph easing curve (default 'linear')
+    DF_DISTANCE_METRIC: 'hops' | 'length'; // Distance metric (default 'length')
+    DF_BLUR: number;                // Post-render blur strength (default 2)
+    DF_HUE: number;                 // Hue shift in degrees -180..180 (default 0)
+    DF_SATURATION: number;          // Color saturation mult (default 0.7)
+    DF_LIGHTNESS: number;           // Color lightness mult (default 0.5)
+    DF_EDGE_FADE: number;           // Edge fade padding in px (default 200)
+    DF_ROUNDING: number;            // Canvas-level blur to round sharp territory corners (default 3)
+    DF_INFLUENCE_WEIGHT: number;    // How much graph distance matters (0 = pure Voronoi, 1.0 = full influence, default 1.0)
+    DF_EXPANSION: number;           // Mesh quad expansion factor beyond padding (0.0 = none, 0.5 = 50%, default 0.10)
+    DF_SMOOTHING: number;           // Junction corner smoothing radius in influence units (0 = sharp, default 30)
+    DF_MIN_STAR_RADIUS: number;     // Minimum guaranteed territory radius around each star in px (default 40)
+    DF_CORRIDOR_ENABLED: boolean;   // Enable corridor virtual sites along same-owner lanes
+    DF_CORRIDOR_MODE: string;       // 'spacing' = fixed px distance, 'count' = fixed count per lane
+    DF_CORRIDOR_SPACING: number;    // Distance between corridor virtual sites in px (default 60)
+    DF_CORRIDOR_COUNT: number;      // Fixed number of virtual stars per lane (default 3)
+    DF_CORRIDOR_WEIGHT: number;     // Corridor influence weight multiplier (default 1.0)
+    DF_DISCONNECT_ENABLED: boolean; // Enable disconnect virtual sites between unconnected same-owner stars
+    DF_DISCONNECT_DISTANCE: number; // Max distance for disconnect detection in px (default 400)
+    DF_DISCONNECT_WEIGHT: number;   // Disconnect influence weight multiplier (default 0.3)
+
+    // ── Modified Voronoi Territory (F-138) ────────────────────────────────────
+    MODIFIED_VORONOI_STAR_MARGIN: number;      // Min boundary distance from star centers in px (0-500)
+    MODIFIED_VORONOI_ARC_STRENGTH: number;     // How far to retract sharp vertex toward origin (0-1)
+    MODIFIED_VORONOI_ARC_THRESHOLD: number;    // Interior angle below which arc smoothing activates (°)
+    MODIFIED_VORONOI_ARC_MIN_SEGMENT: number;  // Min line-segment length for Bézier tessellation (px)
+    MODIFIED_VORONOI_CORRIDOR_ENABLED: boolean; // Inject virtual sites along same-owner lanes for corridor effect
+    MODIFIED_VORONOI_CORRIDOR_SPACING: number;  // Distance between virtual corridor sites in px (20-200)
+    MODIFIED_VORONOI_DISCONNECT_ENABLED: boolean; // Inject enemy virtual sites to separate non-connected same-owner territories
+    MODIFIED_VORONOI_DISCONNECT_DISTANCE: number; // Max distance between same-owner stars for disconnect injection (px)
 
     // ── Voronoi Territory ───────────────────────────────────────────────────
     SHOW_VORONOI: boolean;         // Show contiguous Voronoi territory fill (default true)
@@ -265,6 +332,7 @@ interface GameConfigType {
     VORONOI_BORDER_WIDTH: number;  // Border line width between territories in pixels (0=off, default 2)
     VORONOI_BORDER_ALPHA: number;  // Alpha for territory border lines (default 0.4)
     VORONOI_BORDER_BRIGHTEN: number; // How much to brighten border color (0-255, default 80)
+    VORONOI_BORDER_SMOOTH: number;   // Chaikin smoothing passes for PVV2 shared-edge borders (0=angular, 1-5=rounded, default 3)
     VORONOI_SATURATION: number;    // Saturation multiplier for Voronoi colors (0=grey, 1=normal, 2=vivid, default 1.0)
     VORONOI_LIGHTNESS: number;     // Lightness multiplier for Voronoi colors (0=dark, 1=normal, 2=bright, default 0.7)
     VORONOI_GLOW_RADIUS: number;   // Territory glow bleed radius as fraction of map size (0-1, default 0.3)
@@ -340,6 +408,23 @@ interface GameConfigType {
     BORDER_FEEL: 'raw' | 'smooth' | 'angular';  // Border shape style: raw=pixel edges, smooth=morphological, angular=geometric segments
     BORDER_SMOOTH: number;           // Smoothing iterations for border feel (0-5, default 2)
 
+    // ── Contour Territory (5th mode — vector contour extraction) ──
+    TERRITORY_CONTOUR: boolean;      // Enable contour territory renderer (default false)
+    CONTOUR_RESOLUTION: number;      // Grid size for ownership computation (64-256, default 128)
+    CONTOUR_SIMPLIFY: number;        // Douglas-Peucker tolerance (0-20, default 5)
+    CONTOUR_SMOOTH: number;          // Chaikin subdivision iterations (0-4, default 2)
+    CONTOUR_FILL_ALPHA: number;      // Fill opacity (0-1, default 0.15)
+    CONTOUR_BORDER_WIDTH: number;    // Border stroke width (0-8, default 2)
+    CONTOUR_BORDER_ALPHA: number;    // Border opacity (0-1, default 0.6)
+    CONTOUR_BORDER_BRIGHTEN: number; // Border brighten amount (0-255, default 80)
+    CONTOUR_SATURATION: number;      // Saturation multiplier (0-2, default 1.0)
+    CONTOUR_LIGHTNESS: number;       // Lightness multiplier (0-2, default 1.0)
+    CONTOUR_CORNER_RADIUS: number;   // Corner rounding radius in grid cells (0=off, 1-10)
+    CONTOUR_CORNER_THRESHOLD: number;// Angle threshold in degrees below which corners are rounded (0-180, default 120)
+    CONTOUR_PERIPHERY_STRENGTH: number; // Periphery ownership strength (0=off, 1=full hull override)
+    CONTOUR_PERIPHERY_INSET: number; // How far inside the lane the periphery boundary sits (px, default 0)
+    CONTOUR_JUNCTION_CORRECTION: number; // F-135: Angle equalization at multi-owner junctions (0=off, 1=full, default 0.5)
+
     SHOW_HEX_GRID: boolean;
     STARS_PER_PLAYER: number;
 
@@ -353,6 +438,60 @@ interface GameConfigType {
     // Link Connectivity
     MIN_LINKS_PER_STAR: number;
     MAX_LINKS_PER_STAR: number;
+
+    // ── Audio Settings ──────────────────────────────────────────────────────
+    AUDIO_MASTER_VOLUME: number;         // Master volume (0-1, default 0.5)
+    AUDIO_MUTED: boolean;                // Global mute (default false)
+    AUDIO_SEPARATE_CONQUEST: boolean;    // Use subtype-specific conquest sounds (default true)
+
+    // Per-sound volumes (0-1)
+    AUDIO_VOL_CLICK: number;
+    AUDIO_VOL_MOVE: number;
+    AUDIO_VOL_ATTACK: number;
+    AUDIO_VOL_CHAT: number;
+    AUDIO_VOL_TICK: number;
+    AUDIO_VOL_PLAY: number;
+    AUDIO_VOL_LOSE: number;
+    AUDIO_VOL_WIN: number;
+    AUDIO_VOL_NEW_PLAYER: number;
+    AUDIO_VOL_CONQUEST: number;
+    AUDIO_VOL_CONQUEST_RETREAT: number;
+    AUDIO_VOL_CONQUEST_SCATTER: number;
+    AUDIO_VOL_CONQUEST_COMPLETE: number;
+    AUDIO_VOL_STARLOSS: number;
+
+    // Per-sound file paths (relative to /sounds/)
+    AUDIO_FILE_CLICK: string;
+    AUDIO_FILE_MOVE: string;
+    AUDIO_FILE_ATTACK: string;
+    AUDIO_FILE_CHAT: string;
+    AUDIO_FILE_TICK: string;
+    AUDIO_FILE_PLAY: string;
+    AUDIO_FILE_LOSE: string;
+    AUDIO_FILE_WIN: string;
+    AUDIO_FILE_NEW_PLAYER: string;
+    AUDIO_FILE_CONQUEST: string;
+    AUDIO_FILE_CONQUEST_RETREAT: string;
+    AUDIO_FILE_CONQUEST_SCATTER: string;
+    AUDIO_FILE_CONQUEST_COMPLETE: string;
+    AUDIO_FILE_STARLOSS: string;
+
+    // Per-sound start offset in seconds — keyed to the current file.
+    // When loading a theme, offsets only apply if the file path matches.
+    AUDIO_OFFSET_CLICK: number;
+    AUDIO_OFFSET_MOVE: number;
+    AUDIO_OFFSET_ATTACK: number;
+    AUDIO_OFFSET_CHAT: number;
+    AUDIO_OFFSET_TICK: number;
+    AUDIO_OFFSET_PLAY: number;
+    AUDIO_OFFSET_LOSE: number;
+    AUDIO_OFFSET_WIN: number;
+    AUDIO_OFFSET_NEW_PLAYER: number;
+    AUDIO_OFFSET_CONQUEST: number;
+    AUDIO_OFFSET_CONQUEST_RETREAT: number;
+    AUDIO_OFFSET_CONQUEST_SCATTER: number;
+    AUDIO_OFFSET_CONQUEST_COMPLETE: number;
+    AUDIO_OFFSET_STARLOSS: number;
 }
 
 /**
@@ -449,22 +588,22 @@ const _rawConfig: GameConfigType = {
     // ========================================================================
 
     /** Tilts damage toward attacker (>1) or defender (<1). 1.0 = symmetric. */
-    AGGRESSOR_ADVANTAGE: 0.8333333333333334,
+    AGGRESSOR_ADVANTAGE: 0.7,
 
     /** Global damage scalar (percentage). 100 = full, 50 = half, 200 = double */
-    GLOBAL_DAMAGE_MODIFIER: 100,
+    GLOBAL_DAMAGE_MODIFIER: 8,
 
     /** Fraction of damage that destroys ships (rest disables). Range: 0-1 */
-    LETHALITY: 0.1,
+    LETHALITY: 0.25,
 
     /** How much numerical superiority matters. 0 = none, 1 = dominant */
     FORCE_RATIO_EFFECT: 0,
 
     /** Overwhelm ratio for instant conquest (need Nx enemy ships) */
-    CONQUEST_THRESHOLD: 12,
+    CONQUEST_THRESHOLD: 25,
 
     /** percentage each damaged ship contributes to defense, as a percentage x 100 */
-    DAMAGED_SHIP_EFFECTIVENESS: 0.1,
+    DAMAGED_SHIP_EFFECTIVENESS: 0.5,
 
     // ========================================================================
     // PRODUCTION
@@ -487,14 +626,14 @@ const _rawConfig: GameConfigType = {
     /** Repair multiplier when under attack (0.0 - 1.0) */
     REPAIR_COMBAT_PENALTY: 0.1,
     REPAIR_SUPPRESS_ATTACKER: 0.5,
-    REPAIR_SUPPRESS_DEFENDER: 0.1,
+    REPAIR_SUPPRESS_DEFENDER: 0.9,
 
     // ========================================================================
     // CONQUEST
     // ========================================================================
 
     /** Percentage of remaining ships that transfer on capture */
-    CONQUEST_TRANSFER_PERCENTAGE: 30,
+    CONQUEST_TRANSFER_PERCENTAGE: 40,
 
     /** Defender strength ratio below which they are instantly overwhelmed (e.g. 0.1 = 10% of attackers) */
     OVERWHELM_THRESHOLD: 0.1,
@@ -518,20 +657,20 @@ const _rawConfig: GameConfigType = {
     // ========================================================================
 
     /** % of ships captured when defender is actively retreating to friendly star */
-    RETREAT_CAPTURE_RATE: 0.25,
+    RETREAT_CAPTURE_RATE: 0.1,
 
     /** % of ships captured when defender has escape routes but not retreating */
-    SCATTER_CAPTURE_RATE: 0.4,
+    SCATTER_CAPTURE_RATE: 0.2,
 
     /** % of non-captured ships destroyed during scatter (rest escape) */
     SCATTER_DESTROY_RATE: 0.5,
 
     /** % of damaged ships converted to active on retreat/scatter (0=stay damaged, 1=all activate) */
-    RETREAT_DAMAGED_ACTIVATION_RATE: 0,
+    RETREAT_DAMAGED_ACTIVATION_RATE: 0.1,
 
 
     /** Starting ships per star at game start */
-    STARTING_SHIPS: 40,
+    STARTING_SHIPS: 70,
 
     // ========================================================================
     // AI BEHAVIOR
@@ -704,11 +843,11 @@ const _rawConfig: GameConfigType = {
     /** Star glow settings */
     STAR_GLOW_ON: true,
     /** Ownership ring offset from star center (% of radius) */
-    STAR_RING_OFFSET: 20,
+    STAR_RING_OFFSET: 18,
     /** Ownership ring stroke width (px) */
-    STAR_RING_WIDTH: 2,
+    STAR_RING_WIDTH: 2.5,
     /** Ownership ring alpha (0-1) */
-    STAR_RING_ALPHA: 0.8,
+    STAR_RING_ALPHA: 1,
     STAR_GLOW_RADIUS_MULT: 1.3,
     STAR_GLOW_INTENSITY: 0.25,
     STAR_GLOW_LAYERS: 4,
@@ -784,14 +923,14 @@ const _rawConfig: GameConfigType = {
     /** Show star power alpha overlay behind stars (F-47) */
     SHOW_STAR_POWER: true,
     /** Star power overlay alpha (0-1) */
-    STAR_POWER_ALPHA: 0.3,
+    STAR_POWER_ALPHA: 0.195,
     /** Star power radius multiplier relative to star radius */
-    STAR_POWER_RADIUS_MULT: 3,
+    STAR_POWER_RADIUS_MULT: 2.5,
     /** Number of concentric gradient layers */
-    STAR_POWER_LAYERS: 4,
+    STAR_POWER_LAYERS: 8,
     /** GPU blur on star power halos (0=off) */
-    STAR_POWER_BLUR: 4,
-    HALO_FLEET_SCALE: true,
+    STAR_POWER_BLUR: 16,
+    HALO_FLEET_SCALE: false,
     /** Fleet halo mode: 'stepped' or 'linear' */
     HALO_FLEET_MODE: 'stepped',
     /** Fleet halo intensity multiplier (0=off, 1=default, 2=strong) */
@@ -803,6 +942,35 @@ const _rawConfig: GameConfigType = {
 
     /** Enable Voronoi territory renderer */
     TERRITORY_VORONOI: false,
+    /** Enable Modified Voronoi territory renderer (F-138) */
+    TERRITORY_MODIFIED_VORONOI: false,
+    /** Enable Power Voronoi V2 territory renderer (F-138v2) */
+    TERRITORY_POWER_VORONOI: true,
+    /** Enable PVV3 frontier-first territory renderer */
+    TERRITORY_PVV3: false,
+    /** Enable modular territory engine router */
+    TERRITORY_ENGINE_ENABLED: false,
+    /** Active static frontier method when modular territory engine is enabled */
+    TERRITORY_ENGINE_STATIC_METHOD: 'fg2_seed_graph' as const,
+    /** Emit staged trace snapshots in modular engine */
+    TERRITORY_ENGINE_TRACE_MODE: false,
+    /** Territory engine execution mode: static frontier build, dynamic update pass, or hybrid plan */
+    TERRITORY_ENGINE_MODE: 'static' as const,
+    /** Active dynamic update method when territory engine mode is dynamic */
+    TERRITORY_ENGINE_DYNAMIC_METHOD: 'dy2_local_delta_patch' as const,
+    /** Active hybrid program when territory engine mode is hybrid */
+    TERRITORY_ENGINE_HYBRID_PLAN: 'hy2_seed_graph_local_delta' as const,
+    /** Step through pipeline stages one-by-one (diagnostic mode) */
+    TERRITORY_ENGINE_STEP_MODE: false,
+    /** Incrementing token used to advance one stage in step mode */
+    TERRITORY_ENGINE_STEP_ADVANCE_TOKEN: 0,
+    /** Duration of territory morph/crossfade animation in ms (0=instant) */
+    TERRITORY_TRANSITION_MS: 350,
+    /** Number of control points for frontier loop morphing (5-300) */
+    TERRITORY_MORPH_CONTROL_POINTS: 32,
+    TERRITORY_BOUNDARY_MODE: 'segment' as const,
+    /** Fill transition mode: 'crossfade' = alpha-fade, 'frontier' = infill from frontier loops */
+    TERRITORY_FILL_MODE: 'frontier' as const,
     /** Enable Metaball territory renderer */
     TERRITORY_METABALL: false,
     /** Enable Pixel (nearest-neighbor) territory renderer */
@@ -815,19 +983,21 @@ const _rawConfig: GameConfigType = {
     /** Show contiguous Voronoi territory fill */
     SHOW_VORONOI: false,
     /** Voronoi territory alpha (0-1) */
-    VORONOI_ALPHA: 0.25,
+    VORONOI_ALPHA: 0.23,
     /** Voronoi canvas downscale factor (higher = faster/blockier) */
     VORONOI_RESOLUTION: 2,
     /** Legacy (unused with d3-delaunay) */
     VORONOI_EDGE_BLEND: 2.3,
     /** Voronoi border line width between territories (0=off) */
-    VORONOI_BORDER_WIDTH: 8,
+    VORONOI_BORDER_WIDTH: 2,
     /** Voronoi border alpha */
     VORONOI_BORDER_ALPHA: 0.35,
     /** How much to brighten border color (0-255) */
     VORONOI_BORDER_BRIGHTEN: 20,
+    /** Chaikin smoothing passes for PVV2 shared-edge borders (0=angular, 3=rounded, 5=very smooth) */
+    VORONOI_BORDER_SMOOTH: 3,
     /** Voronoi color saturation multiplier (0=grey, 1=original, 2=vivid) */
-    VORONOI_SATURATION: 0.75,
+    VORONOI_SATURATION: 1,
     /** Voronoi color lightness multiplier (0=dark, 1=original, 2=bright) */
     VORONOI_LIGHTNESS: 0.75,
     /** Territory glow bleed radius as fraction of map size */
@@ -843,37 +1013,55 @@ const _rawConfig: GameConfigType = {
     /** Enable gradient blending at territory borders */
     VORONOI_GRADIENT_BLEND: true,
     /** Gradient blend strip width in px */
-    VORONOI_BLEND_WIDTH: 80,
+    VORONOI_BLEND_WIDTH: 15,
+
+    // ── Modified Voronoi Territory (F-138) ──
+    /** Min boundary distance from star centers in px (0=off, 45=default) */
+    MODIFIED_VORONOI_STAR_MARGIN: 45,
+    /** How far to retract sharp vertex toward origin (0=none, 0.3=default, 1=full) */
+    MODIFIED_VORONOI_ARC_STRENGTH: 0.3,
+    /** Interior angle below which arc smoothing activates (degrees) */
+    MODIFIED_VORONOI_ARC_THRESHOLD: 150,
+    /** Min line-segment length for Bézier tessellation (px, lower=smoother) */
+    MODIFIED_VORONOI_ARC_MIN_SEGMENT: 4,
+    /** Whether to inject virtual Voronoi sites along same-owner lanes */
+    MODIFIED_VORONOI_CORRIDOR_ENABLED: true,
+    /** Distance between virtual corridor sites in px (lower=more sites=denser corridor) */
+    MODIFIED_VORONOI_CORRIDOR_SPACING: 20,
+    /** Whether to inject enemy virtual sites to separate non-connected same-owner territories */
+    MODIFIED_VORONOI_DISCONNECT_ENABLED: false,
+    /** Max distance between same-owner stars for disconnect injection (px) */
+    MODIFIED_VORONOI_DISCONNECT_DISTANCE: 50,
 
     // ── Metaball Territory ──
     /** How far each star's influence field extends (px) */
-    METABALL_INFLUENCE_RADIUS: 300,
+    METABALL_INFLUENCE_RADIUS: 90,
     /** Falloff curve for influence: 'inverse-square' (organic), 'gaussian' (fluid), 'smoothstep' (defined edges) */
     METABALL_FALLOFF: 'gaussian' as 'inverse-square' | 'gaussian' | 'smoothstep',
     /** Faction boundary sharpness (higher = crisper borders, lower = softer blend) */
-    METABALL_BLEND_SHARPNESS: 6,
+    METABALL_BLEND_SHARPNESS: 20,
     /** Overall metaball territory alpha (0-1) */
-    METABALL_ALPHA: 0.6,
+    METABALL_ALPHA: 0.5,
     /** Grid resolution in px per cell (lower = sharper but slower, 4-16 typical) */
-    METABALL_CELL_SIZE: 12,
+    METABALL_CELL_SIZE: 2,
     /** Minimum influence to draw (lower = more coverage, 0.01-0.2 typical) */
-    METABALL_THRESHOLD: 0.05,
+    METABALL_THRESHOLD: 0.01,
     /** Star strength multiplier (scales all influence, default 1.0) */
-    METABALL_STRENGTH_MULT: 2,
+    METABALL_STRENGTH_MULT: 4.3,
     /** Edge alpha falloff steepness (higher = sharper edges, default 3.0) */
-    METABALL_EDGE_FADE: 3.0,
+    METABALL_EDGE_FADE: 0.5,
     /** GPU blur on metaball output (0=pixelated, 4=smooth, higher=very soft) */
-    METABALL_BLUR: 4,
+    METABALL_BLUR: 0,
     /** Border line width between metaball territories */
-    METABALL_BORDER_WIDTH: 2,
+    METABALL_BORDER_WIDTH: 3,
     /** Border line alpha */
-    METABALL_BORDER_ALPHA: 0.05,
+    METABALL_BORDER_ALPHA: 1,
     /** Grid padding factor (0=compact, 0.3=extended) */
     METABALL_COVERAGE: 0,
     /** Metaball color saturation multiplier (0=grey, 1=original, 2=vivid) */
-    METABALL_SATURATION: 1.0,
+    METABALL_SATURATION: 1.05,
     /** Metaball color lightness multiplier (0=dark, 1=original, 2=bright) */
-    METABALL_LIGHTNESS: 1.0,
+    METABALL_LIGHTNESS: 0.65,
 
     // ── Pixel Territory ──
     /** Pixel territory alpha (0-1, lower = more transparent) */
@@ -914,7 +1102,7 @@ const _rawConfig: GameConfigType = {
     PIXEL_LIGHTNESS: 1.0,
 
     // ── Graph Territory (4th mode) ──
-    TERRITORY_GRAPH: true,
+    TERRITORY_GRAPH: false,
     GRAPH_ALPHA: 0.5,
     GRAPH_RESOLUTION: 1,
     GRAPH_BLUR: 1,
@@ -941,6 +1129,65 @@ const _rawConfig: GameConfigType = {
     /** Smoothing iterations for border feel (0=none, 5=max) */
     BORDER_SMOOTH: 0,
 
+    // ── Distance Field Territory (6th mode) ──
+    TERRITORY_DISTANCE_FIELD: false,
+    DF_RESOLUTION: 1,
+    DF_ALPHA: 0.56,
+    DF_BORDER_WIDTH: 11,
+    DF_BORDER_SOFTNESS: 0,
+    DF_BORDER_ALPHA: 0.5,
+    DF_BORDER_BRIGHTEN: 15,
+    DF_BORDER_MODE: 0,
+    DF_BORDER_FAMILY: 'straight',
+    DF_BORDER_ENGINE: 'legacy_field',
+    DF_CANONICAL_FRONTIER_RUNTIME_MODE: 'disabled',
+    DF_CANONICAL_FRONTIER_DIAGNOSTIC_SHOW: false,
+    DF_BORDER_HQ_ENABLED: false,
+    DF_BORDER_HQ_SCALE: 3,
+    DF_BORDER_HQ_MAX_DIM: 5120,
+    DF_VECTOR_BORDERS_ENABLED: true,
+    DF_VECTOR_GRID_RESOLUTION: 192,
+    DF_VECTOR_SMOOTHING: 2,
+    DF_VECTOR_SIMPLIFY: 0,
+    DF_VECTOR_UPDATE_MS: 45,
+    DF_MORPH_EASING: 'linear',
+    DF_DISTANCE_METRIC: 'length' as const,
+    DF_BLUR: 0,
+    DF_HUE: 0,
+    DF_SATURATION: 1.7,
+    DF_LIGHTNESS: 0.4,
+    DF_EDGE_FADE: 0,
+    DF_ROUNDING: 0,
+    DF_INFLUENCE_WEIGHT: 0,
+    DF_EXPANSION: 0,
+    DF_SMOOTHING: 0,
+    DF_MIN_STAR_RADIUS: 90,
+    DF_CORRIDOR_ENABLED: true,
+    DF_CORRIDOR_MODE: 'spacing',
+    DF_CORRIDOR_SPACING: 90,
+    DF_CORRIDOR_COUNT: 1,
+    DF_CORRIDOR_WEIGHT: 0.1,
+    DF_DISCONNECT_ENABLED: true,
+    DF_DISCONNECT_DISTANCE: 225,
+    DF_DISCONNECT_WEIGHT: 0.05,
+
+    // ── Contour Territory (5th mode — vector contour extraction) ──
+    TERRITORY_CONTOUR: false,
+    CONTOUR_RESOLUTION: 128,
+    CONTOUR_SIMPLIFY: 0,
+    CONTOUR_SMOOTH: 0,
+    CONTOUR_FILL_ALPHA: 0.15,
+    CONTOUR_BORDER_WIDTH: 2,
+    CONTOUR_BORDER_ALPHA: 0.6,
+    CONTOUR_BORDER_BRIGHTEN: 80,
+    CONTOUR_SATURATION: 1.0,
+    CONTOUR_LIGHTNESS: 1.0,
+    CONTOUR_CORNER_RADIUS: 3,
+    CONTOUR_CORNER_THRESHOLD: 120,
+    CONTOUR_PERIPHERY_STRENGTH: 0,
+    CONTOUR_PERIPHERY_INSET: 0,
+    CONTOUR_JUNCTION_CORRECTION: 50,
+
     /** Show hex grid (debug) */
     SHOW_HEX_GRID: false,
 
@@ -963,7 +1210,68 @@ const _rawConfig: GameConfigType = {
 
     /** Maximum connections per star (4-8 typical) */
     MAX_LINKS_PER_STAR: 8,
+
+    // ========================================================================
+    // AUDIO
+    // ========================================================================
+
+    /** Master audio volume (0-1) */
+    AUDIO_MASTER_VOLUME: 0.5,
+    /** Global mute */
+    AUDIO_MUTED: false,
+    /** Use subtype-specific conquest sounds instead of generic */
+    AUDIO_SEPARATE_CONQUEST: true,
+
+    // Per-sound volumes
+    AUDIO_VOL_CLICK: 0.3,
+    AUDIO_VOL_MOVE: 0.5,
+    AUDIO_VOL_ATTACK: 0.3,
+    AUDIO_VOL_CHAT: 0.6,
+    AUDIO_VOL_TICK: 0.4,
+    AUDIO_VOL_PLAY: 0.6,
+    AUDIO_VOL_LOSE: 0.6,
+    AUDIO_VOL_WIN: 0.6,
+    AUDIO_VOL_NEW_PLAYER: 0.8,
+    AUDIO_VOL_CONQUEST: 0.8,
+    AUDIO_VOL_CONQUEST_RETREAT: 0.7,
+    AUDIO_VOL_CONQUEST_SCATTER: 0.7,
+    AUDIO_VOL_CONQUEST_COMPLETE: 0.8,
+    AUDIO_VOL_STARLOSS: 0.6,
+
+    // Per-sound file paths (relative to /sounds/)
+    AUDIO_FILE_CLICK: 'ui/click.wav',
+    AUDIO_FILE_MOVE: 'move/move.wav',
+    AUDIO_FILE_ATTACK: 'attack/attack.wav',
+    AUDIO_FILE_CHAT: 'ui/chat.wav',
+    AUDIO_FILE_TICK: 'tick/tick.wav',
+    AUDIO_FILE_PLAY: 'ui/PLAY.WAV',
+    AUDIO_FILE_LOSE: 'gameloss/lose.ogg',
+    AUDIO_FILE_WIN: 'gamewin/win.ogg',
+    AUDIO_FILE_NEW_PLAYER: 'ui/new_player.ogg',
+    AUDIO_FILE_CONQUEST: 'conquest/mixkit-fast-small-sweep-transition-166.wav',
+    AUDIO_FILE_CONQUEST_RETREAT: 'conquest/SWSH_Swish Fused Small 04_RSCPC_PX.wav',
+    AUDIO_FILE_CONQUEST_SCATTER: 'conquest/WHSH_Whoosh Plasma 04_RSCPC_SFEW.wav',
+    AUDIO_FILE_CONQUEST_COMPLETE: 'conquest/SWSH_Swish Crisp Large 01_RSCPC_PX.wav',
+    AUDIO_FILE_STARLOSS: 'starloss/mixkit-arcade-mechanical-bling-210.wav',
+
+    // Per-sound start offsets in seconds (file-linked: only applied when file matches)
+    AUDIO_OFFSET_CLICK: 0,
+    AUDIO_OFFSET_MOVE: 0,
+    AUDIO_OFFSET_ATTACK: 0,
+    AUDIO_OFFSET_CHAT: 0,
+    AUDIO_OFFSET_TICK: 0,
+    AUDIO_OFFSET_PLAY: 0,
+    AUDIO_OFFSET_LOSE: 0,
+    AUDIO_OFFSET_WIN: 0,
+    AUDIO_OFFSET_NEW_PLAYER: 0,
+    AUDIO_OFFSET_CONQUEST: 0,
+    AUDIO_OFFSET_CONQUEST_RETREAT: 0,
+    AUDIO_OFFSET_CONQUEST_SCATTER: 0,
+    AUDIO_OFFSET_CONQUEST_COMPLETE: 0,
+    AUDIO_OFFSET_STARLOSS: 0,
 };
+
+export const DEFAULT_GAME_CONFIG: Readonly<GameConfigType> = Object.freeze({ ..._rawConfig });
 
 // Apply saved settings on top of defaults
 const _savedOverrides = loadSavedConfig();
@@ -1053,4 +1361,5 @@ export function calculateCombatV4(
         disabledOnB: result.disabledOnB
     };
 }
+
 

@@ -1,4 +1,5 @@
 ---
+trigger: always_on
 description: Mandatory session documentation and chat logging rules
 globs: "**/*.md"
 ---
@@ -17,8 +18,9 @@ globs: "**/*.md"
 After every completed task (commit, fix, feature, refactor), append a summary to the session doc **before moving to the next task**. Include:
 - Commit hash + one-line description
 - Root cause (for fixes) or design rationale (for features)
-- Key files modified
+- Key files modified, LOC ranges, and key functi9on/variable names touched or changed
 - Any deferred work
+
 
 ### Structure
 ```markdown

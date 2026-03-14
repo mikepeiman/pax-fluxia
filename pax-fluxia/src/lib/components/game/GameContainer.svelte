@@ -63,23 +63,26 @@
   ); // Default: ON
   let wasPausedBeforeSettings = false;
 
-  function toggleSettingsPanel() {
-    showSettingsPanel = !showSettingsPanel;
-    localStorage.setItem("pax-settings-open", String(showSettingsPanel));
-    // Auto-pause logic
+  function setSettingsPanelOpen(nextOpen: boolean) {
+    if (showSettingsPanel === nextOpen) return;
+    showSettingsPanel = nextOpen;
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem("pax-settings-open", String(showSettingsPanel));
+    }
     if (pauseOnSettings && activeGameStore.phase === "playing") {
       if (showSettingsPanel) {
         wasPausedBeforeSettings = activeGameStore.isPaused;
         if (!activeGameStore.isPaused) {
           activeGameStore.pauseGame();
         }
-      } else {
-        // Restore previous pause state
-        if (!wasPausedBeforeSettings && activeGameStore.isPaused) {
-          activeGameStore.resumeGame();
-        }
+      } else if (!wasPausedBeforeSettings && activeGameStore.isPaused) {
+        activeGameStore.resumeGame();
       }
     }
+  }
+
+  function toggleSettingsPanel() {
+    setSettingsPanelOpen(!showSettingsPanel);
   }
 
   // ── In-game menu collapse ──
@@ -87,6 +90,35 @@
 
   // ── F-62: Results overlay dismiss ──
   let resultsDismissed = $state(false);
+
+  // ── Map save/load (F-70 in menu) ──
+  let showSaveMapInput = $state(false);
+  let saveMapName = $state("");
+  let saveMapFeedback = $state("");
+  let showLoadMapList = $state(false);
+
+  function handleSaveMap() {
+    const name = saveMapName.trim();
+    if (!name) return;
+    gameStore.saveCurrentMap(name);
+    saveMapFeedback = `✓ Saved "${name}"`;
+    saveMapName = "";
+    showSaveMapInput = false;
+    setTimeout(() => (saveMapFeedback = ""), 2500);
+  }
+
+  async function handleLoadMap(map: any) {
+    gameStore.loadSavedMap(map);
+    showLoadMapList = false;
+    menuExpanded = false;
+    // Restart game with loaded map — must await since startGame is async
+    await gameStore.startGame();
+  }
+
+  function handleDeleteMap(name: string) {
+    gameStore.deleteSavedMap(name);
+  }
+
   const showResults = $derived(
     !resultsDismissed &&
       (gameStore.winner != null || activeGameStore.phase === "results"),
@@ -118,6 +150,10 @@
   const SIDEBAR_MIN = 280;
   const SIDEBAR_MAX = 600;
   const SIDEBAR_DEFAULT = 320;
+  const SETTINGS_PANEL_STORAGE_KEY = "pax-settings-panel-width";
+  const SETTINGS_PANEL_MIN = 280;
+  const SETTINGS_PANEL_MAX = 720;
+  const SETTINGS_PANEL_DEFAULT = 360;
 
   function loadSidebarWidth(): number {
     if (typeof localStorage === "undefined") return SIDEBAR_DEFAULT;
@@ -129,8 +165,22 @@
     return SIDEBAR_DEFAULT;
   }
 
+  function loadSettingsPanelWidth(): number {
+    if (typeof localStorage === "undefined") return SETTINGS_PANEL_DEFAULT;
+    const v = localStorage.getItem(SETTINGS_PANEL_STORAGE_KEY);
+    if (v) {
+      const n = parseInt(v);
+      if (!isNaN(n)) {
+        return Math.max(SETTINGS_PANEL_MIN, Math.min(SETTINGS_PANEL_MAX, n));
+      }
+    }
+    return SETTINGS_PANEL_DEFAULT;
+  }
+
   let sidebarWidth = $state(loadSidebarWidth());
   let isResizing = $state(false);
+  let settingsPanelWidth = $state(loadSettingsPanelWidth());
+  let isSettingsResizing = $state(false);
 
   function startResize(e: PointerEvent) {
     e.preventDefault();
@@ -151,6 +201,36 @@
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       localStorage.setItem(SIDEBAR_STORAGE_KEY, String(sidebarWidth));
+    }
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }
+
+  function startSettingsResize(e: PointerEvent) {
+    e.preventDefault();
+    isSettingsResizing = true;
+    const startX = e.clientX;
+    const startWidth = settingsPanelWidth;
+
+    function onMove(ev: PointerEvent) {
+      const delta = startX - ev.clientX;
+      settingsPanelWidth = Math.max(
+        SETTINGS_PANEL_MIN,
+        Math.min(SETTINGS_PANEL_MAX, startWidth + delta),
+      );
+    }
+
+    function onUp() {
+      isSettingsResizing = false;
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      if (typeof localStorage !== "undefined") {
+        localStorage.setItem(
+          SETTINGS_PANEL_STORAGE_KEY,
+          String(settingsPanelWidth),
+        );
+      }
     }
 
     window.addEventListener("pointermove", onMove);
@@ -186,8 +266,7 @@
 
       // Close overlays in priority order
       if (showSettingsPanel) {
-        showSettingsPanel = false;
-        localStorage.setItem("pax-settings-open", "false");
+        setSettingsPanelOpen(false);
         return;
       }
       if (mobileDrawerOpen) {
@@ -329,7 +408,7 @@
         {/if}
       </div>
 
-      <!-- BOTTOM CONTROLS (grid area: controls) -->
+      <!-- MOBILE-ONLY: Bottom controls bar (hidden on desktop, shown by mobile media query) -->
       <div class="area-controls-bar">
         <fieldset class="speed-fieldset">
           <legend class="speed-legend">Gamespeed</legend>
@@ -343,8 +422,6 @@
             onStart={() => activeGameStore.startGame()}
           />
         </fieldset>
-
-        <!-- Star cycling navigation -->
         <StarNav
           stars={activeGameStore.stars ?? []}
           localPlayerId={activeGameStore.localPlayerId ?? undefined}
@@ -355,10 +432,18 @@
 
       <!-- SECONDARY CONTROLS COLUMN (toggled by gear icon) -->
       {#if showSettingsPanel}
-        <div class="area-controls">
+        <div class="area-controls" style="width: {settingsPanelWidth}px;">
+          <div
+            class="controls-resize-handle"
+            class:active={isSettingsResizing}
+            onpointerdown={startSettingsResize}
+            role="separator"
+            aria-orientation="vertical"
+            title="Drag to resize settings panel"
+          ></div>
           <button
             class="settings-overlay-close"
-            onclick={() => (showSettingsPanel = false)}
+            onclick={() => setSettingsPanelOpen(false)}
             title="Close Settings">✕</button
           >
           <div class="panel-section section-tuning">
@@ -379,10 +464,39 @@
           title="Drag to resize"
         ></div>
 
-        <!-- 1. LEADERBOARD (standalone, visual gap below) -->
+        <!-- 1. GAME CONTROLS (speed + pause) -->
+        <div class="sidebar-controls">
+          <fieldset class="speed-fieldset">
+            <legend class="speed-legend">Gamespeed</legend>
+            <SpeedControls
+              speed={activeGameStore.speed}
+              isPaused={activeGameStore.isPaused}
+              hasStarted={true}
+              onSpeedChange={(speed) => activeGameStore.setSpeed(speed)}
+              onPause={() => activeGameStore.pauseGame()}
+              onResume={() => activeGameStore.resumeGame()}
+              onStart={() => activeGameStore.startGame()}
+            />
+          </fieldset>
+        </div>
+
+        <!-- 2. STAR VIEW (cycling navigation) -->
+        <div class="sidebar-starnav">
+          <StarNav
+            stars={activeGameStore.stars ?? []}
+            localPlayerId={activeGameStore.localPlayerId ?? undefined}
+            onNavigateToStar={(starId) =>
+              gameCanvasRef?.navigateToStar?.(starId)}
+            onCenterFit={() => gameCanvasRef?.centerAndFit?.()}
+          />
+        </div>
+
+        <!-- 3. LEADERBOARD -->
         <div class="sidebar-leaderboard">
           <Leaderboard players={leaderboardPlayers} />
         </div>
+
+        <hr class="sidebar-divider" />
 
         <!-- 2. THEME SELECTOR (bold, prominent) -->
         <div class="sidebar-theme">
@@ -450,6 +564,95 @@
               >
                 <span class="mi-icon">💬</span>
                 <span class="mi-label">Chat</span>
+              </button>
+              <hr class="menu-divider" />
+              <!-- Save Map -->
+              <button
+                class="menu-item"
+                onclick={() => {
+                  showSaveMapInput = !showSaveMapInput;
+                  showLoadMapList = false;
+                }}
+              >
+                <span class="mi-icon">💾</span>
+                <span class="mi-label">Save Map</span>
+              </button>
+              {#if showSaveMapInput}
+                <div class="map-save-row">
+                  <input
+                    type="text"
+                    class="map-name-input"
+                    placeholder="Map name…"
+                    bind:value={saveMapName}
+                    onkeydown={(e) => {
+                      if (e.key === "Enter") handleSaveMap();
+                    }}
+                  />
+                  <button
+                    class="map-save-btn"
+                    onclick={handleSaveMap}
+                    disabled={!saveMapName.trim()}>Save</button
+                  >
+                </div>
+              {/if}
+              {#if saveMapFeedback}
+                <div class="map-feedback">{saveMapFeedback}</div>
+              {/if}
+              <!-- Load Map -->
+              <button
+                class="menu-item"
+                onclick={() => {
+                  showLoadMapList = !showLoadMapList;
+                  showSaveMapInput = false;
+                }}
+              >
+                <span class="mi-icon">📂</span>
+                <span class="mi-label">Load Map</span>
+              </button>
+              {#if showLoadMapList}
+                <div class="map-list">
+                  {#if gameStore.savedMaps.length === 0}
+                    <div class="map-list-empty">No saved maps</div>
+                  {:else}
+                    {#each gameStore.savedMaps as map}
+                      <div class="map-list-item">
+                        <button
+                          class="map-load-btn"
+                          onclick={() => handleLoadMap(map)}
+                          title="Load and restart with this map"
+                        >
+                          🗺 {map.metadata.name}
+                        </button>
+                        <button
+                          class="map-delete-btn"
+                          onclick={() => handleDeleteMap(map.metadata.name)}
+                          title="Delete">✕</button
+                        >
+                      </div>
+                    {/each}
+                  {/if}
+                </div>
+              {/if}
+              <hr class="menu-divider" />
+              <button
+                class="menu-item"
+                onclick={() => {
+                  audioManager.play("click");
+                  activeGameStore.playAgain();
+                }}
+              >
+                <span class="mi-icon">🔄</span>
+                <span class="mi-label">Restart</span>
+              </button>
+              <button
+                class="menu-item quit-item"
+                onclick={() => {
+                  audioManager.play("click");
+                  showSurrenderModal = true;
+                }}
+              >
+                <span class="mi-icon">🏳</span>
+                <span class="mi-label">Quit Game</span>
               </button>
             </div>
           {/if}
@@ -668,14 +871,30 @@
     height: 100%;
     min-height: 0; /* Prevents CSS Grid from expanding cell beyond available space */
     overflow: hidden;
-    /* DEBUG: thick red border to visualize canvas container bounds */
-    border: 3px solid red;
     box-sizing: border-box;
   }
 
-  /* Controls bar and StatusBar are mobile-only */
+  /* Sidebar sections */
+  .sidebar-controls {
+    padding: 6px 8px;
+  }
+  .sidebar-starnav {
+    padding: 2px 8px 6px;
+  }
+  .sidebar-divider {
+    border: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    margin: 4px 8px;
+  }
+
+  /* Mobile controls bar: hidden on desktop */
   .area-controls-bar {
     display: none;
+  }
+  .sidebar-divider {
+    border: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    margin: 4px 8px;
   }
 
   @media (max-width: 1024px) {
@@ -831,10 +1050,6 @@
   }
 
   /* ── Mobile-only elements (hidden on desktop) ── */
-  .area-controls-bar {
-    display: none;
-    grid-area: controls;
-  }
   .mobile-scrim {
     display: none;
   }
@@ -1103,6 +1318,7 @@
   /* ═══ SECONDARY CONTROLS COLUMN ═══ */
   .area-controls {
     grid-area: controls;
+    position: relative;
     background: rgba(10, 10, 15, 0.95);
     border-left: 1px solid #223;
     border-right: 1px solid #223;
@@ -1114,6 +1330,7 @@
     overflow-y: auto;
     width: 340px;
     min-width: 280px;
+    flex-shrink: 0;
   }
 
   .section-tuning {
@@ -1140,6 +1357,7 @@
     flex-shrink: 0;
   }
 
+  .controls-resize-handle,
   .resize-handle {
     position: absolute;
     top: 0;
@@ -1152,7 +1370,9 @@
     transition: background 0.15s;
   }
   .resize-handle:hover,
-  .resize-handle.active {
+  .resize-handle.active,
+  .controls-resize-handle:hover,
+  .controls-resize-handle.active {
     background: rgba(0, 224, 255, 0.3);
   }
 
@@ -1277,6 +1497,111 @@
 
   .mi-label {
     flex: 1;
+  }
+
+  .menu-divider {
+    border: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    margin: 4px 0;
+  }
+
+  .menu-item.quit-item:hover {
+    background: rgba(255, 80, 80, 0.1);
+    border-color: rgba(255, 80, 80, 0.25);
+    color: #fca5a5;
+  }
+
+  /* Map save/load */
+  .map-save-row {
+    display: flex;
+    gap: 6px;
+    padding: 4px 12px 4px 42px;
+  }
+  .map-name-input {
+    flex: 1;
+    padding: 4px 8px;
+    background: rgba(20, 20, 35, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+    color: #fff;
+    font-family: "Montserrat", sans-serif;
+    font-size: 0.72rem;
+  }
+  .map-name-input:focus {
+    border-color: rgba(80, 200, 255, 0.5);
+    outline: none;
+  }
+  .map-save-btn {
+    padding: 4px 10px;
+    background: rgba(80, 200, 120, 0.2);
+    border: 1px solid rgba(80, 200, 120, 0.4);
+    border-radius: 4px;
+    color: #6ee7b7;
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .map-save-btn:hover:not(:disabled) {
+    background: rgba(80, 200, 120, 0.3);
+  }
+  .map-save-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+  .map-feedback {
+    padding: 2px 12px 2px 42px;
+    color: #6ee7b7;
+    font-size: 0.7rem;
+    font-weight: 500;
+  }
+  .map-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 4px 12px 4px 42px;
+  }
+  .map-list-empty {
+    color: rgba(255, 255, 255, 0.35);
+    font-size: 0.7rem;
+    font-style: italic;
+  }
+  .map-list-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .map-load-btn {
+    flex: 1;
+    padding: 4px 8px;
+    background: rgba(80, 140, 255, 0.1);
+    border: 1px solid rgba(80, 140, 255, 0.2);
+    border-radius: 4px;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.72rem;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.15s;
+  }
+  .map-load-btn:hover {
+    background: rgba(80, 140, 255, 0.2);
+    border-color: rgba(80, 140, 255, 0.4);
+    color: #93c5fd;
+  }
+  .map-delete-btn {
+    padding: 4px 6px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .map-delete-btn:hover {
+    background: rgba(255, 80, 80, 0.15);
+    border-color: rgba(255, 80, 80, 0.3);
+    color: #fca5a5;
   }
 
   /* ═══ OVERLAYS ═══ */

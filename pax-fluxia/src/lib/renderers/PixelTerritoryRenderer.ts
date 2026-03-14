@@ -111,6 +111,7 @@ function handleWorkerResult(e: MessageEvent): void {
 
     workerBusy = false;
 
+
     const container = pendingContainer;
     if (!container) return;
 
@@ -166,6 +167,7 @@ export function renderPixelTerritory(
         if (cachedSprite) cachedSprite.visible = false;
         return;
     }
+
 
     const fingerprint = buildFingerprint(stars) + `:${worldWidth}:${worldHeight}`;
 
@@ -286,6 +288,7 @@ export function renderPixelTerritory(
     pendingTotalH = totalH;
     pendingPadding = padding;
     workerBusy = true;
+
 
     // Build corridor segments for same-owner connected pairs
     const corridorBoost = GAME_CONFIG.PIXEL_CORRIDOR_BOOST ?? 0;

@@ -23,6 +23,7 @@ export type ThemeCategory =
     | 'territory'
     | 'ships'
     | 'visuals'
+    | 'audio'
     | 'ai'
     | 'rules'
     | 'logging';
@@ -46,6 +47,7 @@ export const CATEGORY_META: Record<ThemeCategory, CategoryMeta> = {
     territory: { id: 'territory', icon: '🌍', label: 'Territory', color: '#66ccaa' },
     ships: { id: 'ships', icon: '🚀', label: 'Ships', color: '#44ccff' },
     visuals: { id: 'visuals', icon: '🗺️', label: 'Map & Grid', color: '#cc66ff' },
+    audio: { id: 'audio', icon: '🔊', label: 'Audio', color: '#44ddbb' },
     ai: { id: 'ai', icon: '🤖', label: 'AI Behavior', color: '#ff8844' },
     rules: { id: 'rules', icon: '📜', label: 'Rules', color: '#aabb44' },
     logging: { id: 'logging', icon: '📋', label: 'Logging', color: '#88aacc' },
@@ -166,6 +168,8 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
     territory: [
         // Territory toggles
         'TERRITORY_VORONOI',
+        'TERRITORY_MODIFIED_VORONOI',
+        'TERRITORY_POWER_VORONOI',
         'TERRITORY_METABALL',
         'TERRITORY_PIXEL',
         'PIXEL_ALPHA',
@@ -200,6 +204,7 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
         'VORONOI_BORDER_WIDTH',
         'VORONOI_BORDER_ALPHA',
         'VORONOI_BORDER_BRIGHTEN',
+        'VORONOI_BORDER_SMOOTH',
         'VORONOI_SATURATION',
         'VORONOI_LIGHTNESS',
         'VORONOI_GLOW_RADIUS',
@@ -209,6 +214,15 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
         'VORONOI_SMOOTHING',
         'VORONOI_GRADIENT_BLEND',
         'VORONOI_BLEND_WIDTH',
+        // Modified Voronoi (F-138)
+        'MODIFIED_VORONOI_STAR_MARGIN',
+        'MODIFIED_VORONOI_ARC_STRENGTH',
+        'MODIFIED_VORONOI_ARC_THRESHOLD',
+        'MODIFIED_VORONOI_ARC_MIN_SEGMENT',
+        'MODIFIED_VORONOI_CORRIDOR_ENABLED',
+        'MODIFIED_VORONOI_CORRIDOR_SPACING',
+        'MODIFIED_VORONOI_DISCONNECT_ENABLED',
+        'MODIFIED_VORONOI_DISCONNECT_DISTANCE',
         // Metaball
         'METABALL_INFLUENCE_RADIUS',
         'METABALL_FALLOFF',
@@ -301,6 +315,57 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
         // Logging keys are UI-only, no GAME_CONFIG keys currently
         // This category exists for the panel but has no themeable keys
     ],
+
+    audio: [
+        'AUDIO_MASTER_VOLUME',
+        'AUDIO_MUTED',
+        'AUDIO_SEPARATE_CONQUEST',
+        // Per-sound volumes
+        'AUDIO_VOL_CLICK',
+        'AUDIO_VOL_MOVE',
+        'AUDIO_VOL_ATTACK',
+        'AUDIO_VOL_CHAT',
+        'AUDIO_VOL_TICK',
+        'AUDIO_VOL_PLAY',
+        'AUDIO_VOL_LOSE',
+        'AUDIO_VOL_WIN',
+        'AUDIO_VOL_NEW_PLAYER',
+        'AUDIO_VOL_CONQUEST',
+        'AUDIO_VOL_CONQUEST_RETREAT',
+        'AUDIO_VOL_CONQUEST_SCATTER',
+        'AUDIO_VOL_CONQUEST_COMPLETE',
+        'AUDIO_VOL_STARLOSS',
+        // Per-sound file paths
+        'AUDIO_FILE_CLICK',
+        'AUDIO_FILE_MOVE',
+        'AUDIO_FILE_ATTACK',
+        'AUDIO_FILE_CHAT',
+        'AUDIO_FILE_TICK',
+        'AUDIO_FILE_PLAY',
+        'AUDIO_FILE_LOSE',
+        'AUDIO_FILE_WIN',
+        'AUDIO_FILE_NEW_PLAYER',
+        'AUDIO_FILE_CONQUEST',
+        'AUDIO_FILE_CONQUEST_RETREAT',
+        'AUDIO_FILE_CONQUEST_SCATTER',
+        'AUDIO_FILE_CONQUEST_COMPLETE',
+        'AUDIO_FILE_STARLOSS',
+        // Per-sound start offsets (file-linked)
+        'AUDIO_OFFSET_CLICK',
+        'AUDIO_OFFSET_MOVE',
+        'AUDIO_OFFSET_ATTACK',
+        'AUDIO_OFFSET_CHAT',
+        'AUDIO_OFFSET_TICK',
+        'AUDIO_OFFSET_PLAY',
+        'AUDIO_OFFSET_LOSE',
+        'AUDIO_OFFSET_WIN',
+        'AUDIO_OFFSET_NEW_PLAYER',
+        'AUDIO_OFFSET_CONQUEST',
+        'AUDIO_OFFSET_CONQUEST_RETREAT',
+        'AUDIO_OFFSET_CONQUEST_SCATTER',
+        'AUDIO_OFFSET_CONQUEST_COMPLETE',
+        'AUDIO_OFFSET_STARLOSS',
+    ],
 };
 
 // ── Super-Categories (Tier 2) ───────────────────────────────────────────────
@@ -337,7 +402,7 @@ export const SUPER_CATEGORIES: Record<ThemeSuperCategory, SuperCategoryMeta> = {
         icon: '✨',
         label: 'Appearance',
         color: '#cc66ff',
-        children: ['ships', 'territory', 'visuals'],
+        children: ['ships', 'territory', 'visuals', 'audio'],
     },
     intelligence: {
         id: 'intelligence',
@@ -464,6 +529,13 @@ function persistPresets(category: ThemeCategory, presets: CategoryPreset[]): voi
 // Lazy-init cache
 const _cache = new Map<ThemeCategory, CategoryPreset[]>();
 
+type CategoryPresetApplyCallback = ((preset: CategoryPreset) => void) | null;
+let _applyPresetCallback: CategoryPresetApplyCallback = null;
+
+export function registerCategoryPresetApplyCallback(cb: CategoryPresetApplyCallback): void {
+    _applyPresetCallback = cb;
+}
+
 function getUserPresets(category: ThemeCategory): CategoryPreset[] {
     if (!_cache.has(category)) {
         _cache.set(category, loadPresets(category));
@@ -493,6 +565,10 @@ export function snapshotCategory(category: ThemeCategory): Record<string, unknow
  * Only touches keys belonging to the preset's category.
  */
 export function applyCategoryPreset(preset: CategoryPreset): void {
+    if (_applyPresetCallback) {
+        _applyPresetCallback(preset);
+        return;
+    }
     const allowedKeys = new Set(CATEGORY_KEYS[preset.category]);
     for (const [key, val] of Object.entries(preset.values)) {
         if (allowedKeys.has(key) && key in GAME_CONFIG) {
@@ -551,3 +627,4 @@ export function deleteCategoryPreset(category: ThemeCategory, name: string): voi
     _cache.set(category, presets);
     persistPresets(category, presets);
 }
+

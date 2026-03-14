@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Settings Panel Data Definitions
  *
  * Pure data arrays extracted from GameSettingsPanel.svelte.
@@ -65,6 +65,7 @@ export const LOG_CATEGORIES = [
     { key: 'input', label: '🖱️ Input', desc: 'User clicks' },
     { key: 'repair', label: '🔧 Repair', desc: 'Ship repair' },
     { key: 'canvas', label: '🖥️ Canvas', desc: 'Viewport, scale, center' },
+    { key: 'renderer', label: '🎨 Renderer', desc: 'Territory borders, fills' },
 ] as const;
 
 // ── Animation Slider Definitions ────────────────────────────────────────────
@@ -232,6 +233,7 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'voronoiBorderWidth', configKey: 'VORONOI_BORDER_WIDTH' },
     { panelKey: 'voronoiBorderAlpha', configKey: 'VORONOI_BORDER_ALPHA' },
     { panelKey: 'voronoiBorderBrighten', configKey: 'VORONOI_BORDER_BRIGHTEN' },
+    { panelKey: 'voronoiBorderSmooth', configKey: 'VORONOI_BORDER_SMOOTH' },
     { panelKey: 'voronoiSaturation', configKey: 'VORONOI_SATURATION' },
     { panelKey: 'voronoiLightness', configKey: 'VORONOI_LIGHTNESS' },
     { panelKey: 'voronoiGlowRadius', configKey: 'VORONOI_GLOW_RADIUS' },
@@ -242,6 +244,18 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'voronoiGradientBlend', configKey: 'VORONOI_GRADIENT_BLEND' },
     { panelKey: 'voronoiBlendWidth', configKey: 'VORONOI_BLEND_WIDTH' },
     // Territory toggles
+    { panelKey: 'territoryBoundaryMode', configKey: 'TERRITORY_BOUNDARY_MODE' },
+    { panelKey: 'territoryFillMode', configKey: 'TERRITORY_FILL_MODE' },
+    { panelKey: 'territoryMorphControlPoints', configKey: 'TERRITORY_MORPH_CONTROL_POINTS' },
+    { panelKey: 'territoryMode', configKey: 'TERRITORY_MODE' },
+    { panelKey: 'territoryEngine', configKey: 'TERRITORY_ENGINE_ENABLED' },
+    { panelKey: 'territoryEngineMode', configKey: 'TERRITORY_ENGINE_MODE' },
+    { panelKey: 'territoryEngineStaticMethod', configKey: 'TERRITORY_ENGINE_STATIC_METHOD' },
+    { panelKey: 'territoryEngineDynamicMethod', configKey: 'TERRITORY_ENGINE_DYNAMIC_METHOD' },
+    { panelKey: 'territoryEngineHybridPlan', configKey: 'TERRITORY_ENGINE_HYBRID_PLAN' },
+    { panelKey: 'territoryEngineTraceMode', configKey: 'TERRITORY_ENGINE_TRACE_MODE' },
+    { panelKey: 'territoryEngineStepMode', configKey: 'TERRITORY_ENGINE_STEP_MODE' },
+    { panelKey: 'territoryEngineStepAdvanceToken', configKey: 'TERRITORY_ENGINE_STEP_ADVANCE_TOKEN' },
     { panelKey: 'territoryVoronoi', configKey: 'TERRITORY_VORONOI' },
     { panelKey: 'territoryMetaball', configKey: 'TERRITORY_METABALL' },
     { panelKey: 'territoryPixel', configKey: 'TERRITORY_PIXEL' },
@@ -296,6 +310,8 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'graphPattern', configKey: 'GRAPH_PATTERN' },
     { panelKey: 'graphPatternScale', configKey: 'GRAPH_PATTERN_SCALE' },
     { panelKey: 'graphPatternRotation', configKey: 'GRAPH_PATTERN_ROTATION' },
+    { panelKey: 'borderFeel', configKey: 'BORDER_FEEL' },
+    { panelKey: 'borderSmooth', configKey: 'BORDER_SMOOTH' },
     { panelKey: 'laneInfluence', configKey: 'LANE_INFLUENCE' },
     { panelKey: 'laneWidth', configKey: 'LANE_WIDTH' },
     { panelKey: 'laneDirectFalloff', configKey: 'LANE_DIRECT_FALLOFF' },
@@ -332,6 +348,77 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'transferAnimMs', configKey: 'TRANSFER_ANIMATION_MS' },
     // Show hex selection
     { panelKey: 'showSelectionHex', configKey: 'SHOW_SELECTION_HEX' },
+    // Modified Voronoi Territory (F-138)
+    { panelKey: 'territoryModifiedVoronoi', configKey: 'TERRITORY_MODIFIED_VORONOI' },
+    { panelKey: 'territoryPowerVoronoi', configKey: 'TERRITORY_POWER_VORONOI' },
+    { panelKey: 'territoryPVV3', configKey: 'TERRITORY_PVV3' },
+    { panelKey: 'modifiedVoronoiStarMargin', configKey: 'MODIFIED_VORONOI_STAR_MARGIN' },
+    { panelKey: 'modifiedVoronoiArcStrength', configKey: 'MODIFIED_VORONOI_ARC_STRENGTH' },
+    { panelKey: 'modifiedVoronoiArcThreshold', configKey: 'MODIFIED_VORONOI_ARC_THRESHOLD' },
+    { panelKey: 'modifiedVoronoiArcMinSegment', configKey: 'MODIFIED_VORONOI_ARC_MIN_SEGMENT' },
+    { panelKey: 'modifiedVoronoiCorridorEnabled', configKey: 'MODIFIED_VORONOI_CORRIDOR_ENABLED' },
+    { panelKey: 'modifiedVoronoiCorridorSpacing', configKey: 'MODIFIED_VORONOI_CORRIDOR_SPACING' },
+    { panelKey: 'modifiedVoronoiDisconnectEnabled', configKey: 'MODIFIED_VORONOI_DISCONNECT_ENABLED' },
+    { panelKey: 'modifiedVoronoiDisconnectDistance', configKey: 'MODIFIED_VORONOI_DISCONNECT_DISTANCE' },
+    // Distance Field Territory (F-138)
+    { panelKey: 'territoryDistanceField', configKey: 'TERRITORY_DISTANCE_FIELD' },
+    { panelKey: 'dfResolution', configKey: 'DF_RESOLUTION' },
+    { panelKey: 'dfBlur', configKey: 'DF_BLUR' },
+    { panelKey: 'dfEdgeFade', configKey: 'DF_EDGE_FADE' },
+    { panelKey: 'dfAlpha', configKey: 'DF_ALPHA' },
+    { panelKey: 'dfHue', configKey: 'DF_HUE' },
+    { panelKey: 'dfSaturation', configKey: 'DF_SATURATION' },
+    { panelKey: 'dfLightness', configKey: 'DF_LIGHTNESS' },
+    { panelKey: 'dfExpansion', configKey: 'DF_EXPANSION' },
+    { panelKey: 'dfSmoothing', configKey: 'DF_SMOOTHING' },
+    { panelKey: 'dfRounding', configKey: 'DF_ROUNDING' },
+    { panelKey: 'dfMinStarRadius', configKey: 'DF_MIN_STAR_RADIUS' },
+    { panelKey: 'dfBorderWidth', configKey: 'DF_BORDER_WIDTH' },
+    { panelKey: 'dfBorderSoftness', configKey: 'DF_BORDER_SOFTNESS' },
+    { panelKey: 'dfBorderAlpha', configKey: 'DF_BORDER_ALPHA' },
+    { panelKey: 'dfBorderBrighten', configKey: 'DF_BORDER_BRIGHTEN' },
+    { panelKey: 'dfBorderHqEnabled', configKey: 'DF_BORDER_HQ_ENABLED' },
+    { panelKey: 'dfBorderHqScale', configKey: 'DF_BORDER_HQ_SCALE' },
+    { panelKey: 'dfBorderHqMaxDim', configKey: 'DF_BORDER_HQ_MAX_DIM' },
+    { panelKey: 'dfVectorBordersEnabled', configKey: 'DF_VECTOR_BORDERS_ENABLED' },
+    { panelKey: 'dfVectorGridResolution', configKey: 'DF_VECTOR_GRID_RESOLUTION' },
+    { panelKey: 'dfVectorSmoothing', configKey: 'DF_VECTOR_SMOOTHING' },
+    { panelKey: 'dfVectorSimplify', configKey: 'DF_VECTOR_SIMPLIFY' },
+    { panelKey: 'dfVectorUpdateMs', configKey: 'DF_VECTOR_UPDATE_MS' },
+    { panelKey: 'dfInfluenceWeight', configKey: 'DF_INFLUENCE_WEIGHT' },
+    { panelKey: 'dfDistanceMetric', configKey: 'DF_DISTANCE_METRIC' },
+    { panelKey: 'territoryTransitionMs', configKey: 'TERRITORY_TRANSITION_MS' },
+    { panelKey: 'dfMorphEasing', configKey: 'DF_MORPH_EASING' },
+    { panelKey: 'dfCorridorEnabled', configKey: 'DF_CORRIDOR_ENABLED' },
+    { panelKey: 'dfCorridorMode', configKey: 'DF_CORRIDOR_MODE' },
+    { panelKey: 'dfCorridorSpacing', configKey: 'DF_CORRIDOR_SPACING' },
+    { panelKey: 'dfCorridorCount', configKey: 'DF_CORRIDOR_COUNT' },
+    { panelKey: 'dfCorridorWeight', configKey: 'DF_CORRIDOR_WEIGHT' },
+    { panelKey: 'dfDisconnectEnabled', configKey: 'DF_DISCONNECT_ENABLED' },
+    { panelKey: 'dfBorderMode', configKey: 'DF_BORDER_MODE' },
+    { panelKey: 'dfBorderFamily', configKey: 'DF_BORDER_FAMILY' },
+    { panelKey: 'dfBorderEngine', configKey: 'DF_BORDER_ENGINE' },
+    { panelKey: 'dfCanonicalFrontierRuntimeMode', configKey: 'DF_CANONICAL_FRONTIER_RUNTIME_MODE' },
+    { panelKey: 'dfCanonicalFrontierDiagnosticShow', configKey: 'DF_CANONICAL_FRONTIER_DIAGNOSTIC_SHOW' },
+    { panelKey: 'dfDisconnectDistance', configKey: 'DF_DISCONNECT_DISTANCE' },
+    { panelKey: 'dfDisconnectWeight', configKey: 'DF_DISCONNECT_WEIGHT' },
+    // Contour Territory
+    { panelKey: 'territoryContour', configKey: 'TERRITORY_CONTOUR' },
+    { panelKey: 'territoryClusterSplit', configKey: 'TERRITORY_CLUSTER_SPLIT' },
+    { panelKey: 'contourSaturation', configKey: 'CONTOUR_SATURATION' },
+    { panelKey: 'contourLightness', configKey: 'CONTOUR_LIGHTNESS' },
+    { panelKey: 'contourFillAlpha', configKey: 'CONTOUR_FILL_ALPHA' },
+    { panelKey: 'contourResolution', configKey: 'CONTOUR_RESOLUTION' },
+    { panelKey: 'contourSimplify', configKey: 'CONTOUR_SIMPLIFY' },
+    { panelKey: 'contourSmooth', configKey: 'CONTOUR_SMOOTH' },
+    { panelKey: 'contourBorderWidth', configKey: 'CONTOUR_BORDER_WIDTH' },
+    { panelKey: 'contourBorderAlpha', configKey: 'CONTOUR_BORDER_ALPHA' },
+    { panelKey: 'contourBorderBrighten', configKey: 'CONTOUR_BORDER_BRIGHTEN' },
+    { panelKey: 'contourCornerRadius', configKey: 'CONTOUR_CORNER_RADIUS' },
+    { panelKey: 'contourCornerThreshold', configKey: 'CONTOUR_CORNER_THRESHOLD' },
+    { panelKey: 'contourPeripheryStrength', configKey: 'CONTOUR_PERIPHERY_STRENGTH' },
+    { panelKey: 'contourPeripheryInset', configKey: 'CONTOUR_PERIPHERY_INSET' },
+    { panelKey: 'contourJunctionCorrection', configKey: 'CONTOUR_JUNCTION_CORRECTION' },
 ];
 
 // ── ConfigKey → PanelKey lookup (for animSliderToPanelKey) ──────────────────
@@ -371,3 +458,5 @@ export function formatAnimValue(val: number, unit: string): string {
     if (unit === 'ms') return `${Math.round(val)}${unit}`;
     return `${val.toFixed(2)}${unit}`;
 }
+
+

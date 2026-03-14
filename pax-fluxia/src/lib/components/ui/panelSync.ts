@@ -100,10 +100,12 @@ export function loadPanelSettings<T extends Record<string, any>>(defaults: T): T
  * Build panel defaults by reading every key in PANEL_CONFIG_MAP from GAME_CONFIG.
  * This ensures panel state always starts consistent with game config — no undefined keys.
  */
-export function panelDefaultsFromConfig(): Record<string, any> {
+export function panelDefaultsFromConfig(
+    configSource: Record<string, any> = GAME_CONFIG as Record<string, any>,
+): Record<string, any> {
     const defaults: Record<string, any> = {};
     for (const m of PANEL_CONFIG_MAP) {
-        const raw = (GAME_CONFIG as any)[m.configKey];
+        const raw = configSource[m.configKey];
         defaults[m.panelKey] = m.transform === 'inverse' ? (1 / raw) : raw;
     }
     return defaults;
@@ -141,10 +143,13 @@ export function applyPanelToConfig(panel: Record<string, any>): void {
  * Read GAME_CONFIG into panel object.
  * Used after theme apply or config import to sync display.
  */
-export function syncPanelFromConfig(existing: Record<string, any>): Record<string, any> {
+export function syncPanelFromConfig(
+    existing: Record<string, any>,
+    configSource: Record<string, any> = GAME_CONFIG as Record<string, any>,
+): Record<string, any> {
     const updated = { ...existing };
     for (const mapping of PANEL_CONFIG_MAP) {
-        const configVal = (GAME_CONFIG as any)[mapping.configKey];
+        const configVal = configSource[mapping.configKey];
         if (configVal === undefined) continue;
         if (mapping.transform === 'inverse') {
             updated[mapping.panelKey] = 1 / (configVal as number);
@@ -286,3 +291,5 @@ export function exportConfigJSON(): void {
 export function configKeyToPanelKey(configKey: string): string | null {
     return CONFIG_TO_PANEL_KEY[configKey] ?? null;
 }
+
+

@@ -109,3 +109,214 @@
 - **Error**: User specified "Section: Map & Game" for the Label Anim Mode toggle. Agent placed it in Timing section instead.
 - **Root cause**: Agent noticed `NUMBER_TRANSITION_MS` was already in Timing and assumed logical grouping overrode the user's explicit instruction. This violates §2.3: "User words are specifications."
 - **Prevention**: When user specifies a section/location, treat it as a hard constraint. Never substitute own judgment for an explicit placement instruction.
+
+### D-33: Chaikin Smoothing Defaults to OFF (0)
+- **Decision**: Chaikin smoothing slider defaults to 0 (completely off). Must be applied AFTER junction correction (F-135), never before.
+- **Rationale**: Smoothing erases junction geometry and creates corner gaps. User should opt in to smoothing only after junctions are correct.
+
+### D-34: Voronoi Over Marching Squares for Territory Rendering
+- **Decision**: Abandon marching squares / contour-based renderer (F-104, F-135) in favor of **Voronoi merged territories (F-138)** using d3-delaunay.
+- **Rationale**: Marching squares geometry is fundamentally too noisy — edge midpoints are pairwise (between 2 owners), no shared 3-way junction vertex exists, and every junction fix exposed a deeper geometric issue. After 3 algorithm iterations, visual quality was still unacceptable.
+- **New approach**: d3-delaunay gives clean convex cells with natural ~120° junction angles. Merge same-owner adjacent cells (remove shared edges, chain boundary), apply minimum star margin (F-139), Bézier arc junctions, Chaikin smoothing.
+- **Boilerplate**: `MergedVoronoiRenderer.ts` created as duplicate of `VoronoiRenderer.ts` with TODO markers.
+
+## 2026-03-03
+
+### D-35: Voronoi Tiling Property — Gap Root Cause (F-138)
+- **Decision**: The d3-delaunay Voronoi tiles the plane perfectly (zero gaps). All gaps in the rendered output are caused by pipeline stages modifying shared boundary vertices independently per polygon. This is the SINGLE root cause of gap artifacts.
+- **Mechanism**: When same-owner cells merge, boundary edges shared between different-owner polygons exist as duplicate vertex copies. Stages (arc smoothing, star margin) modify each copy independently → vertices diverge → slivers appear.
+- **Fix approach**: Shared-vertex reconciliation — catalog shared vertices pre-modification, reconcile post-modification.
+
+### D-36: Single-Layer Rendering Mandate (F-138)
+- **Decision**: Territory rendering MUST produce a single set of modified polygons. No base layer + overlay, no bleed/overlap, no dual rendering.
+- **Rationale**: User directive. Stacking layers is a hack that hides gaps rather than solving them.
+
+### D-37: Corridor Virtual Sites (F-138)
+- **Decision**: Inject virtual Voronoi sites along same-owner lanes to create connected territory corridors. Virtual sites inherit source star cluster index. Parameterized by `CORRIDOR_SPACING` (20-200px).
+- **Known issue**: Spacing < ~45px can destabilize merge step.
+
+### D-38: Disconnect Buffer — Enemy Territory Wedge (F-138)
+- **Decision**: Same-owner stars NOT connected by a lane must have enemy territory visually separating them. Algorithm: split connection vector into thirds, enemy territory fills center 1/3rd, meeting at the connection line.
+- **Status**: Concept approved by user, implementation needs redesign (current vertex-pushing approach is imprecise).
+
+### PM-03: False "Unowned Stars" Diagnosis (Post-Mortem, 2026-03-03)
+- **Error**: Agent claimed gaps were caused by "unowned stars creating Voronoi cells nobody renders." All stars are currently owned. Agent made this claim **twice** after being corrected.
+- **Root cause**: Agent substituted speculation for investigation. Instead of examining the actual pipeline code to identify where shared vertices diverge, fabricated a theory that fit the symptom.
+- **Prevention**: Before proposing a root cause for any rendering bug, verify the claim against actual data (star ownership status, vertex coordinates before/after each stage). Never repeat a diagnosis the user has already corrected.
+
+- 2026-03-07: Territory borders in production now use GPU ownership-field two-pass rendering as canonical path; CPU vector overlay remains debug-only due non-zero divergence risk from simplify/straighten operations.
+
+- 2026-03-07: DF border width semantics changed to center-stroke (half-width per side) in both single-pass and canonical two-pass shaders; two-pass now subtracts half-texel boundary-center bias so the stroke centers on the ownership interface instead of sitting fully inside one territory.
+
+### D-39: Territory Architecture v3 — Final Hybrid (2026-03-07)
+- **Decision**: Adopt a three-source hybrid architecture for territory rendering:
+  1. **Solver**: Graph-native multi-source top-2 Dijkstra (replaces per-player `computeDistToPlayer`). Disconnects solved by construction — no virtual sites or Union-Find needed.
+  2. **Fills**: Low-res ownership RT (512–2048²) computed only on topology delta, sampled via fill shader with ping-pong RT morph.
+  3. **Borders**: Geometry pipeline — centerline graph from analytical lane borders + field-derived interstitial borders → family fitters (straight/curved/segmented) → stroke mesh with round joins/caps.
+- **Rationale**: Synthesizes insights from three independent analyses. Graph-metric Dijkstra handles disconnects intrinsically. Ownership RT provides full-field fill coverage. Geometry borders give resolution-independent even-width strokes. Distance-lerp morph produces physically accurate border drift.
+- **Full spec**: `.agent/WIP Work-In-Progress/proposals/TERRITORY_ARCHITECTURE_v3.md`
+
+## 2026-03-10
+
+### D-40: Frontier Normalization — Region-Sequential Smoothing (F-138v2)
+- **Decision**: Territory polygons must be built from stars (contiguous groups by ownership, constrained by graph relationships). The entire map is first computed as angular Voronoi with all adjustments (CX corridors, DX disconnect zones, MSR minimum star radius). Then Chaikin + arc smoothing is applied **region by region** in a deterministic order (topmost-leftmost first), including rectangular world-bound corners. Each subsequent abutting region **normalizes its shared frontier** to use the exact same coordinates as the already-processed neighbor.
+- **Rationale**: Current system applies Chaikin smoothing independently per owner-pair polyline. When these are chained at junctions, endpoints don't match because smoothing displaced them independently → junction gaps, degenerate chains, failed loops. Building sequentially with shared-edge normalization eliminates this class of bugs entirely.
+- **Key terms**:
+  - **Frontier normalization**: Ensuring that where two regions share a border, both sides reference identical vertex coordinates
+  - **Region-sequential smoothing**: Process regions in deterministic order; later regions adopt the already-smoothed edge from earlier neighbors
+- **Status**: Planned. Requires rewrite of `assembleFrontierLoops` pipeline.
+
+## [2026-03-10] PVV3 Territory Smoothing Architecture
+- World bounding box required: all outer frontiers must connect to map-edge rectangle
+- Smoothing must happen on shared boundaries, NOT independently per territory polygon
+- Independent per-territory Chaikin causes visible gaps at shared edges
+- Fill crossfade (alpha-fade transition) intentionally cut for focus, NOT rejected — trivial to restore
+
+## 2026-03-12
+
+### D-41: Territory Engine Must Be Mode-Modular (Static/Dynamic/Hybrid)
+- **Decision**: Territory rendering is routed through a single modular engine that selects `static`, `dynamic`, or `hybrid` mode at runtime using config keys.
+- **Rationale**: User requires side-by-side evaluation of method families without rewiring renderer entry points.
+
+### D-42: Preserve FG/DY/HY Method IDs as Stable Contracts
+- **Decision**: Lock method identity contracts as `FG1..FG5`, `DY1..DY5`, `HY1..HY5` and keep them registry-driven.
+- **Rationale**: Enables interchangeable implementation and benchmark reporting while preventing ad-hoc method drift.
+
+### D-43: Step Debugging Is a First-Class Runtime Path
+- **Decision**: Territory pipeline supports interactive stepping via `TERRITORY_ENGINE_STEP_MODE` and `TERRITORY_ENGINE_STEP_ADVANCE_TOKEN`.
+- **Rationale**: User requires pause-and-inspect computation visibility beyond final visuals.
+
+### D-44: Bootstrap Legacy Adapters Are Allowed During Architecture Phase
+- **Decision**: Until native FG/DY/HY implementations are complete, render stage may use legacy adapters (PVV2/PVV3/DF) behind the modular engine.
+- **Rationale**: Preserves momentum: architecture and diagnostics land first, native geometry methods follow in dedicated epic branches.
+
+### D-45: FG2 Seed Placement Uses Lane Tie Solve (Bootstrap Bias Model)
+- **Decision**: FG2 no longer seeds contested lanes at fixed midpoint. It solves a lane tie parameter from two linearized influence distances and clamps to a safe interval.
+- **Rationale**: Midpoint seeding cannot represent force asymmetry and produces visually rigid frontiers. Tie solving is the first step toward MSR/CX/DX-aware frontier genesis.
+
+### D-46: FG2 Geometry Uses Pair-Topology Graphs Instead of Nearest-Neighbor Ordering
+- **Decision**: FG2 geometry now assembles frontier lines from owner-pair topology graphs derived from star incidence and angular local links, then extracts edge-disjoint chains/cycles for rendering.
+- **Rationale**: Nearest-neighbor ordering is not topology-aware and produces unstable chain construction. Pair-topology graphs are still heuristic, but they preserve graph-local structure and create a deterministic stepping surface for the next half-edge/junction phase.
+
+### D-47: Native Territory Stages Register Through a Shared Dispatch Layer
+- **Decision**: Native territory methods now plug into a shared dispatcher in `territory-engine/methods/index.ts`, and the engine calls that dispatcher before generic fallback logic.
+- **Rationale**: The engine must remain stable while FG/DY/HY native methods multiply. Centralized native dispatch removes method-specific imports from the engine and makes branch-by-branch method rollout modular.
+
+### D-48: FG2 Pair Graphs Use Explicit Node and Link Types
+- **Decision**: FG2 owner-pair topology graphs now model typed nodes (`seed`, `junction`, `boundary`) and typed links (`star_arc`, `boundary_extension`) instead of seed-only adjacency.
+- **Rationale**: Half-edge/world-closure work needs a graph that can represent frontier turns around stars and explicit terminations at map edges. Seed-only links cannot support later face walking or fill reconstruction.
+
+### D-49: FG2 Open Frontier Ends Project to the World Rectangle
+- **Decision**: When a contested seed has no second continuation on a star side, FG2 extends that side by ray projection to the world rectangle and creates a boundary anchor node.
+- **Rationale**: Frontier chains must terminate on canonical map edges rather than arbitrary local cutoffs. This is the first step toward world-corner stitching and closed region recovery.
+
+## 2026-03-13
+
+### D-50: Architecture-Level Debugging Heuristic
+- **Rule**: If fixing the same class of bug requires patching 3+ different functions in the same pipeline, the architecture is wrong — not the code. Stop debugging and redesign the data flow.
+- **Anti-pattern name**: "Compensating for wrong architecture with correct debugging"
+- **Extracted from**: 200+ hours of territory rendering work across 8-10 approaches. Each mode independently derived frontier geometry and each had gaps/misalignment. The fix was never better matching/substitution — it was always ensuring a single canonical geometry source.
+- **Heuristic**: When two consumers need the same data, that data must be computed once and shared by reference — never independently derived and reconciled.
+
+### D-51: FG2 Is Part of PVV3, Not Separate
+- **Decision**: FG2 (frontier graph method 2) is PVV3's internal frontier-construction pipeline. It is NOT a separate system. Agents must not treat these as independent components in tension.
+- **Rationale**: The naming "FG2 vs PVV3" created a false dichotomy that led to thinking about them as competing systems rather than producer (FG2 constructs geometry) and consumer (PVV3 renders it) within one unified renderer.
+
+### D-52: FG2 Boundary Anchors Stitch Along the World Perimeter
+- **Decision**: FG2 now orders owner-pair boundary anchors along the world rectangle, pairs them into perimeter paths, and connects them through explicit corner nodes plus `boundary_perimeter` links.
+- **Rationale**: Half-edge face walking and eventual canonical fills need frontier continuity on the actual map boundary, not isolated edge anchors that die at the rectangle.
+
+### D-53: FG2 Loop Stage Must Explicitly Mark Exterior vs Canonical Face Candidates
+- **Decision**: FG2 half-edge loop artifacts now classify closed left-face walks into one deterministic exterior-face candidate and the remaining canonical-face candidates per owner pair.
+- **Rationale**: Canonical fill reconstruction cannot start from raw closed walks alone. The pipeline needs an explicit diagnostic partition between the rectangle exterior and plausible interior frontier faces before ownership reconstruction can be made reliable.
+
+### D-54: FG2 Canonical Loops Must Be Owner-Attributed Before Fill Reconstruction
+- **Decision**: FG2 now converts canonical owner-pair face walks into owner-attributed `ownerRegionLoops` using link-level `viaOwner` provenance from `star_arc` and `boundary_extension` edges. Tied attributions remain diagnostic-only and are not promoted.
+- **Rationale**: Pairwise frontier faces are not yet usable as territory candidates. Fill reconstruction and meaningful trace visuals require player-colored region pieces, but that ownership signal should remain modular and derived from link provenance rather than hard-coded into geometry extraction.
+
+### D-55: Territory Trace Runs Must Be Published to UI-Readable State
+- **Decision**: The last territory-engine trace run is published through a live store and exposed in the territory controls UI, including full artifact snapshots.
+- **Rationale**: Step-debugging only matters if the user can inspect staged data without relying on console spelunking.
+
+### D-56: FG2 Star-Side Junctions Must Use Global Angular Incidence
+- **Decision**: FG2 now synthesizes star-side junctions from the globally ordered contested seeds around each star, then lets owner-pair graphs reuse those shared junction nodes.
+- **Rationale**: Pair-local junction synthesis creates fake local closures and prevents different owner-pairs from meeting at the same real frontier junction.
+
+### D-57: FG2 Owner Region Candidates Prefer Global Face Resolution Over Pair-Local Loops
+- **Decision**: When available, `ownerRegionLoops` are now sourced from a global face walk over the merged FG2 topology graph; pair-local owner loops remain fallback diagnostics.
+- **Rationale**: Pairwise canonical loops are useful scaffolding, but they cannot serve as the final ground truth once frontier continuity begins to span multiple owner-pairs at shared junctions.
+
+### D-58: FG2 Fill Geometry Must Be Synthesized From Owner-Exposed Edges of the Global Arrangement
+- **Decision**: FG2 now derives `ownerShells` by projecting the globally resolved face ownership onto the merged half-edge arrangement and keeping only owner-exposed links; shell loops are then classified by containment into shells vs holes.
+- **Rationale**: Raw owner-region face candidates are not yet owner-level fill geometry. The owner shell graph removes same-owner internal shared edges and produces a materially better canonical fill artifact for later morphing and border/fill coincidence.
+
+### D-59: FG2 Dynamic Playback Starts From Owner-Shell Correspondence
+- **Decision**: FG2 shell transitions now match previous/current owner shells using centroid, area, perimeter, hole-count, and world-boundary heuristics, then build explicit contour correspondences. Spawn and vanish events use centroid-collapsed contour fallbacks.
+- **Rationale**: Dynamic territory playback needs a modular geometry bridge between discrete owner-shell states before full frontier-native morphing is ready.
+
+### D-60: Displayed Borders Must Follow Animated Geometry During Territory Morphs
+- **Decision**: While FG2 shell playback is active, render-stage border presentation switches from static target `frontiers` to animated shell contours.
+- **Rationale**: Showing target frontier strokes before the displayed fill arrives recreates the exact border/fill desynchronization this program is meant to eliminate. The displayed border source must stay temporally aligned with the displayed fill geometry.
+
+### D-61: FG2 Static Borders Must Reuse Owner-Shell Geometry When Available
+- **Decision**: FG2 render-stage border presentation now uses owner-shell contours whenever owner-shell geometry exists, regardless of whether shell playback is currently active. Pair-frontier polylines are fallback-only.
+- **Rationale**: Border/fill coincidence is required in settled states too, not only during active transitions. If static fills come from owner shells while borders fall back to pair frontiers, the engine reintroduces the exact adjacency mismatch it is supposed to eliminate.
+
+### D-62: FG2 Static Owner-Shell Fills Must Subtract Classified Hole Loops
+- **Decision**: Static FG2 owner-shell fills now cut their classified `holeLoopIds` out of the filled shell path during render.
+- **Rationale**: Hole classification is not meaningful if enclaves are still painted over. Fill-ready shell geometry must preserve empty interior regions as actual negative space.
+
+### D-63: FG2 Shell Playback Must Carry Hole Geometry, Not Only Hole Counts
+- **Decision**: FG2 owner-shell frame snapshots, transition artifacts, and displayed interpolated shells now carry explicit hole-loop geometry in addition to aggregate hole counts.
+- **Rationale**: Hole-only topology changes must be able to trigger playback and preserve visible cutouts during morphs. Hole counts alone are insufficient for either change detection or renderable animated cutouts.
+
+### D-64: FG2 Shell and Hole Playback Must Use Global Non-Conflicting Correspondence
+- **Decision**: FG2 shell transitions now select shell matches globally per owner from all previous/current candidates, and hole transitions now select hole matches globally within each shell transition. Candidate selection is one-to-one and score-ordered rather than greedy by current item iteration.
+- **Rationale**: Greedy local matching reuses previous shapes incorrectly, causes shell identity flicker, and pairs the wrong enclaves during split, merge, or strong topology-shift frames.
+
+### D-65: Animated Hole Geometry Must Be Sanitized Against the Displayed Shell
+- **Decision**: Interpolated hole loops are now filtered against the displayed shell polygon before render use, and degenerate or clearly out-of-shell hole loops are dropped.
+- **Rationale**: Negative geometry that escapes the shell or collapses numerically creates invalid cutouts and visible playback artifacts. The displayed hole set must remain a subset of the displayed shell geometry.
+
+### D-66: FG2 Spawn and Vanish Playback Must Collapse Toward Anchor-Shaped Contours
+- **Decision**: When FG2 builds unmatched `spawn` or `vanish` transitions and an anchor holding exists, the collapsed contour now blends toward the aligned anchor contour before scaling around the anchor point. Endpoint fallback is also allowed for all transition kinds if interpolation becomes invalid.
+- **Rationale**: Collapsing unmatched holdings toward a near-point version of themselves produces brittle split/merge motion and can drop geometry entirely when interpolation becomes invalid. The fallback should preserve recognizable nearby geometry and degrade to a valid displayed loop rather than disappear.
+
+### D-67: Territory Trace Inspector Must Expose Holding-Transition Diagnostics
+- **Decision**: The Trace Inspector now includes a `Holding Transitions` section with transition-count summary metrics and per-transition preview lines sourced from the FG2 animation artifact.
+- **Rationale**: Dynamic territory debugging depends on seeing transition kind, anchor relation, fallback counts, and contour-distance signals directly in the UI. Artifact dumps alone are too indirect for rapid evaluation.
+
+### D-68: PVV3 Is An Active Territory Runtime, Not A Legacy Method Bucket
+- **Decision**: PVV3 is now treated as an active runtime/backend and renderer host for the territory engine, not as a "legacy method" category. The `FG/DY/HY` identifiers remain the method contracts; PVV3 is the execution surface that can host them.
+- **Rationale**: FG2 now runs natively and PVV3 already consumes FG2 artifacts directly for fills, borders, and playback while still hosting adapter-backed routes for incomplete methods. Treating PVV3 as merely "legacy" obscures the actual architecture and leads to incorrect reasoning about how the 15 modes fit together.
+
+### D-69: Terminology Evaluation — Method vs Backend vs Contract vs Renderer Host (2026-03-14)
+- **Decision**: Of the four architectural terms used in the planning docs, two are **fully valid** and two are **partially valid**:
+  - ✅ **Algorithm family** (FG/DY/HY): Fully valid separation — static frontier, dynamic update, and hybrid orchestration are genuinely independent concerns.
+  - ✅ **Runtime/backend** (PVV2/PVV3/DF): Fully valid — the execution surface that renders is genuinely separate from the method that produces geometry.
+  - ⚠️ **Contract**: Aspirational, not enforced. Method descriptors have stable IDs but `TerritoryPipelineArtifacts` is generic `Record<string, unknown>`. Only FG2 produces real typed artifacts; other methods skip to adapter calls.
+  - ⚠️ **Renderer host**: Currently conflated with "backend" — PVV3 does artifact consumption and pixel drawing in the same function. Distinction becomes real only if a separate artifact-consumption layer exists.
+- **Implication**: The useful architectural axis is **method ≠ renderer**. The contract gap is the biggest risk for functional modularity — without typed method outputs, methods can't freely target different renderers.
+
+### D-70: Canonical Terminology — Territory / Front / Holding / Sector (2026-03-14)
+- **Decision**: All code, docs, and variables adopt this terminology going forward:
+  - **Territory**: A grouping of connected stars and all the space within its bounds
+  - **Front**: The line where opposing territories meet (replaces "frontier" in gameplay context)
+  - **Holding**: The sum total of a player's territories
+  - **Sector**: The game map
+  - (Future roadmap) **Frontier**: fronts facing unexplored space; **District**: higher-level map of sectors; **Quadrant**: higher-level map of districts; **Galaxy**: highest-level map of quadrants
+- **Action**: Variable/file rename inventory and migration plan to be created as a separate task. Code variable names like `ownerShells`, `frontierGraph`, `holdings` will be mapped to new canonical terms.
+
+### D-71: Renderer Inventory — 10 Renderers, Not 3 (2026-03-14)
+- **Decision**: The project has **10 territory renderers** available in the UI (9 active + 1 disabled), not 3. The territory engine's 15 sub-modes route through 3 of them via adapters, but they are not the only renderers:
+  1. Voronoi (basic d3-voronoi)
+  2. Modified Voronoi (disabled — causes freeze)
+  3. Metaball (WebGL shader)
+  4. Pixel (classic pixel-based)
+  5. Lane Territory (graph lanes)
+  6. Contour (vector marching-squares)
+  7. Power Voronoi V2 / PVV2 (weighted Voronoi, d3-weighted-voronoi)
+  8. PVV3 (frontier-first, consumes FG2 artifacts)
+  9. Territory Engine (15-mode orchestrator routing to PVV2/PVV3/DF)
+  10. Distance Field (GPU shader)
+- **Implication**: "Backend" and "renderer host" are retired terms. Use **renderer** for all. The territory engine is a mode selector that routes to renderers, not a renderer itself.

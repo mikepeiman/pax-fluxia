@@ -15,6 +15,17 @@
 
 ---
 
+## Territory Rendering Pipeline (2026-03-07)
+
+| ID | Item | Status | Notes |
+|----|------|--------|-------|
+| T-DF-1 | Canonical DF panel write path | ? | Territory UI writes now routed through `updatePanel` path (bridge-compatible), direct writes removed from territory controls. |
+| T-DF-2 | DX transient revert instrumentation | ? | Added telemetry + diagnostics (`getDistanceFieldDxDiagnostics`) and rebuild trigger on relevant UI writes. |
+| T-DF-3 | Straight-line border regularization | ? | Vector border extraction now linearizes boundary graph into piecewise straight world-space segments (round joins/caps + softness halo). |
+| T-DF-4 | Border family framework | ? | `DF_BORDER_FAMILY` added (`straight`, `curved`, `segmented`); `curved`/`segmented` currently deterministic stubs falling back to straight. |
+| T-DF-5 | User verification pending | ? | Visual acceptance still required for: border evenness at high zoom, DX persistence behavior, morph smoothness/perf tradeoff. |
+
+---
 ## Core Gameplay (C)
 
 | ID | Feature | Status | Notes |

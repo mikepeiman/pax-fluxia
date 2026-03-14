@@ -1,5 +1,20 @@
 <script lang="ts">
     import { GAME_CONFIG } from "$lib/config/game.config";
+    import {
+        TERRITORY_PIPELINE_STAGE_ORDER,
+        type TerritoryPipelineArtifacts,
+        type TerritoryPipelineStageId,
+    } from "$lib/territory-engine";
+    import {
+        DEFAULT_TERRITORY_DYNAMIC_METHOD,
+        DEFAULT_TERRITORY_HYBRID_PLAN,
+        DEFAULT_TERRITORY_STATIC_METHOD,
+        TERRITORY_DYNAMIC_METHOD_BY_ID,
+        TERRITORY_HYBRID_PLAN_BY_ID,
+        TERRITORY_STATIC_METHOD_BY_ID,
+    } from "$lib/territory-engine/registry";
+    import { territoryTraceRun } from "$lib/territory-engine/traceStore";
+    import CategoryThemeBar from "./CategoryThemeBar.svelte";
 
     // ControlsSection-Territory -- Territory Rendering (Voronoi + Metaball)
 
@@ -10,21 +25,157 @@
     }
 
     let { panel, updatePanel, syncFromConfig }: Props = $props();
-    import CategoryThemeBar from "./CategoryThemeBar.svelte";
 
+    // Bridge compatibility: keep legacy call sites, route to panel writes only.
+    function debouncedConfigUpdate(
+        _configKey: string,
+        panelKey: string,
+        value: any,
+        _delayMs = 100,
+    ) {
+        updatePanel(panelKey, value);
+    }
+
+    function formatTraceValue(value: unknown): string {
+        if (Array.isArray(value)) return `[${value.length}]`;
+        if (typeof value === "number") return Number.isInteger(value) ? `${value}` : value.toFixed(2);
+        if (typeof value === "boolean") return value ? "true" : "false";
+        if (typeof value === "string") return value;
+        if (value && typeof value === "object") {
+            return `{${Object.keys(value as Record<string, unknown>).length}}`;
+        }
+        return String(value ?? "null");
+    }
+
+    function summarizeTraceRecord(
+        record: Record<string, unknown> | undefined,
+        limit = 6,
+    ): string[] {
+        if (!record) return [];
+        return Object.entries(record)
+            .filter(([, value]) => value !== undefined)
+            .slice(0, limit)
+            .map(([key, value]) => `${key}=${formatTraceValue(value)}`);
+    }
+
+    function getTraceArtifactEntries(
+        artifacts: TerritoryPipelineArtifacts | undefined,
+    ): Array<{ stageId: TerritoryPipelineStageId; artifact: Record<string, unknown> }> {
+        if (!artifacts) return [];
+        return TERRITORY_PIPELINE_STAGE_ORDER.flatMap((stageId) => {
+            const artifact = artifacts[stageId];
+            if (!artifact) return [];
+            return [{ stageId, artifact: artifact as Record<string, unknown> }];
+        });
+    }
+
+    function getNextTraceStageLabel(stepCount: number): string {
+        return TERRITORY_PIPELINE_STAGE_ORDER[stepCount] ?? "complete";
+    }
+
+    function getOwnerRegionLoopPreviewEntries(
+        artifacts: TerritoryPipelineArtifacts | undefined,
+    ): Array<{ id: string; summary: string }> {
+        const ownerRegionLoops =
+            ((artifacts?.loop as { ownerRegionLoops?: Array<Record<string, unknown>> } | undefined)
+                ?.ownerRegionLoops ?? []) as Array<Record<string, unknown>>;
+        return ownerRegionLoops.slice(0, 4).map((loop, index) => {
+            const ownerId = typeof loop.ownerId === "string" ? loop.ownerId : "?";
+            const opposingOwnerId =
+                typeof loop.opposingOwnerId === "string" ? loop.opposingOwnerId : "?";
+            return {
+                id:
+                    typeof loop.regionLoopId === "string"
+                        ? loop.regionLoopId
+                        : `owner-region-${index}`,
+                summary:
+                    `${ownerId} vs ${opposingOwnerId} | ` +
+                    `area=${formatTraceValue(loop.absArea)} | ` +
+                    `conf=${formatTraceValue(loop.confidence)}`,
+            };
+        });
+    }
+
+    function getOwnerShellPreviewEntries(
+        artifacts: TerritoryPipelineArtifacts | undefined,
+    ): Array<{ id: string; summary: string }> {
+        const ownerShells =
+            ((artifacts?.loop as { ownerShells?: Array<Record<string, unknown>> } | undefined)
+                ?.ownerShells ?? []) as Array<Record<string, unknown>>;
+        return ownerShells.slice(0, 4).map((shell, index) => {
+            const ownerId = typeof shell.ownerId === "string" ? shell.ownerId : "?";
+            const holeCount = Array.isArray(shell.holeLoopIds) ? shell.holeLoopIds.length : 0;
+            return {
+                id:
+                    typeof shell.shellId === "string"
+                        ? shell.shellId
+                        : `owner-shell-${index}`,
+                summary:
+                    `${ownerId} | ` +
+                    `area=${formatTraceValue(shell.absArea)} | ` +
+                    `holes=${formatTraceValue(holeCount)} | ` +
+                    `conf=${formatTraceValue(shell.confidence)}`,
+            };
+        });
+    }
+
+    function getOwnerHoldingTransitionSummary(
+        artifacts: TerritoryPipelineArtifacts | undefined,
+    ): string[] {
+        const animation = (artifacts?.animation ?? undefined) as Record<string, unknown> | undefined;
+        if (!animation) return [];
+
+        return [
+            `transitions=${formatTraceValue(animation.ownerShellTransitionCount)}`,
+            `matched=${formatTraceValue(animation.matchedOwnerShellCount)}`,
+            `spawn=${formatTraceValue(animation.spawnedOwnerShellCount)}`,
+            `vanish=${formatTraceValue(animation.vanishedOwnerShellCount)}`,
+            `grow=${formatTraceValue(animation.grewOwnerShellCount)}`,
+            `shrink=${formatTraceValue(animation.shrankOwnerShellCount)}`,
+            `split=${formatTraceValue(animation.splitAnchoredSpawnCount)}`,
+            `merge=${formatTraceValue(animation.mergeAnchoredVanishCount)}`,
+            `fallback=${formatTraceValue(animation.ownerShellGeometryFallbackCount)}`,
+            `holeTransitions=${formatTraceValue(animation.ownerShellHoleTransitionCount)}`,
+        ];
+    }
+
+    function getOwnerHoldingTransitionPreviewEntries(
+        artifacts: TerritoryPipelineArtifacts | undefined,
+    ): Array<{ id: string; summary: string }> {
+        const transitions =
+            ((artifacts?.animation as { ownerShellTransitions?: Array<Record<string, unknown>> } | undefined)
+                ?.ownerShellTransitions ?? []) as Array<Record<string, unknown>>;
+        return transitions.slice(0, 6).map((transition, index) => {
+            const ownerId = typeof transition.ownerId === "string" ? transition.ownerId : "?";
+            const kind = typeof transition.kind === "string" ? transition.kind : "?";
+            const anchorRelation =
+                typeof transition.anchorRelation === "string" ? transition.anchorRelation : "none";
+            const relationLabel = anchorRelation !== "none" ? `/${anchorRelation}` : "";
+            return {
+                id:
+                    typeof transition.transitionId === "string"
+                        ? transition.transitionId
+                        : `owner-shell-transition-${index}`,
+                summary:
+                    `${ownerId} | ${kind}${relationLabel} | ` +
+                    `conf=${formatTraceValue(transition.confidence)} | ` +
+                    `contour=${formatTraceValue(transition.meanContourDistance)}/${formatTraceValue(transition.maxContourDistance)} | ` +
+                    `holes=${formatTraceValue(transition.previousHoleCount)}->${formatTraceValue(transition.currentHoleCount)}`,
+            };
+        });
+    }
     const TERRITORY_KEYS = [
         "territoryVoronoi",
+        "territoryModifiedVoronoi",
+        "territoryPowerVoronoi",
+        "territoryPVV3",
+        "territoryEngine",
         "territoryMetaball",
         "territoryPixel",
         "territoryGraph",
+        "territoryContour",
+        "territoryDistanceField",
     ] as const;
-    const CONFIG_KEYS = [
-        "TERRITORY_VORONOI",
-        "TERRITORY_METABALL",
-        "TERRITORY_PIXEL",
-        "TERRITORY_GRAPH",
-    ] as const;
-
     function selectTerritory(
         chosen: (typeof TERRITORY_KEYS)[number],
         enabled: boolean,
@@ -33,25 +184,297 @@
             // Turn all off, then enable chosen exclusively
             for (let i = 0; i < TERRITORY_KEYS.length; i++) {
                 const isChosen = TERRITORY_KEYS[i] === chosen;
-                (GAME_CONFIG as any)[CONFIG_KEYS[i]] = isChosen;
                 updatePanel(TERRITORY_KEYS[i], isChosen);
             }
         } else {
             // Allow turning off without forcing another on
-            (GAME_CONFIG as any)[CONFIG_KEYS[TERRITORY_KEYS.indexOf(chosen)]] =
-                false;
             updatePanel(chosen, false);
         }
     }
+    const BORDER_ENGINE_OPTIONS = [
+        { id: "mesh", label: "Mesh (Clean)" },
+        { id: "legacy_field", label: "Legacy Field (Reference)" },
+        { id: "legacy_grid", label: "Legacy Grid (Reference)" },
+    ] as const;
+    const CANONICAL_FRONTIER_MODE_OPTIONS = [
+        { id: "disabled", label: "Disabled" },
+        { id: "diagnostic", label: "Diagnostic" },
+        { id: "production", label: "Production" },
+    ] as const;
+    const TERRITORY_ENGINE_METHOD_OPTIONS = [
+        { id: "fg1_adaptive_field", label: "FG1 Adaptive Field" },
+        { id: "fg2_seed_graph", label: "FG2 Seed Graph" },
+        { id: "fg3_implicit_trace", label: "FG3 Implicit Trace" },
+        { id: "fg4_pairwise_arrangement", label: "FG4 Pairwise Arrangement" },
+        { id: "fg5_rt_assisted_publish", label: "FG5 RT-Assisted Publish" },
+    ] as const;
+    const TERRITORY_ENGINE_MODE_OPTIONS = [
+        { id: "static", label: "Static" },
+        { id: "dynamic", label: "Dynamic" },
+        { id: "hybrid", label: "Hybrid" },
+    ] as const;
+    const TERRITORY_ENGINE_DYNAMIC_OPTIONS = [
+        { id: "dy1_span_graph_morph", label: "DY1 Span Graph Morph" },
+        { id: "dy2_local_delta_patch", label: "DY2 Local Delta Patch" },
+        { id: "dy3_field_interp_stabilized", label: "DY3 Field Interp" },
+        { id: "dy4_optimal_transport", label: "DY4 Optimal Transport" },
+        { id: "dy5_corridor_event_decomposition", label: "DY5 Corridor Events" },
+    ] as const;
+    const TERRITORY_ENGINE_HYBRID_OPTIONS = [
+        { id: "hy1_static_backbone_dynamic_refine", label: "HY1 Backbone+Refine" },
+        { id: "hy2_seed_graph_local_delta", label: "HY2 Seed+Delta" },
+        { id: "hy3_implicit_field_transport", label: "HY3 Implicit+Transport" },
+        { id: "hy4_pairwise_patch_transport", label: "HY4 Pairwise+Patch" },
+        { id: "hy5_rt_publish_corridor_events", label: "HY5 RT+Corridor" },
+    ] as const;
+
+    const MORPH_EASING_OPTIONS = [
+        { id: "linear", label: "Linear" },
+        { id: "smoothstep", label: "Smooth" },
+        { id: "easeInOutQuad", label: "Quad" },
+        { id: "easeInOutCubic", label: "Cubic" },
+    ] as const;
+
+    function lookupOptionLabel(
+        options: ReadonlyArray<{ id: string; label: string }>,
+        id: string,
+    ): string {
+        return options.find((option) => option.id === id)?.label ?? id;
+    }
+
+    function formatAdapterLabel(adapter: string): string {
+        if (adapter === "legacy_pvv2") return "Legacy PVV2";
+        if (adapter === "legacy_pvv3") return "Legacy PVV3";
+        if (adapter === "legacy_df") return "Legacy Distance Field";
+        return adapter;
+    }
+
+    function resolveStaticMethodId(rawValue: unknown): string {
+        if (typeof rawValue !== "string") return DEFAULT_TERRITORY_STATIC_METHOD;
+        return Object.prototype.hasOwnProperty.call(TERRITORY_STATIC_METHOD_BY_ID, rawValue)
+            ? rawValue
+            : DEFAULT_TERRITORY_STATIC_METHOD;
+    }
+
+    function resolveDynamicMethodId(rawValue: unknown): string {
+        if (typeof rawValue !== "string") return DEFAULT_TERRITORY_DYNAMIC_METHOD;
+        return Object.prototype.hasOwnProperty.call(TERRITORY_DYNAMIC_METHOD_BY_ID, rawValue)
+            ? rawValue
+            : DEFAULT_TERRITORY_DYNAMIC_METHOD;
+    }
+
+    function resolveHybridPlanId(rawValue: unknown): string {
+        if (typeof rawValue !== "string") return DEFAULT_TERRITORY_HYBRID_PLAN;
+        return Object.prototype.hasOwnProperty.call(TERRITORY_HYBRID_PLAN_BY_ID, rawValue)
+            ? rawValue
+            : DEFAULT_TERRITORY_HYBRID_PLAN;
+    }
+
+    function getTerritoryEngineRoute() {
+        const modeValue = panel.territoryEngineMode ?? GAME_CONFIG.TERRITORY_ENGINE_MODE ?? "static";
+        const mode = modeValue === "dynamic" || modeValue === "hybrid" ? modeValue : "static";
+        const staticMethodId = resolveStaticMethodId(
+            panel.territoryEngineStaticMethod ?? GAME_CONFIG.TERRITORY_ENGINE_STATIC_METHOD,
+        );
+        const dynamicMethodId = resolveDynamicMethodId(
+            panel.territoryEngineDynamicMethod ?? GAME_CONFIG.TERRITORY_ENGINE_DYNAMIC_METHOD,
+        );
+        const hybridPlanId = resolveHybridPlanId(
+            panel.territoryEngineHybridPlan ?? GAME_CONFIG.TERRITORY_ENGINE_HYBRID_PLAN,
+        );
+
+        if (mode === "dynamic") {
+            const dynamicMethod =
+                TERRITORY_DYNAMIC_METHOD_BY_ID[
+                    dynamicMethodId as keyof typeof TERRITORY_DYNAMIC_METHOD_BY_ID
+                ];
+            const anchorStaticMethodId = dynamicMethod.anchorStaticMethodId;
+            return {
+                mode,
+                staticMethodId: anchorStaticMethodId,
+                dynamicMethodId,
+                hybridPlanId,
+                adapter: dynamicMethod.adapter,
+                adapterLabel: formatAdapterLabel(dynamicMethod.adapter),
+                staticLabel: lookupOptionLabel(
+                    TERRITORY_ENGINE_METHOD_OPTIONS,
+                    anchorStaticMethodId,
+                ),
+                dynamicLabel: lookupOptionLabel(
+                    TERRITORY_ENGINE_DYNAMIC_OPTIONS,
+                    dynamicMethodId,
+                ),
+                hybridLabel: lookupOptionLabel(
+                    TERRITORY_ENGINE_HYBRID_OPTIONS,
+                    hybridPlanId,
+                ),
+            };
+        }
+
+        if (mode === "hybrid") {
+            const hybridPlan =
+                TERRITORY_HYBRID_PLAN_BY_ID[
+                    hybridPlanId as keyof typeof TERRITORY_HYBRID_PLAN_BY_ID
+                ];
+            return {
+                mode,
+                staticMethodId: hybridPlan.staticMethodId,
+                dynamicMethodId: hybridPlan.dynamicMethodId,
+                hybridPlanId,
+                adapter: hybridPlan.adapter,
+                adapterLabel: formatAdapterLabel(hybridPlan.adapter),
+                staticLabel: lookupOptionLabel(
+                    TERRITORY_ENGINE_METHOD_OPTIONS,
+                    hybridPlan.staticMethodId,
+                ),
+                dynamicLabel: lookupOptionLabel(
+                    TERRITORY_ENGINE_DYNAMIC_OPTIONS,
+                    hybridPlan.dynamicMethodId,
+                ),
+                hybridLabel: lookupOptionLabel(
+                    TERRITORY_ENGINE_HYBRID_OPTIONS,
+                    hybridPlanId,
+                ),
+            };
+        }
+
+        const staticMethod =
+            TERRITORY_STATIC_METHOD_BY_ID[
+                staticMethodId as keyof typeof TERRITORY_STATIC_METHOD_BY_ID
+            ];
+        return {
+            mode,
+            staticMethodId,
+            dynamicMethodId,
+            hybridPlanId,
+            adapter: staticMethod.adapter,
+            adapterLabel: formatAdapterLabel(staticMethod.adapter),
+            staticLabel: lookupOptionLabel(TERRITORY_ENGINE_METHOD_OPTIONS, staticMethodId),
+            dynamicLabel: lookupOptionLabel(
+                TERRITORY_ENGINE_DYNAMIC_OPTIONS,
+                dynamicMethodId,
+            ),
+            hybridLabel: lookupOptionLabel(
+                TERRITORY_ENGINE_HYBRID_OPTIONS,
+                hybridPlanId,
+            ),
+        };
+    }
+
+    let territoryEngineRoute = $derived.by(() => getTerritoryEngineRoute());
+    let territoryEngineRouteNote = $derived.by(() => {
+        if (territoryEngineRoute.mode === "dynamic") {
+            return `${territoryEngineRoute.dynamicLabel} uses ${territoryEngineRoute.staticLabel} as its static anchor.`;
+        }
+        if (territoryEngineRoute.mode === "hybrid") {
+            return `${territoryEngineRoute.hybridLabel} fixes both the static and dynamic legs together.`;
+        }
+        return `${territoryEngineRoute.staticLabel} is the active static route.`;
+    });
+    let territoryEngineInteropNote = $derived.by(() => {
+        if (
+            territoryEngineRoute.mode === "dynamic" &&
+            territoryEngineRoute.dynamicMethodId === "dy5_corridor_event_decomposition"
+        ) {
+            return "DY5 currently anchors to FG2 Seed Graph. Selecting FG1 separately does not change the live dynamic route.";
+        }
+        if (territoryEngineRoute.mode === "dynamic") {
+            return "Dynamic mode is exclusive. The Dynamic Method picker wins and the standalone Static Method choice becomes reference only.";
+        }
+        if (territoryEngineRoute.mode === "hybrid") {
+            return "Hybrid mode is exclusive. The Hybrid Plan picker wins and the standalone Static/Dynamic picks become reference only.";
+        }
+        return "Static mode is exclusive. Dynamic and Hybrid selections are stored, but inactive until you switch modes.";
+    });
+
+    let staticMethodControlState = $derived.by(() => {
+        if (territoryEngineRoute.mode === "static") {
+            return {
+                badge: "active",
+                note: "Static mode is live. Picking a static method changes the current route.",
+                disabled: false,
+            };
+        }
+        if (territoryEngineRoute.mode === "dynamic") {
+            return {
+                badge: "anchor only",
+                note: `${territoryEngineRoute.dynamicLabel} pins the static anchor to ${territoryEngineRoute.staticLabel}.`,
+                disabled: true,
+            };
+        }
+        return {
+            badge: "plan reference",
+            note: `${territoryEngineRoute.hybridLabel} owns the static leg while hybrid mode is active.`,
+            disabled: true,
+        };
+    });
+
+    let dynamicMethodControlState = $derived.by(() => {
+        if (territoryEngineRoute.mode === "dynamic") {
+            return {
+                badge: "active",
+                note: "Dynamic mode is live. Picking a dynamic method changes the current route.",
+                disabled: false,
+            };
+        }
+        if (territoryEngineRoute.mode === "hybrid") {
+            return {
+                badge: "plan reference",
+                note: `${territoryEngineRoute.hybridLabel} owns the dynamic leg while hybrid mode is active.`,
+                disabled: true,
+            };
+        }
+        return {
+            badge: "stored",
+            note: "Dynamic selections are stored, but inactive until you switch to Dynamic mode.",
+            disabled: true,
+        };
+    });
+
+    let hybridPlanControlState = $derived.by(() => {
+        if (territoryEngineRoute.mode === "hybrid") {
+            return {
+                badge: "active",
+                note: "Hybrid mode is live. Picking a hybrid plan changes the current route.",
+                disabled: false,
+            };
+        }
+        return {
+            badge: "stored",
+            note: "Hybrid plans are stored only until you switch to Hybrid mode.",
+            disabled: true,
+        };
+    });
+
+    let activeBorderEngine = $derived(
+        (panel.dfBorderEngine ?? GAME_CONFIG.DF_BORDER_ENGINE ?? "mesh") as
+            | "mesh"
+            | "legacy_field"
+            | "legacy_grid",
+    );
+    let activeCanonicalFrontierRuntimeMode = $derived(
+        (panel.dfCanonicalFrontierRuntimeMode ??
+            GAME_CONFIG.DF_CANONICAL_FRONTIER_RUNTIME_MODE ??
+            "production") as "disabled" | "diagnostic" | "production",
+    );
+    let canonicalFrontierDiagnosticShow = $derived(
+        Boolean(
+            panel.dfCanonicalFrontierDiagnosticShow ??
+                GAME_CONFIG.DF_CANONICAL_FRONTIER_DIAGNOSTIC_SHOW ??
+                false,
+        ),
+    );
+    let isLegacyFieldEngine = $derived(activeBorderEngine === "legacy_field");
+    let isLegacyGridEngine = $derived(activeBorderEngine === "legacy_grid");
 </script>
 
 <CategoryThemeBar category="territory" onApply={() => syncFromConfig?.()} />
 
-<!-- ── Territory Toggles ── -->
+<!-- -- Territory Toggles -- -->
 <h4 class="sub-heading">Active Layers</h4>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">🔷 Voronoi</span>
+        <span class="var-name">?? Voronoi</span>
         <label class="toggle-switch">
             <input
                 type="checkbox"
@@ -70,7 +493,7 @@
 </div>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">🫧 Metaball</span>
+        <span class="var-name">?? Metaball</span>
         <label class="toggle-switch">
             <input
                 type="checkbox"
@@ -89,7 +512,7 @@
 </div>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">🖼️ Pixel (Classic)</span>
+        <span class="var-name">??? Pixel (Classic)</span>
         <label class="toggle-switch">
             <input
                 type="checkbox"
@@ -107,7 +530,7 @@
 </div>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">🔗 Lane Territory</span>
+        <span class="var-name">?? Lane Territory</span>
         <label class="toggle-switch">
             <input
                 type="checkbox"
@@ -123,11 +546,125 @@
         </label>
     </div>
 </div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">?? Contour (Vector)</span>
+        <label class="toggle-switch">
+            <input
+                type="checkbox"
+                checked={panel.territoryContour ??
+                    GAME_CONFIG.TERRITORY_CONTOUR}
+                onchange={(e) => {
+                    selectTerritory(
+                        "territoryContour",
+                        (e.target as HTMLInputElement).checked,
+                    );
+                }}
+            />
+            <span class="toggle-slider"></span>
+        </label>
+    </div>
+</div>
+<!-- DISABLED: Modified Voronoi freezes game � F-138 needs architecture fix
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">?? Modified Voronoi</span>
+        <label class="toggle-switch">
+            <input
+                type="checkbox"
+                checked={panel.territoryModifiedVoronoi ??
+                    GAME_CONFIG.TERRITORY_MODIFIED_VORONOI}
+                onchange={(e) => {
+                    selectTerritory(
+                        "territoryModifiedVoronoi",
+                        (e.target as HTMLInputElement).checked,
+                    );
+                }}
+            />
+            <span class="toggle-slider"></span>
+        </label>
+    </div>
+</div>
+-->
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">? Power Voronoi V2</span>
+        <label class="toggle-switch">
+            <input
+                type="checkbox"
+                checked={panel.territoryPowerVoronoi ??
+                    GAME_CONFIG.TERRITORY_POWER_VORONOI}
+                onchange={(e) => {
+                    selectTerritory(
+                        "territoryPowerVoronoi",
+                        (e.target as HTMLInputElement).checked,
+                    );
+                }}
+            />
+            <span class="toggle-slider"></span>
+        </label>
+    </div>
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">?? PVV3 (Frontier-First)</span>
+        <label class="toggle-switch">
+            <input
+                type="checkbox"
+                checked={panel.territoryPVV3 ?? GAME_CONFIG.TERRITORY_PVV3}
+                onchange={(e) => {
+                    selectTerritory(
+                        "territoryPVV3",
+                        (e.target as HTMLInputElement).checked,
+                    );
+                }}
+            />
+            <span class="toggle-slider"></span>
+        </label>
+    </div>
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">?? Territory Engine</span>
+        <label class="toggle-switch">
+            <input
+                type="checkbox"
+                checked={panel.territoryEngine ?? GAME_CONFIG.TERRITORY_ENGINE_ENABLED}
+                onchange={(e) => {
+                    selectTerritory(
+                        "territoryEngine",
+                        (e.target as HTMLInputElement).checked,
+                    );
+                }}
+            />
+            <span class="toggle-slider"></span>
+        </label>
+    </div>
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">?? Distance Field</span>
+        <label class="toggle-switch">
+            <input
+                type="checkbox"
+                checked={panel.territoryDistanceField ??
+                    GAME_CONFIG.TERRITORY_DISTANCE_FIELD}
+                onchange={(e) => {
+                    selectTerritory(
+                        "territoryDistanceField",
+                        (e.target as HTMLInputElement).checked,
+                    );
+                }}
+            />
+            <span class="toggle-slider"></span>
+        </label>
+    </div>
+</div>
 
 <!-- Cluster Split (applies to any active renderer) -->
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">🧩 Cluster Split</span>
+        <span class="var-name">?? Cluster Split</span>
         <label class="toggle-switch">
             <input
                 type="checkbox"
@@ -135,7 +672,6 @@
                     GAME_CONFIG.TERRITORY_CLUSTER_SPLIT}
                 onchange={(e) => {
                     const v = (e.target as HTMLInputElement).checked;
-                    GAME_CONFIG.TERRITORY_CLUSTER_SPLIT = v;
                     updatePanel("territoryClusterSplit", v);
                 }}
             />
@@ -146,12 +682,1169 @@
         class="row-bottom"
         style="font-size: 10px; opacity: 0.6; padding: 2px 4px;"
     >
-        Disconnected stars → separate territory blobs
+        Disconnected stars ? separate territory blobs
     </div>
 </div>
 
+{#if panel.territoryModifiedVoronoi}
+    <!-- -- Modified Voronoi Settings (F-138) -- -->
+    <h4 class="sub-heading">Modified Voronoi Settings</h4>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">? Star Margin</span><span class="val"
+                >{panel.modifiedVoronoiStarMargin ??
+                    GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="500"
+            step="5"
+            value={panel.modifiedVoronoiStarMargin ??
+                GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "MODIFIED_VORONOI_STAR_MARGIN",
+                    "modifiedVoronoiStarMargin",
+                    v,
+                );
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">?? Arc Strength</span><span class="val"
+                >{(
+                    panel.modifiedVoronoiArcStrength ??
+                    GAME_CONFIG.MODIFIED_VORONOI_ARC_STRENGTH
+                ).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value={panel.modifiedVoronoiArcStrength ??
+                GAME_CONFIG.MODIFIED_VORONOI_ARC_STRENGTH}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "MODIFIED_VORONOI_ARC_STRENGTH",
+                    "modifiedVoronoiArcStrength",
+                    v,
+                );
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">?? Arc Threshold</span><span class="val"
+                >{panel.modifiedVoronoiArcThreshold ??
+                    GAME_CONFIG.MODIFIED_VORONOI_ARC_THRESHOLD}�</span
+            >
+        </div>
+        <input
+            type="range"
+            min="30"
+            max="180"
+            step="5"
+            value={panel.modifiedVoronoiArcThreshold ??
+                GAME_CONFIG.MODIFIED_VORONOI_ARC_THRESHOLD}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "MODIFIED_VORONOI_ARC_THRESHOLD",
+                    "modifiedVoronoiArcThreshold",
+                    v,
+                );
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">?? Arc Min Segment</span><span class="val"
+                >{panel.modifiedVoronoiArcMinSegment ??
+                    GAME_CONFIG.MODIFIED_VORONOI_ARC_MIN_SEGMENT}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="1"
+            max="20"
+            step="1"
+            value={panel.modifiedVoronoiArcMinSegment ??
+                GAME_CONFIG.MODIFIED_VORONOI_ARC_MIN_SEGMENT}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "MODIFIED_VORONOI_ARC_MIN_SEGMENT",
+                    "modifiedVoronoiArcMinSegment",
+                    v,
+                );
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">??? Corridor Sites</span><span class="val"
+                >{(panel.modifiedVoronoiCorridorEnabled ??
+                GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED)
+                    ? "ON"
+                    : "OFF"}</span
+            >
+        </div>
+        <input
+            type="checkbox"
+            checked={panel.modifiedVoronoiCorridorEnabled ??
+                GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED}
+            onchange={(e) => {
+                const v = (e.target as HTMLInputElement).checked;
+                updatePanel("modifiedVoronoiCorridorEnabled", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">?? Corridor Spacing</span><span class="val"
+                >{panel.modifiedVoronoiCorridorSpacing ??
+                    GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="20"
+            max="200"
+            step="5"
+            value={panel.modifiedVoronoiCorridorSpacing ??
+                GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "MODIFIED_VORONOI_CORRIDOR_SPACING",
+                    "modifiedVoronoiCorridorSpacing",
+                    v,
+                );
+            }}
+        />
+    </div>
+{/if}
+
+{#if panel.territoryEngine}
+    <h4 class="sub-heading">?? Territory Engine Settings</h4>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Mode</span>
+            <span class="val">{panel.territoryEngineMode ?? GAME_CONFIG.TERRITORY_ENGINE_MODE}</span>
+        </div>
+        <div style="display:flex; gap:4px; flex-wrap:wrap;">
+            {#each TERRITORY_ENGINE_MODE_OPTIONS as option}
+                <button
+                    class="mini-btn"
+                    class:active={(panel.territoryEngineMode ??
+                        GAME_CONFIG.TERRITORY_ENGINE_MODE) === option.id}
+                    onclick={() => {
+                        debouncedConfigUpdate(
+                            "TERRITORY_ENGINE_MODE",
+                            "territoryEngineMode",
+                            option.id,
+                        );
+                    }}>{option.label}</button
+                >
+            {/each}
+        </div>
+    </div>
+    <div class="var-row engine-control-group" class:reference-only={staticMethodControlState.disabled}>
+        <div class="row-top">
+            <span class="var-name">Static Method</span>
+            <span class="val">{staticMethodControlState.badge}</span>
+        </div>
+        <div class="row-bottom engine-route-hint">{staticMethodControlState.note}</div>
+        <div style="display:flex; gap:4px; flex-wrap:wrap;">
+            {#each TERRITORY_ENGINE_METHOD_OPTIONS as option}
+                <button
+                    class="mini-btn"
+                    class:active={(panel.territoryEngineStaticMethod ??
+                        GAME_CONFIG.TERRITORY_ENGINE_STATIC_METHOD) === option.id}
+                    class:reference-only={staticMethodControlState.disabled}
+                    disabled={staticMethodControlState.disabled}
+                    onclick={() => {
+                        debouncedConfigUpdate(
+                            "TERRITORY_ENGINE_STATIC_METHOD",
+                            "territoryEngineStaticMethod",
+                            option.id,
+                        );
+                    }}>{option.label}</button
+                >
+            {/each}
+        </div>
+    </div>
+    <div class="var-row engine-control-group" class:reference-only={dynamicMethodControlState.disabled}>
+        <div class="row-top">
+            <span class="var-name">Dynamic Method</span>
+            <span class="val">{dynamicMethodControlState.badge}</span>
+        </div>
+        <div class="row-bottom engine-route-hint">{dynamicMethodControlState.note}</div>
+        <div style="display:flex; gap:4px; flex-wrap:wrap;">
+            {#each TERRITORY_ENGINE_DYNAMIC_OPTIONS as option}
+                <button
+                    class="mini-btn"
+                    class:active={(panel.territoryEngineDynamicMethod ??
+                        GAME_CONFIG.TERRITORY_ENGINE_DYNAMIC_METHOD) === option.id}
+                    class:reference-only={dynamicMethodControlState.disabled}
+                    disabled={dynamicMethodControlState.disabled}
+                    onclick={() => {
+                        debouncedConfigUpdate(
+                            "TERRITORY_ENGINE_DYNAMIC_METHOD",
+                            "territoryEngineDynamicMethod",
+                            option.id,
+                        );
+                    }}>{option.label}</button
+                >
+            {/each}
+        </div>
+    </div>
+    <div class="var-row engine-control-group" class:reference-only={hybridPlanControlState.disabled}>
+        <div class="row-top">
+            <span class="var-name">Hybrid Plan</span>
+            <span class="val">{hybridPlanControlState.badge}</span>
+        </div>
+        <div class="row-bottom engine-route-hint">{hybridPlanControlState.note}</div>
+        <div style="display:flex; gap:4px; flex-wrap:wrap;">
+            {#each TERRITORY_ENGINE_HYBRID_OPTIONS as option}
+                <button
+                    class="mini-btn"
+                    class:active={(panel.territoryEngineHybridPlan ??
+                        GAME_CONFIG.TERRITORY_ENGINE_HYBRID_PLAN) === option.id}
+                    class:reference-only={hybridPlanControlState.disabled}
+                    disabled={hybridPlanControlState.disabled}
+                    onclick={() => {
+                        debouncedConfigUpdate(
+                            "TERRITORY_ENGINE_HYBRID_PLAN",
+                            "territoryEngineHybridPlan",
+                            option.id,
+                        );
+                    }}>{option.label}</button
+                >
+            {/each}
+        </div>
+    </div>
+    <div class="var-row compact">
+        <div class="row-top">
+            <span class="var-name">Effective Route</span>
+            <span class="val">{territoryEngineRoute.adapterLabel}</span>
+        </div>
+        <div class="trace-chip-row">
+            <span class="trace-chip">mode {territoryEngineRoute.mode}</span>
+            <span class="trace-chip">static {territoryEngineRoute.staticLabel}</span>
+            <span class="trace-chip">dynamic {territoryEngineRoute.dynamicLabel}</span>
+            <span class="trace-chip">hybrid {territoryEngineRoute.hybridLabel}</span>
+        </div>
+        <div class="row-bottom" style="font-size:10px; opacity:0.74; padding:4px 0 0;">
+            {territoryEngineRouteNote}
+        </div>
+        <div class="row-bottom" style="font-size:10px; opacity:0.58; padding:2px 0 0;">
+            {territoryEngineInteropNote}
+        </div>
+    </div>
+    <h4 class="sub-heading">Shape / Motion</h4>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Distance Metric</span>
+            <span class="val">{panel.dfDistanceMetric ?? GAME_CONFIG.DF_DISTANCE_METRIC}</span>
+        </div>
+        <div style="display:flex; gap:4px; flex-wrap:wrap;">
+            <button
+                class="mini-btn"
+                class:active={(panel.dfDistanceMetric ?? GAME_CONFIG.DF_DISTANCE_METRIC) === "length"}
+                onclick={() => updatePanel("dfDistanceMetric", "length")}>Length</button
+            >
+            <button
+                class="mini-btn"
+                class:active={(panel.dfDistanceMetric ?? GAME_CONFIG.DF_DISTANCE_METRIC) === "hops"}
+                onclick={() => updatePanel("dfDistanceMetric", "hops")}>Hops</button
+            >
+        </div>
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Morph Speed</span><span class="val"
+                >{panel.territoryTransitionMs ??
+                    GAME_CONFIG.TERRITORY_TRANSITION_MS}ms</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="2000"
+            step="50"
+            value={panel.territoryTransitionMs ??
+                GAME_CONFIG.TERRITORY_TRANSITION_MS}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "TERRITORY_TRANSITION_MS",
+                    "territoryTransitionMs",
+                    v,
+                );
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Morph Control Points</span><span class="val"
+                >{panel.territoryMorphControlPoints ??
+                    GAME_CONFIG.TERRITORY_MORPH_CONTROL_POINTS}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="5"
+            max="300"
+            step="1"
+            value={panel.territoryMorphControlPoints ??
+                GAME_CONFIG.TERRITORY_MORPH_CONTROL_POINTS}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                updatePanel("territoryMorphControlPoints", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Morph Easing</span>
+        </div>
+        <div style="display:flex;gap:4px;padding:2px 0;flex-wrap:wrap">
+            {#each MORPH_EASING_OPTIONS as easing}
+                <button
+                    class="mini-btn"
+                    class:active={(panel.dfMorphEasing ??
+                        GAME_CONFIG.DF_MORPH_EASING ??
+                        "linear") === easing.id}
+                    onclick={() => updatePanel("dfMorphEasing", easing.id)}>{easing.label}</button
+                >
+            {/each}
+        </div>
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Boundary Mode</span><span class="val"
+                >{panel.territoryBoundaryMode ??
+                    GAME_CONFIG.TERRITORY_BOUNDARY_MODE ??
+                    "smooth"}</span
+            >
+        </div>
+        <div style="display:flex; gap:4px;">
+            <button
+                class="mini-btn"
+                class:active={(panel.territoryBoundaryMode ??
+                    GAME_CONFIG.TERRITORY_BOUNDARY_MODE) === "segment"}
+                onclick={() => debouncedConfigUpdate(
+                    "TERRITORY_BOUNDARY_MODE",
+                    "territoryBoundaryMode",
+                    "segment",
+                )}>Segment</button
+            >
+            <button
+                class="mini-btn"
+                class:active={(panel.territoryBoundaryMode ??
+                    GAME_CONFIG.TERRITORY_BOUNDARY_MODE) === "smooth"}
+                onclick={() => debouncedConfigUpdate(
+                    "TERRITORY_BOUNDARY_MODE",
+                    "territoryBoundaryMode",
+                    "smooth",
+                )}>Smooth</button
+            >
+        </div>
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Fill Mode</span><span class="val"
+                >{panel.territoryFillMode ??
+                    GAME_CONFIG.TERRITORY_FILL_MODE ??
+                    "frontier"}</span
+            >
+        </div>
+        <div style="display:flex; gap:4px;">
+            <button
+                class="mini-btn"
+                class:active={(panel.territoryFillMode ??
+                    GAME_CONFIG.TERRITORY_FILL_MODE) === "crossfade"}
+                onclick={() => debouncedConfigUpdate(
+                    "TERRITORY_FILL_MODE",
+                    "territoryFillMode",
+                    "crossfade",
+                )}>Crossfade</button
+            >
+            <button
+                class="mini-btn"
+                class:active={(panel.territoryFillMode ??
+                    GAME_CONFIG.TERRITORY_FILL_MODE) === "frontier"}
+                onclick={() => debouncedConfigUpdate(
+                    "TERRITORY_FILL_MODE",
+                    "territoryFillMode",
+                    "frontier",
+                )}>Frontier</button
+            >
+        </div>
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Fill Alpha</span><span class="val"
+                >{(panel.voronoiAlpha ?? GAME_CONFIG.VORONOI_ALPHA).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value={panel.voronoiAlpha ?? GAME_CONFIG.VORONOI_ALPHA}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate("VORONOI_ALPHA", "voronoiAlpha", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Border Width</span><span class="val"
+                >{(
+                    panel.voronoiBorderWidth ?? GAME_CONFIG.VORONOI_BORDER_WIDTH
+                ).toFixed(1)}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="30"
+            step="0.5"
+            value={panel.voronoiBorderWidth ?? GAME_CONFIG.VORONOI_BORDER_WIDTH}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "VORONOI_BORDER_WIDTH",
+                    "voronoiBorderWidth",
+                    v,
+                );
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Border Alpha</span><span class="val"
+                >{(
+                    panel.voronoiBorderAlpha ?? GAME_CONFIG.VORONOI_BORDER_ALPHA
+                ).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={panel.voronoiBorderAlpha ?? GAME_CONFIG.VORONOI_BORDER_ALPHA}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "VORONOI_BORDER_ALPHA",
+                    "voronoiBorderAlpha",
+                    v,
+                );
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Border Smooth</span><span class="val"
+                >{panel.voronoiBorderSmooth ??
+                    GAME_CONFIG.VORONOI_BORDER_SMOOTH}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="5"
+            step="1"
+            value={panel.voronoiBorderSmooth ??
+                GAME_CONFIG.VORONOI_BORDER_SMOOTH}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "VORONOI_BORDER_SMOOTH",
+                    "voronoiBorderSmooth",
+                    v,
+                );
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Saturation</span><span class="val"
+                >{(
+                    panel.voronoiSaturation ?? GAME_CONFIG.VORONOI_SATURATION
+                ).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="2"
+            step="0.05"
+            value={panel.voronoiSaturation ?? GAME_CONFIG.VORONOI_SATURATION}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "VORONOI_SATURATION",
+                    "voronoiSaturation",
+                    v,
+                );
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Lightness</span><span class="val"
+                >{(
+                    panel.voronoiLightness ?? GAME_CONFIG.VORONOI_LIGHTNESS
+                ).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="2"
+            step="0.05"
+            value={panel.voronoiLightness ?? GAME_CONFIG.VORONOI_LIGHTNESS}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "VORONOI_LIGHTNESS",
+                    "voronoiLightness",
+                    v,
+                );
+            }}
+        />
+    </div>
+    <h4 class="sub-heading">Bias / Pressure</h4>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">MSR Star Margin</span><span class="val"
+                >{panel.modifiedVoronoiStarMargin ??
+                    GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="500"
+            step="5"
+            value={panel.modifiedVoronoiStarMargin ??
+                GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "MODIFIED_VORONOI_STAR_MARGIN",
+                    "modifiedVoronoiStarMargin",
+                    v,
+                );
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">CX Corridor Sites</span><span class="val"
+                >{(panel.modifiedVoronoiCorridorEnabled ??
+                GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED)
+                    ? "ON"
+                    : "OFF"}</span
+            >
+        </div>
+        <input
+            type="checkbox"
+            checked={panel.modifiedVoronoiCorridorEnabled ??
+                GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED}
+            onchange={(e) => {
+                const v = (e.target as HTMLInputElement).checked;
+                updatePanel("modifiedVoronoiCorridorEnabled", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">CX Corridor Spacing</span><span class="val"
+                >{panel.modifiedVoronoiCorridorSpacing ??
+                    GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="20"
+            max="200"
+            step="5"
+            value={panel.modifiedVoronoiCorridorSpacing ??
+                GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "MODIFIED_VORONOI_CORRIDOR_SPACING",
+                    "modifiedVoronoiCorridorSpacing",
+                    v,
+                );
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">DX Disconnect Buffer</span><span class="val"
+                >{(panel.modifiedVoronoiDisconnectEnabled ??
+                GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED)
+                    ? "ON"
+                    : "OFF"}</span
+            >
+        </div>
+        <input
+            type="checkbox"
+            checked={panel.modifiedVoronoiDisconnectEnabled ??
+                GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED}
+            onchange={(e) => {
+                const v = (e.target as HTMLInputElement).checked;
+                updatePanel("modifiedVoronoiDisconnectEnabled", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">DX Disconnect Distance</span><span class="val"
+                >{panel.modifiedVoronoiDisconnectDistance ??
+                    GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="50"
+            max="800"
+            step="25"
+            value={panel.modifiedVoronoiDisconnectDistance ??
+                GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "MODIFIED_VORONOI_DISCONNECT_DISTANCE",
+                    "modifiedVoronoiDisconnectDistance",
+                    v,
+                );
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Trace Mode</span>
+            <label class="toggle-switch">
+                <input
+                    type="checkbox"
+                    checked={panel.territoryEngineTraceMode ??
+                        GAME_CONFIG.TERRITORY_ENGINE_TRACE_MODE}
+                    onchange={(e) => {
+                        const v = (e.target as HTMLInputElement).checked;
+                        updatePanel("territoryEngineTraceMode", v);
+                    }}
+                />
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Step Mode</span>
+            <label class="toggle-switch">
+                <input
+                    type="checkbox"
+                    checked={panel.territoryEngineStepMode ??
+                        GAME_CONFIG.TERRITORY_ENGINE_STEP_MODE}
+                    onchange={(e) => {
+                        const v = (e.target as HTMLInputElement).checked;
+                        updatePanel("territoryEngineStepMode", v);
+                    }}
+                />
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+    </div>
+    {#if panel.territoryEngineStepMode ?? GAME_CONFIG.TERRITORY_ENGINE_STEP_MODE}
+        <div class="var-row compact">
+            <div class="row-top">
+                <span class="var-name">Advance Stage</span>
+                <span class="val">{panel.territoryEngineStepAdvanceToken ?? GAME_CONFIG.TERRITORY_ENGINE_STEP_ADVANCE_TOKEN}</span>
+            </div>
+            <div style="display:flex; gap:6px;">
+                <button
+                    class="mini-btn"
+                    onclick={() => {
+                        const nextToken =
+                            (panel.territoryEngineStepAdvanceToken ??
+                                GAME_CONFIG.TERRITORY_ENGINE_STEP_ADVANCE_TOKEN) + 1;
+                        updatePanel("territoryEngineStepAdvanceToken", nextToken);
+                    }}>Advance</button
+                >
+                <button
+                    class="mini-btn"
+                    onclick={() => {
+                        updatePanel("territoryEngineStepAdvanceToken", 0);
+                    }}>Reset</button
+                >
+            </div>
+        </div>
+    {/if}
+    <div class="trace-panel">
+        <div class="row-top">
+            <span class="var-name">Trace Inspector</span>
+            {#if $territoryTraceRun}
+                <span class="val">run {$territoryTraceRun.runId}</span>
+            {:else}
+                <span class="val">no trace</span>
+            {/if}
+        </div>
+        {#if $territoryTraceRun}
+            <div class="trace-chip-row">
+                <span class="trace-chip">steps {$territoryTraceRun.steps.length}/{TERRITORY_PIPELINE_STAGE_ORDER.length}</span>
+                <span class="trace-chip">next {getNextTraceStageLabel($territoryTraceRun.steps.length)}</span>
+                <span class="trace-chip">mode {$territoryTraceRun.selection.mode}</span>
+                <span class="trace-chip">static {$territoryTraceRun.selection.staticMethodId}</span>
+                <span class="trace-chip">{$territoryTraceRun.totalDurationMs}ms</span>
+            </div>
+
+            <div class="trace-section">
+                <div class="trace-section-title">Meta</div>
+                <div class="trace-summary">
+                    {summarizeTraceRecord($territoryTraceRun.meta, 8).join(" | ")}
+                </div>
+            </div>
+
+            <div class="trace-section">
+                <div class="trace-section-title">Owner Region Loops</div>
+                {#each getOwnerRegionLoopPreviewEntries($territoryTraceRun.artifacts) as entry}
+                    <div class="trace-detail-line">{entry.summary}</div>
+                {/each}
+            </div>
+
+            <div class="trace-section">
+                <div class="trace-section-title">Owner Shells</div>
+                {#each getOwnerShellPreviewEntries($territoryTraceRun.artifacts) as entry}
+                    <div class="trace-detail-line">{entry.summary}</div>
+                {/each}
+            </div>
+
+            <div class="trace-section">
+                <div class="trace-section-title">Holding Transitions</div>
+                <div class="trace-summary">
+                    {getOwnerHoldingTransitionSummary($territoryTraceRun.artifacts).join(" | ")}
+                </div>
+                {#each getOwnerHoldingTransitionPreviewEntries($territoryTraceRun.artifacts) as entry}
+                    <div class="trace-detail-line">{entry.summary}</div>
+                {/each}
+            </div>
+            <div class="trace-section">
+                <div class="trace-section-title">Artifacts</div>
+                {#each getTraceArtifactEntries($territoryTraceRun.artifacts) as entry}
+                    <div class="trace-entry">
+                        <div class="trace-entry-head">
+                            <span class="trace-badge">{entry.stageId}</span>
+                            <span class="val">{Object.keys(entry.artifact).length} keys</span>
+                        </div>
+                        <div class="trace-summary">
+                            {summarizeTraceRecord(entry.artifact, 8).join(" | ")}
+                        </div>
+                    </div>
+                {/each}
+            </div>
+
+            <div class="trace-section">
+                <div class="trace-section-title">Steps</div>
+                {#each $territoryTraceRun.steps as step}
+                    <div class="trace-entry">
+                        <div class="trace-entry-head">
+                            <span class="trace-badge">{step.stageId}</span>
+                            <span class="val">{step.durationMs}ms</span>
+                        </div>
+                        <div class="trace-summary">
+                            {summarizeTraceRecord(step.summary, 8).join(" | ")}
+                        </div>
+                    </div>
+                {/each}
+            </div>
+        {:else}
+            <div class="trace-empty">
+                Enable Trace Mode or Step Mode to capture a territory-engine run here.
+            </div>
+        {/if}
+    </div>
+{/if}
+
+{#if panel.territoryPowerVoronoi || panel.territoryPVV3}
+    <!-- -- Power Voronoi V2 / PVV3 Settings -- -->
+    <h4 class="sub-heading">? Power Voronoi Settings</h4>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">? Star Margin</span><span class="val"
+                >{panel.modifiedVoronoiStarMargin ??
+                    GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="500"
+            step="5"
+            value={panel.modifiedVoronoiStarMargin ??
+                GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "MODIFIED_VORONOI_STAR_MARGIN",
+                    "modifiedVoronoiStarMargin",
+                    v,
+                );
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">??? Corridor Sites</span><span class="val"
+                >{(panel.modifiedVoronoiCorridorEnabled ??
+                GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED)
+                    ? "ON"
+                    : "OFF"}</span
+            >
+        </div>
+        <input
+            type="checkbox"
+            checked={panel.modifiedVoronoiCorridorEnabled ??
+                GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED}
+            onchange={(e) => {
+                const v = (e.target as HTMLInputElement).checked;
+                updatePanel("modifiedVoronoiCorridorEnabled", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">?? Corridor Spacing</span><span class="val"
+                >{panel.modifiedVoronoiCorridorSpacing ??
+                    GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="20"
+            max="200"
+            step="5"
+            value={panel.modifiedVoronoiCorridorSpacing ??
+                GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "MODIFIED_VORONOI_CORRIDOR_SPACING",
+                    "modifiedVoronoiCorridorSpacing",
+                    v,
+                );
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">?? Disconnect Buffer</span><span class="val"
+                >{(panel.modifiedVoronoiDisconnectEnabled ??
+                GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED)
+                    ? "ON"
+                    : "OFF"}</span
+            >
+        </div>
+        <input
+            type="checkbox"
+            checked={panel.modifiedVoronoiDisconnectEnabled ??
+                GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED}
+            onchange={(e) => {
+                const v = (e.target as HTMLInputElement).checked;
+                updatePanel("modifiedVoronoiDisconnectEnabled", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">?? Disconnect Distance</span><span
+                class="val"
+                >{panel.modifiedVoronoiDisconnectDistance ??
+                    GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="50"
+            max="800"
+            step="25"
+            value={panel.modifiedVoronoiDisconnectDistance ??
+                GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "MODIFIED_VORONOI_DISCONNECT_DISTANCE",
+                    "modifiedVoronoiDisconnectDistance",
+                    v,
+                );
+            }}
+        />
+    </div>
+    <h4 class="sub-heading">Visual Settings</h4>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">?? Morph Speed</span><span class="val"
+                >{panel.territoryTransitionMs ??
+                    GAME_CONFIG.TERRITORY_TRANSITION_MS}ms</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="2000"
+            step="50"
+            value={panel.territoryTransitionMs ??
+                GAME_CONFIG.TERRITORY_TRANSITION_MS}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "TERRITORY_TRANSITION_MS",
+                    "territoryTransitionMs",
+                    v,
+                );
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">?? Boundary Mode</span><span class="val"
+                >{panel.territoryBoundaryMode ??
+                    GAME_CONFIG.TERRITORY_BOUNDARY_MODE ??
+                    "smooth"}</span
+            >
+        </div>
+        <div style="display:flex; gap:4px;">
+            <button
+                class="mini-btn"
+                class:active={(panel.territoryBoundaryMode ??
+                    GAME_CONFIG.TERRITORY_BOUNDARY_MODE) === "segment"}
+                onclick={() => {
+                    debouncedConfigUpdate(
+                        "TERRITORY_BOUNDARY_MODE",
+                        "territoryBoundaryMode",
+                        "segment",
+                    );
+                }}>Lego</button
+            >
+            <button
+                class="mini-btn"
+                class:active={(panel.territoryBoundaryMode ??
+                    GAME_CONFIG.TERRITORY_BOUNDARY_MODE) === "smooth"}
+                onclick={() => {
+                    debouncedConfigUpdate(
+                        "TERRITORY_BOUNDARY_MODE",
+                        "territoryBoundaryMode",
+                        "smooth",
+                    );
+                }}>Smooth</button
+            >
+        </div>
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">?? Fill Mode</span><span class="val"
+                >{panel.territoryFillMode ??
+                    GAME_CONFIG.TERRITORY_FILL_MODE ??
+                    "frontier"}</span
+            >
+        </div>
+        <div style="display:flex; gap:4px;">
+            <button
+                class="mini-btn"
+                class:active={(panel.territoryFillMode ??
+                    GAME_CONFIG.TERRITORY_FILL_MODE) === "crossfade"}
+                onclick={() => {
+                    debouncedConfigUpdate(
+                        "TERRITORY_FILL_MODE",
+                        "territoryFillMode",
+                        "crossfade",
+                    );
+                }}>Crossfade</button
+            >
+            <button
+                class="mini-btn"
+                class:active={(panel.territoryFillMode ??
+                    GAME_CONFIG.TERRITORY_FILL_MODE) === "frontier"}
+                onclick={() => {
+                    debouncedConfigUpdate(
+                        "TERRITORY_FILL_MODE",
+                        "territoryFillMode",
+                        "frontier",
+                    );
+                }}>Frontier</button
+            >
+        </div>
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">?? Fill Alpha</span><span class="val"
+                >{(panel.voronoiAlpha ?? GAME_CONFIG.VORONOI_ALPHA).toFixed(
+                    2,
+                )}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value={panel.voronoiAlpha ?? GAME_CONFIG.VORONOI_ALPHA}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate("VORONOI_ALPHA", "voronoiAlpha", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">?? Border Width</span><span class="val"
+                >{(
+                    panel.voronoiBorderWidth ?? GAME_CONFIG.VORONOI_BORDER_WIDTH
+                ).toFixed(1)}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="30"
+            step="0.5"
+            value={panel.voronoiBorderWidth ?? GAME_CONFIG.VORONOI_BORDER_WIDTH}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "VORONOI_BORDER_WIDTH",
+                    "voronoiBorderWidth",
+                    v,
+                );
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">?? Border Alpha</span><span class="val"
+                >{(
+                    panel.voronoiBorderAlpha ?? GAME_CONFIG.VORONOI_BORDER_ALPHA
+                ).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={panel.voronoiBorderAlpha ?? GAME_CONFIG.VORONOI_BORDER_ALPHA}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "VORONOI_BORDER_ALPHA",
+                    "voronoiBorderAlpha",
+                    v,
+                );
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">?? Border Smooth</span><span class="val"
+                >{panel.voronoiBorderSmooth ??
+                    GAME_CONFIG.VORONOI_BORDER_SMOOTH}
+                {(panel.voronoiBorderSmooth ??
+                    GAME_CONFIG.VORONOI_BORDER_SMOOTH) === 0
+                    ? "(angular)"
+                    : (panel.voronoiBorderSmooth ??
+                            GAME_CONFIG.VORONOI_BORDER_SMOOTH) <= 2
+                      ? "(light)"
+                      : (panel.voronoiBorderSmooth ??
+                              GAME_CONFIG.VORONOI_BORDER_SMOOTH) <= 3
+                        ? "(smooth)"
+                        : "(very smooth)"}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="5"
+            step="1"
+            value={panel.voronoiBorderSmooth ??
+                GAME_CONFIG.VORONOI_BORDER_SMOOTH}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "VORONOI_BORDER_SMOOTH",
+                    "voronoiBorderSmooth",
+                    v,
+                );
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">?? Saturation</span><span class="val"
+                >{(
+                    panel.voronoiSaturation ?? GAME_CONFIG.VORONOI_SATURATION
+                ).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="2"
+            step="0.05"
+            value={panel.voronoiSaturation ?? GAME_CONFIG.VORONOI_SATURATION}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "VORONOI_SATURATION",
+                    "voronoiSaturation",
+                    v,
+                );
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">?? Lightness</span><span class="val"
+                >{(
+                    panel.voronoiLightness ?? GAME_CONFIG.VORONOI_LIGHTNESS
+                ).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="2"
+            step="0.05"
+            value={panel.voronoiLightness ?? GAME_CONFIG.VORONOI_LIGHTNESS}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "VORONOI_LIGHTNESS",
+                    "voronoiLightness",
+                    v,
+                );
+            }}
+        />
+    </div>
+{/if}
 {#if panel.territoryGraph}
-    <!-- ── Lane Territory Controls ── -->
+    <!-- -- Lane Territory Controls -- -->
     <h4 class="sub-heading">Lane Territory Settings</h4>
     <div class="var-row">
         <div class="row-top">
@@ -167,7 +1860,6 @@
             value={panel.graphSaturation ?? 1}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.GRAPH_SATURATION = v;
                 updatePanel("graphSaturation", v);
             }}
         />
@@ -186,7 +1878,6 @@
             value={panel.graphLightness ?? 1}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.GRAPH_LIGHTNESS = v;
                 updatePanel("graphLightness", v);
             }}
         />
@@ -205,7 +1896,6 @@
             value={panel.graphAlpha ?? 0.15}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.GRAPH_ALPHA = v;
                 updatePanel("graphAlpha", v);
             }}
         />
@@ -213,7 +1903,7 @@
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Lane Influence</span><span class="val"
-                >{(panel.laneInfluence ?? 5).toFixed(1)}×
+                >{(panel.laneInfluence ?? 5).toFixed(1)}�
                 {(panel.laneInfluence ?? 5) <= 2
                     ? "(subtle)"
                     : (panel.laneInfluence ?? 5) <= 5
@@ -229,7 +1919,6 @@
             value={panel.laneInfluence ?? 5}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.LANE_INFLUENCE = v;
                 updatePanel("laneInfluence", v);
             }}
         />
@@ -248,7 +1937,6 @@
             value={panel.laneWidth ?? 60}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.LANE_WIDTH = v;
                 updatePanel("laneWidth", v);
             }}
         />
@@ -272,7 +1960,6 @@
             value={panel.laneDirectFalloff ?? 1.0}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.LANE_DIRECT_FALLOFF = v;
                 updatePanel("laneDirectFalloff", v);
             }}
         />
@@ -280,7 +1967,7 @@
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Resolution</span><span class="val"
-                >{panel.graphResolution ?? 4}× downsample</span
+                >{panel.graphResolution ?? 4}� downsample</span
             >
         </div>
         <input
@@ -291,7 +1978,6 @@
             value={panel.graphResolution ?? 4}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.GRAPH_RESOLUTION = v;
                 updatePanel("graphResolution", v);
             }}
         />
@@ -310,7 +1996,6 @@
             value={panel.graphBlur ?? 4}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.GRAPH_BLUR = v;
                 updatePanel("graphBlur", v);
             }}
         />
@@ -330,7 +2015,6 @@
             value={panel.graphPressure ?? 0}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.GRAPH_PRESSURE = v;
                 updatePanel("graphPressure", v);
             }}
         />
@@ -349,7 +2033,6 @@
             value={panel.graphEdgeFade ?? 120}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.GRAPH_EDGE_FADE = v;
                 updatePanel("graphEdgeFade", v);
             }}
         />
@@ -358,7 +2041,7 @@
         class="var-row grayed"
         style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"
     >
-        🔲 Borders
+        ?? Borders
     </div>
     <div class="var-row">
         <div class="row-top">
@@ -369,12 +2052,11 @@
         <input
             type="range"
             min="0"
-            max="4"
-            step="1"
+            max="30"
+            step="0.5"
             value={panel.graphBorderWidth ?? 1}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.GRAPH_BORDER_WIDTH = v;
                 updatePanel("graphBorderWidth", v);
             }}
         />
@@ -393,7 +2075,6 @@
             value={panel.graphBorderAlpha ?? 0.6}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.GRAPH_BORDER_ALPHA = v;
                 updatePanel("graphBorderAlpha", v);
             }}
         />
@@ -402,7 +2083,7 @@
         class="var-row grayed"
         style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"
     >
-        🔲 Pattern
+        ?? Pattern
     </div>
     <div class="var-row">
         <div class="row-top">
@@ -415,7 +2096,6 @@
             value={panel.graphPattern ?? "none"}
             onchange={(e) => {
                 const v = (e.target as HTMLSelectElement).value as any;
-                GAME_CONFIG.GRAPH_PATTERN = v;
                 updatePanel("graphPattern", v);
             }}
         >
@@ -439,7 +2119,6 @@
             value={panel.graphPatternScale ?? 14}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.GRAPH_PATTERN_SCALE = v;
                 updatePanel("graphPatternScale", v);
             }}
         />
@@ -459,7 +2138,6 @@
             value={panel.graphPatternRotation ?? 0}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.GRAPH_PATTERN_ROTATION = v;
                 updatePanel("graphPatternRotation", v);
             }}
         />
@@ -468,7 +2146,7 @@
         class="var-row grayed"
         style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"
     >
-        🎨 Border Feel
+        ?? Border Feel
     </div>
     <div class="var-row">
         <div class="row-top">
@@ -481,7 +2159,6 @@
             value={panel.borderFeel ?? "raw"}
             onchange={(e) => {
                 const v = (e.target as HTMLSelectElement).value as any;
-                GAME_CONFIG.BORDER_FEEL = v;
                 updatePanel("borderFeel", v);
             }}
         >
@@ -510,15 +2187,1151 @@
             disabled={(panel.borderFeel ?? "raw") === "raw"}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.BORDER_SMOOTH = v;
                 updatePanel("borderSmooth", v);
             }}
         />
     </div>
 {/if}
 
+{#if panel.territoryDistanceField}
+    <!-- -- Distance Field Controls -- -->
+    <h4 class="sub-heading">?? Distance Field Settings</h4>
+
+    <!-- General -->
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Resolution</span><span class="val"
+                >{panel.dfResolution ?? 4}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="1"
+            max="8"
+            step="1"
+            value={panel.dfResolution ?? 4}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                updatePanel("dfResolution", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Blur</span><span class="val"
+                >{(panel.dfBlur ?? 2).toFixed(1)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="10"
+            step="0.5"
+            value={panel.dfBlur ?? 2}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                updatePanel("dfBlur", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Edge Fade</span><span class="val"
+                >{(panel.dfEdgeFade ?? 200).toFixed(0)}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="500"
+            step="10"
+            value={panel.dfEdgeFade ?? 200}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                updatePanel("dfEdgeFade", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Rounding</span><span class="val"
+                >{(panel.dfRounding ?? 8).toFixed(0)}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="30"
+            step="1"
+            value={panel.dfRounding ?? 8}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                updatePanel("dfRounding", v);
+            }}
+        />
+    </div>
+
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Territory Map Size</span><span class="val"
+                >{(
+                    (panel.dfExpansion ?? GAME_CONFIG.DF_EXPANSION) * 100
+                ).toFixed(0)}%</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="0.5"
+            step="0.05"
+            value={panel.dfExpansion ?? GAME_CONFIG.DF_EXPANSION}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                updatePanel("dfExpansion", v);
+            }}
+        />
+    </div>
+
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Smoothing</span><span class="val"
+                >{(panel.dfSmoothing ?? GAME_CONFIG.DF_SMOOTHING).toFixed(
+                    0,
+                )}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="100"
+            step="5"
+            value={panel.dfSmoothing ?? GAME_CONFIG.DF_SMOOTHING}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                updatePanel("dfSmoothing", v);
+            }}
+        />
+    </div>
+
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">? Min Star Radius</span><span class="val"
+                >{(
+                    panel.dfMinStarRadius ?? GAME_CONFIG.DF_MIN_STAR_RADIUS
+                ).toFixed(0)}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="150"
+            step="5"
+            value={panel.dfMinStarRadius ?? GAME_CONFIG.DF_MIN_STAR_RADIUS}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                updatePanel("dfMinStarRadius", v);
+            }}
+        />
+    </div>
+
+    <!-- Color (HSLA) -->
+    <h4 class="sub-heading">?? Color (HSLA)</h4>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Alpha</span><span class="val"
+                >{(panel.dfAlpha ?? 0.15).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0.02"
+            max="1.0"
+            step="0.01"
+            value={panel.dfAlpha ?? 0.15}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                updatePanel("dfAlpha", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Hue Shift</span><span class="val"
+                >{(panel.dfHue ?? 0).toFixed(0)}�</span
+            >
+        </div>
+        <input
+            type="range"
+            min="-180"
+            max="180"
+            step="5"
+            value={panel.dfHue ?? 0}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                updatePanel("dfHue", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Saturation</span><span class="val"
+                >{(panel.dfSaturation ?? 0.7).toFixed(2)}�</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="3"
+            step="0.05"
+            value={panel.dfSaturation ?? 0.7}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                updatePanel("dfSaturation", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Lightness</span><span class="val"
+                >{(panel.dfLightness ?? 0.5).toFixed(2)}�</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="3"
+            step="0.05"
+            value={panel.dfLightness ?? 0.5}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                updatePanel("dfLightness", v);
+            }}
+        />
+    </div>
+
+    <!-- Borders -->
+    <h4 class="sub-heading">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input
+                type="checkbox"
+                checked={panel.dfBordersEnabled ?? true}
+                onchange={(e) => {
+                    const v = (e.target as HTMLInputElement).checked;
+                    updatePanel("dfBordersEnabled", v);
+                }}
+                style="margin:0;width:14px;height:14px"
+            />
+            BORDERS
+        </label>
+    </h4>
+
+    {#if panel.dfBordersEnabled ?? true}
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">Border Mode</span>
+            </div>
+            <div style="display:flex;gap:4px;padding:2px 0">
+                {#each [{ id: 0, label: "Gap" }, { id: 1, label: "Even" }, { id: 2, label: "Layered" }] as mode}
+                    <button
+                        class="mode-btn"
+                        class:active={(panel.dfBorderMode ?? 1) === mode.id}
+                        onclick={() => {
+                            updatePanel("dfBorderMode", mode.id);
+                        }}>{mode.label}</button
+                    >
+                {/each}
+            </div>
+        </div>
+
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">Border Engine</span>
+            </div>
+            <div style="display:flex;gap:4px;padding:2px 0;flex-wrap:wrap">
+                {#each BORDER_ENGINE_OPTIONS as engine}
+                    <button
+                        class="mode-btn"
+                        class:active={activeBorderEngine === engine.id}
+                        onclick={() => {
+                            updatePanel("dfBorderEngine", engine.id);
+                            if (engine.id === "legacy_grid") {
+                                // Keep legacy compatibility toggle in sync for older theme snapshots.
+                                updatePanel("dfVectorBordersEnabled", true);
+                            }
+                        }}>{engine.label}</button
+                    >
+                {/each}
+            </div>
+        </div>
+
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">Canonical Frontier</span>
+            </div>
+            <div style="display:flex;gap:4px;padding:2px 0;flex-wrap:wrap">
+                {#each CANONICAL_FRONTIER_MODE_OPTIONS as mode}
+                    <button
+                        class="mode-btn"
+                        class:active={activeCanonicalFrontierRuntimeMode ===
+                            mode.id}
+                        onclick={() => {
+                            updatePanel(
+                                "dfCanonicalFrontierRuntimeMode",
+                                mode.id,
+                            );
+                            if (mode.id !== "disabled") {
+                                updatePanel("dfBorderEngine", "mesh");
+                            }
+                        }}>{mode.label}</button
+                    >
+                {/each}
+            </div>
+        </div>
+
+        {#if activeCanonicalFrontierRuntimeMode === "diagnostic"}
+            <div class="var-row">
+                <div class="row-top">
+                    <span class="var-name">Show Canonical Overlay</span><span
+                        class="val"
+                        >{canonicalFrontierDiagnosticShow ? "ON" : "OFF"}</span
+                    >
+                </div>
+                <input
+                    type="checkbox"
+                    checked={canonicalFrontierDiagnosticShow}
+                    onchange={(e) => {
+                        const v = (e.target as HTMLInputElement).checked;
+                        updatePanel("dfCanonicalFrontierDiagnosticShow", v);
+                    }}
+                />
+            </div>
+        {/if}
+
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">Border Width</span><span class="val"
+                    >{(panel.dfBorderWidth ?? 15).toFixed(0)}px</span
+                >
+            </div>
+            <input
+                type="range"
+                min="0"
+                max="80"
+                step="1"
+                value={panel.dfBorderWidth ?? 15}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    updatePanel("dfBorderWidth", v);
+                }}
+            />
+        </div>
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">Border Family</span>
+            </div>
+            <div style="display:flex;gap:4px;padding:2px 0">
+                {#each [{ id: "straight", label: "Straight" }, { id: "curved", label: "Curved" }, { id: "segmented", label: "Segmented" }] as family}
+                    <button
+                        class="mode-btn"
+                        class:active={(panel.dfBorderFamily ??
+                            GAME_CONFIG.DF_BORDER_FAMILY ??
+                            "straight") === family.id}
+                        onclick={() => {
+                            updatePanel("dfBorderFamily", family.id);
+                        }}>{family.label}</button
+                    >
+                {/each}
+            </div>
+        </div>
+
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">Border Softness</span><span class="val"
+                    >{(panel.dfBorderSoftness ?? 8).toFixed(0)}px</span
+                >
+            </div>
+            <input
+                type="range"
+                min="0"
+                max="40"
+                step="1"
+                value={panel.dfBorderSoftness ?? 8}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    updatePanel("dfBorderSoftness", v);
+                }}
+            />
+        </div>
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">Border Alpha</span><span class="val"
+                    >{(panel.dfBorderAlpha ?? 0.8).toFixed(2)}</span
+                >
+            </div>
+            <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={panel.dfBorderAlpha ?? 0.8}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    updatePanel("dfBorderAlpha", v);
+                }}
+            />
+        </div>
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">Border Brighten</span><span class="val"
+                    >{(panel.dfBorderBrighten ?? 40).toFixed(0)}</span
+                >
+            </div>
+            <input
+                type="range"
+                min="0"
+                max="200"
+                step="5"
+                value={panel.dfBorderBrighten ?? 40}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    updatePanel("dfBorderBrighten", v);
+                }}
+            />
+        </div>
+        {#if isLegacyFieldEngine}
+            <div class="var-row">
+                <div class="row-top">
+                    <span class="var-name">High Quality Borders</span><span
+                        class="val"
+                        >{(panel.dfBorderHqEnabled ??
+                        GAME_CONFIG.DF_BORDER_HQ_ENABLED)
+                            ? "ON"
+                            : "OFF"}</span
+                    >
+                </div>
+                <input
+                    type="checkbox"
+                    checked={panel.dfBorderHqEnabled ??
+                        GAME_CONFIG.DF_BORDER_HQ_ENABLED}
+                    onchange={(e) => {
+                        const v = (e.target as HTMLInputElement).checked;
+                        updatePanel("dfBorderHqEnabled", v);
+                    }}
+                />
+            </div>
+
+            {#if panel.dfBorderHqEnabled ?? GAME_CONFIG.DF_BORDER_HQ_ENABLED}
+                <div class="var-row">
+                    <div class="row-top">
+                        <span class="var-name">HQ Supersample</span><span
+                            class="val"
+                            >{(
+                                panel.dfBorderHqScale ??
+                                GAME_CONFIG.DF_BORDER_HQ_SCALE
+                            ).toFixed(1)}x</span
+                        >
+                    </div>
+                    <input
+                        type="range"
+                        min="1.0"
+                        max="4.0"
+                        step="0.5"
+                        value={panel.dfBorderHqScale ??
+                            GAME_CONFIG.DF_BORDER_HQ_SCALE}
+                        oninput={(e) => {
+                            const v = +(e.target as HTMLInputElement).value;
+                            updatePanel("dfBorderHqScale", v);
+                        }}
+                    />
+                </div>
+
+                <div class="var-row">
+                    <div class="row-top">
+                        <span class="var-name">HQ Max Texture</span><span
+                            class="val"
+                            >{panel.dfBorderHqMaxDim ??
+                                GAME_CONFIG.DF_BORDER_HQ_MAX_DIM}px</span
+                        >
+                    </div>
+                    <input
+                        type="range"
+                        min="4096"
+                        max="8192"
+                        step="512"
+                        value={panel.dfBorderHqMaxDim ??
+                            GAME_CONFIG.DF_BORDER_HQ_MAX_DIM}
+                        oninput={(e) => {
+                            const v = +(e.target as HTMLInputElement).value;
+                            updatePanel("dfBorderHqMaxDim", v);
+                        }}
+                    />
+                </div>
+            {/if}
+        {/if}
+
+        {#if isLegacyGridEngine}
+            <div class="var-row">
+                <div class="row-top">
+                    <span class="var-name">Vector Borders</span><span
+                        class="val"
+                        >{(panel.dfVectorBordersEnabled ??
+                        GAME_CONFIG.DF_VECTOR_BORDERS_ENABLED)
+                            ? "ON"
+                            : "OFF"}</span
+                    >
+                </div>
+                <input
+                    type="checkbox"
+                    checked={panel.dfVectorBordersEnabled ??
+                        GAME_CONFIG.DF_VECTOR_BORDERS_ENABLED}
+                    onchange={(e) => {
+                        const v = (e.target as HTMLInputElement).checked;
+                        updatePanel("dfVectorBordersEnabled", v);
+                        if (!v) {
+                            updatePanel("dfBorderEngine", "legacy_field");
+                        }
+                    }}
+                />
+            </div>
+
+            {#if panel.dfVectorBordersEnabled ?? GAME_CONFIG.DF_VECTOR_BORDERS_ENABLED}
+                <div class="var-row">
+                    <div class="row-top">
+                        <span class="var-name">Vector Grid</span><span
+                            class="val"
+                            >{panel.dfVectorGridResolution ??
+                                GAME_CONFIG.DF_VECTOR_GRID_RESOLUTION}px</span
+                        >
+                    </div>
+                    <input
+                        type="range"
+                        min="64"
+                        max="512"
+                        step="16"
+                        value={panel.dfVectorGridResolution ??
+                            GAME_CONFIG.DF_VECTOR_GRID_RESOLUTION}
+                        oninput={(e) => {
+                            const v = +(e.target as HTMLInputElement).value;
+                            updatePanel("dfVectorGridResolution", v);
+                        }}
+                    />
+                </div>
+
+                <div class="var-row">
+                    <div class="row-top">
+                        <span class="var-name">Vector Straighten</span><span
+                            class="val"
+                            >{panel.dfVectorSmoothing ??
+                                GAME_CONFIG.DF_VECTOR_SMOOTHING}</span
+                        >
+                    </div>
+                    <input
+                        type="range"
+                        min="0"
+                        max="4"
+                        step="1"
+                        value={panel.dfVectorSmoothing ??
+                            GAME_CONFIG.DF_VECTOR_SMOOTHING}
+                        oninput={(e) => {
+                            const v = +(e.target as HTMLInputElement).value;
+                            updatePanel("dfVectorSmoothing", v);
+                        }}
+                    />
+                </div>
+
+                <div class="var-row">
+                    <div class="row-top">
+                        <span class="var-name">Vector Simplify</span><span
+                            class="val"
+                            >{(
+                                panel.dfVectorSimplify ??
+                                GAME_CONFIG.DF_VECTOR_SIMPLIFY
+                            ).toFixed(1)}px</span
+                        >
+                    </div>
+                    <input
+                        type="range"
+                        min="0"
+                        max="3"
+                        step="0.1"
+                        value={panel.dfVectorSimplify ??
+                            GAME_CONFIG.DF_VECTOR_SIMPLIFY}
+                        oninput={(e) => {
+                            const v = +(e.target as HTMLInputElement).value;
+                            updatePanel("dfVectorSimplify", v);
+                        }}
+                    />
+                </div>
+
+                <div class="var-row">
+                    <div class="row-top">
+                        <span class="var-name">Vector Update</span><span
+                            class="val"
+                            >{panel.dfVectorUpdateMs ??
+                                GAME_CONFIG.DF_VECTOR_UPDATE_MS}ms</span
+                        >
+                    </div>
+                    <input
+                        type="range"
+                        min="0"
+                        max="200"
+                        step="5"
+                        value={panel.dfVectorUpdateMs ??
+                            GAME_CONFIG.DF_VECTOR_UPDATE_MS}
+                        oninput={(e) => {
+                            const v = +(e.target as HTMLInputElement).value;
+                            updatePanel("dfVectorUpdateMs", v);
+                        }}
+                    />
+                </div>
+            {/if}
+        {/if}
+    {/if}
+
+    <!-- Influence Weight -->
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Influence Weight</span><span class="val"
+                >{(panel.dfInfluenceWeight ?? 1.0).toFixed(2)}�</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="3"
+            step="0.05"
+            value={panel.dfInfluenceWeight ?? 1.0}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                updatePanel("dfInfluenceWeight", v);
+            }}
+        />
+    </div>
+
+    <!-- Transition Speed -->
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Transition Speed</span><span class="val"
+                >{panel.territoryTransitionMs ??
+                    GAME_CONFIG.TERRITORY_TRANSITION_MS}ms</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="3000"
+            step="50"
+            value={panel.territoryTransitionMs ??
+                GAME_CONFIG.TERRITORY_TRANSITION_MS}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                updatePanel("territoryTransitionMs", v);
+            }}
+        />
+    </div>
+
+    <!-- -- Corridor Virtual Sites -- -->
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Morph Easing</span>
+        </div>
+        <div style="display:flex;gap:4px;padding:2px 0;flex-wrap:wrap">
+            {#each [{ id: "linear", label: "Linear" }, { id: "smoothstep", label: "Smooth" }, { id: "easeInOutQuad", label: "Quad" }, { id: "easeInOutCubic", label: "Cubic" }] as easing}
+                <button
+                    class="mode-btn"
+                    class:active={(panel.dfMorphEasing ??
+                        GAME_CONFIG.DF_MORPH_EASING ??
+                        "linear") === easing.id}
+                    onclick={() => {
+                        updatePanel("dfMorphEasing", easing.id);
+                    }}>{easing.label}</button
+                >
+            {/each}
+        </div>
+    </div>
+    <h4 class="sub-heading">Corridor / Disconnect</h4>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">?? Corridor Sites</span><span class="val"
+                >{(panel.dfCorridorEnabled ?? GAME_CONFIG.DF_CORRIDOR_ENABLED)
+                    ? "ON"
+                    : "OFF"}</span
+            >
+        </div>
+        <input
+            type="checkbox"
+            checked={panel.dfCorridorEnabled ?? GAME_CONFIG.DF_CORRIDOR_ENABLED}
+            onchange={(e) => {
+                const v = (e.target as HTMLInputElement).checked;
+                updatePanel("dfCorridorEnabled", v);
+            }}
+        />
+    </div>
+
+    {#if panel.dfCorridorEnabled ?? GAME_CONFIG.DF_CORRIDOR_ENABLED}
+        <!-- Virtual Star Spacing mode: radio + slider side by side -->
+        <div
+            class="var-row"
+            style="opacity: {(panel.dfCorridorMode ?? 'spacing') === 'spacing'
+                ? 1
+                : 0.4}"
+        >
+            <div class="row-top">
+                <label
+                    style="display:flex;align-items:center;gap:4px;cursor:pointer"
+                >
+                    <input
+                        type="radio"
+                        name="corridorMode"
+                        checked={(panel.dfCorridorMode ?? "spacing") ===
+                            "spacing"}
+                        onchange={() => {
+                            updatePanel("dfCorridorMode", "spacing");
+                        }}
+                        style="margin:0;width:14px;height:14px"
+                    />
+                    <span class="var-name" style="font-size:0.82em"
+                        >Virtual Star Spacing</span
+                    >
+                </label>
+                <span class="val"
+                    >{panel.dfCorridorSpacing ??
+                        GAME_CONFIG.DF_CORRIDOR_SPACING}px</span
+                >
+            </div>
+            <input
+                type="range"
+                min="20"
+                max="200"
+                step="5"
+                disabled={(panel.dfCorridorMode ?? "spacing") !== "spacing"}
+                value={panel.dfCorridorSpacing ??
+                    GAME_CONFIG.DF_CORRIDOR_SPACING}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    updatePanel("dfCorridorSpacing", v);
+                }}
+            />
+        </div>
+
+        <!-- Virtual Stars Per Lane mode: radio + slider side by side -->
+        <div
+            class="var-row"
+            style="opacity: {(panel.dfCorridorMode ?? 'spacing') === 'count'
+                ? 1
+                : 0.4}"
+        >
+            <div class="row-top">
+                <label
+                    style="display:flex;align-items:center;gap:4px;cursor:pointer"
+                >
+                    <input
+                        type="radio"
+                        name="corridorMode"
+                        checked={(panel.dfCorridorMode ?? "spacing") ===
+                            "count"}
+                        onchange={() => {
+                            updatePanel("dfCorridorMode", "count");
+                        }}
+                        style="margin:0;width:14px;height:14px"
+                    />
+                    <span class="var-name" style="font-size:0.82em"
+                        >Virtual Stars Per Lane</span
+                    >
+                </label>
+                <span class="val"
+                    >{panel.dfCorridorCount ??
+                        GAME_CONFIG.DF_CORRIDOR_COUNT}</span
+                >
+            </div>
+            <input
+                type="range"
+                min="1"
+                max="20"
+                step="1"
+                disabled={(panel.dfCorridorMode ?? "spacing") !== "count"}
+                value={panel.dfCorridorCount ?? GAME_CONFIG.DF_CORRIDOR_COUNT}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    updatePanel("dfCorridorCount", v);
+                }}
+            />
+        </div>
+
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">?? Corridor Weight</span><span
+                    class="val"
+                    >{(
+                        panel.dfCorridorWeight ?? GAME_CONFIG.DF_CORRIDOR_WEIGHT
+                    ).toFixed(1)}</span
+                >
+            </div>
+            <input
+                type="range"
+                min="0.1"
+                max="3.0"
+                step="0.1"
+                value={panel.dfCorridorWeight ?? GAME_CONFIG.DF_CORRIDOR_WEIGHT}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    updatePanel("dfCorridorWeight", v);
+                }}
+            />
+        </div>
+    {/if}
+
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">?? Disconnect Buffer</span><span class="val"
+                >{(panel.dfDisconnectEnabled ??
+                GAME_CONFIG.DF_DISCONNECT_ENABLED)
+                    ? "ON"
+                    : "OFF"}</span
+            >
+        </div>
+        <input
+            type="checkbox"
+            checked={panel.dfDisconnectEnabled ??
+                GAME_CONFIG.DF_DISCONNECT_ENABLED}
+            onchange={(e) => {
+                const v = (e.target as HTMLInputElement).checked;
+                updatePanel("dfDisconnectEnabled", v);
+            }}
+        />
+    </div>
+
+    {#if panel.dfDisconnectEnabled ?? GAME_CONFIG.DF_DISCONNECT_ENABLED}
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">?? Disconnect Distance</span><span
+                    class="val"
+                    >{panel.dfDisconnectDistance ??
+                        GAME_CONFIG.DF_DISCONNECT_DISTANCE}px</span
+                >
+            </div>
+            <input
+                type="range"
+                min="100"
+                max="800"
+                step="25"
+                value={panel.dfDisconnectDistance ??
+                    GAME_CONFIG.DF_DISCONNECT_DISTANCE}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    updatePanel("dfDisconnectDistance", v);
+                }}
+            />
+        </div>
+
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">?? Disconnect Weight</span><span
+                    class="val"
+                    >{(
+                        panel.dfDisconnectWeight ??
+                        GAME_CONFIG.DF_DISCONNECT_WEIGHT
+                    ).toFixed(2)}</span
+                >
+            </div>
+            <input
+                type="range"
+                min="0.05"
+                max="2.0"
+                step="0.05"
+                value={panel.dfDisconnectWeight ??
+                    GAME_CONFIG.DF_DISCONNECT_WEIGHT}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    updatePanel("dfDisconnectWeight", v);
+                }}
+            />
+        </div>
+    {/if}
+{/if}
+
+{#if panel.territoryContour}
+    <!-- -- Contour Controls -- -->
+    <h4 class="sub-heading">Contour (Vector) Settings</h4>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Saturation</span><span class="val"
+                >{((panel.contourSaturation ?? 1) as number).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="2"
+            step="0.05"
+            value={panel.contourSaturation ?? 1}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                updatePanel("contourSaturation", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Lightness</span><span class="val"
+                >{((panel.contourLightness ?? 1) as number).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="2"
+            step="0.05"
+            value={panel.contourLightness ?? 1}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                updatePanel("contourLightness", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Fill Alpha</span><span class="val"
+                >{(panel.contourFillAlpha ?? 0.15).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0.02"
+            max="0.5"
+            step="0.01"
+            value={panel.contourFillAlpha ?? 0.15}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                updatePanel("contourFillAlpha", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Resolution</span><span class="val"
+                >{panel.contourResolution ?? 128}px grid</span
+            >
+        </div>
+        <input
+            type="range"
+            min="32"
+            max="256"
+            step="16"
+            value={panel.contourResolution ?? 128}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                updatePanel("contourResolution", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Simplify</span><span class="val"
+                >{panel.contourSimplify ?? 5}
+                {(panel.contourSimplify ?? 5) <= 2
+                    ? "(detailed)"
+                    : (panel.contourSimplify ?? 5) <= 8
+                      ? "(moderate)"
+                      : "(coarse)"}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="20"
+            step="1"
+            value={panel.contourSimplify ?? 5}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                updatePanel("contourSimplify", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Smoothing</span><span class="val"
+                >{panel.contourSmooth ?? 0}
+                {(panel.contourSmooth ?? 0) === 0
+                    ? "(off)"
+                    : (panel.contourSmooth ?? 0) <= 1
+                      ? "(light)"
+                      : "(smooth)"}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="4"
+            step="1"
+            value={panel.contourSmooth ?? 0}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                updatePanel("contourSmooth", v);
+            }}
+        />
+    </div>
+    <div
+        class="var-row grayed"
+        style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"
+    >
+        ?? Borders
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Border Width</span><span class="val"
+                >{panel.contourBorderWidth ?? 2}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="30"
+            step="0.5"
+            value={panel.contourBorderWidth ?? 2}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                updatePanel("contourBorderWidth", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Border Alpha</span><span class="val"
+                >{(panel.contourBorderAlpha ?? 0.6).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={panel.contourBorderAlpha ?? 0.6}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                updatePanel("contourBorderAlpha", v);
+            }}
+        />
+    </div>
+    <div
+        class="var-row grayed"
+        style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"
+    >
+        ?? Corner Rounding
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Corner Radius</span><span class="val"
+                >{panel.contourCornerRadius ?? 3}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="10"
+            step="0.5"
+            value={panel.contourCornerRadius ?? 3}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                updatePanel("contourCornerRadius", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Corner Threshold</span><span class="val"
+                >{panel.contourCornerThreshold ?? 120}�</span
+            >
+        </div>
+        <input
+            type="range"
+            min="30"
+            max="170"
+            step="5"
+            value={panel.contourCornerThreshold ?? 120}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                updatePanel("contourCornerThreshold", v);
+            }}
+        />
+    </div>
+    <div
+        class="var-row grayed"
+        style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"
+    >
+        ??? Periphery Ownership
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Periphery Strength</span><span class="val"
+                >{(panel.contourPeripheryStrength ?? 1).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={panel.contourPeripheryStrength ?? 1}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                updatePanel("contourPeripheryStrength", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Periphery Inset</span><span class="val"
+                >{panel.contourPeripheryInset ?? 0}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="50"
+            step="5"
+            value={panel.contourPeripheryInset ?? 0}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                updatePanel("contourPeripheryInset", v);
+            }}
+        />
+    </div>
+    <div
+        class="var-row grayed"
+        style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"
+    >
+        ?? Junction Correction (F-135)
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Junction Correction</span><span class="val"
+                >{(panel.contourJunctionCorrection ?? 50).toFixed(0)}
+                {(panel.contourJunctionCorrection ?? 50) === 0
+                    ? "(off)"
+                    : (panel.contourJunctionCorrection ?? 50) <= 20
+                      ? "(subtle)"
+                      : (panel.contourJunctionCorrection ?? 50) <= 60
+                        ? "(moderate)"
+                        : "(strong)"}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="100"
+            step="1"
+            value={panel.contourJunctionCorrection ?? 50}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                updatePanel("contourJunctionCorrection", v);
+            }}
+        />
+    </div>
+{/if}
+
 {#if panel.territoryVoronoi}
-    <!-- ── Voronoi Controls ── -->
+    <!-- -- Voronoi Controls -- -->
     <h4 class="sub-heading">Voronoi Settings</h4>
     <div class="var-row">
         <div class="row-top">
@@ -536,7 +3349,6 @@
             value={panel.voronoiSaturation ?? 0.75}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.VORONOI_SATURATION = v;
                 updatePanel("voronoiSaturation", v);
             }}
         />
@@ -555,7 +3367,6 @@
             value={panel.voronoiLightness ?? 0.75}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.VORONOI_LIGHTNESS = v;
                 updatePanel("voronoiLightness", v);
             }}
         />
@@ -574,7 +3385,6 @@
             value={panel.voronoiAlpha}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.VORONOI_ALPHA = v;
                 updatePanel("voronoiAlpha", v);
             }}
         />
@@ -593,7 +3403,6 @@
             value={panel.voronoiBlur}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.VORONOI_BLUR = v;
                 updatePanel("voronoiBlur", v);
             }}
         />
@@ -612,7 +3421,6 @@
             value={panel.voronoiSmoothing}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.VORONOI_SMOOTHING = v;
                 updatePanel("voronoiSmoothing", v);
             }}
         />
@@ -626,7 +3434,6 @@
                     checked={panel.voronoiGradientBlend}
                     onchange={(e) => {
                         const v = (e.target as HTMLInputElement).checked;
-                        GAME_CONFIG.VORONOI_GRADIENT_BLEND = v;
                         updatePanel("voronoiGradientBlend", v);
                     }}
                 />
@@ -649,7 +3456,6 @@
             disabled={!panel.voronoiGradientBlend}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.VORONOI_BLEND_WIDTH = v;
                 updatePanel("voronoiBlendWidth", v);
             }}
         />
@@ -659,7 +3465,7 @@
         class="var-row grayed"
         style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"
     >
-        🔲 Borders
+        ?? Borders
     </div>
     <div class="var-row">
         <div class="row-top">
@@ -670,12 +3476,11 @@
         <input
             type="range"
             min="0"
-            max="8"
+            max="30"
             step="0.5"
             value={panel.voronoiBorderWidth}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.VORONOI_BORDER_WIDTH = v;
                 updatePanel("voronoiBorderWidth", v);
             }}
         />
@@ -694,7 +3499,6 @@
             value={panel.voronoiBorderAlpha}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.VORONOI_BORDER_ALPHA = v;
                 updatePanel("voronoiBorderAlpha", v);
             }}
         />
@@ -713,7 +3517,6 @@
             value={panel.voronoiBorderBrighten}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.VORONOI_BORDER_BRIGHTEN = v;
                 updatePanel("voronoiBorderBrighten", v);
             }}
         />
@@ -721,7 +3524,7 @@
 {/if}
 
 {#if panel.territoryPixel}
-    <!-- ── Pixel (Classic) Controls ── -->
+    <!-- -- Pixel (Classic) Controls -- -->
     <h4 class="sub-heading">Pixel (Classic) Settings</h4>
     <div class="var-row">
         <div class="row-top">
@@ -737,7 +3540,6 @@
             value={panel.pixelSaturation ?? 1}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.PIXEL_SATURATION = v;
                 updatePanel("pixelSaturation", v);
             }}
         />
@@ -756,7 +3558,6 @@
             value={panel.pixelLightness ?? 1}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.PIXEL_LIGHTNESS = v;
                 updatePanel("pixelLightness", v);
             }}
         />
@@ -775,7 +3576,6 @@
             value={panel.pixelAlpha ?? 0.15}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.PIXEL_ALPHA = v;
                 updatePanel("pixelAlpha", v);
             }}
         />
@@ -783,7 +3583,7 @@
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Resolution</span><span class="val"
-                >{panel.pixelResolution ?? 4}× downsample</span
+                >{panel.pixelResolution ?? 4}� downsample</span
             >
         </div>
         <input
@@ -794,7 +3594,6 @@
             value={panel.pixelResolution ?? 4}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.PIXEL_RESOLUTION = v;
                 updatePanel("pixelResolution", v);
             }}
         />
@@ -816,7 +3615,6 @@
             value={panel.pixelEdgeBlend ?? 0}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.PIXEL_EDGE_BLEND = v;
                 updatePanel("pixelEdgeBlend", v);
             }}
         />
@@ -835,7 +3633,6 @@
             value={panel.pixelBlur ?? 4}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.PIXEL_BLUR = v;
                 updatePanel("pixelBlur", v);
             }}
         />
@@ -863,7 +3660,6 @@
             value={panel.pixelCorridorBoost ?? 0.3}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.PIXEL_CORRIDOR_BOOST = v;
                 updatePanel("pixelCorridorBoost", v);
             }}
         />
@@ -889,7 +3685,6 @@
             value={panel.pixelLaneConstrain ?? 0.5}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.PIXEL_LANE_CONSTRAIN = v;
                 updatePanel("pixelLaneConstrain", v);
             }}
         />
@@ -915,16 +3710,15 @@
             value={panel.pixelPressure ?? 0}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.PIXEL_PRESSURE = v;
                 updatePanel("pixelPressure", v);
             }}
         />
     </div>
-    <h4 class="sub-heading">🎨 Hue & Borders</h4>
+    <h4 class="sub-heading">?? Hue & Borders</h4>
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Hue Shift</span><span class="val"
-                >{panel.pixelHueShift ?? 0}°</span
+                >{panel.pixelHueShift ?? 0}�</span
             >
         </div>
         <input
@@ -935,7 +3729,6 @@
             value={panel.pixelHueShift ?? 0}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.PIXEL_HUE_SHIFT = v;
                 updatePanel("pixelHueShift", v);
             }}
         />
@@ -949,12 +3742,11 @@
         <input
             type="range"
             min="0"
-            max="4"
-            step="1"
+            max="30"
+            step="0.5"
             value={panel.pixelBorderWidth ?? 1}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.PIXEL_BORDER_WIDTH = v;
                 updatePanel("pixelBorderWidth", v);
             }}
         />
@@ -973,7 +3765,6 @@
             value={panel.pixelBorderAlpha ?? 0.6}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.PIXEL_BORDER_ALPHA = v;
                 updatePanel("pixelBorderAlpha", v);
             }}
         />
@@ -992,12 +3783,11 @@
             value={panel.pixelBorderBrighten ?? 80}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.PIXEL_BORDER_BRIGHTEN = v;
                 updatePanel("pixelBorderBrighten", v);
             }}
         />
     </div>
-    <h4 class="sub-heading">🔲 Pattern</h4>
+    <h4 class="sub-heading">?? Pattern</h4>
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Pattern</span><span class="val"
@@ -1013,7 +3803,6 @@
                     | "stripes"
                     | "crosshatch"
                     | "dots";
-                GAME_CONFIG.PIXEL_PATTERN = v;
                 updatePanel("pixelPattern", v);
             }}
         >
@@ -1037,7 +3826,6 @@
             value={panel.pixelPatternScale ?? 4}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.PIXEL_PATTERN_SCALE = v;
                 updatePanel("pixelPatternScale", v);
             }}
         />
@@ -1057,7 +3845,6 @@
             value={panel.pixelPatternRotation ?? 1}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.PIXEL_PATTERN_ROTATION = v;
                 updatePanel("pixelPatternRotation", v);
             }}
         />
@@ -1076,7 +3863,6 @@
             value={panel.pixelEdgeFade ?? 200}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.PIXEL_EDGE_FADE = v;
                 updatePanel("pixelEdgeFade", v);
             }}
         />
@@ -1084,7 +3870,7 @@
 {/if}
 
 {#if panel.territoryMetaball}
-    <!-- ── Metaball Controls ── -->
+    <!-- -- Metaball Controls -- -->
     <h4 class="sub-heading">Metaball Settings</h4>
     <div class="var-row">
         <div class="row-top">
@@ -1100,7 +3886,6 @@
             value={panel.metaballSaturation ?? 1}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.METABALL_SATURATION = v;
                 updatePanel("metaballSaturation", v);
             }}
         />
@@ -1119,7 +3904,6 @@
             value={panel.metaballLightness ?? 1}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.METABALL_LIGHTNESS = v;
                 updatePanel("metaballLightness", v);
             }}
         />
@@ -1138,7 +3922,6 @@
             value={panel.metaballRadius ?? 120}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.METABALL_INFLUENCE_RADIUS = v;
                 updatePanel("metaballRadius", v);
             }}
         />
@@ -1151,7 +3934,6 @@
                 value={panel.metaballFalloff ?? "inverse-square"}
                 onchange={(e) => {
                     const v = (e.target as HTMLSelectElement).value as any;
-                    GAME_CONFIG.METABALL_FALLOFF = v;
                     updatePanel("metaballFalloff", v);
                 }}
             >
@@ -1175,7 +3957,6 @@
             value={panel.metaballSharpness ?? 3.0}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.METABALL_BLEND_SHARPNESS = v;
                 updatePanel("metaballSharpness", v);
             }}
         />
@@ -1194,7 +3975,6 @@
             value={panel.metaballAlpha ?? 0.5}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.METABALL_ALPHA = v;
                 updatePanel("metaballAlpha", v);
             }}
         />
@@ -1204,7 +3984,7 @@
         class="var-row grayed"
         style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"
     >
-        ⚙️ Advanced
+        ?? Advanced
     </div>
     <div class="var-row">
         <div class="row-top">
@@ -1220,7 +4000,6 @@
             value={panel.metaballCellSize ?? 8}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.METABALL_CELL_SIZE = v;
                 updatePanel("metaballCellSize", v);
             }}
         />
@@ -1239,7 +4018,6 @@
             value={panel.metaballThreshold ?? 0.05}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.METABALL_THRESHOLD = v;
                 updatePanel("metaballThreshold", v);
             }}
         />
@@ -1247,7 +4025,7 @@
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Strength</span><span class="val"
-                >{(panel.metaballStrength ?? 1.0).toFixed(1)}×</span
+                >{(panel.metaballStrength ?? 1.0).toFixed(1)}�</span
             >
         </div>
         <input
@@ -1258,7 +4036,6 @@
             value={panel.metaballStrength ?? 1.0}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.METABALL_STRENGTH_MULT = v;
                 updatePanel("metaballStrength", v);
             }}
         />
@@ -1277,7 +4054,6 @@
             value={panel.metaballEdgeFade ?? 3.0}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.METABALL_EDGE_FADE = v;
                 updatePanel("metaballEdgeFade", v);
             }}
         />
@@ -1296,7 +4072,6 @@
             value={panel.metaballCoverage ?? 0.3}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.METABALL_COVERAGE = v;
                 updatePanel("metaballCoverage", v);
             }}
         />
@@ -1315,7 +4090,6 @@
             value={panel.metaballBlur ?? 4}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.METABALL_BLUR = v;
                 updatePanel("metaballBlur", v);
             }}
         />
@@ -1325,7 +4099,7 @@
         class="var-row grayed"
         style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"
     >
-        🔲 Borders
+        ?? Borders
     </div>
     <div class="var-row">
         <div class="row-top">
@@ -1336,12 +4110,11 @@
         <input
             type="range"
             min="0"
-            max="6"
+            max="30"
             step="0.5"
             value={panel.metaballBorderWidth ?? 1.5}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.METABALL_BORDER_WIDTH = v;
                 updatePanel("metaballBorderWidth", v);
             }}
         />
@@ -1360,7 +4133,6 @@
             value={panel.metaballBorderAlpha ?? 0.6}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.METABALL_BORDER_ALPHA = v;
                 updatePanel("metaballBorderAlpha", v);
             }}
         />
@@ -1378,6 +4150,27 @@
         padding: 0 4px;
         border-bottom: 1px solid rgba(255, 255, 255, 0.08);
         padding-bottom: 3px;
+    }
+    .mode-btn {
+        flex: 1;
+        padding: 3px 6px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 3px;
+        color: rgba(255, 255, 255, 0.5);
+        font-size: 0.7rem;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+    .mode-btn:hover {
+        border-color: rgba(100, 200, 255, 0.3);
+        color: #93c5fd;
+    }
+    .mode-btn.active {
+        background: rgba(100, 200, 255, 0.15);
+        border-color: rgba(100, 200, 255, 0.4);
+        color: #93c5fd;
+        font-weight: 600;
     }
     .var-row {
         display: flex;
@@ -1468,5 +4261,126 @@
     }
     .grayed {
         color: #888;
+    }
+    .mini-btn {
+        padding: 3px 10px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.06);
+        color: rgba(255, 255, 255, 0.5);
+        font-size: 11px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        letter-spacing: 0.5px;
+    }
+    .mini-btn:hover {
+        background: rgba(255, 255, 255, 0.12);
+        color: rgba(255, 255, 255, 0.8);
+        border-color: rgba(255, 255, 255, 0.25);
+    }
+    .mini-btn.active {
+        background: rgba(74, 222, 128, 0.2);
+        border-color: #4ade80;
+        color: #4ade80;
+        box-shadow: 0 0 6px rgba(74, 222, 128, 0.25);
+    }
+    .mini-btn.reference-only,
+    .mini-btn:disabled {
+        cursor: not-allowed;
+        opacity: 0.42;
+        box-shadow: none;
+    }
+    .mini-btn.reference-only:hover,
+    .mini-btn:disabled:hover {
+        background: rgba(255, 255, 255, 0.06);
+        color: rgba(255, 255, 255, 0.5);
+        border-color: rgba(255, 255, 255, 0.15);
+    }
+    .engine-control-group.reference-only {
+        opacity: 0.78;
+    }
+    .engine-route-hint {
+        font-size: 10px;
+        line-height: 1.35;
+        color: rgba(255, 255, 255, 0.58);
+        padding: 1px 0 4px;
+    }
+    .trace-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin: 8px 4px 0;
+        padding: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.03);
+    }
+    .trace-chip-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+    .trace-chip {
+        padding: 2px 6px;
+        border-radius: 999px;
+        background: rgba(74, 222, 128, 0.12);
+        border: 1px solid rgba(74, 222, 128, 0.2);
+        color: #9ae6b4;
+        font-size: 10px;
+        font-family: monospace;
+    }
+    .trace-section {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+    .trace-section-title {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #8fb7ff;
+    }
+    .trace-entry {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: 6px;
+        border-radius: 5px;
+        background: rgba(255, 255, 255, 0.04);
+    }
+    .trace-entry-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+    }
+    .trace-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 2px 6px;
+        border-radius: 4px;
+        background: rgba(147, 197, 253, 0.12);
+        color: #bfdbfe;
+        font-size: 10px;
+        font-family: monospace;
+    }
+    .trace-summary {
+        font-size: 10px;
+        line-height: 1.4;
+        color: rgba(255, 255, 255, 0.72);
+        font-family: monospace;
+        word-break: break-word;
+    }
+    .trace-detail-line {
+        font-size: 10px;
+        line-height: 1.35;
+        color: rgba(255, 255, 255, 0.68);
+        font-family: monospace;
+    }
+    .trace-empty {
+        font-size: 10px;
+        line-height: 1.4;
+        color: rgba(255, 255, 255, 0.58);
     }
 </style>

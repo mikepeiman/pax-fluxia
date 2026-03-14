@@ -1,0 +1,1016 @@
+
+  [32m[1mVITE[22m v6.4.1[39m  [2mready in [0m[1m861[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m1420[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.2.11:[1m1420[22m/[39m
+[2m5:09:56 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/server/internal.js[22m
+[2m5:09:56 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.js[22m
+[2m5:09:56 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.svelte[22m
+[2m5:38:11 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/server/internal.js[22m
+[2m5:38:11 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.js[22m
+[2m5:38:25 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/server/internal.js[22m
+[2m5:38:25 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.js[22m
+[2m5:38:31 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/server/internal.js[22m
+[2m5:38:31 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.js[22m
+[2m5:38:44 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mbuild/index.html[22m
+[2m5:38:45 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mbuild/index.html[22m
+5:40:50 PM [vite-plugin-svelte] src/lib/components/ui/MainMenu.svelte:454:24 A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control
+5:40:50 PM [vite-plugin-svelte] src/lib/components/ui/MainMenu.svelte:504:28 A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control
+5:40:50 PM [vite-plugin-svelte] src/lib/components/ui/MainMenu.svelte:521:28 A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control
+5:40:50 PM [vite-plugin-svelte] src/lib/components/ui/MainMenu.svelte:542:28 A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control
+5:40:50 PM [vite-plugin-svelte] src/lib/components/ui/MainMenu.svelte:554:28 A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control
+5:40:50 PM [vite-plugin-svelte] src/lib/components/ui/MainMenu.svelte:566:28 A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control
+5:40:50 PM [vite-plugin-svelte] src/lib/components/ui/MainMenu.svelte:579:28 A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control
+5:40:50 PM [vite-plugin-svelte] src/lib/components/ui/MainMenu.svelte:1335:4 Unused CSS selector ".control-group label span"
+https://svelte.dev/e/css_unused_selector
+5:40:50 PM [vite-plugin-svelte] src/lib/components/ui/MainMenu.svelte:1684:4 Unused CSS selector ".player-config-header label"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/GameSettingsPanel.svelte:1005:28 Visible, non-interactive elements with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type="button">` or `<a>` might be more appropriate
+https://svelte.dev/e/a11y_click_events_have_key_events
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/GameSettingsPanel.svelte:1005:28 `<span>` with a click handler must have an ARIA role
+https://svelte.dev/e/a11y_no_static_element_interactions
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/GameSettingsPanel.svelte:1340:4 Unused CSS selector ".orb-pair"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/GameSettingsPanel.svelte:1345:4 Unused CSS selector ".var-row.compact"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/GameSettingsPanel.svelte:1349:4 Unused CSS selector ".var-row.compact .row-top"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/GameSettingsPanel.svelte:1352:4 Unused CSS selector ".var-row.compact .var-name"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/GameSettingsPanel.svelte:1355:4 Unused CSS selector ".var-row.compact .val"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/GameSettingsPanel.svelte:1360:4 Unused CSS selector ".var-row"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/GameSettingsPanel.svelte:1369:4 Unused CSS selector ".var-row.disabled"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/GameSettingsPanel.svelte:1372:4 Unused CSS selector ".var-row.indent"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/GameSettingsPanel.svelte:1375:4 Unused CSS selector ".row-top"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/GameSettingsPanel.svelte:1380:4 Unused CSS selector ".var-name"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/GameSettingsPanel.svelte:1385:4 Unused CSS selector ".val"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/GameSettingsPanel.svelte:1390:4 Unused CSS selector ".toggle-label"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/GameSettingsPanel.svelte:1399:4 Unused CSS selector "input[type="range"]"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/GameSettingsPanel.svelte:1407:4 Unused CSS selector "input[type="checkbox"]"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/GameSettingsPanel.svelte:1412:4 Unused CSS selector ".mode-select"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/GameSettingsPanel.svelte:1424:4 Unused CSS selector ".mode-select:focus"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/GameSettingsPanel.svelte:1428:4 Unused CSS selector ".sub-heading"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/GameSettingsPanel.svelte:1440:4 Unused CSS selector ".log-actions"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/GameSettingsPanel.svelte:1445:4 Unused CSS selector ".btn-xs"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/GameSettingsPanel.svelte:1456:4 Unused CSS selector ".btn-xs:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/GameSettingsPanel.svelte:1461:4 Unused CSS selector ".val-group"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/GameSettingsPanel.svelte:1466:4 Unused CSS selector ".lock-btn"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/GameSettingsPanel.svelte:1479:4 Unused CSS selector ".lock-btn:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/GameSettingsPanel.svelte:1483:4 Unused CSS selector ".lock-btn.active"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/GameSettingsPanel.svelte:1488:4 Unused CSS selector ".var-row.locked input[type="range"]"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/GameSettingsPanel.svelte:1492:4 Unused CSS selector ".var-row.locked .var-name"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/GameSettingsPanel.svelte:1495:4 Unused CSS selector ".toggle-row"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/GameSettingsPanel.svelte:1504:4 Unused CSS selector ".toggle-row:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/GameSettingsPanel.svelte:1507:4 Unused CSS selector ".log-label"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/GameSettingsPanel.svelte:1511:4 Unused CSS selector ".log-desc"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/GameSettingsPanel.svelte:1516:4 Unused CSS selector ".sub-heading"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/GameSettingsPanel.svelte:1526:4 Unused CSS selector ".btn-export"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/GameSettingsPanel.svelte:1530:4 Unused CSS selector ".btn-export:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/GameSettingsPanel.svelte:1535:4 Unused CSS selector ".btn-import"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/GameSettingsPanel.svelte:1539:4 Unused CSS selector ".btn-import:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/GameSettingsPanel.svelte:1545:4 Unused CSS selector ".var-row.grayed"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/GameSettingsPanel.svelte:1550:4 Unused CSS selector ".future-desc"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/GameSettingsPanel.svelte:1837:4 Unused CSS selector ":global(.nudge-slider-wrap) input[type="range"]"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/SpeedControls.svelte:31:41 This reference only captures the initial value of `speed`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/TopBar.svelte:184:4 Unused CSS selector ".trace-btn"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/TopBar.svelte:190:4 Unused CSS selector ".trace-btn.armed"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/TopBar.svelte:195:4 Unused CSS selector ".trace-btn.capturing"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-AI.svelte:133:0 Unused CSS selector ".var-row.indent"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-AI.svelte:160:0 Unused CSS selector ".val-group"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-AI.svelte:178:0 Unused CSS selector ".toggle-switch"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-AI.svelte:185:0 Unused CSS selector ".toggle-switch input"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-AI.svelte:191:0 Unused CSS selector ".toggle-slider"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-AI.svelte:203:0 Unused CSS selector ".toggle-slider::before"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-AI.svelte:215:0 Unused CSS selector ".toggle-switch input:checked+.toggle-slider"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-AI.svelte:219:0 Unused CSS selector ".toggle-switch input:checked+.toggle-slider::before"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-AI.svelte:225:0 Unused CSS selector ".toggle-row"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-AI.svelte:234:0 Unused CSS selector ".toggle-row:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-AI.svelte:279:0 Unused CSS selector ".mode-select"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-AI.svelte:296:0 Unused CSS selector ".mode-select:focus"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-AI.svelte:301:0 Unused CSS selector ".mode-select option"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-AI.svelte:308:0 Unused CSS selector ".btn-xs"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-AI.svelte:319:0 Unused CSS selector ".btn-xs:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-AI.svelte:327:0 Unused CSS selector ".lock-btn"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-AI.svelte:341:0 Unused CSS selector ".lock-btn:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-AI.svelte:345:0 Unused CSS selector ".lock-btn.active"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-AI.svelte:350:0 Unused CSS selector ".var-row.locked input[type="range"]"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-AI.svelte:354:0 Unused CSS selector ".var-row.locked .var-name"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-AI.svelte:360:0 Unused CSS selector ".log-actions"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-AI.svelte:365:0 Unused CSS selector ".log-label"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-AI.svelte:370:0 Unused CSS selector ".log-desc"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-AI.svelte:377:0 Unused CSS selector ".btn-export"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-AI.svelte:387:0 Unused CSS selector ".btn-export:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-AI.svelte:391:0 Unused CSS selector ".btn-import"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-AI.svelte:401:0 Unused CSS selector ".btn-import:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-AI.svelte:415:0 Unused CSS selector ".var-row.compact"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-AI.svelte:419:0 Unused CSS selector ".var-row.compact .row-top"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-AI.svelte:423:0 Unused CSS selector ".var-row.compact .var-name"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-AI.svelte:427:0 Unused CSS selector ".var-row.compact .val"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-AI.svelte:433:0 Unused CSS selector ".orb-pair"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Battle.svelte:61:0 Unused CSS selector ".sub-heading"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Battle.svelte:79:0 Unused CSS selector ".var-row.disabled"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Battle.svelte:84:0 Unused CSS selector ".var-row.indent"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Battle.svelte:88:0 Unused CSS selector ".var-row.grayed"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Battle.svelte:111:0 Unused CSS selector ".val-group"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Battle.svelte:119:0 Unused CSS selector ".toggle-label"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Battle.svelte:129:0 Unused CSS selector ".toggle-switch"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Battle.svelte:136:0 Unused CSS selector ".toggle-switch input"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Battle.svelte:142:0 Unused CSS selector ".toggle-slider"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Battle.svelte:154:0 Unused CSS selector ".toggle-slider::before"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Battle.svelte:166:0 Unused CSS selector ".toggle-switch input:checked+.toggle-slider"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Battle.svelte:170:0 Unused CSS selector ".toggle-switch input:checked+.toggle-slider::before"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Battle.svelte:176:0 Unused CSS selector ".toggle-row"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Battle.svelte:185:0 Unused CSS selector ".toggle-row:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Battle.svelte:221:0 Unused CSS selector "input[type="checkbox"]"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Battle.svelte:230:0 Unused CSS selector ".mode-select"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Battle.svelte:247:0 Unused CSS selector ".mode-select:focus"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Battle.svelte:252:0 Unused CSS selector ".mode-select option"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Battle.svelte:259:0 Unused CSS selector ".btn-xs"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Battle.svelte:270:0 Unused CSS selector ".btn-xs:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Battle.svelte:278:0 Unused CSS selector ".lock-btn"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Battle.svelte:292:0 Unused CSS selector ".lock-btn:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Battle.svelte:296:0 Unused CSS selector ".lock-btn.active"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Battle.svelte:301:0 Unused CSS selector ".var-row.locked input[type="range"]"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Battle.svelte:305:0 Unused CSS selector ".var-row.locked .var-name"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Battle.svelte:311:0 Unused CSS selector ".log-actions"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Battle.svelte:316:0 Unused CSS selector ".log-label"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Battle.svelte:321:0 Unused CSS selector ".log-desc"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Battle.svelte:328:0 Unused CSS selector ".btn-export"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Battle.svelte:338:0 Unused CSS selector ".btn-export:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Battle.svelte:342:0 Unused CSS selector ".btn-import"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Battle.svelte:352:0 Unused CSS selector ".btn-import:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Battle.svelte:358:0 Unused CSS selector ".future-desc"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Battle.svelte:366:0 Unused CSS selector ".var-row.compact"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Battle.svelte:370:0 Unused CSS selector ".var-row.compact .row-top"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Battle.svelte:374:0 Unused CSS selector ".var-row.compact .var-name"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Battle.svelte:378:0 Unused CSS selector ".var-row.compact .val"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Battle.svelte:384:0 Unused CSS selector ".orb-pair"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Travel.svelte:334:0 Unused CSS selector ".var-row.disabled"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Travel.svelte:339:0 Unused CSS selector ".var-row.indent"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Travel.svelte:343:0 Unused CSS selector ".var-row.grayed"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Travel.svelte:366:0 Unused CSS selector ".val-group"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Travel.svelte:384:0 Unused CSS selector ".toggle-switch"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Travel.svelte:391:0 Unused CSS selector ".toggle-switch input"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Travel.svelte:397:0 Unused CSS selector ".toggle-slider"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Travel.svelte:409:0 Unused CSS selector ".toggle-slider::before"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Travel.svelte:421:0 Unused CSS selector ".toggle-switch input:checked+.toggle-slider"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Travel.svelte:425:0 Unused CSS selector ".toggle-switch input:checked+.toggle-slider::before"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Travel.svelte:485:0 Unused CSS selector ".mode-select"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Travel.svelte:502:0 Unused CSS selector ".mode-select:focus"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Travel.svelte:507:0 Unused CSS selector ".mode-select option"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Travel.svelte:514:0 Unused CSS selector ".btn-xs"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Travel.svelte:525:0 Unused CSS selector ".btn-xs:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Travel.svelte:533:0 Unused CSS selector ".lock-btn"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Travel.svelte:547:0 Unused CSS selector ".lock-btn:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Travel.svelte:551:0 Unused CSS selector ".lock-btn.active"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Travel.svelte:556:0 Unused CSS selector ".var-row.locked input[type="range"]"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Travel.svelte:560:0 Unused CSS selector ".var-row.locked .var-name"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Travel.svelte:566:0 Unused CSS selector ".log-actions"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Travel.svelte:576:0 Unused CSS selector ".log-desc"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Travel.svelte:583:0 Unused CSS selector ".btn-export"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Travel.svelte:593:0 Unused CSS selector ".btn-export:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Travel.svelte:597:0 Unused CSS selector ".btn-import"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Travel.svelte:607:0 Unused CSS selector ".btn-import:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Travel.svelte:613:0 Unused CSS selector ".future-desc"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Travel.svelte:621:0 Unused CSS selector ".var-row.compact"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Travel.svelte:625:0 Unused CSS selector ".var-row.compact .row-top"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Travel.svelte:629:0 Unused CSS selector ".var-row.compact .var-name"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Travel.svelte:633:0 Unused CSS selector ".var-row.compact .val"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Travel.svelte:639:0 Unused CSS selector ".orb-pair"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Surge.svelte:419:0 Unused CSS selector ".var-row.disabled"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Surge.svelte:428:0 Unused CSS selector ".var-row.grayed"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Surge.svelte:451:0 Unused CSS selector ".val-group"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Surge.svelte:469:0 Unused CSS selector ".toggle-switch"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Surge.svelte:476:0 Unused CSS selector ".toggle-switch input"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Surge.svelte:482:0 Unused CSS selector ".toggle-slider"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Surge.svelte:494:0 Unused CSS selector ".toggle-slider::before"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Surge.svelte:506:0 Unused CSS selector ".toggle-switch input:checked+.toggle-slider"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Surge.svelte:510:0 Unused CSS selector ".toggle-switch input:checked+.toggle-slider::before"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Surge.svelte:570:0 Unused CSS selector ".mode-select"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Surge.svelte:587:0 Unused CSS selector ".mode-select:focus"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Surge.svelte:592:0 Unused CSS selector ".mode-select option"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Surge.svelte:599:0 Unused CSS selector ".btn-xs"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Surge.svelte:610:0 Unused CSS selector ".btn-xs:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Surge.svelte:618:0 Unused CSS selector ".lock-btn"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Surge.svelte:632:0 Unused CSS selector ".lock-btn:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Surge.svelte:636:0 Unused CSS selector ".lock-btn.active"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Surge.svelte:641:0 Unused CSS selector ".var-row.locked input[type="range"]"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Surge.svelte:645:0 Unused CSS selector ".var-row.locked .var-name"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Surge.svelte:651:0 Unused CSS selector ".log-actions"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Surge.svelte:661:0 Unused CSS selector ".log-desc"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Surge.svelte:668:0 Unused CSS selector ".btn-export"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Surge.svelte:678:0 Unused CSS selector ".btn-export:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Surge.svelte:682:0 Unused CSS selector ".btn-import"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Surge.svelte:692:0 Unused CSS selector ".btn-import:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Surge.svelte:698:0 Unused CSS selector ".future-desc"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Rules.svelte:65:0 Unused CSS selector ".sub-heading"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Rules.svelte:83:0 Unused CSS selector ".var-row.disabled"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Rules.svelte:88:0 Unused CSS selector ".var-row.indent"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Rules.svelte:98:0 Unused CSS selector ".row-top"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Rules.svelte:109:0 Unused CSS selector ".val"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Rules.svelte:115:0 Unused CSS selector ".val-group"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Rules.svelte:123:0 Unused CSS selector ".toggle-label"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Rules.svelte:133:0 Unused CSS selector ".toggle-switch"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Rules.svelte:140:0 Unused CSS selector ".toggle-switch input"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Rules.svelte:146:0 Unused CSS selector ".toggle-slider"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Rules.svelte:158:0 Unused CSS selector ".toggle-slider::before"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Rules.svelte:170:0 Unused CSS selector ".toggle-switch input:checked+.toggle-slider"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Rules.svelte:174:0 Unused CSS selector ".toggle-switch input:checked+.toggle-slider::before"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Rules.svelte:195:0 Unused CSS selector "input[type="range"]"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Rules.svelte:205:0 Unused CSS selector "input[type="range"]::-webkit-slider-thumb"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Rules.svelte:214:0 Unused CSS selector "input[type="range"]::-moz-range-thumb"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Rules.svelte:234:0 Unused CSS selector ".mode-select"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Rules.svelte:251:0 Unused CSS selector ".mode-select:focus"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Rules.svelte:256:0 Unused CSS selector ".mode-select option"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Rules.svelte:263:0 Unused CSS selector ".btn-xs"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Rules.svelte:274:0 Unused CSS selector ".btn-xs:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Rules.svelte:282:0 Unused CSS selector ".lock-btn"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Rules.svelte:296:0 Unused CSS selector ".lock-btn:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Rules.svelte:300:0 Unused CSS selector ".lock-btn.active"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Rules.svelte:305:0 Unused CSS selector ".var-row.locked input[type="range"]"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Rules.svelte:309:0 Unused CSS selector ".var-row.locked .var-name"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Rules.svelte:315:0 Unused CSS selector ".log-actions"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Rules.svelte:320:0 Unused CSS selector ".log-label"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Rules.svelte:325:0 Unused CSS selector ".log-desc"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Rules.svelte:332:0 Unused CSS selector ".btn-export"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Rules.svelte:342:0 Unused CSS selector ".btn-export:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Rules.svelte:346:0 Unused CSS selector ".btn-import"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Rules.svelte:356:0 Unused CSS selector ".btn-import:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Rules.svelte:362:0 Unused CSS selector ".future-desc"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Rules.svelte:370:0 Unused CSS selector ".var-row.compact"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Rules.svelte:374:0 Unused CSS selector ".var-row.compact .row-top"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Rules.svelte:378:0 Unused CSS selector ".var-row.compact .var-name"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Rules.svelte:382:0 Unused CSS selector ".var-row.compact .val"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Rules.svelte:388:0 Unused CSS selector ".orb-pair"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Timing.svelte:232:0 Unused CSS selector ".sub-heading"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Timing.svelte:250:0 Unused CSS selector ".var-row.disabled"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Timing.svelte:255:0 Unused CSS selector ".var-row.indent"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Timing.svelte:290:0 Unused CSS selector ".toggle-label"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Timing.svelte:401:0 Unused CSS selector ".mode-select"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Timing.svelte:418:0 Unused CSS selector ".mode-select:focus"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Timing.svelte:423:0 Unused CSS selector ".mode-select option"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Timing.svelte:430:0 Unused CSS selector ".btn-xs"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Timing.svelte:441:0 Unused CSS selector ".btn-xs:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Timing.svelte:482:0 Unused CSS selector ".log-actions"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Timing.svelte:487:0 Unused CSS selector ".log-label"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Timing.svelte:492:0 Unused CSS selector ".log-desc"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Timing.svelte:499:0 Unused CSS selector ".btn-export"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Timing.svelte:509:0 Unused CSS selector ".btn-export:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Timing.svelte:513:0 Unused CSS selector ".btn-import"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Timing.svelte:523:0 Unused CSS selector ".btn-import:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Timing.svelte:529:0 Unused CSS selector ".future-desc"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Timing.svelte:537:0 Unused CSS selector ".var-row.compact"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Timing.svelte:541:0 Unused CSS selector ".var-row.compact .row-top"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Timing.svelte:545:0 Unused CSS selector ".var-row.compact .var-name"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Timing.svelte:549:0 Unused CSS selector ".var-row.compact .val"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Timing.svelte:555:0 Unused CSS selector ".orb-pair"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Visuals.svelte:322:0 Unused CSS selector ".var-row.disabled"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Visuals.svelte:327:0 Unused CSS selector ".var-row.indent"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Visuals.svelte:331:0 Unused CSS selector ".var-row.grayed"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Visuals.svelte:354:0 Unused CSS selector ".val-group"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Visuals.svelte:362:0 Unused CSS selector ".toggle-label"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Visuals.svelte:372:0 Unused CSS selector ".toggle-switch"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Visuals.svelte:379:0 Unused CSS selector ".toggle-switch input"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Visuals.svelte:385:0 Unused CSS selector ".toggle-slider"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Visuals.svelte:397:0 Unused CSS selector ".toggle-slider::before"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Visuals.svelte:409:0 Unused CSS selector ".toggle-switch input:checked+.toggle-slider"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Visuals.svelte:413:0 Unused CSS selector ".toggle-switch input:checked+.toggle-slider::before"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Visuals.svelte:473:0 Unused CSS selector ".mode-select"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Visuals.svelte:490:0 Unused CSS selector ".mode-select:focus"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Visuals.svelte:495:0 Unused CSS selector ".mode-select option"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Visuals.svelte:502:0 Unused CSS selector ".btn-xs"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Visuals.svelte:513:0 Unused CSS selector ".btn-xs:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Visuals.svelte:521:0 Unused CSS selector ".lock-btn"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Visuals.svelte:535:0 Unused CSS selector ".lock-btn:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Visuals.svelte:539:0 Unused CSS selector ".lock-btn.active"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Visuals.svelte:544:0 Unused CSS selector ".var-row.locked input[type="range"]"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Visuals.svelte:548:0 Unused CSS selector ".var-row.locked .var-name"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Visuals.svelte:554:0 Unused CSS selector ".log-actions"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Visuals.svelte:559:0 Unused CSS selector ".log-label"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Visuals.svelte:564:0 Unused CSS selector ".log-desc"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Visuals.svelte:571:0 Unused CSS selector ".btn-export"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Visuals.svelte:581:0 Unused CSS selector ".btn-export:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Visuals.svelte:585:0 Unused CSS selector ".btn-import"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Visuals.svelte:595:0 Unused CSS selector ".btn-import:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Visuals.svelte:601:0 Unused CSS selector ".future-desc"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Visuals.svelte:609:0 Unused CSS selector ".var-row.compact"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Visuals.svelte:613:0 Unused CSS selector ".var-row.compact .row-top"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Visuals.svelte:617:0 Unused CSS selector ".var-row.compact .var-name"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Visuals.svelte:621:0 Unused CSS selector ".var-row.compact .val"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Visuals.svelte:627:0 Unused CSS selector ".orb-pair"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Logging.svelte:126:0 Unused CSS selector ".var-row"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Logging.svelte:133:0 Unused CSS selector ".var-row.disabled"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Logging.svelte:138:0 Unused CSS selector ".var-row.indent"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Logging.svelte:142:0 Unused CSS selector ".var-row.grayed"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Logging.svelte:148:0 Unused CSS selector ".row-top"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Logging.svelte:154:0 Unused CSS selector ".var-name"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Logging.svelte:159:0 Unused CSS selector ".val"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Logging.svelte:165:0 Unused CSS selector ".val-group"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Logging.svelte:173:0 Unused CSS selector ".toggle-label"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Logging.svelte:183:0 Unused CSS selector ".toggle-switch"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Logging.svelte:190:0 Unused CSS selector ".toggle-switch input"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Logging.svelte:196:0 Unused CSS selector ".toggle-slider"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Logging.svelte:208:0 Unused CSS selector ".toggle-slider::before"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Logging.svelte:220:0 Unused CSS selector ".toggle-switch input:checked+.toggle-slider"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Logging.svelte:224:0 Unused CSS selector ".toggle-switch input:checked+.toggle-slider::before"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Logging.svelte:245:0 Unused CSS selector "input[type="range"]"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Logging.svelte:255:0 Unused CSS selector "input[type="range"]::-webkit-slider-thumb"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Logging.svelte:264:0 Unused CSS selector "input[type="range"]::-moz-range-thumb"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Logging.svelte:284:0 Unused CSS selector ".mode-select"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Logging.svelte:301:0 Unused CSS selector ".mode-select:focus"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Logging.svelte:306:0 Unused CSS selector ".mode-select option"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Logging.svelte:332:0 Unused CSS selector ".lock-btn"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Logging.svelte:346:0 Unused CSS selector ".lock-btn:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Logging.svelte:350:0 Unused CSS selector ".lock-btn.active"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Logging.svelte:355:0 Unused CSS selector ".var-row.locked input[type="range"]"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Logging.svelte:359:0 Unused CSS selector ".var-row.locked .var-name"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Logging.svelte:412:0 Unused CSS selector ".future-desc"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Logging.svelte:420:0 Unused CSS selector ".var-row.compact"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Logging.svelte:424:0 Unused CSS selector ".var-row.compact .row-top"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Logging.svelte:428:0 Unused CSS selector ".var-row.compact .var-name"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Logging.svelte:432:0 Unused CSS selector ".var-row.compact .val"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Logging.svelte:438:0 Unused CSS selector ".orb-pair"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Ships.svelte:791:0 Unused CSS selector ".var-row.indent"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Ships.svelte:818:0 Unused CSS selector ".val-group"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Ships.svelte:883:0 Unused CSS selector ".toggle-row"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Ships.svelte:892:0 Unused CSS selector ".toggle-row:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Ships.svelte:937:0 Unused CSS selector ".mode-select"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Ships.svelte:954:0 Unused CSS selector ".mode-select:focus"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Ships.svelte:959:0 Unused CSS selector ".mode-select option"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Ships.svelte:966:0 Unused CSS selector ".btn-xs"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Ships.svelte:977:0 Unused CSS selector ".btn-xs:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Ships.svelte:985:0 Unused CSS selector ".lock-btn"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Ships.svelte:999:0 Unused CSS selector ".lock-btn:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Ships.svelte:1003:0 Unused CSS selector ".lock-btn.active"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Ships.svelte:1008:0 Unused CSS selector ".var-row.locked input[type="range"]"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Ships.svelte:1012:0 Unused CSS selector ".var-row.locked .var-name"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Ships.svelte:1018:0 Unused CSS selector ".log-actions"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Ships.svelte:1023:0 Unused CSS selector ".log-label"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Ships.svelte:1028:0 Unused CSS selector ".log-desc"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Ships.svelte:1035:0 Unused CSS selector ".btn-export"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Ships.svelte:1045:0 Unused CSS selector ".btn-export:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Ships.svelte:1049:0 Unused CSS selector ".btn-import"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Ships.svelte:1059:0 Unused CSS selector ".btn-import:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Ships.svelte:1073:0 Unused CSS selector ".var-row.compact"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Ships.svelte:1077:0 Unused CSS selector ".var-row.compact .row-top"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Ships.svelte:1081:0 Unused CSS selector ".var-row.compact .var-name"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Ships.svelte:1085:0 Unused CSS selector ".var-row.compact .val"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Ships.svelte:1091:0 Unused CSS selector ".orb-pair"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Conquest.svelte:432:0 Unused CSS selector ".var-row.disabled"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Conquest.svelte:437:0 Unused CSS selector ".var-row.indent"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Conquest.svelte:441:0 Unused CSS selector ".var-row.grayed"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Conquest.svelte:464:0 Unused CSS selector ".val-group"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Conquest.svelte:472:0 Unused CSS selector ".toggle-label"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Conquest.svelte:495:0 Unused CSS selector ".toggle-slider"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Conquest.svelte:507:0 Unused CSS selector ".toggle-slider::before"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Conquest.svelte:519:0 Unused CSS selector ".toggle-switch input:checked+.toggle-slider"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Conquest.svelte:523:0 Unused CSS selector ".toggle-switch input:checked+.toggle-slider::before"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Conquest.svelte:529:0 Unused CSS selector ".toggle-row"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Conquest.svelte:538:0 Unused CSS selector ".toggle-row:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Conquest.svelte:612:0 Unused CSS selector ".btn-xs"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Conquest.svelte:623:0 Unused CSS selector ".btn-xs:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Conquest.svelte:631:0 Unused CSS selector ".lock-btn"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Conquest.svelte:645:0 Unused CSS selector ".lock-btn:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Conquest.svelte:649:0 Unused CSS selector ".lock-btn.active"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Conquest.svelte:654:0 Unused CSS selector ".var-row.locked input[type="range"]"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Conquest.svelte:658:0 Unused CSS selector ".var-row.locked .var-name"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Conquest.svelte:664:0 Unused CSS selector ".log-actions"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Conquest.svelte:669:0 Unused CSS selector ".log-label"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Conquest.svelte:674:0 Unused CSS selector ".log-desc"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Conquest.svelte:681:0 Unused CSS selector ".btn-export"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Conquest.svelte:691:0 Unused CSS selector ".btn-export:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Conquest.svelte:695:0 Unused CSS selector ".btn-import"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Conquest.svelte:705:0 Unused CSS selector ".btn-import:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Conquest.svelte:711:0 Unused CSS selector ".future-desc"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Conquest.svelte:719:0 Unused CSS selector ".var-row.compact"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Conquest.svelte:723:0 Unused CSS selector ".var-row.compact .row-top"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Conquest.svelte:727:0 Unused CSS selector ".var-row.compact .var-name"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Conquest.svelte:731:0 Unused CSS selector ".var-row.compact .val"
+https://svelte.dev/e/css_unused_selector
+5:40:51 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Conquest.svelte:737:0 Unused CSS selector ".orb-pair"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Territory.svelte:4099:0 Unused CSS selector ".var-row.disabled"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Territory.svelte:4104:0 Unused CSS selector ".var-row.indent"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Territory.svelte:4131:0 Unused CSS selector ".val-group"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Territory.svelte:4139:0 Unused CSS selector ".toggle-label"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Territory.svelte:4196:0 Unused CSS selector ".toggle-row"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Territory.svelte:4205:0 Unused CSS selector ".toggle-row:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Territory.svelte:4279:0 Unused CSS selector ".btn-xs"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Territory.svelte:4290:0 Unused CSS selector ".btn-xs:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Territory.svelte:4298:0 Unused CSS selector ".lock-btn"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Territory.svelte:4312:0 Unused CSS selector ".lock-btn:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Territory.svelte:4316:0 Unused CSS selector ".lock-btn.active"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Territory.svelte:4321:0 Unused CSS selector ".var-row.locked input[type="range"]"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Territory.svelte:4325:0 Unused CSS selector ".var-row.locked .var-name"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Territory.svelte:4331:0 Unused CSS selector ".log-actions"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Territory.svelte:4336:0 Unused CSS selector ".log-label"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Territory.svelte:4341:0 Unused CSS selector ".log-desc"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Territory.svelte:4348:0 Unused CSS selector ".btn-export"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Territory.svelte:4358:0 Unused CSS selector ".btn-export:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Territory.svelte:4362:0 Unused CSS selector ".btn-import"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Territory.svelte:4372:0 Unused CSS selector ".btn-import:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Territory.svelte:4378:0 Unused CSS selector ".future-desc"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Territory.svelte:4404:0 Unused CSS selector ".orb-pair"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Economy.svelte:174:0 Unused CSS selector ".sub-heading"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Economy.svelte:192:0 Unused CSS selector ".var-row.disabled"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Economy.svelte:197:0 Unused CSS selector ".var-row.indent"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Economy.svelte:201:0 Unused CSS selector ".var-row.grayed"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Economy.svelte:224:0 Unused CSS selector ".val-group"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Economy.svelte:232:0 Unused CSS selector ".toggle-label"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Economy.svelte:242:0 Unused CSS selector ".toggle-switch"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Economy.svelte:249:0 Unused CSS selector ".toggle-switch input"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Economy.svelte:255:0 Unused CSS selector ".toggle-slider"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Economy.svelte:267:0 Unused CSS selector ".toggle-slider::before"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Economy.svelte:279:0 Unused CSS selector ".toggle-switch input:checked+.toggle-slider"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Economy.svelte:283:0 Unused CSS selector ".toggle-switch input:checked+.toggle-slider::before"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Economy.svelte:289:0 Unused CSS selector ".toggle-row"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Economy.svelte:298:0 Unused CSS selector ".toggle-row:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Economy.svelte:334:0 Unused CSS selector "input[type="checkbox"]"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Economy.svelte:343:0 Unused CSS selector ".mode-select"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Economy.svelte:360:0 Unused CSS selector ".mode-select:focus"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Economy.svelte:365:0 Unused CSS selector ".mode-select option"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Economy.svelte:372:0 Unused CSS selector ".btn-xs"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Economy.svelte:383:0 Unused CSS selector ".btn-xs:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Economy.svelte:391:0 Unused CSS selector ".lock-btn"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Economy.svelte:405:0 Unused CSS selector ".lock-btn:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Economy.svelte:409:0 Unused CSS selector ".lock-btn.active"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Economy.svelte:414:0 Unused CSS selector ".var-row.locked input[type="range"]"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Economy.svelte:418:0 Unused CSS selector ".var-row.locked .var-name"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Economy.svelte:424:0 Unused CSS selector ".log-actions"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Economy.svelte:429:0 Unused CSS selector ".log-label"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Economy.svelte:434:0 Unused CSS selector ".log-desc"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Economy.svelte:441:0 Unused CSS selector ".btn-export"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Economy.svelte:451:0 Unused CSS selector ".btn-export:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Economy.svelte:455:0 Unused CSS selector ".btn-import"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Economy.svelte:465:0 Unused CSS selector ".btn-import:hover"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Economy.svelte:471:0 Unused CSS selector ".future-desc"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Economy.svelte:479:0 Unused CSS selector ".var-row.compact"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Economy.svelte:483:0 Unused CSS selector ".var-row.compact .row-top"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Economy.svelte:487:0 Unused CSS selector ".var-row.compact .var-name"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Economy.svelte:491:0 Unused CSS selector ".var-row.compact .val"
+https://svelte.dev/e/css_unused_selector
+5:40:52 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Economy.svelte:497:0 Unused CSS selector ".orb-pair"
+https://svelte.dev/e/css_unused_selector
+[2m5:46:08 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/lib/components/game/GameCanvas.svelte, /src/lib/components/ui/settings/ControlsSection-Territory.svelte[22m
+[2m5:46:18 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/0.js[22m
+[2m5:46:18 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/1.js[22m
+[2m5:46:18 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/app.js[22m
+[2m5:46:18 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/2.js[22m
+[2m5:46:18 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/server/internal.js[22m
+[2m5:46:18 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/matchers.js[22m
+[2m5:46:18 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.js[22m
+[2m5:46:18 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.js[22m
+[2m5:46:27 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/0.js[22m
+[2m5:46:27 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/1.js[22m
+[2m5:46:27 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/app.js[22m
+[2m5:46:27 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/server/internal.js[22m
+[2m5:46:27 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/2.js[22m
+[2m5:46:27 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/matchers.js[22m
+[2m5:46:27 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.js[22m
+[2m5:46:27 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.js[22m
+[2m5:48:34 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/lib/components/game/GameCanvas.svelte, /src/lib/components/ui/settings/ControlsSection-Territory.svelte[22m
+[2m5:48:44 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/0.js[22m
+[2m5:48:44 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/1.js[22m
+[2m5:48:44 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/app.js[22m
+[2m5:48:44 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/2.js[22m
+[2m5:48:44 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/server/internal.js[22m
+[2m5:48:44 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/matchers.js[22m
+[2m5:48:44 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.js[22m
+[2m5:48:44 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.js[22m
+[2m5:48:52 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/0.js[22m
+[2m5:48:52 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/1.js[22m
+[2m5:48:52 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/2.js[22m
+[2m5:48:52 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/app.js[22m
+[2m5:48:52 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/server/internal.js[22m
+[2m5:48:52 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/matchers.js[22m
+[2m5:48:52 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.js[22m
+[2m5:48:52 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.js[22m
+[2m5:49:03 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/lib/components/game/GameCanvas.svelte, /src/lib/components/ui/settings/ControlsSection-Territory.svelte[22m
+[2m5:49:10 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/0.js[22m
+[2m5:49:10 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/1.js[22m
+[2m5:49:10 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/app.js[22m
+[2m5:49:10 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/2.js[22m
+[2m5:49:10 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/server/internal.js[22m
+[2m5:49:10 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/matchers.js[22m
+[2m5:49:10 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.js[22m
+[2m5:49:10 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.js[22m
+[2m5:49:21 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mbuild/index.html[22m
+[2m5:49:22 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mbuild/index.html[22m
+[2m5:49:29 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/0.js[22m
+[2m5:49:29 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/1.js[22m
+[2m5:49:29 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/app.js[22m
+[2m5:49:29 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/server/internal.js[22m
+[2m5:49:29 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/2.js[22m
+[2m5:49:29 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/matchers.js[22m
+[2m5:49:29 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.js[22m
+[2m5:49:29 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.js[22m
+[2m5:54:14 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/0.js[22m
+[2m5:54:14 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/1.js[22m
+[2m5:54:14 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/app.js[22m
+[2m5:54:14 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/2.js[22m
+[2m5:54:14 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/server/internal.js[22m
+[2m5:54:14 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/matchers.js[22m
+[2m5:54:14 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.js[22m
+[2m5:54:14 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.js[22m
+[2m5:54:23 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/0.js[22m
+[2m5:54:23 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/1.js[22m
+[2m5:54:23 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/app.js[22m
+[2m5:54:23 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/server/internal.js[22m
+[2m5:54:23 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/2.js[22m
+[2m5:54:23 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/matchers.js[22m
+[2m5:54:23 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.js[22m
+[2m5:54:23 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.js[22m
+[2m5:54:44 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/lib/components/ui/settings/ControlsSection-Territory.svelte, /src/lib/components/ui/settings/ControlsSection-Territory.svelte?svelte&type=style&lang.css[22m
+5:54:44 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Territory.svelte:4167:0 Unused CSS selector ".var-row.disabled"
+https://svelte.dev/e/css_unused_selector
+5:54:44 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Territory.svelte:4172:0 Unused CSS selector ".var-row.indent"
+https://svelte.dev/e/css_unused_selector
+5:54:44 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Territory.svelte:4199:0 Unused CSS selector ".val-group"
+https://svelte.dev/e/css_unused_selector
+5:54:44 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Territory.svelte:4207:0 Unused CSS selector ".toggle-label"
+https://svelte.dev/e/css_unused_selector
+5:54:44 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Territory.svelte:4264:0 Unused CSS selector ".toggle-row"
+https://svelte.dev/e/css_unused_selector
+5:54:44 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Territory.svelte:4273:0 Unused CSS selector ".toggle-row:hover"
+https://svelte.dev/e/css_unused_selector
+5:54:44 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Territory.svelte:4347:0 Unused CSS selector ".btn-xs"
+https://svelte.dev/e/css_unused_selector
+5:54:44 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Territory.svelte:4358:0 Unused CSS selector ".btn-xs:hover"
+https://svelte.dev/e/css_unused_selector
+5:54:44 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Territory.svelte:4366:0 Unused CSS selector ".lock-btn"
+https://svelte.dev/e/css_unused_selector
+5:54:44 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Territory.svelte:4380:0 Unused CSS selector ".lock-btn:hover"
+https://svelte.dev/e/css_unused_selector
+5:54:44 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Territory.svelte:4384:0 Unused CSS selector ".lock-btn.active"
+https://svelte.dev/e/css_unused_selector
+5:54:44 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Territory.svelte:4389:0 Unused CSS selector ".var-row.locked input[type="range"]"
+https://svelte.dev/e/css_unused_selector
+5:54:44 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Territory.svelte:4393:0 Unused CSS selector ".var-row.locked .var-name"
+https://svelte.dev/e/css_unused_selector
+5:54:44 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Territory.svelte:4399:0 Unused CSS selector ".log-actions"
+https://svelte.dev/e/css_unused_selector
+5:54:44 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Territory.svelte:4404:0 Unused CSS selector ".log-label"
+https://svelte.dev/e/css_unused_selector
+5:54:44 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Territory.svelte:4409:0 Unused CSS selector ".log-desc"
+https://svelte.dev/e/css_unused_selector
+5:54:44 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Territory.svelte:4416:0 Unused CSS selector ".btn-export"
+https://svelte.dev/e/css_unused_selector
+5:54:44 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Territory.svelte:4426:0 Unused CSS selector ".btn-export:hover"
+https://svelte.dev/e/css_unused_selector
+5:54:44 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Territory.svelte:4430:0 Unused CSS selector ".btn-import"
+https://svelte.dev/e/css_unused_selector
+5:54:44 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Territory.svelte:4440:0 Unused CSS selector ".btn-import:hover"
+https://svelte.dev/e/css_unused_selector
+5:54:44 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Territory.svelte:4446:0 Unused CSS selector ".future-desc"
+https://svelte.dev/e/css_unused_selector
+5:54:44 PM [vite-plugin-svelte] src/lib/components/ui/settings/ControlsSection-Territory.svelte:4472:0 Unused CSS selector ".orb-pair"
+https://svelte.dev/e/css_unused_selector
+[2m5:54:51 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/0.js[22m
+[2m5:54:51 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/1.js[22m
+[2m5:54:51 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/2.js[22m
+[2m5:54:51 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/app.js[22m
+[2m5:54:51 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/server/internal.js[22m
+[2m5:54:51 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/matchers.js[22m
+[2m5:54:51 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.js[22m
+[2m5:54:51 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.js[22m
+[2m5:55:04 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mbuild/index.html[22m
+[2m5:55:05 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mbuild/index.html[22m
+[2m5:55:12 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/0.js[22m
+[2m5:55:12 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/1.js[22m
+[2m5:55:12 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/2.js[22m
+[2m5:55:12 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/app.js[22m
+[2m5:55:12 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/server/internal.js[22m
+[2m5:55:12 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/matchers.js[22m
+[2m5:55:12 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.js[22m
+[2m5:55:12 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.js[22m
+[2m5:57:20 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/0.js[22m
+[2m5:57:20 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/1.js[22m
+[2m5:57:20 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/2.js[22m
+[2m5:57:20 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/app.js[22m
+[2m5:57:20 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/server/internal.js[22m
+[2m5:57:20 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/matchers.js[22m
+[2m5:57:20 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.js[22m
+[2m5:57:20 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.js[22m
+[2m5:57:33 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mbuild/index.html[22m
+[2m5:57:33 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mbuild/index.html[22m
+[2m5:57:41 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/0.js[22m
+[2m5:57:41 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/1.js[22m
+[2m5:57:41 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/nodes/2.js[22m
+[2m5:57:41 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/app.js[22m
+[2m5:57:41 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/server/internal.js[22m
+[2m5:57:41 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/client/matchers.js[22m
+[2m5:57:41 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.js[22m
+[2m5:57:41 PM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2m.svelte-kit/generated/root.js[22m

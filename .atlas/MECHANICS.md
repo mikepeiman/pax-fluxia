@@ -7,6 +7,31 @@ This document is the canonical, definitive specification of all game mechanics. 
 
 ---
 
+## 0. Canonical Terminology (D-70, 2026-03-14)
+
+All code, documentation, and agent communications use these terms:
+
+| Term | Definition |
+|------|-----------|
+| **Territory** | A grouping of connected same-owner stars and all the space within its bounds |
+| **Front** | The line/curve where two opposing territories meet |
+| **Holding** | The sum total of a player's territories across the sector |
+| **Sector** | The game map |
+
+**Future roadmap terms** (not yet in game):
+
+| Term | Definition |
+|------|-----------|
+| **Frontier** | A front that faces unexplored space |
+| **District** | A higher-level map composed of sectors |
+| **Quadrant** | A higher-level map composed of districts |
+| **Galaxy** | The highest-level map composed of quadrants |
+
+> [!NOTE]
+> Variable rename migration is tracked as a separate task. Code currently uses legacy names like `frontierGraph`, `ownerShells`, `holdings` etc. that will be mapped to canonical terms.
+
+---
+
 ## 1. Star Types
 
 Each star type has a **2× bonus** in one specialty. All other multipliers are 1.0.
@@ -258,11 +283,28 @@ Stars are placed on a hex grid and connected via Delaunay triangulation.
 |----------|---------|-------------|
 | `STARS_PER_PLAYER` | 5 | Stars each player starts with |
 | `MIN_LINKS_PER_STAR` | 1 | Minimum connections per star |
-| `MAX_LINKS_PER_STAR` | 6 | Maximum connections per star |
-| `STARTING_SHIPS` | 40 | Ships per star at game start |
 
 ---
 
-## 13. Victory
+## 25. Territory Engine Diagnostic Geometry (2026-03-12)
 
-The last player with at least one star wins. A player is eliminated when they lose all stars.
+These notes describe current FG2 diagnostic semantics for frontier geometry development.
+
+- `regionLoops` are owner-pair loop artifacts extracted from half-edge face walking. They remain pairwise diagnostic surfaces, including the current exterior-face candidate.
+- `ownerRegionLoops` are promoted only from canonical pairwise loops that have a strict owner attribution from link provenance (`viaOwner` on `star_arc` and `boundary_extension` edges).
+- Tied owner attribution is intentionally kept out of owner-region promotion. Ambiguous loops remain diagnostic-only until a stronger ownership classifier exists.
+- In trace mode, owner-region loops should be interpreted as the first candidate territory pieces presently available from FG2, while pairwise region loops remain scaffolding for debugging frontier topology and exterior/canonical partitioning.
+- FG2 star-side junctions now come from the global angular order of all contested seeds incident to a star, not from owner-pair-local incidence only. Different owner-pairs can therefore terminate at the same synthesized junction.
+- FG2 only projects a frontier side to the world boundary when the corresponding star truly has `<= 1` global contested seed on that side.
+- `ownerRegionLoops` now prefers globally resolved owner-region candidates from a merged face walk when available; pair-local owner-region loops remain the fallback diagnostic set.
+- `ownerShells` are snapshotted into shell frames and fingerprinted so FG2 can detect shell-geometry or shell-topology changes between updates.
+- `ownerShellTransitions` pair shells per owner using centroid, area, perimeter, hole-count, and world-boundary heuristics, then attach explicit contour correspondences; spawn/vanish transitions collapse to the shell centroid.
+- While shell playback is active, displayed border presentation now uses animated shell contours (`animated_shell_contours`) instead of the target frame's static pair-frontier polylines.
+- FG2 now keeps owner-shell contours as the displayed border source whenever shell geometry exists. `pair_frontiers` are render-stage fallback only when shell geometry is unavailable.
+- Static owner-shell fills now draw the outer shell path, then subtract each classified `holeLoopId` using Pixi `Graphics.cut()`, so enclave holes survive in the visible fill artifact.
+- Owner-shell frame snapshots and transition artifacts now carry explicit hole-loop geometry, and shell-frame fingerprints include hole geometry rather than only hole counts.
+- Interpolated displayed shells now publish a usable hole-loop set chosen from previous/current shell state so playback can continue cutting holes; true hole-to-hole interpolation is still pending.
+- Owner-shell transitions now select shell matches globally per owner from all previous/current candidates rather than greedily by current-shell iteration. Each previous shell can match at most one current shell.
+- Hole transitions inside a shell transition now use the same non-conflicting candidate selection model, providing a more stable identity mapping for enclaves during topology changes.
+- Interpolated hole loops are sanitized against the currently displayed shell polygon before render use. Degenerate or out-of-shell hole loops are dropped instead of being passed through to cutout rendering.
+- Animation and render diagnostics now expose owner-shell-hole transition counts and contour sample counts for trace/debug review.

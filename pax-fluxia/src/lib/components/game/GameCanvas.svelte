@@ -64,6 +64,30 @@
         renderLaneTerritory as renderLaneTerritoryModule,
         resetLaneTerritoryCache,
     } from "$lib/renderers/LaneTerritoryRenderer";
+    import {
+        renderContourTerritory as renderContourTerritoryModule,
+        resetContourTerritoryCache,
+    } from "$lib/renderers/ContourTerritoryRenderer";
+    import {
+        renderModifiedVoronoi as renderModifiedVoronoiModule,
+        resetModifiedVoronoiCache,
+    } from "$lib/renderers/ModifiedVoronoiRenderer";
+    import {
+        renderPowerVoronoi as renderPowerVoronoiModule,
+        resetPowerVoronoiCache,
+    } from "$lib/renderers/PowerVoronoiRenderer";
+    import {
+        renderPVV3 as renderPVV3Module,
+        resetPVV3Cache,
+    } from "$lib/renderers/PVV3Renderer";
+    import {
+        renderDistanceFieldTerritory as renderDistanceFieldTerritoryModule,
+        resetDistanceFieldTerritoryCache,
+    } from "$lib/renderers/DistanceFieldTerritoryRenderer";
+    import {
+        renderTerritoryEngine,
+        resetTerritoryEngineCaches,
+    } from "$lib/territory-engine";
 
     // ============================================================================
     // PixiJS Application
@@ -182,6 +206,15 @@
     let zoomLevel = 1; // User zoom multiplier (1.0 = default fit)
     let panOffsetX = 0; // Pan offset in world coordinates
     let panOffsetY = 0;
+
+    // ── Camera animation state ──
+    let cameraAnimating = false;
+    let targetZoom = 1;
+    let targetPanX = 0;
+    let targetPanY = 0;
+    const CAMERA_EASE = 0.12; // Lerp factor per frame (0-1, higher = faster)
+    const CAMERA_EPSILON = 0.001; // Stop threshold
+    let cameraInitialized = false; // First centerAndFit is instant
     const ZOOM_MIN = 0.8; // Max zoom-out: 125% of gameboard visible
     const ZOOM_MAX = 5.0;
 
@@ -189,28 +222,30 @@
     const BOTTOM_UI_INSET = 0;
 
     export function centerAndFit() {
-        zoomLevel = 1;
-        panOffsetX = 0;
-        panOffsetY = 0;
+        updateWorldBounds();
         if (app && app.stage) {
-            updateWorldBounds();
             const cw = app.screen.width;
             const ch = app.screen.height;
-            // Fit content to shorter dimension
             baseScale = Math.min(cw / contentWidth, ch / contentHeight);
-            const es = baseScale;
-            app.stage.scale.set(es);
-            // Center the content bounding box in the viewport
-            const contentCenterX = contentMinX + contentWidth / 2;
-            const contentCenterY = contentMinY + contentHeight / 2;
-            app.stage.x = cw / 2 - contentCenterX * es;
-            app.stage.y = ch / 2 - contentCenterY * es;
-
-            log.canvas(
-                "centerAndFit",
-                `container=${cw.toFixed(0)}x${ch.toFixed(0)} content=(${contentMinX.toFixed(0)},${contentMinY.toFixed(0)} ${contentWidth.toFixed(0)}x${contentHeight.toFixed(0)}) baseScale=${baseScale.toFixed(4)} stage=(${app.stage.x.toFixed(1)},${app.stage.y.toFixed(1)})`,
-            );
         }
+        // First call snaps instantly (no animation from 0,0)
+        if (!cameraInitialized) {
+            zoomLevel = 1;
+            panOffsetX = 0;
+            panOffsetY = 0;
+            targetZoom = 1;
+            targetPanX = 0;
+            targetPanY = 0;
+            cameraAnimating = false;
+            cameraInitialized = true;
+            applyZoomTransform();
+            return;
+        }
+        // Animate to default view
+        targetZoom = 1;
+        targetPanX = 0;
+        targetPanY = 0;
+        cameraAnimating = true;
     }
 
     /** Navigate to a specific star by centering the viewport on it */
@@ -219,37 +254,61 @@
         const star = stars?.find((s: any) => s.id === starId);
         if (!star || !app) return;
 
-        zoomLevel = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, zoom));
-        const es = baseScale * zoomLevel;
-        app.stage.scale.set(es);
+        const clampedZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, zoom));
 
         // Use transposed coordinates
         const sx = mapTranspose.x(star);
         const sy = mapTranspose.y(star);
 
+        // Derive target panOffset so star ends up centered
         const cw = app.screen.width;
         const ch = app.screen.height;
-
-        // Center the star in the viewport
-        app.stage.x = cw / 2 - sx * es;
-        app.stage.y = ch / 2 - sy * es;
-
-        // Derive panOffset from the centered-content baseline
+        const es = baseScale * clampedZoom;
         const contentCenterX = contentMinX + contentWidth / 2;
         const contentCenterY = contentMinY + contentHeight / 2;
         const baselineX = cw / 2 - contentCenterX * es;
         const baselineY = ch / 2 - contentCenterY * es;
-        panOffsetX = -(app.stage.x - baselineX) / es;
-        panOffsetY = -(app.stage.y - baselineY) / es;
+        const desiredStageX = cw / 2 - sx * es;
+        const desiredStageY = ch / 2 - sy * es;
 
-        // Clamp but don't snap back to center
-        clampPan();
+        targetZoom = clampedZoom;
+        targetPanX = -(desiredStageX - baselineX) / es;
+        targetPanY = -(desiredStageY - baselineY) / es;
+        cameraAnimating = true;
 
         log.canvas(
             "navigateToStar",
-            `id=${starId} raw=(${star.x.toFixed(0)},${star.y.toFixed(0)}) transposed=(${sx.toFixed(0)},${sy.toFixed(0)}) ownerId=${star.ownerId} localPlayer=${activeGameStore.localPlayerId} container=${cw.toFixed(0)}x${ch.toFixed(0)} es=${es.toFixed(4)} stage=(${app.stage.x.toFixed(1)},${app.stage.y.toFixed(1)})`,
+            `id=${starId} target=(${sx.toFixed(0)},${sy.toFixed(0)}) zoom=${clampedZoom.toFixed(2)}`,
         );
     }
+
+    /** Advance camera animation one frame (called from render loop) */
+    function stepCameraAnimation() {
+        if (!cameraAnimating) return;
+
+        const dz = targetZoom - zoomLevel;
+        const dx = targetPanX - panOffsetX;
+        const dy = targetPanY - panOffsetY;
+
+        // Check if close enough to snap
+        if (
+            Math.abs(dz) < CAMERA_EPSILON &&
+            Math.abs(dx) < CAMERA_EPSILON &&
+            Math.abs(dy) < CAMERA_EPSILON
+        ) {
+            zoomLevel = targetZoom;
+            panOffsetX = targetPanX;
+            panOffsetY = targetPanY;
+            cameraAnimating = false;
+        } else {
+            zoomLevel += dz * CAMERA_EASE;
+            panOffsetX += dx * CAMERA_EASE;
+            panOffsetY += dy * CAMERA_EASE;
+        }
+
+        applyZoomTransform();
+    }
+
     const ZOOM_STEP = 0.1; // Per scroll notch
     let isPanning = false; // Middle-mouse-button or spacebar pan
     let isSpaceHeld = false; // Spacebar held for pan mode
@@ -601,6 +660,9 @@
                 renderFrame(displayStars, tickProgress);
             }
 
+            // Advance camera animation (lerp toward target each frame)
+            stepCameraAnimation();
+
             animationFrameId = requestAnimationFrame(loop);
         };
 
@@ -697,6 +759,11 @@
         resetMetaballCache();
         resetPixelTerritoryCache();
         resetLaneTerritoryCache();
+        resetContourTerritoryCache();
+        resetModifiedVoronoiCache();
+        resetPowerVoronoiCache();
+        resetTerritoryEngineCaches();
+        resetDistanceFieldTerritoryCache();
         // Clear ALL visual ship positions so they re-spawn at transposed coords
         // (ships store x/y, laneStartX/Y, laneEndX/Y in old coordinate space)
         visualDamagedShips.clear();
@@ -747,7 +814,7 @@
     }
 
     function handleResize() {
-        if (!app) return;
+        if (!app || !app.renderer) return;
 
         app.resize();
 
@@ -861,6 +928,7 @@
         );
         event.preventDefault();
         if (!app) return;
+        cameraAnimating = false; // Cancel any in-progress animation
 
         const rect = canvasContainer.getBoundingClientRect();
         const screenX = event.clientX - rect.left;
@@ -880,19 +948,20 @@
         if (zoomLevel === oldZoom) return; // Hit limit
 
         // Anchor: adjust pan so the same world point stays under cursor
+        // Must match the transform in applyZoomTransform (content-centered)
         const effectiveScale = baseScale * zoomLevel;
         const containerWidth = app.screen.width;
         const containerHeight = app.screen.height;
-        const scaledWidth = GAME_WIDTH * effectiveScale;
-        const scaledHeight = GAME_HEIGHT * effectiveScale;
-        const centerX = (containerWidth - scaledWidth) / 2;
-        const centerY = (containerHeight - scaledHeight) / 2;
+        const contentCenterX = contentMinX + contentWidth / 2;
+        const contentCenterY = contentMinY + contentHeight / 2;
+        const baselineX = containerWidth / 2 - contentCenterX * effectiveScale;
+        const baselineY = containerHeight / 2 - contentCenterY * effectiveScale;
 
-        // worldBefore should equal screenToWorld(screenX, screenY) after transform
-        // screenX = centerX - panOffsetX * effectiveScale + worldBefore.x * effectiveScale
-        // => panOffsetX = (centerX + worldBefore.x * effectiveScale - screenX) / effectiveScale
-        panOffsetX = worldBefore.x - (screenX - centerX) / effectiveScale;
-        panOffsetY = worldBefore.y - (screenY - centerY) / effectiveScale;
+        // worldBefore should remain under cursor after transform:
+        // screenX = baselineX - panOffsetX * es + worldBefore.x * es
+        // => panOffsetX = worldBefore.x - (screenX - baselineX) / es
+        panOffsetX = worldBefore.x - (screenX - baselineX) / effectiveScale;
+        panOffsetY = worldBefore.y - (screenY - baselineY) / effectiveScale;
 
         applyZoomTransform();
     }
@@ -969,6 +1038,11 @@
             resetMetaballCache();
             resetPixelTerritoryCache();
             resetLaneTerritoryCache();
+            resetContourTerritoryCache();
+            resetModifiedVoronoiCache();
+            resetPowerVoronoiCache();
+            resetTerritoryEngineCaches();
+            resetDistanceFieldTerritoryCache();
             activeSurges.clear();
             nextShipId = 0;
             starShipCounts.clear();
@@ -1013,49 +1087,129 @@
             renderStarPowerModule(stars, territoryGraphics, colorUtils);
         }
 
-        // Render territory overlays (each renderer manages own visibility)
+        // Render territory overlays — only call the active renderer
         if (voronoiContainer) {
             voronoiContainer.visible = true;
 
-            // Voronoi renderer (checks TERRITORY_VORONOI + SHOW_VORONOI internally)
-            renderVoronoiModule(
-                stars,
-                voronoiContainer,
-                colorUtils,
-                GAME_WIDTH,
-                GAME_HEIGHT,
-                activeGameStore.connections as StarConnection[],
-            );
+            // Hide all children first — only the active renderer will re-show its own
+            for (const child of voronoiContainer.children) {
+                child.visible = false;
+            }
 
-            // Metaball renderer (checks TERRITORY_METABALL internally)
-            renderMetaballModule(
-                stars,
-                voronoiContainer,
-                colorUtils,
-                GAME_WIDTH,
-                GAME_HEIGHT,
-                activeGameStore.connections as StarConnection[],
-            );
+            if (GAME_CONFIG.TERRITORY_ENGINE_ENABLED) {
+                renderTerritoryEngine({
+                    stars,
+                    container: voronoiContainer,
+                    colorUtils,
+                    worldWidth: GAME_WIDTH,
+                    worldHeight: GAME_HEIGHT,
+                    connections: activeGameStore.connections as StarConnection[],
+                    renderer: app?.renderer ?? undefined,
+                    gameNowMs: fxOrchestrator.gameTime,
+                });
+            } else {
+                if (GAME_CONFIG.TERRITORY_VORONOI) {
+                renderVoronoiModule(
+                    stars,
+                    voronoiContainer,
+                    colorUtils,
+                    GAME_WIDTH,
+                    GAME_HEIGHT,
+                    activeGameStore.connections as StarConnection[],
+                );
+            }
 
-            // Pixel territory renderer (checks TERRITORY_PIXEL internally)
-            renderPixelTerritoryModule(
-                stars,
-                voronoiContainer,
-                colorUtils,
-                GAME_WIDTH,
-                GAME_HEIGHT,
-                activeGameStore.connections as StarConnection[],
-            );
+            if (GAME_CONFIG.TERRITORY_METABALL) {
+                renderMetaballModule(
+                    stars,
+                    voronoiContainer,
+                    colorUtils,
+                    GAME_WIDTH,
+                    GAME_HEIGHT,
+                    activeGameStore.connections as StarConnection[],
+                );
+            }
 
-            // Lane territory renderer (checks TERRITORY_GRAPH internally)
-            renderLaneTerritoryModule(
-                stars,
-                voronoiContainer,
-                colorUtils,
-                GAME_WIDTH,
-                GAME_HEIGHT,
-                activeGameStore.connections as StarConnection[],
-            );
+            if (GAME_CONFIG.TERRITORY_PIXEL) {
+                renderPixelTerritoryModule(
+                    stars,
+                    voronoiContainer,
+                    colorUtils,
+                    GAME_WIDTH,
+                    GAME_HEIGHT,
+                    activeGameStore.connections as StarConnection[],
+                );
+            }
+
+            if (GAME_CONFIG.TERRITORY_GRAPH) {
+                renderLaneTerritoryModule(
+                    stars,
+                    voronoiContainer,
+                    colorUtils,
+                    GAME_WIDTH,
+                    GAME_HEIGHT,
+                    activeGameStore.connections as StarConnection[],
+                );
+            }
+
+            if (GAME_CONFIG.TERRITORY_CONTOUR) {
+                renderContourTerritoryModule(
+                    stars,
+                    voronoiContainer,
+                    colorUtils,
+                    GAME_WIDTH,
+                    GAME_HEIGHT,
+                    activeGameStore.connections as StarConnection[],
+                );
+            }
+
+            // DISABLED: Modified Voronoi freezes game — F-138 needs architecture fix
+            // if (GAME_CONFIG.TERRITORY_MODIFIED_VORONOI) {
+            //     renderModifiedVoronoiModule(
+            //         stars,
+            //         voronoiContainer,
+            //         colorUtils,
+            //         GAME_WIDTH,
+            //         GAME_HEIGHT,
+            //         activeGameStore.connections as StarConnection[],
+            //     );
+            // }
+
+            if (GAME_CONFIG.TERRITORY_POWER_VORONOI) {
+                renderPowerVoronoiModule(
+                    stars,
+                    voronoiContainer,
+                    colorUtils,
+                    GAME_WIDTH,
+                    GAME_HEIGHT,
+                    activeGameStore.connections as StarConnection[],
+                );
+            }
+
+            if (GAME_CONFIG.TERRITORY_PVV3) {
+                renderPVV3Module(
+                    stars,
+                    voronoiContainer,
+                    colorUtils,
+                    GAME_WIDTH,
+                    GAME_HEIGHT,
+                    activeGameStore.connections as StarConnection[],
+                );
+            }
+
+            if (GAME_CONFIG.TERRITORY_DISTANCE_FIELD) {
+                renderDistanceFieldTerritoryModule(
+                    stars,
+                    voronoiContainer,
+                    colorUtils,
+                    GAME_WIDTH,
+                    GAME_HEIGHT,
+                    activeGameStore.connections as StarConnection[],
+                    // Two-pass DF borders need the renderer for pass-1 offscreen rendering.
+                    app?.renderer ?? undefined,
+                );
+            }
+            }
         }
 
         // Render stars (static elements)
@@ -1338,6 +1492,7 @@
             if (!earlyHit) {
                 // No star nearby — single-finger pan
                 isPanning = true;
+                cameraAnimating = false;
                 panStartScreenX = event.clientX;
                 panStartScreenY = event.clientY;
                 panStartOffsetX = panOffsetX;
@@ -2033,3 +2188,7 @@
         }
     }
 </style>
+
+
+
+

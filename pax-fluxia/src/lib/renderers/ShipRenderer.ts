@@ -156,7 +156,7 @@ export function drawShip(
         glowP.scaleX = glowScale;
         glowP.scaleY = glowScale;
         glowP.tint = glowColor;
-        glowP.alpha = alpha * glowIntensity * 0.15; // subtle halo
+        glowP.alpha = alpha * glowIntensity;
         res.shipParticleIndex++;
     }
 

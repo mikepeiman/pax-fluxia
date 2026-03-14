@@ -260,7 +260,7 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
                 inf *= 1 + Math.log2(1 + s.ships) * 0.5 * pressure;
             }
 
-            infBuf[s.ownerIdx] += inf;
+            infBuf[s.ownerIdx] += inf / starsByOwner[s.ownerIdx].length;
         }
 
         // 2. Lane influence (strong along connections — the key differentiator!)
