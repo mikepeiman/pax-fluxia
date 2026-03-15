@@ -868,6 +868,85 @@
     />
 </div>
 
+<!-- ── Order Arrows ── -->
+<h4 class="sub-heading">Order Arrows</h4>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Arrowhead Size</span><span class="val"
+            >{((panel.arrowHeadSize ?? 30) as number).toFixed(0)}px</span
+        >
+    </div>
+    <input
+        type="range"
+        min="5"
+        max="60"
+        step="5"
+        value={panel.arrowHeadSize ?? 30}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.ARROW_HEAD_SIZE = v;
+            updatePanel("arrowHeadSize", v);
+        }}
+    />
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Shaft Width</span><span class="val"
+            >{((panel.arrowShaftWidth ?? 6) as number).toFixed(0)}px</span
+        >
+    </div>
+    <input
+        type="range"
+        min="1"
+        max="12"
+        step="1"
+        value={panel.arrowShaftWidth ?? 6}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.ARROW_SHAFT_WIDTH = v;
+            updatePanel("arrowShaftWidth", v);
+        }}
+    />
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Arrow Opacity</span><span class="val"
+            >{((panel.arrowAlpha ?? 0.6) as number).toFixed(2)}</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0.1"
+        max="1.0"
+        step="0.05"
+        value={panel.arrowAlpha ?? 0.6}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.ARROW_ALPHA = v;
+            updatePanel("arrowAlpha", v);
+        }}
+    />
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Arrow Length</span><span class="val"
+            >{((panel.arrowLengthFraction ?? 0.5) as number).toFixed(2)}</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0.1"
+        max="1.0"
+        step="0.05"
+        value={panel.arrowLengthFraction ?? 0.5}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.ARROW_LENGTH_FRACTION = v;
+            updatePanel("arrowLengthFraction", v);
+        }}
+    />
+</div>
+
 <!-- ── Interaction ── -->
 <h4 class="sub-heading">Interaction</h4>
 <div class="var-row">

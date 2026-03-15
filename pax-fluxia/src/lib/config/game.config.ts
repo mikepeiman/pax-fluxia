@@ -237,6 +237,12 @@ interface GameConfigType {
 
     /** How far order arrows extend along the lane (0.0-1.0, 1.0 = full distance to target edge) */
     ARROW_LENGTH_FRACTION: number;
+    /** Arrowhead size in px (default 30) */
+    ARROW_HEAD_SIZE: number;
+    /** Arrow shaft width in px (default 6) */
+    ARROW_SHAFT_WIDTH: number;
+    /** Arrow shaft alpha (0-1, default 0.6) */
+    ARROW_ALPHA: number;
 
 
 
@@ -925,6 +931,9 @@ const _rawConfig: GameConfigType = {
 
     /** Order arrow length as fraction of lane distance (0.0-1.0, default 0.5 = halfway) */
     ARROW_LENGTH_FRACTION: 0.5,
+    ARROW_HEAD_SIZE: 30,
+    ARROW_SHAFT_WIDTH: 6,
+    ARROW_ALPHA: 0.6,
 
 
 

@@ -212,8 +212,9 @@ export function renderOrderArrows(
         const dist = Math.sqrt(dx * dx + dy * dy);
 
         const padding = 10;
-        const headLen = 30;
-        const lineWidth = 6;
+        const headLen = GAME_CONFIG.ARROW_HEAD_SIZE ?? 30;
+        const lineWidth = GAME_CONFIG.ARROW_SHAFT_WIDTH ?? 6;
+        const arrowAlpha = GAME_CONFIG.ARROW_ALPHA ?? 0.6;
 
         const startDist = source.radius + padding;
         const fullEndDist = dist - (target.radius + padding);
@@ -228,9 +229,10 @@ export function renderOrderArrows(
         const color = colorUtils.getPlayerColor(source.ownerId);
 
         // Shaft
+        linkGraphics.beginPath();
         linkGraphics.moveTo(startX, startY);
         linkGraphics.lineTo(arrowBaseX, arrowBaseY);
-        linkGraphics.stroke({ color, width: lineWidth, alpha: 0.6, cap: 'round' });
+        linkGraphics.stroke({ color, width: lineWidth, alpha: arrowAlpha, cap: 'round' });
 
         // Arrowhead
         const tipX = endX;
@@ -281,8 +283,9 @@ export function renderOrderArrows(
         const dist = Math.sqrt(dx * dx + dy * dy);
 
         const padding = 10;
-        const headLen = 20;
-        const lineWidth = 4;
+        const headLen = Math.round((GAME_CONFIG.ARROW_HEAD_SIZE ?? 30) * 0.67);
+        const lineWidth = Math.round((GAME_CONFIG.ARROW_SHAFT_WIDTH ?? 6) * 0.67);
+        const arrowAlpha = (GAME_CONFIG.ARROW_ALPHA ?? 0.6) * 0.67;
 
         const startDist = source.radius + padding;
         const fullEndDist = dist - (target.radius + padding);
@@ -307,9 +310,10 @@ export function renderOrderArrows(
             const x2 = source.x + Math.cos(angle) * segEnd;
             const y2 = source.y + Math.sin(angle) * segEnd;
 
+            linkGraphics.beginPath();
             linkGraphics.moveTo(x1, y1);
             linkGraphics.lineTo(x2, y2);
-            linkGraphics.stroke({ color: humanColor, width: lineWidth, alpha: 0.4, cap: 'round' });
+            linkGraphics.stroke({ color: humanColor, width: lineWidth, alpha: arrowAlpha, cap: 'round' });
 
             currentDist += dashLen + gapLen;
         }
@@ -322,10 +326,11 @@ export function renderOrderArrows(
         const wing2X = tipX - headLen * Math.cos(angle + Math.PI / 6);
         const wing2Y = tipY - headLen * Math.sin(angle + Math.PI / 6);
 
+        linkGraphics.beginPath();
         linkGraphics.moveTo(tipX, tipY);
         linkGraphics.lineTo(wing1X, wing1Y);
         linkGraphics.lineTo(wing2X, wing2Y);
         linkGraphics.closePath();
-        linkGraphics.fill({ color: humanColor, alpha: 0.5 });
+        linkGraphics.fill({ color: humanColor, alpha: arrowAlpha * 0.85 });
     });
 }
