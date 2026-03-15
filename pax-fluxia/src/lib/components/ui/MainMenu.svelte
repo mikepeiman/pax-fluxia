@@ -1206,7 +1206,8 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        justify-content: center;
+        justify-content: flex-start;
+        padding-top: 5vh;
         overflow-y: auto;
         z-index: 100;
         font-family: "Montserrat", "Segoe UI", system-ui, sans-serif;
@@ -1333,16 +1334,18 @@
     .menu-columns {
         display: grid;
         grid-template-columns: 1.5fr 1fr;
-        gap: 16px;
-        align-items: start;
+        gap: 24px;
+        align-items: stretch;
     }
 
     .panel {
         background: rgba(8, 16, 32, 0.85);
         border: 1px solid rgba(100, 200, 255, 0.12);
         border-radius: 12px;
-        padding: 16px;
-        backdrop-filter: blur(8px);
+        padding: 24px;
+        backdrop-filter: blur(12px);
+        display: flex;
+        flex-direction: column;
     }
 
     .section-heading {
@@ -1794,6 +1797,7 @@
     .start-btn-primary {
         font-size: 1.4rem;
         padding: 24px;
+        margin-top: auto;
     }
 
     /* ═══ RIGHT COLUMN ═══ */
@@ -1804,12 +1808,12 @@
         display: flex;
         align-items: center;
         gap: 8px;
-        margin-bottom: 6px;
+        margin-bottom: 12px;
     }
     .player-config-header label {
         flex: 1;
-        font-size: 0.65rem;
-        font-weight: 600;
+        font-size: 0.9rem;
+        font-weight: 700;
         letter-spacing: 0.12em;
         color: rgba(200, 220, 255, 0.5);
         text-transform: uppercase;
@@ -1821,8 +1825,8 @@
         border-radius: 4px;
         color: rgba(200, 220, 255, 0.5);
         cursor: pointer;
-        font-size: 0.6rem;
-        padding: 2px 6px;
+        font-size: 0.85rem;
+        padding: 4px 10px;
         font-family: inherit;
         transition: all 0.15s;
     }
@@ -1867,31 +1871,36 @@
     .player-config-list {
         display: flex;
         flex-direction: column;
-        gap: 3px;
+        gap: 8px;
     }
     .player-config-row.inline-row {
         display: flex;
         align-items: center;
-        gap: 6px;
-        padding: 4px 6px;
-        border-radius: 4px;
-        background: rgba(10, 20, 40, 0.3);
+        gap: 12px;
+        padding: 8px 12px;
+        border-radius: 6px;
+        background: rgba(10, 20, 40, 0.4);
     }
     .player-label-inline {
-        font-size: 0.65rem;
+        font-size: 0.85rem;
         font-weight: 600;
-        color: rgba(200, 220, 255, 0.5);
-        min-width: 20px;
+        color: rgba(200, 220, 255, 0.6);
+        min-width: 30px;
     }
     .inline-select {
         flex: 1;
-        padding: 3px 4px;
-        font-size: 0.65rem;
+        padding: 10px 12px;
+        font-size: 0.95rem;
         font-family: inherit;
-        background: rgba(10, 20, 40, 0.6);
+        background: rgba(10, 30, 60, 0.6);
         color: #aaccff;
-        border: 1px solid rgba(100, 200, 255, 0.15);
-        border-radius: 4px;
+        border: 1px solid rgba(100, 200, 255, 0.2);
+        border-radius: 6px;
+        outline: none;
+    }
+    .inline-select:focus {
+        border-color: #00ccff;
+        box-shadow: 0 0 8px rgba(0, 200, 255, 0.2);
     }
 
     /* ── Multiplayer ── */
