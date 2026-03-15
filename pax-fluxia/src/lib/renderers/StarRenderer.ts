@@ -389,15 +389,40 @@ export function renderStars(
         label.x = star.x + labelOffsetX;
         label.y = star.y + labelOffsetY;
 
-        // Dynamic font size updates (so sliders take effect immediately)
+        // Master font scale + dynamic font sizing
+        const labelScale = GAME_CONFIG.STAR_LABEL_SCALE ?? 1.0;
+        const lineH = GAME_CONFIG.STAR_LABEL_LINE_HEIGHT ?? 18;
+        const isInline = GAME_CONFIG.STAR_LABEL_INLINE ?? false;
+
         const idText2 = label.getChildByLabel('starId') as PIXI.Text;
-        if (idText2) idText2.style.fontSize = GAME_CONFIG.STAR_LABEL_ID_FONT_SIZE ?? 14;
-        if (activeText) activeText.style.fontSize = GAME_CONFIG.STAR_LABEL_FONT_SIZE ?? 22;
-        if (damagedText) damagedText.style.fontSize = GAME_CONFIG.STAR_LABEL_DAMAGED_FONT_SIZE ?? 16;
+        if (idText2) {
+            idText2.style.fontSize = (GAME_CONFIG.STAR_LABEL_ID_FONT_SIZE ?? 14) * labelScale;
+            idText2.position.y = 0;
+        }
+        if (activeText) {
+            activeText.style.fontSize = (GAME_CONFIG.STAR_LABEL_FONT_SIZE ?? 22) * labelScale;
+            activeText.position.y = lineH;
+            if (isInline) activeText.anchor.set(1.0, 0.5); else activeText.anchor.set(0.5, 0.5);
+        }
+        if (damagedText) {
+            damagedText.style.fontSize = (GAME_CONFIG.STAR_LABEL_DAMAGED_FONT_SIZE ?? 16) * labelScale;
+            if (isInline) {
+                // Side-by-side: place damaged right of active
+                damagedText.position.y = lineH;
+                damagedText.position.x = 4;
+                damagedText.anchor.set(0, 0.5);
+            } else {
+                // Stacked: place damaged below active
+                damagedText.position.y = lineH * 2;
+                damagedText.position.x = 0;
+                damagedText.anchor.set(0.5, 0.5);
+            }
+        }
 
         // Draw leash line from star edge to label
         if (leashGraphics) {
             leashGraphics.clear();
+            leashGraphics.beginPath();
             const starEdgeX = -labelOffsetX + radius * 0.7;
             const starEdgeY = -labelOffsetY + radius * 0.7;
             leashGraphics.moveTo(starEdgeX, starEdgeY);

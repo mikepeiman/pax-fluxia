@@ -113,6 +113,16 @@
                     (GAME_CONFIG.STAR_LABEL_DAMAGED_FONT_SIZE ?? 16) * ratio,
                 ],
                 [
+                    "starLabelScale",
+                    "STAR_LABEL_SCALE",
+                    (GAME_CONFIG.STAR_LABEL_SCALE ?? 1.0) * ratio,
+                ],
+                [
+                    "starLabelLineHeight",
+                    "STAR_LABEL_LINE_HEIGHT",
+                    (GAME_CONFIG.STAR_LABEL_LINE_HEIGHT ?? 18) * ratio,
+                ],
+                [
                     "starHitRadius",
                     "STAR_HIT_RADIUS",
                     (GAME_CONFIG.STAR_HIT_RADIUS ?? 50) * ratio,
@@ -770,6 +780,59 @@
 
 <!-- ── Star Labels ── -->
 <h4 class="sub-heading">Star Labels</h4>
+<!-- Master Font Scale (drives all 3 sub-fonts proportionally) -->
+<div class="var-row" style="border-left: 3px solid #668; padding-left: 6px;">
+    <div class="row-top">
+        <span class="var-name" style="font-weight: bold;"
+            >🔗 Label Font Scale</span
+        ><span class="val"
+            >{((panel.starLabelScale ?? 1.0) as number).toFixed(2)}×</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0.3"
+        max="3.0"
+        step="0.05"
+        value={panel.starLabelScale ?? 1.0}
+        oninput={(e) => {
+            const newScale = +(e.target as HTMLInputElement).value;
+            const oldScale = GAME_CONFIG.STAR_LABEL_SCALE ?? 1;
+            if (oldScale === 0) return;
+            const ratio = newScale / oldScale;
+            const updates: [string, string, number][] = [
+                [
+                    "starLabelIdFontSize",
+                    "STAR_LABEL_ID_FONT_SIZE",
+                    (GAME_CONFIG.STAR_LABEL_ID_FONT_SIZE ?? 14) * ratio,
+                ],
+                [
+                    "starLabelFontSize",
+                    "STAR_LABEL_FONT_SIZE",
+                    (GAME_CONFIG.STAR_LABEL_FONT_SIZE ?? 22) * ratio,
+                ],
+                [
+                    "starLabelDamagedFontSize",
+                    "STAR_LABEL_DAMAGED_FONT_SIZE",
+                    (GAME_CONFIG.STAR_LABEL_DAMAGED_FONT_SIZE ?? 16) * ratio,
+                ],
+                [
+                    "starLabelLineHeight",
+                    "STAR_LABEL_LINE_HEIGHT",
+                    (GAME_CONFIG.STAR_LABEL_LINE_HEIGHT ?? 18) * ratio,
+                ],
+            ];
+            for (const [, configKey, val] of updates) {
+                (GAME_CONFIG as any)[configKey] = val;
+            }
+            GAME_CONFIG.STAR_LABEL_SCALE = newScale;
+            for (const [panelKey, , val] of updates) {
+                updatePanel(panelKey, val);
+            }
+            updatePanel("starLabelScale", newScale);
+        }}
+    />
+</div>
 <div class="var-row">
     <div class="row-top">
         <span class="var-name">Label Angle</span><span class="val"
@@ -805,6 +868,25 @@
             const v = +(e.target as HTMLInputElement).value;
             GAME_CONFIG.STAR_LABEL_DISTANCE = v;
             updatePanel("starLabelDistance", v);
+        }}
+    />
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Line Height</span><span class="val"
+            >{((panel.starLabelLineHeight ?? 18) as number).toFixed(0)}px</span
+        >
+    </div>
+    <input
+        type="range"
+        min="8"
+        max="40"
+        step="1"
+        value={panel.starLabelLineHeight ?? 18}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.STAR_LABEL_LINE_HEIGHT = v;
+            updatePanel("starLabelLineHeight", v);
         }}
     />
 </div>
@@ -866,6 +948,26 @@
             updatePanel("starLabelDamagedFontSize", v);
         }}
     />
+</div>
+<!-- Inline toggle -->
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Active/Damaged Inline</span>
+        <label style="display:flex;align-items:center;gap:4px;">
+            <input
+                type="checkbox"
+                checked={GAME_CONFIG.STAR_LABEL_INLINE ?? false}
+                onchange={(e) => {
+                    const v = (e.target as HTMLInputElement).checked;
+                    GAME_CONFIG.STAR_LABEL_INLINE = v;
+                    updatePanel("starLabelInline", v);
+                }}
+            />
+            <span class="val"
+                >{GAME_CONFIG.STAR_LABEL_INLINE ? "On" : "Off"}</span
+            >
+        </label>
+    </div>
 </div>
 
 <!-- ── Order Arrows ── -->
