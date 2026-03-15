@@ -1110,117 +1110,120 @@
                     gameNowMs: fxOrchestrator.gameTime,
                 });
             } else {
-                if (GAME_CONFIG.TERRITORY_VORONOI) {
-                    renderVoronoiModule(
-                        stars,
-                        voronoiContainer,
-                        colorUtils,
-                        GAME_WIDTH,
-                        GAME_HEIGHT,
-                        activeGameStore.connections as StarConnection[],
-                    );
+                // Resolve active render mode — check new enum first, fall back to old booleans
+                let activeMode = GAME_CONFIG.TERRITORY_RENDER_MODE ?? "none";
+                if (activeMode === "none") {
+                    // Backward compat: check old boolean flags
+                    if (GAME_CONFIG.TERRITORY_PVV3) activeMode = "vs_pvv3";
+                    else if (GAME_CONFIG.TERRITORY_POWER_VORONOI)
+                        activeMode = "power_voronoi";
+                    else if (GAME_CONFIG.TERRITORY_DISTANCE_FIELD)
+                        activeMode = "distance_field";
+                    else if (GAME_CONFIG.TERRITORY_VORONOI)
+                        activeMode = "voronoi";
+                    else if (GAME_CONFIG.TERRITORY_METABALL)
+                        activeMode = "metaball";
+                    else if (GAME_CONFIG.TERRITORY_PIXEL) activeMode = "pixel";
+                    else if (GAME_CONFIG.TERRITORY_GRAPH) activeMode = "graph";
+                    else if (GAME_CONFIG.TERRITORY_CONTOUR)
+                        activeMode = "contour";
                 }
 
-                if (GAME_CONFIG.TERRITORY_METABALL) {
-                    renderMetaballModule(
-                        stars,
-                        voronoiContainer,
-                        colorUtils,
-                        GAME_WIDTH,
-                        GAME_HEIGHT,
-                        activeGameStore.connections as StarConnection[],
-                    );
-                }
-
-                if (GAME_CONFIG.TERRITORY_PIXEL) {
-                    renderPixelTerritoryModule(
-                        stars,
-                        voronoiContainer,
-                        colorUtils,
-                        GAME_WIDTH,
-                        GAME_HEIGHT,
-                        activeGameStore.connections as StarConnection[],
-                    );
-                }
-
-                if (GAME_CONFIG.TERRITORY_GRAPH) {
-                    renderLaneTerritoryModule(
-                        stars,
-                        voronoiContainer,
-                        colorUtils,
-                        GAME_WIDTH,
-                        GAME_HEIGHT,
-                        activeGameStore.connections as StarConnection[],
-                    );
-                }
-
-                if (GAME_CONFIG.TERRITORY_CONTOUR) {
-                    renderContourTerritoryModule(
-                        stars,
-                        voronoiContainer,
-                        colorUtils,
-                        GAME_WIDTH,
-                        GAME_HEIGHT,
-                        activeGameStore.connections as StarConnection[],
-                    );
-                }
-
-                // DISABLED: Modified Voronoi freezes game — F-138 needs architecture fix
-                // if (GAME_CONFIG.TERRITORY_MODIFIED_VORONOI) {
-                //     renderModifiedVoronoiModule(
-                //         stars,
-                //         voronoiContainer,
-                //         colorUtils,
-                //         GAME_WIDTH,
-                //         GAME_HEIGHT,
-                //         activeGameStore.connections as StarConnection[],
-                //     );
-                // }
-
-                if (GAME_CONFIG.TERRITORY_POWER_VORONOI) {
-                    renderPowerVoronoiModule(
-                        stars,
-                        voronoiContainer,
-                        colorUtils,
-                        GAME_WIDTH,
-                        GAME_HEIGHT,
-                        activeGameStore.connections as StarConnection[],
-                    );
-                }
-
-                if (GAME_CONFIG.TERRITORY_PVV3) {
-                    const fg2Artifacts = runFG2DataPipeline({
-                        stars,
-                        container: voronoiContainer,
-                        colorUtils,
-                        worldWidth: GAME_WIDTH,
-                        worldHeight: GAME_HEIGHT,
-                        connections:
+                switch (activeMode) {
+                    case "vs_pvv3": {
+                        const fg2Artifacts = runFG2DataPipeline({
+                            stars,
+                            container: voronoiContainer,
+                            colorUtils,
+                            worldWidth: GAME_WIDTH,
+                            worldHeight: GAME_HEIGHT,
+                            connections:
+                                activeGameStore.connections as StarConnection[],
+                            gameNowMs: fxOrchestrator.gameTime,
+                        });
+                        renderPVV3Module(
+                            stars,
+                            voronoiContainer,
+                            colorUtils,
+                            GAME_WIDTH,
+                            GAME_HEIGHT,
                             activeGameStore.connections as StarConnection[],
-                        gameNowMs: fxOrchestrator.gameTime,
-                    });
-                    renderPVV3Module(
-                        stars,
-                        voronoiContainer,
-                        colorUtils,
-                        GAME_WIDTH,
-                        GAME_HEIGHT,
-                        activeGameStore.connections as StarConnection[],
-                        fg2Artifacts,
-                    );
-                }
-
-                if (GAME_CONFIG.TERRITORY_DISTANCE_FIELD) {
-                    renderDistanceFieldTerritoryModule(
-                        stars,
-                        voronoiContainer,
-                        colorUtils,
-                        GAME_WIDTH,
-                        GAME_HEIGHT,
-                        activeGameStore.connections as StarConnection[],
-                        // Two-pass DF borders need the renderer for pass-1 offscreen rendering.
-                        app?.renderer ?? undefined,
-                    );
+                            fg2Artifacts,
+                        );
+                        break;
+                    }
+                    case "power_voronoi":
+                        renderPowerVoronoiModule(
+                            stars,
+                            voronoiContainer,
+                            colorUtils,
+                            GAME_WIDTH,
+                            GAME_HEIGHT,
+                            activeGameStore.connections as StarConnection[],
+                        );
+                        break;
+                    case "distance_field":
+                        renderDistanceFieldTerritoryModule(
+                            stars,
+                            voronoiContainer,
+                            colorUtils,
+                            GAME_WIDTH,
+                            GAME_HEIGHT,
+                            activeGameStore.connections as StarConnection[],
+                            app?.renderer ?? undefined,
+                        );
+                        break;
+                    case "voronoi":
+                        renderVoronoiModule(
+                            stars,
+                            voronoiContainer,
+                            colorUtils,
+                            GAME_WIDTH,
+                            GAME_HEIGHT,
+                            activeGameStore.connections as StarConnection[],
+                        );
+                        break;
+                    case "metaball":
+                        renderMetaballModule(
+                            stars,
+                            voronoiContainer,
+                            colorUtils,
+                            GAME_WIDTH,
+                            GAME_HEIGHT,
+                            activeGameStore.connections as StarConnection[],
+                        );
+                        break;
+                    case "pixel":
+                        renderPixelTerritoryModule(
+                            stars,
+                            voronoiContainer,
+                            colorUtils,
+                            GAME_WIDTH,
+                            GAME_HEIGHT,
+                            activeGameStore.connections as StarConnection[],
+                        );
+                        break;
+                    case "graph":
+                        renderLaneTerritoryModule(
+                            stars,
+                            voronoiContainer,
+                            colorUtils,
+                            GAME_WIDTH,
+                            GAME_HEIGHT,
+                            activeGameStore.connections as StarConnection[],
+                        );
+                        break;
+                    case "contour":
+                        renderContourTerritoryModule(
+                            stars,
+                            voronoiContainer,
+                            colorUtils,
+                            GAME_WIDTH,
+                            GAME_HEIGHT,
+                            activeGameStore.connections as StarConnection[],
+                        );
+                        break;
+                    // 'none' or unrecognized — no territory rendering
                 }
             }
         }

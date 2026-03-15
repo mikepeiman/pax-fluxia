@@ -38,7 +38,8 @@
 
     function formatTraceValue(value: unknown): string {
         if (Array.isArray(value)) return `[${value.length}]`;
-        if (typeof value === "number") return Number.isInteger(value) ? `${value}` : value.toFixed(2);
+        if (typeof value === "number")
+            return Number.isInteger(value) ? `${value}` : value.toFixed(2);
         if (typeof value === "boolean") return value ? "true" : "false";
         if (typeof value === "string") return value;
         if (value && typeof value === "object") {
@@ -60,7 +61,10 @@
 
     function getTraceArtifactEntries(
         artifacts: TerritoryPipelineArtifacts | undefined,
-    ): Array<{ stageId: TerritoryPipelineStageId; artifact: Record<string, unknown> }> {
+    ): Array<{
+        stageId: TerritoryPipelineStageId;
+        artifact: Record<string, unknown>;
+    }> {
         if (!artifacts) return [];
         return TERRITORY_PIPELINE_STAGE_ORDER.flatMap((stageId) => {
             const artifact = artifacts[stageId];
@@ -76,13 +80,18 @@
     function getOwnerRegionLoopPreviewEntries(
         artifacts: TerritoryPipelineArtifacts | undefined,
     ): Array<{ id: string; summary: string }> {
-        const ownerRegionLoops =
-            ((artifacts?.loop as { ownerRegionLoops?: Array<Record<string, unknown>> } | undefined)
-                ?.ownerRegionLoops ?? []) as Array<Record<string, unknown>>;
+        const ownerRegionLoops = ((
+            artifacts?.loop as
+                | { ownerRegionLoops?: Array<Record<string, unknown>> }
+                | undefined
+        )?.ownerRegionLoops ?? []) as Array<Record<string, unknown>>;
         return ownerRegionLoops.slice(0, 4).map((loop, index) => {
-            const ownerId = typeof loop.ownerId === "string" ? loop.ownerId : "?";
+            const ownerId =
+                typeof loop.ownerId === "string" ? loop.ownerId : "?";
             const opposingOwnerId =
-                typeof loop.opposingOwnerId === "string" ? loop.opposingOwnerId : "?";
+                typeof loop.opposingOwnerId === "string"
+                    ? loop.opposingOwnerId
+                    : "?";
             return {
                 id:
                     typeof loop.regionLoopId === "string"
@@ -99,12 +108,17 @@
     function getOwnerShellPreviewEntries(
         artifacts: TerritoryPipelineArtifacts | undefined,
     ): Array<{ id: string; summary: string }> {
-        const ownerShells =
-            ((artifacts?.loop as { ownerShells?: Array<Record<string, unknown>> } | undefined)
-                ?.ownerShells ?? []) as Array<Record<string, unknown>>;
+        const ownerShells = ((
+            artifacts?.loop as
+                | { ownerShells?: Array<Record<string, unknown>> }
+                | undefined
+        )?.ownerShells ?? []) as Array<Record<string, unknown>>;
         return ownerShells.slice(0, 4).map((shell, index) => {
-            const ownerId = typeof shell.ownerId === "string" ? shell.ownerId : "?";
-            const holeCount = Array.isArray(shell.holeLoopIds) ? shell.holeLoopIds.length : 0;
+            const ownerId =
+                typeof shell.ownerId === "string" ? shell.ownerId : "?";
+            const holeCount = Array.isArray(shell.holeLoopIds)
+                ? shell.holeLoopIds.length
+                : 0;
             return {
                 id:
                     typeof shell.shellId === "string"
@@ -122,7 +136,9 @@
     function getOwnerHoldingTransitionSummary(
         artifacts: TerritoryPipelineArtifacts | undefined,
     ): string[] {
-        const animation = (artifacts?.animation ?? undefined) as Record<string, unknown> | undefined;
+        const animation = (artifacts?.animation ?? undefined) as
+            | Record<string, unknown>
+            | undefined;
         if (!animation) return [];
 
         return [
@@ -142,15 +158,24 @@
     function getOwnerHoldingTransitionPreviewEntries(
         artifacts: TerritoryPipelineArtifacts | undefined,
     ): Array<{ id: string; summary: string }> {
-        const transitions =
-            ((artifacts?.animation as { ownerShellTransitions?: Array<Record<string, unknown>> } | undefined)
-                ?.ownerShellTransitions ?? []) as Array<Record<string, unknown>>;
+        const transitions = ((
+            artifacts?.animation as
+                | { ownerShellTransitions?: Array<Record<string, unknown>> }
+                | undefined
+        )?.ownerShellTransitions ?? []) as Array<Record<string, unknown>>;
         return transitions.slice(0, 6).map((transition, index) => {
-            const ownerId = typeof transition.ownerId === "string" ? transition.ownerId : "?";
-            const kind = typeof transition.kind === "string" ? transition.kind : "?";
+            const ownerId =
+                typeof transition.ownerId === "string"
+                    ? transition.ownerId
+                    : "?";
+            const kind =
+                typeof transition.kind === "string" ? transition.kind : "?";
             const anchorRelation =
-                typeof transition.anchorRelation === "string" ? transition.anchorRelation : "none";
-            const relationLabel = anchorRelation !== "none" ? `/${anchorRelation}` : "";
+                typeof transition.anchorRelation === "string"
+                    ? transition.anchorRelation
+                    : "none";
+            const relationLabel =
+                anchorRelation !== "none" ? `/${anchorRelation}` : "";
             return {
                 id:
                     typeof transition.transitionId === "string"
@@ -218,10 +243,16 @@
         { id: "dy2_local_delta_patch", label: "DY2 Local Delta Patch" },
         { id: "dy3_field_interp_stabilized", label: "DY3 Field Interp" },
         { id: "dy4_optimal_transport", label: "DY4 Optimal Transport" },
-        { id: "dy5_corridor_event_decomposition", label: "DY5 Corridor Events" },
+        {
+            id: "dy5_corridor_event_decomposition",
+            label: "DY5 Corridor Events",
+        },
     ] as const;
     const TERRITORY_ENGINE_HYBRID_OPTIONS = [
-        { id: "hy1_static_backbone_dynamic_refine", label: "HY1 Backbone+Refine" },
+        {
+            id: "hy1_static_backbone_dynamic_refine",
+            label: "HY1 Backbone+Refine",
+        },
         { id: "hy2_seed_graph_local_delta", label: "HY2 Seed+Delta" },
         { id: "hy3_implicit_field_transport", label: "HY3 Implicit+Transport" },
         { id: "hy4_pairwise_patch_transport", label: "HY4 Pairwise+Patch" },
@@ -250,37 +281,57 @@
     }
 
     function resolveStaticMethodId(rawValue: unknown): string {
-        if (typeof rawValue !== "string") return DEFAULT_TERRITORY_STATIC_METHOD;
-        return Object.prototype.hasOwnProperty.call(TERRITORY_STATIC_METHOD_BY_ID, rawValue)
+        if (typeof rawValue !== "string")
+            return DEFAULT_TERRITORY_STATIC_METHOD;
+        return Object.prototype.hasOwnProperty.call(
+            TERRITORY_STATIC_METHOD_BY_ID,
+            rawValue,
+        )
             ? rawValue
             : DEFAULT_TERRITORY_STATIC_METHOD;
     }
 
     function resolveDynamicMethodId(rawValue: unknown): string {
-        if (typeof rawValue !== "string") return DEFAULT_TERRITORY_DYNAMIC_METHOD;
-        return Object.prototype.hasOwnProperty.call(TERRITORY_DYNAMIC_METHOD_BY_ID, rawValue)
+        if (typeof rawValue !== "string")
+            return DEFAULT_TERRITORY_DYNAMIC_METHOD;
+        return Object.prototype.hasOwnProperty.call(
+            TERRITORY_DYNAMIC_METHOD_BY_ID,
+            rawValue,
+        )
             ? rawValue
             : DEFAULT_TERRITORY_DYNAMIC_METHOD;
     }
 
     function resolveHybridPlanId(rawValue: unknown): string {
         if (typeof rawValue !== "string") return DEFAULT_TERRITORY_HYBRID_PLAN;
-        return Object.prototype.hasOwnProperty.call(TERRITORY_HYBRID_PLAN_BY_ID, rawValue)
+        return Object.prototype.hasOwnProperty.call(
+            TERRITORY_HYBRID_PLAN_BY_ID,
+            rawValue,
+        )
             ? rawValue
             : DEFAULT_TERRITORY_HYBRID_PLAN;
     }
 
     function getTerritoryEngineRoute() {
-        const modeValue = panel.territoryEngineMode ?? GAME_CONFIG.TERRITORY_ENGINE_MODE ?? "static";
-        const mode = modeValue === "dynamic" || modeValue === "hybrid" ? modeValue : "static";
+        const modeValue =
+            panel.territoryEngineMode ??
+            GAME_CONFIG.TERRITORY_ENGINE_MODE ??
+            "static";
+        const mode =
+            modeValue === "dynamic" || modeValue === "hybrid"
+                ? modeValue
+                : "static";
         const staticMethodId = resolveStaticMethodId(
-            panel.territoryEngineStaticMethod ?? GAME_CONFIG.TERRITORY_ENGINE_STATIC_METHOD,
+            panel.territoryEngineStaticMethod ??
+                GAME_CONFIG.TERRITORY_ENGINE_STATIC_METHOD,
         );
         const dynamicMethodId = resolveDynamicMethodId(
-            panel.territoryEngineDynamicMethod ?? GAME_CONFIG.TERRITORY_ENGINE_DYNAMIC_METHOD,
+            panel.territoryEngineDynamicMethod ??
+                GAME_CONFIG.TERRITORY_ENGINE_DYNAMIC_METHOD,
         );
         const hybridPlanId = resolveHybridPlanId(
-            panel.territoryEngineHybridPlan ?? GAME_CONFIG.TERRITORY_ENGINE_HYBRID_PLAN,
+            panel.territoryEngineHybridPlan ??
+                GAME_CONFIG.TERRITORY_ENGINE_HYBRID_PLAN,
         );
 
         if (mode === "dynamic") {
@@ -349,7 +400,10 @@
             hybridPlanId,
             adapter: staticMethod.adapter,
             adapterLabel: formatAdapterLabel(staticMethod.adapter),
-            staticLabel: lookupOptionLabel(TERRITORY_ENGINE_METHOD_OPTIONS, staticMethodId),
+            staticLabel: lookupOptionLabel(
+                TERRITORY_ENGINE_METHOD_OPTIONS,
+                staticMethodId,
+            ),
             dynamicLabel: lookupOptionLabel(
                 TERRITORY_ENGINE_DYNAMIC_OPTIONS,
                 dynamicMethodId,
@@ -374,7 +428,8 @@
     let territoryEngineInteropNote = $derived.by(() => {
         if (
             territoryEngineRoute.mode === "dynamic" &&
-            territoryEngineRoute.dynamicMethodId === "dy5_corridor_event_decomposition"
+            territoryEngineRoute.dynamicMethodId ===
+                "dy5_corridor_event_decomposition"
         ) {
             return "DY5 currently anchors to FG2 Seed Graph. Selecting FG1 separately does not change the live dynamic route.";
         }
@@ -466,11 +521,63 @@
     );
     let isLegacyFieldEngine = $derived(activeBorderEngine === "legacy_field");
     let isLegacyGridEngine = $derived(activeBorderEngine === "legacy_grid");
+    const RENDER_MODE_OPTIONS = [
+        { id: "none", label: "None" },
+        { id: "vs_pvv3", label: "VS_PVV3 (Vector Stroke)" },
+        { id: "power_voronoi", label: "Power Voronoi V2" },
+        { id: "distance_field", label: "Distance Field" },
+        { id: "voronoi", label: "Voronoi (Legacy)" },
+        { id: "metaball", label: "Metaball" },
+        { id: "pixel", label: "Pixel (Classic)" },
+        { id: "graph", label: "Lane Territory" },
+        { id: "contour", label: "Contour (Vector)" },
+    ] as const;
+
+    /** Map render mode IDs to their old boolean flag panel keys */
+    const MODE_TO_BOOLEAN: Record<string, string> = {
+        vs_pvv3: "territoryPVV3",
+        power_voronoi: "territoryPowerVoronoi",
+        distance_field: "territoryDistanceField",
+        voronoi: "territoryVoronoi",
+        metaball: "territoryMetaball",
+        pixel: "territoryPixel",
+        graph: "territoryGraph",
+        contour: "territoryContour",
+    };
+
+    function selectRenderMode(modeId: string) {
+        updatePanel("territoryRenderMode", modeId);
+        // Sync old boolean flags for backward compat
+        for (const [mode, panelKey] of Object.entries(MODE_TO_BOOLEAN)) {
+            updatePanel(panelKey, mode === modeId);
+        }
+    }
 </script>
 
 <CategoryThemeBar category="territory" onApply={() => syncFromConfig?.()} />
 
-<!-- -- Territory Toggles -- -->
+<!-- -- Render Mode Selector -- -->
+<h4 class="sub-heading">🎨 Render Mode</h4>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Mode</span>
+        <select
+            class="mode-select"
+            value={panel.territoryRenderMode ??
+                GAME_CONFIG.TERRITORY_RENDER_MODE ??
+                "vs_pvv3"}
+            onchange={(e) => {
+                selectRenderMode((e.target as HTMLSelectElement).value);
+            }}
+        >
+            {#each RENDER_MODE_OPTIONS as opt}
+                <option value={opt.id}>{opt.label}</option>
+            {/each}
+        </select>
+    </div>
+</div>
+
+<!-- -- Territory Toggles (legacy, kept for fine-grained control) -- -->
 <h4 class="sub-heading">Active Layers</h4>
 <div class="var-row">
     <div class="row-top">
@@ -629,7 +736,8 @@
         <label class="toggle-switch">
             <input
                 type="checkbox"
-                checked={panel.territoryEngine ?? GAME_CONFIG.TERRITORY_ENGINE_ENABLED}
+                checked={panel.territoryEngine ??
+                    GAME_CONFIG.TERRITORY_ENGINE_ENABLED}
                 onchange={(e) => {
                     selectTerritory(
                         "territoryEngine",
@@ -837,7 +945,10 @@
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Mode</span>
-            <span class="val">{panel.territoryEngineMode ?? GAME_CONFIG.TERRITORY_ENGINE_MODE}</span>
+            <span class="val"
+                >{panel.territoryEngineMode ??
+                    GAME_CONFIG.TERRITORY_ENGINE_MODE}</span
+            >
         </div>
         <div style="display:flex; gap:4px; flex-wrap:wrap;">
             {#each TERRITORY_ENGINE_MODE_OPTIONS as option}
@@ -856,18 +967,24 @@
             {/each}
         </div>
     </div>
-    <div class="var-row engine-control-group" class:reference-only={staticMethodControlState.disabled}>
+    <div
+        class="var-row engine-control-group"
+        class:reference-only={staticMethodControlState.disabled}
+    >
         <div class="row-top">
             <span class="var-name">Static Method</span>
             <span class="val">{staticMethodControlState.badge}</span>
         </div>
-        <div class="row-bottom engine-route-hint">{staticMethodControlState.note}</div>
+        <div class="row-bottom engine-route-hint">
+            {staticMethodControlState.note}
+        </div>
         <div style="display:flex; gap:4px; flex-wrap:wrap;">
             {#each TERRITORY_ENGINE_METHOD_OPTIONS as option}
                 <button
                     class="mini-btn"
                     class:active={(panel.territoryEngineStaticMethod ??
-                        GAME_CONFIG.TERRITORY_ENGINE_STATIC_METHOD) === option.id}
+                        GAME_CONFIG.TERRITORY_ENGINE_STATIC_METHOD) ===
+                        option.id}
                     class:reference-only={staticMethodControlState.disabled}
                     disabled={staticMethodControlState.disabled}
                     onclick={() => {
@@ -881,18 +998,24 @@
             {/each}
         </div>
     </div>
-    <div class="var-row engine-control-group" class:reference-only={dynamicMethodControlState.disabled}>
+    <div
+        class="var-row engine-control-group"
+        class:reference-only={dynamicMethodControlState.disabled}
+    >
         <div class="row-top">
             <span class="var-name">Dynamic Method</span>
             <span class="val">{dynamicMethodControlState.badge}</span>
         </div>
-        <div class="row-bottom engine-route-hint">{dynamicMethodControlState.note}</div>
+        <div class="row-bottom engine-route-hint">
+            {dynamicMethodControlState.note}
+        </div>
         <div style="display:flex; gap:4px; flex-wrap:wrap;">
             {#each TERRITORY_ENGINE_DYNAMIC_OPTIONS as option}
                 <button
                     class="mini-btn"
                     class:active={(panel.territoryEngineDynamicMethod ??
-                        GAME_CONFIG.TERRITORY_ENGINE_DYNAMIC_METHOD) === option.id}
+                        GAME_CONFIG.TERRITORY_ENGINE_DYNAMIC_METHOD) ===
+                        option.id}
                     class:reference-only={dynamicMethodControlState.disabled}
                     disabled={dynamicMethodControlState.disabled}
                     onclick={() => {
@@ -906,12 +1029,17 @@
             {/each}
         </div>
     </div>
-    <div class="var-row engine-control-group" class:reference-only={hybridPlanControlState.disabled}>
+    <div
+        class="var-row engine-control-group"
+        class:reference-only={hybridPlanControlState.disabled}
+    >
         <div class="row-top">
             <span class="var-name">Hybrid Plan</span>
             <span class="val">{hybridPlanControlState.badge}</span>
         </div>
-        <div class="row-bottom engine-route-hint">{hybridPlanControlState.note}</div>
+        <div class="row-bottom engine-route-hint">
+            {hybridPlanControlState.note}
+        </div>
         <div style="display:flex; gap:4px; flex-wrap:wrap;">
             {#each TERRITORY_ENGINE_HYBRID_OPTIONS as option}
                 <button
@@ -938,14 +1066,26 @@
         </div>
         <div class="trace-chip-row">
             <span class="trace-chip">mode {territoryEngineRoute.mode}</span>
-            <span class="trace-chip">static {territoryEngineRoute.staticLabel}</span>
-            <span class="trace-chip">dynamic {territoryEngineRoute.dynamicLabel}</span>
-            <span class="trace-chip">hybrid {territoryEngineRoute.hybridLabel}</span>
+            <span class="trace-chip"
+                >static {territoryEngineRoute.staticLabel}</span
+            >
+            <span class="trace-chip"
+                >dynamic {territoryEngineRoute.dynamicLabel}</span
+            >
+            <span class="trace-chip"
+                >hybrid {territoryEngineRoute.hybridLabel}</span
+            >
         </div>
-        <div class="row-bottom" style="font-size:10px; opacity:0.74; padding:4px 0 0;">
+        <div
+            class="row-bottom"
+            style="font-size:10px; opacity:0.74; padding:4px 0 0;"
+        >
             {territoryEngineRouteNote}
         </div>
-        <div class="row-bottom" style="font-size:10px; opacity:0.58; padding:2px 0 0;">
+        <div
+            class="row-bottom"
+            style="font-size:10px; opacity:0.58; padding:2px 0 0;"
+        >
             {territoryEngineInteropNote}
         </div>
     </div>
@@ -953,18 +1093,25 @@
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Distance Metric</span>
-            <span class="val">{panel.dfDistanceMetric ?? GAME_CONFIG.DF_DISTANCE_METRIC}</span>
+            <span class="val"
+                >{panel.dfDistanceMetric ??
+                    GAME_CONFIG.DF_DISTANCE_METRIC}</span
+            >
         </div>
         <div style="display:flex; gap:4px; flex-wrap:wrap;">
             <button
                 class="mini-btn"
-                class:active={(panel.dfDistanceMetric ?? GAME_CONFIG.DF_DISTANCE_METRIC) === "length"}
-                onclick={() => updatePanel("dfDistanceMetric", "length")}>Length</button
+                class:active={(panel.dfDistanceMetric ??
+                    GAME_CONFIG.DF_DISTANCE_METRIC) === "length"}
+                onclick={() => updatePanel("dfDistanceMetric", "length")}
+                >Length</button
             >
             <button
                 class="mini-btn"
-                class:active={(panel.dfDistanceMetric ?? GAME_CONFIG.DF_DISTANCE_METRIC) === "hops"}
-                onclick={() => updatePanel("dfDistanceMetric", "hops")}>Hops</button
+                class:active={(panel.dfDistanceMetric ??
+                    GAME_CONFIG.DF_DISTANCE_METRIC) === "hops"}
+                onclick={() => updatePanel("dfDistanceMetric", "hops")}
+                >Hops</button
             >
         </div>
     </div>
@@ -1023,7 +1170,8 @@
                     class:active={(panel.dfMorphEasing ??
                         GAME_CONFIG.DF_MORPH_EASING ??
                         "linear") === easing.id}
-                    onclick={() => updatePanel("dfMorphEasing", easing.id)}>{easing.label}</button
+                    onclick={() => updatePanel("dfMorphEasing", easing.id)}
+                    >{easing.label}</button
                 >
             {/each}
         </div>
@@ -1041,21 +1189,23 @@
                 class="mini-btn"
                 class:active={(panel.territoryBoundaryMode ??
                     GAME_CONFIG.TERRITORY_BOUNDARY_MODE) === "segment"}
-                onclick={() => debouncedConfigUpdate(
-                    "TERRITORY_BOUNDARY_MODE",
-                    "territoryBoundaryMode",
-                    "segment",
-                )}>Segment</button
+                onclick={() =>
+                    debouncedConfigUpdate(
+                        "TERRITORY_BOUNDARY_MODE",
+                        "territoryBoundaryMode",
+                        "segment",
+                    )}>Segment</button
             >
             <button
                 class="mini-btn"
                 class:active={(panel.territoryBoundaryMode ??
                     GAME_CONFIG.TERRITORY_BOUNDARY_MODE) === "smooth"}
-                onclick={() => debouncedConfigUpdate(
-                    "TERRITORY_BOUNDARY_MODE",
-                    "territoryBoundaryMode",
-                    "smooth",
-                )}>Smooth</button
+                onclick={() =>
+                    debouncedConfigUpdate(
+                        "TERRITORY_BOUNDARY_MODE",
+                        "territoryBoundaryMode",
+                        "smooth",
+                    )}>Smooth</button
             >
         </div>
     </div>
@@ -1072,28 +1222,32 @@
                 class="mini-btn"
                 class:active={(panel.territoryFillMode ??
                     GAME_CONFIG.TERRITORY_FILL_MODE) === "crossfade"}
-                onclick={() => debouncedConfigUpdate(
-                    "TERRITORY_FILL_MODE",
-                    "territoryFillMode",
-                    "crossfade",
-                )}>Crossfade</button
+                onclick={() =>
+                    debouncedConfigUpdate(
+                        "TERRITORY_FILL_MODE",
+                        "territoryFillMode",
+                        "crossfade",
+                    )}>Crossfade</button
             >
             <button
                 class="mini-btn"
                 class:active={(panel.territoryFillMode ??
                     GAME_CONFIG.TERRITORY_FILL_MODE) === "frontier"}
-                onclick={() => debouncedConfigUpdate(
-                    "TERRITORY_FILL_MODE",
-                    "territoryFillMode",
-                    "frontier",
-                )}>Frontier</button
+                onclick={() =>
+                    debouncedConfigUpdate(
+                        "TERRITORY_FILL_MODE",
+                        "territoryFillMode",
+                        "frontier",
+                    )}>Frontier</button
             >
         </div>
     </div>
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Fill Alpha</span><span class="val"
-                >{(panel.voronoiAlpha ?? GAME_CONFIG.VORONOI_ALPHA).toFixed(2)}</span
+                >{(panel.voronoiAlpha ?? GAME_CONFIG.VORONOI_ALPHA).toFixed(
+                    2,
+                )}</span
             >
         </div>
         <input
@@ -1317,7 +1471,8 @@
     </div>
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name">DX Disconnect Distance</span><span class="val"
+            <span class="var-name">DX Disconnect Distance</span><span
+                class="val"
                 >{panel.modifiedVoronoiDisconnectDistance ??
                     GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE}px</span
             >
@@ -1377,7 +1532,10 @@
         <div class="var-row compact">
             <div class="row-top">
                 <span class="var-name">Advance Stage</span>
-                <span class="val">{panel.territoryEngineStepAdvanceToken ?? GAME_CONFIG.TERRITORY_ENGINE_STEP_ADVANCE_TOKEN}</span>
+                <span class="val"
+                    >{panel.territoryEngineStepAdvanceToken ??
+                        GAME_CONFIG.TERRITORY_ENGINE_STEP_ADVANCE_TOKEN}</span
+                >
             </div>
             <div style="display:flex; gap:6px;">
                 <button
@@ -1385,8 +1543,12 @@
                     onclick={() => {
                         const nextToken =
                             (panel.territoryEngineStepAdvanceToken ??
-                                GAME_CONFIG.TERRITORY_ENGINE_STEP_ADVANCE_TOKEN) + 1;
-                        updatePanel("territoryEngineStepAdvanceToken", nextToken);
+                                GAME_CONFIG.TERRITORY_ENGINE_STEP_ADVANCE_TOKEN) +
+                            1;
+                        updatePanel(
+                            "territoryEngineStepAdvanceToken",
+                            nextToken,
+                        );
                     }}>Advance</button
                 >
                 <button
@@ -1409,17 +1571,32 @@
         </div>
         {#if $territoryTraceRun}
             <div class="trace-chip-row">
-                <span class="trace-chip">steps {$territoryTraceRun.steps.length}/{TERRITORY_PIPELINE_STAGE_ORDER.length}</span>
-                <span class="trace-chip">next {getNextTraceStageLabel($territoryTraceRun.steps.length)}</span>
-                <span class="trace-chip">mode {$territoryTraceRun.selection.mode}</span>
-                <span class="trace-chip">static {$territoryTraceRun.selection.staticMethodId}</span>
-                <span class="trace-chip">{$territoryTraceRun.totalDurationMs}ms</span>
+                <span class="trace-chip"
+                    >steps {$territoryTraceRun.steps
+                        .length}/{TERRITORY_PIPELINE_STAGE_ORDER.length}</span
+                >
+                <span class="trace-chip"
+                    >next {getNextTraceStageLabel(
+                        $territoryTraceRun.steps.length,
+                    )}</span
+                >
+                <span class="trace-chip"
+                    >mode {$territoryTraceRun.selection.mode}</span
+                >
+                <span class="trace-chip"
+                    >static {$territoryTraceRun.selection.staticMethodId}</span
+                >
+                <span class="trace-chip"
+                    >{$territoryTraceRun.totalDurationMs}ms</span
+                >
             </div>
 
             <div class="trace-section">
                 <div class="trace-section-title">Meta</div>
                 <div class="trace-summary">
-                    {summarizeTraceRecord($territoryTraceRun.meta, 8).join(" | ")}
+                    {summarizeTraceRecord($territoryTraceRun.meta, 8).join(
+                        " | ",
+                    )}
                 </div>
             </div>
 
@@ -1440,7 +1617,9 @@
             <div class="trace-section">
                 <div class="trace-section-title">Holding Transitions</div>
                 <div class="trace-summary">
-                    {getOwnerHoldingTransitionSummary($territoryTraceRun.artifacts).join(" | ")}
+                    {getOwnerHoldingTransitionSummary(
+                        $territoryTraceRun.artifacts,
+                    ).join(" | ")}
                 </div>
                 {#each getOwnerHoldingTransitionPreviewEntries($territoryTraceRun.artifacts) as entry}
                     <div class="trace-detail-line">{entry.summary}</div>
@@ -1452,10 +1631,14 @@
                     <div class="trace-entry">
                         <div class="trace-entry-head">
                             <span class="trace-badge">{entry.stageId}</span>
-                            <span class="val">{Object.keys(entry.artifact).length} keys</span>
+                            <span class="val"
+                                >{Object.keys(entry.artifact).length} keys</span
+                            >
                         </div>
                         <div class="trace-summary">
-                            {summarizeTraceRecord(entry.artifact, 8).join(" | ")}
+                            {summarizeTraceRecord(entry.artifact, 8).join(
+                                " | ",
+                            )}
                         </div>
                     </div>
                 {/each}
@@ -1477,7 +1660,8 @@
             </div>
         {:else}
             <div class="trace-empty">
-                Enable Trace Mode or Step Mode to capture a territory-engine run here.
+                Enable Trace Mode or Step Mode to capture a territory-engine run
+                here.
             </div>
         {/if}
     </div>

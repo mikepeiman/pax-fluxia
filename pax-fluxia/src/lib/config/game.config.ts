@@ -298,6 +298,7 @@ interface GameConfigType {
     TERRITORY_CLUSTER_SPLIT: boolean; // Split disconnected same-owner stars into separate territory blobs (default false)
     TERRITORY_MODE: 'voronoi' | 'metaball' | 'off';  // LEGACY — kept for compat
     TERRITORY_DISTANCE_FIELD: boolean; // Enable distance-field territory renderer (default false)
+    TERRITORY_RENDER_MODE: string;    // Active render mode: 'none' | 'vs_pvv3' | 'power_voronoi' | 'distance_field' | 'voronoi' | 'metaball' | 'pixel' | 'graph' | 'contour'
 
     // ── Distance Field Territory ──────────────────────────────────────────────
     DF_RESOLUTION: number;          // Grid resolution divisor (4 = quarter res, default 4)
@@ -1042,6 +1043,8 @@ const _rawConfig: GameConfigType = {
     TERRITORY_CLUSTER_SPLIT: false,
     /** LEGACY territory mode — kept for compat */
     TERRITORY_MODE: 'metaball' as 'voronoi' | 'metaball' | 'off',
+    /** Active render mode selector */
+    TERRITORY_RENDER_MODE: 'vs_pvv3',
 
     /** Show contiguous Voronoi territory fill */
     SHOW_VORONOI: false,

@@ -248,6 +248,7 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'territoryFillMode', configKey: 'TERRITORY_FILL_MODE' },
     { panelKey: 'territoryMorphControlPoints', configKey: 'TERRITORY_MORPH_CONTROL_POINTS' },
     { panelKey: 'territoryMode', configKey: 'TERRITORY_MODE' },
+    { panelKey: 'territoryRenderMode', configKey: 'TERRITORY_RENDER_MODE' },
     { panelKey: 'territoryEngine', configKey: 'TERRITORY_ENGINE_ENABLED' },
     { panelKey: 'territoryEngineMode', configKey: 'TERRITORY_ENGINE_MODE' },
     { panelKey: 'territoryEngineStaticMethod', configKey: 'TERRITORY_ENGINE_STATIC_METHOD' },
