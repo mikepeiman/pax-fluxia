@@ -117,7 +117,15 @@
     // Config state
     let showMobileOptions = $state(false);
     let gameSetupOpen = $state(false);
+    let mapMode = $state<"random" | "classic">(
+        loadSetting("mapMode", "random"),
+    );
     let mapType = $state(loadSetting("mapType", "standard"));
+    let selectedClassicMap = $state<string | null>(
+        loadSetting("selectedClassicMap", null),
+    );
+    let showHowToPlay = $state(false);
+    let showControls = $state(false);
     let playerCount = $state<GameSettings["playerCount"]>(
         loadSetting("playerCount", 6),
     );
@@ -187,10 +195,6 @@
     let confirmJoinTarget = $state<RoomListing | null>(null);
     let selectedTakeOverId = $state<string | null>(null);
 
-    // F-161: Classic map selection for MP
-    import type { MapDefinition } from "$lib/types/map.types";
-    let selectedMPMap = $state<MapDefinition | null>(null);
-
     // Auto-refresh room list when MP tab is visible
     $effect(() => {
         if (gameMode === "mp" && !multiplayerStore.isConnected) {
@@ -203,7 +207,9 @@
 
     // â”€â”€ Actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     function saveAllSettings() {
+        saveSetting("mapMode", mapMode);
         saveSetting("mapType", mapType);
+        saveSetting("selectedClassicMap", selectedClassicMap);
         saveSetting("playerCount", playerCount);
         saveSetting("difficulty", difficulty);
         saveSetting("starsPerPlayer", starsPerPlayer);
@@ -260,6 +266,20 @@
 
     function startSPGame() {
         saveAllSettings();
+        // If classic map selected, load it first
+        if (mapMode === "classic" && selectedClassicMap) {
+            const allMaps = gameStore.savedMaps;
+            const classicMap = allMaps.find(
+                (m) => m.metadata.name === selectedClassicMap,
+            );
+            if (classicMap) {
+                applyConfig();
+                gameStore.loadSavedMap(classicMap);
+                gameStore.restart();
+                visible = false;
+                return;
+            }
+        }
         applyConfig();
         gameStore.restart();
         visible = false;
@@ -277,14 +297,10 @@
 
         const gameplayConfig = buildEngineConfig();
 
-        // F-161: If a classic/saved map is selected, send it as mapData
-        const isClassicMap = selectedMPMap !== null;
-        const roomMapType = isClassicMap ? "classic" : selectedMap.mapType;
-
-        // Wire ALL setup variables to MP room (F-65, F-161)
+        // Wire ALL setup variables to MP room (F-65)
         await multiplayerStore.createRoom({
             playerCount,
-            mapType: roomMapType,
+            mapType: selectedMap.mapType,
             starsPerPlayer,
             shipsPerStar,
             starSpacing,
@@ -292,9 +308,6 @@
             maxLinks,
             retainOrderOnConquest,
             gameplayConfig,
-            ...(isClassicMap && selectedMPMap
-                ? { mapData: $state.snapshot(selectedMPMap) }
-                : {}),
         });
 
         // Also set player identity on the store
@@ -453,94 +466,201 @@
                 <section class="col-setup panel">
                     <h2 class="section-heading">GAME SETUP</h2>
 
-                    <!-- Map Selection -->
+                    <!-- Map Mode Tabs -->
                     <div class="control-group">
                         <label>MAP</label>
-                        <div class="map-card-row">
-                            {#each MAP_DEFS as m}
-                                <button
-                                    class="map-card"
-                                    class:active={mapType === m.id}
-                                    class:debug={m.id.startsWith("debug")}
-                                    onclick={() => (mapType = m.id)}
-                                >
+                        <div class="map-mode-tabs">
+                            <button
+                                class="map-tab"
+                                class:active={mapMode === "random"}
+                                onclick={() => {
+                                    mapMode = "random";
+                                    mapType = "standard";
+                                }}>🎲 RANDOM</button
+                            >
+                            <button
+                                class="map-tab"
+                                class:active={mapMode === "classic"}
+                                onclick={() => {
+                                    mapMode = "classic";
+                                }}>🗺️ CLASSIC</button
+                            >
+                        </div>
+                    </div>
+
+                    <!-- Map Columns -->
+                    <div class="map-columns">
+                        {#if mapMode === "random"}
+                            <!-- Random Map Settings -->
+                            <div class="map-col-content">
+                                <div class="config-row-3">
+                                    <div class="config-item">
+                                        <label>Stars per player</label>
+                                        <div class="slider-container">
+                                            <input
+                                                type="range"
+                                                min="1"
+                                                max="20"
+                                                bind:value={starsPerPlayer}
+                                            />
+                                            <span class="value"
+                                                >{starsPerPlayer}</span
+                                            >
+                                        </div>
+                                    </div>
+                                    <div class="config-item">
+                                        <label
+                                            >Links <span
+                                                >[{minLinks}-{maxLinks}]</span
+                                            ></label
+                                        >
+                                        <div
+                                            class="slider-container"
+                                            style="padding: 0 4px;"
+                                        >
+                                            <RangeDual
+                                                bind:min={minLinks}
+                                                bind:max={maxLinks}
+                                                minLimit={1}
+                                                maxLimit={8}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div class="config-item">
+                                        <label>Spacing</label>
+                                        <div class="slider-container">
+                                            <input
+                                                type="range"
+                                                min="0.5"
+                                                max="5.0"
+                                                step="0.1"
+                                                bind:value={starSpacing}
+                                            />
+                                            <span class="value"
+                                                >{starSpacing.toFixed(1)}x</span
+                                            >
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="random-map-preview">
                                     <svg
                                         class="map-thumb"
                                         viewBox="0 0 64 48"
                                         xmlns="http://www.w3.org/2000/svg"
                                     >
-                                        {#each m.connections as [a, b]}
-                                            {#if m.stars[a] && m.stars[b]}
+                                        {#each MAP_DEFS[0].connections as [a, b]}
+                                            {#if MAP_DEFS[0].stars[a] && MAP_DEFS[0].stars[b]}
                                                 <line
-                                                    x1={m.stars[a].x}
-                                                    y1={m.stars[a].y}
-                                                    x2={m.stars[b].x}
-                                                    y2={m.stars[b].y}
-                                                    stroke={mapType === m.id
-                                                        ? "#4488ff44"
-                                                        : "#334466"}
+                                                    x1={MAP_DEFS[0].stars[a].x}
+                                                    y1={MAP_DEFS[0].stars[a].y}
+                                                    x2={MAP_DEFS[0].stars[b].x}
+                                                    y2={MAP_DEFS[0].stars[b].y}
+                                                    stroke="#4488ff44"
                                                     stroke-width="1"
                                                 />
                                             {/if}
                                         {/each}
-                                        {#each m.stars as star}
+                                        {#each MAP_DEFS[0].stars as star}
                                             <circle
                                                 cx={star.x}
                                                 cy={star.y}
                                                 r="3"
                                                 fill={star.color}
-                                                opacity={mapType === m.id
-                                                    ? 1
-                                                    : 0.6}
                                             />
                                         {/each}
                                     </svg>
-                                    <span class="map-card-label">{m.label}</span
+                                </div>
+                            </div>
+                        {:else}
+                            <!-- Classic Map Cards -->
+                            <div class="classic-map-grid">
+                                {#each gameStore.savedMaps as m}
+                                    {@const xs = m.stars.map((s) => s.x)}
+                                    {@const ys = m.stars.map((s) => s.y)}
+                                    {@const pad = 20}
+                                    {@const minX = Math.min(...xs) - pad}
+                                    {@const minY = Math.min(...ys) - pad}
+                                    {@const maxX = Math.max(...xs) + pad}
+                                    {@const maxY = Math.max(...ys) + pad}
+                                    {@const vw = maxX - minX || 100}
+                                    {@const vh = maxY - minY || 100}
+                                    {@const starMap = Object.fromEntries(
+                                        m.stars.map((s) => [s.id, s]),
+                                    )}
+                                    <!-- svelte-ignore a11y_click_events_have_key_events -->
+                                    <!-- svelte-ignore a11y_no_static_element_interactions -->
+                                    <div
+                                        class="classic-map-card"
+                                        class:selected={selectedClassicMap ===
+                                            m.metadata.name}
+                                        onclick={() => {
+                                            selectedClassicMap =
+                                                m.metadata.name;
+                                        }}
                                     >
-                                </button>
-                            {/each}
-                        </div>
-                    </div>
-
-                    <!-- Links + Spacing -->
-                    <div class="config-row-3">
-                        <div class="config-item">
-                            <label
-                                >Links <span>[{minLinks}-{maxLinks}]</span
-                                ></label
-                            >
-                            <div
-                                class="slider-container"
-                                style="padding: 0 4px;"
-                            >
-                                <RangeDual
-                                    bind:min={minLinks}
-                                    bind:max={maxLinks}
-                                    minLimit={1}
-                                    maxLimit={8}
-                                />
+                                        <svg
+                                            class="classic-map-thumb"
+                                            viewBox="{minX} {minY} {vw} {vh}"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                        >
+                                            {#each m.connections as conn}
+                                                {@const src =
+                                                    starMap[conn.sourceId]}
+                                                {@const tgt =
+                                                    starMap[conn.targetId]}
+                                                {#if src && tgt}
+                                                    <line
+                                                        x1={src.x}
+                                                        y1={src.y}
+                                                        x2={tgt.x}
+                                                        y2={tgt.y}
+                                                        stroke={selectedClassicMap ===
+                                                        m.metadata.name
+                                                            ? "#4488ff55"
+                                                            : "#334466"}
+                                                        stroke-width={Math.max(
+                                                            1,
+                                                            vw * 0.006,
+                                                        )}
+                                                    />
+                                                {/if}
+                                            {/each}
+                                            {#each m.stars as star}
+                                                <circle
+                                                    cx={star.x}
+                                                    cy={star.y}
+                                                    r={Math.max(2, vw * 0.015)}
+                                                    fill={star.ownerId ===
+                                                    "neutral"
+                                                        ? "#666"
+                                                        : `hsl(${(m.stars.indexOf(star) * 60) % 360}, 70%, 60%)`}
+                                                    opacity={selectedClassicMap ===
+                                                    m.metadata.name
+                                                        ? 1
+                                                        : 0.7}
+                                                />
+                                            {/each}
+                                        </svg>
+                                        <span class="classic-card-label"
+                                            >{m.metadata.name}</span
+                                        >
+                                        <span class="classic-card-info"
+                                            >{m.stars.length}★</span
+                                        >
+                                    </div>
+                                {/each}
+                                {#if gameStore.savedMaps.length === 0}
+                                    <div class="no-maps-msg">
+                                        No maps loaded yet
+                                    </div>
+                                {/if}
                             </div>
-                        </div>
-                        <div class="config-item">
-                            <label>Spacing</label>
-                            <div class="slider-container">
-                                <input
-                                    type="range"
-                                    min="0.5"
-                                    max="5.0"
-                                    step="0.1"
-                                    bind:value={starSpacing}
-                                />
-                                <span class="value"
-                                    >{starSpacing.toFixed(1)}x</span
-                                >
-                            </div>
-                        </div>
+                        {/if}
                     </div>
 
                     <div class="section-divider"></div>
 
-                    <!-- Players + Stars + Ships -->
+                    <!-- Shared Settings -->
                     <div class="config-row-3">
                         <div class="control-group">
                             <label>PLAYERS</label>
@@ -552,18 +672,6 @@
                                         >{p}</button
                                     >
                                 {/each}
-                            </div>
-                        </div>
-                        <div class="config-item">
-                            <label>Stars per player</label>
-                            <div class="slider-container">
-                                <input
-                                    type="range"
-                                    min="1"
-                                    max="20"
-                                    bind:value={starsPerPlayer}
-                                />
-                                <span class="value">{starsPerPlayer}</span>
                             </div>
                         </div>
                         <div class="config-item">
@@ -662,90 +770,6 @@
                             <span>Allow opposing orders</span>
                         </label>
                     </div>
-
-                    {#if gameStore.savedMaps.length > 0}
-                        <div class="section-divider"></div>
-                        <div class="config-item">
-                            <label
-                                >SAVED MAPS
-                                {#if gameStore.defaultMapName}
-                                    <span class="default-map-badge"
-                                        >⚡ Default: {gameStore.defaultMapName}</span
-                                    >
-                                    <button
-                                        class="clear-default-btn"
-                                        onclick={() =>
-                                            gameStore.clearDefaultMap()}
-                                        title="Clear default map">✕</button
-                                    >
-                                {/if}
-                            </label>
-                            <div class="saved-maps-list">
-                                {#each gameStore.savedMaps as m}
-                                    <div
-                                        class="saved-map-row"
-                                        class:is-default={gameStore.defaultMapName ===
-                                            m.metadata.name}
-                                    >
-                                        <span class="saved-map-name"
-                                            >{m.metadata.name}</span
-                                        >
-                                        <span class="saved-map-info"
-                                            >{m.stars.length}★</span
-                                        >
-                                        <button
-                                            class="saved-map-btn default"
-                                            class:active={gameStore.defaultMapName ===
-                                                m.metadata.name}
-                                            onclick={() => {
-                                                if (
-                                                    gameStore.defaultMapName ===
-                                                    m.metadata.name
-                                                ) {
-                                                    gameStore.clearDefaultMap();
-                                                } else {
-                                                    gameStore.setDefaultMap(
-                                                        m.metadata.name,
-                                                    );
-                                                }
-                                            }}
-                                            title={gameStore.defaultMapName ===
-                                            m.metadata.name
-                                                ? "Remove as default"
-                                                : "Set as default map"}
-                                            >{gameStore.defaultMapName ===
-                                            m.metadata.name
-                                                ? "⚡"
-                                                : "☆"}</button
-                                        >
-                                        <button
-                                            class="saved-map-btn load"
-                                            onclick={() => {
-                                                gameStore.loadSavedMap(m);
-                                                startSPGame();
-                                            }}>▶</button
-                                        >
-                                        <button
-                                            class="saved-map-btn mp"
-                                            onclick={() => {
-                                                selectedMPMap = m;
-                                                handleCreateRoom();
-                                            }}
-                                            title="Create MP room with this map"
-                                            >🌐</button
-                                        >
-                                        <button
-                                            class="saved-map-btn del"
-                                            onclick={() =>
-                                                gameStore.deleteSavedMap(
-                                                    m.metadata.name,
-                                                )}>✕</button
-                                        >
-                                    </div>
-                                {/each}
-                            </div>
-                        </div>
-                    {/if}
 
                     <button
                         class="start-btn start-btn-primary"
@@ -1182,7 +1206,8 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        justify-content: center;
+        justify-content: flex-start;
+        padding-top: 5vh;
         overflow-y: auto;
         z-index: 100;
         font-family: "Montserrat", "Segoe UI", system-ui, sans-serif;
@@ -1197,12 +1222,15 @@
         z-index: 0;
     }
 
-    /* ── Background Picker ── */
+    /* ── Background Picker (top-right action bar) ── */
     .bg-picker {
         position: fixed;
         top: 12px;
         right: 12px;
         z-index: 120;
+        display: flex;
+        align-items: center;
+        gap: 6px;
     }
     .bg-picker-toggle {
         background: rgba(10, 20, 40, 0.7);
@@ -1215,6 +1243,7 @@
     }
     .bg-picker-toggle:hover {
         border-color: rgba(100, 200, 255, 0.5);
+        background: rgba(10, 20, 40, 0.9);
     }
     .bg-picker-dropdown {
         position: absolute;
@@ -1269,9 +1298,9 @@
     .menu-container {
         position: relative;
         z-index: 1;
-        width: 95%;
-        max-width: 1000px;
-        padding: 16px 0 24px;
+        width: 98%;
+        max-width: 1400px;
+        padding: 32px 0 40px;
     }
 
     /* ── Title ── */
@@ -1285,14 +1314,14 @@
     }
     .pax {
         display: block;
-        font-size: clamp(1.8rem, 4vw, 2.4rem);
+        font-size: clamp(2.4rem, 5vw, 3rem);
         font-weight: 300;
         letter-spacing: 0.5em;
         color: #aaccff;
     }
     .fluxia {
         display: block;
-        font-size: clamp(2.2rem, 5vw, 3rem);
+        font-size: clamp(3rem, 6vw, 4.2rem);
         font-weight: 800;
         letter-spacing: 0.15em;
         background: linear-gradient(180deg, #00eeff, #0088ff);
@@ -1305,25 +1334,27 @@
     .menu-columns {
         display: grid;
         grid-template-columns: 1.5fr 1fr;
-        gap: 16px;
-        align-items: start;
+        gap: 24px;
+        align-items: stretch;
     }
 
     .panel {
         background: rgba(8, 16, 32, 0.85);
         border: 1px solid rgba(100, 200, 255, 0.12);
         border-radius: 12px;
-        padding: 16px;
-        backdrop-filter: blur(8px);
+        padding: 24px;
+        backdrop-filter: blur(12px);
+        display: flex;
+        flex-direction: column;
     }
 
     .section-heading {
-        font-size: 0.7rem;
+        font-size: 0.9rem;
         font-weight: 700;
         letter-spacing: 0.2em;
         color: #00cccc;
-        margin: 0 0 12px;
-        padding-bottom: 6px;
+        margin: 0 0 16px;
+        padding-bottom: 8px;
         border-bottom: 1px solid rgba(0, 200, 200, 0.15);
         text-transform: uppercase;
     }
@@ -1338,11 +1369,11 @@
     .control-group label,
     .config-item label {
         display: block;
-        font-size: 0.65rem;
+        font-size: 0.85rem;
         font-weight: 600;
         letter-spacing: 0.12em;
         color: rgba(200, 220, 255, 0.5);
-        margin-bottom: 4px;
+        margin-bottom: 8px;
         text-transform: uppercase;
     }
     .control-group label span,
@@ -1351,93 +1382,177 @@
         font-weight: 400;
     }
 
-    /* ── Map Cards ── */
-    .map-card-row {
+    /* ── Map Mode Tabs ── */
+    .map-mode-tabs {
         display: flex;
-        gap: 6px;
-        flex-wrap: wrap;
+        gap: 4px;
+        margin-bottom: 8px;
     }
-    .map-card {
+    .map-tab {
         flex: 1;
-        min-width: 80px;
-        max-width: 140px;
+        padding: 12px 16px;
+        font-size: 1rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
         background: rgba(10, 20, 40, 0.6);
+        color: rgba(200, 220, 255, 0.5);
         border: 1px solid rgba(100, 200, 255, 0.1);
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-family: inherit;
+        text-transform: uppercase;
+    }
+    .map-tab:hover {
+        border-color: rgba(100, 200, 255, 0.3);
+        color: #fff;
+    }
+    .map-tab.active {
+        background: rgba(0, 100, 200, 0.2);
+        border-color: #00ccff;
+        color: #00eeff;
+        box-shadow: 0 0 12px rgba(0, 200, 255, 0.15);
+    }
+
+    /* ── Map Columns Content ── */
+    .map-columns {
+        min-height: 100px;
+    }
+    .map-col-content {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    .random-map-preview {
+        background: rgba(10, 20, 40, 0.4);
+        border: 1px solid rgba(100, 200, 255, 0.08);
         border-radius: 8px;
-        padding: 6px;
+        padding: 8px;
+        text-align: center;
+    }
+    .random-map-preview .map-thumb {
+        width: 100%;
+        max-width: 200px;
+        height: auto;
+    }
+
+    /* ── Classic Map Cards ── */
+    .classic-map-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        max-height: 400px;
+        overflow-y: auto;
+        padding-right: 8px;
+    }
+    .classic-map-grid::-webkit-scrollbar {
+        width: 4px;
+    }
+    .classic-map-grid::-webkit-scrollbar-track {
+        background: rgba(10, 20, 40, 0.3);
+        border-radius: 2px;
+    }
+    .classic-map-grid::-webkit-scrollbar-thumb {
+        background: rgba(100, 200, 255, 0.2);
+        border-radius: 2px;
+    }
+    .classic-map-card {
+        width: calc(50% - 6px);
+        background: rgba(10, 20, 40, 0.5);
+        border: 1px solid rgba(100, 200, 255, 0.08);
+        border-radius: 8px;
+        padding: 10px;
         cursor: pointer;
         transition: all 0.15s;
         text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
     }
-    .map-card:hover {
+    .classic-map-card:hover {
         border-color: rgba(100, 200, 255, 0.3);
+        background: rgba(10, 20, 40, 0.7);
     }
-    .map-card.active {
+    .classic-map-card.selected {
         border-color: #00ccff;
-        background: rgba(0, 100, 200, 0.12);
+        background: rgba(0, 100, 200, 0.15);
         box-shadow: 0 0 12px rgba(0, 200, 255, 0.15);
     }
-    .map-card.debug {
-        opacity: 0.5;
-    }
-    .map-thumb {
+    .classic-map-thumb {
         width: 100%;
-        height: auto;
+        height: 100px;
         display: block;
+        background: rgba(5, 10, 20, 0.4);
+        border-radius: 4px;
     }
-    .map-card-label {
+    .classic-card-label {
         display: block;
-        font-size: 0.55rem;
-        color: rgba(200, 220, 255, 0.5);
-        letter-spacing: 0.08em;
-        margin-top: 4px;
+        font-size: 0.85rem;
+        color: rgba(200, 220, 255, 0.6);
+        letter-spacing: 0.06em;
         text-transform: uppercase;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
     }
-    .map-card.active .map-card-label {
-        color: #00ccff;
+    .classic-map-card.selected .classic-card-label {
+        color: #00eeff;
+    }
+    .classic-card-info {
+        font-size: 0.75rem;
+        color: rgba(200, 220, 255, 0.35);
+    }
+    .no-maps-msg {
+        font-size: 1rem;
+        color: rgba(200, 220, 255, 0.3);
+        text-align: center;
+        padding: 24px;
+        width: 100%;
     }
 
     /* ── Config rows (3-across) ── */
     .config-row-3 {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
-        gap: 12px;
-        margin-top: 10px;
+        gap: 16px;
+        margin-top: 16px;
     }
 
     .slider-container {
         display: flex;
         align-items: center;
-        gap: 6px;
+        gap: 10px;
     }
     .slider-container input[type="range"] {
         flex: 1;
-        height: 4px;
+        height: 8px;
         -webkit-appearance: none;
         appearance: none;
         background: rgba(100, 200, 255, 0.15);
-        border-radius: 2px;
+        border-radius: 4px;
         outline: none;
     }
     .slider-container input[type="range"]::-webkit-slider-thumb {
         -webkit-appearance: none;
-        width: 14px;
-        height: 14px;
+        width: 20px;
+        height: 20px;
         border-radius: 50%;
         background: #00ccff;
         cursor: pointer;
         box-shadow: 0 0 6px rgba(0, 200, 255, 0.4);
     }
     .value {
-        font-size: 0.7rem;
+        font-size: 0.95rem;
         color: #00cccc;
         font-weight: 600;
-        min-width: 28px;
+        min-width: 40px;
         text-align: right;
         font-variant-numeric: tabular-nums;
     }
     .mini-label {
-        font-size: 0.55rem;
+        font-size: 0.75rem;
         color: rgba(200, 220, 255, 0.4);
         letter-spacing: 0.08em;
         text-transform: uppercase;
@@ -1447,12 +1562,12 @@
     /* Button row (players) */
     .button-row {
         display: flex;
-        gap: 2px;
+        gap: 4px;
     }
     .button-row button {
         flex: 1;
-        padding: 4px 0;
-        font-size: 0.7rem;
+        padding: 8px 0;
+        font-size: 0.95rem;
         font-weight: 600;
         background: rgba(10, 20, 40, 0.6);
         color: rgba(200, 220, 255, 0.5);
@@ -1490,10 +1605,10 @@
         background: rgba(10, 20, 40, 0.6);
         border: 1px solid rgba(100, 200, 255, 0.15);
         border-radius: 6px;
-        padding: 6px 10px;
+        padding: 10px 14px;
         color: #e0e0e0;
         font-family: inherit;
-        font-size: 0.75rem;
+        font-size: 0.95rem;
         outline: none;
     }
     .identity-name-input:focus {
@@ -1510,18 +1625,18 @@
         flex-shrink: 0;
     }
     .audio-compact input[type="range"] {
-        width: 60px;
-        height: 4px;
+        width: 80px;
+        height: 6px;
         -webkit-appearance: none;
         appearance: none;
         background: rgba(100, 200, 255, 0.15);
-        border-radius: 2px;
+        border-radius: 3px;
         outline: none;
     }
     .audio-compact input[type="range"]::-webkit-slider-thumb {
         -webkit-appearance: none;
-        width: 12px;
-        height: 12px;
+        width: 14px;
+        height: 14px;
         border-radius: 50%;
         background: #00ccff;
         cursor: pointer;
@@ -1529,9 +1644,9 @@
     .mute-btn {
         background: transparent;
         border: none;
-        font-size: 1rem;
+        font-size: 1.2rem;
         cursor: pointer;
-        padding: 2px;
+        padding: 4px;
         line-height: 1;
     }
     .mute-btn.muted {
@@ -1542,8 +1657,8 @@
         border: 1px solid rgba(0, 170, 170, 0.4);
         border-radius: 4px;
         cursor: pointer;
-        font-size: 1rem;
-        padding: 2px 6px;
+        font-size: 1.2rem;
+        padding: 4px 8px;
         transition: all 0.15s;
     }
     .audio-open-btn:hover {
@@ -1553,22 +1668,22 @@
     /* ── Options ── */
     .options-row {
         display: flex;
-        gap: 16px;
-        margin-top: 8px;
+        gap: 20px;
+        margin-top: 12px;
         flex-wrap: wrap;
     }
     .checkbox-label {
         display: flex;
         align-items: center;
-        gap: 6px;
-        font-size: 0.65rem;
+        gap: 8px;
+        font-size: 0.85rem;
         color: rgba(200, 220, 255, 0.5);
         cursor: pointer;
     }
     .checkbox-label input[type="checkbox"] {
         accent-color: #00ccff;
-        width: 14px;
-        height: 14px;
+        width: 18px;
+        height: 18px;
     }
 
     /* ── Saved Maps ── */
@@ -1611,10 +1726,6 @@
         border-color: rgba(255, 80, 80, 0.4);
         color: #fca5a5;
     }
-    .saved-map-btn.mp:hover {
-        border-color: rgba(100, 200, 255, 0.5);
-        color: #7dd3fc;
-    }
     .saved-map-btn.default {
         font-size: 0.85rem;
         padding: 1px 4px;
@@ -1648,10 +1759,10 @@
     .start-btn {
         position: relative;
         width: 100%;
-        padding: 14px;
-        margin-top: 12px;
+        padding: 18px;
+        margin-top: 16px;
         font-family: inherit;
-        font-size: 1rem;
+        font-size: 1.2rem;
         font-weight: 800;
         letter-spacing: 0.15em;
         color: #fff;
@@ -1684,8 +1795,9 @@
         opacity: 1;
     }
     .start-btn-primary {
-        font-size: 1.1rem;
-        padding: 16px;
+        font-size: 1.4rem;
+        padding: 24px;
+        margin-top: auto;
     }
 
     /* ═══ RIGHT COLUMN ═══ */
@@ -1696,12 +1808,12 @@
         display: flex;
         align-items: center;
         gap: 8px;
-        margin-bottom: 6px;
+        margin-bottom: 12px;
     }
     .player-config-header label {
         flex: 1;
-        font-size: 0.65rem;
-        font-weight: 600;
+        font-size: 0.9rem;
+        font-weight: 700;
         letter-spacing: 0.12em;
         color: rgba(200, 220, 255, 0.5);
         text-transform: uppercase;
@@ -1713,8 +1825,8 @@
         border-radius: 4px;
         color: rgba(200, 220, 255, 0.5);
         cursor: pointer;
-        font-size: 0.6rem;
-        padding: 2px 6px;
+        font-size: 0.85rem;
+        padding: 4px 10px;
         font-family: inherit;
         transition: all 0.15s;
     }
@@ -1759,53 +1871,58 @@
     .player-config-list {
         display: flex;
         flex-direction: column;
-        gap: 3px;
+        gap: 8px;
     }
     .player-config-row.inline-row {
         display: flex;
         align-items: center;
-        gap: 6px;
-        padding: 4px 6px;
-        border-radius: 4px;
-        background: rgba(10, 20, 40, 0.3);
+        gap: 12px;
+        padding: 8px 12px;
+        border-radius: 6px;
+        background: rgba(10, 20, 40, 0.4);
     }
     .player-label-inline {
-        font-size: 0.65rem;
+        font-size: 0.85rem;
         font-weight: 600;
-        color: rgba(200, 220, 255, 0.5);
-        min-width: 20px;
+        color: rgba(200, 220, 255, 0.6);
+        min-width: 30px;
     }
     .inline-select {
         flex: 1;
-        padding: 3px 4px;
-        font-size: 0.65rem;
+        padding: 10px 12px;
+        font-size: 0.95rem;
         font-family: inherit;
-        background: rgba(10, 20, 40, 0.6);
+        background: rgba(10, 30, 60, 0.6);
         color: #aaccff;
-        border: 1px solid rgba(100, 200, 255, 0.15);
-        border-radius: 4px;
+        border: 1px solid rgba(100, 200, 255, 0.2);
+        border-radius: 6px;
+        outline: none;
+    }
+    .inline-select:focus {
+        border-color: #00ccff;
+        box-shadow: 0 0 8px rgba(0, 200, 255, 0.2);
     }
 
     /* ── Multiplayer ── */
     .mp-label {
         display: block;
-        font-size: 0.65rem;
+        font-size: 0.85rem;
         font-weight: 600;
         letter-spacing: 0.12em;
         color: rgba(200, 220, 255, 0.5);
         text-transform: uppercase;
-        margin-bottom: 8px;
+        margin-bottom: 12px;
     }
     .mp-actions-compact {
         display: flex;
         flex-direction: column;
-        gap: 6px;
-        margin-bottom: 8px;
+        gap: 10px;
+        margin-bottom: 12px;
     }
     .mp-action-btn {
-        padding: 8px 12px;
+        padding: 12px 16px;
         font-family: inherit;
-        font-size: 0.7rem;
+        font-size: 0.95rem;
         font-weight: 700;
         letter-spacing: 0.1em;
         border: 1px solid rgba(0, 200, 200, 0.3);
@@ -1841,8 +1958,8 @@
     }
     .room-input {
         flex: 1;
-        padding: 6px 10px;
-        font-size: 0.7rem;
+        padding: 10px 14px;
+        font-size: 0.95rem;
         font-family: inherit;
         background: rgba(10, 20, 40, 0.6);
         border: 1px solid rgba(100, 200, 255, 0.15);
@@ -2283,7 +2400,7 @@
         }
         .menu-container {
             width: 100%;
-            padding: 12px;
+            padding: 16px;
         }
         .identity-audio-row {
             flex-direction: column;
