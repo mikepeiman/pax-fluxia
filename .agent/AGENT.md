@@ -106,14 +106,19 @@ Code reads like a game story, not CS jargon.
 - Game time only: `gameNowMs` (FXClock), never `performance.now()` in game code.
 - Exhaustive cleanup: when renaming, grep ALL references, fix in one pass.
 
-### 3.4 Slider Reactivity (Critical Pattern)
+### 3.4 Documentation File Naming
+All documentation and reference files must be named: `yyyy-mm-dd__hhmm semantic-name.ext`
+- Example: `2026-03-15__1435 territory_engine_master_plan_v3.md`
+- Exception: session logs (`SESSION_YYYY-MM-DD.md`, `CHAT_YYYY-MM-DD.md`) keep their existing convention.
+
+### 3.5 Slider Reactivity (Critical Pattern)
 All UI sliders read from `panel.xxx` ($state), never `GAME_CONFIG.xxx`:
 1. Add entry to `PANEL_CONFIG_MAP` in `settingsDefs.ts`
 2. Template reads `panel.xxx`, writes via `updatePanel(key, value)`
 3. `syncPanelFromConfig()` handles theme/import sync
 4. **GAME_CONFIG is NOT reactive** â€” reading it in templates will not update
 
-### 3.5 Never Remove User Controls
+### 3.6 Never Remove User Controls
 Every `GAME_CONFIG` property with a UI element is sacred. Never delete, simplify, or hardcode over any slider/toggle/dropdown without explicit user instruction. **User configurability IS the product.**
 
 ---
