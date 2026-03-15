@@ -572,13 +572,25 @@
                                 </div>
                             </div>
                         {:else}
-                            <!-- Classic Map List -->
-                            <div class="classic-map-list">
+                            <!-- Classic Map Cards -->
+                            <div class="classic-map-grid">
                                 {#each gameStore.savedMaps as m}
+                                    {@const xs = m.stars.map((s) => s.x)}
+                                    {@const ys = m.stars.map((s) => s.y)}
+                                    {@const pad = 20}
+                                    {@const minX = Math.min(...xs) - pad}
+                                    {@const minY = Math.min(...ys) - pad}
+                                    {@const maxX = Math.max(...xs) + pad}
+                                    {@const maxY = Math.max(...ys) + pad}
+                                    {@const vw = maxX - minX || 100}
+                                    {@const vh = maxY - minY || 100}
+                                    {@const starMap = Object.fromEntries(
+                                        m.stars.map((s) => [s.id, s]),
+                                    )}
                                     <!-- svelte-ignore a11y_click_events_have_key_events -->
                                     <!-- svelte-ignore a11y_no_static_element_interactions -->
                                     <div
-                                        class="classic-map-row"
+                                        class="classic-map-card"
                                         class:selected={selectedClassicMap ===
                                             m.metadata.name}
                                         onclick={() => {
@@ -586,17 +598,55 @@
                                                 m.metadata.name;
                                         }}
                                     >
-                                        <span class="classic-map-name"
+                                        <svg
+                                            class="classic-map-thumb"
+                                            viewBox="{minX} {minY} {vw} {vh}"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                        >
+                                            {#each m.connections as conn}
+                                                {@const src =
+                                                    starMap[conn.sourceId]}
+                                                {@const tgt =
+                                                    starMap[conn.targetId]}
+                                                {#if src && tgt}
+                                                    <line
+                                                        x1={src.x}
+                                                        y1={src.y}
+                                                        x2={tgt.x}
+                                                        y2={tgt.y}
+                                                        stroke={selectedClassicMap ===
+                                                        m.metadata.name
+                                                            ? "#4488ff55"
+                                                            : "#334466"}
+                                                        stroke-width={Math.max(
+                                                            1,
+                                                            vw * 0.006,
+                                                        )}
+                                                    />
+                                                {/if}
+                                            {/each}
+                                            {#each m.stars as star}
+                                                <circle
+                                                    cx={star.x}
+                                                    cy={star.y}
+                                                    r={Math.max(2, vw * 0.015)}
+                                                    fill={star.ownerId ===
+                                                    "neutral"
+                                                        ? "#666"
+                                                        : `hsl(${(m.stars.indexOf(star) * 60) % 360}, 70%, 60%)`}
+                                                    opacity={selectedClassicMap ===
+                                                    m.metadata.name
+                                                        ? 1
+                                                        : 0.7}
+                                                />
+                                            {/each}
+                                        </svg>
+                                        <span class="classic-card-label"
                                             >{m.metadata.name}</span
                                         >
-                                        <span class="classic-map-info"
+                                        <span class="classic-card-info"
                                             >{m.stars.length}★</span
                                         >
-                                        {#if (m as any).builtIn}
-                                            <span class="classic-badge"
-                                                >CLASSIC</span
-                                            >
-                                        {/if}
                                     </div>
                                 {/each}
                                 {#if gameStore.savedMaps.length === 0}
@@ -1383,72 +1433,80 @@
         height: auto;
     }
 
-    /* ── Classic Map List ── */
-    .classic-map-list {
+    /* ── Classic Map Cards ── */
+    .classic-map-grid {
         display: flex;
-        flex-direction: column;
-        gap: 3px;
-        max-height: 200px;
+        flex-wrap: wrap;
+        gap: 6px;
+        max-height: 240px;
         overflow-y: auto;
         padding-right: 4px;
     }
-    .classic-map-list::-webkit-scrollbar {
+    .classic-map-grid::-webkit-scrollbar {
         width: 4px;
     }
-    .classic-map-list::-webkit-scrollbar-track {
+    .classic-map-grid::-webkit-scrollbar-track {
         background: rgba(10, 20, 40, 0.3);
         border-radius: 2px;
     }
-    .classic-map-list::-webkit-scrollbar-thumb {
+    .classic-map-grid::-webkit-scrollbar-thumb {
         background: rgba(100, 200, 255, 0.2);
         border-radius: 2px;
     }
-    .classic-map-row {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 6px 10px;
-        border-radius: 6px;
-        background: rgba(10, 20, 40, 0.4);
-        border: 1px solid transparent;
+    .classic-map-card {
+        width: calc(50% - 3px);
+        background: rgba(10, 20, 40, 0.5);
+        border: 1px solid rgba(100, 200, 255, 0.08);
+        border-radius: 8px;
+        padding: 6px;
         cursor: pointer;
         transition: all 0.15s;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
     }
-    .classic-map-row:hover {
+    .classic-map-card:hover {
+        border-color: rgba(100, 200, 255, 0.3);
         background: rgba(10, 20, 40, 0.7);
-        border-color: rgba(100, 200, 255, 0.15);
     }
-    .classic-map-row.selected {
-        background: rgba(0, 100, 200, 0.15);
+    .classic-map-card.selected {
         border-color: #00ccff;
-        box-shadow: 0 0 8px rgba(0, 200, 255, 0.1);
+        background: rgba(0, 100, 200, 0.15);
+        box-shadow: 0 0 12px rgba(0, 200, 255, 0.15);
     }
-    .classic-map-name {
-        flex: 1;
-        font-size: 0.72rem;
-        color: #aaccff;
+    .classic-map-thumb {
+        width: 100%;
+        height: 60px;
+        display: block;
+        background: rgba(5, 10, 20, 0.4);
+        border-radius: 4px;
     }
-    .classic-map-row.selected .classic-map-name {
+    .classic-card-label {
+        display: block;
+        font-size: 0.55rem;
+        color: rgba(200, 220, 255, 0.6);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+    }
+    .classic-map-card.selected .classic-card-label {
         color: #00eeff;
     }
-    .classic-map-info {
-        font-size: 0.6rem;
-        color: rgba(200, 220, 255, 0.4);
-    }
-    .classic-badge {
+    .classic-card-info {
         font-size: 0.5rem;
-        font-weight: 700;
-        letter-spacing: 0.08em;
-        color: rgba(0, 200, 200, 0.6);
-        background: rgba(0, 200, 200, 0.08);
-        padding: 1px 5px;
-        border-radius: 3px;
+        color: rgba(200, 220, 255, 0.35);
     }
     .no-maps-msg {
         font-size: 0.7rem;
         color: rgba(200, 220, 255, 0.3);
         text-align: center;
         padding: 16px;
+        width: 100%;
     }
 
     /* ── Config rows (3-across) ── */
