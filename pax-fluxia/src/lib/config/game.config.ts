@@ -226,6 +226,9 @@ interface GameConfigType {
     STAR_LABEL_OFFSET_Y: number;    // Label offset from star center Y (default 35)
     STAR_LABEL_FONT_SIZE: number;   // Active ships font size (default 22)
     STAR_LABEL_ID_FONT_SIZE: number;// Star ID font size (default 14)
+    STAR_LABEL_DAMAGED_FONT_SIZE: number; // Damaged ships font size (default 16)
+    STAR_LABEL_ANGLE: number;       // Label group angle in degrees (0=right, 90=down, default 35)
+    STAR_LABEL_DISTANCE: number;    // Label group radial distance from star center (default 55)
     CLASSIC_MAP_SPACING: number;    // Classic map coordinate spacing multiplier (0.5-2.0, default 1.0)
     STAR_HIT_RADIUS: number;        // Click/drag hit zone radius in px (default 50)
     STAR_GLOW_RADIUS_MULT: number;  // Glow radius as multiplier of outermost orbit ring (default 1.3)
@@ -874,6 +877,12 @@ const _rawConfig: GameConfigType = {
     STAR_LABEL_FONT_SIZE: 22,
     /** Star ID font size */
     STAR_LABEL_ID_FONT_SIZE: 14,
+    /** Damaged ships font size */
+    STAR_LABEL_DAMAGED_FONT_SIZE: 16,
+    /** Label angle in degrees (0=right, 90=down) */
+    STAR_LABEL_ANGLE: 35,
+    /** Label radial distance from star center */
+    STAR_LABEL_DISTANCE: 55,
     /** Classic map coordinate spacing multiplier */
     CLASSIC_MAP_SPACING: 1.0,
     /** Click/drag hit zone radius (px) */

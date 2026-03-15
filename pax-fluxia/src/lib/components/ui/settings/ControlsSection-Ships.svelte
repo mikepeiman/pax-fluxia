@@ -93,14 +93,9 @@
                     GAME_CONFIG.STAR_ICON_SCALE * ratio,
                 ],
                 [
-                    "starLabelOffsetX",
-                    "STAR_LABEL_OFFSET_X",
-                    (GAME_CONFIG.STAR_LABEL_OFFSET_X ?? 45) * ratio,
-                ],
-                [
-                    "starLabelOffsetY",
-                    "STAR_LABEL_OFFSET_Y",
-                    (GAME_CONFIG.STAR_LABEL_OFFSET_Y ?? 35) * ratio,
+                    "starLabelDistance",
+                    "STAR_LABEL_DISTANCE",
+                    (GAME_CONFIG.STAR_LABEL_DISTANCE ?? 55) * ratio,
                 ],
                 [
                     "starLabelFontSize",
@@ -111,6 +106,11 @@
                     "starLabelIdFontSize",
                     "STAR_LABEL_ID_FONT_SIZE",
                     (GAME_CONFIG.STAR_LABEL_ID_FONT_SIZE ?? 14) * ratio,
+                ],
+                [
+                    "starLabelDamagedFontSize",
+                    "STAR_LABEL_DAMAGED_FONT_SIZE",
+                    (GAME_CONFIG.STAR_LABEL_DAMAGED_FONT_SIZE ?? 16) * ratio,
                 ],
                 [
                     "starHitRadius",
@@ -764,6 +764,106 @@
             const v = +(e.target as HTMLInputElement).value;
             GAME_CONFIG.STAR_RING_LIGHTNESS = v;
             updatePanel("starRingLightness", v);
+        }}
+    />
+</div>
+
+<!-- ── Star Labels ── -->
+<h4 class="sub-heading">Star Labels</h4>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Label Angle</span><span class="val"
+            >{((panel.starLabelAngle ?? 35) as number).toFixed(0)}°</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="360"
+        step="5"
+        value={panel.starLabelAngle ?? 35}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.STAR_LABEL_ANGLE = v;
+            updatePanel("starLabelAngle", v);
+        }}
+    />
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Label Distance</span><span class="val"
+            >{((panel.starLabelDistance ?? 55) as number).toFixed(0)}px</span
+        >
+    </div>
+    <input
+        type="range"
+        min="10"
+        max="120"
+        step="5"
+        value={panel.starLabelDistance ?? 55}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.STAR_LABEL_DISTANCE = v;
+            updatePanel("starLabelDistance", v);
+        }}
+    />
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Star ID Font</span><span class="val"
+            >{((panel.starLabelIdFontSize ?? 14) as number).toFixed(0)}</span
+        >
+    </div>
+    <input
+        type="range"
+        min="6"
+        max="30"
+        step="1"
+        value={panel.starLabelIdFontSize ?? 14}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.STAR_LABEL_ID_FONT_SIZE = v;
+            updatePanel("starLabelIdFontSize", v);
+        }}
+    />
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Ship Count Font</span><span class="val"
+            >{((panel.starLabelFontSize ?? 22) as number).toFixed(0)}</span
+        >
+    </div>
+    <input
+        type="range"
+        min="8"
+        max="40"
+        step="1"
+        value={panel.starLabelFontSize ?? 22}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.STAR_LABEL_FONT_SIZE = v;
+            updatePanel("starLabelFontSize", v);
+        }}
+    />
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Damaged Font</span><span class="val"
+            >{((panel.starLabelDamagedFontSize ?? 16) as number).toFixed(
+                0,
+            )}</span
+        >
+    </div>
+    <input
+        type="range"
+        min="6"
+        max="30"
+        step="1"
+        value={panel.starLabelDamagedFontSize ?? 16}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.STAR_LABEL_DAMAGED_FONT_SIZE = v;
+            updatePanel("starLabelDamagedFontSize", v);
         }}
     />
 </div>

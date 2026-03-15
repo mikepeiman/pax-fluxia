@@ -381,11 +381,19 @@ export function renderStars(
             damagedText.visible = true;
         }
 
-        // Label offset from star center (configurable)
-        const labelOffsetX = GAME_CONFIG.STAR_LABEL_OFFSET_X ?? 45;
-        const labelOffsetY = GAME_CONFIG.STAR_LABEL_OFFSET_Y ?? 35;
+        // Label position from angle + distance (polar → cartesian)
+        const labelAngle = (GAME_CONFIG.STAR_LABEL_ANGLE ?? 35) * Math.PI / 180;
+        const labelDist = GAME_CONFIG.STAR_LABEL_DISTANCE ?? 55;
+        const labelOffsetX = Math.cos(labelAngle) * labelDist;
+        const labelOffsetY = Math.sin(labelAngle) * labelDist;
         label.x = star.x + labelOffsetX;
         label.y = star.y + labelOffsetY;
+
+        // Dynamic font size updates (so sliders take effect immediately)
+        const idText2 = label.getChildByLabel('starId') as PIXI.Text;
+        if (idText2) idText2.style.fontSize = GAME_CONFIG.STAR_LABEL_ID_FONT_SIZE ?? 14;
+        if (activeText) activeText.style.fontSize = GAME_CONFIG.STAR_LABEL_FONT_SIZE ?? 22;
+        if (damagedText) damagedText.style.fontSize = GAME_CONFIG.STAR_LABEL_DAMAGED_FONT_SIZE ?? 16;
 
         // Draw leash line from star edge to label
         if (leashGraphics) {
