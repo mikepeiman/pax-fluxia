@@ -320,3 +320,9 @@
   9. Territory Engine (15-mode orchestrator routing to PVV2/PVV3/DF)
   10. Distance Field (GPU shader)
 - **Implication**: "Backend" and "renderer host" are retired terms. Use **renderer** for all. The territory engine is a mode selector that routes to renderers, not a renderer itself.
+
+### D-65: B-42 Fix — Never Regress Visual Quality For Easier Fix
+- **Context**: Territory border/fill misalignment — borders used Chaikin+Bézier smoothing but fills used straight edges.
+- **Wrong approach (Option A)**: Remove smoothing from borders (`smoothPasses=0`) so they match straight fills. This was implemented and committed first — **deliberate regression** that removed curved borders.
+- **Correct fix (Option B)**: Apply `chaikinSmoothPolygon` to fill polygons so they match the smoothed borders. Both fills and borders now get the same Chaikin smoothing level.
+- **Rule**: Never choose the easier solution if it doesn't meet spec. The spec requires "vector-like, smooth, even edges."
