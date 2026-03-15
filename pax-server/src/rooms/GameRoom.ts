@@ -30,7 +30,7 @@ const PLAYER_COLORS = [
 // Room options passed from client (shared between SP MainMenu and MP Lobby)
 interface RoomOptions {
     playerCount?: number;
-    mapType?: 'standard' | 'debug' | 'debug-b';
+    mapType?: 'standard' | 'debug' | 'debug-b' | 'classic';
     starsPerPlayer?: number;
     shipsPerStar?: number;
     starSpacing?: number;
@@ -39,6 +39,19 @@ interface RoomOptions {
     retainOrderOnConquest?: boolean;
     // Phase A: Full gameplay config from client
     gameplayConfig?: Partial<EngineConfig>;
+    // Classic map data (sent from client when mapType === 'classic')
+    mapData?: {
+        metadata: { name: string; author?: string; description?: string };
+        stars: Array<{
+            id: string; x: number; y: number;
+            ownerId: string; starType?: string;
+            activeShips?: number;
+        }>;
+        connections: Array<{
+            sourceId: string; targetId: string;
+            distance?: number;
+        }>;
+    };
 }
 
 // Message types from client
@@ -656,7 +669,9 @@ export class GameRoom extends Room {
 
         // Generate map based on mapType
         const mt = this.roomOptions.mapType || 'standard';
-        if (mt === 'debug' || mt === 'debug-b') {
+        if (mt === 'classic' && this.roomOptions.mapData) {
+            this.initClassicMap();
+        } else if (mt === 'debug' || mt === 'debug-b') {
             this.initDebugMap();
         } else {
             this.initStandardMap();
@@ -739,6 +754,71 @@ export class GameRoom extends Room {
         for (const conn of result.connections) {
             this.addConnection(conn.sourceId, conn.targetId);
         }
+    }
+
+    /**
+     * Initialize from a classic/saved map definition sent by the host.
+     * Replicates the client-side initSavedMap() logic:
+     * - Faction→sessionId remap
+     * - Coordinate scaling for legacy small maps
+     * - Star + connection creation
+     */
+    private initClassicMap() {
+        const map = this.roomOptions.mapData!;
+        const playerIds = Array.from(this.state.players.values()).map(p => p.sessionId);
+        const starTypes = ['grey', 'yellow', 'blue', 'purple', 'red', 'green'];
+
+        // Build faction → playerID remap table
+        const factionRemap = new Map<string, string>();
+        const mapFactions = new Set<string>();
+        for (const s of map.stars) {
+            if (s.ownerId && s.ownerId !== 'neutral' && s.ownerId !== '') {
+                mapFactions.add(s.ownerId);
+            }
+        }
+        const sortedFactions = Array.from(mapFactions).sort();
+        sortedFactions.forEach((faction, i) => {
+            if (i < playerIds.length) {
+                factionRemap.set(faction, playerIds[i]);
+            } else {
+                factionRemap.set(faction, 'neutral');
+            }
+        });
+
+        log.data('GameRoom', `Classic map factions: [${sortedFactions.join(', ')}] → players: [${playerIds.join(', ')}]`);
+
+        // Coordinate scaling for legacy small maps (~800×500)
+        const maxX = Math.max(...map.stars.map(s => s.x));
+        const maxY = Math.max(...map.stars.map(s => s.y));
+        const targetW = 1600;
+        const targetH = 900;
+        const needsScale = maxX < 1000 && maxY < 600;
+        const spacingMult = this.roomOptions.starSpacing ?? 1.0;
+        const scaleX = needsScale ? (targetW * 0.85) / (maxX || 1) * spacingMult : 1;
+        const scaleY = needsScale ? (targetH * 0.85) / (maxY || 1) * spacingMult : 1;
+        const offsetX = needsScale ? targetW * 0.075 : 0;
+        const offsetY = needsScale ? targetH * 0.075 : 0;
+
+        for (const s of map.stars) {
+            const isNeutral = !s.ownerId || s.ownerId === 'neutral' || s.ownerId === '';
+            const ownerId = isNeutral ? 'neutral' : (factionRemap.get(s.ownerId) ?? s.ownerId);
+            const starType = s.starType || starTypes[Math.floor(Math.random() * starTypes.length)];
+            const x = s.x * scaleX + offsetX;
+            const y = s.y * scaleY + offsetY;
+            this.createStar(s.id, x, y, ownerId, starType);
+
+            // Override ships if map specifies
+            if (s.activeShips !== undefined) {
+                const star = this.state.stars.get(s.id);
+                if (star) star.activeShips = s.activeShips;
+            }
+        }
+
+        for (const conn of map.connections) {
+            this.addConnection(conn.sourceId, conn.targetId);
+        }
+
+        log.sys('GameRoom', `Classic map "${map.metadata.name}": ${map.stars.length} stars, ${map.connections.length} connections`);
     }
 
     private createStar(id: string, x: number, y: number, ownerId: string, starType: string) {

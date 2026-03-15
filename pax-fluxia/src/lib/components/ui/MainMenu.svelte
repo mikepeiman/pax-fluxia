@@ -187,6 +187,10 @@
     let confirmJoinTarget = $state<RoomListing | null>(null);
     let selectedTakeOverId = $state<string | null>(null);
 
+    // F-161: Classic map selection for MP
+    import type { MapDefinition } from "$lib/types/map.types";
+    let selectedMPMap = $state<MapDefinition | null>(null);
+
     // Auto-refresh room list when MP tab is visible
     $effect(() => {
         if (gameMode === "mp" && !multiplayerStore.isConnected) {
@@ -273,10 +277,14 @@
 
         const gameplayConfig = buildEngineConfig();
 
-        // Wire ALL setup variables to MP room (F-65)
+        // F-161: If a classic/saved map is selected, send it as mapData
+        const isClassicMap = selectedMPMap !== null;
+        const roomMapType = isClassicMap ? "classic" : selectedMap.mapType;
+
+        // Wire ALL setup variables to MP room (F-65, F-161)
         await multiplayerStore.createRoom({
             playerCount,
-            mapType: selectedMap.mapType,
+            mapType: roomMapType,
             starsPerPlayer,
             shipsPerStar,
             starSpacing,
@@ -284,6 +292,9 @@
             maxLinks,
             retainOrderOnConquest,
             gameplayConfig,
+            ...(isClassicMap && selectedMPMap
+                ? { mapData: $state.snapshot(selectedMPMap) }
+                : {}),
         });
 
         // Also set player identity on the store
@@ -713,6 +724,15 @@
                                                 gameStore.loadSavedMap(m);
                                                 startSPGame();
                                             }}>▶</button
+                                        >
+                                        <button
+                                            class="saved-map-btn mp"
+                                            onclick={() => {
+                                                selectedMPMap = m;
+                                                handleCreateRoom();
+                                            }}
+                                            title="Create MP room with this map"
+                                            >🌐</button
                                         >
                                         <button
                                             class="saved-map-btn del"
@@ -1590,6 +1610,10 @@
     .saved-map-btn.del:hover {
         border-color: rgba(255, 80, 80, 0.4);
         color: #fca5a5;
+    }
+    .saved-map-btn.mp:hover {
+        border-color: rgba(100, 200, 255, 0.5);
+        color: #7dd3fc;
     }
     .saved-map-btn.default {
         font-size: 0.85rem;

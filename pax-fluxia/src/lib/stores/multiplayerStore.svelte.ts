@@ -127,6 +127,7 @@ async function createRoom(options: {
     maxLinks?: number;
     retainOrderOnConquest?: boolean;
     gameplayConfig?: Partial<EngineConfig>;
+    mapData?: any; // MapDefinition JSON for classic maps
 } = {}): Promise<string | null> {
     if (!client) await connect();
     if (!client) return null;
