@@ -745,11 +745,6 @@
                                         +(e.target as HTMLInputElement).value,
                                     )}
                             />
-                            <button
-                                class="audio-open-btn"
-                                onclick={() => (showAudioSettings = true)}
-                                title="Audio Settings">🎛</button
-                            >
                         </div>
                     </div>
 
