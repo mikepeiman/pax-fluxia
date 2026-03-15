@@ -1668,6 +1668,11 @@ export function renderPVV3(
     const fg2AnimActive = Boolean(fg2AnimArtifact?.ownerShellTransitionActive);
     const useFG2 = fg2Shells.length > 0;
 
+    // Smooth passes — shared by FG2 and legacy paths
+    const boundaryMode = GAME_CONFIG.TERRITORY_BOUNDARY_MODE ?? 'smooth';
+    const requestedSmoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
+    const appliedSmoothPasses = boundaryMode === 'smooth' ? requestedSmoothPasses : 0;
+
     if (useFG2) {
         // ── FG2 Fill + Border Rendering ──────────────────────────────────────
         if (!fillGraphics) {
@@ -1695,9 +1700,16 @@ export function renderPVV3(
             const rawColor = colorUtils.getPlayerColor(shell.ownerId);
             const shellColor = adjustColorHSL(rawColor, satMult, lightMult);
 
+            // Smooth shell polygon so fills have rounded corners matching borders.
+            // Without this, fill polygons have sharp Voronoi corners while border
+            // strokes visually round them via join style → visible divergence (B-42).
+            const smoothedPts = appliedSmoothPasses > 0
+                ? chaikinSmoothPolygon(shell.points, appliedSmoothPasses)
+                : shell.points;
+
             // Draw fill polygon
             fillGraphics.beginPath();
-            fillGraphics.poly(shell.points.flat());
+            fillGraphics.poly(smoothedPts.flat());
             fillGraphics.fill({ color: shellColor, alpha });
 
             // Cut holes
@@ -1711,25 +1723,30 @@ export function renderPVV3(
                         : [];
             for (const hole of holeLoops) {
                 if (hole.points.length < 3) continue;
+                const smoothedHole = appliedSmoothPasses > 0
+                    ? chaikinSmoothPolygon(hole.points, appliedSmoothPasses)
+                    : hole.points;
                 fillGraphics.beginPath();
-                fillGraphics.poly(hole.points.flat());
+                fillGraphics.poly(smoothedHole.flat());
                 fillGraphics.cut();
             }
 
-            // Draw border stroke on shell contour
+            // Draw border stroke on smoothed shell contour
             if (borderWidth > 0 && borderAlpha > 0) {
                 fillGraphics.beginPath();
-                fillGraphics.moveTo(shell.points[0][0], shell.points[0][1]);
-                for (let i = 1; i < shell.points.length; i++) {
-                    fillGraphics.lineTo(shell.points[i][0], shell.points[i][1]);
+                fillGraphics.moveTo(smoothedPts[0][0], smoothedPts[0][1]);
+                for (let i = 1; i < smoothedPts.length; i++) {
+                    fillGraphics.lineTo(smoothedPts[i][0], smoothedPts[i][1]);
                 }
-                if (shell.points.length > 2) {
-                    fillGraphics.lineTo(shell.points[0][0], shell.points[0][1]);
+                if (smoothedPts.length > 2) {
+                    fillGraphics.lineTo(smoothedPts[0][0], smoothedPts[0][1]);
                 }
                 fillGraphics.stroke({
                     width: borderWidth,
                     color: shellColor,
                     alpha: borderAlpha,
+                    join: 'round',
+                    cap: 'round',
                 });
             }
         }
@@ -1945,9 +1962,7 @@ export function renderPVV3(
         const key = a < b ? `${a}|${b}` : `${b}|${a}`;
         return ownerPairColorMap.get(key) ?? 0x888888;
     };
-    const boundaryMode = GAME_CONFIG.TERRITORY_BOUNDARY_MODE ?? 'smooth';
-    const requestedSmoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
-    const appliedSmoothPasses = boundaryMode === 'smooth' ? requestedSmoothPasses : 0;
+    // boundaryMode, requestedSmoothPasses, appliedSmoothPasses already computed above (shared with FG2)
     const rawBorderPolylines = sharedEdges.length > 0
         ? chainSharedEdgesIntoPolylines(sharedEdges, ownerPairColorLookup, 0)
         : [];
