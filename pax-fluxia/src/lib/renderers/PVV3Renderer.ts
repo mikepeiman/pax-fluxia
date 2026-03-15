@@ -30,33 +30,25 @@ import type { ColorUtils } from './RenderContext';
 import { log } from '$lib/utils/logger';
 import type { TerritoryPipelineArtifacts } from '$lib/territory-engine/types';
 
+// ── Re-exported geometry modules ──────────────────────────────────────────
+import type {
+    PowerSite, TerritoryCell, MergedTerritory, SharedPolyline,
+    SharedBorderEdge, FrontierLoop,
+} from './geometry/types';
+import {
+    hexToRGB, rgbToHSL, hslToRGB, adjustColorHSL, blendColors,
+} from './geometry/colorUtils';
+import { chaikinSmoothPolyline, chaikinSmoothPolygon } from './geometry/chaikin';
+import {
+    resamplePolygon, resamplePolyline, polygonCentroid, lerpPolygon,
+    edgeKey, ptKey,
+} from './geometry/polyUtils';
 
+// Re-export types for downstream consumers
+export type { PowerSite, TerritoryCell, MergedTerritory, SharedPolyline, SharedBorderEdge, FrontierLoop };
+export { adjustColorHSL, blendColors, chaikinSmoothPolyline, chaikinSmoothPolygon };
+export { resamplePolygon, resamplePolyline, polygonCentroid, lerpPolygon, edgeKey, ptKey };
 
-// ── Types ──────────────────────────────────────────────────────────────────
-
-/** A site in the power diagram — star or virtual point with weight. */
-interface PowerSite {
-    x: number;
-    y: number;
-    weight: number;
-    ownerId: string;
-    starId: string;
-    virtual?: 'corridor' | 'disconnect';
-}
-
-/** Polygon output from the power diagram, augmented with ownership info. */
-interface TerritoryCell {
-    points: [number, number][];
-    ownerId: string;
-    siteId: string;
-}
-
-/** Merged polygon for same-owner territory rendering. */
-interface MergedTerritory {
-    points: [number, number][];     // [[x,y], ...] closed polygon
-    ownerId: string;
-    color: number;          // hex fill color
-}
 
 // ── Cache ──────────────────────────────────────────────────────────────────
 
@@ -70,12 +62,7 @@ let borderGraphics: PIXI.Graphics | null = null;
 
 // ── Smooth Transition State (Contested Border Mode) ─────────────────────────
 
-/** A continuous polyline of chained shared border edges between two owners. */
-interface SharedPolyline {
-    points: [number, number][];  // ordered points of the chained polyline
-    ownerPairKey: string;        // sorted owner pair key for matching
-    color: number;               // blended color for rendering
-}
+
 
 let prevSharedPolylines: SharedPolyline[] | null = null;
 let targetSharedPolylines: SharedPolyline[] | null = null;
@@ -124,83 +111,7 @@ function buildVisualFingerprint(): string {
     return fp;
 }
 
-// ── Color Helpers ──────────────────────────────────────────────────────────
-
-function hexToRGB(hex: number): [number, number, number] {
-    return [(hex >> 16) & 0xff, (hex >> 8) & 0xff, hex & 0xff];
-}
-
-function rgbToHSL(r: number, g: number, b: number): [number, number, number] {
-    r /= 255; g /= 255; b /= 255;
-    const max = Math.max(r, g, b), min = Math.min(r, g, b);
-    const l = (max + min) / 2;
-    if (max === min) return [0, 0, l];
-    const d = max - min;
-    const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-    let h = 0;
-    if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
-    else if (max === g) h = ((b - r) / d + 2) / 6;
-    else h = ((r - g) / d + 4) / 6;
-    return [h * 360, s, l];
-}
-
-function hslToRGB(h: number, s: number, l: number): [number, number, number] {
-    h /= 360;
-    if (s === 0) { const v = Math.round(l * 255); return [v, v, v]; }
-    const hue2rgb = (p: number, q: number, t: number) => {
-        if (t < 0) t += 1; if (t > 1) t -= 1;
-        if (t < 1 / 6) return p + (q - p) * 6 * t;
-        if (t < 1 / 2) return q;
-        if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
-        return p;
-    };
-    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-    const p = 2 * l - q;
-    return [
-        Math.round(hue2rgb(p, q, h + 1 / 3) * 255),
-        Math.round(hue2rgb(p, q, h) * 255),
-        Math.round(hue2rgb(p, q, h - 1 / 3) * 255),
-    ];
-}
-
-function adjustColorHSL(hex: number, satMult: number, lightMult: number): number {
-    const [r, g, b] = hexToRGB(hex);
-    const [h, s, l] = rgbToHSL(r, g, b);
-    const [nr, ng, nb] = hslToRGB(
-        h,
-        Math.min(1, Math.max(0, s * satMult)),
-        Math.min(1, Math.max(0, l * lightMult)),
-    );
-    return (nr << 16) | (ng << 8) | nb;
-}
-
-// ── Edge Key Helpers ───────────────────────────────────────────────────────
-
-/** Canonical edge key — direction-independent, snapped to 2dp. */
-function edgeKey(x1: number, y1: number, x2: number, y2: number): string {
-    const ax = +x1.toFixed(2), ay = +y1.toFixed(2);
-    const bx = +x2.toFixed(2), by = +y2.toFixed(2);
-    if (ax < bx || (ax === bx && ay < by)) return `${ax},${ay}-${bx},${by}`;
-    return `${bx},${by}-${ax},${ay}`;
-}
-
-function ptKey(x: number, y: number): string {
-    return `${+x.toFixed(2)},${+y.toFixed(2)}`;
-}
-
 // ── Shared Border Edge Extraction ──────────────────────────────────────────
-
-/** A border edge segment shared between two different owners. */
-interface SharedBorderEdge {
-    x1: number; y1: number;
-    x2: number; y2: number;
-    ownerA: string;
-    ownerB: string;
-    colorA: number;
-    colorB: number;
-    siteIdA: string;  // star/cell identity on side A
-    siteIdB: string;  // star/cell identity on side B
-}
 
 /**
  * Extract edges shared between cells of DIFFERENT owners (contested borders).
@@ -255,147 +166,7 @@ function extractSharedEdges(cells: TerritoryCell[]): SharedBorderEdge[] {
     return shared;
 }
 
-/** Blend two hex colors by ratio t (0=colorA, 1=colorB). */
-function blendColors(colorA: number, colorB: number, t: number): number {
-    const [rA, gA, bA] = hexToRGB(colorA);
-    const [rB, gB, bB] = hexToRGB(colorB);
-    return (
-        (Math.round(rA + (rB - rA) * t) << 16) |
-        (Math.round(gA + (gB - gA) * t) << 8) |
-        Math.round(bA + (bB - bA) * t)
-    );
-}
 
-// ── Polygon Morph Helpers ─────────────────────────────────────────────────
-
-/** Resample a polygon to `n` evenly-spaced points along its perimeter (CLOSED — wraps last to first). */
-function resamplePolygon(pts: [number, number][], n: number): [number, number][] {
-    if (pts.length <= 1 || n <= 1) return pts.slice();
-
-    // Compute cumulative arc lengths
-    const arcLens: number[] = [0];
-    for (let i = 1; i < pts.length; i++) {
-        arcLens.push(arcLens[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
-    }
-    const totalLen = arcLens[arcLens.length - 1];
-    if (totalLen === 0) return pts.slice();
-
-    const result: [number, number][] = [];
-    let segIdx = 0;
-    for (let i = 0; i < n; i++) {
-        const targetLen = (i / n) * totalLen;
-        while (segIdx < arcLens.length - 2 && arcLens[segIdx + 1] < targetLen) segIdx++;
-        const segLen = arcLens[segIdx + 1] - arcLens[segIdx];
-        const t = segLen > 0 ? (targetLen - arcLens[segIdx]) / segLen : 0;
-        result.push([
-            pts[segIdx][0] + (pts[segIdx + 1][0] - pts[segIdx][0]) * t,
-            pts[segIdx][1] + (pts[segIdx + 1][1] - pts[segIdx][1]) * t,
-        ]);
-    }
-    // Close the polygon
-    result.push([result[0][0], result[0][1]]);
-    return result;
-}
-
-/** Resample an OPEN polyline to `n` evenly-spaced points (no wrapping). */
-function resamplePolyline(pts: [number, number][], n: number): [number, number][] {
-    if (pts.length <= 1 || n <= 1) return pts.slice();
-
-    const arcLens: number[] = [0];
-    for (let i = 1; i < pts.length; i++) {
-        arcLens.push(arcLens[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
-    }
-    const totalLen = arcLens[arcLens.length - 1];
-    if (totalLen === 0) return pts.slice();
-
-    const result: [number, number][] = [];
-    let segIdx = 0;
-    for (let i = 0; i < n; i++) {
-        const targetLen = (i / (n - 1)) * totalLen;  // n-1 so last point = endpoint
-        while (segIdx < arcLens.length - 2 && arcLens[segIdx + 1] < targetLen) segIdx++;
-        const segLen = arcLens[segIdx + 1] - arcLens[segIdx];
-        const t = segLen > 0 ? (targetLen - arcLens[segIdx]) / segLen : 0;
-        result.push([
-            pts[segIdx][0] + (pts[segIdx + 1][0] - pts[segIdx][0]) * t,
-            pts[segIdx][1] + (pts[segIdx + 1][1] - pts[segIdx][1]) * t,
-        ]);
-    }
-    return result;
-}
-
-/** Get centroid of a polygon. */
-function polygonCentroid(pts: [number, number][]): [number, number] {
-    let cx = 0, cy = 0;
-    const n = pts.length - 1;  // last point = first (closed)
-    for (let i = 0; i < n; i++) { cx += pts[i][0]; cy += pts[i][1]; }
-    return n > 0 ? [cx / n, cy / n] : [0, 0];
-}
-
-/** Lerp two equal-length polygon arrays. */
-function lerpPolygon(from: [number, number][], to: [number, number][], t: number): [number, number][] {
-    const result: [number, number][] = [];
-    const len = Math.min(from.length, to.length);
-    for (let i = 0; i < len; i++) {
-        result.push([
-            from[i][0] + (to[i][0] - from[i][0]) * t,
-            from[i][1] + (to[i][1] - from[i][1]) * t,
-        ]);
-    }
-    return result;
-}
-
-/**
- * Chaikin corner-cutting subdivision for open polylines.
- * Preserves first and last points; interior corners are smoothed by
- * replacing each segment midpoint region with 25%/75% cut points.
- * @param pts Open polyline as array of [x, y] tuples
- * @param passes Number of smoothing iterations (0 = no change)
- */
-function chaikinSmoothPolyline(pts: [number, number][], passes: number): [number, number][] {
-    if (passes <= 0 || pts.length < 3) return pts;
-
-    let current = pts;
-    for (let iter = 0; iter < passes; iter++) {
-        const n = current.length;
-        const next: [number, number][] = [current[0]]; // preserve start
-        for (let i = 0; i < n - 1; i++) {
-            const [ax, ay] = current[i];
-            const [bx, by] = current[i + 1];
-            // For first/last segment: keep the original endpoint and add one cut point
-            if (i === 0) {
-                next.push([ax * 0.25 + bx * 0.75, ay * 0.25 + by * 0.75]);
-            } else if (i === n - 2) {
-                next.push([ax * 0.75 + bx * 0.25, ay * 0.75 + by * 0.25]);
-            } else {
-                next.push([ax * 0.75 + bx * 0.25, ay * 0.75 + by * 0.25]);
-                next.push([ax * 0.25 + bx * 0.75, ay * 0.25 + by * 0.75]);
-            }
-        }
-        next.push(current[n - 1]); // preserve end
-        current = next;
-    }
-    return current;
-}
-
-
-/** Closed-polygon Chaikin: every edge including last->first gets corner-cut uniformly. */
-function chaikinSmoothPolygon(pts: [number, number][], passes: number): [number, number][] {
-    if (passes <= 0 || pts.length < 3) return pts;
-
-    let current = pts;
-    for (let iter = 0; iter < passes; iter++) {
-        const n = current.length;
-        const next: [number, number][] = [];
-        for (let i = 0; i < n; i++) {
-            const [ax, ay] = current[i];
-            const [bx, by] = current[(i + 1) % n];
-            next.push([ax * 0.75 + bx * 0.25, ay * 0.75 + by * 0.25]);
-            next.push([ax * 0.25 + bx * 0.75, ay * 0.25 + by * 0.75]);
-        }
-        current = next;
-    }
-    return current;
-}
 /** Chain shared border edges into continuous polylines, grouped by owner-pair.
  *  Edges between the same two owners that share endpoints get merged into polylines. */
 function chainSharedEdgesIntoPolylines(edges: SharedBorderEdge[], colorLookup?: (ownerA: string, ownerB: string) => number, smoothPasses = 0): SharedPolyline[] {
@@ -608,12 +379,6 @@ function substituteSmoothedEdges(
     }
 }
 // ── Frontier Loop Assembly ─────────────────────────────────────────────────
-
-/** A continuous closed frontier loop for one player's territory boundary. */
-interface FrontierLoop {
-    points: [number, number][];  // closed loop — first point ≈ last point
-    ownerId: string;
-}
 
 /**
  * Assemble per-pair polylines into per-player closed frontier loops.
