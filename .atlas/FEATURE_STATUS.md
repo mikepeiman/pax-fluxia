@@ -56,7 +56,7 @@
 | F-159 | **One-page controls guide**: desktop + mobile controls reference. Accessible from main menu. | 🔄 In Progress | Medium | 2026-03-15 |
 | F-160 | **Permanent public lobby + chat**: always-on chat room, random usernames, unique enforcement, online presence list, visit stats (24h/7d/30d). Server: ChatRoom.ts. Client: LobbyChat.svelte + chatStore. | 🔄 In Progress | High | 2026-03-15 |
 | B-46 | **Overlapping icons top-right of main menu**: bg-picker and other floating icons overlap. Fix CSS positioning/z-index. | 🔄 In Progress | Low | 2026-03-15 |
-| F-161 | **Classic maps in multiplayer**: Enable classic map selection in multiplayer lobbies. Currently classic maps only work in single-player. ASAP priority per user. | 🔴 Open | Critical | 2026-03-15 |
+| F-161 | **Classic maps in multiplayer**: Enable classic map selection in multiplayer lobbies. Server `initClassicMap()` with faction→sessionId remap + coordinate scaling. 🌐 MP play button in saved maps UI. | ✅ Done | Critical | 2026-03-15 |
 
 ## Known Regressions
 
