@@ -748,24 +748,6 @@
                         </div>
                     </div>
 
-                    <!-- Options row -->
-                    <div class="options-row">
-                        <label class="checkbox-label">
-                            <input
-                                type="checkbox"
-                                bind:checked={retainOrderOnConquest}
-                            />
-                            <span>Retain orders on conquest</span>
-                        </label>
-                        <label class="checkbox-label">
-                            <input
-                                type="checkbox"
-                                bind:checked={allowOpposingOrders}
-                            />
-                            <span>Allow opposing orders</span>
-                        </label>
-                    </div>
-
                     <button
                         class="start-btn start-btn-primary"
                         onclick={() => {
