@@ -14,6 +14,7 @@
 | B-29 | Portrait mode wastes vertical/horizontal space — map generation doesn't maximize viewport | 🔴 Open | 2026-03-02 |
 | B-30 | All 6 territory renderers called every frame at 60fps regardless of which is active — wasteful architecture | ✅ Fixed | 2026-03-03 |
 | B-31 | `app.resize is not a function` crash during early PIXI initialization in handleResize | ✅ Fixed | 2026-03-03 |
+| B-43 | Canvas resize feedback loop — container height grows 6px/frame, map zooms/drifts off-viewport. Caused by corrupted localStorage/cache, not code. Fix: clear site data. Recurs intermittently. | ⚠️ Shelved | 2026-03-15 |
 
 ## Planned Features
 

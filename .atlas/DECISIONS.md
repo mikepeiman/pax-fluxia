@@ -367,3 +367,18 @@
 - **Decision**: The currently active territory rendering path in the live game is **FG1 (Adaptive Field) via PowerVoronoiRenderer (PVV2)**, not PVV3/FG2. `TERRITORY_POWER_VORONOI: true` in the user's saved settings. PVV3 (`TERRITORY_PVV3: false`) and the modular territory engine (`TERRITORY_ENGINE_ENABLED: false`) are both off.
 - **Implication**: All V3 work must be tested against the user's actual running configuration. Code defaults (game.config.ts) may differ from the user's localStorage-persisted settings. The settings persistence system (GAME_CONFIG Proxy → debounced localStorage save) must be consulted, not just code defaults.
 
+### D-77: DY4 Optimal Transport — Sacrosanct Canonical Default (2026-03-15)
+- **Decision**: DY4 Optimal Transport is designated the **sacrosanct canonical default** border animation mode. It is the most unique and attractive border animation in the game. All code defaults and documentation must preserve it as the default.
+- **Configuration chain**:
+  - `TERRITORY_ENGINE_MODE: 'dynamic'`
+  - `TERRITORY_ENGINE_DYNAMIC_METHOD: 'dy4_optimal_transport'`
+  - `TERRITORY_ENGINE_STATIC_METHOD: 'fg1_adaptive_field'` (DY4's anchor)
+  - `adapter: 'legacy_pvv2'` (routes to `PowerVoronoiRenderer`)
+  - `TERRITORY_POWER_VORONOI: true` (direct renderer toggle)
+- **Protection**: This mode MUST NOT be broken by any refactoring, modularization, or new feature work. If a code change could affect DY4's rendering:
+  1. Test DY4 before and after the change
+  2. Verify border animations render correctly during conquest
+  3. If in doubt, do not merge
+- **Files involved**: `registry.ts`, `game.config.ts`, `PowerVoronoiRenderer.ts`, `engine.ts`
+- **See also**: Code comments marked `SACROSANCT` in `registry.ts` and `game.config.ts`
+

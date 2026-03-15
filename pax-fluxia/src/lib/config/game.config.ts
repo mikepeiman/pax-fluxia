@@ -1012,18 +1012,19 @@ const _rawConfig: GameConfigType = {
     TERRITORY_POWER_VORONOI: true,
     /** Enable PVV3 frontier-first territory renderer */
     TERRITORY_PVV3: false,
-    /** Enable modular territory engine router */
+    // ═══ SACROSANCT: DY4 Optimal Transport is the canonical default ═══
+    // See registry.ts and .atlas/DECISIONS.md. Do not change without user approval.
     TERRITORY_ENGINE_ENABLED: false,
     /** Active static frontier method when modular territory engine is enabled */
-    TERRITORY_ENGINE_STATIC_METHOD: 'fg2_seed_graph' as const,
+    TERRITORY_ENGINE_STATIC_METHOD: 'fg1_adaptive_field' as const,
     /** Emit staged trace snapshots in modular engine */
     TERRITORY_ENGINE_TRACE_MODE: false,
     /** Territory engine execution mode: static frontier build, dynamic update pass, or hybrid plan */
-    TERRITORY_ENGINE_MODE: 'static' as const,
+    TERRITORY_ENGINE_MODE: 'dynamic' as const,
     /** Active dynamic update method when territory engine mode is dynamic */
-    TERRITORY_ENGINE_DYNAMIC_METHOD: 'dy2_local_delta_patch' as const,
+    TERRITORY_ENGINE_DYNAMIC_METHOD: 'dy4_optimal_transport' as const,
     /** Active hybrid program when territory engine mode is hybrid */
-    TERRITORY_ENGINE_HYBRID_PLAN: 'hy2_seed_graph_local_delta' as const,
+    TERRITORY_ENGINE_HYBRID_PLAN: 'hy3_implicit_field_transport' as const,
     /** Step through pipeline stages one-by-one (diagnostic mode) */
     TERRITORY_ENGINE_STEP_MODE: false,
     /** Incrementing token used to advance one stage in step mode */

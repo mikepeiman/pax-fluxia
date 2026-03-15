@@ -102,8 +102,15 @@ export const TERRITORY_DYNAMIC_METHODS: TerritoryDynamicMethodDescriptor[] = [
     {
         id: 'dy4_optimal_transport',
         label: 'DY4 Optimal Transport',
+        // ┌─────────────────────────────────────────────────────────────────┐
+        // │  SACROSANCT — This is the CANONICAL default border animation   │
+        // │  mode. It produces the most unique and attractive border       │
+        // │  animations in the game. Do NOT modify, break, or change the   │
+        // │  adapter/anchor without explicit user approval.                │
+        // │  See .atlas/DECISIONS.md for rationale.                        │
+        // └─────────────────────────────────────────────────────────────────┘
         description:
-            'Mass-preserving ownership transport updates. Bootstrap adapter maps to legacy PVV2 path.',
+            'Mass-preserving ownership transport updates. Bootstrap adapter maps to legacy PVV2 path. CANONICAL DEFAULT — sacrosanct.',
         implementedStages: ['render'],
         adapter: 'legacy_pvv2',
         anchorStaticMethodId: 'fg1_adaptive_field',
@@ -205,11 +212,17 @@ export const TERRITORY_HYBRID_PLAN_BY_ID: Record<
     {} as Record<TerritoryHybridPlanId, TerritoryHybridPlanDescriptor>,
 );
 
+// ════════════════════════════════════════════════════════════════════
+// SACROSANCT DEFAULTS — DY4 Optimal Transport is the canonical border
+// animation mode. It uses the legacy_pvv2 adapter (PowerVoronoiRenderer)
+// anchored to fg1_adaptive_field. These defaults must not change without
+// explicit user approval. See .atlas/DECISIONS.md.
+// ════════════════════════════════════════════════════════════════════
 export const DEFAULT_TERRITORY_STATIC_METHOD: TerritoryStaticMethodId =
-    'fg2_seed_graph';
+    'fg1_adaptive_field';
 
 export const DEFAULT_TERRITORY_DYNAMIC_METHOD: TerritoryDynamicMethodId =
-    'dy2_local_delta_patch';
+    'dy4_optimal_transport';
 
 export const DEFAULT_TERRITORY_HYBRID_PLAN: TerritoryHybridPlanId =
-    'hy2_seed_graph_local_delta';
+    'hy3_implicit_field_transport';
