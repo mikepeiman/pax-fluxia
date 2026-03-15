@@ -1,82 +1,87 @@
 // ============================================================================
-// Built-In Maps — Filesystem-resident, survives localStorage wipes
+// Built-In Maps — loaded from static/maps/ at runtime
 // ============================================================================
 //
-// Loads classic Pax Galaxia .txt maps from builtin-maps/ at build time.
-// Also loads any .json maps placed in the same directory.
+// Classic Pax Galaxia .txt maps are served from /maps/ as static assets.
+// This module fetches and parses them asynchronously.
 // ============================================================================
 
 import type { MapDefinition } from '$lib/types/map.types';
 import { parseClassicMap } from './classic-map-parser';
 
-// ── Load all map files at build time ───────────────────────────────────────
+// ── Known map files ─────────────────────────────────────────────────────────
+// These files live in static/maps/ and are served as-is by the static adapter.
+// To add a new map, drop the .txt file in static/maps/ and add it here.
 
-const classicMapModules = import.meta.glob<string>(
-    './builtin-maps/*.txt',
-    { query: '?raw', import: 'default', eager: true }
-);
+const BUILTIN_MAP_FILES: { filename: string; name: string }[] = [
+    { filename: 'arena.txt', name: 'Arena (Classic)' },
+    { filename: 'bigun.txt', name: 'Big Un (Classic)' },
+    { filename: 'Boxed.txt', name: 'Boxed (Classic)' },
+    { filename: 'crazy.txt', name: 'Crazy (Classic)' },
+    { filename: 'CrissCross.txt', name: 'Criss Cross (Classic)' },
+    { filename: 'DSpokes.txt', name: 'Double Spokes (Classic)' },
+    { filename: 'empire.txt', name: 'Empire (Classic)' },
+    { filename: 'frontline.txt', name: 'Frontline (Classic)' },
+];
 
-const jsonMapModules = import.meta.glob<Record<string, unknown>>(
-    './builtin-maps/*.json',
-    { eager: true }
-);
-
-// ── Human-readable names for classic maps ──────────────────────────────────
-
-const NAME_OVERRIDES: Record<string, string> = {
-    'arena': 'Arena (Classic)',
-    'bigun': 'Big Un (Classic)',
-    'boxed': 'Boxed (Classic)',
-    'crazy': 'Crazy (Classic)',
-    'crisscross': 'Criss Cross (Classic)',
-    'dspokes': 'Double Spokes (Classic)',
-    'empire': 'Empire (Classic)',
-    'frontline': 'Frontline (Classic)',
-};
-
-// ── Build maps lazily ──────────────────────────────────────────────────────
+// ── Async loader ────────────────────────────────────────────────────────────
 
 let _cache: MapDefinition[] | null = null;
+let _loading: Promise<MapDefinition[]> | null = null;
 
-function buildBuiltinMaps(): MapDefinition[] {
+async function fetchBuiltinMaps(): Promise<MapDefinition[]> {
     const maps: MapDefinition[] = [];
 
-    // Parse classic .txt maps
-    for (const [path, raw] of Object.entries(classicMapModules)) {
-        const slug = path.replace(/^.*\//, '').replace(/\.txt$/, '').toLowerCase();
-        const name = NAME_OVERRIDES[slug] || slug;
-        try {
-            const map = parseClassicMap(name, raw);
-            (map as any).builtIn = true;
-            maps.push(map);
-        } catch (e) {
-            console.warn(`[BuiltinMaps] Failed to parse classic map "${slug}":`, e);
+    const results = await Promise.allSettled(
+        BUILTIN_MAP_FILES.map(async ({ filename, name }) => {
+            const res = await fetch(`/maps/${filename}`);
+            if (!res.ok) {
+                console.warn(`[BuiltinMaps] Failed to fetch "${filename}": ${res.status}`);
+                return null;
+            }
+            const raw = await res.text();
+            try {
+                const map = parseClassicMap(name, raw);
+                (map as any).builtIn = true;
+                return map;
+            } catch (e) {
+                console.warn(`[BuiltinMaps] Failed to parse "${filename}":`, e);
+                return null;
+            }
+        })
+    );
+
+    for (const result of results) {
+        if (result.status === 'fulfilled' && result.value) {
+            maps.push(result.value);
         }
     }
 
-    // Load any JSON maps (future hand-crafted maps)
-    for (const [path, mod] of Object.entries(jsonMapModules)) {
-        const slug = path.replace(/^.*\//, '').replace(/\.json$/, '');
-        try {
-            const data = (mod as any).default ?? mod;
-            const map: MapDefinition = data as MapDefinition;
-            if (!map.metadata) continue; // Skip non-MapDefinition JSON
-            (map as any).builtIn = true;
-            maps.push(map);
-        } catch (e) {
-            console.warn(`[BuiltinMaps] Failed to load JSON map "${slug}":`, e);
-        }
-    }
-
-    // Sort alphabetically
     maps.sort((a, b) => a.metadata.name.localeCompare(b.metadata.name));
-
     console.log(`[BuiltinMaps] Loaded ${maps.length} built-in maps`);
     return maps;
 }
 
-/** Get all built-in maps (lazily computed, cached). */
+/**
+ * Get all built-in maps (async, cached after first load).
+ * Returns [] synchronously if not yet loaded — call loadBuiltinMaps() at init.
+ */
 export function getBuiltinMaps(): MapDefinition[] {
-    if (!_cache) _cache = buildBuiltinMaps();
-    return _cache;
+    return _cache ?? [];
+}
+
+/**
+ * Trigger async loading of built-in maps. Safe to call multiple times.
+ * Returns the loaded maps once complete.
+ */
+export async function loadBuiltinMaps(): Promise<MapDefinition[]> {
+    if (_cache) return _cache;
+    if (!_loading) {
+        _loading = fetchBuiltinMaps().then(maps => {
+            _cache = maps;
+            _loading = null;
+            return maps;
+        });
+    }
+    return _loading;
 }

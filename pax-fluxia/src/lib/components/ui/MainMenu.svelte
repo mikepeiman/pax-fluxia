@@ -28,8 +28,7 @@
 
     let visible = $state(true);
 
-    // ── Background Switcher ──
-    let bgImages = $state<string[]>([]);
+    import { BG_IMAGES } from "$lib/config/bgManifest";
     let bgOpen = $state(false);
 
     // Load initial visual defaults (which includes bgImage)
@@ -42,14 +41,8 @@
         GAME_CONFIG.BG_IMAGE_URL = bgImage;
         saveVisuals(visuals);
     });
-    $effect(() => {
-        fetch("/api/backgrounds")
-            .then((r) => r.json())
-            .then((imgs: string[]) => {
-                bgImages = imgs;
-            })
-            .catch(() => {});
-    });
+    // BG images are a static manifest — no fetch needed
+    let bgImages = $state<string[]>(BG_IMAGES);
 
     // â”€â”€ Game Mode â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Auto-switch to MP when connected

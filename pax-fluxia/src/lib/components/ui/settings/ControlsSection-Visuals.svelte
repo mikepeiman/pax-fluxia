@@ -1,7 +1,6 @@
 <script lang="ts">
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { mapTranspose } from "$lib/stores/mapTranspose.svelte";
-    import { onMount } from "svelte";
 
     // ControlsSection-VISUALS — In-Game Settings Controls: Map & Grid
     // Extracted from GameSettingsPanel.svelte
@@ -22,19 +21,11 @@
         densityVariables,
         syncFromConfig,
     }: Props = $props();
+    import { BG_IMAGES } from "$lib/config/bgManifest";
     import CategoryThemeBar from "./CategoryThemeBar.svelte";
 
     // ── Background Image Picker ──
-    let bgImages = $state<string[]>([]);
-
-    onMount(() => {
-        fetch("/api/backgrounds")
-            .then((r) => r.json())
-            .then((imgs: string[]) => {
-                bgImages = imgs;
-            })
-            .catch(() => {});
-    });
+    let bgImages = $state<string[]>(BG_IMAGES);
 
     // Background change uses updateVisual to sync immediately
     function changeBg(img: string) {

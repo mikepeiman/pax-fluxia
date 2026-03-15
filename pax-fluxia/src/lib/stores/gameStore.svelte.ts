@@ -39,7 +39,7 @@ import { audioManager } from '$lib/services/audioManager.svelte';
 import { GAME_CONFIG, buildEngineConfig } from '$lib/config/game.config';
 import { animationStore } from '$lib/stores/animationStore.svelte';
 import { activeGameStore } from '$lib/stores/activeGameStore.svelte';
-import { getBuiltinMaps } from '$lib/config/builtinMaps';
+import { getBuiltinMaps, loadBuiltinMaps } from '$lib/config/builtinMaps';
 
 // ============================================================================
 // Constants
@@ -738,6 +738,29 @@ async function loadFilesystemMaps(): Promise<void> {
 
 // Trigger async filesystem load at module init
 loadFilesystemMaps();
+
+// Trigger async builtin maps load (fetch from /maps/)
+async function loadBuiltinMapsAsync(): Promise<void> {
+    try {
+        const builtins = await loadBuiltinMaps();
+        if (!builtins.length) return;
+        const existingNames = new Set(savedMaps.map(m => m.metadata.name));
+        let added = 0;
+        for (const bm of builtins) {
+            if (!existingNames.has(bm.metadata.name)) {
+                savedMaps = [...savedMaps, bm];
+                existingNames.add(bm.metadata.name);
+                added++;
+            }
+        }
+        if (added > 0) {
+            console.log(`[MAP] Merged ${added} built-in map(s) from /maps/`);
+        }
+    } catch (e) {
+        console.warn('[MAP] Failed to load built-in maps:', e);
+    }
+}
+loadBuiltinMapsAsync();
 
 function setDefaultMap(name: string): void {
     defaultMapName = name;

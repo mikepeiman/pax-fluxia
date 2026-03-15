@@ -1,0 +1,75 @@
+players=6
+stars=68
+registered=0
+scalex=1.0
+scaley=1.0
+dx=0
+dy=0
+O-A-s2-x226-y95-n4-sup0-blo0 3 5 4 2
+B-A-s2-x326-y92-n3-sup0-blo0 2 27 25
+Y-A-s2-x279-y64-n2-sup0-blo0 0 1
+G-A-s2-x247-y150-n4-sup0-blo0 7 0 6 4
+B-A-s2-x164-y154-n4-sup0-blo0 5 6 3 0
+R-B-s100-x168-y68-n2-sup0-blo0 0 4
+V-A-s2-x190-y232-n4-sup0-blo0 8 7 4 3
+Y-A-s2-x253-y208-n4-sup0-blo0 25 10 6 3
+Y-A-s2-x183-y288-n4-sup0-blo0 11 9 10 6
+G-A-s2-x153-y340-n3-sup0-blo0 13 8 12
+G-A-s2-x252-y267-n5-sup0-blo0 7 24 11 8 60
+O-A-s2-x239-y344-n4-sup0-blo0 8 12 24 10
+B-A-s2-x190-y396-n4-sup0-blo0 11 15 9 13
+R-F-s100-x157-y438-n3-sup0-blo0 14 9 12
+G-A-s2-x201-y473-n2-sup0-blo0 17 13
+V-A-s2-x238-y416-n3-sup0-blo0 12 17 16
+O-A-s3-x320-y408-n3-sup0-blo0 15 18 19
+B-A-s2-x274-y466-n3-sup0-blo0 15 14 18
+G-A-s2-x377-y460-n4-sup0-blo0 16 17 40 19
+B-A-s2-x387-y381-n7-sup0-blo0 16 35 20 23 36 40 18
+G-A-s2-x324-y352-n3-sup0-blo0 24 19 65
+G-A-s2-x361-y238-n4-sup0-blo0 28 23 22 24
+O-A-s2-x452-y234-n6-sup0-blo0 35 28 23 21 32 34
+R-A-s100-x384-y309-n4-sup0-blo0 21 35 22 19
+B-A-s2-x325-y287-n5-sup0-blo0 21 20 10 11 60
+B-A-s2-x323-y177-n4-sup0-blo0 26 28 7 1
+G-A-s2-x416-y119-n4-sup0-blo0 29 32 25 64
+Y-A-s2-x386-y66-n2-sup0-blo0 1 29
+V-A-s2-x398-y197-n3-sup0-blo0 22 21 25
+R-C-s150-x472-y59-n3-sup0-blo0 26 27 31
+R-A-s2-x516-y115-n3-sup0-blo0 32 64 31
+Y-A-s2-x562-y75-n4-sup0-blo0 30 29 57 56
+Y-A-s2-x469-y181-n5-sup0-blo0 33 22 34 30 26
+B-A-s2-x555-y184-n3-sup0-blo0 51 34 32
+B-A-s2-x522-y268-n4-sup0-blo0 33 51 22 32
+V-A-s2-x437-y320-n3-sup0-blo0 19 22 23
+B-A-s2-x463-y413-n3-sup0-blo0 19 40 39
+Y-A-s2-x531-y337-n4-sup0-blo0 43 38 61 63
+Y-A-s2-x488-y366-n3-sup0-blo0 37 39 61
+V-A-s2-x542-y435-n6-sup0-blo0 41 43 38 36 42 62
+Y-A-s2-x445-y465-n4-sup0-blo0 36 18 19 41
+O-A-s2-x513-y484-n2-sup0-blo0 40 39
+Y-A-s2-x598-y464-n2-sup0-blo0 39 45
+B-A-s2-x585-y363-n4-sup0-blo0 39 37 45 44
+Y-A-s2-x657-y366-n2-sup0-blo0 43 48
+V-A-s2-x648-y431-n4-sup0-blo0 42 43 46 62
+Y-A-s2-x682-y483-n3-sup0-blo0 48 45 47
+R-E-s100-x748-y469-n2-sup0-blo0 46 48
+G-A-s2-x714-y388-n4-sup0-blo0 44 46 47 49
+V-A-s2-x700-y289-n6-sup0-blo0 48 54 67 66 53 50
+B-A-s2-x628-y289-n4-sup0-blo0 53 51 63 49
+Y-A-s2-x583-y250-n5-sup0-blo0 50 56 53 33 34
+Y-A-s2-x668-y195-n3-sup0-blo0 59 53 56
+G-A-s2-x661-y249-n4-sup0-blo0 52 50 51 49
+G-A-s2-x740-y218-n2-sup0-blo0 49 55
+Y-A-s2-x712-y137-n3-sup0-blo0 54 58 59
+G-A-s3-x603-y162-n4-sup0-blo0 51 52 59 31
+O-A-s2-x652-y57-n2-sup0-blo0 59 31
+R-D-s100-x741-y56-n1-sup0-blo0 55
+B-A-s2-x660-y118-n4-sup0-blo0 55 57 52 56
+O-A-s2-x306-y236-n2-sup0-blo0 24 10
+Y-A-s2-x485-y304-n2-sup0-blo0 38 37
+Y-A-s2-x591-y414-n2-sup0-blo0 39 45
+R-A-s2-x571-y306-n2-sup0-blo0 37 50
+V-A-s2-x466-y125-n2-sup0-blo0 26 30
+V-A-s2-x277-y379-n1-sup0-blo0 20
+Y-A-s2-x748-y270-n2-sup0-blo0 49 67
+Y-A-s2-x748-y338-n2-sup0-blo0 49 66
