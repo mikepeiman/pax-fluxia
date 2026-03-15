@@ -87,6 +87,8 @@
 | F-91 | Particle aura | Medium | 2026-02-24 |
 | F-104 | Contour territory renderer (contour extraction → path simplification) | High | 2026-03-01 |
 | F-105 | Load classic Pax Galaxia maps (user will provide format) | High | 2026-03-01 |
+| F-109 | Territory Render Mode: Terrain Shader — procedural biome textures per player, terrain transformation transitions | 🔴 | 2026-03-15 |
+| F-110 | Territory Render Mode: Pixel Art / Retro — pixelated fills, tile-flip conquest animation | 🔴 | 2026-03-15 |
 
 ---
 

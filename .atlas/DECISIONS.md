@@ -337,3 +337,20 @@
 - **Idea**: Eliminate the static/dynamic method distinction. A "static" map is just a dynamic map running at 60fps with no frontier changes. There should be ONE unified rendering pipeline that handles both steady-state and transition-state identically.
 - **Rationale**: The current static/dynamic split creates code duplication (5 static × 5 dynamic × 5 hybrid = 75 theoretical combinations, most unimplemented). Transition-state rendering has separate code paths that diverge from rebuild-state rendering (exactly the B-42 bug). A unified dynamic-only approach eliminates this divergence by construction.
 - **Implication**: The registry.ts `TERRITORY_STATIC_METHODS` and `TERRITORY_DYNAMIC_METHODS` arrays would merge into a single `TERRITORY_METHODS` array. Each method would just be a continuously-running renderer that responds to ownership deltas.
+
+## 2026-03-15
+
+### D-72: Two-Layer Territory Architecture (V3 Master Plan)
+- **Decision**: Territory system is restructured as two layers: **Data Engine** (computes front geometry and ownership) and **Render Modes** (visual presentation consuming canonical data). The static/dynamic/hybrid trichotomy from V2 is eliminated.
+- **Rationale**: The 15-mode V2 plan embedded the static/dynamic distinction as a top-level axis, creating duplicated code paths that caused B-42. The data engine always produces the same canonical geometry regardless of whether ownership is changing. Each render mode handles both steady-state and transitions as a single pipeline.
+- **Implication**: V2's `FG*`, `DY*`, `HY*` method families are replaced by one data engine + seven render modes. V2 "backends" become render modes. The term "backend" is retired.
+- **Full spec**: `.agent/WIP Work-In-Progress/permanent-references/territory/territory_engine_master_plan_v3_2026-03-15.md`
+
+### D-73: Seven Render Modes — All In Plan, Implement As We Go
+- **Decision**: Seven render modes are defined: (1) Vector Stroke, (2) Distance Field Glow, (3) Pressure Wave, (4) Pixel Art / Retro, (5) Terrain Shader, (6) Metaball / Organic, (7) No Animation (instant). Implementation follows priority order and stops when the user is satisfied.
+- **Rationale**: Multiple visual styles serve both game design iteration (seeing which defaults work best) and player customization (theming engine as a feature). No modes are excluded from the plan; depth of implementation depends on available time and effectiveness of execution.
+- **Key constraint**: Vector Stroke (currently working via PVV3Renderer) must be preserved without any visual regression.
+
+### D-74: Validate Unified Approach Before Committing — Vector Stroke First
+- **Decision**: Before restructuring all render modes, first validate the unified pipeline approach (one code path for steady-state + transitions) using only the Vector Stroke renderer. If this step reveals the unified approach doesn't work well, reassess before proceeding.
+- **Rationale**: The open question — whether one unified render pipeline is better than separate static/dynamic renderers — should be answered through implementation rather than theory.
