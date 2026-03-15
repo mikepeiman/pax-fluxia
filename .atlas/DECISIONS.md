@@ -326,3 +326,14 @@
 - **Wrong approach (Option A)**: Remove smoothing from borders (`smoothPasses=0`) so they match straight fills. This was implemented and committed first — **deliberate regression** that removed curved borders.
 - **Correct fix (Option B)**: Apply `chaikinSmoothPolygon` to fill polygons so they match the smoothed borders. Both fills and borders now get the same Chaikin smoothing level.
 - **Rule**: Never choose the easier solution if it doesn't meet spec. The spec requires "vector-like, smooth, even edges."
+
+### D-66: B-42 Post-Mortem — Verify Which Renderer is Active Before Fixing
+- **Context**: Applied B-42 fill smoothing to PVV3 (FG2 path + legacy path) but user was actually seeing PVV2 via FG1 Adaptive Field → `legacy_pvv2` adapter.
+- **Lesson**: Before fixing a rendering bug, verify which renderer is executing by checking console logs, not by guessing from architecture diagrams. Both PVV2 and PVV3 have `◀ rebuild complete` logs — filter for those.
+- **Additional**: PVV2 had **5 callsites** for `drawTerritoryFillWithHoles` — 3 in rebuild (steady-state), 2 in per-frame transition animation. The transition callsites drew raw polygons without smoothing on every frame, overriding the smoothed rebuild draws.
+
+### D-67: Architecture Idea — Unify Static + Dynamic Methods
+- **Decision**: Proposed (not yet implemented)
+- **Idea**: Eliminate the static/dynamic method distinction. A "static" map is just a dynamic map running at 60fps with no frontier changes. There should be ONE unified rendering pipeline that handles both steady-state and transition-state identically.
+- **Rationale**: The current static/dynamic split creates code duplication (5 static × 5 dynamic × 5 hybrid = 75 theoretical combinations, most unimplemented). Transition-state rendering has separate code paths that diverge from rebuild-state rendering (exactly the B-42 bug). A unified dynamic-only approach eliminates this divergence by construction.
+- **Implication**: The registry.ts `TERRITORY_STATIC_METHODS` and `TERRITORY_DYNAMIC_METHODS` arrays would merge into a single `TERRITORY_METHODS` array. Each method would just be a continuously-running renderer that responds to ownership deltas.
