@@ -859,9 +859,9 @@
                         </div>
                     </div>
 
-                    <!-- Multiplayer (condensed) -->
+                    <!-- Multiplayer -->
                     <div class="mp-section-compact">
-                        <span class="section-heading-inline">MP</span>
+                        <h3 class="section-heading">MULTIPLAYER</h3>
 
                         {#if multiplayerStore.isConnected}
                             <div class="room-info-bar">
@@ -1275,9 +1275,9 @@
     .menu-container {
         position: relative;
         z-index: 1;
-        width: 98%;
-        max-width: 1400px;
-        padding: 32px 0 40px;
+        width: 100%;
+        max-width: none;
+        padding: 0 48px 40px;
     }
 
     /* ── Title ── */
@@ -1291,20 +1291,22 @@
     }
     .pax {
         display: block;
-        font-size: clamp(2.4rem, 5vw, 3rem);
+        font-size: clamp(2.4rem, 5vw, 3.5rem);
         font-weight: 300;
         letter-spacing: 0.5em;
-        color: #aaccff;
+        color: #ddeeff;
+        text-shadow: 0 0 20px rgba(100, 180, 255, 0.3);
     }
     .fluxia {
         display: block;
-        font-size: clamp(3rem, 6vw, 4.2rem);
+        font-size: clamp(3.5rem, 7vw, 5rem);
         font-weight: 800;
         letter-spacing: 0.15em;
-        background: linear-gradient(180deg, #00eeff, #0088ff);
+        background: linear-gradient(180deg, #00ffff, #0099ff);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
+        filter: drop-shadow(0 0 12px rgba(0, 220, 255, 0.4));
     }
 
     /* ═══ Two-Column Grid ═══ */
@@ -2296,11 +2298,12 @@
     /* ═══ Mobile ═══ */
     /* ── Subtitle ── */
     .subtitle {
-        font-size: 0.55rem;
-        letter-spacing: 0.35em;
-        color: rgba(200, 220, 255, 0.35);
-        margin-top: 4px;
+        font-size: 0.9rem;
+        letter-spacing: 0.4em;
+        color: rgba(180, 210, 255, 0.7);
+        margin-top: 8px;
         text-transform: uppercase;
+        text-shadow: 0 0 10px rgba(0, 150, 255, 0.2);
     }
 
     /* ── Quick Start ── */
@@ -2313,12 +2316,13 @@
     }
 
     /* ═══ Condensed Right Column ═══ */
+    /* ═══ Condensed Right Column ═══ */
     .compact-right {
-        padding: 10px;
+        padding: 24px;
     }
 
     .section-heading-inline {
-        font-size: 0.6rem;
+        font-size: 1rem;
         font-weight: 700;
         letter-spacing: 0.2em;
         color: #00cccc;
@@ -2327,37 +2331,42 @@
     }
 
     .ai-section-compact {
-        margin-bottom: 6px;
+        margin-bottom: 16px;
     }
     .ai-header-row {
         display: flex;
         align-items: center;
-        gap: 4px;
-        margin-bottom: 4px;
+        gap: 8px;
+        margin-bottom: 12px;
     }
 
     .ai-grid {
         display: flex;
         flex-direction: column;
-        gap: 2px;
+        gap: 8px;
     }
     .ai-row {
         display: flex;
         align-items: center;
-        gap: 4px;
-        padding: 2px 4px;
-        border-radius: 3px;
-        background: rgba(10, 20, 40, 0.3);
+        gap: 10px;
+        padding: 8px 12px;
+        border-radius: 6px;
+        background: rgba(10, 20, 40, 0.4);
     }
     .ai-select-mini {
         flex: 1;
-        padding: 1px 2px;
-        font-size: 0.6rem;
+        padding: 10px 12px;
+        font-size: 0.95rem;
         font-family: inherit;
-        background: rgba(10, 20, 40, 0.6);
+        background: rgba(10, 30, 60, 0.6);
         color: #aaccff;
-        border: 1px solid rgba(100, 200, 255, 0.12);
-        border-radius: 3px;
+        border: 1px solid rgba(100, 200, 255, 0.2);
+        border-radius: 6px;
+        outline: none;
+    }
+    .ai-select-mini:focus {
+        border-color: #00ccff;
+        box-shadow: 0 0 8px rgba(0, 200, 255, 0.2);
     }
 
     .mp-section-compact {
