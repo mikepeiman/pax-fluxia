@@ -94,7 +94,8 @@
 | ID | Description | Status | Date |
 |----|-------------|--------|------|
 | R-3 | PVV3 interim state: frontiers are not unified, territory adjacency has visible mismatch, border visibility toggles inconsistently with settings/gameplay, and transition animation behavior is geometrically incorrect. | ✅ Fills fixed via FG2 canonical shells (`2f6234b`) | 2026-03-13 |
-| B-44 | PVV3 border rendering regression: borders only render for one fleeting frame when a setting changes (e.g. border width slider), then vanish. **Root cause**: GameCanvas blanket-hides all `voronoiContainer` children every frame (lines 1094-1097), but PVV3 only re-shows `borderGraphics` inside the full rebuild path (after early-return at line 1460). `fillGraphics` survives because it's re-shown at line 1439 before the early-return check, but `borderGraphics` is not. | 🔴 Open | 2026-03-15 |
+| B-44 | PVV3 borders only render for one frame when a setting changes, then vanish. Root cause: `GameCanvas` blanket-hides all `voronoiContainer` children every frame, but PVV3 only re-shows `borderGraphics` inside the full rebuild path (after the early-return check). | ✅ Fixed: re-show `borderGraphics` before early-return (`ad48d3e`) | 2026-03-15 |
+| B-45 | Audio settings panel intermittently opens on page load in production, even after clearing all site data. Not consistently reproducible. Code defaults `showAudioSettings = $state(false)` in MainMenu — possible race condition or hydration artifact. | 🔍 Investigating | 2026-03-15 |
 
 ### Planned Features (Territory Engine)
 
