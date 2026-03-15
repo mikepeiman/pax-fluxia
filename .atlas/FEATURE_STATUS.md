@@ -51,6 +51,11 @@
 | F-147 | Built-in filesystem maps: embed maps via `import.meta.glob` (survive localStorage wipe). Import 8 classic Pax Galaxia `.txt` maps. Filesystem CRUD via Vite `/__maps` endpoint. Faction remap, neutral preservation, coordinate scaling. | ✅ Done | Medium | 2026-03-14 |
 | F-149 | **Star System Appearance**: master slider (bound ratios), ownership ring, label widget (master font scale + line-height + inline toggle + per-part sizing), arrow appearance (head size/shaft width/alpha/length), hit zone radius, icon scale, orbit binding, classic map spacing. | ✅ Done | High | 2026-03-14 |
 | F-150 | Classic map spacing factor — user controls star spacing multiplier when loading classic maps. | ✅ Done | Medium | 2026-03-14 |
+| F-157 | **Main Menu map selection redesign**: replace 3 map cards (Random/Debug A/Debug B) with "Random \| Classic" two-column layout. Random settings left, classic map list right, shared settings below. | 🔄 In Progress | High | 2026-03-15 |
+| F-158 | **One-page tutorial guide**: "How to Play" page covering objectives, star types, orders, conquest, AI, multiplayer. Accessible from main menu. | 🔄 In Progress | Medium | 2026-03-15 |
+| F-159 | **One-page controls guide**: desktop + mobile controls reference. Accessible from main menu. | 🔄 In Progress | Medium | 2026-03-15 |
+| F-160 | **Permanent public lobby + chat**: always-on chat room, random usernames, unique enforcement, online presence list, visit stats (24h/7d/30d). Server: ChatRoom.ts. Client: LobbyChat.svelte + chatStore. | 🔄 In Progress | High | 2026-03-15 |
+| B-46 | **Overlapping icons top-right of main menu**: bg-picker and other floating icons overlap. Fix CSS positioning/z-index. | 🔄 In Progress | Low | 2026-03-15 |
 
 ## Known Regressions
 

@@ -28,7 +28,7 @@ import { findConnectedClustersOptimized } from './territoryUtils';
 import { computeCorridorVirtuals, computeDisconnectVirtuals, DISCONNECT_OWNER_ID } from './territoryFeatures';
 import type { ColorUtils } from './RenderContext';
 import { log } from '$lib/utils/logger';
-import { runFG2DataPipeline } from '$lib/territory-engine/engine';
+import type { TerritoryPipelineArtifacts } from '$lib/territory-engine/types';
 
 
 
@@ -1431,6 +1431,7 @@ export function renderPVV3(
     worldWidth: number,
     worldHeight: number,
     connections?: StarConnection[],
+    artifacts?: TerritoryPipelineArtifacts,
 ): void {
     const transitionMs = GAME_CONFIG.TERRITORY_TRANSITION_MS ?? 400;
     const now = performance.now();
@@ -1636,19 +1637,9 @@ export function renderPVV3(
     }
 
     // ── FG2 CANONICAL PATH ──────────────────────────────────────────────────
-    // If the territory engine has FG2 shell data available, use it directly.
-    // This gives us canonical polygons where shared edges are shared by
-    // construction — no gaps possible.
-    // PVV3 drives FG2 directly — no need for Territory Engine toggle
-    const fg2Artifacts = runFG2DataPipeline({
-        stars,
-        container: voronoiContainer,
-        colorUtils,
-        worldWidth,
-        worldHeight,
-        connections,
-        gameNowMs: performance.now(),
-    });
+    // If canonical artifacts were provided by the orchestrator, use them.
+    // Otherwise fall through to legacy PVV3 datagen path.
+    const fg2Artifacts = artifacts ?? {};
     const fg2LoopArtifact = fg2Artifacts.loop as
 
         | {

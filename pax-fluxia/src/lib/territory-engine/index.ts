@@ -2,6 +2,7 @@ export {
     renderTerritoryEngine,
     resetTerritoryEngineCaches,
     getLastTerritoryTraceRun,
+    runFG2DataPipeline,
 } from './engine';
 export { territoryTraceRun } from './traceStore';
 

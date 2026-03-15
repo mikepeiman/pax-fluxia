@@ -87,6 +87,7 @@
     import {
         renderTerritoryEngine,
         resetTerritoryEngineCaches,
+        runFG2DataPipeline,
     } from "$lib/territory-engine";
 
     // ============================================================================
@@ -1188,6 +1189,16 @@
                 }
 
                 if (GAME_CONFIG.TERRITORY_PVV3) {
+                    const fg2Artifacts = runFG2DataPipeline({
+                        stars,
+                        container: voronoiContainer,
+                        colorUtils,
+                        worldWidth: GAME_WIDTH,
+                        worldHeight: GAME_HEIGHT,
+                        connections:
+                            activeGameStore.connections as StarConnection[],
+                        gameNowMs: fxOrchestrator.gameTime,
+                    });
                     renderPVV3Module(
                         stars,
                         voronoiContainer,
@@ -1195,6 +1206,7 @@
                         GAME_WIDTH,
                         GAME_HEIGHT,
                         activeGameStore.connections as StarConnection[],
+                        fg2Artifacts,
                     );
                 }
 
