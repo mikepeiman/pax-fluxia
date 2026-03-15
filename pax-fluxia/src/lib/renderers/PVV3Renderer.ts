@@ -1986,19 +1986,21 @@ export function renderPVV3(
     borderGraphics.visible = borderWidth > 0 && borderAlpha > 0 && rawBorderPolylines.length > 0;
 
     for (const territory of merged) {
+        // Apply Chaikin smoothing to fill polygons so they match the smoothed
+        // borders drawn by drawBorderPolylines. Without this, fills use straight
+        // edges while borders use Chaikin+Bézier curves → visible gaps (B-42).
+        const fillPts = appliedSmoothPasses > 0
+            ? chaikinSmoothPolygon(territory.points, appliedSmoothPasses)
+            : territory.points;
         fillGraphics.beginPath();
-        fillGraphics.poly(territory.points.flat());
+        fillGraphics.poly(fillPts.flat());
         fillGraphics.fill({ color: territory.color, alpha });
     }
     if (borderGraphics.visible) {
-        // Use smoothPasses=0 here — fills use the straight-line substituted
-        // edges, so borders must match exactly. Chaikin+Bézier on top of
-        // the already-substituted polylines would bow away from fill edges
-        // causing visible gaps (B-42 root cause).
         drawBorderPolylines(
             borderGraphics,
             rawBorderPolylines,
-            0,
+            appliedSmoothPasses,
             borderWidth,
             borderAlpha,
         );
