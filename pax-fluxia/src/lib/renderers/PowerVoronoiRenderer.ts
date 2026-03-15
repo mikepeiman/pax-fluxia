@@ -917,15 +917,16 @@ export function renderPowerVoronoi(
         const rawT = Math.min(1, elapsed / transitionMs);
         const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
         const alpha = GAME_CONFIG.VORONOI_ALPHA ?? 0.25;
+        const fillSmoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
 
         fillGraphics.clear();
         // Prev fills fading out (with enclave holes)
         for (let i = 0; i < prevMergedTerritories.length; i++) {
-            drawTerritoryFillWithHoles(fillGraphics, prevMergedTerritories[i], prevEnclaveMap?.get(i), alpha * (1 - eased));
+            drawTerritoryFillWithHoles(fillGraphics, prevMergedTerritories[i], prevEnclaveMap?.get(i), alpha * (1 - eased), fillSmoothPasses);
         }
         // Target fills fading in (with enclave holes)
         for (let i = 0; i < lastMergedTerritories.length; i++) {
-            drawTerritoryFillWithHoles(fillGraphics, lastMergedTerritories[i], lastEnclaveMap?.get(i), alpha * eased);
+            drawTerritoryFillWithHoles(fillGraphics, lastMergedTerritories[i], lastEnclaveMap?.get(i), alpha * eased, fillSmoothPasses);
         }
 
         if (rawT >= 1) {
