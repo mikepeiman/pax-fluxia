@@ -117,39 +117,7 @@ export function getFilesForSoundType(soundType: string): SoundFileEntry[] {
     return files;
 }
 
-// ── Build-time glob discovery (Vite) ────────────────────────────────────────
-// This attempts to discover sound files via import.meta.glob at build time.
-// Falls back to the hardcoded manifest if glob returns nothing.
-// To use: the files must be in static/sounds/ and served at /sounds/
-
-let _globDiscovered: SoundFileEntry[] | null = null;
-
-export function discoverSoundFilesViaGlob(): SoundFileEntry[] {
-    if (_globDiscovered) return _globDiscovered;
-    try {
-        // Vite import.meta.glob on static directory
-        const modules = import.meta.glob('/static/sounds/**/*.{wav,ogg,mp3}', {
-            eager: true,
-            query: '?url',
-        });
-        const entries: SoundFileEntry[] = [];
-        for (const [key, mod] of Object.entries(modules)) {
-            // key: "/static/sounds/tick/snap-close-02.wav"
-            // strip "/static" prefix to get serving path
-            const servingPath = key.replace(/^\/static\//, '');
-            const parts = servingPath.replace(/^sounds\//, '').split('/');
-            const category = parts.length > 1 ? parts[0] : 'uncategorized';
-            const filename = parts[parts.length - 1];
-            const label = filename.replace(/\.\w+$/, '');
-            entries.push({ label, path: servingPath.replace(/^sounds\//, ''), category });
-        }
-        _globDiscovered = entries;
-        if (entries.length > 0) {
-            console.log(`[SoundManifest] Discovered ${entries.length} files via import.meta.glob`);
-        }
-        return entries;
-    } catch {
-        _globDiscovered = [];
-        return [];
-    }
-}
+// ── Build-time glob discovery (REMOVED) ─────────────────────────────────────
+// The previous import.meta.glob('/static/sounds/**/*') caused 404 errors
+// because Vite doesn't serve public dir files through the module system.
+// The hardcoded SOUND_MANIFEST above is the source of truth.
