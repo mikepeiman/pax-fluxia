@@ -308,3 +308,24 @@ These notes describe current FG2 diagnostic semantics for frontier geometry deve
 - Hole transitions inside a shell transition now use the same non-conflicting candidate selection model, providing a more stable identity mapping for enclaves during topology changes.
 - Interpolated hole loops are sanitized against the currently displayed shell polygon before render use. Degenerate or out-of-shell hole loops are dropped instead of being passed through to cutout rendering.
 - Animation and render diagnostics now expose owner-shell-hole transition counts and contour sample counts for trace/debug review.
+
+---
+
+## 13. Territory Lane Constraints (D-75, 2026-03-15)
+
+**Lane-exclusivity rule**: Only one or two player holdings may underlay any lane. No third player's territory may touch or extend over any point along a lane.
+
+A lane is in one of two states:
+
+| State | Description |
+|-------|-------------|
+| **Single-owner** | The lane is entirely within one player's holding. Both connected stars belong to the same player. |
+| **Contested** | The lane has a front between exactly two players somewhere along it. Typically near the midpoint, but the front position varies with surrounding geometry (MSR, CX, and other constraints). |
+
+**Never allowed**: A third player's territory touching or overlapping a lane between two other players' stars.
+
+**This replaces the DX (disconnect separation) constraint.** DX used virtual enemy sites at arbitrary distances to separate non-connected same-owner territories. The lane-exclusivity rule is a cleaner constraint that directly expresses the intended gameplay behavior.
+
+> [!NOTE]
+> The MSR (minimum star radius) and CX (corridor extension) constraints remain in effect. MSR prevents fronts from getting too close to owned stars. CX ensures territory fills along connected lanes rather than cutting across them.
+

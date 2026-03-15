@@ -50,7 +50,7 @@ GAME STATE (stars, lanes, ownership, tick events)
 │  Runs on: ownership change (conquest) or init    │
 │  Produces: canonical front coordinates,          │
 │            holding regions, enclave detection     │
-│  Satisfies: MSR, CX, DX constraints             │
+│  Satisfies: MSR, CX, lane-exclusivity (D-75)    │
 │  Does NOT run when: nothing changed              │
 │                                                  │
 │  Implementation: fg2SeedGraph.ts (209KB)         │
@@ -108,7 +108,7 @@ The data engine is **fully implemented** via the FG2 Seed Graph approach in [fg2
 | Responsibility | Implementation |
 |---|---|
 | Ownership truth | Graph-native multi-source Dijkstra on stars and lanes |
-| Constraint enforcement | MSR (minimum star radius), CX (corridor extension), DX (disconnect separation) |
+| Constraint enforcement | MSR (minimum star radius), CX (corridor extension), Lane-exclusivity (D-75, replaces DX) |
 | Front generation | Analytical front seeds on lanes + star-pair competition + junction resolution + perimeter closure |
 | Holding identification | Connected ownership regions with face walking and enclave detection |
 | Canonical geometry | Shared front coordinates — the single source of truth for borders and fills |
@@ -401,7 +401,8 @@ Carried forward from V2 with simplifications for the two-layer architecture.
 | **Canonical data** | The single source of truth for front geometry that all render modes consume |
 | **MSR** | Minimum Star Radius — minimum distance from owned stars to fronts |
 | **CX** | Corridor Extension — territory extends along and encompasses connected lanes |
-| **DX** | Disconnect Separation — unconnected same-owner territories are visually separated by enemy territory |
+| **Lane-exclusivity** | Only 1 or 2 player holdings may underlay any lane — no 3rd player's territory touches any lane (D-75, replaces DX) |
+| ~~**DX**~~ | ~~Disconnect Separation~~ — **superseded by lane-exclusivity (D-75)**. DX injected virtual enemy sites; lane-exclusivity is a cleaner first-class constraint |
 
 ### Retired terms
 

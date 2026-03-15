@@ -354,3 +354,16 @@
 ### D-74: Validate Unified Approach Before Committing — Vector Stroke First
 - **Decision**: Before restructuring all render modes, first validate the unified pipeline approach (one code path for steady-state + transitions) using only the Vector Stroke renderer. If this step reveals the unified approach doesn't work well, reassess before proceeding.
 - **Rationale**: The open question — whether one unified render pipeline is better than separate static/dynamic renderers — should be answered through implementation rather than theory.
+
+### D-75: Lane-Exclusivity Constraint (Replaces DX)
+- **Decision**: The DX (disconnect separation) constraint is replaced by a lane-exclusivity rule: **only one or two player holdings are allowed to underlay any lane.** No third player's territory may touch or extend over any point along a lane.
+- **A lane is either:**
+  1. Entirely within one player's holding
+  2. Has a front between exactly two players somewhere along that lane (typically near the midpoint, but varies with geometry)
+- **Rationale**: DX used virtual enemy sites at arbitrary distances, which is not universally correct in all scenarios. The lane-exclusivity rule is a cleaner gameplay-geometry constraint that directly expresses the intended behavior: lanes belong to the players who own the stars they connect, and fronts resolve along them.
+- **Implication**: `computeDisconnectVirtuals()` is superseded. The data engine must enforce lane exclusivity as a first-class constraint rather than injecting virtual sites as a hack.
+
+### D-76: Current Active Territory Mode Is FG1/PVV2
+- **Decision**: The currently active territory rendering path in the live game is **FG1 (Adaptive Field) via PowerVoronoiRenderer (PVV2)**, not PVV3/FG2. `TERRITORY_POWER_VORONOI: true` in the user's saved settings. PVV3 (`TERRITORY_PVV3: false`) and the modular territory engine (`TERRITORY_ENGINE_ENABLED: false`) are both off.
+- **Implication**: All V3 work must be tested against the user's actual running configuration. Code defaults (game.config.ts) may differ from the user's localStorage-persisted settings. The settings persistence system (GAME_CONFIG Proxy → debounced localStorage save) must be consulted, not just code defaults.
+
