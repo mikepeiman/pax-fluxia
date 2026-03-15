@@ -1297,9 +1297,9 @@
     .menu-container {
         position: relative;
         z-index: 1;
-        width: 95%;
-        max-width: 1000px;
-        padding: 16px 0 24px;
+        width: 98%;
+        max-width: 1400px;
+        padding: 32px 0 40px;
     }
 
     /* ── Title ── */
@@ -1313,14 +1313,14 @@
     }
     .pax {
         display: block;
-        font-size: clamp(1.8rem, 4vw, 2.4rem);
+        font-size: clamp(2.4rem, 5vw, 3rem);
         font-weight: 300;
         letter-spacing: 0.5em;
         color: #aaccff;
     }
     .fluxia {
         display: block;
-        font-size: clamp(2.2rem, 5vw, 3rem);
+        font-size: clamp(3rem, 6vw, 4.2rem);
         font-weight: 800;
         letter-spacing: 0.15em;
         background: linear-gradient(180deg, #00eeff, #0088ff);
@@ -1346,12 +1346,12 @@
     }
 
     .section-heading {
-        font-size: 0.7rem;
+        font-size: 0.9rem;
         font-weight: 700;
         letter-spacing: 0.2em;
         color: #00cccc;
-        margin: 0 0 12px;
-        padding-bottom: 6px;
+        margin: 0 0 16px;
+        padding-bottom: 8px;
         border-bottom: 1px solid rgba(0, 200, 200, 0.15);
         text-transform: uppercase;
     }
@@ -1366,11 +1366,11 @@
     .control-group label,
     .config-item label {
         display: block;
-        font-size: 0.65rem;
+        font-size: 0.85rem;
         font-weight: 600;
         letter-spacing: 0.12em;
         color: rgba(200, 220, 255, 0.5);
-        margin-bottom: 4px;
+        margin-bottom: 8px;
         text-transform: uppercase;
     }
     .control-group label span,
@@ -1387,8 +1387,8 @@
     }
     .map-tab {
         flex: 1;
-        padding: 8px 12px;
-        font-size: 0.75rem;
+        padding: 12px 16px;
+        font-size: 1rem;
         font-weight: 700;
         letter-spacing: 0.1em;
         background: rgba(10, 20, 40, 0.6);
@@ -1437,10 +1437,10 @@
     .classic-map-grid {
         display: flex;
         flex-wrap: wrap;
-        gap: 6px;
-        max-height: 240px;
+        gap: 12px;
+        max-height: 400px;
         overflow-y: auto;
-        padding-right: 4px;
+        padding-right: 8px;
     }
     .classic-map-grid::-webkit-scrollbar {
         width: 4px;
@@ -1454,18 +1454,18 @@
         border-radius: 2px;
     }
     .classic-map-card {
-        width: calc(50% - 3px);
+        width: calc(50% - 6px);
         background: rgba(10, 20, 40, 0.5);
         border: 1px solid rgba(100, 200, 255, 0.08);
         border-radius: 8px;
-        padding: 6px;
+        padding: 10px;
         cursor: pointer;
         transition: all 0.15s;
         text-align: center;
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 4px;
+        gap: 6px;
     }
     .classic-map-card:hover {
         border-color: rgba(100, 200, 255, 0.3);
@@ -1478,14 +1478,14 @@
     }
     .classic-map-thumb {
         width: 100%;
-        height: 60px;
+        height: 100px;
         display: block;
         background: rgba(5, 10, 20, 0.4);
         border-radius: 4px;
     }
     .classic-card-label {
         display: block;
-        font-size: 0.55rem;
+        font-size: 0.85rem;
         color: rgba(200, 220, 255, 0.6);
         letter-spacing: 0.06em;
         text-transform: uppercase;
@@ -1498,14 +1498,14 @@
         color: #00eeff;
     }
     .classic-card-info {
-        font-size: 0.5rem;
+        font-size: 0.75rem;
         color: rgba(200, 220, 255, 0.35);
     }
     .no-maps-msg {
-        font-size: 0.7rem;
+        font-size: 1rem;
         color: rgba(200, 220, 255, 0.3);
         text-align: center;
-        padding: 16px;
+        padding: 24px;
         width: 100%;
     }
 
@@ -1513,43 +1513,43 @@
     .config-row-3 {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
-        gap: 12px;
-        margin-top: 10px;
+        gap: 16px;
+        margin-top: 16px;
     }
 
     .slider-container {
         display: flex;
         align-items: center;
-        gap: 6px;
+        gap: 10px;
     }
     .slider-container input[type="range"] {
         flex: 1;
-        height: 4px;
+        height: 8px;
         -webkit-appearance: none;
         appearance: none;
         background: rgba(100, 200, 255, 0.15);
-        border-radius: 2px;
+        border-radius: 4px;
         outline: none;
     }
     .slider-container input[type="range"]::-webkit-slider-thumb {
         -webkit-appearance: none;
-        width: 14px;
-        height: 14px;
+        width: 20px;
+        height: 20px;
         border-radius: 50%;
         background: #00ccff;
         cursor: pointer;
         box-shadow: 0 0 6px rgba(0, 200, 255, 0.4);
     }
     .value {
-        font-size: 0.7rem;
+        font-size: 0.95rem;
         color: #00cccc;
         font-weight: 600;
-        min-width: 28px;
+        min-width: 40px;
         text-align: right;
         font-variant-numeric: tabular-nums;
     }
     .mini-label {
-        font-size: 0.55rem;
+        font-size: 0.75rem;
         color: rgba(200, 220, 255, 0.4);
         letter-spacing: 0.08em;
         text-transform: uppercase;
@@ -1559,12 +1559,12 @@
     /* Button row (players) */
     .button-row {
         display: flex;
-        gap: 2px;
+        gap: 4px;
     }
     .button-row button {
         flex: 1;
-        padding: 4px 0;
-        font-size: 0.7rem;
+        padding: 8px 0;
+        font-size: 0.95rem;
         font-weight: 600;
         background: rgba(10, 20, 40, 0.6);
         color: rgba(200, 220, 255, 0.5);
@@ -1602,10 +1602,10 @@
         background: rgba(10, 20, 40, 0.6);
         border: 1px solid rgba(100, 200, 255, 0.15);
         border-radius: 6px;
-        padding: 6px 10px;
+        padding: 10px 14px;
         color: #e0e0e0;
         font-family: inherit;
-        font-size: 0.75rem;
+        font-size: 0.95rem;
         outline: none;
     }
     .identity-name-input:focus {
@@ -1622,18 +1622,18 @@
         flex-shrink: 0;
     }
     .audio-compact input[type="range"] {
-        width: 60px;
-        height: 4px;
+        width: 80px;
+        height: 6px;
         -webkit-appearance: none;
         appearance: none;
         background: rgba(100, 200, 255, 0.15);
-        border-radius: 2px;
+        border-radius: 3px;
         outline: none;
     }
     .audio-compact input[type="range"]::-webkit-slider-thumb {
         -webkit-appearance: none;
-        width: 12px;
-        height: 12px;
+        width: 14px;
+        height: 14px;
         border-radius: 50%;
         background: #00ccff;
         cursor: pointer;
@@ -1641,9 +1641,9 @@
     .mute-btn {
         background: transparent;
         border: none;
-        font-size: 1rem;
+        font-size: 1.2rem;
         cursor: pointer;
-        padding: 2px;
+        padding: 4px;
         line-height: 1;
     }
     .mute-btn.muted {
@@ -1654,8 +1654,8 @@
         border: 1px solid rgba(0, 170, 170, 0.4);
         border-radius: 4px;
         cursor: pointer;
-        font-size: 1rem;
-        padding: 2px 6px;
+        font-size: 1.2rem;
+        padding: 4px 8px;
         transition: all 0.15s;
     }
     .audio-open-btn:hover {
@@ -1665,22 +1665,22 @@
     /* ── Options ── */
     .options-row {
         display: flex;
-        gap: 16px;
-        margin-top: 8px;
+        gap: 20px;
+        margin-top: 12px;
         flex-wrap: wrap;
     }
     .checkbox-label {
         display: flex;
         align-items: center;
-        gap: 6px;
-        font-size: 0.65rem;
+        gap: 8px;
+        font-size: 0.85rem;
         color: rgba(200, 220, 255, 0.5);
         cursor: pointer;
     }
     .checkbox-label input[type="checkbox"] {
         accent-color: #00ccff;
-        width: 14px;
-        height: 14px;
+        width: 18px;
+        height: 18px;
     }
 
     /* ── Saved Maps ── */
@@ -1756,10 +1756,10 @@
     .start-btn {
         position: relative;
         width: 100%;
-        padding: 14px;
-        margin-top: 12px;
+        padding: 18px;
+        margin-top: 16px;
         font-family: inherit;
-        font-size: 1rem;
+        font-size: 1.2rem;
         font-weight: 800;
         letter-spacing: 0.15em;
         color: #fff;
@@ -1792,8 +1792,8 @@
         opacity: 1;
     }
     .start-btn-primary {
-        font-size: 1.1rem;
-        padding: 16px;
+        font-size: 1.4rem;
+        padding: 24px;
     }
 
     /* ═══ RIGHT COLUMN ═══ */
@@ -1897,23 +1897,23 @@
     /* ── Multiplayer ── */
     .mp-label {
         display: block;
-        font-size: 0.65rem;
+        font-size: 0.85rem;
         font-weight: 600;
         letter-spacing: 0.12em;
         color: rgba(200, 220, 255, 0.5);
         text-transform: uppercase;
-        margin-bottom: 8px;
+        margin-bottom: 12px;
     }
     .mp-actions-compact {
         display: flex;
         flex-direction: column;
-        gap: 6px;
-        margin-bottom: 8px;
+        gap: 10px;
+        margin-bottom: 12px;
     }
     .mp-action-btn {
-        padding: 8px 12px;
+        padding: 12px 16px;
         font-family: inherit;
-        font-size: 0.7rem;
+        font-size: 0.95rem;
         font-weight: 700;
         letter-spacing: 0.1em;
         border: 1px solid rgba(0, 200, 200, 0.3);
@@ -1949,8 +1949,8 @@
     }
     .room-input {
         flex: 1;
-        padding: 6px 10px;
-        font-size: 0.7rem;
+        padding: 10px 14px;
+        font-size: 0.95rem;
         font-family: inherit;
         background: rgba(10, 20, 40, 0.6);
         border: 1px solid rgba(100, 200, 255, 0.15);
@@ -2391,7 +2391,7 @@
         }
         .menu-container {
             width: 100%;
-            padding: 12px;
+            padding: 16px;
         }
         .identity-audio-row {
             flex-direction: column;

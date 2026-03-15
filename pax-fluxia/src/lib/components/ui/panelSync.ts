@@ -48,7 +48,7 @@ export const VISUAL_DEFAULTS = {
     laneAlpha: GAME_CONFIG.CONNECTION_ALPHA,
     shadowWidth: GAME_CONFIG.CONNECTION_SHADOW_WIDTH,
     shadowAlpha: GAME_CONFIG.CONNECTION_SHADOW_ALPHA,
-    bgImage: GAME_CONFIG.BG_IMAGE_URL,
+    bgImage: '/images/backgrounds/bg-25.jpg',
 };
 
 export function loadVisuals(): typeof VISUAL_DEFAULTS {
