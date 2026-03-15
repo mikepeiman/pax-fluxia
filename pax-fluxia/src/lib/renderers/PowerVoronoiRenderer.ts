@@ -374,6 +374,25 @@ function chaikinSmoothPolyline(pts: [number, number][], passes: number): [number
     return current;
 }
 
+/** Closed-polygon Chaikin: every edge including last→first gets corner-cut uniformly. */
+function chaikinSmoothPolygon(pts: [number, number][], passes: number): [number, number][] {
+    if (passes <= 0 || pts.length < 3) return pts;
+
+    let current = pts;
+    for (let iter = 0; iter < passes; iter++) {
+        const n = current.length;
+        const next: [number, number][] = [];
+        for (let i = 0; i < n; i++) {
+            const [ax, ay] = current[i];
+            const [bx, by] = current[(i + 1) % n];
+            next.push([ax * 0.75 + bx * 0.25, ay * 0.75 + by * 0.25]);
+            next.push([ax * 0.25 + bx * 0.75, ay * 0.25 + by * 0.75]);
+        }
+        current = next;
+    }
+    return current;
+}
+
 /** Chain shared border edges into continuous polylines, grouped by owner-pair.
  *  Edges between the same two owners that share endpoints get merged into polylines. */
 function chainSharedEdgesIntoPolylines(edges: SharedBorderEdge[], colorLookup?: (ownerA: string, ownerB: string) => number, smoothPasses = 0): SharedPolyline[] {
@@ -837,18 +856,29 @@ function detectEnclaves(merged: MergedTerritory[]): Map<number, [number, number]
     return enclaveMap;
 }
 
-/** Draw a territory fill with enclave holes cut out. */
+/** Draw a territory fill with enclave holes cut out.
+ *  Applies Chaikin smoothing to fill polygons so they match the smoothed
+ *  borders drawn by drawBorderPolylines (B-42 fix). */
 function drawTerritoryFillWithHoles(
     graphics: PIXI.Graphics,
     territory: MergedTerritory,
     holes: [number, number][][] | undefined,
     alpha: number,
+    smoothPasses = 0,
 ): void {
-    graphics.poly(territory.points.flat());
+    const fillPts = smoothPasses > 0
+        ? chaikinSmoothPolygon(territory.points, smoothPasses)
+        : territory.points;
+    graphics.beginPath();
+    graphics.poly(fillPts.flat());
     graphics.fill({ color: territory.color, alpha });
     if (holes) {
         for (const hole of holes) {
-            graphics.poly(hole.flat());
+            const smoothedHole = smoothPasses > 0
+                ? chaikinSmoothPolygon(hole, smoothPasses)
+                : hole;
+            graphics.beginPath();
+            graphics.poly(smoothedHole.flat());
             graphics.cut();
         }
     }
@@ -1228,6 +1258,9 @@ export function renderPowerVoronoi(
     fillGraphics.clear();
     fillGraphics.visible = true;
 
+    // Smooth passes — shared by fills and borders (B-42: fills must match border smoothing)
+    const borderSmoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
+
     // B-38: Detect enclaves (opponent territories fully inside another territory)
     const enclaveMap = detectEnclaves(merged);
     if (enclaveMap.size > 0) {
@@ -1242,11 +1275,11 @@ export function renderPowerVoronoi(
 
         // Prev fills fading out (with enclave holes)
         for (let i = 0; i < prevMergedTerritories.length; i++) {
-            drawTerritoryFillWithHoles(fillGraphics, prevMergedTerritories[i], prevEnclaveMap?.get(i), alpha * (1 - eased));
+            drawTerritoryFillWithHoles(fillGraphics, prevMergedTerritories[i], prevEnclaveMap?.get(i), alpha * (1 - eased), borderSmoothPasses);
         }
         // Target fills fading in (with enclave holes)
         for (let i = 0; i < merged.length; i++) {
-            drawTerritoryFillWithHoles(fillGraphics, merged[i], enclaveMap.get(i), alpha * eased);
+            drawTerritoryFillWithHoles(fillGraphics, merged[i], enclaveMap.get(i), alpha * eased, borderSmoothPasses);
         }
 
         if (rawT >= 1) {
@@ -1258,7 +1291,7 @@ export function renderPowerVoronoi(
     } else {
         // Steady-state: draw target fills at full alpha (with enclave holes)
         for (let i = 0; i < merged.length; i++) {
-            drawTerritoryFillWithHoles(fillGraphics, merged[i], enclaveMap.get(i), alpha);
+            drawTerritoryFillWithHoles(fillGraphics, merged[i], enclaveMap.get(i), alpha, borderSmoothPasses);
         }
     }
 
@@ -1286,7 +1319,6 @@ export function renderPowerVoronoi(
             }
         }
 
-        const borderSmoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
         const builtPolylines = chainSharedEdgesIntoPolylines(sharedEdges, (a, b) => {
             const key = a < b ? `${a}|${b}` : `${b}|${a}`;
             return colorMap.get(key) ?? 0x888888;
