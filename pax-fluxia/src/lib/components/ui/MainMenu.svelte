@@ -117,7 +117,15 @@
     // Config state
     let showMobileOptions = $state(false);
     let gameSetupOpen = $state(false);
+    let mapMode = $state<"random" | "classic">(
+        loadSetting("mapMode", "random"),
+    );
     let mapType = $state(loadSetting("mapType", "standard"));
+    let selectedClassicMap = $state<string | null>(
+        loadSetting("selectedClassicMap", null),
+    );
+    let showHowToPlay = $state(false);
+    let showControls = $state(false);
     let playerCount = $state<GameSettings["playerCount"]>(
         loadSetting("playerCount", 6),
     );
@@ -199,7 +207,9 @@
 
     // â”€â”€ Actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     function saveAllSettings() {
+        saveSetting("mapMode", mapMode);
         saveSetting("mapType", mapType);
+        saveSetting("selectedClassicMap", selectedClassicMap);
         saveSetting("playerCount", playerCount);
         saveSetting("difficulty", difficulty);
         saveSetting("starsPerPlayer", starsPerPlayer);
@@ -256,6 +266,20 @@
 
     function startSPGame() {
         saveAllSettings();
+        // If classic map selected, load it first
+        if (mapMode === "classic" && selectedClassicMap) {
+            const allMaps = gameStore.savedMaps;
+            const classicMap = allMaps.find(
+                (m) => m.metadata.name === selectedClassicMap,
+            );
+            if (classicMap) {
+                applyConfig();
+                gameStore.loadSavedMap(classicMap);
+                gameStore.restart();
+                visible = false;
+                return;
+            }
+        }
         applyConfig();
         gameStore.restart();
         visible = false;
@@ -442,94 +466,151 @@
                 <section class="col-setup panel">
                     <h2 class="section-heading">GAME SETUP</h2>
 
-                    <!-- Map Selection -->
+                    <!-- Map Mode Tabs -->
                     <div class="control-group">
                         <label>MAP</label>
-                        <div class="map-card-row">
-                            {#each MAP_DEFS as m}
-                                <button
-                                    class="map-card"
-                                    class:active={mapType === m.id}
-                                    class:debug={m.id.startsWith("debug")}
-                                    onclick={() => (mapType = m.id)}
-                                >
+                        <div class="map-mode-tabs">
+                            <button
+                                class="map-tab"
+                                class:active={mapMode === "random"}
+                                onclick={() => {
+                                    mapMode = "random";
+                                    mapType = "standard";
+                                }}>🎲 RANDOM</button
+                            >
+                            <button
+                                class="map-tab"
+                                class:active={mapMode === "classic"}
+                                onclick={() => {
+                                    mapMode = "classic";
+                                }}>🗺️ CLASSIC</button
+                            >
+                        </div>
+                    </div>
+
+                    <!-- Map Columns -->
+                    <div class="map-columns">
+                        {#if mapMode === "random"}
+                            <!-- Random Map Settings -->
+                            <div class="map-col-content">
+                                <div class="config-row-3">
+                                    <div class="config-item">
+                                        <label>Stars per player</label>
+                                        <div class="slider-container">
+                                            <input
+                                                type="range"
+                                                min="1"
+                                                max="20"
+                                                bind:value={starsPerPlayer}
+                                            />
+                                            <span class="value"
+                                                >{starsPerPlayer}</span
+                                            >
+                                        </div>
+                                    </div>
+                                    <div class="config-item">
+                                        <label
+                                            >Links <span
+                                                >[{minLinks}-{maxLinks}]</span
+                                            ></label
+                                        >
+                                        <div
+                                            class="slider-container"
+                                            style="padding: 0 4px;"
+                                        >
+                                            <RangeDual
+                                                bind:min={minLinks}
+                                                bind:max={maxLinks}
+                                                minLimit={1}
+                                                maxLimit={8}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div class="config-item">
+                                        <label>Spacing</label>
+                                        <div class="slider-container">
+                                            <input
+                                                type="range"
+                                                min="0.5"
+                                                max="5.0"
+                                                step="0.1"
+                                                bind:value={starSpacing}
+                                            />
+                                            <span class="value"
+                                                >{starSpacing.toFixed(1)}x</span
+                                            >
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="random-map-preview">
                                     <svg
                                         class="map-thumb"
                                         viewBox="0 0 64 48"
                                         xmlns="http://www.w3.org/2000/svg"
                                     >
-                                        {#each m.connections as [a, b]}
-                                            {#if m.stars[a] && m.stars[b]}
+                                        {#each MAP_DEFS[0].connections as [a, b]}
+                                            {#if MAP_DEFS[0].stars[a] && MAP_DEFS[0].stars[b]}
                                                 <line
-                                                    x1={m.stars[a].x}
-                                                    y1={m.stars[a].y}
-                                                    x2={m.stars[b].x}
-                                                    y2={m.stars[b].y}
-                                                    stroke={mapType === m.id
-                                                        ? "#4488ff44"
-                                                        : "#334466"}
+                                                    x1={MAP_DEFS[0].stars[a].x}
+                                                    y1={MAP_DEFS[0].stars[a].y}
+                                                    x2={MAP_DEFS[0].stars[b].x}
+                                                    y2={MAP_DEFS[0].stars[b].y}
+                                                    stroke="#4488ff44"
                                                     stroke-width="1"
                                                 />
                                             {/if}
                                         {/each}
-                                        {#each m.stars as star}
+                                        {#each MAP_DEFS[0].stars as star}
                                             <circle
                                                 cx={star.x}
                                                 cy={star.y}
                                                 r="3"
                                                 fill={star.color}
-                                                opacity={mapType === m.id
-                                                    ? 1
-                                                    : 0.6}
                                             />
                                         {/each}
                                     </svg>
-                                    <span class="map-card-label">{m.label}</span
+                                </div>
+                            </div>
+                        {:else}
+                            <!-- Classic Map List -->
+                            <div class="classic-map-list">
+                                {#each gameStore.savedMaps as m}
+                                    <!-- svelte-ignore a11y_click_events_have_key_events -->
+                                    <!-- svelte-ignore a11y_no_static_element_interactions -->
+                                    <div
+                                        class="classic-map-row"
+                                        class:selected={selectedClassicMap ===
+                                            m.metadata.name}
+                                        onclick={() => {
+                                            selectedClassicMap =
+                                                m.metadata.name;
+                                        }}
                                     >
-                                </button>
-                            {/each}
-                        </div>
-                    </div>
-
-                    <!-- Links + Spacing -->
-                    <div class="config-row-3">
-                        <div class="config-item">
-                            <label
-                                >Links <span>[{minLinks}-{maxLinks}]</span
-                                ></label
-                            >
-                            <div
-                                class="slider-container"
-                                style="padding: 0 4px;"
-                            >
-                                <RangeDual
-                                    bind:min={minLinks}
-                                    bind:max={maxLinks}
-                                    minLimit={1}
-                                    maxLimit={8}
-                                />
+                                        <span class="classic-map-name"
+                                            >{m.metadata.name}</span
+                                        >
+                                        <span class="classic-map-info"
+                                            >{m.stars.length}★</span
+                                        >
+                                        {#if (m as any).builtIn}
+                                            <span class="classic-badge"
+                                                >CLASSIC</span
+                                            >
+                                        {/if}
+                                    </div>
+                                {/each}
+                                {#if gameStore.savedMaps.length === 0}
+                                    <div class="no-maps-msg">
+                                        No maps loaded yet
+                                    </div>
+                                {/if}
                             </div>
-                        </div>
-                        <div class="config-item">
-                            <label>Spacing</label>
-                            <div class="slider-container">
-                                <input
-                                    type="range"
-                                    min="0.5"
-                                    max="5.0"
-                                    step="0.1"
-                                    bind:value={starSpacing}
-                                />
-                                <span class="value"
-                                    >{starSpacing.toFixed(1)}x</span
-                                >
-                            </div>
-                        </div>
+                        {/if}
                     </div>
 
                     <div class="section-divider"></div>
 
-                    <!-- Players + Stars + Ships -->
+                    <!-- Shared Settings -->
                     <div class="config-row-3">
                         <div class="control-group">
                             <label>PLAYERS</label>
@@ -541,18 +622,6 @@
                                         >{p}</button
                                     >
                                 {/each}
-                            </div>
-                        </div>
-                        <div class="config-item">
-                            <label>Stars per player</label>
-                            <div class="slider-container">
-                                <input
-                                    type="range"
-                                    min="1"
-                                    max="20"
-                                    bind:value={starsPerPlayer}
-                                />
-                                <span class="value">{starsPerPlayer}</span>
                             </div>
                         </div>
                         <div class="config-item">
@@ -651,81 +720,6 @@
                             <span>Allow opposing orders</span>
                         </label>
                     </div>
-
-                    {#if gameStore.savedMaps.length > 0}
-                        <div class="section-divider"></div>
-                        <div class="config-item">
-                            <label
-                                >SAVED MAPS
-                                {#if gameStore.defaultMapName}
-                                    <span class="default-map-badge"
-                                        >⚡ Default: {gameStore.defaultMapName}</span
-                                    >
-                                    <button
-                                        class="clear-default-btn"
-                                        onclick={() =>
-                                            gameStore.clearDefaultMap()}
-                                        title="Clear default map">✕</button
-                                    >
-                                {/if}
-                            </label>
-                            <div class="saved-maps-list">
-                                {#each gameStore.savedMaps as m}
-                                    <div
-                                        class="saved-map-row"
-                                        class:is-default={gameStore.defaultMapName ===
-                                            m.metadata.name}
-                                    >
-                                        <span class="saved-map-name"
-                                            >{m.metadata.name}</span
-                                        >
-                                        <span class="saved-map-info"
-                                            >{m.stars.length}★</span
-                                        >
-                                        <button
-                                            class="saved-map-btn default"
-                                            class:active={gameStore.defaultMapName ===
-                                                m.metadata.name}
-                                            onclick={() => {
-                                                if (
-                                                    gameStore.defaultMapName ===
-                                                    m.metadata.name
-                                                ) {
-                                                    gameStore.clearDefaultMap();
-                                                } else {
-                                                    gameStore.setDefaultMap(
-                                                        m.metadata.name,
-                                                    );
-                                                }
-                                            }}
-                                            title={gameStore.defaultMapName ===
-                                            m.metadata.name
-                                                ? "Remove as default"
-                                                : "Set as default map"}
-                                            >{gameStore.defaultMapName ===
-                                            m.metadata.name
-                                                ? "⚡"
-                                                : "☆"}</button
-                                        >
-                                        <button
-                                            class="saved-map-btn load"
-                                            onclick={() => {
-                                                gameStore.loadSavedMap(m);
-                                                startSPGame();
-                                            }}>▶</button
-                                        >
-                                        <button
-                                            class="saved-map-btn del"
-                                            onclick={() =>
-                                                gameStore.deleteSavedMap(
-                                                    m.metadata.name,
-                                                )}>✕</button
-                                        >
-                                    </div>
-                                {/each}
-                            </div>
-                        </div>
-                    {/if}
 
                     <button
                         class="start-btn start-btn-primary"
@@ -1177,12 +1171,15 @@
         z-index: 0;
     }
 
-    /* ── Background Picker ── */
+    /* ── Background Picker (top-right action bar) ── */
     .bg-picker {
         position: fixed;
         top: 12px;
         right: 12px;
         z-index: 120;
+        display: flex;
+        align-items: center;
+        gap: 6px;
     }
     .bg-picker-toggle {
         background: rgba(10, 20, 40, 0.7);
@@ -1195,6 +1192,7 @@
     }
     .bg-picker-toggle:hover {
         border-color: rgba(100, 200, 255, 0.5);
+        background: rgba(10, 20, 40, 0.9);
     }
     .bg-picker-dropdown {
         position: absolute;
@@ -1331,50 +1329,126 @@
         font-weight: 400;
     }
 
-    /* ── Map Cards ── */
-    .map-card-row {
+    /* ── Map Mode Tabs ── */
+    .map-mode-tabs {
         display: flex;
-        gap: 6px;
-        flex-wrap: wrap;
+        gap: 4px;
+        margin-bottom: 8px;
     }
-    .map-card {
+    .map-tab {
         flex: 1;
-        min-width: 80px;
-        max-width: 140px;
+        padding: 8px 12px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
         background: rgba(10, 20, 40, 0.6);
-        border: 1px solid rgba(100, 200, 255, 0.1);
-        border-radius: 8px;
-        padding: 6px;
-        cursor: pointer;
-        transition: all 0.15s;
-        text-align: center;
-    }
-    .map-card:hover {
-        border-color: rgba(100, 200, 255, 0.3);
-    }
-    .map-card.active {
-        border-color: #00ccff;
-        background: rgba(0, 100, 200, 0.12);
-        box-shadow: 0 0 12px rgba(0, 200, 255, 0.15);
-    }
-    .map-card.debug {
-        opacity: 0.5;
-    }
-    .map-thumb {
-        width: 100%;
-        height: auto;
-        display: block;
-    }
-    .map-card-label {
-        display: block;
-        font-size: 0.55rem;
         color: rgba(200, 220, 255, 0.5);
-        letter-spacing: 0.08em;
-        margin-top: 4px;
+        border: 1px solid rgba(100, 200, 255, 0.1);
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-family: inherit;
         text-transform: uppercase;
     }
-    .map-card.active .map-card-label {
-        color: #00ccff;
+    .map-tab:hover {
+        border-color: rgba(100, 200, 255, 0.3);
+        color: #fff;
+    }
+    .map-tab.active {
+        background: rgba(0, 100, 200, 0.2);
+        border-color: #00ccff;
+        color: #00eeff;
+        box-shadow: 0 0 12px rgba(0, 200, 255, 0.15);
+    }
+
+    /* ── Map Columns Content ── */
+    .map-columns {
+        min-height: 100px;
+    }
+    .map-col-content {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    .random-map-preview {
+        background: rgba(10, 20, 40, 0.4);
+        border: 1px solid rgba(100, 200, 255, 0.08);
+        border-radius: 8px;
+        padding: 8px;
+        text-align: center;
+    }
+    .random-map-preview .map-thumb {
+        width: 100%;
+        max-width: 200px;
+        height: auto;
+    }
+
+    /* ── Classic Map List ── */
+    .classic-map-list {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        max-height: 200px;
+        overflow-y: auto;
+        padding-right: 4px;
+    }
+    .classic-map-list::-webkit-scrollbar {
+        width: 4px;
+    }
+    .classic-map-list::-webkit-scrollbar-track {
+        background: rgba(10, 20, 40, 0.3);
+        border-radius: 2px;
+    }
+    .classic-map-list::-webkit-scrollbar-thumb {
+        background: rgba(100, 200, 255, 0.2);
+        border-radius: 2px;
+    }
+    .classic-map-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 10px;
+        border-radius: 6px;
+        background: rgba(10, 20, 40, 0.4);
+        border: 1px solid transparent;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+    .classic-map-row:hover {
+        background: rgba(10, 20, 40, 0.7);
+        border-color: rgba(100, 200, 255, 0.15);
+    }
+    .classic-map-row.selected {
+        background: rgba(0, 100, 200, 0.15);
+        border-color: #00ccff;
+        box-shadow: 0 0 8px rgba(0, 200, 255, 0.1);
+    }
+    .classic-map-name {
+        flex: 1;
+        font-size: 0.72rem;
+        color: #aaccff;
+    }
+    .classic-map-row.selected .classic-map-name {
+        color: #00eeff;
+    }
+    .classic-map-info {
+        font-size: 0.6rem;
+        color: rgba(200, 220, 255, 0.4);
+    }
+    .classic-badge {
+        font-size: 0.5rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        color: rgba(0, 200, 200, 0.6);
+        background: rgba(0, 200, 200, 0.08);
+        padding: 1px 5px;
+        border-radius: 3px;
+    }
+    .no-maps-msg {
+        font-size: 0.7rem;
+        color: rgba(200, 220, 255, 0.3);
+        text-align: center;
+        padding: 16px;
     }
 
     /* ── Config rows (3-across) ── */
