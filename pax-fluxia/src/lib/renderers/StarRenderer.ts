@@ -95,6 +95,7 @@ function drawShapePath(
 ): void {
     if (sides === 0 || sides > 20) {
         // Circle fallback
+        g.beginPath();
         g.circle(cx, cy, radius);
         g.fill(fill);
         if (stroke) g.stroke(stroke);
@@ -102,6 +103,7 @@ function drawShapePath(
     }
     const raw = regularPolygonVertices(cx, cy, radius, sides);
     const smoothed = chaikinSmooth(raw, 2, cornerRadius);
+    g.beginPath();
     g.moveTo(smoothed[0][0], smoothed[0][1]);
     for (let i = 1; i < smoothed.length; i++) {
         g.lineTo(smoothed[i][0], smoothed[i][1]);
@@ -212,6 +214,7 @@ export function renderStars(
                 Math.min(1, hsl.l * litMult),
             );
         }
+        graphics.beginPath();
         graphics.circle(star.x, star.y, ringRadius);
         graphics.stroke({ color: ringColor, width: isActive ? ringWidth + 2 : ringWidth, alpha: isActive ? Math.min(1, ringAlpha + 0.1) : ringAlpha });
 
@@ -220,6 +223,7 @@ export function renderStars(
         const glowPulse = 1 + Math.sin(starFxTime * 2) * 0.1;
         const glowAlpha = isActive ? 0.35 : 0.15;
         const glowRadius = ringRadius * glowPulse;
+        graphics.beginPath();
         graphics.circle(star.x, star.y, glowRadius);
         graphics.fill({ color, alpha: glowAlpha });
 
@@ -243,10 +247,12 @@ export function renderStars(
                 { color: highlight, width: 1, alpha: 1.0 });
         } else {
             // Circle fallback
+            graphics.beginPath();
             graphics.circle(star.x, star.y, radius);
             graphics.fill({ color: shadow, alpha: 0.8 });
             graphics.stroke({ color: typeColor, width: 3, alpha: 1.0 });
 
+            graphics.beginPath();
             graphics.circle(star.x, star.y, radius * 0.55);
             graphics.fill({ color: highlight, alpha: 1.0 });
             graphics.stroke({ color: highlight, width: 1, alpha: 1.0 });
@@ -258,6 +264,7 @@ export function renderStars(
                 drawShapePath(graphics, star.x, star.y, radius, sides, cornerRadius,
                     { color: 0xffffff, alpha: 0.3 });
             } else {
+                graphics.beginPath();
                 graphics.circle(star.x, star.y, radius);
                 graphics.fill({ color: 0xffffff, alpha: 0.3 });
             }
@@ -277,6 +284,7 @@ export function renderStars(
                     drawShapePath(graphics, star.x, star.y, radius * 1.3, sides, cornerRadius,
                         { color: 0xffffff, alpha: flashAlpha * 0.85 });
                 } else {
+                    graphics.beginPath();
                     graphics.circle(star.x, star.y, radius * 1.3);
                     graphics.fill({ color: 0xffffff, alpha: flashAlpha * 0.85 });
                 }
@@ -285,6 +293,7 @@ export function renderStars(
 
         // Inner corona glow — soft type-colored radial behind the icon
         const coronaRadius = radius * 0.65;
+        graphics.beginPath();
         graphics.circle(star.x, star.y, coronaRadius);
         graphics.fill({ color: typeColor, alpha: 0.15 });
 
@@ -493,6 +502,7 @@ function drawTypeIcon(
 ): void {
     const sides = TYPE_SIDES[starType] ?? 0;
     if (sides === 0) {
+        g.beginPath();
         g.circle(cx, cy, size);
         g.fill({ color: 0xffffff, alpha });
         return;
@@ -500,6 +510,7 @@ function drawTypeIcon(
 
     const angleStep = (2 * Math.PI) / sides;
     const startAngle = -Math.PI / 2;
+    g.beginPath();
     g.moveTo(cx + size * Math.cos(startAngle), cy + size * Math.sin(startAngle));
     for (let i = 1; i <= sides; i++) {
         const angle = startAngle + angleStep * i;
@@ -519,6 +530,7 @@ function drawHexBorder(
     lineWidth: number,
 ): void {
     const a = (2 * Math.PI) / 6;
+    graphics.beginPath();
     graphics.moveTo(cx + radius * Math.cos(0), cy + radius * Math.sin(0));
     for (let i = 1; i <= 6; i++) {
         graphics.lineTo(cx + radius * Math.cos(a * i), cy + radius * Math.sin(a * i));
