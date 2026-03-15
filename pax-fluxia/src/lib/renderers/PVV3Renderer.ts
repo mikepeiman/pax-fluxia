@@ -1136,6 +1136,7 @@ function drawBorderPolylines(
             : polyline.points;
         if (pts.length < 2) continue;
 
+        graphics.beginPath();
         graphics.moveTo(pts[0][0], pts[0][1]);
         if (smoothPasses <= 0 || pts.length === 2) {
             for (let i = 1; i < pts.length; i++) {
@@ -1280,11 +1281,13 @@ function renderInterpolatedBorders(
             const y2 = pEdge.y2 + (tEdge.y2 - pEdge.y2) * t;
             // Use target edge color (since fills show target state)
             const color = tEdge.colorA || pEdge.colorA || 0x888888;
+            borderGraphics.beginPath();
             borderGraphics.moveTo(x1, y1);
             borderGraphics.lineTo(x2, y2);
             borderGraphics.stroke({ width: blendWidth, color, alpha: borderAlpha });
         } else {
             // Prev edge fading out (no match) — draw at prev position with decreasing alpha
+            borderGraphics.beginPath();
             borderGraphics.moveTo(pEdge.x1, pEdge.y1);
             borderGraphics.lineTo(pEdge.x2, pEdge.y2);
             borderGraphics.stroke({ width: blendWidth, color: pEdge.colorA || 0x888888, alpha: borderAlpha * (1 - t) });
@@ -1295,6 +1298,7 @@ function renderInterpolatedBorders(
     for (let ti = 0; ti < target.length; ti++) {
         if (targetUsed.has(ti)) continue;
         const tEdge = target[ti];
+        borderGraphics.beginPath();
         borderGraphics.moveTo(tEdge.x1, tEdge.y1);
         borderGraphics.lineTo(tEdge.x2, tEdge.y2);
         borderGraphics.stroke({ width: blendWidth, color: tEdge.colorA || 0x888888, alpha: borderAlpha * t });
@@ -1692,6 +1696,7 @@ export function renderPVV3(
             const shellColor = adjustColorHSL(rawColor, satMult, lightMult);
 
             // Draw fill polygon
+            fillGraphics.beginPath();
             fillGraphics.poly(shell.points.flat());
             fillGraphics.fill({ color: shellColor, alpha });
 
@@ -1706,12 +1711,14 @@ export function renderPVV3(
                         : [];
             for (const hole of holeLoops) {
                 if (hole.points.length < 3) continue;
+                fillGraphics.beginPath();
                 fillGraphics.poly(hole.points.flat());
                 fillGraphics.cut();
             }
 
             // Draw border stroke on shell contour
             if (borderWidth > 0 && borderAlpha > 0) {
+                fillGraphics.beginPath();
                 fillGraphics.moveTo(shell.points[0][0], shell.points[0][1]);
                 for (let i = 1; i < shell.points.length; i++) {
                     fillGraphics.lineTo(shell.points[i][0], shell.points[i][1]);
@@ -1719,8 +1726,6 @@ export function renderPVV3(
                 if (shell.points.length > 2) {
                     fillGraphics.lineTo(shell.points[0][0], shell.points[0][1]);
                 }
-                // Keep the stroke aligned with the raw shell polygon.
-                // Round joins on unsmoothed shell points can expose small fill spikes.
                 fillGraphics.stroke({
                     width: borderWidth,
                     color: shellColor,
@@ -1981,14 +1986,19 @@ export function renderPVV3(
     borderGraphics.visible = borderWidth > 0 && borderAlpha > 0 && rawBorderPolylines.length > 0;
 
     for (const territory of merged) {
+        fillGraphics.beginPath();
         fillGraphics.poly(territory.points.flat());
         fillGraphics.fill({ color: territory.color, alpha });
     }
     if (borderGraphics.visible) {
+        // Use smoothPasses=0 here — fills use the straight-line substituted
+        // edges, so borders must match exactly. Chaikin+Bézier on top of
+        // the already-substituted polylines would bow away from fill edges
+        // causing visible gaps (B-42 root cause).
         drawBorderPolylines(
             borderGraphics,
             rawBorderPolylines,
-            appliedSmoothPasses,
+            0,
             borderWidth,
             borderAlpha,
         );
