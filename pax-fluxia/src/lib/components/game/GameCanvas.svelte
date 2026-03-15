@@ -1909,6 +1909,11 @@
                     const activeStarSnapshot = currentStars.find(
                         (s) => s.id === activeStarId,
                     );
+                    // B-43 diagnostic: trace deferred order decision
+                    const localPid = activeGameStore.localPlayerId;
+                    console.log(
+                        `[B43] Click: active=${activeStarId} target=${targetStar.id} connected=${isConnected} activeOwner=${activeStarSnapshot?.ownerId} localPid=${localPid} isLocal=${activeStarSnapshot ? isLocalPlayerStar(activeStarSnapshot) : "N/A"}`,
+                    );
 
                     if (
                         activeStarSnapshot &&

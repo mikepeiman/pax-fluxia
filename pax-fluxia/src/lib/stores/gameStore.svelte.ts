@@ -828,6 +828,12 @@ function initSavedMap(playerIds: string[], map: MapDefinition): void {
             factionRemap.set(faction, 'neutral');
         }
     });
+    // B-43 diagnostic: trace faction remap
+    console.log(`[B43/MAP] Factions found: [${sortedFactions.join(', ')}]`);
+    console.log(`[B43/MAP] Player IDs: [${playerIds.join(', ')}]`);
+    factionRemap.forEach((playerId, faction) => {
+        console.log(`[B43/MAP]   ${faction} → ${playerId}`);
+    });
 
     // Calculate coordinate scale — classic maps use ~800×500 coordinate space;
     // scale to match current viewport if coordinates are in that range
