@@ -49,7 +49,7 @@
 | F-145 | Built-in filesystem themes: 5 curated + 3 hybrid composed themes, survives localStorage wipe. Themes embedded in `builtinThemes.ts`. | 🔄 In Progress | Medium | 2026-03-14 |
 | F-146 | Reusable HSLA widget for territory fill & border color controls. Replaces 6× duplicated inline sliders. Compact Grid+Flex layout, responsive. | 🔄 In Progress | Medium | 2026-03-14 |
 | F-147 | Built-in filesystem maps: embed maps via `import.meta.glob` (survive localStorage wipe). Import 8 classic Pax Galaxia `.txt` maps. Filesystem CRUD via Vite `/__maps` endpoint. Faction remap, neutral preservation, coordinate scaling. | ✅ Done | Medium | 2026-03-14 |
-| F-149 | **Star System Appearance**: master slider (bound ratios), ownership ring (radius + SLA), label controls (angle/distance/per-part font sizing), hit zone radius, icon scale, orbit binding, classic map spacing. All bound to master slider. | ✅ Done | High | 2026-03-14 |
+| F-149 | **Star System Appearance**: master slider (bound ratios), ownership ring, label widget (master font scale + line-height + inline toggle + per-part sizing), arrow appearance (head size/shaft width/alpha/length), hit zone radius, icon scale, orbit binding, classic map spacing. | ✅ Done | High | 2026-03-14 |
 | F-150 | Classic map spacing factor — user controls star spacing multiplier when loading classic maps. | ✅ Done | Medium | 2026-03-14 |
 
 ## Known Regressions
@@ -74,6 +74,7 @@
 | B-42 | Territory border/fill misalignment — borders and fills don't align geometrically, creating visible gaps. See screenshot (2026-03-14). Separate from B-40. Likely territory engine geometry issue. | 🔴 Open | 2026-03-14 |
 | B-41 | MSR (Min Star Radius?) should default to 100 in every theme and default settings but currently does not. | 🔴 Open | 2026-03-14 |
 | B-39 | Theme export uses selected preset name instead of user-given name — "export" button downloads JSON with the wrong `name` field | 🔴 Open | 2026-03-14 |
+| B-43 | Deferred orders broken on classic maps — click-to-defer flow requires `isConnected` gate between enemy star and deferred target. Code intact (not modified by recent commits). Likely classic map-specific: faction remap edge case or coordinate scaling causing hit-test misses. | 🔴 Open | 2026-03-14 |
 
 ## Feature Ideas
 
