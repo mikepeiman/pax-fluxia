@@ -295,8 +295,8 @@ export function renderOrderArrows(
         const endY = source.y + Math.sin(angle) * endDist;
 
         // Dashed line segments
-        const dashLen = 15;
-        const gapLen = 10;
+        const dashLen = GAME_CONFIG.ARROW_DASH_LENGTH ?? 15;
+        const gapLen = GAME_CONFIG.ARROW_DASH_GAP ?? 10;
         const totalLen = endDist - startDist;
         let currentDist = 0;
         const humanColor = 0x4488ff;

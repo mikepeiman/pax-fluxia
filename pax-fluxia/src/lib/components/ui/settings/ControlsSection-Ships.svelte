@@ -1048,6 +1048,44 @@
         }}
     />
 </div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Dash Length</span><span class="val"
+            >{((panel.arrowDashLength ?? 15) as number).toFixed(0)}px</span
+        >
+    </div>
+    <input
+        type="range"
+        min="3"
+        max="30"
+        step="1"
+        value={panel.arrowDashLength ?? 15}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.ARROW_DASH_LENGTH = v;
+            updatePanel("arrowDashLength", v);
+        }}
+    />
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Dash Gap</span><span class="val"
+            >{((panel.arrowDashGap ?? 10) as number).toFixed(0)}px</span
+        >
+    </div>
+    <input
+        type="range"
+        min="2"
+        max="25"
+        step="1"
+        value={panel.arrowDashGap ?? 10}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.ARROW_DASH_GAP = v;
+            updatePanel("arrowDashGap", v);
+        }}
+    />
+</div>
 
 <!-- ── Interaction ── -->
 <h4 class="sub-heading">Interaction</h4>

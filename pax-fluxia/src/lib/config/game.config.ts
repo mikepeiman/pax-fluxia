@@ -246,6 +246,10 @@ interface GameConfigType {
     ARROW_SHAFT_WIDTH: number;
     /** Arrow shaft alpha (0-1, default 0.6) */
     ARROW_ALPHA: number;
+    /** Deferred arrow dash length in px (default 15) */
+    ARROW_DASH_LENGTH: number;
+    /** Deferred arrow dash gap in px (default 10) */
+    ARROW_DASH_GAP: number;
 
 
 
@@ -943,6 +947,8 @@ const _rawConfig: GameConfigType = {
     ARROW_HEAD_SIZE: 30,
     ARROW_SHAFT_WIDTH: 6,
     ARROW_ALPHA: 0.6,
+    ARROW_DASH_LENGTH: 15,
+    ARROW_DASH_GAP: 10,
 
 
 
