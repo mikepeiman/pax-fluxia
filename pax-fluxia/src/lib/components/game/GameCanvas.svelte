@@ -1103,112 +1103,113 @@
                     colorUtils,
                     worldWidth: GAME_WIDTH,
                     worldHeight: GAME_HEIGHT,
-                    connections: activeGameStore.connections as StarConnection[],
+                    connections:
+                        activeGameStore.connections as StarConnection[],
                     renderer: app?.renderer ?? undefined,
                     gameNowMs: fxOrchestrator.gameTime,
                 });
             } else {
                 if (GAME_CONFIG.TERRITORY_VORONOI) {
-                renderVoronoiModule(
-                    stars,
-                    voronoiContainer,
-                    colorUtils,
-                    GAME_WIDTH,
-                    GAME_HEIGHT,
-                    activeGameStore.connections as StarConnection[],
-                );
-            }
+                    renderVoronoiModule(
+                        stars,
+                        voronoiContainer,
+                        colorUtils,
+                        GAME_WIDTH,
+                        GAME_HEIGHT,
+                        activeGameStore.connections as StarConnection[],
+                    );
+                }
 
-            if (GAME_CONFIG.TERRITORY_METABALL) {
-                renderMetaballModule(
-                    stars,
-                    voronoiContainer,
-                    colorUtils,
-                    GAME_WIDTH,
-                    GAME_HEIGHT,
-                    activeGameStore.connections as StarConnection[],
-                );
-            }
+                if (GAME_CONFIG.TERRITORY_METABALL) {
+                    renderMetaballModule(
+                        stars,
+                        voronoiContainer,
+                        colorUtils,
+                        GAME_WIDTH,
+                        GAME_HEIGHT,
+                        activeGameStore.connections as StarConnection[],
+                    );
+                }
 
-            if (GAME_CONFIG.TERRITORY_PIXEL) {
-                renderPixelTerritoryModule(
-                    stars,
-                    voronoiContainer,
-                    colorUtils,
-                    GAME_WIDTH,
-                    GAME_HEIGHT,
-                    activeGameStore.connections as StarConnection[],
-                );
-            }
+                if (GAME_CONFIG.TERRITORY_PIXEL) {
+                    renderPixelTerritoryModule(
+                        stars,
+                        voronoiContainer,
+                        colorUtils,
+                        GAME_WIDTH,
+                        GAME_HEIGHT,
+                        activeGameStore.connections as StarConnection[],
+                    );
+                }
 
-            if (GAME_CONFIG.TERRITORY_GRAPH) {
-                renderLaneTerritoryModule(
-                    stars,
-                    voronoiContainer,
-                    colorUtils,
-                    GAME_WIDTH,
-                    GAME_HEIGHT,
-                    activeGameStore.connections as StarConnection[],
-                );
-            }
+                if (GAME_CONFIG.TERRITORY_GRAPH) {
+                    renderLaneTerritoryModule(
+                        stars,
+                        voronoiContainer,
+                        colorUtils,
+                        GAME_WIDTH,
+                        GAME_HEIGHT,
+                        activeGameStore.connections as StarConnection[],
+                    );
+                }
 
-            if (GAME_CONFIG.TERRITORY_CONTOUR) {
-                renderContourTerritoryModule(
-                    stars,
-                    voronoiContainer,
-                    colorUtils,
-                    GAME_WIDTH,
-                    GAME_HEIGHT,
-                    activeGameStore.connections as StarConnection[],
-                );
-            }
+                if (GAME_CONFIG.TERRITORY_CONTOUR) {
+                    renderContourTerritoryModule(
+                        stars,
+                        voronoiContainer,
+                        colorUtils,
+                        GAME_WIDTH,
+                        GAME_HEIGHT,
+                        activeGameStore.connections as StarConnection[],
+                    );
+                }
 
-            // DISABLED: Modified Voronoi freezes game — F-138 needs architecture fix
-            // if (GAME_CONFIG.TERRITORY_MODIFIED_VORONOI) {
-            //     renderModifiedVoronoiModule(
-            //         stars,
-            //         voronoiContainer,
-            //         colorUtils,
-            //         GAME_WIDTH,
-            //         GAME_HEIGHT,
-            //         activeGameStore.connections as StarConnection[],
-            //     );
-            // }
+                // DISABLED: Modified Voronoi freezes game — F-138 needs architecture fix
+                // if (GAME_CONFIG.TERRITORY_MODIFIED_VORONOI) {
+                //     renderModifiedVoronoiModule(
+                //         stars,
+                //         voronoiContainer,
+                //         colorUtils,
+                //         GAME_WIDTH,
+                //         GAME_HEIGHT,
+                //         activeGameStore.connections as StarConnection[],
+                //     );
+                // }
 
-            if (GAME_CONFIG.TERRITORY_POWER_VORONOI) {
-                renderPowerVoronoiModule(
-                    stars,
-                    voronoiContainer,
-                    colorUtils,
-                    GAME_WIDTH,
-                    GAME_HEIGHT,
-                    activeGameStore.connections as StarConnection[],
-                );
-            }
+                if (GAME_CONFIG.TERRITORY_POWER_VORONOI) {
+                    renderPowerVoronoiModule(
+                        stars,
+                        voronoiContainer,
+                        colorUtils,
+                        GAME_WIDTH,
+                        GAME_HEIGHT,
+                        activeGameStore.connections as StarConnection[],
+                    );
+                }
 
-            if (GAME_CONFIG.TERRITORY_PVV3) {
-                renderPVV3Module(
-                    stars,
-                    voronoiContainer,
-                    colorUtils,
-                    GAME_WIDTH,
-                    GAME_HEIGHT,
-                    activeGameStore.connections as StarConnection[],
-                );
-            }
+                if (GAME_CONFIG.TERRITORY_PVV3) {
+                    renderPVV3Module(
+                        stars,
+                        voronoiContainer,
+                        colorUtils,
+                        GAME_WIDTH,
+                        GAME_HEIGHT,
+                        activeGameStore.connections as StarConnection[],
+                    );
+                }
 
-            if (GAME_CONFIG.TERRITORY_DISTANCE_FIELD) {
-                renderDistanceFieldTerritoryModule(
-                    stars,
-                    voronoiContainer,
-                    colorUtils,
-                    GAME_WIDTH,
-                    GAME_HEIGHT,
-                    activeGameStore.connections as StarConnection[],
-                    // Two-pass DF borders need the renderer for pass-1 offscreen rendering.
-                    app?.renderer ?? undefined,
-                );
-            }
+                if (GAME_CONFIG.TERRITORY_DISTANCE_FIELD) {
+                    renderDistanceFieldTerritoryModule(
+                        stars,
+                        voronoiContainer,
+                        colorUtils,
+                        GAME_WIDTH,
+                        GAME_HEIGHT,
+                        activeGameStore.connections as StarConnection[],
+                        // Two-pass DF borders need the renderer for pass-1 offscreen rendering.
+                        app?.renderer ?? undefined,
+                    );
+                }
             }
         }
 
@@ -1430,8 +1431,9 @@
                 mapTranspose.x(star),
                 mapTranspose.y(star),
             );
-            // Hit radius: 2× visual radius or 40px minimum
-            const hitRadius = Math.max(star.radius * 2, 40);
+            // Hit radius: configurable via STAR_HIT_RADIUS (default 50px)
+            const hitRadius =
+                GAME_CONFIG.STAR_HIT_RADIUS ?? Math.max(star.radius * 2, 40);
             if (dist <= hitRadius && dist < nearestDist) {
                 nearest = star;
                 nearestDist = dist;
@@ -2188,7 +2190,3 @@
         }
     }
 </style>
-
-
-
-

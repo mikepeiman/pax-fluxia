@@ -62,29 +62,71 @@
         value={panel.starSystemScale ?? 1}
         oninput={(e) => {
             const newScale = +(e.target as HTMLInputElement).value;
-            const oldScale = panel.starSystemScale ?? 1;
+            const oldScale = GAME_CONFIG.STAR_SYSTEM_SCALE ?? 1;
+            if (oldScale === 0) return;
             const ratio = newScale / oldScale;
-            // Scale all bound sub-values proportionally
-            const scaleKey = (
-                panelKey: string,
-                configKey: string,
-                fallback: number,
-            ) => {
-                const old = (panel[panelKey] ?? fallback) as number;
-                const v = old * ratio;
-                (GAME_CONFIG as any)[configKey] = v;
-                updatePanel(panelKey, v);
-            };
-            scaleKey("starRenderRadius", "STAR_RENDER_RADIUS", 25);
-            scaleKey("starRingRadius", "STAR_RING_RADIUS", 30);
-            scaleKey("orbitBaseRadius", "ORBIT_BASE_RADIUS", 5);
-            scaleKey("damagedOrbitRadius", "DAMAGED_ORBIT_RADIUS", 15);
-            scaleKey("starIconScale", "STAR_ICON_SCALE", 0.55);
-            scaleKey("starLabelOffsetX", "STAR_LABEL_OFFSET_X", 45);
-            scaleKey("starLabelOffsetY", "STAR_LABEL_OFFSET_Y", 35);
-            scaleKey("starLabelFontSize", "STAR_LABEL_FONT_SIZE", 22);
-            scaleKey("starLabelIdFontSize", "STAR_LABEL_ID_FONT_SIZE", 14);
+            // Compute new values from GAME_CONFIG (ground truth) × ratio
+            const updates: [string, string, number][] = [
+                [
+                    "starRenderRadius",
+                    "STAR_RENDER_RADIUS",
+                    GAME_CONFIG.STAR_RENDER_RADIUS * ratio,
+                ],
+                [
+                    "starRingRadius",
+                    "STAR_RING_RADIUS",
+                    GAME_CONFIG.STAR_RING_RADIUS * ratio,
+                ],
+                [
+                    "orbitBaseRadius",
+                    "ORBIT_BASE_RADIUS",
+                    GAME_CONFIG.ORBIT_BASE_RADIUS * ratio,
+                ],
+                [
+                    "damagedOrbitRadius",
+                    "DAMAGED_ORBIT_RADIUS",
+                    GAME_CONFIG.DAMAGED_ORBIT_RADIUS * ratio,
+                ],
+                [
+                    "starIconScale",
+                    "STAR_ICON_SCALE",
+                    GAME_CONFIG.STAR_ICON_SCALE * ratio,
+                ],
+                [
+                    "starLabelOffsetX",
+                    "STAR_LABEL_OFFSET_X",
+                    (GAME_CONFIG.STAR_LABEL_OFFSET_X ?? 45) * ratio,
+                ],
+                [
+                    "starLabelOffsetY",
+                    "STAR_LABEL_OFFSET_Y",
+                    (GAME_CONFIG.STAR_LABEL_OFFSET_Y ?? 35) * ratio,
+                ],
+                [
+                    "starLabelFontSize",
+                    "STAR_LABEL_FONT_SIZE",
+                    (GAME_CONFIG.STAR_LABEL_FONT_SIZE ?? 22) * ratio,
+                ],
+                [
+                    "starLabelIdFontSize",
+                    "STAR_LABEL_ID_FONT_SIZE",
+                    (GAME_CONFIG.STAR_LABEL_ID_FONT_SIZE ?? 14) * ratio,
+                ],
+                [
+                    "starHitRadius",
+                    "STAR_HIT_RADIUS",
+                    (GAME_CONFIG.STAR_HIT_RADIUS ?? 50) * ratio,
+                ],
+            ];
+            // Write all to GAME_CONFIG first
+            for (const [, configKey, val] of updates) {
+                (GAME_CONFIG as any)[configKey] = val;
+            }
             GAME_CONFIG.STAR_SYSTEM_SCALE = newScale;
+            // Batch-update all panel keys in one pass (triggers reactive re-render)
+            for (const [panelKey, , val] of updates) {
+                updatePanel(panelKey, val);
+            }
             updatePanel("starSystemScale", newScale);
         }}
     />
@@ -722,6 +764,28 @@
             const v = +(e.target as HTMLInputElement).value;
             GAME_CONFIG.STAR_RING_LIGHTNESS = v;
             updatePanel("starRingLightness", v);
+        }}
+    />
+</div>
+
+<!-- ── Interaction ── -->
+<h4 class="sub-heading">Interaction</h4>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Hit Zone Radius</span><span class="val"
+            >{((panel.starHitRadius ?? 50) as number).toFixed(0)}px</span
+        >
+    </div>
+    <input
+        type="range"
+        min="20"
+        max="120"
+        step="5"
+        value={panel.starHitRadius ?? 50}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.STAR_HIT_RADIUS = v;
+            updatePanel("starHitRadius", v);
         }}
     />
 </div>

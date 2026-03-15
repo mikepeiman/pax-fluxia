@@ -227,6 +227,7 @@ interface GameConfigType {
     STAR_LABEL_FONT_SIZE: number;   // Active ships font size (default 22)
     STAR_LABEL_ID_FONT_SIZE: number;// Star ID font size (default 14)
     CLASSIC_MAP_SPACING: number;    // Classic map coordinate spacing multiplier (0.5-2.0, default 1.0)
+    STAR_HIT_RADIUS: number;        // Click/drag hit zone radius in px (default 50)
     STAR_GLOW_RADIUS_MULT: number;  // Glow radius as multiplier of outermost orbit ring (default 1.3)
     STAR_GLOW_INTENSITY: number;    // Peak glow alpha (0-1, default 0.25)
     STAR_GLOW_LAYERS: number;       // Number of concentric gradient layers (default 4)
@@ -875,6 +876,8 @@ const _rawConfig: GameConfigType = {
     STAR_LABEL_ID_FONT_SIZE: 14,
     /** Classic map coordinate spacing multiplier */
     CLASSIC_MAP_SPACING: 1.0,
+    /** Click/drag hit zone radius (px) */
+    STAR_HIT_RADIUS: 50,
     STAR_GLOW_RADIUS_MULT: 1.3,
     STAR_GLOW_INTENSITY: 0.25,
     STAR_GLOW_LAYERS: 4,
