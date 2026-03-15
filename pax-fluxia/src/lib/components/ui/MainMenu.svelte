@@ -1339,7 +1339,7 @@
     .section-divider {
         height: 1px;
         background: rgba(100, 200, 255, 0.08);
-        margin: 10px 0;
+        margin: 16px 0;
     }
 
     /* ── Labels ── */
@@ -1775,6 +1775,7 @@
         font-size: 1.4rem;
         padding: 24px;
         margin-top: auto;
+        padding-top: 24px;
     }
 
     /* ═══ RIGHT COLUMN ═══ */
