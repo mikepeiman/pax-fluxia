@@ -1437,6 +1437,7 @@ export function renderPVV3(
 
     // Re-show graphics — voronoiContainer blanket-hides every frame
     if (fillGraphics) fillGraphics.visible = true;
+    if (borderGraphics) borderGraphics.visible = true;
 
     // ── Per-frame animation ────────────────────────────────────────────
 
