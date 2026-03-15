@@ -842,12 +842,9 @@
   /* Note: Global body styles were removed as they should be in app.css or layout */
 
   .app-container {
-    display: flex;
-    flex-direction: column;
     width: 100vw;
     height: 100vh;
     height: 100dvh;
-    overflow: hidden;
   }
 
   /* ═══ GRID LAYOUT V8 ═══ */
@@ -857,8 +854,8 @@
     display: grid;
     grid-template-columns: 1fr auto;
     grid-template-areas: "canvas right";
-    flex: 1;
-    min-height: 0; /* Prevent grid from exceeding flex container */
+    height: 100vh;
+    height: 100dvh;
     width: 100vw;
   }
 
