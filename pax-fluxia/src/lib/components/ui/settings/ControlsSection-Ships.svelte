@@ -778,9 +778,35 @@
     />
 </div>
 
-<!-- ── Star Labels ── -->
+<!-- ── Star Labels (Pill) ── -->
 <h4 class="sub-heading">Star Labels</h4>
-<!-- Master Font Scale (drives all 3 sub-fonts proportionally) -->
+
+<!-- Layout Toggle: Horizontal (Pill) vs Vertical (Stacked) -->
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Layout</span>
+        <div style="display: flex; gap: 4px;">
+            <button
+                class="mode-btn"
+                class:active={GAME_CONFIG.STAR_LABEL_LAYOUT === "horizontal"}
+                onclick={() => {
+                    GAME_CONFIG.STAR_LABEL_LAYOUT = "horizontal";
+                    updatePanel("starLabelLayout", "horizontal");
+                }}>Pill</button
+            >
+            <button
+                class="mode-btn"
+                class:active={GAME_CONFIG.STAR_LABEL_LAYOUT === "vertical"}
+                onclick={() => {
+                    GAME_CONFIG.STAR_LABEL_LAYOUT = "vertical";
+                    updatePanel("starLabelLayout", "vertical");
+                }}>Stacked</button
+            >
+        </div>
+    </div>
+</div>
+
+<!-- Master Font Scale -->
 <div class="var-row" style="border-left: 3px solid #668; padding-left: 6px;">
     <div class="row-top">
         <span class="var-name" style="font-weight: bold;"
@@ -804,17 +830,17 @@
                 [
                     "starLabelIdFontSize",
                     "STAR_LABEL_ID_FONT_SIZE",
-                    (GAME_CONFIG.STAR_LABEL_ID_FONT_SIZE ?? 14) * ratio,
+                    (GAME_CONFIG.STAR_LABEL_ID_FONT_SIZE ?? 13) * ratio,
                 ],
                 [
                     "starLabelFontSize",
                     "STAR_LABEL_FONT_SIZE",
-                    (GAME_CONFIG.STAR_LABEL_FONT_SIZE ?? 22) * ratio,
+                    (GAME_CONFIG.STAR_LABEL_FONT_SIZE ?? 14) * ratio,
                 ],
                 [
                     "starLabelDamagedFontSize",
                     "STAR_LABEL_DAMAGED_FONT_SIZE",
-                    (GAME_CONFIG.STAR_LABEL_DAMAGED_FONT_SIZE ?? 16) * ratio,
+                    (GAME_CONFIG.STAR_LABEL_DAMAGED_FONT_SIZE ?? 12) * ratio,
                 ],
                 [
                     "starLabelLineHeight",
@@ -833,9 +859,11 @@
         }}
     />
 </div>
+
+<!-- Angle -->
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Label Angle</span><span class="val"
+        <span class="var-name">Angle</span><span class="val"
             >{((panel.starLabelAngle ?? 35) as number).toFixed(0)}°</span
         >
     </div>
@@ -852,16 +880,18 @@
         }}
     />
 </div>
+
+<!-- Distance -->
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Label Distance</span><span class="val"
+        <span class="var-name">Distance</span><span class="val"
             >{((panel.starLabelDistance ?? 55) as number).toFixed(0)}px</span
         >
     </div>
     <input
         type="range"
         min="10"
-        max="120"
+        max="150"
         step="5"
         value={panel.starLabelDistance ?? 55}
         oninput={(e) => {
@@ -871,29 +901,12 @@
         }}
     />
 </div>
+
+<!-- Star ID Font -->
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Line Height</span><span class="val"
-            >{((panel.starLabelLineHeight ?? 18) as number).toFixed(0)}px</span
-        >
-    </div>
-    <input
-        type="range"
-        min="8"
-        max="40"
-        step="1"
-        value={panel.starLabelLineHeight ?? 18}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.STAR_LABEL_LINE_HEIGHT = v;
-            updatePanel("starLabelLineHeight", v);
-        }}
-    />
-</div>
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Star ID Font</span><span class="val"
-            >{((panel.starLabelIdFontSize ?? 14) as number).toFixed(0)}</span
+        <span class="var-name">ID Font</span><span class="val"
+            >{((panel.starLabelIdFontSize ?? 13) as number).toFixed(0)}</span
         >
     </div>
     <input
@@ -901,7 +914,7 @@
         min="6"
         max="30"
         step="1"
-        value={panel.starLabelIdFontSize ?? 14}
+        value={panel.starLabelIdFontSize ?? 13}
         oninput={(e) => {
             const v = +(e.target as HTMLInputElement).value;
             GAME_CONFIG.STAR_LABEL_ID_FONT_SIZE = v;
@@ -909,10 +922,12 @@
         }}
     />
 </div>
+
+<!-- Active Ships Font -->
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Ship Count Font</span><span class="val"
-            >{((panel.starLabelFontSize ?? 22) as number).toFixed(0)}</span
+        <span class="var-name">Active Font</span><span class="val"
+            >{((panel.starLabelFontSize ?? 14) as number).toFixed(0)}</span
         >
     </div>
     <input
@@ -920,7 +935,7 @@
         min="8"
         max="40"
         step="1"
-        value={panel.starLabelFontSize ?? 22}
+        value={panel.starLabelFontSize ?? 14}
         oninput={(e) => {
             const v = +(e.target as HTMLInputElement).value;
             GAME_CONFIG.STAR_LABEL_FONT_SIZE = v;
@@ -928,10 +943,12 @@
         }}
     />
 </div>
+
+<!-- Damaged Ships Font -->
 <div class="var-row">
     <div class="row-top">
         <span class="var-name">Damaged Font</span><span class="val"
-            >{((panel.starLabelDamagedFontSize ?? 16) as number).toFixed(
+            >{((panel.starLabelDamagedFontSize ?? 12) as number).toFixed(
                 0,
             )}</span
         >
@@ -941,7 +958,7 @@
         min="6"
         max="30"
         step="1"
-        value={panel.starLabelDamagedFontSize ?? 16}
+        value={panel.starLabelDamagedFontSize ?? 12}
         oninput={(e) => {
             const v = +(e.target as HTMLInputElement).value;
             GAME_CONFIG.STAR_LABEL_DAMAGED_FONT_SIZE = v;
@@ -949,22 +966,191 @@
         }}
     />
 </div>
-<!-- Inline toggle -->
+
+<!-- Pad X -->
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Active/Damaged Inline</span>
+        <span class="var-name">Pad X</span><span class="val"
+            >{((panel.starLabelPadX ?? 4) as number).toFixed(0)}px</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="20"
+        step="1"
+        value={panel.starLabelPadX ?? 4}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.STAR_LABEL_PAD_X = v;
+            updatePanel("starLabelPadX", v);
+        }}
+    />
+</div>
+
+<!-- Pad Y -->
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Pad Y</span><span class="val"
+            >{((panel.starLabelPadY ?? 2) as number).toFixed(0)}px</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="20"
+        step="1"
+        value={panel.starLabelPadY ?? 2}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.STAR_LABEL_PAD_Y = v;
+            updatePanel("starLabelPadY", v);
+        }}
+    />
+</div>
+
+<!-- Gap -->
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Gap</span><span class="val"
+            >{((panel.starLabelGap ?? 2) as number).toFixed(0)}px</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="12"
+        step="1"
+        value={panel.starLabelGap ?? 2}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.STAR_LABEL_GAP = v;
+            updatePanel("starLabelGap", v);
+        }}
+    />
+</div>
+
+<!-- BG Alpha -->
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">BG Opacity</span><span class="val"
+            >{((panel.starLabelBgAlpha ?? 0.75) as number).toFixed(2)}</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="1"
+        step="0.05"
+        value={panel.starLabelBgAlpha ?? 0.75}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.STAR_LABEL_BG_ALPHA = v;
+            updatePanel("starLabelBgAlpha", v);
+        }}
+    />
+</div>
+
+<!-- Border Alpha -->
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Border Opacity</span><span class="val"
+            >{((panel.starLabelBorderAlpha ?? 0.5) as number).toFixed(2)}</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="1"
+        step="0.05"
+        value={panel.starLabelBorderAlpha ?? 0.5}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.STAR_LABEL_BORDER_ALPHA = v;
+            updatePanel("starLabelBorderAlpha", v);
+        }}
+    />
+</div>
+
+<!-- Line Height (vertical mode) -->
+{#if GAME_CONFIG.STAR_LABEL_LAYOUT === "vertical"}
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Line Height</span><span class="val"
+                >{((panel.starLabelLineHeight ?? 18) as number).toFixed(
+                    0,
+                )}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="8"
+            max="40"
+            step="1"
+            value={panel.starLabelLineHeight ?? 18}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.STAR_LABEL_LINE_HEIGHT = v;
+                updatePanel("starLabelLineHeight", v);
+            }}
+        />
+    </div>
+{/if}
+
+<!-- Toggles -->
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Owner Border</span>
         <label style="display:flex;align-items:center;gap:4px;">
             <input
                 type="checkbox"
-                checked={GAME_CONFIG.STAR_LABEL_INLINE ?? false}
+                checked={GAME_CONFIG.STAR_LABEL_OWNER_BORDER}
                 onchange={(e) => {
                     const v = (e.target as HTMLInputElement).checked;
-                    GAME_CONFIG.STAR_LABEL_INLINE = v;
-                    updatePanel("starLabelInline", v);
+                    GAME_CONFIG.STAR_LABEL_OWNER_BORDER = v;
+                    updatePanel("starLabelOwnerBorder", v);
                 }}
             />
             <span class="val"
-                >{GAME_CONFIG.STAR_LABEL_INLINE ? "On" : "Off"}</span
+                >{GAME_CONFIG.STAR_LABEL_OWNER_BORDER ? "On" : "Off"}</span
+            >
+        </label>
+    </div>
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Owner Fill</span>
+        <label style="display:flex;align-items:center;gap:4px;">
+            <input
+                type="checkbox"
+                checked={GAME_CONFIG.STAR_LABEL_OWNER_FILL}
+                onchange={(e) => {
+                    const v = (e.target as HTMLInputElement).checked;
+                    GAME_CONFIG.STAR_LABEL_OWNER_FILL = v;
+                    updatePanel("starLabelOwnerFill", v);
+                }}
+            />
+            <span class="val"
+                >{GAME_CONFIG.STAR_LABEL_OWNER_FILL ? "On" : "Off"}</span
+            >
+        </label>
+    </div>
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Leash Line</span>
+        <label style="display:flex;align-items:center;gap:4px;">
+            <input
+                type="checkbox"
+                checked={GAME_CONFIG.STAR_LABEL_LEASH}
+                onchange={(e) => {
+                    const v = (e.target as HTMLInputElement).checked;
+                    GAME_CONFIG.STAR_LABEL_LEASH = v;
+                    updatePanel("starLabelLeash", v);
+                }}
+            />
+            <span class="val"
+                >{GAME_CONFIG.STAR_LABEL_LEASH ? "On" : "Off"}</span
             >
         </label>
     </div>

@@ -304,8 +304,12 @@ export function renderStars(
         const iconSize = radius * iconScale;
         drawTypeIcon(graphics, star.x, star.y, iconSize, star.starType, iconAlpha, typeColor);
 
-        // Get label elements
+        // Get label elements (pill layout)
+        const pillBg = label.getChildByLabel('pillBg') as PIXI.Graphics;
+        const idText2 = label.getChildByLabel('starId') as PIXI.Text;
+        const sepText = label.getChildByLabel('sep') as PIXI.Text;
         const activeText = label.getChildByLabel('active') as PIXI.Text;
+        const slashText = label.getChildByLabel('slash') as PIXI.Text;
         const damagedText = label.getChildByLabel('damaged') as PIXI.Text;
         const leashGraphics = label.getChildByLabel('leash') as PIXI.Graphics;
 
@@ -326,7 +330,6 @@ export function renderStars(
         const damagedChanged = lerp.damagedTarget !== damaged;
 
         if (animMode === 'rolling') {
-            // Rolling / lerp mode (original behavior)
             if (activeChanged) {
                 lerp.activeTarget = active;
                 if (transMs <= 0) lerp.activeDisplay = active;
@@ -345,15 +348,13 @@ export function renderStars(
             }
             lerp.fadeAlpha = 1.0;
         } else if (animMode === 'fade') {
-            // Fade mode: snap number instantly, flash alpha on change
             if (activeChanged || damagedChanged) {
                 lerp.activeTarget = active;
                 lerp.damagedTarget = damaged;
                 lerp.activeDisplay = active;
                 lerp.damagedDisplay = damaged;
-                lerp.fadeAlpha = 0.25; // Flash low
+                lerp.fadeAlpha = 0.25;
             }
-            // Fade alpha back to 1.0
             if (lerp.fadeAlpha < 1.0 && transMs > 0) {
                 const dt = Math.max(1, state.gameNowMs - lerp.lastUpdateMs);
                 const t = Math.min(1, dt / transMs * 2);
@@ -361,7 +362,6 @@ export function renderStars(
                 if (lerp.fadeAlpha > 0.98) lerp.fadeAlpha = 1.0;
             }
         } else {
-            // Instant mode: snap everything
             lerp.activeTarget = active;
             lerp.damagedTarget = damaged;
             lerp.activeDisplay = active;
@@ -370,11 +370,11 @@ export function renderStars(
         }
         lerp.lastUpdateMs = state.gameNowMs;
 
+        // Update text content
         if (activeText) {
             activeText.text = String(Math.round(lerp.activeDisplay));
             activeText.alpha = lerp.fadeAlpha;
         }
-
         if (damagedText) {
             damagedText.text = String(Math.round(lerp.damagedDisplay));
             damagedText.alpha = lerp.fadeAlpha;
@@ -389,45 +389,87 @@ export function renderStars(
         label.x = star.x + labelOffsetX;
         label.y = star.y + labelOffsetY;
 
-        // Master font scale + dynamic font sizing
+        // Master font scale
         const labelScale = GAME_CONFIG.STAR_LABEL_SCALE ?? 1.0;
-        const lineH = GAME_CONFIG.STAR_LABEL_LINE_HEIGHT ?? 18;
-        const isInline = GAME_CONFIG.STAR_LABEL_INLINE ?? false;
+        const fontFamily = GAME_CONFIG.STAR_LABEL_FONT_FAMILY ?? 'JetBrains Mono, monospace';
 
-        const idText2 = label.getChildByLabel('starId') as PIXI.Text;
-        if (idText2) {
-            idText2.style.fontSize = (GAME_CONFIG.STAR_LABEL_ID_FONT_SIZE ?? 14) * labelScale;
-            idText2.position.y = 0;
-        }
-        if (activeText) {
-            activeText.style.fontSize = (GAME_CONFIG.STAR_LABEL_FONT_SIZE ?? 22) * labelScale;
-            activeText.position.y = lineH;
-            if (isInline) activeText.anchor.set(1.0, 0.5); else activeText.anchor.set(0.5, 0.5);
-        }
-        if (damagedText) {
-            damagedText.style.fontSize = (GAME_CONFIG.STAR_LABEL_DAMAGED_FONT_SIZE ?? 16) * labelScale;
-            if (isInline) {
-                // Side-by-side: place damaged right of active
-                damagedText.position.y = lineH;
-                damagedText.position.x = 4;
-                damagedText.anchor.set(0, 0.5);
-            } else {
-                // Stacked: place damaged below active
-                damagedText.position.y = lineH * 2;
-                damagedText.position.x = 0;
-                damagedText.anchor.set(0.5, 0.5);
+        // Apply font sizes + family
+        if (idText2) { idText2.style.fontSize = (GAME_CONFIG.STAR_LABEL_ID_FONT_SIZE ?? 13) * labelScale; idText2.style.fontFamily = fontFamily; }
+        if (activeText) { activeText.style.fontSize = (GAME_CONFIG.STAR_LABEL_FONT_SIZE ?? 14) * labelScale; activeText.style.fontFamily = fontFamily; }
+        if (damagedText) { damagedText.style.fontSize = (GAME_CONFIG.STAR_LABEL_DAMAGED_FONT_SIZE ?? 12) * labelScale; damagedText.style.fontFamily = fontFamily; }
+        if (sepText) sepText.style.fontFamily = fontFamily;
+        if (slashText) slashText.style.fontFamily = fontFamily;
+
+        // ── Layout ──
+        const pad = GAME_CONFIG.STAR_LABEL_PAD_X ?? 4;
+        const padY = GAME_CONFIG.STAR_LABEL_PAD_Y ?? 2;
+        const gap = GAME_CONFIG.STAR_LABEL_GAP ?? 2;
+        const layout = GAME_CONFIG.STAR_LABEL_LAYOUT ?? 'horizontal';
+
+        if (layout === 'horizontal') {
+            // Pill mode: [#N] [│] [active/damaged] in one row
+            let cx = 0;
+            if (sepText) sepText.visible = true;
+            if (slashText) slashText.visible = true;
+
+            if (idText2) { idText2.anchor.set(0, 0.5); idText2.position.set(cx, 0); cx += idText2.width + gap; }
+            if (sepText) { sepText.anchor.set(0, 0.5); sepText.position.set(cx, 0); cx += sepText.width + gap; }
+            if (activeText) { activeText.anchor.set(0, 0.5); activeText.position.set(cx, 0); cx += activeText.width; }
+            if (slashText) { slashText.anchor.set(0, 0.5); slashText.position.set(cx, 0); cx += slashText.width; }
+            if (damagedText) { damagedText.anchor.set(0, 0.5); damagedText.position.set(cx, 0); cx += damagedText.width; }
+
+            const totalW = cx;
+            const pillH = 18 * labelScale;
+
+            // Ownership-colored pill
+            const bgAlpha = GAME_CONFIG.STAR_LABEL_BG_ALPHA ?? 0.75;
+            const borderAlpha = GAME_CONFIG.STAR_LABEL_BORDER_ALPHA ?? 0.5;
+            const useOwnerBorder = GAME_CONFIG.STAR_LABEL_OWNER_BORDER ?? true;
+            const useOwnerFill = GAME_CONFIG.STAR_LABEL_OWNER_FILL ?? true;
+
+            const borderCol = useOwnerBorder ? color : 0x334466;
+            // Darken the fill: mix owner color toward near-black
+            const fillCol = useOwnerFill ? colorUtils.hslToHex(
+                colorUtils.hexToHSL(color).h,
+                colorUtils.hexToHSL(color).s * 0.4,
+                colorUtils.hexToHSL(color).l * 0.15,
+            ) : 0x080c18;
+
+            if (pillBg) {
+                pillBg.clear();
+                pillBg.roundRect(-pad, -pillH / 2 - padY, totalW + pad * 2, pillH + padY * 2, 4);
+                pillBg.fill({ color: fillCol, alpha: bgAlpha });
+                pillBg.stroke({ color: borderCol, width: 1, alpha: borderAlpha });
             }
+            label.pivot.set(totalW / 2, 0);
+        } else {
+            // Vertical stacked mode (legacy)
+            if (sepText) sepText.visible = false;
+            if (slashText) slashText.visible = false;
+            const lineH = GAME_CONFIG.STAR_LABEL_LINE_HEIGHT ?? 18;
+
+            if (idText2) { idText2.anchor.set(0.5, 0.5); idText2.position.set(0, 0); }
+            if (activeText) { activeText.anchor.set(0.5, 0.5); activeText.position.set(0, lineH); }
+            if (damagedText) { damagedText.anchor.set(0.5, 0.5); damagedText.position.set(0, lineH * 2); }
+
+            if (pillBg) {
+                pillBg.clear();
+                // No pill bg in vertical mode
+            }
+            label.pivot.set(0, lineH);
         }
 
-        // Draw leash line from star edge to label
+        // Draw leash line from star edge to label (toggled by config)
         if (leashGraphics) {
             leashGraphics.clear();
-            leashGraphics.beginPath();
-            const starEdgeX = -labelOffsetX + radius * 0.7;
-            const starEdgeY = -labelOffsetY + radius * 0.7;
-            leashGraphics.moveTo(starEdgeX, starEdgeY);
-            leashGraphics.lineTo(-5, -5);
-            leashGraphics.stroke({ color: 0x666688, width: 1, alpha: 0.6 });
+            if (GAME_CONFIG.STAR_LABEL_LEASH) {
+                leashGraphics.beginPath();
+                const starEdgeX = -labelOffsetX + radius * 0.7;
+                const starEdgeY = -labelOffsetY + radius * 0.7;
+                leashGraphics.moveTo(starEdgeX, starEdgeY);
+                leashGraphics.lineTo(-pad, 0);
+                leashGraphics.stroke({ color: 0x666688, width: 1, alpha: 0.4 });
+            }
         }
     });
 }
@@ -467,57 +509,86 @@ function createStarLabel(star: StarState): PIXI.Container {
     leashGraphics.label = 'leash';
     label.addChild(leashGraphics);
 
-    // Star ID label (Top)
+    // Pill background (rounded rect, drawn dynamically in renderStars)
+    const pillBg = new PIXI.Graphics();
+    pillBg.label = 'pillBg';
+    label.addChild(pillBg);
+
+    // Star ID text (left side of pill)
     const idText = new PIXI.Text({
         text: star.id.replace('star-', '#'),
         style: {
             fontFamily: 'JetBrains Mono, monospace',
-            fontSize: GAME_CONFIG.STAR_LABEL_ID_FONT_SIZE ?? 14,
+            fontSize: GAME_CONFIG.STAR_LABEL_ID_FONT_SIZE ?? 13,
             fontWeight: 'bold',
             fill: 0x88aaff,
             align: 'center',
-            stroke: { color: 0x000000, width: 3 },
         },
         resolution: 2,
     });
     idText.anchor.set(0.5, 0.5);
-    idText.position.y = 0;
     idText.label = 'starId';
     label.addChild(idText);
 
-    // Active count (Middle, Bright)
+    // Separator text "|"
+    const sepText = new PIXI.Text({
+        text: '│',
+        style: {
+            fontFamily: 'JetBrains Mono, monospace',
+            fontSize: 12,
+            fill: 0x446688,
+            align: 'center',
+        },
+        resolution: 2,
+    });
+    sepText.anchor.set(0.5, 0.5);
+    sepText.label = 'sep';
+    label.addChild(sepText);
+
+    // Active count (bright white)
     const activeText = new PIXI.Text({
         text: '0',
         style: {
             fontFamily: 'JetBrains Mono, monospace',
-            fontSize: GAME_CONFIG.STAR_LABEL_FONT_SIZE ?? 22,
+            fontSize: GAME_CONFIG.STAR_LABEL_FONT_SIZE ?? 14,
             fontWeight: 'bold',
             fill: 0xffffff,
             align: 'center',
-            stroke: { color: 0x000000, width: 3 },
         },
         resolution: 2,
     });
-    activeText.anchor.set(0.5, 0.5);
-    activeText.position.y = 18;
+    activeText.anchor.set(1.0, 0.5);
     activeText.label = 'active';
     label.addChild(activeText);
 
-    // Damaged count (Bottom, Dimmer)
+    // Slash separator
+    const slashText = new PIXI.Text({
+        text: '/',
+        style: {
+            fontFamily: 'JetBrains Mono, monospace',
+            fontSize: 11,
+            fill: 0x556677,
+            align: 'center',
+        },
+        resolution: 2,
+    });
+    slashText.anchor.set(0.5, 0.5);
+    slashText.label = 'slash';
+    label.addChild(slashText);
+
+    // Damaged count (red-tinted)
     const damagedText = new PIXI.Text({
         text: '0',
         style: {
             fontFamily: 'JetBrains Mono, monospace',
-            fontSize: 16,
+            fontSize: GAME_CONFIG.STAR_LABEL_DAMAGED_FONT_SIZE ?? 12,
             fontWeight: 'bold',
             fill: 0xff8888,
             align: 'center',
-            stroke: { color: 0x000000, width: 2 },
         },
         resolution: 2,
     });
-    damagedText.anchor.set(0.5, 0.5);
-    damagedText.position.y = 38;
+    damagedText.anchor.set(0, 0.5);
     damagedText.label = 'damaged';
     label.addChild(damagedText);
 

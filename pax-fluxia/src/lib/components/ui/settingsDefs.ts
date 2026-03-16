@@ -107,6 +107,26 @@ export const ANIM_SLIDERS: AnimSliderDef[] = [
     { key: 'ARROW_STAGGER_MS', label: 'Arrow Stagger', min: 0, max: 5000, step: 1, unit: 'ms', group: 'Arrow Formation' },
 ];
 
+// ── Star Label Slider Definitions ───────────────────────────────────────────
+
+export const STAR_LABEL_SLIDERS: AnimSliderDef[] = [
+    { key: 'STAR_LABEL_ANGLE', label: 'Angle', min: 0, max: 360, step: 1, unit: '°', group: 'Position' },
+    { key: 'STAR_LABEL_DISTANCE', label: 'Distance', min: 10, max: 150, step: 1, unit: 'px', group: 'Position' },
+    { key: 'STAR_LABEL_SCALE', label: 'Scale', min: 0.3, max: 3, step: 0.05, unit: '×', group: 'Size' },
+    { key: 'STAR_LABEL_FONT_SIZE', label: 'Active Font', min: 8, max: 32, step: 1, unit: 'px', group: 'Size' },
+    { key: 'STAR_LABEL_ID_FONT_SIZE', label: 'ID Font', min: 6, max: 24, step: 1, unit: 'px', group: 'Size' },
+    { key: 'STAR_LABEL_DAMAGED_FONT_SIZE', label: 'Damaged Font', min: 6, max: 24, step: 1, unit: 'px', group: 'Size' },
+    { key: 'STAR_LABEL_PAD_X', label: 'Pad X', min: 0, max: 20, step: 1, unit: 'px', group: 'Spacing' },
+    { key: 'STAR_LABEL_PAD_Y', label: 'Pad Y', min: 0, max: 20, step: 1, unit: 'px', group: 'Spacing' },
+    { key: 'STAR_LABEL_GAP', label: 'Gap', min: 0, max: 12, step: 1, unit: 'px', group: 'Spacing' },
+    { key: 'STAR_LABEL_BG_ALPHA', label: 'BG Opacity', min: 0, max: 1, step: 0.05, unit: '', group: 'Appearance' },
+    { key: 'STAR_LABEL_BORDER_ALPHA', label: 'Border Opacity', min: 0, max: 1, step: 0.05, unit: '', group: 'Appearance' },
+    { key: 'STAR_LABEL_LINE_HEIGHT', label: 'Line Height', min: 10, max: 40, step: 1, unit: 'px', desc: 'Vertical mode only', group: 'Spacing' },
+    { key: 'STAR_LABEL_LEASH', label: 'Leash Line', type: 'toggle', group: 'Appearance' },
+    { key: 'STAR_LABEL_OWNER_BORDER', label: 'Owner Border', type: 'toggle', group: 'Appearance' },
+    { key: 'STAR_LABEL_OWNER_FILL', label: 'Owner Fill', type: 'toggle', group: 'Appearance' },
+];
+
 // ── Panel ↔ Config Mapping ──────────────────────────────────────────────────
 
 /**
@@ -351,6 +371,24 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'transferAnimMs', configKey: 'TRANSFER_ANIMATION_MS' },
     // Show hex selection
     { panelKey: 'showSelectionHex', configKey: 'SHOW_SELECTION_HEX' },
+    // Star Labels (F-159)
+    { panelKey: 'starLabelLayout', configKey: 'STAR_LABEL_LAYOUT' },
+    { panelKey: 'starLabelAngle', configKey: 'STAR_LABEL_ANGLE' },
+    { panelKey: 'starLabelDistance', configKey: 'STAR_LABEL_DISTANCE' },
+    { panelKey: 'starLabelScale', configKey: 'STAR_LABEL_SCALE' },
+    { panelKey: 'starLabelFontSize', configKey: 'STAR_LABEL_FONT_SIZE' },
+    { panelKey: 'starLabelIdFontSize', configKey: 'STAR_LABEL_ID_FONT_SIZE' },
+    { panelKey: 'starLabelDamagedFontSize', configKey: 'STAR_LABEL_DAMAGED_FONT_SIZE' },
+    { panelKey: 'starLabelPadX', configKey: 'STAR_LABEL_PAD_X' },
+    { panelKey: 'starLabelPadY', configKey: 'STAR_LABEL_PAD_Y' },
+    { panelKey: 'starLabelGap', configKey: 'STAR_LABEL_GAP' },
+    { panelKey: 'starLabelBgAlpha', configKey: 'STAR_LABEL_BG_ALPHA' },
+    { panelKey: 'starLabelBorderAlpha', configKey: 'STAR_LABEL_BORDER_ALPHA' },
+    { panelKey: 'starLabelLeash', configKey: 'STAR_LABEL_LEASH' },
+    { panelKey: 'starLabelFontFamily', configKey: 'STAR_LABEL_FONT_FAMILY' },
+    { panelKey: 'starLabelOwnerBorder', configKey: 'STAR_LABEL_OWNER_BORDER' },
+    { panelKey: 'starLabelOwnerFill', configKey: 'STAR_LABEL_OWNER_FILL' },
+    { panelKey: 'starLabelLineHeight', configKey: 'STAR_LABEL_LINE_HEIGHT' },
     // Modified Voronoi Territory (F-138)
     { panelKey: 'territoryModifiedVoronoi', configKey: 'TERRITORY_MODIFIED_VORONOI' },
     { panelKey: 'territoryPowerVoronoi', configKey: 'TERRITORY_POWER_VORONOI' },
