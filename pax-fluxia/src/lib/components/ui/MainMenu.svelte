@@ -44,6 +44,9 @@
     // BG images are a static manifest — no fetch needed
     let bgImages = $state<string[]>(BG_IMAGES);
 
+    // Chat UI state
+    let chatOpen = $state(false);
+    let chatInput = $state("");
     // â”€â”€ Game Mode â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Auto-switch to MP when connected
     let gameMode = $state<"sp" | "mp">(
@@ -748,16 +751,28 @@
                         </div>
                     </div>
 
-                    <button
-                        class="start-btn start-btn-primary"
-                        onclick={() => {
-                            audioManager.play("click");
-                            startSPGame();
-                        }}
-                    >
-                        <span class="btn-glow"></span>
-                        START GAME
-                    </button>
+                    <div class="start-actions-row">
+                        <button
+                            class="start-btn start-btn-primary"
+                            onclick={() => {
+                                audioManager.play("click");
+                                startSPGame();
+                            }}
+                        >
+                            <span class="btn-glow"></span>
+                            ▶ START
+                        </button>
+                        <button
+                            class="start-btn mp-create-btn-main"
+                            onclick={() => {
+                                audioManager.play("click");
+                                handleCreateRoom();
+                            }}
+                        >
+                            <span class="btn-glow"></span>
+                            🌐 CREATE LOBBY
+                        </button>
+                    </div>
                 </section>
 
                 <!-- ── RIGHT: Opponents + Multiplayer ── -->
@@ -880,38 +895,45 @@
                                     {multiplayerStore.playerCount} / {multiplayerStore.maxPlayers}
                                 </div>
                             </div>
-                            <div class="players-list">
+
+                            <!-- Numbered Slot Grid -->
+                            <div class="slot-grid">
+                                {#each multiplayerStore.players as player, i}
+                                    <div
+                                        class="slot-row"
+                                        class:slot-you={player.sessionId ===
+                                            multiplayerStore.localSessionId}
+                                    >
+                                        <span class="slot-index">{i + 1}</span>
+                                        <span
+                                            class="player-dot"
+                                            style:background-color={player.color}
+                                        ></span>
+                                        <span class="player-name">
+                                            {player.name}
+                                        </span>
+                                        <span class="slot-badges">
+                                            {#if player.sessionId === multiplayerStore.hostSessionId}<span
+                                                    class="badge host"
+                                                    >HOST</span
+                                                >{/if}
+                                            {#if player.sessionId === multiplayerStore.localSessionId}<span
+                                                    class="badge you">YOU</span
+                                                >{/if}
+                                            {#if player.isAI}<span
+                                                    class="badge ai">AI</span
+                                                >{/if}
+                                        </span>
+                                    </div>
+                                {/each}
                                 {#if multiplayerStore.players.length === 0}
                                     <p class="waiting-text">
                                         Waiting for players...
                                     </p>
                                 {/if}
-                                <ul>
-                                    {#each multiplayerStore.players as player}
-                                        <li class="player-row">
-                                            <span
-                                                class="player-dot"
-                                                style:background-color={player.color}
-                                            ></span>
-                                            <span class="player-name">
-                                                {player.name}
-                                                {#if player.sessionId === multiplayerStore.hostSessionId}<span
-                                                        class="badge host"
-                                                        >HOST</span
-                                                    >{/if}
-                                                {#if player.sessionId === multiplayerStore.localSessionId}<span
-                                                        class="badge you"
-                                                        >YOU</span
-                                                    >{/if}
-                                                {#if player.isAI}<span
-                                                        class="badge ai"
-                                                        >AI</span
-                                                    >{/if}
-                                            </span>
-                                        </li>
-                                    {/each}
-                                </ul>
                             </div>
+
+                            <!-- Lobby Actions -->
                             <div class="lobby-actions">
                                 {#if multiplayerStore.isHost}
                                     <button
@@ -921,9 +943,20 @@
                                         GAME</button
                                     >
                                 {:else}
-                                    <p class="waiting-text">
-                                        Waiting for host to start...
-                                    </p>
+                                    <button
+                                        class="start-btn vote-btn"
+                                        onclick={() =>
+                                            multiplayerStore.voteToStart()}
+                                        ><span class="btn-glow"></span>VOTE TO
+                                        START</button
+                                    >
+                                    {#if multiplayerStore.startVoteInfo}
+                                        <span class="vote-progress">
+                                            {multiplayerStore.startVoteInfo
+                                                .votes}/{multiplayerStore
+                                                .startVoteInfo.needed} votes
+                                        </span>
+                                    {/if}
                                 {/if}
                                 <button
                                     class="leave-btn"
@@ -936,6 +969,79 @@
                                             multiplayerStore.disposeRoom()}
                                         >Dispose Room</button
                                     >
+                                {/if}
+                            </div>
+
+                            <!-- Chat (collapsible) -->
+                            <div class="lobby-chat-section">
+                                <button
+                                    class="chat-toggle"
+                                    onclick={() => (chatOpen = !chatOpen)}
+                                >
+                                    💬 {chatOpen ? "Hide" : "Chat"}
+                                    {#if multiplayerStore.chatMessages.length > 0}<span
+                                            class="chat-count"
+                                            >{multiplayerStore.chatMessages
+                                                .length}</span
+                                        >{/if}
+                                </button>
+                                {#if chatOpen}
+                                    <div
+                                        class="chat-messages"
+                                        transition:fly={{
+                                            y: -8,
+                                            duration: 150,
+                                        }}
+                                    >
+                                        {#if multiplayerStore.chatMessages.length === 0}
+                                            <p class="waiting-text">
+                                                No messages yet
+                                            </p>
+                                        {:else}
+                                            {#each multiplayerStore.chatMessages as msg}
+                                                <div class="chat-msg">
+                                                    <span
+                                                        class="chat-sender"
+                                                        style:color={msg.senderColor}
+                                                        >{msg.senderName}</span
+                                                    >
+                                                    <span class="chat-text"
+                                                        >{msg.text}</span
+                                                    >
+                                                </div>
+                                            {/each}
+                                        {/if}
+                                    </div>
+                                    <div class="chat-input-bar">
+                                        <input
+                                            type="text"
+                                            class="chat-input"
+                                            placeholder="Type a message..."
+                                            bind:value={chatInput}
+                                            onkeydown={(e) => {
+                                                if (
+                                                    e.key === "Enter" &&
+                                                    chatInput.trim()
+                                                ) {
+                                                    multiplayerStore.sendChat(
+                                                        chatInput,
+                                                    );
+                                                    chatInput = "";
+                                                }
+                                            }}
+                                        />
+                                        <button
+                                            class="chat-send-btn"
+                                            onclick={() => {
+                                                if (chatInput.trim()) {
+                                                    multiplayerStore.sendChat(
+                                                        chatInput,
+                                                    );
+                                                    chatInput = "";
+                                                }
+                                            }}>Send</button
+                                        >
+                                    </div>
                                 {/if}
                             </div>
                         {:else if multiplayerStore.isConnecting}
@@ -2413,5 +2519,174 @@
             flex-direction: column;
             gap: 8px;
         }
+    }
+
+    /* ── Dual action buttons ───────────────────────────────────────── */
+    .start-actions-row {
+        display: flex;
+        gap: 8px;
+        margin-top: 8px;
+    }
+    .start-actions-row .start-btn {
+        flex: 1;
+    }
+    .mp-create-btn-main {
+        background: linear-gradient(
+            135deg,
+            rgba(80, 180, 255, 0.15),
+            rgba(80, 180, 255, 0.05)
+        ) !important;
+        border-color: rgba(80, 180, 255, 0.3) !important;
+    }
+    .mp-create-btn-main:hover {
+        border-color: rgba(80, 180, 255, 0.5) !important;
+        background: linear-gradient(
+            135deg,
+            rgba(80, 180, 255, 0.2),
+            rgba(80, 180, 255, 0.08)
+        ) !important;
+    }
+
+    /* ── Numbered Slot Grid ──────────────────────────────────────── */
+    .slot-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        margin: 8px 0 4px;
+    }
+    .slot-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.02);
+        transition: background 0.15s;
+    }
+    .slot-row:hover {
+        background: rgba(255, 255, 255, 0.05);
+    }
+    .slot-you {
+        background: rgba(100, 200, 255, 0.06);
+        border: 1px solid rgba(100, 200, 255, 0.15);
+    }
+    .slot-index {
+        font-size: 0.6rem;
+        font-weight: 700;
+        color: rgba(255, 255, 255, 0.3);
+        min-width: 14px;
+        text-align: center;
+    }
+    .slot-badges {
+        margin-left: auto;
+        display: flex;
+        gap: 4px;
+    }
+
+    /* ── Vote to start ──────────────────────────────────────────── */
+    .vote-btn {
+        background: linear-gradient(
+            135deg,
+            rgba(255, 200, 0, 0.12),
+            rgba(255, 200, 0, 0.04)
+        ) !important;
+        border-color: rgba(255, 200, 0, 0.25) !important;
+    }
+    .vote-btn:hover {
+        border-color: rgba(255, 200, 0, 0.45) !important;
+    }
+    .vote-progress {
+        font-size: 0.6rem;
+        color: rgba(255, 200, 0, 0.7);
+        padding: 2px 8px;
+    }
+
+    /* ── Lobby Chat ─────────────────────────────────────────────── */
+    .lobby-chat-section {
+        margin-top: 8px;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+        padding-top: 6px;
+    }
+    .chat-toggle {
+        font-family: inherit;
+        font-size: 0.65rem;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 6px;
+        color: rgba(255, 255, 255, 0.5);
+        padding: 4px 10px;
+        cursor: pointer;
+        transition: all 0.15s;
+        width: 100%;
+        text-align: left;
+    }
+    .chat-toggle:hover {
+        background: rgba(255, 255, 255, 0.06);
+        color: rgba(255, 255, 255, 0.7);
+    }
+    .chat-count {
+        display: inline-block;
+        background: rgba(80, 180, 255, 0.2);
+        color: #7dd3fc;
+        font-size: 0.55rem;
+        padding: 0 5px;
+        border-radius: 8px;
+        margin-left: 4px;
+    }
+    .chat-messages {
+        max-height: 120px;
+        overflow-y: auto;
+        padding: 6px 0;
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+    }
+    .chat-msg {
+        font-size: 0.6rem;
+        line-height: 1.3;
+        padding: 2px 6px;
+    }
+    .chat-sender {
+        font-weight: 600;
+        margin-right: 4px;
+    }
+    .chat-sender::after {
+        content: ":";
+    }
+    .chat-text {
+        color: rgba(255, 255, 255, 0.7);
+    }
+    .chat-input-bar {
+        display: flex;
+        gap: 4px;
+        margin-top: 4px;
+    }
+    .chat-input {
+        flex: 1;
+        padding: 4px 8px;
+        font-family: inherit;
+        font-size: 0.6rem;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+        color: #e2e8f0;
+        outline: none;
+    }
+    .chat-input:focus {
+        border-color: rgba(100, 200, 255, 0.3);
+    }
+    .chat-send-btn {
+        padding: 4px 10px;
+        font-family: inherit;
+        font-size: 0.6rem;
+        background: rgba(80, 180, 255, 0.1);
+        border: 1px solid rgba(80, 180, 255, 0.2);
+        border-radius: 4px;
+        color: #7dd3fc;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+    .chat-send-btn:hover {
+        background: rgba(80, 180, 255, 0.2);
     }
 </style>

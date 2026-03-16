@@ -62,6 +62,7 @@ export class GameRoom extends Room {
     private roomOptions: RoomOptions = {};
     private engineConfig: EngineConfig = { ...DEFAULT_ENGINE_CONFIG };
     private restartVotes: Set<string> = new Set();
+    private startVotes: Set<string> = new Set();
 
     // State - will be set in onCreate using this.setState() per 0.17.29 requirement
     declare state: GameRoomState;
@@ -625,6 +626,55 @@ export class GameRoom extends Room {
             }
             log.net('GameRoom', `Host ${client.sessionId} disposed room`);
             this.disconnect();
+        });
+
+        // ── Lobby chat ──────────────────────────────────────────────────────
+        this.onMessage("chat", (client, message: { text: string }) => {
+            if (!message.text || typeof message.text !== 'string') return;
+            const text = message.text.trim().slice(0, 500); // cap length
+            if (!text) return;
+
+            const player = this.state.players.get(client.sessionId);
+            const senderName = player?.name || 'Unknown';
+            const senderColor = player?.color || '#888888';
+
+            this.broadcast("chat", {
+                senderId: client.sessionId,
+                senderName,
+                senderColor,
+                text,
+                timestamp: Date.now(),
+            });
+            log.net('GameRoom', `Chat from ${senderName}: ${text.slice(0, 80)}`);
+        });
+
+        // ── Vote to start (non-host lobby vote) ─────────────────────────────
+        this.onMessage("voteToStart", (client) => {
+            if (this.state.phase !== "lobby") return;
+            // Host doesn't need to vote — they have START GAME
+            if (client.sessionId === this.state.hostSessionId) return;
+
+            const player = this.state.players.get(client.sessionId);
+            if (!player || player.isAI) return;
+
+            this.startVotes.add(client.sessionId);
+
+            // Count connected non-host humans
+            const connectedIds = new Set(this.clients.map(c => c.sessionId));
+            let nonHostHumans = 0;
+            this.state.players.forEach((p, sid) => {
+                if (!p.isAI && connectedIds.has(sid) && sid !== this.state.hostSessionId) nonHostHumans++;
+            });
+
+            const currentVotes = this.startVotes.size;
+            log.game('GameRoom', `Vote to start: ${player.name} (${currentVotes}/${nonHostHumans})`);
+
+            // Broadcast vote progress
+            this.broadcast("startVote", {
+                votes: currentVotes,
+                needed: nonHostHumans,
+                voters: Array.from(this.startVotes),
+            });
         });
     }
 
