@@ -400,3 +400,10 @@
 - **UI**: Three side-by-side dropdowns replace single Render Mode + 10 legacy toggle switches. ~2,657 lines removed from `ControlsSection-Territory.svelte` (4518→1614).
 - **Files**: `renderMode.ts`, `ControlsSection-Territory.svelte`
 - **Commits**: `489da45`, `747027c`
+
+### D-81: DY4 De-Sacrosanct — Include in Full Refactor (2026-03-16)
+- **Decision**: DY4 Optimal Transport border animation is **no longer sacrosanct**. It has been visually broken for multiple commits. The `dy4-sacrosanct` rule is revoked by explicit user instruction on 2026-03-16. DY4 is to be included in the full territory refactor scope.
+- **Rationale**: DY4 was protected to prevent accidental regression. However it has already regressed without detection. Sacrosanct status offers no protection when the feature is already broken. The user's intent is to restore DY4 to full functionality — ideally wired through the canonical pipeline — because it remains the strongest VFX result in the game.
+- **Recovery goal**: After the canonical compiler/render pipeline stabilizes, wire DY4's mass-preserving transport logic (currently in `PowerVoronoiRenderer` via `legacy_pvv2` adapter) into the `TerritoryTransitionPlanner` or as a named `BorderTransition` mode so it runs on canonical state. Git archaeology will identify the original regression commit (B-44).
+- **Replaces**: `dy4-sacrosanct.md` rule — that constraint is superseded by this decision.
+- **References**: B-44, `registry.ts` SACROSANCT block (still in code but no longer behaviorally binding)

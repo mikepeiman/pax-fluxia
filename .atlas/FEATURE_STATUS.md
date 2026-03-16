@@ -84,6 +84,7 @@
 | B-41 | MSR (Min Star Radius?) should default to 100 in every theme and default settings but currently does not. | 🔴 Open | 2026-03-14 |
 | B-39 | Theme export uses selected preset name instead of user-given name — "export" button downloads JSON with the wrong `name` field | 🔴 Open | 2026-03-14 |
 | B-43 | **Deferred orders broadly regressed** — user confirmed 2026-03-16 that deferred orders are broken across maps (not just classic), regressed ~dozens of commits ago. Original suspected cause (isConnected gate, hit-test miss on classic maps) may be incomplete. Needs: git archaeology to find regression commit, then targeted fix. **Queued for next sprint after territory refactor.** | 🔴 Active | 2026-03-16 |
+| B-44 | **DY4 Optimal Transport visually broken** — user confirmed 2026-03-16 that DY4 border animation has not rendered correctly for multiple commits. Sacrosanct status explicitly revoked (D-81). Recovery goal: wire DY4 transport logic through the canonical `TerritoryTransitionPlanner` as a named BorderTransition mode once the pipeline stabilizes. Needs git archaeology to find original regression commit. | 🔴 Active | 2026-03-16 |
 
 ## Feature Ideas
 
