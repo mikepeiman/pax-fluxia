@@ -36,9 +36,9 @@ The static/dynamic distinction is eliminated. The data engine always produces th
 
 ---
 
-## 2. Architecture
+## 2. Architecture (V3.1 — D-80)
 
-### Two layers
+### Three-concern design
 
 ```
 GAME STATE (stars, lanes, ownership, tick events)
@@ -48,52 +48,55 @@ GAME STATE (stars, lanes, ownership, tick events)
 │  DATA ENGINE                                     │
 │                                                  │
 │  Runs on: ownership change (conquest) or init    │
-│  Produces: canonical front coordinates,          │
-│            holding regions, enclave detection     │
+│  Produces: CanonicalTerritoryData                │
 │  Satisfies: MSR, CX, lane-exclusivity (D-75)    │
 │  Does NOT run when: nothing changed              │
 │                                                  │
 │  Implementation: fg2SeedGraph.ts (209KB)         │
 │  Orchestrator: territory-engine/engine.ts        │
-│  Registry: territory-engine/registry.ts          │
 └──────────────────────┬───────────────────────────┘
                        │
-          canonical front data + ownership
+          CanonicalTerritoryData
                        │
-                       ▼
-┌──────────────────────────────────────────────────┐
-│  RENDER MODE  (one active at a time)             │
-│                                                  │
-│  Steady state: draws borders + fills from data   │
-│  Transition: animates from old data to new data  │
-│  Player control: tunables per mode (sliders,     │
-│    style options, animation speed)               │
-│                                                  │
-│  Seven modes available (see Section 4)           │
-└──────────────────────────────────────────────────┘
+    ┌──────────────────┼──────────────────┐
+    ▼                  ▼                  ▼
+┌────────────┐  ┌────────────┐  ┌────────────┐
+│ TERRITORY  │  │   FILL     │  │  BORDER    │
+│   STYLE    │  │ TRANSITION │  │ TRANSITION │
+│            │  │            │  │            │
+│ How it     │  │ How fills  │  │ How borders│
+│ looks      │  │ animate on │  │ animate on │
+│            │  │ conquest   │  │ conquest   │
+│ draw()     │  │            │  │            │
+│ reset()    │  │ interpolate│  │ interpolate│
+└────────────┘  └────────────┘  └────────────┘
 ```
+
+### Three independent concerns
+
+| Concern | Interface | What it controls | Options |
+|---------|-----------|-----------------|---------|
+| **Territory Style** | `TerritoryStyle` | How fills/borders look in steady state | Vector Stroke, Distance Field Glow, Pixel Art, Metaball, ... |
+| **Fill Transition** | `FillTransition` | How fills animate during conquest | Frontier Morph, Crossfade, Tile Flip, None (Instant) |
+| **Border Transition** | `BorderTransition` | How borders animate during conquest | Smooth Morph (DY4), Pressure Wave, None (Instant) |
+
+**Key insight**: Transitions produce modified `CanonicalTerritoryData`. The style always does the final rendering. This means any style works with any transition combination.
 
 ### Data flow on ownership change
 
 1. Game tick detects conquest / ownership change
-2. Data engine recomputes front geometry and holdings
-3. Active render mode receives old and new canonical data
-4. Render mode interpolates from old → new over one tick
-5. When interpolation completes, old data is discarded
+2. Data engine recomputes front geometry → new `CanonicalTerritoryData`
+3. Fill Transition interpolates old fill data → new fill data
+4. Border Transition interpolates old border data → new border data
+5. Territory Style draws the interpolated data
+6. When interpolation completes (progress = 1.0), transitions stop, style draws final state
 
 ### Data flow in steady state
 
 1. No ownership changes
 2. Data engine does nothing (no recomputation needed)
-3. Render mode draws from current canonical data
-4. Per-frame work is rendering only — no computation
-
-### Data flow on map initialization
-
-1. Map loads, all stars assigned to players
-2. Data engine computes full front geometry from scratch
-3. Render mode receives data with no "old" state
-4. Render mode draws the initial state directly — no transition animation needed on first frame
+3. Territory Style draws from current canonical data
+4. Per-frame work is rendering only — no computation, no transitions
 
 ---
 
@@ -128,19 +131,19 @@ The FG2 approach is the current implementation. Different data engine algorithms
 
 ---
 
-## 4. Render Modes
+## 4. Render Modes (V3.1 — Three-Concern)
 
-Seven modes, ordered by implementation priority. Each mode consumes the same canonical data from the data engine. Each handles both steady-state drawing and animated transitions.
+Seven territory styles, ordered by implementation priority. Each style implements `TerritoryStyle.draw()`. Each style may also contribute its own `FillTransition` and `BorderTransition` implementations, or reuse shared ones.
 
-### How render modes work
+### How the three concerns compose
 
-Every render mode implements the same contract:
+The style always does the final rendering. Transitions just produce modified data:
 
-1. **`draw(canonicalData)`** — render the current territory state (fills + borders)
-2. **`transition(oldData, newData, progress)`** — interpolate between two states during conquest animation
-3. **`configure(tunables)`** — respond to player settings (sliders, style options)
+1. **`FillTransition.interpolate(old, new, progress)`** — produces interpolated fill data
+2. **`BorderTransition.interpolate(old, new, progress)`** — produces interpolated border data
+3. **`TerritoryStyle.draw(interpolatedData)`** — renders the result
 
-When nothing is changing, only `draw()` runs. When ownership changes, `transition()` runs each frame until interpolation completes, then reverts to `draw()`.
+When nothing is changing, transitions are idle and the style draws current canonical data directly.
 
 ---
 

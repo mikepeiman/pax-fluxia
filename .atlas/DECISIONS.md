@@ -393,3 +393,10 @@
 - **Rationale**: Raw `TerritoryPipelineArtifacts` was untyped (`Record<string, unknown>`). PVV3 used inline `as any` casts to access shell data. The typed interface eliminates unsafe casts and establishes the formal contract for the pluggable render mode architecture.
 - **Files**: `renderMode.ts` (new), `engine.ts` (extractCanonicalData), `PVV3Renderer.ts`, `GameCanvas.svelte`, `index.ts` (barrel)
 - **Commits**: `e2233f1`
+
+### D-80: V3.1 Three-Concern Architecture (2026-03-15)
+- **Decision**: Split monolithic `RenderMode` into three independent contracts: `TerritoryStyle` (steady-state drawing), `FillTransition` (fill animation on conquest), `BorderTransition` (border animation on conquest). Transitions produce modified `CanonicalTerritoryData` — styles render it.
+- **Rationale**: V3's single `RenderMode` conflated "how territories look" with "how they animate." These are orthogonal: a player should pick a visual style independently from transition behavior. "None" makes no sense for territory style but makes perfect sense as a transition option (instant snap). The Static/Dynamic distinction resurfaces as transition selection, not data engine split.
+- **UI**: Three side-by-side dropdowns replace single Render Mode + 10 legacy toggle switches. ~2,657 lines removed from `ControlsSection-Territory.svelte` (4518→1614).
+- **Files**: `renderMode.ts`, `ControlsSection-Territory.svelte`
+- **Commits**: `489da45`, `747027c`
