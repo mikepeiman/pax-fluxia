@@ -58,6 +58,8 @@
 | F-160 | **Permanent public lobby + chat**: always-on chat room, random usernames, unique enforcement, online presence list, visit stats (24h/7d/30d). Server: ChatRoom.ts. Client: LobbyChat.svelte + chatStore. | 🔄 In Progress | High | 2026-03-15 |
 | B-46 | **Overlapping icons top-right of main menu**: bg-picker and other floating icons overlap. Fix CSS positioning/z-index. | 🔄 In Progress | Low | 2026-03-15 |
 | F-161 | **Classic maps in multiplayer**: Enable classic map selection in multiplayer lobbies. Server `initClassicMap()` with faction→sessionId remap + coordinate scaling. 🌐 MP play button in saved maps UI. | ✅ Done | Critical | 2026-03-15 |
+| F-162 | **Geometry Source dropdown** (4th territory pillar): UI dropdown for selecting data engine (FG2 Seed Graph, PVV3 Power Voronoi, etc.). Part of four-concern territory architecture (D-81). | 🔄 Planned | High | 2026-03-16 |
+| F-163 | **PVV3 geometry extraction as modular data engine**: Extract PVV3's `d3-weighted-voronoi` + merge pipeline into a standalone data engine that produces `CanonicalTerritoryData`, selectable alongside FG2. | 🔄 Planned | High | 2026-03-16 |
 
 ## Known Regressions
 

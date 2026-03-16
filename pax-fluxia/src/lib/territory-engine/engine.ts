@@ -565,7 +565,17 @@ export function getLastTerritoryTraceRun(): TerritoryTraceRun | null {
  * requiring the Territory Engine toggle to be enabled.
  */
 export function runFG2DataPipeline(input: TerritoryEngineInput): TerritoryPipelineArtifacts {
-    const selection = resolveMethodSelection();
+    // Force FG2 native stages regardless of user's configured method.
+    // Without this override, executeFG2Stage() gates on mode==='static' &&
+    // staticMethodId==='fg2_seed_graph' — any other config produces empty
+    // placeholder artifacts with no ownerShells.
+    const baseSelection = resolveMethodSelection();
+    const selection: TerritoryMethodSelection = {
+        ...baseSelection,
+        mode: 'static' as const,
+        staticMethodId: 'fg2_seed_graph',
+        implementedStages: ['metric', 'world_extension', 'seed', 'topology', 'geometry', 'loop', 'animation'],
+    };
     const artifacts: TerritoryPipelineArtifacts = {};
     const runtime: TerritoryPipelineRuntime = { input, selection, artifacts };
 

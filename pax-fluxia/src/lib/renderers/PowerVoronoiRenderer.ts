@@ -912,6 +912,15 @@ export function renderPowerVoronoi(
     const canonicalAnimActive = canonicalData?.transitionActive ?? false;
     const canonicalShellLoops = canonicalData?.shellLoops ?? [];
 
+    // One-shot diagnostic: log path decision on first call and on shell count change
+    const diagKey = `canonical=${canonicalShells.length}|loops=${canonicalShellLoops.length}|anim=${canonicalAnimShells.length}`;
+    if ((renderPowerVoronoi as any).__lastDiagKey !== diagKey) {
+        (renderPowerVoronoi as any).__lastDiagKey = diagKey;
+        log.renderer('PVV2', canonicalShells.length > 0
+            ? `📐 CANONICAL path: ${canonicalShells.length} shells, ${canonicalShellLoops.length} loops, ${canonicalAnimShells.length} animShells, animActive=${canonicalAnimActive}`
+            : `⚠️ LEGACY path: canonicalData=${!!canonicalData}, shells=${canonicalShells.length} (no canonical shells → falling through to d3-weighted-voronoi)`);
+    }
+
     if (canonicalShells.length > 0) {
         if (!fillGraphics) {
             fillGraphics = new PIXI.Graphics();
