@@ -1,17 +1,21 @@
 # Feature Status
 
 ## Implemented
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Star Data Pill | ✅ Done | Horizontal pill layout `#N │ active/damaged`, ownership-colored border+fill, configurable via settings panel |
-| Star Label Color Mode | ✅ Done | Player (owner color) vs Universal (HSLA picker) toggle |
-| Star Label Border Width | ✅ Done | Configurable pill border stroke width |
+| Feature | Status | Commit | Notes |
+|---------|--------|--------|-------|
+| Star Data Pill | ✅ Done | `7f4292b` | Horizontal pill `#N │ active/damaged`, dual layout (Pill/Stacked), configurable via settings |
+| Star Label Color Mode | ✅ Done | `486e3c7` | Player (owner color) vs Universal (HSLA picker) toggle |
+| Star Label Border Width | ✅ Done | `486e3c7` | 0-5px configurable pill border stroke |
+| Leash Line Toggle | ✅ Done | `7f4292b` | Default off. User flagged gray lines as unwanted artifacts |
 
 ## Planned Features
-| Feature | Priority | Description |
-|---------|----------|-------------|
-| MP Lobby (Main Menu) | High | Built-in lobby fully visible in main menu. All human players shown in waiting room and lobby. Host assigns slots to AI or humans. Lobby stays open until humans fill slots. |
-| Unified Map Selection (SP/MP) | High | Identical map selection for SP and MP. User picks Random or Classic, configures settings, then either "Start Game" (SP) or "Create Lobby" (MP). Lobby host can change map/settings after lobby exists but before game starts. |
+| Feature | Priority | Design Doc | Description |
+|---------|----------|------------|-------------|
+| Main Menu V2 (4-Column) | Medium | `MAIN_MENU_V2_DESIGN.md` | 4-step game setup: Map → Opponents → Options → Start. Non-destructive, togglable via sticky topnav. Current menu preserved. |
+| MP Lobby (Integrated) | High | `MAIN_MENU_V2_DESIGN.md` | Built into main menu. Host assigns AI/human slots. Open until humans join. |
+| Unified Map Selection | High | `MAIN_MENU_V2_DESIGN.md` | Identical SP/MP flow: Classic/Custom/New → settings → Start/Create Lobby. Host can change post-lobby. |
+| Map Card Thumbnails | Medium | — | Accurate previews for map cards in selection UI |
+| AI Themes | Low | — | Load preset AI personality/difficulty configurations |
 
 ## Known Regressions
 | Issue | Status | Notes |
