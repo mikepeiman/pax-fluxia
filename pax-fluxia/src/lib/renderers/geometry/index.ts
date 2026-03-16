@@ -17,3 +17,18 @@ export {
     resamplePolygon, resamplePolyline, polygonCentroid, lerpPolygon,
     edgeKey, ptKey,
 } from './polyUtils';
+
+export {
+    extractSharedEdges, chainSharedEdgesIntoPolylines, substituteSmoothedEdges,
+} from './borderPipeline';
+
+export {
+    classifyEdge, walkBoundaryCW, assembleFrontierLoops,
+} from './frontierLoops';
+
+export {
+    parameterizeAndAlign, lerpFrontierCPs,
+    drawBorderPolylines, buildLerpedPolylines, renderInterpolatedBorders,
+} from './morphUtils';
+
+export { mergeSameOwnerCells } from './mergeUtils';
