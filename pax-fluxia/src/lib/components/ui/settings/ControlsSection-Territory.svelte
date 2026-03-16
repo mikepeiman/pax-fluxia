@@ -563,6 +563,8 @@
 
     function selectTerritoryStyle(styleId: string) {
         updatePanel("territoryRenderMode", styleId);
+        // Reset diagnostic so it logs on next render frame
+        (globalThis as any).__RENDER_MODE_LOGGED = false;
         // Sync old boolean flags for backward compat
         for (const [mode, panelKey] of Object.entries(STYLE_TO_BOOLEAN)) {
             updatePanel(panelKey, mode === styleId);

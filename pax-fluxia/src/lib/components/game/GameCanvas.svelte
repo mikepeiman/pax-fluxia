@@ -1123,6 +1123,14 @@
                         activeMode = "territory_engine";
                 }
 
+                // One-shot diagnostic: which render mode is active?
+                if (!(globalThis as any).__RENDER_MODE_LOGGED) {
+                    console.log(
+                        `[Territory Style Dispatch] TERRITORY_RENDER_MODE="${GAME_CONFIG.TERRITORY_RENDER_MODE}" → activeMode="${activeMode}"`,
+                    );
+                    (globalThis as any).__RENDER_MODE_LOGGED = true;
+                }
+
                 switch (activeMode) {
                     case "territory_engine":
                         renderTerritoryEngine({
