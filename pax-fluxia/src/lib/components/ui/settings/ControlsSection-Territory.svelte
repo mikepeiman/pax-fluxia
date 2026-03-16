@@ -524,6 +524,7 @@
     /* ── V3.1 Three-Concern Architecture ── */
 
     const TERRITORY_STYLE_OPTIONS = [
+        { id: "none", label: "None (Off)" },
         { id: "vs_pvv3", label: "Vector Stroke" },
         { id: "distance_field", label: "Distance Field Glow" },
         { id: "metaball", label: "Metaball / Organic" },
@@ -535,16 +536,16 @@
     ] as const;
 
     const FILL_TRANSITION_OPTIONS = [
+        { id: "none", label: "None (Off)" },
         { id: "frontier_morph", label: "Frontier Morph" },
         { id: "crossfade", label: "Crossfade" },
         { id: "tile_flip", label: "Tile Flip" },
-        { id: "none", label: "None (Instant)" },
     ] as const;
 
     const BORDER_TRANSITION_OPTIONS = [
+        { id: "none", label: "None (Off)" },
         { id: "smooth_morph", label: "Smooth Morph (DY4)" },
         { id: "pressure_wave", label: "Pressure Wave" },
-        { id: "none", label: "None (Instant)" },
     ] as const;
 
     /** Map style IDs to old boolean flag panel keys (backward compat) */
@@ -789,13 +790,13 @@
 {/if}
 
 {#if panel.territoryEngine ?? GAME_CONFIG.TERRITORY_ENGINE_ENABLED}
-    <h4 class="sub-heading">⚙️ Data Engine</h4>
+    <h4 class="sub-heading">⚙️ Geometry</h4>
     <div
         class="row-bottom"
         style="font-size: 10px; opacity: 0.6; padding: 2px 4px;"
     >
-        Data engine computes front geometry from game state. All render modes
-        consume its output.
+        Geometry engine computes territory boundaries from game state. All
+        visual styles consume its output.
     </div>
 
     <h4 class="sub-heading">Shape / Motion</h4>

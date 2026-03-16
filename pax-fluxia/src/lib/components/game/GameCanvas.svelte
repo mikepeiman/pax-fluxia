@@ -1098,25 +1098,9 @@
                 child.visible = false;
             }
 
-            // Run territory engine for diagnostics/trace when enabled
-            // (Trace Inspector UI reads from this), but rendering is ALWAYS
-            // controlled by the Style dropdown (TERRITORY_RENDER_MODE) below.
-            if (
-                GAME_CONFIG.TERRITORY_ENGINE_ENABLED &&
-                GAME_CONFIG.TERRITORY_ENGINE_TRACE_MODE
-            ) {
-                renderTerritoryEngine({
-                    stars,
-                    container: voronoiContainer,
-                    colorUtils,
-                    worldWidth: GAME_WIDTH,
-                    worldHeight: GAME_HEIGHT,
-                    connections:
-                        activeGameStore.connections as StarConnection[],
-                    renderer: app?.renderer ?? undefined,
-                    gameNowMs: fxOrchestrator.gameTime,
-                });
-            }
+            // Rendering is controlled by the Style dropdown (TERRITORY_RENDER_MODE).
+            // FG2 geometry runs inside each style case via runFG2DataPipeline(),
+            // which also populates trace data for the Trace Inspector.
             {
                 // Resolve active render mode — check new enum first, fall back to old booleans
                 let activeMode = GAME_CONFIG.TERRITORY_RENDER_MODE ?? "none";
