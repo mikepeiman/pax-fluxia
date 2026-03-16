@@ -522,15 +522,15 @@
     let isLegacyFieldEngine = $derived(activeBorderEngine === "legacy_field");
     let isLegacyGridEngine = $derived(activeBorderEngine === "legacy_grid");
     const RENDER_MODE_OPTIONS = [
-        { id: "none", label: "None" },
-        { id: "vs_pvv3", label: "VS_PVV3 (Vector Stroke)" },
-        { id: "power_voronoi", label: "Power Voronoi V2" },
-        { id: "distance_field", label: "Distance Field" },
+        { id: "none", label: "None (Instant)" },
+        { id: "vs_pvv3", label: "Vector Stroke" },
+        { id: "distance_field", label: "Distance Field Glow" },
+        { id: "metaball", label: "Metaball / Organic" },
+        { id: "pixel", label: "Pixel Art / Retro" },
+        { id: "power_voronoi", label: "Power Voronoi (Legacy)" },
         { id: "voronoi", label: "Voronoi (Legacy)" },
-        { id: "metaball", label: "Metaball" },
-        { id: "pixel", label: "Pixel (Classic)" },
-        { id: "graph", label: "Lane Territory" },
-        { id: "contour", label: "Contour (Vector)" },
+        { id: "graph", label: "Lane Territory (Legacy)" },
+        { id: "contour", label: "Contour (Legacy)" },
     ] as const;
 
     /** Map render mode IDs to their old boolean flag panel keys */
@@ -577,222 +577,9 @@
     </div>
 </div>
 
-<!-- -- Territory Toggles (legacy, kept for fine-grained control) -- -->
-<h4 class="sub-heading">Active Layers</h4>
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">?? Voronoi</span>
-        <label class="toggle-switch">
-            <input
-                type="checkbox"
-                checked={panel.territoryVoronoi ??
-                    GAME_CONFIG.TERRITORY_VORONOI}
-                onchange={(e) => {
-                    selectTerritory(
-                        "territoryVoronoi",
-                        (e.target as HTMLInputElement).checked,
-                    );
-                }}
-            />
-            <span class="toggle-slider"></span>
-        </label>
-    </div>
-</div>
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">?? Metaball</span>
-        <label class="toggle-switch">
-            <input
-                type="checkbox"
-                checked={panel.territoryMetaball ??
-                    GAME_CONFIG.TERRITORY_METABALL}
-                onchange={(e) => {
-                    selectTerritory(
-                        "territoryMetaball",
-                        (e.target as HTMLInputElement).checked,
-                    );
-                }}
-            />
-            <span class="toggle-slider"></span>
-        </label>
-    </div>
-</div>
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">??? Pixel (Classic)</span>
-        <label class="toggle-switch">
-            <input
-                type="checkbox"
-                checked={panel.territoryPixel ?? GAME_CONFIG.TERRITORY_PIXEL}
-                onchange={(e) => {
-                    selectTerritory(
-                        "territoryPixel",
-                        (e.target as HTMLInputElement).checked,
-                    );
-                }}
-            />
-            <span class="toggle-slider"></span>
-        </label>
-    </div>
-</div>
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">?? Lane Territory</span>
-        <label class="toggle-switch">
-            <input
-                type="checkbox"
-                checked={panel.territoryGraph ?? GAME_CONFIG.TERRITORY_GRAPH}
-                onchange={(e) => {
-                    selectTerritory(
-                        "territoryGraph",
-                        (e.target as HTMLInputElement).checked,
-                    );
-                }}
-            />
-            <span class="toggle-slider"></span>
-        </label>
-    </div>
-</div>
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">?? Contour (Vector)</span>
-        <label class="toggle-switch">
-            <input
-                type="checkbox"
-                checked={panel.territoryContour ??
-                    GAME_CONFIG.TERRITORY_CONTOUR}
-                onchange={(e) => {
-                    selectTerritory(
-                        "territoryContour",
-                        (e.target as HTMLInputElement).checked,
-                    );
-                }}
-            />
-            <span class="toggle-slider"></span>
-        </label>
-    </div>
-</div>
-<!-- DISABLED: Modified Voronoi freezes game � F-138 needs architecture fix
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">?? Modified Voronoi</span>
-        <label class="toggle-switch">
-            <input
-                type="checkbox"
-                checked={panel.territoryModifiedVoronoi ??
-                    GAME_CONFIG.TERRITORY_MODIFIED_VORONOI}
-                onchange={(e) => {
-                    selectTerritory(
-                        "territoryModifiedVoronoi",
-                        (e.target as HTMLInputElement).checked,
-                    );
-                }}
-            />
-            <span class="toggle-slider"></span>
-        </label>
-    </div>
-</div>
--->
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">? Power Voronoi V2</span>
-        <label class="toggle-switch">
-            <input
-                type="checkbox"
-                checked={panel.territoryPowerVoronoi ??
-                    GAME_CONFIG.TERRITORY_POWER_VORONOI}
-                onchange={(e) => {
-                    selectTerritory(
-                        "territoryPowerVoronoi",
-                        (e.target as HTMLInputElement).checked,
-                    );
-                }}
-            />
-            <span class="toggle-slider"></span>
-        </label>
-    </div>
-</div>
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">?? PVV3 (Frontier-First)</span>
-        <label class="toggle-switch">
-            <input
-                type="checkbox"
-                checked={panel.territoryPVV3 ?? GAME_CONFIG.TERRITORY_PVV3}
-                onchange={(e) => {
-                    selectTerritory(
-                        "territoryPVV3",
-                        (e.target as HTMLInputElement).checked,
-                    );
-                }}
-            />
-            <span class="toggle-slider"></span>
-        </label>
-    </div>
-</div>
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">?? Territory Engine</span>
-        <label class="toggle-switch">
-            <input
-                type="checkbox"
-                checked={panel.territoryEngine ??
-                    GAME_CONFIG.TERRITORY_ENGINE_ENABLED}
-                onchange={(e) => {
-                    selectTerritory(
-                        "territoryEngine",
-                        (e.target as HTMLInputElement).checked,
-                    );
-                }}
-            />
-            <span class="toggle-slider"></span>
-        </label>
-    </div>
-</div>
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">?? Distance Field</span>
-        <label class="toggle-switch">
-            <input
-                type="checkbox"
-                checked={panel.territoryDistanceField ??
-                    GAME_CONFIG.TERRITORY_DISTANCE_FIELD}
-                onchange={(e) => {
-                    selectTerritory(
-                        "territoryDistanceField",
-                        (e.target as HTMLInputElement).checked,
-                    );
-                }}
-            />
-            <span class="toggle-slider"></span>
-        </label>
-    </div>
-</div>
+<!-- Active Layers toggles removed — V3 architecture uses Render Mode dropdown above -->
 
-<!-- Cluster Split (applies to any active renderer) -->
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">?? Cluster Split</span>
-        <label class="toggle-switch">
-            <input
-                type="checkbox"
-                checked={panel.territoryClusterSplit ??
-                    GAME_CONFIG.TERRITORY_CLUSTER_SPLIT}
-                onchange={(e) => {
-                    const v = (e.target as HTMLInputElement).checked;
-                    updatePanel("territoryClusterSplit", v);
-                }}
-            />
-            <span class="toggle-slider"></span>
-        </label>
-    </div>
-    <div
-        class="row-bottom"
-        style="font-size: 10px; opacity: 0.6; padding: 2px 4px;"
-    >
-        Disconnected stars ? separate territory blobs
-    </div>
-</div>
+
 
 {#if panel.territoryModifiedVoronoi}
     <!-- -- Modified Voronoi Settings (F-138) -- -->
@@ -940,155 +727,17 @@
     </div>
 {/if}
 
-{#if panel.territoryEngine}
-    <h4 class="sub-heading">?? Territory Engine Settings</h4>
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Mode</span>
-            <span class="val"
-                >{panel.territoryEngineMode ??
-                    GAME_CONFIG.TERRITORY_ENGINE_MODE}</span
-            >
-        </div>
-        <div style="display:flex; gap:4px; flex-wrap:wrap;">
-            {#each TERRITORY_ENGINE_MODE_OPTIONS as option}
-                <button
-                    class="mini-btn"
-                    class:active={(panel.territoryEngineMode ??
-                        GAME_CONFIG.TERRITORY_ENGINE_MODE) === option.id}
-                    onclick={() => {
-                        debouncedConfigUpdate(
-                            "TERRITORY_ENGINE_MODE",
-                            "territoryEngineMode",
-                            option.id,
-                        );
-                    }}>{option.label}</button
-                >
-            {/each}
-        </div>
-    </div>
+{#if panel.territoryEngine ?? GAME_CONFIG.TERRITORY_ENGINE_ENABLED}
+    <h4 class="sub-heading">⚙️ Data Engine</h4>
     <div
-        class="var-row engine-control-group"
-        class:reference-only={staticMethodControlState.disabled}
+        class="row-bottom"
+        style="font-size: 10px; opacity: 0.6; padding: 2px 4px;"
     >
-        <div class="row-top">
-            <span class="var-name">Static Method</span>
-            <span class="val">{staticMethodControlState.badge}</span>
-        </div>
-        <div class="row-bottom engine-route-hint">
-            {staticMethodControlState.note}
-        </div>
-        <div style="display:flex; gap:4px; flex-wrap:wrap;">
-            {#each TERRITORY_ENGINE_METHOD_OPTIONS as option}
-                <button
-                    class="mini-btn"
-                    class:active={(panel.territoryEngineStaticMethod ??
-                        GAME_CONFIG.TERRITORY_ENGINE_STATIC_METHOD) ===
-                        option.id}
-                    class:reference-only={staticMethodControlState.disabled}
-                    disabled={staticMethodControlState.disabled}
-                    onclick={() => {
-                        debouncedConfigUpdate(
-                            "TERRITORY_ENGINE_STATIC_METHOD",
-                            "territoryEngineStaticMethod",
-                            option.id,
-                        );
-                    }}>{option.label}</button
-                >
-            {/each}
-        </div>
+        Data engine computes front geometry from game state. All render modes
+        consume its output.
     </div>
-    <div
-        class="var-row engine-control-group"
-        class:reference-only={dynamicMethodControlState.disabled}
-    >
-        <div class="row-top">
-            <span class="var-name">Dynamic Method</span>
-            <span class="val">{dynamicMethodControlState.badge}</span>
-        </div>
-        <div class="row-bottom engine-route-hint">
-            {dynamicMethodControlState.note}
-        </div>
-        <div style="display:flex; gap:4px; flex-wrap:wrap;">
-            {#each TERRITORY_ENGINE_DYNAMIC_OPTIONS as option}
-                <button
-                    class="mini-btn"
-                    class:active={(panel.territoryEngineDynamicMethod ??
-                        GAME_CONFIG.TERRITORY_ENGINE_DYNAMIC_METHOD) ===
-                        option.id}
-                    class:reference-only={dynamicMethodControlState.disabled}
-                    disabled={dynamicMethodControlState.disabled}
-                    onclick={() => {
-                        debouncedConfigUpdate(
-                            "TERRITORY_ENGINE_DYNAMIC_METHOD",
-                            "territoryEngineDynamicMethod",
-                            option.id,
-                        );
-                    }}>{option.label}</button
-                >
-            {/each}
-        </div>
-    </div>
-    <div
-        class="var-row engine-control-group"
-        class:reference-only={hybridPlanControlState.disabled}
-    >
-        <div class="row-top">
-            <span class="var-name">Hybrid Plan</span>
-            <span class="val">{hybridPlanControlState.badge}</span>
-        </div>
-        <div class="row-bottom engine-route-hint">
-            {hybridPlanControlState.note}
-        </div>
-        <div style="display:flex; gap:4px; flex-wrap:wrap;">
-            {#each TERRITORY_ENGINE_HYBRID_OPTIONS as option}
-                <button
-                    class="mini-btn"
-                    class:active={(panel.territoryEngineHybridPlan ??
-                        GAME_CONFIG.TERRITORY_ENGINE_HYBRID_PLAN) === option.id}
-                    class:reference-only={hybridPlanControlState.disabled}
-                    disabled={hybridPlanControlState.disabled}
-                    onclick={() => {
-                        debouncedConfigUpdate(
-                            "TERRITORY_ENGINE_HYBRID_PLAN",
-                            "territoryEngineHybridPlan",
-                            option.id,
-                        );
-                    }}>{option.label}</button
-                >
-            {/each}
-        </div>
-    </div>
-    <div class="var-row compact">
-        <div class="row-top">
-            <span class="var-name">Effective Route</span>
-            <span class="val">{territoryEngineRoute.adapterLabel}</span>
-        </div>
-        <div class="trace-chip-row">
-            <span class="trace-chip">mode {territoryEngineRoute.mode}</span>
-            <span class="trace-chip"
-                >static {territoryEngineRoute.staticLabel}</span
-            >
-            <span class="trace-chip"
-                >dynamic {territoryEngineRoute.dynamicLabel}</span
-            >
-            <span class="trace-chip"
-                >hybrid {territoryEngineRoute.hybridLabel}</span
-            >
-        </div>
-        <div
-            class="row-bottom"
-            style="font-size:10px; opacity:0.74; padding:4px 0 0;"
-        >
-            {territoryEngineRouteNote}
-        </div>
-        <div
-            class="row-bottom"
-            style="font-size:10px; opacity:0.58; padding:2px 0 0;"
-        >
-            {territoryEngineInteropNote}
-        </div>
-    </div>
+
+
     <h4 class="sub-heading">Shape / Motion</h4>
     <div class="var-row">
         <div class="row-top">
@@ -1310,7 +959,6 @@
             }}
         />
     </div>
-
 
     <div class="var-row">
         <div class="row-top">
@@ -1922,7 +1570,6 @@
             }}
         />
     </div>
-
 
     <div class="var-row">
         <div class="row-top">
