@@ -83,7 +83,7 @@
 | B-42 | Territory border/fill misalignment — borders used Chaikin+Bézier smoothing but fills used straight edges. Fix: apply `chaikinSmoothPolygon` to fill polygons before `poly().fill()` so fills match curved borders (Option B). Also added `beginPath()` at 8 sites (defensive). D-65 documents why Option A (removing smoothing) was wrong. | ✅ Fixed | 2026-03-14 |
 | B-41 | MSR (Min Star Radius?) should default to 100 in every theme and default settings but currently does not. | 🔴 Open | 2026-03-14 |
 | B-39 | Theme export uses selected preset name instead of user-given name — "export" button downloads JSON with the wrong `name` field | 🔴 Open | 2026-03-14 |
-| B-43 | Deferred orders broken on classic maps — click-to-defer flow requires `isConnected` gate between enemy star and deferred target. Code intact (not modified by recent commits). Likely classic map-specific: faction remap edge case or coordinate scaling causing hit-test misses. | 🔴 Open | 2026-03-14 |
+| B-43 | **Deferred orders broadly regressed** — user confirmed 2026-03-16 that deferred orders are broken across maps (not just classic), regressed ~dozens of commits ago. Original suspected cause (isConnected gate, hit-test miss on classic maps) may be incomplete. Needs: git archaeology to find regression commit, then targeted fix. **Queued for next sprint after territory refactor.** | 🔴 Active | 2026-03-16 |
 
 ## Feature Ideas
 
