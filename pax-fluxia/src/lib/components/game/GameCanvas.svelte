@@ -1103,8 +1103,9 @@
             // which also populates trace data for the Trace Inspector.
             {
                 // Resolve active render mode — check new enum first, fall back to old booleans
-                let activeMode = GAME_CONFIG.TERRITORY_RENDER_MODE ?? "none";
-                if (activeMode === "none") {
+                let activeMode = GAME_CONFIG.TERRITORY_RENDER_MODE;
+                if (!activeMode) {
+                    // No explicit render mode set — fall back to old boolean flags
                     // Backward compat: check old boolean flags
                     if (GAME_CONFIG.TERRITORY_PVV3) activeMode = "vs_pvv3";
                     else if (GAME_CONFIG.TERRITORY_POWER_VORONOI)
