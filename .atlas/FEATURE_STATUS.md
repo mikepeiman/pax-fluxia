@@ -95,6 +95,8 @@
 | F-149 | Audio config integration — move audio settings (master vol, per-sound volumes, file selections, offsets, mute, separate conquest toggle) from standalone AudioManager into GAME_CONFIG + categoryThemes as `'audio'` category. Full theme export/import captures audio. | High | 2026-03-07 |
 | F-150 | Power-weighted border colors — territory borders alpha/lightness weighted by ship count ratio. Player A (500 ships) vs Player B (100 ships) → border color weighted toward A with higher alpha and lightness. Requires accessing ship counts per-star during border rendering. | Medium | 2026-03-10 |
 | F-151 | Junction overlap blending — where border lines overlap at junctions, they should be blended (not additive stacking). Requires compositing or pre-pass deduplication. | Medium | 2026-03-10 |
+| F-157 | MSR expansion — four enhancements to Minimum Star Radius: (1) Per-star dynamic MSR scaled by fleet strength via `log₂(ships/avgNeighborShips)`, (2) MSR gravity: minimum area threshold to eliminate micro-territory slivers, (3) MSR breathing room: visual clearance between frontier lines and star icons, (4) Contested MSR: shrink MSR for stars under siege proportional to ship loss. See `CONSTRAINT_ARCHITECTURE_ANALYSIS.md`. | Medium | 2026-03-16 |
+| F-158 | Constraint architecture cleanup — delete CX (corridor virtual sites, replaced by analytical lane split), demote DX (disconnect separation) from metric-stage virtual sites to region-stage gap post-process. Keep MSR + lane-exclusivity. See `CONSTRAINT_ARCHITECTURE_ANALYSIS.md`. | High | 2026-03-16 |
 
 ## 2026-03-12 Territory Engine Program Additions
 
