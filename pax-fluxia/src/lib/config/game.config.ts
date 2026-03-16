@@ -236,12 +236,15 @@ interface GameConfigType {
     STAR_LABEL_GAP: number;         // Gap between text elements in px (default 2)
     STAR_LABEL_BG_ALPHA: number;    // Pill background opacity (0-1, default 0.75)
     STAR_LABEL_BORDER_ALPHA: number;// Pill border opacity (0-1, default 0.5)
+    STAR_LABEL_BORDER_WIDTH: number;// Pill border stroke width in px (default 1)
     STAR_LABEL_LEASH: boolean;      // Show leash line from star to label (default false)
     STAR_LABEL_FONT_FAMILY: string; // Font family for label text (default 'JetBrains Mono')
-    STAR_LABEL_OWNER_BORDER: boolean; // Use owner color for pill border (default true)
-    STAR_LABEL_OWNER_FILL: boolean;   // Tint pill background with owner color (default true)
+    STAR_LABEL_COLOR_MODE: 'player' | 'universal'; // 'player' = owner-colored, 'universal' = fixed color
+    STAR_LABEL_UNIVERSAL_H: number; // Universal mode hue (0-360, default 220)
+    STAR_LABEL_UNIVERSAL_S: number; // Universal mode saturation (0-100, default 30)
+    STAR_LABEL_UNIVERSAL_L: number; // Universal mode lightness (0-100, default 25)
+    STAR_LABEL_UNIVERSAL_A: number; // Universal mode alpha (0-1, default 0.75)
     STAR_LABEL_LINE_HEIGHT: number; // Line height for vertical mode (default 18)
-    STAR_LABEL_INLINE: boolean;     // LEGACY — kept for compat, use STAR_LABEL_LAYOUT instead
     CLASSIC_MAP_SPACING: number;    // Classic map coordinate spacing multiplier (0.5-2.0, default 1.0)
     STAR_HIT_RADIUS: number;        // Click/drag hit zone radius in px (default 50)
     STAR_GLOW_RADIUS_MULT: number;  // Glow radius as multiplier of outermost orbit ring (default 1.3)
@@ -920,18 +923,24 @@ const _rawConfig: GameConfigType = {
     STAR_LABEL_BG_ALPHA: 0.75,
     /** Pill border opacity */
     STAR_LABEL_BORDER_ALPHA: 0.5,
+    /** Pill border stroke width */
+    STAR_LABEL_BORDER_WIDTH: 1,
     /** Show leash line from star to label */
     STAR_LABEL_LEASH: false,
     /** Font family for label text */
     STAR_LABEL_FONT_FAMILY: 'JetBrains Mono, monospace',
-    /** Use owner color for pill border */
-    STAR_LABEL_OWNER_BORDER: true,
-    /** Tint pill background with owner color */
-    STAR_LABEL_OWNER_FILL: true,
+    /** Color mode: 'player' uses owner color, 'universal' uses fixed HSLA */
+    STAR_LABEL_COLOR_MODE: 'player' as 'player' | 'universal',
+    /** Universal mode hue */
+    STAR_LABEL_UNIVERSAL_H: 220,
+    /** Universal mode saturation */
+    STAR_LABEL_UNIVERSAL_S: 30,
+    /** Universal mode lightness */
+    STAR_LABEL_UNIVERSAL_L: 25,
+    /** Universal mode alpha */
+    STAR_LABEL_UNIVERSAL_A: 0.75,
     /** Vertical spacing between label rows (vertical mode only) */
     STAR_LABEL_LINE_HEIGHT: 18,
-    /** LEGACY compat — use STAR_LABEL_LAYOUT instead */
-    STAR_LABEL_INLINE: false,
     /** Classic map coordinate spacing multiplier */
     CLASSIC_MAP_SPACING: 1.0,
     /** Click/drag hit zone radius (px) */

@@ -781,14 +781,15 @@
 <!-- ── Star Labels (Pill) ── -->
 <h4 class="sub-heading">Star Labels</h4>
 
-<!-- Layout Toggle: Horizontal (Pill) vs Vertical (Stacked) -->
+<!-- Layout Toggle: Pill vs Stacked (large buttons) -->
 <div class="var-row">
     <div class="row-top">
         <span class="var-name">Layout</span>
-        <div style="display: flex; gap: 4px;">
+        <div style="display: flex; gap: 6px;">
             <button
                 class="mode-btn"
                 class:active={GAME_CONFIG.STAR_LABEL_LAYOUT === "horizontal"}
+                style="padding: 6px 16px; font-size: 13px; font-weight: 600;"
                 onclick={() => {
                     GAME_CONFIG.STAR_LABEL_LAYOUT = "horizontal";
                     updatePanel("starLabelLayout", "horizontal");
@@ -797,6 +798,7 @@
             <button
                 class="mode-btn"
                 class:active={GAME_CONFIG.STAR_LABEL_LAYOUT === "vertical"}
+                style="padding: 6px 16px; font-size: 13px; font-weight: 600;"
                 onclick={() => {
                     GAME_CONFIG.STAR_LABEL_LAYOUT = "vertical";
                     updatePanel("starLabelLayout", "vertical");
@@ -1097,45 +1099,137 @@
     </div>
 {/if}
 
-<!-- Toggles -->
+<!-- Color Mode: Player vs Universal (large toggle) -->
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Owner Border</span>
-        <label style="display:flex;align-items:center;gap:4px;">
-            <input
-                type="checkbox"
-                checked={GAME_CONFIG.STAR_LABEL_OWNER_BORDER}
-                onchange={(e) => {
-                    const v = (e.target as HTMLInputElement).checked;
-                    GAME_CONFIG.STAR_LABEL_OWNER_BORDER = v;
-                    updatePanel("starLabelOwnerBorder", v);
-                }}
-            />
-            <span class="val"
-                >{GAME_CONFIG.STAR_LABEL_OWNER_BORDER ? "On" : "Off"}</span
+        <span class="var-name">Tag Color</span>
+        <div style="display: flex; gap: 6px;">
+            <button
+                class="mode-btn"
+                class:active={GAME_CONFIG.STAR_LABEL_COLOR_MODE === "player"}
+                style="padding: 6px 16px; font-size: 13px; font-weight: 600;"
+                onclick={() => {
+                    GAME_CONFIG.STAR_LABEL_COLOR_MODE = "player";
+                    updatePanel("starLabelColorMode", "player");
+                }}>Player</button
             >
-        </label>
+            <button
+                class="mode-btn"
+                class:active={GAME_CONFIG.STAR_LABEL_COLOR_MODE === "universal"}
+                style="padding: 6px 16px; font-size: 13px; font-weight: 600;"
+                onclick={() => {
+                    GAME_CONFIG.STAR_LABEL_COLOR_MODE = "universal";
+                    updatePanel("starLabelColorMode", "universal");
+                }}>Universal</button
+            >
+        </div>
     </div>
 </div>
+
+<!-- Universal HSLA sliders (only shown in universal mode) -->
+{#if GAME_CONFIG.STAR_LABEL_COLOR_MODE === "universal"}
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Hue</span><span class="val"
+                >{GAME_CONFIG.STAR_LABEL_UNIVERSAL_H ?? 220}°</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="360"
+            step="1"
+            value={GAME_CONFIG.STAR_LABEL_UNIVERSAL_H ?? 220}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.STAR_LABEL_UNIVERSAL_H = v;
+                updatePanel("starLabelUniversalH", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Saturation</span><span class="val"
+                >{GAME_CONFIG.STAR_LABEL_UNIVERSAL_S ?? 30}%</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="100"
+            step="1"
+            value={GAME_CONFIG.STAR_LABEL_UNIVERSAL_S ?? 30}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.STAR_LABEL_UNIVERSAL_S = v;
+                updatePanel("starLabelUniversalS", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Lightness</span><span class="val"
+                >{GAME_CONFIG.STAR_LABEL_UNIVERSAL_L ?? 25}%</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="100"
+            step="1"
+            value={GAME_CONFIG.STAR_LABEL_UNIVERSAL_L ?? 25}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.STAR_LABEL_UNIVERSAL_L = v;
+                updatePanel("starLabelUniversalL", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Alpha</span><span class="val"
+                >{(
+                    (GAME_CONFIG.STAR_LABEL_UNIVERSAL_A ?? 0.75) as number
+                ).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={GAME_CONFIG.STAR_LABEL_UNIVERSAL_A ?? 0.75}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.STAR_LABEL_UNIVERSAL_A = v;
+                updatePanel("starLabelUniversalA", v);
+            }}
+        />
+    </div>
+{/if}
+
+<!-- Border Width -->
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Owner Fill</span>
-        <label style="display:flex;align-items:center;gap:4px;">
-            <input
-                type="checkbox"
-                checked={GAME_CONFIG.STAR_LABEL_OWNER_FILL}
-                onchange={(e) => {
-                    const v = (e.target as HTMLInputElement).checked;
-                    GAME_CONFIG.STAR_LABEL_OWNER_FILL = v;
-                    updatePanel("starLabelOwnerFill", v);
-                }}
-            />
-            <span class="val"
-                >{GAME_CONFIG.STAR_LABEL_OWNER_FILL ? "On" : "Off"}</span
-            >
-        </label>
+        <span class="var-name">Border Width</span><span class="val"
+            >{((panel.starLabelBorderWidth ?? 1) as number).toFixed(1)}px</span
+        >
     </div>
+    <input
+        type="range"
+        min="0"
+        max="5"
+        step="0.5"
+        value={panel.starLabelBorderWidth ?? 1}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.STAR_LABEL_BORDER_WIDTH = v;
+            updatePanel("starLabelBorderWidth", v);
+        }}
+    />
 </div>
+
+<!-- Leash toggle -->
 <div class="var-row">
     <div class="row-top">
         <span class="var-name">Leash Line</span>

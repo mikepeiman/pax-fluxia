@@ -421,25 +421,37 @@ export function renderStars(
             const totalW = cx;
             const pillH = 18 * labelScale;
 
-            // Ownership-colored pill
+            // Color mode: 'player' = owner-colored, 'universal' = fixed HSLA
             const bgAlpha = GAME_CONFIG.STAR_LABEL_BG_ALPHA ?? 0.75;
             const borderAlpha = GAME_CONFIG.STAR_LABEL_BORDER_ALPHA ?? 0.5;
-            const useOwnerBorder = GAME_CONFIG.STAR_LABEL_OWNER_BORDER ?? true;
-            const useOwnerFill = GAME_CONFIG.STAR_LABEL_OWNER_FILL ?? true;
+            const borderWidth = GAME_CONFIG.STAR_LABEL_BORDER_WIDTH ?? 1;
+            const colorMode = GAME_CONFIG.STAR_LABEL_COLOR_MODE ?? 'player';
 
-            const borderCol = useOwnerBorder ? color : 0x334466;
-            // Darken the fill: mix owner color toward near-black
-            const fillCol = useOwnerFill ? colorUtils.hslToHex(
-                colorUtils.hexToHSL(color).h,
-                colorUtils.hexToHSL(color).s * 0.4,
-                colorUtils.hexToHSL(color).l * 0.15,
-            ) : 0x080c18;
+            let borderCol: number;
+            let fillCol: number;
+            let fillAlpha = bgAlpha;
+
+            if (colorMode === 'player') {
+                borderCol = color;
+                // Darken the fill: preserve hue, reduce saturation and lightness
+                const hsl = colorUtils.hexToHSL(color);
+                fillCol = colorUtils.hslToHex(hsl.h, hsl.s * 0.4, hsl.l * 0.15);
+            } else {
+                // Universal: use HSLA config values
+                const uH = GAME_CONFIG.STAR_LABEL_UNIVERSAL_H ?? 220;
+                const uS = (GAME_CONFIG.STAR_LABEL_UNIVERSAL_S ?? 30) / 100;
+                const uL = (GAME_CONFIG.STAR_LABEL_UNIVERSAL_L ?? 25) / 100;
+                fillAlpha = GAME_CONFIG.STAR_LABEL_UNIVERSAL_A ?? 0.75;
+                fillCol = colorUtils.hslToHex(uH, uS, uL);
+                // Border: slightly brighter version of the universal color
+                borderCol = colorUtils.hslToHex(uH, uS, Math.min(1, uL + 0.2));
+            }
 
             if (pillBg) {
                 pillBg.clear();
                 pillBg.roundRect(-pad, -pillH / 2 - padY, totalW + pad * 2, pillH + padY * 2, 4);
-                pillBg.fill({ color: fillCol, alpha: bgAlpha });
-                pillBg.stroke({ color: borderCol, width: 1, alpha: borderAlpha });
+                pillBg.fill({ color: fillCol, alpha: fillAlpha });
+                if (borderWidth > 0) pillBg.stroke({ color: borderCol, width: borderWidth, alpha: borderAlpha });
             }
             label.pivot.set(totalW / 2, 0);
         } else {
