@@ -1,0 +1,146 @@
+/**
+ * territory/engine/TerritoryEngineController.ts
+ *
+ * Orchestrates config resolution, compiler invocation, cache building,
+ * and render dispatch. Holds the TransitionPlan reference between frames.
+ *
+ * Rules:
+ * - No module-level mutable state (all state is class-encapsulated)
+ * - No global animation state
+ * - Fingerprinting ensures compiler only runs on dirty inputs
+ */
+
+import type { Star, Connection } from '@pax/common';
+import { TerritoryCompiler } from '../compiler/TerritoryCompiler';
+import { planTransition } from '../compiler/TerritoryTransitionPlanner';
+import type {
+    CanonicalTerritoryStateOk,
+    CompilerConfig,
+    TransitionPlan,
+} from '../compiler/types';
+
+export interface ControllerInput {
+    stars: Star[];
+    connections: Connection[];
+    playerIds: string[];
+    worldWidth: number;
+    worldHeight: number;
+    config?: Partial<CompilerConfig>;
+}
+
+function isOk(s: unknown): s is CanonicalTerritoryStateOk {
+    return (s as CanonicalTerritoryStateOk)?.kind === 'ok';
+}
+
+function buildFingerprint(input: ControllerInput): string {
+    const starSig = input.stars
+        .map((s) => `${s.id}:${s.ownerId}`)
+        .sort()
+        .join(',');
+    const connSig = input.connections
+        .map((c) => `${c.sourceId}-${c.targetId}:${c.distance}`)
+        .sort()
+        .join(',');
+    const confSig = JSON.stringify(input.config ?? {});
+    return `${starSig}|${connSig}|${confSig}`;
+}
+
+export class TerritoryEngineController {
+    private compiler = new TerritoryCompiler();
+    private currentState: CanonicalTerritoryStateOk | null = null;
+    private currentTransitionPlan: TransitionPlan | null = null;
+    private lastFingerprint = '';
+    private transitionDurationMs: number;
+
+    constructor(options: { transitionDurationMs?: number } = {}) {
+        this.transitionDurationMs = options.transitionDurationMs ?? 600;
+    }
+
+    /**
+     * Called every frame (or on input change).
+     * Returns the current canonical state and any active transition plan.
+     * Only re-compiles when inputs have changed.
+     */
+    update(input: ControllerInput, nowMs: number): {
+        state: CanonicalTerritoryStateOk | null;
+        transitionPlan: TransitionPlan | null;
+    } {
+        const fingerprint = buildFingerprint(input);
+
+        if (fingerprint !== this.lastFingerprint) {
+            this.lastFingerprint = fingerprint;
+            this._recompile(input, nowMs);
+        }
+
+        return {
+            state: this.currentState,
+            transitionPlan: this.currentTransitionPlan,
+        };
+    }
+
+    /** Force a recompile regardless of fingerprint (e.g. on style change). */
+    invalidate(): void {
+        this.lastFingerprint = '';
+    }
+
+    /** Access current canonical state without triggering recompile. */
+    getState(): CanonicalTerritoryStateOk | null {
+        return this.currentState;
+    }
+
+    // -------------------------------------------------------------------------
+    // Private
+    // -------------------------------------------------------------------------
+
+    private _recompile(input: ControllerInput, nowMs: number): void {
+        const worldBounds = {
+            minX: 0,
+            minY: 0,
+            maxX: input.worldWidth,
+            maxY: input.worldHeight,
+        };
+
+        const compilerConfig: CompilerConfig = {
+            worldBounds,
+            metric: { minStarRadius: input.config?.metric?.minStarRadius ?? 0 },
+            frontier: { worldBounds, minStarRadius: input.config?.metric?.minStarRadius ?? 0 },
+            region: { worldBounds },
+            family: input.config?.family ?? 'straight',
+            fitter: input.config?.fitter,
+        };
+
+        const newState = this.compiler.compile(
+            input.stars,
+            input.connections,
+            input.playerIds,
+            compilerConfig,
+        );
+
+        if (!isOk(newState)) {
+            console.warn('[TerritoryEngineController] compile error:', newState);
+            // On recoverable error, keep previous state
+            if (newState.recoverable && this.currentState) return;
+            this.currentState = null;
+            this.currentTransitionPlan = null;
+            return;
+        }
+
+        // Plan transition if we have a previous state
+        if (this.currentState) {
+            const prevState = this.currentState;
+            newState.transitionActive = true;
+
+            const plan = planTransition(prevState, newState, nowMs, this.transitionDurationMs);
+            if ((plan as { kind?: string }).kind === 'error') {
+                console.warn('[TerritoryEngineController] transition plan error:', plan);
+                this.currentTransitionPlan = null;
+            } else {
+                this.currentTransitionPlan = plan as TransitionPlan;
+            }
+        } else {
+            this.currentTransitionPlan = null;
+        }
+
+        this.currentState = newState;
+    }
+}
