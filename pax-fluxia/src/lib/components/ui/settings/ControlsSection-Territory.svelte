@@ -1310,30 +1310,8 @@
             }}
         />
     </div>
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Border Smooth</span><span class="val"
-                >{panel.voronoiBorderSmooth ??
-                    GAME_CONFIG.VORONOI_BORDER_SMOOTH}</span
-            >
-        </div>
-        <input
-            type="range"
-            min="0"
-            max="5"
-            step="1"
-            value={panel.voronoiBorderSmooth ??
-                GAME_CONFIG.VORONOI_BORDER_SMOOTH}
-            oninput={(e) => {
-                const v = +(e.target as HTMLInputElement).value;
-                debouncedConfigUpdate(
-                    "VORONOI_BORDER_SMOOTH",
-                    "voronoiBorderSmooth",
-                    v,
-                );
-            }}
-        />
-    </div>
+
+
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Saturation</span><span class="val"
@@ -1944,40 +1922,8 @@
             }}
         />
     </div>
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">?? Border Smooth</span><span class="val"
-                >{panel.voronoiBorderSmooth ??
-                    GAME_CONFIG.VORONOI_BORDER_SMOOTH}
-                {(panel.voronoiBorderSmooth ??
-                    GAME_CONFIG.VORONOI_BORDER_SMOOTH) === 0
-                    ? "(angular)"
-                    : (panel.voronoiBorderSmooth ??
-                            GAME_CONFIG.VORONOI_BORDER_SMOOTH) <= 2
-                      ? "(light)"
-                      : (panel.voronoiBorderSmooth ??
-                              GAME_CONFIG.VORONOI_BORDER_SMOOTH) <= 3
-                        ? "(smooth)"
-                        : "(very smooth)"}</span
-            >
-        </div>
-        <input
-            type="range"
-            min="0"
-            max="5"
-            step="1"
-            value={panel.voronoiBorderSmooth ??
-                GAME_CONFIG.VORONOI_BORDER_SMOOTH}
-            oninput={(e) => {
-                const v = +(e.target as HTMLInputElement).value;
-                debouncedConfigUpdate(
-                    "VORONOI_BORDER_SMOOTH",
-                    "voronoiBorderSmooth",
-                    v,
-                );
-            }}
-        />
-    </div>
+
+
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">?? Saturation</span><span class="val"
