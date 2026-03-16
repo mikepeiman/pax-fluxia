@@ -1,11 +1,11 @@
-# Main Menu Design Proposal: 4-Column Step Flow
+# Main Menu V2: 4-Column Step Flow
 
 > **Status:** Design concept — NOT yet implemented
-> **Constraint:** Non-destructive. Current main menu stays. Toggle between layouts via sticky topnav.
+> **Constraint:** Non-destructive. Current `MainMenu.svelte` stays. Toggle between layouts via sticky topnav.
 
-## Overview
+## Concept
 
-Replace the current single-view main menu with a horizontal 4-column step-based game setup flow. Each column is a numbered step, dark bg, rounded corners, 1rem margin.
+A horizontal 4-column step-based game setup flow. Each column is a numbered step, dark bg, rounded corners, 1rem margin.
 
 ## Columns
 
@@ -23,10 +23,8 @@ Each sub-type shows a scrollable list of **map cards with accurate thumbnails**.
 
 ### Step 2: Choose Your Opponents
 
-**Branching by game type:**
-
 - **Single Player:** Select number of players, AI difficulty, or load an AI Theme
-- **Multiplayer:** Lobby browser showing all available lobbies + "Create Lobby" button
+- **Multiplayer:** Shows lobby browser + "Create Lobby" button (see `MP_LOBBY_DESIGN.md`)
 
 ### Step 3: Mode & Options
 
@@ -34,34 +32,19 @@ Game rules configuration (speed, conquest mode, etc.)
 
 ### Step 4: Start
 
-Single large, inviting "Start Game" (SP) or "Create Lobby" (MP) button.
-
-## MP Lobby Design
-
-The lobby is **built into the main menu**, not a separate screen:
-
-- All human players visible in waiting room and lobby
-- Lobby host assigns each slot to **AI or Human**
-- Lobby stays open until human slots are filled
-- Host **CAN change map or settings** after lobby creation but before game start
-
-## Map Selection
-
-Identical flow for SP and MP:
-1. User selects map type (Classic / Custom / New)
-2. Configures settings
-3. SP → "Start Game" | MP → "Create Lobby"
+Single large, inviting button: "Start Game" (SP) or "Create Lobby" (MP).
 
 ## Implementation Approach
 
-> **Non-destructive:** Current `MainMenu.svelte` is preserved.
-> New layout lives in a separate component (e.g. `MainMenuV2.svelte`).
-> A **sticky topnav toggle** lets the user switch between Current and New layouts for exploration and comparison.
+- Current `MainMenu.svelte` is preserved
+- New layout lives in `MainMenuV2.svelte`
+- **Sticky topnav toggle** lets user switch between Current and V2
+- Map selection flow is shared between SP and MP
 
 ## Visual Notes
 
 - Dark background, rounded corners on each column
 - 1rem left margin
-- Map cards should have accurate map thumbnails (not placeholders)
-- Step numbers visible as column headers
+- Map cards with accurate thumbnails (not placeholders)
+- Step numbers as column headers
 - Progressive disclosure: each step informs the next

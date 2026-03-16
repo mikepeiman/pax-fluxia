@@ -12,8 +12,8 @@
 | Feature | Priority | Design Doc | Description |
 |---------|----------|------------|-------------|
 | Main Menu V2 (4-Column) | Medium | `MAIN_MENU_V2_DESIGN.md` | 4-step game setup: Map → Opponents → Options → Start. Non-destructive, togglable via sticky topnav. Current menu preserved. |
-| MP Lobby (Integrated) | High | `MAIN_MENU_V2_DESIGN.md` | Built into main menu. Host assigns AI/human slots. Open until humans join. |
-| Unified Map Selection | High | `MAIN_MENU_V2_DESIGN.md` | Identical SP/MP flow: Classic/Custom/New → settings → Start/Create Lobby. Host can change post-lobby. |
+| MP Lobby (Integrated) | High | `MP_LOBBY_DESIGN.md` | Built into main menu. Host assigns AI/human slots. Works with current or V2 menu. |
+| Unified Map Selection | High | `MP_LOBBY_DESIGN.md` | Identical SP/MP flow: Classic/Custom/New → settings → Start/Create Lobby. Host can change post-lobby. |
 | Map Card Thumbnails | Medium | — | Accurate previews for map cards in selection UI |
 | AI Themes | Low | — | Load preset AI personality/difficulty configurations |
 
