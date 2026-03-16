@@ -525,11 +525,11 @@
 
     const TERRITORY_STYLE_OPTIONS = [
         { id: "none", label: "None (Off)" },
-        { id: "vs_pvv3", label: "Vector Stroke" },
+        { id: "vs_pvv3", label: "Vector Stroke (PVV3)" },
+        { id: "power_voronoi", label: "Power Voronoi (PVV2)" },
         { id: "distance_field", label: "Distance Field Glow" },
         { id: "metaball", label: "Metaball / Organic" },
         { id: "pixel", label: "Pixel Art / Retro" },
-        { id: "power_voronoi", label: "Power Voronoi" },
         { id: "voronoi", label: "Voronoi (Legacy)" },
         { id: "graph", label: "Lane Territory" },
         { id: "contour", label: "Contour" },
@@ -802,32 +802,8 @@
     <h4 class="sub-heading">Shape / Motion</h4>
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name">Distance Metric</span>
-            <span class="val"
-                >{panel.dfDistanceMetric ??
-                    GAME_CONFIG.DF_DISTANCE_METRIC}</span
-            >
-        </div>
-        <div style="display:flex; gap:4px; flex-wrap:wrap;">
-            <button
-                class="mini-btn"
-                class:active={(panel.dfDistanceMetric ??
-                    GAME_CONFIG.DF_DISTANCE_METRIC) === "length"}
-                onclick={() => updatePanel("dfDistanceMetric", "length")}
-                >Length</button
-            >
-            <button
-                class="mini-btn"
-                class:active={(panel.dfDistanceMetric ??
-                    GAME_CONFIG.DF_DISTANCE_METRIC) === "hops"}
-                onclick={() => updatePanel("dfDistanceMetric", "hops")}
-                >Hops</button
-            >
-        </div>
-    </div>
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Morph Speed</span><span class="val"
+            <span class="var-name">Conquest Animation Timing</span><span
+                class="val"
                 >{panel.territoryTransitionMs ??
                     GAME_CONFIG.TERRITORY_TRANSITION_MS}ms</span
             >
@@ -919,39 +895,7 @@
             >
         </div>
     </div>
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Fill Mode</span><span class="val"
-                >{panel.territoryFillMode ??
-                    GAME_CONFIG.TERRITORY_FILL_MODE ??
-                    "frontier"}</span
-            >
-        </div>
-        <div style="display:flex; gap:4px;">
-            <button
-                class="mini-btn"
-                class:active={(panel.territoryFillMode ??
-                    GAME_CONFIG.TERRITORY_FILL_MODE) === "crossfade"}
-                onclick={() =>
-                    debouncedConfigUpdate(
-                        "TERRITORY_FILL_MODE",
-                        "territoryFillMode",
-                        "crossfade",
-                    )}>Crossfade</button
-            >
-            <button
-                class="mini-btn"
-                class:active={(panel.territoryFillMode ??
-                    GAME_CONFIG.TERRITORY_FILL_MODE) === "frontier"}
-                onclick={() =>
-                    debouncedConfigUpdate(
-                        "TERRITORY_FILL_MODE",
-                        "territoryFillMode",
-                        "frontier",
-                    )}>Frontier</button
-            >
-        </div>
-    </div>
+
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Fill Alpha</span><span class="val"
