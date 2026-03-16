@@ -1,11 +1,13 @@
 /**
- * Canonical Territory Data + Render Mode Contract
+ * V3.1 Three-Concern Territory Architecture
  *
- * V3 Master Plan — Section 2: Two-Layer Architecture
- *   Data Engine → CanonicalTerritoryData → RenderMode
+ * Three independent contracts:
+ *   1. TerritoryStyle  — how fills/borders look (steady state)
+ *   2. FillTransition   — how fills animate on conquest
+ *   3. BorderTransition — how borders animate on conquest
  *
- * Every data engine (FG2, future FG1/FG3/etc.) must produce
- * CanonicalTerritoryData. Every render mode must consume it.
+ * All consume CanonicalTerritoryData from the data engine.
+ * Transitions transform data; styles render data.
  */
 
 import type * as PIXI from 'pixi.js';
@@ -40,7 +42,7 @@ export interface CanonicalAnimatedShell {
     holeLoops: Array<{ holeLoopId: string; points: [number, number][] }>;
 }
 
-/** Single source of truth for territory geometry. All render modes consume this. */
+/** Single source of truth for territory geometry. All concerns consume this. */
 export interface CanonicalTerritoryData {
     /** Closed polygons per player territory — each shell is one connected region */
     shells: CanonicalShell[];
@@ -52,16 +54,31 @@ export interface CanonicalTerritoryData {
     transitionActive: boolean;
 }
 
-// ── Render mode contract ────────────────────────────────────────────────────
+// ── ID unions ───────────────────────────────────────────────────────────────
 
-export type RenderModeId =
+/** How territories look in steady state */
+export type TerritoryStyleId =
     | 'vector_stroke'
     | 'distance_field_glow'
-    | 'pressure_wave'
     | 'pixel_art'
-    | 'terrain_shader'
     | 'metaball'
+    | 'pressure_wave'
+    | 'terrain_shader';
+
+/** How fills animate during conquest */
+export type FillTransitionId =
+    | 'frontier_morph'
+    | 'crossfade'
+    | 'tile_flip'
     | 'none';
+
+/** How borders animate during conquest */
+export type BorderTransitionId =
+    | 'smooth_morph'
+    | 'pressure_wave'
+    | 'none';
+
+// ── Shared context ──────────────────────────────────────────────────────────
 
 export interface RenderModeTunables {
     borderWidth: number;
@@ -81,18 +98,64 @@ export interface RenderModeContext {
     tunables: RenderModeTunables;
 }
 
+// ── Three independent contracts ─────────────────────────────────────────────
+
 /**
- * Contract for all render modes.
- * Each mode handles both steady-state display and animated transitions
- * as a single continuous pipeline.
+ * Concern 1: How territories look in steady state (fills + borders).
+ * The style always does the final rendering — transitions just feed it data.
  */
-export interface RenderMode {
-    readonly id: RenderModeId;
+export interface TerritoryStyle {
+    readonly id: TerritoryStyleId;
     readonly label: string;
 
     /** Render current territory state (fills + borders) from canonical data */
     draw(data: CanonicalTerritoryData, ctx: RenderModeContext): void;
 
     /** Clear all cached state and graphics */
+    reset(): void;
+}
+
+/**
+ * Concern 2: How fills transition during conquest.
+ * Produces modified canonical data — the style draws it.
+ */
+export interface FillTransition {
+    readonly id: FillTransitionId;
+    readonly label: string;
+
+    /** Interpolate fill data from old → new state. progress: 0..1 */
+    interpolate(
+        oldData: CanonicalTerritoryData,
+        newData: CanonicalTerritoryData,
+        progress: number,
+    ): CanonicalTerritoryData;
+}
+
+/**
+ * Concern 3: How borders transition during conquest.
+ * Produces modified canonical data — the style draws it.
+ */
+export interface BorderTransition {
+    readonly id: BorderTransitionId;
+    readonly label: string;
+
+    /** Interpolate border data from old → new state. progress: 0..1 */
+    interpolate(
+        oldData: CanonicalTerritoryData,
+        newData: CanonicalTerritoryData,
+        progress: number,
+    ): CanonicalTerritoryData;
+}
+
+// ── Legacy compat (kept for existing PVV3 consumer) ─────────────────────────
+
+/** @deprecated Use TerritoryStyleId instead */
+export type RenderModeId = TerritoryStyleId | 'none';
+
+/** @deprecated Use TerritoryStyle instead */
+export interface RenderMode {
+    readonly id: RenderModeId;
+    readonly label: string;
+    draw(data: CanonicalTerritoryData, ctx: RenderModeContext): void;
     reset(): void;
 }
