@@ -382,3 +382,14 @@
 - **Files involved**: `registry.ts`, `game.config.ts`, `PowerVoronoiRenderer.ts`, `engine.ts`
 - **See also**: Code comments marked `SACROSANCT` in `registry.ts` and `game.config.ts`
 
+### D-78: PVV3 Wired to FG2 Canonical Data — Single Source of Truth (2026-03-15)
+- **Decision**: The `legacy_pvv3` adapter in `engine.ts` now calls `runFG2DataPipeline()` before `renderPVV3()`, passing FG2 canonical artifacts. PVV3 always uses FG2's single-source data for both fills AND borders, eliminating fill/border divergence by construction.
+- **Rationale**: PVV3's legacy datagen computed fills from merged Voronoi cells and borders from shared-edge polylines independently, causing B-42 visual divergence. The FG2 canonical path already existed but was never activated because the adapter didn't pass artifacts.
+- **Implication**: PVV3's legacy datagen (~200 lines) is now dead code at runtime. Kept with deprecation warning for safety; will be removed in a future cleanup.
+- **Commits**: `23e74b8`
+
+### D-79: CanonicalTerritoryData + RenderMode Interface (2026-03-15)
+- **Decision**: Formalized the V3 two-layer architecture with typed `CanonicalTerritoryData` (shells, shellLoops, animatedShells, transitionActive) and `RenderMode` interface (draw, reset). All render modes will consume canonical data through this contract.
+- **Rationale**: Raw `TerritoryPipelineArtifacts` was untyped (`Record<string, unknown>`). PVV3 used inline `as any` casts to access shell data. The typed interface eliminates unsafe casts and establishes the formal contract for the pluggable render mode architecture.
+- **Files**: `renderMode.ts` (new), `engine.ts` (extractCanonicalData), `PVV3Renderer.ts`, `GameCanvas.svelte`, `index.ts` (barrel)
+- **Commits**: `e2233f1`
