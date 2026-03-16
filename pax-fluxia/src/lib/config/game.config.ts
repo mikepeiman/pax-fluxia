@@ -224,14 +224,24 @@ interface GameConfigType {
     STAR_SYSTEM_SCALE: number;      // Master scale for entire star system (0.3-3.0, default 1.0)
     STAR_LABEL_OFFSET_X: number;    // Label offset from star center X (default 45)
     STAR_LABEL_OFFSET_Y: number;    // Label offset from star center Y (default 35)
-    STAR_LABEL_FONT_SIZE: number;   // Active ships font size (default 22)
-    STAR_LABEL_ID_FONT_SIZE: number;// Star ID font size (default 14)
-    STAR_LABEL_DAMAGED_FONT_SIZE: number; // Damaged ships font size (default 16)
+    STAR_LABEL_FONT_SIZE: number;   // Active ships font size (default 14)
+    STAR_LABEL_ID_FONT_SIZE: number;// Star ID font size (default 13)
+    STAR_LABEL_DAMAGED_FONT_SIZE: number; // Damaged ships font size (default 12)
     STAR_LABEL_ANGLE: number;       // Label group angle in degrees (0=right, 90=down, default 35)
     STAR_LABEL_DISTANCE: number;    // Label group radial distance from star center (default 55)
     STAR_LABEL_SCALE: number;       // Master font scale (1.0 = default, drives all sub-fonts)
-    STAR_LABEL_LINE_HEIGHT: number; // Line height multiplier between label rows (default 18)
-    STAR_LABEL_INLINE: boolean;     // Show active/damaged inline (side by side) vs stacked
+    STAR_LABEL_LAYOUT: 'horizontal' | 'vertical'; // Pill (horizontal) or stacked (vertical) mode
+    STAR_LABEL_PAD_X: number;       // Horizontal padding inside pill bg (default 4)
+    STAR_LABEL_PAD_Y: number;       // Vertical padding inside pill bg (default 2)
+    STAR_LABEL_GAP: number;         // Gap between text elements in px (default 2)
+    STAR_LABEL_BG_ALPHA: number;    // Pill background opacity (0-1, default 0.75)
+    STAR_LABEL_BORDER_ALPHA: number;// Pill border opacity (0-1, default 0.5)
+    STAR_LABEL_LEASH: boolean;      // Show leash line from star to label (default false)
+    STAR_LABEL_FONT_FAMILY: string; // Font family for label text (default 'JetBrains Mono')
+    STAR_LABEL_OWNER_BORDER: boolean; // Use owner color for pill border (default true)
+    STAR_LABEL_OWNER_FILL: boolean;   // Tint pill background with owner color (default true)
+    STAR_LABEL_LINE_HEIGHT: number; // Line height for vertical mode (default 18)
+    STAR_LABEL_INLINE: boolean;     // LEGACY — kept for compat, use STAR_LABEL_LAYOUT instead
     CLASSIC_MAP_SPACING: number;    // Classic map coordinate spacing multiplier (0.5-2.0, default 1.0)
     STAR_HIT_RADIUS: number;        // Click/drag hit zone radius in px (default 50)
     STAR_GLOW_RADIUS_MULT: number;  // Glow radius as multiplier of outermost orbit ring (default 1.3)
@@ -887,20 +897,40 @@ const _rawConfig: GameConfigType = {
     /** Label offset from star center Y */
     STAR_LABEL_OFFSET_Y: 35,
     /** Active ships font size */
-    STAR_LABEL_FONT_SIZE: 22,
+    STAR_LABEL_FONT_SIZE: 14,
     /** Star ID font size */
-    STAR_LABEL_ID_FONT_SIZE: 14,
+    STAR_LABEL_ID_FONT_SIZE: 13,
     /** Damaged ships font size */
-    STAR_LABEL_DAMAGED_FONT_SIZE: 16,
+    STAR_LABEL_DAMAGED_FONT_SIZE: 12,
     /** Label angle in degrees (0=right, 90=down) */
     STAR_LABEL_ANGLE: 35,
     /** Label radial distance from star center */
     STAR_LABEL_DISTANCE: 55,
     /** Master font scale (1.0 = default) */
     STAR_LABEL_SCALE: 1.0,
-    /** Vertical spacing between label rows (px) */
+    /** Label layout mode: 'horizontal' = pill badge, 'vertical' = stacked rows */
+    STAR_LABEL_LAYOUT: 'horizontal' as 'horizontal' | 'vertical',
+    /** Horizontal padding inside pill background */
+    STAR_LABEL_PAD_X: 4,
+    /** Vertical padding inside pill background */
+    STAR_LABEL_PAD_Y: 2,
+    /** Gap between text elements */
+    STAR_LABEL_GAP: 2,
+    /** Pill background opacity */
+    STAR_LABEL_BG_ALPHA: 0.75,
+    /** Pill border opacity */
+    STAR_LABEL_BORDER_ALPHA: 0.5,
+    /** Show leash line from star to label */
+    STAR_LABEL_LEASH: false,
+    /** Font family for label text */
+    STAR_LABEL_FONT_FAMILY: 'JetBrains Mono, monospace',
+    /** Use owner color for pill border */
+    STAR_LABEL_OWNER_BORDER: true,
+    /** Tint pill background with owner color */
+    STAR_LABEL_OWNER_FILL: true,
+    /** Vertical spacing between label rows (vertical mode only) */
     STAR_LABEL_LINE_HEIGHT: 18,
-    /** Show active/damaged inline (side by side) */
+    /** LEGACY compat — use STAR_LABEL_LAYOUT instead */
     STAR_LABEL_INLINE: false,
     /** Classic map coordinate spacing multiplier */
     CLASSIC_MAP_SPACING: 1.0,
