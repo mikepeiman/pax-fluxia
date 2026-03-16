@@ -400,3 +400,9 @@
 - **UI**: Three side-by-side dropdowns replace single Render Mode + 10 legacy toggle switches. ~2,657 lines removed from `ControlsSection-Territory.svelte` (4518→1614).
 - **Files**: `renderMode.ts`, `ControlsSection-Territory.svelte`
 - **Commits**: `489da45`, `747027c`
+
+### D-81: V3.2 Four-Concern Decomposition (2026-03-15)
+- **Decision**: Evolve V3.1's three-concern split into four orthogonal concerns: **Data Engine** (produces geometry), **Visual Style** (draws fills+borders), **Border Transition** (animates borders on conquest), **Fill Transition** (animates fills on conquest). Each concern selectable independently.
+- **Rationale**: V3.1 separated Style from Transitions but the registry still couples them: DY4 (a border animation) forces `legacy_pvv2` adapter, which forces PVV2 (a visual style). The registry's adapter-based routing conflates all four concerns. True decoupling requires four interfaces, four independent selections.
+- **B-42 Root Cause**: PVV2 fills use `poly().fill()` (straight lines), borders use `quadraticCurveTo()` (Bézier curves). Different drawing methods on the same data = chronic misalignment. Fix: unified drawing from same smoothed geometry.
+- **Files**: `renderMode.ts` (interfaces), `registry.ts` (decouple), `PowerVoronoiRenderer.ts` (B-42 fix)
