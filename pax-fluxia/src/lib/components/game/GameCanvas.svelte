@@ -1098,7 +1098,13 @@
                 child.visible = false;
             }
 
-            if (GAME_CONFIG.TERRITORY_ENGINE_ENABLED) {
+            // Run territory engine for diagnostics/trace when enabled
+            // (Trace Inspector UI reads from this), but rendering is ALWAYS
+            // controlled by the Style dropdown (TERRITORY_RENDER_MODE) below.
+            if (
+                GAME_CONFIG.TERRITORY_ENGINE_ENABLED &&
+                GAME_CONFIG.TERRITORY_ENGINE_TRACE_MODE
+            ) {
                 renderTerritoryEngine({
                     stars,
                     container: voronoiContainer,
@@ -1110,7 +1116,8 @@
                     renderer: app?.renderer ?? undefined,
                     gameNowMs: fxOrchestrator.gameTime,
                 });
-            } else {
+            }
+            {
                 // Resolve active render mode — check new enum first, fall back to old booleans
                 let activeMode = GAME_CONFIG.TERRITORY_RENDER_MODE ?? "none";
                 if (activeMode === "none") {
@@ -1153,7 +1160,17 @@
                         );
                         break;
                     }
-                    case "power_voronoi":
+                    case "power_voronoi": {
+                        const fg2ArtifactsPV = runFG2DataPipeline({
+                            stars,
+                            container: voronoiContainer,
+                            colorUtils,
+                            worldWidth: GAME_WIDTH,
+                            worldHeight: GAME_HEIGHT,
+                            connections:
+                                activeGameStore.connections as StarConnection[],
+                            gameNowMs: fxOrchestrator.gameTime,
+                        });
                         renderPowerVoronoiModule(
                             stars,
                             voronoiContainer,
@@ -1161,8 +1178,10 @@
                             GAME_WIDTH,
                             GAME_HEIGHT,
                             activeGameStore.connections as StarConnection[],
+                            extractCanonicalData(fg2ArtifactsPV),
                         );
                         break;
+                    }
                     case "distance_field":
                         renderDistanceFieldTerritoryModule(
                             stars,

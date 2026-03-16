@@ -578,9 +578,22 @@
 
 <CategoryThemeBar category="territory" onApply={() => syncFromConfig?.()} />
 
-<!-- ── V3.1 Three-Concern Selectors ── -->
+<!-- ── V3.2 Four-Concern Selectors ── -->
 <h4 class="sub-heading">🎨 Territory Presentation</h4>
 <div class="triple-select-row">
+    <div class="triple-select-col">
+        <span class="triple-label">Geometry</span>
+        <select
+            class="mode-select"
+            value={"fg2_seed_graph"}
+            disabled
+            title="FG2 Seed Graph is the only implemented geometry engine. More coming soon."
+        >
+            <option value="fg2_seed_graph">FG2 Seed Graph</option>
+            <option value="pvv2_voronoi" disabled>PVV2 Voronoi (planned)</option
+            >
+        </select>
+    </div>
     <div class="triple-select-col">
         <span class="triple-label">Style</span>
         <select
@@ -1339,9 +1352,6 @@
         {/if}
     </div>
 {/if}
-
-
-
 
 <!-- Per-renderer settings removed — V3.1 uses three-concern architecture (Style + Fill Transition + Border Transition) -->
 
