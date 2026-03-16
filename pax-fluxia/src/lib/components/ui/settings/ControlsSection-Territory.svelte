@@ -546,7 +546,11 @@
 
     const BORDER_TRANSITION_OPTIONS = [
         { id: "none", label: "None (Off)" },
-        { id: "smooth_morph", label: "Smooth Morph (DY4)" },
+        {
+            id: "optimal_transport",
+            label: "✦ Smooth Border Morph (DY4 Optimal Transport)",
+        },
+        { id: "smooth_morph", label: "Smooth Morph (Legacy)" },
         { id: "pressure_wave", label: "Pressure Wave" },
     ] as const;
 

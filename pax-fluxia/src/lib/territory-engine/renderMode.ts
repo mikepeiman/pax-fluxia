@@ -75,6 +75,7 @@ export type FillTransitionId =
 /** How borders animate during conquest */
 export type BorderTransitionId =
     | 'smooth_morph'
+    | 'optimal_transport'
     | 'pressure_wave'
     | 'none';
 
