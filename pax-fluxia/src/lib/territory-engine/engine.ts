@@ -209,6 +209,8 @@ export function extractCanonicalData(artifacts: TerritoryPipelineArtifacts): Can
 
 function runLegacyAdapter(adapter: TerritoryLegacyAdapterId, input: TerritoryEngineInput): void {
     if (adapter === 'legacy_pvv2') {
+        const artifacts = runFG2DataPipeline(input);
+        const canonicalData = extractCanonicalData(artifacts);
         renderPowerVoronoi(
             input.stars,
             input.container,
@@ -216,6 +218,7 @@ function runLegacyAdapter(adapter: TerritoryLegacyAdapterId, input: TerritoryEng
             input.worldWidth,
             input.worldHeight,
             input.connections,
+            canonicalData,
         );
         return;
     }

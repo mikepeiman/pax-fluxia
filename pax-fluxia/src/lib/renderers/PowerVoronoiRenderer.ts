@@ -27,6 +27,7 @@ import type { StarState, StarConnection } from '$lib/types/game.types';
 import { findConnectedClustersOptimized } from './territoryUtils';
 import { computeCorridorVirtuals, computeDisconnectVirtuals, DISCONNECT_OWNER_ID } from './territoryFeatures';
 import type { ColorUtils } from './RenderContext';
+import type { CanonicalTerritoryData } from '$lib/territory-engine/renderMode';
 import { log } from '$lib/utils/logger';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -893,6 +894,7 @@ export function renderPowerVoronoi(
     worldWidth: number,
     worldHeight: number,
     connections?: StarConnection[],
+    canonicalData?: CanonicalTerritoryData,
 ): void {
     const transitionMs = GAME_CONFIG.TERRITORY_TRANSITION_MS ?? 400;
     const now = performance.now();
@@ -901,7 +903,103 @@ export function renderPowerVoronoi(
     if (fillGraphics) fillGraphics.visible = true;
     if (borderGraphics) borderGraphics.visible = true;
 
-    // ── Per-frame animation (both modes) ────────────────────────────────
+    // ── CANONICAL DATA PATH ─────────────────────────────────────────────
+    // When canonical data is provided with shells, draw fills and borders
+    // from the SAME shell points. This is the V3 architecture: one set of
+    // coordinates, both rendering paths, impossible to diverge.
+    const canonicalShells = canonicalData?.shells ?? [];
+    const canonicalAnimShells = canonicalData?.animatedShells ?? [];
+    const canonicalAnimActive = canonicalData?.transitionActive ?? false;
+    const canonicalShellLoops = canonicalData?.shellLoops ?? [];
+
+    if (canonicalShells.length > 0) {
+        if (!fillGraphics) {
+            fillGraphics = new PIXI.Graphics();
+            voronoiContainer.addChild(fillGraphics);
+        }
+        fillGraphics.clear();
+        fillGraphics.visible = true;
+
+        const alpha = GAME_CONFIG.VORONOI_ALPHA ?? 0.25;
+        const borderWidth = GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 1.5;
+        const borderAlpha = GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.4;
+        const satMult = GAME_CONFIG.VORONOI_SATURATION ?? 1.0;
+        const lightMult = GAME_CONFIG.VORONOI_LIGHTNESS ?? 0.7;
+        const smoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
+
+        // Choose shells: animated if transition active, otherwise static
+        const shellsForRender = canonicalAnimActive && canonicalAnimShells.length > 0
+            ? canonicalAnimShells
+            : canonicalShells;
+
+        // Sort largest-first (painter's algorithm)
+        const sorted = shellsForRender.slice().sort((a, b) => b.absArea - a.absArea);
+
+        // Build hole loop lookup
+        const shellLoopById = new Map(
+            canonicalShellLoops.map((loop: any) => [loop.shellLoopId, loop])
+        );
+
+        for (const shell of sorted) {
+            if (shell.points.length < 3) continue;
+            const rawColor = colorUtils.getPlayerColor(shell.ownerId);
+            const shellColor = adjustColorHSL(rawColor, satMult, lightMult);
+
+            // Smooth shell polygon (optional Chaikin)
+            const smoothedPts = smoothPasses > 0
+                ? chaikinSmoothPolygon(shell.points, smoothPasses)
+                : shell.points;
+
+            // Draw fill FROM shell points
+            fillGraphics.beginPath();
+            fillGraphics.poly(smoothedPts.flat());
+            fillGraphics.fill({ color: shellColor, alpha });
+
+            // Cut holes
+            const holeLoops: Array<{ points: [number, number][] }> =
+                'holeLoops' in shell && Array.isArray((shell as any).holeLoops)
+                    ? (shell as any).holeLoops
+                    : 'holeLoopIds' in shell && Array.isArray((shell as any).holeLoopIds)
+                        ? (shell as any).holeLoopIds
+                            .map((id: string) => shellLoopById.get(id))
+                            .filter((l: any) => l && l.points?.length >= 3)
+                        : [];
+            for (const hole of holeLoops) {
+                if (hole.points.length < 3) continue;
+                const smoothedHole = smoothPasses > 0
+                    ? chaikinSmoothPolygon(hole.points, smoothPasses)
+                    : hole.points;
+                fillGraphics.beginPath();
+                fillGraphics.poly(smoothedHole.flat());
+                fillGraphics.cut();
+            }
+
+            // Draw border ON the same shell points
+            if (borderWidth > 0 && borderAlpha > 0) {
+                fillGraphics.beginPath();
+                fillGraphics.moveTo(smoothedPts[0][0], smoothedPts[0][1]);
+                for (let i = 1; i < smoothedPts.length; i++) {
+                    fillGraphics.lineTo(smoothedPts[i][0], smoothedPts[i][1]);
+                }
+                if (smoothedPts.length > 2) {
+                    fillGraphics.lineTo(smoothedPts[0][0], smoothedPts[0][1]);
+                }
+                fillGraphics.stroke({
+                    width: borderWidth,
+                    color: shellColor,
+                    alpha: borderAlpha,
+                    join: 'round',
+                    cap: 'round',
+                });
+            }
+        }
+
+        log.renderer('PVV2', `CANONICAL path: ${sorted.length} shells (anim=${canonicalAnimActive})`);
+        return; // Skip legacy pipeline entirely
+    }
+
+    // ── LEGACY PATH (no canonical data) ─────────────────────────────────
+    // Per-frame animation (both modes)
     const boundaryMode = GAME_CONFIG.TERRITORY_BOUNDARY_MODE ?? 'smooth';
 
     // Throttled mode log — only on state change
