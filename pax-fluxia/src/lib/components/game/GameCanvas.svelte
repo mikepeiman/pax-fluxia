@@ -90,6 +90,9 @@
         runFG2DataPipeline,
         extractCanonicalData,
     } from "$lib/territory-engine";
+    // ── Canonical territory layer (Phase 2: new architecture) ──────────────────
+    import { TerritoryEngineController } from "$lib/territory/engine/TerritoryEngineController";
+    import { TerritoryRenderer } from "$lib/territory/render/TerritoryRenderer";
 
     // ============================================================================
     // PixiJS Application
@@ -139,6 +142,10 @@
 
     // ── FX Orchestrator (V2 — manages all visual ship state via VSM) ────
     const fxOrchestrator = new FXOrchestrator();
+
+    // ── Canonical territory instances (class-encapsulated, no module-level state) ─
+    let canonicalController: TerritoryEngineController | null = null;
+    let canonicalRenderer: TerritoryRenderer | null = null;
 
     // React to animation speed changes from the UI slider
     $effect(() => {
@@ -1251,6 +1258,66 @@
                             activeGameStore.connections as StarConnection[],
                         );
                         break;
+                    case "territory_canonical": {
+                        // ── NEW CANONICAL PIPELINE ──────────────────────────────────
+                        // Lazily initialize controller and renderer per-container
+                        if (!canonicalController) {
+                            canonicalController = new TerritoryEngineController(
+                                { transitionDurationMs: 600 },
+                            );
+                        }
+                        if (!canonicalRenderer || !voronoiContainer) {
+                            if (voronoiContainer) {
+                                canonicalRenderer = new TerritoryRenderer(
+                                    voronoiContainer,
+                                    (ownerIdx, playerIds) => {
+                                        const ownerId = playerIds[ownerIdx];
+                                        return ownerId
+                                            ? colorUtils.getPlayerColor(ownerId)
+                                            : 0x888888;
+                                    },
+                                    activeGameStore.players?.map(
+                                        (p: { id: string }) => p.id,
+                                    ) ?? [],
+                                );
+                            }
+                        }
+
+                        if (
+                            canonicalController &&
+                            canonicalRenderer &&
+                            voronoiContainer
+                        ) {
+                            const playerIds =
+                                activeGameStore.players?.map(
+                                    (p: { id: string }) => p.id,
+                                ) ?? [];
+                            canonicalRenderer.updatePlayerIds(playerIds);
+
+                            const { state, transitionPlan } =
+                                canonicalController.update(
+                                    {
+                                        stars,
+                                        connections:
+                                            activeGameStore.connections as StarConnection[],
+                                        playerIds,
+                                        worldWidth: GAME_WIDTH,
+                                        worldHeight: GAME_HEIGHT,
+                                        config: { family: "straight" },
+                                    },
+                                    fxOrchestrator.gameTime,
+                                );
+
+                            if (state) {
+                                canonicalRenderer.render(
+                                    state,
+                                    transitionPlan,
+                                    fxOrchestrator.gameTime,
+                                );
+                            }
+                        }
+                        break;
+                    }
                     // 'none' or unrecognized — no territory rendering
                 }
             }
