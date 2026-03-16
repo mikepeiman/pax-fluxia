@@ -121,10 +121,13 @@ export const STAR_LABEL_SLIDERS: AnimSliderDef[] = [
     { key: 'STAR_LABEL_GAP', label: 'Gap', min: 0, max: 12, step: 1, unit: 'px', group: 'Spacing' },
     { key: 'STAR_LABEL_BG_ALPHA', label: 'BG Opacity', min: 0, max: 1, step: 0.05, unit: '', group: 'Appearance' },
     { key: 'STAR_LABEL_BORDER_ALPHA', label: 'Border Opacity', min: 0, max: 1, step: 0.05, unit: '', group: 'Appearance' },
+    { key: 'STAR_LABEL_BORDER_WIDTH', label: 'Border Width', min: 0, max: 5, step: 0.5, unit: 'px', group: 'Appearance' },
     { key: 'STAR_LABEL_LINE_HEIGHT', label: 'Line Height', min: 10, max: 40, step: 1, unit: 'px', desc: 'Vertical mode only', group: 'Spacing' },
+    { key: 'STAR_LABEL_UNIVERSAL_H', label: 'Hue', min: 0, max: 360, step: 1, unit: '°', desc: 'Universal mode', group: 'Universal Color' },
+    { key: 'STAR_LABEL_UNIVERSAL_S', label: 'Saturation', min: 0, max: 100, step: 1, unit: '%', desc: 'Universal mode', group: 'Universal Color' },
+    { key: 'STAR_LABEL_UNIVERSAL_L', label: 'Lightness', min: 0, max: 100, step: 1, unit: '%', desc: 'Universal mode', group: 'Universal Color' },
+    { key: 'STAR_LABEL_UNIVERSAL_A', label: 'Alpha', min: 0, max: 1, step: 0.05, unit: '', desc: 'Universal mode', group: 'Universal Color' },
     { key: 'STAR_LABEL_LEASH', label: 'Leash Line', type: 'toggle', group: 'Appearance' },
-    { key: 'STAR_LABEL_OWNER_BORDER', label: 'Owner Border', type: 'toggle', group: 'Appearance' },
-    { key: 'STAR_LABEL_OWNER_FILL', label: 'Owner Fill', type: 'toggle', group: 'Appearance' },
 ];
 
 // ── Panel ↔ Config Mapping ──────────────────────────────────────────────────
@@ -384,10 +387,14 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'starLabelGap', configKey: 'STAR_LABEL_GAP' },
     { panelKey: 'starLabelBgAlpha', configKey: 'STAR_LABEL_BG_ALPHA' },
     { panelKey: 'starLabelBorderAlpha', configKey: 'STAR_LABEL_BORDER_ALPHA' },
+    { panelKey: 'starLabelBorderWidth', configKey: 'STAR_LABEL_BORDER_WIDTH' },
     { panelKey: 'starLabelLeash', configKey: 'STAR_LABEL_LEASH' },
     { panelKey: 'starLabelFontFamily', configKey: 'STAR_LABEL_FONT_FAMILY' },
-    { panelKey: 'starLabelOwnerBorder', configKey: 'STAR_LABEL_OWNER_BORDER' },
-    { panelKey: 'starLabelOwnerFill', configKey: 'STAR_LABEL_OWNER_FILL' },
+    { panelKey: 'starLabelColorMode', configKey: 'STAR_LABEL_COLOR_MODE' },
+    { panelKey: 'starLabelUniversalH', configKey: 'STAR_LABEL_UNIVERSAL_H' },
+    { panelKey: 'starLabelUniversalS', configKey: 'STAR_LABEL_UNIVERSAL_S' },
+    { panelKey: 'starLabelUniversalL', configKey: 'STAR_LABEL_UNIVERSAL_L' },
+    { panelKey: 'starLabelUniversalA', configKey: 'STAR_LABEL_UNIVERSAL_A' },
     { panelKey: 'starLabelLineHeight', configKey: 'STAR_LABEL_LINE_HEIGHT' },
     // Modified Voronoi Territory (F-138)
     { panelKey: 'territoryModifiedVoronoi', configKey: 'TERRITORY_MODIFIED_VORONOI' },
