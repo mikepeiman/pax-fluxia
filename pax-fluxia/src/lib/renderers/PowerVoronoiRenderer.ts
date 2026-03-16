@@ -857,10 +857,8 @@ function detectEnclaves(merged: MergedTerritory[]): Map<number, [number, number]
 }
 
 /** Draw a territory fill with enclave holes cut out.
- *  Uses quadratic Bézier through midpoints — the SAME curve construction as
- *  drawBorderPolylines — so fill edges trace identical paths to border strokes.
- *  This eliminates the B-42 divergence where poly().fill() drew straight lines
- *  while borders drew Bézier curves through the same vertices. */
+ *  Applies Chaikin smoothing to fill polygons so they match the smoothed
+ *  borders drawn by drawBorderPolylines (B-42 fix). */
 function drawTerritoryFillWithHoles(
     graphics: PIXI.Graphics,
     territory: MergedTerritory,
@@ -871,67 +869,16 @@ function drawTerritoryFillWithHoles(
     const fillPts = smoothPasses > 0
         ? chaikinSmoothPolygon(territory.points, smoothPasses)
         : territory.points;
-
-    // Remove duplicate closing vertex if present (we close via Bézier wrap)
-    let pts = fillPts;
-    if (pts.length > 2 &&
-        Math.abs(pts[0][0] - pts[pts.length - 1][0]) < 0.01 &&
-        Math.abs(pts[0][1] - pts[pts.length - 1][1]) < 0.01) {
-        pts = pts.slice(0, -1);
-    }
-
     graphics.beginPath();
-
-    if (pts.length < 3) {
-        // Degenerate: fall back to poly
-        graphics.poly(fillPts.flat());
-    } else {
-        // Closed-polygon Bézier: same midpoint interpolation as drawBorderPolylines
-        // Start at midpoint between last and first vertex
-        const n = pts.length;
-        const startMidX = (pts[n - 1][0] + pts[0][0]) / 2;
-        const startMidY = (pts[n - 1][1] + pts[0][1]) / 2;
-        graphics.moveTo(startMidX, startMidY);
-
-        for (let i = 0; i < n; i++) {
-            const nextIdx = (i + 1) % n;
-            const midX = (pts[i][0] + pts[nextIdx][0]) / 2;
-            const midY = (pts[i][1] + pts[nextIdx][1]) / 2;
-            graphics.quadraticCurveTo(pts[i][0], pts[i][1], midX, midY);
-        }
-        graphics.closePath();
-    }
+    graphics.poly(fillPts.flat());
     graphics.fill({ color: territory.color, alpha });
-
     if (holes) {
         for (const hole of holes) {
-            let holePts = smoothPasses > 0
+            const smoothedHole = smoothPasses > 0
                 ? chaikinSmoothPolygon(hole, smoothPasses)
                 : hole;
-
-            // Remove duplicate closing vertex
-            if (holePts.length > 2 &&
-                Math.abs(holePts[0][0] - holePts[holePts.length - 1][0]) < 0.01 &&
-                Math.abs(holePts[0][1] - holePts[holePts.length - 1][1]) < 0.01) {
-                holePts = holePts.slice(0, -1);
-            }
-
             graphics.beginPath();
-            if (holePts.length < 3) {
-                graphics.poly(holePts.flat());
-            } else {
-                const hn = holePts.length;
-                const hStartMidX = (holePts[hn - 1][0] + holePts[0][0]) / 2;
-                const hStartMidY = (holePts[hn - 1][1] + holePts[0][1]) / 2;
-                graphics.moveTo(hStartMidX, hStartMidY);
-                for (let i = 0; i < hn; i++) {
-                    const nextIdx = (i + 1) % hn;
-                    const midX = (holePts[i][0] + holePts[nextIdx][0]) / 2;
-                    const midY = (holePts[i][1] + holePts[nextIdx][1]) / 2;
-                    graphics.quadraticCurveTo(holePts[i][0], holePts[i][1], midX, midY);
-                }
-                graphics.closePath();
-            }
+            graphics.poly(smoothedHole.flat());
             graphics.cut();
         }
     }
