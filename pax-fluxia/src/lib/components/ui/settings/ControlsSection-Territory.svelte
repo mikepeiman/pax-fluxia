@@ -525,6 +525,7 @@
 
     const TERRITORY_STYLE_OPTIONS = [
         { id: "none", label: "None (Off)" },
+        { id: "territory_engine", label: "Territory Engine (DY4)" },
         { id: "vs_pvv3", label: "Vector Stroke (PVV3)" },
         { id: "power_voronoi", label: "Power Voronoi (PVV2)" },
         { id: "distance_field", label: "Distance Field Glow" },

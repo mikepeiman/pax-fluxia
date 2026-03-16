@@ -1119,9 +1119,24 @@
                     else if (GAME_CONFIG.TERRITORY_GRAPH) activeMode = "graph";
                     else if (GAME_CONFIG.TERRITORY_CONTOUR)
                         activeMode = "contour";
+                    else if (GAME_CONFIG.TERRITORY_ENGINE_ENABLED)
+                        activeMode = "territory_engine";
                 }
 
                 switch (activeMode) {
+                    case "territory_engine":
+                        renderTerritoryEngine({
+                            stars,
+                            container: voronoiContainer,
+                            colorUtils,
+                            worldWidth: GAME_WIDTH,
+                            worldHeight: GAME_HEIGHT,
+                            connections:
+                                activeGameStore.connections as StarConnection[],
+                            renderer: app?.renderer ?? undefined,
+                            gameNowMs: fxOrchestrator.gameTime,
+                        });
+                        break;
                     case "vs_pvv3": {
                         const fg2Artifacts = runFG2DataPipeline({
                             stars,
