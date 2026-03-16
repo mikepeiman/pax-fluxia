@@ -11,6 +11,7 @@
  */
 
 import type { Star, Connection } from '@pax/common';
+import { log } from '$lib/utils/logger';
 import { TerritoryCompiler } from '../compiler/TerritoryCompiler';
 import { planTransition } from '../compiler/TerritoryTransitionPlanner';
 import type {
@@ -117,7 +118,7 @@ export class TerritoryEngineController {
         );
 
         if (!isOk(newState)) {
-            console.warn('[TerritoryEngineController] compile error:', newState);
+            log.error('TerritoryEngineController', 'compile error', newState);
             // On recoverable error, keep previous state
             if (newState.recoverable && this.currentState) return;
             this.currentState = null;
@@ -132,7 +133,7 @@ export class TerritoryEngineController {
 
             const plan = planTransition(prevState, newState, nowMs, this.transitionDurationMs);
             if ((plan as { kind?: string }).kind === 'error') {
-                console.warn('[TerritoryEngineController] transition plan error:', plan);
+                log.error('TerritoryEngineController', 'transition plan error', plan);
                 this.currentTransitionPlan = null;
             } else {
                 this.currentTransitionPlan = plan as TransitionPlan;

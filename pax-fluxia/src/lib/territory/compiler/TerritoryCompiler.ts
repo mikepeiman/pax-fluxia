@@ -13,6 +13,7 @@
  */
 
 import type { Star, Connection } from '@pax/common';
+import { log } from '$lib/utils/logger';
 import { executeMetricStage } from './metricStage';
 import { executeFrontierStage } from './frontierStage';
 import { executeRegionStage } from './regionStage';
@@ -79,7 +80,7 @@ export class TerritoryCompiler {
         const fitted = fitFrontiers(frontier, family, config.fitter ?? {});
         if (isError(fitted)) {
             // Fitter is recoverable — use unfitted frontiers as fallback polylines
-            console.warn('[TerritoryCompiler] fitter error:', fitted.message);
+            log.error('TerritoryCompiler', 'fitter error', fitted.message);
         }
 
         // ----------------------------------------------------------------
