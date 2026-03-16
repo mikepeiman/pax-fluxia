@@ -204,6 +204,7 @@ function runLegacyAdapter(adapter: TerritoryLegacyAdapterId, input: TerritoryEng
     }
 
     if (adapter === 'legacy_pvv3') {
+        const artifacts = runFG2DataPipeline(input);
         renderPVV3(
             input.stars,
             input.container,
@@ -211,6 +212,7 @@ function runLegacyAdapter(adapter: TerritoryLegacyAdapterId, input: TerritoryEng
             input.worldWidth,
             input.worldHeight,
             input.connections,
+            artifacts,
         );
         return;
     }

@@ -613,8 +613,11 @@ export function renderPVV3(
     }
 
     // FG2 not used — falling through to legacy merge+substitute pipeline
-    console.log('%c[PVV3] LEGACY PATH — FG2 shells not available', 'color: #ffa500; font-weight: bold',
-        `loopArtifact=${!!fg2LoopArtifact}, shellCount=${fg2Shells.length}`);
+    // ⚠️ DEPRECATED: This path computes fills and borders from independent data
+    // sources, causing visible divergence (B-42). The engine should always provide
+    // FG2 artifacts so the canonical path above activates instead.
+    console.warn('%c[PVV3] ⚠️ LEGACY PATH (DEPRECATED) — FG2 shells not available', 'color: #ff4444; font-weight: bold',
+        `loopArtifact=${!!fg2LoopArtifact}, shellCount=${fg2Shells.length}. This path causes fill/border divergence.`);
 
 
 
