@@ -35,6 +35,7 @@ import type {
     TerritoryStaticMethodId,
     TerritoryTraceRun,
 } from './types';
+import type { CanonicalTerritoryData } from './renderMode';
 
 
 interface InteractiveRunState {
@@ -190,6 +191,22 @@ function buildInputFingerprint(
     ].join('|');
 }
 
+/**
+ * Convert raw pipeline artifacts into typed CanonicalTerritoryData.
+ * This is the bridge between the data engine's untyped artifact bag
+ * and the typed RenderMode contract.
+ */
+export function extractCanonicalData(artifacts: TerritoryPipelineArtifacts): CanonicalTerritoryData {
+    const loop = artifacts.loop as Record<string, unknown> | undefined;
+    const animation = artifacts.animation as Record<string, unknown> | undefined;
+    return {
+        shells: (loop?.ownerShells as CanonicalTerritoryData['shells']) ?? [],
+        shellLoops: (loop?.ownerShellLoops as CanonicalTerritoryData['shellLoops']) ?? [],
+        animatedShells: (animation?.displayedOwnerShells as CanonicalTerritoryData['animatedShells']) ?? [],
+        transitionActive: Boolean(animation?.ownerShellTransitionActive),
+    };
+}
+
 function runLegacyAdapter(adapter: TerritoryLegacyAdapterId, input: TerritoryEngineInput): void {
     if (adapter === 'legacy_pvv2') {
         renderPowerVoronoi(
@@ -205,6 +222,7 @@ function runLegacyAdapter(adapter: TerritoryLegacyAdapterId, input: TerritoryEng
 
     if (adapter === 'legacy_pvv3') {
         const artifacts = runFG2DataPipeline(input);
+        const canonicalData = extractCanonicalData(artifacts);
         renderPVV3(
             input.stars,
             input.container,
@@ -212,7 +230,7 @@ function runLegacyAdapter(adapter: TerritoryLegacyAdapterId, input: TerritoryEng
             input.worldWidth,
             input.worldHeight,
             input.connections,
-            artifacts,
+            canonicalData,
         );
         return;
     }

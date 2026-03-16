@@ -88,6 +88,7 @@
         renderTerritoryEngine,
         resetTerritoryEngineCaches,
         runFG2DataPipeline,
+        extractCanonicalData,
     } from "$lib/territory-engine";
 
     // ============================================================================
@@ -1148,7 +1149,7 @@
                             GAME_WIDTH,
                             GAME_HEIGHT,
                             activeGameStore.connections as StarConnection[],
-                            fg2Artifacts,
+                            extractCanonicalData(fg2Artifacts),
                         );
                         break;
                     }

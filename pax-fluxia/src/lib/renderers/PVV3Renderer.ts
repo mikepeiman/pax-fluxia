@@ -28,7 +28,7 @@ import { findConnectedClustersOptimized } from './territoryUtils';
 import { computeCorridorVirtuals, computeDisconnectVirtuals, DISCONNECT_OWNER_ID } from './territoryFeatures';
 import type { ColorUtils } from './RenderContext';
 import { log } from '$lib/utils/logger';
-import type { TerritoryPipelineArtifacts } from '$lib/territory-engine/types';
+import type { CanonicalTerritoryData } from '$lib/territory-engine/renderMode';
 
 // ── Re-exported geometry modules ──────────────────────────────────────────
 import type {
@@ -144,7 +144,7 @@ export function renderPVV3(
     worldWidth: number,
     worldHeight: number,
     connections?: StarConnection[],
-    artifacts?: TerritoryPipelineArtifacts,
+    canonicalData?: CanonicalTerritoryData,
 ): void {
     const transitionMs = GAME_CONFIG.TERRITORY_TRANSITION_MS ?? 400;
     const now = performance.now();
@@ -350,27 +350,12 @@ export function renderPVV3(
     }
 
     // ── FG2 CANONICAL PATH ──────────────────────────────────────────────────
-    // If canonical artifacts were provided by the orchestrator, use them.
+    // If canonical data was provided by the orchestrator, use it.
     // Otherwise fall through to legacy PVV3 datagen path.
-    const fg2Artifacts = artifacts ?? {};
-    const fg2LoopArtifact = fg2Artifacts.loop as
-
-        | {
-            ownerShells?: Array<{ shellId: string; ownerId: string; points: [number, number][]; area: number; absArea: number; confidence: number; holeLoopIds: string[] }>;
-            ownerShellLoops?: Array<{ shellLoopId: string; ownerId: string; points: [number, number][]; classification: string }>;
-        }
-        | undefined;
-    const fg2AnimArtifact = fg2Artifacts.animation as
-
-        | {
-            displayedOwnerShells?: Array<{ shellId: string; ownerId: string; points: [number, number][]; area: number; absArea: number; confidence: number; holeLoops: Array<{ holeLoopId: string; points: [number, number][] }> }>;
-            ownerShellTransitionActive?: boolean;
-        }
-        | undefined;
-    const fg2Shells = fg2LoopArtifact?.ownerShells ?? [];
-    const fg2ShellLoops = fg2LoopArtifact?.ownerShellLoops ?? [];
-    const fg2AnimShells = fg2AnimArtifact?.displayedOwnerShells ?? [];
-    const fg2AnimActive = Boolean(fg2AnimArtifact?.ownerShellTransitionActive);
+    const fg2Shells = canonicalData?.shells ?? [];
+    const fg2ShellLoops = canonicalData?.shellLoops ?? [];
+    const fg2AnimShells = canonicalData?.animatedShells ?? [];
+    const fg2AnimActive = canonicalData?.transitionActive ?? false;
     const useFG2 = fg2Shells.length > 0;
 
     // Smooth passes — shared by FG2 and legacy paths
@@ -617,7 +602,7 @@ export function renderPVV3(
     // sources, causing visible divergence (B-42). The engine should always provide
     // FG2 artifacts so the canonical path above activates instead.
     console.warn('%c[PVV3] ⚠️ LEGACY PATH (DEPRECATED) — FG2 shells not available', 'color: #ff4444; font-weight: bold',
-        `loopArtifact=${!!fg2LoopArtifact}, shellCount=${fg2Shells.length}. This path causes fill/border divergence.`);
+        `canonicalData=${!!canonicalData}, shellCount=${fg2Shells.length}. This path causes fill/border divergence.`);
 
 
 

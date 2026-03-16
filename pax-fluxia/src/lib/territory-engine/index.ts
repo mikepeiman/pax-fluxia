@@ -33,3 +33,16 @@ export type {
     TerritoryStaticMethodId,
     TerritoryTraceRun,
 } from './types';
+
+export { extractCanonicalData } from './engine';
+
+export type {
+    CanonicalShell,
+    CanonicalShellLoop,
+    CanonicalAnimatedShell,
+    CanonicalTerritoryData,
+    RenderModeId,
+    RenderModeTunables,
+    RenderModeContext,
+    RenderMode,
+} from './renderMode';
