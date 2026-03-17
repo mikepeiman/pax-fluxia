@@ -476,9 +476,9 @@ export function renderPowerVoronoi(
     const transitionMs = GAME_CONFIG.TERRITORY_TRANSITION_MS ?? 400;
     const now = performance.now();
 
-    // Re-show graphics — voronoiContainer blanket-hides every frame
+    // Re-show fillGraphics — voronoiContainer blanket-hides every frame
     if (fillGraphics) fillGraphics.visible = true;
-    if (borderGraphics) borderGraphics.visible = true;
+    // borderGraphics stays hidden — borders are now strokes on the fill path
 
     // ── CANONICAL DATA PATH ─────────────────────────────────────────────
     // When canonical data is provided with shells, draw fills and borders
@@ -653,64 +653,11 @@ export function renderPowerVoronoi(
         }
     }
 
-    // Segment mode: chain lerped edges into polylines, render via canonical draw
+    // Border transitions removed — borders are now strokes on the fill path.
+    // Just run the timers so the transition flags reset properly.
     if (boundaryMode === 'segment' && isBorderTransitioning && transitionMs > 0 && prevBorderEdges && targetBorderEdges) {
         const elapsed = now - borderTransitionStart;
-        const rawT = Math.min(1, elapsed / transitionMs);
-        const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
-
-        // Lerp edge positions, then chain into polylines for canonical draw
-        const lerpedEdges: SharedBorderEdge[] = [];
-        const targetUsed = new Set<number>();
-        for (const pEdge of prevBorderEdges) {
-            const pMx = (pEdge.x1 + pEdge.x2) / 2;
-            const pMy = (pEdge.y1 + pEdge.y2) / 2;
-            let bestDist = Infinity;
-            let bestIdx = -1;
-            for (let ti = 0; ti < targetBorderEdges.length; ti++) {
-                if (targetUsed.has(ti)) continue;
-                const tMx = (targetBorderEdges[ti].x1 + targetBorderEdges[ti].x2) / 2;
-                const tMy = (targetBorderEdges[ti].y1 + targetBorderEdges[ti].y2) / 2;
-                const d = Math.hypot(pMx - tMx, pMy - tMy);
-                if (d < bestDist) { bestDist = d; bestIdx = ti; }
-            }
-            if (bestIdx >= 0 && bestDist < 200) {
-                targetUsed.add(bestIdx);
-                const tEdge = targetBorderEdges[bestIdx];
-                lerpedEdges.push({
-                    x1: pEdge.x1 + (tEdge.x1 - pEdge.x1) * eased,
-                    y1: pEdge.y1 + (tEdge.y1 - pEdge.y1) * eased,
-                    x2: pEdge.x2 + (tEdge.x2 - pEdge.x2) * eased,
-                    y2: pEdge.y2 + (tEdge.y2 - pEdge.y2) * eased,
-                    ownerA: tEdge.ownerA, ownerB: tEdge.ownerB,
-                    colorA: tEdge.colorA, colorB: tEdge.colorB,
-                    siteIdA: tEdge.siteIdA, siteIdB: tEdge.siteIdB,
-                });
-            }
-        }
-        // Unmatched target edges
-        for (let ti = 0; ti < targetBorderEdges.length; ti++) {
-            if (targetUsed.has(ti)) continue;
-            lerpedEdges.push(targetBorderEdges[ti]);
-        }
-
-        // Chain lerped edges into polylines + draw via canonical function
-        if (borderGraphics) {
-            borderGraphics.clear();
-            const smoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
-            const borderWidth = GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 1.5;
-            const borderAlpha = GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.4;
-            const polylines = chainSharedEdgesIntoPolylines(lerpedEdges, 0);
-            // Assign colors from edge data (render concern)
-            for (const pl of polylines) {
-                const edge = lerpedEdges.find(e => (e.ownerA + '|' + e.ownerB === pl.ownerPairKey) || (e.ownerB + '|' + e.ownerA === pl.ownerPairKey));
-                pl.color = edge ? blendColors(edge.colorA, edge.colorB, 0.5) : 0x888888;
-            }
-            drawBorderPolylines(borderGraphics, polylines, smoothPasses, borderWidth, borderAlpha);
-            log.renderer('PVV2', `SEGMENT TRANSITION t=${eased.toFixed(3)} | ${polylines.length} polylines from ${lerpedEdges.length} edges`);
-        }
-
-        if (rawT >= 1) {
+        if (elapsed >= transitionMs) {
             isBorderTransitioning = false;
             prevBorderEdges = null;
         }
@@ -719,30 +666,9 @@ export function renderPowerVoronoi(
         if (shapeFpCheck === cachedShapeFingerprint && visualFpCheck === cachedVisualFingerprint) return;
     }
 
-    // Smooth mode: contested shared border polyline morph
     if (boundaryMode === 'smooth' && isSmoothTransitioning && transitionMs > 0 && prevSharedPolylines && targetSharedPolylines) {
         const elapsed = now - smoothTransitionStart;
-        const rawT = Math.min(1, elapsed / transitionMs);
-        const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
-
-        // Draw lerped borders into borderGraphics (single layer — no outlineGraphics)
-        if (borderGraphics) {
-            borderGraphics.clear();
-            const smoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
-            const borderWidth = GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 1.5;
-            const borderAlpha = GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.4;
-            const t0 = performance.now();
-            const lerped = buildLerpedPolylines(prevSharedPolylines, targetSharedPolylines, eased);
-            const t1 = performance.now();
-            drawBorderPolylines(borderGraphics, lerped, smoothPasses, borderWidth, borderAlpha);
-            const t2 = performance.now();
-            const avgPts = lerped.length > 0 ? (lerped.reduce((s, p) => s + p.points.length, 0) / lerped.length).toFixed(0) : '0';
-            log.renderer('PVV2', `TRANSITION t=${eased.toFixed(3)} | lerp=${(t1 - t0).toFixed(1)}ms draw=${(t2 - t1).toFixed(1)}ms | ${lerped.length} polylines avgPts=${avgPts} smooth=${smoothPasses} | prev=${prevSharedPolylines.length} target=${targetSharedPolylines.length}`);
-        } else {
-            log.renderer('PVV2', `TRANSITION SKIPPED — borderGraphics is null`);
-        }
-
-        if (rawT >= 1) {
+        if (elapsed >= transitionMs) {
             isSmoothTransitioning = false;
             prevSharedPolylines = null;
             log.renderer('PVV2', 'smooth transition complete — next frame will rebuild steady-state');
