@@ -561,29 +561,56 @@ export function renderPowerVoronoi(
         log.renderer('PVV2', `mode=${boundaryMode} smoothTransition=${isSmoothTransitioning} segmentTransition=${isBorderTransitioning} fillTransition=${isFillTransitioning}`);
     }
 
-    // ── Per-frame fill crossfade (mode-independent) ──────────────────────
+    // ── Per-frame fill MORPH (mode-independent — matches border vertex-lerp) ──
+    // DY4 borders spatially morph via vertex lerp. Fills must also spatially morph
+    // so they track the border positions at every frame. Alpha crossfade would leave
+    // fills static while borders slide, causing persistent fill-border misalignment.
     if (isFillTransitioning && prevMergedTerritories && lastMergedTerritories && fillGraphics && transitionMs > 0) {
         const elapsed = now - fillTransitionStart;
         const rawT = Math.min(1, elapsed / transitionMs);
         const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
         const alpha = GAME_CONFIG.VORONOI_ALPHA ?? 0.25;
 
-        log.renderer('PVV2', `FILL CROSSFADE frame t=${eased.toFixed(3)} | prev=${prevMergedTerritories.length} target=${lastMergedTerritories.length}`);
+        log.renderer('PVV2', `FILL MORPH frame t=${eased.toFixed(3)} | prev=${prevMergedTerritories.length} target=${lastMergedTerritories.length}`);
         fillGraphics.clear();
-        // Prev fills fading out (geometry already smoothed in stage)
-        for (let i = 0; i < prevMergedTerritories.length; i++) {
-            drawTerritoryFillWithHoles(fillGraphics, prevMergedTerritories[i], prevEnclaveMap?.get(i), alpha * (1 - eased));
-        }
-        // Target fills fading in (geometry already smoothed in stage)
-        for (let i = 0; i < lastMergedTerritories.length; i++) {
-            drawTerritoryFillWithHoles(fillGraphics, lastMergedTerritories[i], lastEnclaveMap?.get(i), alpha * eased);
+
+        const RESAMPLE_N = 64;
+        // Match territories by ownerId for spatial morphing
+        const prevByOwner = new Map<string, MergedTerritory>();
+        for (const t of prevMergedTerritories) prevByOwner.set(t.ownerId, t);
+        const targetByOwner = new Map<string, MergedTerritory>();
+        for (const t of lastMergedTerritories) targetByOwner.set(t.ownerId, t);
+
+        const allOwners = new Set([...prevByOwner.keys(), ...targetByOwner.keys()]);
+
+        for (const ownerId of allOwners) {
+            const prev = prevByOwner.get(ownerId);
+            const target = targetByOwner.get(ownerId);
+
+            if (prev && target) {
+                // Both exist — spatially lerp between them
+                const pSampled = resamplePolygon(prev.points, RESAMPLE_N);
+                const tSampled = resamplePolygon(target.points, RESAMPLE_N);
+                const morphed = lerpPolygon(pSampled, tSampled, eased);
+                const morphedTerritory: MergedTerritory = { ...target, points: morphed };
+                // Use target enclave map for holes (snap holes to target)
+                const targetIdx = lastMergedTerritories.indexOf(target);
+                drawTerritoryFillWithHoles(fillGraphics, morphedTerritory, lastEnclaveMap?.get(targetIdx), alpha);
+            } else if (target) {
+                // New territory — fade in
+                drawTerritoryFillWithHoles(fillGraphics, target, lastEnclaveMap?.get(lastMergedTerritories.indexOf(target)), alpha * eased);
+            } else if (prev) {
+                // Disappearing territory — fade out
+                const prevIdx = prevMergedTerritories.indexOf(prev);
+                drawTerritoryFillWithHoles(fillGraphics, prev, prevEnclaveMap?.get(prevIdx), alpha * (1 - eased));
+            }
         }
 
         if (rawT >= 1) {
             isFillTransitioning = false;
             prevMergedTerritories = null;
             prevEnclaveMap = null;
-            log.renderer('PVV2', 'fill crossfade complete');
+            log.renderer('PVV2', 'fill morph complete');
         }
     }
 
