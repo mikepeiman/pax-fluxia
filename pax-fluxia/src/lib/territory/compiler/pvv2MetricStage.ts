@@ -618,20 +618,36 @@ export function executePVV2MetricStage(
         // Stage 4: Merge same-owner cells
         const mergedRaw = mergeSameOwnerCells(cells, config.clusterSplit, clusterMap);
 
-        // Fills use raw merged Voronoi geometry — NO smoothing on fills.
-        // Smoothing is applied only to frontier polylines (chainSharedEdgesIntoPolylines below).
-        // Violating this creates two independently-smoothed geometries → fill/border divergence → gaps.
-        const mergedTerritories: MergedTerritory[] = mergedRaw;
-        log.sys('PVV2Stage', `MERGED: ${mergedTerritories.length} territories | pts: ${mergedTerritories.map(t => `${t.ownerId}:${t.points.length}`).join(' ')}`);
-
         // Stage 5: Chain shared edges → smoothed polylines (Chaikin = geometry)
         const rawSharedPolylines = chainSharedEdgesIntoPolylines(sharedEdges, 0);
         const sharedPolylines = chainSharedEdgesIntoPolylines(sharedEdges, config.chaikinPasses);
         log.sys('PVV2Stage', `POLYLINES: ${sharedPolylines.length} border polylines | pts: ${sharedPolylines.map(p => `${p.ownerPairKey}:${p.points.length}`).join(' ')}`);
 
-        // Stage 6: Detect enclaves
-        const enclaveMap = detectEnclaves(mergedTerritories);
-        log.sys('PVV2Stage', `ENCLAVES: ${enclaveMap.size} | COMPLETE`);
+        // Stage 6: Detect enclaves (before smoothing, for centroid accuracy)
+        const enclaveMapRaw = detectEnclaves(mergedRaw);
+        log.sys('PVV2Stage', `ENCLAVES: ${enclaveMapRaw.size} | COMPLETE`);
+
+        // Apply Chaikin smoothing to fill polygons in the geometry stage.
+        // BOTH fills and borders are smoothed with the same chaikinPasses here —
+        // before any render calls — ensuring geometric consistency.
+        // Previous approach (smooth fills independently at render time) caused B-42 divergence.
+        const mergedTerritories: MergedTerritory[] = config.chaikinPasses > 0
+            ? mergedRaw.map(t => ({
+                ...t,
+                points: chaikinSmoothPolygon(t.points, config.chaikinPasses),
+            }))
+            : mergedRaw;
+
+        // Also smooth enclave hole polygons with the same passes
+        const enclaveMap = new Map<number, [number, number][][]>();
+        for (const [idx, holes] of enclaveMapRaw) {
+            enclaveMap.set(idx, config.chaikinPasses > 0
+                ? holes.map(hole => chaikinSmoothPolygon(hole, config.chaikinPasses))
+                : holes,
+            );
+        }
+
+        log.sys('PVV2Stage', `MERGED: ${mergedTerritories.length} territories | chaikinPasses=${config.chaikinPasses} | pts: ${mergedTerritories.map(t => `${t.ownerId}:${t.points.length}`).join(' ')}`);
 
 
         const fingerprint = buildPVV2Fingerprint(stars, config);
