@@ -39,7 +39,6 @@ import {
     type TerritoryCell,
 } from '$lib/territory/compiler/pvv2MetricStage';
 import { resamplePolygon, resamplePolyline, lerpPolygon, polygonCentroid } from '$lib/territory/geometry/morphUtils';
-import { substituteSmoothedEdges } from '$lib/renderers/geometry/borderPipeline';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -72,6 +71,12 @@ let targetRawSharedPolylines: SharedPolyline[] | null = null;
 let smoothTransitionStart = 0;
 let isSmoothTransitioning = false;
 let lastMergedTerritories: MergedTerritory[] | null = null;  // stored for smooth mode snapshot
+
+// ── Fill Transition State (alpha crossfade) ────────────────────────────────
+let prevMergedTerritories: MergedTerritory[] | null = null;
+let prevEnclaveMap: Map<number, [number, number][][]> | null = null;
+let fillTransitionStart = 0;
+let isFillTransitioning = false;
 
 // ── Cell Change Tracking (frontier-first rendering) ────────────────────
 let lastCells: TerritoryCell[] | null = null;  // cells from previous rebuild
@@ -426,25 +431,29 @@ function renderInterpolatedBorders(
 
 /** Draw a territory fill ONLY (no stroke).
  *  Borders are drawn separately via drawBorderPolylines on borderGraphics.
- *  Points are already processed by pvv2MetricStage + substituteSmoothedEdges. */
+ *  Apply Chaikin smoothing to fill polygon to match border smoothing (B-42 fix). */
 function drawTerritoryFillOnly(
     graphics: PIXI.Graphics,
     territory: MergedTerritory,
     holes: [number, number][][] | undefined,
     alpha: number,
+    smoothPasses: number = 0,
 ): void {
     if (territory.points.length < 3) {
         log.renderer('PVV2:fill', `SKIP territory ownerId=${territory.ownerId} — only ${territory.points.length} pts`);
         return;
     }
-    graphics.poly(territory.points.flat());
+    // Apply Chaikin smoothing to fill polygon to match border smoothing
+    const pts = smoothPasses > 0 ? chaikinSmoothPolygon(territory.points, smoothPasses) : territory.points;
+    graphics.poly(pts.flat());
     graphics.fill({ color: territory.color, alpha });
 
-    log.renderer('PVV2:fill', `  filled ownerId=${territory.ownerId} color=0x${territory.color.toString(16)} alpha=${alpha.toFixed(2)} pts=${territory.points.length} holes=${holes?.length ?? 0}`);
+    log.renderer('PVV2:fill', `  filled ownerId=${territory.ownerId} color=0x${territory.color.toString(16)} alpha=${alpha.toFixed(2)} pts=${pts.length} holes=${holes?.length ?? 0}`);
     if (holes) {
         for (const hole of holes) {
             if (hole.length < 3) continue;
-            graphics.poly(hole.flat());
+            const holePts = smoothPasses > 0 ? chaikinSmoothPolygon(hole, smoothPasses) : hole;
+            graphics.poly(holePts.flat());
             graphics.cut();
         }
     }
@@ -600,41 +609,40 @@ export function renderPowerVoronoi(
         const alpha = GAME_CONFIG.VORONOI_ALPHA ?? 0.25;
         const borderWidth = GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 1.5;
         const borderAlpha = GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.4;
+        const smoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
 
-        log.renderer('PVV2', `GEOMETRIC MORPH frame t=${easedT.toFixed(3)} | prev=${prevSharedPolylines!.length} target=${targetSharedPolylines!.length}`);
+        log.renderer('PVV2', `FILL CROSSFADE + BORDER MORPH frame t=${easedT.toFixed(3)} | prev=${prevSharedPolylines!.length} target=${targetSharedPolylines!.length}`);
         fillGraphics.clear();
 
-        // 1. Generate the moving borders for this frame
-        const frameFrontiers = buildLerpedPolylines(prevSharedPolylines!, targetSharedPolylines!, easedT);
-
-        // 2. Clone the target territories so we don't mutate canonical end-state
-        const frameRegions: MergedTerritory[] = lastMergedTerritories.map(region => ({
-            ...region,
-            points: region.points.map(pt => [pt[0], pt[1]]) // use tuple copy
-        }));
-
-        // 3. Force the region fills to snap to the moving frame frontiers
-        substituteSmoothedEdges(frameRegions as any, targetRawSharedPolylines!, frameFrontiers);
-
-        // 4. Draw fills ONLY on fillGraphics
-        for (let i = 0; i < frameRegions.length; i++) {
-            drawTerritoryFillOnly(fillGraphics, frameRegions[i], lastEnclaveMap?.get(i), alpha);
+        // 1. Alpha crossfade fills: prev fades out, target fades in
+        // Draw prev fills fading out
+        if (prevMergedTerritories) {
+            for (let i = 0; i < prevMergedTerritories.length; i++) {
+                drawTerritoryFillOnly(fillGraphics, prevMergedTerritories[i], prevEnclaveMap?.get(i), alpha * (1 - easedT), smoothPasses);
+            }
+        }
+        // Draw target fills fading in
+        for (let i = 0; i < lastMergedTerritories.length; i++) {
+            drawTerritoryFillOnly(fillGraphics, lastMergedTerritories[i], lastEnclaveMap?.get(i), alpha * easedT, smoothPasses);
         }
 
-        // 5. Draw borders separately on borderGraphics from the lerped frontiers
+        // 2. Lerp borders between prev and target polylines
+        const frameFrontiers = buildLerpedPolylines(prevSharedPolylines!, targetSharedPolylines!, easedT);
         if (!borderGraphics) {
             borderGraphics = new PIXI.Graphics();
             voronoiContainer.addChild(borderGraphics);
         }
         borderGraphics.clear();
         borderGraphics.visible = true;
-        const smoothN = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
         drawBorderPolylines(borderGraphics, frameFrontiers, 0, borderWidth, borderAlpha);
 
         if (rawT >= 1) {
             isSmoothTransitioning = false;
+            isFillTransitioning = false;
             prevSharedPolylines = null;
-            log.renderer('PVV2', 'geometric morph complete - returning to steady state');
+            prevMergedTerritories = null;
+            prevEnclaveMap = null;
+            log.renderer('PVV2', 'crossfade + border morph complete - returning to steady state');
         }
 
         const shapeFpCheck = buildShapeFingerprint(stars);
@@ -672,10 +680,11 @@ export function renderPowerVoronoi(
         if (targetSharedPolylines && targetSharedPolylines.length > 0) {
             prevSharedPolylines = targetSharedPolylines;
         }
-        // Legacy fill crossfade state removed. Fills are now geometrically bound
-        // to the morphing borders during smooth transitions.
-        // Cell change detection: snapshot previous cells for ownership comparison
-        // (changedSiteIds populated after new cells are computed — see Stage 2c below)
+        // Fill crossfade: snapshot current merged territories
+        if (lastMergedTerritories && lastMergedTerritories.length > 0) {
+            prevMergedTerritories = lastMergedTerritories;
+            prevEnclaveMap = lastEnclaveMap;
+        }
     }
 
     cachedShapeFingerprint = shapeFp;
@@ -762,32 +771,11 @@ export function renderPowerVoronoi(
         log.renderer('PVV2', `B-38 enclave detection: ${enclaveMap.size} territories contain enclaves`);
     }
 
-    // Steady-state: draw target fills at full alpha (with enclave holes)
-    // Dynamic transition morphing is handled per-frame at the top of the render loop.
-    const steadyRegions: MergedTerritory[] = merged.map(region => ({
-        ...region,
-        points: region.points.map(pt => [pt[0], pt[1]])
-    }));
-
-    if (targetRawSharedPolylines && targetSharedPolylines) {
-        substituteSmoothedEdges(steadyRegions as any, targetRawSharedPolylines, targetSharedPolylines);
-    }
-
-    log.renderer('PVV2', `STEADY-STATE FILLS | drawing ${steadyRegions.length} territories`);
-    for (let i = 0; i < steadyRegions.length; i++) {
-        drawTerritoryFillOnly(fillGraphics, steadyRegions[i], enclaveMap.get(i), alpha);
-    }
-
-    // Draw canonical borders separately on borderGraphics
-    if (!borderGraphics) {
-        borderGraphics = new PIXI.Graphics();
-        voronoiContainer.addChild(borderGraphics);
-    }
-    borderGraphics.clear();
-    borderGraphics.visible = true;
-    const smoothN = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
-    if (targetSharedPolylines && targetSharedPolylines.length > 0 && borderWidth > 0 && borderAlpha > 0) {
-        drawBorderPolylines(borderGraphics, targetSharedPolylines, 0, borderWidth, borderAlpha);
+    // Steady-state fills: apply Chaikin smoothing to match border smoothing (B-42)
+    const smoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
+    log.renderer('PVV2', `STEADY-STATE FILLS | drawing ${merged.length} territories | smoothPasses=${smoothPasses}`);
+    for (let i = 0; i < merged.length; i++) {
+        drawTerritoryFillOnly(fillGraphics, merged[i], enclaveMap.get(i), alpha, smoothPasses);
     }
 
     // ── Store targets + start transition ────────────────────────────────
@@ -804,7 +792,6 @@ export function renderPowerVoronoi(
 
     // Build polylines for morph transition (reuse from render block if available)
     {
-        const smoothN = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
         const cMap = new Map<string, number>();
         for (const edge of sharedEdges) {
             const key = edge.ownerA < edge.ownerB ? `${edge.ownerA}|${edge.ownerB}` : `${edge.ownerB}|${edge.ownerA}`;
@@ -823,6 +810,17 @@ export function renderPowerVoronoi(
         }) ?? null;
     }
 
+    // NOW draw borders (after targetSharedPolylines is populated)
+    if (!borderGraphics) {
+        borderGraphics = new PIXI.Graphics();
+        voronoiContainer.addChild(borderGraphics);
+    }
+    borderGraphics.clear();
+    borderGraphics.visible = true;
+    if (targetSharedPolylines && targetSharedPolylines.length > 0 && borderWidth > 0 && borderAlpha > 0) {
+        drawBorderPolylines(borderGraphics, targetSharedPolylines, 0, borderWidth, borderAlpha);
+    }
+
     // Start transition based on mode
     if (shapeChanged && transitionMs > 0) {
         // Segment mode
@@ -835,10 +833,10 @@ export function renderPowerVoronoi(
         if (prevSharedPolylines && prevSharedPolylines.length > 0) {
             smoothTransitionStart = now;
             isSmoothTransitioning = true;
+            isFillTransitioning = true;
+            fillTransitionStart = now;
             log.renderer('PVV2', `TRANSITION STARTED | prev=${prevSharedPolylines.length} target=${targetSharedPolylines?.length ?? 0} | transitionMs=${transitionMs}`);
         }
-
-        // Legacy fill crossfade (mode-independent) removed.
     }
     log.renderer('PVV2', `◀ rebuild complete | total=${(performance.now() - now).toFixed(1)}ms`);
 }
@@ -860,6 +858,11 @@ export function resetPowerVoronoiCache(): void {
     targetRawSharedPolylines = null;
     smoothTransitionStart = 0;
     lastMergedTerritories = null;
+    // Fill crossfade state
+    isFillTransitioning = false;
+    prevMergedTerritories = null;
+    prevEnclaveMap = null;
+    fillTransitionStart = 0;
     // Enclave state
     lastEnclaveMap = null;
     // Cell change tracking state
