@@ -747,7 +747,7 @@ export function renderPowerVoronoi(
         return;
     }
 
-    const { cells, mergedTerritories: merged, sharedEdges, rawSharedPolylines: builtRawPolylinesRaw, sharedPolylines: builtPolylinesRaw, enclaveMap } = stageResult;
+    const { cells, mergedTerritories: merged, sharedEdges, rawSharedPolylines: builtRawPolylinesRaw, sharedPolylines: builtPolylinesRaw, worldBorderPolylines, enclaveMap } = stageResult;
 
     log.renderer('PVV2', `STAGE OUTPUT | cells=${cells.length} merged=${merged.length} edges=${sharedEdges.length} polylines=${builtPolylinesRaw.length} enclaves=${enclaveMap.size} chaikinPasses=${stageConfig.chaikinPasses}`);
 
@@ -831,12 +831,18 @@ export function renderPowerVoronoi(
         }) ?? null;
     }
 
-    // Draw borders on fillGraphics (same layer, after fills, guarantees visibility)
+    // Draw inner contested borders on fillGraphics (same layer, after fills)
     if (targetSharedPolylines && targetSharedPolylines.length > 0 && borderWidth > 0 && borderAlpha > 0) {
         drawBorderPolylines(fillGraphics, targetSharedPolylines, 0, borderWidth, borderAlpha);
         log.renderer('PVV2', `🟢 BORDERS DRAWN on fillGraphics | polylines=${targetSharedPolylines.length} bw=${borderWidth} ba=${borderAlpha}`);
     } else {
         log.renderer('PVV2', `🔴 BORDERS SKIPPED | polylines=${targetSharedPolylines?.length ?? 'null'} bw=${borderWidth} ba=${borderAlpha}`);
+    }
+    // Draw world-boundary border lines (closed outer frames per territory)
+    if (worldBorderPolylines.length > 0 && borderWidth > 0 && borderAlpha > 0) {
+        drawBorderPolylines(fillGraphics, worldBorderPolylines, 0, borderWidth, borderAlpha);
+        log.renderer('PVV2', `🌐 WORLD BORDERS DRAWN | polylines=${worldBorderPolylines.length}`);
+
     }
 
     // Start transition based on mode

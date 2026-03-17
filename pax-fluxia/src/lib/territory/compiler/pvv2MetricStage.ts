@@ -88,6 +88,7 @@ export interface PVV2GeometryData {
     sharedEdges: SharedBorderEdge[];  // Per-segment contested borders (no color yet)
     rawSharedPolylines: SharedPolyline[]; // Chained border polylines BEFORE smoothing (for vertex matching)
     sharedPolylines: SharedPolyline[];    // Chained + Chaikin-smoothed border polylines (no color yet)
+    worldBorderPolylines: SharedPolyline[]; // World-boundary edges per territory (for outer border drawing)
     enclaveMap: Map<number, [number, number][][]>;  // mergedTerritory idx → hole polygons
     fingerprint: string;
 }
@@ -156,9 +157,31 @@ export function chaikinSmoothPolyline(pts: [number, number][], passes: number): 
  * Chaikin corner-cutting for CLOSED polygons.
  * Every edge including last→first is uniformly cut.
  * This is a GEOMETRY operation — it changes world-coordinate positions.
+ *
+ * Boundary-pinned variant: vertices that lie on the world-clip boundary
+ * (within `eps` of the padded rectangle) are preserved each pass instead
+ * of being replaced by cut points. This prevents fill polygons from pulling
+ * away from world edges while interior corners still smooth naturally.
  */
-export function chaikinSmoothPolygon(pts: [number, number][], passes: number): [number, number][] {
+export function chaikinSmoothPolygon(
+    pts: [number, number][],
+    passes: number,
+    worldW: number = Infinity,
+    worldH: number = Infinity,
+    pad: number = 50,
+): [number, number][] {
     if (passes <= 0 || pts.length < 3) return pts;
+    const eps = 6; // proximity threshold for "on boundary"
+    const hasBounds = isFinite(worldW) && isFinite(worldH);
+
+    function isPinned(x: number, y: number): boolean {
+        if (!hasBounds) return false;
+        return (
+            x <= -pad + eps || x >= worldW + pad - eps ||
+            y <= -pad + eps || y >= worldH + pad - eps
+        );
+    }
+
     let current = pts;
     for (let iter = 0; iter < passes; iter++) {
         const n = current.length;
@@ -166,12 +189,78 @@ export function chaikinSmoothPolygon(pts: [number, number][], passes: number): [
         for (let i = 0; i < n; i++) {
             const [ax, ay] = current[i];
             const [bx, by] = current[(i + 1) % n];
-            next.push([ax * 0.75 + bx * 0.25, ay * 0.75 + by * 0.25]);
-            next.push([ax * 0.25 + bx * 0.75, ay * 0.25 + by * 0.75]);
+            const aPin = isPinned(ax, ay);
+            const bPin = isPinned(bx, by);
+            // Near-boundary vertex: emit it as-is instead of the cut point
+            next.push(aPin ? [ax, ay] : [ax * 0.75 + bx * 0.25, ay * 0.75 + by * 0.25]);
+            next.push(bPin ? [bx, by] : [ax * 0.25 + bx * 0.75, ay * 0.25 + by * 0.75]);
         }
         current = next;
     }
     return current;
+}
+
+/**
+ * Extract world-boundary edges from merged territory polygons.
+ * Returns SharedPolylines for each continuous run of edges that lie on the
+ * same world-clip boundary (left/right/top/bottom). These can be drawn as
+ * closed outer borders to visually frame the territory map.
+ */
+export function extractWorldBorderPolylines(
+    territories: MergedTerritory[],
+    worldW: number,
+    worldH: number,
+    pad: number = 50,
+): SharedPolyline[] {
+    const eps = 8;
+    const result: SharedPolyline[] = [];
+
+    function onSameBoundary(ax: number, ay: number, bx: number, by: number): boolean {
+        return (
+            (ax <= -pad + eps && bx <= -pad + eps) || // left
+            (ax >= worldW + pad - eps && bx >= worldW + pad - eps) || // right
+            (ay <= -pad + eps && by <= -pad + eps) || // top
+            (ay >= worldH + pad - eps && by >= worldH + pad - eps)    // bottom
+        );
+    }
+
+    for (const territory of territories) {
+        const pts = territory.points;
+        const n = pts.length;
+        if (n < 2) continue;
+
+        // Collect all boundary edge indices
+        const boundaryEdges: number[] = [];
+        for (let i = 0; i < n; i++) {
+            const [ax, ay] = pts[i];
+            const [bx, by] = pts[(i + 1) % n];
+            if (onSameBoundary(ax, ay, bx, by)) {
+                boundaryEdges.push(i);
+            }
+        }
+        if (boundaryEdges.length === 0) continue;
+
+        // Chain consecutive boundary edges into continuous polylines
+        let run: [number, number][] = [];
+        let lastIdx = -2;
+        for (const ei of boundaryEdges) {
+            const [ax, ay] = pts[ei];
+            const [bx, by] = pts[(ei + 1) % n];
+            if (ei === lastIdx + 1 && run.length > 0) {
+                run.push([bx, by]);
+            } else {
+                if (run.length >= 2) {
+                    result.push({ points: run, ownerPairKey: `${territory.ownerId}|world`, color: territory.color });
+                }
+                run = [[ax, ay], [bx, by]];
+            }
+            lastIdx = ei;
+        }
+        if (run.length >= 2) {
+            result.push({ points: run, ownerPairKey: `${territory.ownerId}|world`, color: territory.color });
+        }
+    }
+    return result;
 }
 
 function extractSharedEdges(cells: TerritoryCell[]): SharedBorderEdge[] {
@@ -634,7 +723,7 @@ export function executePVV2MetricStage(
         const mergedTerritories: MergedTerritory[] = config.chaikinPasses > 0
             ? mergedRaw.map(t => ({
                 ...t,
-                points: chaikinSmoothPolygon(t.points, config.chaikinPasses),
+                points: chaikinSmoothPolygon(t.points, config.chaikinPasses, config.worldWidth, config.worldHeight),
             }))
             : mergedRaw;
 
@@ -642,10 +731,14 @@ export function executePVV2MetricStage(
         const enclaveMap = new Map<number, [number, number][][]>();
         for (const [idx, holes] of enclaveMapRaw) {
             enclaveMap.set(idx, config.chaikinPasses > 0
-                ? holes.map(hole => chaikinSmoothPolygon(hole, config.chaikinPasses))
+                ? holes.map(hole => chaikinSmoothPolygon(hole, config.chaikinPasses, config.worldWidth, config.worldHeight))
                 : holes,
             );
         }
+
+        // Extract world-boundary border polylines for outer territory framing
+        const worldBorderPolylines = extractWorldBorderPolylines(mergedTerritories, config.worldWidth, config.worldHeight);
+        log.sys('PVV2Stage', `WORLD BORDERS: ${worldBorderPolylines.length} boundary polylines`);
 
         log.sys('PVV2Stage', `MERGED: ${mergedTerritories.length} territories | chaikinPasses=${config.chaikinPasses} | pts: ${mergedTerritories.map(t => `${t.ownerId}:${t.points.length}`).join(' ')}`);
 
@@ -658,6 +751,7 @@ export function executePVV2MetricStage(
             sharedEdges,
             rawSharedPolylines,
             sharedPolylines,
+            worldBorderPolylines,
             enclaveMap,
             fingerprint,
         } satisfies PVV2GeometryData;
