@@ -118,6 +118,10 @@ function edgeKey(x1: number, y1: number, x2: number, y2: number): string {
     return `${bx},${by}-${ax},${ay}`;
 }
 
+function ptKey(x: number, y: number): string {
+    return `${+x.toFixed(2)},${+y.toFixed(2)}`;
+}
+
 /**
  * Chaikin corner-cutting subdivision for OPEN polylines.
  * Preserves endpoints. Interior corners smoothed by 25/75 cut pairs.
@@ -224,6 +228,7 @@ function mergeSameOwnerCells(
         return clusterSplit ? `${cell.ownerId}:${cIdx}` : cell.ownerId;
     };
 
+    // Pass 1: count how many times each edge appears, and which clusters see it
     const edgeCount = new Map<string, number>();
     const edgeClusters = new Map<string, Set<string>>();
 
@@ -238,70 +243,86 @@ function mergeSameOwnerCells(
         }
     }
 
+    // Pass 2: collect EXTERNAL edges per cluster.
+    // Rule: skip edges where count>=2 AND only one cluster sees them — these are
+    // internal shared edges between cells of the same owner (interior, should be dissolved).
+    // Keep: world boundary edges (count=1) AND contested borders (clusters.size>=2).
     type DEdge = { x1: number; y1: number; x2: number; y2: number };
     const clusterEdges = new Map<string, DEdge[]>();
-    const clusterOwner = new Map<string, string>();
+    const clusterOwnerMap = new Map<string, string>();
 
     for (const cell of cells) {
         const ck = clusterKeyOf(cell);
         if (!clusterEdges.has(ck)) clusterEdges.set(ck, []);
-        if (!clusterOwner.has(ck)) clusterOwner.set(ck, cell.ownerId);
+        if (!clusterOwnerMap.has(ck)) clusterOwnerMap.set(ck, cell.ownerId);
 
         const pts = cell.points;
         for (let j = 0; j < pts.length - 1; j++) {
             const key = edgeKey(pts[j][0], pts[j][1], pts[j + 1][0], pts[j + 1][1]);
+            const cnt = edgeCount.get(key) ?? 0;
             const clusters = edgeClusters.get(key)!;
-            if (clusters.size === 1 && clusters.has(ck)) {
-                clusterEdges.get(ck)!.push({
-                    x1: pts[j][0], y1: pts[j][1],
-                    x2: pts[j + 1][0], y2: pts[j + 1][1],
-                });
-            }
+            // Internal edge: shared by 2+ cells all belonging to this same cluster → skip
+            if (cnt >= 2 && clusters.size === 1) continue;
+            clusterEdges.get(ck)!.push({
+                x1: pts[j][0], y1: pts[j][1],
+                x2: pts[j + 1][0], y2: pts[j + 1][1],
+            });
         }
     }
 
+    // Pass 3: chain edges into closed polygon rings per cluster.
+    // Uses bidirectional adjacency with EDGE INDEX tracking (not vertex marks)
+    // so that junctions with degree > 2 are correctly handled for multi-star territories.
     const result: MergedTerritory[] = [];
+
     for (const [ck, edges] of clusterEdges) {
-        const ownerId = clusterOwner.get(ck) ?? ck;
+        const ownerId = clusterOwnerMap.get(ck) ?? ck.split(':')[0];
         if (ownerId === DISCONNECT_OWNER_ID) continue;
+        if (edges.length === 0) continue;
 
-        // Walk edges into polygon chains
-        const ptKey = (x: number, y: number) => `${+x.toFixed(2)},${+y.toFixed(2)}`;
-        const adjacency = new Map<string, { x: number; y: number; peers: string[] }>();
-
-        for (const e of edges) {
-            const kA = ptKey(e.x1, e.y1);
-            const kB = ptKey(e.x2, e.y2);
-            if (!adjacency.has(kA)) adjacency.set(kA, { x: e.x1, y: e.y1, peers: [] });
-            if (!adjacency.has(kB)) adjacency.set(kB, { x: e.x2, y: e.y2, peers: [] });
-            adjacency.get(kA)!.peers.push(kB);
-            adjacency.get(kB)!.peers.push(kA);
+        // Build bidirectional adjacency: each physical edge adds two directed half-edges
+        type IEdge = { x1: number; y1: number; x2: number; y2: number; idx: number };
+        const allEdges: IEdge[] = [];
+        for (let i = 0; i < edges.length; i++) {
+            const e = edges[i];
+            allEdges.push({ x1: e.x1, y1: e.y1, x2: e.x2, y2: e.y2, idx: i });
+            allEdges.push({ x1: e.x2, y1: e.y2, x2: e.x1, y2: e.y1, idx: i });
         }
 
-        const visited = new Set<string>();
-        for (const [startKey, startNode] of adjacency) {
-            if (visited.has(startKey)) continue;
-            const chain: [number, number][] = [[startNode.x, startNode.y]];
-            visited.add(startKey);
+        const adj = new Map<string, IEdge[]>();
+        for (const ie of allEdges) {
+            const k = ptKey(ie.x1, ie.y1);
+            if (!adj.has(k)) adj.set(k, []);
+            adj.get(k)!.push(ie);
+        }
 
-            let current = startKey;
-            let found = true;
-            while (found) {
-                found = false;
-                for (const peer of adjacency.get(current)!.peers) {
-                    if (!visited.has(peer)) {
-                        visited.add(peer);
-                        const node = adjacency.get(peer)!;
-                        chain.push([node.x, node.y]);
-                        current = peer;
-                        found = true;
-                        break;
-                    }
+        const used = new Set<number>();
+        for (let start = 0; start < edges.length; start++) {
+            if (used.has(start)) continue;
+            const e0 = edges[start];
+            used.add(start);
+            const chain: [number, number][] = [[e0.x1, e0.y1], [e0.x2, e0.y2]];
+            const startPt = ptKey(e0.x1, e0.y1);
+            let curEnd = ptKey(e0.x2, e0.y2);
+            let safety = edges.length * 2;
+
+            while (curEnd !== startPt && safety-- > 0) {
+                const cands = adj.get(curEnd);
+                if (!cands) break;
+                let stepped = false;
+                for (const c of cands) {
+                    if (used.has(c.idx)) continue;
+                    used.add(c.idx);
+                    curEnd = ptKey(c.x2, c.y2);
+                    chain.push([c.x2, c.y2]);
+                    stepped = true;
+                    break;
                 }
-                if (!found) break;
+                if (!stepped) break;
             }
 
             if (chain.length >= 3) {
+                // Ensure closed polygon
                 if (chain[0][0] !== chain[chain.length - 1][0] ||
                     chain[0][1] !== chain[chain.length - 1][1]) {
                     chain.push([chain[0][0], chain[0][1]]);
@@ -310,8 +331,12 @@ function mergeSameOwnerCells(
             }
         }
     }
+
+    log.sys('PVV2Stage', `mergeSameOwnerCells: ${cells.length} cells -> ${result.length} merged polygons for ${clusterEdges.size} clusters`);
     return result;
 }
+
+
 
 export function chainSharedEdgesIntoPolylines(
     edges: SharedBorderEdge[],
