@@ -57,50 +57,13 @@ let lastLoggedSelectionKey: string | null = null;
 let interactiveRunState: InteractiveRunState | null = null;
 const adapterFallbackLogged = new Set<string>();
 
-// ── DY4 Optimal Transport — prev/current snapshot cache (legacy_pvv2 bridge) ─
-// Acceptable module-level state: this lives in the legacy bridge layer, not in
-// the canonical compiler or renderer.
 const _dy4OT = new OptimalTransportBorderTransition(64);
-let _dy4PrevData: CanonicalTerritoryData | null = null;
-let _dy4CurrentData: CanonicalTerritoryData | null = null;
-let _dy4OwnerFingerprint = '';
-let _dy4TransitionStart = 0;
-const DY4_TRANSITION_MS = 500;
+// DY4 canonical transition — staged for when the compiler produces whole-territory shells.
+// Currently unused: legacy_pvv2 uses PVV2's own d3-Voronoi for fills (mergeSameOwnerCells)
+// and PVV2's own smooth-transition for borders. These are the correct data sources for DY4.
+// Wire _dy4OT when the TerritoryCompiler produces CanonicalTerritoryState with whole-territory
+// shells (not per-arc-junction FG2 fragments).
 
-function _buildOwnerFingerprint(data: CanonicalTerritoryData): string {
-    return data.shells
-        .slice()
-        .sort((a, b) => a.shellId.localeCompare(b.shellId))
-        .map((s) => `${s.shellId}:${s.ownerId}`)
-        .join('|');
-}
-
-function _applyDY4Transition(canonicalData: CanonicalTerritoryData, nowMs: number): CanonicalTerritoryData {
-    const fingerprint = _buildOwnerFingerprint(canonicalData);
-
-    if (fingerprint !== _dy4OwnerFingerprint) {
-        // Ownership changed — start transition
-        _dy4PrevData = _dy4CurrentData;
-        _dy4CurrentData = canonicalData;
-        _dy4OwnerFingerprint = fingerprint;
-        _dy4TransitionStart = nowMs;
-        log.renderer('DY4', `conquest detected → starting transition (${_dy4PrevData?.shells.length ?? 0} → ${canonicalData.shells.length} shells)`);
-    }
-
-    if (!_dy4PrevData || !_dy4CurrentData) {
-        return canonicalData;
-    }
-
-    const elapsed = nowMs - _dy4TransitionStart;
-    const transitionMs = (GAME_CONFIG as any).TERRITORY_TRANSITION_MS ?? DY4_TRANSITION_MS;
-    if (elapsed >= transitionMs) {
-        // Transition complete
-        return canonicalData;
-    }
-
-    const progress = Math.max(0, Math.min(1, elapsed / transitionMs));
-    return _dy4OT.interpolate(_dy4PrevData, _dy4CurrentData, progress);
-}
 
 function setLastTerritoryTraceRun(run: TerritoryTraceRun | null): void {
     lastTraceRun = run;
@@ -255,16 +218,12 @@ export function extractCanonicalData(artifacts: TerritoryPipelineArtifacts): Can
 
 function runLegacyAdapter(adapter: TerritoryLegacyAdapterId, input: TerritoryEngineInput): void {
     if (adapter === 'legacy_pvv2') {
-        const artifacts = runFG2DataPipeline(input);
-        const canonicalData = extractCanonicalData(artifacts);
-
-        // DY4 Optimal Transport: if TERRITORY_BORDER_TRANSITION='optimal_transport',
-        // interpolate border geometry between prev and current ownership state.
-        const borderTransition = (GAME_CONFIG as any).TERRITORY_BORDER_TRANSITION;
-        const dataToRender = borderTransition === 'optimal_transport'
-            ? _applyDY4Transition(canonicalData, input.gameNowMs ?? performance.now())
-            : canonicalData;
-
+        // PVV2 uses its own d3-weighted-voronoi pipeline for fills (mergeSameOwnerCells)
+        // and its own smooth-transition (isSmoothTransitioning) for border animation.
+        // FG2 shells are per-arc-junction fragments — not whole-territory polygons —
+        // so we do NOT pre-compute canonicalData here. The OptimalTransportBorderTransition
+        // class (_dy4OT above) is staged for when the TerritoryCompiler produces
+        // proper whole-territory shells as input.
         renderPowerVoronoi(
             input.stars,
             input.container,
@@ -272,7 +231,7 @@ function runLegacyAdapter(adapter: TerritoryLegacyAdapterId, input: TerritoryEng
             input.worldWidth,
             input.worldHeight,
             input.connections,
-            dataToRender,
+            undefined,
         );
         return;
     }
