@@ -779,12 +779,10 @@ export function renderPowerVoronoi(
     }
 
     // ── Store targets + start transition ────────────────────────────────
-    // Assign colors if not already done in the border render block
-    if (borderWidth <= 0 || borderAlpha <= 0) {
-        for (const edge of sharedEdges) {
-            edge.colorA = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerA), satMult, lightMult);
-            edge.colorB = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerB), satMult, lightMult);
-        }
+    // Always assign edge colors so polyline color map is populated correctly
+    for (const edge of sharedEdges) {
+        edge.colorA = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerA), satMult, lightMult);
+        edge.colorB = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerB), satMult, lightMult);
     }
     targetBorderEdges = sharedEdges;
     lastMergedTerritories = merged;
