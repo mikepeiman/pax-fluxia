@@ -266,18 +266,12 @@ export class RopeBorderRenderer {
             : easing === 'back' ? (t: number) => easeInOutBack(t, overshoot)
                 : easeInOutCubic;
 
-        // Create a narrow white texture matching the exact rope width
-        // PIXI.Texture.WHITE is 16x16 which would make ropes way too wide
-        const canvas = document.createElement('canvas');
-        canvas.width = 2;
-        canvas.height = Math.max(2, Math.ceil(ropeWidth * 2));
-        const ctx = canvas.getContext('2d')!;
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        this.ropeTexture = PIXI.Texture.from(canvas);
+        // DIAGNOSTIC: Use PIXI.Texture.WHITE (guaranteed GPU-ready) to test if canvas texture was the issue
+        // Rope will be 16px wide (fat), but proves rendering works
+        this.ropeTexture = PIXI.Texture.WHITE;
         this.ropeWidth = ropeWidth;
 
-        log.renderer('RopeBorderRenderer', `created | pairs=${this.pairs.length} easing=${easing} resampleN=${resampleN} ropeWidth=${ropeWidth} textureH=${canvas.height} overshoot=${overshoot.toFixed(2)}`);
+        log.renderer('RopeBorderRenderer', `created | pairs=${this.pairs.length} easing=${easing} resampleN=${resampleN} ropeWidth=${ropeWidth} texture=WHITE overshoot=${overshoot.toFixed(2)}`);
     }
 
     /** Add all ropes to the given container (call once). */
@@ -332,8 +326,7 @@ export class RopeBorderRenderer {
         }
         this.ropes = [];
         this.ropePoints = [];
-        // Destroy our custom canvas texture
-        this.ropeTexture.destroy(true);
-        log.renderer('RopeBorderRenderer', 'removeAll: cleaned up all ropes + texture');
+        // Don't destroy PIXI.Texture.WHITE — it's a shared singleton
+        log.renderer('RopeBorderRenderer', 'removeAll: cleaned up all ropes');
     }
 }
