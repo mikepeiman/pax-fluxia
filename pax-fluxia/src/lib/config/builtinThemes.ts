@@ -28,6 +28,10 @@ const NAME_OVERRIDES: Record<string, string> = {
     'clean-voronoi': 'Clean Voronoi',
     'distance-field': 'Distance Field',
     'streaming-ships': 'Streaming Ships',
+    // Mar 2026 additions
+    'mar16-new-arch': 'Mar 16 Default (DY4)',
+    'classic-mar15-v2': 'Classic Mar 15 v2',
+    'classic-3': 'Classic 3',
 };
 
 // ── Helper: split flat values into per-category snapshots ──────────────────

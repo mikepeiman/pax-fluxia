@@ -658,25 +658,29 @@
         syncPanelKey(key, val);
     }
 
+    /** Nuclear reset: clear ALL pax-* localStorage keys, apply default theme, reload. */
     function resetToDefaults() {
+        // Clear all pax localStorage keys
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && (k.startsWith("pax") || k.startsWith("PAX")))
+                keysToRemove.push(k);
+        }
+        keysToRemove.forEach((k) => localStorage.removeItem(k));
+
+        // Also clear known non-prefixed keys
         localStorage.removeItem(PANEL_STORAGE_KEY);
         localStorage.removeItem(STORAGE_KEY);
         localStorage.removeItem(VISUALS_STORAGE_KEY);
         localStorage.removeItem(ANIM_LOCK_STORAGE_KEY);
         localStorage.removeItem(ANIM_LOCK_STORAGE_KEY + "-modes");
 
-        enabled = Object.fromEntries(
-            Object.keys(enabled).map((key) => [key, true]),
-        ) as typeof enabled;
-        animLockRatios = {};
-        animLockModes = {};
+        // Apply the canonical default theme before reload
+        themeStore.applyTheme("Mar 16 Default (DY4)");
 
-        panel = setSettingsFromConfigPatch(
-            panel,
-            PRISTINE_CONFIG_PATCH,
-            savePanelSettings,
-        );
-        syncAllFromConfig(DEFAULT_GAME_CONFIG as Record<string, any>);
+        // Reload to fully reinitialize from clean state
+        window.location.reload();
     }
 
     // =========================================================================
@@ -1044,6 +1048,13 @@
                 title="Import theme from JSON file"
             >
                 📥 Import
+            </button>
+            <button
+                class="full-io-btn full-reset-btn"
+                onclick={resetToDefaults}
+                title="Clear all localStorage and reset to factory defaults (Mar 16 Default theme)"
+            >
+                🗑️ Clear All
             </button>
         </div>
     </div>
@@ -1841,6 +1852,16 @@
         background: rgba(255, 255, 255, 0.08);
         border-color: rgba(255, 255, 255, 0.2);
         color: #fff;
+    }
+    .full-reset-btn {
+        border-color: rgba(255, 68, 68, 0.35);
+        color: #ff8888;
+    }
+    .full-reset-btn:hover {
+        background: rgba(255, 68, 68, 0.1);
+        border-color: #ff4444;
+        color: #ff4444;
+        box-shadow: 0 0 8px rgba(255, 68, 68, 0.25);
     }
 
     /* ── Nudge slider buttons (injected via nudgeSliders action) ── */
