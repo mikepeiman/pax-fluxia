@@ -1827,8 +1827,8 @@
                 const localPlayerId = activeGameStore.localPlayerId;
                 const isSourceMine = sourceStar?.ownerId === localPlayerId;
                 const isTargetMine = targetStar.ownerId === localPlayerId;
-                const isTargetEnemy =
-                    !isTargetMine && targetStar.ownerId !== "neutral";
+                // Any non-owned star (enemy OR neutral) can anchor a deferred order chain
+                const isTargetNonOwned = !isTargetMine;
 
                 if (isSourceMine) {
                     // Dragging from my star - issue normal order
@@ -1845,8 +1845,8 @@
                             `Drag-through: ${dragSourceId} -> ${targetStar.id}`,
                         );
 
-                        // If target is enemy, track it for potential deferred order
-                        if (isTargetEnemy) {
+                        // Track any non-owned star as a deferred-order anchor
+                        if (isTargetNonOwned) {
                             lastEnemyPassthrough = targetStar.id;
                         } else {
                             lastEnemyPassthrough = null;
@@ -1861,7 +1861,7 @@
                         activeStarId = targetStar.id;
                     }
                 } else if (lastEnemyPassthrough === dragSourceId) {
-                    // Dragging FROM an enemy star we're attacking - set deferred order!
+                    // Dragging FROM a non-owned star we passed through - set deferred order
                     // Ctrl-click = order clears on conquest
                     const success = doSetDeferredOrder(
                         dragSourceId,
@@ -1876,8 +1876,8 @@
                             `Deferred order set: ${dragSourceId} -> ${targetStar.id} (on capture)`,
                         );
 
-                        // Continue chain
-                        if (isTargetEnemy) {
+                        // Continue chain: track non-owned targets for further deferred orders
+                        if (isTargetNonOwned) {
                             lastEnemyPassthrough = targetStar.id;
                         } else {
                             lastEnemyPassthrough = null;

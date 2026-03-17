@@ -1062,7 +1062,7 @@ const _rawConfig: GameConfigType = {
     /** How much to brighten border color (0-255) */
     VORONOI_BORDER_BRIGHTEN: 20,
     /** Chaikin smoothing passes for PVV2 shared-edge borders (0=angular, 3=rounded, 5=very smooth) */
-    VORONOI_BORDER_SMOOTH: 0,
+    VORONOI_BORDER_SMOOTH: 2,
     /** Voronoi color saturation multiplier (0=grey, 1=original, 2=vivid) */
     VORONOI_SATURATION: 1,
     /** Voronoi color lightness multiplier (0=dark, 1=original, 2=bright) */

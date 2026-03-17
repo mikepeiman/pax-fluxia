@@ -975,6 +975,38 @@
 
     <div class="var-row">
         <div class="row-top">
+            <span class="var-name">Geometry Smooth Passes</span><span
+                class="val"
+                >{Math.round(
+                    panel.voronoiBorderSmooth ??
+                        GAME_CONFIG.VORONOI_BORDER_SMOOTH,
+                )}</span
+            >
+        </div>
+        <div class="row-hint">
+            Chaikin passes — modifies actual border/fill geometry coordinates.
+            0=angular, 2=smooth, 5=very round
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="5"
+            step="1"
+            value={panel.voronoiBorderSmooth ??
+                GAME_CONFIG.VORONOI_BORDER_SMOOTH}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "VORONOI_BORDER_SMOOTH",
+                    "voronoiBorderSmooth",
+                    v,
+                );
+            }}
+        />
+    </div>
+
+    <div class="var-row">
+        <div class="row-top">
             <span class="var-name">Saturation</span><span class="val"
                 >{(
                     panel.voronoiSaturation ?? GAME_CONFIG.VORONOI_SATURATION
