@@ -555,10 +555,12 @@ export function executePVV2MetricStage(
             cells.push({ points: pts, ownerId: effectiveOwner, siteId: site.starId });
         }
 
-        log.sys('PVV2Stage', `${cells.length} cells from ${sites.length} sites`);
-
+        log.sys('PVV2Stage', `INPUT: ${stars.length} stars, ${ownedStars.length} owned, ${sites.length} total sites built | corridorEnabled=${config.corridorEnabled} disconnectEnabled=${config.disconnectEnabled} chaikinPasses=${config.chaikinPasses}`);
+        log.sys('PVV2Stage', `VORONOI OUTPUT: ${polygons.length} raw polygons -> ${cells.length} valid cells`);
         // Stage 2: Extract shared edges (before merge removes internal edges)
         const sharedEdges = extractSharedEdges(cells);
+        log.sys('PVV2Stage', `EDGES: ${sharedEdges.length} contested edges across ${new Set(sharedEdges.map(e => [e.ownerA, e.ownerB].sort().join('|'))).size} owner pairs`);
+
 
         // Stage 3: Build cluster map
         const clusterMap = new Map<string, number>();
@@ -589,14 +591,16 @@ export function executePVV2MetricStage(
                 ? chaikinSmoothPolygon(t.points, config.chaikinPasses) as [number, number][]
                 : t.points,
         }));
-        log.sys('PVV2Stage', `Merged to ${mergedTerritories.length} territories`);
-
+        log.sys('PVV2Stage', `MERGED: ${mergedTerritories.length} territories | pts: ${mergedTerritories.map(t => `${t.ownerId}:${t.points.length}`).join(' ')}`);
 
         // Stage 5: Chain shared edges → smoothed polylines (Chaikin = geometry)
         const sharedPolylines = chainSharedEdgesIntoPolylines(sharedEdges, config.chaikinPasses);
+        log.sys('PVV2Stage', `POLYLINES: ${sharedPolylines.length} border polylines | pts: ${sharedPolylines.map(p => `${p.ownerPairKey}:${p.points.length}`).join(' ')}`);
 
         // Stage 6: Detect enclaves
         const enclaveMap = detectEnclaves(mergedTerritories);
+        log.sys('PVV2Stage', `ENCLAVES: ${enclaveMap.size} | COMPLETE`);
+
 
         const fingerprint = buildPVV2Fingerprint(stars, config);
 

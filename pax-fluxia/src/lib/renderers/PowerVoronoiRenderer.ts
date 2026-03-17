@@ -396,32 +396,32 @@ function renderInterpolatedBorders(
 
 
 /** Draw a territory fill with enclave holes cut out.
- *  Applies Chaikin smoothing to fill polygons so they match the smoothed
- *  borders drawn by drawBorderPolylines (B-42 fix). */
+ *  Points are already Chaikin-smoothed by pvv2MetricStage — this is a PURE DRAW function.
+ *  No geometry computation here. */
 function drawTerritoryFillWithHoles(
     graphics: PIXI.Graphics,
     territory: MergedTerritory,
     holes: [number, number][][] | undefined,
     alpha: number,
-    smoothPasses = 0,
 ): void {
-    const fillPts = smoothPasses > 0
-        ? chaikinSmoothPolygon(territory.points, smoothPasses)
-        : territory.points;
+    if (territory.points.length < 3) {
+        log.renderer('PVV2:fill', `SKIP territory ownerId=${territory.ownerId} — only ${territory.points.length} pts`);
+        return;
+    }
     graphics.beginPath();
-    graphics.poly(fillPts.flat());
+    graphics.poly(territory.points.flat());
     graphics.fill({ color: territory.color, alpha });
+    log.renderer('PVV2:fill', `  filled ownerId=${territory.ownerId} color=0x${territory.color.toString(16)} alpha=${alpha.toFixed(2)} pts=${territory.points.length} holes=${holes?.length ?? 0}`);
     if (holes) {
         for (const hole of holes) {
-            const smoothedHole = smoothPasses > 0
-                ? chaikinSmoothPolygon(hole, smoothPasses)
-                : hole;
+            if (hole.length < 3) continue;
             graphics.beginPath();
-            graphics.poly(smoothedHole.flat());
+            graphics.poly(hole.flat());
             graphics.cut();
         }
     }
 }
+
 
 // ── Main Renderer ──────────────────────────────────────────────────────────
 
@@ -562,16 +562,16 @@ export function renderPowerVoronoi(
         const rawT = Math.min(1, elapsed / transitionMs);
         const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
         const alpha = GAME_CONFIG.VORONOI_ALPHA ?? 0.25;
-        const fillSmoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
 
+        log.renderer('PVV2', `FILL CROSSFADE frame t=${eased.toFixed(3)} | prev=${prevMergedTerritories.length} target=${lastMergedTerritories.length}`);
         fillGraphics.clear();
-        // Prev fills fading out (with enclave holes)
+        // Prev fills fading out (geometry already smoothed in stage)
         for (let i = 0; i < prevMergedTerritories.length; i++) {
-            drawTerritoryFillWithHoles(fillGraphics, prevMergedTerritories[i], prevEnclaveMap?.get(i), alpha * (1 - eased), fillSmoothPasses);
+            drawTerritoryFillWithHoles(fillGraphics, prevMergedTerritories[i], prevEnclaveMap?.get(i), alpha * (1 - eased));
         }
-        // Target fills fading in (with enclave holes)
+        // Target fills fading in (geometry already smoothed in stage)
         for (let i = 0; i < lastMergedTerritories.length; i++) {
-            drawTerritoryFillWithHoles(fillGraphics, lastMergedTerritories[i], lastEnclaveMap?.get(i), alpha * eased, fillSmoothPasses);
+            drawTerritoryFillWithHoles(fillGraphics, lastMergedTerritories[i], lastEnclaveMap?.get(i), alpha * eased);
         }
 
         if (rawT >= 1) {
@@ -751,6 +751,10 @@ export function renderPowerVoronoi(
 
     const { cells, mergedTerritories: merged, sharedEdges, sharedPolylines: builtPolylinesRaw, enclaveMap } = stageResult;
 
+    log.renderer('PVV2', `STAGE OUTPUT | cells=${cells.length} merged=${merged.length} edges=${sharedEdges.length} polylines=${builtPolylinesRaw.length} enclaves=${enclaveMap.size} chaikinPasses=${stageConfig.chaikinPasses}`);
+    log.renderer('PVV2', `  merged pts counts: ${merged.map(t => `${t.ownerId}:${t.points.length}`).join(' ')}`);
+    log.renderer('PVV2', `  polyline pts counts: ${builtPolylinesRaw.map(p => `${p.ownerPairKey}:${p.points.length}`).join(' ')}`);
+
     // Fingerprint from stage — used for changed-owner detection
     // Assign colors to merged territories (render concern, not geometry)
     for (const territory of merged) {
@@ -786,9 +790,11 @@ export function renderPowerVoronoi(
     fillGraphics.clear();
     fillGraphics.visible = true;
 
-    // Smooth passes from stage config (Chaikin already applied in geometry stage)
-    // builtPolylinesRaw polylines are already Chaikin-smoothed — pass 0 to avoid double-smooth
-    const borderSmoothPasses = 0;
+    // Fills and borders both use geometry pre-smoothed by pvv2MetricStage (same Chaikin passes).
+    // Do NOT re-apply Chaikin here — that would double-smooth and diverge fills from borders.
+    const borderSmoothPasses = 0; // smoothing done in stage
+
+    log.renderer('PVV2', `FILLS | enclaves=${enclaveMap.size} territories to draw=${merged.length} isFillTransitioning=${isFillTransitioning}`);
 
     if (enclaveMap.size > 0) {
         log.renderer('PVV2', `B-38 enclave detection: ${enclaveMap.size} territories contain enclaves`);
@@ -800,13 +806,14 @@ export function renderPowerVoronoi(
         const rawT = Math.min(1, elapsed / transitionMs);
         const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
 
-        // Prev fills fading out (with enclave holes)
+        log.renderer('PVV2', `REBUILD FILL CROSSFADE t=${eased.toFixed(3)} | prev=${prevMergedTerritories.length} target=${merged.length}`);
+        // Prev fills fading out (geometry already smoothed in stage)
         for (let i = 0; i < prevMergedTerritories.length; i++) {
-            drawTerritoryFillWithHoles(fillGraphics, prevMergedTerritories[i], prevEnclaveMap?.get(i), alpha * (1 - eased), borderSmoothPasses);
+            drawTerritoryFillWithHoles(fillGraphics, prevMergedTerritories[i], prevEnclaveMap?.get(i), alpha * (1 - eased));
         }
-        // Target fills fading in (with enclave holes)
+        // Target fills fading in (geometry already smoothed in stage)
         for (let i = 0; i < merged.length; i++) {
-            drawTerritoryFillWithHoles(fillGraphics, merged[i], enclaveMap.get(i), alpha * eased, borderSmoothPasses);
+            drawTerritoryFillWithHoles(fillGraphics, merged[i], enclaveMap.get(i), alpha * eased);
         }
 
         if (rawT >= 1) {
@@ -817,8 +824,9 @@ export function renderPowerVoronoi(
         }
     } else {
         // Steady-state: draw target fills at full alpha (with enclave holes)
+        log.renderer('PVV2', `STEADY-STATE FILLS | drawing ${merged.length} territories`);
         for (let i = 0; i < merged.length; i++) {
-            drawTerritoryFillWithHoles(fillGraphics, merged[i], enclaveMap.get(i), alpha, borderSmoothPasses);
+            drawTerritoryFillWithHoles(fillGraphics, merged[i], enclaveMap.get(i), alpha);
         }
     }
 
