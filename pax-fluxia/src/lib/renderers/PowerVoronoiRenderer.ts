@@ -654,7 +654,12 @@ export function renderPowerVoronoi(
                 activeRopeRenderer.removeAll();
                 activeRopeRenderer = null;
             }
-            log.renderer('PVV2', 'border transition complete - returning to steady state');
+            // Force a rebuild on next frame so steady-state borders get drawn.
+            // fillGraphics was cleared during animation, so without this the
+            // cache fingerprint match would skip the rebuild and leave no borders.
+            cachedShapeFingerprint = '';
+            cachedVisualFingerprint = '';
+            log.renderer('PVV2', 'border transition complete - cache invalidated for steady-state rebuild');
         }
 
         const shapeFpCheck = buildShapeFingerprint(stars);
