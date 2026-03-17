@@ -436,29 +436,29 @@ function renderInterpolatedBorders(
 
 /** Draw a territory fill ONLY (no stroke).
  *  Borders are drawn separately via drawBorderPolylines on borderGraphics.
- *  Apply Chaikin smoothing to fill polygon to match border smoothing (B-42 fix). */
+ *  Fills use RAW polygon points — NO independent smoothing.
+ *  Smoothing is applied only to border polylines in the compiler stage.
+ *  Independent fill smoothing creates divergence (B-42). */
 function drawTerritoryFillOnly(
     graphics: PIXI.Graphics,
     territory: MergedTerritory,
     holes: [number, number][][] | undefined,
     alpha: number,
-    smoothPasses: number = 0,
 ): void {
     if (territory.points.length < 3) {
         log.renderer('PVV2:fill', `SKIP territory ownerId=${territory.ownerId} — only ${territory.points.length} pts`);
         return;
     }
-    // Apply Chaikin smoothing to fill polygon to match border smoothing
-    const pts = smoothPasses > 0 ? chaikinSmoothPolygon(territory.points, smoothPasses) : territory.points;
-    graphics.poly(pts.flat());
+    // Use raw polygon points — NO chaikin here. Stage owns smoothing.
+    graphics.poly(territory.points.flat());
     graphics.fill({ color: territory.color, alpha });
 
-    log.renderer('PVV2:fill', `  filled ownerId=${territory.ownerId} color=0x${territory.color.toString(16)} alpha=${alpha.toFixed(2)} pts=${pts.length} holes=${holes?.length ?? 0}`);
+    log.renderer('PVV2:fill', `  filled ownerId=${territory.ownerId} color=0x${territory.color.toString(16)} alpha=${alpha.toFixed(2)} pts=${territory.points.length} holes=${holes?.length ?? 0}`);
     if (holes) {
         for (const hole of holes) {
             if (hole.length < 3) continue;
-            const holePts = smoothPasses > 0 ? chaikinSmoothPolygon(hole, smoothPasses) : hole;
-            graphics.poly(holePts.flat());
+            // Holes also use raw points — no independent smoothing
+            graphics.poly(hole.flat());
             graphics.cut();
         }
     }
@@ -623,11 +623,11 @@ export function renderPowerVoronoi(
         // 1. Alpha crossfade fills: prev fades out, target fades in
         if (prevMergedTerritories) {
             for (let i = 0; i < prevMergedTerritories.length; i++) {
-                drawTerritoryFillOnly(fillGraphics, prevMergedTerritories[i], prevEnclaveMap?.get(i), alpha * (1 - easedT), smoothPasses);
+                drawTerritoryFillOnly(fillGraphics, prevMergedTerritories[i], prevEnclaveMap?.get(i), alpha * (1 - easedT));
             }
         }
         for (let i = 0; i < lastMergedTerritories.length; i++) {
-            drawTerritoryFillOnly(fillGraphics, lastMergedTerritories[i], lastEnclaveMap?.get(i), alpha * easedT, smoothPasses);
+            drawTerritoryFillOnly(fillGraphics, lastMergedTerritories[i], lastEnclaveMap?.get(i), alpha * easedT);
         }
 
         // 2. Draw borders via the active morpher
@@ -654,12 +654,16 @@ export function renderPowerVoronoi(
                 activeRopeRenderer.removeAll();
                 activeRopeRenderer = null;
             }
-            // Force a rebuild on next frame so steady-state borders get drawn.
-            // fillGraphics was cleared during animation, so without this the
-            // cache fingerprint match would skip the rebuild and leave no borders.
-            cachedShapeFingerprint = '';
-            cachedVisualFingerprint = '';
-            log.renderer('PVV2', 'border transition complete - cache invalidated for steady-state rebuild');
+            // Redraw steady-state fills + borders directly on fillGraphics
+            // using the current geometry — no cache invalidation needed.
+            fillGraphics.clear();
+            for (let i = 0; i < lastMergedTerritories.length; i++) {
+                drawTerritoryFillOnly(fillGraphics, lastMergedTerritories[i], lastEnclaveMap?.get(i), alpha);
+            }
+            if (targetSharedPolylines && targetSharedPolylines.length > 0 && borderWidth > 0 && borderAlpha > 0) {
+                drawBorderPolylines(fillGraphics, targetSharedPolylines, 0, borderWidth, borderAlpha);
+            }
+            log.renderer('PVV2', 'border transition complete - steady-state redrawn directly');
         }
 
         const shapeFpCheck = buildShapeFingerprint(stars);
@@ -788,11 +792,10 @@ export function renderPowerVoronoi(
         log.renderer('PVV2', `B-38 enclave detection: ${enclaveMap.size} territories contain enclaves`);
     }
 
-    // Steady-state fills: apply Chaikin smoothing to match border smoothing (B-42)
-    const smoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
-    log.renderer('PVV2', `STEADY-STATE FILLS | drawing ${merged.length} territories | smoothPasses=${smoothPasses}`);
+    // Steady-state fills: use raw polygon points (no independent smoothing — B-42 fix)
+    log.renderer('PVV2', `STEADY-STATE FILLS | drawing ${merged.length} territories`);
     for (let i = 0; i < merged.length; i++) {
-        drawTerritoryFillOnly(fillGraphics, merged[i], enclaveMap.get(i), alpha, smoothPasses);
+        drawTerritoryFillOnly(fillGraphics, merged[i], enclaveMap.get(i), alpha);
     }
 
     // ── Store targets + start transition ────────────────────────────────
