@@ -103,6 +103,9 @@ function buildShapeFingerprint(stars: StarState[]): string {
     fp += `:${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}`;
     fp += `:${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED}`;
     fp += `:${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE}`;
+    // Chaikin passes drives chainSharedEdgesIntoPolylines in the geometry stage
+    // — must be a shape-fingerprint dependency, not visual-only
+    fp += `:chaikin=${GAME_CONFIG.VORONOI_BORDER_SMOOTH}`;
     return fp;
 }
 
@@ -111,7 +114,7 @@ function buildVisualFingerprint(): string {
     fp += `${GAME_CONFIG.VORONOI_ALPHA}:${GAME_CONFIG.VORONOI_BORDER_WIDTH}`;
     fp += `:${GAME_CONFIG.VORONOI_BORDER_ALPHA}:${GAME_CONFIG.VORONOI_SATURATION}`;
     fp += `:${GAME_CONFIG.VORONOI_LIGHTNESS}`;
-    fp += `:${GAME_CONFIG.VORONOI_BORDER_SMOOTH}`;
+    // VORONOI_BORDER_SMOOTH removed — it's a geometry setting, not a visual one
     return fp;
 }
 
