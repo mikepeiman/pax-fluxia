@@ -465,13 +465,13 @@ function surrender(): void {
     }
 }
 
-function playAgain(): void {
+function playAgain(reuseMap: boolean = true): void {
     if (isMultiplayerMode()) {
         // MP: restart within same room (server resets state to lobby)
         multiplayerStore.restartGame();
         return;
     }
-    gameStore.playAgain();
+    gameStore.playAgain(reuseMap);
 }
 
 function returnToMenu(): void {

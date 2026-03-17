@@ -206,10 +206,7 @@
     let reuseMap = $state(true);
     let samePositions = $state(true);
     function handleRestart() {
-        if (reuseMap && gameStore.lastMapDefinition) {
-            gameStore.loadSavedMap(gameStore.lastMapDefinition);
-        }
-        activeGameStore.playAgain();
+        activeGameStore.playAgain(reuseMap);
     }
 
     // Get final scoreboard from last history entry

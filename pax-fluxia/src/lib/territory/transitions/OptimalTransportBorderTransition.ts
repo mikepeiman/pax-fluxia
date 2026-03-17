@@ -96,6 +96,38 @@ function segLen(pts: [number, number][], i: number, m: number): number {
     return Math.sqrt(dx * dx + dy * dy);
 }
 
+function alignPolygon(source: [number, number][], target: [number, number][]): [number, number][] {
+    const N = source.length - 1;
+    if (N <= 1 || target.length - 1 !== N) return target.slice();
+
+    let bestShift = 0;
+    let minDist = Infinity;
+
+    for (let shift = 0; shift < N; shift++) {
+        let dist = 0;
+        for (let i = 0; i < N; i++) {
+            const tgtIdx = (i + shift) % N;
+            const dx = source[i][0] - target[tgtIdx][0];
+            const dy = source[i][1] - target[tgtIdx][1];
+            dist += dx * dx + dy * dy;
+        }
+        if (dist < minDist) {
+            minDist = dist;
+            bestShift = shift;
+        }
+    }
+
+    if (bestShift === 0) return target.slice();
+
+    const result: [number, number][] = [];
+    for (let i = 0; i < N; i++) {
+        const tgtIdx = (i + bestShift) % N;
+        result.push([target[tgtIdx][0], target[tgtIdx][1]]);
+    }
+    result.push([result[0][0], result[0][1]]);
+    return result;
+}
+
 /** Lerp two equal-length resampled polygon point arrays. */
 function lerpPolygon(
     from: [number, number][],
@@ -189,10 +221,11 @@ export class OptimalTransportBorderTransition implements BorderTransition {
                     }
                 }
 
-                // Resample both to same vertex count, then lerp
+                // Resample both to same vertex count, align, then lerp
                 const n = this.resampleCount;
                 const fromPts = resamplePolygon(bestOld, n);
-                const toPts = resamplePolygon(newShell.points, n);
+                const toPtsRaw = resamplePolygon(newShell.points, n);
+                const toPts = alignPolygon(fromPts, toPtsRaw);
                 const interpolated = lerpPolygon(fromPts, toPts, t);
 
                 return {

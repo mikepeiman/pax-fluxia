@@ -81,6 +81,43 @@ export function lerpPolygon(from: [number, number][], to: [number, number][], t:
     return result;
 }
 
+/** 
+ * Rotate the target polygon points to minimize the sum of squared distances to the source polygon.
+ * Both source and target must be the same length (N), and closed (last point === first point).
+ */
+export function alignPolygon(source: [number, number][], target: [number, number][]): [number, number][] {
+    const N = source.length - 1;
+    if (N <= 1 || target.length - 1 !== N) return target.slice();
+
+    let bestShift = 0;
+    let minDist = Infinity;
+
+    for (let shift = 0; shift < N; shift++) {
+        let dist = 0;
+        for (let i = 0; i < N; i++) {
+            const tgtIdx = (i + shift) % N;
+            const dx = source[i][0] - target[tgtIdx][0];
+            const dy = source[i][1] - target[tgtIdx][1];
+            dist += dx * dx + dy * dy;
+        }
+        if (dist < minDist) {
+            minDist = dist;
+            bestShift = shift;
+        }
+    }
+
+    if (bestShift === 0) return target.slice();
+
+    const result: [number, number][] = [];
+    for (let i = 0; i < N; i++) {
+        const tgtIdx = (i + bestShift) % N;
+        result.push([target[tgtIdx][0], target[tgtIdx][1]]);
+    }
+    // Close the polygon
+    result.push([result[0][0], result[0][1]]);
+    return result;
+}
+
 /** Centroid of a polygon (handles closed polygons where last === first). */
 export function polygonCentroid(pts: [number, number][]): [number, number] {
     let cx = 0, cy = 0;

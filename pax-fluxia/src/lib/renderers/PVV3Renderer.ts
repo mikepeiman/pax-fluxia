@@ -402,6 +402,17 @@ export function renderPVV3(
             fillGraphics.poly(smoothedPts.flat());
             fillGraphics.fill({ color: shellColor, alpha });
 
+            // Draw border stroke on the EXACT same path
+            if (borderWidth > 0 && borderAlpha > 0) {
+                fillGraphics.stroke({
+                    width: borderWidth,
+                    color: shellColor,
+                    alpha: borderAlpha,
+                    join: 'round',
+                    cap: 'round',
+                });
+            }
+
             // Cut holes
             const holeLoops: Array<{ points: [number, number][] }> =
                 'holeLoops' in shell && Array.isArray((shell as any).holeLoops)
@@ -419,25 +430,6 @@ export function renderPVV3(
                 fillGraphics.beginPath();
                 fillGraphics.poly(smoothedHole.flat());
                 fillGraphics.cut();
-            }
-
-            // Draw border stroke on smoothed shell contour
-            if (borderWidth > 0 && borderAlpha > 0) {
-                fillGraphics.beginPath();
-                fillGraphics.moveTo(smoothedPts[0][0], smoothedPts[0][1]);
-                for (let i = 1; i < smoothedPts.length; i++) {
-                    fillGraphics.lineTo(smoothedPts[i][0], smoothedPts[i][1]);
-                }
-                if (smoothedPts.length > 2) {
-                    fillGraphics.lineTo(smoothedPts[0][0], smoothedPts[0][1]);
-                }
-                fillGraphics.stroke({
-                    width: borderWidth,
-                    color: shellColor,
-                    alpha: borderAlpha,
-                    join: 'round',
-                    cap: 'round',
-                });
             }
         }
 

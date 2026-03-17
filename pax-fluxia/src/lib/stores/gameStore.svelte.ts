@@ -1166,7 +1166,10 @@ function surrender(): void {
     // F-62: keep view as 'game' — overlay shows results
 }
 
-function playAgain(): void {
+function playAgain(reuseMap: boolean = true): void {
+    if (reuseMap && lastMapDefinition) {
+        pendingSavedMap = lastMapDefinition;
+    }
     startGame();
 }
 
