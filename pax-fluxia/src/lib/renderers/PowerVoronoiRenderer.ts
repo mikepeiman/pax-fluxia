@@ -39,6 +39,7 @@ import {
     type TerritoryCell,
 } from '$lib/territory/compiler/pvv2MetricStage';
 import { resamplePolygon, resamplePolyline, lerpPolygon, polygonCentroid } from '$lib/territory/geometry/morphUtils';
+import { GraphicsPathMorpher, RopeBorderRenderer } from '$lib/renderers/geometry/borderTransition';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -77,6 +78,10 @@ let prevMergedTerritories: MergedTerritory[] | null = null;
 let prevEnclaveMap: Map<number, [number, number][][]> | null = null;
 let fillTransitionStart = 0;
 let isFillTransitioning = false;
+
+// ── Active Border Morpher (from borderTransition.ts) ─────────────────
+let activeMorpher: GraphicsPathMorpher | null = null;
+let activeRopeRenderer: RopeBorderRenderer | null = null;
 
 // ── Cell Change Tracking (frontier-first rendering) ────────────────────
 let lastCells: TerritoryCell[] | null = null;  // cells from previous rebuild
@@ -605,6 +610,7 @@ export function renderPowerVoronoi(
     if (isAnimatingSmooth && lastMergedTerritories && fillGraphics) {
         const elapsed = now - smoothTransitionStart;
         const rawT = Math.min(1, elapsed / transitionMs);
+        // Easing is now handled inside the morpher classes — pass raw t
         const easedT = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
 
         const alpha = GAME_CONFIG.VORONOI_ALPHA ?? 0.25;
@@ -612,24 +618,28 @@ export function renderPowerVoronoi(
         const borderAlpha = GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.4;
         const smoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
 
-        log.renderer('PVV2', `FILL CROSSFADE + BORDER MORPH frame t=${easedT.toFixed(3)} | prev=${prevSharedPolylines!.length} target=${targetSharedPolylines!.length}`);
         fillGraphics.clear();
 
         // 1. Alpha crossfade fills: prev fades out, target fades in
-        // Draw prev fills fading out
         if (prevMergedTerritories) {
             for (let i = 0; i < prevMergedTerritories.length; i++) {
                 drawTerritoryFillOnly(fillGraphics, prevMergedTerritories[i], prevEnclaveMap?.get(i), alpha * (1 - easedT), smoothPasses);
             }
         }
-        // Draw target fills fading in
         for (let i = 0; i < lastMergedTerritories.length; i++) {
             drawTerritoryFillOnly(fillGraphics, lastMergedTerritories[i], lastEnclaveMap?.get(i), alpha * easedT, smoothPasses);
         }
 
-        // 2. Lerp borders between prev and target polylines — draw on SAME fillGraphics
-        const frameFrontiers = buildLerpedPolylines(prevSharedPolylines!, targetSharedPolylines!, easedT);
-        drawBorderPolylines(fillGraphics, frameFrontiers, 0, borderWidth, borderAlpha);
+        // 2. Draw borders via the active morpher
+        if (activeMorpher) {
+            activeMorpher.drawFrame(fillGraphics, rawT, borderWidth, borderAlpha);
+        } else if (activeRopeRenderer) {
+            activeRopeRenderer.update(rawT, borderAlpha);
+        } else {
+            // Legacy fallback: use old buildLerpedPolylines
+            const frameFrontiers = buildLerpedPolylines(prevSharedPolylines!, targetSharedPolylines!, easedT);
+            drawBorderPolylines(fillGraphics, frameFrontiers, 0, borderWidth, borderAlpha);
+        }
 
         if (rawT >= 1) {
             isSmoothTransitioning = false;
@@ -637,7 +647,12 @@ export function renderPowerVoronoi(
             prevSharedPolylines = null;
             prevMergedTerritories = null;
             prevEnclaveMap = null;
-            log.renderer('PVV2', 'crossfade + border morph complete - returning to steady state');
+            activeMorpher = null;
+            if (activeRopeRenderer) {
+                activeRopeRenderer.removeAll();
+                activeRopeRenderer = null;
+            }
+            log.renderer('PVV2', 'border transition complete - returning to steady state');
         }
 
         const shapeFpCheck = buildShapeFingerprint(stars);
@@ -819,13 +834,32 @@ export function renderPowerVoronoi(
             isBorderTransitioning = true;
         }
 
-        // Smooth mode
-        if (prevSharedPolylines && prevSharedPolylines.length > 0) {
+        // Smooth mode — create the appropriate border morpher
+        if (prevSharedPolylines && prevSharedPolylines.length > 0 && targetSharedPolylines && targetSharedPolylines.length > 0) {
             smoothTransitionStart = now;
             isSmoothTransitioning = true;
             isFillTransitioning = true;
             fillTransitionStart = now;
-            log.renderer('PVV2', `TRANSITION STARTED | prev=${prevSharedPolylines.length} target=${targetSharedPolylines?.length ?? 0} | transitionMs=${transitionMs}`);
+
+            // Clean up any stale morphers
+            activeMorpher = null;
+            if (activeRopeRenderer) {
+                activeRopeRenderer.removeAll();
+                activeRopeRenderer = null;
+            }
+
+            // Select mode from config
+            const borderTransMode = (GAME_CONFIG as any).TERRITORY_BORDER_TRANSITION ?? 'pixi_graphics_morph';
+            log.renderer('PVV2', `TRANSITION STARTED | mode=${borderTransMode} prev=${prevSharedPolylines.length} target=${targetSharedPolylines.length} | transitionMs=${transitionMs}`);
+
+            if (borderTransMode === 'pixi_mesh_rope') {
+                const borderWidth = GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 1.5;
+                activeRopeRenderer = new RopeBorderRenderer(prevSharedPolylines, targetSharedPolylines, 'back', 32, borderWidth);
+                activeRopeRenderer.addTo(voronoiContainer);
+            } else if (borderTransMode === 'pixi_graphics_morph') {
+                activeMorpher = new GraphicsPathMorpher(prevSharedPolylines, targetSharedPolylines, 'back', 32);
+            }
+            // else: legacy smooth_morph — uses buildLerpedPolylines fallback in the animation block
         }
     }
     log.renderer('PVV2', `◀ rebuild complete | total=${(performance.now() - now).toFixed(1)}ms`);
@@ -853,6 +887,12 @@ export function resetPowerVoronoiCache(): void {
     prevMergedTerritories = null;
     prevEnclaveMap = null;
     fillTransitionStart = 0;
+    // Active morpher cleanup
+    activeMorpher = null;
+    if (activeRopeRenderer) {
+        activeRopeRenderer.removeAll();
+        activeRopeRenderer = null;
+    }
     // Enclave state
     lastEnclaveMap = null;
     // Cell change tracking state
