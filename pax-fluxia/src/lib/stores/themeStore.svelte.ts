@@ -15,6 +15,8 @@ import {
     extractTheme,
     exportThemeJSON,
 } from '$lib/config/themes';
+import { audioManager } from '$lib/services/audioManager.svelte';
+
 
 // ── One-time migration from old themePresets system ─────────────────────────
 
@@ -121,6 +123,8 @@ export const themeStore = {
         if (!theme) return false;
         if (_applyCallback) _applyCallback(theme.values as Record<string, number | string | boolean>);
         else applyThemeToConfig(theme);
+        // Sync AudioManager's reactive state mirrors from the freshly-written GAME_CONFIG
+        audioManager.syncFromConfig();
         _selectedThemeName = name;
         _syncCallback?.();
         // Dispatch event for any listeners (e.g., sidebar ↔ settings panel)
@@ -168,6 +172,8 @@ export const themeStore = {
         persistTheme(theme);
         if (_applyCallback) _applyCallback(theme.values as Record<string, number | string | boolean>);
         else applyThemeToConfig(theme);
+        // Sync AudioManager after import too
+        audioManager.syncFromConfig();
         _userThemes = loadThemes();
         _selectedThemeName = theme.name;
         _syncCallback?.();

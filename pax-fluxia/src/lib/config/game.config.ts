@@ -726,10 +726,10 @@ const _rawConfig: GameConfigType = {
     // ========================================================================
 
     /** Base ship render size */
-    SHIP_BASE_SIZE: 3.3,
+    SHIP_BASE_SIZE: 2.6,
 
     /** Visual radius of stars on canvas */
-    STAR_RENDER_RADIUS: 25,
+    STAR_RENDER_RADIUS: 19.64,
 
     /** Background Image */
     BG_IMAGE_URL: "",
@@ -737,7 +737,7 @@ const _rawConfig: GameConfigType = {
     /** Star body shape: 'polygon' = type-specific shape, 'circle' = classic */
     STAR_SHAPE_MODE: 'polygon' as 'polygon' | 'circle',
     /** Type icon size as fraction of star radius */
-    STAR_ICON_SCALE: 0.8,
+    STAR_ICON_SCALE: 0.45,
     /** Polygon corner rounding (0=sharp, 1=fully round) */
     STAR_CORNER_RADIUS: 0.3,
 
@@ -745,7 +745,7 @@ const _rawConfig: GameConfigType = {
     SHOW_SELECTION_HEX: true,
 
     /** Inner orbit radius offset */
-    ORBIT_BASE_RADIUS: 9,
+    ORBIT_BASE_RADIUS: 0,
 
     /** Orbit ring spacing multiplier (ringSpacing = shipBaseSize * this) */
     ORBIT_RING_MULT: 1.6,
@@ -848,7 +848,7 @@ const _rawConfig: GameConfigType = {
     /** Outline thickness in px */
     SHIP_OUTLINE_PX: 1,
     /** Multiplier brightness glow: 0 = none, 1 = max (brightens within hue, not toward white) */
-    SHIP_GLOW_INTENSITY: 0.2,
+    SHIP_GLOW_INTENSITY: 0.34,
     /** Radial glow sprite radius multiplier per ship */
     SHIP_GLOW_RADIUS: 0,
     /** Minimum HSL lightness for player colors — prevents dark colors vanishing on dark bg */
@@ -866,13 +866,13 @@ const _rawConfig: GameConfigType = {
     /** Number of density tiers per direction on the color wheel */
     DENSITY_TIERS: 3,
     DENSITY_DARKEN_ALT: true,
-    SHIP_VISUAL_RADIUS: 3,
+    SHIP_VISUAL_RADIUS: 4,
     /** Star glow settings */
-    STAR_GLOW_ON: true,
+    STAR_GLOW_ON: false,
     /** Ownership-ring absolute radius from star center (px) */
-    STAR_RING_RADIUS: 30,
+    STAR_RING_RADIUS: 23,
     /** Ownership-ring offset from star center (% of radius) — LEGACY compat */
-    STAR_RING_OFFSET: 18,
+    STAR_RING_OFFSET: 12,
     /** Ownership-ring stroke width (px) */
     STAR_RING_WIDTH: 2.5,
     /** Ownership-ring alpha (0-1) */
@@ -882,25 +882,25 @@ const _rawConfig: GameConfigType = {
     /** Ownership-ring lightness multiplier (0-2) */
     STAR_RING_LIGHTNESS: 1.0,
     /** Master scale for entire star system (0.3-3.0) */
-    STAR_SYSTEM_SCALE: 1.0,
+    STAR_SYSTEM_SCALE: 0.55,
     /** Label offset from star center X */
     STAR_LABEL_OFFSET_X: 45,
     /** Label offset from star center Y */
     STAR_LABEL_OFFSET_Y: 35,
     /** Active ships font size */
-    STAR_LABEL_FONT_SIZE: 22,
+    STAR_LABEL_FONT_SIZE: 15,
     /** Star ID font size */
-    STAR_LABEL_ID_FONT_SIZE: 14,
+    STAR_LABEL_ID_FONT_SIZE: 13,
     /** Damaged ships font size */
-    STAR_LABEL_DAMAGED_FONT_SIZE: 16,
+    STAR_LABEL_DAMAGED_FONT_SIZE: 13,
     /** Label angle in degrees (0=right, 90=down) */
-    STAR_LABEL_ANGLE: 35,
+    STAR_LABEL_ANGLE: 45,
     /** Label radial distance from star center */
-    STAR_LABEL_DISTANCE: 55,
+    STAR_LABEL_DISTANCE: 25,
     /** Master font scale (1.0 = default) */
-    STAR_LABEL_SCALE: 1.0,
+    STAR_LABEL_SCALE: 0.589,
     /** Vertical spacing between label rows (px) */
-    STAR_LABEL_LINE_HEIGHT: 18,
+    STAR_LABEL_LINE_HEIGHT: 10,
     /** Show active/damaged inline (side by side) */
     STAR_LABEL_INLINE: false,
     /** Classic map coordinate spacing multiplier */
@@ -1009,12 +1009,12 @@ const _rawConfig: GameConfigType = {
     /** Enable Modified Voronoi territory renderer (F-138) */
     TERRITORY_MODIFIED_VORONOI: false,
     /** Enable Power Voronoi V2 territory renderer (F-138v2) */
-    TERRITORY_POWER_VORONOI: true,
+    TERRITORY_POWER_VORONOI: false,
     /** Enable PVV3 frontier-first territory renderer */
     TERRITORY_PVV3: false,
     // ═══ SACROSANCT: DY4 Optimal Transport is the canonical default ═══
     // See registry.ts and .atlas/DECISIONS.md. Do not change without user approval.
-    TERRITORY_ENGINE_ENABLED: false,
+    TERRITORY_ENGINE_ENABLED: true,
     /** Active static frontier method when modular territory engine is enabled */
     TERRITORY_ENGINE_STATIC_METHOD: 'fg1_adaptive_field' as const,
     /** Emit staged trace snapshots in modular engine */
@@ -1024,16 +1024,16 @@ const _rawConfig: GameConfigType = {
     /** Active dynamic update method when territory engine mode is dynamic */
     TERRITORY_ENGINE_DYNAMIC_METHOD: 'dy4_optimal_transport' as const,
     /** Active hybrid program when territory engine mode is hybrid */
-    TERRITORY_ENGINE_HYBRID_PLAN: 'hy3_implicit_field_transport' as const,
+    TERRITORY_ENGINE_HYBRID_PLAN: 'hy2_seed_graph_local_delta' as const,
     /** Step through pipeline stages one-by-one (diagnostic mode) */
     TERRITORY_ENGINE_STEP_MODE: false,
     /** Incrementing token used to advance one stage in step mode */
     TERRITORY_ENGINE_STEP_ADVANCE_TOKEN: 0,
     /** Duration of territory morph/crossfade animation in ms (0=instant) */
-    TERRITORY_TRANSITION_MS: 350,
+    TERRITORY_TRANSITION_MS: 400,
     /** Number of control points for frontier loop morphing (5-300) */
-    TERRITORY_MORPH_CONTROL_POINTS: 32,
-    TERRITORY_BOUNDARY_MODE: 'segment' as const,
+    TERRITORY_MORPH_CONTROL_POINTS: 68,
+    TERRITORY_BOUNDARY_MODE: 'smooth' as const,
     /** Fill transition mode: 'crossfade' = alpha-fade, 'frontier' = infill from frontier loops */
     TERRITORY_FILL_MODE: 'frontier' as const,
     /** Enable Metaball territory renderer */
@@ -1045,7 +1045,7 @@ const _rawConfig: GameConfigType = {
     /** LEGACY territory mode — kept for compat */
     TERRITORY_MODE: 'metaball' as 'voronoi' | 'metaball' | 'off',
     /** Active render mode selector */
-    TERRITORY_RENDER_MODE: 'vs_pvv3',
+    TERRITORY_RENDER_MODE: 'territory_engine',
 
     /** Show contiguous Voronoi territory fill */
     SHOW_VORONOI: false,
@@ -1283,11 +1283,11 @@ const _rawConfig: GameConfigType = {
     // ========================================================================
 
     /** Master audio volume (0-1) */
-    AUDIO_MASTER_VOLUME: 0.5,
+    AUDIO_MASTER_VOLUME: 0.45,
     /** Global mute */
     AUDIO_MUTED: false,
     /** Use subtype-specific conquest sounds instead of generic */
-    AUDIO_SEPARATE_CONQUEST: true,
+    AUDIO_SEPARATE_CONQUEST: false,
 
     // Per-sound volumes
     AUDIO_VOL_CLICK: 0.3,
@@ -1299,11 +1299,11 @@ const _rawConfig: GameConfigType = {
     AUDIO_VOL_LOSE: 0.6,
     AUDIO_VOL_WIN: 0.6,
     AUDIO_VOL_NEW_PLAYER: 0.8,
-    AUDIO_VOL_CONQUEST: 0.8,
-    AUDIO_VOL_CONQUEST_RETREAT: 0.7,
-    AUDIO_VOL_CONQUEST_SCATTER: 0.7,
-    AUDIO_VOL_CONQUEST_COMPLETE: 0.8,
-    AUDIO_VOL_STARLOSS: 0.6,
+    AUDIO_VOL_CONQUEST: 0.2,
+    AUDIO_VOL_CONQUEST_RETREAT: 0.35,
+    AUDIO_VOL_CONQUEST_SCATTER: 0.35,
+    AUDIO_VOL_CONQUEST_COMPLETE: 0.35,
+    AUDIO_VOL_STARLOSS: 0.15,
 
     // Per-sound file paths (relative to /sounds/)
     AUDIO_FILE_CLICK: 'ui/click.wav',
@@ -1331,7 +1331,7 @@ const _rawConfig: GameConfigType = {
     AUDIO_OFFSET_LOSE: 0,
     AUDIO_OFFSET_WIN: 0,
     AUDIO_OFFSET_NEW_PLAYER: 0,
-    AUDIO_OFFSET_CONQUEST: 0,
+    AUDIO_OFFSET_CONQUEST: 0.21,
     AUDIO_OFFSET_CONQUEST_RETREAT: 0,
     AUDIO_OFFSET_CONQUEST_SCATTER: 0,
     AUDIO_OFFSET_CONQUEST_COMPLETE: 0,
