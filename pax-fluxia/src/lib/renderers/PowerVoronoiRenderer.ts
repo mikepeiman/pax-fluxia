@@ -760,6 +760,28 @@ export function renderPowerVoronoi(
     log.renderer('PVV2', `  merged pts counts: ${merged.map(t => `${t.ownerId}:${t.points.length}`).join(' ')}`);
     log.renderer('PVV2', `  polyline pts counts: ${builtPolylinesRaw.map(p => `${p.ownerPairKey}:${p.points.length}`).join(' ')}`);
 
+    // DIAGNOSTIC: forced one-shot bbox comparison of fills vs borders
+    // Shows whether fills and borders share the same spatial extent — if not, they cannot align.
+    if (!(renderPowerVoronoi as any).__bboxDiagLogged) {
+        (renderPowerVoronoi as any).__bboxDiagLogged = true;
+        const bboxOf = (pts: [number, number][]) => {
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            for (const [x, y] of pts) {
+                if (x < minX) minX = x; if (y < minY) minY = y;
+                if (x > maxX) maxX = x; if (y > maxY) maxY = y;
+            }
+            return { minX, minY, maxX, maxY };
+        };
+        for (const t of merged) {
+            const bb = bboxOf(t.points);
+            console.warn(`[PVV2 DIAG] FILL owner=${t.ownerId} pts=${t.points.length} bbox=(${bb.minX.toFixed(0)},${bb.minY.toFixed(0)})→(${bb.maxX.toFixed(0)},${bb.maxY.toFixed(0)})`);
+        }
+        for (const pl of builtPolylinesRaw) {
+            const bb = bboxOf(pl.points);
+            console.warn(`[PVV2 DIAG] BORDER pair=${pl.ownerPairKey} pts=${pl.points.length} bbox=(${bb.minX.toFixed(0)},${bb.minY.toFixed(0)})→(${bb.maxX.toFixed(0)},${bb.maxY.toFixed(0)})`);
+        }
+    }
+
     // Fingerprint from stage — used for changed-owner detection
     // Assign colors to merged territories (render concern, not geometry)
     for (const territory of merged) {
