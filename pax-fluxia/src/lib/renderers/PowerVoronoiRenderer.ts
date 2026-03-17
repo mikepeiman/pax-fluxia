@@ -467,6 +467,14 @@ export function renderPowerVoronoi(
         fillGraphics.clear();
         fillGraphics.visible = true;
 
+        // Canonical path owns ALL rendering for this frame.
+        // Clear legacy borderGraphics so stale pvv2 polyline borders (different geometry)
+        // do not persist and appear misaligned with canonical shell fills.
+        if (borderGraphics) {
+            borderGraphics.clear();
+            borderGraphics.visible = false;
+        }
+
         const alpha = GAME_CONFIG.VORONOI_ALPHA ?? 0.25;
         const borderWidth = GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 1.5;
         const borderAlpha = GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.4;
