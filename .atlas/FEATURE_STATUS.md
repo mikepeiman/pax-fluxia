@@ -15,6 +15,8 @@
 | B-30 | All 6 territory renderers called every frame at 60fps regardless of which is active — wasteful architecture | ✅ Fixed | 2026-03-03 |
 | B-31 | `app.resize is not a function` crash during early PIXI initialization in handleResize | ✅ Fixed | 2026-03-03 |
 | B-43 | Canvas resize feedback loop — container height grows 6px/frame, map zooms/drifts off-viewport. Caused by corrupted localStorage/cache, not code. Fix: clear site data. Recurs intermittently. | ⚠️ Shelved | 2026-03-15 |
+| B-47 | **Deferred orders broken for neutral stars** — Case 2b in GameCanvas gated deferred orders with `ownerId !== "neutral"`, so clicking own star → neutral → next star always fell to Case 2c (no order). Fixed to `!isLocalPlayerStar()`, covering both enemy AND neutral stars. | ✅ Fixed | 2026-03-17 |
+| B-48 | **hitTestStar log spam** — logged on every pointer event call, including repeated same-target calls. Fixed with `lastHitStarId` tracker; logs only when result changes. | ✅ Fixed | 2026-03-17 |
 
 ## Planned Features
 

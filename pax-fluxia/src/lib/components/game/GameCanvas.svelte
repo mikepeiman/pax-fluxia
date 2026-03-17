@@ -1542,12 +1542,18 @@
         };
     }
 
+    // Track last hitTest result to suppress duplicate logs
+    let lastHitStarId: string | null | undefined = undefined; // undefined = never set
+
     function hitTestStar(screenX: number, screenY: number): StarState | null {
         // Use activeGameStore for unified star access
         const stars = activeGameStore.stars as StarState[];
 
         if (stars.length === 0) {
-            log.input("hitTestStar MISS — stars array empty");
+            if (lastHitStarId !== null) {
+                log.input("hitTestStar MISS — stars array empty");
+                lastHitStarId = null;
+            }
             return null;
         }
 
@@ -1574,14 +1580,19 @@
             }
         }
 
-        if (nearest) {
-            log.input(
-                `hitTest HIT → ${nearest.id} (owner=${nearest.ownerId}, dist=${nearestDist.toFixed(0)}, r=${nearest.radius})`,
-            );
-        } else {
-            log.input(
-                `hitTest MISS — screen(${screenX.toFixed(0)},${screenY.toFixed(0)}) → world(${x.toFixed(0)},${y.toFixed(0)}), ${stars.length} stars checked`,
-            );
+        // Only log when the result changes (different star, or hit↔miss transition)
+        const newId = nearest?.id ?? null;
+        if (newId !== lastHitStarId) {
+            if (nearest) {
+                log.input(
+                    `hitTest HIT → ${nearest.id} (owner=${nearest.ownerId}, dist=${nearestDist.toFixed(0)}, r=${nearest.radius})`,
+                );
+            } else {
+                log.input(
+                    `hitTest MISS — screen(${screenX.toFixed(0)},${screenY.toFixed(0)}) → world(${x.toFixed(0)},${y.toFixed(0)}), ${stars.length} stars checked`,
+                );
+            }
+            lastHitStarId = newId;
         }
 
         return nearest;
@@ -2067,9 +2078,9 @@
                         }
                     } else if (
                         activeStarSnapshot &&
-                        activeStarSnapshot.ownerId !== "neutral"
+                        !isLocalPlayerStar(activeStarSnapshot)
                     ) {
-                        // Enemy star → deferred order
+                        // Non-owned star (enemy OR neutral) → deferred order (activates on capture)
                         const success = doSetDeferredOrder(
                             activeStarId,
                             targetStar.id,
