@@ -13,25 +13,53 @@
  * Toggleable log flags - gate each category on/off at runtime.
  * All enabled by default. Disable noisy channels as needed.
  */
-export const logFlags = {
-    sys: false,
-    state: false,
-    data: false,
-    net: false,
-    error: true,     // Errors always ON
-    success: false,
-    combat: false,
-    conquest: false,
-    input: false,
-    repair: false,
-    canvas: true,    // Canvas debug (viewport, scaling, centering)
-    renderer: false, // Territory renderer pipeline (borders, fills, transitions)
-};
+export const logFlags = (() => {
+    const LS_KEY = 'pax_logFlags';
+    const defaults = {
+        sys: false,
+        state: false,
+        data: false,
+        net: false,
+        error: true,     // Errors always ON
+        success: false,
+        combat: false,
+        conquest: false,
+        input: false,
+        repair: false,
+        canvas: true,    // Canvas debug (viewport, scaling, centering)
+        renderer: false, // Territory renderer pipeline (borders, fills, transitions)
+    };
+
+    // Load persisted flags if available
+    let saved: Record<string, boolean> = {};
+    if (typeof window !== 'undefined') {
+        try {
+            saved = JSON.parse(localStorage.getItem(LS_KEY) ?? '{}');
+        } catch { /* ignore */ }
+    }
+    const flags = { ...defaults, ...saved } as typeof defaults;
+
+    // Proxy: any set operation automatically persists to localStorage
+    const persist = (target: typeof defaults) => {
+        if (typeof window !== 'undefined') {
+            try { localStorage.setItem(LS_KEY, JSON.stringify(target)); } catch { /* ignore */ }
+        }
+    };
+
+    return new Proxy(flags, {
+        set(target, key, value) {
+            (target as any)[key] = value;
+            persist(target);
+            return true;
+        },
+    });
+})();
 
 // Expose on window for runtime console toggling
 if (typeof window !== 'undefined') {
     (window as any).logFlags = logFlags;
 }
+
 
 const styles = {
     sys: 'background: #3b82f6; color: #fff; padding: 2px 4px; border-radius: 2px; font-weight: bold;',

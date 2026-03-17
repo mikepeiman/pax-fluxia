@@ -353,55 +353,65 @@ export function chainSharedEdgesIntoPolylines(
     }
 
     const result: SharedPolyline[] = [];
-    const ptKey = (x: number, y: number) => `${+x.toFixed(2)},${+y.toFixed(2)}`;
 
     for (const [pairKey, pairEdges] of byPair) {
-        // Build adjacency for chain walking
-        const adj = new Map<string, { x: number; y: number; peers: string[] }>();
-        for (const e of pairEdges) {
-            const kA = ptKey(e.x1, e.y1);
-            const kB = ptKey(e.x2, e.y2);
-            if (!adj.has(kA)) adj.set(kA, { x: e.x1, y: e.y1, peers: [] });
-            if (!adj.has(kB)) adj.set(kB, { x: e.x2, y: e.y2, peers: [] });
-            adj.get(kA)!.peers.push(kB);
-            adj.get(kB)!.peers.push(kA);
+        // Build bidirectional adjacency with EDGE INDEX tracking.
+        // Vertex-mark walks fail at junctions (degree > 2) — edge-index tracking
+        // ensures every physical edge is consumed exactly once regardless of topology.
+        type IEdge = { x1: number; y1: number; x2: number; y2: number; idx: number };
+        const allEdges: IEdge[] = [];
+        for (let i = 0; i < pairEdges.length; i++) {
+            const e = pairEdges[i];
+            allEdges.push({ x1: e.x1, y1: e.y1, x2: e.x2, y2: e.y2, idx: i });
+            allEdges.push({ x1: e.x2, y1: e.y2, x2: e.x1, y2: e.y1, idx: i });
         }
 
-        const visited = new Set<string>();
-        for (const [startKey, startNode] of adj) {
-            if (visited.has(startKey)) continue;
-            // Walk this chain
-            const chain: [number, number][] = [[startNode.x, startNode.y]];
-            visited.add(startKey);
-            let current = startKey;
-            let found = true;
-            while (found) {
-                found = false;
-                for (const peer of adj.get(current)!.peers) {
-                    if (!visited.has(peer)) {
-                        visited.add(peer);
-                        const node = adj.get(peer)!;
-                        chain.push([node.x, node.y]);
-                        current = peer;
-                        found = true;
-                        break;
-                    }
+        const adj = new Map<string, IEdge[]>();
+        for (const ie of allEdges) {
+            const k = ptKey(ie.x1, ie.y1);
+            if (!adj.has(k)) adj.set(k, []);
+            adj.get(k)!.push(ie);
+        }
+
+        const used = new Set<number>();
+        for (let start = 0; start < pairEdges.length; start++) {
+            if (used.has(start)) continue;
+            const e0 = pairEdges[start];
+            used.add(start);
+            const chain: [number, number][] = [[e0.x1, e0.y1], [e0.x2, e0.y2]];
+            let curEnd = ptKey(e0.x2, e0.y2);
+            let safety = pairEdges.length * 2;
+
+            while (safety-- > 0) {
+                const cands = adj.get(curEnd);
+                if (!cands) break;
+                let stepped = false;
+                for (const c of cands) {
+                    if (used.has(c.idx)) continue;
+                    used.add(c.idx);
+                    curEnd = ptKey(c.x2, c.y2);
+                    chain.push([c.x2, c.y2]);
+                    stepped = true;
+                    break;
                 }
+                if (!stepped) break;
             }
 
             if (chain.length >= 2) {
-                // Apply Chaikin smoothing — this is geometry, not render
                 const smoothed = passes > 0 ? chaikinSmoothPolyline(chain, passes) : chain;
                 result.push({
                     points: smoothed,
                     ownerPairKey: pairKey,
-                    color: 0, // renderer assigns color
+                    color: 0,
                 });
             }
         }
+        log.sys('PVV2Stage', `chainSharedEdgesIntoPolylines [${pairKey}]: ${pairEdges.length} edges -> ${result.filter(r => r.ownerPairKey === pairKey).length} polylines`);
     }
     return result;
 }
+
+
 
 function detectEnclaves(merged: MergedTerritory[]): Map<number, [number, number][][]> {
     function pointInPolygon(px: number, py: number, polygon: [number, number][]): boolean {
