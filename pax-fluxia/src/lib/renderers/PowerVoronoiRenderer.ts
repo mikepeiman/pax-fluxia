@@ -38,7 +38,7 @@ import {
     type SharedPolyline,
     type TerritoryCell,
 } from '$lib/territory/compiler/pvv2MetricStage';
-import { resamplePolygon, resamplePolyline, lerpPolygon, polygonCentroid, alignPolygon } from '$lib/territory/geometry/morphUtils';
+import { resamplePolygon, resamplePolyline, lerpPolygon, polygonCentroid } from '$lib/territory/geometry/morphUtils';
 import { substituteSmoothedEdges } from '$lib/renderers/geometry/borderPipeline';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -68,6 +68,7 @@ let isBorderTransitioning = false;
 
 let prevSharedPolylines: SharedPolyline[] | null = null;
 let targetSharedPolylines: SharedPolyline[] | null = null;
+let targetRawSharedPolylines: SharedPolyline[] | null = null;
 let smoothTransitionStart = 0;
 let isSmoothTransitioning = false;
 let lastMergedTerritories: MergedTerritory[] | null = null;  // stored for smooth mode snapshot
@@ -623,7 +624,7 @@ export function renderPowerVoronoi(
 
         // 3. Force the region fills to snap to the moving frame frontiers
         // (type coercion handles PVV2 MergedTerritory ~ TerritoryRegion compatibility for loops)
-        substituteSmoothedEdges(frameRegions as any, targetSharedPolylines!, frameFrontiers);
+        substituteSmoothedEdges(frameRegions as any, targetRawSharedPolylines!, frameFrontiers);
 
         // 4. Draw the mutated frameRegions as the fills, and frameFrontiers as the borders
         for (let i = 0; i < frameRegions.length; i++) {
@@ -713,7 +714,7 @@ export function renderPowerVoronoi(
         return;
     }
 
-    const { cells, mergedTerritories: merged, sharedEdges, sharedPolylines: builtPolylinesRaw, enclaveMap } = stageResult;
+    const { cells, mergedTerritories: merged, sharedEdges, rawSharedPolylines: builtRawPolylinesRaw, sharedPolylines: builtPolylinesRaw, enclaveMap } = stageResult;
 
     log.renderer('PVV2', `STAGE OUTPUT | cells=${cells.length} merged=${merged.length} edges=${sharedEdges.length} polylines=${builtPolylinesRaw.length} enclaves=${enclaveMap.size} chaikinPasses=${stageConfig.chaikinPasses}`);
 
@@ -763,9 +764,18 @@ export function renderPowerVoronoi(
 
     // Steady-state: draw target fills at full alpha (with enclave holes)
     // Dynamic transition morphing is handled per-frame at the top of the render loop.
-    log.renderer('PVV2', `STEADY-STATE FILLS | drawing ${merged.length} territories`);
-    for (let i = 0; i < merged.length; i++) {
-        drawTerritoryFillWithHoles(fillGraphics, merged[i], enclaveMap.get(i), alpha);
+    const steadyRegions: MergedTerritory[] = merged.map(region => ({
+        ...region,
+        points: region.points.map(pt => [pt[0], pt[1]])
+    }));
+
+    if (targetRawSharedPolylines && targetSharedPolylines) {
+        substituteSmoothedEdges(steadyRegions as any, targetRawSharedPolylines, targetSharedPolylines);
+    }
+
+    log.renderer('PVV2', `STEADY-STATE FILLS | drawing ${steadyRegions.length} territories`);
+    for (let i = 0; i < steadyRegions.length; i++) {
+        drawTerritoryFillWithHoles(fillGraphics, steadyRegions[i], enclaveMap.get(i), alpha);
     }
 
     // Borders are now drawn as strokes on the fill path (inside drawTerritoryFillWithHoles).
@@ -801,6 +811,11 @@ export function renderPowerVoronoi(
             const color = cMap.get(`${ownerA}|${ownerB}`) ?? cMap.get(`${ownerB}|${ownerA}`) ?? 0x888888;
             return { ...pl, color };
         });
+        targetRawSharedPolylines = builtRawPolylinesRaw?.map(pl => {
+            const [ownerA, ownerB] = pl.ownerPairKey.split('|');
+            const color = cMap.get(`${ownerA}|${ownerB}`) ?? cMap.get(`${ownerB}|${ownerA}`) ?? 0x888888;
+            return { ...pl, color };
+        }) ?? null;
     }
 
     // Start transition based on mode
@@ -837,6 +852,7 @@ export function resetPowerVoronoiCache(): void {
     isSmoothTransitioning = false;
     prevSharedPolylines = null;
     targetSharedPolylines = null;
+    targetRawSharedPolylines = null;
     smoothTransitionStart = 0;
     lastMergedTerritories = null;
     // Enclave state

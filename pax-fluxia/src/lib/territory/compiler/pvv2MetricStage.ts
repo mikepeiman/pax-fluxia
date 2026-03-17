@@ -86,6 +86,7 @@ export interface PVV2GeometryData {
     cells: TerritoryCell[];
     mergedTerritories: MergedTerritory[];   // Chaikin-eligible polygons (no color yet)
     sharedEdges: SharedBorderEdge[];  // Per-segment contested borders (no color yet)
+    rawSharedPolylines: SharedPolyline[]; // Chained border polylines BEFORE smoothing (for vertex matching)
     sharedPolylines: SharedPolyline[];    // Chained + Chaikin-smoothed border polylines (no color yet)
     enclaveMap: Map<number, [number, number][][]>;  // mergedTerritory idx → hole polygons
     fingerprint: string;
@@ -624,6 +625,7 @@ export function executePVV2MetricStage(
         log.sys('PVV2Stage', `MERGED: ${mergedTerritories.length} territories | pts: ${mergedTerritories.map(t => `${t.ownerId}:${t.points.length}`).join(' ')}`);
 
         // Stage 5: Chain shared edges → smoothed polylines (Chaikin = geometry)
+        const rawSharedPolylines = chainSharedEdgesIntoPolylines(sharedEdges, 0);
         const sharedPolylines = chainSharedEdgesIntoPolylines(sharedEdges, config.chaikinPasses);
         log.sys('PVV2Stage', `POLYLINES: ${sharedPolylines.length} border polylines | pts: ${sharedPolylines.map(p => `${p.ownerPairKey}:${p.points.length}`).join(' ')}`);
 
@@ -638,6 +640,7 @@ export function executePVV2MetricStage(
             cells,
             mergedTerritories,
             sharedEdges,
+            rawSharedPolylines,
             sharedPolylines,
             enclaveMap,
             fingerprint,
