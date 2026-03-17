@@ -201,17 +201,60 @@ function blendColors(colorA: number, colorB: number, t: number): number {
 
 
 
+// ── Bézier Midpoint Densification ──────────────────────────────────────────
+
+/**
+ * Densify a point array by evaluating quadratic Bézier curves through midpoints.
+ * This is the same interpolation that was previously done at draw-time for borders.
+ * Now applied once to BOTH fills and borders at the data level, ensuring
+ * identical geometry for both render paths.
+ *
+ * For N input points, generates a dense array with ~N * SUBDIVISIONS points.
+ * Both poly() fills and lineTo borders can then draw straight lines to this
+ * shared dense geometry.
+ */
+function densifyBezierMidpoints(pts: [number, number][], subdivisions = 4): [number, number][] {
+    if (pts.length < 3) return pts;
+
+    const dense: [number, number][] = [];
+    // Start point
+    dense.push(pts[0]);
+
+    // First segment: straight line to midpoint(pts[0], pts[1])
+    const mid0x = (pts[0][0] + pts[1][0]) / 2;
+    const mid0y = (pts[0][1] + pts[1][1]) / 2;
+    dense.push([mid0x, mid0y]);
+
+    // Interior segments: quadratic Bézier from current midpoint through pts[i] to next midpoint
+    for (let i = 1; i < pts.length - 1; i++) {
+        const cx = pts[i][0], cy = pts[i][1]; // control point
+        const nextMidX = (pts[i][0] + pts[i + 1][0]) / 2;
+        const nextMidY = (pts[i][1] + pts[i + 1][1]) / 2;
+        const prevMidX = (pts[i - 1][0] + pts[i][0]) / 2;
+        const prevMidY = (pts[i - 1][1] + pts[i][1]) / 2;
+
+        // Sample quadratic Bézier: B(t) = (1-t)²·P0 + 2(1-t)t·C + t²·P1
+        // P0 = prevMid, C = pts[i], P1 = nextMid
+        for (let s = 1; s <= subdivisions; s++) {
+            const t = s / subdivisions;
+            const u = 1 - t;
+            const x = u * u * prevMidX + 2 * u * t * cx + t * t * nextMidX;
+            const y = u * u * prevMidY + 2 * u * t * cy + t * t * nextMidY;
+            dense.push([x, y]);
+        }
+    }
+
+    // Last segment: straight line to last point
+    dense.push(pts[pts.length - 1]);
+    return dense;
+}
+
 // ── Canonical Border Drawing ───────────────────────────────────────────────
 
 /**
- * Draw border polylines into a Graphics object as smooth Bézier curves.
- * Uses quadraticCurveTo through midpoints for smooth arc geometry.
- * This is the SINGLE canonical function for all border rendering — steady-state,
- * transition animation, and segment mode all use this function.
- * 
- * If smoothPasses > 0, Chaikin subdivision is applied first to generate more
- * control points for the Bézier interpolation. Round caps and joins ensure
- * clean visual connections at polyline junctions.
+ * Draw border polylines as straight lines. Points are expected to be
+ * pre-densified via densifyBezierMidpoints — no curves computed here.
+ * This ensures borders and fills use identical geometry.
  */
 function drawBorderPolylines(
     graphics: PIXI.Graphics,
@@ -227,27 +270,15 @@ function drawBorderPolylines(
             : polyline.points;
         if (pts.length < 2) continue;
 
-        if (pts.length === 2) {
-            graphics.moveTo(pts[0][0], pts[0][1]);
-            graphics.lineTo(pts[1][0], pts[1][1]);
-        } else {
-            // Quadratic Bézier through midpoints for smooth arc geometry
-            graphics.moveTo(pts[0][0], pts[0][1]);
-            const mid0x = (pts[0][0] + pts[1][0]) / 2;
-            const mid0y = (pts[0][1] + pts[1][1]) / 2;
-            graphics.lineTo(mid0x, mid0y);
-            for (let i = 1; i < pts.length - 1; i++) {
-                const midX = (pts[i][0] + pts[i + 1][0]) / 2;
-                const midY = (pts[i][1] + pts[i + 1][1]) / 2;
-                graphics.quadraticCurveTo(pts[i][0], pts[i][1], midX, midY);
-            }
-            const last = pts[pts.length - 1];
-            graphics.lineTo(last[0], last[1]);
+        // Straight lines only — curves are baked into the point data
+        graphics.moveTo(pts[0][0], pts[0][1]);
+        for (let i = 1; i < pts.length; i++) {
+            graphics.lineTo(pts[i][0], pts[i][1]);
         }
         graphics.stroke({ width, color: polyline.color, alpha, cap: 'round', join: 'round' });
         drawn++;
     }
-    log.renderer('drawBorderPolylines', `drew ${drawn}/${polylines.length} polylines (smooth=${smoothPasses}, w=${width.toFixed(1)}, a=${alpha.toFixed(2)}, bezier=true)`);
+    log.renderer('drawBorderPolylines', `drew ${drawn}/${polylines.length} polylines (smooth=${smoothPasses}, w=${width.toFixed(1)}, a=${alpha.toFixed(2)}, straight=true)`);
 }
 
 /** Build lerped polylines from prev → target for transition animation.
@@ -781,33 +812,24 @@ export function renderPowerVoronoi(
         return;
     }
 
-    const { cells, mergedTerritories: merged, sharedEdges, sharedPolylines: builtPolylinesRaw, enclaveMap } = stageResult;
+    const { cells, mergedTerritories: mergedRaw, sharedEdges, sharedPolylines: builtPolylinesRaw, enclaveMap } = stageResult;
 
-    log.renderer('PVV2', `STAGE OUTPUT | cells=${cells.length} merged=${merged.length} edges=${sharedEdges.length} polylines=${builtPolylinesRaw.length} enclaves=${enclaveMap.size} chaikinPasses=${stageConfig.chaikinPasses}`);
-    log.renderer('PVV2', `  merged pts counts: ${merged.map(t => `${t.ownerId}:${t.points.length}`).join(' ')}`);
-    log.renderer('PVV2', `  polyline pts counts: ${builtPolylinesRaw.map(p => `${p.ownerPairKey}:${p.points.length}`).join(' ')}`);
+    // ── FINAL DATA MASSAGE: Bézier densification ──────────────────────────
+    // Apply the same quadratic-Bézier-through-midpoints interpolation to BOTH
+    // fill polygon points AND border polyline points. This ensures both renderers
+    // draw straight lines to identical dense geometry — no fill-border divergence.
+    const merged = mergedRaw.map(t => ({
+        ...t,
+        points: densifyBezierMidpoints(t.points),
+    }));
+    const builtPolylines = builtPolylinesRaw.map(p => ({
+        ...p,
+        points: densifyBezierMidpoints(p.points),
+    }));
 
-    // DIAGNOSTIC: forced one-shot bbox comparison of fills vs borders
-    // Shows whether fills and borders share the same spatial extent — if not, they cannot align.
-    if (!(renderPowerVoronoi as any).__bboxDiagLogged) {
-        (renderPowerVoronoi as any).__bboxDiagLogged = true;
-        const bboxOf = (pts: [number, number][]) => {
-            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-            for (const [x, y] of pts) {
-                if (x < minX) minX = x; if (y < minY) minY = y;
-                if (x > maxX) maxX = x; if (y > maxY) maxY = y;
-            }
-            return { minX, minY, maxX, maxY };
-        };
-        for (const t of merged) {
-            const bb = bboxOf(t.points);
-            console.warn(`[PVV2 DIAG] FILL owner=${t.ownerId} pts=${t.points.length} bbox=(${bb.minX.toFixed(0)},${bb.minY.toFixed(0)})→(${bb.maxX.toFixed(0)},${bb.maxY.toFixed(0)})`);
-        }
-        for (const pl of builtPolylinesRaw) {
-            const bb = bboxOf(pl.points);
-            console.warn(`[PVV2 DIAG] BORDER pair=${pl.ownerPairKey} pts=${pl.points.length} bbox=(${bb.minX.toFixed(0)},${bb.minY.toFixed(0)})→(${bb.maxX.toFixed(0)},${bb.maxY.toFixed(0)})`);
-        }
-    }
+    log.renderer('PVV2', `STAGE OUTPUT | cells=${cells.length} merged=${merged.length} edges=${sharedEdges.length} polylines=${builtPolylines.length} enclaves=${enclaveMap.size} chaikinPasses=${stageConfig.chaikinPasses}`);
+    log.renderer('PVV2', `  merged pts counts (densified): ${merged.map(t => `${t.ownerId}:${t.points.length}`).join(' ')}`);
+    log.renderer('PVV2', `  polyline pts counts (densified): ${builtPolylines.map(p => `${p.ownerPairKey}:${p.points.length}`).join(' ')}`);
 
     // Fingerprint from stage — used for changed-owner detection
     // Assign colors to merged territories (render concern, not geometry)
@@ -908,16 +930,14 @@ export function renderPowerVoronoi(
             }
         }
 
-        // Use pre-chained + Chaikin-smoothed polylines from stage; assign colors here (render concern)
-        const builtPolylines = builtPolylinesRaw;
+        // Use pre-densified polylines from the data massage step; assign colors here (render concern)
         for (const pl of builtPolylines) {
             const key = pl.ownerPairKey;
             const keyAlt = key.split('|').reverse().join('|');
             pl.color = colorMap.get(key) ?? colorMap.get(keyAlt) ?? 0x888888;
         }
 
-        // chainSharedEdgesIntoPolylines already applies Chaikin — pass 0 to drawBorderPolylines
-        // to avoid double-smoothing. Transition path passes smoothPasses because lerp destroys curves.
+        // Draw borders as straight lines — curves are baked into the densified point data
         const t0b = performance.now();
         drawBorderPolylines(borderGraphics, builtPolylines, 0, borderWidth, borderAlpha);
         const t1b = performance.now();
@@ -947,8 +967,8 @@ export function renderPowerVoronoi(
             const key = edge.ownerA < edge.ownerB ? `${edge.ownerA}|${edge.ownerB}` : `${edge.ownerB}|${edge.ownerA}`;
             if (!cMap.has(key)) cMap.set(key, blendColors(edge.colorA, edge.colorB, 0.5));
         }
-        // builtPolylinesRaw from stage is already Chaikin-smoothed; assign colors here (render concern)
-        targetSharedPolylines = builtPolylinesRaw.map(pl => {
+        // builtPolylines is already densified; assign colors here (render concern)
+        targetSharedPolylines = builtPolylines.map(pl => {
             const [ownerA, ownerB] = pl.ownerPairKey.split('|');
             const color = cMap.get(`${ownerA}|${ownerB}`) ?? cMap.get(`${ownerB}|${ownerA}`) ?? 0x888888;
             return { ...pl, color };
