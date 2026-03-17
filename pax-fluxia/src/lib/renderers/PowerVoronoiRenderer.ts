@@ -510,6 +510,7 @@ export function renderPowerVoronoi(
         if (borderGraphics) {
             borderGraphics.clear();
             borderGraphics.visible = false;
+            log.renderer('PVV2', '🔴 CANONICAL PATH cleared borderGraphics!');
         }
 
         const alpha = GAME_CONFIG.VORONOI_ALPHA ?? 0.25;
@@ -817,6 +818,9 @@ export function renderPowerVoronoi(
     borderGraphics.visible = true;
     if (targetSharedPolylines && targetSharedPolylines.length > 0 && borderWidth > 0 && borderAlpha > 0) {
         drawBorderPolylines(borderGraphics, targetSharedPolylines, 0, borderWidth, borderAlpha);
+        log.renderer('PVV2', `🟢 BORDERS DRAWN | polylines=${targetSharedPolylines.length} bw=${borderWidth} ba=${borderAlpha} visible=${borderGraphics.visible} parent=${!!borderGraphics.parent} children=${voronoiContainer.children.length}`);
+    } else {
+        log.renderer('PVV2', `🔴 BORDERS SKIPPED | polylines=${targetSharedPolylines?.length ?? 'null'} bw=${borderWidth} ba=${borderAlpha}`);
     }
 
     // Start transition based on mode
