@@ -578,8 +578,19 @@ export function executePVV2MetricStage(
         }
 
         // Stage 4: Merge same-owner cells
-        const mergedTerritories = mergeSameOwnerCells(cells, config.clusterSplit, clusterMap);
+        const mergedRaw = mergeSameOwnerCells(cells, config.clusterSplit, clusterMap);
+
+        // Apply Chaikin smoothing to fill polygons — same pass count as border polylines.
+        // This ensures fills and borders derive from the same smoothed geometry (B-42 fix).
+        // Chaikin is GEOMETRY — it changes world-coordinate positions of polygon boundaries.
+        const mergedTerritories: MergedTerritory[] = mergedRaw.map(t => ({
+            ...t,
+            points: config.chaikinPasses > 0
+                ? chaikinSmoothPolygon(t.points, config.chaikinPasses) as [number, number][]
+                : t.points,
+        }));
         log.sys('PVV2Stage', `Merged to ${mergedTerritories.length} territories`);
+
 
         // Stage 5: Chain shared edges → smoothed polylines (Chaikin = geometry)
         const sharedPolylines = chainSharedEdgesIntoPolylines(sharedEdges, config.chaikinPasses);
