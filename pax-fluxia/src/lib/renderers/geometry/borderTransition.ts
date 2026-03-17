@@ -234,7 +234,7 @@ export class GraphicsPathMorpher {
             drawn++;
         }
 
-        log.renderer('GraphicsPathMorpher', `drawFrame t=${rawT.toFixed(3)} eased=${t.toFixed(3)} | drew ${drawn}/${this.pairs.length} polylines`);
+        log.renderer('GraphicsPathMorpher', `drawFrame t=${rawT.toFixed(3)} eased=${t.toFixed(3)} | drew ${drawn}/${this.pairs.length} polylines | w=${width} a=${alpha.toFixed(2)}`);
     }
 }
 
@@ -266,11 +266,18 @@ export class RopeBorderRenderer {
             : easing === 'back' ? (t: number) => easeInOutBack(t, overshoot)
                 : easeInOutCubic;
 
-        // Use PIXI's built-in white texture — works reliably with MeshRope in v8
-        this.ropeTexture = PIXI.Texture.WHITE;
+        // Create a narrow white texture matching the exact rope width
+        // PIXI.Texture.WHITE is 16x16 which would make ropes way too wide
+        const canvas = document.createElement('canvas');
+        canvas.width = 2;
+        canvas.height = Math.max(2, Math.ceil(ropeWidth * 2));
+        const ctx = canvas.getContext('2d')!;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        this.ropeTexture = PIXI.Texture.from(canvas);
         this.ropeWidth = ropeWidth;
 
-        log.renderer('RopeBorderRenderer', `created | pairs=${this.pairs.length} easing=${easing} resampleN=${resampleN} ropeWidth=${ropeWidth} overshoot=${overshoot.toFixed(2)}`);
+        log.renderer('RopeBorderRenderer', `created | pairs=${this.pairs.length} easing=${easing} resampleN=${resampleN} ropeWidth=${ropeWidth} textureH=${canvas.height} overshoot=${overshoot.toFixed(2)}`);
     }
 
     /** Add all ropes to the given container (call once). */
@@ -325,7 +332,8 @@ export class RopeBorderRenderer {
         }
         this.ropes = [];
         this.ropePoints = [];
-        // Don't destroy PIXI.Texture.WHITE — it's a shared singleton
-        log.renderer('RopeBorderRenderer', 'removeAll: cleaned up all ropes');
+        // Destroy our custom canvas texture
+        this.ropeTexture.destroy(true);
+        log.renderer('RopeBorderRenderer', 'removeAll: cleaned up all ropes + texture');
     }
 }
