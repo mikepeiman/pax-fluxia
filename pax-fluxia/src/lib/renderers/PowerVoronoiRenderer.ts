@@ -472,7 +472,7 @@ export function renderPowerVoronoi(
         const borderAlpha = GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.4;
         const satMult = GAME_CONFIG.VORONOI_SATURATION ?? 1.0;
         const lightMult = GAME_CONFIG.VORONOI_LIGHTNESS ?? 0.7;
-        const smoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
+        const smoothPasses = 0; // NO smoothing in renderer — geometry arrives pre-computed from compiler stage
 
         // Choose shells: animated if transition active, otherwise static
         const shellsForRender = canonicalAnimActive && canonicalAnimShells.length > 0
@@ -492,10 +492,8 @@ export function renderPowerVoronoi(
             const rawColor = colorUtils.getPlayerColor(shell.ownerId);
             const shellColor = adjustColorHSL(rawColor, satMult, lightMult);
 
-            // Smooth shell polygon (optional Chaikin)
-            const smoothedPts = smoothPasses > 0
-                ? chaikinSmoothPolygon(shell.points, smoothPasses)
-                : shell.points;
+            // Fills use geometry as-is — no smoothing in renderer
+            const smoothedPts = shell.points;
 
             // Draw fill FROM shell points
             fillGraphics.beginPath();
@@ -513,9 +511,8 @@ export function renderPowerVoronoi(
                         : [];
             for (const hole of holeLoops) {
                 if (hole.points.length < 3) continue;
-                const smoothedHole = smoothPasses > 0
-                    ? chaikinSmoothPolygon(hole.points, smoothPasses)
-                    : hole.points;
+                // Holes use geometry as-is — no smoothing in renderer
+                const smoothedHole = hole.points;
                 fillGraphics.beginPath();
                 fillGraphics.poly(smoothedHole.flat());
                 fillGraphics.cut();
