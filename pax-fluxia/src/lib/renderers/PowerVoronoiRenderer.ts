@@ -848,16 +848,19 @@ export function renderPowerVoronoi(
                 activeRopeRenderer = null;
             }
 
-            // Select mode from config
-            const borderTransMode = (GAME_CONFIG as any).TERRITORY_BORDER_TRANSITION ?? 'pixi_graphics_morph';
-            log.renderer('PVV2', `TRANSITION STARTED | mode=${borderTransMode} prev=${prevSharedPolylines.length} target=${targetSharedPolylines.length} | transitionMs=${transitionMs}`);
+            // Select mode and tuning params from config
+            const borderTransMode = GAME_CONFIG.TERRITORY_BORDER_TRANSITION ?? 'pixi_graphics_morph';
+            const easing = (GAME_CONFIG.BORDER_TRANS_EASING ?? 'back') as 'cubic' | 'back' | 'elastic';
+            const resampleN = Math.max(8, Math.min(64, Math.round(GAME_CONFIG.BORDER_TRANS_RESAMPLE_N ?? 32)));
+            const overshoot = GAME_CONFIG.BORDER_TRANS_OVERSHOOT ?? 1.7;
+            log.renderer('PVV2', `TRANSITION STARTED | mode=${borderTransMode} easing=${easing} resampleN=${resampleN} overshoot=${overshoot.toFixed(2)} prev=${prevSharedPolylines.length} target=${targetSharedPolylines.length} | transitionMs=${transitionMs}`);
 
             if (borderTransMode === 'pixi_mesh_rope') {
                 const borderWidth = GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 1.5;
-                activeRopeRenderer = new RopeBorderRenderer(prevSharedPolylines, targetSharedPolylines, 'back', 32, borderWidth);
+                activeRopeRenderer = new RopeBorderRenderer(prevSharedPolylines, targetSharedPolylines, easing, resampleN, borderWidth, overshoot);
                 activeRopeRenderer.addTo(voronoiContainer);
             } else if (borderTransMode === 'pixi_graphics_morph') {
-                activeMorpher = new GraphicsPathMorpher(prevSharedPolylines, targetSharedPolylines, 'back', 32);
+                activeMorpher = new GraphicsPathMorpher(prevSharedPolylines, targetSharedPolylines, easing, resampleN, overshoot);
             }
             // else: legacy smooth_morph — uses buildLerpedPolylines fallback in the animation block
         }

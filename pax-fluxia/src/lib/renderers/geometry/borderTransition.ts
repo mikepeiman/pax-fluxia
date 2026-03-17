@@ -192,13 +192,14 @@ export class GraphicsPathMorpher {
         target: SharedPolyline[],
         easing: 'cubic' | 'back' | 'elastic' = 'back',
         resampleN: number = 32,
+        overshoot: number = 1.70158,
     ) {
         this.pairs = matchPolylines(prev, target, resampleN);
         this.easingFn = easing === 'elastic' ? easeInOutElastic
-            : easing === 'back' ? easeInOutBack
+            : easing === 'back' ? (t: number) => easeInOutBack(t, overshoot)
                 : easeInOutCubic;
 
-        log.renderer('GraphicsPathMorpher', `created | pairs=${this.pairs.length} easing=${easing} resampleN=${resampleN}`);
+        log.renderer('GraphicsPathMorpher', `created | pairs=${this.pairs.length} easing=${easing} resampleN=${resampleN} overshoot=${overshoot.toFixed(2)}`);
     }
 
     /**
@@ -250,6 +251,7 @@ export class RopeBorderRenderer {
     private container: PIXI.Container | null = null;
     private easingFn: (t: number) => number;
     private ropeTexture: PIXI.Texture;
+    private ropeWidth: number;
 
     constructor(
         prev: SharedPolyline[],
@@ -257,22 +259,18 @@ export class RopeBorderRenderer {
         easing: 'cubic' | 'back' | 'elastic' = 'back',
         resampleN: number = 32,
         ropeWidth: number = 3,
+        overshoot: number = 1.70158,
     ) {
         this.pairs = matchPolylines(prev, target, resampleN);
         this.easingFn = easing === 'elastic' ? easeInOutElastic
-            : easing === 'back' ? easeInOutBack
+            : easing === 'back' ? (t: number) => easeInOutBack(t, overshoot)
                 : easeInOutCubic;
 
-        // Create a 1px white texture for the rope (tinted by color)
-        const canvas = document.createElement('canvas');
-        canvas.width = 1;
-        canvas.height = ropeWidth * 2;
-        const ctx = canvas.getContext('2d')!;
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, 1, ropeWidth * 2);
-        this.ropeTexture = PIXI.Texture.from(canvas);
+        // Use PIXI's built-in white texture — works reliably with MeshRope in v8
+        this.ropeTexture = PIXI.Texture.WHITE;
+        this.ropeWidth = ropeWidth;
 
-        log.renderer('RopeBorderRenderer', `created | pairs=${this.pairs.length} easing=${easing} resampleN=${resampleN} ropeWidth=${ropeWidth}`);
+        log.renderer('RopeBorderRenderer', `created | pairs=${this.pairs.length} easing=${easing} resampleN=${resampleN} ropeWidth=${ropeWidth} overshoot=${overshoot.toFixed(2)}`);
     }
 
     /** Add all ropes to the given container (call once). */
@@ -286,7 +284,7 @@ export class RopeBorderRenderer {
             const rope = new PIXI.MeshRope({
                 texture: this.ropeTexture,
                 points,
-                textureScale: 1,
+                textureScale: this.ropeWidth,
             });
             rope.tint = pair.color;
             this.ropes.push(rope);
@@ -327,7 +325,7 @@ export class RopeBorderRenderer {
         }
         this.ropes = [];
         this.ropePoints = [];
-        this.ropeTexture.destroy(true);
+        // Don't destroy PIXI.Texture.WHITE — it's a shared singleton
         log.renderer('RopeBorderRenderer', 'removeAll: cleaned up all ropes');
     }
 }

@@ -360,6 +360,10 @@ interface GameConfigType {
     VORONOI_BORDER_ALPHA: number;  // Alpha for territory border lines (default 0.4)
     VORONOI_BORDER_BRIGHTEN: number; // How much to brighten border color (0-255, default 80)
     VORONOI_BORDER_SMOOTH: number;   // Chaikin smoothing passes for PVV2 shared-edge borders (0=angular, 1-5=rounded, default 3)
+    BORDER_TRANS_EASING: string;     // Easing function for border transitions ('cubic'|'back'|'elastic', default 'back')
+    BORDER_TRANS_RESAMPLE_N: number; // Number of resample points per polyline for morphing (8-64, default 32)
+    BORDER_TRANS_OVERSHOOT: number;  // Back easing overshoot amount (0-5, default 1.7)
+    TERRITORY_BORDER_TRANSITION: string; // Border transition mode ('pixi_graphics_morph'|'pixi_mesh_rope'|'smooth_morph'|'none')
     VORONOI_SATURATION: number;    // Saturation multiplier for Voronoi colors (0=grey, 1=normal, 2=vivid, default 1.0)
     VORONOI_LIGHTNESS: number;     // Lightness multiplier for Voronoi colors (0=dark, 1=normal, 2=bright, default 0.7)
     VORONOI_GLOW_RADIUS: number;   // Territory glow bleed radius as fraction of map size (0-1, default 0.3)
@@ -1063,6 +1067,14 @@ const _rawConfig: GameConfigType = {
     VORONOI_BORDER_BRIGHTEN: 20,
     /** Chaikin smoothing passes for PVV2 shared-edge borders (0=angular, 3=rounded, 5=very smooth) */
     VORONOI_BORDER_SMOOTH: 2,
+    /** Easing function for border transitions ('cubic'|'back'|'elastic') */
+    BORDER_TRANS_EASING: 'back',
+    /** Number of resample points per polyline for morphing (8-64) */
+    BORDER_TRANS_RESAMPLE_N: 32,
+    /** Back easing overshoot amount (0-5) */
+    BORDER_TRANS_OVERSHOOT: 1.7,
+    /** Border transition mode */
+    TERRITORY_BORDER_TRANSITION: 'pixi_graphics_morph',
     /** Voronoi color saturation multiplier (0=grey, 1=original, 2=vivid) */
     VORONOI_SATURATION: 1,
     /** Voronoi color lightness multiplier (0=dark, 1=original, 2=bright) */

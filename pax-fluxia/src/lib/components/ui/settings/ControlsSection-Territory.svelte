@@ -651,6 +651,74 @@
     </div>
 </div>
 
+<!-- Border Transition Tuning -->
+<div class="engine-control-group">
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Transition Easing</span>
+        </div>
+        <select
+            class="mode-select"
+            value={GAME_CONFIG.BORDER_TRANS_EASING ?? "back"}
+            onchange={(e) => {
+                debouncedConfigUpdate(
+                    "BORDER_TRANS_EASING",
+                    "borderTransEasing",
+                    (e.target as HTMLSelectElement).value,
+                );
+            }}
+        >
+            <option value="cubic">Cubic (smooth)</option>
+            <option value="back">Back (overshoot)</option>
+            <option value="elastic">Elastic (bouncy)</option>
+        </select>
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Resample Points</span><span class="val"
+                >{GAME_CONFIG.BORDER_TRANS_RESAMPLE_N ?? 32}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="8"
+            max="64"
+            step="4"
+            value={GAME_CONFIG.BORDER_TRANS_RESAMPLE_N ?? 32}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "BORDER_TRANS_RESAMPLE_N",
+                    "borderTransResampleN",
+                    v,
+                );
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Back Overshoot</span><span class="val"
+                >{(GAME_CONFIG.BORDER_TRANS_OVERSHOOT ?? 1.7).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="5"
+            step="0.1"
+            value={GAME_CONFIG.BORDER_TRANS_OVERSHOOT ?? 1.7}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "BORDER_TRANS_OVERSHOOT",
+                    "borderTransOvershoot",
+                    v,
+                );
+            }}
+        />
+    </div>
+</div>
+
 <!-- Active Layers toggles removed — V3 architecture uses Render Mode dropdown above -->
 
 {#if panel.territoryModifiedVoronoi}
