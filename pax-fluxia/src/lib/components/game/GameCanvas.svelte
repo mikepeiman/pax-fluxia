@@ -1308,6 +1308,30 @@
                                     fxOrchestrator.gameTime,
                                 );
 
+                            // One-shot diagnostic
+                            if (!(globalThis as any).__canonicalDiagLogged) {
+                                (globalThis as any).__canonicalDiagLogged =
+                                    true;
+                                if (!state) {
+                                    console.warn(
+                                        "[Canonical🔍] state=null — compiler returned error or no stars",
+                                    );
+                                } else {
+                                    console.log(
+                                        `[Canonical🔍] state.kind=${state.kind}` +
+                                            ` regions=${state.regions?.length ?? "?"}` +
+                                            ` frontierEdges=${state.frontierGraph?.edges?.size ?? "?"}` +
+                                            ` fittedFrontiers=${state.fittedFrontiers?.length ?? "?"}` +
+                                            ` transitionActive=${state.transitionActive}`,
+                                    );
+                                    if (state.regions?.length === 0) {
+                                        console.warn(
+                                            "[Canonical🔍] regions=0 — regionStage produced no closed loops",
+                                        );
+                                    }
+                                }
+                            }
+
                             if (state) {
                                 canonicalRenderer.render(
                                     state,

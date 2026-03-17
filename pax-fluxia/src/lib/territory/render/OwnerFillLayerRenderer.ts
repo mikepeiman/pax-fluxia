@@ -32,6 +32,7 @@ export class OwnerFillLayerRenderer {
 
     draw(cache: FillMeshCache, config: FillRenderConfig = {}): void {
         const g = this.graphics;
+        g.visible = true; // Re-show after GameCanvas hide-all-children loop
         g.clear();
 
         const alpha = config.alpha ?? 0.4;

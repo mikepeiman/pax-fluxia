@@ -27,6 +27,7 @@ export class BorderLayerRenderer {
 
     draw(cache: BorderMeshCache, config: BorderRenderConfig = { width: 4 }): void {
         const g = this.graphics;
+        g.visible = true; // Re-show after GameCanvas hide-all-children loop
         g.clear();
 
         const width = config.width ?? 4;
