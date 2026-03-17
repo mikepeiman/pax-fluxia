@@ -149,6 +149,68 @@ function buildComponentMap(
 }
 
 /**
+ * Graham scan convex hull on flat [x,y,x,y...] points.
+ * Returns flat [x,y,...] CCW closed loop. Returns [] if fewer than 3 points.
+ */
+function convexHull(flatPts: number[]): number[] {
+    const pts: [number, number][] = [];
+    for (let i = 0; i < flatPts.length - 1; i += 2) {
+        pts.push([flatPts[i], flatPts[i + 1]]);
+    }
+    if (pts.length < 3) {
+        return flatPts.slice(0, Math.min(flatPts.length, 4));
+    }
+    // Find lowest-then-leftmost pivot
+    let pivot = 0;
+    for (let i = 1; i < pts.length; i++) {
+        if (pts[i][1] < pts[pivot][1] || (pts[i][1] === pts[pivot][1] && pts[i][0] < pts[pivot][0])) {
+            pivot = i;
+        }
+    }
+    [pts[0], pts[pivot]] = [pts[pivot], pts[0]];
+    const base = pts[0];
+    const sorted = pts.slice(1).sort((a, b) => {
+        const angA = Math.atan2(a[1] - base[1], a[0] - base[0]);
+        const angB = Math.atan2(b[1] - base[1], b[0] - base[0]);
+        if (angA !== angB) return angA - angB;
+        return Math.hypot(a[0] - base[0], a[1] - base[1]) - Math.hypot(b[0] - base[0], b[1] - base[1]);
+    });
+    const hull: [number, number][] = [base];
+    for (const p of sorted) {
+        while (hull.length >= 2) {
+            const [ox, oy] = hull[hull.length - 2];
+            const [ax, ay] = hull[hull.length - 1];
+            const cross = (ax - ox) * (p[1] - oy) - (ay - oy) * (p[0] - ox);
+            if (cross <= 0) hull.pop(); else break;
+        }
+        hull.push(p);
+    }
+    if (hull.length < 3) return flatPts.slice(0, 4);
+    return hull.flatMap(([x, y]) => [x, y]);
+}
+
+/**
+ * Expand a polygon outward by `margin` pixels (simple centroid-based expansion).
+ * Used to extend territory fills slightly past frontier split points so fills
+ * reach the actual boundary lines rather than stopping at star centers.
+ */
+function expandPolygon(flatPts: number[], margin: number): number[] {
+    if (flatPts.length < 6) return flatPts;
+    let cx = 0, cy = 0;
+    const n = flatPts.length / 2;
+    for (let i = 0; i < flatPts.length; i += 2) { cx += flatPts[i]; cy += flatPts[i + 1]; }
+    cx /= n; cy /= n;
+    const result: number[] = [];
+    for (let i = 0; i < flatPts.length; i += 2) {
+        const dx = flatPts[i] - cx;
+        const dy = flatPts[i + 1] - cy;
+        const dist = Math.hypot(dx, dy) || 1;
+        result.push(flatPts[i] + (dx / dist) * margin, flatPts[i + 1] + (dy / dist) * margin);
+    }
+    return result;
+}
+
+/**
  * Execute the region stage.
  * Returns TerritoryRegion[] on success or CompileError.
  */
@@ -162,64 +224,72 @@ export function executeRegionStage(
     },
 ): TerritoryRegion[] | CompileError {
     try {
-        const { worldBounds } = config;
         const regions: TerritoryRegion[] = [];
         const componentMap = buildComponentMap(stars, connections);
 
-        // For this implementation, we create one region per owned star cluster.
-        // The region outer loop is built as a convex hull from the star's owned
-        // frontier nodes (for the initial stub); full polygon walking is evolved
-        // in subsequent iterations.
-        //
-        // ComponentId tracking (DX replacement): same-owner stars in different
-        // connected components get different componentIds, ensuring the render
-        // layer can visually separate them.
-
-        const regionIdSet = new Set<string>();
-        let regionIdx = 0;
-
-        // Group stars by owner
-        const starsByOwner = new Map<string, Star[]>();
+        // Group stars by owner → component
+        const ownerCompStars = new Map<string, Map<string, Star[]>>();
         for (const star of stars) {
             if (!star.ownerId) continue;
-            const arr = starsByOwner.get(star.ownerId) ?? [];
+            const compIdMap = componentMap.get(star.ownerId);
+            const compId = compIdMap?.get(star.id) ?? `${star.ownerId}#0`;
+            const innerMap = ownerCompStars.get(star.ownerId) ?? new Map<string, Star[]>();
+            const arr = innerMap.get(compId) ?? [];
             arr.push(star);
-            starsByOwner.set(star.ownerId, arr);
+            innerMap.set(compId, arr);
+            ownerCompStars.set(star.ownerId, innerMap);
         }
 
-        // Build one region per connected component per owner
-        const ownerCompStars = new Map<string, Map<string, Star[]>>();
-        for (const [ownerId, ownerStars] of starsByOwner) {
-            const compStarsMap = new Map<string, Star[]>();
-            const compIdMap = componentMap.get(ownerId);
-            for (const star of ownerStars) {
-                const compId = compIdMap?.get(star.id) ?? `${ownerId}#0`;
-                const arr = compStarsMap.get(compId) ?? [];
-                arr.push(star);
-                compStarsMap.set(compId, arr);
+        // Collect frontier nodes that touch each owner (either side of a frontier edge)
+        // keyed by ownerIdx
+        const frontierNodesByOwnerIdx = new Map<number, [number, number][]>();
+        for (const node of frontier.nodes.values()) {
+            for (const idx of [node.ownerA, node.ownerB]) {
+                const arr = frontierNodesByOwnerIdx.get(idx) ?? [];
+                arr.push([node.x, node.y]);
+                frontierNodesByOwnerIdx.set(idx, arr);
             }
-            ownerCompStars.set(ownerId, compStarsMap);
         }
+
+        let regionIdx = 0;
 
         for (const [ownerId, compStarsMap] of ownerCompStars) {
-            for (const [componentId, compStars] of compStarsMap) {
-                // Build a convex-hull-like outer loop from star positions as a stub.
-                // Frontier nodes for this owner pair will refine this in future iterations.
-                const points = compStars.flatMap(s => [s.x, s.y]);
-                if (points.length === 0) continue;
+            // Find ownerIdx in metric.playerIds
+            const ownerIdx = metric.playerIds.indexOf(ownerId);
 
-                const regionId = `region:${ownerId}:${componentId}:${regionIdx++}`;
+            for (const [componentId, compStars] of compStarsMap) {
+                const hullPts: number[] = [];
+
+                // Add owned star positions
+                for (const s of compStars) {
+                    hullPts.push(s.x, s.y);
+                }
+
+                // Add frontier nodes adjacent to this owner — these are the
+                // boundary points where the territory edge actually is
+                const frontierPts = ownerIdx >= 0 ? (frontierNodesByOwnerIdx.get(ownerIdx) ?? []) : [];
+                for (const [fx, fy] of frontierPts) {
+                    hullPts.push(fx, fy);
+                }
+
+                if (hullPts.length < 6) continue; // need at least 3 points for a polygon
+
+                // Build convex hull of stars+frontier nodes, then expand slightly
+                const hull = convexHull(hullPts);
+                const FILL_MARGIN_PX = 12; // expand fill past frontier so it meets the border line
+                const expanded = expandPolygon(hull, FILL_MARGIN_PX);
+
+                if (expanded.length < 6) continue;
+
                 regions.push({
-                    id: regionId,
+                    id: `region:${ownerId}:${componentId}:${regionIdx++}`,
                     ownerId,
                     componentId,
-                    loops: [points],
+                    loops: [expanded],
                 });
             }
         }
 
-        // If no regions were produced, create a single world-boundary fallback region
-        // per player (this can happen in degenerate maps). Mark as recoverable error.
         if (regions.length === 0) {
             return {
                 kind: 'error',
@@ -239,3 +309,4 @@ export function executeRegionStage(
         } satisfies CompileError;
     }
 }
+
