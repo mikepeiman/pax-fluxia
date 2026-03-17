@@ -15,26 +15,45 @@
  */
 
 import * as PIXI from 'pixi.js';
-import type { CanonicalTerritoryStateOk, TransitionPlan, FrontierGraph, TerritoryRegion } from '../compiler/types';
+import type { CanonicalTerritoryStateOk, TransitionPlan, FrontierGraph, TerritoryRegion, FittedFrontier } from '../compiler/types';
 import { buildFillMeshCache } from './buildFillMeshCache';
 import { buildBorderMeshCache, buildBorderMeshCacheFromGraph, type BorderRenderConfig } from './buildBorderMeshCache';
 import { OwnerFillLayerRenderer, type FillRenderConfig } from './OwnerFillLayerRenderer';
 import { BorderLayerRenderer } from './BorderLayerRenderer';
+import type { SharedPolyline } from '$lib/renderers/geometry/types';
+import { buildLerpedPolylines } from '$lib/renderers/geometry/morphUtils';
+import { substituteSmoothedEdges } from '$lib/renderers/geometry/borderPipeline';
 
 export interface TerritoryRenderConfig {
     fill?: FillRenderConfig;
     border?: BorderRenderConfig;
 }
 
+// Map FittedFrontiers to SharedPolyline interface for interpolation
+function mapFittedToShared(fitted: FittedFrontier[], colorLookup: (a: number, b: number) => number): SharedPolyline[] {
+    return fitted.flatMap(f => f.polylines.map(pts => {
+        // pts is [x1,y1, x2,y2, ...] flat array, SharedPolyline expects [[x,y], ...]
+        const points: [number, number][] = [];
+        for (let i = 0; i < pts.length; i += 2) points.push([pts[i], pts[i + 1]]);
+        return {
+            points,
+            ownerPairKey: f.ownerA < f.ownerB ? `${f.ownerA}|${f.ownerB}` : `${f.ownerB}|${f.ownerA}`,
+            color: colorLookup(f.ownerA, f.ownerB)
+        };
+    }));
+}
+
 export class TerritoryRenderer {
     private fillRenderer: OwnerFillLayerRenderer;
     private borderRenderer: BorderLayerRenderer;
+    private playerIds: string[];
 
     constructor(
         container: PIXI.Container,
         private getPlayerColor: (ownerIdx: number, playerIds: string[]) => number,
-        private playerIds: string[],
+        playerIds: string[],
     ) {
+        this.playerIds = playerIds;
         const getColorById = (ownerId: string) => {
             const idx = this.playerIds.indexOf(ownerId);
             return this.getPlayerColor(idx >= 0 ? idx : 0, this.playerIds);
@@ -91,25 +110,83 @@ export class TerritoryRenderer {
         nowMs: number,
         config: TerritoryRenderConfig,
     ): void {
+        // 1. Compute time parameter t
         const elapsed = nowMs - plan.startedAtMs;
-        const rawT = Math.max(0, Math.min(1, elapsed / plan.durationMs));
-        const t = this._easeInOutCubic(rawT);
+        const rawProgress = Math.max(0, Math.min(1, elapsed / plan.durationMs));
+        const t = this._easeInOutCubic(rawProgress);
 
-        // Interpolate frame frontier and regions from the plan
-        const frameFrontier = this._interpolateFrontier(plan, t);
-        const frameRegions = this._interpolateRegions(plan, t);
+        // 2. Map Canonical FittedFrontiers -> Geometry Layer SharedPolylines
+        const blendColor = (a: number, b: number) => {
+            const hexA = this.borderRenderer['getPlayerColor'](a);
+            const hexB = this.borderRenderer['getPlayerColor'](b);
+            // Poor man's blend, PVV3 extracts this later, just pass 0 for now as it's ignored by the cache
+            return 0;
+        };
 
-        // Build both caches from the SAME interpolated frame data
+        const prevShared = mapFittedToShared(plan.prevState.fittedFrontiers, blendColor);
+        const nextShared = mapFittedToShared(plan.nextState.fittedFrontiers, blendColor);
+
+        // 3. Interpolate the frontiers
+        const lerpedData = buildLerpedPolylines(prevShared, nextShared, t);
+        const frameFrontiers = lerpedData as SharedPolyline[];
+
+        // 4. Force fills to snap to the interpolated frontiers (Zero Divergence rule!)
+        const frameRegions = this.cloneRegions(plan.nextState.regions);
+
+        // Map TerritoryRegion (flat loops) to MergedTerritory (tuple points) for substitution
+        const mergedForSubstitution: any[] = frameRegions.flatMap(region =>
+            region.loops.map((loop, idx) => {
+                const points: [number, number][] = [];
+                for (let i = 0; i < loop.length; i += 2) {
+                    points.push([loop[i], loop[i + 1]]);
+                }
+                return {
+                    ownerId: region.ownerId,
+                    color: 0,
+                    points,
+                    _originalRegion: region,
+                    _originalLoopIdx: idx
+                };
+            })
+        );
+
+        substituteSmoothedEdges(mergedForSubstitution as any, nextShared, frameFrontiers);
+
+        // Map back to flat loops
+        for (const merged of mergedForSubstitution) {
+            merged._originalRegion.loops[merged._originalLoopIdx] = merged.points.flat();
+        }
+
+        // 5. Re-pack frameFrontiers into FittedFrontier structure for the Mesh cache
+        const frameFitted: FittedFrontier[] = frameFrontiers.map(f => {
+            const [ownerA, ownerB] = f.ownerPairKey.split('|').map(Number);
+            return {
+                pairId: f.ownerPairKey,
+                family: 'curved',
+                ownerA,
+                ownerB,
+                polylines: [f.points.flat()]
+            };
+        });
+
+        // 6. Build caches and draw
+        const borderCache = buildBorderMeshCache(frameFitted, config.border ?? { width: 4 });
         const fillCache = buildFillMeshCache(frameRegions);
-        const borderCache = buildBorderMeshCacheFromGraph(frameFrontier, config.border ?? { width: 4 });
 
         this.fillRenderer.draw(fillCache, config.fill);
         this.borderRenderer.draw(borderCache, config.border ?? { width: 4 });
 
-        // Mark transition complete when eased reaches 1
-        if (t >= 1.0) {
+        // 7. Cleanup
+        if (rawProgress >= 1.0) {
             state.transitionActive = false;
         }
+    }
+
+    private cloneRegions(regions: TerritoryRegion[]): TerritoryRegion[] {
+        return regions.map(region => ({
+            ...region,
+            loops: region.loops.map(loop => [...loop]) // clone coordinate arrays
+        }));
     }
 
     private _easeInOutCubic(t: number): number {
