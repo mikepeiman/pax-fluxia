@@ -424,16 +424,14 @@ function renderInterpolatedBorders(
 // mergeSameOwnerCells and detectEnclaves moved to pvv2MetricStage.ts (geometry stage)
 
 
-/** Draw a territory: fill + stroke on the SAME path.
- *  This guarantees fill and border are identical geometry — zero divergence.
- *  Points are already processed by pvv2MetricStage — this is a PURE DRAW function. */
-function drawTerritoryFillWithHoles(
+/** Draw a territory fill ONLY (no stroke).
+ *  Borders are drawn separately via drawBorderPolylines on borderGraphics.
+ *  Points are already processed by pvv2MetricStage + substituteSmoothedEdges. */
+function drawTerritoryFillOnly(
     graphics: PIXI.Graphics,
     territory: MergedTerritory,
     holes: [number, number][][] | undefined,
     alpha: number,
-    borderWidth?: number,
-    borderAlpha?: number,
 ): void {
     if (territory.points.length < 3) {
         log.renderer('PVV2:fill', `SKIP territory ownerId=${territory.ownerId} — only ${territory.points.length} pts`);
@@ -442,14 +440,7 @@ function drawTerritoryFillWithHoles(
     graphics.poly(territory.points.flat());
     graphics.fill({ color: territory.color, alpha });
 
-    // Stroke the SAME path — fill and border are identical geometry
-    const bw = borderWidth ?? (GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 3);
-    const ba = borderAlpha ?? (GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.5);
-    if (bw > 0 && ba > 0) {
-        graphics.stroke({ width: bw, color: territory.color, alpha: ba, cap: 'round', join: 'round' });
-    }
-
-    log.renderer('PVV2:fill', `  filled+stroked ownerId=${territory.ownerId} color=0x${territory.color.toString(16)} alpha=${alpha.toFixed(2)} pts=${territory.points.length} holes=${holes?.length ?? 0} bw=${bw} ba=${ba}`);
+    log.renderer('PVV2:fill', `  filled ownerId=${territory.ownerId} color=0x${territory.color.toString(16)} alpha=${alpha.toFixed(2)} pts=${territory.points.length} holes=${holes?.length ?? 0}`);
     if (holes) {
         for (const hole of holes) {
             if (hole.length < 3) continue;
@@ -623,13 +614,22 @@ export function renderPowerVoronoi(
         }));
 
         // 3. Force the region fills to snap to the moving frame frontiers
-        // (type coercion handles PVV2 MergedTerritory ~ TerritoryRegion compatibility for loops)
         substituteSmoothedEdges(frameRegions as any, targetRawSharedPolylines!, frameFrontiers);
 
-        // 4. Draw the mutated frameRegions as the fills, and frameFrontiers as the borders
+        // 4. Draw fills ONLY on fillGraphics
         for (let i = 0; i < frameRegions.length; i++) {
-            drawTerritoryFillWithHoles(fillGraphics, frameRegions[i], lastEnclaveMap?.get(i), alpha, borderWidth, borderAlpha);
+            drawTerritoryFillOnly(fillGraphics, frameRegions[i], lastEnclaveMap?.get(i), alpha);
         }
+
+        // 5. Draw borders separately on borderGraphics from the lerped frontiers
+        if (!borderGraphics) {
+            borderGraphics = new PIXI.Graphics();
+            voronoiContainer.addChild(borderGraphics);
+        }
+        borderGraphics.clear();
+        borderGraphics.visible = true;
+        const smoothN = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
+        drawBorderPolylines(borderGraphics, frameFrontiers, 0, borderWidth, borderAlpha);
 
         if (rawT >= 1) {
             isSmoothTransitioning = false;
@@ -775,14 +775,19 @@ export function renderPowerVoronoi(
 
     log.renderer('PVV2', `STEADY-STATE FILLS | drawing ${steadyRegions.length} territories`);
     for (let i = 0; i < steadyRegions.length; i++) {
-        drawTerritoryFillWithHoles(fillGraphics, steadyRegions[i], enclaveMap.get(i), alpha);
+        drawTerritoryFillOnly(fillGraphics, steadyRegions[i], enclaveMap.get(i), alpha);
     }
 
-    // Borders are now drawn as strokes on the fill path (inside drawTerritoryFillWithHoles).
-    // Clear any legacy borderGraphics to prevent stale borders from showing.
-    if (borderGraphics) {
-        borderGraphics.clear();
-        borderGraphics.visible = false;
+    // Draw canonical borders separately on borderGraphics
+    if (!borderGraphics) {
+        borderGraphics = new PIXI.Graphics();
+        voronoiContainer.addChild(borderGraphics);
+    }
+    borderGraphics.clear();
+    borderGraphics.visible = true;
+    const smoothN = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
+    if (targetSharedPolylines && targetSharedPolylines.length > 0 && borderWidth > 0 && borderAlpha > 0) {
+        drawBorderPolylines(borderGraphics, targetSharedPolylines, 0, borderWidth, borderAlpha);
     }
 
     // ── Store targets + start transition ────────────────────────────────
