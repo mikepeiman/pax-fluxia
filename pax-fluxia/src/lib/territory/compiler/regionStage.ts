@@ -189,26 +189,6 @@ function convexHull(flatPts: number[]): number[] {
     return hull.flatMap(([x, y]) => [x, y]);
 }
 
-/**
- * Expand a polygon outward by `margin` pixels (simple centroid-based expansion).
- * Used to extend territory fills slightly past frontier split points so fills
- * reach the actual boundary lines rather than stopping at star centers.
- */
-function expandPolygon(flatPts: number[], margin: number): number[] {
-    if (flatPts.length < 6) return flatPts;
-    let cx = 0, cy = 0;
-    const n = flatPts.length / 2;
-    for (let i = 0; i < flatPts.length; i += 2) { cx += flatPts[i]; cy += flatPts[i + 1]; }
-    cx /= n; cy /= n;
-    const result: number[] = [];
-    for (let i = 0; i < flatPts.length; i += 2) {
-        const dx = flatPts[i] - cx;
-        const dy = flatPts[i + 1] - cy;
-        const dist = Math.hypot(dx, dy) || 1;
-        result.push(flatPts[i] + (dx / dist) * margin, flatPts[i + 1] + (dy / dist) * margin);
-    }
-    return result;
-}
 
 /**
  * Execute the region stage.
@@ -274,18 +254,16 @@ export function executeRegionStage(
 
                 if (hullPts.length < 6) continue; // need at least 3 points for a polygon
 
-                // Build convex hull of stars+frontier nodes, then expand slightly
+                // Convex hull of owned stars + frontier nodes gives a world-accurate
+                // territory boundary. No visual expansion here — that's a render concern.
                 const hull = convexHull(hullPts);
-                const FILL_MARGIN_PX = 12; // expand fill past frontier so it meets the border line
-                const expanded = expandPolygon(hull, FILL_MARGIN_PX);
-
-                if (expanded.length < 6) continue;
+                if (hull.length < 6) continue;
 
                 regions.push({
                     id: `region:${ownerId}:${componentId}:${regionIdx++}`,
                     ownerId,
                     componentId,
-                    loops: [expanded],
+                    loops: [hull],
                 });
             }
         }
