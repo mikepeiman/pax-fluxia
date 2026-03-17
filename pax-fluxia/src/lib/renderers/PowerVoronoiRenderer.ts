@@ -627,15 +627,9 @@ export function renderPowerVoronoi(
             drawTerritoryFillOnly(fillGraphics, lastMergedTerritories[i], lastEnclaveMap?.get(i), alpha * easedT, smoothPasses);
         }
 
-        // 2. Lerp borders between prev and target polylines
+        // 2. Lerp borders between prev and target polylines — draw on SAME fillGraphics
         const frameFrontiers = buildLerpedPolylines(prevSharedPolylines!, targetSharedPolylines!, easedT);
-        if (!borderGraphics) {
-            borderGraphics = new PIXI.Graphics();
-            voronoiContainer.addChild(borderGraphics);
-        }
-        borderGraphics.clear();
-        borderGraphics.visible = true;
-        drawBorderPolylines(borderGraphics, frameFrontiers, 0, borderWidth, borderAlpha);
+        drawBorderPolylines(fillGraphics, frameFrontiers, 0, borderWidth, borderAlpha);
 
         if (rawT >= 1) {
             isSmoothTransitioning = false;
@@ -809,16 +803,10 @@ export function renderPowerVoronoi(
         }) ?? null;
     }
 
-    // NOW draw borders (after targetSharedPolylines is populated)
-    if (!borderGraphics) {
-        borderGraphics = new PIXI.Graphics();
-        voronoiContainer.addChild(borderGraphics);
-    }
-    borderGraphics.clear();
-    borderGraphics.visible = true;
+    // Draw borders on fillGraphics (same layer, after fills, guarantees visibility)
     if (targetSharedPolylines && targetSharedPolylines.length > 0 && borderWidth > 0 && borderAlpha > 0) {
-        drawBorderPolylines(borderGraphics, targetSharedPolylines, 0, borderWidth, borderAlpha);
-        log.renderer('PVV2', `🟢 BORDERS DRAWN | polylines=${targetSharedPolylines.length} bw=${borderWidth} ba=${borderAlpha} visible=${borderGraphics.visible} parent=${!!borderGraphics.parent} children=${voronoiContainer.children.length}`);
+        drawBorderPolylines(fillGraphics, targetSharedPolylines, 0, borderWidth, borderAlpha);
+        log.renderer('PVV2', `🟢 BORDERS DRAWN on fillGraphics | polylines=${targetSharedPolylines.length} bw=${borderWidth} ba=${borderAlpha}`);
     } else {
         log.renderer('PVV2', `🔴 BORDERS SKIPPED | polylines=${targetSharedPolylines?.length ?? 'null'} bw=${borderWidth} ba=${borderAlpha}`);
     }
