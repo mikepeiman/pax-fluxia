@@ -426,27 +426,35 @@ function renderInterpolatedBorders(
 // mergeSameOwnerCells and detectEnclaves moved to pvv2MetricStage.ts (geometry stage)
 
 
-/** Draw a territory fill with enclave holes cut out.
- *  Points are already Chaikin-smoothed by pvv2MetricStage — this is a PURE DRAW function.
- *  No geometry computation here. */
+/** Draw a territory: fill + stroke on the SAME path.
+ *  This guarantees fill and border are identical geometry — zero divergence.
+ *  Points are already processed by pvv2MetricStage — this is a PURE DRAW function. */
 function drawTerritoryFillWithHoles(
     graphics: PIXI.Graphics,
     territory: MergedTerritory,
     holes: [number, number][][] | undefined,
     alpha: number,
+    borderWidth?: number,
+    borderAlpha?: number,
 ): void {
     if (territory.points.length < 3) {
         log.renderer('PVV2:fill', `SKIP territory ownerId=${territory.ownerId} — only ${territory.points.length} pts`);
         return;
     }
-    graphics.beginPath();
     graphics.poly(territory.points.flat());
     graphics.fill({ color: territory.color, alpha });
-    log.renderer('PVV2:fill', `  filled ownerId=${territory.ownerId} color=0x${territory.color.toString(16)} alpha=${alpha.toFixed(2)} pts=${territory.points.length} holes=${holes?.length ?? 0}`);
+
+    // Stroke the SAME path — fill and border are identical geometry
+    const bw = borderWidth ?? (GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 3);
+    const ba = borderAlpha ?? (GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.5);
+    if (bw > 0 && ba > 0) {
+        graphics.stroke({ width: bw, color: territory.color, alpha: ba, cap: 'round', join: 'round' });
+    }
+
+    log.renderer('PVV2:fill', `  filled+stroked ownerId=${territory.ownerId} color=0x${territory.color.toString(16)} alpha=${alpha.toFixed(2)} pts=${territory.points.length} holes=${holes?.length ?? 0} bw=${bw} ba=${ba}`);
     if (holes) {
         for (const hole of holes) {
             if (hole.length < 3) continue;
-            graphics.beginPath();
             graphics.poly(hole.flat());
             graphics.cut();
         }
@@ -812,24 +820,9 @@ export function renderPowerVoronoi(
         return;
     }
 
-    const { cells, mergedTerritories: mergedRaw, sharedEdges, sharedPolylines: builtPolylinesRaw, enclaveMap } = stageResult;
+    const { cells, mergedTerritories: merged, sharedEdges, sharedPolylines: builtPolylinesRaw, enclaveMap } = stageResult;
 
-    // ── FINAL DATA MASSAGE: Bézier densification ──────────────────────────
-    // Apply the same quadratic-Bézier-through-midpoints interpolation to BOTH
-    // fill polygon points AND border polyline points. This ensures both renderers
-    // draw straight lines to identical dense geometry — no fill-border divergence.
-    const merged = mergedRaw.map(t => ({
-        ...t,
-        points: densifyBezierMidpoints(t.points),
-    }));
-    const builtPolylines = builtPolylinesRaw.map(p => ({
-        ...p,
-        points: densifyBezierMidpoints(p.points),
-    }));
-
-    log.renderer('PVV2', `STAGE OUTPUT | cells=${cells.length} merged=${merged.length} edges=${sharedEdges.length} polylines=${builtPolylines.length} enclaves=${enclaveMap.size} chaikinPasses=${stageConfig.chaikinPasses}`);
-    log.renderer('PVV2', `  merged pts counts (densified): ${merged.map(t => `${t.ownerId}:${t.points.length}`).join(' ')}`);
-    log.renderer('PVV2', `  polyline pts counts (densified): ${builtPolylines.map(p => `${p.ownerPairKey}:${p.points.length}`).join(' ')}`);
+    log.renderer('PVV2', `STAGE OUTPUT | cells=${cells.length} merged=${merged.length} edges=${sharedEdges.length} polylines=${builtPolylinesRaw.length} enclaves=${enclaveMap.size} chaikinPasses=${stageConfig.chaikinPasses}`);
 
     // Fingerprint from stage — used for changed-owner detection
     // Assign colors to merged territories (render concern, not geometry)
@@ -866,9 +859,8 @@ export function renderPowerVoronoi(
     fillGraphics.clear();
     fillGraphics.visible = true;
 
-    // Fills and borders both use geometry pre-smoothed by pvv2MetricStage (same Chaikin passes).
-    // Do NOT re-apply Chaikin here — that would double-smooth and diverge fills from borders.
-    const borderSmoothPasses = 0; // smoothing done in stage
+    // Fills and borders are drawn on the SAME path via fill+stroke in drawTerritoryFillWithHoles.
+    // No separate border render pass needed.
 
     log.renderer('PVV2', `FILLS | enclaves=${enclaveMap.size} territories to draw=${merged.length} isFillTransitioning=${isFillTransitioning}`);
 
@@ -906,45 +898,11 @@ export function renderPowerVoronoi(
         }
     }
 
-    // Borders — smoothed shared edges via canonical drawBorderPolylines
-    if (borderWidth > 0 && borderAlpha > 0) {
-        if (!borderGraphics) {
-            borderGraphics = new PIXI.Graphics();
-            voronoiContainer.addChild(borderGraphics);
-        }
+    // Borders are now drawn as strokes on the fill path (inside drawTerritoryFillWithHoles).
+    // Clear any legacy borderGraphics to prevent stale borders from showing.
+    if (borderGraphics) {
         borderGraphics.clear();
-        borderGraphics.visible = true;
-
-        // Assign colors to shared edges
-        for (const edge of sharedEdges) {
-            edge.colorA = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerA), satMult, lightMult);
-            edge.colorB = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerB), satMult, lightMult);
-        }
-
-        // Build color map from edge data (render concern — geometry stage sets colors to 0)
-        const colorMap = new Map<string, number>();
-        for (const edge of sharedEdges) {
-            const key = edge.ownerA < edge.ownerB ? `${edge.ownerA}|${edge.ownerB}` : `${edge.ownerB}|${edge.ownerA}`;
-            if (!colorMap.has(key)) {
-                colorMap.set(key, blendColors(edge.colorA, edge.colorB, 0.5));
-            }
-        }
-
-        // Use pre-densified polylines from the data massage step; assign colors here (render concern)
-        for (const pl of builtPolylines) {
-            const key = pl.ownerPairKey;
-            const keyAlt = key.split('|').reverse().join('|');
-            pl.color = colorMap.get(key) ?? colorMap.get(keyAlt) ?? 0x888888;
-        }
-
-        // Draw borders as straight lines — curves are baked into the densified point data
-        const t0b = performance.now();
-        drawBorderPolylines(borderGraphics, builtPolylines, 0, borderWidth, borderAlpha);
-        const t1b = performance.now();
-        const avgPts = builtPolylines.length > 0 ? (builtPolylines.reduce((s, p) => s + p.points.length, 0) / builtPolylines.length).toFixed(0) : '0';
-        log.renderer('PVV2', `STEADY-STATE borders | ${builtPolylines.length} polylines, ${sharedEdges.length} edges, smooth=${borderSmoothPasses} avgPts=${avgPts} | draw=${(t1b - t0b).toFixed(1)}ms | t+${(performance.now() - now).toFixed(1)}ms`);
-    } else if (borderGraphics) {
-        borderGraphics.clear();
+        borderGraphics.visible = false;
     }
 
     // ── Store targets + start transition ────────────────────────────────
@@ -967,8 +925,8 @@ export function renderPowerVoronoi(
             const key = edge.ownerA < edge.ownerB ? `${edge.ownerA}|${edge.ownerB}` : `${edge.ownerB}|${edge.ownerA}`;
             if (!cMap.has(key)) cMap.set(key, blendColors(edge.colorA, edge.colorB, 0.5));
         }
-        // builtPolylines is already densified; assign colors here (render concern)
-        targetSharedPolylines = builtPolylines.map(pl => {
+        // builtPolylinesRaw from stage; assign colors here (render concern)
+        targetSharedPolylines = builtPolylinesRaw.map(pl => {
             const [ownerA, ownerB] = pl.ownerPairKey.split('|');
             const color = cMap.get(`${ownerA}|${ownerB}`) ?? cMap.get(`${ownerB}|${ownerA}`) ?? 0x888888;
             return { ...pl, color };
