@@ -238,27 +238,23 @@ export class GraphicsPathMorpher {
     }
 }
 
-// ── Mode 2: Pixi MeshRope ──────────────────────────────────────────────────
+// ── Mode 2: Glow Path Morpher (double-stroke rope-like effect) ──────────────
 
 /**
- * Creates MeshRope instances per polyline and animates control points.
- * Provides a rope-like visual with constant-width bending texture.
+ * Morphs border polylines with a double-stroke "rope glow" visual.
+ * Outer stroke: wide, low-alpha glow in the border color.
+ * Inner stroke: narrow, full-alpha core line.
+ * Uses Graphics (proven to work in voronoiContainer) instead of MeshRope.
  */
-export class RopeBorderRenderer {
+export class GlowPathMorpher {
     private pairs: MatchedPair[];
-    private ropes: PIXI.MeshRope[] = [];
-    private ropePoints: PIXI.Point[][] = [];
-    private container: PIXI.Container | null = null;
     private easingFn: (t: number) => number;
-    private ropeTexture: PIXI.Texture;
-    private ropeWidth: number;
 
     constructor(
         prev: SharedPolyline[],
         target: SharedPolyline[],
         easing: 'cubic' | 'back' | 'elastic' = 'back',
         resampleN: number = 32,
-        ropeWidth: number = 3,
         overshoot: number = 1.70158,
     ) {
         this.pairs = matchPolylines(prev, target, resampleN);
@@ -266,67 +262,57 @@ export class RopeBorderRenderer {
             : easing === 'back' ? (t: number) => easeInOutBack(t, overshoot)
                 : easeInOutCubic;
 
-        // DIAGNOSTIC: Use PIXI.Texture.WHITE (guaranteed GPU-ready) to test if canvas texture was the issue
-        // Rope will be 16px wide (fat), but proves rendering works
-        this.ropeTexture = PIXI.Texture.WHITE;
-        this.ropeWidth = ropeWidth;
-
-        log.renderer('RopeBorderRenderer', `created | pairs=${this.pairs.length} easing=${easing} resampleN=${resampleN} ropeWidth=${ropeWidth} texture=WHITE overshoot=${overshoot.toFixed(2)}`);
+        log.renderer('GlowPathMorpher', `created | pairs=${this.pairs.length} easing=${easing} resampleN=${resampleN} overshoot=${overshoot.toFixed(2)}`);
     }
 
-    /** Add all ropes to the given container (call once). */
-    addTo(container: PIXI.Container): void {
-        this.container = container;
-        for (const pair of this.pairs) {
-            // Initialize points at fromPoints positions
-            const points = pair.fromPoints.map(([x, y]) => new PIXI.Point(x, y));
-            this.ropePoints.push(points);
-
-            const rope = new PIXI.MeshRope({
-                texture: this.ropeTexture,
-                points,
-                textureScale: this.ropeWidth,
-            });
-            rope.tint = pair.color;
-            this.ropes.push(rope);
-            container.addChild(rope);
-        }
-        log.renderer('RopeBorderRenderer', `addTo: added ${this.ropes.length} ropes to container`);
-    }
-
-    /** Update all rope control points at time t (0→1). Call every frame. */
-    update(rawT: number, alpha: number = 1.0): void {
+    /**
+     * Draw all morphed polylines with glow effect onto the given Graphics at time t (0→1).
+     * Does NOT clear the graphics — caller should clear + draw fills first.
+     */
+    drawFrame(
+        graphics: PIXI.Graphics,
+        rawT: number,
+        width: number,
+        alpha: number,
+    ): void {
         const t = this.easingFn(Math.max(0, Math.min(1, rawT)));
+        let drawn = 0;
 
-        for (let ri = 0; ri < this.pairs.length; ri++) {
-            const pair = this.pairs[ri];
-            const points = this.ropePoints[ri];
-            if (!points) continue;
+        for (const pair of this.pairs) {
+            const { fromPoints, toPoints, color } = pair;
+            const n = Math.min(fromPoints.length, toPoints.length);
+            if (n < 2) continue;
 
-            const n = Math.min(pair.fromPoints.length, pair.toPoints.length);
-            for (let i = 0; i < n && i < points.length; i++) {
-                points[i].x = pair.fromPoints[i][0] + (pair.toPoints[i][0] - pair.fromPoints[i][0]) * t;
-                points[i].y = pair.fromPoints[i][1] + (pair.toPoints[i][1] - pair.fromPoints[i][1]) * t;
+            // Compute interpolated points once
+            const lerpedX: number[] = new Array(n);
+            const lerpedY: number[] = new Array(n);
+            for (let i = 0; i < n; i++) {
+                lerpedX[i] = fromPoints[i][0] + (toPoints[i][0] - fromPoints[i][0]) * t;
+                lerpedY[i] = fromPoints[i][1] + (toPoints[i][1] - fromPoints[i][1]) * t;
             }
 
-            // Set alpha on rope
-            if (this.ropes[ri]) {
-                this.ropes[ri].alpha = alpha;
+            // Outer glow stroke (wide, translucent)
+            graphics.moveTo(lerpedX[0], lerpedY[0]);
+            for (let i = 1; i < n; i++) {
+                graphics.lineTo(lerpedX[i], lerpedY[i]);
             }
+            graphics.stroke({ width: width * 3, color, alpha: alpha * 0.3, cap: 'round', join: 'round' });
+
+            // Inner core stroke (narrow, bright)
+            graphics.moveTo(lerpedX[0], lerpedY[0]);
+            for (let i = 1; i < n; i++) {
+                graphics.lineTo(lerpedX[i], lerpedY[i]);
+            }
+            graphics.stroke({ width, color, alpha, cap: 'round', join: 'round' });
+            drawn++;
         }
 
-        log.renderer('RopeBorderRenderer', `update t=${rawT.toFixed(3)} eased=${t.toFixed(3)} | ${this.ropes.length} ropes`);
+        log.renderer('GlowPathMorpher', `drawFrame t=${rawT.toFixed(3)} eased=${t.toFixed(3)} | drew ${drawn}/${this.pairs.length} polylines | w=${width} a=${alpha.toFixed(2)}`);
     }
 
-    /** Remove all ropes from their container and clean up. */
+    /** No-op cleanup (nothing to remove, we draw on shared Graphics). */
     removeAll(): void {
-        for (const rope of this.ropes) {
-            if (rope.parent) rope.parent.removeChild(rope);
-            rope.destroy();
-        }
-        this.ropes = [];
-        this.ropePoints = [];
-        // Don't destroy PIXI.Texture.WHITE — it's a shared singleton
-        log.renderer('RopeBorderRenderer', 'removeAll: cleaned up all ropes');
+        log.renderer('GlowPathMorpher', 'removeAll: no-op (Graphics-based)');
     }
 }
+

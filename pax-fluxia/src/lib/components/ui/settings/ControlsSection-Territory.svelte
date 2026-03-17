@@ -547,7 +547,7 @@
     const BORDER_TRANSITION_OPTIONS = [
         { id: "none", label: "None (Off)" },
         { id: "pixi_graphics_morph", label: "✦ Pixi Graphics Path Morph" },
-        { id: "pixi_mesh_rope", label: "✦ Pixi MeshRope Morph" },
+        { id: "pixi_mesh_rope", label: "✦ Pixi Glow Path Morph" },
         {
             id: "optimal_transport",
             label: "✦ Smooth Border Morph (DY4 Optimal Transport)",
