@@ -9,7 +9,7 @@
 // A key belongs to exactly ONE category (no overlap).
 // ============================================================================
 
-import { GAME_CONFIG } from '$lib/config/game.config';
+import { GAME_CONFIG, DEFAULT_GAME_CONFIG } from '$lib/config/game.config';
 import { getBuiltinThemes, getBuiltinCategoryPresets } from './builtinThemes';
 
 // ── Category IDs ────────────────────────────────────────────────────────────
@@ -585,6 +585,29 @@ export function applyCategoryPreset(preset: CategoryPreset): void {
             (GAME_CONFIG as any)[key] = val;
         }
     }
+}
+
+/**
+ * Reset a category to its default values from DEFAULT_GAME_CONFIG.
+ * Constructs a synthetic preset from defaults and applies it through the
+ * same callback path used by applyCategoryPreset.
+ */
+export function resetCategoryToDefaults(category: ThemeCategory): void {
+    const keys = CATEGORY_KEYS[category];
+    const values: Record<string, unknown> = {};
+    for (const key of keys) {
+        if (key in DEFAULT_GAME_CONFIG) {
+            values[key] = (DEFAULT_GAME_CONFIG as any)[key];
+        }
+    }
+    const defaultPreset: CategoryPreset = {
+        name: '__defaults__',
+        category,
+        values,
+        builtIn: true,
+        createdAt: new Date().toISOString(),
+    };
+    applyCategoryPreset(defaultPreset);
 }
 
 // ── Public API ──────────────────────────────────────────────────────────────

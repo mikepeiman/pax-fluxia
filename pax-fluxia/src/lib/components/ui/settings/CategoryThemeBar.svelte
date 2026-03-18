@@ -6,6 +6,7 @@
         saveCategoryPreset,
         applyCategoryPreset,
         deleteCategoryPreset,
+        resetCategoryToDefaults,
         CATEGORY_META,
     } from "$lib/config/categoryThemes";
 
@@ -71,6 +72,12 @@
         _version++; // trigger preset list refresh
     }
 
+    function handleReset() {
+        resetCategoryToDefaults(category);
+        selectedName = "";
+        onApply?.();
+    }
+
     function handleUpdate() {
         if (!selectedName) return;
         const existing = presets.find((p) => p.name === selectedName);
@@ -129,6 +136,13 @@
                     onclick={() => (showSaveInput = true)}
                 >
                     <span class="plus-icon">+</span>
+                </button>
+                <button
+                    class="action-btn reset-btn"
+                    title="Reset to defaults"
+                    onclick={handleReset}
+                >
+                    ↺
                 </button>
             </div>
 
