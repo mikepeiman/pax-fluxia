@@ -404,6 +404,8 @@
 | R-123 | **Community Content Hub**: project directory for storing/sharing custom themes and maps. Three tiers: official maps (from dev), public user-contributed maps, and user themes. Infrastructure for future sharing/import/export of rich game config presets. | 🔵 |
 | R-124 | **Spectator Mode on Mid-Game Join**: New players joining in-progress games enter as spectators (observers). Can choose to take over an AI player, or request takeover of a human player (with consent). UI shows "Spectating" player list. | 🔴 |
 | R-125 | **Conquest Reactivation Delay**: Newly conquered stars have a cooldown before production/orders activate. Config: `CONQUEST_REACTIVATION_ENABLED` (bool), `CONQUEST_REACTIVATION_TICKS` (int, default 2-3). Adds strategic cost to conquest — prevents instant counter-attack from captured star. | 🟢 |
+| R-126 | **Category Theme File Persistence**: Category theme save/load should write to project files (not only localStorage), immediately surfaced as options, persisting beyond reloads/localStorage wipes. Every panel needs reset-to-defaults (scoped to category). CategoryThemeBar already has save/load UI — investigate `categoryThemes.ts` storage backend. | 🔴 |
+| R-127 | **MSR/CX/DX Geometry Model Alignment**: New geometry model should handle MSR, CX, DX constraints inherently, but these toggles/values still have effect in updated render modes. Architecture misalignment — investigate which legacy constraint toggles remain active when they shouldn't be. | 🔴 |
 
 ---
 
