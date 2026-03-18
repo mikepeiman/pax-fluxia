@@ -645,6 +645,46 @@ export function saveCategoryPreset(category: ThemeCategory, name: string): Categ
 }
 
 /**
+ * Import a category preset from a parsed JSON object (e.g. from file upload).
+ * Validates structure, saves to localStorage, and optionally applies it.
+ * Returns the imported preset, or null if invalid.
+ */
+export function importCategoryPreset(
+    json: Record<string, unknown>,
+    apply = true,
+): CategoryPreset | null {
+    // Validate required fields
+    const name = typeof json.name === 'string' ? json.name : null;
+    const category = typeof json.category === 'string' ? json.category as ThemeCategory : null;
+    const values = typeof json.values === 'object' && json.values !== null
+        ? json.values as Record<string, unknown>
+        : null;
+
+    if (!name || !category || !values) return null;
+    if (!(category in CATEGORY_KEYS)) return null;
+
+    const preset: CategoryPreset = {
+        name,
+        category,
+        values,
+        createdAt: typeof json.createdAt === 'string' ? json.createdAt : new Date().toISOString(),
+    };
+
+    // Save to localStorage (overwrites if same name exists)
+    const presets = getUserPresets(category).filter(p => p.name !== name);
+    presets.unshift(preset);
+    _cache.set(category, presets);
+    persistPresets(category, presets);
+
+    // Apply immediately if requested
+    if (apply) {
+        applyCategoryPreset(preset);
+    }
+
+    return preset;
+}
+
+/**
  * Load a category preset by name and apply it.
  * Returns the preset if found, null otherwise.
  */

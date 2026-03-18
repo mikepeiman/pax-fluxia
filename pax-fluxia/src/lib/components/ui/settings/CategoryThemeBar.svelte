@@ -7,6 +7,7 @@
         applyCategoryPreset,
         deleteCategoryPreset,
         resetCategoryToDefaults,
+        importCategoryPreset,
         CATEGORY_META,
     } from "$lib/config/categoryThemes";
 
@@ -78,6 +79,39 @@
         onApply?.();
     }
 
+    let fileInput: HTMLInputElement;
+
+    function handleImport() {
+        fileInput?.click();
+    }
+
+    function onFileSelected(e: Event) {
+        const file = (e.target as HTMLInputElement).files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+            try {
+                const json = JSON.parse(reader.result as string);
+                // If the JSON has a different category, force it to this category
+                json.category = category;
+                const preset = importCategoryPreset(json, true);
+                if (preset) {
+                    selectedName = preset.name;
+                    _version++;
+                    onApply?.();
+                }
+            } catch (err) {
+                console.error(
+                    "[CategoryThemeBar] Failed to import theme:",
+                    err,
+                );
+            }
+        };
+        reader.readAsText(file);
+        // Reset input so same file can be re-imported
+        (e.target as HTMLInputElement).value = "";
+    }
+
     function handleUpdate() {
         if (!selectedName) return;
         const existing = presets.find((p) => p.name === selectedName);
@@ -144,6 +178,20 @@
                 >
                     ↺
                 </button>
+                <button
+                    class="action-btn import-btn"
+                    title="Import theme from file"
+                    onclick={handleImport}
+                >
+                    📂
+                </button>
+                <input
+                    type="file"
+                    accept=".json"
+                    style="display:none"
+                    bind:this={fileInput}
+                    onchange={onFileSelected}
+                />
             </div>
 
             <!-- Save Input Drawer -->
