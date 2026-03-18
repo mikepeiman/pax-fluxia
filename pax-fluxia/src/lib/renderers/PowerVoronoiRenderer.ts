@@ -642,9 +642,12 @@ export function renderPowerVoronoi(
             activeRopeRenderer.setVisible(true);
             activeRopeRenderer.update(rawT, borderAlpha);
         } else {
-            // Legacy fallback: use old buildLerpedPolylines
-            const frameFrontiers = buildLerpedPolylines(prevSharedPolylines!, targetSharedPolylines!, easedT);
-            drawBorderPolylines(fillGraphics, frameFrontiers, 0, borderWidth, borderAlpha);
+            // Legacy fallback DISABLED (F5): buildLerpedPolylines should not be in the active pipeline.
+            // If this log fires, it means no morpher was created — investigate why.
+            log.error('PVV2', `⚠️ LEGACY FALLBACK WOULD FIRE — no activeMorpher or activeRopeRenderer. borderTransMode=${GAME_CONFIG.TERRITORY_BORDER_TRANSITION ?? 'pixi_graphics_morph'}`);
+            // ORIGINAL CODE (commented out for non-destructive test):
+            // const frameFrontiers = buildLerpedPolylines(prevSharedPolylines!, targetSharedPolylines!, easedT);
+            // drawBorderPolylines(fillGraphics, frameFrontiers, 0, borderWidth, borderAlpha);
         }
 
         if (rawT >= 1) {
@@ -658,19 +661,25 @@ export function renderPowerVoronoi(
                 activeRopeRenderer.removeAll();
                 activeRopeRenderer = null;
             }
-            // Redraw steady-state fills + borders directly on fillGraphics
-            // using the current geometry — no cache invalidation needed.
-            fillGraphics.clear();
-            for (let i = 0; i < lastMergedTerritories.length; i++) {
-                drawTerritoryFillOnly(fillGraphics, lastMergedTerritories[i], lastEnclaveMap?.get(i), alpha);
-            }
-            if (targetSharedPolylines && targetSharedPolylines.length > 0 && borderWidth > 0 && borderAlpha > 0) {
-                drawBorderPolylines(fillGraphics, targetSharedPolylines, 0, borderWidth, borderAlpha);
-            }
-            if (lastWorldBorderPolylines.length > 0 && borderWidth > 0 && borderAlpha > 0) {
-                drawBorderPolylines(fillGraphics, lastWorldBorderPolylines, 0, borderWidth, borderAlpha);
-            }
-            log.renderer('PVV2', 'border transition complete - steady-state redrawn directly');
+            // ── F2 HYPOTHESIS TEST ──────────────────────────────────────────
+            // Hypothesis: the forced redraw at transition-end uses different
+            // geometry than the morpher's last frame, causing a visible snap.
+            // Test: let PIXI.Graphics retain the morpher's last-drawn frame
+            // instead of clearing and redrawing. The next ownership change will
+            // trigger a full rebuild via fingerprint change anyway.
+            //
+            // ORIGINAL CODE (forced redraw — commented out for test):
+            // fillGraphics.clear();
+            // for (let i = 0; i < lastMergedTerritories.length; i++) {
+            //     drawTerritoryFillOnly(fillGraphics, lastMergedTerritories[i], lastEnclaveMap?.get(i), alpha);
+            // }
+            // if (targetSharedPolylines && targetSharedPolylines.length > 0 && borderWidth > 0 && borderAlpha > 0) {
+            //     drawBorderPolylines(fillGraphics, targetSharedPolylines, 0, borderWidth, borderAlpha);
+            // }
+            // if (lastWorldBorderPolylines.length > 0 && borderWidth > 0 && borderAlpha > 0) {
+            //     drawBorderPolylines(fillGraphics, lastWorldBorderPolylines, 0, borderWidth, borderAlpha);
+            // }
+            log.renderer('PVV2', 'border transition complete — retaining morpher last frame (F2 hypothesis test)');
         }
 
         const shapeFpCheck = buildShapeFingerprint(stars);
