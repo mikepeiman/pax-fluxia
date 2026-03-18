@@ -39,6 +39,7 @@
         loadPanelSettings,
         panelDefaultsFromConfig,
         savePanelSettings,
+        applyPanelToConfig,
         loadAnimLockRatios,
         saveAnimLockRatios,
         loadAnimLockModes,
@@ -142,6 +143,10 @@
 
     onMount(() => {
         warnOnMissingTerritorySchemaCoverage();
+        // Restore saved panel values INTO GAME_CONFIG before syncAllFromConfig
+        // reads GAME_CONFIG back into panel. Without this, compile-time defaults
+        // overwrite user-saved slider values (Chaikin, resampleN, etc.).
+        applyPanelToConfig(panel);
         syncAllFromConfig();
         themeStore.registerApplyCallback(applyThemeValues);
         registerCategoryPresetApplyCallback(applyCategoryPresetValues);

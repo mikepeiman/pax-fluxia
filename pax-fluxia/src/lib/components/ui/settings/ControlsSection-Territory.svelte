@@ -524,36 +524,36 @@
     /* ── V3.1 Three-Concern Architecture ── */
 
     const TERRITORY_STYLE_OPTIONS = [
-        { id: "none", label: "None (Off)" },
-        { id: "territory_canonical", label: "✦ Canonical (New Pipeline)" },
-        { id: "territory_engine", label: "Territory Engine (DY4)" },
-        { id: "vs_pvv3", label: "Vector Stroke (PVV3)" },
-        { id: "power_voronoi", label: "Power Voronoi (PVV2)" },
-        { id: "distance_field", label: "Distance Field Glow" },
-        { id: "metaball", label: "Metaball / Organic" },
-        { id: "pixel", label: "Pixel Art / Retro" },
-        { id: "voronoi", label: "Voronoi (Legacy)" },
-        { id: "graph", label: "Lane Territory" },
-        { id: "contour", label: "Contour" },
+        { id: "none", label: "0. None (Off)" },
+        { id: "territory_canonical", label: "1. Canonical (New Pipeline)" },
+        { id: "territory_engine", label: "2. Territory Engine (DY4)" },
+        { id: "vs_pvv3", label: "3. Vector Stroke (PVV3)" },
+        { id: "power_voronoi", label: "4. Power Voronoi (PVV2)" },
+        { id: "distance_field", label: "5. Distance Field Glow" },
+        { id: "metaball", label: "6. Metaball / Organic" },
+        { id: "pixel", label: "7. Pixel Art / Retro" },
+        { id: "voronoi", label: "8. Voronoi (Legacy)" },
+        { id: "graph", label: "9. Lane Territory" },
+        { id: "contour", label: "10. Contour" },
     ] as const;
 
     const FILL_TRANSITION_OPTIONS = [
-        { id: "none", label: "None (Off)" },
-        { id: "frontier_morph", label: "Frontier Morph" },
-        { id: "crossfade", label: "Crossfade" },
-        { id: "tile_flip", label: "Tile Flip" },
+        { id: "none", label: "1. None (Off)" },
+        { id: "frontier_morph", label: "2. Frontier Morph" },
+        { id: "crossfade", label: "3. Crossfade" },
+        { id: "tile_flip", label: "4. Tile Flip" },
     ] as const;
 
     const BORDER_TRANSITION_OPTIONS = [
-        { id: "none", label: "None (Off)" },
-        { id: "pixi_graphics_morph", label: "✦ Pixi Graphics Path Morph" },
-        { id: "pixi_mesh_rope", label: "✦ Pixi MeshRope Morph" },
+        { id: "none", label: "1. None (Off)" },
+        { id: "pixi_graphics_morph", label: "2. Pixi Graphics Path Morph" },
+        { id: "pixi_mesh_rope", label: "3. Pixi MeshRope Morph" },
         {
             id: "optimal_transport",
-            label: "✦ Smooth Border Morph (DY4 Optimal Transport)",
+            label: "4. Smooth Border Morph (DY4)",
         },
-        { id: "smooth_morph", label: "Smooth Morph (Legacy)" },
-        { id: "pressure_wave", label: "Pressure Wave" },
+        { id: "smooth_morph", label: "5. Smooth Morph (Legacy)" },
+        { id: "pressure_wave", label: "6. Pressure Wave" },
     ] as const;
 
     /** Map style IDs to old boolean flag panel keys (backward compat) */
@@ -671,17 +671,19 @@
             <option value="cubic">Cubic (smooth, no overshoot)</option>
             <option value="back">Back (overshoot)</option>
             <option value="elastic">Elastic (bouncy)</option>
-            <option value="ease-out">Ease-out (decelerate, no overshoot)</option>
+            <option value="ease-out">Ease-out (decelerate, no overshoot)</option
+            >
             <option value="ease-out-quad">Ease-out Quad (lighter)</option>
             <option value="sine">Sine (gentle S-curve)</option>
             <option value="linear">Linear (constant speed)</option>
-
         </select>
     </div>
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Resample Points</span><span class="val"
-                >{GAME_CONFIG.BORDER_TRANS_RESAMPLE_N ?? 32}</span
+                >{panel.borderTransResampleN ??
+                    GAME_CONFIG.BORDER_TRANS_RESAMPLE_N ??
+                    32}</span
             >
         </div>
         <input
@@ -689,7 +691,9 @@
             min="8"
             max="64"
             step="4"
-            value={GAME_CONFIG.BORDER_TRANS_RESAMPLE_N ?? 32}
+            value={panel.borderTransResampleN ??
+                GAME_CONFIG.BORDER_TRANS_RESAMPLE_N ??
+                32}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
                 debouncedConfigUpdate(
@@ -1079,8 +1083,6 @@
             }}
         />
     </div>
-
-
 
     <div class="var-row">
         <div class="row-top">
