@@ -1,64 +1,81 @@
 <script lang="ts">
-    import { AI_VARIABLES } from "../settingsDefs";
-    import { GAME_CONFIG } from "$lib/config/game.config";
+    import { AI_VARIABLES, CONFIG_TO_PANEL_KEY } from "../settingsDefs";
+    import { GAME_CONFIG, DEFAULT_GAME_CONFIG } from "$lib/config/game.config";
     import CategoryThemeBar from "./CategoryThemeBar.svelte";
 
     // ControlsSection-AI — In-Game Settings Controls: AI Behavior
-    // Extracted from GameSettingsPanel.svelte
+    // Refactored to use panel state (reactive + theme-compatible)
 
-    type VarKey = string;
     const aiVariables = AI_VARIABLES;
 
     interface Props {
         panel: Record<string, any>;
         updatePanel: (key: string, value: any) => void;
-        values: Record<string, number>;
-        enabled: Record<string, boolean>;
-        updateValue: (key: string, val: number) => void;
-        toggle: (key: string) => void;
         syncFromConfig?: () => void;
     }
-    let {
-        panel,
-        updatePanel,
-        values,
-        enabled,
-        updateValue,
-        toggle,
-        syncFromConfig,
-    }: Props = $props();
+    let { panel, updatePanel, syncFromConfig }: Props = $props();
+
+    // Per-variable enable/disable toggle (local UI state, not persisted)
+    let enabled = $state<Record<string, boolean>>(
+        Object.fromEntries(aiVariables.map((v) => [v.key, true])),
+    );
+
+    function getAIValue(configKey: string): number {
+        const panelKey = CONFIG_TO_PANEL_KEY[configKey];
+        if (panelKey && panel[panelKey] !== undefined) {
+            return panel[panelKey] as number;
+        }
+        return (GAME_CONFIG as any)[configKey] as number;
+    }
+
+    function updateAIValue(configKey: string, val: number) {
+        if (isNaN(val)) return;
+        const panelKey = CONFIG_TO_PANEL_KEY[configKey];
+        if (panelKey) {
+            updatePanel(panelKey, val);
+        }
+        (GAME_CONFIG as any)[configKey] = val;
+    }
+
+    function toggle(configKey: string) {
+        const wasEnabled = enabled[configKey];
+        enabled = { ...enabled, [configKey]: !wasEnabled };
+        if (wasEnabled) {
+            // Disable: reset to default
+            const defaultVal = (DEFAULT_GAME_CONFIG as any)[configKey];
+            updateAIValue(configKey, defaultVal);
+        }
+        // Enable: current panel value is already correct
+    }
 </script>
 
 <CategoryThemeBar category="ai" onApply={() => syncFromConfig?.()} />
 
 {#each aiVariables as v}
-    <div
-        class="var-row"
-        class:disabled={!enabled[v.key as keyof typeof enabled]}
-    >
+    <div class="var-row" class:disabled={!enabled[v.key]}>
         <div class="row-top">
             <label class="toggle-label">
                 <input
                     type="checkbox"
-                    checked={enabled[v.key as keyof typeof enabled]}
-                    onchange={() => toggle(v.key as keyof typeof enabled)}
+                    checked={enabled[v.key]}
+                    onchange={() => toggle(v.key)}
                 />
                 <span class="var-name">{v.label}</span>
             </label>
-            <span class="val">{values[v.key as VarKey].toFixed(2)}</span>
+            <span class="val">{getAIValue(v.key).toFixed(2)}</span>
         </div>
         <input
             type="range"
             min={v.min}
             max={v.max}
             step={v.step}
-            value={values[v.key as VarKey]}
+            value={getAIValue(v.key)}
             oninput={(e) =>
-                updateValue(
-                    v.key as VarKey,
+                updateAIValue(
+                    v.key,
                     parseFloat((e.target as HTMLInputElement).value),
                 )}
-            disabled={!enabled[v.key as keyof typeof enabled]}
+            disabled={!enabled[v.key]}
         />
     </div>
 {/each}

@@ -1,6 +1,6 @@
 <script lang="ts">
-    import { GAME_CONFIG } from "$lib/config/game.config";
-    import { DENSITY_VARIABLES } from "../settingsDefs";
+    import { GAME_CONFIG, DEFAULT_GAME_CONFIG } from "$lib/config/game.config";
+    import { DENSITY_VARIABLES, CONFIG_TO_PANEL_KEY } from "../settingsDefs";
     import { selectedStarStore } from "$lib/stores/selectedStarStore.svelte";
     import { logFlags } from "$lib/utils/logger";
     import { exportConfigJSON as exportConfigJSONBase } from "../panelSync";
@@ -10,10 +10,6 @@
     interface Props {
         panel: Record<string, any>;
         updatePanel: (key: string, value: any) => void;
-        values: Record<string, number>;
-        enabled: Record<string, boolean>;
-        updateValue: (key: any, val: number) => void;
-        toggle: (key: any) => void;
         exportConfigMD: () => void;
         importConfigJSON: (e: Event) => void;
         configStatus: string;
@@ -23,16 +19,43 @@
     let {
         panel,
         updatePanel,
-        values,
-        enabled,
-        updateValue,
-        toggle,
         exportConfigMD,
         importConfigJSON,
         configStatus,
         configStatusColor,
         syncFromConfig,
     }: Props = $props();
+
+    // Per-variable enable/disable toggle (local UI state for density section)
+    let enabled = $state<Record<string, boolean>>(
+        Object.fromEntries(DENSITY_VARIABLES.map((v) => [v.key, true])),
+    );
+
+    function getDensityValue(configKey: string): number {
+        const panelKey = CONFIG_TO_PANEL_KEY[configKey];
+        if (panelKey && panel[panelKey] !== undefined) {
+            return panel[panelKey] as number;
+        }
+        return (GAME_CONFIG as any)[configKey] as number;
+    }
+
+    function updateDensityValue(configKey: string, val: number) {
+        if (isNaN(val)) return;
+        const panelKey = CONFIG_TO_PANEL_KEY[configKey];
+        if (panelKey) {
+            updatePanel(panelKey, val);
+        }
+        (GAME_CONFIG as any)[configKey] = val;
+    }
+
+    function toggleDensity(configKey: string) {
+        const wasEnabled = enabled[configKey];
+        enabled = { ...enabled, [configKey]: !wasEnabled };
+        if (wasEnabled) {
+            const defaultVal = (DEFAULT_GAME_CONFIG as any)[configKey];
+            updateDensityValue(configKey, defaultVal);
+        }
+    }
 
     type VarKey = string;
     const densityVariables = DENSITY_VARIABLES;
@@ -1112,33 +1135,30 @@
 <!-- ── Density Coloring ── -->
 <h4 class="sub-heading">Density Coloring</h4>
 {#each densityVariables as v}
-    <div
-        class="var-row"
-        class:disabled={!enabled[v.key as keyof typeof enabled]}
-    >
+    <div class="var-row" class:disabled={!enabled[v.key]}>
         <div class="row-top">
             <label class="toggle-label">
                 <input
                     type="checkbox"
-                    checked={enabled[v.key as keyof typeof enabled]}
-                    onchange={() => toggle(v.key as keyof typeof enabled)}
+                    checked={enabled[v.key]}
+                    onchange={() => toggleDensity(v.key)}
                 />
                 <span class="var-name">{v.label}</span>
             </label>
-            <span class="val">{values[v.key as VarKey].toFixed(2)}</span>
+            <span class="val">{getDensityValue(v.key).toFixed(2)}</span>
         </div>
         <input
             type="range"
             min={v.min}
             max={v.max}
             step={v.step}
-            value={values[v.key as VarKey]}
+            value={getDensityValue(v.key)}
             oninput={(e) =>
-                updateValue(
-                    v.key as VarKey,
+                updateDensityValue(
+                    v.key,
                     parseFloat((e.target as HTMLInputElement).value),
                 )}
-            disabled={!enabled[v.key as keyof typeof enabled]}
+            disabled={!enabled[v.key]}
         />
     </div>
 {/each}

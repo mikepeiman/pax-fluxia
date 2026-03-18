@@ -1126,10 +1126,6 @@
                     <ControlsSectionBattle
                         {panel}
                         {updatePanel}
-                        {values}
-                        {enabled}
-                        updateValue={updateValue as any}
-                        toggle={toggle as any}
                         syncFromConfig={syncAllFromConfig}
                     />
                 {:else if sec.id === "economy"}
@@ -1144,10 +1140,6 @@
                     <ControlsSectionAI
                         {panel}
                         {updatePanel}
-                        {values}
-                        {enabled}
-                        updateValue={updateValue as any}
-                        toggle={toggle as any}
                         syncFromConfig={syncAllFromConfig}
                     />
                 {:else if sec.id === "travel"}
@@ -1178,10 +1170,6 @@
                     <ControlsSectionShips
                         {panel}
                         {updatePanel}
-                        {values}
-                        {enabled}
-                        {updateValue}
-                        {toggle}
                         {exportConfigMD}
                         {importConfigJSON}
                         {configStatus}
