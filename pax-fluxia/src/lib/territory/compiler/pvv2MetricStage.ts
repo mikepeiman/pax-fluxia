@@ -232,9 +232,10 @@ export function extractJunctionVertices(cells: TerritoryCell[]): Set<string> {
 
 /**
  * Extract world-boundary edges from merged territory polygons.
- * Returns SharedPolylines for each continuous run of edges that lie on the
- * same world-clip boundary (left/right/top/bottom). These can be drawn as
- * closed outer borders to visually frame the territory map.
+ * Returns territory-colored SharedPolylines for each continuous run of edges
+ * that lie on the same world-clip boundary. Points are snapped to the ACTUAL
+ * world boundary (0/worldW/0/worldH) so they appear on screen, not at the
+ * padded clip position.
  */
 export function extractWorldBorderPolylines(
     territories: MergedTerritory[],
@@ -245,13 +246,22 @@ export function extractWorldBorderPolylines(
     const eps = 8;
     const result: SharedPolyline[] = [];
 
-    function onSameBoundary(ax: number, ay: number, bx: number, by: number): boolean {
-        return (
-            (ax <= -pad + eps && bx <= -pad + eps) || // left
-            (ax >= worldW + pad - eps && bx >= worldW + pad - eps) || // right
-            (ay <= -pad + eps && by <= -pad + eps) || // top
-            (ay >= worldH + pad - eps && by >= worldH + pad - eps)    // bottom
-        );
+    /** Which boundary a point is on (falsy = interior). */
+    function boundaryOf(x: number, y: number): 'left' | 'right' | 'top' | 'bottom' | null {
+        if (x <= -pad + eps) return 'left';
+        if (x >= worldW + pad - eps) return 'right';
+        if (y <= -pad + eps) return 'top';
+        if (y >= worldH + pad - eps) return 'bottom';
+        return null;
+    }
+
+    /** Snap a point from padded boundary to actual world edge. */
+    function snap(x: number, y: number): [number, number] {
+        if (x <= -pad + eps) return [0, Math.max(0, Math.min(worldH, y))];
+        if (x >= worldW + pad - eps) return [worldW, Math.max(0, Math.min(worldH, y))];
+        if (y <= -pad + eps) return [Math.max(0, Math.min(worldW, x)), 0];
+        if (y >= worldH + pad - eps) return [Math.max(0, Math.min(worldW, x)), worldH];
+        return [x, y];
     }
 
     for (const territory of territories) {
@@ -259,35 +269,47 @@ export function extractWorldBorderPolylines(
         const n = pts.length;
         if (n < 2) continue;
 
-        // Collect all boundary edge indices
+        // Collect boundary-edge indices: both endpoints on same world-clip boundary
         const boundaryEdges: number[] = [];
         for (let i = 0; i < n; i++) {
             const [ax, ay] = pts[i];
             const [bx, by] = pts[(i + 1) % n];
-            if (onSameBoundary(ax, ay, bx, by)) {
+            const ba = boundaryOf(ax, ay);
+            const bb = boundaryOf(bx, by);
+            if (ba !== null && ba === bb) {
                 boundaryEdges.push(i);
             }
         }
         if (boundaryEdges.length === 0) continue;
 
-        // Chain consecutive boundary edges into continuous polylines
+        // Chain consecutive boundary edges into continuous runs
+        // Handle wrap-around at polygon end→start
+        const runs: Array<[number, number][]> = [];
         let run: [number, number][] = [];
-        let lastIdx = -2;
-        for (const ei of boundaryEdges) {
+
+        for (let j = 0; j < boundaryEdges.length; j++) {
+            const ei = boundaryEdges[j];
+            const prevEi = j === 0 ? -2 : boundaryEdges[j - 1];
             const [ax, ay] = pts[ei];
             const [bx, by] = pts[(ei + 1) % n];
-            if (ei === lastIdx + 1 && run.length > 0) {
-                run.push([bx, by]);
+            const snapA = snap(ax, ay);
+            const snapB = snap(bx, by);
+
+            if (ei === prevEi + 1 && run.length > 0) {
+                run.push(snapB);
             } else {
-                if (run.length >= 2) {
-                    result.push({ points: run, ownerPairKey: `${territory.ownerId}|world`, color: territory.color });
-                }
-                run = [[ax, ay], [bx, by]];
+                if (run.length >= 2) runs.push(run);
+                run = [snapA, snapB];
             }
-            lastIdx = ei;
         }
-        if (run.length >= 2) {
-            result.push({ points: run, ownerPairKey: `${territory.ownerId}|world`, color: territory.color });
+        if (run.length >= 2) runs.push(run);
+
+        for (const r of runs) {
+            result.push({
+                points: r,
+                ownerPairKey: `${territory.ownerId}|world`,
+                color: territory.color,
+            });
         }
     }
     return result;

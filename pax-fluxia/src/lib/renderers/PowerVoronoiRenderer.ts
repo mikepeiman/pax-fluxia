@@ -667,13 +667,8 @@ export function renderPowerVoronoi(
             if (targetSharedPolylines && targetSharedPolylines.length > 0 && borderWidth > 0 && borderAlpha > 0) {
                 drawBorderPolylines(fillGraphics, targetSharedPolylines, 0, borderWidth, borderAlpha);
             }
-            // World boundary borders — use last cached value (stage hasn't run yet here)
             if (lastWorldBorderPolylines.length > 0 && borderWidth > 0 && borderAlpha > 0) {
                 drawBorderPolylines(fillGraphics, lastWorldBorderPolylines, 0, borderWidth, borderAlpha);
-            }
-            if (GAME_CONFIG.TERRITORY_WORLD_BORDER && borderWidth > 0 && borderAlpha > 0) {
-                fillGraphics.rect(0, 0, worldWidth, worldHeight);
-                fillGraphics.stroke({ color: 0xffffff, alpha: borderAlpha, width: borderWidth });
             }
             log.renderer('PVV2', 'border transition complete - steady-state redrawn directly');
         }
@@ -848,16 +843,10 @@ export function renderPowerVoronoi(
     } else {
         log.renderer('PVV2', `🔴 BORDERS SKIPPED | polylines=${targetSharedPolylines?.length ?? 'null'} bw=${borderWidth} ba=${borderAlpha}`);
     }
-    // Draw world-boundary border lines (closed outer frames per territory)
+    // Draw world-boundary border lines — territory-colored, derived from outer polygon faces
     if (worldBorderPolylines.length > 0 && borderWidth > 0 && borderAlpha > 0) {
         drawBorderPolylines(fillGraphics, worldBorderPolylines, 0, borderWidth, borderAlpha);
         log.renderer('PVV2', `🌐 WORLD BORDERS DRAWN | polylines=${worldBorderPolylines.length}`);
-    }
-    // Draw world map rectangle border outline (toggleable via TERRITORY_WORLD_BORDER)
-    if (GAME_CONFIG.TERRITORY_WORLD_BORDER && borderWidth > 0 && borderAlpha > 0) {
-        fillGraphics.rect(0, 0, worldWidth, worldHeight);
-        fillGraphics.stroke({ color: 0xffffff, alpha: borderAlpha, width: borderWidth });
-        log.renderer('PVV2', `🔲 WORLD RECT BORDER DRAWN | w=${borderWidth} a=${borderAlpha.toFixed(2)}`);
     }
 
     // Start transition based on mode
