@@ -58,6 +58,7 @@
     import ControlsSectionVisuals from "./settings/ControlsSection-Visuals.svelte";
     import ControlsSectionRules from "./settings/ControlsSection-Rules.svelte";
     import ControlsSectionLogging from "./settings/ControlsSection-Logging.svelte";
+    import ControlsSectionAudio from "./settings/ControlsSection-Audio.svelte";
     import {
         ANIM_SLIDERS,
         type AnimSliderDef,
@@ -684,7 +685,8 @@
         | "territory"
         | "ships"
         | "visuals"
-        | "logging";
+        | "logging"
+        | "audio";
 
     const ACTIVE_SECTION_KEY = "pax-fluxia-open-sections";
     function loadOpenSections(): SectionId[] {
@@ -827,6 +829,13 @@
             label: "Logging",
             color: "#88aacc",
             tier: "developer",
+        },
+        {
+            id: "audio",
+            icon: "🔊",
+            label: "Audio",
+            color: "#44ddbb",
+            tier: "basic",
         },
     ];
 
@@ -1111,6 +1120,12 @@
                         {importConfigJSON}
                         {configStatus}
                         {configStatusColor}
+                        syncFromConfig={syncAllFromConfig}
+                    />
+                {:else if sec.id === "audio"}
+                    <ControlsSectionAudio
+                        {panel}
+                        {updatePanel}
                         syncFromConfig={syncAllFromConfig}
                     />
                 {/if}
