@@ -1069,11 +1069,11 @@ const _rawConfig: GameConfigType = {
     VORONOI_BORDER_SMOOTH: 2,
     /** Easing function for border transitions ('cubic'|'back'|'elastic') */
 
-    BORDER_TRANS_EASING: 'back',
+    BORDER_TRANS_EASING: 'linear',
     /** Number of resample points per polyline for morphing (8-64) */
     BORDER_TRANS_RESAMPLE_N: 32,
     /** Back easing overshoot amount (0-5) */
-    BORDER_TRANS_OVERSHOOT: 1.7,
+    BORDER_TRANS_OVERSHOOT: 0,
     /** Border transition mode */
     TERRITORY_BORDER_TRANSITION: 'pixi_graphics_morph',
     /** Voronoi color saturation multiplier (0=grey, 1=original, 2=vivid) */

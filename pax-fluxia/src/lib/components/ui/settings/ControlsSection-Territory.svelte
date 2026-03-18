@@ -659,7 +659,9 @@
         </div>
         <select
             class="mode-select"
-            value={GAME_CONFIG.BORDER_TRANS_EASING ?? "back"}
+            value={panel.borderTransEasing ??
+                GAME_CONFIG.BORDER_TRANS_EASING ??
+                "linear"}
             onchange={(e) => {
                 debouncedConfigUpdate(
                     "BORDER_TRANS_EASING",
@@ -668,14 +670,13 @@
                 );
             }}
         >
-            <option value="cubic">Cubic (smooth, no overshoot)</option>
-            <option value="back">Back (overshoot)</option>
-            <option value="elastic">Elastic (bouncy)</option>
-            <option value="ease-out">Ease-out (decelerate, no overshoot)</option
-            >
-            <option value="ease-out-quad">Ease-out Quad (lighter)</option>
-            <option value="sine">Sine (gentle S-curve)</option>
-            <option value="linear">Linear (constant speed)</option>
+            <option value="linear">1. Linear (constant speed)</option>
+            <option value="cubic">2. Cubic (smooth, no overshoot)</option>
+            <option value="ease-out">3. Ease-out (decelerate)</option>
+            <option value="ease-out-quad">4. Ease-out Quad (lighter)</option>
+            <option value="sine">5. Sine (gentle S-curve)</option>
+            <option value="back">6. Back (overshoot)</option>
+            <option value="elastic">7. Elastic (bouncy)</option>
         </select>
     </div>
     <div class="var-row">
@@ -707,7 +708,11 @@
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Back Overshoot</span><span class="val"
-                >{(GAME_CONFIG.BORDER_TRANS_OVERSHOOT ?? 1.7).toFixed(2)}</span
+                >{(
+                    panel.borderTransOvershoot ??
+                    GAME_CONFIG.BORDER_TRANS_OVERSHOOT ??
+                    0
+                ).toFixed(2)}</span
             >
         </div>
         <input
@@ -715,7 +720,9 @@
             min="0"
             max="5"
             step="0.1"
-            value={GAME_CONFIG.BORDER_TRANS_OVERSHOOT ?? 1.7}
+            value={panel.borderTransOvershoot ??
+                GAME_CONFIG.BORDER_TRANS_OVERSHOOT ??
+                0}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
                 debouncedConfigUpdate(

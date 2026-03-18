@@ -87,6 +87,12 @@
 | B-39 | Theme export uses selected preset name instead of user-given name — "export" button downloads JSON with the wrong `name` field | 🔴 Open | 2026-03-14 |
 | B-43 | **Deferred orders broadly regressed** — user confirmed 2026-03-16 that deferred orders are broken across maps (not just classic), regressed ~dozens of commits ago. Original suspected cause (isConnected gate, hit-test miss on classic maps) may be incomplete. Needs: git archaeology to find regression commit, then targeted fix. **Queued for next sprint after territory refactor.** | 🔴 Active | 2026-03-16 |
 | B-44 | **DY4 Optimal Transport visually broken** — user confirmed 2026-03-16 that DY4 border animation has not rendered correctly. Caused by naive vertex index matching during `lerpPolygon` causing violently twisting geometry. **Fix:** Implemented `alignPolygon` to perform minimal transport / minimum distance vertex matching prior to interpolation in both PVV2 and Canonical `OptimalTransportBorderTransition.ts`. | ✅ Fixed | 2026-03-17 |
+| B-49 | **Border transition mode 3 (DY4) double-border after conquest** — clean borders during transition, but immediately after, a slightly different border drawn on top leaves both rendered every frame. | 🔴 Active | 2026-03-18 |
+| B-50 | **Border transition mode 2 (Rope) width change during conquest** — border width changes obviously during conquest transitions. | 🔴 Active | 2026-03-18 |
+| B-51 | **Border transition mode 1 (Graphics Morph) unsatisfying transition + smoothing** — borders consistent but transition animation and steady-state smoothing need improvement. | 🔴 Active | 2026-03-18 |
+| B-52 | **All three transition modes produce similar/identical VFX** — modes should provide distinct visual options, not duplicated results. Modes 3 and 4 now both route to GraphicsPathMorpher. | 🔴 Active | 2026-03-18 |
+| B-53 | **Slider persistence: Conquest Animation Timing** — numeric value does not update when slider moves, and setting may not persist across reloads. ALL sliders must follow same idiomatic persistence+display pattern. | 🔴 Active | 2026-03-18 |
+| B-54 | **Fill/border divergence: smoothing order inverted** — edges should be smoothed BEFORE assembly into regions, not after. Current pipeline assembles polygons first, then applies different smoothing to fills (Chaikin polygon) and borders (Chaikin polyline), causing mid-frontier sharp corners. | 🔴 Active | 2026-03-18 |
 
 ## Feature Ideas
 
