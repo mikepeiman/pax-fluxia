@@ -39,6 +39,26 @@ export function easeInOutElastic(t: number): number {
         : (Math.pow(2, -20 * t + 10) * Math.sin((20 * t - 11.125) * c5)) / 2 + 1;
 }
 
+/** Ease-out cubic — decelerates, no overshoot. */
+export function easeOutCubic(t: number): number {
+    return 1 - Math.pow(1 - t, 3);
+}
+
+/** Ease-out quadratic — lighter deceleration, no overshoot. */
+export function easeOutQuad(t: number): number {
+    return 1 - (1 - t) * (1 - t);
+}
+
+/** Linear — constant speed, no easing (useful for debugging). */
+export function easeLinear(t: number): number {
+    return t;
+}
+
+/** Ease-in-out sine — gentle S-curve, no overshoot. */
+export function easeInOutSine(t: number): number {
+    return -(Math.cos(Math.PI * t) - 1) / 2;
+}
+
 // ── Matching Logic (shared by both modes) ───────────────────────────────────
 
 export interface MatchedPair {
@@ -181,6 +201,7 @@ export function matchPolylines(
 
 /**
  * Morphs border polylines as Graphics paths with elastic easing.
+ * `easing`: 'cubic'|'back'|'elastic' include overshoot; 'ease-out'|'ease-out-quad'|'sine'|'linear' do not.
  * Redraws the path every frame with interpolated control points.
  */
 export class GraphicsPathMorpher {
@@ -190,14 +211,18 @@ export class GraphicsPathMorpher {
     constructor(
         prev: SharedPolyline[],
         target: SharedPolyline[],
-        easing: 'cubic' | 'back' | 'elastic' = 'back',
+        easing: 'cubic' | 'back' | 'elastic' | 'ease-out' | 'ease-out-quad' | 'sine' | 'linear' = 'back',
         resampleN: number = 32,
         overshoot: number = 1.70158,
     ) {
         this.pairs = matchPolylines(prev, target, resampleN);
         this.easingFn = easing === 'elastic' ? easeInOutElastic
             : easing === 'back' ? (t: number) => easeInOutBack(t, overshoot)
-                : easeInOutCubic;
+                : easing === 'ease-out' ? easeOutCubic
+                    : easing === 'ease-out-quad' ? easeOutQuad
+                        : easing === 'sine' ? easeInOutSine
+                            : easing === 'linear' ? easeLinear
+                                : easeInOutCubic;
 
         log.renderer('GraphicsPathMorpher', `created | pairs=${this.pairs.length} easing=${easing} resampleN=${resampleN} overshoot=${overshoot.toFixed(2)}`);
     }
@@ -259,7 +284,7 @@ export class RopeBorderRenderer {
     constructor(
         prev: SharedPolyline[],
         target: SharedPolyline[],
-        easing: 'cubic' | 'back' | 'elastic' = 'back',
+        easing: 'cubic' | 'back' | 'elastic' | 'ease-out' | 'ease-out-quad' | 'sine' | 'linear' = 'back',
         resampleN: number = 32,
         ropeWidth: number = 3,
         overshoot: number = 1.70158,
@@ -267,7 +292,11 @@ export class RopeBorderRenderer {
         this.pairs = matchPolylines(prev, target, resampleN);
         this.easingFn = easing === 'elastic' ? easeInOutElastic
             : easing === 'back' ? (t: number) => easeInOutBack(t, overshoot)
-                : easeInOutCubic;
+                : easing === 'ease-out' ? easeOutCubic
+                    : easing === 'ease-out-quad' ? easeOutQuad
+                        : easing === 'sine' ? easeInOutSine
+                            : easing === 'linear' ? easeLinear
+                                : easeInOutCubic;
 
         // Create a narrow white texture sized to the desired rope width
         const canvas = document.createElement('canvas');

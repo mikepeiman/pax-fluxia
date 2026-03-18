@@ -89,6 +89,7 @@ let changedSiteIds: Set<string> | null = null; // stars that changed owner in th
 
 // ── Enclave Cache ──────────────────────────────────────────────────────────
 let lastEnclaveMap: Map<number, [number, number][][]> | null = null;
+let lastWorldBorderPolylines: import('$lib/territory/compiler/pvv2MetricStage').SharedPolyline[] = [];
 
 // ── Fingerprint ────────────────────────────────────────────────────────────
 
@@ -666,6 +667,14 @@ export function renderPowerVoronoi(
             if (targetSharedPolylines && targetSharedPolylines.length > 0 && borderWidth > 0 && borderAlpha > 0) {
                 drawBorderPolylines(fillGraphics, targetSharedPolylines, 0, borderWidth, borderAlpha);
             }
+            // World boundary borders — use last cached value (stage hasn't run yet here)
+            if (lastWorldBorderPolylines.length > 0 && borderWidth > 0 && borderAlpha > 0) {
+                drawBorderPolylines(fillGraphics, lastWorldBorderPolylines, 0, borderWidth, borderAlpha);
+            }
+            if (GAME_CONFIG.TERRITORY_WORLD_BORDER && borderWidth > 0 && borderAlpha > 0) {
+                fillGraphics.rect(0, 0, worldWidth, worldHeight);
+                fillGraphics.stroke({ color: 0xffffff, alpha: borderAlpha, width: borderWidth });
+            }
             log.renderer('PVV2', 'border transition complete - steady-state redrawn directly');
         }
 
@@ -748,6 +757,7 @@ export function renderPowerVoronoi(
     }
 
     const { cells, mergedTerritories: merged, sharedEdges, rawSharedPolylines: builtRawPolylinesRaw, sharedPolylines: builtPolylinesRaw, worldBorderPolylines, enclaveMap } = stageResult;
+    lastWorldBorderPolylines = worldBorderPolylines;  // cache for transition-end redraw
 
     log.renderer('PVV2', `STAGE OUTPUT | cells=${cells.length} merged=${merged.length} edges=${sharedEdges.length} polylines=${builtPolylinesRaw.length} enclaves=${enclaveMap.size} chaikinPasses=${stageConfig.chaikinPasses}`);
 
@@ -874,7 +884,7 @@ export function renderPowerVoronoi(
 
             // Select mode and tuning params from config
             const borderTransMode = GAME_CONFIG.TERRITORY_BORDER_TRANSITION ?? 'pixi_graphics_morph';
-            const easing = (GAME_CONFIG.BORDER_TRANS_EASING ?? 'back') as 'cubic' | 'back' | 'elastic';
+            const easing = (GAME_CONFIG.BORDER_TRANS_EASING ?? 'back') as 'cubic' | 'back' | 'elastic' | 'ease-out' | 'ease-out-quad' | 'sine' | 'linear';
             const resampleN = Math.max(8, Math.min(64, Math.round(GAME_CONFIG.BORDER_TRANS_RESAMPLE_N ?? 32)));
             const overshoot = GAME_CONFIG.BORDER_TRANS_OVERSHOOT ?? 1.7;
             log.renderer('PVV2', `TRANSITION STARTED | mode=${borderTransMode} easing=${easing} resampleN=${resampleN} overshoot=${overshoot.toFixed(2)} prev=${prevSharedPolylines.length} target=${targetSharedPolylines.length} | transitionMs=${transitionMs}`);

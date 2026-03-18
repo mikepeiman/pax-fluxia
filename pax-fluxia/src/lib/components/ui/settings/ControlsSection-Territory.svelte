@@ -668,9 +668,14 @@
                 );
             }}
         >
-            <option value="cubic">Cubic (smooth)</option>
+            <option value="cubic">Cubic (smooth, no overshoot)</option>
             <option value="back">Back (overshoot)</option>
             <option value="elastic">Elastic (bouncy)</option>
+            <option value="ease-out">Ease-out (decelerate, no overshoot)</option>
+            <option value="ease-out-quad">Ease-out Quad (lighter)</option>
+            <option value="sine">Sine (gentle S-curve)</option>
+            <option value="linear">Linear (constant speed)</option>
+
         </select>
     </div>
     <div class="var-row">
