@@ -407,6 +407,8 @@
 | R-126 | **Category Theme File Persistence**: Category theme save/load should write to project files (not only localStorage), immediately surfaced as options, persisting beyond reloads/localStorage wipes. Every panel needs reset-to-defaults (scoped to category). CategoryThemeBar already has save/load UI — investigate `categoryThemes.ts` storage backend. | 🔴 |
 | R-127 | **MSR/CX/DX Geometry Model Alignment**: New geometry model should handle MSR, CX, DX constraints inherently, but these toggles/values still have effect in updated render modes. Architecture misalignment — investigate which legacy constraint toggles remain active when they shouldn't be. | 🔴 |
 | R-128 | **Portal Stars**: In classic Pax Galaxia maps, numeric star types (`2`, `3`, etc.) are portal stars. All instances of the same numeric type are simultaneously occupied by whoever captures one — bridging graph-disconnected regions. Found in: Boxed, CrissCross, DSpokes, Frontline, Arena, Crazy. Currently `classic-map-parser.ts` treats numeric types as 'grey' — no portal logic exists. Implementation: parse numeric type → `portalGroup` field on star, engine logic for synchronized ownership + connections. Reference: "Boxed" (type-2 at x152/y53 ↔ x747/y56, type-3 at x748/y489 ↔ x155/y487). | 🔵 |
+| R-129 | **Settings Panel Reorganization**: Refactor settings panel groupings for more intuitive layout. Apply high-level thinking about which settings belong together and create best-appropriate, intuitive groupings. Current groups evolved organically — reorganize with UX intent. | 🔴 |
+| R-130 | **Settings Files Modularization**: Refactor monolithic settings files (settingsDefs.ts, GameSettingsPanel.svelte) into sub-modules. Each panel group should be a properly modular import. Against engineering practices to maintain giant monolithic files. | 🔴 |
 
 ---
 
@@ -431,6 +433,7 @@
 | B-93 | Deferred order chains not preserved — cannot reproduce, may be fixed by B-92 | Monitoring |
 | B-94 | Conquest animation disjoint/jump — intermittent visual glitch | Fixed (2026-02-24) |
 | B-95 | Leaderboard production stat always shows 0 in SP — not computed in updatePlayerStats | Fixed (2026-02-19) |
+| B-96 | **Enclave double-coloring**: When enclaves are created through gameplay, their territory fills get double-colored (e.g. neutral grey becomes near-black). Hypothesis: overlapping fill polygons for the same owner are being composited, darkening the color. | Open |
 
 ## Known Regressions
 
