@@ -360,6 +360,7 @@ interface GameConfigType {
     VORONOI_BORDER_ALPHA: number;  // Alpha for territory border lines (default 0.4)
     VORONOI_BORDER_BRIGHTEN: number; // How much to brighten border color (0-255, default 80)
     VORONOI_BORDER_SMOOTH: number;   // Chaikin smoothing passes for PVV2 shared-edge borders (0=angular, 1-5=rounded, default 3)
+    TERRITORY_WORLD_BORDER: boolean; // Draw rectangle border outline around world map (default true)
     BORDER_TRANS_EASING: string;     // Easing function for border transitions ('cubic'|'back'|'elastic', default 'back')
     BORDER_TRANS_RESAMPLE_N: number; // Number of resample points per polyline for morphing (8-64, default 32)
     BORDER_TRANS_OVERSHOOT: number;  // Back easing overshoot amount (0-5, default 1.7)
@@ -1067,6 +1068,8 @@ const _rawConfig: GameConfigType = {
     VORONOI_BORDER_BRIGHTEN: 20,
     /** Chaikin smoothing passes for PVV2 shared-edge borders (0=angular, 3=rounded, 5=very smooth) */
     VORONOI_BORDER_SMOOTH: 2,
+    /** Draw rectangle border outline on world map edge (toggleable) */
+    TERRITORY_WORLD_BORDER: true,
     /** Easing function for border transitions ('cubic'|'back'|'elastic') */
     BORDER_TRANS_EASING: 'back',
     /** Number of resample points per polyline for morphing (8-64) */

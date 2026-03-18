@@ -842,7 +842,12 @@ export function renderPowerVoronoi(
     if (worldBorderPolylines.length > 0 && borderWidth > 0 && borderAlpha > 0) {
         drawBorderPolylines(fillGraphics, worldBorderPolylines, 0, borderWidth, borderAlpha);
         log.renderer('PVV2', `🌐 WORLD BORDERS DRAWN | polylines=${worldBorderPolylines.length}`);
-
+    }
+    // Draw world map rectangle border outline (toggleable via TERRITORY_WORLD_BORDER)
+    if (GAME_CONFIG.TERRITORY_WORLD_BORDER && borderWidth > 0 && borderAlpha > 0) {
+        fillGraphics.rect(0, 0, worldWidth, worldHeight);
+        fillGraphics.stroke({ color: 0xffffff, alpha: borderAlpha, width: borderWidth });
+        log.renderer('PVV2', `🔲 WORLD RECT BORDER DRAWN | w=${borderWidth} a=${borderAlpha.toFixed(2)}`);
     }
 
     // Start transition based on mode

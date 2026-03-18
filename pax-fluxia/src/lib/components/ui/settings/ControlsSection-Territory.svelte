@@ -1077,6 +1077,28 @@
 
     <div class="var-row">
         <div class="row-top">
+            <span class="var-name">World Map Border</span>
+            <label class="toggle-switch">
+                <input
+                    type="checkbox"
+                    checked={panel.territoryWorldBorder ?? GAME_CONFIG.TERRITORY_WORLD_BORDER}
+                    onchange={(e) => {
+                        debouncedConfigUpdate(
+                            "TERRITORY_WORLD_BORDER",
+                            "territoryWorldBorder",
+                            (e.target as HTMLInputElement).checked,
+                        );
+                    }}
+                />
+                <span class="slider"></span>
+            </label>
+        </div>
+        <div class="row-hint">Draw border rectangle outline around the world map</div>
+    </div>
+
+
+    <div class="var-row">
+        <div class="row-top">
             <span class="var-name">Saturation</span><span class="val"
                 >{(
                     panel.voronoiSaturation ?? GAME_CONFIG.VORONOI_SATURATION

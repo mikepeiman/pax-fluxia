@@ -162,6 +162,10 @@ export function chaikinSmoothPolyline(pts: [number, number][], passes: number): 
  * (within `eps` of the padded rectangle) are preserved each pass instead
  * of being replaced by cut points. This prevents fill polygons from pulling
  * away from world edges while interior corners still smooth naturally.
+ *
+ * Junction-pinned variant: caller may pass a Set of ptKey strings for
+ * Voronoi junction vertices (shared by 3+ cells). These are also preserved,
+ * preventing fill gaps at 3-way territory junctions.
  */
 export function chaikinSmoothPolygon(
     pts: [number, number][],
@@ -169,17 +173,19 @@ export function chaikinSmoothPolygon(
     worldW: number = Infinity,
     worldH: number = Infinity,
     pad: number = 50,
+    pinnedPtKeys?: Set<string>,
 ): [number, number][] {
     if (passes <= 0 || pts.length < 3) return pts;
     const eps = 6; // proximity threshold for "on boundary"
     const hasBounds = isFinite(worldW) && isFinite(worldH);
 
     function isPinned(x: number, y: number): boolean {
-        if (!hasBounds) return false;
-        return (
+        if (hasBounds && (
             x <= -pad + eps || x >= worldW + pad - eps ||
             y <= -pad + eps || y >= worldH + pad - eps
-        );
+        )) return true;
+        if (pinnedPtKeys?.has(ptKey(x, y))) return true;
+        return false;
     }
 
     let current = pts;
@@ -191,13 +197,37 @@ export function chaikinSmoothPolygon(
             const [bx, by] = current[(i + 1) % n];
             const aPin = isPinned(ax, ay);
             const bPin = isPinned(bx, by);
-            // Near-boundary vertex: emit it as-is instead of the cut point
+            // Pinned vertex: emit as-is instead of cut point
             next.push(aPin ? [ax, ay] : [ax * 0.75 + bx * 0.25, ay * 0.75 + by * 0.25]);
             next.push(bPin ? [bx, by] : [ax * 0.25 + bx * 0.75, ay * 0.25 + by * 0.75]);
         }
         current = next;
     }
     return current;
+}
+
+/**
+ * Compute the set of Voronoi junction vertices — points shared by 3+ cells.
+ * At these points, 3+ territory fills meet. Without pinning, Chaikin would
+ * cut all three corners and leave a visible triangular gap.
+ */
+export function extractJunctionVertices(cells: TerritoryCell[]): Set<string> {
+    const vertexCount = new Map<string, number>();
+    for (const cell of cells) {
+        const seen = new Set<string>();
+        for (const [x, y] of cell.points) {
+            const k = ptKey(x, y);
+            if (!seen.has(k)) {
+                seen.add(k);
+                vertexCount.set(k, (vertexCount.get(k) ?? 0) + 1);
+            }
+        }
+    }
+    const junctions = new Set<string>();
+    for (const [k, count] of vertexCount) {
+        if (count >= 3) junctions.add(k);
+    }
+    return junctions;
 }
 
 /**
@@ -682,6 +712,11 @@ export function executePVV2MetricStage(
 
         log.sys('PVV2Stage', `INPUT: ${stars.length} stars, ${ownedStars.length} owned, ${sites.length} total sites built | corridorEnabled=${config.corridorEnabled} disconnectEnabled=${config.disconnectEnabled} chaikinPasses=${config.chaikinPasses}`);
         log.sys('PVV2Stage', `VORONOI OUTPUT: ${polygons.length} raw polygons -> ${cells.length} valid cells`);
+
+        // Stage 2a: Extract junction vertices (points shared by 3+ cells)
+        // These are pinned during Chaikin to prevent gaps at 3-way territory junctions.
+        const junctionPts = config.chaikinPasses > 0 ? extractJunctionVertices(cells) : new Set<string>();
+        log.sys('PVV2Stage', `JUNCTIONS: ${junctionPts.size} pinned vertices`);
         // Stage 2: Extract shared edges (before merge removes internal edges)
         const sharedEdges = extractSharedEdges(cells);
         log.sys('PVV2Stage', `EDGES: ${sharedEdges.length} contested edges across ${new Set(sharedEdges.map(e => [e.ownerA, e.ownerB].sort().join('|'))).size} owner pairs`);
@@ -723,7 +758,7 @@ export function executePVV2MetricStage(
         const mergedTerritories: MergedTerritory[] = config.chaikinPasses > 0
             ? mergedRaw.map(t => ({
                 ...t,
-                points: chaikinSmoothPolygon(t.points, config.chaikinPasses, config.worldWidth, config.worldHeight),
+                points: chaikinSmoothPolygon(t.points, config.chaikinPasses, config.worldWidth, config.worldHeight, 50, junctionPts),
             }))
             : mergedRaw;
 
@@ -731,7 +766,7 @@ export function executePVV2MetricStage(
         const enclaveMap = new Map<number, [number, number][][]>();
         for (const [idx, holes] of enclaveMapRaw) {
             enclaveMap.set(idx, config.chaikinPasses > 0
-                ? holes.map(hole => chaikinSmoothPolygon(hole, config.chaikinPasses, config.worldWidth, config.worldHeight))
+                ? holes.map(hole => chaikinSmoothPolygon(hole, config.chaikinPasses, config.worldWidth, config.worldHeight, 50, junctionPts))
                 : holes,
             );
         }
