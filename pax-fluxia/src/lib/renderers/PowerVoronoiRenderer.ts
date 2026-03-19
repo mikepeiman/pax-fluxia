@@ -741,8 +741,8 @@ export function renderPowerVoronoi(
         disconnectDistance: GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE ?? 400,
         clusterSplit: Boolean(GAME_CONFIG.TERRITORY_CLUSTER_SPLIT),
         chaikinPasses: Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3))),
-        // Only apply dense frontier resampling when in frontier_loop_morph mode
-        frontierResolution: (GAME_CONFIG.TERRITORY_BORDER_TRANSITION ?? 'pixi_graphics_morph') === 'frontier_loop_morph'
+        // Only apply dense frontier resampling in unified_polygon geometry mode
+        frontierResolution: (GAME_CONFIG.TERRITORY_GEOMETRY_MODE ?? 'power_voronoi') === 'unified_polygon'
             ? Math.max(1, Math.min(20, GAME_CONFIG.FRONTIER_RESOLUTION ?? 5))
             : 0,
         worldWidth,
@@ -891,8 +891,8 @@ export function renderPowerVoronoi(
                 const borderWidth = GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 1.5;
                 activeRopeRenderer = new RopeBorderRenderer(prevSharedPolylines, targetSharedPolylines, easing, resampleN, borderWidth, overshoot);
                 activeRopeRenderer.addTo(voronoiContainer);
-            } else if (borderTransMode === 'frontier_loop_morph') {
-                // Unified frontier loop morpher — fills + borders from same closed polygon data
+            } else if ((GAME_CONFIG.TERRITORY_GEOMETRY_MODE ?? 'power_voronoi') === 'unified_polygon') {
+                // Unified polygon geometry mode — fills + borders from same closed polygon data
                 if (prevMergedTerritories && lastMergedTerritories) {
                     activeLoopMorpher = new FrontierLoopMorpher(prevMergedTerritories, lastMergedTerritories, easing, resampleN, overshoot);
                 }

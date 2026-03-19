@@ -554,7 +554,6 @@
         },
         { id: "smooth_morph", label: "5. Smooth Morph (Legacy)" },
         { id: "pressure_wave", label: "6. Pressure Wave" },
-        { id: "frontier_loop_morph", label: "7. Frontier Loop Morph" },
     ] as const;
 
     /** Map style IDs to old boolean flag panel keys (backward compat) */
@@ -586,6 +585,14 @@
     function selectBorderTransition(transitionId: string) {
         updatePanel("territoryBorderTransition", transitionId);
     }
+
+    function selectGeometryMode(modeId: string) {
+        debouncedConfigUpdate(
+            "TERRITORY_GEOMETRY_MODE",
+            "territoryGeometryMode",
+            modeId,
+        );
+    }
 </script>
 
 <CategoryThemeBar category="territory" onApply={() => syncFromConfig?.()} />
@@ -597,13 +604,15 @@
         <span class="triple-label">Geometry</span>
         <select
             class="mode-select"
-            value={"fg2_seed_graph"}
-            disabled
-            title="FG2 Seed Graph is the only implemented geometry engine. More coming soon."
+            value={panel.territoryGeometryMode ??
+                GAME_CONFIG.TERRITORY_GEOMETRY_MODE ??
+                "power_voronoi"}
+            onchange={(e) => {
+                selectGeometryMode((e.target as HTMLSelectElement).value);
+            }}
         >
-            <option value="fg2_seed_graph">FG2 Seed Graph</option>
-            <option value="pvv2_voronoi" disabled>PVV2 Voronoi (planned)</option
-            >
+            <option value="power_voronoi">Power Voronoi</option>
+            <option value="unified_polygon">Unified Polygon</option>
         </select>
     </div>
     <div class="triple-select-col">

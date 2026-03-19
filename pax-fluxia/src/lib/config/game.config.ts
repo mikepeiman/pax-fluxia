@@ -366,6 +366,7 @@ interface GameConfigType {
     BORDER_TRANS_OVERSHOOT: number;  // Back easing overshoot amount (0-5, default 1.7)
     TERRITORY_BORDER_TRANSITION: string; // Border transition mode ('pixi_graphics_morph'|'pixi_mesh_rope'|'smooth_morph'|'none')
     FRONTIER_RESOLUTION: number;     // Frontier vertex spacing in pixels (1-20, default 5). Lower = denser vertices = smoother morphing
+    TERRITORY_GEOMETRY_MODE: string;  // Geometry data mode: 'power_voronoi' (dual-path) | 'unified_polygon' (single-path dense resampled)
     VORONOI_SATURATION: number;    // Saturation multiplier for Voronoi colors (0=grey, 1=normal, 2=vivid, default 1.0)
     VORONOI_LIGHTNESS: number;     // Lightness multiplier for Voronoi colors (0=dark, 1=normal, 2=bright, default 0.7)
     VORONOI_GLOW_RADIUS: number;   // Territory glow bleed radius as fraction of map size (0-1, default 0.3)
@@ -1081,6 +1082,8 @@ const _rawConfig: GameConfigType = {
     TERRITORY_BORDER_TRANSITION: 'pixi_graphics_morph',
     /** Frontier vertex spacing in pixels (1=every pixel, 20=sparse). Lower = smoother morphing */
     FRONTIER_RESOLUTION: 5,
+    /** Geometry data mode: 'power_voronoi' (dual-path fills+polylines) | 'unified_polygon' (single-path dense polygon) */
+    TERRITORY_GEOMETRY_MODE: 'power_voronoi' as const,
     /** Voronoi color saturation multiplier (0=grey, 1=original, 2=vivid) */
     VORONOI_SATURATION: 1,
     /** Voronoi color lightness multiplier (0=dark, 1=original, 2=bright) */
