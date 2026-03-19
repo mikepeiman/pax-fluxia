@@ -4842,7 +4842,7 @@ function executeAnimationStage(runtime: FG2StageRuntime, summary: Record<string,
     );
 
     runtime.artifacts.animation = {
-        transitionMode: runtime.selection.mode,
+        transitionMode: runtime.selection.methodId,
         gameNowMs: runtime.input.gameNowMs,
         ownerShellTransitionActive,
         ownerShellTransitionProgress,
@@ -5334,8 +5334,7 @@ export function executeFG2Stage(
     runtime: FG2StageRuntime,
     summary: Record<string, unknown>,
 ): boolean {
-    if (runtime.selection.mode !== 'static') return false;
-    if (runtime.selection.staticMethodId !== 'fg2_seed_graph') return false;
+    if (runtime.selection.methodId !== 'fg2_seed_graph') return false;
 
     if (stageId === 'metric') {
         executeMetricStage(runtime, summary);
