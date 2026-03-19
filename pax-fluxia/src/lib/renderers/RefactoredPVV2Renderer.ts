@@ -3,34 +3,28 @@
 // ============================================================================
 //
 // Non-destructive refactor of PowerVoronoiRenderer.ts.
-// Phase 4, Step 4: Initially delegates to the existing renderPowerVoronoi
-// function to get the dual-adapter pipeline working end-to-end.
+// This adapter holds its OWN PVV2RendererState, completely isolated from the
+// legacy_pvv2 adapter's defaultState. Switching between them in the UI
+// gives instant A/B comparison with zero crosstalk.
 //
-// Roadmap:
-//   - [x] Phase 1: Thin wrapper — delegates to legacy renderPowerVoronoi
-//   - [ ] Phase 2: Move transition state (activeBorderTransitionHandler, etc.)
-//         into class fields
-//   - [ ] Phase 3: Replace drawFrame with getInterpolatedPolylines + renderer draw
-//   - [ ] Phase 4: Wire into FX system as FXHandler<ConquestEvent>
-//
-// The original PowerVoronoiRenderer.ts is LEFT UNTOUCHED.
+// The original PowerVoronoiRenderer.ts is SAFE — legacy callers still get
+// the module-level defaultState automatically.
 // ============================================================================
 
-import type { StarState, StarConnection } from '$lib/types/game.types';
-import type { ColorUtils } from './RenderContext';
-import type * as PIXI from 'pixi.js';
-import { renderPowerVoronoi } from './PowerVoronoiRenderer';
+import { renderPowerVoronoi, createPVV2State, type PVV2RendererState } from './PowerVoronoiRenderer';
 import { log } from '$lib/utils/logger';
 import type { TerritoryEngineInput } from '$lib/territory/orchestrator/types';
 
 /**
- * Class-encapsulated wrapper around the PVV2 territory renderer.
+ * Class-encapsulated PVV2 territory renderer with isolated state.
  *
- * Currently delegates to the existing module-level renderPowerVoronoi function.
- * State encapsulation will be incrementally migrated in subsequent phases.
+ * Uses the SAME renderPowerVoronoi logic as legacy_pvv2, but passes its own
+ * PVV2RendererState. This means transition animations, fingerprint caches,
+ * and PIXI.Graphics instances are fully independent.
  */
 export class RefactoredPVV2Renderer {
     private renderCount = 0;
+    private readonly state: PVV2RendererState = createPVV2State();
 
     render(input: TerritoryEngineInput): void {
         this.renderCount++;
@@ -38,13 +32,11 @@ export class RefactoredPVV2Renderer {
         if (this.renderCount === 1) {
             log.renderer(
                 'RefactoredPVV2Renderer',
-                'First render — delegating to legacy renderPowerVoronoi',
+                'First render — using isolated PVV2RendererState',
             );
         }
 
-        // Phase 1: Direct delegation to the existing renderer.
-        // This shares module-level state with legacy_pvv2 calls — that's expected
-        // for now and will be separated when state is encapsulated.
+        // Pass our own state → completely isolated from legacy_pvv2's defaultState
         renderPowerVoronoi(
             input.stars,
             input.container,
@@ -53,11 +45,14 @@ export class RefactoredPVV2Renderer {
             input.worldHeight,
             input.connections,
             undefined,
+            this.state,
         );
     }
 
     reset(): void {
         this.renderCount = 0;
+        // Reset our state to fresh defaults
+        Object.assign(this.state, createPVV2State());
     }
 }
 

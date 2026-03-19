@@ -1198,6 +1198,78 @@
             }}
         />
     </div>
+    <h4 class="sub-heading">🔧 Engine Pipeline</h4>
+    <div class="triple-select-row">
+        <div class="triple-select-col">
+            <span class="triple-label">Engine Mode</span>
+            <select
+                class="mode-select"
+                value={panel.territoryEngineMode ??
+                    GAME_CONFIG.TERRITORY_ENGINE_MODE ??
+                    "dynamic"}
+                onchange={(e) => {
+                    debouncedConfigUpdate(
+                        "TERRITORY_ENGINE_MODE",
+                        "territoryEngineMode",
+                        (e.target as HTMLSelectElement).value,
+                    );
+                }}
+            >
+                {#each TERRITORY_ENGINE_MODE_OPTIONS as opt}
+                    <option value={opt.id}>{opt.label}</option>
+                {/each}
+            </select>
+        </div>
+        <div class="triple-select-col">
+            <span class="triple-label">Static Method</span>
+            <select
+                class="mode-select"
+                value={panel.territoryEngineStaticMethod ??
+                    GAME_CONFIG.TERRITORY_ENGINE_STATIC_METHOD ??
+                    "fg1_adaptive_field"}
+                onchange={(e) => {
+                    debouncedConfigUpdate(
+                        "TERRITORY_ENGINE_STATIC_METHOD",
+                        "territoryEngineStaticMethod",
+                        (e.target as HTMLSelectElement).value,
+                    );
+                }}
+            >
+                {#each TERRITORY_ENGINE_METHOD_OPTIONS as opt}
+                    <option value={opt.id}>{opt.label}</option>
+                {/each}
+            </select>
+        </div>
+        <div class="triple-select-col">
+            <span class="triple-label">Dynamic Method</span>
+            <select
+                class="mode-select"
+                value={panel.territoryEngineDynamicMethod ??
+                    GAME_CONFIG.TERRITORY_ENGINE_DYNAMIC_METHOD ??
+                    "dy4_optimal_transport"}
+                onchange={(e) => {
+                    debouncedConfigUpdate(
+                        "TERRITORY_ENGINE_DYNAMIC_METHOD",
+                        "territoryEngineDynamicMethod",
+                        (e.target as HTMLSelectElement).value,
+                    );
+                }}
+            >
+                {#each TERRITORY_ENGINE_DYNAMIC_OPTIONS as opt}
+                    <option value={opt.id}>{opt.label}</option>
+                {/each}
+            </select>
+        </div>
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Route</span>
+            <span class="val"
+                >{territoryEngineRoute.adapterLabel} → {territoryEngineRoute.staticLabel}
+                / {territoryEngineRoute.dynamicLabel}</span
+            >
+        </div>
+    </div>
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Trace Mode</span>

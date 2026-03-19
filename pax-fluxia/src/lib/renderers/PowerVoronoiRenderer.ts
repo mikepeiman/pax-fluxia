@@ -46,52 +46,81 @@ import { SegmentMorphTransitionHandler, RopeBorderRenderer, PolygonMorphTransiti
 
 // Types are now imported from powerVoronoiTerritoryGeometryGenerator — TerritoryCell, MergedTerritory,
 // SharedBorderEdge, SharedPolyline, TerritoryGeometryData
+// ── Renderer State (encapsulated) ─────────────────────────────────────────
 
-// ── Cache ──────────────────────────────────────────────────────────────────
+/**
+ * All mutable state for one PVV2 renderer instance.
+ * The legacy module-level state is now stored in `defaultState`.
+ * The refactored adapter creates its own isolated state via `createPVV2State()`.
+ */
+export interface PVV2RendererState {
+    // Cache
+    cachedShapeFingerprint: string;
+    cachedVisualFingerprint: string;
+    fillGraphics: PIXI.Graphics | null;
+    borderGraphics: PIXI.Graphics | null;
+    // Border Transition (Segment Mode)
+    prevBorderEdges: SharedBorderEdge[] | null;
+    targetBorderEdges: SharedBorderEdge[] | null;
+    borderTransitionStart: number;
+    isBorderTransitioning: boolean;
+    // Smooth Transition (Contested Border Mode)
+    prevSharedPolylines: SharedPolyline[] | null;
+    targetSharedPolylines: SharedPolyline[] | null;
+    targetRawSharedPolylines: SharedPolyline[] | null;
+    smoothTransitionStart: number;
+    isSmoothTransitioning: boolean;
+    lastMergedTerritories: MergedTerritory[] | null;
+    // Fill Transition (alpha crossfade)
+    prevMergedTerritories: MergedTerritory[] | null;
+    prevEnclaveMap: Map<number, [number, number][][]> | null;
+    fillTransitionStart: number;
+    isFillTransitioning: boolean;
+    // Active Morphers
+    activeBorderTransitionHandler: SegmentMorphTransitionHandler | null;
+    activeRopeRenderer: RopeBorderRenderer | null;
+    activeShapeTransitionHandler: PolygonMorphTransitionHandler | null;
+    // Cell Change Tracking
+    lastCells: TerritoryCell[] | null;
+    changedSiteIds: Set<string> | null;
+    // Enclave Cache
+    lastEnclaveMap: Map<number, [number, number][][]> | null;
+    lastWorldBorderPolylines: SharedPolyline[];
+}
 
-let cachedShapeFingerprint = '';
-let cachedVisualFingerprint = '';
-let fillGraphics: PIXI.Graphics | null = null;
-let borderGraphics: PIXI.Graphics | null = null;
+/** Create a fresh PVV2 renderer state. */
+export function createPVV2State(): PVV2RendererState {
+    return {
+        cachedShapeFingerprint: '',
+        cachedVisualFingerprint: '',
+        fillGraphics: null,
+        borderGraphics: null,
+        prevBorderEdges: null,
+        targetBorderEdges: null,
+        borderTransitionStart: 0,
+        isBorderTransitioning: false,
+        prevSharedPolylines: null,
+        targetSharedPolylines: null,
+        targetRawSharedPolylines: null,
+        smoothTransitionStart: 0,
+        isSmoothTransitioning: false,
+        lastMergedTerritories: null,
+        prevMergedTerritories: null,
+        prevEnclaveMap: null,
+        fillTransitionStart: 0,
+        isFillTransitioning: false,
+        activeBorderTransitionHandler: null,
+        activeRopeRenderer: null,
+        activeShapeTransitionHandler: null,
+        lastCells: null,
+        changedSiteIds: null,
+        lastEnclaveMap: null,
+        lastWorldBorderPolylines: [],
+    };
+}
 
-// ── Border Transition State (Segment Mode) ─────────────────────────────────
-
-/** Previous shared border edge positions for segment mode animation. */
-let prevBorderEdges: SharedBorderEdge[] | null = null;
-let targetBorderEdges: SharedBorderEdge[] | null = null;
-let borderTransitionStart = 0;
-let isBorderTransitioning = false;
-
-// ── Smooth Transition State (Contested Border Mode) ─────────────────────────
-
-// SharedPolyline interface imported from powerVoronoiTerritoryGeometryGenerator
-
-
-let prevSharedPolylines: SharedPolyline[] | null = null;
-let targetSharedPolylines: SharedPolyline[] | null = null;
-let targetRawSharedPolylines: SharedPolyline[] | null = null;
-let smoothTransitionStart = 0;
-let isSmoothTransitioning = false;
-let lastMergedTerritories: MergedTerritory[] | null = null;  // stored for smooth mode snapshot
-
-// ── Fill Transition State (alpha crossfade) ────────────────────────────────
-let prevMergedTerritories: MergedTerritory[] | null = null;
-let prevEnclaveMap: Map<number, [number, number][][]> | null = null;
-let fillTransitionStart = 0;
-let isFillTransitioning = false;
-
-// ── Active Morphers (from borderTransition.ts) ──────────────────────
-let activeBorderTransitionHandler: SegmentMorphTransitionHandler | null = null;
-let activeRopeRenderer: RopeBorderRenderer | null = null;
-let activeShapeTransitionHandler: PolygonMorphTransitionHandler | null = null;  // unified fill+border morpher
-
-// ── Cell Change Tracking (frontier-first rendering) ────────────────────
-let lastCells: TerritoryCell[] | null = null;  // cells from previous rebuild
-let changedSiteIds: Set<string> | null = null; // stars that changed owner in this conquest
-
-// ── Enclave Cache ──────────────────────────────────────────────────────────
-let lastEnclaveMap: Map<number, [number, number][][]> | null = null;
-let lastWorldBorderPolylines: import('$lib/territory/compiler/powerVoronoiTerritoryGeometryGenerator').SharedPolyline[] = [];
+/** Default (legacy) module-level state — used when no state is passed to renderPowerVoronoi. */
+const defaultState: PVV2RendererState = createPVV2State();
 
 // ── Fingerprint ────────────────────────────────────────────────────────────
 
@@ -365,12 +394,12 @@ function renderInterpolatedBorders(
     t: number,  // 0=prev, 1=target (eased)
     borderWidth: number, borderAlpha: number,
 ): void {
-    if (!borderGraphics) {
-        borderGraphics = new PIXI.Graphics();
-        container.addChild(borderGraphics);
+    if (!defaultState.borderGraphics) {
+        defaultState.borderGraphics = new PIXI.Graphics();
+        container.addChild(defaultState.borderGraphics);
     }
-    borderGraphics.clear();
-    borderGraphics.visible = true;
+    defaultState.borderGraphics.clear();
+    defaultState.borderGraphics.visible = true;
 
     const blendWidth = borderWidth * 2.5;
 
@@ -402,14 +431,14 @@ function renderInterpolatedBorders(
             const y2 = pEdge.y2 + (tEdge.y2 - pEdge.y2) * t;
             // Use target edge color (since fills show target state)
             const color = tEdge.colorA || pEdge.colorA || 0x888888;
-            borderGraphics.moveTo(x1, y1);
-            borderGraphics.lineTo(x2, y2);
-            borderGraphics.stroke({ width: blendWidth, color, alpha: borderAlpha });
+            defaultState.borderGraphics.moveTo(x1, y1);
+            defaultState.borderGraphics.lineTo(x2, y2);
+            defaultState.borderGraphics.stroke({ width: blendWidth, color, alpha: borderAlpha });
         } else {
             // Prev edge fading out (no match) — draw at prev position with decreasing alpha
-            borderGraphics.moveTo(pEdge.x1, pEdge.y1);
-            borderGraphics.lineTo(pEdge.x2, pEdge.y2);
-            borderGraphics.stroke({ width: blendWidth, color: pEdge.colorA || 0x888888, alpha: borderAlpha * (1 - t) });
+            defaultState.borderGraphics.moveTo(pEdge.x1, pEdge.y1);
+            defaultState.borderGraphics.lineTo(pEdge.x2, pEdge.y2);
+            defaultState.borderGraphics.stroke({ width: blendWidth, color: pEdge.colorA || 0x888888, alpha: borderAlpha * (1 - t) });
         }
     }
 
@@ -417,9 +446,9 @@ function renderInterpolatedBorders(
     for (let ti = 0; ti < target.length; ti++) {
         if (targetUsed.has(ti)) continue;
         const tEdge = target[ti];
-        borderGraphics.moveTo(tEdge.x1, tEdge.y1);
-        borderGraphics.lineTo(tEdge.x2, tEdge.y2);
-        borderGraphics.stroke({ width: blendWidth, color: tEdge.colorA || 0x888888, alpha: borderAlpha * t });
+        defaultState.borderGraphics.moveTo(tEdge.x1, tEdge.y1);
+        defaultState.borderGraphics.lineTo(tEdge.x2, tEdge.y2);
+        defaultState.borderGraphics.stroke({ width: blendWidth, color: tEdge.colorA || 0x888888, alpha: borderAlpha * t });
     }
 }
 
@@ -429,7 +458,7 @@ function renderInterpolatedBorders(
 
 
 /** Draw a territory fill ONLY (no stroke).
- *  Borders are drawn separately via drawBorderPolylines on borderGraphics.
+ *  Borders are drawn separately via drawBorderPolylines on defaultState.borderGraphics.
  *  Fills use RAW polygon points — NO independent smoothing.
  *  Smoothing is applied only to border polylines in the compiler stage.
  *  Independent fill smoothing creates divergence (B-42). */
@@ -472,13 +501,15 @@ export function renderPowerVoronoi(
     worldHeight: number,
     connections?: StarConnection[],
     canonicalData?: CanonicalTerritoryData,
+    state?: PVV2RendererState,
 ): void {
+    const s = state ?? defaultState;
     const transitionMs = GAME_CONFIG.TERRITORY_TRANSITION_MS ?? 400;
     const now = performance.now();
 
-    // Re-show fillGraphics — voronoiContainer blanket-hides every frame
-    if (fillGraphics) fillGraphics.visible = true;
-    // borderGraphics stays hidden — borders are now strokes on the fill path
+    // Re-show s.fillGraphics — voronoiContainer blanket-hides every frame
+    if (s.fillGraphics) s.fillGraphics.visible = true;
+    // s.borderGraphics stays hidden — borders are now strokes on the fill path
 
     // ── CANONICAL DATA PATH ─────────────────────────────────────────────
     // When canonical data is provided with shells, draw fills and borders
@@ -499,20 +530,20 @@ export function renderPowerVoronoi(
     }
 
     if (canonicalShells.length > 0) {
-        if (!fillGraphics) {
-            fillGraphics = new PIXI.Graphics();
-            voronoiContainer.addChild(fillGraphics);
+        if (!s.fillGraphics) {
+            s.fillGraphics = new PIXI.Graphics();
+            voronoiContainer.addChild(s.fillGraphics);
         }
-        fillGraphics.clear();
-        fillGraphics.visible = true;
+        s.fillGraphics.clear();
+        s.fillGraphics.visible = true;
 
         // Canonical path owns ALL rendering for this frame.
-        // Clear legacy borderGraphics so stale pvv2 polyline borders (different geometry)
+        // Clear legacy s.borderGraphics so stale pvv2 polyline borders (different geometry)
         // do not persist and appear misaligned with canonical shell fills.
-        if (borderGraphics) {
-            borderGraphics.clear();
-            borderGraphics.visible = false;
-            log.renderer('PVV2', '🔴 CANONICAL PATH cleared borderGraphics!');
+        if (s.borderGraphics) {
+            s.borderGraphics.clear();
+            s.borderGraphics.visible = false;
+            log.renderer('PVV2', '🔴 CANONICAL PATH cleared s.borderGraphics!');
         }
 
         const alpha = GAME_CONFIG.VORONOI_ALPHA ?? 0.25;
@@ -549,9 +580,9 @@ export function renderPowerVoronoi(
             const smoothedPts = shell.points;
 
             // Draw fill FROM shell points
-            fillGraphics.beginPath();
-            fillGraphics.poly(smoothedPts.flat());
-            fillGraphics.fill({ color: shellColor, alpha });
+            s.fillGraphics.beginPath();
+            s.fillGraphics.poly(smoothedPts.flat());
+            s.fillGraphics.fill({ color: shellColor, alpha });
 
             // Cut holes
             const holeLoops: Array<{ points: [number, number][] }> =
@@ -566,22 +597,22 @@ export function renderPowerVoronoi(
                 if (hole.points.length < 3) continue;
                 // Holes use geometry as-is — no smoothing in renderer
                 const smoothedHole = hole.points;
-                fillGraphics.beginPath();
-                fillGraphics.poly(smoothedHole.flat());
-                fillGraphics.cut();
+                s.fillGraphics.beginPath();
+                s.fillGraphics.poly(smoothedHole.flat());
+                s.fillGraphics.cut();
             }
 
             // Draw border ON the same shell points
             if (borderWidth > 0 && borderAlpha > 0) {
-                fillGraphics.beginPath();
-                fillGraphics.moveTo(smoothedPts[0][0], smoothedPts[0][1]);
+                s.fillGraphics.beginPath();
+                s.fillGraphics.moveTo(smoothedPts[0][0], smoothedPts[0][1]);
                 for (let i = 1; i < smoothedPts.length; i++) {
-                    fillGraphics.lineTo(smoothedPts[i][0], smoothedPts[i][1]);
+                    s.fillGraphics.lineTo(smoothedPts[i][0], smoothedPts[i][1]);
                 }
                 if (smoothedPts.length > 2) {
-                    fillGraphics.lineTo(smoothedPts[0][0], smoothedPts[0][1]);
+                    s.fillGraphics.lineTo(smoothedPts[0][0], smoothedPts[0][1]);
                 }
-                fillGraphics.stroke({
+                s.fillGraphics.stroke({
                     width: borderWidth,
                     color: shellColor,
                     alpha: borderAlpha,
@@ -600,17 +631,17 @@ export function renderPowerVoronoi(
     const boundaryMode = GAME_CONFIG.TERRITORY_BOUNDARY_MODE ?? 'smooth';
 
     // Throttled mode log — only on state change
-    const modeKey = `${boundaryMode}|${isSmoothTransitioning}|${isBorderTransitioning}`;
+    const modeKey = `${boundaryMode}|${s.isSmoothTransitioning}|${s.isBorderTransitioning}`;
     if ((drawBorderPolylines as any).__lastModeKey !== modeKey) {
         (drawBorderPolylines as any).__lastModeKey = modeKey;
-        log.renderer('PVV2', `mode=${boundaryMode} smoothTransition=${isSmoothTransitioning} segmentTransition=${isBorderTransitioning}`);
+        log.renderer('PVV2', `mode=${boundaryMode} smoothTransition=${s.isSmoothTransitioning} segmentTransition=${s.isBorderTransitioning}`);
     }
 
     // ── Per-frame geometric MORPH ──
-    const isAnimatingSmooth = boundaryMode === 'smooth' && isSmoothTransitioning && prevSharedPolylines && targetSharedPolylines && transitionMs > 0;
+    const isAnimatingSmooth = boundaryMode === 'smooth' && s.isSmoothTransitioning && s.prevSharedPolylines && s.targetSharedPolylines && transitionMs > 0;
 
-    if (isAnimatingSmooth && lastMergedTerritories && fillGraphics) {
-        const elapsed = now - smoothTransitionStart;
+    if (isAnimatingSmooth && s.lastMergedTerritories && s.fillGraphics) {
+        const elapsed = now - s.smoothTransitionStart;
         const rawT = Math.min(1, elapsed / transitionMs);
         // Easing is now handled inside the morpher classes — pass raw t
         const easedT = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
@@ -620,73 +651,73 @@ export function renderPowerVoronoi(
         const borderAlpha = GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.4;
         const smoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
 
-        fillGraphics.clear();
+        s.fillGraphics.clear();
 
         // D-79 / B-101: Unified fill+border from same morphed closed polygons.
         // PolygonMorphTransitionHandler draws both fill AND stroke from the same interpolated points.
-        if (activeShapeTransitionHandler) {
-            activeShapeTransitionHandler.drawFrame(fillGraphics, rawT, alpha, borderWidth, borderAlpha);
-        } else if (activeBorderTransitionHandler) {
+        if (s.activeShapeTransitionHandler) {
+            s.activeShapeTransitionHandler.drawFrame(s.fillGraphics, rawT, alpha, borderWidth, borderAlpha);
+        } else if (s.activeBorderTransitionHandler) {
             // Legacy segment morpher fallback (borders only)
-            for (let i = 0; i < lastMergedTerritories.length; i++) {
-                drawTerritoryFillOnly(fillGraphics, lastMergedTerritories[i], lastEnclaveMap?.get(i), alpha);
+            for (let i = 0; i < s.lastMergedTerritories.length; i++) {
+                drawTerritoryFillOnly(s.fillGraphics, s.lastMergedTerritories[i], s.lastEnclaveMap?.get(i), alpha);
             }
-            activeBorderTransitionHandler.drawFrame(fillGraphics, rawT, borderWidth, borderAlpha);
-        } else if (activeRopeRenderer) {
+            s.activeBorderTransitionHandler.drawFrame(s.fillGraphics, rawT, borderWidth, borderAlpha);
+        } else if (s.activeRopeRenderer) {
             // Rope mode: draw target fills, rope handles borders
-            for (let i = 0; i < lastMergedTerritories.length; i++) {
-                drawTerritoryFillOnly(fillGraphics, lastMergedTerritories[i], lastEnclaveMap?.get(i), alpha);
+            for (let i = 0; i < s.lastMergedTerritories.length; i++) {
+                drawTerritoryFillOnly(s.fillGraphics, s.lastMergedTerritories[i], s.lastEnclaveMap?.get(i), alpha);
             }
-            activeRopeRenderer.setVisible(true);
-            activeRopeRenderer.update(rawT, borderAlpha);
+            s.activeRopeRenderer.setVisible(true);
+            s.activeRopeRenderer.update(rawT, borderAlpha);
         }
 
         if (rawT >= 1) {
-            isSmoothTransitioning = false;
-            isFillTransitioning = false;
-            prevSharedPolylines = null;
-            prevMergedTerritories = null;
-            prevEnclaveMap = null;
-            activeBorderTransitionHandler = null;
-            activeShapeTransitionHandler = null;
-            if (activeRopeRenderer) {
-                activeRopeRenderer.removeAll();
-                activeRopeRenderer = null;
+            s.isSmoothTransitioning = false;
+            s.isFillTransitioning = false;
+            s.prevSharedPolylines = null;
+            s.prevMergedTerritories = null;
+            s.prevEnclaveMap = null;
+            s.activeBorderTransitionHandler = null;
+            s.activeShapeTransitionHandler = null;
+            if (s.activeRopeRenderer) {
+                s.activeRopeRenderer.removeAll();
+                s.activeRopeRenderer = null;
             }
             // ── F2 FIX (refined) ────────────────────────────────────────────
             // Do NOT clear + redraw fills — that caused visible tick stutter.
             // The morpher's last frame at t=1 already shows correct fills.
             // But we DO need to draw steady-state borders so they persist
             // after the morpher/rope is cleaned up above.
-            if (targetSharedPolylines && targetSharedPolylines.length > 0 && borderWidth > 0 && borderAlpha > 0) {
-                drawBorderPolylines(fillGraphics, targetSharedPolylines, 0, borderWidth, borderAlpha);
+            if (s.targetSharedPolylines && s.targetSharedPolylines.length > 0 && borderWidth > 0 && borderAlpha > 0) {
+                drawBorderPolylines(s.fillGraphics, s.targetSharedPolylines, 0, borderWidth, borderAlpha);
             }
-            if (lastWorldBorderPolylines.length > 0 && borderWidth > 0 && borderAlpha > 0) {
-                drawBorderPolylines(fillGraphics, lastWorldBorderPolylines, 0, borderWidth, borderAlpha);
+            if (s.lastWorldBorderPolylines.length > 0 && borderWidth > 0 && borderAlpha > 0) {
+                drawBorderPolylines(s.fillGraphics, s.lastWorldBorderPolylines, 0, borderWidth, borderAlpha);
             }
             log.renderer('PVV2', 'border transition complete — borders drawn, fills retained from morpher');
         }
 
         const shapeFpCheck = buildShapeFingerprint(stars);
         const visualFpCheck = buildVisualFingerprint();
-        if (shapeFpCheck === cachedShapeFingerprint && visualFpCheck === cachedVisualFingerprint) {
+        if (shapeFpCheck === s.cachedShapeFingerprint && visualFpCheck === s.cachedVisualFingerprint) {
             return;
         }
-    } else if (boundaryMode === 'segment' && isBorderTransitioning && transitionMs > 0 && prevBorderEdges && targetBorderEdges) {
-        const elapsed = now - borderTransitionStart;
+    } else if (boundaryMode === 'segment' && s.isBorderTransitioning && transitionMs > 0 && s.prevBorderEdges && s.targetBorderEdges) {
+        const elapsed = now - s.borderTransitionStart;
         if (elapsed >= transitionMs) {
-            isBorderTransitioning = false;
-            prevBorderEdges = null;
+            s.isBorderTransitioning = false;
+            s.prevBorderEdges = null;
         }
         const shapeFpCheck = buildShapeFingerprint(stars);
         const visualFpCheck = buildVisualFingerprint();
-        if (shapeFpCheck === cachedShapeFingerprint && visualFpCheck === cachedVisualFingerprint) return;
+        if (shapeFpCheck === s.cachedShapeFingerprint && visualFpCheck === s.cachedVisualFingerprint) return;
     }
 
     const shapeFp = buildShapeFingerprint(stars);
     const visualFp = buildVisualFingerprint();
-    const shapeChanged = shapeFp !== cachedShapeFingerprint;
-    const visualChanged = visualFp !== cachedVisualFingerprint;
+    const shapeChanged = shapeFp !== s.cachedShapeFingerprint;
+    const visualChanged = visualFp !== s.cachedVisualFingerprint;
 
     if (!shapeChanged && !visualChanged) return;  // nothing changed
 
@@ -695,22 +726,22 @@ export function renderPowerVoronoi(
     // ── Shape changed: snapshot for transition animation ─────────────────
     if (shapeChanged && transitionMs > 0) {
         // Segment mode: snapshot border edges
-        if (targetBorderEdges && targetBorderEdges.length > 0) {
-            prevBorderEdges = targetBorderEdges;
+        if (s.targetBorderEdges && s.targetBorderEdges.length > 0) {
+            s.prevBorderEdges = s.targetBorderEdges;
         }
         // Smooth mode: snapshot current shared polylines
-        if (targetSharedPolylines && targetSharedPolylines.length > 0) {
-            prevSharedPolylines = targetSharedPolylines;
+        if (s.targetSharedPolylines && s.targetSharedPolylines.length > 0) {
+            s.prevSharedPolylines = s.targetSharedPolylines;
         }
         // Fill crossfade: snapshot current merged territories
-        if (lastMergedTerritories && lastMergedTerritories.length > 0) {
-            prevMergedTerritories = lastMergedTerritories;
-            prevEnclaveMap = lastEnclaveMap;
+        if (s.lastMergedTerritories && s.lastMergedTerritories.length > 0) {
+            s.prevMergedTerritories = s.lastMergedTerritories;
+            s.prevEnclaveMap = s.lastEnclaveMap;
         }
     }
 
-    cachedShapeFingerprint = shapeFp;
-    cachedVisualFingerprint = visualFp;
+    s.cachedShapeFingerprint = shapeFp;
+    s.cachedVisualFingerprint = visualFp;
 
     const alpha = GAME_CONFIG.VORONOI_ALPHA ?? 0.25;
     const borderWidth = GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 1.5;
@@ -745,14 +776,14 @@ export function renderPowerVoronoi(
         // CompileError — recoverable means use last cached frame, non-recoverable clears
         log.error('PVV2', `geometry stage error at ${stageResult.stage}: ${stageResult.message}`);
         if (!stageResult.recoverable) {
-            if (fillGraphics) { fillGraphics.clear(); }
-            if (borderGraphics) { borderGraphics.clear(); }
+            if (s.fillGraphics) { s.fillGraphics.clear(); }
+            if (s.borderGraphics) { s.borderGraphics.clear(); }
         }
         return;
     }
 
     const { cells, mergedTerritories: merged, sharedEdges, rawSharedPolylines: builtRawPolylinesRaw, sharedPolylines: builtPolylinesRaw, worldBorderPolylines, enclaveMap } = stageResult;
-    lastWorldBorderPolylines = worldBorderPolylines;  // cache for transition-end redraw
+    s.lastWorldBorderPolylines = worldBorderPolylines;  // cache for transition-end redraw
 
     log.renderer('PVV2', `STAGE OUTPUT | cells=${cells.length} merged=${merged.length} edges=${sharedEdges.length} polylines=${builtPolylinesRaw.length} enclaves=${enclaveMap.size} chaikinPasses=${stageConfig.chaikinPasses}`);
 
@@ -764,9 +795,9 @@ export function renderPowerVoronoi(
     }
 
     // Detect changed-owner stars for transition tracking
-    changedSiteIds = null;
-    if (lastCells && shapeChanged) {
-        const prevOwnerMap = new Map(lastCells.map(c => [c.siteId, c.ownerId]));
+    s.changedSiteIds = null;
+    if (s.lastCells && shapeChanged) {
+        const prevOwnerMap = new Map(s.lastCells.map(c => [c.siteId, c.ownerId]));
         const changed = new Set<string>();
         for (const cell of cells) {
             const prevOwner = prevOwnerMap.get(cell.siteId);
@@ -775,21 +806,21 @@ export function renderPowerVoronoi(
             }
         }
         if (changed.size > 0) {
-            changedSiteIds = changed;
+            s.changedSiteIds = changed;
             log.sys('PowerVoronoi', `Conquest detected: ${changed.size} stars changed owner: ${[...changed].join(', ')}`);
         }
     }
-    lastCells = cells;
+    s.lastCells = cells;
 
     log.sys('PowerVoronoi', `${cells.length} cells, ${merged.length} merged territories`);
 
     // ── Stage 4: Render Fills ──────────────────────────────────────────────
-    if (!fillGraphics) {
-        fillGraphics = new PIXI.Graphics();
-        voronoiContainer.addChild(fillGraphics);
+    if (!s.fillGraphics) {
+        s.fillGraphics = new PIXI.Graphics();
+        voronoiContainer.addChild(s.fillGraphics);
     }
-    fillGraphics.clear();
-    fillGraphics.visible = true;
+    s.fillGraphics.clear();
+    s.fillGraphics.visible = true;
 
     // Fills and borders are drawn on the SAME path via fill+stroke in drawTerritoryFillWithHoles.
     // No separate border render pass needed.
@@ -803,7 +834,7 @@ export function renderPowerVoronoi(
     // Steady-state fills: use raw polygon points (no independent smoothing — B-42 fix)
     log.renderer('PVV2', `STEADY-STATE FILLS | drawing ${merged.length} territories`);
     for (let i = 0; i < merged.length; i++) {
-        drawTerritoryFillOnly(fillGraphics, merged[i], enclaveMap.get(i), alpha);
+        drawTerritoryFillOnly(s.fillGraphics, merged[i], enclaveMap.get(i), alpha);
     }
 
     // ── Store targets + start transition ────────────────────────────────
@@ -812,9 +843,9 @@ export function renderPowerVoronoi(
         edge.colorA = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerA), satMult, lightMult);
         edge.colorB = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerB), satMult, lightMult);
     }
-    targetBorderEdges = sharedEdges;
-    lastMergedTerritories = merged;
-    lastEnclaveMap = enclaveMap;
+    s.targetBorderEdges = sharedEdges;
+    s.lastMergedTerritories = merged;
+    s.lastEnclaveMap = enclaveMap;
 
     // Build polylines for morph transition (reuse from render block if available)
     {
@@ -824,51 +855,51 @@ export function renderPowerVoronoi(
             if (!cMap.has(key)) cMap.set(key, blendColors(edge.colorA, edge.colorB, 0.5));
         }
         // builtPolylinesRaw from stage; assign colors here (render concern)
-        targetSharedPolylines = builtPolylinesRaw.map(pl => {
+        s.targetSharedPolylines = builtPolylinesRaw.map(pl => {
             const [ownerA, ownerB] = pl.ownerPairKey.split('|');
             const color = cMap.get(`${ownerA}|${ownerB}`) ?? cMap.get(`${ownerB}|${ownerA}`) ?? 0x888888;
             return { ...pl, color };
         });
-        targetRawSharedPolylines = builtRawPolylinesRaw?.map(pl => {
+        s.targetRawSharedPolylines = builtRawPolylinesRaw?.map(pl => {
             const [ownerA, ownerB] = pl.ownerPairKey.split('|');
             const color = cMap.get(`${ownerA}|${ownerB}`) ?? cMap.get(`${ownerB}|${ownerA}`) ?? 0x888888;
             return { ...pl, color };
         }) ?? null;
     }
 
-    // Draw inner contested borders on fillGraphics (same layer, after fills)
-    if (targetSharedPolylines && targetSharedPolylines.length > 0 && borderWidth > 0 && borderAlpha > 0) {
-        drawBorderPolylines(fillGraphics, targetSharedPolylines, 0, borderWidth, borderAlpha);
-        log.renderer('PVV2', `🟢 BORDERS DRAWN on fillGraphics | polylines=${targetSharedPolylines.length} bw=${borderWidth} ba=${borderAlpha}`);
+    // Draw inner contested borders on s.fillGraphics (same layer, after fills)
+    if (s.targetSharedPolylines && s.targetSharedPolylines.length > 0 && borderWidth > 0 && borderAlpha > 0) {
+        drawBorderPolylines(s.fillGraphics, s.targetSharedPolylines, 0, borderWidth, borderAlpha);
+        log.renderer('PVV2', `🟢 BORDERS DRAWN on s.fillGraphics | polylines=${s.targetSharedPolylines.length} bw=${borderWidth} ba=${borderAlpha}`);
     } else {
-        log.renderer('PVV2', `🔴 BORDERS SKIPPED | polylines=${targetSharedPolylines?.length ?? 'null'} bw=${borderWidth} ba=${borderAlpha}`);
+        log.renderer('PVV2', `🔴 BORDERS SKIPPED | polylines=${s.targetSharedPolylines?.length ?? 'null'} bw=${borderWidth} ba=${borderAlpha}`);
     }
     // Draw world-boundary border lines — territory-colored, derived from outer polygon faces
     if (worldBorderPolylines.length > 0 && borderWidth > 0 && borderAlpha > 0) {
-        drawBorderPolylines(fillGraphics, worldBorderPolylines, 0, borderWidth, borderAlpha);
+        drawBorderPolylines(s.fillGraphics, worldBorderPolylines, 0, borderWidth, borderAlpha);
         log.renderer('PVV2', `🌐 WORLD BORDERS DRAWN | polylines=${worldBorderPolylines.length}`);
     }
 
     // Start transition based on mode
     if (shapeChanged && transitionMs > 0) {
         // Segment mode
-        if (prevBorderEdges && prevBorderEdges.length > 0) {
-            borderTransitionStart = now;
-            isBorderTransitioning = true;
+        if (s.prevBorderEdges && s.prevBorderEdges.length > 0) {
+            s.borderTransitionStart = now;
+            s.isBorderTransitioning = true;
         }
 
         // Smooth mode — create the appropriate border morpher
-        if (prevSharedPolylines && prevSharedPolylines.length > 0 && targetSharedPolylines && targetSharedPolylines.length > 0) {
-            smoothTransitionStart = now;
-            isSmoothTransitioning = true;
-            isFillTransitioning = true;
-            fillTransitionStart = now;
+        if (s.prevSharedPolylines && s.prevSharedPolylines.length > 0 && s.targetSharedPolylines && s.targetSharedPolylines.length > 0) {
+            s.smoothTransitionStart = now;
+            s.isSmoothTransitioning = true;
+            s.isFillTransitioning = true;
+            s.fillTransitionStart = now;
 
             // Clean up any stale morphers
-            activeBorderTransitionHandler = null;
-            if (activeRopeRenderer) {
-                activeRopeRenderer.removeAll();
-                activeRopeRenderer = null;
+            s.activeBorderTransitionHandler = null;
+            if (s.activeRopeRenderer) {
+                s.activeRopeRenderer.removeAll();
+                s.activeRopeRenderer = null;
             }
 
             // Select mode and tuning params from config
@@ -876,19 +907,19 @@ export function renderPowerVoronoi(
             const easing = (GAME_CONFIG.BORDER_TRANS_EASING ?? 'back') as 'cubic' | 'back' | 'elastic' | 'ease-out' | 'ease-out-quad' | 'sine' | 'linear';
             const resampleN = Math.max(8, Math.min(64, Math.round(GAME_CONFIG.BORDER_TRANS_RESAMPLE_N ?? 32)));
             const overshoot = GAME_CONFIG.BORDER_TRANS_OVERSHOOT ?? 1.7;
-            log.renderer('PVV2', `TRANSITION STARTED | mode=${borderTransMode} easing=${easing} resampleN=${resampleN} overshoot=${overshoot.toFixed(2)} prev=${prevSharedPolylines.length} target=${targetSharedPolylines.length} | transitionMs=${transitionMs}`);
+            log.renderer('PVV2', `TRANSITION STARTED | mode=${borderTransMode} easing=${easing} resampleN=${resampleN} overshoot=${overshoot.toFixed(2)} prev=${s.prevSharedPolylines.length} target=${s.targetSharedPolylines.length} | transitionMs=${transitionMs}`);
 
             if (borderTransMode === 'pixi_mesh_rope') {
                 const borderWidth = GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 1.5;
-                activeRopeRenderer = new RopeBorderRenderer(prevSharedPolylines, targetSharedPolylines, easing, resampleN, borderWidth, overshoot);
-                activeRopeRenderer.addTo(voronoiContainer);
+                s.activeRopeRenderer = new RopeBorderRenderer(s.prevSharedPolylines, s.targetSharedPolylines, easing, resampleN, borderWidth, overshoot);
+                s.activeRopeRenderer.addTo(voronoiContainer);
             } else if ((GAME_CONFIG.TERRITORY_GEOMETRY_MODE ?? 'power_voronoi') === 'unified_polygon') {
                 // Unified polygon geometry mode — fills + borders from same closed polygon data
-                if (prevMergedTerritories && lastMergedTerritories) {
-                    activeShapeTransitionHandler = new PolygonMorphTransitionHandler(prevMergedTerritories, lastMergedTerritories, easing, resampleN, overshoot);
+                if (s.prevMergedTerritories && s.lastMergedTerritories) {
+                    s.activeShapeTransitionHandler = new PolygonMorphTransitionHandler(s.prevMergedTerritories, s.lastMergedTerritories, easing, resampleN, overshoot);
                 }
             } else if (borderTransMode === 'pixi_graphics_morph' || borderTransMode === 'optimal_transport' || borderTransMode === 'smooth_morph') {
-                activeBorderTransitionHandler = new SegmentMorphTransitionHandler(prevSharedPolylines, targetSharedPolylines, easing, resampleN, overshoot);
+                s.activeBorderTransitionHandler = new SegmentMorphTransitionHandler(s.prevSharedPolylines, s.targetSharedPolylines, easing, resampleN, overshoot);
             }
             // else: no morpher — borders only appear at rebuild time (steady-state)
         }
@@ -899,46 +930,46 @@ export function renderPowerVoronoi(
 // ── Cache Reset ────────────────────────────────────────────────────────────
 
 export function resetPowerVoronoiCache(): void {
-    cachedShapeFingerprint = '';
-    cachedVisualFingerprint = '';
+    defaultState.cachedShapeFingerprint = '';
+    defaultState.cachedVisualFingerprint = '';
     // Segment mode state
-    isBorderTransitioning = false;
-    prevBorderEdges = null;
-    targetBorderEdges = null;
-    borderTransitionStart = 0;
+    defaultState.isBorderTransitioning = false;
+    defaultState.prevBorderEdges = null;
+    defaultState.targetBorderEdges = null;
+    defaultState.borderTransitionStart = 0;
     // Smooth mode state
-    isSmoothTransitioning = false;
-    prevSharedPolylines = null;
-    targetSharedPolylines = null;
-    targetRawSharedPolylines = null;
-    smoothTransitionStart = 0;
-    lastMergedTerritories = null;
+    defaultState.isSmoothTransitioning = false;
+    defaultState.prevSharedPolylines = null;
+    defaultState.targetSharedPolylines = null;
+    defaultState.targetRawSharedPolylines = null;
+    defaultState.smoothTransitionStart = 0;
+    defaultState.lastMergedTerritories = null;
     // Fill crossfade state
-    isFillTransitioning = false;
-    prevMergedTerritories = null;
-    prevEnclaveMap = null;
-    fillTransitionStart = 0;
+    defaultState.isFillTransitioning = false;
+    defaultState.prevMergedTerritories = null;
+    defaultState.prevEnclaveMap = null;
+    defaultState.fillTransitionStart = 0;
     // Active morpher cleanup
-    activeBorderTransitionHandler = null;
-    activeShapeTransitionHandler = null;
-    if (activeRopeRenderer) {
-        activeRopeRenderer.removeAll();
-        activeRopeRenderer = null;
+    defaultState.activeBorderTransitionHandler = null;
+    defaultState.activeShapeTransitionHandler = null;
+    if (defaultState.activeRopeRenderer) {
+        defaultState.activeRopeRenderer.removeAll();
+        defaultState.activeRopeRenderer = null;
     }
     // Enclave state
-    lastEnclaveMap = null;
+    defaultState.lastEnclaveMap = null;
     // Cell change tracking state
-    lastCells = null;
-    changedSiteIds = null;
+    defaultState.lastCells = null;
+    defaultState.changedSiteIds = null;
     log.renderer('PVV2', 'cache reset');
-    if (fillGraphics) {
-        if (fillGraphics.parent) fillGraphics.parent.removeChild(fillGraphics);
-        fillGraphics.destroy();
-        fillGraphics = null;
+    if (defaultState.fillGraphics) {
+        if (defaultState.fillGraphics.parent) defaultState.fillGraphics.parent.removeChild(defaultState.fillGraphics);
+        defaultState.fillGraphics.destroy();
+        defaultState.fillGraphics = null;
     }
-    if (borderGraphics) {
-        if (borderGraphics.parent) borderGraphics.parent.removeChild(borderGraphics);
-        borderGraphics.destroy();
-        borderGraphics = null;
+    if (defaultState.borderGraphics) {
+        if (defaultState.borderGraphics.parent) defaultState.borderGraphics.parent.removeChild(defaultState.borderGraphics);
+        defaultState.borderGraphics.destroy();
+        defaultState.borderGraphics = null;
     }
 }
