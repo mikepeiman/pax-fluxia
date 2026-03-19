@@ -745,7 +745,7 @@ const _rawConfig: GameConfigType = {
 
     /** Background Image */
     BG_IMAGE_URL: "",
-    BG_IMAGE_ALPHA: 1.0,
+    BG_IMAGE_ALPHA: 0.35,
 
     /** Star body shape: 'polygon' = type-specific shape, 'circle' = classic */
     STAR_SHAPE_MODE: 'polygon' as 'polygon' | 'circle',

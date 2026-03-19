@@ -554,6 +554,9 @@
                 const tex = await PIXI.Assets.load(`/assets/${img}`);
                 sprite.texture = tex;
                 sprite.visible = true;
+                sprite.alpha = GAME_CONFIG.BG_IMAGE_ALPHA ?? 0.5;
+                // Recalculate cover-scale for the new texture dimensions
+                handleResize();
             } catch {
                 sprite.visible = false;
             }
