@@ -37,7 +37,7 @@ import type {
 } from './geometry/types';
 import {
     hexToRGB, rgbToHSL, hslToRGB, adjustColorHSL, blendColors,
-} from './geometry/colorUtils';
+} from '$lib/utils/colorUtils';
 import { chaikinSmoothPolyline, chaikinSmoothPolygon } from './geometry/chaikin';
 import {
     resamplePolygon, resamplePolyline, polygonCentroid, lerpPolygon,
