@@ -41,6 +41,7 @@ import {
 } from '$lib/territory/compiler/powerVoronoiTerritoryGeometryGenerator';
 import { resamplePolygon, resamplePolyline, lerpPolygon, polygonCentroid } from '$lib/territory/geometry/morphUtils';
 import { SegmentMorphTransitionHandler, RopeBorderRenderer, PolygonMorphTransitionHandler } from '$lib/renderers/geometry/borderTransition';
+import { territoryTransitions } from '$lib/fx/handlers/territoryTransitionHandler';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -880,8 +881,13 @@ export function renderPowerVoronoi(
         log.renderer('PVV2', `🌐 WORLD BORDERS DRAWN | polylines=${worldBorderPolylines.length}`);
     }
 
-    // Start transition based on mode
-    if (shapeChanged && transitionMs > 0) {
+    // Start transition based on geometry change or FX-driven conquest event
+    const fxTriggered = territoryTransitions.hasActiveTransitions;
+    if ((shapeChanged || fxTriggered) && transitionMs > 0) {
+        // Mark any unconsumed FX transitions as consumed by this renderer
+        for (const entry of territoryTransitions.getUnconsumed()) {
+            territoryTransitions.markConsumed(entry.starId);
+        }
         // Segment mode
         if (s.prevBorderEdges && s.prevBorderEdges.length > 0) {
             s.borderTransitionStart = now;
