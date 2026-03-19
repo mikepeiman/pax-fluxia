@@ -301,7 +301,7 @@ export class RopeBorderRenderer {
         // Create a narrow white texture sized to the desired rope width
         const canvas = document.createElement('canvas');
         canvas.width = 2;
-        canvas.height = Math.max(2, Math.ceil(ropeWidth * 2));
+        canvas.height = Math.max(2, Math.ceil(ropeWidth));
         const ctx = canvas.getContext('2d')!;
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
