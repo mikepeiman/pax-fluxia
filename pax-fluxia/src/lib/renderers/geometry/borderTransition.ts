@@ -428,6 +428,43 @@ function resampleClosedPolygon(pts: [number, number][], n: number): [number, num
 }
 
 /**
+ * Align target polygon to minimize total displacement from source.
+ * Finds rotation offset k where sum of |from[i] - to[(i+k)%N]|² is minimized.
+ * This pins down vertices far from the conquest — they barely move.
+ * O(N²) but runs once at transition start, not per frame.
+ */
+function alignClosedPolygon(from: [number, number][], to: [number, number][]): [number, number][] {
+    const n = Math.min(from.length, to.length);
+    if (n < 3) return to;
+
+    let bestOffset = 0;
+    let bestCost = Infinity;
+
+    for (let k = 0; k < n; k++) {
+        let cost = 0;
+        for (let i = 0; i < n; i++) {
+            const j = (i + k) % n;
+            const dx = from[i][0] - to[j][0];
+            const dy = from[i][1] - to[j][1];
+            cost += dx * dx + dy * dy;
+            if (cost >= bestCost) break; // early exit
+        }
+        if (cost < bestCost) {
+            bestCost = cost;
+            bestOffset = k;
+        }
+    }
+
+    if (bestOffset === 0) return to;
+
+    const aligned: [number, number][] = new Array(n);
+    for (let i = 0; i < n; i++) {
+        aligned[i] = to[(i + bestOffset) % n];
+    }
+    return aligned;
+}
+
+/**
  * Match prev→target MergedTerritory fill polygons.
  * Groups by ownerId, then matches regions within each owner by nearest centroid.
  * Handles multi-region owners (player has discontiguous territory pieces).
@@ -480,7 +517,7 @@ function matchFillPolygons(
                 // Use the larger point count to preserve resolution
                 const n = Math.max(resampleN, pT.points.length, tT.points.length);
                 const fromPts = resampleClosedPolygon(pT.points, n);
-                const toPts = resampleClosedPolygon(tT.points, n);
+                const toPts = alignClosedPolygon(fromPts, resampleClosedPolygon(tT.points, n));
                 result.push({ fromPoints: fromPts, toPoints: toPts, color: tT.color, ownerId: owner });
             }
         }
