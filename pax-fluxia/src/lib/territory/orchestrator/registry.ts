@@ -6,12 +6,18 @@ import type {
     TerritoryStaticMethodId,
 } from './types';
 
-// 4-stage pipeline: Ownership → Geometry → Transition → Presentation
+// Runtime pipeline uses legacy fine-grained stages that executeStage() checks against.
+// The 4-stage canonical model (ownership/geometry/transition/presentation) is a conceptual
+// grouping—see types.ts—but the executor's if-chains still use these names.
 export const TERRITORY_PIPELINE_STAGE_ORDER: TerritoryPipelineStageId[] = [
-    'ownership',
+    'metric',
+    'world_extension',
+    'seed',
+    'topology',
     'geometry',
-    'transition',
-    'presentation',
+    'loop',
+    'animation',
+    'render',
 ];
 
 export const TERRITORY_STATIC_METHODS: TerritoryStaticMethodDescriptor[] = [
@@ -20,7 +26,7 @@ export const TERRITORY_STATIC_METHODS: TerritoryStaticMethodDescriptor[] = [
         label: 'FG1 Adaptive Field',
         description:
             'Adaptive triangulated graph-field frontier extraction. Bootstrap adapter currently maps to legacy PVV2 renderer.',
-        implementedStages: ['presentation'],
+        implementedStages: ['render'],
         adapter: 'legacy_pvv2',
     },
     {
@@ -29,10 +35,14 @@ export const TERRITORY_STATIC_METHODS: TerritoryStaticMethodDescriptor[] = [
         description:
             'Frontier-genesis seed graph method. Full native implementation of all pipeline stages.',
         implementedStages: [
-            'ownership',
+            'metric',
+            'world_extension',
+            'seed',
+            'topology',
             'geometry',
-            'transition',
-            'presentation',
+            'loop',
+            'animation',
+            'render',
         ],
         adapter: 'legacy_pvv3',
     },
@@ -51,7 +61,7 @@ export const TERRITORY_DYNAMIC_METHODS: TerritoryDynamicMethodDescriptor[] = [
         // └─────────────────────────────────────────────────────────────────┘
         description:
             'Mass-preserving ownership transport updates. Bootstrap adapter maps to legacy PVV2 path. CANONICAL DEFAULT — sacrosanct.',
-        implementedStages: ['presentation'],
+        implementedStages: ['render'],
         adapter: 'legacy_pvv2',
         anchorStaticMethodId: 'fg1_adaptive_field',
     },
