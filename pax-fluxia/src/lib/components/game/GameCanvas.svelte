@@ -987,7 +987,13 @@
 
         if (!debugGraphics) {
             debugGraphics = new PIXI.Graphics();
-            starsContainer.parent.addChildAt(debugGraphics, 0); // Background layer
+            // Add above voronoiContainer so hex grid is visible over territory fills
+            const stageParent = starsContainer.parent;
+            const voronoiIdx = stageParent.children.indexOf(voronoiContainer!);
+            stageParent.addChildAt(
+                debugGraphics,
+                voronoiIdx >= 0 ? voronoiIdx + 1 : stageParent.children.length,
+            );
         }
 
         debugGraphics.clear();
@@ -1093,7 +1099,14 @@
 
         // Render territory overlay (bottommost layer — F-47 halos)
         if (territoryGraphics) {
-            renderStarPowerModule(stars, territoryGraphics, colorUtils);
+            if (GAME_CONFIG.SHOW_STAR_POWER) {
+                territoryGraphics.visible = true;
+                renderStarPowerModule(stars, territoryGraphics, colorUtils);
+            } else {
+                territoryGraphics.clear();
+                territoryGraphics.filters = [];
+                territoryGraphics.visible = false;
+            }
         }
 
         // Render territory overlays — only call the active renderer
