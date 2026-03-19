@@ -540,6 +540,107 @@ function mergeSameOwnerCells(
 }
 
 
+/**
+ * Construct closed fill polygons from the same data borders are drawn from.
+ *
+ * For each territory owner, collects:
+ *   - contested border polylines (sharedPolylines) that touch this owner
+ *   - world boundary polylines for this owner
+ * Then chains them endpoint-to-endpoint into closed polygon ring(s).
+ *
+ * The resulting MergedTerritory[] shares EXACT vertices with the border data,
+ * eliminating fill/border geometry divergence (B-42).
+ */
+export function constructFillsFromBorders(
+    sharedPolylines: SharedPolyline[],
+    worldBorderPolylines: SharedPolyline[],
+): MergedTerritory[] {
+    // Collect all directed segments per owner.
+    // Each shared polyline 'A|B' contributes its points to BOTH owner A and owner B.
+    // Each world border polyline 'owner|world' contributes to that owner.
+    const ownerSegments = new Map<string, [number, number][][]>();
+
+    function addSegment(ownerId: string, pts: [number, number][]) {
+        if (!ownerSegments.has(ownerId)) ownerSegments.set(ownerId, []);
+        ownerSegments.get(ownerId)!.push(pts);
+    }
+
+    for (const pl of sharedPolylines) {
+        const [a, b] = pl.ownerPairKey.split('|');
+        if (pl.points.length >= 2) {
+            addSegment(a, pl.points);
+            // Reverse for the other owner (border runs in opposite direction)
+            addSegment(b, [...pl.points].reverse());
+        }
+    }
+
+    for (const pl of worldBorderPolylines) {
+        const [owner] = pl.ownerPairKey.split('|');
+        if (owner && pl.points.length >= 2) {
+            addSegment(owner, pl.points);
+        }
+    }
+
+    const eps = 4; // endpoint match tolerance
+    const result: MergedTerritory[] = [];
+
+    for (const [ownerId, segments] of ownerSegments) {
+        if (!ownerId || ownerId === 'world') continue;
+
+        // Chain segments by connecting endpoints.
+        const unused = new Set<number>(segments.map((_, i) => i));
+
+        while (unused.size > 0) {
+            const startIdx = unused.values().next().value!;
+            unused.delete(startIdx);
+            const chain: [number, number][] = [...segments[startIdx]];
+
+            let safety = segments.length * 2;
+            let closed = false;
+
+            while (safety-- > 0 && !closed) {
+                const [tailX, tailY] = chain[chain.length - 1];
+                const [headX, headY] = chain[0];
+
+                // Check if chain is already closed
+                if (chain.length >= 4 && Math.abs(tailX - headX) < eps && Math.abs(tailY - headY) < eps) {
+                    closed = true;
+                    break;
+                }
+
+                // Find a segment whose start matches our tail
+                let found = false;
+                for (const idx of unused) {
+                    const seg = segments[idx];
+                    const [sx, sy] = seg[0];
+                    if (Math.abs(sx - tailX) < eps && Math.abs(sy - tailY) < eps) {
+                        unused.delete(idx);
+                        // Skip first point (it matches our tail) to avoid duplicate
+                        for (let i = 1; i < seg.length; i++) {
+                            chain.push(seg[i]);
+                        }
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (!found) break; // No more segments match — can't close
+            }
+
+            if (chain.length >= 3) {
+                result.push({
+                    points: chain,
+                    ownerId,
+                    color: 0, // renderer fills this in
+                });
+            }
+        }
+    }
+
+    log.sys('PVV2Stage', `constructFillsFromBorders: ${sharedPolylines.length} border + ${worldBorderPolylines.length} world polylines → ${result.length} fill regions`);
+    return result;
+}
+
 
 export function chainSharedEdgesIntoPolylines(
     edges: SharedBorderEdge[],
@@ -834,39 +935,20 @@ export function generateVoronoiTerritoryGeometry(
         const enclaveMapRaw = detectEnclaves(mergedRaw);
         log.sys('PVV2Stage', `ENCLAVES: ${enclaveMapRaw.size} | COMPLETE`);
 
-        // Apply Chaikin smoothing to fill polygons in the geometry stage.
-        // BOTH fills and borders are smoothed with the same chaikinPasses here —
-        // before any render calls — ensuring geometric consistency.
-        // Previous approach (smooth fills independently at render time) caused B-42 divergence.
-        const mergedTerritories: MergedTerritory[] = config.chaikinPasses > 0
-            ? mergedRaw.map(t => ({
-                ...t,
-                points: chaikinSmoothPolygon(t.points, config.chaikinPasses, config.worldWidth, config.worldHeight, pad, junctionPts, config.boundaryEps),
-            }))
-            : mergedRaw;
-
-        // Stage 7b: Dense resampling — populate frontier with reference vertices
-        // every `frontierResolution` pixels. Only active when frontierResolution > 0
-        // (i.e., frontier_loop_morph mode). FG2 modes skip this — polygons keep native vertices.
-        if (config.frontierResolution > 0) {
-            const spacing = Math.max(1, Math.min(20, config.frontierResolution));
-            for (const territory of mergedTerritories) {
-                territory.points = resampleClosedPolygonBySpacing(territory.points, spacing);
-            }
-        }
-
-        // Also smooth enclave hole polygons with the same passes
-        const enclaveMap = new Map<number, [number, number][][]>();
-        for (const [idx, holes] of enclaveMapRaw) {
-            enclaveMap.set(idx, config.chaikinPasses > 0
-                ? holes.map(hole => chaikinSmoothPolygon(hole, config.chaikinPasses, config.worldWidth, config.worldHeight, pad, junctionPts, config.boundaryEps))
-                : holes,
-            );
-        }
-
-        // Extract world-boundary border polylines for outer territory framing
-        const worldBorderPolylines = extractWorldBorderPolylines(mergedTerritories, config.worldWidth, config.worldHeight);
+        // Stage 7: Extract world-boundary border polylines from RAW merged territories
+        // (these identify which edges lie on the world boundary — needed for fill reconstruction)
+        const worldBorderPolylines = extractWorldBorderPolylines(mergedRaw, config.worldWidth, config.worldHeight);
         log.sys('PVV2Stage', `WORLD BORDERS: ${worldBorderPolylines.length} boundary polylines`);
+
+        // Stage 8: Construct fill polygons FROM border data.
+        // Fill regions are assembled from the SAME polyline data that borders use:
+        //   - sharedPolylines (contested edges, Chaikin-smoothed)
+        //   - worldBorderPolylines (world boundary edges)
+        // This eliminates fill/border geometry divergence (B-42) — both use identical vertices.
+        // The old approach (independently Chaikin-smooth mergedRaw polygons) used a DIFFERENT
+        // smoothing function with different pinning constraints, producing angular fills vs smooth borders.
+        const mergedTerritories = constructFillsFromBorders(sharedPolylines, worldBorderPolylines);
+        log.sys('PVV2Stage', `BORDER-DERIVED FILLS: ${mergedTerritories.length} fill regions from ${sharedPolylines.length} border + ${worldBorderPolylines.length} world polylines`);
 
         log.sys('PVV2Stage', `MERGED: ${mergedTerritories.length} territories | chaikinPasses=${config.chaikinPasses} | pts: ${mergedTerritories.map(t => `${t.ownerId}:${t.points.length}`).join(' ')}`);
 
@@ -880,7 +962,7 @@ export function generateVoronoiTerritoryGeometry(
             rawSharedPolylines,
             sharedPolylines,
             worldBorderPolylines,
-            enclaveMap,
+            enclaveMap: enclaveMapRaw,
             fingerprint,
         } satisfies TerritoryGeometryData;
 
