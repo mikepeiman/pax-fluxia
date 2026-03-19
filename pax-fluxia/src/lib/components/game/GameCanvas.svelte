@@ -1708,7 +1708,7 @@
         }
 
         if (star && isLocalPlayerStar(star)) {
-            // Start drag from this star
+            // Start drag from owned star — normal order chain
             isDragging = true;
             dragSourceId = star.id;
             // FIX: Use actual click position for movement detection
@@ -1719,15 +1719,21 @@
             dragSourceCenterY = mapTranspose.y(star);
             dragCurrentX = x;
             dragCurrentY = y;
+            lastEnemyPassthrough = null;
             log.input(`pointerDown → DRAG START from owned star ${star.id}`);
         } else if (star) {
-            // Clicked unowned star — reset drag state to prevent stale dragStartX/Y
-            isDragging = false;
-            dragSourceId = null;
+            // Start drag from non-owned star — deferred order chain
+            isDragging = true;
+            dragSourceId = star.id;
             dragStartX = x;
             dragStartY = y;
+            dragSourceCenterX = mapTranspose.x(star);
+            dragSourceCenterY = mapTranspose.y(star);
+            dragCurrentX = x;
+            dragCurrentY = y;
+            lastEnemyPassthrough = star.id; // Mark as deferred anchor
             log.input(
-                `pointerDown → unowned star ${star.id} (owner=${star.ownerId}), drag state reset`,
+                `pointerDown → DRAG START from non-owned star ${star.id} (deferred mode)`,
             );
         } else {
             // Desktop: empty space click (non-touch) — just reset drag

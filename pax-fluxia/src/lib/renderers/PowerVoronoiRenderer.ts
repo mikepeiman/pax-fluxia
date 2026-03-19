@@ -453,6 +453,9 @@ function drawTerritoryFillOnly(
         log.renderer('PVV2:fill', `SKIP territory ownerId=${territory.ownerId} — only ${territory.points.length} pts`);
         return;
     }
+    // R-131: Skip neutral territory fill when transparency is enabled
+    const isNeutral = !territory.ownerId || territory.ownerId === 'neutral' || territory.ownerId === '';
+    if (isNeutral && GAME_CONFIG.NEUTRAL_TERRITORY_TRANSPARENT) return;
     // Use raw polygon points — NO chaikin here. Stage owns smoothing.
     graphics.poly(territory.points.flat());
     graphics.fill({ color: territory.color, alpha });
