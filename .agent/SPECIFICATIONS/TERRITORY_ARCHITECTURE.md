@@ -58,11 +58,14 @@ DY4 remains **SACROSANCT** — do not alter its behavior without explicit user a
 - NO placeholder or fallback geometry
 - NO config mutation
 - Return typed data only
+- **Chaikin smoothing is EXCLUSIVELY a Geometry layer concern.** All smoothing, resampling, and geometric transformations MUST be applied BEFORE coordinates leave the geometry stage. Coordinates shipped to Transition and Presentation layers are FINAL — renderers must NEVER re-smooth, re-sample, or transform geometry they receive.
 
 ### Renderer Rules (Presentation Layer)
 - FillMeshCache and BorderMeshCache are caches only, never truth
 - Fills and borders must both derive from the exact same canonical frontier/region data
 - Renderer must not compute ownership or invent geometry
+- **NO smoothing in renderers.** No Chaikin, no resampling, no curve fitting. Geometry arrives pre-smoothed from the Geometry layer.
+- **Fill + border on the SAME points.** Every draw call that renders a territory should draw fill AND stroke from the SAME point array — `poly(pts).fill()` then `poly(pts).stroke()`. Separate data sources for fills vs borders = guaranteed divergence.
 
 ### State Rules
 - NO module-level mutable renderer state
