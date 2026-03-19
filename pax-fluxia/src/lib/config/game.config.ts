@@ -996,7 +996,7 @@ const _rawConfig: GameConfigType = {
     SHOW_CONNECTIONS: true,
 
     /** Show star power alpha overlay behind stars (F-47) */
-    SHOW_STAR_POWER: true,
+    SHOW_STAR_POWER: false,
     /** Star power overlay alpha (0-1) */
     STAR_POWER_ALPHA: 0.195,
     /** Star power radius multiplier relative to star radius */
