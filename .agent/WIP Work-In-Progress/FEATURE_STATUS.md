@@ -437,7 +437,8 @@
 | B-97 | **World boundary visual**: Disconnected straight line not aligned with border — the boundary lines are inside the actual border, not flush. Needs visual fix. | Open |
 | B-98 | **Frontier junction juts & loop continuity**: End-chain junctions of frontier segments produce sharp corner juts and animation side-effects. Frontiers should be singular continuous loops — when they change, the transition should be smooth like a string/rope with mathematical best-fit and most-efficient displacement (optimal transport). This is the root cause of: small sharp corners, animation discontinuities on conquest, and border segments "jumping" between frames. User has described this specification repeatedly across multiple sessions. | Open (HIGH PRIORITY) |
 | B-99 | **Pixi Rope thick border flash on conquest**: In Rope transition mode, borders flash thick (possibly hard-coded default width) on conquest events, then snap to thin borders (respecting slider settings). Width should be consistent throughout transitions. | Open (HIGH PRIORITY) |
-| R-131 | **Neutral territory transparency**: Toggle option for neutral territory to have color OR full transparency (no fill, showing background). Future roadmap: special territory types with shimmering VFX. | 🔴 |
+| R-131 | **Neutral territory transparency**: Toggle option for neutral territory to have color OR full transparency (no fill, showing background). Future roadmap: special territory types with shimmering VFX. | Fixed (2026-03-18) |
+| B-100 | **Deferred orders only from own stars**: Drag-to-order only initiated from player-owned stars, preventing deferred order chains from non-owned stars. Fixed: drag now starts from any star, with non-owned stars automatically entering deferred order mode. | Fixed (2026-03-18) |
 
 ## Known Regressions
 
