@@ -106,6 +106,8 @@ export interface TerritoryGeneratorSettings {
     clusterSplit: boolean;        // TERRITORY_CLUSTER_SPLIT
     chaikinPasses: number;        // VORONOI_BORDER_SMOOTH (0-5) — geometry smoothing
     frontierResolution: number;   // FRONTIER_RESOLUTION — vertex spacing in px (1-20)
+    boundaryPad: number;          // CHAIKIN_BOUNDARY_PAD — world-clip padding in px (default 50)
+    boundaryEps: number;          // CHAIKIN_BOUNDARY_EPS — boundary proximity threshold in px (default 6)
     worldWidth: number;
     worldHeight: number;
 }
@@ -226,10 +228,11 @@ export function chaikinSmoothPolygon(
     worldH: number = Infinity,
     pad: number = 50,
     pinnedPtKeys?: Set<string>,
+    boundaryEps: number = 6,
 ): [number, number][] {
     if (passes <= 0 || pts.length < 3) return pts;
-    const eps = 6; // proximity threshold for "on boundary"
     const hasBounds = isFinite(worldW) && isFinite(worldH);
+    const eps = boundaryEps;
 
     function isPinned(x: number, y: number): boolean {
         if (hasBounds && (
@@ -724,7 +727,7 @@ export function generateVoronoiTerritoryGeometry(
         }
 
         // Stage 1: Power diagram
-        const pad = 50;
+        const pad = config.boundaryPad;
         const clip: [number, number][] = [
             [-pad, -pad],
             [worldWidth + pad, -pad],
@@ -832,7 +835,7 @@ export function generateVoronoiTerritoryGeometry(
         const mergedTerritories: MergedTerritory[] = config.chaikinPasses > 0
             ? mergedRaw.map(t => ({
                 ...t,
-                points: chaikinSmoothPolygon(t.points, config.chaikinPasses, config.worldWidth, config.worldHeight, 50, junctionPts),
+                points: chaikinSmoothPolygon(t.points, config.chaikinPasses, config.worldWidth, config.worldHeight, pad, junctionPts, config.boundaryEps),
             }))
             : mergedRaw;
 
@@ -850,7 +853,7 @@ export function generateVoronoiTerritoryGeometry(
         const enclaveMap = new Map<number, [number, number][][]>();
         for (const [idx, holes] of enclaveMapRaw) {
             enclaveMap.set(idx, config.chaikinPasses > 0
-                ? holes.map(hole => chaikinSmoothPolygon(hole, config.chaikinPasses, config.worldWidth, config.worldHeight, 50, junctionPts))
+                ? holes.map(hole => chaikinSmoothPolygon(hole, config.chaikinPasses, config.worldWidth, config.worldHeight, pad, junctionPts, config.boundaryEps))
                 : holes,
             );
         }

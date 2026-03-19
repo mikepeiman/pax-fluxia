@@ -745,6 +745,8 @@ export function renderPowerVoronoi(
         frontierResolution: (GAME_CONFIG.TERRITORY_GEOMETRY_MODE ?? 'power_voronoi') === 'unified_polygon'
             ? Math.max(1, Math.min(20, GAME_CONFIG.FRONTIER_RESOLUTION ?? 5))
             : 0,
+        boundaryPad: GAME_CONFIG.CHAIKIN_BOUNDARY_PAD ?? 50,
+        boundaryEps: GAME_CONFIG.CHAIKIN_BOUNDARY_EPS ?? 6,
         worldWidth,
         worldHeight,
     };
