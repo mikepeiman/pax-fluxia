@@ -230,6 +230,7 @@
         { id: "fg1_adaptive_field", label: "FG1 Adaptive Field" },
         { id: "fg1_mar19_refactor", label: "FG1 Mar19 Refactor" },
         { id: "fg2_seed_graph", label: "FG2 Seed Graph" },
+        { id: "new_frontiers_0319", label: "New-Frontiers-0319" },
     ] as const;
     const TERRITORY_ENGINE_MODE_OPTIONS = [
         { id: "static", label: "Static" },
