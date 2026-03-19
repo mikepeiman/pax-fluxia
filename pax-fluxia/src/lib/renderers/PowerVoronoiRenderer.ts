@@ -26,6 +26,7 @@ import type { StarState, StarConnection } from '$lib/types/game.types';
 import type { ColorUtils } from './RenderContext';
 import type { CanonicalTerritoryData } from '$lib/territory/orchestrator/renderMode';
 import { log } from '$lib/utils/logger';
+import { blendColors, hexToRGB } from '$lib/utils/colorUtils';
 import {
     generateVoronoiTerritoryGeometry,
     buildTerritoryGeometryFingerprint,
@@ -121,10 +122,7 @@ function buildVisualFingerprint(): string {
 }
 
 // ── Color Helpers ──────────────────────────────────────────────────────────
-
-function hexToRGB(hex: number): [number, number, number] {
-    return [(hex >> 16) & 0xff, (hex >> 8) & 0xff, hex & 0xff];
-}
+// hexToRGB, blendColors: imported from '$lib/utils/colorUtils'
 
 function rgbToHSL(r: number, g: number, b: number): [number, number, number] {
     r /= 255; g /= 255; b /= 255;
@@ -187,16 +185,7 @@ function ptKey(x: number, y: number): string {
 
 
 
-/** Blend two hex colors by ratio t (0=colorA, 1=colorB). */
-function blendColors(colorA: number, colorB: number, t: number): number {
-    const [rA, gA, bA] = hexToRGB(colorA);
-    const [rB, gB, bB] = hexToRGB(colorB);
-    return (
-        (Math.round(rA + (rB - rA) * t) << 16) |
-        (Math.round(gA + (gB - gA) * t) << 8) |
-        Math.round(bA + (bB - bA) * t)
-    );
-}
+
 
 // ── Polygon Morph Helpers ─────────────────────────────────────────────────
 // resamplePolygon, resamplePolyline, lerpPolygon, polygonCentroid imported from

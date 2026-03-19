@@ -2,6 +2,7 @@ import * as PIXI from 'pixi.js';
 import { GAME_CONFIG } from '$lib/config/game.config';
 import type { StarState } from '$lib/types/game.types';
 import type { TerritoryPipelineRuntime, TerritoryPipelineStageId } from '../types';
+import { blendColors } from '$lib/utils/colorUtils';
 
 type FG2StageRuntime = TerritoryPipelineRuntime;
 type FG2BoundarySide = 'top' | 'right' | 'bottom' | 'left';
@@ -513,12 +514,7 @@ function buildBoundaryAnchorPairs(
     return pairingB.totalDistance + EPSILON < pairingA.totalDistance ? pairingB.pairs : pairingA.pairs;
 }
 
-function blendColors(colorA: number, colorB: number): number {
-    const r = (((colorA >> 16) & 0xff) + ((colorB >> 16) & 0xff)) >> 1;
-    const g = (((colorA >> 8) & 0xff) + ((colorB >> 8) & 0xff)) >> 1;
-    const b = ((colorA & 0xff) + (colorB & 0xff)) >> 1;
-    return (r << 16) | (g << 8) | b;
-}
+
 
 
 function getOrCreateGraphics(container: PIXI.Container): PIXI.Graphics {
@@ -831,9 +827,9 @@ function chooseNextLink(
             (incomingLength * outgoingLength);
         const sideSwitchBonus =
             currentNode.nodeType === 'seed' &&
-            previousLink?.viaStarId &&
-            link.viaStarId &&
-            link.viaStarId !== previousLink.viaStarId
+                previousLink?.viaStarId &&
+                link.viaStarId &&
+                link.viaStarId !== previousLink.viaStarId
                 ? 0.35
                 : 0;
         const boundaryPenalty =
@@ -1974,9 +1970,9 @@ function alignResampledContours(
         orientation: 'preserved' | 'reversed';
         points: [number, number][];
     }> = [
-        { orientation: 'preserved', points: candidatePoints.slice() },
-        { orientation: 'reversed', points: reverseLoopPoints(candidatePoints) },
-    ];
+            { orientation: 'preserved', points: candidatePoints.slice() },
+            { orientation: 'reversed', points: reverseLoopPoints(candidatePoints) },
+        ];
 
     for (const variant of orientationVariants) {
         for (let offset = 0; offset < variant.points.length; offset += 1) {
@@ -2009,9 +2005,9 @@ function alignResampledContours(
 function computeContourSampleCount(
     ...loops: Array<
         | {
-              points: [number, number][];
-              perimeter: number;
-          }
+            points: [number, number][];
+            perimeter: number;
+        }
         | null
         | undefined
     >
@@ -2177,9 +2173,9 @@ function buildCollapsedShellContourCorrespondence(
     let collapsedReferencePoints = orientedShellPoints;
     const anchorScaleRatio = anchorShell
         ? Math.sqrt(
-              Math.min(shell.absArea, anchorShell.absArea) /
-                  Math.max(EPSILON, Math.max(shell.absArea, anchorShell.absArea)),
-          )
+            Math.min(shell.absArea, anchorShell.absArea) /
+            Math.max(EPSILON, Math.max(shell.absArea, anchorShell.absArea)),
+        )
         : 0;
     if (anchorShell) {
         const anchorPoints = resampleClosedLoop(anchorShell.points, sampleCount);
@@ -2983,14 +2979,14 @@ function resolveInterpolatedOwnerShellGeometry(
         points: [number, number][];
         geometrySource: FG2InterpolatedOwnerShellArtifact['geometrySource'];
     }> = useCurrentFallback
-        ? [
-              { points: currentPoints, geometrySource: 'current_fallback' },
-              { points: previousPoints, geometrySource: 'previous_fallback' },
-          ]
-        : [
-              { points: previousPoints, geometrySource: 'previous_fallback' },
-              { points: currentPoints, geometrySource: 'current_fallback' },
-          ];
+            ? [
+                { points: currentPoints, geometrySource: 'current_fallback' },
+                { points: previousPoints, geometrySource: 'previous_fallback' },
+            ]
+            : [
+                { points: previousPoints, geometrySource: 'previous_fallback' },
+                { points: currentPoints, geometrySource: 'current_fallback' },
+            ];
     for (const fallbackCandidate of fallbackCandidates) {
         if (!isRenderableClosedLoop(fallbackCandidate.points)) continue;
         return {
@@ -3018,17 +3014,17 @@ function buildInterpolatedOwnerShellArtifact(
         transition.holeTransitions.length > 0
             ? buildInterpolatedOwnerShellHoleLoops(transition.holeTransitions, progress)
             : (
-                  progress >= 0.5
-                      ? transition.currentHoleLoops.length > 0
-                          ? transition.currentHoleLoops
-                          : transition.previousHoleLoops
-                      : transition.previousHoleLoops.length > 0
+                progress >= 0.5
+                    ? transition.currentHoleLoops.length > 0
+                        ? transition.currentHoleLoops
+                        : transition.previousHoleLoops
+                    : transition.previousHoleLoops.length > 0
                         ? transition.previousHoleLoops
                         : transition.currentHoleLoops
-              ).map((holeLoop) => ({
-                  holeLoopId: holeLoop.holeLoopId,
-                  points: holeLoop.points.map(([x, y]) => [x, y] as [number, number]),
-              }));
+            ).map((holeLoop) => ({
+                holeLoopId: holeLoop.holeLoopId,
+                points: holeLoop.points.map(([x, y]) => [x, y] as [number, number]),
+            }));
     const holeLoops = sanitizeInterpolatedOwnerShellHoleLoops(points, rawHoleLoops);
 
     return {
@@ -3053,11 +3049,11 @@ function buildInterpolatedOwnerShellArtifact(
         touchesWorldBoundary:
             progress >= 0.5
                 ? (transition.currentTouchesWorldBoundary ??
-                  transition.previousTouchesWorldBoundary ??
-                  false)
+                    transition.previousTouchesWorldBoundary ??
+                    false)
                 : (transition.previousTouchesWorldBoundary ??
-                  transition.currentTouchesWorldBoundary ??
-                  false),
+                    transition.currentTouchesWorldBoundary ??
+                    false),
         confidence: transition.confidence,
         currentShellId: transition.currentShellId,
         previousShellId: transition.previousShellId,
@@ -3487,7 +3483,7 @@ function buildPairHalfEdgeGraph(graph: FG2PairTopologyGraph): FG2PairHalfEdgeGra
 
         halfEdge.leftNextHalfEdgeId =
             outgoingAtDestination[
-                (twinIndex - 1 + outgoingAtDestination.length) % outgoingAtDestination.length
+            (twinIndex - 1 + outgoingAtDestination.length) % outgoingAtDestination.length
             ] ?? null;
         halfEdge.rightNextHalfEdgeId =
             outgoingAtDestination[(twinIndex + 1) % outgoingAtDestination.length] ?? null;
@@ -3538,8 +3534,8 @@ function buildPairHalfEdgeGraph(graph: FG2PairTopologyGraph): FG2PairHalfEdgeGra
         const nodeIds = closed
             ? walkNodeIds
             : terminatedAtNodeId
-              ? [...walkNodeIds, terminatedAtNodeId]
-              : walkNodeIds;
+                ? [...walkNodeIds, terminatedAtNodeId]
+                : walkNodeIds;
         if (walkHalfEdgeIds.length === 0 || nodeIds.length === 0) continue;
 
         const walkNodes = nodeIds
@@ -4416,8 +4412,8 @@ function executeTopologyStage(runtime: FG2StageRuntime, summary: Record<string, 
 function executeGeometryStage(runtime: FG2StageRuntime, summary: Record<string, unknown>): void {
     const topologyArtifact = runtime.artifacts.topology as
         | {
-              pairGraphs?: Record<string, FG2PairTopologyGraph>;
-          }
+            pairGraphs?: Record<string, FG2PairTopologyGraph>;
+        }
         | undefined;
     const pairGraphs = topologyArtifact?.pairGraphs ?? {};
     const frontiers: FG2FrontierPolyline[] = [];
@@ -4447,8 +4443,8 @@ function executeGeometryStage(runtime: FG2StageRuntime, summary: Record<string, 
 function executeLoopStage(runtime: FG2StageRuntime, summary: Record<string, unknown>): void {
     const topologyArtifact = runtime.artifacts.topology as
         | {
-              pairGraphs?: Record<string, FG2PairTopologyGraph>;
-          }
+            pairGraphs?: Record<string, FG2PairTopologyGraph>;
+        }
         | undefined;
     const geometryArtifact = runtime.artifacts.geometry as
         | { frontiers?: FG2FrontierPolyline[] }
@@ -4681,9 +4677,9 @@ function executeLoopStage(runtime: FG2StageRuntime, summary: Record<string, unkn
 function executeAnimationStage(runtime: FG2StageRuntime, summary: Record<string, unknown>): void {
     const loopArtifact = runtime.artifacts.loop as
         | {
-              ownerShells?: FG2OwnerShellArtifact[];
-              ownerShellLoops?: FG2OwnerShellLoopArtifact[];
-          }
+            ownerShells?: FG2OwnerShellArtifact[];
+            ownerShellLoops?: FG2OwnerShellLoopArtifact[];
+        }
         | undefined;
     const ownerShells = loopArtifact?.ownerShells ?? [];
     const ownerShellLoops = loopArtifact?.ownerShellLoops ?? [];
@@ -4713,9 +4709,9 @@ function executeAnimationStage(runtime: FG2StageRuntime, summary: Record<string,
         if (currentFingerprint !== previousFingerprint) {
             const sourceDisplay = fg2ActiveShellAnimation
                 ? buildInterpolatedOwnerShellFrame(
-                      fg2ActiveShellAnimation,
-                      runtime.input.gameNowMs,
-                  )
+                    fg2ActiveShellAnimation,
+                    runtime.input.gameNowMs,
+                )
                 : null;
             const sourceFrame = sourceDisplay?.frame ?? fg2PreviousShellFrame;
             ownerShellTransitions = buildOwnerShellTransitions(sourceFrame, currentFrame);
@@ -4819,10 +4815,10 @@ function executeAnimationStage(runtime: FG2StageRuntime, summary: Record<string,
     const meanMatchedOwnerShellContourDistance =
         matchedOwnerShellContourSampleCount > 0
             ? matchedOwnerShellTransitions.reduce(
-                  (total, transition) =>
-                      total + transition.meanContourDistance * transition.contourSampleCount,
-                  0,
-              ) / matchedOwnerShellContourSampleCount
+                (total, transition) =>
+                    total + transition.meanContourDistance * transition.contourSampleCount,
+                0,
+            ) / matchedOwnerShellContourSampleCount
             : 0;
     const maxMatchedOwnerShellContourDistance = matchedOwnerShellTransitions.reduce(
         (maxDistance, transition) => Math.max(maxDistance, transition.maxContourDistance),
@@ -4910,27 +4906,27 @@ function executeAnimationStage(runtime: FG2StageRuntime, summary: Record<string,
 function executeRenderStage(runtime: FG2StageRuntime, summary: Record<string, unknown>): void {
     const topologyArtifact = runtime.artifacts.topology as
         | {
-              pairGraphs?: Record<string, FG2PairTopologyGraph>;
-          }
+            pairGraphs?: Record<string, FG2PairTopologyGraph>;
+        }
         | undefined;
     const geometryArtifact = runtime.artifacts.geometry as
         | { frontiers?: FG2FrontierPolyline[] }
         | undefined;
     const loopArtifact = runtime.artifacts.loop as
         | {
-              regionLoops?: FG2RegionLoopArtifact[];
-              ownerRegionLoops?: FG2OwnerRegionLoopArtifact[];
-              ownerShellLoops?: FG2OwnerShellLoopArtifact[];
-              ownerShells?: FG2OwnerShellArtifact[];
-          }
+            regionLoops?: FG2RegionLoopArtifact[];
+            ownerRegionLoops?: FG2OwnerRegionLoopArtifact[];
+            ownerShellLoops?: FG2OwnerShellLoopArtifact[];
+            ownerShells?: FG2OwnerShellArtifact[];
+        }
         | undefined;
     const animationArtifact = runtime.artifacts.animation as
         | {
-              ownerShellTransitions?: FG2OwnerShellTransitionArtifact[];
-              ownerShellTransitionActive?: boolean;
-              ownerShellTransitionProgress?: number;
-              displayedOwnerShells?: FG2InterpolatedOwnerShellArtifact[];
-          }
+            ownerShellTransitions?: FG2OwnerShellTransitionArtifact[];
+            ownerShellTransitionActive?: boolean;
+            ownerShellTransitionProgress?: number;
+            displayedOwnerShells?: FG2InterpolatedOwnerShellArtifact[];
+        }
         | undefined;
     const seedArtifact = runtime.artifacts.seed as { seeds?: FG2SeedPoint[] } | undefined;
     const pairGraphs = topologyArtifact?.pairGraphs ?? {};
@@ -4973,8 +4969,8 @@ function executeRenderStage(runtime: FG2StageRuntime, summary: Record<string, un
         ownerShellTransitionActive && displayedOwnerShells.length > 0
             ? 'animated_shell_contours'
             : useShellContoursForFrontiers
-              ? 'owner_shell_contours'
-              : 'pair_frontiers';
+                ? 'owner_shell_contours'
+                : 'pair_frontiers';
     const displayedFrontierCount = useShellContoursForFrontiers
         ? sortedShellsForRender.length
         : frontiers.length;
@@ -5081,6 +5077,7 @@ function executeRenderStage(runtime: FG2StageRuntime, summary: Record<string, un
             const loopColor = blendColors(
                 runtime.input.colorUtils.getPlayerColor(regionLoop.ownerA),
                 runtime.input.colorUtils.getPlayerColor(regionLoop.ownerB),
+                0.5,
             );
             graphics.moveTo(regionLoop.points[0][0], regionLoop.points[0][1]);
             for (let i = 1; i < regionLoop.points.length; i += 1) {
@@ -5105,6 +5102,7 @@ function executeRenderStage(runtime: FG2StageRuntime, summary: Record<string, un
             const traceColor = blendColors(
                 runtime.input.colorUtils.getPlayerColor(pairGraph.ownerA),
                 runtime.input.colorUtils.getPlayerColor(pairGraph.ownerB),
+                0.5,
             );
             const nodeById = new Map(pairGraph.nodes.map((node) => [node.nodeId, node]));
             for (const link of pairGraph.links) {
@@ -5166,7 +5164,7 @@ function executeRenderStage(runtime: FG2StageRuntime, summary: Record<string, un
         for (const frontier of frontiers) {
             const colorA = runtime.input.colorUtils.getPlayerColor(frontier.ownerA);
             const colorB = runtime.input.colorUtils.getPlayerColor(frontier.ownerB);
-            const color = blendColors(colorA, colorB);
+            const color = blendColors(colorA, colorB, 0.5);
 
             if (frontier.points.length === 1) {
                 const [x, y] = frontier.points[0];
