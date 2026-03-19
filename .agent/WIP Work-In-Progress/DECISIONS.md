@@ -494,3 +494,47 @@ Agent proposed removing duplicate Attack/Defense sliders from Economy section si
 - Harmonize labels across Global and Battle panels
 - Implement two-way binding for shared variables
 - Add `REPAIR_SUPPRESS_ATTACKER` / `REPAIR_SUPPRESS_DEFENDER` sliders to Global
+
+---
+
+# D-78: Conquest Animation — Localized Frontier Updates
+
+**Date:** 2026-03-18
+**Status:** Specification
+
+## Specification
+
+On conquest, only update territory and frontiers **around the conquered star and its neighbors**. All other geometry remains static.
+
+1. **Anchor points**: Where the affected frontier meets unaffected geometry — the geometry beyond these points does not move
+2. **Dense control vertices**: Between anchor points, create densely-sampled vertices along the frontier
+3. **Sequential lerp**: Lerp vertices in order to their new positions over the transition duration
+4. **Per-frame Chaikin**: Apply Chaikin smoothing pass(es) every frame so the morphing segment remains smooth throughout
+5. **Performance note**: Chaikin is O(n) per pass. With ~128 vertices and 2-3 passes at 60fps, this is ~23k array ops/sec per segment — trivial
+
+## Why
+
+Current approach recomputes ALL frontiers globally and morphs everything. Borders far from the conquest ripple unnecessarily. Localized updates produce a surgical visual: only the affected region reshapes.
+
+---
+
+# D-79: Territory Fill Morph — Shape, Not Crossfade
+
+**Date:** 2026-03-18
+**Status:** Specification
+
+## The Bug
+
+During conquest transitions, fills do alpha-crossfade:
+- Old territory shape fades out at `alpha × (1-t)`
+- New territory shape fades in at `alpha × t`
+
+This produces a ghostly dissolve, not a reshaping territory.
+
+## The Specification
+
+Fills must draw the **morphed polygon shape at full alpha** every frame. The fill region IS the area enclosed by the morphed border polylines. Every frame of the transition:
+
+1. Compute the morphed border shape (already done for border rendering)
+2. Fill the enclosed polygon at the target alpha
+3. No crossfade. No ghost. Solid fill that reshapes.
