@@ -46,6 +46,14 @@ export const TERRITORY_STATIC_METHODS: TerritoryStaticMethodDescriptor[] = [
         ],
         adapter: 'legacy_pvv3',
     },
+    {
+        id: 'fg1_mar19_refactor',
+        label: 'FG1 Mar19 Refactor',
+        description:
+            'FG1 with class-encapsulated renderer and FX-based transitions. Non-destructive refactor of legacy_pvv2.',
+        implementedStages: ['render'],
+        adapter: 'refactored_pvv2',
+    },
 ];
 
 export const TERRITORY_DYNAMIC_METHODS: TerritoryDynamicMethodDescriptor[] = [
@@ -64,6 +72,15 @@ export const TERRITORY_DYNAMIC_METHODS: TerritoryDynamicMethodDescriptor[] = [
         implementedStages: ['render'],
         adapter: 'legacy_pvv2',
         anchorStaticMethodId: 'fg1_adaptive_field',
+    },
+    {
+        id: 'dy4_mar19_refactor',
+        label: 'DY4 Mar19 Refactor',
+        description:
+            'DY4 with class-encapsulated transitions via FX system. Non-destructive refactor of legacy_pvv2.',
+        implementedStages: ['render'],
+        adapter: 'refactored_pvv2',
+        anchorStaticMethodId: 'fg1_mar19_refactor',
     },
 ];
 

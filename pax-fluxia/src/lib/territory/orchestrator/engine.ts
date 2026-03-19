@@ -8,6 +8,7 @@ import {
     resetPowerVoronoiCache,
 } from '$lib/renderers/PowerVoronoiRenderer';
 import { renderPVV3, resetPVV3Cache } from '$lib/renderers/PVV3Renderer';
+import { renderRefactoredPowerVoronoi } from '$lib/renderers/RefactoredPVV2Renderer';
 import { log } from '$lib/utils/logger';
 import { executeNativeTerritoryStage, resetNativeTerritoryStageCaches } from './methods';
 import { OptimalTransportBorderTransition } from '$lib/territory/transitions/OptimalTransportBorderTransition';
@@ -211,6 +212,11 @@ function runLegacyAdapter(adapter: TerritoryLegacyAdapterId, input: TerritoryEng
             input.connections,
             undefined,
         );
+        return;
+    }
+
+    if (adapter === 'refactored_pvv2') {
+        renderRefactoredPowerVoronoi(input);
         return;
     }
 

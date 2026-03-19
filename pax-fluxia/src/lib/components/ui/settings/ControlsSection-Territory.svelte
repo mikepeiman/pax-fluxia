@@ -226,6 +226,7 @@
     ] as const;
     const TERRITORY_ENGINE_METHOD_OPTIONS = [
         { id: "fg1_adaptive_field", label: "FG1 Adaptive Field" },
+        { id: "fg1_mar19_refactor", label: "FG1 Mar19 Refactor" },
         { id: "fg2_seed_graph", label: "FG2 Seed Graph" },
     ] as const;
     const TERRITORY_ENGINE_MODE_OPTIONS = [
@@ -234,6 +235,7 @@
     ] as const;
     const TERRITORY_ENGINE_DYNAMIC_OPTIONS = [
         { id: "dy4_optimal_transport", label: "DY4 Optimal Transport" },
+        { id: "dy4_mar19_refactor", label: "DY4 Mar19 Refactor" },
     ] as const;
 
     const MORPH_EASING_OPTIONS = [

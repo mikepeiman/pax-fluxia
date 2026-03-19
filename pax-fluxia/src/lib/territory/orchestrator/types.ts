@@ -2,16 +2,18 @@ import type * as PIXI from 'pixi.js';
 import type { ColorUtils } from '$lib/renderers/RenderContext';
 import type { StarConnection, StarState } from '$lib/types/game.types';
 
-export type TerritoryLegacyAdapterId = 'legacy_pvv2' | 'legacy_pvv3' | 'legacy_df';
+export type TerritoryLegacyAdapterId = 'legacy_pvv2' | 'legacy_pvv3' | 'legacy_df' | 'refactored_pvv2';
 
 export type TerritoryEngineMode = 'static' | 'dynamic' | 'hybrid';
 
 export type TerritoryStaticMethodId =
     | 'fg1_adaptive_field'
+    | 'fg1_mar19_refactor'
     | 'fg2_seed_graph';
 
 export type TerritoryDynamicMethodId =
-    | 'dy4_optimal_transport';
+    | 'dy4_optimal_transport'
+    | 'dy4_mar19_refactor';
 
 // Hybrid plans removed — all were stubs referencing stub methods.
 
