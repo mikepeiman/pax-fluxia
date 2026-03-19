@@ -39,7 +39,7 @@ import {
     type TerritoryCell,
 } from '$lib/territory/compiler/pvv2MetricStage';
 import { resamplePolygon, resamplePolyline, lerpPolygon, polygonCentroid } from '$lib/territory/geometry/morphUtils';
-import { GraphicsPathMorpher, RopeBorderRenderer } from '$lib/renderers/geometry/borderTransition';
+import { GraphicsPathMorpher, RopeBorderRenderer, FillMorpher } from '$lib/renderers/geometry/borderTransition';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -82,6 +82,7 @@ let isFillTransitioning = false;
 // ── Active Border Morpher (from borderTransition.ts) ─────────────────
 let activeMorpher: GraphicsPathMorpher | null = null;
 let activeRopeRenderer: RopeBorderRenderer | null = null;
+let activeFillMorpher: FillMorpher | null = null;  // B-101: shape morph fills
 
 // ── Cell Change Tracking (frontier-first rendering) ────────────────────
 let lastCells: TerritoryCell[] | null = null;  // cells from previous rebuild
@@ -632,14 +633,14 @@ export function renderPowerVoronoi(
 
         fillGraphics.clear();
 
-        // 1. Alpha crossfade fills: prev fades out, target fades in
-        if (prevMergedTerritories) {
-            for (let i = 0; i < prevMergedTerritories.length; i++) {
-                drawTerritoryFillOnly(fillGraphics, prevMergedTerritories[i], prevEnclaveMap?.get(i), alpha * (1 - easedT));
+        // 1. B-101 / D-79: Shape-morph fills (not alpha crossfade)
+        if (activeFillMorpher) {
+            activeFillMorpher.drawFrame(fillGraphics, rawT, alpha);
+        } else {
+            // Fallback: draw target fills at full alpha if no morpher
+            for (let i = 0; i < lastMergedTerritories.length; i++) {
+                drawTerritoryFillOnly(fillGraphics, lastMergedTerritories[i], lastEnclaveMap?.get(i), alpha);
             }
-        }
-        for (let i = 0; i < lastMergedTerritories.length; i++) {
-            drawTerritoryFillOnly(fillGraphics, lastMergedTerritories[i], lastEnclaveMap?.get(i), alpha * easedT);
         }
 
         // 2. Draw borders via the active morpher
@@ -665,6 +666,7 @@ export function renderPowerVoronoi(
             prevMergedTerritories = null;
             prevEnclaveMap = null;
             activeMorpher = null;
+            activeFillMorpher = null;  // B-101: clean up fill morpher
             if (activeRopeRenderer) {
                 activeRopeRenderer.removeAll();
                 activeRopeRenderer = null;
@@ -898,6 +900,12 @@ export function renderPowerVoronoi(
                 // buildLerpedPolylines path which is now disabled.
                 activeMorpher = new GraphicsPathMorpher(prevSharedPolylines, targetSharedPolylines, easing, resampleN, overshoot);
             }
+
+            // B-101 / D-79: Create fill morpher for shape-morphed fills
+            if (prevMergedTerritories && lastMergedTerritories) {
+                const fillResampleN = Math.max(16, Math.min(96, Math.round((GAME_CONFIG.BORDER_TRANS_RESAMPLE_N ?? 32) * 1.5)));
+                activeFillMorpher = new FillMorpher(prevMergedTerritories, lastMergedTerritories, easing, fillResampleN, overshoot);
+            }
             // else: no morpher — borders only appear at rebuild time (steady-state)
         }
     }
@@ -928,6 +936,7 @@ export function resetPowerVoronoiCache(): void {
     fillTransitionStart = 0;
     // Active morpher cleanup
     activeMorpher = null;
+    activeFillMorpher = null;  // B-101
     if (activeRopeRenderer) {
         activeRopeRenderer.removeAll();
         activeRopeRenderer = null;

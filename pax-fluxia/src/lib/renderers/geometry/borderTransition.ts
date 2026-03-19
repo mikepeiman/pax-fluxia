@@ -13,6 +13,7 @@
 import * as PIXI from 'pixi.js';
 import { log } from '$lib/utils/logger';
 import type { SharedPolyline } from '$lib/territory/compiler/pvv2MetricStage';
+import type { MergedTerritory } from '$lib/renderers/geometry/types';
 import { resamplePolyline, polygonCentroid } from '$lib/territory/geometry/morphUtils';
 
 // ── Easing Functions ────────────────────────────────────────────────────────
@@ -375,3 +376,136 @@ export class RopeBorderRenderer {
     }
 }
 
+// ── Mode 3: Fill Polygon Morpher (B-101 / D-79) ────────────────────────────
+
+interface MatchedFillPair {
+    fromPoints: [number, number][];
+    toPoints: [number, number][];
+    color: number;
+    ownerId: string;
+}
+
+/**
+ * Resample a CLOSED polygon to N equidistant points.
+ * Closes the loop before resampling, then removes the duplicate last point.
+ */
+function resampleClosedPolygon(pts: [number, number][], n: number): [number, number][] {
+    if (pts.length < 3) return pts;
+    // Close the loop if not already closed
+    const first = pts[0];
+    const last = pts[pts.length - 1];
+    const isClosed = Math.abs(first[0] - last[0]) < 0.01 && Math.abs(first[1] - last[1]) < 0.01;
+    const closed = isClosed ? pts : [...pts, first];
+    // Resample the closed loop as if it were a polyline
+    const resampled = resamplePolyline(closed, n + 1);
+    // Remove the duplicate closing point
+    return resampled.slice(0, n);
+}
+
+/**
+ * Match prev→target MergedTerritory fill polygons by ownerId.
+ * Territories that exist in both prev and target are matched.
+ * New territories morph from a point (centroid of target).
+ * Removed territories morph to a point (centroid of prev).
+ */
+function matchFillPolygons(
+    prev: MergedTerritory[],
+    target: MergedTerritory[],
+    resampleN: number,
+): MatchedFillPair[] {
+    const result: MatchedFillPair[] = [];
+
+    // Group by ownerId
+    const prevByOwner = new Map<string, MergedTerritory>();
+    for (const t of prev) prevByOwner.set(t.ownerId, t);
+    const targetByOwner = new Map<string, MergedTerritory>();
+    for (const t of target) targetByOwner.set(t.ownerId, t);
+
+    const allOwners = new Set([...prevByOwner.keys(), ...targetByOwner.keys()]);
+
+    for (const owner of allOwners) {
+        const pTerr = prevByOwner.get(owner);
+        const tTerr = targetByOwner.get(owner);
+
+        if (pTerr && tTerr) {
+            // Both exist: resample both to same point count and morph
+            const fromPts = resampleClosedPolygon(pTerr.points, resampleN);
+            const toPts = resampleClosedPolygon(tTerr.points, resampleN);
+            result.push({ fromPoints: fromPts, toPoints: toPts, color: tTerr.color, ownerId: owner });
+        } else if (tTerr) {
+            // New territory: morph from centroid point
+            const c = polygonCentroid(tTerr.points);
+            const fromPts = Array.from({ length: resampleN }, () => [c[0], c[1]] as [number, number]);
+            const toPts = resampleClosedPolygon(tTerr.points, resampleN);
+            result.push({ fromPoints: fromPts, toPoints: toPts, color: tTerr.color, ownerId: owner });
+        } else if (pTerr) {
+            // Removed territory: morph to centroid point
+            const c = polygonCentroid(pTerr.points);
+            const fromPts = resampleClosedPolygon(pTerr.points, resampleN);
+            const toPts = Array.from({ length: resampleN }, () => [c[0], c[1]] as [number, number]);
+            result.push({ fromPoints: fromPts, toPoints: toPts, color: pTerr.color, ownerId: owner });
+        }
+    }
+
+    return result;
+}
+
+/**
+ * FillMorpher: morphs territory fill polygons per frame (D-79).
+ * Fills draw the morphed shape at constant alpha — no crossfade.
+ */
+export class FillMorpher {
+    private pairs: MatchedFillPair[];
+    private easingFn: (t: number) => number;
+
+    constructor(
+        prev: MergedTerritory[],
+        target: MergedTerritory[],
+        easing: 'cubic' | 'back' | 'elastic' | 'ease-out' | 'ease-out-quad' | 'sine' | 'linear' = 'back',
+        resampleN: number = 48,
+        overshoot: number = 1.70158,
+    ) {
+        this.pairs = matchFillPolygons(prev, target, resampleN);
+        this.easingFn = easing === 'elastic' ? easeInOutElastic
+            : easing === 'back' ? (t: number) => easeInOutBack(t, overshoot)
+                : easing === 'ease-out' ? easeOutCubic
+                    : easing === 'ease-out-quad' ? easeOutQuad
+                        : easing === 'sine' ? easeInOutSine
+                            : easing === 'linear' ? easeLinear
+                                : easeInOutCubic;
+
+        log.renderer('FillMorpher', `created | pairs=${this.pairs.length} easing=${easing} resampleN=${resampleN}`);
+    }
+
+    /**
+     * Draw all morphed fill polygons at time t (0→1) at constant alpha.
+     * Each polygon is lerped vertex-by-vertex, then drawn as a filled poly.
+     */
+    drawFrame(
+        graphics: PIXI.Graphics,
+        rawT: number,
+        alpha: number,
+    ): void {
+        const t = this.easingFn(Math.max(0, Math.min(1, rawT)));
+        let drawn = 0;
+
+        for (const pair of this.pairs) {
+            const { fromPoints, toPoints, color } = pair;
+            const n = Math.min(fromPoints.length, toPoints.length);
+            if (n < 3) continue;
+
+            // Build morphed polygon as flat array
+            const flat: number[] = new Array(n * 2);
+            for (let i = 0; i < n; i++) {
+                flat[i * 2] = fromPoints[i][0] + (toPoints[i][0] - fromPoints[i][0]) * t;
+                flat[i * 2 + 1] = fromPoints[i][1] + (toPoints[i][1] - fromPoints[i][1]) * t;
+            }
+
+            graphics.poly(flat);
+            graphics.fill({ color, alpha });
+            drawn++;
+        }
+
+        log.renderer('FillMorpher', `drawFrame t=${rawT.toFixed(3)} eased=${t.toFixed(3)} | drew ${drawn}/${this.pairs.length} fills | a=${alpha.toFixed(2)}`);
+    }
+}
