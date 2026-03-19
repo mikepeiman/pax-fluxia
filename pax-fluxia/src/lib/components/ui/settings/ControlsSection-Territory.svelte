@@ -4,7 +4,7 @@
         TERRITORY_PIPELINE_STAGE_ORDER,
         type TerritoryPipelineArtifacts,
         type TerritoryPipelineStageId,
-    } from "$lib/territory-engine";
+    } from "$lib/territory/orchestrator";
     import {
         DEFAULT_TERRITORY_DYNAMIC_METHOD,
         DEFAULT_TERRITORY_HYBRID_PLAN,
@@ -12,8 +12,8 @@
         TERRITORY_DYNAMIC_METHOD_BY_ID,
         TERRITORY_HYBRID_PLAN_BY_ID,
         TERRITORY_STATIC_METHOD_BY_ID,
-    } from "$lib/territory-engine/registry";
-    import { territoryTraceRun } from "$lib/territory-engine/traceStore";
+    } from "$lib/territory/orchestrator/registry";
+    import { territoryTraceRun } from "$lib/territory/orchestrator/traceStore";
     import CategoryThemeBar from "./CategoryThemeBar.svelte";
 
     // ControlsSection-Territory -- Territory Rendering (Voronoi + Metaball)

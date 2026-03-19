@@ -24,7 +24,7 @@ import * as PIXI from 'pixi.js';
 import { GAME_CONFIG } from '$lib/config/game.config';
 import type { StarState, StarConnection } from '$lib/types/game.types';
 import type { ColorUtils } from './RenderContext';
-import type { CanonicalTerritoryData } from '$lib/territory-engine/renderMode';
+import type { CanonicalTerritoryData } from '$lib/territory/orchestrator/renderMode';
 import { log } from '$lib/utils/logger';
 import {
     generateVoronoiTerritoryGeometry,

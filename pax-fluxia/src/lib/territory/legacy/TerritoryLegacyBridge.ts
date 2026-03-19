@@ -21,7 +21,7 @@
 import type * as PIXI from 'pixi.js';
 import type { Star, Connection } from '@pax/common';
 import type { ColorUtils } from '$lib/renderers/RenderContext';
-import { runFG2DataPipeline, extractCanonicalData } from '$lib/territory-engine';
+import { runFG2DataPipeline, extractCanonicalData } from '$lib/territory/orchestrator';
 
 export type LegacyStyleId =
     | 'territory_engine'   // Old DY4 pipeline — SACROSANCT, do not alter
@@ -62,7 +62,7 @@ export async function renderLegacyStyle(input: LegacyBridgeInput): Promise<boole
     switch (style) {
         case 'territory_engine': {
             // SACROSANCT — DY4 optimal transport. Do not alter behavior.
-            const { renderTerritoryEngine } = await import('$lib/territory-engine');
+            const { renderTerritoryEngine } = await import('$lib/territory/orchestrator');
             renderTerritoryEngine({
                 stars, container, colorUtils, worldWidth, worldHeight,
                 connections, renderer, gameNowMs,
@@ -73,7 +73,7 @@ export async function renderLegacyStyle(input: LegacyBridgeInput): Promise<boole
         case 'vs_pvv3': {
             const [{ runFG2DataPipeline, extractCanonicalData }, { renderPVV3 }] =
                 await Promise.all([
-                    import('$lib/territory-engine'),
+                    import('$lib/territory/orchestrator'),
                     import('$lib/renderers/PVV3Renderer'),
                 ]);
             const artifacts = runFG2DataPipeline({
@@ -88,7 +88,7 @@ export async function renderLegacyStyle(input: LegacyBridgeInput): Promise<boole
         case 'power_voronoi': {
             const [{ runFG2DataPipeline, extractCanonicalData }, { renderPowerVoronoi }] =
                 await Promise.all([
-                    import('$lib/territory-engine'),
+                    import('$lib/territory/orchestrator'),
                     import('$lib/renderers/PowerVoronoiRenderer'),
                 ]);
             const artifacts = runFG2DataPipeline({

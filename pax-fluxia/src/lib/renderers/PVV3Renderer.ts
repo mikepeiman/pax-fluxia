@@ -28,7 +28,7 @@ import { findConnectedClustersOptimized } from './territoryUtils';
 import { computeCorridorVirtuals, computeDisconnectVirtuals, DISCONNECT_OWNER_ID } from './territoryFeatures';
 import type { ColorUtils } from './RenderContext';
 import { log } from '$lib/utils/logger';
-import type { CanonicalTerritoryData } from '$lib/territory-engine/renderMode';
+import type { CanonicalTerritoryData } from '$lib/territory/orchestrator/renderMode';
 
 // ── Re-exported geometry modules ──────────────────────────────────────────
 import type {

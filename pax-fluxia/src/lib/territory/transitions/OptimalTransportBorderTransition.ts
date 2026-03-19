@@ -19,7 +19,7 @@ import type {
     BorderTransition,
     CanonicalAnimatedShell,
     CanonicalTerritoryData,
-} from '$lib/territory-engine/renderMode';
+} from '$lib/territory/orchestrator/renderMode';
 
 // ── Geometry helpers (no PIXI, no module state) ──────────────────────────────
 

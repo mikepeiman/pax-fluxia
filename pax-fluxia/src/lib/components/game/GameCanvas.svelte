@@ -89,7 +89,7 @@
         resetTerritoryEngineCaches,
         runFG2DataPipeline,
         extractCanonicalData,
-    } from "$lib/territory-engine";
+    } from "$lib/territory/orchestrator";
     // ── Canonical territory layer (Phase 2: new architecture) ──────────────────
     import { TerritoryEngineController } from "$lib/territory/engine/TerritoryEngineController";
     import { TerritoryRenderer } from "$lib/territory/render/TerritoryRenderer";
