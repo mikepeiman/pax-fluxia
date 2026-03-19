@@ -467,6 +467,17 @@
         updatePanel("territoryBorderTransition", transitionId);
     }
 
+    /**
+     * Handle geometry mode button clicks.
+     *
+     * Data flow: UI click → selectGeometryMode()
+     *   1. Sets TERRITORY_GEOMETRY_MODE via panel→config sync (settingsDefs.ts PANEL_CONFIG_MAP)
+     *   2. Bumps __GEOMETRY_REFRESH_TOKEN so even re-clicking same mode forces recompute
+     *      (buildShapeFingerprint in PowerVoronoiRenderer.ts includes this token)
+     *   3. For 'new_frontiers_0319': also sets TERRITORY_ENGINE_METHOD so runLegacyAdapter
+     *      in engine.ts routes to computeGeometry0319 (compiler/Geometry_0319.ts)
+     *   4. For other modes: resets TERRITORY_ENGINE_METHOD to default if it was set to new_frontiers
+     */
     function selectGeometryMode(modeId: string) {
         debouncedConfigUpdate(
             "TERRITORY_GEOMETRY_MODE",

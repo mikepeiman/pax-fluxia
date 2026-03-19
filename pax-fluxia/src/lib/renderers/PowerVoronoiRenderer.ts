@@ -125,6 +125,16 @@ const defaultState: PVV2RendererState = createPVV2State();
 
 // ── Fingerprint ────────────────────────────────────────────────────────────
 
+/**
+ * Build a cache key from star ownership + geometry-affecting config params.
+ * If this string changes between frames, the renderer runs a full geometry
+ * stage rebuild. If it stays the same, the renderer skips the expensive
+ * power diagram computation.
+ *
+ * IMPORTANT: any config key that affects geometry output MUST be included here.
+ * Otherwise, changing that setting in the UI will appear to have no effect
+ * until the next conquest triggers a natural rebuild.
+ */
 function buildShapeFingerprint(stars: StarState[]): string {
     let fp = 'shape:';
     for (const s of stars) {
@@ -139,9 +149,15 @@ function buildShapeFingerprint(stars: StarState[]): string {
     // Chaikin passes drives chainSharedEdgesIntoPolylines in the geometry stage
     // — must be a shape-fingerprint dependency, not visual-only
     fp += `:chaikin=${GAME_CONFIG.VORONOI_BORDER_SMOOTH}`;
-    // Geometry mode controls which generator runs (standard vs Geometry_0319)
+    // Geometry mode selects which generator runs:
+    // - 'power_voronoi': standard generateVoronoiTerritoryGeometry
+    // - 'unified_polygon': dense resampled variant
+    // - 'new_frontiers_0319': Geometry_0319 with fixed world-boundary pipeline
     fp += `:geoMode=${GAME_CONFIG.TERRITORY_GEOMETRY_MODE}`;
     fp += `:engMethod=${GAME_CONFIG.TERRITORY_ENGINE_METHOD}`;
+    // Refresh token: bumped by selectGeometryMode() on EVERY click (even
+    // re-clicking the same mode) so the user can force a recompute without
+    // changing any actual setting. See ControlsSection-Territory.svelte.
     fp += `:geoRefresh=${(GAME_CONFIG as any).__GEOMETRY_REFRESH_TOKEN ?? 0}`;
     return fp;
 }
