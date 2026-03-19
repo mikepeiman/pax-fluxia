@@ -628,6 +628,13 @@ export function renderPowerVoronoi(
     }
 
     // ── LEGACY PATH (no canonical data) ─────────────────────────────────
+    // Clear stale s.borderGraphics — borders are drawn on s.fillGraphics only.
+    // renderInterpolatedBorders (which created borderGraphics) is dead code,
+    // but the Graphics object persists and renders a second set of borders.
+    if (s.borderGraphics) {
+        s.borderGraphics.clear();
+        s.borderGraphics.visible = false;
+    }
     // Per-frame animation (both modes)
     const boundaryMode = GAME_CONFIG.TERRITORY_BOUNDARY_MODE ?? 'smooth';
 
