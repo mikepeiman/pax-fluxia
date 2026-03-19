@@ -178,13 +178,15 @@ function runLegacyAdapter(adapter: TerritoryLegacyAdapterId, input: TerritoryEng
     if (adapter === 'legacy_pvv2') {
         // Check if this is the new_frontiers_0319 method — if so, pre-compute
         // geometry with the fixed world-boundary pipeline and pass it in.
-        const methodId = resolveMethodId(GAME_CONFIG.TERRITORY_ENGINE_METHOD
-            ?? (GAME_CONFIG.TERRITORY_ENGINE_MODE === 'dynamic'
-                ? GAME_CONFIG.TERRITORY_ENGINE_DYNAMIC_METHOD
-                : GAME_CONFIG.TERRITORY_ENGINE_STATIC_METHOD));
+        // Primary trigger: TERRITORY_GEOMETRY_MODE (set by Geometry row buttons)
+        // Fallback: TERRITORY_ENGINE_METHOD (set by engine method dropdown)
+        const isNewFrontiers =
+            GAME_CONFIG.TERRITORY_GEOMETRY_MODE === 'new_frontiers_0319' ||
+            GAME_CONFIG.TERRITORY_ENGINE_METHOD === 'new_frontiers_0319';
 
         let precomputedGeometry: any = undefined;
-        if (methodId === 'new_frontiers_0319') {
+        if (isNewFrontiers) {
+            log.sys('TerritoryEngine', `Dispatching to Geometry_0319 (GEOMETRY_MODE=${GAME_CONFIG.TERRITORY_GEOMETRY_MODE}, ENGINE_METHOD=${GAME_CONFIG.TERRITORY_ENGINE_METHOD})`);
             const stageConfig = {
                 starMargin: GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45,
                 corridorEnabled: Boolean(GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED) && Boolean(input.connections),

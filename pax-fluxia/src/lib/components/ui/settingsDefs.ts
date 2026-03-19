@@ -411,6 +411,8 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'dfDisconnectWeight', configKey: 'DF_DISCONNECT_WEIGHT' },
     // Contour Territory
     { panelKey: 'territoryContour', configKey: 'TERRITORY_CONTOUR' },
+    { panelKey: 'territoryGeometryMode', configKey: 'TERRITORY_GEOMETRY_MODE' },
+    { panelKey: 'territoryEngineMethod', configKey: 'TERRITORY_ENGINE_METHOD' },
     { panelKey: 'territoryClusterSplit', configKey: 'TERRITORY_CLUSTER_SPLIT' },
     { panelKey: 'contourSaturation', configKey: 'CONTOUR_SATURATION' },
     { panelKey: 'contourLightness', configKey: 'CONTOUR_LIGHTNESS' },
