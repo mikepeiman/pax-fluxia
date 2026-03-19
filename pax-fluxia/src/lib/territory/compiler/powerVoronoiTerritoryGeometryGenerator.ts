@@ -650,10 +650,12 @@ export function constructFillsFromBorders(
         }
     }
 
-    // Extract CONNECTING edges from raw merged territories.
-    // These are edges that are neither contested (shared with different owner)
-    // nor on the same world boundary side. They link border endpoints to
-    // world boundary endpoints, closing the polygon.
+    // Add ALL raw merged polygon edges as connecting segments.
+    // These include contested, boundary, and connecting edges — ALL snapped.
+    // The chainer picks the best-matching segment at each step, so duplicates
+    // with shared polyline or world border segments won't cause issues.
+    // Previously, edgeKey filtering failed due to coordinate precision drift
+    // between the Voronoi tessellation and the merged polygon union operation.
     let connectingCount = 0;
     for (const territory of mergedRaw) {
         const pts = territory.points;
@@ -661,19 +663,13 @@ export function constructFillsFromBorders(
         for (let i = 0; i < n; i++) {
             const [x1, y1] = pts[i];
             const [x2, y2] = pts[(i + 1) % n];
-            const ek = edgeKey(x1, y1, x2, y2);
-            // Skip contested edges (covered by sharedPolylines)
-            if (contestedEdgeKeys.has(ek)) continue;
-            // Skip same-side world boundary edges (covered by worldBorderPolylines)
-            if (isSameBoundarySide(x1, y1, x2, y2)) continue;
-            // This is a connecting edge — snap boundary-adjacent endpoints and add
             const p1 = snapPoint([x1, y1]);
             const p2 = snapPoint([x2, y2]);
             addSegment(territory.ownerId, [p1, p2]);
             connectingCount++;
         }
     }
-    log.sys('PVV2Stage', `constructFillsFromBorders: extracted ${connectingCount} connecting edges from ${mergedRaw.length} raw territories`);
+    log.sys('PVV2Stage', `constructFillsFromBorders: added ${connectingCount} raw polygon edges from ${mergedRaw.length} territories`);
 
     const eps = 6; // endpoint match tolerance (slightly wider than snap precision)
     const result: MergedTerritory[] = [];
