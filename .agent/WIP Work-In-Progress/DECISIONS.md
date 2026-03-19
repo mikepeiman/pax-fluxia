@@ -572,3 +572,37 @@ These produced different vertex sets and were the root cause of fill-border dive
 ## Next Step
 
 **Split this point-line frontier work into a new data mode.** Restore FG2 as it was. The unified frontier morpher is a separate rendering mode, not a replacement for the existing FG2 pipeline.
+
+---
+
+# Decision: 4-Layer Territory Architecture
+
+**Date:** 2026-03-19
+**Status:** Active
+**Ref:** D-80
+
+## Context
+The PRD defined a 6-layer model (Truth → Frontier → Fitting → Region → Presentation → Transition). Code review revealed that layers 2-4 are sub-steps of one concern ("turn ownership into shapes"), while the live code in `renderMode.ts` already has a cleaner 3-concern contract.
+
+## Decision
+Adopt 4-layer model:
+1. **Ownership** — "Who owns what" (`territory/ownership/`, `GraphOwnershipState`)
+2. **Geometry** — "What shapes exist" (`territory/geometry/`)
+3. **Transition** — "How shapes change between ticks" (`territory/transitions/`, as FX handlers)
+4. **Presentation** — "How shapes become pixels" (`territory/render/`)
+
+## Rationale
+- Layers 2-4 of PRD are implementation details of one geometry generator
+- Transition and Presentation are orthogonal to Geometry mode
+- FX handler pattern already exists and works for transitions
+
+---
+
+# Decision: Territory Engine → TerritoryOrchestrator
+
+**Date:** 2026-03-19
+**Status:** Active
+**Ref:** D-81
+
+## Decision
+Rename `territory-engine/` to `territory/orchestrator/` and rename `engine.ts` concepts to "orchestrator" — this better describes its role as a route-and-dispatch coordinator, not a compute engine.
