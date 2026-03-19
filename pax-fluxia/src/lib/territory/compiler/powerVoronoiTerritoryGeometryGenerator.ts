@@ -557,6 +557,8 @@ function mergeSameOwnerCells(
 export function constructFillsFromBorders(
     sharedPolylines: SharedPolyline[],
     worldBorderPolylines: SharedPolyline[],
+    mergedRaw: MergedTerritory[],
+    sharedEdgesRaw: SharedBorderEdge[],
     worldW: number,
     worldH: number,
     pad: number = 50,
@@ -599,6 +601,30 @@ export function constructFillsFromBorders(
         return result;
     }
 
+    // Snap a single point if it's near the padded boundary
+    function snapPoint(pt: [number, number]): [number, number] {
+        if (isNearBoundary(pt[0], pt[1])) return snapBoundary(pt[0], pt[1]);
+        return pt;
+    }
+
+    // Build set of shared/contested edge keys for fast lookup
+    const contestedEdgeKeys = new Set<string>();
+    for (const e of sharedEdgesRaw) {
+        contestedEdgeKeys.add(edgeKey(e.x1, e.y1, e.x2, e.y2));
+    }
+
+    // Check if both endpoints are on the SAME world boundary side
+    function isSameBoundarySide(x1: number, y1: number, x2: number, y2: number): boolean {
+        const onLeft = (x: number) => x <= -pad + snapEps;
+        const onRight = (x: number) => x >= worldW + pad - snapEps;
+        const onTop = (y: number) => y <= -pad + snapEps;
+        const onBottom = (y: number) => y >= worldH + pad - snapEps;
+        return (onLeft(x1) && onLeft(x2)) ||
+            (onRight(x1) && onRight(x2)) ||
+            (onTop(y1) && onTop(y2)) ||
+            (onBottom(y1) && onBottom(y2));
+    }
+
     // Collect all directed segments per owner.
     const ownerSegments = new Map<string, [number, number][][]>();
 
@@ -623,6 +649,31 @@ export function constructFillsFromBorders(
             addSegment(owner, pl.points);
         }
     }
+
+    // Extract CONNECTING edges from raw merged territories.
+    // These are edges that are neither contested (shared with different owner)
+    // nor on the same world boundary side. They link border endpoints to
+    // world boundary endpoints, closing the polygon.
+    let connectingCount = 0;
+    for (const territory of mergedRaw) {
+        const pts = territory.points;
+        const n = pts.length;
+        for (let i = 0; i < n; i++) {
+            const [x1, y1] = pts[i];
+            const [x2, y2] = pts[(i + 1) % n];
+            const ek = edgeKey(x1, y1, x2, y2);
+            // Skip contested edges (covered by sharedPolylines)
+            if (contestedEdgeKeys.has(ek)) continue;
+            // Skip same-side world boundary edges (covered by worldBorderPolylines)
+            if (isSameBoundarySide(x1, y1, x2, y2)) continue;
+            // This is a connecting edge — snap boundary-adjacent endpoints and add
+            const p1 = snapPoint([x1, y1]);
+            const p2 = snapPoint([x2, y2]);
+            addSegment(territory.ownerId, [p1, p2]);
+            connectingCount++;
+        }
+    }
+    log.sys('PVV2Stage', `constructFillsFromBorders: extracted ${connectingCount} connecting edges from ${mergedRaw.length} raw territories`);
 
     const eps = 6; // endpoint match tolerance (slightly wider than snap precision)
     const result: MergedTerritory[] = [];
@@ -1037,7 +1088,7 @@ export function generateVoronoiTerritoryGeometry(
         // This eliminates fill/border geometry divergence (B-42) — both use identical vertices.
         // The old approach (independently Chaikin-smooth mergedRaw polygons) used a DIFFERENT
         // smoothing function with different pinning constraints, producing angular fills vs smooth borders.
-        const mergedTerritories = constructFillsFromBorders(sharedPolylines, worldBorderPolylines, config.worldWidth, config.worldHeight, pad);
+        const mergedTerritories = constructFillsFromBorders(sharedPolylines, worldBorderPolylines, mergedRaw, sharedEdges, config.worldWidth, config.worldHeight, pad);
         log.sys('PVV2Stage', `BORDER-DERIVED FILLS: ${mergedTerritories.length} fill regions from ${sharedPolylines.length} border + ${worldBorderPolylines.length} world polylines`);
 
         log.sys('PVV2Stage', `MERGED: ${mergedTerritories.length} territories | chaikinPasses=${config.chaikinPasses} | pts: ${mergedTerritories.map(t => `${t.ownerId}:${t.points.length}`).join(' ')}`);
