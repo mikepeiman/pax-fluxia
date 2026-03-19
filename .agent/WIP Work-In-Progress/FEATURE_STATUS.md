@@ -439,8 +439,9 @@
 | B-99 | **Pixi Rope thick border flash on conquest**: Rope texture height was `ropeWidth * 2`, doubling visual width vs slider value. Fixed to `ropeWidth`. | Fixed (2026-03-18) |
 | R-131 | **Neutral territory transparency**: Toggle option for neutral territory to have color OR full transparency (no fill, showing background). Future roadmap: special territory types with shimmering VFX. | Fixed (2026-03-18) |
 | B-100 | **Deferred orders only from own stars**: Drag-to-order only initiated from player-owned stars, preventing deferred order chains from non-owned stars. Fixed: drag now starts from any star, with non-owned stars automatically entering deferred order mode. | Fixed (2026-03-18) |
-| B-101 | **Fill morph is crossfade, not shape morph**: During conquest transitions, fills alpha-crossfade (old fades out, new fades in) instead of reshaping per frame. Fills should draw the morphed polygon shape at full alpha every frame — matching whatever shape the borders trace. The fill IS the enclosed region of the morphed borders. | 🔴 HIGH |
+| B-101 | **Fill morph is crossfade, not shape morph**: Fills now use `FrontierLoopMorpher` — unified fill+border from same closed polygon points. Fill-border binding confirmed clean. Polygon rotation alignment added. Remaining: split into new data mode, restore FG2. | In Progress |
 | B-102 | **Conquest animation: localized frontier update**: On conquest, only update territory/frontiers around the conquered star and its neighbors. Anchor points on contiguous frontiers beyond which geometry stays static. Between anchors: dense control vertices, lerped in order to new positions, with per-frame Chaikin smoothing. See D-78. | 🔴 HIGH |
+| R-132 | **Frontier Resolution slider** (1-20px): Controls vertex spacing along territory polygon outlines. Lower = denser vertices = smoother morphing. Added as part of unified frontier pipeline (D-80). | Added (2026-03-18) |
 
 ## Known Regressions
 

@@ -538,3 +538,37 @@ Fills must draw the **morphed polygon shape at full alpha** every frame. The fil
 1. Compute the morphed border shape (already done for border rendering)
 2. Fill the enclosed polygon at the target alpha
 3. No crossfade. No ghost. Solid fill that reshapes.
+
+---
+
+# D-80: Unified Frontier Pipeline — Point-Line Canonical Data
+
+**Date:** 2026-03-18
+**Status:** In Progress
+
+## Architecture
+
+Canonical frontier data = **array of arrays of x,y coordinate points with ownership**. One data source for both fill and border rendering.
+
+Pipeline:
+1. d3-weighted-voronoi → raw cells
+2. Merge same-owner cells → closed polygons (`MergedTerritory`)
+3. Chaikin smoothing (junction + boundary pinning) — unchanged
+4. **Dense resampling** at `FRONTIER_RESOLUTION` px spacing (`resampleClosedPolygonBySpacing`)
+5. **Fill + stroke** from same densely-sampled points (`FrontierLoopMorpher`)
+
+Morph alignment:
+- Multi-region matching (arrays per owner + nearest centroid)
+- Polygon rotation alignment (`alignClosedPolygon`) — minimizes total vertex displacement
+
+## Key Decision
+
+The old approach used TWO separate geometry pipelines:
+- **Fills** from `MergedTerritory` polygons (closed-polygon Chaikin)
+- **Borders** from `SharedPolyline` segments (open-polyline Chaikin)
+
+These produced different vertex sets and were the root cause of fill-border divergence. The unified pipeline eliminates this by design.
+
+## Next Step
+
+**Split this point-line frontier work into a new data mode.** Restore FG2 as it was. The unified frontier morpher is a separate rendering mode, not a replacement for the existing FG2 pipeline.
