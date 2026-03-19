@@ -544,6 +544,11 @@ export function renderPowerVoronoi(
 
         for (const shell of sorted) {
             if (shell.points.length < 3) continue;
+
+            // R-131: Skip neutral territory fill when transparency is enabled
+            const isNeutral = !shell.ownerId || shell.ownerId === 'neutral' || shell.ownerId === '';
+            if (isNeutral && GAME_CONFIG.NEUTRAL_TERRITORY_TRANSPARENT) continue;
+
             const rawColor = colorUtils.getPlayerColor(shell.ownerId);
             const shellColor = adjustColorHSL(rawColor, satMult, lightMult);
 

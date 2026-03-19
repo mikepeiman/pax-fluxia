@@ -228,6 +228,7 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'haloFleetMaxShips', configKey: 'HALO_FLEET_MAX_SHIPS' },
     { panelKey: 'showVoronoi', configKey: 'SHOW_VORONOI' },
     { panelKey: 'voronoiAlpha', configKey: 'VORONOI_ALPHA' },
+    { panelKey: 'neutralTerritoryTransparent', configKey: 'NEUTRAL_TERRITORY_TRANSPARENT' },
     { panelKey: 'voronoiResolution', configKey: 'VORONOI_RESOLUTION' },
     { panelKey: 'voronoiEdgeBlend', configKey: 'VORONOI_EDGE_BLEND' },
     { panelKey: 'voronoiBorderWidth', configKey: 'VORONOI_BORDER_WIDTH' },

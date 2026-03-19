@@ -1012,6 +1012,27 @@
     </div>
     <div class="var-row">
         <div class="row-top">
+            <span class="var-name">Neutral Transparent</span>
+            <label class="toggle-switch">
+                <input
+                    type="checkbox"
+                    checked={panel.neutralTerritoryTransparent ??
+                        GAME_CONFIG.NEUTRAL_TERRITORY_TRANSPARENT}
+                    onchange={(e) => {
+                        const v = (e.target as HTMLInputElement).checked;
+                        debouncedConfigUpdate(
+                            "NEUTRAL_TERRITORY_TRANSPARENT",
+                            "neutralTerritoryTransparent",
+                            v,
+                        );
+                    }}
+                />
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+    </div>
+    <div class="var-row">
+        <div class="row-top">
             <span class="var-name">Border Width</span><span class="val"
                 >{(
                     panel.voronoiBorderWidth ?? GAME_CONFIG.VORONOI_BORDER_WIDTH

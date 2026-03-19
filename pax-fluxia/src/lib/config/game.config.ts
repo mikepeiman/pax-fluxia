@@ -353,6 +353,7 @@ interface GameConfigType {
 
     // ── Voronoi Territory ───────────────────────────────────────────────────
     SHOW_VORONOI: boolean;         // Show contiguous Voronoi territory fill (default true)
+    NEUTRAL_TERRITORY_TRANSPARENT: boolean; // When true, neutral/unowned territory has no fill (fully transparent)
     VORONOI_ALPHA: number;         // Alpha for Voronoi territory (default 0.15)
     VORONOI_RESOLUTION: number;    // Pixel territory downscale factor (4=fastest, 1=sharpest)
     VORONOI_EDGE_BLEND: number;    // Edge blend radius for pixel territory (0=off)
@@ -1053,6 +1054,8 @@ const _rawConfig: GameConfigType = {
 
     /** Show contiguous Voronoi territory fill */
     SHOW_VORONOI: false,
+    /** Skip neutral territory fill — show background through unowned areas */
+    NEUTRAL_TERRITORY_TRANSPARENT: false,
     /** Voronoi territory alpha (0-1) */
     VORONOI_ALPHA: 0.23,
     /** Voronoi canvas downscale factor (higher = faster/blockier) */
