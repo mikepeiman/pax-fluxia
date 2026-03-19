@@ -14,7 +14,8 @@ export type TerritoryMethodId =
     | 'fg1_mar19_refactor'
     | 'fg2_seed_graph'
     | 'dy4_optimal_transport'
-    | 'dy4_mar19_refactor';
+    | 'dy4_mar19_refactor'
+    | 'new_frontiers_0319';
 
 // Backward-compat aliases (temporary — remove once all consumers migrate)
 /** @deprecated Use TerritoryMethodId */

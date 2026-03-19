@@ -503,6 +503,7 @@ export function renderPowerVoronoi(
     connections?: StarConnection[],
     canonicalData?: CanonicalTerritoryData,
     state?: PVV2RendererState,
+    precomputedGeometry?: TerritoryGeometryData,
 ): void {
     const s = state ?? defaultState;
     const transitionMs = GAME_CONFIG.TERRITORY_TRANSITION_MS ?? 400;
@@ -756,28 +757,31 @@ export function renderPowerVoronoi(
     const lightMult = GAME_CONFIG.VORONOI_LIGHTNESS ?? 0.7;
     const starMargin = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45;
 
-    // ── Geometry Stage: delegate to powerVoronoiTerritoryGeometryGenerator ───────────────────────
-    // All geometry computation (site-building, d3-weighted-voronoi, cell merge,
-    // edge extraction, Chaikin smoothing) now lives in the compiler stage.
-    const stageConfig = {
-        starMargin: GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45,
-        corridorEnabled: Boolean(GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED) && Boolean(connections),
-        corridorSpacing: GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING ?? 60,
-        disconnectEnabled: Boolean(GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED) && Boolean(connections),
-        disconnectDistance: GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE ?? 400,
-        clusterSplit: Boolean(GAME_CONFIG.TERRITORY_CLUSTER_SPLIT),
-        chaikinPasses: Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3))),
-        // Only apply dense frontier resampling in unified_polygon geometry mode
-        frontierResolution: (GAME_CONFIG.TERRITORY_GEOMETRY_MODE ?? 'power_voronoi') === 'unified_polygon'
-            ? Math.max(1, Math.min(20, GAME_CONFIG.FRONTIER_RESOLUTION ?? 5))
-            : 0,
-        boundaryPad: GAME_CONFIG.CHAIKIN_BOUNDARY_PAD ?? 50,
-        boundaryEps: GAME_CONFIG.CHAIKIN_BOUNDARY_EPS ?? 6,
-        worldWidth,
-        worldHeight,
-    };
-
-    const stageResult = generateVoronoiTerritoryGeometry(stars, connections ?? [], stageConfig);
+    // ── Geometry Stage: use precomputed geometry if provided, else run generator ──
+    let stageResult: TerritoryGeometryData | { kind: 'error'; stage: string; message: string; recoverable: boolean };
+    if (precomputedGeometry) {
+        stageResult = precomputedGeometry;
+        log.renderer('PVV2', `Using precomputed geometry (Geometry_0319)`);
+    } else {
+        const stageConfig = {
+            starMargin: GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45,
+            corridorEnabled: Boolean(GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED) && Boolean(connections),
+            corridorSpacing: GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING ?? 60,
+            disconnectEnabled: Boolean(GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED) && Boolean(connections),
+            disconnectDistance: GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE ?? 400,
+            clusterSplit: Boolean(GAME_CONFIG.TERRITORY_CLUSTER_SPLIT),
+            chaikinPasses: Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3))),
+            // Only apply dense frontier resampling in unified_polygon geometry mode
+            frontierResolution: (GAME_CONFIG.TERRITORY_GEOMETRY_MODE ?? 'power_voronoi') === 'unified_polygon'
+                ? Math.max(1, Math.min(20, GAME_CONFIG.FRONTIER_RESOLUTION ?? 5))
+                : 0,
+            boundaryPad: GAME_CONFIG.CHAIKIN_BOUNDARY_PAD ?? 50,
+            boundaryEps: GAME_CONFIG.CHAIKIN_BOUNDARY_EPS ?? 6,
+            worldWidth,
+            worldHeight,
+        };
+        stageResult = generateVoronoiTerritoryGeometry(stars, connections ?? [], stageConfig);
+    }
     if ('kind' in stageResult) {
         // CompileError — recoverable means use last cached frame, non-recoverable clears
         log.error('PVV2', `geometry stage error at ${stageResult.stage}: ${stageResult.message}`);
@@ -790,7 +794,7 @@ export function renderPowerVoronoi(
 
     const { cells, mergedTerritories: merged, sharedEdges, rawSharedPolylines: builtRawPolylinesRaw, sharedPolylines: builtPolylinesRaw, enclaveMap } = stageResult;
 
-    log.renderer('PVV2', `STAGE OUTPUT | cells=${cells.length} merged=${merged.length} edges=${sharedEdges.length} polylines=${builtPolylinesRaw.length} enclaves=${enclaveMap.size} chaikinPasses=${stageConfig.chaikinPasses}`);
+    log.renderer('PVV2', `STAGE OUTPUT | cells=${cells.length} merged=${merged.length} edges=${sharedEdges.length} polylines=${builtPolylinesRaw.length} enclaves=${enclaveMap.size} chaikinPasses=${Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)}`);
 
     // Fingerprint from stage — used for changed-owner detection
     // Assign colors to merged territories (render concern, not geometry)

@@ -8,8 +8,10 @@ GEOMETRY DATA MODE          TRANSITION STRATEGY         PRESENTATION STYLE
 What territory shapes       How shapes animate          How shapes look
 get computed                 during conquest             on screen
 ─────────────────           ───────────────────         ──────────────────
-Produces: polygons,         Produces: interpolated      Produces: colors,
-frontiers, regions          frame geometry at time t     widths, alpha, glow
+Produces: geometry data     Produces: interpolated      Produces: colors,
+for frontiers, regions;     frame geometry at time t    widths, alpha, glow
+as polygons or coordinate 
+series                          
 ─────────────────           ───────────────────         ──────────────────
 Changes on: ownership       Changes on: every frame     Changes on: slider
 tick (topology change)      during conquest              tweak (uniform update)  

@@ -122,14 +122,14 @@ export interface TerritoryGeneratorSettings {
 // Internal helpers
 // ---------------------------------------------------------------------------
 
-function edgeKey(x1: number, y1: number, x2: number, y2: number): string {
+export function edgeKey(x1: number, y1: number, x2: number, y2: number): string {
     const ax = +x1.toFixed(2), ay = +y1.toFixed(2);
     const bx = +x2.toFixed(2), by = +y2.toFixed(2);
     if (ax < bx || (ax === bx && ay < by)) return `${ax},${ay}-${bx},${by}`;
     return `${bx},${by}-${ax},${ay}`;
 }
 
-function ptKey(x: number, y: number): string {
+export function ptKey(x: number, y: number): string {
     return `${+x.toFixed(2)},${+y.toFixed(2)}`;
 }
 
@@ -376,7 +376,7 @@ export function extractWorldBorderPolylines(
     return result;
 }
 
-function extractSharedEdges(cells: TerritoryCell[]): SharedBorderEdge[] {
+export function extractSharedEdges(cells: TerritoryCell[]): SharedBorderEdge[] {
     const edgeOwners = new Map<string, {
         sides: { ownerId: string; siteId: string }[];
         pts: [number, number, number, number];
@@ -421,7 +421,7 @@ function extractSharedEdges(cells: TerritoryCell[]): SharedBorderEdge[] {
     return shared;
 }
 
-function mergeSameOwnerCells(
+export function mergeSameOwnerCells(
     cells: TerritoryCell[],
     clusterSplit: boolean,
     clusterMap: Map<string, number>,
@@ -789,7 +789,7 @@ export function chainSharedEdgesIntoPolylines(
 
 
 
-function detectEnclaves(merged: MergedTerritory[]): Map<number, [number, number][][]> {
+export function detectEnclaves(merged: MergedTerritory[]): Map<number, [number, number][][]> {
     function pointInPolygon(px: number, py: number, polygon: [number, number][]): boolean {
         let inside = false;
         const n = polygon.length;

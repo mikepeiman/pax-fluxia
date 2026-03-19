@@ -78,6 +78,14 @@ export const TERRITORY_METHODS: TerritoryMethodDescriptor[] = [
         implementedStages: ['render'],
         adapter: 'refactored_pvv2',
     },
+    {
+        id: 'new_frontiers_0319',
+        label: 'New-Frontiers-0319',
+        description:
+            'Ownership-annotated frontier with world-boundary-inclusive fill construction. Fixes fill/border divergence.',
+        implementedStages: ['render'],
+        adapter: 'legacy_pvv2',
+    },
 ];
 
 // ── Lookup Table ─────────────────────────────────────────────────────────────
