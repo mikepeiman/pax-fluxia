@@ -86,7 +86,7 @@ export interface PVV2RendererState {
     changedSiteIds: Set<string> | null;
     // Enclave Cache
     lastEnclaveMap: Map<number, [number, number][][]> | null;
-    lastWorldBorderPolylines: SharedPolyline[];
+    // (removed: lastWorldBorderPolylines — failed world rect border attempt)
 }
 
 /** Create a fresh PVV2 renderer state. */
@@ -116,7 +116,7 @@ export function createPVV2State(): PVV2RendererState {
         lastCells: null,
         changedSiteIds: null,
         lastEnclaveMap: null,
-        lastWorldBorderPolylines: [],
+        // (removed: lastWorldBorderPolylines)
     };
 }
 
@@ -693,9 +693,7 @@ export function renderPowerVoronoi(
             if (s.targetSharedPolylines && s.targetSharedPolylines.length > 0 && borderWidth > 0 && borderAlpha > 0) {
                 drawBorderPolylines(s.fillGraphics, s.targetSharedPolylines, 0, borderWidth, borderAlpha);
             }
-            if (s.lastWorldBorderPolylines.length > 0 && borderWidth > 0 && borderAlpha > 0) {
-                drawBorderPolylines(s.fillGraphics, s.lastWorldBorderPolylines, 0, borderWidth, borderAlpha);
-            }
+
             log.renderer('PVV2', 'border transition complete — borders drawn, fills retained from morpher');
         }
 
@@ -783,8 +781,7 @@ export function renderPowerVoronoi(
         return;
     }
 
-    const { cells, mergedTerritories: merged, sharedEdges, rawSharedPolylines: builtRawPolylinesRaw, sharedPolylines: builtPolylinesRaw, worldBorderPolylines, enclaveMap } = stageResult;
-    s.lastWorldBorderPolylines = worldBorderPolylines;  // cache for transition-end redraw
+    const { cells, mergedTerritories: merged, sharedEdges, rawSharedPolylines: builtRawPolylinesRaw, sharedPolylines: builtPolylinesRaw, enclaveMap } = stageResult;
 
     log.renderer('PVV2', `STAGE OUTPUT | cells=${cells.length} merged=${merged.length} edges=${sharedEdges.length} polylines=${builtPolylinesRaw.length} enclaves=${enclaveMap.size} chaikinPasses=${stageConfig.chaikinPasses}`);
 
@@ -875,11 +872,7 @@ export function renderPowerVoronoi(
     } else {
         log.renderer('PVV2', `🔴 BORDERS SKIPPED | polylines=${s.targetSharedPolylines?.length ?? 'null'} bw=${borderWidth} ba=${borderAlpha}`);
     }
-    // Draw world-boundary border lines — territory-colored, derived from outer polygon faces
-    if (worldBorderPolylines.length > 0 && borderWidth > 0 && borderAlpha > 0) {
-        drawBorderPolylines(s.fillGraphics, worldBorderPolylines, 0, borderWidth, borderAlpha);
-        log.renderer('PVV2', `🌐 WORLD BORDERS DRAWN | polylines=${worldBorderPolylines.length}`);
-    }
+
 
     // Start transition based on geometry change or FX-driven conquest event
     const fxTriggered = territoryTransitions.hasActiveTransitions;
