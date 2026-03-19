@@ -695,29 +695,13 @@ export function renderPowerVoronoi(
             // ── F2 FIX (refined) ────────────────────────────────────────────
             // Do NOT clear + redraw fills — that caused visible tick stutter.
             // The morpher's last frame at t=1 already shows correct fills.
-            // But we DO need to draw steady-state borders so they persist
+            // But we DO need to draw steady-state contested borders so they persist
             // after the morpher/rope is cleaned up above.
-            // UNIFIED: draw borders from same MergedTerritory.points as fills.
-            if (s.lastMergedTerritories && borderWidth > 0 && borderAlpha > 0) {
-                for (const territory of s.lastMergedTerritories) {
-                    if (territory.points.length < 3) continue;
-                    const pts = territory.points;
-                    s.fillGraphics.moveTo(pts[0][0], pts[0][1]);
-                    for (let j = 1; j < pts.length; j++) {
-                        s.fillGraphics.lineTo(pts[j][0], pts[j][1]);
-                    }
-                    s.fillGraphics.lineTo(pts[0][0], pts[0][1]);
-                    s.fillGraphics.stroke({
-                        width: borderWidth,
-                        color: territory.color,
-                        alpha: borderAlpha,
-                        join: 'round',
-                        cap: 'round',
-                    });
-                }
+            if (s.targetSharedPolylines && s.targetSharedPolylines.length > 0 && borderWidth > 0 && borderAlpha > 0) {
+                drawBorderPolylines(s.fillGraphics, s.targetSharedPolylines, 0, borderWidth, borderAlpha);
             }
 
-            log.renderer('PVV2', 'border transition complete — unified borders drawn from territory points');
+            log.renderer('PVV2', 'border transition complete — contested borders drawn, fills retained');
         }
 
         const shapeFpCheck = buildShapeFingerprint(stars);
@@ -852,48 +836,11 @@ export function renderPowerVoronoi(
         log.renderer('PVV2', `B-38 enclave detection: ${enclaveMap.size} territories contain enclaves`);
     }
 
-    // ── UNIFIED FILL + BORDER from same merged territory points ──────────
-    // Both fill and stroke derive from the SAME MergedTerritory.points array.
-    // This eliminates fill/border geometry divergence (B-42 longstanding issue).
-    log.renderer('PVV2', `UNIFIED FILL+BORDER | territories=${merged.length} enclaves=${enclaveMap.size}`);
+    // Steady-state fills: use raw polygon points (no independent smoothing — B-42 fix)
+    // Borders are drawn SEPARATELY from sharedPolylines (contested edges only, blended colors)
+    log.renderer('PVV2', `FILLS | drawing ${merged.length} territories`);
     for (let i = 0; i < merged.length; i++) {
-        const territory = merged[i];
-        if (territory.points.length < 3) continue;
-        // R-131: Skip neutral territory fill when transparency is enabled
-        const isNeutral = !territory.ownerId || territory.ownerId === 'neutral' || territory.ownerId === '';
-        if (isNeutral && GAME_CONFIG.NEUTRAL_TERRITORY_TRANSPARENT) continue;
-
-        // FILL from territory points
-        s.fillGraphics.poly(territory.points.flat());
-        s.fillGraphics.fill({ color: territory.color, alpha });
-
-        // Cut enclave holes
-        const holes = enclaveMap.get(i);
-        if (holes) {
-            for (const hole of holes) {
-                if (hole.length < 3) continue;
-                s.fillGraphics.poly(hole.flat());
-                s.fillGraphics.cut();
-            }
-        }
-
-        // BORDER from the SAME territory points (unified — no separate polyline data)
-        if (borderWidth > 0 && borderAlpha > 0) {
-            const pts = territory.points;
-            s.fillGraphics.moveTo(pts[0][0], pts[0][1]);
-            for (let j = 1; j < pts.length; j++) {
-                s.fillGraphics.lineTo(pts[j][0], pts[j][1]);
-            }
-            // Close the loop back to start
-            s.fillGraphics.lineTo(pts[0][0], pts[0][1]);
-            s.fillGraphics.stroke({
-                width: borderWidth,
-                color: territory.color,
-                alpha: borderAlpha,
-                join: 'round',
-                cap: 'round',
-            });
-        }
+        drawTerritoryFillOnly(s.fillGraphics, merged[i], enclaveMap.get(i), alpha);
     }
 
     // ── Store targets + start transition ────────────────────────────────
@@ -926,10 +873,11 @@ export function renderPowerVoronoi(
         }) ?? null;
     }
 
-    // NOTE: Borders are now drawn UNIFIED with fills above (from same MergedTerritory.points).
-    // The separate drawBorderPolylines(sharedPolylines) call has been removed to eliminate
-    // fill/border geometry divergence (B-42). SharedPolylines are still stored in
-    // s.targetSharedPolylines for transition morphers only.
+    // Draw contested borders from sharedPolylines (only edges between different owners)
+    if (s.targetSharedPolylines && s.targetSharedPolylines.length > 0 && borderWidth > 0 && borderAlpha > 0) {
+        drawBorderPolylines(s.fillGraphics, s.targetSharedPolylines, 0, borderWidth, borderAlpha);
+        log.renderer('PVV2', `🟢 CONTESTED BORDERS DRAWN | polylines=${s.targetSharedPolylines.length} bw=${borderWidth} ba=${borderAlpha}`);
+    }
 
 
     // Start transition based on geometry change or FX-driven conquest event
