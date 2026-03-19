@@ -398,36 +398,41 @@
     /* ── V3.1 Three-Concern Architecture ── */
 
     const TERRITORY_STYLE_OPTIONS = [
-        { id: "none", label: "0. None (Off)" },
-        { id: "territory_canonical", label: "1. Canonical (New Pipeline)" },
-        { id: "territory_engine", label: "2. Territory Engine (DY4)" },
-        { id: "vs_pvv3", label: "3. Vector Stroke (PVV3)" },
-        { id: "power_voronoi", label: "4. Power Voronoi (PVV2)" },
-        { id: "distance_field", label: "5. Distance Field Glow" },
-        { id: "metaball", label: "6. Metaball / Organic" },
-        { id: "pixel", label: "7. Pixel Art / Retro" },
-        { id: "voronoi", label: "8. Voronoi (Legacy)" },
-        { id: "graph", label: "9. Lane Territory" },
-        { id: "contour", label: "10. Contour" },
+        { id: "none", label: "Off" },
+        { id: "territory_canonical", label: "Canonical" },
+        { id: "territory_engine", label: "Engine (DY4)" },
+        { id: "vs_pvv3", label: "PVV3" },
+        { id: "power_voronoi", label: "PVV2" },
+        { id: "distance_field", label: "Distance Field" },
+        { id: "metaball", label: "Metaball" },
+        { id: "pixel", label: "Pixel Art" },
+        { id: "voronoi", label: "Voronoi" },
+        { id: "graph", label: "Lane" },
+        { id: "contour", label: "Contour" },
     ] as const;
 
     const FILL_TRANSITION_OPTIONS = [
-        { id: "none", label: "1. None (Off)" },
-        { id: "frontier_morph", label: "2. Frontier Morph" },
-        { id: "crossfade", label: "3. Crossfade" },
-        { id: "tile_flip", label: "4. Tile Flip" },
+        { id: "none", label: "Off" },
+        { id: "frontier_morph", label: "Frontier Morph" },
+        { id: "crossfade", label: "Crossfade" },
+        { id: "tile_flip", label: "Tile Flip" },
     ] as const;
 
     const BORDER_TRANSITION_OPTIONS = [
-        { id: "none", label: "1. None (Off)" },
-        { id: "pixi_graphics_morph", label: "2. Pixi Graphics Path Morph" },
-        { id: "pixi_mesh_rope", label: "3. Pixi MeshRope Morph" },
+        { id: "none", label: "Off" },
+        { id: "pixi_graphics_morph", label: "Graphics Morph" },
+        { id: "pixi_mesh_rope", label: "Rope Morph" },
         {
             id: "optimal_transport",
-            label: "4. Smooth Border Morph (DY4)",
+            label: "DY4 Transport",
         },
-        { id: "smooth_morph", label: "5. Smooth Morph (Legacy)" },
-        { id: "pressure_wave", label: "6. Pressure Wave" },
+        { id: "smooth_morph", label: "Smooth (Legacy)" },
+        { id: "pressure_wave", label: "Pressure Wave" },
+    ] as const;
+
+    const GEOMETRY_OPTIONS = [
+        { id: "power_voronoi", label: "Power Voronoi" },
+        { id: "unified_polygon", label: "Unified Polygon" },
     ] as const;
 
     /** Map style IDs to old boolean flag panel keys (backward compat) */
@@ -471,67 +476,86 @@
 
 <CategoryThemeBar category="territory" onApply={() => syncFromConfig?.()} />
 
-<!-- ── V3.2 Four-Concern Selectors ── -->
-<h4 class="sub-heading">🎨 Territory Presentation</h4>
-<div class="triple-select-row">
-    <div class="triple-select-col">
-        <span class="triple-label">Geometry</span>
-        <select
-            class="mode-select"
-            value={panel.territoryGeometryMode ??
-                GAME_CONFIG.TERRITORY_GEOMETRY_MODE ??
-                "power_voronoi"}
-            onchange={(e) => {
-                selectGeometryMode((e.target as HTMLSelectElement).value);
-            }}
-        >
-            <option value="power_voronoi">Power Voronoi</option>
-            <option value="unified_polygon">Unified Polygon</option>
-        </select>
+<!-- ── V3.2 Four-Axis Territory Card ── -->
+<div class="axis-card">
+    <h4 class="axis-card-title">Territory Presentation</h4>
+
+    <!-- Row 1: Geometry (teal) -->
+    <div
+        class="axis-row"
+        style="--accent: #2dd4bf; --accent-bg: rgba(45,212,191,0.15)"
+    >
+        <span class="axis-label">Geometry</span>
+        <div class="axis-buttons">
+            {#each GEOMETRY_OPTIONS as opt}
+                <button
+                    class="axis-btn"
+                    class:active={(panel.territoryGeometryMode ??
+                        GAME_CONFIG.TERRITORY_GEOMETRY_MODE ??
+                        "power_voronoi") === opt.id}
+                    onclick={() => selectGeometryMode(opt.id)}
+                    >{opt.label}</button
+                >
+            {/each}
+        </div>
     </div>
-    <div class="triple-select-col">
-        <span class="triple-label">Style</span>
-        <select
-            class="mode-select"
-            value={panel.territoryRenderMode ??
-                GAME_CONFIG.TERRITORY_RENDER_MODE ??
-                "vs_pvv3"}
-            onchange={(e) => {
-                selectTerritoryStyle((e.target as HTMLSelectElement).value);
-            }}
-        >
+
+    <!-- Row 2: Style (purple) -->
+    <div
+        class="axis-row"
+        style="--accent: #a78bfa; --accent-bg: rgba(167,139,250,0.15)"
+    >
+        <span class="axis-label">Style</span>
+        <div class="axis-buttons">
             {#each TERRITORY_STYLE_OPTIONS as opt}
-                <option value={opt.id}>{opt.label}</option>
+                <button
+                    class="axis-btn"
+                    class:active={(panel.territoryRenderMode ??
+                        GAME_CONFIG.TERRITORY_RENDER_MODE ??
+                        "territory_engine") === opt.id}
+                    onclick={() => selectTerritoryStyle(opt.id)}
+                    >{opt.label}</button
+                >
             {/each}
-        </select>
+        </div>
     </div>
-    <div class="triple-select-col">
-        <span class="triple-label">Fill Transition</span>
-        <select
-            class="mode-select"
-            value={panel.territoryFillTransition ?? "frontier_morph"}
-            onchange={(e) => {
-                selectFillTransition((e.target as HTMLSelectElement).value);
-            }}
-        >
+
+    <!-- Row 3: Fill Transition (gold) -->
+    <div
+        class="axis-row"
+        style="--accent: #fbbf24; --accent-bg: rgba(251,191,36,0.15)"
+    >
+        <span class="axis-label">Fill Transition</span>
+        <div class="axis-buttons">
             {#each FILL_TRANSITION_OPTIONS as opt}
-                <option value={opt.id}>{opt.label}</option>
+                <button
+                    class="axis-btn"
+                    class:active={(panel.territoryFillTransition ??
+                        "frontier_morph") === opt.id}
+                    onclick={() => selectFillTransition(opt.id)}
+                    >{opt.label}</button
+                >
             {/each}
-        </select>
+        </div>
     </div>
-    <div class="triple-select-col">
-        <span class="triple-label">Border Transition</span>
-        <select
-            class="mode-select"
-            value={panel.territoryBorderTransition ?? "smooth_morph"}
-            onchange={(e) => {
-                selectBorderTransition((e.target as HTMLSelectElement).value);
-            }}
-        >
+
+    <!-- Row 4: Border Transition (rose) -->
+    <div
+        class="axis-row"
+        style="--accent: #fb7185; --accent-bg: rgba(251,113,133,0.15)"
+    >
+        <span class="axis-label">Border Transition</span>
+        <div class="axis-buttons">
             {#each BORDER_TRANSITION_OPTIONS as opt}
-                <option value={opt.id}>{opt.label}</option>
+                <button
+                    class="axis-btn"
+                    class:active={(panel.territoryBorderTransition ??
+                        "smooth_morph") === opt.id}
+                    onclick={() => selectBorderTransition(opt.id)}
+                    >{opt.label}</button
+                >
             {/each}
-        </select>
+        </div>
     </div>
 </div>
 
@@ -1359,7 +1383,74 @@
 
 <style>
     @import "./panel-shared.css";
-    /* ── V3.1 Triple-Select Layout ── */
+    /* ── V3.2 Axis Card Layout ── */
+    .axis-card {
+        background: rgba(20, 20, 30, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+        padding: 10px 12px 8px;
+        margin: 4px 0 8px;
+    }
+    .axis-card-title {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: #ccc;
+        margin: 0 0 8px;
+        padding-bottom: 4px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .axis-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 5px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+    .axis-row:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+    .axis-label {
+        flex-shrink: 0;
+        width: 80px;
+        font-size: 9px;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        color: var(--accent, #888);
+        padding-top: 4px;
+        font-weight: 600;
+    }
+    .axis-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 3px;
+        flex: 1;
+        min-width: 0;
+    }
+    .axis-btn {
+        padding: 3px 8px;
+        background: transparent;
+        border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+        border-radius: 10px;
+        color: var(--accent, #888);
+        font-size: 9px;
+        cursor: pointer;
+        transition: all 0.15s;
+        white-space: nowrap;
+        line-height: 1.3;
+    }
+    .axis-btn:hover {
+        background: var(--accent-bg, rgba(255, 255, 255, 0.06));
+        border-color: var(--accent, #888);
+    }
+    .axis-btn.active {
+        background: var(--accent, #888);
+        border-color: var(--accent, #888);
+        color: #111;
+        font-weight: 600;
+    }
+    /* Legacy compat — keep old selectors but not used by card */
     .triple-select-row {
         display: flex;
         gap: 6px;
