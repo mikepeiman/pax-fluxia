@@ -262,6 +262,31 @@ export class GraphicsPathMorpher {
 
         log.renderer('GraphicsPathMorpher', `drawFrame t=${rawT.toFixed(3)} eased=${t.toFixed(3)} | drew ${drawn}/${this.pairs.length} polylines | w=${width} a=${alpha.toFixed(2)}`);
     }
+
+    /**
+     * Return interpolated polylines as SharedPolyline[] at time t.
+     * Single-source: fills derive from these same points via assembleFrontierLoops.
+     */
+    getInterpolatedPolylines(rawT: number): SharedPolyline[] {
+        const t = this.easingFn(Math.max(0, Math.min(1, rawT)));
+        const result: SharedPolyline[] = [];
+
+        for (const pair of this.pairs) {
+            const { fromPoints, toPoints, color, ownerPairKey } = pair;
+            const n = Math.min(fromPoints.length, toPoints.length);
+            if (n < 2) continue;
+
+            const points: [number, number][] = new Array(n);
+            for (let i = 0; i < n; i++) {
+                points[i] = [
+                    fromPoints[i][0] + (toPoints[i][0] - fromPoints[i][0]) * t,
+                    fromPoints[i][1] + (toPoints[i][1] - fromPoints[i][1]) * t,
+                ];
+            }
+            result.push({ points, ownerPairKey, color });
+        }
+        return result;
+    }
 }
 
 // ── Mode 2: Pixi MeshRope ──────────────────────────────────────────────────
