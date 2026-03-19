@@ -39,8 +39,7 @@ import {
     type TerritoryCell,
 } from '$lib/territory/compiler/pvv2MetricStage';
 import { resamplePolygon, resamplePolyline, lerpPolygon, polygonCentroid } from '$lib/territory/geometry/morphUtils';
-import { GraphicsPathMorpher, RopeBorderRenderer } from '$lib/renderers/geometry/borderTransition';
-import { assembleFrontierLoops } from '$lib/renderers/geometry/frontierLoops';
+import { GraphicsPathMorpher, RopeBorderRenderer, FrontierLoopMorpher } from '$lib/renderers/geometry/borderTransition';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -80,9 +79,10 @@ let prevEnclaveMap: Map<number, [number, number][][]> | null = null;
 let fillTransitionStart = 0;
 let isFillTransitioning = false;
 
-// ── Active Border Morpher (from borderTransition.ts) ─────────────────
+// ── Active Morphers (from borderTransition.ts) ──────────────────────
 let activeMorpher: GraphicsPathMorpher | null = null;
 let activeRopeRenderer: RopeBorderRenderer | null = null;
+let activeLoopMorpher: FrontierLoopMorpher | null = null;  // unified fill+border morpher
 
 // ── Cell Change Tracking (frontier-first rendering) ────────────────────
 let lastCells: TerritoryCell[] | null = null;  // cells from previous rebuild
@@ -633,51 +633,23 @@ export function renderPowerVoronoi(
 
         fillGraphics.clear();
 
-        // 1. D-79 / B-101: Single-source fills derived from morphed border geometry.
-        // Get interpolated polylines from the border morpher (same data as border strokes),
-        // then assemble into closed fill regions via assembleFrontierLoops.
-        if (activeMorpher) {
-            const interpolatedPolylines = activeMorpher.getInterpolatedPolylines(rawT);
-            const fillLoops = assembleFrontierLoops(interpolatedPolylines, {
-                xMin: 0, yMin: 0, xMax: worldWidth, yMax: worldHeight,
-            });
-            for (const [ownerId, loops] of fillLoops) {
-                // R-131: skip neutral fills when transparent
-                const isNeutral = !ownerId || ownerId === 'neutral' || ownerId === '';
-                if (isNeutral && GAME_CONFIG.NEUTRAL_TERRITORY_TRANSPARENT) continue;
-
-                const rawColor = colorUtils.getPlayerColor(ownerId);
-                const satMult = GAME_CONFIG.VORONOI_SATURATION ?? 1.0;
-                const lightMult = GAME_CONFIG.VORONOI_LIGHTNESS ?? 0.7;
-                const fillColor = adjustColorHSL(rawColor, satMult, lightMult);
-
-                for (const loop of loops) {
-                    if (loop.points.length < 3) continue;
-                    fillGraphics.poly(loop.points.flat());
-                    fillGraphics.fill({ color: fillColor, alpha });
-                }
-            }
-        } else {
-            // No morpher (e.g. rope mode) — draw target fills directly
+        // D-79 / B-101: Unified fill+border from same morphed closed polygons.
+        // FrontierLoopMorpher draws both fill AND stroke from the same interpolated points.
+        if (activeLoopMorpher) {
+            activeLoopMorpher.drawFrame(fillGraphics, rawT, alpha, borderWidth, borderAlpha);
+        } else if (activeMorpher) {
+            // Legacy segment morpher fallback (borders only)
             for (let i = 0; i < lastMergedTerritories.length; i++) {
                 drawTerritoryFillOnly(fillGraphics, lastMergedTerritories[i], lastEnclaveMap?.get(i), alpha);
             }
-        }
-
-        // 2. Draw borders via the active morpher
-        if (activeMorpher) {
             activeMorpher.drawFrame(fillGraphics, rawT, borderWidth, borderAlpha);
         } else if (activeRopeRenderer) {
-            // CRITICAL: Re-show ropes after voronoiContainer's blanket-hide
+            // Rope mode: draw target fills, rope handles borders
+            for (let i = 0; i < lastMergedTerritories.length; i++) {
+                drawTerritoryFillOnly(fillGraphics, lastMergedTerritories[i], lastEnclaveMap?.get(i), alpha);
+            }
             activeRopeRenderer.setVisible(true);
             activeRopeRenderer.update(rawT, borderAlpha);
-        } else {
-            // Legacy fallback DISABLED (F5): buildLerpedPolylines should not be in the active pipeline.
-            // If this log fires, it means no morpher was created — investigate why.
-            log.error('PVV2', `⚠️ LEGACY FALLBACK WOULD FIRE — no activeMorpher or activeRopeRenderer. borderTransMode=${GAME_CONFIG.TERRITORY_BORDER_TRANSITION ?? 'pixi_graphics_morph'}`);
-            // ORIGINAL CODE (commented out for non-destructive test):
-            // const frameFrontiers = buildLerpedPolylines(prevSharedPolylines!, targetSharedPolylines!, easedT);
-            // drawBorderPolylines(fillGraphics, frameFrontiers, 0, borderWidth, borderAlpha);
         }
 
         if (rawT >= 1) {
@@ -687,6 +659,7 @@ export function renderPowerVoronoi(
             prevMergedTerritories = null;
             prevEnclaveMap = null;
             activeMorpher = null;
+            activeLoopMorpher = null;
             if (activeRopeRenderer) {
                 activeRopeRenderer.removeAll();
                 activeRopeRenderer = null;
@@ -915,10 +888,12 @@ export function renderPowerVoronoi(
                 activeRopeRenderer = new RopeBorderRenderer(prevSharedPolylines, targetSharedPolylines, easing, resampleN, borderWidth, overshoot);
                 activeRopeRenderer.addTo(voronoiContainer);
             } else if (borderTransMode === 'pixi_graphics_morph' || borderTransMode === 'optimal_transport' || borderTransMode === 'smooth_morph') {
-                // All graphics-based morphers use the same underlying GraphicsPathMorpher.
-                // optimal_transport and smooth_morph previously fell through to the legacy
-                // buildLerpedPolylines path which is now disabled.
                 activeMorpher = new GraphicsPathMorpher(prevSharedPolylines, targetSharedPolylines, easing, resampleN, overshoot);
+            }
+
+            // Unified frontier loop morpher — fills + borders from same closed polygon data
+            if (prevMergedTerritories && lastMergedTerritories) {
+                activeLoopMorpher = new FrontierLoopMorpher(prevMergedTerritories, lastMergedTerritories, easing, resampleN, overshoot);
             }
             // else: no morpher — borders only appear at rebuild time (steady-state)
         }
@@ -950,6 +925,7 @@ export function resetPowerVoronoiCache(): void {
     fillTransitionStart = 0;
     // Active morpher cleanup
     activeMorpher = null;
+    activeLoopMorpher = null;
     if (activeRopeRenderer) {
         activeRopeRenderer.removeAll();
         activeRopeRenderer = null;

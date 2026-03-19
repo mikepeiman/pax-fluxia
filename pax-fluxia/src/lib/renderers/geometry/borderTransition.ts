@@ -476,17 +476,21 @@ function matchFillPolygons(
 }
 
 /**
- * FillMorpher: morphs territory fill polygons per frame (D-79).
- * Fills draw the morphed shape at constant alpha — no crossfade.
+ * FrontierLoopMorpher: unified territory transition renderer.
+ *
+ * Frontier = closed loop of x,y coordinates with ownership.
+ * This morpher interpolates closed territory polygons per frame
+ * and draws BOTH fill AND stroke from the same points.
+ * Single geometry source. No fill/border divergence possible.
  */
-export class FillMorpher {
+export class FrontierLoopMorpher {
     private pairs: MatchedFillPair[];
     private easingFn: (t: number) => number;
 
     constructor(
         prev: MergedTerritory[],
         target: MergedTerritory[],
-        easing: 'cubic' | 'back' | 'elastic' | 'ease-out' | 'ease-out-quad' | 'sine' | 'linear' = 'back',
+        easing: 'cubic' | 'back' | 'elastic' | 'ease-out' | 'ease-out-quad' | 'sine' | 'linear' = 'ease-out',
         resampleN: number = 48,
         overshoot: number = 1.70158,
     ) {
@@ -499,17 +503,19 @@ export class FillMorpher {
                             : easing === 'linear' ? easeLinear
                                 : easeInOutCubic;
 
-        log.renderer('FillMorpher', `created | pairs=${this.pairs.length} easing=${easing} resampleN=${resampleN}`);
+        log.renderer('FrontierLoopMorpher', `created | pairs=${this.pairs.length} easing=${easing} resampleN=${resampleN}`);
     }
 
     /**
-     * Draw all morphed fill polygons at time t (0→1) at constant alpha.
-     * Each polygon is lerped vertex-by-vertex, then drawn as a filled poly.
+     * Draw all morphed territory regions at time t (0→1).
+     * Each polygon: lerp vertices, then fill AND stroke from the same points.
      */
     drawFrame(
         graphics: PIXI.Graphics,
         rawT: number,
-        alpha: number,
+        fillAlpha: number,
+        borderWidth: number,
+        borderAlpha: number,
     ): void {
         const t = this.easingFn(Math.max(0, Math.min(1, rawT)));
         let drawn = 0;
@@ -519,18 +525,26 @@ export class FillMorpher {
             const n = Math.min(fromPoints.length, toPoints.length);
             if (n < 3) continue;
 
-            // Build morphed polygon as flat array
+            // Build morphed polygon as flat array — SINGLE SOURCE for both fill and border
             const flat: number[] = new Array(n * 2);
             for (let i = 0; i < n; i++) {
                 flat[i * 2] = fromPoints[i][0] + (toPoints[i][0] - fromPoints[i][0]) * t;
                 flat[i * 2 + 1] = fromPoints[i][1] + (toPoints[i][1] - fromPoints[i][1]) * t;
             }
 
+            // Fill the territory region
             graphics.poly(flat);
-            graphics.fill({ color, alpha });
+            graphics.fill({ color, alpha: fillAlpha });
+
+            // Stroke the border — same exact points
+            if (borderWidth > 0 && borderAlpha > 0) {
+                graphics.poly(flat);
+                graphics.stroke({ width: borderWidth, color, alpha: borderAlpha, cap: 'round', join: 'round' });
+            }
+
             drawn++;
         }
 
-        log.renderer('FillMorpher', `drawFrame t=${rawT.toFixed(3)} eased=${t.toFixed(3)} | drew ${drawn}/${this.pairs.length} fills | a=${alpha.toFixed(2)}`);
+        log.renderer('FrontierLoopMorpher', `drawFrame t=${rawT.toFixed(3)} eased=${t.toFixed(3)} | drew ${drawn}/${this.pairs.length} regions`);
     }
 }
