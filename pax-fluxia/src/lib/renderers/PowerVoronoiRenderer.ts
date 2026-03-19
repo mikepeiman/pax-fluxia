@@ -741,6 +741,7 @@ export function renderPowerVoronoi(
         disconnectDistance: GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE ?? 400,
         clusterSplit: Boolean(GAME_CONFIG.TERRITORY_CLUSTER_SPLIT),
         chaikinPasses: Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3))),
+        frontierResolution: Math.max(1, Math.min(20, GAME_CONFIG.FRONTIER_RESOLUTION ?? 5)),
         worldWidth,
         worldHeight,
     };

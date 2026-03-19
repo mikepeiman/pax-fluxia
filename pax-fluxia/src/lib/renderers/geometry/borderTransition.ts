@@ -428,10 +428,10 @@ function resampleClosedPolygon(pts: [number, number][], n: number): [number, num
 }
 
 /**
- * Match prev→target MergedTerritory fill polygons by ownerId.
- * Territories that exist in both prev and target are matched.
- * New territories morph from a point (centroid of target).
- * Removed territories morph to a point (centroid of prev).
+ * Match prev→target MergedTerritory fill polygons.
+ * Groups by ownerId, then matches regions within each owner by nearest centroid.
+ * Handles multi-region owners (player has discontiguous territory pieces).
+ * New regions morph from centroid, removed regions collapse to centroid.
  */
 function matchFillPolygons(
     prev: MergedTerritory[],
@@ -440,35 +440,71 @@ function matchFillPolygons(
 ): MatchedFillPair[] {
     const result: MatchedFillPair[] = [];
 
-    // Group by ownerId
-    const prevByOwner = new Map<string, MergedTerritory>();
-    for (const t of prev) prevByOwner.set(t.ownerId, t);
-    const targetByOwner = new Map<string, MergedTerritory>();
-    for (const t of target) targetByOwner.set(t.ownerId, t);
+    // Group by ownerId — use arrays to support multi-region owners
+    const prevByOwner = new Map<string, MergedTerritory[]>();
+    for (const t of prev) {
+        if (!prevByOwner.has(t.ownerId)) prevByOwner.set(t.ownerId, []);
+        prevByOwner.get(t.ownerId)!.push(t);
+    }
+    const targetByOwner = new Map<string, MergedTerritory[]>();
+    for (const t of target) {
+        if (!targetByOwner.has(t.ownerId)) targetByOwner.set(t.ownerId, []);
+        targetByOwner.get(t.ownerId)!.push(t);
+    }
 
     const allOwners = new Set([...prevByOwner.keys(), ...targetByOwner.keys()]);
 
     for (const owner of allOwners) {
-        const pTerr = prevByOwner.get(owner);
-        const tTerr = targetByOwner.get(owner);
+        const pRegions = prevByOwner.get(owner) ?? [];
+        const tRegions = targetByOwner.get(owner) ?? [];
 
-        if (pTerr && tTerr) {
-            // Both exist: resample both to same point count and morph
-            const fromPts = resampleClosedPolygon(pTerr.points, resampleN);
-            const toPts = resampleClosedPolygon(tTerr.points, resampleN);
-            result.push({ fromPoints: fromPts, toPoints: toPts, color: tTerr.color, ownerId: owner });
-        } else if (tTerr) {
-            // New territory: morph from centroid point
-            const c = polygonCentroid(tTerr.points);
-            const fromPts = Array.from({ length: resampleN }, () => [c[0], c[1]] as [number, number]);
-            const toPts = resampleClosedPolygon(tTerr.points, resampleN);
-            result.push({ fromPoints: fromPts, toPoints: toPts, color: tTerr.color, ownerId: owner });
-        } else if (pTerr) {
-            // Removed territory: morph to centroid point
-            const c = polygonCentroid(pTerr.points);
-            const fromPts = resampleClosedPolygon(pTerr.points, resampleN);
-            const toPts = Array.from({ length: resampleN }, () => [c[0], c[1]] as [number, number]);
-            result.push({ fromPoints: fromPts, toPoints: toPts, color: pTerr.color, ownerId: owner });
+        // Match regions by nearest centroid
+        const usedTarget = new Set<number>();
+        const usedPrev = new Set<number>();
+
+        // For each prev region, find the nearest target region
+        for (let pi = 0; pi < pRegions.length; pi++) {
+            const pc = polygonCentroid(pRegions[pi].points);
+            let bestDist = Infinity;
+            let bestTi = -1;
+            for (let ti = 0; ti < tRegions.length; ti++) {
+                if (usedTarget.has(ti)) continue;
+                const tc = polygonCentroid(tRegions[ti].points);
+                const d = (pc[0] - tc[0]) ** 2 + (pc[1] - tc[1]) ** 2;
+                if (d < bestDist) { bestDist = d; bestTi = ti; }
+            }
+            if (bestTi >= 0) {
+                usedTarget.add(bestTi);
+                usedPrev.add(pi);
+                const pT = pRegions[pi], tT = tRegions[bestTi];
+                // Use the larger point count to preserve resolution
+                const n = Math.max(resampleN, pT.points.length, tT.points.length);
+                const fromPts = resampleClosedPolygon(pT.points, n);
+                const toPts = resampleClosedPolygon(tT.points, n);
+                result.push({ fromPoints: fromPts, toPoints: toPts, color: tT.color, ownerId: owner });
+            }
+        }
+
+        // Unmatched prev regions: collapse to centroid (removed)
+        for (let pi = 0; pi < pRegions.length; pi++) {
+            if (usedPrev.has(pi)) continue;
+            const pT = pRegions[pi];
+            const c = polygonCentroid(pT.points);
+            const n = Math.max(resampleN, pT.points.length);
+            const fromPts = resampleClosedPolygon(pT.points, n);
+            const toPts = Array.from({ length: n }, () => [c[0], c[1]] as [number, number]);
+            result.push({ fromPoints: fromPts, toPoints: toPts, color: pT.color, ownerId: owner });
+        }
+
+        // Unmatched target regions: expand from centroid (new)
+        for (let ti = 0; ti < tRegions.length; ti++) {
+            if (usedTarget.has(ti)) continue;
+            const tT = tRegions[ti];
+            const c = polygonCentroid(tT.points);
+            const n = Math.max(resampleN, tT.points.length);
+            const fromPts = Array.from({ length: n }, () => [c[0], c[1]] as [number, number]);
+            const toPts = resampleClosedPolygon(tT.points, n);
+            result.push({ fromPoints: fromPts, toPoints: toPts, color: tT.color, ownerId: owner });
         }
     }
 

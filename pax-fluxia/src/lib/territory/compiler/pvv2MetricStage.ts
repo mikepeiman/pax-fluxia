@@ -105,6 +105,7 @@ export interface PVV2StageConfig {
     disconnectDistance: number;   // MODIFIED_VORONOI_DISCONNECT_DISTANCE
     clusterSplit: boolean;        // TERRITORY_CLUSTER_SPLIT
     chaikinPasses: number;        // VORONOI_BORDER_SMOOTH (0-5) — geometry smoothing
+    frontierResolution: number;   // FRONTIER_RESOLUTION — vertex spacing in px (1-20)
     worldWidth: number;
     worldHeight: number;
 }
@@ -122,6 +123,57 @@ function edgeKey(x1: number, y1: number, x2: number, y2: number): string {
 
 function ptKey(x: number, y: number): string {
     return `${+x.toFixed(2)},${+y.toFixed(2)}`;
+}
+
+/**
+ * Resample a CLOSED polygon so vertices are spaced ~`spacingPx` pixels apart.
+ * Walks the perimeter at equal arc-length intervals.
+ * Returns the resampled points (closed — last point ≈ first point).
+ */
+function resampleClosedPolygonBySpacing(pts: [number, number][], spacingPx: number): [number, number][] {
+    if (pts.length < 3 || spacingPx <= 0) return pts;
+
+    // Ensure closed
+    const first = pts[0], last = pts[pts.length - 1];
+    const isClosed = Math.abs(first[0] - last[0]) < 0.01 && Math.abs(first[1] - last[1]) < 0.01;
+    const closed = isClosed ? pts : [...pts, [first[0], first[1]] as [number, number]];
+
+    // Compute cumulative arc lengths
+    const segCount = closed.length - 1;
+    const cumLen: number[] = [0];
+    for (let i = 1; i < closed.length; i++) {
+        const dx = closed[i][0] - closed[i - 1][0];
+        const dy = closed[i][1] - closed[i - 1][1];
+        cumLen.push(cumLen[i - 1] + Math.sqrt(dx * dx + dy * dy));
+    }
+    const totalLen = cumLen[segCount];
+    if (totalLen < spacingPx * 2) return pts; // too small to resample
+
+    const n = Math.max(4, Math.round(totalLen / spacingPx));
+    const step = totalLen / n;
+    const result: [number, number][] = [];
+    let segIdx = 0;
+
+    for (let i = 0; i < n; i++) {
+        const targetLen = i * step;
+
+        // Advance segment index to contain targetLen
+        while (segIdx < segCount - 1 && cumLen[segIdx + 1] < targetLen) segIdx++;
+
+        const segStart = cumLen[segIdx];
+        const segEnd = cumLen[segIdx + 1];
+        const segLen = segEnd - segStart;
+        const t = segLen > 0 ? (targetLen - segStart) / segLen : 0;
+
+        result.push([
+            closed[segIdx][0] + (closed[segIdx + 1][0] - closed[segIdx][0]) * t,
+            closed[segIdx][1] + (closed[segIdx + 1][1] - closed[segIdx][1]) * t,
+        ]);
+    }
+
+    // Close the polygon
+    result.push([result[0][0], result[0][1]]);
+    return result;
 }
 
 /**
@@ -783,6 +835,14 @@ export function executePVV2MetricStage(
                 points: chaikinSmoothPolygon(t.points, config.chaikinPasses, config.worldWidth, config.worldHeight, 50, junctionPts),
             }))
             : mergedRaw;
+
+        // Stage 7b: Dense resampling — populate frontier with reference vertices
+        // every `frontierResolution` pixels. These become the CANONICAL coordinate
+        // points for both fill and border rendering. Single source.
+        const spacing = Math.max(1, Math.min(20, config.frontierResolution));
+        for (const territory of mergedTerritories) {
+            territory.points = resampleClosedPolygonBySpacing(territory.points, spacing);
+        }
 
         // Also smooth enclave hole polygons with the same passes
         const enclaveMap = new Map<number, [number, number][][]>();

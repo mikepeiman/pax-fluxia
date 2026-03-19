@@ -707,6 +707,32 @@
     </div>
     <div class="var-row">
         <div class="row-top">
+            <span class="var-name">Frontier Resolution</span><span class="val"
+                >{panel.frontierResolution ??
+                    GAME_CONFIG.FRONTIER_RESOLUTION ??
+                    5}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="1"
+            max="20"
+            step="1"
+            value={panel.frontierResolution ??
+                GAME_CONFIG.FRONTIER_RESOLUTION ??
+                5}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "FRONTIER_RESOLUTION",
+                    "frontierResolution",
+                    v,
+                );
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
             <span class="var-name">Back Overshoot</span><span class="val"
                 >{(
                     panel.borderTransOvershoot ??
