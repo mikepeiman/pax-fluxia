@@ -606,3 +606,18 @@ Adopt 4-layer model:
 
 ## Decision
 Rename `territory-engine/` to `territory/orchestrator/` and rename `engine.ts` concepts to "orchestrator" — this better describes its role as a route-and-dispatch coordinator, not a compute engine.
+
+# Decision: Non-Destructive Dual-Adapter Refactoring
+
+**Date:** 2026-03-19
+**Status:** Active
+**Ref:** D-82
+
+## Decision
+Refactoring the territory renderer uses a **dual-adapter approach**: a new `refactored_pvv2` adapter runs alongside the untouched `legacy_pvv2`. New registry entries (`FG1 Mar19 Refactor`, `DY4 Mar19 Refactor`) appear in the Mode dropdown, letting the user switch between working original and refactored code at runtime. Original `legacy_pvv2` path is **never modified** — zero risk to DY4 SACROSANCT animation.
+
+## Rationale
+- PVV2 has ~25 module-level state variables tightly coupled to its render function
+- Modifying in-place risks breaking the SACROSANCT DY4 border animation
+- Dual-adapter gives instant rollback via UI dropdown without git operations
+- Enables incremental migration of state into class fields
