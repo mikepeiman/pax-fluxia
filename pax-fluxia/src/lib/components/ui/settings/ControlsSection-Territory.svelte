@@ -434,6 +434,7 @@
     const GEOMETRY_OPTIONS = [
         { id: "power_voronoi", label: "Power Voronoi" },
         { id: "unified_polygon", label: "Unified Polygon" },
+        { id: "new_frontiers_0319", label: "New-Frontiers-0319" },
     ] as const;
 
     /** Map style IDs to old boolean flag panel keys (backward compat) */
@@ -472,6 +473,28 @@
             "territoryGeometryMode",
             modeId,
         );
+        // When New-Frontiers-0319 is selected, also set TERRITORY_ENGINE_METHOD
+        // so the engine dispatch routes to computeGeometry0319.
+        // When switching away, reset to the current default method.
+        if (modeId === "new_frontiers_0319") {
+            debouncedConfigUpdate(
+                "TERRITORY_ENGINE_METHOD",
+                "territoryEngineMethod",
+                "new_frontiers_0319",
+            );
+        } else {
+            // Reset engine method to DY4 default when not using new frontiers
+            const currentMethod =
+                panel.territoryEngineMethod ??
+                GAME_CONFIG.TERRITORY_ENGINE_METHOD;
+            if (currentMethod === "new_frontiers_0319") {
+                debouncedConfigUpdate(
+                    "TERRITORY_ENGINE_METHOD",
+                    "territoryEngineMethod",
+                    "dy4_optimal_transport",
+                );
+            }
+        }
     }
 </script>
 
