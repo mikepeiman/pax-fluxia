@@ -158,16 +158,18 @@ export class TerritoryRenderer {
         }
 
         // 5. Re-pack frameFrontiers into FittedFrontier structure for the Mesh cache
-        const frameFitted: FittedFrontier[] = frameFrontiers.map(f => {
-            const [ownerA, ownerB] = f.ownerPairKey.split('|').map(Number);
-            return {
-                pairId: f.ownerPairKey,
-                family: 'curved',
-                ownerA,
-                ownerB,
-                polylines: [f.points.flat()]
-            };
-        });
+        const frameFitted: FittedFrontier[] = frameFrontiers
+            .filter(f => f.ownerPairKey) // Guard: buildLerpedPolylines may produce entries without ownerPairKey
+            .map(f => {
+                const [ownerA, ownerB] = f.ownerPairKey.split('|').map(Number);
+                return {
+                    pairId: f.ownerPairKey,
+                    family: 'curved',
+                    ownerA,
+                    ownerB,
+                    polylines: [f.points.flat()]
+                };
+            });
 
         // 6. Build caches and draw
         const borderCache = buildBorderMeshCache(frameFitted, config.border ?? { width: 4 });
