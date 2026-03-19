@@ -12,7 +12,7 @@
 
 import * as PIXI from 'pixi.js';
 import { log } from '$lib/utils/logger';
-import type { SharedPolyline } from '$lib/territory/compiler/pvv2MetricStage';
+import type { SharedPolyline } from '$lib/territory/compiler/powerVoronoiTerritoryGeometryGenerator';
 import type { MergedTerritory } from '$lib/renderers/geometry/types';
 import { resamplePolyline, polygonCentroid } from '$lib/territory/geometry/morphUtils';
 
@@ -205,7 +205,7 @@ export function matchPolylines(
  * `easing`: 'cubic'|'back'|'elastic' include overshoot; 'ease-out'|'ease-out-quad'|'sine'|'linear' do not.
  * Redraws the path every frame with interpolated control points.
  */
-export class GraphicsPathMorpher {
+export class SegmentMorphTransitionHandler {
     private pairs: MatchedPair[];
     private easingFn: (t: number) => number;
 
@@ -225,7 +225,7 @@ export class GraphicsPathMorpher {
                             : easing === 'linear' ? easeLinear
                                 : easeInOutCubic;
 
-        log.renderer('GraphicsPathMorpher', `created | pairs=${this.pairs.length} easing=${easing} resampleN=${resampleN} overshoot=${overshoot.toFixed(2)}`);
+        log.renderer('SegmentMorphTransitionHandler', `created | pairs=${this.pairs.length} easing=${easing} resampleN=${resampleN} overshoot=${overshoot.toFixed(2)}`);
     }
 
     /**
@@ -260,7 +260,7 @@ export class GraphicsPathMorpher {
             drawn++;
         }
 
-        log.renderer('GraphicsPathMorpher', `drawFrame t=${rawT.toFixed(3)} eased=${t.toFixed(3)} | drew ${drawn}/${this.pairs.length} polylines | w=${width} a=${alpha.toFixed(2)}`);
+        log.renderer('SegmentMorphTransitionHandler', `drawFrame t=${rawT.toFixed(3)} eased=${t.toFixed(3)} | drew ${drawn}/${this.pairs.length} polylines | w=${width} a=${alpha.toFixed(2)}`);
     }
 
     /**
@@ -549,14 +549,14 @@ function matchFillPolygons(
 }
 
 /**
- * FrontierLoopMorpher: unified territory transition renderer.
+ * PolygonMorphTransitionHandler: unified territory transition renderer.
  *
  * Frontier = closed loop of x,y coordinates with ownership.
  * This morpher interpolates closed territory polygons per frame
  * and draws BOTH fill AND stroke from the same points.
  * Single geometry source. No fill/border divergence possible.
  */
-export class FrontierLoopMorpher {
+export class PolygonMorphTransitionHandler {
     private pairs: MatchedFillPair[];
     private easingFn: (t: number) => number;
 
@@ -576,7 +576,7 @@ export class FrontierLoopMorpher {
                             : easing === 'linear' ? easeLinear
                                 : easeInOutCubic;
 
-        log.renderer('FrontierLoopMorpher', `created | pairs=${this.pairs.length} easing=${easing} resampleN=${resampleN}`);
+        log.renderer('PolygonMorphTransitionHandler', `created | pairs=${this.pairs.length} easing=${easing} resampleN=${resampleN}`);
     }
 
     /**
@@ -618,6 +618,6 @@ export class FrontierLoopMorpher {
             drawn++;
         }
 
-        log.renderer('FrontierLoopMorpher', `drawFrame t=${rawT.toFixed(3)} eased=${t.toFixed(3)} | drew ${drawn}/${this.pairs.length} regions`);
+        log.renderer('PolygonMorphTransitionHandler', `drawFrame t=${rawT.toFixed(3)} eased=${t.toFixed(3)} | drew ${drawn}/${this.pairs.length} regions`);
     }
 }

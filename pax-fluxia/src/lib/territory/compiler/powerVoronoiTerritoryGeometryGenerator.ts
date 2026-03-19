@@ -1,10 +1,10 @@
 /**
- * territory/compiler/pvv2MetricStage.ts
+ * territory/compiler/powerVoronoiTerritoryGeometryGenerator.ts
  *
- * Stage: PVV2 Weighted-Voronoi Geometry
+ * Layer 2: Territory Geometry Generation — Power Voronoi
  *
- * Extracts the d3-weighted-voronoi geometry pipeline from PowerVoronoiRenderer
- * into a standalone compiler stage. Produces typed geometry data; never renders.
+ * Generates territory polygon geometry using d3-weighted-voronoi power diagrams.
+ * Pure data generator — produces typed geometry; never renders.
  *
  * Pipeline:
  *   0. Build site array (owned stars + corridor virtuals + disconnect virtuals)
@@ -20,7 +20,7 @@
  * - Zero PIXI imports
  * - Zero rendering calls
  * - Zero config mutation
- * - Returns typed PVV2GeometryData | CompileError — never throws, never fabricates geometry
+ * - Returns typed TerritoryGeometryData | CompileError — never throws, never fabricates geometry
  */
 
 import { weightedVoronoi } from 'd3-weighted-voronoi';
@@ -81,8 +81,8 @@ export interface SharedPolyline {
 // Output type
 // ---------------------------------------------------------------------------
 
-/** All geometry data produced by the PVV2 compiler stage. */
-export interface PVV2GeometryData {
+/** All geometry data produced by the territory geometry generator. */
+export interface TerritoryGeometryData {
     cells: TerritoryCell[];
     mergedTerritories: MergedTerritory[];   // Chaikin-eligible polygons (no color yet)
     sharedEdges: SharedBorderEdge[];  // Per-segment contested borders (no color yet)
@@ -97,7 +97,7 @@ export interface PVV2GeometryData {
 // Stage config
 // ---------------------------------------------------------------------------
 
-export interface PVV2StageConfig {
+export interface TerritoryGeneratorSettings {
     starMargin: number;           // MODIFIED_VORONOI_STAR_MARGIN
     corridorEnabled: boolean;     // MODIFIED_VORONOI_CORRIDOR_ENABLED
     corridorSpacing: number;      // MODIFIED_VORONOI_CORRIDOR_SPACING
@@ -647,7 +647,7 @@ function detectEnclaves(merged: MergedTerritory[]): Map<number, [number, number]
     return enclaveMap;
 }
 
-export function buildPVV2Fingerprint(stars: StarState[], config: PVV2StageConfig): string {
+export function buildTerritoryGeometryFingerprint(stars: StarState[], config: TerritoryGeneratorSettings): string {
     let fp = 'pvv2:';
     for (const s of stars) fp += `${s.id}:${s.ownerId ?? ''}|`;
     fp += `:m${config.starMargin}`;
@@ -667,14 +667,14 @@ export function buildPVV2Fingerprint(stars: StarState[], config: PVV2StageConfig
 /**
  * Execute the PVV2 geometry stage.
  * Inputs: stars + connections + world bounds + config from GAME_CONFIG.
- * Returns PVV2GeometryData on success, CompileError on failure.
+ * Returns TerritoryGeometryData on success, CompileError on failure.
  * Never throws. Never returns partial data. Never imports PIXI.
  */
-export function executePVV2MetricStage(
+export function generateVoronoiTerritoryGeometry(
     stars: StarState[],
     connections: StarConnection[],
-    config: PVV2StageConfig,
-): PVV2GeometryData | CompileError {
+    config: TerritoryGeneratorSettings,
+): TerritoryGeometryData | CompileError {
     try {
         const { starMargin, worldWidth, worldHeight } = config;
 
@@ -862,7 +862,7 @@ export function executePVV2MetricStage(
         log.sys('PVV2Stage', `MERGED: ${mergedTerritories.length} territories | chaikinPasses=${config.chaikinPasses} | pts: ${mergedTerritories.map(t => `${t.ownerId}:${t.points.length}`).join(' ')}`);
 
 
-        const fingerprint = buildPVV2Fingerprint(stars, config);
+        const fingerprint = buildTerritoryGeometryFingerprint(stars, config);
 
         return {
             cells,
@@ -873,7 +873,7 @@ export function executePVV2MetricStage(
             worldBorderPolylines,
             enclaveMap,
             fingerprint,
-        } satisfies PVV2GeometryData;
+        } satisfies TerritoryGeometryData;
 
     } catch (err) {
         return {

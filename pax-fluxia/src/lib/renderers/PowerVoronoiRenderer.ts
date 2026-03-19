@@ -27,24 +27,24 @@ import type { ColorUtils } from './RenderContext';
 import type { CanonicalTerritoryData } from '$lib/territory-engine/renderMode';
 import { log } from '$lib/utils/logger';
 import {
-    executePVV2MetricStage,
-    buildPVV2Fingerprint,
+    generateVoronoiTerritoryGeometry,
+    buildTerritoryGeometryFingerprint,
     chaikinSmoothPolyline,
     chaikinSmoothPolygon,
     chainSharedEdgesIntoPolylines,
-    type PVV2GeometryData,
+    type TerritoryGeometryData,
     type MergedTerritory,
     type SharedBorderEdge,
     type SharedPolyline,
     type TerritoryCell,
-} from '$lib/territory/compiler/pvv2MetricStage';
+} from '$lib/territory/compiler/powerVoronoiTerritoryGeometryGenerator';
 import { resamplePolygon, resamplePolyline, lerpPolygon, polygonCentroid } from '$lib/territory/geometry/morphUtils';
-import { GraphicsPathMorpher, RopeBorderRenderer, FrontierLoopMorpher } from '$lib/renderers/geometry/borderTransition';
+import { SegmentMorphTransitionHandler, RopeBorderRenderer, PolygonMorphTransitionHandler } from '$lib/renderers/geometry/borderTransition';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
-// Types are now imported from pvv2MetricStage — TerritoryCell, MergedTerritory,
-// SharedBorderEdge, SharedPolyline, PVV2GeometryData
+// Types are now imported from powerVoronoiTerritoryGeometryGenerator — TerritoryCell, MergedTerritory,
+// SharedBorderEdge, SharedPolyline, TerritoryGeometryData
 
 // ── Cache ──────────────────────────────────────────────────────────────────
 
@@ -63,7 +63,7 @@ let isBorderTransitioning = false;
 
 // ── Smooth Transition State (Contested Border Mode) ─────────────────────────
 
-// SharedPolyline interface imported from pvv2MetricStage
+// SharedPolyline interface imported from powerVoronoiTerritoryGeometryGenerator
 
 
 let prevSharedPolylines: SharedPolyline[] | null = null;
@@ -80,9 +80,9 @@ let fillTransitionStart = 0;
 let isFillTransitioning = false;
 
 // ── Active Morphers (from borderTransition.ts) ──────────────────────
-let activeMorpher: GraphicsPathMorpher | null = null;
+let activeBorderTransitionHandler: SegmentMorphTransitionHandler | null = null;
 let activeRopeRenderer: RopeBorderRenderer | null = null;
-let activeLoopMorpher: FrontierLoopMorpher | null = null;  // unified fill+border morpher
+let activeShapeTransitionHandler: PolygonMorphTransitionHandler | null = null;  // unified fill+border morpher
 
 // ── Cell Change Tracking (frontier-first rendering) ────────────────────
 let lastCells: TerritoryCell[] | null = null;  // cells from previous rebuild
@@ -90,7 +90,7 @@ let changedSiteIds: Set<string> | null = null; // stars that changed owner in th
 
 // ── Enclave Cache ──────────────────────────────────────────────────────────
 let lastEnclaveMap: Map<number, [number, number][][]> | null = null;
-let lastWorldBorderPolylines: import('$lib/territory/compiler/pvv2MetricStage').SharedPolyline[] = [];
+let lastWorldBorderPolylines: import('$lib/territory/compiler/powerVoronoiTerritoryGeometryGenerator').SharedPolyline[] = [];
 
 // ── Fingerprint ────────────────────────────────────────────────────────────
 
@@ -202,14 +202,14 @@ function blendColors(colorA: number, colorB: number, t: number): number {
 // resamplePolygon, resamplePolyline, lerpPolygon, polygonCentroid imported from
 // territory/geometry/morphUtils — animation-layer geometry helpers.
 
-// chaikinSmoothPolyline, chaikinSmoothPolygon imported from pvv2MetricStage —
-// these are geometry operations (change world-coordinate positions of frontier lines).
-
-// ── Removed inline definitions:
-// ── Geometry helpers (imported from pvv2MetricStage + morphUtils) ──────────
-// chaikinSmoothPolyline, chaikinSmoothPolygon ← pvv2MetricStage (geometry layer)
-// resamplePolyline, resamplePolygon, lerpPolygon, polygonCentroid ← morphUtils (animation layer)
-// chainSharedEdgesIntoPolylines ← pvv2MetricStage (geometry layer)
+// chaikinSmoothPolyline, chaikinSmoothPolygon imported from powerVoronoiTerritoryGeometryGenerator —
+// ────────────────────────────────────────────────────────────────────────────
+// These are GEOMETRY operations — they change world coordinates.
+// Used in the renderer only for fill smoothing (hole polygons, crossfade fills).
+// ── Geometry helpers (imported from powerVoronoiTerritoryGeometryGenerator + morphUtils) ──────────
+// chaikinSmoothPolyline, chaikinSmoothPolygon ← powerVoronoiTerritoryGeometryGenerator (geometry layer)
+// resamplePolygon, resamplePolyline, lerpPolygon, polygonCentroid ← morphUtils (geometry layer)
+// chainSharedEdgesIntoPolylines ← powerVoronoiTerritoryGeometryGenerator (geometry layer)
 
 
 
@@ -436,7 +436,7 @@ function renderInterpolatedBorders(
 
 
 
-// mergeSameOwnerCells and detectEnclaves moved to pvv2MetricStage.ts (geometry stage)
+// mergeSameOwnerCells and detectEnclaves moved to powerVoronoiTerritoryGeometryGenerator.ts (geometry stage)
 
 
 /** Draw a territory fill ONLY (no stroke).
@@ -634,15 +634,15 @@ export function renderPowerVoronoi(
         fillGraphics.clear();
 
         // D-79 / B-101: Unified fill+border from same morphed closed polygons.
-        // FrontierLoopMorpher draws both fill AND stroke from the same interpolated points.
-        if (activeLoopMorpher) {
-            activeLoopMorpher.drawFrame(fillGraphics, rawT, alpha, borderWidth, borderAlpha);
-        } else if (activeMorpher) {
+        // PolygonMorphTransitionHandler draws both fill AND stroke from the same interpolated points.
+        if (activeShapeTransitionHandler) {
+            activeShapeTransitionHandler.drawFrame(fillGraphics, rawT, alpha, borderWidth, borderAlpha);
+        } else if (activeBorderTransitionHandler) {
             // Legacy segment morpher fallback (borders only)
             for (let i = 0; i < lastMergedTerritories.length; i++) {
                 drawTerritoryFillOnly(fillGraphics, lastMergedTerritories[i], lastEnclaveMap?.get(i), alpha);
             }
-            activeMorpher.drawFrame(fillGraphics, rawT, borderWidth, borderAlpha);
+            activeBorderTransitionHandler.drawFrame(fillGraphics, rawT, borderWidth, borderAlpha);
         } else if (activeRopeRenderer) {
             // Rope mode: draw target fills, rope handles borders
             for (let i = 0; i < lastMergedTerritories.length; i++) {
@@ -658,8 +658,8 @@ export function renderPowerVoronoi(
             prevSharedPolylines = null;
             prevMergedTerritories = null;
             prevEnclaveMap = null;
-            activeMorpher = null;
-            activeLoopMorpher = null;
+            activeBorderTransitionHandler = null;
+            activeShapeTransitionHandler = null;
             if (activeRopeRenderer) {
                 activeRopeRenderer.removeAll();
                 activeRopeRenderer = null;
@@ -730,7 +730,7 @@ export function renderPowerVoronoi(
     const lightMult = GAME_CONFIG.VORONOI_LIGHTNESS ?? 0.7;
     const starMargin = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45;
 
-    // ── Geometry Stage: delegate to pvv2MetricStage ───────────────────────
+    // ── Geometry Stage: delegate to powerVoronoiTerritoryGeometryGenerator ───────────────────────
     // All geometry computation (site-building, d3-weighted-voronoi, cell merge,
     // edge extraction, Chaikin smoothing) now lives in the compiler stage.
     const stageConfig = {
@@ -749,7 +749,7 @@ export function renderPowerVoronoi(
         worldHeight,
     };
 
-    const stageResult = executePVV2MetricStage(stars, connections ?? [], stageConfig);
+    const stageResult = generateVoronoiTerritoryGeometry(stars, connections ?? [], stageConfig);
     if ('kind' in stageResult) {
         // CompileError — recoverable means use last cached frame, non-recoverable clears
         log.error('PVV2', `geometry stage error at ${stageResult.stage}: ${stageResult.message}`);
@@ -874,7 +874,7 @@ export function renderPowerVoronoi(
             fillTransitionStart = now;
 
             // Clean up any stale morphers
-            activeMorpher = null;
+            activeBorderTransitionHandler = null;
             if (activeRopeRenderer) {
                 activeRopeRenderer.removeAll();
                 activeRopeRenderer = null;
@@ -894,10 +894,10 @@ export function renderPowerVoronoi(
             } else if ((GAME_CONFIG.TERRITORY_GEOMETRY_MODE ?? 'power_voronoi') === 'unified_polygon') {
                 // Unified polygon geometry mode — fills + borders from same closed polygon data
                 if (prevMergedTerritories && lastMergedTerritories) {
-                    activeLoopMorpher = new FrontierLoopMorpher(prevMergedTerritories, lastMergedTerritories, easing, resampleN, overshoot);
+                    activeShapeTransitionHandler = new PolygonMorphTransitionHandler(prevMergedTerritories, lastMergedTerritories, easing, resampleN, overshoot);
                 }
             } else if (borderTransMode === 'pixi_graphics_morph' || borderTransMode === 'optimal_transport' || borderTransMode === 'smooth_morph') {
-                activeMorpher = new GraphicsPathMorpher(prevSharedPolylines, targetSharedPolylines, easing, resampleN, overshoot);
+                activeBorderTransitionHandler = new SegmentMorphTransitionHandler(prevSharedPolylines, targetSharedPolylines, easing, resampleN, overshoot);
             }
             // else: no morpher — borders only appear at rebuild time (steady-state)
         }
@@ -928,8 +928,8 @@ export function resetPowerVoronoiCache(): void {
     prevEnclaveMap = null;
     fillTransitionStart = 0;
     // Active morpher cleanup
-    activeMorpher = null;
-    activeLoopMorpher = null;
+    activeBorderTransitionHandler = null;
+    activeShapeTransitionHandler = null;
     if (activeRopeRenderer) {
         activeRopeRenderer.removeAll();
         activeRopeRenderer = null;
