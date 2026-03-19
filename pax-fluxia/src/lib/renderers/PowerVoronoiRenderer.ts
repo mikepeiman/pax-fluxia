@@ -918,18 +918,13 @@ export function renderPowerVoronoi(
                 const borderWidth = GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 1.5;
                 s.activeRopeRenderer = new RopeBorderRenderer(s.prevSharedPolylines, s.targetSharedPolylines, easing, resampleN, borderWidth, overshoot);
                 s.activeRopeRenderer.addTo(voronoiContainer);
-            } else if (borderTransMode === 'pixi_graphics_morph' || borderTransMode === 'optimal_transport' || borderTransMode === 'smooth_morph') {
-                // D-79 / B-42 fix: Use PolygonMorphTransitionHandler for ALL graphics morph modes.
-                // This draws fill AND stroke from the SAME lerped points on each frame,
-                // eliminating angular fill / smooth border divergence.
-                // SegmentMorphTransitionHandler only drew borders — fills came separately from
-                // angular MergedTerritory.points, creating visible misalignment at curves.
+            } else if ((GAME_CONFIG.TERRITORY_GEOMETRY_MODE ?? 'power_voronoi') === 'unified_polygon') {
+                // Unified polygon geometry mode — fills + borders from same closed polygon data
                 if (s.prevMergedTerritories && s.lastMergedTerritories) {
                     s.activeShapeTransitionHandler = new PolygonMorphTransitionHandler(s.prevMergedTerritories, s.lastMergedTerritories, easing, resampleN, overshoot);
-                } else {
-                    // Fallback: segment morpher if we don't have territory polygon data
-                    s.activeBorderTransitionHandler = new SegmentMorphTransitionHandler(s.prevSharedPolylines, s.targetSharedPolylines, easing, resampleN, overshoot);
                 }
+            } else if (borderTransMode === 'pixi_graphics_morph' || borderTransMode === 'optimal_transport' || borderTransMode === 'smooth_morph') {
+                s.activeBorderTransitionHandler = new SegmentMorphTransitionHandler(s.prevSharedPolylines, s.targetSharedPolylines, easing, resampleN, overshoot);
             }
             // else: no morpher — borders only appear at rebuild time (steady-state)
         }
