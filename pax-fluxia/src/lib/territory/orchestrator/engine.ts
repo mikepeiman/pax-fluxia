@@ -14,10 +14,8 @@ import { OptimalTransportBorderTransition } from '$lib/territory/transitions/Opt
 
 import {
     DEFAULT_TERRITORY_DYNAMIC_METHOD,
-    DEFAULT_TERRITORY_HYBRID_PLAN,
     DEFAULT_TERRITORY_STATIC_METHOD,
     TERRITORY_DYNAMIC_METHOD_BY_ID,
-    TERRITORY_HYBRID_PLAN_BY_ID,
     TERRITORY_PIPELINE_STAGE_ORDER,
     TERRITORY_STATIC_METHOD_BY_ID,
 } from './registry';
@@ -26,7 +24,7 @@ import type {
     TerritoryDynamicMethodId,
     TerritoryEngineInput,
     TerritoryEngineMode,
-    TerritoryHybridPlanId,
+
     TerritoryLegacyAdapterId,
     TerritoryMethodSelection,
     TerritoryPipelineArtifacts,
@@ -75,10 +73,11 @@ function setLastTerritoryTraceRun(run: TerritoryTraceRun | null): void {
 }
 
 function resolveEngineMode(rawValue: unknown): TerritoryEngineMode {
-    if (rawValue === 'static' || rawValue === 'dynamic' || rawValue === 'hybrid') {
+    if (rawValue === 'static' || rawValue === 'dynamic') {
         return rawValue;
     }
-    return 'static';
+    // 'hybrid' mode removed — treat as 'dynamic' fallback
+    return rawValue === 'hybrid' ? 'dynamic' : 'static';
 }
 
 function resolveStaticMethodId(rawValue: unknown): TerritoryStaticMethodId {
@@ -95,12 +94,6 @@ function resolveDynamicMethodId(rawValue: unknown): TerritoryDynamicMethodId {
         : DEFAULT_TERRITORY_DYNAMIC_METHOD;
 }
 
-function resolveHybridPlanId(rawValue: unknown): TerritoryHybridPlanId {
-    if (typeof rawValue !== 'string') return DEFAULT_TERRITORY_HYBRID_PLAN;
-    return Object.prototype.hasOwnProperty.call(TERRITORY_HYBRID_PLAN_BY_ID, rawValue)
-        ? (rawValue as TerritoryHybridPlanId)
-        : DEFAULT_TERRITORY_HYBRID_PLAN;
-}
 
 function resolveMethodSelection(): TerritoryMethodSelection {
     const mode = resolveEngineMode(GAME_CONFIG.TERRITORY_ENGINE_MODE);
@@ -110,7 +103,6 @@ function resolveMethodSelection(): TerritoryMethodSelection {
     const dynamicMethodId = resolveDynamicMethodId(
         GAME_CONFIG.TERRITORY_ENGINE_DYNAMIC_METHOD,
     );
-    const hybridPlanId = resolveHybridPlanId(GAME_CONFIG.TERRITORY_ENGINE_HYBRID_PLAN);
 
     if (mode === 'dynamic') {
         const dynamicMethod = TERRITORY_DYNAMIC_METHOD_BY_ID[dynamicMethodId];
@@ -118,21 +110,8 @@ function resolveMethodSelection(): TerritoryMethodSelection {
             mode,
             staticMethodId: dynamicMethod.anchorStaticMethodId,
             dynamicMethodId,
-            hybridPlanId,
             adapter: dynamicMethod.adapter,
             implementedStages: dynamicMethod.implementedStages,
-        };
-    }
-
-    if (mode === 'hybrid') {
-        const hybridPlan = TERRITORY_HYBRID_PLAN_BY_ID[hybridPlanId];
-        return {
-            mode,
-            staticMethodId: hybridPlan.staticMethodId,
-            dynamicMethodId: hybridPlan.dynamicMethodId,
-            hybridPlanId,
-            adapter: hybridPlan.adapter,
-            implementedStages: hybridPlan.implementedStages,
         };
     }
 
@@ -141,14 +120,13 @@ function resolveMethodSelection(): TerritoryMethodSelection {
         mode,
         staticMethodId,
         dynamicMethodId,
-        hybridPlanId,
         adapter: staticMethod.adapter,
         implementedStages: staticMethod.implementedStages,
     };
 }
 
 function selectionKey(selection: TerritoryMethodSelection): string {
-    return `${selection.mode}:${selection.staticMethodId}:${selection.dynamicMethodId}:${selection.hybridPlanId}:${selection.adapter}`;
+    return `${selection.mode}:${selection.staticMethodId}:${selection.dynamicMethodId}:${selection.adapter}`;
 }
 
 function normalizeAdvanceToken(rawValue: unknown): number {
@@ -297,7 +275,6 @@ function executeStage(
         mode: runtime.selection.mode,
         staticMethodId: runtime.selection.staticMethodId,
         dynamicMethodId: runtime.selection.dynamicMethodId,
-        hybridPlanId: runtime.selection.hybridPlanId,
     };
 
     if (executeNativeTerritoryStage(stageId, runtime, summary)) {
@@ -439,7 +416,7 @@ function executeStage(
             adapterFallbackLogged.add(fallbackKey);
             log.renderer(
                 'TerritoryEngine',
-                `bootstrap adapter path mode=${runtime.selection.mode} adapter=${runtime.selection.adapter} static=${runtime.selection.staticMethodId} dynamic=${runtime.selection.dynamicMethodId} hybrid=${runtime.selection.hybridPlanId}`,
+                `bootstrap adapter path mode=${runtime.selection.mode} adapter=${runtime.selection.adapter} static=${runtime.selection.staticMethodId} dynamic=${runtime.selection.dynamicMethodId}`,
             );
         }
 
@@ -632,7 +609,7 @@ export function renderTerritoryEngine(input: TerritoryEngineInput): void {
         lastLoggedSelectionKey = selectionId;
         log.renderer(
             'TerritoryEngine',
-            `active mode=${selection.mode} static=${selection.staticMethodId} dynamic=${selection.dynamicMethodId} hybrid=${selection.hybridPlanId} adapter=${selection.adapter}`,
+            `active mode=${selection.mode} static=${selection.staticMethodId} dynamic=${selection.dynamicMethodId} adapter=${selection.adapter}`,
         );
     }
 

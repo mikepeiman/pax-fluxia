@@ -8,31 +8,24 @@ export type TerritoryEngineMode = 'static' | 'dynamic' | 'hybrid';
 
 export type TerritoryStaticMethodId =
     | 'fg1_adaptive_field'
-    | 'fg2_seed_graph'
-    | 'fg3_implicit_trace'
-    | 'fg4_pairwise_arrangement'
-    | 'fg5_rt_assisted_publish';
+    | 'fg2_seed_graph';
 
 export type TerritoryDynamicMethodId =
-    | 'dy1_span_graph_morph'
-    | 'dy2_local_delta_patch'
-    | 'dy3_field_interp_stabilized'
-    | 'dy4_optimal_transport'
-    | 'dy5_corridor_event_decomposition';
+    | 'dy4_optimal_transport';
 
-export type TerritoryHybridPlanId =
-    | 'hy1_static_backbone_dynamic_refine'
-    | 'hy2_seed_graph_local_delta'
-    | 'hy3_implicit_field_transport'
-    | 'hy4_pairwise_patch_transport'
-    | 'hy5_rt_publish_corridor_events';
+// Hybrid plans removed — all were stubs referencing stub methods.
 
 export type TerritoryPipelineStageId =
+    // Canonical 4-layer model
+    | 'ownership'
+    | 'geometry'
+    | 'transition'
+    | 'presentation'
+    // Legacy fine-grained stages (used by engine.ts native executor)
     | 'metric'
     | 'world_extension'
     | 'seed'
     | 'topology'
-    | 'geometry'
     | 'loop'
     | 'animation'
     | 'render';
@@ -52,17 +45,21 @@ export interface TerritoryMethodSelection {
     mode: TerritoryEngineMode;
     staticMethodId: TerritoryStaticMethodId;
     dynamicMethodId: TerritoryDynamicMethodId;
-    hybridPlanId: TerritoryHybridPlanId;
     adapter: TerritoryLegacyAdapterId;
     implementedStages: TerritoryPipelineStageId[];
 }
 
 export interface TerritoryPipelineArtifacts {
+    // Canonical 4-layer model
+    ownership?: Record<string, unknown>;
+    geometry?: Record<string, unknown>;
+    transition?: Record<string, unknown>;
+    presentation?: Record<string, unknown>;
+    // Legacy fine-grained stages (used by engine.ts native executor)
     metric?: Record<string, unknown>;
     world_extension?: Record<string, unknown>;
     seed?: Record<string, unknown>;
     topology?: Record<string, unknown>;
-    geometry?: Record<string, unknown>;
     loop?: Record<string, unknown>;
     animation?: Record<string, unknown>;
     render?: Record<string, unknown>;
@@ -116,12 +113,3 @@ export interface TerritoryDynamicMethodDescriptor {
     anchorStaticMethodId: TerritoryStaticMethodId;
 }
 
-export interface TerritoryHybridPlanDescriptor {
-    id: TerritoryHybridPlanId;
-    label: string;
-    description: string;
-    staticMethodId: TerritoryStaticMethodId;
-    dynamicMethodId: TerritoryDynamicMethodId;
-    implementedStages: TerritoryPipelineStageId[];
-    adapter: TerritoryLegacyAdapterId;
-}

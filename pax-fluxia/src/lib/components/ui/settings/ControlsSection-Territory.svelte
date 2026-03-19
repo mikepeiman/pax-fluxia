@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
     import { GAME_CONFIG } from "$lib/config/game.config";
     import {
         TERRITORY_PIPELINE_STAGE_ORDER,
@@ -7,10 +7,8 @@
     } from "$lib/territory/orchestrator";
     import {
         DEFAULT_TERRITORY_DYNAMIC_METHOD,
-        DEFAULT_TERRITORY_HYBRID_PLAN,
         DEFAULT_TERRITORY_STATIC_METHOD,
         TERRITORY_DYNAMIC_METHOD_BY_ID,
-        TERRITORY_HYBRID_PLAN_BY_ID,
         TERRITORY_STATIC_METHOD_BY_ID,
     } from "$lib/territory/orchestrator/registry";
     import { territoryTraceRun } from "$lib/territory/orchestrator/traceStore";
@@ -229,34 +227,13 @@
     const TERRITORY_ENGINE_METHOD_OPTIONS = [
         { id: "fg1_adaptive_field", label: "FG1 Adaptive Field" },
         { id: "fg2_seed_graph", label: "FG2 Seed Graph" },
-        { id: "fg3_implicit_trace", label: "FG3 Implicit Trace" },
-        { id: "fg4_pairwise_arrangement", label: "FG4 Pairwise Arrangement" },
-        { id: "fg5_rt_assisted_publish", label: "FG5 RT-Assisted Publish" },
     ] as const;
     const TERRITORY_ENGINE_MODE_OPTIONS = [
         { id: "static", label: "Static" },
         { id: "dynamic", label: "Dynamic" },
-        { id: "hybrid", label: "Hybrid" },
     ] as const;
     const TERRITORY_ENGINE_DYNAMIC_OPTIONS = [
-        { id: "dy1_span_graph_morph", label: "DY1 Span Graph Morph" },
-        { id: "dy2_local_delta_patch", label: "DY2 Local Delta Patch" },
-        { id: "dy3_field_interp_stabilized", label: "DY3 Field Interp" },
         { id: "dy4_optimal_transport", label: "DY4 Optimal Transport" },
-        {
-            id: "dy5_corridor_event_decomposition",
-            label: "DY5 Corridor Events",
-        },
-    ] as const;
-    const TERRITORY_ENGINE_HYBRID_OPTIONS = [
-        {
-            id: "hy1_static_backbone_dynamic_refine",
-            label: "HY1 Backbone+Refine",
-        },
-        { id: "hy2_seed_graph_local_delta", label: "HY2 Seed+Delta" },
-        { id: "hy3_implicit_field_transport", label: "HY3 Implicit+Transport" },
-        { id: "hy4_pairwise_patch_transport", label: "HY4 Pairwise+Patch" },
-        { id: "hy5_rt_publish_corridor_events", label: "HY5 RT+Corridor" },
     ] as const;
 
     const MORPH_EASING_OPTIONS = [
@@ -302,25 +279,12 @@
             : DEFAULT_TERRITORY_DYNAMIC_METHOD;
     }
 
-    function resolveHybridPlanId(rawValue: unknown): string {
-        if (typeof rawValue !== "string") return DEFAULT_TERRITORY_HYBRID_PLAN;
-        return Object.prototype.hasOwnProperty.call(
-            TERRITORY_HYBRID_PLAN_BY_ID,
-            rawValue,
-        )
-            ? rawValue
-            : DEFAULT_TERRITORY_HYBRID_PLAN;
-    }
-
     function getTerritoryEngineRoute() {
         const modeValue =
             panel.territoryEngineMode ??
             GAME_CONFIG.TERRITORY_ENGINE_MODE ??
             "static";
-        const mode =
-            modeValue === "dynamic" || modeValue === "hybrid"
-                ? modeValue
-                : "static";
+        const mode = modeValue === "dynamic" ? "dynamic" : "static";
         const staticMethodId = resolveStaticMethodId(
             panel.territoryEngineStaticMethod ??
                 GAME_CONFIG.TERRITORY_ENGINE_STATIC_METHOD,
@@ -328,10 +292,6 @@
         const dynamicMethodId = resolveDynamicMethodId(
             panel.territoryEngineDynamicMethod ??
                 GAME_CONFIG.TERRITORY_ENGINE_DYNAMIC_METHOD,
-        );
-        const hybridPlanId = resolveHybridPlanId(
-            panel.territoryEngineHybridPlan ??
-                GAME_CONFIG.TERRITORY_ENGINE_HYBRID_PLAN,
         );
 
         if (mode === "dynamic") {
@@ -344,7 +304,6 @@
                 mode,
                 staticMethodId: anchorStaticMethodId,
                 dynamicMethodId,
-                hybridPlanId,
                 adapter: dynamicMethod.adapter,
                 adapterLabel: formatAdapterLabel(dynamicMethod.adapter),
                 staticLabel: lookupOptionLabel(
@@ -354,37 +313,6 @@
                 dynamicLabel: lookupOptionLabel(
                     TERRITORY_ENGINE_DYNAMIC_OPTIONS,
                     dynamicMethodId,
-                ),
-                hybridLabel: lookupOptionLabel(
-                    TERRITORY_ENGINE_HYBRID_OPTIONS,
-                    hybridPlanId,
-                ),
-            };
-        }
-
-        if (mode === "hybrid") {
-            const hybridPlan =
-                TERRITORY_HYBRID_PLAN_BY_ID[
-                    hybridPlanId as keyof typeof TERRITORY_HYBRID_PLAN_BY_ID
-                ];
-            return {
-                mode,
-                staticMethodId: hybridPlan.staticMethodId,
-                dynamicMethodId: hybridPlan.dynamicMethodId,
-                hybridPlanId,
-                adapter: hybridPlan.adapter,
-                adapterLabel: formatAdapterLabel(hybridPlan.adapter),
-                staticLabel: lookupOptionLabel(
-                    TERRITORY_ENGINE_METHOD_OPTIONS,
-                    hybridPlan.staticMethodId,
-                ),
-                dynamicLabel: lookupOptionLabel(
-                    TERRITORY_ENGINE_DYNAMIC_OPTIONS,
-                    hybridPlan.dynamicMethodId,
-                ),
-                hybridLabel: lookupOptionLabel(
-                    TERRITORY_ENGINE_HYBRID_OPTIONS,
-                    hybridPlanId,
                 ),
             };
         }
@@ -397,7 +325,6 @@
             mode,
             staticMethodId,
             dynamicMethodId,
-            hybridPlanId,
             adapter: staticMethod.adapter,
             adapterLabel: formatAdapterLabel(staticMethod.adapter),
             staticLabel: lookupOptionLabel(
@@ -408,10 +335,6 @@
                 TERRITORY_ENGINE_DYNAMIC_OPTIONS,
                 dynamicMethodId,
             ),
-            hybridLabel: lookupOptionLabel(
-                TERRITORY_ENGINE_HYBRID_OPTIONS,
-                hybridPlanId,
-            ),
         };
     }
 
@@ -420,26 +343,13 @@
         if (territoryEngineRoute.mode === "dynamic") {
             return `${territoryEngineRoute.dynamicLabel} uses ${territoryEngineRoute.staticLabel} as its static anchor.`;
         }
-        if (territoryEngineRoute.mode === "hybrid") {
-            return `${territoryEngineRoute.hybridLabel} fixes both the static and dynamic legs together.`;
-        }
         return `${territoryEngineRoute.staticLabel} is the active static route.`;
     });
     let territoryEngineInteropNote = $derived.by(() => {
-        if (
-            territoryEngineRoute.mode === "dynamic" &&
-            territoryEngineRoute.dynamicMethodId ===
-                "dy5_corridor_event_decomposition"
-        ) {
-            return "DY5 currently anchors to FG2 Seed Graph. Selecting FG1 separately does not change the live dynamic route.";
-        }
         if (territoryEngineRoute.mode === "dynamic") {
             return "Dynamic mode is exclusive. The Dynamic Method picker wins and the standalone Static Method choice becomes reference only.";
         }
-        if (territoryEngineRoute.mode === "hybrid") {
-            return "Hybrid mode is exclusive. The Hybrid Plan picker wins and the standalone Static/Dynamic picks become reference only.";
-        }
-        return "Static mode is exclusive. Dynamic and Hybrid selections are stored, but inactive until you switch modes.";
+        return "Static mode is exclusive. Dynamic selections are stored, but inactive until you switch modes.";
     });
 
     let staticMethodControlState = $derived.by(() => {
@@ -458,8 +368,8 @@
             };
         }
         return {
-            badge: "plan reference",
-            note: `${territoryEngineRoute.hybridLabel} owns the static leg while hybrid mode is active.`,
+            badge: "stored",
+            note: "Static selections are stored only.",
             disabled: true,
         };
     });
@@ -472,31 +382,9 @@
                 disabled: false,
             };
         }
-        if (territoryEngineRoute.mode === "hybrid") {
-            return {
-                badge: "plan reference",
-                note: `${territoryEngineRoute.hybridLabel} owns the dynamic leg while hybrid mode is active.`,
-                disabled: true,
-            };
-        }
         return {
             badge: "stored",
             note: "Dynamic selections are stored, but inactive until you switch to Dynamic mode.",
-            disabled: true,
-        };
-    });
-
-    let hybridPlanControlState = $derived.by(() => {
-        if (territoryEngineRoute.mode === "hybrid") {
-            return {
-                badge: "active",
-                note: "Hybrid mode is live. Picking a hybrid plan changes the current route.",
-                disabled: false,
-            };
-        }
-        return {
-            badge: "stored",
-            note: "Hybrid plans are stored only until you switch to Hybrid mode.",
             disabled: true,
         };
     });
