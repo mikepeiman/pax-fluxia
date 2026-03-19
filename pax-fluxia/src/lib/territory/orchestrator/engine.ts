@@ -14,25 +14,20 @@ import { executeNativeTerritoryStage, resetNativeTerritoryStageCaches } from './
 import { OptimalTransportBorderTransition } from '$lib/territory/transitions/OptimalTransportBorderTransition';
 
 import {
-    DEFAULT_TERRITORY_DYNAMIC_METHOD,
-    DEFAULT_TERRITORY_STATIC_METHOD,
-    TERRITORY_DYNAMIC_METHOD_BY_ID,
+    DEFAULT_TERRITORY_METHOD,
+    TERRITORY_METHOD_BY_ID,
     TERRITORY_PIPELINE_STAGE_ORDER,
-    TERRITORY_STATIC_METHOD_BY_ID,
 } from './registry';
 import { territoryTraceRun } from './traceStore';
 import type {
-    TerritoryDynamicMethodId,
     TerritoryEngineInput,
-    TerritoryEngineMode,
-
     TerritoryLegacyAdapterId,
+    TerritoryMethodId,
     TerritoryMethodSelection,
     TerritoryPipelineArtifacts,
     TerritoryPipelineRuntime,
     TerritoryPipelineStageId,
     TerritoryStageTraceStep,
-    TerritoryStaticMethodId,
     TerritoryTraceRun,
 } from './types';
 import type { CanonicalTerritoryData } from './renderMode';
@@ -73,61 +68,44 @@ function setLastTerritoryTraceRun(run: TerritoryTraceRun | null): void {
     territoryTraceRun.clear();
 }
 
-function resolveEngineMode(rawValue: unknown): TerritoryEngineMode {
-    if (rawValue === 'static' || rawValue === 'dynamic') {
-        return rawValue;
-    }
-    // 'hybrid' mode removed — treat as 'dynamic' fallback
-    return rawValue === 'hybrid' ? 'dynamic' : 'static';
-}
+// ── Unified Method Resolution ────────────────────────────────────────────────
+// Replaces the old resolveEngineMode + resolveStaticMethodId + resolveDynamicMethodId
+// with a single lookup from the unified TERRITORY_METHOD_BY_ID registry.
 
-function resolveStaticMethodId(rawValue: unknown): TerritoryStaticMethodId {
-    if (typeof rawValue !== 'string') return DEFAULT_TERRITORY_STATIC_METHOD;
-    return Object.prototype.hasOwnProperty.call(TERRITORY_STATIC_METHOD_BY_ID, rawValue)
-        ? (rawValue as TerritoryStaticMethodId)
-        : DEFAULT_TERRITORY_STATIC_METHOD;
+function resolveMethodId(rawValue: unknown): TerritoryMethodId {
+    if (typeof rawValue !== 'string') return DEFAULT_TERRITORY_METHOD;
+    return Object.prototype.hasOwnProperty.call(TERRITORY_METHOD_BY_ID, rawValue)
+        ? (rawValue as TerritoryMethodId)
+        : DEFAULT_TERRITORY_METHOD;
 }
-
-function resolveDynamicMethodId(rawValue: unknown): TerritoryDynamicMethodId {
-    if (typeof rawValue !== 'string') return DEFAULT_TERRITORY_DYNAMIC_METHOD;
-    return Object.prototype.hasOwnProperty.call(TERRITORY_DYNAMIC_METHOD_BY_ID, rawValue)
-        ? (rawValue as TerritoryDynamicMethodId)
-        : DEFAULT_TERRITORY_DYNAMIC_METHOD;
-}
-
 
 function resolveMethodSelection(): TerritoryMethodSelection {
-    const mode = resolveEngineMode(GAME_CONFIG.TERRITORY_ENGINE_MODE);
-    const staticMethodId = resolveStaticMethodId(
-        GAME_CONFIG.TERRITORY_ENGINE_STATIC_METHOD,
-    );
-    const dynamicMethodId = resolveDynamicMethodId(
-        GAME_CONFIG.TERRITORY_ENGINE_DYNAMIC_METHOD,
-    );
-
-    if (mode === 'dynamic') {
-        const dynamicMethod = TERRITORY_DYNAMIC_METHOD_BY_ID[dynamicMethodId];
-        return {
-            mode,
-            staticMethodId: dynamicMethod.anchorStaticMethodId,
-            dynamicMethodId,
-            adapter: dynamicMethod.adapter,
-            implementedStages: dynamicMethod.implementedStages,
-        };
+    // Try the unified key first, fall back to legacy keys for config migration
+    let methodId: TerritoryMethodId;
+    if (GAME_CONFIG.TERRITORY_ENGINE_METHOD) {
+        methodId = resolveMethodId(GAME_CONFIG.TERRITORY_ENGINE_METHOD);
+    } else if (GAME_CONFIG.TERRITORY_ENGINE_MODE === 'dynamic') {
+        // Legacy config migration: dynamic mode → use the dynamic method key
+        methodId = resolveMethodId(GAME_CONFIG.TERRITORY_ENGINE_DYNAMIC_METHOD);
+    } else {
+        // Legacy config migration: static mode → use the static method key
+        methodId = resolveMethodId(GAME_CONFIG.TERRITORY_ENGINE_STATIC_METHOD);
     }
 
-    const staticMethod = TERRITORY_STATIC_METHOD_BY_ID[staticMethodId];
+    const method = TERRITORY_METHOD_BY_ID[methodId];
     return {
-        mode,
-        staticMethodId,
-        dynamicMethodId,
-        adapter: staticMethod.adapter,
-        implementedStages: staticMethod.implementedStages,
+        methodId,
+        adapter: method.adapter,
+        implementedStages: method.implementedStages,
+        // Backward-compat aliases for trace UI and downstream consumers
+        mode: method.implementedStages.length > 1 ? 'static' : 'dynamic',
+        staticMethodId: methodId,
+        dynamicMethodId: methodId,
     };
 }
 
 function selectionKey(selection: TerritoryMethodSelection): string {
-    return `${selection.mode}:${selection.staticMethodId}:${selection.dynamicMethodId}:${selection.adapter}`;
+    return `${selection.methodId}:${selection.adapter}`;
 }
 
 function normalizeAdvanceToken(rawValue: unknown): number {
@@ -278,9 +256,8 @@ function executeStage(
     const implemented = runtime.selection.implementedStages.includes(stageId);
     const summary: Record<string, unknown> = {
         implemented,
-        mode: runtime.selection.mode,
-        staticMethodId: runtime.selection.staticMethodId,
-        dynamicMethodId: runtime.selection.dynamicMethodId,
+        methodId: runtime.selection.methodId,
+        adapter: runtime.selection.adapter,
     };
 
     if (executeNativeTerritoryStage(stageId, runtime, summary)) {
@@ -408,12 +385,11 @@ function executeStage(
 
     if (stageId === 'animation') {
         runtime.artifacts.animation = {
-            mode: runtime.selection.mode,
-            transitionProfile: runtime.selection.dynamicMethodId,
+            methodId: runtime.selection.methodId,
             timestamp: runtime.input.gameNowMs,
         };
 
-        summary.transitionProfile = runtime.selection.dynamicMethodId;
+        summary.methodId = runtime.selection.methodId;
     }
 
     if (stageId === 'render') {
@@ -422,7 +398,7 @@ function executeStage(
             adapterFallbackLogged.add(fallbackKey);
             log.renderer(
                 'TerritoryEngine',
-                `bootstrap adapter path mode=${runtime.selection.mode} adapter=${runtime.selection.adapter} static=${runtime.selection.staticMethodId} dynamic=${runtime.selection.dynamicMethodId}`,
+                `bootstrap adapter path method=${runtime.selection.methodId} adapter=${runtime.selection.adapter}`,
             );
         }
 
@@ -465,8 +441,8 @@ function buildTraceRun(
         meta: {
             stars: input.stars.length,
             connections: input.connections?.length ?? 0,
+            methodId: selection.methodId,
             adapter: selection.adapter,
-            mode: selection.mode,
             artifacts: Object.keys(artifacts),
         },
     };
@@ -562,15 +538,15 @@ export function getLastTerritoryTraceRun(): TerritoryTraceRun | null {
  */
 export function runFG2DataPipeline(input: TerritoryEngineInput): TerritoryPipelineArtifacts {
     // Force FG2 native stages regardless of user's configured method.
-    // Without this override, executeFG2Stage() gates on mode==='static' &&
-    // staticMethodId==='fg2_seed_graph' — any other config produces empty
-    // placeholder artifacts with no ownerShells.
-    const baseSelection = resolveMethodSelection();
+    const fg2Method = TERRITORY_METHOD_BY_ID['fg2_seed_graph'];
     const selection: TerritoryMethodSelection = {
-        ...baseSelection,
-        mode: 'static' as const,
+        methodId: 'fg2_seed_graph',
+        adapter: fg2Method.adapter,
+        implementedStages: fg2Method.implementedStages.filter(s => s !== 'render'),
+        // backward-compat
+        mode: 'static',
         staticMethodId: 'fg2_seed_graph',
-        implementedStages: ['metric', 'world_extension', 'seed', 'topology', 'geometry', 'loop', 'animation'],
+        dynamicMethodId: 'fg2_seed_graph',
     };
     const artifacts: TerritoryPipelineArtifacts = {};
     const runtime: TerritoryPipelineRuntime = { input, selection, artifacts };
@@ -615,7 +591,7 @@ export function renderTerritoryEngine(input: TerritoryEngineInput): void {
         lastLoggedSelectionKey = selectionId;
         log.renderer(
             'TerritoryEngine',
-            `active mode=${selection.mode} static=${selection.staticMethodId} dynamic=${selection.dynamicMethodId} adapter=${selection.adapter}`,
+            `active method=${selection.methodId} adapter=${selection.adapter}`,
         );
     }
 

@@ -4,18 +4,23 @@ import type { StarConnection, StarState } from '$lib/types/game.types';
 
 export type TerritoryLegacyAdapterId = 'legacy_pvv2' | 'legacy_pvv3' | 'legacy_df' | 'refactored_pvv2';
 
-export type TerritoryEngineMode = 'static' | 'dynamic' | 'hybrid';
+// ── Unified Method ID ────────────────────────────────────────────────────────
+// Replaces the old TerritoryStaticMethodId / TerritoryDynamicMethodId split.
+// All methods are just methods — they declare which pipeline stages they
+// implement and which adapter renders them.
 
-export type TerritoryStaticMethodId =
+export type TerritoryMethodId =
     | 'fg1_adaptive_field'
     | 'fg1_mar19_refactor'
-    | 'fg2_seed_graph';
-
-export type TerritoryDynamicMethodId =
+    | 'fg2_seed_graph'
     | 'dy4_optimal_transport'
     | 'dy4_mar19_refactor';
 
-// Hybrid plans removed — all were stubs referencing stub methods.
+// Backward-compat aliases (temporary — remove once all consumers migrate)
+/** @deprecated Use TerritoryMethodId */
+export type TerritoryStaticMethodId = TerritoryMethodId;
+/** @deprecated Use TerritoryMethodId */
+export type TerritoryDynamicMethodId = TerritoryMethodId;
 
 export type TerritoryPipelineStageId =
     // Canonical 4-layer model
@@ -44,11 +49,16 @@ export interface TerritoryEngineInput {
 }
 
 export interface TerritoryMethodSelection {
-    mode: TerritoryEngineMode;
-    staticMethodId: TerritoryStaticMethodId;
-    dynamicMethodId: TerritoryDynamicMethodId;
+    methodId: TerritoryMethodId;
     adapter: TerritoryLegacyAdapterId;
     implementedStages: TerritoryPipelineStageId[];
+    // Backward-compat aliases (temporary — remove once consumers migrate)
+    /** @deprecated Use methodId */
+    mode?: string;
+    /** @deprecated Use methodId */
+    staticMethodId?: TerritoryMethodId;
+    /** @deprecated Use methodId */
+    dynamicMethodId?: TerritoryMethodId;
 }
 
 export interface TerritoryPipelineArtifacts {
@@ -98,20 +108,20 @@ export interface TerritoryTraceRun {
     meta: Record<string, unknown>;
 }
 
-export interface TerritoryStaticMethodDescriptor {
-    id: TerritoryStaticMethodId;
+// ── Unified Method Descriptor ────────────────────────────────────────────────
+
+export interface TerritoryMethodDescriptor {
+    id: TerritoryMethodId;
     label: string;
     description: string;
     implementedStages: TerritoryPipelineStageId[];
     adapter: TerritoryLegacyAdapterId;
 }
 
-export interface TerritoryDynamicMethodDescriptor {
-    id: TerritoryDynamicMethodId;
-    label: string;
-    description: string;
-    implementedStages: TerritoryPipelineStageId[];
-    adapter: TerritoryLegacyAdapterId;
-    anchorStaticMethodId: TerritoryStaticMethodId;
-}
-
+// Backward-compat aliases (temporary)
+/** @deprecated Use TerritoryMethodDescriptor */
+export type TerritoryStaticMethodDescriptor = TerritoryMethodDescriptor;
+/** @deprecated Use TerritoryMethodDescriptor */
+export type TerritoryDynamicMethodDescriptor = TerritoryMethodDescriptor & {
+    anchorStaticMethodId?: TerritoryMethodId;
+};

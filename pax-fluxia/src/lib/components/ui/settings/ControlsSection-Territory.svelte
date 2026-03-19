@@ -6,8 +6,10 @@
         type TerritoryPipelineStageId,
     } from "$lib/territory/orchestrator";
     import {
+        DEFAULT_TERRITORY_METHOD,
         DEFAULT_TERRITORY_DYNAMIC_METHOD,
         DEFAULT_TERRITORY_STATIC_METHOD,
+        TERRITORY_METHOD_BY_ID,
         TERRITORY_DYNAMIC_METHOD_BY_ID,
         TERRITORY_STATIC_METHOD_BY_ID,
     } from "$lib/territory/orchestrator/registry";
@@ -259,93 +261,75 @@
         return adapter;
     }
 
-    function resolveStaticMethodId(rawValue: unknown): string {
-        if (typeof rawValue !== "string")
-            return DEFAULT_TERRITORY_STATIC_METHOD;
+    function resolveMethodId(rawValue: unknown): string {
+        if (typeof rawValue !== "string") return DEFAULT_TERRITORY_METHOD;
         return Object.prototype.hasOwnProperty.call(
-            TERRITORY_STATIC_METHOD_BY_ID,
+            TERRITORY_METHOD_BY_ID,
             rawValue,
         )
             ? rawValue
-            : DEFAULT_TERRITORY_STATIC_METHOD;
+            : DEFAULT_TERRITORY_METHOD;
     }
 
+    // Legacy resolve helpers (used by route display, kept for backward-compat)
+    function resolveStaticMethodId(rawValue: unknown): string {
+        return resolveMethodId(rawValue);
+    }
     function resolveDynamicMethodId(rawValue: unknown): string {
-        if (typeof rawValue !== "string")
-            return DEFAULT_TERRITORY_DYNAMIC_METHOD;
-        return Object.prototype.hasOwnProperty.call(
-            TERRITORY_DYNAMIC_METHOD_BY_ID,
-            rawValue,
-        )
-            ? rawValue
-            : DEFAULT_TERRITORY_DYNAMIC_METHOD;
+        return resolveMethodId(rawValue);
     }
 
     function getTerritoryEngineRoute() {
-        const modeValue =
-            panel.territoryEngineMode ??
-            GAME_CONFIG.TERRITORY_ENGINE_MODE ??
-            "static";
-        const mode = modeValue === "dynamic" ? "dynamic" : "static";
-        const staticMethodId = resolveStaticMethodId(
-            panel.territoryEngineStaticMethod ??
-                GAME_CONFIG.TERRITORY_ENGINE_STATIC_METHOD,
-        );
-        const dynamicMethodId = resolveDynamicMethodId(
-            panel.territoryEngineDynamicMethod ??
-                GAME_CONFIG.TERRITORY_ENGINE_DYNAMIC_METHOD,
-        );
-
-        if (mode === "dynamic") {
-            const dynamicMethod =
-                TERRITORY_DYNAMIC_METHOD_BY_ID[
-                    dynamicMethodId as keyof typeof TERRITORY_DYNAMIC_METHOD_BY_ID
-                ];
-            const anchorStaticMethodId = dynamicMethod.anchorStaticMethodId;
-            return {
-                mode,
-                staticMethodId: anchorStaticMethodId,
-                dynamicMethodId,
-                adapter: dynamicMethod.adapter,
-                adapterLabel: formatAdapterLabel(dynamicMethod.adapter),
-                staticLabel: lookupOptionLabel(
-                    TERRITORY_ENGINE_METHOD_OPTIONS,
-                    anchorStaticMethodId,
-                ),
-                dynamicLabel: lookupOptionLabel(
-                    TERRITORY_ENGINE_DYNAMIC_OPTIONS,
-                    dynamicMethodId,
-                ),
-            };
+        // Use unified method key, fall back to legacy keys
+        let methodId: string;
+        if (
+            panel.territoryEngineMethod ??
+            GAME_CONFIG.TERRITORY_ENGINE_METHOD
+        ) {
+            methodId = resolveMethodId(
+                panel.territoryEngineMethod ??
+                    GAME_CONFIG.TERRITORY_ENGINE_METHOD,
+            );
+        } else if (
+            (panel.territoryEngineMode ?? GAME_CONFIG.TERRITORY_ENGINE_MODE) ===
+            "dynamic"
+        ) {
+            methodId = resolveMethodId(
+                panel.territoryEngineDynamicMethod ??
+                    GAME_CONFIG.TERRITORY_ENGINE_DYNAMIC_METHOD,
+            );
+        } else {
+            methodId = resolveMethodId(
+                panel.territoryEngineStaticMethod ??
+                    GAME_CONFIG.TERRITORY_ENGINE_STATIC_METHOD,
+            );
         }
 
-        const staticMethod =
-            TERRITORY_STATIC_METHOD_BY_ID[
-                staticMethodId as keyof typeof TERRITORY_STATIC_METHOD_BY_ID
+        const method =
+            TERRITORY_METHOD_BY_ID[
+                methodId as keyof typeof TERRITORY_METHOD_BY_ID
             ];
+        const methodLabel = method?.label ?? methodId;
         return {
-            mode,
-            staticMethodId,
-            dynamicMethodId,
-            adapter: staticMethod.adapter,
-            adapterLabel: formatAdapterLabel(staticMethod.adapter),
-            staticLabel: lookupOptionLabel(
-                TERRITORY_ENGINE_METHOD_OPTIONS,
-                staticMethodId,
-            ),
-            dynamicLabel: lookupOptionLabel(
-                TERRITORY_ENGINE_DYNAMIC_OPTIONS,
-                dynamicMethodId,
-            ),
+            methodId,
+            mode:
+                method && method.implementedStages.length > 1
+                    ? "static"
+                    : "dynamic",
+            adapter: method?.adapter ?? "legacy_pvv2",
+            adapterLabel: formatAdapterLabel(method?.adapter ?? "legacy_pvv2"),
+            methodLabel,
+            // backward-compat aliases
+            staticMethodId: methodId,
+            dynamicMethodId: methodId,
+            staticLabel: methodLabel,
+            dynamicLabel: methodLabel,
         };
     }
 
     let territoryEngineRoute = $derived.by(() => getTerritoryEngineRoute());
     let territoryEngineRouteNote = $derived.by(() => {
-        if (territoryEngineRoute.mode === "dynamic") {
-            return `${territoryEngineRoute.dynamicLabel} uses ${territoryEngineRoute.staticLabel} as its static anchor.`;
-        }
-        return `${territoryEngineRoute.staticLabel} is the active static route.`;
+        return `Active method: ${territoryEngineRoute.methodLabel} (${territoryEngineRoute.adapterLabel})`;
     });
     let territoryEngineInteropNote = $derived.by(() => {
         if (territoryEngineRoute.mode === "dynamic") {

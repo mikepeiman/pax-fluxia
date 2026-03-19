@@ -1,9 +1,7 @@
 import type {
-    TerritoryDynamicMethodDescriptor,
-    TerritoryDynamicMethodId,
+    TerritoryMethodDescriptor,
+    TerritoryMethodId,
     TerritoryPipelineStageId,
-    TerritoryStaticMethodDescriptor,
-    TerritoryStaticMethodId,
 } from './types';
 
 // Runtime pipeline uses legacy fine-grained stages that executeStage() checks against.
@@ -20,12 +18,16 @@ export const TERRITORY_PIPELINE_STAGE_ORDER: TerritoryPipelineStageId[] = [
     'render',
 ];
 
-export const TERRITORY_STATIC_METHODS: TerritoryStaticMethodDescriptor[] = [
+// ── Unified Method Registry ──────────────────────────────────────────────────
+// All methods in one array. No static/dynamic split.
+// Each method declares what stages it implements and which adapter renders it.
+
+export const TERRITORY_METHODS: TerritoryMethodDescriptor[] = [
     {
         id: 'fg1_adaptive_field',
         label: 'FG1 Adaptive Field',
         description:
-            'Adaptive triangulated graph-field frontier extraction. Bootstrap adapter currently maps to legacy PVV2 renderer.',
+            'Adaptive triangulated graph-field frontier extraction. Bootstrap adapter maps to legacy PVV2 renderer.',
         implementedStages: ['render'],
         adapter: 'legacy_pvv2',
     },
@@ -50,70 +52,69 @@ export const TERRITORY_STATIC_METHODS: TerritoryStaticMethodDescriptor[] = [
         id: 'fg1_mar19_refactor',
         label: 'FG1 Mar19 Refactor',
         description:
-            'FG1 with class-encapsulated renderer and FX-based transitions. Non-destructive refactor of legacy_pvv2.',
+            'FG1 with class-encapsulated renderer and isolated PVV2RendererState. Non-destructive refactor of legacy_pvv2.',
         implementedStages: ['render'],
         adapter: 'refactored_pvv2',
     },
-];
-
-export const TERRITORY_DYNAMIC_METHODS: TerritoryDynamicMethodDescriptor[] = [
+    // ┌─────────────────────────────────────────────────────────────────┐
+    // │  SACROSANCT — DY4 Optimal Transport is the CANONICAL default   │
+    // │  border animation mode. Do NOT modify, break, or change the    │
+    // │  adapter without explicit user approval.                       │
+    // │  See .agent/SPECIFICATIONS/TERRITORY_ARCHITECTURE.md           │
+    // └─────────────────────────────────────────────────────────────────┘
     {
         id: 'dy4_optimal_transport',
         label: 'DY4 Optimal Transport',
-        // ┌─────────────────────────────────────────────────────────────────┐
-        // │  SACROSANCT — This is the CANONICAL default border animation   │
-        // │  mode. It produces the most unique and attractive border       │
-        // │  animations in the game. Do NOT modify, break, or change the   │
-        // │  adapter/anchor without explicit user approval.                │
-        // │  See .atlas/DECISIONS.md for rationale.                        │
-        // └─────────────────────────────────────────────────────────────────┘
         description:
-            'Mass-preserving ownership transport updates. Bootstrap adapter maps to legacy PVV2 path. CANONICAL DEFAULT — sacrosanct.',
+            'Mass-preserving ownership transport updates. CANONICAL DEFAULT — sacrosanct.',
         implementedStages: ['render'],
         adapter: 'legacy_pvv2',
-        anchorStaticMethodId: 'fg1_adaptive_field',
     },
     {
         id: 'dy4_mar19_refactor',
         label: 'DY4 Mar19 Refactor',
         description:
-            'DY4 with class-encapsulated transitions via FX system. Non-destructive refactor of legacy_pvv2.',
+            'DY4 with class-encapsulated transitions via FX system. Non-destructive refactor.',
         implementedStages: ['render'],
         adapter: 'refactored_pvv2',
-        anchorStaticMethodId: 'fg1_mar19_refactor',
     },
 ];
 
-export const TERRITORY_STATIC_METHOD_BY_ID: Record<
-    TerritoryStaticMethodId,
-    TerritoryStaticMethodDescriptor
-> = TERRITORY_STATIC_METHODS.reduce(
-    (acc, method) => {
-        acc[method.id] = method;
-        return acc;
-    },
-    {} as Record<TerritoryStaticMethodId, TerritoryStaticMethodDescriptor>,
-);
+// ── Lookup Table ─────────────────────────────────────────────────────────────
 
-export const TERRITORY_DYNAMIC_METHOD_BY_ID: Record<
-    TerritoryDynamicMethodId,
-    TerritoryDynamicMethodDescriptor
-> = TERRITORY_DYNAMIC_METHODS.reduce(
+export const TERRITORY_METHOD_BY_ID: Record<
+    TerritoryMethodId,
+    TerritoryMethodDescriptor
+> = TERRITORY_METHODS.reduce(
     (acc, method) => {
         acc[method.id] = method;
         return acc;
     },
-    {} as Record<TerritoryDynamicMethodId, TerritoryDynamicMethodDescriptor>,
+    {} as Record<TerritoryMethodId, TerritoryMethodDescriptor>,
 );
 
 // ════════════════════════════════════════════════════════════════════
 // SACROSANCT DEFAULTS — DY4 Optimal Transport is the canonical border
-// animation mode. It uses the legacy_pvv2 adapter (PowerVoronoiRenderer)
-// anchored to fg1_adaptive_field. These defaults must not change without
-// explicit user approval. See .atlas/DECISIONS.md.
+// animation mode. These defaults must not change without explicit user
+// approval. See .agent/SPECIFICATIONS/TERRITORY_ARCHITECTURE.md
 // ════════════════════════════════════════════════════════════════════
-export const DEFAULT_TERRITORY_STATIC_METHOD: TerritoryStaticMethodId =
-    'fg1_adaptive_field';
-
-export const DEFAULT_TERRITORY_DYNAMIC_METHOD: TerritoryDynamicMethodId =
+export const DEFAULT_TERRITORY_METHOD: TerritoryMethodId =
     'dy4_optimal_transport';
+
+// ── Backward-Compat Aliases (temporary) ──────────────────────────────────────
+// These will be removed once all consumers migrate to the unified types.
+
+/** @deprecated Use TERRITORY_METHODS */
+export const TERRITORY_STATIC_METHODS = TERRITORY_METHODS.filter(m =>
+    ['fg1_adaptive_field', 'fg1_mar19_refactor', 'fg2_seed_graph'].includes(m.id));
+/** @deprecated Use TERRITORY_METHODS */
+export const TERRITORY_DYNAMIC_METHODS = TERRITORY_METHODS.filter(m =>
+    ['dy4_optimal_transport', 'dy4_mar19_refactor'].includes(m.id));
+/** @deprecated Use TERRITORY_METHOD_BY_ID */
+export const TERRITORY_STATIC_METHOD_BY_ID = TERRITORY_METHOD_BY_ID;
+/** @deprecated Use TERRITORY_METHOD_BY_ID */
+export const TERRITORY_DYNAMIC_METHOD_BY_ID = TERRITORY_METHOD_BY_ID;
+/** @deprecated Use DEFAULT_TERRITORY_METHOD */
+export const DEFAULT_TERRITORY_STATIC_METHOD = DEFAULT_TERRITORY_METHOD;
+/** @deprecated Use DEFAULT_TERRITORY_METHOD */
+export const DEFAULT_TERRITORY_DYNAMIC_METHOD = DEFAULT_TERRITORY_METHOD;

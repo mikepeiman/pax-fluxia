@@ -44,6 +44,7 @@ This REPLACES the old MetricState → FrontierGraph → TerritoryRegions → Ren
 - `renderPowerVoronoi()` accepts `state?: PVV2RendererState` — always pass state, never rely on module globals.
 
 ## Implementation Rule
+.agent\SPECIFICATIONS\TERRITORY_ARCHITECTURE.md
 
 Preserve layer separation strictly. If a stage is incomplete, return a typed error or notImplemented status rather than fabricating geometry.
 

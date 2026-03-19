@@ -7,27 +7,34 @@ export {
 export { territoryTraceRun } from './traceStore';
 
 export {
+    TERRITORY_METHODS,
+    TERRITORY_METHOD_BY_ID,
+    TERRITORY_PIPELINE_STAGE_ORDER,
+    DEFAULT_TERRITORY_METHOD,
+    // Backward-compat aliases (temporary)
     TERRITORY_STATIC_METHODS,
     TERRITORY_DYNAMIC_METHODS,
-    TERRITORY_PIPELINE_STAGE_ORDER,
     DEFAULT_TERRITORY_STATIC_METHOD,
     DEFAULT_TERRITORY_DYNAMIC_METHOD,
 } from './registry';
 
 export type {
-    TerritoryDynamicMethodDescriptor,
-    TerritoryDynamicMethodId,
+    TerritoryMethodId,
+    TerritoryMethodDescriptor,
     TerritoryEngineInput,
-    TerritoryEngineMode,
     TerritoryMethodSelection,
     TerritoryNativeStageExecutor,
     TerritoryPipelineArtifacts,
     TerritoryPipelineRuntime,
     TerritoryPipelineStageId,
     TerritoryStageTraceStep,
-    TerritoryStaticMethodDescriptor,
-    TerritoryStaticMethodId,
     TerritoryTraceRun,
+    TerritoryLegacyAdapterId,
+    // Backward-compat aliases (temporary)
+    TerritoryStaticMethodId,
+    TerritoryDynamicMethodId,
+    TerritoryStaticMethodDescriptor,
+    TerritoryDynamicMethodDescriptor,
 } from './types';
 
 export { extractCanonicalData } from './engine';
