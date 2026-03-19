@@ -548,16 +548,58 @@ function mergeSameOwnerCells(
  *   - world boundary polylines for this owner
  * Then chains them endpoint-to-endpoint into closed polygon ring(s).
  *
+ * Shared polyline endpoints near the padded boundary are snapped to match
+ * the world border polyline coordinate system (actual world edges).
+ *
  * The resulting MergedTerritory[] shares EXACT vertices with the border data,
  * eliminating fill/border geometry divergence (B-42).
  */
 export function constructFillsFromBorders(
     sharedPolylines: SharedPolyline[],
     worldBorderPolylines: SharedPolyline[],
+    worldW: number,
+    worldH: number,
+    pad: number = 50,
 ): MergedTerritory[] {
+    const snapEps = 8; // same as extractWorldBorderPolylines boundary detection
+
+    // Snap a point from padded boundary to actual world edge (same logic as extractWorldBorderPolylines)
+    function snapBoundary(x: number, y: number): [number, number] {
+        let sx = x, sy = y;
+        if (x <= -pad + snapEps) sx = 0;
+        else if (x >= worldW + pad - snapEps) sx = worldW;
+        if (y <= -pad + snapEps) sy = 0;
+        else if (y >= worldH + pad - snapEps) sy = worldH;
+        // Clamp to world bounds
+        sx = Math.max(0, Math.min(worldW, sx));
+        sy = Math.max(0, Math.min(worldH, sy));
+        return [sx, sy];
+    }
+
+    function isNearBoundary(x: number, y: number): boolean {
+        return x <= -pad + snapEps || x >= worldW + pad - snapEps ||
+            y <= -pad + snapEps || y >= worldH + pad - snapEps;
+    }
+
+    // Snap boundary-adjacent endpoints in shared polylines
+    function snapPolylineEndpoints(pts: [number, number][]): [number, number][] {
+        if (pts.length < 2) return pts;
+        const result = pts.map(p => [...p] as [number, number]);
+        // Snap first point
+        if (isNearBoundary(result[0][0], result[0][1])) {
+            const [sx, sy] = snapBoundary(result[0][0], result[0][1]);
+            result[0] = [sx, sy];
+        }
+        // Snap last point
+        const last = result.length - 1;
+        if (isNearBoundary(result[last][0], result[last][1])) {
+            const [sx, sy] = snapBoundary(result[last][0], result[last][1]);
+            result[last] = [sx, sy];
+        }
+        return result;
+    }
+
     // Collect all directed segments per owner.
-    // Each shared polyline 'A|B' contributes its points to BOTH owner A and owner B.
-    // Each world border polyline 'owner|world' contributes to that owner.
     const ownerSegments = new Map<string, [number, number][][]>();
 
     function addSegment(ownerId: string, pts: [number, number][]) {
@@ -568,9 +610,10 @@ export function constructFillsFromBorders(
     for (const pl of sharedPolylines) {
         const [a, b] = pl.ownerPairKey.split('|');
         if (pl.points.length >= 2) {
-            addSegment(a, pl.points);
+            const snapped = snapPolylineEndpoints(pl.points);
+            addSegment(a, snapped);
             // Reverse for the other owner (border runs in opposite direction)
-            addSegment(b, [...pl.points].reverse());
+            addSegment(b, [...snapped].reverse());
         }
     }
 
@@ -581,7 +624,7 @@ export function constructFillsFromBorders(
         }
     }
 
-    const eps = 4; // endpoint match tolerance
+    const eps = 6; // endpoint match tolerance (slightly wider than snap precision)
     const result: MergedTerritory[] = [];
 
     for (const [ownerId, segments] of ownerSegments) {
@@ -609,22 +652,28 @@ export function constructFillsFromBorders(
                 }
 
                 // Find a segment whose start matches our tail
-                let found = false;
+                let bestIdx = -1;
+                let bestDist = Infinity;
                 for (const idx of unused) {
                     const seg = segments[idx];
                     const [sx, sy] = seg[0];
-                    if (Math.abs(sx - tailX) < eps && Math.abs(sy - tailY) < eps) {
-                        unused.delete(idx);
-                        // Skip first point (it matches our tail) to avoid duplicate
-                        for (let i = 1; i < seg.length; i++) {
-                            chain.push(seg[i]);
-                        }
-                        found = true;
-                        break;
+                    const dist = Math.abs(sx - tailX) + Math.abs(sy - tailY);
+                    if (dist < eps && dist < bestDist) {
+                        bestDist = dist;
+                        bestIdx = idx;
                     }
                 }
 
-                if (!found) break; // No more segments match — can't close
+                if (bestIdx >= 0) {
+                    unused.delete(bestIdx);
+                    const seg = segments[bestIdx];
+                    // Skip first point (it matches our tail) to avoid duplicate
+                    for (let i = 1; i < seg.length; i++) {
+                        chain.push(seg[i]);
+                    }
+                } else {
+                    break; // No more segments match — can't close
+                }
             }
 
             if (chain.length >= 3) {
@@ -638,6 +687,7 @@ export function constructFillsFromBorders(
     }
 
     log.sys('PVV2Stage', `constructFillsFromBorders: ${sharedPolylines.length} border + ${worldBorderPolylines.length} world polylines → ${result.length} fill regions`);
+
     return result;
 }
 
@@ -947,7 +997,7 @@ export function generateVoronoiTerritoryGeometry(
         // This eliminates fill/border geometry divergence (B-42) — both use identical vertices.
         // The old approach (independently Chaikin-smooth mergedRaw polygons) used a DIFFERENT
         // smoothing function with different pinning constraints, producing angular fills vs smooth borders.
-        const mergedTerritories = constructFillsFromBorders(sharedPolylines, worldBorderPolylines);
+        const mergedTerritories = constructFillsFromBorders(sharedPolylines, worldBorderPolylines, config.worldWidth, config.worldHeight, pad);
         log.sys('PVV2Stage', `BORDER-DERIVED FILLS: ${mergedTerritories.length} fill regions from ${sharedPolylines.length} border + ${worldBorderPolylines.length} world polylines`);
 
         log.sys('PVV2Stage', `MERGED: ${mergedTerritories.length} territories | chaikinPasses=${config.chaikinPasses} | pts: ${mergedTerritories.map(t => `${t.ownerId}:${t.points.length}`).join(' ')}`);
