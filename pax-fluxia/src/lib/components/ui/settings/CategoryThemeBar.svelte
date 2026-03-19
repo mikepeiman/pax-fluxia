@@ -8,6 +8,8 @@
         deleteCategoryPreset,
         resetCategoryToDefaults,
         importCategoryPreset,
+        getStarredNames,
+        setStarred,
         CATEGORY_META,
     } from "$lib/config/categoryThemes";
 
@@ -18,15 +20,24 @@
     let { category, onApply }: Props = $props();
 
     const meta = $derived(CATEGORY_META[category]);
-    let _version = $state(0); // bumped on save/delete to trigger $derived
+    let _version = $state(0);
     let presets = $derived.by(() => {
-        _version; // reactive dependency
+        _version;
         return listCategoryPresets(category);
     });
+    let starredNames = $derived.by(() => {
+        _version;
+        return getStarredNames(category);
+    });
+    let starredPresets = $derived(
+        presets.filter((p) => starredNames.has(p.name)),
+    );
+
     let selectedName = $state("");
     let showSaveInput = $state(false);
     let saveName = $state("");
     let saveFlash = $state(false);
+    let showEditModal = $state(false);
 
     function handleApply(name: string) {
         const preset = presets.find((p) => p.name === name);
@@ -57,26 +68,39 @@
         saveName = "";
         showSaveInput = false;
         selectedName = name;
-        _version++; // trigger preset list refresh
-
-        // Brief flash feedback
+        _version++;
         saveFlash = true;
         setTimeout(() => (saveFlash = false), 600);
-
-        // Save to File
         downloadThemeJson(preset);
     }
 
     function handleDelete(name: string) {
         deleteCategoryPreset(category, name);
         if (selectedName === name) selectedName = "";
-        _version++; // trigger preset list refresh
+        _version++;
+    }
+
+    function handleUpdate() {
+        if (!selectedName) return;
+        const existing = presets.find((p) => p.name === selectedName);
+        if (!existing || existing.builtIn) return;
+        const preset = saveCategoryPreset(category, selectedName);
+        _version++;
+        saveFlash = true;
+        setTimeout(() => (saveFlash = false), 600);
+        downloadThemeJson(preset);
     }
 
     function handleReset() {
         resetCategoryToDefaults(category);
         selectedName = "";
         onApply?.();
+    }
+
+    function toggleStar(name: string) {
+        const isCurrentlyStarred = starredNames.has(name);
+        setStarred(category, name, !isCurrentlyStarred);
+        _version++;
     }
 
     let fileInput: HTMLInputElement;
@@ -92,7 +116,6 @@
         reader.onload = () => {
             try {
                 const json = JSON.parse(reader.result as string);
-                // If the JSON has a different category, force it to this category
                 json.category = category;
                 const preset = importCategoryPreset(json, true);
                 if (preset) {
@@ -108,23 +131,10 @@
             }
         };
         reader.readAsText(file);
-        // Reset input so same file can be re-imported
         (e.target as HTMLInputElement).value = "";
     }
 
-    function handleUpdate() {
-        if (!selectedName) return;
-        const existing = presets.find((p) => p.name === selectedName);
-        if (!existing || existing.builtIn) return;
-        const preset = saveCategoryPreset(category, selectedName);
-        _version++;
-        saveFlash = true;
-        setTimeout(() => (saveFlash = false), 600);
-        downloadThemeJson(preset);
-    }
-
     $effect(() => {
-        // Determine if selected preset is a user preset (editable)
         const p = presets.find((pr) => pr.name === selectedName);
         isUserPreset = p ? !p.builtIn : false;
     });
@@ -133,16 +143,13 @@
 
 {#if presets.length > 0 || true}
     <div class="category-theme-bar">
-        <!-- Top Row: Select & Create -->
+        <!-- Top Row: Select & Actions -->
         <div class="top-row">
             <div class="action-buttons" class:hidden={showSaveInput}>
                 <select
                     class="theme-select action-half"
                     bind:value={selectedName}
                     onchange={() => {
-                        console.log(
-                            `[CategoryThemeBar] <select> onchange → selectedName="${selectedName}"`,
-                        );
                         if (selectedName) handleApply(selectedName);
                     }}
                 >
@@ -159,7 +166,7 @@
                         class="action-btn update-btn"
                         class:flash={saveFlash}
                         onclick={handleUpdate}
-                        title="Update ‘{selectedName}’ with current settings"
+                        title="Update '{selectedName}' with current settings"
                     >
                         💾
                     </button>
@@ -177,6 +184,13 @@
                     onclick={handleReset}
                 >
                     ↺
+                </button>
+                <button
+                    class="action-btn edit-btn"
+                    title="Manage themes"
+                    onclick={() => (showEditModal = true)}
+                >
+                    ✏️
                 </button>
                 <button
                     class="action-btn import-btn"
@@ -220,10 +234,10 @@
             </div>
         </div>
 
-        <!-- Chips Row -->
-        {#if presets.length > 0}
+        <!-- Starred Chips Row (only starred presets) -->
+        {#if starredPresets.length > 0}
             <div class="chips-row">
-                {#each presets as p}
+                {#each starredPresets as p}
                     <button
                         class="chip"
                         class:active={selectedName === p.name}
@@ -233,27 +247,73 @@
                             : `User: ${p.name}`}
                     >
                         {p.name}
-                        {#if !p.builtIn}
-                            <span
-                                role="button"
-                                tabindex="-1"
-                                class="chip-delete"
-                                onclick={(e) => {
-                                    e.stopPropagation();
-                                    handleDelete(p.name);
-                                }}
-                                onkeydown={(e) => {
-                                    if (e.key === "Enter") {
-                                        e.stopPropagation();
-                                        handleDelete(p.name);
-                                    }
-                                }}>×</span
-                            >
-                        {/if}
                     </button>
                 {/each}
             </div>
         {/if}
+    </div>
+{/if}
+
+<!-- ═══ Edit Modal ═══ -->
+{#if showEditModal}
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+        class="modal-backdrop"
+        onclick={(e) => {
+            if (e.target === e.currentTarget) showEditModal = false;
+        }}
+    >
+        <div class="modal-panel">
+            <div class="modal-header">
+                <span class="modal-title"
+                    >{meta.icon} Manage {meta.label} Themes</span
+                >
+                <button
+                    class="modal-close"
+                    onclick={() => (showEditModal = false)}>✕</button
+                >
+            </div>
+            <div class="modal-grid">
+                {#each presets as p}
+                    <div
+                        class="modal-chip"
+                        class:active={selectedName === p.name}
+                    >
+                        <button
+                            class="modal-chip-star"
+                            onclick={() => toggleStar(p.name)}
+                            title={starredNames.has(p.name)
+                                ? "Unstar"
+                                : "Star (show as chip)"}
+                        >
+                            {starredNames.has(p.name) ? "⭐" : "☆"}
+                        </button>
+                        <button
+                            class="modal-chip-name"
+                            onclick={() => {
+                                handleApply(p.name);
+                                showEditModal = false;
+                            }}
+                        >
+                            {p.builtIn ? "📦 " : ""}{p.name}
+                        </button>
+                        {#if !p.builtIn}
+                            <button
+                                class="modal-chip-delete"
+                                onclick={() => handleDelete(p.name)}
+                                title="Delete theme">✕</button
+                            >
+                        {/if}
+                    </div>
+                {/each}
+            </div>
+            {#if presets.length === 0}
+                <div class="modal-empty">
+                    No themes yet. Create one with the + button.
+                </div>
+            {/if}
+        </div>
     </div>
 {/if}
 
@@ -379,7 +439,7 @@
             transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
             opacity 0.25s;
         pointer-events: none;
-        background: #111520; /* obscure buttons underneath */
+        background: #111520;
         z-index: 2;
     }
     .save-drawer.open {
@@ -446,6 +506,7 @@
         transform: scale(0.95);
     }
 
+    /* ── Starred Chips ── */
     .chips-row {
         display: flex;
         flex-wrap: wrap;
@@ -475,15 +536,127 @@
         border-color: rgba(74, 222, 128, 0.4);
         color: #4ade80;
     }
-    .chip-delete {
-        font-size: 13px;
-        line-height: 1;
-        opacity: 0.3;
-        cursor: pointer;
-        padding-left: 2px;
+
+    /* ── Edit Modal ── */
+    .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.65);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        backdrop-filter: blur(4px);
     }
-    .chip-delete:hover {
-        opacity: 1;
+    .modal-panel {
+        background: #131825;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 12px;
+        padding: 16px 20px;
+        min-width: 320px;
+        max-width: 520px;
+        max-height: 80vh;
+        overflow-y: auto;
+        box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
+    }
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 14px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .modal-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #dde;
+    }
+    .modal-close {
+        background: none;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 6px;
+        color: #888;
+        font-size: 14px;
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .modal-close:hover {
+        background: rgba(255, 55, 55, 0.15);
         color: #ff5555;
+        border-color: rgba(255, 55, 55, 0.4);
+    }
+    .modal-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    .modal-chip {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.03);
+        transition: all 0.2s;
+    }
+    .modal-chip:hover {
+        background: rgba(255, 255, 255, 0.06);
+        border-color: rgba(255, 255, 255, 0.2);
+    }
+    .modal-chip.active {
+        border-color: rgba(74, 222, 128, 0.4);
+        background: rgba(74, 222, 128, 0.06);
+    }
+    .modal-chip-star {
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 16px;
+        padding: 0;
+        line-height: 1;
+        transition: transform 0.15s;
+    }
+    .modal-chip-star:hover {
+        transform: scale(1.2);
+    }
+    .modal-chip-name {
+        background: none;
+        border: none;
+        color: #ccc;
+        font-size: 12px;
+        cursor: pointer;
+        padding: 0;
+        font-family: inherit;
+        transition: color 0.2s;
+    }
+    .modal-chip-name:hover {
+        color: #fff;
+    }
+    .modal-chip-delete {
+        background: none;
+        border: none;
+        color: rgba(255, 80, 80, 0.4);
+        font-size: 14px;
+        cursor: pointer;
+        padding: 0 0 0 4px;
+        line-height: 1;
+        transition: all 0.2s;
+    }
+    .modal-chip-delete:hover {
+        color: #ff5555;
+        transform: scale(1.15);
+    }
+    .modal-empty {
+        color: #556;
+        font-size: 12px;
+        text-align: center;
+        padding: 20px 0;
     }
 </style>

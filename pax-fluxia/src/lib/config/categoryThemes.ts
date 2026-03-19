@@ -536,6 +536,31 @@ function persistPresets(category: ThemeCategory, presets: CategoryPreset[]): voi
     localStorage.setItem(STORAGE_PREFIX + category, JSON.stringify(presets));
 }
 
+// ── Starred Themes (per-category, separate from presets) ────────────────────
+
+const STARRED_PREFIX = 'pax_starredThemes_';
+
+export function getStarredNames(category: ThemeCategory): Set<string> {
+    if (typeof window === 'undefined') return new Set();
+    try {
+        const raw = localStorage.getItem(STARRED_PREFIX + category);
+        return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
+    } catch { return new Set(); }
+}
+
+export function setStarred(category: ThemeCategory, name: string, starred: boolean): void {
+    const names = getStarredNames(category);
+    if (starred) names.add(name);
+    else names.delete(name);
+    if (typeof window !== 'undefined') {
+        localStorage.setItem(STARRED_PREFIX + category, JSON.stringify([...names]));
+    }
+}
+
+export function isStarred(category: ThemeCategory, name: string): boolean {
+    return getStarredNames(category).has(name);
+}
+
 // Lazy-init cache
 const _cache = new Map<ThemeCategory, CategoryPreset[]>();
 
