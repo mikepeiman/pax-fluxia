@@ -93,6 +93,12 @@ export interface TerritoryGeometryData {
     fingerprint: string;
 }
 
+/** A continuous closed frontier loop for one player's territory boundary. */
+export interface FrontierLoop {
+    points: [number, number][];
+    ownerId: string;
+}
+
 // ---------------------------------------------------------------------------
 // Stage config
 // ---------------------------------------------------------------------------
