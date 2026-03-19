@@ -473,6 +473,9 @@
             "territoryGeometryMode",
             modeId,
         );
+        // Bump refresh token on every click — even re-clicking same mode forces recompute
+        (GAME_CONFIG as any).__GEOMETRY_REFRESH_TOKEN =
+            ((GAME_CONFIG as any).__GEOMETRY_REFRESH_TOKEN ?? 0) + 1;
         // When New-Frontiers-0319 is selected, also set TERRITORY_ENGINE_METHOD
         // so the engine dispatch routes to computeGeometry0319.
         // When switching away, reset to the current default method.

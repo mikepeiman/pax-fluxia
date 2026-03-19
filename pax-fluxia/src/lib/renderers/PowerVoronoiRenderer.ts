@@ -139,6 +139,10 @@ function buildShapeFingerprint(stars: StarState[]): string {
     // Chaikin passes drives chainSharedEdgesIntoPolylines in the geometry stage
     // — must be a shape-fingerprint dependency, not visual-only
     fp += `:chaikin=${GAME_CONFIG.VORONOI_BORDER_SMOOTH}`;
+    // Geometry mode controls which generator runs (standard vs Geometry_0319)
+    fp += `:geoMode=${GAME_CONFIG.TERRITORY_GEOMETRY_MODE}`;
+    fp += `:engMethod=${GAME_CONFIG.TERRITORY_ENGINE_METHOD}`;
+    fp += `:geoRefresh=${(GAME_CONFIG as any).__GEOMETRY_REFRESH_TOKEN ?? 0}`;
     return fp;
 }
 
