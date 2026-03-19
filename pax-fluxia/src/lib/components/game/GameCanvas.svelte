@@ -520,7 +520,7 @@
         const bgImagePath = GAME_CONFIG.BG_IMAGE_URL;
         const bgSprite = new PIXI.Sprite();
         bgSprite.anchor.set(0.5, 0.5);
-        bgSprite.alpha = 0.12;
+        bgSprite.alpha = GAME_CONFIG.BG_IMAGE_ALPHA ?? 0.5;
         app.stage.addChildAt(bgSprite, 0); // Bottom-most layer
         (app as any)._nebulaBgSprite = bgSprite;
 

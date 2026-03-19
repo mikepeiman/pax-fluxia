@@ -383,6 +383,7 @@ interface GameConfigType {
 
     // ── Visual Overrides ────────────────────────────────────────────────────────────
     BG_IMAGE_URL: string;          // Background image url relative to /assets/
+    BG_IMAGE_ALPHA: number;        // Background image opacity (0-1, default 0.5)
 
     // ── Metaball Territory ──────────────────────────────────────────────────
     METABALL_INFLUENCE_RADIUS: number;  // How far each star's field extends in px (default 120)
@@ -744,6 +745,7 @@ const _rawConfig: GameConfigType = {
 
     /** Background Image */
     BG_IMAGE_URL: "",
+    BG_IMAGE_ALPHA: 0.5,
 
     /** Star body shape: 'polygon' = type-specific shape, 'circle' = classic */
     STAR_SHAPE_MODE: 'polygon' as 'polygon' | 'circle',
