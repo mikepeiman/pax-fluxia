@@ -541,176 +541,149 @@ function mergeSameOwnerCells(
 
 
 /**
- * Construct closed fill polygons by walking each raw merged polygon and substituting
- * contested edges with their Chaikin-smoothed SharedPolyline points.
+ * Construct closed fill polygons by chaining frontier polylines at junction vertices.
+ *
+ * Each SharedPolyline carries ownership (ownerPairKey = 'A|B').
+ * Each WorldBorderPolyline carries ownership (ownerPairKey = 'owner|world').
+ * Polyline endpoints sit at junction vertices shared with other polylines.
  *
  * Algorithm:
- *   1. Build lookup: edgeKey → ownerPairKey (which edges are contested)
- *   2. Build lookup: polyline start/end ptKeys → SharedPolyline (for substitution)
- *   3. For each raw merged polygon:
- *      a. Walk edges, classify as contested or not
- *      b. Group consecutive contested edges with same ownerPairKey into runs
- *      c. Substitute each run with the matching smoothed polyline
- *      d. Non-contested edges: emit raw vertex (boundary-snapped if near world edge)
- *   4. Result: closed polygon with smoothed borders, raw non-contested edges
+ *   1. Index all polylines (shared + world border) into a junction vertex map:
+ *      ptKey(endpoint) → [{ polylineIdx, whichEnd }]
+ *   2. For each owner X, find all polylines where X is one of the pair owners.
+ *   3. Pick any unvisited polyline, take its points.
+ *   4. At the chain tail, look up the junction vertex and find the next unvisited
+ *      polyline that also has X as an owner.
+ *   5. Append its points (forward or reversed based on which end matched).
+ *   6. Repeat until ring closes.
  *
- * The raw polygon is ALWAYS closed, so the result is guaranteed closed.
- * Contested edges use the EXACT same smoothed points as the border polylines.
+ * Result: fill polygons using the EXACT same smoothed vertices as border polylines.
  */
-export function constructFillsFromFrontier(
-    mergedRaw: MergedTerritory[],
-    sharedEdgesRaw: SharedBorderEdge[],
+export function constructFillsFromFrontierChain(
     sharedPolylines: SharedPolyline[],
-    worldW: number,
-    worldH: number,
-    pad: number = 50,
+    worldBorderPolylines: SharedPolyline[],
 ): MergedTerritory[] {
-    const snapEps = 8;
+    // Combine all polylines into one array for uniform indexing
+    const allPolylines = [...sharedPolylines, ...worldBorderPolylines];
+    const N = allPolylines.length;
+    if (N === 0) return [];
 
-    // Snap boundary-adjacent points to world edge
-    function snapPoint(x: number, y: number): [number, number] {
-        let sx = x, sy = y;
-        if (x <= -pad + snapEps) sx = 0;
-        else if (x >= worldW + pad - snapEps) sx = worldW;
-        if (y <= -pad + snapEps) sy = 0;
-        else if (y >= worldH + pad - snapEps) sy = worldH;
-        sx = Math.max(0, Math.min(worldW, sx));
-        sy = Math.max(0, Math.min(worldH, sy));
-        return [sx, sy];
-    }
-
-    function isNearBoundary(x: number, y: number): boolean {
-        return x <= -pad + snapEps || x >= worldW + pad - snapEps ||
-            y <= -pad + snapEps || y >= worldH + pad - snapEps;
-    }
-
-    // Step 1: Build contested edge lookup: edgeKey → ownerPairKey
-    const contestedEdges = new Map<string, string>(); // edgeKey → ownerPairKey
-    for (const e of sharedEdgesRaw) {
-        const ek = edgeKey(e.x1, e.y1, e.x2, e.y2);
-        const pairKey = e.ownerA < e.ownerB
-            ? `${e.ownerA}|${e.ownerB}`
-            : `${e.ownerB}|${e.ownerA}`;
-        contestedEdges.set(ek, pairKey);
-    }
-
-    // Step 2: Build polyline lookup by start/end ptKeys for fast matching.
-    // A polyline preserves its first/last vertices after Chaikin smoothing.
-    // Key format: "pairKey|startPtKey|endPtKey"
-    interface PolylineEntry {
-        polyline: SharedPolyline;
+    // Parse ownership from each polyline
+    interface PolylineInfo {
+        points: [number, number][];
+        ownerA: string;
+        ownerB: string;
         startKey: string;
         endKey: string;
     }
-    const polylinesByPair = new Map<string, PolylineEntry[]>();
-    for (const pl of sharedPolylines) {
-        if (pl.points.length < 2) continue;
-        const first = pl.points[0];
-        const last = pl.points[pl.points.length - 1];
-        const entry: PolylineEntry = {
-            polyline: pl,
-            startKey: ptKey(first[0], first[1]),
-            endKey: ptKey(last[0], last[1]),
+    const info: PolylineInfo[] = allPolylines.map(pl => {
+        const [a, b] = pl.ownerPairKey.split('|');
+        const pts = pl.points;
+        return {
+            points: pts,
+            ownerA: a,
+            ownerB: b,
+            startKey: ptKey(pts[0][0], pts[0][1]),
+            endKey: ptKey(pts[pts.length - 1][0], pts[pts.length - 1][1]),
         };
-        if (!polylinesByPair.has(pl.ownerPairKey)) polylinesByPair.set(pl.ownerPairKey, []);
-        polylinesByPair.get(pl.ownerPairKey)!.push(entry);
+    });
+
+    // Build junction vertex map: ptKey → list of { polylineIdx, whichEnd }
+    interface JunctionEntry {
+        plIdx: number;
+        end: 'start' | 'end';
+    }
+    const junctions = new Map<string, JunctionEntry[]>();
+
+    function addJunction(key: string, plIdx: number, end: 'start' | 'end') {
+        if (!junctions.has(key)) junctions.set(key, []);
+        junctions.get(key)!.push({ plIdx, end });
     }
 
-    // Step 3: Walk each raw polygon and construct the smoothed fill
+    for (let i = 0; i < N; i++) {
+        if (info[i].points.length < 2) continue;
+        addJunction(info[i].startKey, i, 'start');
+        addJunction(info[i].endKey, i, 'end');
+    }
+
+    // Collect which polylines touch each owner
+    const ownerPolylines = new Map<string, Set<number>>();
+    for (let i = 0; i < N; i++) {
+        if (info[i].points.length < 2) continue;
+        const { ownerA, ownerB } = info[i];
+        for (const owner of [ownerA, ownerB]) {
+            if (!owner || owner === 'world') continue;
+            if (!ownerPolylines.has(owner)) ownerPolylines.set(owner, new Set());
+            ownerPolylines.get(owner)!.add(i);
+        }
+    }
+
+    // For each owner, chain their polylines into closed fill rings
     const result: MergedTerritory[] = [];
+    const globalUsed = new Set<string>(); // "ownerX|plIdx" — track per-owner usage
 
-    for (const territory of mergedRaw) {
-        const pts = territory.points;
-        const n = pts.length;
-        if (n < 3) continue;
+    for (const [ownerId, plIdxSet] of ownerPolylines) {
+        const ownerUsed = new Set<number>();
 
-        // Classify each edge
-        interface EdgeInfo {
-            idx: number;
-            x1: number; y1: number;
-            x2: number; y2: number;
-            contested: boolean;
-            pairKey: string;
-        }
-        const edges: EdgeInfo[] = [];
-        for (let i = 0; i < n; i++) {
-            const [x1, y1] = pts[i];
-            const [x2, y2] = pts[(i + 1) % n];
-            const ek = edgeKey(x1, y1, x2, y2);
-            const pairKey = contestedEdges.get(ek);
-            edges.push({
-                idx: i,
-                x1, y1, x2, y2,
-                contested: pairKey !== undefined,
-                pairKey: pairKey ?? '',
-            });
-        }
+        for (const startPlIdx of plIdxSet) {
+            if (ownerUsed.has(startPlIdx)) continue;
+            ownerUsed.add(startPlIdx);
 
-        // Group consecutive contested edges with same pairKey into runs
-        const fillPoints: [number, number][] = [];
-        let i = 0;
-        while (i < n) {
-            const edge = edges[i];
+            // Start chain with this polyline's points
+            const chain: [number, number][] = [...info[startPlIdx].points];
+            let tailKey = info[startPlIdx].endKey;
+            const headKey = info[startPlIdx].startKey;
 
-            if (!edge.contested) {
-                // Non-contested edge: emit raw vertex (boundary-snapped)
-                const pt = isNearBoundary(edge.x1, edge.y1)
-                    ? snapPoint(edge.x1, edge.y1)
-                    : [edge.x1, edge.y1] as [number, number];
-                fillPoints.push(pt);
-                i++;
-                continue;
-            }
+            let safety = N * 2;
+            let closed = false;
 
-            // Start of a contested run — collect consecutive edges with same pairKey
-            const runPairKey = edge.pairKey;
-            const runStart = i;
-            while (i < n && edges[i].contested && edges[i].pairKey === runPairKey) {
-                i++;
-            }
-            // Run is edges[runStart..i-1]
-            // Run starts at edges[runStart].(x1,y1) and ends at edges[i-1].(x2,y2)
-            const runFirstPt = ptKey(edges[runStart].x1, edges[runStart].y1);
-            const runLastPt = ptKey(edges[i - 1].x2, edges[i - 1].y2);
-
-            // Find matching smoothed polyline
-            const candidates = polylinesByPair.get(runPairKey);
-            let matched = false;
-            if (candidates) {
-                for (const entry of candidates) {
-                    if (entry.startKey === runFirstPt && entry.endKey === runLastPt) {
-                        // Forward match — use polyline points as-is (skip last to avoid duplicate with next edge)
-                        for (let j = 0; j < entry.polyline.points.length - 1; j++) {
-                            fillPoints.push(entry.polyline.points[j]);
-                        }
-                        matched = true;
-                        break;
-                    }
-                    if (entry.endKey === runFirstPt && entry.startKey === runLastPt) {
-                        // Reverse match — use polyline points in reverse (skip last to avoid duplicate)
-                        for (let j = entry.polyline.points.length - 1; j > 0; j--) {
-                            fillPoints.push(entry.polyline.points[j]);
-                        }
-                        matched = true;
-                        break;
-                    }
+            while (safety-- > 0 && !closed) {
+                // Check if chain is closed
+                if (chain.length >= 4 && tailKey === headKey) {
+                    closed = true;
+                    break;
                 }
-            }
 
-            if (!matched) {
-                // Fallback: emit raw contested vertices (unsmoothed, better than nothing)
-                for (let j = runStart; j < i; j++) {
-                    fillPoints.push([edges[j].x1, edges[j].y1]);
+                // Find next unvisited polyline at this junction that has our owner
+                const candidates = junctions.get(tailKey);
+                if (!candidates) break;
+
+                let found = false;
+                for (const cand of candidates) {
+                    if (ownerUsed.has(cand.plIdx)) continue;
+                    const ci = info[cand.plIdx];
+                    // Must have our owner
+                    if (ci.ownerA !== ownerId && ci.ownerB !== ownerId) continue;
+
+                    ownerUsed.add(cand.plIdx);
+
+                    if (cand.end === 'start') {
+                        // Polyline start matches our tail — use points forward, skip first (duplicate)
+                        for (let j = 1; j < ci.points.length; j++) {
+                            chain.push(ci.points[j]);
+                        }
+                        tailKey = ci.endKey;
+                    } else {
+                        // Polyline end matches our tail — use points reversed, skip first (duplicate)
+                        for (let j = ci.points.length - 2; j >= 0; j--) {
+                            chain.push(ci.points[j]);
+                        }
+                        tailKey = ci.startKey;
+                    }
+                    found = true;
+                    break;
                 }
-            }
-        }
 
-        if (fillPoints.length >= 3) {
-            result.push({
-                points: fillPoints,
-                ownerId: territory.ownerId,
-                color: 0,
-            });
+                if (!found) break;
+            }
+
+            if (chain.length >= 3) {
+                result.push({
+                    points: chain,
+                    ownerId,
+                    color: 0,
+                });
+            }
         }
     }
 
@@ -732,10 +705,13 @@ export function constructFillsFromFrontier(
         });
     }
     console.table(diagRows);
-    log.sys('PVV2Stage', `constructFillsFromFrontier: ${mergedRaw.length} raw territories → ${result.length} fill regions`);
+    log.sys('PVV2Stage', `constructFillsFromFrontierChain: ${allPolylines.length} polylines → ${result.length} fill regions`);
 
     return result;
 }
+
+
+
 
 
 export function chainSharedEdgesIntoPolylines(
@@ -1036,13 +1012,11 @@ export function generateVoronoiTerritoryGeometry(
         const worldBorderPolylines = extractWorldBorderPolylines(mergedRaw, config.worldWidth, config.worldHeight);
         log.sys('PVV2Stage', `WORLD BORDERS: ${worldBorderPolylines.length} boundary polylines`);
 
-        // Stage 8: Construct fill polygons FROM border data.
-        // Fill regions are assembled by walking each raw merged polygon and substituting
-        // contested edges with their Chaikin-smoothed SharedPolyline points.
-        // This eliminates fill/border geometry divergence (B-42) — both use identical vertices.
-        // Non-contested edges (world boundary, corners) keep raw coordinates.
-        const mergedTerritories = constructFillsFromFrontier(mergedRaw, sharedEdges, sharedPolylines, config.worldWidth, config.worldHeight, pad);
-        log.sys('PVV2Stage', `FRONTIER FILLS: ${mergedTerritories.length} fill regions from ${mergedRaw.length} raw territories`);
+        // Stage 8: Construct fill polygons by chaining frontier polylines at junction vertices.
+        // Each polyline carries ownership. Fills use the EXACT same smoothed vertices as borders.
+        // Eliminates fill/border geometry divergence (B-42).
+        const mergedTerritories = constructFillsFromFrontierChain(sharedPolylines, worldBorderPolylines);
+        log.sys('PVV2Stage', `FRONTIER CHAIN FILLS: ${mergedTerritories.length} fill regions`);
 
         log.sys('PVV2Stage', `MERGED: ${mergedTerritories.length} territories | chaikinPasses=${config.chaikinPasses} | pts: ${mergedTerritories.map((t: MergedTerritory) => `${t.ownerId}:${t.points.length}`).join(' ')}`);
 
