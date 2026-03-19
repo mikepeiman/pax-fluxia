@@ -434,6 +434,10 @@
 | B-94 | Conquest animation disjoint/jump — intermittent visual glitch | Fixed (2026-02-24) |
 | B-95 | Leaderboard production stat always shows 0 in SP — not computed in updatePlayerStats | Fixed (2026-02-19) |
 | B-96 | **Enclave double-coloring**: When enclaves are created through gameplay, their territory fills get double-colored (e.g. neutral grey becomes near-black). Hypothesis: overlapping fill polygons for the same owner are being composited, darkening the color. | Open |
+| B-97 | **World boundary visual**: Disconnected straight line not aligned with border — the boundary lines are inside the actual border, not flush. Needs visual fix. | Open |
+| B-98 | **Frontier junction juts & loop continuity**: End-chain junctions of frontier segments produce sharp corner juts and animation side-effects. Frontiers should be singular continuous loops — when they change, the transition should be smooth like a string/rope with mathematical best-fit and most-efficient displacement (optimal transport). This is the root cause of: small sharp corners, animation discontinuities on conquest, and border segments "jumping" between frames. User has described this specification repeatedly across multiple sessions. | Open (HIGH PRIORITY) |
+| B-99 | **Pixi Rope thick border flash on conquest**: In Rope transition mode, borders flash thick (possibly hard-coded default width) on conquest events, then snap to thin borders (respecting slider settings). Width should be consistent throughout transitions. | Open (HIGH PRIORITY) |
+| R-131 | **Neutral territory transparency**: Toggle option for neutral territory to have color OR full transparency (no fill, showing background). Future roadmap: special territory types with shimmering VFX. | 🔴 |
 
 ## Known Regressions
 
