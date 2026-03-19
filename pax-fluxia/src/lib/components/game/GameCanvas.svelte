@@ -563,6 +563,16 @@
         };
         window.addEventListener("pax-bg-change", handleBgChange);
 
+        // Live alpha adjustment via slider
+        const handleBgAlpha = (e: Event) => {
+            const alpha = (e as CustomEvent).detail as number;
+            const sprite = (app as any)?._nebulaBgSprite as
+                | PIXI.Sprite
+                | undefined;
+            if (sprite) sprite.alpha = alpha;
+        };
+        window.addEventListener("pax-bg-alpha-change", handleBgAlpha);
+
         log.success(
             "GameCanvas",
             `PixiJS initialized (${app.screen.width}x${app.screen.height})`,
