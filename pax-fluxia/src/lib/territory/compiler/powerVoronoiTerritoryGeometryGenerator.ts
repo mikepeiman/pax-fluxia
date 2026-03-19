@@ -647,6 +647,8 @@ export function constructFillsFromBorders(
         const [owner] = pl.ownerPairKey.split('|');
         if (owner && pl.points.length >= 2) {
             addSegment(owner, pl.points);
+            // Also add reversed — chainer only matches start→tail, so both directions needed
+            addSegment(owner, [...pl.points].reverse());
         }
     }
 
@@ -666,6 +668,7 @@ export function constructFillsFromBorders(
             const p1 = snapPoint([x1, y1]);
             const p2 = snapPoint([x2, y2]);
             addSegment(territory.ownerId, [p1, p2]);
+            addSegment(territory.ownerId, [p2, p1]); // Reverse direction too
             connectingCount++;
         }
     }
