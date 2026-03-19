@@ -866,9 +866,16 @@ export function renderPowerVoronoi(
     }
 
     // Draw inner contested borders on s.fillGraphics (same layer, after fills)
-    if (s.targetSharedPolylines && s.targetSharedPolylines.length > 0 && borderWidth > 0 && borderAlpha > 0) {
+    // GUARD: skip if a transition morpher is about to start — the morpher will handle borders.
+    // Drawing them here AND having the morpher draw them creates double-drawn borders (B-XX).
+    const willStartTransition = (shapeChanged || territoryTransitions.hasActiveTransitions) && transitionMs > 0
+        && s.prevSharedPolylines && s.prevSharedPolylines.length > 0
+        && s.targetSharedPolylines && s.targetSharedPolylines.length > 0;
+    if (!willStartTransition && s.targetSharedPolylines && s.targetSharedPolylines.length > 0 && borderWidth > 0 && borderAlpha > 0) {
         drawBorderPolylines(s.fillGraphics, s.targetSharedPolylines, 0, borderWidth, borderAlpha);
         log.renderer('PVV2', `🟢 BORDERS DRAWN on s.fillGraphics | polylines=${s.targetSharedPolylines.length} bw=${borderWidth} ba=${borderAlpha}`);
+    } else if (willStartTransition) {
+        log.renderer('PVV2', `⏸️ BORDERS DEFERRED — transition morpher will draw them`);
     } else {
         log.renderer('PVV2', `🔴 BORDERS SKIPPED | polylines=${s.targetSharedPolylines?.length ?? 'null'} bw=${borderWidth} ba=${borderAlpha}`);
     }
