@@ -837,11 +837,13 @@ export function executePVV2MetricStage(
             : mergedRaw;
 
         // Stage 7b: Dense resampling — populate frontier with reference vertices
-        // every `frontierResolution` pixels. These become the CANONICAL coordinate
-        // points for both fill and border rendering. Single source.
-        const spacing = Math.max(1, Math.min(20, config.frontierResolution));
-        for (const territory of mergedTerritories) {
-            territory.points = resampleClosedPolygonBySpacing(territory.points, spacing);
+        // every `frontierResolution` pixels. Only active when frontierResolution > 0
+        // (i.e., frontier_loop_morph mode). FG2 modes skip this — polygons keep native vertices.
+        if (config.frontierResolution > 0) {
+            const spacing = Math.max(1, Math.min(20, config.frontierResolution));
+            for (const territory of mergedTerritories) {
+                territory.points = resampleClosedPolygonBySpacing(territory.points, spacing);
+            }
         }
 
         // Also smooth enclave hole polygons with the same passes

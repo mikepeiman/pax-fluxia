@@ -741,7 +741,10 @@ export function renderPowerVoronoi(
         disconnectDistance: GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE ?? 400,
         clusterSplit: Boolean(GAME_CONFIG.TERRITORY_CLUSTER_SPLIT),
         chaikinPasses: Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3))),
-        frontierResolution: Math.max(1, Math.min(20, GAME_CONFIG.FRONTIER_RESOLUTION ?? 5)),
+        // Only apply dense frontier resampling when in frontier_loop_morph mode
+        frontierResolution: (GAME_CONFIG.TERRITORY_BORDER_TRANSITION ?? 'pixi_graphics_morph') === 'frontier_loop_morph'
+            ? Math.max(1, Math.min(20, GAME_CONFIG.FRONTIER_RESOLUTION ?? 5))
+            : 0,
         worldWidth,
         worldHeight,
     };
@@ -888,13 +891,13 @@ export function renderPowerVoronoi(
                 const borderWidth = GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 1.5;
                 activeRopeRenderer = new RopeBorderRenderer(prevSharedPolylines, targetSharedPolylines, easing, resampleN, borderWidth, overshoot);
                 activeRopeRenderer.addTo(voronoiContainer);
+            } else if (borderTransMode === 'frontier_loop_morph') {
+                // Unified frontier loop morpher — fills + borders from same closed polygon data
+                if (prevMergedTerritories && lastMergedTerritories) {
+                    activeLoopMorpher = new FrontierLoopMorpher(prevMergedTerritories, lastMergedTerritories, easing, resampleN, overshoot);
+                }
             } else if (borderTransMode === 'pixi_graphics_morph' || borderTransMode === 'optimal_transport' || borderTransMode === 'smooth_morph') {
                 activeMorpher = new GraphicsPathMorpher(prevSharedPolylines, targetSharedPolylines, easing, resampleN, overshoot);
-            }
-
-            // Unified frontier loop morpher — fills + borders from same closed polygon data
-            if (prevMergedTerritories && lastMergedTerritories) {
-                activeLoopMorpher = new FrontierLoopMorpher(prevMergedTerritories, lastMergedTerritories, easing, resampleN, overshoot);
             }
             // else: no morpher — borders only appear at rebuild time (steady-state)
         }

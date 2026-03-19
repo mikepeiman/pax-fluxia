@@ -554,6 +554,7 @@
         },
         { id: "smooth_morph", label: "5. Smooth Morph (Legacy)" },
         { id: "pressure_wave", label: "6. Pressure Wave" },
+        { id: "frontier_loop_morph", label: "7. Frontier Loop Morph" },
     ] as const;
 
     /** Map style IDs to old boolean flag panel keys (backward compat) */
