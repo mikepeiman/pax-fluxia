@@ -20,7 +20,6 @@ Read `.agent/SPECIFICATIONS/TERRITORY_ARCHITECTURE.md` before writing any code. 
 3. **Renderer Rules (Presentation Layer):**
    - **Fill + border on the SAME points** — `poly(pts).fill()` then `poly(pts).stroke()` from ONE point array
    - NO smoothing in renderers. Geometry arrives pre-smoothed.
-4. **DY4 Optimal Transport is SACROSANCT** — do not alter its behavior
 
 ---
 
@@ -110,19 +109,17 @@ The key insight: every frontier point has TWO owners (one on each side). Build a
    - If any gaps remain (disconnected junction vertices), connect closest unmatched endpoints
 
 4. **Output** `TerritoryGeometryData` with:
-   - `mergedTerritories`: the closed fill regions from step 3
-   - `sharedPolylines`: the inter-owner polylines from step 2 (for border drawing)
+   - `playerTerritories`: the closed fill regions from step 3
+   - `sharedFrontierPolylines`: the inter-owner polylines from step 2 (for border drawing)
    - `worldBorderPolylines`: the owner-world polylines from step 2
+
+5. **Do not preserve** `mergeSameOwnerCells` and `chained shared-polylines` as truth sources.
 
 ### Critical: World boundary must be first-class
 
 `extractWorldBorderPolylines` currently only captures edges where BOTH endpoints are on the SAME boundary side. This misses diagonal edges that cross from one side to another (e.g., top→right at a corner). Your implementation MUST capture ALL non-contested edges as world boundary edges.
 
 The correct classification: for each edge of a merged raw polygon, check if `edgeKey` matches any `SharedBorderEdge`. If yes → contested. If no → world boundary. Don't filter by "same boundary side".
-
-**However**, be aware that `edgeKey` matching between merged polygon edges and shared edges has historically failed due to coordinate precision drift. The raw Voronoi edges from `extractSharedEdges` may have slightly different coordinates than the merged polygon edges from `mergeSameOwnerCells` because the polygon union operation can introduce floating-point drift.
-
-**Robust alternative:** Instead of using the merged polygon to find world boundary edges, extract them directly from the Voronoi cells. For each cell, walk its edges. An edge is a world boundary edge if the adjacent cell doesn't exist (it's clipped at the world boundary). This gives you the exact same coordinates as the shared edges (both come from the Voronoi tessellation directly).
 
 ---
 
@@ -208,7 +205,6 @@ Wire it in `pax-fluxia/src/lib/territory/orchestrator/engine.ts` to call your ne
 2. Console diagnostic: fill regions should show ✓ closed for all territories
 3. Fill point counts should be HIGH (matching sum of smoothed polyline points per owner, not raw polygon vertex count)
 4. Visual: fills smooth, exactly matching border curves, no angular corners at junctions
-5. DY4 border animations must remain unaffected (SACROSANCT)
 
 ---
 
