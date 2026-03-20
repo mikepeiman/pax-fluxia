@@ -327,6 +327,7 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
         'DEBUG_MORPH_SLOWMO',
         'DEBUG_MORPH_VERTEX_NTH',
         'DEBUG_MORPH_VERTEX_COLOR_MODE',
+        'MORPH_CONQUEST_RADIUS',
     ],
 
     audio: [
