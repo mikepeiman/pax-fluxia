@@ -489,63 +489,178 @@ function alignClosedPolygon(from: [number, number][], to: [number, number][]): [
  */
 
 /**
- * For each source vertex, project it onto the nearest point on the target polygon's perimeter.
- * Returns an array of the same length as `from`, where each entry is the nearest point
- * on the `target` boundary (with sub-edge interpolation for precision).
- *
- * This preserves spatial identity: vertices far from the conquest front barely move,
- * while vertices near the shape change find their new positions on the changed boundary.
+ * Project a single point onto the nearest point on a closed polygon's perimeter.
+ * Returns the [x, y] of the nearest point and its arc-length position along the perimeter.
  */
-function projectOntoPerimeter(
+function projectPointOntoPerimeter(
+    px: number, py: number,
+    closed: [number, number][],
+    edgeLengths: number[],
+    edgeCumLen: number[],
+): { x: number; y: number; arcLen: number } {
+    const nEdges = closed.length - 1;
+    let bestDistSq = Infinity;
+    let bestX = px, bestY = py, bestArc = 0;
+
+    for (let ei = 0; ei < nEdges; ei++) {
+        const ax = closed[ei][0], ay = closed[ei][1];
+        const bx = closed[ei + 1][0], by = closed[ei + 1][1];
+        const abx = bx - ax, aby = by - ay;
+        const lenSq = abx * abx + aby * aby;
+        if (lenSq < 1e-10) continue;
+
+        const apx = px - ax, apy = py - ay;
+        const t = Math.max(0, Math.min(1, (apx * abx + apy * aby) / lenSq));
+        const cx = ax + t * abx, cy = ay + t * aby;
+        const dx = px - cx, dy = py - cy;
+        const distSq = dx * dx + dy * dy;
+
+        if (distSq < bestDistSq) {
+            bestDistSq = distSq;
+            bestX = cx;
+            bestY = cy;
+            // Arc-length = cumulative length to start of this edge + t * edge length
+            bestArc = (ei > 0 ? edgeCumLen[ei - 1] : 0) + t * edgeLengths[ei];
+        }
+    }
+    return { x: bestX, y: bestY, arcLen: bestArc };
+}
+
+/**
+ * Sample a point at a given arc-length position along a closed polygon's perimeter.
+ */
+function sampleAtArcLength(
+    arcLen: number,
+    closed: [number, number][],
+    edgeLengths: number[],
+    edgeCumLen: number[],
+    totalLen: number,
+): [number, number] {
+    // Wrap arc-length to [0, totalLen)
+    let s = arcLen % totalLen;
+    if (s < 0) s += totalLen;
+
+    // Find which edge this arc-length falls on
+    for (let ei = 0; ei < edgeLengths.length; ei++) {
+        const edgeStart = ei > 0 ? edgeCumLen[ei - 1] : 0;
+        const edgeEnd = edgeCumLen[ei];
+        if (s <= edgeEnd + 1e-6) {
+            const t = edgeLengths[ei] > 1e-10 ? (s - edgeStart) / edgeLengths[ei] : 0;
+            const ax = closed[ei][0], ay = closed[ei][1];
+            const bx = closed[ei + 1][0], by = closed[ei + 1][1];
+            return [ax + t * (bx - ax), ay + t * (by - ay)];
+        }
+    }
+    // Fallback: last vertex
+    return [closed[closed.length - 1][0], closed[closed.length - 1][1]];
+}
+
+/**
+ * Build morph targets using even-distribution algorithm:
+ * 1. Project each `from` vertex onto `to` perimeter to compute displacement
+ * 2. Classify: pinned (displacement < threshold) or morphing
+ * 3. Pinned vertices: toPoints = fromPoints (they don't move)
+ * 4. Morphing runs: distribute evenly along the `to` boundary section
+ *    between the two adjacent pinned anchors, in original order
+ */
+function buildEvenDistributionTargets(
     from: [number, number][],
     target: [number, number][],
+    pinThreshold: number,
 ): [number, number][] {
-    const tLen = target.length;
-    if (tLen < 2) return from.map((p) => [p[0], p[1]] as [number, number]);
+    const n = from.length;
+    if (n < 3) return from.map(p => [p[0], p[1]] as [number, number]);
 
-    // Close the target polygon if not already closed
+    // Close the target polygon
     const closed = [...target];
-    const first = target[0], last = target[tLen - 1];
+    const first = target[0], last = target[target.length - 1];
     if (Math.abs(first[0] - last[0]) > 0.01 || Math.abs(first[1] - last[1]) > 0.01) {
         closed.push(first);
     }
     const nEdges = closed.length - 1;
 
-    const result: [number, number][] = new Array(from.length);
+    // Pre-compute edge lengths and cumulative lengths
+    const edgeLengths: number[] = new Array(nEdges);
+    const edgeCumLen: number[] = new Array(nEdges);
+    let totalLen = 0;
+    for (let ei = 0; ei < nEdges; ei++) {
+        const dx = closed[ei + 1][0] - closed[ei][0];
+        const dy = closed[ei + 1][1] - closed[ei][1];
+        edgeLengths[ei] = Math.sqrt(dx * dx + dy * dy);
+        totalLen += edgeLengths[ei];
+        edgeCumLen[ei] = totalLen;
+    }
 
-    for (let fi = 0; fi < from.length; fi++) {
-        const px = from[fi][0];
-        const py = from[fi][1];
-        let bestDistSq = Infinity;
-        let bestX = px, bestY = py;
+    // Step 1: Project each from vertex, compute displacement, classify
+    const projections: { x: number; y: number; arcLen: number; dist: number }[] = new Array(n);
+    const isPinned: boolean[] = new Array(n);
 
-        // Check each edge of the target polygon
-        for (let ei = 0; ei < nEdges; ei++) {
-            const ax = closed[ei][0], ay = closed[ei][1];
-            const bx = closed[ei + 1][0], by = closed[ei + 1][1];
+    for (let i = 0; i < n; i++) {
+        const proj = projectPointOntoPerimeter(from[i][0], from[i][1], closed, edgeLengths, edgeCumLen);
+        const dx = proj.x - from[i][0], dy = proj.y - from[i][1];
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        projections[i] = { ...proj, dist };
+        isPinned[i] = dist < pinThreshold;
+    }
 
-            // Project point onto line segment AB
-            const abx = bx - ax, aby = by - ay;
-            const lenSq = abx * abx + aby * aby;
-            if (lenSq < 1e-10) continue; // degenerate edge
+    // Step 2: Build result — pinned vertices stay, morphing runs distribute evenly
+    const result: [number, number][] = new Array(n);
 
-            // t = clamp(dot(AP, AB) / |AB|², 0, 1)
-            const apx = px - ax, apy = py - ay;
-            const t = Math.max(0, Math.min(1, (apx * abx + apy * aby) / lenSq));
+    // Set pinned vertices immediately
+    for (let i = 0; i < n; i++) {
+        if (isPinned[i]) {
+            result[i] = [from[i][0], from[i][1]]; // Pinned: don't move
+        }
+    }
 
-            const cx = ax + t * abx;
-            const cy = ay + t * aby;
-            const dx = px - cx, dy = py - cy;
-            const distSq = dx * dx + dy * dy;
+    // Find morphing runs (contiguous sequences of non-pinned vertices)
+    // Walk circularly to find run boundaries
+    let i = 0;
+    while (i < n) {
+        if (isPinned[i]) { i++; continue; }
 
-            if (distSq < bestDistSq) {
-                bestDistSq = distSq;
-                bestX = cx;
-                bestY = cy;
-            }
+        // Found start of a morphing run — find its extent
+        const runStart = i;
+        let runEnd = i;
+        while (runEnd < n && !isPinned[runEnd]) runEnd++;
+        const runLen = runEnd - runStart;
+
+        // Find the pinned anchors bounding this run
+        // Left anchor: last pinned vertex before runStart (wrapping)
+        const leftAnchorIdx = (runStart - 1 + n) % n;
+        // Right anchor: first pinned vertex after runEnd-1 (wrapping)
+        const rightAnchorIdx = runEnd % n;
+
+        // Get arc-length positions of the anchors on `to`'s perimeter
+        let arcStart: number, arcEnd: number;
+
+        if (isPinned[leftAnchorIdx]) {
+            arcStart = projections[leftAnchorIdx].arcLen;
+        } else {
+            // If no pinned anchor exists (all morphing), use from[0]'s projection
+            arcStart = projections[runStart].arcLen;
         }
 
-        result[fi] = [bestX, bestY];
+        if (isPinned[rightAnchorIdx]) {
+            arcEnd = projections[rightAnchorIdx].arcLen;
+        } else {
+            // All morphing: distribute along entire perimeter
+            arcEnd = arcStart + totalLen;
+        }
+
+        // Ensure arcEnd > arcStart (wrapping around if needed)
+        if (arcEnd <= arcStart) arcEnd += totalLen;
+
+        // Distribute morphing vertices evenly between anchors
+        const divisions = runLen + 1; // +1 because anchors are boundaries
+        const arcStep = (arcEnd - arcStart) / divisions;
+
+        for (let j = 0; j < runLen; j++) {
+            const s = arcStart + arcStep * (j + 1);
+            result[runStart + j] = sampleAtArcLength(s, closed, edgeLengths, edgeCumLen, totalLen);
+        }
+
+        i = runEnd;
     }
 
     return result;
@@ -604,8 +719,9 @@ function matchFillPolygons(
                 // Use the larger point count to preserve resolution
                 const n = Math.max(resampleN, pT.points.length, tT.points.length);
                 const fromPts = resampleClosedPolygon(pT.points, n);
-                // Project each from vertex onto the target perimeter
-                const toPts = projectOntoPerimeter(fromPts, tT.points);
+                // Even-distribution morph: pinned anchors stay, morphing vertices spread evenly
+                const pinThresh = GAME_CONFIG.DEBUG_MORPH_PIN_THRESHOLD ?? 5;
+                const toPts = buildEvenDistributionTargets(fromPts, tT.points, pinThresh);
                 result.push({ fromPoints: fromPts, toPoints: toPts, color: tT.color, ownerId: owner });
             }
         }
