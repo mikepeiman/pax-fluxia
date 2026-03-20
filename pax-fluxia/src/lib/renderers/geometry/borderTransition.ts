@@ -12,6 +12,7 @@
 
 import * as PIXI from 'pixi.js';
 import { log } from '$lib/utils/logger';
+import { GAME_CONFIG } from '$lib/config/game.config';
 import type { SharedPolyline } from '$lib/territory/compiler/powerVoronoiTerritoryGeometryGenerator';
 import type { MergedTerritory } from '$lib/renderers/geometry/types';
 import { resamplePolyline, polygonCentroid } from '$lib/territory/geometry/morphUtils';
@@ -577,6 +578,27 @@ export class PolygonMorphTransitionHandler {
                                 : easeInOutCubic;
 
         log.renderer('PolygonMorphTransitionHandler', `created | pairs=${this.pairs.length} easing=${easing} resampleN=${resampleN}`);
+
+        // ── Vertex Trace Log ────────────────────────────────────────────
+        if (GAME_CONFIG.DEBUG_MORPH_TRACE_LOG) {
+            const pinThreshold = GAME_CONFIG.DEBUG_MORPH_PIN_THRESHOLD ?? 5;
+            for (let pi = 0; pi < this.pairs.length; pi++) {
+                const pair = this.pairs[pi];
+                const n = Math.min(pair.fromPoints.length, pair.toPoints.length);
+                let pinned = 0, morph = 0;
+                const lines: string[] = [`  pair[${pi}] owner=${pair.ownerId} vertices=${n}:`];
+                for (let i = 0; i < n; i++) {
+                    const dx = pair.toPoints[i][0] - pair.fromPoints[i][0];
+                    const dy = pair.toPoints[i][1] - pair.fromPoints[i][1];
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const isPinned = dist < pinThreshold;
+                    if (isPinned) pinned++; else morph++;
+                    lines.push(`    v${i}: (${pair.fromPoints[i][0].toFixed(1)},${pair.fromPoints[i][1].toFixed(1)}) → (${pair.toPoints[i][0].toFixed(1)},${pair.toPoints[i][1].toFixed(1)}) dist=${dist.toFixed(1)}px ${isPinned ? '🟢PIN' : '🔴MORPH'}`);
+                }
+                lines.push(`    summary: ${pinned} pinned, ${morph} morph (threshold=${pinThreshold}px)`);
+                console.log(`[MORPH TRACE]\n${lines.join('\n')}`);
+            }
+        }
     }
 
     /**
@@ -592,6 +614,9 @@ export class PolygonMorphTransitionHandler {
     ): void {
         const t = this.easingFn(Math.max(0, Math.min(1, rawT)));
         let drawn = 0;
+        const showVertices = GAME_CONFIG.DEBUG_MORPH_VERTICES;
+        const vertexSize = GAME_CONFIG.DEBUG_MORPH_VERTEX_SIZE ?? 3;
+        const pinThreshold = GAME_CONFIG.DEBUG_MORPH_PIN_THRESHOLD ?? 5;
 
         for (const pair of this.pairs) {
             const { fromPoints, toPoints, color } = pair;
@@ -613,6 +638,27 @@ export class PolygonMorphTransitionHandler {
             if (borderWidth > 0 && borderAlpha > 0) {
                 graphics.poly(flat);
                 graphics.stroke({ width: borderWidth, color, alpha: borderAlpha, cap: 'round', join: 'round' });
+            }
+
+            // ── Vertex Debug Overlay ────────────────────────────────────
+            if (showVertices) {
+                for (let i = 0; i < n; i++) {
+                    const dx = toPoints[i][0] - fromPoints[i][0];
+                    const dy = toPoints[i][1] - fromPoints[i][1];
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const isPinned = dist < pinThreshold;
+                    const dotColor = isPinned ? 0x00ff00 : 0xff0000;
+                    const cx = flat[i * 2];
+                    const cy = flat[i * 2 + 1];
+
+                    // Draw vertex dot
+                    graphics.circle(cx, cy, vertexSize);
+                    graphics.fill({ color: dotColor, alpha: 0.9 });
+
+                    // Draw vertex number
+                    graphics.circle(cx, cy, vertexSize + 1);
+                    graphics.stroke({ width: 0.5, color: 0x000000, alpha: 0.6 });
+                }
             }
 
             drawn++;

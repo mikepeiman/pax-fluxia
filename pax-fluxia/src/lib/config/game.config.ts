@@ -295,6 +295,12 @@ interface GameConfigType {
     TERRITORY_MORPH_CONTROL_POINTS: number; // Number of control points for frontier loop morphing (5-300, default 32)
     TERRITORY_BOUNDARY_MODE: 'segment' | 'smooth';  // 'segment' = edge-level lerp, 'smooth' = flubber polygon morph
     TERRITORY_FILL_MODE: 'crossfade' | 'frontier';  // 'crossfade' = alpha-fade fills, 'frontier' = infill from frontier loops
+    // ── Morph Diagnostics ─────────────────────────────────────────────────────
+    DEBUG_MORPH_VERTICES: boolean;        // Show numbered vertex dots on territory polygons during morph
+    DEBUG_MORPH_VERTEX_SIZE: number;      // Radius of vertex dots (px, default 3)
+    DEBUG_MORPH_PIN_THRESHOLD: number;    // Displacement below which a vertex is "pinned" (green) vs "morph" (red)
+    DEBUG_MORPH_TRACE_LOG: boolean;       // Log per-vertex start/end/distance trace on transition start
+    DEBUG_MORPH_SLOWMO: boolean;          // 10X slow-motion: multiply TERRITORY_TRANSITION_MS by 10
     TERRITORY_METABALL: boolean;   // Enable Metaball territory renderer (default false)
     TERRITORY_PIXEL: boolean;      // Enable Pixel (nearest-neighbor) territory renderer (default false)
     TERRITORY_CLUSTER_SPLIT: boolean; // Split disconnected same-owner stars into separate territory blobs (default false)
@@ -1051,6 +1057,17 @@ const _rawConfig: GameConfigType = {
     TERRITORY_BOUNDARY_MODE: 'smooth' as const,
     /** Fill transition mode: 'crossfade' = alpha-fade, 'frontier' = infill from frontier loops */
     TERRITORY_FILL_MODE: 'frontier' as const,
+    // ── Morph Diagnostics ─────────────────────────────────────────────────────
+    /** Show numbered vertex dots on territory polygons during morph transitions */
+    DEBUG_MORPH_VERTICES: false,
+    /** Radius of vertex dots (px) */
+    DEBUG_MORPH_VERTEX_SIZE: 3,
+    /** Displacement below which a vertex is considered pinned (px) */
+    DEBUG_MORPH_PIN_THRESHOLD: 5,
+    /** Log per-vertex start/end/distance trace when transition starts */
+    DEBUG_MORPH_TRACE_LOG: false,
+    /** 10X slow-motion mode — multiplies transition time by 10 (3s → 30s) */
+    DEBUG_MORPH_SLOWMO: false,
     /** Enable Metaball territory renderer */
     TERRITORY_METABALL: false,
     /** Enable Pixel (nearest-neighbor) territory renderer */

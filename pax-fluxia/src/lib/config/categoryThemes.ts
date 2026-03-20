@@ -27,7 +27,8 @@ export type ThemeCategory =
     | 'audio'
     | 'ai'
     | 'rules'
-    | 'logging';
+    | 'logging'
+    | 'debug';
 
 // ── Category Metadata ───────────────────────────────────────────────────────
 
@@ -52,6 +53,7 @@ export const CATEGORY_META: Record<ThemeCategory, CategoryMeta> = {
     ai: { id: 'ai', icon: '🤖', label: 'AI Behavior', color: '#ff8844' },
     rules: { id: 'rules', icon: '📜', label: 'Rules', color: '#aabb44' },
     logging: { id: 'logging', icon: '📋', label: 'Logging', color: '#88aacc' },
+    debug: { id: 'debug', icon: '🔬', label: 'Debug', color: '#ff4444' },
 };
 
 // ── Category → Config Keys Mapping ──────────────────────────────────────────
@@ -315,6 +317,14 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
     logging: [
         // Logging keys are UI-only, no GAME_CONFIG keys currently
         // This category exists for the panel but has no themeable keys
+    ],
+
+    debug: [
+        'DEBUG_MORPH_VERTICES',
+        'DEBUG_MORPH_VERTEX_SIZE',
+        'DEBUG_MORPH_PIN_THRESHOLD',
+        'DEBUG_MORPH_TRACE_LOG',
+        'DEBUG_MORPH_SLOWMO',
     ],
 
     audio: [
