@@ -12,6 +12,7 @@
 
 import * as PIXI from 'pixi.js';
 import type { BorderMeshCache, BorderRenderConfig } from './buildBorderMeshCache';
+import { blendColors } from '$lib/utils/colorUtils';
 
 export class BorderLayerRenderer {
     private graphics: PIXI.Graphics;
@@ -27,6 +28,7 @@ export class BorderLayerRenderer {
 
     draw(cache: BorderMeshCache, config: BorderRenderConfig = { width: 4 }): void {
         const g = this.graphics;
+        g.visible = true; // Re-show after GameCanvas hide-all-children loop
         g.clear();
 
         const width = config.width ?? 4;
@@ -64,15 +66,4 @@ export class BorderLayerRenderer {
     }
 }
 
-function blendColors(colorA: number, colorB: number, t: number): number {
-    const rA = (colorA >> 16) & 0xff;
-    const gA = (colorA >> 8) & 0xff;
-    const bA = colorA & 0xff;
-    const rB = (colorB >> 16) & 0xff;
-    const gB = (colorB >> 8) & 0xff;
-    const bB = colorB & 0xff;
-    const r = Math.round(rA + (rB - rA) * t);
-    const g = Math.round(gA + (gB - gA) * t);
-    const b = Math.round(bA + (bB - bA) * t);
-    return (r << 16) | (g << 8) | b;
-}
+

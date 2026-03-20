@@ -295,11 +295,13 @@ interface GameConfigType {
     TERRITORY_POWER_VORONOI: boolean;    // Enable Power Voronoi V2 territory renderer (F-138v2, default false)
     TERRITORY_PVV3: boolean;              // Enable PVV3 frontier-first territory renderer (default false)
     TERRITORY_ENGINE_ENABLED: boolean;    // Enable modular territory engine router (default false)
-    TERRITORY_ENGINE_STATIC_METHOD: 'fg1_adaptive_field' | 'fg2_seed_graph' | 'fg3_implicit_trace' | 'fg4_pairwise_arrangement' | 'fg5_rt_assisted_publish';
+    TERRITORY_ENGINE_METHOD: string;       // Unified method ID (replaces ENGINE_MODE + STATIC_METHOD + DYNAMIC_METHOD)
+    // ── OBSOLETE (kept for config migration) ──
+    TERRITORY_ENGINE_STATIC_METHOD: string;  // @deprecated Use TERRITORY_ENGINE_METHOD
     TERRITORY_ENGINE_TRACE_MODE: boolean; // Emit staged trace snapshots for the modular engine (default false)
-    TERRITORY_ENGINE_MODE: 'static' | 'dynamic' | 'hybrid'; // Select static frontier build, dynamic update, or hybrid program
-    TERRITORY_ENGINE_DYNAMIC_METHOD: 'dy1_span_graph_morph' | 'dy2_local_delta_patch' | 'dy3_field_interp_stabilized' | 'dy4_optimal_transport' | 'dy5_corridor_event_decomposition';
-    TERRITORY_ENGINE_HYBRID_PLAN: 'hy1_static_backbone_dynamic_refine' | 'hy2_seed_graph_local_delta' | 'hy3_implicit_field_transport' | 'hy4_pairwise_patch_transport' | 'hy5_rt_publish_corridor_events';
+    TERRITORY_ENGINE_MODE: string;         // @deprecated Use TERRITORY_ENGINE_METHOD
+    TERRITORY_ENGINE_DYNAMIC_METHOD: string; // @deprecated Use TERRITORY_ENGINE_METHOD
+    TERRITORY_ENGINE_HYBRID_PLAN: string;    // @deprecated Removed — hybrid plans are obsolete
     TERRITORY_ENGINE_STEP_MODE: boolean; // Interactive stage stepping for territory engine diagnostics
     TERRITORY_ENGINE_STEP_ADVANCE_TOKEN: number; // Increment to advance one stage when step mode is enabled
     TERRITORY_TRANSITION_MS: number;      // Duration of territory morph animation in ms (0 = instant, default 400)
@@ -366,6 +368,7 @@ interface GameConfigType {
 
     // ── Voronoi Territory ───────────────────────────────────────────────────
     SHOW_VORONOI: boolean;         // Show contiguous Voronoi territory fill (default true)
+    NEUTRAL_TERRITORY_TRANSPARENT: boolean; // When true, neutral/unowned territory has no fill (fully transparent)
     VORONOI_ALPHA: number;         // Alpha for Voronoi territory (default 0.15)
     VORONOI_RESOLUTION: number;    // Pixel territory downscale factor (4=fastest, 1=sharpest)
     VORONOI_EDGE_BLEND: number;    // Edge blend radius for pixel territory (0=off)
@@ -373,6 +376,14 @@ interface GameConfigType {
     VORONOI_BORDER_ALPHA: number;  // Alpha for territory border lines (default 0.4)
     VORONOI_BORDER_BRIGHTEN: number; // How much to brighten border color (0-255, default 80)
     VORONOI_BORDER_SMOOTH: number;   // Chaikin smoothing passes for PVV2 shared-edge borders (0=angular, 1-5=rounded, default 3)
+    CHAIKIN_BOUNDARY_PAD: number;     // World-clip boundary padding in px for Voronoi diagram (default 50)
+    CHAIKIN_BOUNDARY_EPS: number;     // Proximity threshold in px for detecting points on world boundary (default 6)
+    BORDER_TRANS_EASING: string;     // Easing function for border transitions ('cubic'|'back'|'elastic', default 'back')
+    BORDER_TRANS_RESAMPLE_N: number; // Number of resample points per polyline for morphing (8-64, default 32)
+    BORDER_TRANS_OVERSHOOT: number;  // Back easing overshoot amount (0-5, default 1.7)
+    TERRITORY_BORDER_TRANSITION: string; // Border transition mode ('pixi_graphics_morph'|'pixi_mesh_rope'|'smooth_morph'|'none')
+    FRONTIER_RESOLUTION: number;     // Frontier vertex spacing in pixels (1-20, default 5). Lower = denser vertices = smoother morphing
+    TERRITORY_GEOMETRY_MODE: string;  // Geometry data mode: 'power_voronoi' (dual-path) | 'unified_polygon' (single-path dense resampled)
     VORONOI_SATURATION: number;    // Saturation multiplier for Voronoi colors (0=grey, 1=normal, 2=vivid, default 1.0)
     VORONOI_LIGHTNESS: number;     // Lightness multiplier for Voronoi colors (0=dark, 1=normal, 2=bright, default 0.7)
     VORONOI_GLOW_RADIUS: number;   // Territory glow bleed radius as fraction of map size (0-1, default 0.3)
@@ -385,6 +396,7 @@ interface GameConfigType {
 
     // ── Visual Overrides ────────────────────────────────────────────────────────────
     BG_IMAGE_URL: string;          // Background image url relative to /assets/
+    BG_IMAGE_ALPHA: number;        // Background image opacity (0-1, default 0.5)
 
     // ── Metaball Territory ──────────────────────────────────────────────────
     METABALL_INFLUENCE_RADIUS: number;  // How far each star's field extends in px (default 120)
@@ -739,18 +751,19 @@ const _rawConfig: GameConfigType = {
     // ========================================================================
 
     /** Base ship render size */
-    SHIP_BASE_SIZE: 3.3,
+    SHIP_BASE_SIZE: 2.6,
 
     /** Visual radius of stars on canvas */
-    STAR_RENDER_RADIUS: 25,
+    STAR_RENDER_RADIUS: 19.64,
 
     /** Background Image */
     BG_IMAGE_URL: "",
+    BG_IMAGE_ALPHA: 0.35,
 
     /** Star body shape: 'polygon' = type-specific shape, 'circle' = classic */
     STAR_SHAPE_MODE: 'polygon' as 'polygon' | 'circle',
     /** Type icon size as fraction of star radius */
-    STAR_ICON_SCALE: 0.8,
+    STAR_ICON_SCALE: 0.45,
     /** Polygon corner rounding (0=sharp, 1=fully round) */
     STAR_CORNER_RADIUS: 0.3,
 
@@ -758,7 +771,7 @@ const _rawConfig: GameConfigType = {
     SHOW_SELECTION_HEX: true,
 
     /** Inner orbit radius offset */
-    ORBIT_BASE_RADIUS: 9,
+    ORBIT_BASE_RADIUS: 0,
 
     /** Orbit ring spacing multiplier (ringSpacing = shipBaseSize * this) */
     ORBIT_RING_MULT: 1.6,
@@ -861,7 +874,7 @@ const _rawConfig: GameConfigType = {
     /** Outline thickness in px */
     SHIP_OUTLINE_PX: 1,
     /** Multiplier brightness glow: 0 = none, 1 = max (brightens within hue, not toward white) */
-    SHIP_GLOW_INTENSITY: 0.2,
+    SHIP_GLOW_INTENSITY: 0.34,
     /** Radial glow sprite radius multiplier per ship */
     SHIP_GLOW_RADIUS: 0,
     /** Minimum HSL lightness for player colors — prevents dark colors vanishing on dark bg */
@@ -879,13 +892,13 @@ const _rawConfig: GameConfigType = {
     /** Number of density tiers per direction on the color wheel */
     DENSITY_TIERS: 3,
     DENSITY_DARKEN_ALT: true,
-    SHIP_VISUAL_RADIUS: 3,
+    SHIP_VISUAL_RADIUS: 4,
     /** Star glow settings */
-    STAR_GLOW_ON: true,
+    STAR_GLOW_ON: false,
     /** Ownership-ring absolute radius from star center (px) */
-    STAR_RING_RADIUS: 30,
+    STAR_RING_RADIUS: 23,
     /** Ownership-ring offset from star center (% of radius) — LEGACY compat */
-    STAR_RING_OFFSET: 18,
+    STAR_RING_OFFSET: 12,
     /** Ownership-ring stroke width (px) */
     STAR_RING_WIDTH: 2.5,
     /** Ownership-ring alpha (0-1) */
@@ -895,7 +908,7 @@ const _rawConfig: GameConfigType = {
     /** Ownership-ring lightness multiplier (0-2) */
     STAR_RING_LIGHTNESS: 1.0,
     /** Master scale for entire star system (0.3-3.0) */
-    STAR_SYSTEM_SCALE: 1.0,
+    STAR_SYSTEM_SCALE: 0.55,
     /** Label offset from star center X */
     STAR_LABEL_OFFSET_X: 45,
     /** Label offset from star center Y */
@@ -907,9 +920,9 @@ const _rawConfig: GameConfigType = {
     /** Damaged ships font size */
     STAR_LABEL_DAMAGED_FONT_SIZE: 12,
     /** Label angle in degrees (0=right, 90=down) */
-    STAR_LABEL_ANGLE: 35,
+    STAR_LABEL_ANGLE: 45,
     /** Label radial distance from star center */
-    STAR_LABEL_DISTANCE: 55,
+    STAR_LABEL_DISTANCE: 25,
     /** Master font scale (1.0 = default) */
     STAR_LABEL_SCALE: 1.0,
     /** Label layout mode: 'horizontal' = pill badge, 'vertical' = stacked rows */
@@ -1024,7 +1037,7 @@ const _rawConfig: GameConfigType = {
     SHOW_CONNECTIONS: true,
 
     /** Show star power alpha overlay behind stars (F-47) */
-    SHOW_STAR_POWER: true,
+    SHOW_STAR_POWER: false,
     /** Star power overlay alpha (0-1) */
     STAR_POWER_ALPHA: 0.195,
     /** Star power radius multiplier relative to star radius */
@@ -1048,31 +1061,33 @@ const _rawConfig: GameConfigType = {
     /** Enable Modified Voronoi territory renderer (F-138) */
     TERRITORY_MODIFIED_VORONOI: false,
     /** Enable Power Voronoi V2 territory renderer (F-138v2) */
-    TERRITORY_POWER_VORONOI: true,
+    TERRITORY_POWER_VORONOI: false,
     /** Enable PVV3 frontier-first territory renderer */
     TERRITORY_PVV3: false,
     // ═══ SACROSANCT: DY4 Optimal Transport is the canonical default ═══
     // See registry.ts and .atlas/DECISIONS.md. Do not change without user approval.
-    TERRITORY_ENGINE_ENABLED: false,
-    /** Active static frontier method when modular territory engine is enabled */
+    TERRITORY_ENGINE_ENABLED: true,
+    /** Unified method ID — replaces MODE + STATIC_METHOD + DYNAMIC_METHOD */
+    TERRITORY_ENGINE_METHOD: 'dy4_optimal_transport' as const,
+    /** @deprecated Use TERRITORY_ENGINE_METHOD */
     TERRITORY_ENGINE_STATIC_METHOD: 'fg1_adaptive_field' as const,
     /** Emit staged trace snapshots in modular engine */
     TERRITORY_ENGINE_TRACE_MODE: false,
-    /** Territory engine execution mode: static frontier build, dynamic update pass, or hybrid plan */
+    /** @deprecated Use TERRITORY_ENGINE_METHOD */
     TERRITORY_ENGINE_MODE: 'dynamic' as const,
-    /** Active dynamic update method when territory engine mode is dynamic */
+    /** @deprecated Use TERRITORY_ENGINE_METHOD */
     TERRITORY_ENGINE_DYNAMIC_METHOD: 'dy4_optimal_transport' as const,
-    /** Active hybrid program when territory engine mode is hybrid */
-    TERRITORY_ENGINE_HYBRID_PLAN: 'hy3_implicit_field_transport' as const,
+    /** @deprecated Removed — hybrid plans are obsolete */
+    TERRITORY_ENGINE_HYBRID_PLAN: '' as const,
     /** Step through pipeline stages one-by-one (diagnostic mode) */
     TERRITORY_ENGINE_STEP_MODE: false,
     /** Incrementing token used to advance one stage in step mode */
     TERRITORY_ENGINE_STEP_ADVANCE_TOKEN: 0,
     /** Duration of territory morph/crossfade animation in ms (0=instant) */
-    TERRITORY_TRANSITION_MS: 350,
+    TERRITORY_TRANSITION_MS: 400,
     /** Number of control points for frontier loop morphing (5-300) */
-    TERRITORY_MORPH_CONTROL_POINTS: 32,
-    TERRITORY_BOUNDARY_MODE: 'segment' as const,
+    TERRITORY_MORPH_CONTROL_POINTS: 68,
+    TERRITORY_BOUNDARY_MODE: 'smooth' as const,
     /** Fill transition mode: 'crossfade' = alpha-fade, 'frontier' = infill from frontier loops */
     TERRITORY_FILL_MODE: 'frontier' as const,
     /** Enable Metaball territory renderer */
@@ -1084,10 +1099,12 @@ const _rawConfig: GameConfigType = {
     /** LEGACY territory mode — kept for compat */
     TERRITORY_MODE: 'metaball' as 'voronoi' | 'metaball' | 'off',
     /** Active render mode selector */
-    TERRITORY_RENDER_MODE: 'vs_pvv3',
+    TERRITORY_RENDER_MODE: 'territory_engine',
 
     /** Show contiguous Voronoi territory fill */
     SHOW_VORONOI: false,
+    /** Skip neutral territory fill — show background through unowned areas */
+    NEUTRAL_TERRITORY_TRANSPARENT: false,
     /** Voronoi territory alpha (0-1) */
     VORONOI_ALPHA: 0.23,
     /** Voronoi canvas downscale factor (higher = faster/blockier) */
@@ -1101,7 +1118,23 @@ const _rawConfig: GameConfigType = {
     /** How much to brighten border color (0-255) */
     VORONOI_BORDER_BRIGHTEN: 20,
     /** Chaikin smoothing passes for PVV2 shared-edge borders (0=angular, 3=rounded, 5=very smooth) */
-    VORONOI_BORDER_SMOOTH: 0,
+    VORONOI_BORDER_SMOOTH: 2,
+    /** World-clip boundary padding in px for Voronoi diagram (10-200) */
+    CHAIKIN_BOUNDARY_PAD: 50,
+    /** Proximity threshold in px for detecting boundary-pinned vertices (1-20) */
+    CHAIKIN_BOUNDARY_EPS: 6,
+    /** Easing function for border transitions ('cubic'|'back'|'elastic') */
+
+    BORDER_TRANS_EASING: 'linear',
+    /** Number of resample points per polyline for morphing (8-64) */
+    BORDER_TRANS_RESAMPLE_N: 32,
+    /** Back easing overshoot amount (0-5) */
+    BORDER_TRANS_OVERSHOOT: 0,
+    TERRITORY_BORDER_TRANSITION: 'pixi_graphics_morph',
+    /** Frontier vertex spacing in pixels (1=every pixel, 20=sparse). Lower = smoother morphing */
+    FRONTIER_RESOLUTION: 5,
+    /** Geometry data mode: 'power_voronoi' (dual-path fills+polylines) | 'unified_polygon' (single-path dense polygon) */
+    TERRITORY_GEOMETRY_MODE: 'power_voronoi' as const,
     /** Voronoi color saturation multiplier (0=grey, 1=original, 2=vivid) */
     VORONOI_SATURATION: 1,
     /** Voronoi color lightness multiplier (0=dark, 1=original, 2=bright) */
@@ -1322,11 +1355,11 @@ const _rawConfig: GameConfigType = {
     // ========================================================================
 
     /** Master audio volume (0-1) */
-    AUDIO_MASTER_VOLUME: 0.5,
+    AUDIO_MASTER_VOLUME: 0.45,
     /** Global mute */
     AUDIO_MUTED: false,
     /** Use subtype-specific conquest sounds instead of generic */
-    AUDIO_SEPARATE_CONQUEST: true,
+    AUDIO_SEPARATE_CONQUEST: false,
 
     // Per-sound volumes
     AUDIO_VOL_CLICK: 0.3,
@@ -1338,11 +1371,11 @@ const _rawConfig: GameConfigType = {
     AUDIO_VOL_LOSE: 0.6,
     AUDIO_VOL_WIN: 0.6,
     AUDIO_VOL_NEW_PLAYER: 0.8,
-    AUDIO_VOL_CONQUEST: 0.8,
-    AUDIO_VOL_CONQUEST_RETREAT: 0.7,
-    AUDIO_VOL_CONQUEST_SCATTER: 0.7,
-    AUDIO_VOL_CONQUEST_COMPLETE: 0.8,
-    AUDIO_VOL_STARLOSS: 0.6,
+    AUDIO_VOL_CONQUEST: 0.2,
+    AUDIO_VOL_CONQUEST_RETREAT: 0.35,
+    AUDIO_VOL_CONQUEST_SCATTER: 0.35,
+    AUDIO_VOL_CONQUEST_COMPLETE: 0.35,
+    AUDIO_VOL_STARLOSS: 0.15,
 
     // Per-sound file paths (relative to /sounds/)
     AUDIO_FILE_CLICK: 'ui/click.wav',
@@ -1370,7 +1403,7 @@ const _rawConfig: GameConfigType = {
     AUDIO_OFFSET_LOSE: 0,
     AUDIO_OFFSET_WIN: 0,
     AUDIO_OFFSET_NEW_PLAYER: 0,
-    AUDIO_OFFSET_CONQUEST: 0,
+    AUDIO_OFFSET_CONQUEST: 0.21,
     AUDIO_OFFSET_CONQUEST_RETREAT: 0,
     AUDIO_OFFSET_CONQUEST_SCATTER: 0,
     AUDIO_OFFSET_CONQUEST_COMPLETE: 0,

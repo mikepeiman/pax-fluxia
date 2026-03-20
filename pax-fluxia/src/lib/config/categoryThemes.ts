@@ -9,7 +9,7 @@
 // A key belongs to exactly ONE category (no overlap).
 // ============================================================================
 
-import { GAME_CONFIG } from '$lib/config/game.config';
+import { GAME_CONFIG, DEFAULT_GAME_CONFIG } from '$lib/config/game.config';
 import { getBuiltinThemes, getBuiltinCategoryPresets } from './builtinThemes';
 
 // ── Category IDs ────────────────────────────────────────────────────────────
@@ -536,6 +536,31 @@ function persistPresets(category: ThemeCategory, presets: CategoryPreset[]): voi
     localStorage.setItem(STORAGE_PREFIX + category, JSON.stringify(presets));
 }
 
+// ── Starred Themes (per-category, separate from presets) ────────────────────
+
+const STARRED_PREFIX = 'pax_starredThemes_';
+
+export function getStarredNames(category: ThemeCategory): Set<string> {
+    if (typeof window === 'undefined') return new Set();
+    try {
+        const raw = localStorage.getItem(STARRED_PREFIX + category);
+        return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
+    } catch { return new Set(); }
+}
+
+export function setStarred(category: ThemeCategory, name: string, starred: boolean): void {
+    const names = getStarredNames(category);
+    if (starred) names.add(name);
+    else names.delete(name);
+    if (typeof window !== 'undefined') {
+        localStorage.setItem(STARRED_PREFIX + category, JSON.stringify([...names]));
+    }
+}
+
+export function isStarred(category: ThemeCategory, name: string): boolean {
+    return getStarredNames(category).has(name);
+}
+
 // Lazy-init cache
 const _cache = new Map<ThemeCategory, CategoryPreset[]>();
 
@@ -587,6 +612,29 @@ export function applyCategoryPreset(preset: CategoryPreset): void {
     }
 }
 
+/**
+ * Reset a category to its default values from DEFAULT_GAME_CONFIG.
+ * Constructs a synthetic preset from defaults and applies it through the
+ * same callback path used by applyCategoryPreset.
+ */
+export function resetCategoryToDefaults(category: ThemeCategory): void {
+    const keys = CATEGORY_KEYS[category];
+    const values: Record<string, unknown> = {};
+    for (const key of keys) {
+        if (key in DEFAULT_GAME_CONFIG) {
+            values[key] = (DEFAULT_GAME_CONFIG as any)[key];
+        }
+    }
+    const defaultPreset: CategoryPreset = {
+        name: '__defaults__',
+        category,
+        values,
+        builtIn: true,
+        createdAt: new Date().toISOString(),
+    };
+    applyCategoryPreset(defaultPreset);
+}
+
 // ── Public API ──────────────────────────────────────────────────────────────
 
 /**
@@ -618,6 +666,46 @@ export function saveCategoryPreset(category: ThemeCategory, name: string): Categ
     presets.unshift(preset);
     _cache.set(category, presets);
     persistPresets(category, presets);
+    return preset;
+}
+
+/**
+ * Import a category preset from a parsed JSON object (e.g. from file upload).
+ * Validates structure, saves to localStorage, and optionally applies it.
+ * Returns the imported preset, or null if invalid.
+ */
+export function importCategoryPreset(
+    json: Record<string, unknown>,
+    apply = true,
+): CategoryPreset | null {
+    // Validate required fields
+    const name = typeof json.name === 'string' ? json.name : null;
+    const category = typeof json.category === 'string' ? json.category as ThemeCategory : null;
+    const values = typeof json.values === 'object' && json.values !== null
+        ? json.values as Record<string, unknown>
+        : null;
+
+    if (!name || !category || !values) return null;
+    if (!(category in CATEGORY_KEYS)) return null;
+
+    const preset: CategoryPreset = {
+        name,
+        category,
+        values,
+        createdAt: typeof json.createdAt === 'string' ? json.createdAt : new Date().toISOString(),
+    };
+
+    // Save to localStorage (overwrites if same name exists)
+    const presets = getUserPresets(category).filter(p => p.name !== name);
+    presets.unshift(preset);
+    _cache.set(category, presets);
+    persistPresets(category, presets);
+
+    // Apply immediately if requested
+    if (apply) {
+        applyCategoryPreset(preset);
+    }
+
     return preset;
 }
 

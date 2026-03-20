@@ -1,19 +1,19 @@
-<script lang="ts">
+﻿<script lang="ts">
     import { GAME_CONFIG } from "$lib/config/game.config";
     import {
         TERRITORY_PIPELINE_STAGE_ORDER,
         type TerritoryPipelineArtifacts,
         type TerritoryPipelineStageId,
-    } from "$lib/territory-engine";
+    } from "$lib/territory/orchestrator";
     import {
+        DEFAULT_TERRITORY_METHOD,
         DEFAULT_TERRITORY_DYNAMIC_METHOD,
-        DEFAULT_TERRITORY_HYBRID_PLAN,
         DEFAULT_TERRITORY_STATIC_METHOD,
+        TERRITORY_METHOD_BY_ID,
         TERRITORY_DYNAMIC_METHOD_BY_ID,
-        TERRITORY_HYBRID_PLAN_BY_ID,
         TERRITORY_STATIC_METHOD_BY_ID,
-    } from "$lib/territory-engine/registry";
-    import { territoryTraceRun } from "$lib/territory-engine/traceStore";
+    } from "$lib/territory/orchestrator/registry";
+    import { territoryTraceRun } from "$lib/territory/orchestrator/traceStore";
     import CategoryThemeBar from "./CategoryThemeBar.svelte";
 
     // ControlsSection-Territory -- Territory Rendering (Voronoi + Metaball)
@@ -228,35 +228,17 @@
     ] as const;
     const TERRITORY_ENGINE_METHOD_OPTIONS = [
         { id: "fg1_adaptive_field", label: "FG1 Adaptive Field" },
+        { id: "fg1_mar19_refactor", label: "FG1 Mar19 Refactor" },
         { id: "fg2_seed_graph", label: "FG2 Seed Graph" },
-        { id: "fg3_implicit_trace", label: "FG3 Implicit Trace" },
-        { id: "fg4_pairwise_arrangement", label: "FG4 Pairwise Arrangement" },
-        { id: "fg5_rt_assisted_publish", label: "FG5 RT-Assisted Publish" },
+        { id: "new_frontiers_0319", label: "New-Frontiers-0319" },
     ] as const;
     const TERRITORY_ENGINE_MODE_OPTIONS = [
         { id: "static", label: "Static" },
         { id: "dynamic", label: "Dynamic" },
-        { id: "hybrid", label: "Hybrid" },
     ] as const;
     const TERRITORY_ENGINE_DYNAMIC_OPTIONS = [
-        { id: "dy1_span_graph_morph", label: "DY1 Span Graph Morph" },
-        { id: "dy2_local_delta_patch", label: "DY2 Local Delta Patch" },
-        { id: "dy3_field_interp_stabilized", label: "DY3 Field Interp" },
         { id: "dy4_optimal_transport", label: "DY4 Optimal Transport" },
-        {
-            id: "dy5_corridor_event_decomposition",
-            label: "DY5 Corridor Events",
-        },
-    ] as const;
-    const TERRITORY_ENGINE_HYBRID_OPTIONS = [
-        {
-            id: "hy1_static_backbone_dynamic_refine",
-            label: "HY1 Backbone+Refine",
-        },
-        { id: "hy2_seed_graph_local_delta", label: "HY2 Seed+Delta" },
-        { id: "hy3_implicit_field_transport", label: "HY3 Implicit+Transport" },
-        { id: "hy4_pairwise_patch_transport", label: "HY4 Pairwise+Patch" },
-        { id: "hy5_rt_publish_corridor_events", label: "HY5 RT+Corridor" },
+        { id: "dy4_mar19_refactor", label: "DY4 Mar19 Refactor" },
     ] as const;
 
     const MORPH_EASING_OPTIONS = [
@@ -280,166 +262,81 @@
         return adapter;
     }
 
+    function resolveMethodId(rawValue: unknown): string {
+        if (typeof rawValue !== "string") return DEFAULT_TERRITORY_METHOD;
+        return Object.prototype.hasOwnProperty.call(
+            TERRITORY_METHOD_BY_ID,
+            rawValue,
+        )
+            ? rawValue
+            : DEFAULT_TERRITORY_METHOD;
+    }
+
+    // Legacy resolve helpers (used by route display, kept for backward-compat)
     function resolveStaticMethodId(rawValue: unknown): string {
-        if (typeof rawValue !== "string")
-            return DEFAULT_TERRITORY_STATIC_METHOD;
-        return Object.prototype.hasOwnProperty.call(
-            TERRITORY_STATIC_METHOD_BY_ID,
-            rawValue,
-        )
-            ? rawValue
-            : DEFAULT_TERRITORY_STATIC_METHOD;
+        return resolveMethodId(rawValue);
     }
-
     function resolveDynamicMethodId(rawValue: unknown): string {
-        if (typeof rawValue !== "string")
-            return DEFAULT_TERRITORY_DYNAMIC_METHOD;
-        return Object.prototype.hasOwnProperty.call(
-            TERRITORY_DYNAMIC_METHOD_BY_ID,
-            rawValue,
-        )
-            ? rawValue
-            : DEFAULT_TERRITORY_DYNAMIC_METHOD;
-    }
-
-    function resolveHybridPlanId(rawValue: unknown): string {
-        if (typeof rawValue !== "string") return DEFAULT_TERRITORY_HYBRID_PLAN;
-        return Object.prototype.hasOwnProperty.call(
-            TERRITORY_HYBRID_PLAN_BY_ID,
-            rawValue,
-        )
-            ? rawValue
-            : DEFAULT_TERRITORY_HYBRID_PLAN;
+        return resolveMethodId(rawValue);
     }
 
     function getTerritoryEngineRoute() {
-        const modeValue =
-            panel.territoryEngineMode ??
-            GAME_CONFIG.TERRITORY_ENGINE_MODE ??
-            "static";
-        const mode =
-            modeValue === "dynamic" || modeValue === "hybrid"
-                ? modeValue
-                : "static";
-        const staticMethodId = resolveStaticMethodId(
-            panel.territoryEngineStaticMethod ??
-                GAME_CONFIG.TERRITORY_ENGINE_STATIC_METHOD,
-        );
-        const dynamicMethodId = resolveDynamicMethodId(
-            panel.territoryEngineDynamicMethod ??
-                GAME_CONFIG.TERRITORY_ENGINE_DYNAMIC_METHOD,
-        );
-        const hybridPlanId = resolveHybridPlanId(
-            panel.territoryEngineHybridPlan ??
-                GAME_CONFIG.TERRITORY_ENGINE_HYBRID_PLAN,
-        );
-
-        if (mode === "dynamic") {
-            const dynamicMethod =
-                TERRITORY_DYNAMIC_METHOD_BY_ID[
-                    dynamicMethodId as keyof typeof TERRITORY_DYNAMIC_METHOD_BY_ID
-                ];
-            const anchorStaticMethodId = dynamicMethod.anchorStaticMethodId;
-            return {
-                mode,
-                staticMethodId: anchorStaticMethodId,
-                dynamicMethodId,
-                hybridPlanId,
-                adapter: dynamicMethod.adapter,
-                adapterLabel: formatAdapterLabel(dynamicMethod.adapter),
-                staticLabel: lookupOptionLabel(
-                    TERRITORY_ENGINE_METHOD_OPTIONS,
-                    anchorStaticMethodId,
-                ),
-                dynamicLabel: lookupOptionLabel(
-                    TERRITORY_ENGINE_DYNAMIC_OPTIONS,
-                    dynamicMethodId,
-                ),
-                hybridLabel: lookupOptionLabel(
-                    TERRITORY_ENGINE_HYBRID_OPTIONS,
-                    hybridPlanId,
-                ),
-            };
+        // Use unified method key, fall back to legacy keys
+        let methodId: string;
+        if (
+            panel.territoryEngineMethod ??
+            GAME_CONFIG.TERRITORY_ENGINE_METHOD
+        ) {
+            methodId = resolveMethodId(
+                panel.territoryEngineMethod ??
+                    GAME_CONFIG.TERRITORY_ENGINE_METHOD,
+            );
+        } else if (
+            (panel.territoryEngineMode ?? GAME_CONFIG.TERRITORY_ENGINE_MODE) ===
+            "dynamic"
+        ) {
+            methodId = resolveMethodId(
+                panel.territoryEngineDynamicMethod ??
+                    GAME_CONFIG.TERRITORY_ENGINE_DYNAMIC_METHOD,
+            );
+        } else {
+            methodId = resolveMethodId(
+                panel.territoryEngineStaticMethod ??
+                    GAME_CONFIG.TERRITORY_ENGINE_STATIC_METHOD,
+            );
         }
 
-        if (mode === "hybrid") {
-            const hybridPlan =
-                TERRITORY_HYBRID_PLAN_BY_ID[
-                    hybridPlanId as keyof typeof TERRITORY_HYBRID_PLAN_BY_ID
-                ];
-            return {
-                mode,
-                staticMethodId: hybridPlan.staticMethodId,
-                dynamicMethodId: hybridPlan.dynamicMethodId,
-                hybridPlanId,
-                adapter: hybridPlan.adapter,
-                adapterLabel: formatAdapterLabel(hybridPlan.adapter),
-                staticLabel: lookupOptionLabel(
-                    TERRITORY_ENGINE_METHOD_OPTIONS,
-                    hybridPlan.staticMethodId,
-                ),
-                dynamicLabel: lookupOptionLabel(
-                    TERRITORY_ENGINE_DYNAMIC_OPTIONS,
-                    hybridPlan.dynamicMethodId,
-                ),
-                hybridLabel: lookupOptionLabel(
-                    TERRITORY_ENGINE_HYBRID_OPTIONS,
-                    hybridPlanId,
-                ),
-            };
-        }
-
-        const staticMethod =
-            TERRITORY_STATIC_METHOD_BY_ID[
-                staticMethodId as keyof typeof TERRITORY_STATIC_METHOD_BY_ID
+        const method =
+            TERRITORY_METHOD_BY_ID[
+                methodId as keyof typeof TERRITORY_METHOD_BY_ID
             ];
+        const methodLabel = method?.label ?? methodId;
         return {
-            mode,
-            staticMethodId,
-            dynamicMethodId,
-            hybridPlanId,
-            adapter: staticMethod.adapter,
-            adapterLabel: formatAdapterLabel(staticMethod.adapter),
-            staticLabel: lookupOptionLabel(
-                TERRITORY_ENGINE_METHOD_OPTIONS,
-                staticMethodId,
-            ),
-            dynamicLabel: lookupOptionLabel(
-                TERRITORY_ENGINE_DYNAMIC_OPTIONS,
-                dynamicMethodId,
-            ),
-            hybridLabel: lookupOptionLabel(
-                TERRITORY_ENGINE_HYBRID_OPTIONS,
-                hybridPlanId,
-            ),
+            methodId,
+            mode:
+                method && method.implementedStages.length > 1
+                    ? "static"
+                    : "dynamic",
+            adapter: method?.adapter ?? "legacy_pvv2",
+            adapterLabel: formatAdapterLabel(method?.adapter ?? "legacy_pvv2"),
+            methodLabel,
+            // backward-compat aliases
+            staticMethodId: methodId,
+            dynamicMethodId: methodId,
+            staticLabel: methodLabel,
+            dynamicLabel: methodLabel,
         };
     }
 
     let territoryEngineRoute = $derived.by(() => getTerritoryEngineRoute());
     let territoryEngineRouteNote = $derived.by(() => {
-        if (territoryEngineRoute.mode === "dynamic") {
-            return `${territoryEngineRoute.dynamicLabel} uses ${territoryEngineRoute.staticLabel} as its static anchor.`;
-        }
-        if (territoryEngineRoute.mode === "hybrid") {
-            return `${territoryEngineRoute.hybridLabel} fixes both the static and dynamic legs together.`;
-        }
-        return `${territoryEngineRoute.staticLabel} is the active static route.`;
+        return `Active method: ${territoryEngineRoute.methodLabel} (${territoryEngineRoute.adapterLabel})`;
     });
     let territoryEngineInteropNote = $derived.by(() => {
-        if (
-            territoryEngineRoute.mode === "dynamic" &&
-            territoryEngineRoute.dynamicMethodId ===
-                "dy5_corridor_event_decomposition"
-        ) {
-            return "DY5 currently anchors to FG2 Seed Graph. Selecting FG1 separately does not change the live dynamic route.";
-        }
         if (territoryEngineRoute.mode === "dynamic") {
             return "Dynamic mode is exclusive. The Dynamic Method picker wins and the standalone Static Method choice becomes reference only.";
         }
-        if (territoryEngineRoute.mode === "hybrid") {
-            return "Hybrid mode is exclusive. The Hybrid Plan picker wins and the standalone Static/Dynamic picks become reference only.";
-        }
-        return "Static mode is exclusive. Dynamic and Hybrid selections are stored, but inactive until you switch modes.";
+        return "Static mode is exclusive. Dynamic selections are stored, but inactive until you switch modes.";
     });
 
     let staticMethodControlState = $derived.by(() => {
@@ -458,8 +355,8 @@
             };
         }
         return {
-            badge: "plan reference",
-            note: `${territoryEngineRoute.hybridLabel} owns the static leg while hybrid mode is active.`,
+            badge: "stored",
+            note: "Static selections are stored only.",
             disabled: true,
         };
     });
@@ -472,31 +369,9 @@
                 disabled: false,
             };
         }
-        if (territoryEngineRoute.mode === "hybrid") {
-            return {
-                badge: "plan reference",
-                note: `${territoryEngineRoute.hybridLabel} owns the dynamic leg while hybrid mode is active.`,
-                disabled: true,
-            };
-        }
         return {
             badge: "stored",
             note: "Dynamic selections are stored, but inactive until you switch to Dynamic mode.",
-            disabled: true,
-        };
-    });
-
-    let hybridPlanControlState = $derived.by(() => {
-        if (territoryEngineRoute.mode === "hybrid") {
-            return {
-                badge: "active",
-                note: "Hybrid mode is live. Picking a hybrid plan changes the current route.",
-                disabled: false,
-            };
-        }
-        return {
-            badge: "stored",
-            note: "Hybrid plans are stored only until you switch to Hybrid mode.",
             disabled: true,
         };
     });
@@ -524,34 +399,42 @@
     /* ── V3.1 Three-Concern Architecture ── */
 
     const TERRITORY_STYLE_OPTIONS = [
-        { id: "none", label: "None (Off)" },
-        { id: "territory_canonical", label: "✦ Canonical (New Pipeline)" },
-        { id: "territory_engine", label: "Territory Engine (DY4)" },
-        { id: "vs_pvv3", label: "Vector Stroke (PVV3)" },
-        { id: "power_voronoi", label: "Power Voronoi (PVV2)" },
-        { id: "distance_field", label: "Distance Field Glow" },
-        { id: "metaball", label: "Metaball / Organic" },
-        { id: "pixel", label: "Pixel Art / Retro" },
-        { id: "voronoi", label: "Voronoi (Legacy)" },
-        { id: "graph", label: "Lane Territory" },
+        { id: "none", label: "Off" },
+        { id: "territory_canonical", label: "Canonical" },
+        { id: "territory_engine", label: "Engine (DY4)" },
+        { id: "vs_pvv3", label: "PVV3" },
+        { id: "power_voronoi", label: "PVV2" },
+        { id: "distance_field", label: "Distance Field" },
+        { id: "metaball", label: "Metaball" },
+        { id: "pixel", label: "Pixel Art" },
+        { id: "voronoi", label: "Voronoi" },
+        { id: "graph", label: "Lane" },
         { id: "contour", label: "Contour" },
     ] as const;
 
     const FILL_TRANSITION_OPTIONS = [
-        { id: "none", label: "None (Off)" },
+        { id: "none", label: "Off" },
         { id: "frontier_morph", label: "Frontier Morph" },
         { id: "crossfade", label: "Crossfade" },
         { id: "tile_flip", label: "Tile Flip" },
     ] as const;
 
     const BORDER_TRANSITION_OPTIONS = [
-        { id: "none", label: "None (Off)" },
+        { id: "none", label: "Off" },
+        { id: "pixi_graphics_morph", label: "Graphics Morph" },
+        { id: "pixi_mesh_rope", label: "Rope Morph" },
         {
             id: "optimal_transport",
-            label: "✦ Smooth Border Morph (DY4 Optimal Transport)",
+            label: "DY4 Transport",
         },
-        { id: "smooth_morph", label: "Smooth Morph (Legacy)" },
+        { id: "smooth_morph", label: "Smooth (Legacy)" },
         { id: "pressure_wave", label: "Pressure Wave" },
+    ] as const;
+
+    const GEOMETRY_OPTIONS = [
+        { id: "power_voronoi", label: "Power Voronoi" },
+        { id: "unified_polygon", label: "Unified Polygon" },
+        { id: "new_frontiers_0319", label: "New-Frontiers-0319" },
     ] as const;
 
     /** Map style IDs to old boolean flag panel keys (backward compat) */
@@ -583,69 +466,244 @@
     function selectBorderTransition(transitionId: string) {
         updatePanel("territoryBorderTransition", transitionId);
     }
+
+    /**
+     * Handle geometry mode button clicks.
+     *
+     * Data flow: UI click → selectGeometryMode()
+     *   1. Sets TERRITORY_GEOMETRY_MODE via panel→config sync (settingsDefs.ts PANEL_CONFIG_MAP)
+     *   2. Bumps __GEOMETRY_REFRESH_TOKEN so even re-clicking same mode forces recompute
+     *      (buildShapeFingerprint in PowerVoronoiRenderer.ts includes this token)
+     *   3. For 'new_frontiers_0319': also sets TERRITORY_ENGINE_METHOD so runLegacyAdapter
+     *      in engine.ts routes to computeGeometry0319 (compiler/Geometry_0319.ts)
+     *   4. For other modes: resets TERRITORY_ENGINE_METHOD to default if it was set to new_frontiers
+     */
+    function selectGeometryMode(modeId: string) {
+        debouncedConfigUpdate(
+            "TERRITORY_GEOMETRY_MODE",
+            "territoryGeometryMode",
+            modeId,
+        );
+        // Bump refresh token on every click — even re-clicking same mode forces recompute
+        (GAME_CONFIG as any).__GEOMETRY_REFRESH_TOKEN =
+            ((GAME_CONFIG as any).__GEOMETRY_REFRESH_TOKEN ?? 0) + 1;
+        // When New-Frontiers-0319 is selected, also set TERRITORY_ENGINE_METHOD
+        // so the engine dispatch routes to computeGeometry0319.
+        // When switching away, reset to the current default method.
+        if (modeId === "new_frontiers_0319") {
+            debouncedConfigUpdate(
+                "TERRITORY_ENGINE_METHOD",
+                "territoryEngineMethod",
+                "new_frontiers_0319",
+            );
+        } else {
+            // Reset engine method to DY4 default when not using new frontiers
+            const currentMethod =
+                panel.territoryEngineMethod ??
+                GAME_CONFIG.TERRITORY_ENGINE_METHOD;
+            if (currentMethod === "new_frontiers_0319") {
+                debouncedConfigUpdate(
+                    "TERRITORY_ENGINE_METHOD",
+                    "territoryEngineMethod",
+                    "dy4_optimal_transport",
+                );
+            }
+        }
+    }
 </script>
 
 <CategoryThemeBar category="territory" onApply={() => syncFromConfig?.()} />
 
-<!-- ── V3.2 Four-Concern Selectors ── -->
-<h4 class="sub-heading">🎨 Territory Presentation</h4>
-<div class="triple-select-row">
-    <div class="triple-select-col">
-        <span class="triple-label">Geometry</span>
-        <select
-            class="mode-select"
-            value={"fg2_seed_graph"}
-            disabled
-            title="FG2 Seed Graph is the only implemented geometry engine. More coming soon."
-        >
-            <option value="fg2_seed_graph">FG2 Seed Graph</option>
-            <option value="pvv2_voronoi" disabled>PVV2 Voronoi (planned)</option
-            >
-        </select>
+<!-- ── V3.2 Four-Axis Territory Card ── -->
+<div class="axis-card">
+    <h4 class="axis-card-title">Territory Presentation</h4>
+
+    <!-- Row 1: Geometry (teal) -->
+    <div
+        class="axis-row"
+        style="--accent: #2dd4bf; --accent-bg: rgba(45,212,191,0.15)"
+    >
+        <span class="axis-label">Geometry</span>
+        <div class="axis-buttons">
+            {#each GEOMETRY_OPTIONS as opt}
+                <button
+                    class="axis-btn"
+                    class:active={(panel.territoryGeometryMode ??
+                        GAME_CONFIG.TERRITORY_GEOMETRY_MODE ??
+                        "power_voronoi") === opt.id}
+                    onclick={() => selectGeometryMode(opt.id)}
+                    >{opt.label}</button
+                >
+            {/each}
+        </div>
     </div>
-    <div class="triple-select-col">
-        <span class="triple-label">Style</span>
-        <select
-            class="mode-select"
-            value={panel.territoryRenderMode ??
-                GAME_CONFIG.TERRITORY_RENDER_MODE ??
-                "vs_pvv3"}
-            onchange={(e) => {
-                selectTerritoryStyle((e.target as HTMLSelectElement).value);
-            }}
-        >
+
+    <!-- Row 2: Style (purple) -->
+    <div
+        class="axis-row"
+        style="--accent: #a78bfa; --accent-bg: rgba(167,139,250,0.15)"
+    >
+        <span class="axis-label">Style</span>
+        <div class="axis-buttons">
             {#each TERRITORY_STYLE_OPTIONS as opt}
-                <option value={opt.id}>{opt.label}</option>
+                <button
+                    class="axis-btn"
+                    class:active={(panel.territoryRenderMode ??
+                        GAME_CONFIG.TERRITORY_RENDER_MODE ??
+                        "territory_engine") === opt.id}
+                    onclick={() => selectTerritoryStyle(opt.id)}
+                    >{opt.label}</button
+                >
             {/each}
-        </select>
+        </div>
     </div>
-    <div class="triple-select-col">
-        <span class="triple-label">Fill Transition</span>
-        <select
-            class="mode-select"
-            value={panel.territoryFillTransition ?? "frontier_morph"}
-            onchange={(e) => {
-                selectFillTransition((e.target as HTMLSelectElement).value);
-            }}
-        >
+
+    <!-- Row 3: Fill Transition (gold) -->
+    <div
+        class="axis-row"
+        style="--accent: #fbbf24; --accent-bg: rgba(251,191,36,0.15)"
+    >
+        <span class="axis-label">Fill Transition</span>
+        <div class="axis-buttons">
             {#each FILL_TRANSITION_OPTIONS as opt}
-                <option value={opt.id}>{opt.label}</option>
+                <button
+                    class="axis-btn"
+                    class:active={(panel.territoryFillTransition ??
+                        "frontier_morph") === opt.id}
+                    onclick={() => selectFillTransition(opt.id)}
+                    >{opt.label}</button
+                >
             {/each}
-        </select>
+        </div>
     </div>
-    <div class="triple-select-col">
-        <span class="triple-label">Border Transition</span>
+
+    <!-- Row 4: Border Transition (rose) -->
+    <div
+        class="axis-row"
+        style="--accent: #fb7185; --accent-bg: rgba(251,113,133,0.15)"
+    >
+        <span class="axis-label">Border Transition</span>
+        <div class="axis-buttons">
+            {#each BORDER_TRANSITION_OPTIONS as opt}
+                <button
+                    class="axis-btn"
+                    class:active={(panel.territoryBorderTransition ??
+                        "smooth_morph") === opt.id}
+                    onclick={() => selectBorderTransition(opt.id)}
+                    >{opt.label}</button
+                >
+            {/each}
+        </div>
+    </div>
+</div>
+
+<!-- Border Transition Tuning -->
+<div class="engine-control-group">
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Transition Easing</span>
+        </div>
         <select
             class="mode-select"
-            value={panel.territoryBorderTransition ?? "smooth_morph"}
+            value={panel.borderTransEasing ??
+                GAME_CONFIG.BORDER_TRANS_EASING ??
+                "linear"}
             onchange={(e) => {
-                selectBorderTransition((e.target as HTMLSelectElement).value);
+                debouncedConfigUpdate(
+                    "BORDER_TRANS_EASING",
+                    "borderTransEasing",
+                    (e.target as HTMLSelectElement).value,
+                );
             }}
         >
-            {#each BORDER_TRANSITION_OPTIONS as opt}
-                <option value={opt.id}>{opt.label}</option>
-            {/each}
+            <option value="linear">1. Linear (constant speed)</option>
+            <option value="cubic">2. Cubic (smooth, no overshoot)</option>
+            <option value="ease-out">3. Ease-out (decelerate)</option>
+            <option value="ease-out-quad">4. Ease-out Quad (lighter)</option>
+            <option value="sine">5. Sine (gentle S-curve)</option>
+            <option value="back">6. Back (overshoot)</option>
+            <option value="elastic">7. Elastic (bouncy)</option>
         </select>
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Resample Points</span><span class="val"
+                >{panel.borderTransResampleN ??
+                    GAME_CONFIG.BORDER_TRANS_RESAMPLE_N ??
+                    32}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="8"
+            max="64"
+            step="4"
+            value={panel.borderTransResampleN ??
+                GAME_CONFIG.BORDER_TRANS_RESAMPLE_N ??
+                32}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "BORDER_TRANS_RESAMPLE_N",
+                    "borderTransResampleN",
+                    v,
+                );
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Frontier Resolution</span><span class="val"
+                >{panel.frontierResolution ??
+                    GAME_CONFIG.FRONTIER_RESOLUTION ??
+                    5}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="1"
+            max="20"
+            step="1"
+            value={panel.frontierResolution ??
+                GAME_CONFIG.FRONTIER_RESOLUTION ??
+                5}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "FRONTIER_RESOLUTION",
+                    "frontierResolution",
+                    v,
+                );
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Back Overshoot</span><span class="val"
+                >{(
+                    panel.borderTransOvershoot ??
+                    GAME_CONFIG.BORDER_TRANS_OVERSHOOT ??
+                    0
+                ).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="5"
+            step="0.1"
+            value={panel.borderTransOvershoot ??
+                GAME_CONFIG.BORDER_TRANS_OVERSHOOT ??
+                0}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "BORDER_TRANS_OVERSHOOT",
+                    "borderTransOvershoot",
+                    v,
+                );
+            }}
+        />
     </div>
 </div>
 
@@ -926,6 +984,27 @@
     </div>
     <div class="var-row">
         <div class="row-top">
+            <span class="var-name">Neutral Transparent</span>
+            <label class="toggle-switch">
+                <input
+                    type="checkbox"
+                    checked={panel.neutralTerritoryTransparent ??
+                        GAME_CONFIG.NEUTRAL_TERRITORY_TRANSPARENT}
+                    onchange={(e) => {
+                        const v = (e.target as HTMLInputElement).checked;
+                        debouncedConfigUpdate(
+                            "NEUTRAL_TERRITORY_TRANSPARENT",
+                            "neutralTerritoryTransparent",
+                            v,
+                        );
+                    }}
+                />
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+    </div>
+    <div class="var-row">
+        <div class="row-top">
             <span class="var-name">Border Width</span><span class="val"
                 >{(
                     panel.voronoiBorderWidth ?? GAME_CONFIG.VORONOI_BORDER_WIDTH
@@ -967,6 +1046,38 @@
                 debouncedConfigUpdate(
                     "VORONOI_BORDER_ALPHA",
                     "voronoiBorderAlpha",
+                    v,
+                );
+            }}
+        />
+    </div>
+
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Geometry Smooth Passes</span><span
+                class="val"
+                >{Math.round(
+                    panel.voronoiBorderSmooth ??
+                        GAME_CONFIG.VORONOI_BORDER_SMOOTH,
+                )}</span
+            >
+        </div>
+        <div class="row-hint">
+            Chaikin passes — modifies actual border/fill geometry coordinates.
+            0=angular, 2=smooth, 5=very round
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="5"
+            step="1"
+            value={panel.voronoiBorderSmooth ??
+                GAME_CONFIG.VORONOI_BORDER_SMOOTH}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "VORONOI_BORDER_SMOOTH",
+                    "voronoiBorderSmooth",
                     v,
                 );
             }}
@@ -1310,7 +1421,74 @@
 
 <style>
     @import "./panel-shared.css";
-    /* ── V3.1 Triple-Select Layout ── */
+    /* ── V3.2 Axis Card Layout ── */
+    .axis-card {
+        background: rgba(20, 20, 30, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+        padding: 10px 12px 8px;
+        margin: 4px 0 8px;
+    }
+    .axis-card-title {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: #ccc;
+        margin: 0 0 8px;
+        padding-bottom: 4px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .axis-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 5px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+    .axis-row:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+    .axis-label {
+        flex-shrink: 0;
+        width: 80px;
+        font-size: 9px;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        color: var(--accent, #888);
+        padding-top: 4px;
+        font-weight: 600;
+    }
+    .axis-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 3px;
+        flex: 1;
+        min-width: 0;
+    }
+    .axis-btn {
+        padding: 3px 8px;
+        background: transparent;
+        border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+        border-radius: 10px;
+        color: var(--accent, #888);
+        font-size: 9px;
+        cursor: pointer;
+        transition: all 0.15s;
+        white-space: nowrap;
+        line-height: 1.3;
+    }
+    .axis-btn:hover {
+        background: var(--accent-bg, rgba(255, 255, 255, 0.06));
+        border-color: var(--accent, #888);
+    }
+    .axis-btn.active {
+        background: var(--accent, #888);
+        border-color: var(--accent, #888);
+        color: #111;
+        font-weight: 600;
+    }
+    /* Legacy compat — keep old selectors but not used by card */
     .triple-select-row {
         display: flex;
         gap: 6px;

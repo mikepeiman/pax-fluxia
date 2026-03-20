@@ -9,7 +9,7 @@ export type {
 
 export {
     hexToRGB, rgbToHSL, hslToRGB, adjustColorHSL, blendColors,
-} from './colorUtils';
+} from '$lib/utils/colorUtils';
 
 export { chaikinSmoothPolyline, chaikinSmoothPolygon } from './chaikin';
 

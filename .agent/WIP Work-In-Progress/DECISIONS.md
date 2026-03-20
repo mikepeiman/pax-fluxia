@@ -494,3 +494,130 @@ Agent proposed removing duplicate Attack/Defense sliders from Economy section si
 - Harmonize labels across Global and Battle panels
 - Implement two-way binding for shared variables
 - Add `REPAIR_SUPPRESS_ATTACKER` / `REPAIR_SUPPRESS_DEFENDER` sliders to Global
+
+---
+
+# D-78: Conquest Animation — Localized Frontier Updates
+
+**Date:** 2026-03-18
+**Status:** Specification
+
+## Specification
+
+On conquest, only update territory and frontiers **around the conquered star and its neighbors**. All other geometry remains static.
+
+1. **Anchor points**: Where the affected frontier meets unaffected geometry — the geometry beyond these points does not move
+2. **Dense control vertices**: Between anchor points, create densely-sampled vertices along the frontier
+3. **Sequential lerp**: Lerp vertices in order to their new positions over the transition duration
+4. **Per-frame Chaikin**: Apply Chaikin smoothing pass(es) every frame so the morphing segment remains smooth throughout
+5. **Performance note**: Chaikin is O(n) per pass. With ~128 vertices and 2-3 passes at 60fps, this is ~23k array ops/sec per segment — trivial
+
+## Why
+
+Current approach recomputes ALL frontiers globally and morphs everything. Borders far from the conquest ripple unnecessarily. Localized updates produce a surgical visual: only the affected region reshapes.
+
+---
+
+# D-79: Territory Fill Morph — Shape, Not Crossfade
+
+**Date:** 2026-03-18
+**Status:** Specification
+
+## The Bug
+
+During conquest transitions, fills do alpha-crossfade:
+- Old territory shape fades out at `alpha × (1-t)`
+- New territory shape fades in at `alpha × t`
+
+This produces a ghostly dissolve, not a reshaping territory.
+
+## The Specification
+
+Fills must draw the **morphed polygon shape at full alpha** every frame. The fill region IS the area enclosed by the morphed border polylines. Every frame of the transition:
+
+1. Compute the morphed border shape (already done for border rendering)
+2. Fill the enclosed polygon at the target alpha
+3. No crossfade. No ghost. Solid fill that reshapes.
+
+---
+
+# D-80: Unified Frontier Pipeline — Point-Line Canonical Data
+
+**Date:** 2026-03-18
+**Status:** In Progress
+
+## Architecture
+
+Canonical frontier data = **array of arrays of x,y coordinate points with ownership**. One data source for both fill and border rendering.
+
+Pipeline:
+1. d3-weighted-voronoi → raw cells
+2. Merge same-owner cells → closed polygons (`MergedTerritory`)
+3. Chaikin smoothing (junction + boundary pinning) — unchanged
+4. **Dense resampling** at `FRONTIER_RESOLUTION` px spacing (`resampleClosedPolygonBySpacing`)
+5. **Fill + stroke** from same densely-sampled points (`FrontierLoopMorpher`)
+
+Morph alignment:
+- Multi-region matching (arrays per owner + nearest centroid)
+- Polygon rotation alignment (`alignClosedPolygon`) — minimizes total vertex displacement
+
+## Key Decision
+
+The old approach used TWO separate geometry pipelines:
+- **Fills** from `MergedTerritory` polygons (closed-polygon Chaikin)
+- **Borders** from `SharedPolyline` segments (open-polyline Chaikin)
+
+These produced different vertex sets and were the root cause of fill-border divergence. The unified pipeline eliminates this by design.
+
+## Next Step
+
+**Split this point-line frontier work into a new data mode.** Restore FG2 as it was. The unified frontier morpher is a separate rendering mode, not a replacement for the existing FG2 pipeline.
+
+---
+
+# Decision: 4-Layer Territory Architecture
+
+**Date:** 2026-03-19
+**Status:** Active
+**Ref:** D-80
+
+## Context
+The PRD defined a 6-layer model (Truth → Frontier → Fitting → Region → Presentation → Transition). Code review revealed that layers 2-4 are sub-steps of one concern ("turn ownership into shapes"), while the live code in `renderMode.ts` already has a cleaner 3-concern contract.
+
+## Decision
+Adopt 4-layer model:
+1. **Ownership** — "Who owns what" (`territory/ownership/`, `GraphOwnershipState`)
+2. **Geometry** — "What shapes exist" (`territory/geometry/`)
+3. **Transition** — "How shapes change between ticks" (`territory/transitions/`, as FX handlers)
+4. **Presentation** — "How shapes become pixels" (`territory/render/`)
+
+## Rationale
+- Layers 2-4 of PRD are implementation details of one geometry generator
+- Transition and Presentation are orthogonal to Geometry mode
+- FX handler pattern already exists and works for transitions
+
+---
+
+# Decision: Territory Engine → TerritoryOrchestrator
+
+**Date:** 2026-03-19
+**Status:** Active
+**Ref:** D-81
+
+## Decision
+Rename `territory-engine/` to `territory/orchestrator/` and rename `engine.ts` concepts to "orchestrator" — this better describes its role as a route-and-dispatch coordinator, not a compute engine.
+
+# Decision: Non-Destructive Dual-Adapter Refactoring
+
+**Date:** 2026-03-19
+**Status:** Active
+**Ref:** D-82
+
+## Decision
+Refactoring the territory renderer uses a **dual-adapter approach**: a new `refactored_pvv2` adapter runs alongside the untouched `legacy_pvv2`. New registry entries (`FG1 Mar19 Refactor`, `DY4 Mar19 Refactor`) appear in the Mode dropdown, letting the user switch between working original and refactored code at runtime. Original `legacy_pvv2` path is **never modified** — zero risk to DY4 SACROSANCT animation.
+
+## Rationale
+- PVV2 has ~25 module-level state variables tightly coupled to its render function
+- Modifying in-place risks breaking the SACROSANCT DY4 border animation
+- Dual-adapter gives instant rollback via UI dropdown without git operations
+- Enables incremental migration of state into class fields

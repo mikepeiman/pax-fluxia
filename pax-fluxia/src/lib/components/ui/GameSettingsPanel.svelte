@@ -31,14 +31,13 @@
         VISUALS_STORAGE_KEY,
         ANIM_LOCK_STORAGE_KEY,
         TIER_STORAGE_KEY,
-        loadCombatTuning,
-        saveCombatTuning,
         loadVisuals,
         saveVisuals,
         applyVisuals,
         loadPanelSettings,
         panelDefaultsFromConfig,
         savePanelSettings,
+        applyPanelToConfig,
         loadAnimLockRatios,
         saveAnimLockRatios,
         loadAnimLockModes,
@@ -59,6 +58,7 @@
     import ControlsSectionVisuals from "./settings/ControlsSection-Visuals.svelte";
     import ControlsSectionRules from "./settings/ControlsSection-Rules.svelte";
     import ControlsSectionLogging from "./settings/ControlsSection-Logging.svelte";
+    import ControlsSectionAudio from "./settings/ControlsSection-Audio.svelte";
     import {
         ANIM_SLIDERS,
         type AnimSliderDef,
@@ -74,74 +74,18 @@
     const densityVariables = DENSITY_VARIABLES;
     const logCategories = LOG_CATEGORIES;
 
-    // ── Combat tuning defaults — derived from GAME_CONFIG at load time (single source of truth)
-    const defaultValues = {
-        TRANSFER_RATE: GAME_CONFIG.TRANSFER_RATE,
-        AGGRESSOR_ADVANTAGE: GAME_CONFIG.AGGRESSOR_ADVANTAGE,
-        GLOBAL_DAMAGE_MODIFIER: GAME_CONFIG.GLOBAL_DAMAGE_MODIFIER,
-        LETHALITY: GAME_CONFIG.LETHALITY,
-        FORCE_RATIO_EFFECT: GAME_CONFIG.FORCE_RATIO_EFFECT,
-        CONQUEST_THRESHOLD: GAME_CONFIG.CONQUEST_THRESHOLD,
-        CONQUEST_TRANSFER_PERCENTAGE: GAME_CONFIG.CONQUEST_TRANSFER_PERCENTAGE,
-        RETREAT_CAPTURE_RATE: GAME_CONFIG.RETREAT_CAPTURE_RATE,
-        SCATTER_CAPTURE_RATE: GAME_CONFIG.SCATTER_CAPTURE_RATE,
-        SCATTER_DESTROY_RATE: GAME_CONFIG.SCATTER_DESTROY_RATE,
-        RETREAT_DAMAGED_ACTIVATION_RATE:
-            GAME_CONFIG.RETREAT_DAMAGED_ACTIVATION_RATE,
-        DAMAGED_SHIP_EFFECTIVENESS: GAME_CONFIG.DAMAGED_SHIP_EFFECTIVENESS,
-        REPAIR_RATE: GAME_CONFIG.REPAIR_RATE,
-        AI_MUST_ATTACK_RATIO: GAME_CONFIG.AI_MUST_ATTACK_RATIO,
-        AI_ATTACK_UPPER_BOUNDS: GAME_CONFIG.AI_ATTACK_UPPER_BOUNDS,
-        AI_ATTACK_STICKINESS: GAME_CONFIG.AI_ATTACK_STICKINESS,
-        AI_EVALUATION_FREQUENCY: GAME_CONFIG.AI_EVALUATION_FREQUENCY,
-        AI_TACTICAL_AGGRESSION: GAME_CONFIG.AI_TACTICAL_AGGRESSION,
-        AI_RANDOM_AGGRESSION: GAME_CONFIG.AI_RANDOM_AGGRESSION,
-        DENSITY_HUE_STEP: GAME_CONFIG.DENSITY_HUE_STEP,
-        DENSITY_SAT_STEP: GAME_CONFIG.DENSITY_SAT_STEP,
-        DENSITY_LIGHT_STEP: GAME_CONFIG.DENSITY_LIGHT_STEP,
-        DENSITY_TIERS: GAME_CONFIG.DENSITY_TIERS,
-    };
-
     const PRISTINE_CONFIG_PATCH = Object.fromEntries(
         Object.entries(DEFAULT_GAME_CONFIG).filter(
             ([key]) => !key.startsWith("_"),
         ),
     ) as Record<string, unknown>;
 
-    // Default values — single source of truth for reset + disabled toggle state
-
-    let enabled = $state({
-        TRANSFER_RATE: true,
-        AGGRESSOR_ADVANTAGE: true,
-        GLOBAL_DAMAGE_MODIFIER: true,
-        LETHALITY: true,
-        FORCE_RATIO_EFFECT: true,
-        CONQUEST_THRESHOLD: true,
-        CONQUEST_TRANSFER_PERCENTAGE: true,
-        RETREAT_CAPTURE_RATE: true,
-        SCATTER_CAPTURE_RATE: true,
-        SCATTER_DESTROY_RATE: true,
-        RETREAT_DAMAGED_ACTIVATION_RATE: true,
-        DAMAGED_SHIP_EFFECTIVENESS: true,
-        REPAIR_RATE: true,
-        AI_MUST_ATTACK_RATIO: true,
-        AI_ATTACK_UPPER_BOUNDS: true,
-        AI_ATTACK_STICKINESS: true,
-        AI_EVALUATION_FREQUENCY: true,
-        AI_TACTICAL_AGGRESSION: true,
-        AI_RANDOM_AGGRESSION: true,
-        DENSITY_HUE_STEP: true,
-        DENSITY_SAT_STEP: true,
-        DENSITY_LIGHT_STEP: true,
-        DENSITY_TIERS: true,
-    });
-
-    const initialValues = loadCombatTuning(defaultValues);
-    let values = $state({ ...initialValues });
-    let savedValues = $state({ ...initialValues });
-
     onMount(() => {
         warnOnMissingTerritorySchemaCoverage();
+        // Restore saved panel values INTO GAME_CONFIG before syncAllFromConfig
+        // reads GAME_CONFIG back into panel. Without this, compile-time defaults
+        // overwrite user-saved slider values (Chaikin, resampleN, etc.).
+        applyPanelToConfig(panel);
         syncAllFromConfig();
         themeStore.registerApplyCallback(applyThemeValues);
         registerCategoryPresetApplyCallback(applyCategoryPresetValues);
@@ -192,18 +136,11 @@
     function syncCombatValuesFromConfig(
         configSource: Record<string, any> = GAME_CONFIG as Record<string, any>,
     ) {
-        const freshValues = { ...values };
-        for (const k of Object.keys(freshValues)) {
-            if (k in configSource) {
-                (freshValues as any)[k] = configSource[k];
-            }
-        }
-        values = freshValues;
-        savedValues = { ...freshValues };
+        // All combat/AI values now flow through panel state → child components.
+        // Only transferRate display-state needs sync here.
         transferRate = Math.round(
-            ((freshValues.TRANSFER_RATE ?? 0) as number) * 100,
+            ((configSource.TRANSFER_RATE ?? 0.1) as number) * 100,
         );
-        saveCombatTuning(freshValues);
     }
 
     function syncAnimValuesFromConfig(
@@ -270,15 +207,14 @@
     }
 
     let transferRate = $state(
-        Math.round((initialValues.TRANSFER_RATE ?? 0.1) * 100),
+        Math.round((GAME_CONFIG.TRANSFER_RATE ?? 0.1) * 100),
     );
 
     function updateTransferRate(value: number) {
         transferRate = value;
         const decimal = value / 100;
-        values = { ...values, TRANSFER_RATE: decimal };
         GAME_CONFIG.TRANSFER_RATE = decimal;
-        saveCombatTuning(values);
+        updatePanel("transferRate", decimal);
     }
 
     // Debug ship count slider — direct engine manipulation
@@ -306,28 +242,8 @@
         }
     });
 
-    type VarKey = keyof typeof values;
-
-    function toggle(key: VarKey) {
-        const wasEnabled = enabled[key];
-        enabled = { ...enabled, [key]: !wasEnabled };
-        if (!wasEnabled) {
-            values = { ...values, [key]: savedValues[key] };
-            (GAME_CONFIG as any)[key] = savedValues[key];
-        } else {
-            savedValues = { ...savedValues, [key]: values[key] };
-            values = { ...values, [key]: defaultValues[key] };
-            (GAME_CONFIG as any)[key] = defaultValues[key];
-        }
-    }
-
-    function updateValue(key: VarKey, newValue: number) {
-        if (isNaN(newValue)) return;
-        values = { ...values, [key]: newValue };
-        savedValues = { ...savedValues, [key]: newValue };
-        (GAME_CONFIG as any)[key] = newValue;
-        saveCombatTuning(values);
-    }
+    // Combat toggle/updateValue removed — all combat/AI/density values now
+    // flow through panel state via CONFIG_TO_PANEL_KEY in child components.
 
     let logRefresh = $state(0);
 
@@ -658,25 +574,29 @@
         syncPanelKey(key, val);
     }
 
+    /** Nuclear reset: clear ALL pax-* localStorage keys, apply default theme, reload. */
     function resetToDefaults() {
+        // Clear all pax localStorage keys
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && (k.startsWith("pax") || k.startsWith("PAX")))
+                keysToRemove.push(k);
+        }
+        keysToRemove.forEach((k) => localStorage.removeItem(k));
+
+        // Also clear known non-prefixed keys
         localStorage.removeItem(PANEL_STORAGE_KEY);
         localStorage.removeItem(STORAGE_KEY);
         localStorage.removeItem(VISUALS_STORAGE_KEY);
         localStorage.removeItem(ANIM_LOCK_STORAGE_KEY);
         localStorage.removeItem(ANIM_LOCK_STORAGE_KEY + "-modes");
 
-        enabled = Object.fromEntries(
-            Object.keys(enabled).map((key) => [key, true]),
-        ) as typeof enabled;
-        animLockRatios = {};
-        animLockModes = {};
+        // Apply the canonical default theme before reload
+        themeStore.applyTheme("Mar 16 Default (DY4)");
 
-        panel = setSettingsFromConfigPatch(
-            panel,
-            PRISTINE_CONFIG_PATCH,
-            savePanelSettings,
-        );
-        syncAllFromConfig(DEFAULT_GAME_CONFIG as Record<string, any>);
+        // Reload to fully reinitialize from clean state
+        window.location.reload();
     }
 
     // =========================================================================
@@ -765,7 +685,8 @@
         | "territory"
         | "ships"
         | "visuals"
-        | "logging";
+        | "logging"
+        | "audio";
 
     const ACTIVE_SECTION_KEY = "pax-fluxia-open-sections";
     function loadOpenSections(): SectionId[] {
@@ -909,6 +830,13 @@
             color: "#88aacc",
             tier: "developer",
         },
+        {
+            id: "audio",
+            icon: "🔊",
+            label: "Audio",
+            color: "#44ddbb",
+            tier: "basic",
+        },
     ];
 
     // Filter sections by active tier (basic shows basic, advanced shows basic+advanced, developer shows all)
@@ -1045,6 +973,13 @@
             >
                 📥 Import
             </button>
+            <button
+                class="full-io-btn full-reset-btn"
+                onclick={resetToDefaults}
+                title="Clear all localStorage and reset to factory defaults (Mar 16 Default theme)"
+            >
+                🗑️ Clear All
+            </button>
         </div>
     </div>
 
@@ -1110,10 +1045,6 @@
                     <ControlsSectionBattle
                         {panel}
                         {updatePanel}
-                        {values}
-                        {enabled}
-                        updateValue={updateValue as any}
-                        toggle={toggle as any}
                         syncFromConfig={syncAllFromConfig}
                     />
                 {:else if sec.id === "economy"}
@@ -1128,10 +1059,6 @@
                     <ControlsSectionAI
                         {panel}
                         {updatePanel}
-                        {values}
-                        {enabled}
-                        updateValue={updateValue as any}
-                        toggle={toggle as any}
                         syncFromConfig={syncAllFromConfig}
                     />
                 {:else if sec.id === "travel"}
@@ -1162,10 +1089,6 @@
                     <ControlsSectionShips
                         {panel}
                         {updatePanel}
-                        {values}
-                        {enabled}
-                        {updateValue}
-                        {toggle}
                         {exportConfigMD}
                         {importConfigJSON}
                         {configStatus}
@@ -1197,6 +1120,12 @@
                         {importConfigJSON}
                         {configStatus}
                         {configStatusColor}
+                        syncFromConfig={syncAllFromConfig}
+                    />
+                {:else if sec.id === "audio"}
+                    <ControlsSectionAudio
+                        {panel}
+                        {updatePanel}
                         syncFromConfig={syncAllFromConfig}
                     />
                 {/if}
@@ -1841,6 +1770,16 @@
         background: rgba(255, 255, 255, 0.08);
         border-color: rgba(255, 255, 255, 0.2);
         color: #fff;
+    }
+    .full-reset-btn {
+        border-color: rgba(255, 68, 68, 0.35);
+        color: #ff8888;
+    }
+    .full-reset-btn:hover {
+        background: rgba(255, 68, 68, 0.1);
+        border-color: #ff4444;
+        color: #ff4444;
+        box-shadow: 0 0 8px rgba(255, 68, 68, 0.25);
     }
 
     /* ── Nudge slider buttons (injected via nudgeSliders action) ── */

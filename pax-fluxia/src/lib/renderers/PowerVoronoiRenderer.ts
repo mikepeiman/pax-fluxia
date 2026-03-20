@@ -21,84 +21,120 @@
 // ============================================================================
 
 import * as PIXI from 'pixi.js';
-import { weightedVoronoi } from 'd3-weighted-voronoi';
 import { GAME_CONFIG } from '$lib/config/game.config';
 import type { StarState, StarConnection } from '$lib/types/game.types';
-import { findConnectedClustersOptimized } from './territoryUtils';
-import { computeCorridorVirtuals, computeDisconnectVirtuals, DISCONNECT_OWNER_ID } from './territoryFeatures';
 import type { ColorUtils } from './RenderContext';
-import type { CanonicalTerritoryData } from '$lib/territory-engine/renderMode';
+import type { CanonicalTerritoryData } from '$lib/territory/orchestrator/renderMode';
 import { log } from '$lib/utils/logger';
+import { blendColors, hexToRGB } from '$lib/utils/colorUtils';
+import {
+    generateVoronoiTerritoryGeometry,
+    buildTerritoryGeometryFingerprint,
+    chaikinSmoothPolyline,
+    chaikinSmoothPolygon,
+    chainSharedEdgesIntoPolylines,
+    type TerritoryGeometryData,
+    type MergedTerritory,
+    type SharedBorderEdge,
+    type SharedPolyline,
+    type TerritoryCell,
+} from '$lib/territory/compiler/powerVoronoiTerritoryGeometryGenerator';
+import { resamplePolygon, resamplePolyline, lerpPolygon, polygonCentroid } from '$lib/territory/geometry/morphUtils';
+import { SegmentMorphTransitionHandler, RopeBorderRenderer, PolygonMorphTransitionHandler } from '$lib/renderers/geometry/borderTransition';
+import { territoryTransitions } from '$lib/fx/handlers/territoryTransitionHandler';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
-/** A site in the power diagram — star or virtual point with weight. */
-interface PowerSite {
-    x: number;
-    y: number;
-    weight: number;
-    ownerId: string;
-    starId: string;
-    virtual?: 'corridor' | 'disconnect';
+// Types are now imported from powerVoronoiTerritoryGeometryGenerator — TerritoryCell, MergedTerritory,
+// SharedBorderEdge, SharedPolyline, TerritoryGeometryData
+// ── Renderer State (encapsulated) ─────────────────────────────────────────
+
+/**
+ * All mutable state for one PVV2 renderer instance.
+ * The legacy module-level state is now stored in `defaultState`.
+ * The refactored adapter creates its own isolated state via `createPVV2State()`.
+ */
+export interface PVV2RendererState {
+    // Cache
+    cachedShapeFingerprint: string;
+    cachedVisualFingerprint: string;
+    fillGraphics: PIXI.Graphics | null;
+    borderGraphics: PIXI.Graphics | null;
+    // Border Transition (Segment Mode)
+    prevBorderEdges: SharedBorderEdge[] | null;
+    targetBorderEdges: SharedBorderEdge[] | null;
+    borderTransitionStart: number;
+    isBorderTransitioning: boolean;
+    // Smooth Transition (Contested Border Mode)
+    prevSharedPolylines: SharedPolyline[] | null;
+    targetSharedPolylines: SharedPolyline[] | null;
+    targetRawSharedPolylines: SharedPolyline[] | null;
+    smoothTransitionStart: number;
+    isSmoothTransitioning: boolean;
+    lastMergedTerritories: MergedTerritory[] | null;
+    // Fill Transition (alpha crossfade)
+    prevMergedTerritories: MergedTerritory[] | null;
+    prevEnclaveMap: Map<number, [number, number][][]> | null;
+    fillTransitionStart: number;
+    isFillTransitioning: boolean;
+    // Active Morphers
+    activeBorderTransitionHandler: SegmentMorphTransitionHandler | null;
+    activeRopeRenderer: RopeBorderRenderer | null;
+    activeShapeTransitionHandler: PolygonMorphTransitionHandler | null;
+    // Cell Change Tracking
+    lastCells: TerritoryCell[] | null;
+    changedSiteIds: Set<string> | null;
+    // Enclave Cache
+    lastEnclaveMap: Map<number, [number, number][][]> | null;
+    // (removed: lastWorldBorderPolylines — failed world rect border attempt)
 }
 
-/** Polygon output from the power diagram, augmented with ownership info. */
-interface TerritoryCell {
-    points: [number, number][];
-    ownerId: string;
-    siteId: string;
+/** Create a fresh PVV2 renderer state. */
+export function createPVV2State(): PVV2RendererState {
+    return {
+        cachedShapeFingerprint: '',
+        cachedVisualFingerprint: '',
+        fillGraphics: null,
+        borderGraphics: null,
+        prevBorderEdges: null,
+        targetBorderEdges: null,
+        borderTransitionStart: 0,
+        isBorderTransitioning: false,
+        prevSharedPolylines: null,
+        targetSharedPolylines: null,
+        targetRawSharedPolylines: null,
+        smoothTransitionStart: 0,
+        isSmoothTransitioning: false,
+        lastMergedTerritories: null,
+        prevMergedTerritories: null,
+        prevEnclaveMap: null,
+        fillTransitionStart: 0,
+        isFillTransitioning: false,
+        activeBorderTransitionHandler: null,
+        activeRopeRenderer: null,
+        activeShapeTransitionHandler: null,
+        lastCells: null,
+        changedSiteIds: null,
+        lastEnclaveMap: null,
+        // (removed: lastWorldBorderPolylines)
+    };
 }
 
-/** Merged polygon for same-owner territory rendering. */
-interface MergedTerritory {
-    points: [number, number][];     // [[x,y], ...] closed polygon
-    ownerId: string;
-    color: number;          // hex fill color
-}
-
-// ── Cache ──────────────────────────────────────────────────────────────────
-
-let cachedShapeFingerprint = '';
-let cachedVisualFingerprint = '';
-let fillGraphics: PIXI.Graphics | null = null;
-let borderGraphics: PIXI.Graphics | null = null;
-
-// ── Border Transition State (Segment Mode) ─────────────────────────────────
-
-/** Previous shared border edge positions for segment mode animation. */
-let prevBorderEdges: SharedBorderEdge[] | null = null;
-let targetBorderEdges: SharedBorderEdge[] | null = null;
-let borderTransitionStart = 0;
-let isBorderTransitioning = false;
-
-// ── Smooth Transition State (Contested Border Mode) ─────────────────────────
-
-/** A continuous polyline of chained shared border edges between two owners. */
-interface SharedPolyline {
-    points: [number, number][];  // ordered points of the chained polyline
-    ownerPairKey: string;        // sorted owner pair key for matching
-    color: number;               // blended color for rendering
-}
-
-let prevSharedPolylines: SharedPolyline[] | null = null;
-let targetSharedPolylines: SharedPolyline[] | null = null;
-let smoothTransitionStart = 0;
-let isSmoothTransitioning = false;
-let lastMergedTerritories: MergedTerritory[] | null = null;  // stored for smooth mode snapshot
-
-// ── Cell Change Tracking (frontier-first rendering) ────────────────────
-let lastCells: TerritoryCell[] | null = null;  // cells from previous rebuild
-let changedSiteIds: Set<string> | null = null; // stars that changed owner in this conquest
-
-// ── Fill Transition State (mode-independent crossfade) ─────────────────────
-let prevMergedTerritories: MergedTerritory[] | null = null;
-let fillTransitionStart = 0;
-let isFillTransitioning = false;
-let lastEnclaveMap: Map<number, [number, number][][]> | null = null;
-let prevEnclaveMap: Map<number, [number, number][][]> | null = null;
+/** Default (legacy) module-level state — used when no state is passed to renderPowerVoronoi. */
+const defaultState: PVV2RendererState = createPVV2State();
 
 // ── Fingerprint ────────────────────────────────────────────────────────────
 
+/**
+ * Build a cache key from star ownership + geometry-affecting config params.
+ * If this string changes between frames, the renderer runs a full geometry
+ * stage rebuild. If it stays the same, the renderer skips the expensive
+ * power diagram computation.
+ *
+ * IMPORTANT: any config key that affects geometry output MUST be included here.
+ * Otherwise, changing that setting in the UI will appear to have no effect
+ * until the next conquest triggers a natural rebuild.
+ */
 function buildShapeFingerprint(stars: StarState[]): string {
     let fp = 'shape:';
     for (const s of stars) {
@@ -110,6 +146,19 @@ function buildShapeFingerprint(stars: StarState[]): string {
     fp += `:${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}`;
     fp += `:${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED}`;
     fp += `:${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE}`;
+    // Chaikin passes drives chainSharedEdgesIntoPolylines in the geometry stage
+    // — must be a shape-fingerprint dependency, not visual-only
+    fp += `:chaikin=${GAME_CONFIG.VORONOI_BORDER_SMOOTH}`;
+    // Geometry mode selects which generator runs:
+    // - 'power_voronoi': standard generateVoronoiTerritoryGeometry
+    // - 'unified_polygon': dense resampled variant
+    // - 'new_frontiers_0319': Geometry_0319 with fixed world-boundary pipeline
+    fp += `:geoMode=${GAME_CONFIG.TERRITORY_GEOMETRY_MODE}`;
+    fp += `:engMethod=${GAME_CONFIG.TERRITORY_ENGINE_METHOD}`;
+    // Refresh token: bumped by selectGeometryMode() on EVERY click (even
+    // re-clicking the same mode) so the user can force a recompute without
+    // changing any actual setting. See ControlsSection-Territory.svelte.
+    fp += `:geoRefresh=${(GAME_CONFIG as any).__GEOMETRY_REFRESH_TOKEN ?? 0}`;
     return fp;
 }
 
@@ -118,15 +167,12 @@ function buildVisualFingerprint(): string {
     fp += `${GAME_CONFIG.VORONOI_ALPHA}:${GAME_CONFIG.VORONOI_BORDER_WIDTH}`;
     fp += `:${GAME_CONFIG.VORONOI_BORDER_ALPHA}:${GAME_CONFIG.VORONOI_SATURATION}`;
     fp += `:${GAME_CONFIG.VORONOI_LIGHTNESS}`;
-    fp += `:${GAME_CONFIG.VORONOI_BORDER_SMOOTH}`;
+    // VORONOI_BORDER_SMOOTH removed — it's a geometry setting, not a visual one
     return fp;
 }
 
 // ── Color Helpers ──────────────────────────────────────────────────────────
-
-function hexToRGB(hex: number): [number, number, number] {
-    return [(hex >> 16) & 0xff, (hex >> 8) & 0xff, hex & 0xff];
-}
+// hexToRGB, blendColors: imported from '$lib/utils/colorUtils'
 
 function rgbToHSL(r: number, g: number, b: number): [number, number, number] {
     r /= 255; g /= 255; b /= 255;
@@ -186,331 +232,81 @@ function ptKey(x: number, y: number): string {
     return `${+x.toFixed(2)},${+y.toFixed(2)}`;
 }
 
-// ── Shared Border Edge Extraction ──────────────────────────────────────────
 
-/** A border edge segment shared between two different owners. */
-interface SharedBorderEdge {
-    x1: number; y1: number;
-    x2: number; y2: number;
-    ownerA: string;
-    ownerB: string;
-    colorA: number;
-    colorB: number;
-    siteIdA: string;  // star/cell identity on side A
-    siteIdB: string;  // star/cell identity on side B
-}
 
-/**
- * Extract edges shared between cells of DIFFERENT owners (contested borders).
- * Each edge appears once with ownerA/ownerB — these are the boundaries where
- * territory borders should overlap and blend.
- */
-function extractSharedEdges(cells: TerritoryCell[]): SharedBorderEdge[] {
-    // Map: edgeKey → { owners+siteIds per side, coordinates }
-    const edgeOwners = new Map<string, {
-        sides: { ownerId: string; siteId: string }[];
-        pts: [number, number, number, number];
-    }>();
 
-    for (const cell of cells) {
-        const pts = cell.points;
-        for (let j = 0; j < pts.length - 1; j++) {
-            const key = edgeKey(pts[j][0], pts[j][1], pts[j + 1][0], pts[j + 1][1]);
-            if (!edgeOwners.has(key)) {
-                edgeOwners.set(key, {
-                    sides: [{ ownerId: cell.ownerId, siteId: cell.siteId }],
-                    pts: [pts[j][0], pts[j][1], pts[j + 1][0], pts[j + 1][1]],
-                });
-            } else {
-                const entry = edgeOwners.get(key)!;
-                // Only add if this is a different cell (same edge shared by two cells)
-                if (!entry.sides.some(s => s.siteId === cell.siteId)) {
-                    entry.sides.push({ ownerId: cell.ownerId, siteId: cell.siteId });
-                }
-            }
-        }
-    }
 
-    // Collect only edges with exactly 2 different owners (contested boundaries)
-    const shared: SharedBorderEdge[] = [];
-    for (const [, entry] of edgeOwners) {
-        if (entry.sides.length === 2 &&
-            entry.sides[0].ownerId !== entry.sides[1].ownerId &&
-            entry.sides[0].ownerId !== '__disconnect__' &&
-            entry.sides[1].ownerId !== '__disconnect__') {
-            shared.push({
-                x1: entry.pts[0], y1: entry.pts[1],
-                x2: entry.pts[2], y2: entry.pts[3],
-                ownerA: entry.sides[0].ownerId,
-                ownerB: entry.sides[1].ownerId,
-                colorA: 0,
-                colorB: 0,
-                siteIdA: entry.sides[0].siteId,
-                siteIdB: entry.sides[1].siteId,
-            });
-        }
-    }
-    return shared;
-}
-
-/** Blend two hex colors by ratio t (0=colorA, 1=colorB). */
-function blendColors(colorA: number, colorB: number, t: number): number {
-    const [rA, gA, bA] = hexToRGB(colorA);
-    const [rB, gB, bB] = hexToRGB(colorB);
-    return (
-        (Math.round(rA + (rB - rA) * t) << 16) |
-        (Math.round(gA + (gB - gA) * t) << 8) |
-        Math.round(bA + (bB - bA) * t)
-    );
-}
 
 // ── Polygon Morph Helpers ─────────────────────────────────────────────────
+// resamplePolygon, resamplePolyline, lerpPolygon, polygonCentroid imported from
+// territory/geometry/morphUtils — animation-layer geometry helpers.
 
-/** Resample a polygon to `n` evenly-spaced points along its perimeter (CLOSED — wraps last to first). */
-function resamplePolygon(pts: [number, number][], n: number): [number, number][] {
-    if (pts.length <= 1 || n <= 1) return pts.slice();
+// chaikinSmoothPolyline, chaikinSmoothPolygon imported from powerVoronoiTerritoryGeometryGenerator —
+// ────────────────────────────────────────────────────────────────────────────
+// These are GEOMETRY operations — they change world coordinates.
+// Used in the renderer only for fill smoothing (hole polygons, crossfade fills).
+// ── Geometry helpers (imported from powerVoronoiTerritoryGeometryGenerator + morphUtils) ──────────
+// chaikinSmoothPolyline, chaikinSmoothPolygon ← powerVoronoiTerritoryGeometryGenerator (geometry layer)
+// resamplePolygon, resamplePolyline, lerpPolygon, polygonCentroid ← morphUtils (geometry layer)
+// chainSharedEdgesIntoPolylines ← powerVoronoiTerritoryGeometryGenerator (geometry layer)
 
-    // Compute cumulative arc lengths
-    const arcLens: number[] = [0];
-    for (let i = 1; i < pts.length; i++) {
-        arcLens.push(arcLens[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
-    }
-    const totalLen = arcLens[arcLens.length - 1];
-    if (totalLen === 0) return pts.slice();
 
-    const result: [number, number][] = [];
-    let segIdx = 0;
-    for (let i = 0; i < n; i++) {
-        const targetLen = (i / n) * totalLen;
-        while (segIdx < arcLens.length - 2 && arcLens[segIdx + 1] < targetLen) segIdx++;
-        const segLen = arcLens[segIdx + 1] - arcLens[segIdx];
-        const t = segLen > 0 ? (targetLen - arcLens[segIdx]) / segLen : 0;
-        result.push([
-            pts[segIdx][0] + (pts[segIdx + 1][0] - pts[segIdx][0]) * t,
-            pts[segIdx][1] + (pts[segIdx + 1][1] - pts[segIdx][1]) * t,
-        ]);
-    }
-    // Close the polygon
-    result.push([result[0][0], result[0][1]]);
-    return result;
-}
 
-/** Resample an OPEN polyline to `n` evenly-spaced points (no wrapping). */
-function resamplePolyline(pts: [number, number][], n: number): [number, number][] {
-    if (pts.length <= 1 || n <= 1) return pts.slice();
 
-    const arcLens: number[] = [0];
-    for (let i = 1; i < pts.length; i++) {
-        arcLens.push(arcLens[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
-    }
-    const totalLen = arcLens[arcLens.length - 1];
-    if (totalLen === 0) return pts.slice();
-
-    const result: [number, number][] = [];
-    let segIdx = 0;
-    for (let i = 0; i < n; i++) {
-        const targetLen = (i / (n - 1)) * totalLen;  // n-1 so last point = endpoint
-        while (segIdx < arcLens.length - 2 && arcLens[segIdx + 1] < targetLen) segIdx++;
-        const segLen = arcLens[segIdx + 1] - arcLens[segIdx];
-        const t = segLen > 0 ? (targetLen - arcLens[segIdx]) / segLen : 0;
-        result.push([
-            pts[segIdx][0] + (pts[segIdx + 1][0] - pts[segIdx][0]) * t,
-            pts[segIdx][1] + (pts[segIdx + 1][1] - pts[segIdx][1]) * t,
-        ]);
-    }
-    return result;
-}
-
-/** Get centroid of a polygon. */
-function polygonCentroid(pts: [number, number][]): [number, number] {
-    let cx = 0, cy = 0;
-    const n = pts.length - 1;  // last point = first (closed)
-    for (let i = 0; i < n; i++) { cx += pts[i][0]; cy += pts[i][1]; }
-    return n > 0 ? [cx / n, cy / n] : [0, 0];
-}
-
-/** Lerp two equal-length polygon arrays. */
-function lerpPolygon(from: [number, number][], to: [number, number][], t: number): [number, number][] {
-    const result: [number, number][] = [];
-    const len = Math.min(from.length, to.length);
-    for (let i = 0; i < len; i++) {
-        result.push([
-            from[i][0] + (to[i][0] - from[i][0]) * t,
-            from[i][1] + (to[i][1] - from[i][1]) * t,
-        ]);
-    }
-    return result;
-}
+// ── Bézier Midpoint Densification ──────────────────────────────────────────
 
 /**
- * Chaikin corner-cutting subdivision for open polylines.
- * Preserves first and last points; interior corners are smoothed by
- * replacing each segment midpoint region with 25%/75% cut points.
- * @param pts Open polyline as array of [x, y] tuples
- * @param passes Number of smoothing iterations (0 = no change)
+ * Densify a point array by evaluating quadratic Bézier curves through midpoints.
+ * This is the same interpolation that was previously done at draw-time for borders.
+ * Now applied once to BOTH fills and borders at the data level, ensuring
+ * identical geometry for both render paths.
+ *
+ * For N input points, generates a dense array with ~N * SUBDIVISIONS points.
+ * Both poly() fills and lineTo borders can then draw straight lines to this
+ * shared dense geometry.
  */
-function chaikinSmoothPolyline(pts: [number, number][], passes: number): [number, number][] {
-    if (passes <= 0 || pts.length < 3) return pts;
+function densifyBezierMidpoints(pts: [number, number][], subdivisions = 4): [number, number][] {
+    if (pts.length < 3) return pts;
 
-    let current = pts;
-    for (let iter = 0; iter < passes; iter++) {
-        const n = current.length;
-        const next: [number, number][] = [current[0]]; // preserve start
-        for (let i = 0; i < n - 1; i++) {
-            const [ax, ay] = current[i];
-            const [bx, by] = current[i + 1];
-            // For first/last segment: keep the original endpoint and add one cut point
-            if (i === 0) {
-                next.push([ax * 0.25 + bx * 0.75, ay * 0.25 + by * 0.75]);
-            } else if (i === n - 2) {
-                next.push([ax * 0.75 + bx * 0.25, ay * 0.75 + by * 0.25]);
-            } else {
-                next.push([ax * 0.75 + bx * 0.25, ay * 0.75 + by * 0.25]);
-                next.push([ax * 0.25 + bx * 0.75, ay * 0.25 + by * 0.75]);
-            }
-        }
-        next.push(current[n - 1]); // preserve end
-        current = next;
-    }
-    return current;
-}
+    const dense: [number, number][] = [];
+    // Start point
+    dense.push(pts[0]);
 
-/** Closed-polygon Chaikin: every edge including last→first gets corner-cut uniformly. */
-function chaikinSmoothPolygon(pts: [number, number][], passes: number): [number, number][] {
-    if (passes <= 0 || pts.length < 3) return pts;
+    // First segment: straight line to midpoint(pts[0], pts[1])
+    const mid0x = (pts[0][0] + pts[1][0]) / 2;
+    const mid0y = (pts[0][1] + pts[1][1]) / 2;
+    dense.push([mid0x, mid0y]);
 
-    let current = pts;
-    for (let iter = 0; iter < passes; iter++) {
-        const n = current.length;
-        const next: [number, number][] = [];
-        for (let i = 0; i < n; i++) {
-            const [ax, ay] = current[i];
-            const [bx, by] = current[(i + 1) % n];
-            next.push([ax * 0.75 + bx * 0.25, ay * 0.75 + by * 0.25]);
-            next.push([ax * 0.25 + bx * 0.75, ay * 0.25 + by * 0.75]);
-        }
-        current = next;
-    }
-    return current;
-}
+    // Interior segments: quadratic Bézier from current midpoint through pts[i] to next midpoint
+    for (let i = 1; i < pts.length - 1; i++) {
+        const cx = pts[i][0], cy = pts[i][1]; // control point
+        const nextMidX = (pts[i][0] + pts[i + 1][0]) / 2;
+        const nextMidY = (pts[i][1] + pts[i + 1][1]) / 2;
+        const prevMidX = (pts[i - 1][0] + pts[i][0]) / 2;
+        const prevMidY = (pts[i - 1][1] + pts[i][1]) / 2;
 
-/** Chain shared border edges into continuous polylines, grouped by owner-pair.
- *  Edges between the same two owners that share endpoints get merged into polylines. */
-function chainSharedEdgesIntoPolylines(edges: SharedBorderEdge[], colorLookup?: (ownerA: string, ownerB: string) => number, smoothPasses = 0): SharedPolyline[] {
-    // Group edges by sorted owner pair
-    const byPair = new Map<string, SharedBorderEdge[]>();
-    for (const e of edges) {
-        const key = e.ownerA < e.ownerB ? `${e.ownerA}|${e.ownerB}` : `${e.ownerB}|${e.ownerA}`;
-        if (!byPair.has(key)) byPair.set(key, []);
-        byPair.get(key)!.push(e);
-    }
-
-    const result: SharedPolyline[] = [];
-    const SNAP = 3;  // endpoint snapping tolerance (pixels)
-
-    for (const [pairKey, pairEdges] of byPair) {
-        // Build adjacency by endpoint
-        const ptKey = (x: number, y: number) => `${Math.round(x / SNAP) * SNAP},${Math.round(y / SNAP) * SNAP}`;
-        const adj = new Map<string, { x: number; y: number; next: string }[]>();
-        const used = new Array(pairEdges.length).fill(false);
-
-        for (let i = 0; i < pairEdges.length; i++) {
-            const e = pairEdges[i];
-            const k1 = ptKey(e.x1, e.y1);
-            const k2 = ptKey(e.x2, e.y2);
-            if (!adj.has(k1)) adj.set(k1, []);
-            if (!adj.has(k2)) adj.set(k2, []);
-            adj.get(k1)!.push({ x: e.x2, y: e.y2, next: k2 });
-            adj.get(k2)!.push({ x: e.x1, y: e.y1, next: k1 });
-        }
-
-        // Greedy chain: start from an endpoint (degree 1) or any unused edge
-        while (true) {
-            // Find an unused edge
-            let startIdx = -1;
-            for (let i = 0; i < pairEdges.length; i++) {
-                if (!used[i]) { startIdx = i; break; }
-            }
-            if (startIdx < 0) break;
-
-            // Simple: just trace edges greedily
-            const chain: [number, number][] = [];
-            used[startIdx] = true;
-            const e = pairEdges[startIdx];
-            chain.push([e.x1, e.y1]);
-            chain.push([e.x2, e.y2]);
-
-            // Extend forward: try to find next unused edge that connects
-            let extended = true;
-            while (extended) {
-                extended = false;
-                const last = chain[chain.length - 1];
-                const lk = ptKey(last[0], last[1]);
-                for (let i = 0; i < pairEdges.length; i++) {
-                    if (used[i]) continue;
-                    const ei = pairEdges[i];
-                    if (ptKey(ei.x1, ei.y1) === lk) {
-                        chain.push([ei.x2, ei.y2]);
-                        used[i] = true;
-                        extended = true;
-                        break;
-                    }
-                    if (ptKey(ei.x2, ei.y2) === lk) {
-                        chain.push([ei.x1, ei.y1]);
-                        used[i] = true;
-                        extended = true;
-                        break;
-                    }
-                }
-            }
-
-            // Extend backward similarly
-            extended = true;
-            while (extended) {
-                extended = false;
-                const first = chain[0];
-                const fk = ptKey(first[0], first[1]);
-                for (let i = 0; i < pairEdges.length; i++) {
-                    if (used[i]) continue;
-                    const ei = pairEdges[i];
-                    if (ptKey(ei.x2, ei.y2) === fk) {
-                        chain.unshift([ei.x1, ei.y1]);
-                        used[i] = true;
-                        extended = true;
-                        break;
-                    }
-                    if (ptKey(ei.x1, ei.y1) === fk) {
-                        chain.unshift([ei.x2, ei.y2]);
-                        used[i] = true;
-                        extended = true;
-                        break;
-                    }
-                }
-            }
-
-            const [ownerA, ownerB] = pairKey.split('|');
-            const color = colorLookup ? colorLookup(ownerA, ownerB) : 0x888888;
-
-            // Apply Chaikin smoothing to convert straight Voronoi edges into smooth arcs
-            const smoothed = smoothPasses > 0 ? chaikinSmoothPolyline(chain, smoothPasses) : chain;
-            result.push({ points: smoothed, ownerPairKey: pairKey, color });
+        // Sample quadratic Bézier: B(t) = (1-t)²·P0 + 2(1-t)t·C + t²·P1
+        // P0 = prevMid, C = pts[i], P1 = nextMid
+        for (let s = 1; s <= subdivisions; s++) {
+            const t = s / subdivisions;
+            const u = 1 - t;
+            const x = u * u * prevMidX + 2 * u * t * cx + t * t * nextMidX;
+            const y = u * u * prevMidY + 2 * u * t * cy + t * t * nextMidY;
+            dense.push([x, y]);
         }
     }
 
-    return result;
+    // Last segment: straight line to last point
+    dense.push(pts[pts.length - 1]);
+    return dense;
 }
 
 // ── Canonical Border Drawing ───────────────────────────────────────────────
 
 /**
- * Draw border polylines into a Graphics object as smooth Bézier curves.
- * Uses quadraticCurveTo through midpoints for smooth arc geometry.
- * This is the SINGLE canonical function for all border rendering — steady-state,
- * transition animation, and segment mode all use this function.
- * 
- * If smoothPasses > 0, Chaikin subdivision is applied first to generate more
- * control points for the Bézier interpolation. Round caps and joins ensure
- * clean visual connections at polyline junctions.
+ * Draw border polylines as straight lines. Points are expected to be
+ * pre-densified via densifyBezierMidpoints — no curves computed here.
+ * This ensures borders and fills use identical geometry.
  */
 function drawBorderPolylines(
     graphics: PIXI.Graphics,
@@ -526,38 +322,26 @@ function drawBorderPolylines(
             : polyline.points;
         if (pts.length < 2) continue;
 
-        if (pts.length === 2) {
-            graphics.moveTo(pts[0][0], pts[0][1]);
-            graphics.lineTo(pts[1][0], pts[1][1]);
-        } else {
-            // Quadratic Bézier through midpoints for smooth arc geometry
-            graphics.moveTo(pts[0][0], pts[0][1]);
-            const mid0x = (pts[0][0] + pts[1][0]) / 2;
-            const mid0y = (pts[0][1] + pts[1][1]) / 2;
-            graphics.lineTo(mid0x, mid0y);
-            for (let i = 1; i < pts.length - 1; i++) {
-                const midX = (pts[i][0] + pts[i + 1][0]) / 2;
-                const midY = (pts[i][1] + pts[i + 1][1]) / 2;
-                graphics.quadraticCurveTo(pts[i][0], pts[i][1], midX, midY);
-            }
-            const last = pts[pts.length - 1];
-            graphics.lineTo(last[0], last[1]);
+        // Straight lines only — curves are baked into the point data
+        graphics.moveTo(pts[0][0], pts[0][1]);
+        for (let i = 1; i < pts.length; i++) {
+            graphics.lineTo(pts[i][0], pts[i][1]);
         }
         graphics.stroke({ width, color: polyline.color, alpha, cap: 'round', join: 'round' });
         drawn++;
     }
-    log.renderer('drawBorderPolylines', `drew ${drawn}/${polylines.length} polylines (smooth=${smoothPasses}, w=${width.toFixed(1)}, a=${alpha.toFixed(2)}, bezier=true)`);
+    log.renderer('drawBorderPolylines', `drew ${drawn}/${polylines.length} polylines (smooth=${smoothPasses}, w=${width.toFixed(1)}, a=${alpha.toFixed(2)}, straight=true)`);
 }
 
 /** Build lerped polylines from prev → target for transition animation.
  *  Matches polylines by ownerPairKey + nearest centroid, resamples + lerps.
- *  Returns an array suitable for drawBorderPolylines. */
+ *  Returns an array suitable for substituteSmoothedEdges. */
 function buildLerpedPolylines(
     prev: SharedPolyline[], target: SharedPolyline[],
     t: number,
-): { points: [number, number][]; color: number }[] {
+): SharedPolyline[] {
     const RESAMPLE_N = 32;
-    const result: { points: [number, number][]; color: number }[] = [];
+    const result: SharedPolyline[] = [];
 
     // Group by ownerPairKey for matching
     const prevByKey = new Map<string, SharedPolyline[]>();
@@ -607,17 +391,17 @@ function buildLerpedPolylines(
                     tSampled = tSampled.slice().reverse() as [number, number][];
                 }
 
-                result.push({ points: lerpPolygon(pSampled, tSampled, t), color: tLine.color });
+                result.push({ ...tLine, points: lerpPolygon(pSampled, tSampled, t) });
             } else {
                 // Prev-only: use prev points (will fade out via alpha in caller)
-                result.push({ points: pLine.points, color: pLine.color });
+                result.push({ ...pLine });
             }
         }
 
         // Target-only polylines: use target points (fade in via alpha in caller)
         for (let ti = 0; ti < tLines.length; ti++) {
             if (usedTargets.has(ti)) continue;
-            result.push({ points: tLines[ti].points, color: tLines[ti].color });
+            result.push({ ...tLines[ti] });
         }
     }
     return result;
@@ -631,12 +415,12 @@ function renderInterpolatedBorders(
     t: number,  // 0=prev, 1=target (eased)
     borderWidth: number, borderAlpha: number,
 ): void {
-    if (!borderGraphics) {
-        borderGraphics = new PIXI.Graphics();
-        container.addChild(borderGraphics);
+    if (!defaultState.borderGraphics) {
+        defaultState.borderGraphics = new PIXI.Graphics();
+        container.addChild(defaultState.borderGraphics);
     }
-    borderGraphics.clear();
-    borderGraphics.visible = true;
+    defaultState.borderGraphics.clear();
+    defaultState.borderGraphics.visible = true;
 
     const blendWidth = borderWidth * 2.5;
 
@@ -668,14 +452,14 @@ function renderInterpolatedBorders(
             const y2 = pEdge.y2 + (tEdge.y2 - pEdge.y2) * t;
             // Use target edge color (since fills show target state)
             const color = tEdge.colorA || pEdge.colorA || 0x888888;
-            borderGraphics.moveTo(x1, y1);
-            borderGraphics.lineTo(x2, y2);
-            borderGraphics.stroke({ width: blendWidth, color, alpha: borderAlpha });
+            defaultState.borderGraphics.moveTo(x1, y1);
+            defaultState.borderGraphics.lineTo(x2, y2);
+            defaultState.borderGraphics.stroke({ width: blendWidth, color, alpha: borderAlpha });
         } else {
             // Prev edge fading out (no match) — draw at prev position with decreasing alpha
-            borderGraphics.moveTo(pEdge.x1, pEdge.y1);
-            borderGraphics.lineTo(pEdge.x2, pEdge.y2);
-            borderGraphics.stroke({ width: blendWidth, color: pEdge.colorA || 0x888888, alpha: borderAlpha * (1 - t) });
+            defaultState.borderGraphics.moveTo(pEdge.x1, pEdge.y1);
+            defaultState.borderGraphics.lineTo(pEdge.x2, pEdge.y2);
+            defaultState.borderGraphics.stroke({ width: blendWidth, color: pEdge.colorA || 0x888888, alpha: borderAlpha * (1 - t) });
         }
     }
 
@@ -683,207 +467,50 @@ function renderInterpolatedBorders(
     for (let ti = 0; ti < target.length; ti++) {
         if (targetUsed.has(ti)) continue;
         const tEdge = target[ti];
-        borderGraphics.moveTo(tEdge.x1, tEdge.y1);
-        borderGraphics.lineTo(tEdge.x2, tEdge.y2);
-        borderGraphics.stroke({ width: blendWidth, color: tEdge.colorA || 0x888888, alpha: borderAlpha * t });
+        defaultState.borderGraphics.moveTo(tEdge.x1, tEdge.y1);
+        defaultState.borderGraphics.lineTo(tEdge.x2, tEdge.y2);
+        defaultState.borderGraphics.stroke({ width: blendWidth, color: tEdge.colorA || 0x888888, alpha: borderAlpha * t });
     }
 }
 
 
 
-function mergeSameOwnerCells(
-    cells: TerritoryCell[],
-    clusterSplit: boolean,
-    clusterMap: Map<string, number>,
-): MergedTerritory[] {
-    // Build cluster key per cell
-    const clusterKeyOf = (cell: TerritoryCell) => {
-        const cIdx = clusterMap.get(cell.siteId) ?? 0;
-        return clusterSplit ? `${cell.ownerId}:${cIdx}` : cell.ownerId;
-    };
+// mergeSameOwnerCells and detectEnclaves moved to powerVoronoiTerritoryGeometryGenerator.ts (geometry stage)
 
-    // Step 1: Count edges, track which cluster(s) share each edge
-    const edgeCount = new Map<string, number>();
-    const edgeClusters = new Map<string, Set<string>>();
 
-    for (const cell of cells) {
-        const ck = clusterKeyOf(cell);
-        const pts = cell.points;
-        for (let j = 0; j < pts.length - 1; j++) {
-            const key = edgeKey(pts[j][0], pts[j][1], pts[j + 1][0], pts[j + 1][1]);
-            edgeCount.set(key, (edgeCount.get(key) ?? 0) + 1);
-            if (!edgeClusters.has(key)) edgeClusters.set(key, new Set());
-            edgeClusters.get(key)!.add(ck);
-        }
-    }
-
-    // Step 2: Collect external edges per cluster
-    type DEdge = { x1: number; y1: number; x2: number; y2: number };
-    const clusterEdges = new Map<string, DEdge[]>();
-    const clusterColor = new Map<string, number>();
-
-    for (const cell of cells) {
-        const ck = clusterKeyOf(cell);
-        if (!clusterEdges.has(ck)) clusterEdges.set(ck, []);
-        if (!clusterColor.has(ck)) clusterColor.set(ck, 0);
-
-        const pts = cell.points;
-        for (let j = 0; j < pts.length - 1; j++) {
-            const key = edgeKey(pts[j][0], pts[j][1], pts[j + 1][0], pts[j + 1][1]);
-            const count = edgeCount.get(key) ?? 0;
-            const clusters = edgeClusters.get(key)!;
-            // Internal: shared by 2+ cells of the SAME cluster → skip
-            if (count >= 2 && clusters.size === 1) continue;
-            clusterEdges.get(ck)!.push({
-                x1: pts[j][0], y1: pts[j][1],
-                x2: pts[j + 1][0], y2: pts[j + 1][1],
-            });
-        }
-    }
-
-    // Step 3: Chain edges into closed polygons
-    const result: MergedTerritory[] = [];
-
-    for (const [ck, edges] of clusterEdges) {
-        if (edges.length === 0) continue;
-        const ownerId = ck.split(':')[0];
-
-        // Bidirectional adjacency
-        type IEdge = { x1: number; y1: number; x2: number; y2: number; idx: number };
-        const allEdges: IEdge[] = [];
-        for (let i = 0; i < edges.length; i++) {
-            const e = edges[i];
-            allEdges.push({ ...e, idx: i });
-            allEdges.push({ x1: e.x2, y1: e.y2, x2: e.x1, y2: e.y1, idx: i });
-        }
-
-        const adj = new Map<string, IEdge[]>();
-        for (const ie of allEdges) {
-            const k = ptKey(ie.x1, ie.y1);
-            if (!adj.has(k)) adj.set(k, []);
-            adj.get(k)!.push(ie);
-        }
-
-        const used = new Set<number>();
-        for (let start = 0; start < edges.length; start++) {
-            if (used.has(start)) continue;
-            const chain: number[][] = [];
-            const e0 = edges[start];
-            used.add(start);
-            chain.push([e0.x1, e0.y1]);
-            chain.push([e0.x2, e0.y2]);
-
-            const startPt = ptKey(e0.x1, e0.y1);
-            let curEnd = ptKey(e0.x2, e0.y2);
-            let safety = edges.length * 2;
-
-            while (curEnd !== startPt && safety-- > 0) {
-                const cands = adj.get(curEnd);
-                if (!cands) break;
-                let found = false;
-                for (const c of cands) {
-                    if (used.has(c.idx)) continue;
-                    used.add(c.idx);
-                    curEnd = ptKey(c.x2, c.y2);
-                    chain.push([c.x2, c.y2]);
-                    found = true;
-                    break;
-                }
-                if (!found) break;
-            }
-
-            if (chain.length >= 3) {
-                // Ensure closed
-                if (chain[0][0] !== chain[chain.length - 1][0] ||
-                    chain[0][1] !== chain[chain.length - 1][1]) {
-                    chain.push([chain[0][0], chain[0][1]]);
-                }
-                result.push({ points: chain as [number, number][], ownerId, color: 0 });
-            }
-        }
-    }
-
-    return result;
-}
-
-// ── Enclave Detection (B-38) ──────────────────────────────────────────────
-
-/** Ray-casting point-in-polygon test. */
-function pointInPolygon(px: number, py: number, polygon: [number, number][]): boolean {
-    let inside = false;
-    const n = polygon.length;
-    for (let i = 0, j = n - 1; i < n; j = i++) {
-        const xi = polygon[i][0], yi = polygon[i][1];
-        const xj = polygon[j][0], yj = polygon[j][1];
-        if (((yi > py) !== (yj > py)) && (px < (xj - xi) * (py - yi) / (yj - yi) + xi)) {
-            inside = !inside;
-        }
-    }
-    return inside;
-}
-
-/** Compute centroid of a polygon (for enclave containment test). */
-function mergedCentroid(pts: [number, number][]): [number, number] {
-    let cx = 0, cy = 0;
-    const len = pts.length > 0 && pts[0][0] === pts[pts.length - 1][0] && pts[0][1] === pts[pts.length - 1][1]
-        ? pts.length - 1 : pts.length;
-    for (let i = 0; i < len; i++) { cx += pts[i][0]; cy += pts[i][1]; }
-    return len > 0 ? [cx / len, cy / len] : [0, 0];
-}
-
-/**
- * Detect enclaves: for each merged territory, find other differently-owned
- * territories whose centroid falls inside it. Returns a Map of territory
- * index → array of enclave polygon point arrays to cut.
- */
-function detectEnclaves(merged: MergedTerritory[]): Map<number, [number, number][][]> {
-    const enclaveMap = new Map<number, [number, number][][]>();
-    for (let outerIdx = 0; outerIdx < merged.length; outerIdx++) {
-        const outer = merged[outerIdx];
-        const holes: [number, number][][] = [];
-        for (let innerIdx = 0; innerIdx < merged.length; innerIdx++) {
-            if (innerIdx === outerIdx) continue;
-            const inner = merged[innerIdx];
-            if (inner.ownerId === outer.ownerId) continue;
-            const [cx, cy] = mergedCentroid(inner.points);
-            if (pointInPolygon(cx, cy, outer.points)) {
-                holes.push(inner.points);
-            }
-        }
-        if (holes.length > 0) {
-            enclaveMap.set(outerIdx, holes);
-        }
-    }
-    return enclaveMap;
-}
-
-/** Draw a territory fill with enclave holes cut out.
- *  Applies Chaikin smoothing to fill polygons so they match the smoothed
- *  borders drawn by drawBorderPolylines (B-42 fix). */
-function drawTerritoryFillWithHoles(
+/** Draw a territory fill ONLY (no stroke).
+ *  Borders are drawn separately via drawBorderPolylines on defaultState.borderGraphics.
+ *  Fills use RAW polygon points — NO independent smoothing.
+ *  Smoothing is applied only to border polylines in the compiler stage.
+ *  Independent fill smoothing creates divergence (B-42). */
+function drawTerritoryFillOnly(
     graphics: PIXI.Graphics,
     territory: MergedTerritory,
     holes: [number, number][][] | undefined,
     alpha: number,
-    smoothPasses = 0,
 ): void {
-    const fillPts = smoothPasses > 0
-        ? chaikinSmoothPolygon(territory.points, smoothPasses)
-        : territory.points;
-    graphics.beginPath();
-    graphics.poly(fillPts.flat());
+    if (territory.points.length < 3) {
+        log.renderer('PVV2:fill', `SKIP territory ownerId=${territory.ownerId} — only ${territory.points.length} pts`);
+        return;
+    }
+    // R-131: Skip neutral territory fill when transparency is enabled
+    const isNeutral = !territory.ownerId || territory.ownerId === 'neutral' || territory.ownerId === '';
+    if (isNeutral && GAME_CONFIG.NEUTRAL_TERRITORY_TRANSPARENT) return;
+    // Use raw polygon points — NO chaikin here. Stage owns smoothing.
+    graphics.poly(territory.points.flat());
     graphics.fill({ color: territory.color, alpha });
+
+    log.renderer('PVV2:fill', `  filled ownerId=${territory.ownerId} color=0x${territory.color.toString(16)} alpha=${alpha.toFixed(2)} pts=${territory.points.length} holes=${holes?.length ?? 0}`);
     if (holes) {
         for (const hole of holes) {
-            const smoothedHole = smoothPasses > 0
-                ? chaikinSmoothPolygon(hole, smoothPasses)
-                : hole;
-            graphics.beginPath();
-            graphics.poly(smoothedHole.flat());
+            if (hole.length < 3) continue;
+            // Holes also use raw points — no independent smoothing
+            graphics.poly(hole.flat());
             graphics.cut();
         }
     }
 }
+
 
 // ── Main Renderer ──────────────────────────────────────────────────────────
 
@@ -895,13 +522,16 @@ export function renderPowerVoronoi(
     worldHeight: number,
     connections?: StarConnection[],
     canonicalData?: CanonicalTerritoryData,
+    state?: PVV2RendererState,
+    precomputedGeometry?: TerritoryGeometryData,
 ): void {
+    const s = state ?? defaultState;
     const transitionMs = GAME_CONFIG.TERRITORY_TRANSITION_MS ?? 400;
     const now = performance.now();
 
-    // Re-show graphics — voronoiContainer blanket-hides every frame
-    if (fillGraphics) fillGraphics.visible = true;
-    if (borderGraphics) borderGraphics.visible = true;
+    // Re-show s.fillGraphics — voronoiContainer blanket-hides every frame
+    if (s.fillGraphics) s.fillGraphics.visible = true;
+    // s.borderGraphics stays hidden — borders are now strokes on the fill path
 
     // ── CANONICAL DATA PATH ─────────────────────────────────────────────
     // When canonical data is provided with shells, draw fills and borders
@@ -922,19 +552,28 @@ export function renderPowerVoronoi(
     }
 
     if (canonicalShells.length > 0) {
-        if (!fillGraphics) {
-            fillGraphics = new PIXI.Graphics();
-            voronoiContainer.addChild(fillGraphics);
+        if (!s.fillGraphics) {
+            s.fillGraphics = new PIXI.Graphics();
+            voronoiContainer.addChild(s.fillGraphics);
         }
-        fillGraphics.clear();
-        fillGraphics.visible = true;
+        s.fillGraphics.clear();
+        s.fillGraphics.visible = true;
+
+        // Canonical path owns ALL rendering for this frame.
+        // Clear legacy s.borderGraphics so stale pvv2 polyline borders (different geometry)
+        // do not persist and appear misaligned with canonical shell fills.
+        if (s.borderGraphics) {
+            s.borderGraphics.clear();
+            s.borderGraphics.visible = false;
+            log.renderer('PVV2', '🔴 CANONICAL PATH cleared s.borderGraphics!');
+        }
 
         const alpha = GAME_CONFIG.VORONOI_ALPHA ?? 0.25;
         const borderWidth = GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 1.5;
         const borderAlpha = GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.4;
         const satMult = GAME_CONFIG.VORONOI_SATURATION ?? 1.0;
         const lightMult = GAME_CONFIG.VORONOI_LIGHTNESS ?? 0.7;
-        const smoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
+        const smoothPasses = 0; // NO smoothing in renderer — geometry arrives pre-computed from compiler stage
 
         // Choose shells: animated if transition active, otherwise static
         const shellsForRender = canonicalAnimActive && canonicalAnimShells.length > 0
@@ -951,18 +590,21 @@ export function renderPowerVoronoi(
 
         for (const shell of sorted) {
             if (shell.points.length < 3) continue;
+
+            // R-131: Skip neutral territory fill when transparency is enabled
+            const isNeutral = !shell.ownerId || shell.ownerId === 'neutral' || shell.ownerId === '';
+            if (isNeutral && GAME_CONFIG.NEUTRAL_TERRITORY_TRANSPARENT) continue;
+
             const rawColor = colorUtils.getPlayerColor(shell.ownerId);
             const shellColor = adjustColorHSL(rawColor, satMult, lightMult);
 
-            // Smooth shell polygon (optional Chaikin)
-            const smoothedPts = smoothPasses > 0
-                ? chaikinSmoothPolygon(shell.points, smoothPasses)
-                : shell.points;
+            // Fills use geometry as-is — no smoothing in renderer
+            const smoothedPts = shell.points;
 
             // Draw fill FROM shell points
-            fillGraphics.beginPath();
-            fillGraphics.poly(smoothedPts.flat());
-            fillGraphics.fill({ color: shellColor, alpha });
+            s.fillGraphics.beginPath();
+            s.fillGraphics.poly(smoothedPts.flat());
+            s.fillGraphics.fill({ color: shellColor, alpha });
 
             // Cut holes
             const holeLoops: Array<{ points: [number, number][] }> =
@@ -975,25 +617,24 @@ export function renderPowerVoronoi(
                         : [];
             for (const hole of holeLoops) {
                 if (hole.points.length < 3) continue;
-                const smoothedHole = smoothPasses > 0
-                    ? chaikinSmoothPolygon(hole.points, smoothPasses)
-                    : hole.points;
-                fillGraphics.beginPath();
-                fillGraphics.poly(smoothedHole.flat());
-                fillGraphics.cut();
+                // Holes use geometry as-is — no smoothing in renderer
+                const smoothedHole = hole.points;
+                s.fillGraphics.beginPath();
+                s.fillGraphics.poly(smoothedHole.flat());
+                s.fillGraphics.cut();
             }
 
             // Draw border ON the same shell points
             if (borderWidth > 0 && borderAlpha > 0) {
-                fillGraphics.beginPath();
-                fillGraphics.moveTo(smoothedPts[0][0], smoothedPts[0][1]);
+                s.fillGraphics.beginPath();
+                s.fillGraphics.moveTo(smoothedPts[0][0], smoothedPts[0][1]);
                 for (let i = 1; i < smoothedPts.length; i++) {
-                    fillGraphics.lineTo(smoothedPts[i][0], smoothedPts[i][1]);
+                    s.fillGraphics.lineTo(smoothedPts[i][0], smoothedPts[i][1]);
                 }
                 if (smoothedPts.length > 2) {
-                    fillGraphics.lineTo(smoothedPts[0][0], smoothedPts[0][1]);
+                    s.fillGraphics.lineTo(smoothedPts[0][0], smoothedPts[0][1]);
                 }
-                fillGraphics.stroke({
+                s.fillGraphics.stroke({
                     width: borderWidth,
                     color: shellColor,
                     alpha: borderAlpha,
@@ -1008,147 +649,102 @@ export function renderPowerVoronoi(
     }
 
     // ── LEGACY PATH (no canonical data) ─────────────────────────────────
+    // Clear stale s.borderGraphics — borders are drawn on s.fillGraphics only.
+    // renderInterpolatedBorders (which created borderGraphics) is dead code,
+    // but the Graphics object persists and renders a second set of borders.
+    if (s.borderGraphics) {
+        s.borderGraphics.clear();
+        s.borderGraphics.visible = false;
+    }
     // Per-frame animation (both modes)
     const boundaryMode = GAME_CONFIG.TERRITORY_BOUNDARY_MODE ?? 'smooth';
 
     // Throttled mode log — only on state change
-    const modeKey = `${boundaryMode}|${isSmoothTransitioning}|${isBorderTransitioning}`;
+    const modeKey = `${boundaryMode}|${s.isSmoothTransitioning}|${s.isBorderTransitioning}`;
     if ((drawBorderPolylines as any).__lastModeKey !== modeKey) {
         (drawBorderPolylines as any).__lastModeKey = modeKey;
-        log.renderer('PVV2', `mode=${boundaryMode} smoothTransition=${isSmoothTransitioning} segmentTransition=${isBorderTransitioning} fillTransition=${isFillTransitioning}`);
+        log.renderer('PVV2', `mode=${boundaryMode} smoothTransition=${s.isSmoothTransitioning} segmentTransition=${s.isBorderTransitioning}`);
     }
 
-    // ── Per-frame fill crossfade (mode-independent) ──────────────────────
-    if (isFillTransitioning && prevMergedTerritories && lastMergedTerritories && fillGraphics && transitionMs > 0) {
-        const elapsed = now - fillTransitionStart;
+    // ── Per-frame geometric MORPH ──
+    const isAnimatingSmooth = boundaryMode === 'smooth' && s.isSmoothTransitioning && s.prevSharedPolylines && s.targetSharedPolylines && transitionMs > 0;
+
+    if (isAnimatingSmooth && s.lastMergedTerritories && s.fillGraphics) {
+        const elapsed = now - s.smoothTransitionStart;
         const rawT = Math.min(1, elapsed / transitionMs);
-        const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
+        // Easing is now handled inside the morpher classes — pass raw t
+        const easedT = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
+
         const alpha = GAME_CONFIG.VORONOI_ALPHA ?? 0.25;
-        const fillSmoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
+        const borderWidth = GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 1.5;
+        const borderAlpha = GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.4;
+        const smoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
 
-        fillGraphics.clear();
-        // Prev fills fading out (with enclave holes)
-        for (let i = 0; i < prevMergedTerritories.length; i++) {
-            drawTerritoryFillWithHoles(fillGraphics, prevMergedTerritories[i], prevEnclaveMap?.get(i), alpha * (1 - eased), fillSmoothPasses);
-        }
-        // Target fills fading in (with enclave holes)
-        for (let i = 0; i < lastMergedTerritories.length; i++) {
-            drawTerritoryFillWithHoles(fillGraphics, lastMergedTerritories[i], lastEnclaveMap?.get(i), alpha * eased, fillSmoothPasses);
+        s.fillGraphics.clear();
+
+        // D-79 / B-101: Unified fill+border from same morphed closed polygons.
+        // PolygonMorphTransitionHandler draws both fill AND stroke from the same interpolated points.
+        if (s.activeShapeTransitionHandler) {
+            s.activeShapeTransitionHandler.drawFrame(s.fillGraphics, rawT, alpha, borderWidth, borderAlpha);
+        } else if (s.activeBorderTransitionHandler) {
+            // Legacy segment morpher fallback (borders only)
+            for (let i = 0; i < s.lastMergedTerritories.length; i++) {
+                drawTerritoryFillOnly(s.fillGraphics, s.lastMergedTerritories[i], s.lastEnclaveMap?.get(i), alpha);
+            }
+            s.activeBorderTransitionHandler.drawFrame(s.fillGraphics, rawT, borderWidth, borderAlpha);
+        } else if (s.activeRopeRenderer) {
+            // Rope mode: draw target fills, rope handles borders
+            for (let i = 0; i < s.lastMergedTerritories.length; i++) {
+                drawTerritoryFillOnly(s.fillGraphics, s.lastMergedTerritories[i], s.lastEnclaveMap?.get(i), alpha);
+            }
+            s.activeRopeRenderer.setVisible(true);
+            s.activeRopeRenderer.update(rawT, borderAlpha);
         }
 
         if (rawT >= 1) {
-            isFillTransitioning = false;
-            prevMergedTerritories = null;
-            prevEnclaveMap = null;
-            log.renderer('PVV2', 'fill crossfade complete');
-        }
-    }
-
-    // Segment mode: chain lerped edges into polylines, render via canonical draw
-    if (boundaryMode === 'segment' && isBorderTransitioning && transitionMs > 0 && prevBorderEdges && targetBorderEdges) {
-        const elapsed = now - borderTransitionStart;
-        const rawT = Math.min(1, elapsed / transitionMs);
-        const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
-
-        // Lerp edge positions, then chain into polylines for canonical draw
-        const lerpedEdges: SharedBorderEdge[] = [];
-        const targetUsed = new Set<number>();
-        for (const pEdge of prevBorderEdges) {
-            const pMx = (pEdge.x1 + pEdge.x2) / 2;
-            const pMy = (pEdge.y1 + pEdge.y2) / 2;
-            let bestDist = Infinity;
-            let bestIdx = -1;
-            for (let ti = 0; ti < targetBorderEdges.length; ti++) {
-                if (targetUsed.has(ti)) continue;
-                const tMx = (targetBorderEdges[ti].x1 + targetBorderEdges[ti].x2) / 2;
-                const tMy = (targetBorderEdges[ti].y1 + targetBorderEdges[ti].y2) / 2;
-                const d = Math.hypot(pMx - tMx, pMy - tMy);
-                if (d < bestDist) { bestDist = d; bestIdx = ti; }
+            s.isSmoothTransitioning = false;
+            s.isFillTransitioning = false;
+            s.prevSharedPolylines = null;
+            s.prevMergedTerritories = null;
+            s.prevEnclaveMap = null;
+            s.activeBorderTransitionHandler = null;
+            s.activeShapeTransitionHandler = null;
+            if (s.activeRopeRenderer) {
+                s.activeRopeRenderer.removeAll();
+                s.activeRopeRenderer = null;
             }
-            if (bestIdx >= 0 && bestDist < 200) {
-                targetUsed.add(bestIdx);
-                const tEdge = targetBorderEdges[bestIdx];
-                lerpedEdges.push({
-                    x1: pEdge.x1 + (tEdge.x1 - pEdge.x1) * eased,
-                    y1: pEdge.y1 + (tEdge.y1 - pEdge.y1) * eased,
-                    x2: pEdge.x2 + (tEdge.x2 - pEdge.x2) * eased,
-                    y2: pEdge.y2 + (tEdge.y2 - pEdge.y2) * eased,
-                    ownerA: tEdge.ownerA, ownerB: tEdge.ownerB,
-                    colorA: tEdge.colorA, colorB: tEdge.colorB,
-                    siteIdA: tEdge.siteIdA, siteIdB: tEdge.siteIdB,
-                });
+            // ── F2 FIX (refined) ────────────────────────────────────────────
+            // Do NOT clear + redraw fills — that caused visible tick stutter.
+            // The morpher's last frame at t=1 already shows correct fills.
+            // But we DO need to draw steady-state contested borders so they persist
+            // after the morpher/rope is cleaned up above.
+            if (s.targetSharedPolylines && s.targetSharedPolylines.length > 0 && borderWidth > 0 && borderAlpha > 0) {
+                drawBorderPolylines(s.fillGraphics, s.targetSharedPolylines, 0, borderWidth, borderAlpha);
             }
-        }
-        // Unmatched target edges
-        for (let ti = 0; ti < targetBorderEdges.length; ti++) {
-            if (targetUsed.has(ti)) continue;
-            lerpedEdges.push(targetBorderEdges[ti]);
+
+            log.renderer('PVV2', 'border transition complete — contested borders drawn, fills retained');
         }
 
-        // Chain lerped edges into polylines + draw via canonical function
-        if (borderGraphics) {
-            borderGraphics.clear();
-            const smoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
-            const borderWidth = GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 1.5;
-            const borderAlpha = GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.4;
-            const polylines = chainSharedEdgesIntoPolylines(lerpedEdges, (a, b) => {
-                const cA = lerpedEdges.find(e => (e.ownerA === a && e.ownerB === b) || (e.ownerA === b && e.ownerB === a));
-                return cA ? blendColors(cA.colorA, cA.colorB, 0.5) : 0x888888;
-            }, 0);  // don't smooth inside chain — smooth in draw
-            drawBorderPolylines(borderGraphics, polylines, smoothPasses, borderWidth, borderAlpha);
-            log.renderer('PVV2', `SEGMENT TRANSITION t=${eased.toFixed(3)} | ${polylines.length} polylines from ${lerpedEdges.length} edges`);
-        }
-
-        if (rawT >= 1) {
-            isBorderTransitioning = false;
-            prevBorderEdges = null;
-        }
         const shapeFpCheck = buildShapeFingerprint(stars);
         const visualFpCheck = buildVisualFingerprint();
-        if (shapeFpCheck === cachedShapeFingerprint && visualFpCheck === cachedVisualFingerprint) return;
-    }
-
-    // Smooth mode: contested shared border polyline morph
-    if (boundaryMode === 'smooth' && isSmoothTransitioning && transitionMs > 0 && prevSharedPolylines && targetSharedPolylines) {
-        const elapsed = now - smoothTransitionStart;
-        const rawT = Math.min(1, elapsed / transitionMs);
-        const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
-
-        // Draw lerped borders into borderGraphics (single layer — no outlineGraphics)
-        if (borderGraphics) {
-            borderGraphics.clear();
-            const smoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
-            const borderWidth = GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 1.5;
-            const borderAlpha = GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.4;
-            const t0 = performance.now();
-            const lerped = buildLerpedPolylines(prevSharedPolylines, targetSharedPolylines, eased);
-            const t1 = performance.now();
-            drawBorderPolylines(borderGraphics, lerped, smoothPasses, borderWidth, borderAlpha);
-            const t2 = performance.now();
-            const avgPts = lerped.length > 0 ? (lerped.reduce((s, p) => s + p.points.length, 0) / lerped.length).toFixed(0) : '0';
-            log.renderer('PVV2', `TRANSITION t=${eased.toFixed(3)} | lerp=${(t1 - t0).toFixed(1)}ms draw=${(t2 - t1).toFixed(1)}ms | ${lerped.length} polylines avgPts=${avgPts} smooth=${smoothPasses} | prev=${prevSharedPolylines.length} target=${targetSharedPolylines.length}`);
-        } else {
-            log.renderer('PVV2', `TRANSITION SKIPPED — borderGraphics is null`);
-        }
-
-        if (rawT >= 1) {
-            isSmoothTransitioning = false;
-            prevSharedPolylines = null;
-            log.renderer('PVV2', 'smooth transition complete — next frame will rebuild steady-state');
-        }
-        const shapeFpCheck = buildShapeFingerprint(stars);
-        const visualFpCheck = buildVisualFingerprint();
-        if (shapeFpCheck === cachedShapeFingerprint && visualFpCheck === cachedVisualFingerprint) {
-            log.renderer('PVV2', `early return — fingerprints unchanged during transition`);
+        if (shapeFpCheck === s.cachedShapeFingerprint && visualFpCheck === s.cachedVisualFingerprint) {
             return;
         }
-        log.renderer('PVV2', `fingerprints changed DURING transition — falling through to rebuild`);
+    } else if (boundaryMode === 'segment' && s.isBorderTransitioning && transitionMs > 0 && s.prevBorderEdges && s.targetBorderEdges) {
+        const elapsed = now - s.borderTransitionStart;
+        if (elapsed >= transitionMs) {
+            s.isBorderTransitioning = false;
+            s.prevBorderEdges = null;
+        }
+        const shapeFpCheck = buildShapeFingerprint(stars);
+        const visualFpCheck = buildVisualFingerprint();
+        if (shapeFpCheck === s.cachedShapeFingerprint && visualFpCheck === s.cachedVisualFingerprint) return;
     }
 
     const shapeFp = buildShapeFingerprint(stars);
     const visualFp = buildVisualFingerprint();
-    const shapeChanged = shapeFp !== cachedShapeFingerprint;
-    const visualChanged = visualFp !== cachedVisualFingerprint;
+    const shapeChanged = shapeFp !== s.cachedShapeFingerprint;
+    const visualChanged = visualFp !== s.cachedVisualFingerprint;
 
     if (!shapeChanged && !visualChanged) return;  // nothing changed
 
@@ -1157,24 +753,22 @@ export function renderPowerVoronoi(
     // ── Shape changed: snapshot for transition animation ─────────────────
     if (shapeChanged && transitionMs > 0) {
         // Segment mode: snapshot border edges
-        if (targetBorderEdges && targetBorderEdges.length > 0) {
-            prevBorderEdges = targetBorderEdges;
+        if (s.targetBorderEdges && s.targetBorderEdges.length > 0) {
+            s.prevBorderEdges = s.targetBorderEdges;
         }
         // Smooth mode: snapshot current shared polylines
-        if (targetSharedPolylines && targetSharedPolylines.length > 0) {
-            prevSharedPolylines = targetSharedPolylines;
+        if (s.targetSharedPolylines && s.targetSharedPolylines.length > 0) {
+            s.prevSharedPolylines = s.targetSharedPolylines;
         }
         // Fill crossfade: snapshot current merged territories
-        if (lastMergedTerritories && lastMergedTerritories.length > 0) {
-            prevMergedTerritories = lastMergedTerritories;
-            prevEnclaveMap = lastEnclaveMap;
+        if (s.lastMergedTerritories && s.lastMergedTerritories.length > 0) {
+            s.prevMergedTerritories = s.lastMergedTerritories;
+            s.prevEnclaveMap = s.lastEnclaveMap;
         }
-        // Cell change detection: snapshot previous cells for ownership comparison
-        // (changedSiteIds populated after new cells are computed — see Stage 2c below)
     }
 
-    cachedShapeFingerprint = shapeFp;
-    cachedVisualFingerprint = visualFp;
+    s.cachedShapeFingerprint = shapeFp;
+    s.cachedVisualFingerprint = visualFp;
 
     const alpha = GAME_CONFIG.VORONOI_ALPHA ?? 0.25;
     const borderWidth = GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 1.5;
@@ -1183,134 +777,56 @@ export function renderPowerVoronoi(
     const lightMult = GAME_CONFIG.VORONOI_LIGHTNESS ?? 0.7;
     const starMargin = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45;
 
-    // ── Stage 0: Build site array ──────────────────────────────────────────
-    const ownedStars = stars.filter(s => s.ownerId);
-    if (ownedStars.length < 2) return;
-
-    const sites: PowerSite[] = ownedStars.map(s => ({
-        x: s.x,
-        y: s.y,
-        weight: starMargin * starMargin,    // power diagram weight
-        ownerId: s.ownerId!,
-        starId: s.id,
-    }));
-
-    // Corridor virtual sites (shared module)
-    if (GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED && connections) {
-        const spacing = GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING ?? 60;
-        const corridorVirtuals = computeCorridorVirtuals(ownedStars, connections, spacing, 0.5);
-        for (const cv of corridorVirtuals) {
-            sites.push({
-                x: cv.x,
-                y: cv.y,
-                weight: starMargin * starMargin * cv.weight,
-                ownerId: cv.ownerId,
-                starId: `corridor_${cv.sourceStarA}_${cv.sourceStarB}`,
-                virtual: 'corridor',
-            });
-        }
+    // ── Geometry Stage: use precomputed geometry if provided, else run generator ──
+    let stageResult: TerritoryGeometryData | { kind: 'error'; stage: string; message: string; recoverable: boolean };
+    if (precomputedGeometry) {
+        stageResult = precomputedGeometry;
+        log.renderer('PVV2', `Using precomputed geometry (Geometry_0319)`);
+    } else {
+        const stageConfig = {
+            starMargin: GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45,
+            corridorEnabled: Boolean(GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED) && Boolean(connections),
+            corridorSpacing: GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING ?? 60,
+            disconnectEnabled: Boolean(GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED) && Boolean(connections),
+            disconnectDistance: GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE ?? 400,
+            clusterSplit: Boolean(GAME_CONFIG.TERRITORY_CLUSTER_SPLIT),
+            chaikinPasses: Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3))),
+            // Only apply dense frontier resampling in unified_polygon geometry mode
+            frontierResolution: (GAME_CONFIG.TERRITORY_GEOMETRY_MODE ?? 'power_voronoi') === 'unified_polygon'
+                ? Math.max(1, Math.min(20, GAME_CONFIG.FRONTIER_RESOLUTION ?? 5))
+                : 0,
+            boundaryPad: GAME_CONFIG.CHAIKIN_BOUNDARY_PAD ?? 50,
+            boundaryEps: GAME_CONFIG.CHAIKIN_BOUNDARY_EPS ?? 6,
+            worldWidth,
+            worldHeight,
+        };
+        stageResult = generateVoronoiTerritoryGeometry(stars, connections ?? [], stageConfig);
     }
-
-    // Disconnect virtual enemy sites (shared module)
-    if (GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED && connections) {
-        const maxDist = GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE ?? 400;
-        const disconnectVirtuals = computeDisconnectVirtuals(ownedStars, stars, connections, maxDist, 0.3);
-        for (const dv of disconnectVirtuals) {
-            sites.push({
-                x: dv.x,
-                y: dv.y,
-                weight: starMargin * starMargin * dv.weight,
-                ownerId: DISCONNECT_OWNER_ID,
-                starId: `disconnect_${dv.sourceStarA}_${dv.sourceStarB}`,
-                virtual: 'disconnect',
-            });
+    if ('kind' in stageResult) {
+        // CompileError — recoverable means use last cached frame, non-recoverable clears
+        log.error('PVV2', `geometry stage error at ${stageResult.stage}: ${stageResult.message}`);
+        if (!stageResult.recoverable) {
+            if (s.fillGraphics) { s.fillGraphics.clear(); }
+            if (s.borderGraphics) { s.borderGraphics.clear(); }
         }
-        if (disconnectVirtuals.length > 0) {
-            log.sys('PowerVoronoi', `Injected ${disconnectVirtuals.length} disconnect virtual sites`);
-        }
-    }
-
-    // ── Stage 1: Power diagram ─────────────────────────────────────────────
-    const pad = 50;
-    const clip: [number, number][] = [
-        [-pad, -pad],
-        [worldWidth + pad, -pad],
-        [worldWidth + pad, worldHeight + pad],
-        [-pad, worldHeight + pad],
-    ];
-
-    let polygons: any[];
-    try {
-        const wv = weightedVoronoi()
-            .x((d: PowerSite) => d.x)
-            .y((d: PowerSite) => d.y)
-            .weight((d: PowerSite) => d.weight)
-            .clip(clip);
-
-        polygons = wv(sites);
-    } catch (e) {
-        console.error('[PowerVoronoi] d3-weighted-voronoi CRASHED:', e);
         return;
     }
 
-    // Convert to TerritoryCell array
-    const cells: TerritoryCell[] = [];
-    for (let i = 0; i < polygons.length; i++) {
-        const poly = polygons[i];
-        if (!poly || poly.length < 3) continue;
-        const site = (poly as any).site?.originalObject as PowerSite | undefined;
-        if (!site) continue;
+    const { cells, mergedTerritories: merged, sharedEdges, rawSharedPolylines: builtRawPolylinesRaw, sharedPolylines: builtPolylinesRaw, enclaveMap } = stageResult;
 
-        // Disconnect cells: assign to nearest ENEMY owner for fill rendering.
-        // In DF, disconnect sites push same-owner territory apart; the gap is filled by
-        // whatever enemy is closest. We replicate this by finding the source owner
-        // (the same-owner pair being disconnected) and assigning to nearest OTHER owner.
-        let effectiveOwner = site.ownerId;
-        if (site.ownerId === DISCONNECT_OWNER_ID) {
-            // Extract source owner: starId = 'disconnect_{starA}_{starB}'
-            const parts = site.starId.split('_');
-            const sourceStarA = parts[1];
-            const sourceOwner = ownedStars.find(s => s.id === sourceStarA)?.ownerId;
+    log.renderer('PVV2', `STAGE OUTPUT | cells=${cells.length} merged=${merged.length} polylines=${builtPolylinesRaw.length} chaikinPasses=${Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)}`);
 
-            let nearestDist = Infinity;
-            let nearestOwner = '';
-            for (const s of ownedStars) {
-                // Skip same-owner stars — we want the ENEMY fill
-                if (s.ownerId === sourceOwner) continue;
-                const dx = s.x - site.x;
-                const dy = s.y - site.y;
-                const d = dx * dx + dy * dy;
-                if (d < nearestDist) { nearestDist = d; nearestOwner = s.ownerId!; }
-            }
-            if (!nearestOwner) {
-                // Fallback: if no enemy exists, use source owner (solo player edge case)
-                effectiveOwner = sourceOwner ?? '';
-                if (!effectiveOwner) continue;
-            } else {
-                effectiveOwner = nearestOwner;
-            }
-            log.renderer('PVV2', `disconnect cell (${site.x.toFixed(0)},${site.y.toFixed(0)}) src=${sourceOwner} → enemy fill ${effectiveOwner}`);
-        }
-
-        // Ensure closed polygon
-        const pts: [number, number][] = poly.map((p: number[]) => [p[0], p[1]] as [number, number]);
-        if (pts.length > 0 && (pts[0][0] !== pts[pts.length - 1][0] || pts[0][1] !== pts[pts.length - 1][1])) {
-            pts.push([pts[0][0], pts[0][1]]);
-        }
-
-        cells.push({
-            points: pts,
-            ownerId: effectiveOwner,
-            siteId: site.starId,
-        });
+    // Fingerprint from stage — used for changed-owner detection
+    // Assign colors to merged territories (render concern, not geometry)
+    for (const territory of merged) {
+        const rawColor = colorUtils.getPlayerColor(territory.ownerId);
+        territory.color = adjustColorHSL(rawColor, satMult, lightMult);
     }
 
-    log.sys('PowerVoronoi', `${cells.length} cells from ${sites.length} sites (${sites.filter(s => s.virtual).length} virtual)`);
-
-    // ── Stage 1c: Detect changed-owner stars ───────────────────────────────
-    changedSiteIds = null;
-    if (lastCells && shapeChanged) {
-        const prevOwnerMap = new Map(lastCells.map(c => [c.siteId, c.ownerId]));
+    // Detect changed-owner stars for transition tracking
+    s.changedSiteIds = null;
+    if (s.lastCells && shapeChanged) {
+        const prevOwnerMap = new Map(s.lastCells.map(c => [c.siteId, c.ownerId]));
         const changed = new Set<string>();
         for (const cell of cells) {
             const prevOwner = prevOwnerMap.get(cell.siteId);
@@ -1319,176 +835,118 @@ export function renderPowerVoronoi(
             }
         }
         if (changed.size > 0) {
-            changedSiteIds = changed;
+            s.changedSiteIds = changed;
             log.sys('PowerVoronoi', `Conquest detected: ${changed.size} stars changed owner: ${[...changed].join(', ')}`);
         }
     }
-    lastCells = cells;
-
-    // ── Stage 2: Build cluster map ─────────────────────────────────────────
-    const clusterMap = new Map<string, number>();
-    if (GAME_CONFIG.TERRITORY_CLUSTER_SPLIT && connections) {
-        const starById = new Map(ownedStars.map(s => [s.id, s]));
-        const clusters = findConnectedClustersOptimized(ownedStars, connections, starById);
-        for (const [starId, info] of clusters) {
-            clusterMap.set(starId, info.clusterIdx);
-        }
-        // Virtual corridor sites inherit source star cluster
-        for (const site of sites) {
-            if (site.virtual === 'corridor') {
-                const sourceId = site.starId.split('_')[1]; // corridor_{sourceId}_{targetId}_{step}
-                const srcCluster = clusterMap.get(sourceId);
-                if (srcCluster !== undefined) clusterMap.set(site.starId, srcCluster);
-            }
-        }
-    }
-
-    // ── Stage 2b: Extract shared edges (before merge removes internal edges) ──
-    const sharedEdges = extractSharedEdges(cells);
+    s.lastCells = cells;
 
 
-    // ── Stage 3: Merge same-owner cells ────────────────────────────────────
-    const merged = mergeSameOwnerCells(cells, GAME_CONFIG.TERRITORY_CLUSTER_SPLIT, clusterMap);
-
-    // Assign colors
-    for (const territory of merged) {
-        const rawColor = colorUtils.getPlayerColor(territory.ownerId);
-        territory.color = adjustColorHSL(rawColor, satMult, lightMult);
-    }
-
-    log.sys('PowerVoronoi', `Merged to ${merged.length} territories`);
 
     // ── Stage 4: Render Fills ──────────────────────────────────────────────
-    if (!fillGraphics) {
-        fillGraphics = new PIXI.Graphics();
-        voronoiContainer.addChild(fillGraphics);
+    if (!s.fillGraphics) {
+        s.fillGraphics = new PIXI.Graphics();
+        voronoiContainer.addChild(s.fillGraphics);
     }
-    fillGraphics.clear();
-    fillGraphics.visible = true;
+    s.fillGraphics.clear();
+    s.fillGraphics.visible = true;
 
-    // Smooth passes — shared by fills and borders (B-42: fills must match border smoothing)
-    const borderSmoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
+    // Fills and borders are drawn on the SAME path via fill+stroke in drawTerritoryFillWithHoles.
+    // No separate border render pass needed.
 
-    // B-38: Detect enclaves (opponent territories fully inside another territory)
-    const enclaveMap = detectEnclaves(merged);
-    if (enclaveMap.size > 0) {
-        log.renderer('PVV2', `B-38 enclave detection: ${enclaveMap.size} territories contain enclaves`);
-    }
+    log.renderer('PVV2', `FILLS | ${merged.length} territories, enclaves=${enclaveMap.size}`);
 
-    // Fill crossfade: during transition, draw prev fills fading out + target fills fading in
-    if (isFillTransitioning && prevMergedTerritories && transitionMs > 0) {
-        const elapsed = now - fillTransitionStart;
-        const rawT = Math.min(1, elapsed / transitionMs);
-        const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
 
-        // Prev fills fading out (with enclave holes)
-        for (let i = 0; i < prevMergedTerritories.length; i++) {
-            drawTerritoryFillWithHoles(fillGraphics, prevMergedTerritories[i], prevEnclaveMap?.get(i), alpha * (1 - eased), borderSmoothPasses);
-        }
-        // Target fills fading in (with enclave holes)
-        for (let i = 0; i < merged.length; i++) {
-            drawTerritoryFillWithHoles(fillGraphics, merged[i], enclaveMap.get(i), alpha * eased, borderSmoothPasses);
-        }
-
-        if (rawT >= 1) {
-            isFillTransitioning = false;
-            prevMergedTerritories = null;
-            prevEnclaveMap = null;
-            log.renderer('PVV2', 'fill crossfade complete');
-        }
-    } else {
-        // Steady-state: draw target fills at full alpha (with enclave holes)
-        for (let i = 0; i < merged.length; i++) {
-            drawTerritoryFillWithHoles(fillGraphics, merged[i], enclaveMap.get(i), alpha, borderSmoothPasses);
-        }
-    }
-
-    // Borders — smoothed shared edges via canonical drawBorderPolylines
-    if (borderWidth > 0 && borderAlpha > 0) {
-        if (!borderGraphics) {
-            borderGraphics = new PIXI.Graphics();
-            voronoiContainer.addChild(borderGraphics);
-        }
-        borderGraphics.clear();
-        borderGraphics.visible = true;
-
-        // Assign colors to shared edges
-        for (const edge of sharedEdges) {
-            edge.colorA = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerA), satMult, lightMult);
-            edge.colorB = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerB), satMult, lightMult);
-        }
-
-        // Build color map for polyline construction
-        const colorMap = new Map<string, number>();
-        for (const edge of sharedEdges) {
-            const key = edge.ownerA < edge.ownerB ? `${edge.ownerA}|${edge.ownerB}` : `${edge.ownerB}|${edge.ownerA}`;
-            if (!colorMap.has(key)) {
-                colorMap.set(key, blendColors(edge.colorA, edge.colorB, 0.5));
-            }
-        }
-
-        const builtPolylines = chainSharedEdgesIntoPolylines(sharedEdges, (a, b) => {
-            const key = a < b ? `${a}|${b}` : `${b}|${a}`;
-            return colorMap.get(key) ?? 0x888888;
-        }, borderSmoothPasses);
-
-        // chainSharedEdgesIntoPolylines already applies Chaikin — pass 0 to drawBorderPolylines
-        // to avoid double-smoothing. Transition path passes smoothPasses because lerp destroys curves.
-        const t0b = performance.now();
-        drawBorderPolylines(borderGraphics, builtPolylines, 0, borderWidth, borderAlpha);
-        const t1b = performance.now();
-        const avgPts = builtPolylines.length > 0 ? (builtPolylines.reduce((s, p) => s + p.points.length, 0) / builtPolylines.length).toFixed(0) : '0';
-        log.renderer('PVV2', `STEADY-STATE borders | ${builtPolylines.length} polylines, ${sharedEdges.length} edges, smooth=${borderSmoothPasses} avgPts=${avgPts} | draw=${(t1b - t0b).toFixed(1)}ms | t+${(performance.now() - now).toFixed(1)}ms`);
-    } else if (borderGraphics) {
-        borderGraphics.clear();
+    // Steady-state fills: use raw polygon points (no independent smoothing — B-42 fix)
+    // Borders are drawn SEPARATELY from sharedPolylines (contested edges only, blended colors)
+    for (let i = 0; i < merged.length; i++) {
+        drawTerritoryFillOnly(s.fillGraphics, merged[i], enclaveMap.get(i), alpha);
     }
 
     // ── Store targets + start transition ────────────────────────────────
-    // Assign colors if not already done in the border render block
-    if (borderWidth <= 0 || borderAlpha <= 0) {
-        for (const edge of sharedEdges) {
-            edge.colorA = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerA), satMult, lightMult);
-            edge.colorB = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerB), satMult, lightMult);
-        }
+    // Always assign edge colors so polyline color map is populated correctly
+    for (const edge of sharedEdges) {
+        edge.colorA = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerA), satMult, lightMult);
+        edge.colorB = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerB), satMult, lightMult);
     }
-    targetBorderEdges = sharedEdges;
-    lastMergedTerritories = merged;
-    lastEnclaveMap = enclaveMap;
+    s.targetBorderEdges = sharedEdges;
+    s.lastMergedTerritories = merged;
+    s.lastEnclaveMap = enclaveMap;
 
     // Build polylines for morph transition (reuse from render block if available)
     {
-        const smoothN = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
         const cMap = new Map<string, number>();
         for (const edge of sharedEdges) {
             const key = edge.ownerA < edge.ownerB ? `${edge.ownerA}|${edge.ownerB}` : `${edge.ownerB}|${edge.ownerA}`;
             if (!cMap.has(key)) cMap.set(key, blendColors(edge.colorA, edge.colorB, 0.5));
         }
-        targetSharedPolylines = chainSharedEdgesIntoPolylines(sharedEdges, (a, b) => {
-            const key = a < b ? `${a}|${b}` : `${b}|${a}`;
-            return cMap.get(key) ?? 0x888888;
-        }, smoothN);
+        // builtPolylinesRaw from stage; assign colors here (render concern)
+        s.targetSharedPolylines = builtPolylinesRaw.map(pl => {
+            const [ownerA, ownerB] = pl.ownerPairKey.split('|');
+            const color = cMap.get(`${ownerA}|${ownerB}`) ?? cMap.get(`${ownerB}|${ownerA}`) ?? 0x888888;
+            return { ...pl, color };
+        });
+        s.targetRawSharedPolylines = builtRawPolylinesRaw?.map(pl => {
+            const [ownerA, ownerB] = pl.ownerPairKey.split('|');
+            const color = cMap.get(`${ownerA}|${ownerB}`) ?? cMap.get(`${ownerB}|${ownerA}`) ?? 0x888888;
+            return { ...pl, color };
+        }) ?? null;
     }
 
-    // Start transition based on mode
-    if (shapeChanged && transitionMs > 0) {
+    // Draw contested borders from sharedPolylines (only edges between different owners)
+    if (s.targetSharedPolylines && s.targetSharedPolylines.length > 0 && borderWidth > 0 && borderAlpha > 0) {
+        drawBorderPolylines(s.fillGraphics, s.targetSharedPolylines, 0, borderWidth, borderAlpha);
+        log.renderer('PVV2', `🟢 CONTESTED BORDERS DRAWN | polylines=${s.targetSharedPolylines.length} bw=${borderWidth} ba=${borderAlpha}`);
+    }
+
+
+    // Start transition based on geometry change or FX-driven conquest event
+    const fxTriggered = territoryTransitions.hasActiveTransitions;
+    if ((shapeChanged || fxTriggered) && transitionMs > 0) {
+        // Mark any unconsumed FX transitions as consumed by this renderer
+        for (const entry of territoryTransitions.getUnconsumed()) {
+            territoryTransitions.markConsumed(entry.starId);
+        }
         // Segment mode
-        if (prevBorderEdges && prevBorderEdges.length > 0) {
-            borderTransitionStart = now;
-            isBorderTransitioning = true;
+        if (s.prevBorderEdges && s.prevBorderEdges.length > 0) {
+            s.borderTransitionStart = now;
+            s.isBorderTransitioning = true;
         }
 
-        // Smooth mode
-        if (prevSharedPolylines && prevSharedPolylines.length > 0) {
-            smoothTransitionStart = now;
-            isSmoothTransitioning = true;
-            log.renderer('PVV2', `TRANSITION STARTED | prev=${prevSharedPolylines.length} target=${targetSharedPolylines?.length ?? 0} | transitionMs=${transitionMs}`);
-        }
+        // Smooth mode — create the appropriate border morpher
+        if (s.prevSharedPolylines && s.prevSharedPolylines.length > 0 && s.targetSharedPolylines && s.targetSharedPolylines.length > 0) {
+            s.smoothTransitionStart = now;
+            s.isSmoothTransitioning = true;
+            s.isFillTransitioning = true;
+            s.fillTransitionStart = now;
 
-        // Fill crossfade (mode-independent)
-        if (prevMergedTerritories && prevMergedTerritories.length > 0) {
-            fillTransitionStart = now;
-            isFillTransitioning = true;
-            log.renderer('PVV2', `FILL CROSSFADE STARTED | prev=${prevMergedTerritories.length} target=${merged.length}`);
+            // Clean up any stale morphers
+            s.activeBorderTransitionHandler = null;
+            if (s.activeRopeRenderer) {
+                s.activeRopeRenderer.removeAll();
+                s.activeRopeRenderer = null;
+            }
+
+            // Select mode and tuning params from config
+            const borderTransMode = GAME_CONFIG.TERRITORY_BORDER_TRANSITION ?? 'pixi_graphics_morph';
+            const easing = (GAME_CONFIG.BORDER_TRANS_EASING ?? 'back') as 'cubic' | 'back' | 'elastic' | 'ease-out' | 'ease-out-quad' | 'sine' | 'linear';
+            const resampleN = Math.max(8, Math.min(64, Math.round(GAME_CONFIG.BORDER_TRANS_RESAMPLE_N ?? 32)));
+            const overshoot = GAME_CONFIG.BORDER_TRANS_OVERSHOOT ?? 1.7;
+            log.renderer('PVV2', `TRANSITION STARTED | mode=${borderTransMode} easing=${easing} resampleN=${resampleN} overshoot=${overshoot.toFixed(2)} prev=${s.prevSharedPolylines.length} target=${s.targetSharedPolylines.length} | transitionMs=${transitionMs}`);
+
+            if (borderTransMode === 'pixi_mesh_rope') {
+                const borderWidth = GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 1.5;
+                s.activeRopeRenderer = new RopeBorderRenderer(s.prevSharedPolylines, s.targetSharedPolylines, easing, resampleN, borderWidth, overshoot);
+                s.activeRopeRenderer.addTo(voronoiContainer);
+            } else if ((GAME_CONFIG.TERRITORY_GEOMETRY_MODE ?? 'power_voronoi') === 'unified_polygon') {
+                // Unified polygon geometry mode — fills + borders from same closed polygon data
+                if (s.prevMergedTerritories && s.lastMergedTerritories) {
+                    s.activeShapeTransitionHandler = new PolygonMorphTransitionHandler(s.prevMergedTerritories, s.lastMergedTerritories, easing, resampleN, overshoot);
+                }
+            } else if (borderTransMode === 'pixi_graphics_morph' || borderTransMode === 'optimal_transport' || borderTransMode === 'smooth_morph') {
+                s.activeBorderTransitionHandler = new SegmentMorphTransitionHandler(s.prevSharedPolylines, s.targetSharedPolylines, easing, resampleN, overshoot);
+            }
+            // else: no morpher — borders only appear at rebuild time (steady-state)
         }
     }
     log.renderer('PVV2', `◀ rebuild complete | total=${(performance.now() - now).toFixed(1)}ms`);
@@ -1497,37 +955,46 @@ export function renderPowerVoronoi(
 // ── Cache Reset ────────────────────────────────────────────────────────────
 
 export function resetPowerVoronoiCache(): void {
-    cachedShapeFingerprint = '';
-    cachedVisualFingerprint = '';
+    defaultState.cachedShapeFingerprint = '';
+    defaultState.cachedVisualFingerprint = '';
     // Segment mode state
-    isBorderTransitioning = false;
-    prevBorderEdges = null;
-    targetBorderEdges = null;
-    borderTransitionStart = 0;
+    defaultState.isBorderTransitioning = false;
+    defaultState.prevBorderEdges = null;
+    defaultState.targetBorderEdges = null;
+    defaultState.borderTransitionStart = 0;
     // Smooth mode state
-    isSmoothTransitioning = false;
-    prevSharedPolylines = null;
-    targetSharedPolylines = null;
-    smoothTransitionStart = 0;
-    lastMergedTerritories = null;
+    defaultState.isSmoothTransitioning = false;
+    defaultState.prevSharedPolylines = null;
+    defaultState.targetSharedPolylines = null;
+    defaultState.targetRawSharedPolylines = null;
+    defaultState.smoothTransitionStart = 0;
+    defaultState.lastMergedTerritories = null;
     // Fill crossfade state
-    isFillTransitioning = false;
-    prevMergedTerritories = null;
-    prevEnclaveMap = null;
-    lastEnclaveMap = null;
-    fillTransitionStart = 0;
-    // Cell change tracking state
-    lastCells = null;
-    changedSiteIds = null;
-    log.renderer('PVV2', 'cache reset');
-    if (fillGraphics) {
-        if (fillGraphics.parent) fillGraphics.parent.removeChild(fillGraphics);
-        fillGraphics.destroy();
-        fillGraphics = null;
+    defaultState.isFillTransitioning = false;
+    defaultState.prevMergedTerritories = null;
+    defaultState.prevEnclaveMap = null;
+    defaultState.fillTransitionStart = 0;
+    // Active morpher cleanup
+    defaultState.activeBorderTransitionHandler = null;
+    defaultState.activeShapeTransitionHandler = null;
+    if (defaultState.activeRopeRenderer) {
+        defaultState.activeRopeRenderer.removeAll();
+        defaultState.activeRopeRenderer = null;
     }
-    if (borderGraphics) {
-        if (borderGraphics.parent) borderGraphics.parent.removeChild(borderGraphics);
-        borderGraphics.destroy();
-        borderGraphics = null;
+    // Enclave state
+    defaultState.lastEnclaveMap = null;
+    // Cell change tracking state
+    defaultState.lastCells = null;
+    defaultState.changedSiteIds = null;
+    log.renderer('PVV2', 'cache reset');
+    if (defaultState.fillGraphics) {
+        if (defaultState.fillGraphics.parent) defaultState.fillGraphics.parent.removeChild(defaultState.fillGraphics);
+        defaultState.fillGraphics.destroy();
+        defaultState.fillGraphics = null;
+    }
+    if (defaultState.borderGraphics) {
+        if (defaultState.borderGraphics.parent) defaultState.borderGraphics.parent.removeChild(defaultState.borderGraphics);
+        defaultState.borderGraphics.destroy();
+        defaultState.borderGraphics = null;
     }
 }

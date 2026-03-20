@@ -63,6 +63,32 @@
         </button>
     {/each}
 </div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">🌌 BG Opacity</span><span class="val"
+            >{(
+                (panel.bgImageAlpha ??
+                    GAME_CONFIG.BG_IMAGE_ALPHA ??
+                    0.35) as number
+            ).toFixed(2)}</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="1"
+        step="0.05"
+        value={panel.bgImageAlpha ?? GAME_CONFIG.BG_IMAGE_ALPHA ?? 0.35}
+        oninput={(e) => {
+            const v = parseFloat((e.target as HTMLInputElement).value);
+            GAME_CONFIG.BG_IMAGE_ALPHA = v;
+            updatePanel("bgImageAlpha", v);
+            window.dispatchEvent(
+                new CustomEvent("pax-bg-alpha-change", { detail: v }),
+            );
+        }}
+    />
+</div>
 
 <h4 class="sub-heading">Overlays</h4>
 <label class="toggle-row"

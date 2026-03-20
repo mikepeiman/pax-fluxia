@@ -171,103 +171,131 @@ export function chainSharedEdgesIntoPolylines(edges: SharedBorderEdge[], colorLo
 
 /**
  * Replace shared-edge segments in territory polygons with smoothed polyline coordinates.
- * World-boundary vertices (not matched to any shared polyline) stay straight.
- * Adjacent territories get identical smoothed coordinates at their shared border.
+ * Uses spatial proximity matching (squared-distance) instead of string key comparison
+ * to avoid floating-point drift causing silent mismatches.
+ *
+ * Algorithm:
+ * For each raw↔smoothed polyline pair, find where the raw polyline's start and end
+ * vertices appear on each polygon (by proximity), then splice the smoothed points
+ * in between those anchors.
  */
 export function substituteSmoothedEdges(
     merged: MergedTerritory[],
     rawPolylines: SharedPolyline[],
     smoothedPolylines: SharedPolyline[]
 ): void {
-    // Matches edgeKey precision (toFixed(2))
-    const ptKey = (x: number, y: number) => `${+x.toFixed(2)},${+y.toFixed(2)}`;
+    const EPSILON_SQ = 1.0; // 1 pixel squared tolerance
 
-    // Build mappings: raw polyline vertex keys → smoothed polyline points
-    interface PolylineMapping {
-        rawKeys: string[];
-        smoothedPoints: [number, number][];
-        ownerPairKey: string;
-    }
-    const mappings: PolylineMapping[] = [];
-    for (let pi = 0; pi < rawPolylines.length && pi < smoothedPolylines.length; pi++) {
-        const raw = rawPolylines[pi];
-        const smoothed = smoothedPolylines[pi];
-        mappings.push({
-            rawKeys: raw.points.map(p => ptKey(p[0], p[1])),
-            smoothedPoints: smoothed.points as [number, number][],
-            ownerPairKey: raw.ownerPairKey,
-        });
-    }
+    /** Squared distance between two points. */
+    const dist2 = (ax: number, ay: number, bx: number, by: number) =>
+        (ax - bx) * (ax - bx) + (ay - by) * (ay - by);
 
-    for (const territory of merged) {
-        const pts = territory.points;
-        if (pts.length < 3) continue;
-
-        const result: [number, number][] = [];
-        let i = 0;
-
-        while (i < pts.length) {
-            const vKey = ptKey(pts[i][0], pts[i][1]);
-            let matched = false;
-
-            for (const mapping of mappings) {
-                // Only consider polylines involving this territory's owner
-                const [oA, oB] = mapping.ownerPairKey.split('|');
-                if (territory.ownerId !== oA && territory.ownerId !== oB) continue;
-
-                const rk = mapping.rawKeys;
-
-                // Forward match: polygon vertices align with raw polyline start→end
-                if (vKey === rk[0] && rk.length >= 2) {
-                    let matchLen = 1;
-                    for (let r = 1; r < rk.length && (i + matchLen) < pts.length; r++) {
-                        if (ptKey(pts[i + matchLen][0], pts[i + matchLen][1]) === rk[r]) matchLen++;
-                        else break;
-                    }
-                    if (matchLen >= 2) {
-                        for (const sp of mapping.smoothedPoints) {
-                            if (result.length > 0) {
-                                const last = result[result.length - 1];
-                                if (ptKey(last[0], last[1]) === ptKey(sp[0], sp[1])) continue;
-                            }
-                            result.push(sp);
-                        }
-                        i += matchLen;
-                        matched = true;
-                        break;
-                    }
-                }
-
-                // Reverse match: polygon traverses polyline end→start
-                if (vKey === rk[rk.length - 1] && rk.length >= 2) {
-                    let matchLen = 1;
-                    for (let r = rk.length - 2; r >= 0 && (i + matchLen) < pts.length; r--) {
-                        if (ptKey(pts[i + matchLen][0], pts[i + matchLen][1]) === rk[r]) matchLen++;
-                        else break;
-                    }
-                    if (matchLen >= 2) {
-                        const reversed = [...mapping.smoothedPoints].reverse();
-                        for (const sp of reversed) {
-                            if (result.length > 0) {
-                                const last = result[result.length - 1];
-                                if (ptKey(last[0], last[1]) === ptKey(sp[0], sp[1])) continue;
-                            }
-                            result.push(sp);
-                        }
-                        i += matchLen;
-                        matched = true;
-                        break;
-                    }
-                }
-            }
-
-            if (!matched) {
-                // World-boundary vertex or unmatched — keep as-is
-                result.push(pts[i]);
-                i++;
-            }
+    /** Find the index of the polygon vertex closest to (tx, ty) within EPSILON_SQ. Returns -1 if none. */
+    const findNearest = (pts: [number, number][], tx: number, ty: number): number => {
+        let bestIdx = -1;
+        let bestD = EPSILON_SQ;
+        for (let i = 0; i < pts.length; i++) {
+            const d = dist2(pts[i][0], pts[i][1], tx, ty);
+            if (d < bestD) { bestD = d; bestIdx = i; }
         }
+        return bestIdx;
+    };
 
-        territory.points = result;
+    for (let pi = 0; pi < rawPolylines.length && pi < smoothedPolylines.length; pi++) {
+        const rawPts = rawPolylines[pi].points;
+        const smoothedPts = smoothedPolylines[pi].points;
+        const ownerPairKey = rawPolylines[pi].ownerPairKey;
+        if (rawPts.length < 2 || smoothedPts.length < 2) continue;
+
+        const [oA, oB] = ownerPairKey.split('|');
+        const rawStart = rawPts[0];
+        const rawEnd = rawPts[rawPts.length - 1];
+
+        for (const territory of merged) {
+            // Only consider polylines involving this territory's owner
+            if (territory.ownerId !== oA && territory.ownerId !== oB) continue;
+
+            const pts = territory.points;
+            if (pts.length < 3) continue;
+
+            // Find start and end anchor indices by spatial proximity
+            const startIdx = findNearest(pts, rawStart[0], rawStart[1]);
+            const endIdx = findNearest(pts, rawEnd[0], rawEnd[1]);
+
+            if (startIdx === -1 || endIdx === -1 || startIdx === endIdx) continue;
+
+            // Determine direction and splice
+            // We need to figure out which direction the polygon traverses the polyline.
+            // Check if the polygon goes startIdx → endIdx (forward) or endIdx → startIdx (reverse).
+            let forward: boolean;
+            if (startIdx < endIdx) {
+                // Could be forward (start→end) or reverse wrapping around
+                // Check: does the polygon step from startIdx toward endIdx with intermediate raw points?
+                const span = endIdx - startIdx;
+                // Simple heuristic: if span roughly matches raw polyline length, it's forward
+                forward = Math.abs(span + 1 - rawPts.length) <= Math.abs((pts.length - span + 1) - rawPts.length);
+            } else {
+                // startIdx > endIdx: could be forward wrapping or reverse direct
+                const span = pts.length - startIdx + endIdx;
+                forward = Math.abs(span + 1 - rawPts.length) <= Math.abs((startIdx - endIdx + 1) - rawPts.length);
+            }
+
+            const pointsToInsert = forward ? smoothedPts : [...smoothedPts].reverse();
+
+            // Build new polygon: keep vertices outside the matched range, replace inside with smoothed
+            const result: [number, number][] = [];
+
+            if (forward) {
+                if (startIdx < endIdx) {
+                    // Simple case: splice startIdx..endIdx with smoothed points
+                    for (let i = 0; i < pts.length; i++) {
+                        if (i === startIdx) {
+                            for (const sp of pointsToInsert) result.push(sp);
+                            i = endIdx; // skip over replaced section
+                        } else {
+                            result.push(pts[i]);
+                        }
+                    }
+                } else {
+                    // Wraparound forward: polygon goes ...startIdx → end of array → 0 → endIdx...
+                    // Keep endIdx+1..startIdx-1, replace the rest
+                    for (let i = endIdx + 1; i < startIdx; i++) {
+                        result.push(pts[i]);
+                    }
+                    // Insert smoothed points at the splice point
+                    for (const sp of pointsToInsert) result.push(sp);
+                }
+            } else {
+                if (endIdx < startIdx) {
+                    // Reverse direct: polygon goes startIdx → ... → endIdx backwards
+                    // which means the raw polyline end→start maps to polygon endIdx→startIdx
+                    for (let i = 0; i < pts.length; i++) {
+                        if (i === endIdx) {
+                            for (const sp of pointsToInsert) result.push(sp);
+                            i = startIdx; // skip over replaced section
+                        } else {
+                            result.push(pts[i]);
+                        }
+                    }
+                } else {
+                    // Wraparound reverse
+                    for (let i = startIdx + 1; i < endIdx; i++) {
+                        result.push(pts[i]);
+                    }
+                    for (const sp of pointsToInsert) result.push(sp);
+                }
+            }
+
+            // Ensure polygon stays closed
+            if (result.length >= 2) {
+                const first = result[0];
+                const last = result[result.length - 1];
+                if (dist2(first[0], first[1], last[0], last[1]) > EPSILON_SQ) {
+                    result.push([first[0], first[1]]);
+                }
+            }
+
+            territory.points = result;
+        }
     }
 }

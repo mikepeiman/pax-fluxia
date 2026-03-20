@@ -28,6 +28,10 @@ const NAME_OVERRIDES: Record<string, string> = {
     'clean-voronoi': 'Clean Voronoi',
     'distance-field': 'Distance Field',
     'streaming-ships': 'Streaming Ships',
+    // Mar 2026 additions
+    'mar16-new-arch': 'Mar 16 Default (DY4)',
+    'classic-mar15-v2': 'Classic Mar 15 v2',
+    'classic-3': 'Classic 3',
 };
 
 // ── Helper: split flat values into per-category snapshots ──────────────────
@@ -110,28 +114,42 @@ let _builtinGameThemesCache: Array<{
 
 export function getBuiltinGameThemes() {
     if (!_builtinGameThemesCache) {
-        _builtinGameThemesCache = getBuiltinThemes().map(t => {
+        _builtinGameThemesCache = [];
+
+        for (const [path, mod] of Object.entries(themeModules)) {
+            const slug = path.replace(/^.*\//, '').replace(/\.json$/, '');
+            const data = (mod as any).default ?? mod;
+
+            // Use raw flat values directly from JSON — avoids the lossy
+            // splitIntoCategories roundtrip that silently drops keys not in CATEGORY_KEYS
+            const isStandard = typeof data.values === 'object' && data.values !== null;
+            const rawValues: Record<string, unknown> = isStandard ? data.values : data;
+
+            const name = NAME_OVERRIDES[slug]
+                ?? (isStandard && data.name ? String(data.name) : slug);
+
             const values: Record<string, number | string | boolean> = {};
-            for (const catValues of Object.values(t.categories)) {
-                if (catValues) {
-                    for (const [k, v] of Object.entries(catValues)) {
-                        if (typeof v === 'number' || typeof v === 'string' || typeof v === 'boolean') {
-                            values[k] = v;
-                        }
-                    }
+            for (const [k, v] of Object.entries(rawValues)) {
+                if (typeof v === 'number' || typeof v === 'string' || typeof v === 'boolean') {
+                    values[k] = v;
                 }
             }
-            return {
-                name: t.name,
-                description: '',
-                created: t.createdAt,
+
+            _builtinGameThemesCache.push({
+                name,
+                description: isStandard && data.description ? String(data.description) : '',
+                created: isStandard && data.created ? String(data.created) : new Date().toISOString(),
                 values,
                 builtIn: true as const,
-            };
-        });
+            });
+        }
+
+        // Sort: newest first
+        _builtinGameThemesCache.sort((a, b) => b.created.localeCompare(a.created));
     }
     return _builtinGameThemesCache;
 }
+
 
 /**
  * Extract per-category built-in presets from full themes.

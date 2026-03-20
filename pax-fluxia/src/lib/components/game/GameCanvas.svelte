@@ -89,7 +89,7 @@
         resetTerritoryEngineCaches,
         runFG2DataPipeline,
         extractCanonicalData,
-    } from "$lib/territory-engine";
+    } from "$lib/territory/orchestrator";
     // ── Canonical territory layer (Phase 2: new architecture) ──────────────────
     import { TerritoryEngineController } from "$lib/territory/engine/TerritoryEngineController";
     import { TerritoryRenderer } from "$lib/territory/render/TerritoryRenderer";
@@ -520,7 +520,7 @@
         const bgImagePath = GAME_CONFIG.BG_IMAGE_URL;
         const bgSprite = new PIXI.Sprite();
         bgSprite.anchor.set(0.5, 0.5);
-        bgSprite.alpha = 0.12;
+        bgSprite.alpha = GAME_CONFIG.BG_IMAGE_ALPHA ?? 0.5;
         app.stage.addChildAt(bgSprite, 0); // Bottom-most layer
         (app as any)._nebulaBgSprite = bgSprite;
 
@@ -554,11 +554,24 @@
                 const tex = await PIXI.Assets.load(`/assets/${img}`);
                 sprite.texture = tex;
                 sprite.visible = true;
+                sprite.alpha = GAME_CONFIG.BG_IMAGE_ALPHA ?? 0.5;
+                // Recalculate cover-scale for the new texture dimensions
+                handleResize();
             } catch {
                 sprite.visible = false;
             }
         };
         window.addEventListener("pax-bg-change", handleBgChange);
+
+        // Live alpha adjustment via slider
+        const handleBgAlpha = (e: Event) => {
+            const alpha = (e as CustomEvent).detail as number;
+            const sprite = (app as any)?._nebulaBgSprite as
+                | PIXI.Sprite
+                | undefined;
+            if (sprite) sprite.alpha = alpha;
+        };
+        window.addEventListener("pax-bg-alpha-change", handleBgAlpha);
 
         log.success(
             "GameCanvas",
@@ -987,7 +1000,13 @@
 
         if (!debugGraphics) {
             debugGraphics = new PIXI.Graphics();
-            starsContainer.parent.addChildAt(debugGraphics, 0); // Background layer
+            // Add above voronoiContainer so hex grid is visible over territory fills
+            const stageParent = starsContainer.parent;
+            const voronoiIdx = stageParent.children.indexOf(voronoiContainer!);
+            stageParent.addChildAt(
+                debugGraphics,
+                voronoiIdx >= 0 ? voronoiIdx + 1 : stageParent.children.length,
+            );
         }
 
         debugGraphics.clear();
@@ -1093,11 +1112,27 @@
 
         // Render territory overlay (bottommost layer — F-47 halos)
         if (territoryGraphics) {
-            renderStarPowerModule(stars, territoryGraphics, colorUtils);
+            if (GAME_CONFIG.SHOW_STAR_POWER) {
+                territoryGraphics.visible = true;
+                renderStarPowerModule(stars, territoryGraphics, colorUtils);
+            } else {
+                territoryGraphics.clear();
+                territoryGraphics.filters = [];
+                territoryGraphics.visible = false;
+            }
         }
 
-        // Render territory overlays — only call the active renderer
-        if (voronoiContainer) {
+        // Skip territory re-rendering when paused — nothing changes, saves
+        // 200-300 log lines/sec from the fingerprint checks and stage logs.
+        // We allow ONE render pass after pause starts so the territory is visible.
+        const isPausedNow = activeGameStore.isPaused;
+        if (isPausedNow && (globalThis as any).__territoryRenderedWhilePaused) {
+            // Territory already rendered once since pause — skip until resume
+        } else if (voronoiContainer) {
+            if (isPausedNow)
+                (globalThis as any).__territoryRenderedWhilePaused = true;
+            if (!isPausedNow)
+                (globalThis as any).__territoryRenderedWhilePaused = false;
             voronoiContainer.visible = true;
 
             // Hide all children first — only the active renderer will re-show its own
@@ -1308,6 +1343,25 @@
                                     fxOrchestrator.gameTime,
                                 );
 
+                            // One-shot Canonical debug log (not per-frame)
+                            if (!(globalThis as any).__canonicalLoggedOnce) {
+                                (globalThis as any).__canonicalLoggedOnce =
+                                    true;
+                                if (!state) {
+                                    console.warn(
+                                        "[Canonical🔍] state=null — compiler returned error or no stars",
+                                    );
+                                } else {
+                                    console.log(
+                                        `[Canonical🔍] state.kind=${state.kind}` +
+                                            ` regions=${state.regions?.length ?? "?"}` +
+                                            ` frontierEdges=${state.frontierGraph?.edges?.size ?? "?"}` +
+                                            ` fittedFrontiers=${state.fittedFrontiers?.length ?? "?"}` +
+                                            ` transitionActive=${state.transitionActive}`,
+                                    );
+                                }
+                            }
+
                             if (state) {
                                 canonicalRenderer.render(
                                     state,
@@ -1321,7 +1375,7 @@
                     // 'none' or unrecognized — no territory rendering
                 }
             }
-        }
+        } // end territory pause guard
 
         // Render stars (static elements)
         renderStarsModule(
@@ -1518,12 +1572,18 @@
         };
     }
 
+    // Track last hitTest result to suppress duplicate logs
+    let lastHitStarId: string | null | undefined = undefined; // undefined = never set
+
     function hitTestStar(screenX: number, screenY: number): StarState | null {
         // Use activeGameStore for unified star access
         const stars = activeGameStore.stars as StarState[];
 
         if (stars.length === 0) {
-            log.input("hitTestStar MISS — stars array empty");
+            if (lastHitStarId !== null) {
+                log.input("hitTestStar MISS — stars array empty");
+                lastHitStarId = null;
+            }
             return null;
         }
 
@@ -1550,14 +1610,19 @@
             }
         }
 
-        if (nearest) {
-            log.input(
-                `hitTest HIT → ${nearest.id} (owner=${nearest.ownerId}, dist=${nearestDist.toFixed(0)}, r=${nearest.radius})`,
-            );
-        } else {
-            log.input(
-                `hitTest MISS — screen(${screenX.toFixed(0)},${screenY.toFixed(0)}) → world(${x.toFixed(0)},${y.toFixed(0)}), ${stars.length} stars checked`,
-            );
+        // Only log when the result changes (different star, or hit↔miss transition)
+        const newId = nearest?.id ?? null;
+        if (newId !== lastHitStarId) {
+            if (nearest) {
+                log.input(
+                    `hitTest HIT → ${nearest.id} (owner=${nearest.ownerId}, dist=${nearestDist.toFixed(0)}, r=${nearest.radius})`,
+                );
+            } else {
+                log.input(
+                    `hitTest MISS — screen(${screenX.toFixed(0)},${screenY.toFixed(0)}) → world(${x.toFixed(0)},${y.toFixed(0)}), ${stars.length} stars checked`,
+                );
+            }
+            lastHitStarId = newId;
         }
 
         return nearest;
@@ -1673,7 +1738,7 @@
         }
 
         if (star && isLocalPlayerStar(star)) {
-            // Start drag from this star
+            // Start drag from owned star — normal order chain
             isDragging = true;
             dragSourceId = star.id;
             // FIX: Use actual click position for movement detection
@@ -1684,15 +1749,21 @@
             dragSourceCenterY = mapTranspose.y(star);
             dragCurrentX = x;
             dragCurrentY = y;
+            lastEnemyPassthrough = null;
             log.input(`pointerDown → DRAG START from owned star ${star.id}`);
         } else if (star) {
-            // Clicked unowned star — reset drag state to prevent stale dragStartX/Y
-            isDragging = false;
-            dragSourceId = null;
+            // Start drag from non-owned star — deferred order chain
+            isDragging = true;
+            dragSourceId = star.id;
             dragStartX = x;
             dragStartY = y;
+            dragSourceCenterX = mapTranspose.x(star);
+            dragSourceCenterY = mapTranspose.y(star);
+            dragCurrentX = x;
+            dragCurrentY = y;
+            lastEnemyPassthrough = star.id; // Mark as deferred anchor
             log.input(
-                `pointerDown → unowned star ${star.id} (owner=${star.ownerId}), drag state reset`,
+                `pointerDown → DRAG START from non-owned star ${star.id} (deferred mode)`,
             );
         } else {
             // Desktop: empty space click (non-touch) — just reset drag
@@ -1792,8 +1863,8 @@
                 const localPlayerId = activeGameStore.localPlayerId;
                 const isSourceMine = sourceStar?.ownerId === localPlayerId;
                 const isTargetMine = targetStar.ownerId === localPlayerId;
-                const isTargetEnemy =
-                    !isTargetMine && targetStar.ownerId !== "neutral";
+                // Any non-owned star (enemy OR neutral) can anchor a deferred order chain
+                const isTargetNonOwned = !isTargetMine;
 
                 if (isSourceMine) {
                     // Dragging from my star - issue normal order
@@ -1810,8 +1881,8 @@
                             `Drag-through: ${dragSourceId} -> ${targetStar.id}`,
                         );
 
-                        // If target is enemy, track it for potential deferred order
-                        if (isTargetEnemy) {
+                        // Track any non-owned star as a deferred-order anchor
+                        if (isTargetNonOwned) {
                             lastEnemyPassthrough = targetStar.id;
                         } else {
                             lastEnemyPassthrough = null;
@@ -1826,7 +1897,7 @@
                         activeStarId = targetStar.id;
                     }
                 } else if (lastEnemyPassthrough === dragSourceId) {
-                    // Dragging FROM an enemy star we're attacking - set deferred order!
+                    // Dragging FROM a non-owned star we passed through - set deferred order
                     // Ctrl-click = order clears on conquest
                     const success = doSetDeferredOrder(
                         dragSourceId,
@@ -1841,8 +1912,8 @@
                             `Deferred order set: ${dragSourceId} -> ${targetStar.id} (on capture)`,
                         );
 
-                        // Continue chain
-                        if (isTargetEnemy) {
+                        // Continue chain: track non-owned targets for further deferred orders
+                        if (isTargetNonOwned) {
                             lastEnemyPassthrough = targetStar.id;
                         } else {
                             lastEnemyPassthrough = null;
@@ -2043,9 +2114,9 @@
                         }
                     } else if (
                         activeStarSnapshot &&
-                        activeStarSnapshot.ownerId !== "neutral"
+                        !isLocalPlayerStar(activeStarSnapshot)
                     ) {
-                        // Enemy star → deferred order
+                        // Non-owned star (enemy OR neutral) → deferred order (activates on capture)
                         const success = doSetDeferredOrder(
                             activeStarId,
                             targetStar.id,
