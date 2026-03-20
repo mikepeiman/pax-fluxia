@@ -37,6 +37,7 @@ import {
     mergeSameOwnerCells,
     chainSharedEdgesIntoPolylines,
     constructFillsFromFrontierChain,
+    detectEnclaves,
     extractJunctionVertices,
     buildTerritoryGeometryFingerprint,
 } from './powerVoronoiTerritoryGeometryGenerator';
@@ -284,16 +285,18 @@ export function computeGeometry0319(
 
 
         // ── Stage 9: Enclaves ───────────────────────────────────────────────
-        // Frontier-chain fills handle topology correctly — each owner gets one
-        // closed ring. detectEnclaves indices correspond to mergedRaw, NOT the
-        // frontier-chain mergedTerritories, so using them would cause mismatched
-        // hole cutouts (the two-tone rendering bug).
-        const enclaveMap = new Map<number, [number, number][][]>();
+        // Run detectEnclaves on the frontier-chain fills (NOT mergedRaw) so that
+        // indices match the mergedTerritories array the renderer actually draws.
+        // This lets the renderer cut holes in the outer fill, preventing two-tone.
+        // (Previous empty-map approach failed: outer fill painted over inner territory.)
 
         // ── Stage 10: Build fill regions ────────────────────────────────────
         // constructFillsFromFrontierChain now receives COMPLETE data
         // (including corner-crossing world boundary edges)
         const mergedTerritories = constructFillsFromFrontierChain(sharedPolylines, worldBorderPolylines);
+
+        // Now detect enclaves on the actual fill output
+        const enclaveMap = detectEnclaves(mergedTerritories);
 
         // Diagnostic: check fill closure (only warn on failures)
         let closedCount = 0;
