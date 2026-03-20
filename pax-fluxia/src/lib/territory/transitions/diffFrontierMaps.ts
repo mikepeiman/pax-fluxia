@@ -187,10 +187,17 @@ export function diffFrontierMaps(
         for (const prevEdge of prevEdges) {
             let bestIdx = -1;
             let bestDist = Infinity;
+            let closestDist = Infinity;
+            let closestIdx = -1;
 
             for (let ni = 0; ni < nextEdges.length; ni++) {
                 if (usedNext.has(ni)) continue;
                 const nextEdge = nextEdges[ni];
+                const midDist = Math.sqrt(dist2(edgeMidpoint(prevEdge), edgeMidpoint(nextEdge)));
+                if (midDist < closestDist) {
+                    closestDist = midDist;
+                    closestIdx = ni;
+                }
                 if (edgesProximateMatch(prevEdge, nextEdge)) {
                     const d = dist2(edgeMidpoint(prevEdge), edgeMidpoint(nextEdge));
                     if (d < bestDist) {
@@ -217,6 +224,30 @@ export function diffFrontierMaps(
                 deletedEdgeIds.add(prevEdge.id);
                 anchorVertexIds.add(prevEdge.startVertexId);
                 anchorVertexIds.add(prevEdge.endVertexId);
+                // Mismatch diagnostic: why couldn't we match?
+                const prevMid = edgeMidpoint(prevEdge);
+                const prevEp = edgeEndpoints(prevEdge);
+                if (closestIdx >= 0) {
+                    const closestEdge = nextEdges[closestIdx];
+                    const cEp = edgeEndpoints(closestEdge);
+                    const epFwdStart = Math.sqrt(dist2(prevEp.start, cEp.start));
+                    const epFwdEnd = Math.sqrt(dist2(prevEp.end, cEp.end));
+                    const epRevStart = Math.sqrt(dist2(prevEp.start, cEp.end));
+                    const epRevEnd = Math.sqrt(dist2(prevEp.end, cEp.start));
+                    log.sys('TMAP-MISS',
+                        `pair=${opk} prev=(${prevMid[0].toFixed(0)},${prevMid[1].toFixed(0)}) ` +
+                        `closest=(${edgeMidpoint(closestEdge)[0].toFixed(0)},${edgeMidpoint(closestEdge)[1].toFixed(0)}) ` +
+                        `midDist=${closestDist.toFixed(1)} ` +
+                        `epFwd=${epFwdStart.toFixed(1)}/${epFwdEnd.toFixed(1)} ` +
+                        `epRev=${epRevStart.toFixed(1)}/${epRevEnd.toFixed(1)} ` +
+                        `prevPts=${prevEdge.curvePoints.length} nextPts=${closestEdge.curvePoints.length} ` +
+                        `usedAlready=${usedNext.has(closestIdx)}`
+                    );
+                } else {
+                    log.sys('TMAP-MISS',
+                        `pair=${opk} prev=(${prevMid[0].toFixed(0)},${prevMid[1].toFixed(0)}) NO CANDIDATES in next`
+                    );
+                }
             }
         }
 
