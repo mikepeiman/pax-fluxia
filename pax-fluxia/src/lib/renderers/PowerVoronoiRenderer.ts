@@ -45,7 +45,8 @@ import { territoryTransitions } from '$lib/fx/handlers/territoryTransitionHandle
 
 // ── Localized Boundary Transition Pipeline ─────────────────────────────────
 import type { TerritoryTransitionPlanSet, TerritoryFrameGeometry, Vec2 } from '$lib/territory/transitions/types';
-import { buildTerritoryBoundarySnapshots } from '$lib/territory/transitions/buildTerritoryBoundarySnapshots';
+import { buildSnapshotsFromTMAP } from '$lib/territory/transitions/buildSnapshotsFromTMAP';
+import { diffFrontierMaps } from '$lib/territory/transitions/diffFrontierMaps';
 import { computeTerritoryDeltaContext } from '$lib/territory/transitions/computeTerritoryDeltaContext';
 import { createTerritoryTransitionPlan } from '$lib/territory/transitions/createTerritoryTransitionPlan';
 import { sampleTransitionFrame } from '$lib/territory/transitions/sampleTransitionFrame';
@@ -1072,8 +1073,13 @@ export function renderPowerVoronoi(
                 // ── Localized Boundary Transition: splice-based patch replacement ──
                 if (s.prevGeometryData && s.lastGeometryData && s.changedSiteIds && s.changedSiteIds.size > 0) {
                     try {
-                        const prevSnapshots = buildTerritoryBoundarySnapshots(s.prevGeometryData);
-                        const nextSnapshots = buildTerritoryBoundarySnapshots(s.lastGeometryData);
+                        const prevSnapshots = buildSnapshotsFromTMAP(s.prevGeometryData);
+                        const nextSnapshots = buildSnapshotsFromTMAP(s.lastGeometryData);
+
+                        // Canonical diff for diagnostics (Phase 2)
+                        if (s.prevGeometryData.frontierMap && s.lastGeometryData.frontierMap) {
+                            diffFrontierMaps(s.prevGeometryData.frontierMap, s.lastGeometryData.frontierMap);
+                        }
                         const delta = computeTerritoryDeltaContext(prevSnapshots, nextSnapshots, s.changedSiteIds);
                         const plan = createTerritoryTransitionPlan(
                             prevSnapshots, nextSnapshots, delta,
