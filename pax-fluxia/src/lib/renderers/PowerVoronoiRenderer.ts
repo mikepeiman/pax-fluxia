@@ -47,6 +47,7 @@ import { territoryTransitions } from '$lib/fx/handlers/territoryTransitionHandle
 import type { TerritoryTransitionPlanSet, TerritoryFrameGeometry, Vec2 } from '$lib/territory/transitions/types';
 import { buildSnapshotsFromTMAP } from '$lib/territory/transitions/buildSnapshotsFromTMAP';
 import { diffFrontierMaps } from '$lib/territory/transitions/diffFrontierMaps';
+import { createCanonicalTransitionPlan } from '$lib/territory/transitions/createCanonicalTransitionPlan';
 import { computeTerritoryDeltaContext } from '$lib/territory/transitions/computeTerritoryDeltaContext';
 import { createTerritoryTransitionPlan } from '$lib/territory/transitions/createTerritoryTransitionPlan';
 import { sampleTransitionFrame } from '$lib/territory/transitions/sampleTransitionFrame';
@@ -1070,30 +1071,46 @@ export function renderPowerVoronoi(
                     }
                 }
 
-                // ── Localized Boundary Transition: splice-based patch replacement ──
+                // ── Localized Boundary Transition: TMAP-diff-driven ──
                 if (s.prevGeometryData && s.lastGeometryData && s.changedSiteIds && s.changedSiteIds.size > 0) {
                     try {
-                        const prevSnapshots = buildSnapshotsFromTMAP(s.prevGeometryData);
-                        const nextSnapshots = buildSnapshotsFromTMAP(s.lastGeometryData);
+                        const transitionMs = GAME_CONFIG.TERRITORY_TRANSITION_MS ?? 400;
+                        let plan: TerritoryTransitionPlanSet | null = null;
 
-                        // Canonical diff for diagnostics (Phase 2)
+                        // Try canonical TMAP-diff-driven plan first
                         if (s.prevGeometryData.frontierMap && s.lastGeometryData.frontierMap) {
-                            diffFrontierMaps(s.prevGeometryData.frontierMap, s.lastGeometryData.frontierMap);
+                            const tmapDiff = diffFrontierMaps(s.prevGeometryData.frontierMap, s.lastGeometryData.frontierMap);
+                            if (!tmapDiff.identical) {
+                                plan = createCanonicalTransitionPlan(
+                                    s.prevGeometryData.frontierMap,
+                                    s.lastGeometryData.frontierMap,
+                                    tmapDiff,
+                                    transitionMs,
+                                    conquestOriginVec,
+                                    resampleN,
+                                );
+                            }
                         }
-                        const delta = computeTerritoryDeltaContext(prevSnapshots, nextSnapshots, s.changedSiteIds);
-                        const plan = createTerritoryTransitionPlan(
-                            prevSnapshots, nextSnapshots, delta,
-                            GAME_CONFIG.TERRITORY_TRANSITION_MS ?? 400,
-                            conquestOriginVec, resampleN,
-                        );
+
+                        // Fall back to legacy 2-pass span planner if canonical failed or empty
+                        if (!plan || plan.plansByTerritoryId.size === 0) {
+                            const prevSnapshots = buildSnapshotsFromTMAP(s.prevGeometryData);
+                            const nextSnapshots = buildSnapshotsFromTMAP(s.lastGeometryData);
+                            const delta = computeTerritoryDeltaContext(prevSnapshots, nextSnapshots, s.changedSiteIds);
+                            plan = createTerritoryTransitionPlan(
+                                prevSnapshots, nextSnapshots, delta,
+                                transitionMs, conquestOriginVec, resampleN,
+                            );
+                        }
+
                         if (plan.plansByTerritoryId.size > 0) {
                             s.activeTransitionPlan = plan;
                             s.transitionStartTime = performance.now();
-                            s.transitionDurationMs = GAME_CONFIG.TERRITORY_TRANSITION_MS ?? 400;
-                            log.renderer('PVV2', `SPLICE TRANSITION | plans=${plan.plansByTerritoryId.size} affected=${delta.affectedTerritoryIds.size}`);
+                            s.transitionDurationMs = transitionMs;
+                            log.renderer('PVV2', `TRANSITION | plans=${plan.plansByTerritoryId.size}`);
                         } else {
-                            // Empty plan — fall through to legacy
-                            log.renderer('PVV2', `SPLICE: empty plan, using legacy morph`);
+                            // Empty plan — fall through to legacy polygon morph
+                            log.renderer('PVV2', `TRANSITION: empty plan, using legacy morph`);
                             const conquestOrigin: [number, number] | undefined = conquestOriginVec
                                 ? [conquestOriginVec.x, conquestOriginVec.y] : undefined;
                             s.activeShapeTransitionHandler = new PolygonMorphTransitionHandler(s.prevMergedTerritories, s.lastMergedTerritories, easing, resampleN, overshoot, conquestOrigin);
