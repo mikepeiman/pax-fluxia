@@ -656,14 +656,19 @@ export class PolygonMorphTransitionHandler {
 
             // ── Vertex Debug Overlay (dots + numbered labels) ──────────
             if (showVertices) {
-                // Lighten the territory owner color for dot fill
-                const r = ((color >> 16) & 0xff);
-                const g = ((color >> 8) & 0xff);
-                const b = (color & 0xff);
-                const lightR = Math.min(255, r + Math.round((255 - r) * 0.5));
-                const lightG = Math.min(255, g + Math.round((255 - g) * 0.5));
-                const lightB = Math.min(255, b + Math.round((255 - b) * 0.5));
-                const dotColor = (lightR << 16) | (lightG << 8) | lightB;
+                const colorMode = GAME_CONFIG.DEBUG_MORPH_VERTEX_COLOR_MODE ?? 'pinmorph';
+
+                // Pre-compute owner color (lightened) for 'owner' mode
+                let ownerDotColor = 0xbbbbbb;
+                if (colorMode === 'owner') {
+                    const r = ((color >> 16) & 0xff);
+                    const g = ((color >> 8) & 0xff);
+                    const b = (color & 0xff);
+                    const lightR = Math.min(255, r + Math.round((255 - r) * 0.5));
+                    const lightG = Math.min(255, g + Math.round((255 - g) * 0.5));
+                    const lightB = Math.min(255, b + Math.round((255 - b) * 0.5));
+                    ownerDotColor = (lightR << 16) | (lightG << 8) | lightB;
+                }
 
                 for (let i = 0; i < n; i++) {
                     const showLabel = (i % vertexNth === 0);
@@ -674,7 +679,14 @@ export class PolygonMorphTransitionHandler {
                     const cx = flat[i * 2];
                     const cy = flat[i * 2 + 1];
 
-                    // Draw vertex dot in lightened owner color
+                    // Resolve dot color based on mode
+                    const dotColor = colorMode === 'pinmorph'
+                        ? (isPinned ? 0x00ff00 : 0xff0000)
+                        : colorMode === 'owner'
+                            ? ownerDotColor
+                            : 0xbbbbbb; // neutral grey
+
+                    // Draw vertex dot
                     graphics.circle(cx, cy, vertexSize);
                     graphics.fill({ color: dotColor, alpha: 0.9 });
                     // Pinned: thin dark outline; Morph: bright white outline

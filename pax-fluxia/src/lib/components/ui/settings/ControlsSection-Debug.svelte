@@ -17,6 +17,9 @@
     let vertexSize = $state(GAME_CONFIG.DEBUG_MORPH_VERTEX_SIZE);
     let pinThreshold = $state(GAME_CONFIG.DEBUG_MORPH_PIN_THRESHOLD);
     let vertexNth = $state(GAME_CONFIG.DEBUG_MORPH_VERTEX_NTH);
+    let colorMode = $state(
+        GAME_CONFIG.DEBUG_MORPH_VERTEX_COLOR_MODE ?? "pinmorph",
+    );
 
     function toggleSlowMo() {
         slowMoActive = !slowMoActive;
@@ -61,6 +64,25 @@
     <span>Show vertex dots</span>
     <span class="debug-hint">🟢 pinned · 🔴 morph</span>
 </label>
+
+<!-- Vertex Color Mode -->
+{#if showVertices}
+    <div class="slider-row">
+        <span class="slider-label">Color mode</span>
+        <select
+            class="mode-select"
+            value={colorMode}
+            onchange={(e) => {
+                colorMode = (e.target as HTMLSelectElement).value;
+                GAME_CONFIG.DEBUG_MORPH_VERTEX_COLOR_MODE = colorMode;
+            }}
+        >
+            <option value="pinmorph">🟢🔴 Pin/Morph</option>
+            <option value="owner">🎨 Player Color</option>
+            <option value="neutral">⚪ Neutral Grey</option>
+        </select>
+    </div>
+{/if}
 
 <!-- Trace Log -->
 <label class="toggle-row">
