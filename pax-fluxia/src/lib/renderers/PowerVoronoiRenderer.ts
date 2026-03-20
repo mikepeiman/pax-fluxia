@@ -944,6 +944,10 @@ export function renderPowerVoronoi(
 
             // Frontier Morph: fill+stroke from same interpolated closed polygon each frame
             if (s.prevMergedTerritories && s.lastMergedTerritories) {
+                // Clean up old handler's labels before creating new one
+                if (s.activeShapeTransitionHandler) {
+                    s.activeShapeTransitionHandler.cleanup();
+                }
                 s.activeShapeTransitionHandler = new PolygonMorphTransitionHandler(s.prevMergedTerritories, s.lastMergedTerritories, easing, resampleN, overshoot);
             } else if (borderTransMode === 'pixi_graphics_morph' || borderTransMode === 'optimal_transport' || borderTransMode === 'smooth_morph') {
                 s.activeBorderTransitionHandler = new SegmentMorphTransitionHandler(s.prevSharedPolylines, s.targetSharedPolylines, easing, resampleN, overshoot);

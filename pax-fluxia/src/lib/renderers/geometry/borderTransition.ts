@@ -959,9 +959,9 @@ export class PolygonMorphTransitionHandler {
                         alpha: isPinned ? 0.5 : 0.9,
                     });
 
-                    // Draw numbered label (gated by separate toggle)
+                    // Draw numbered label only on MORPH vertices (not pinned)
                     const showLabels = GAME_CONFIG.DEBUG_MORPH_VERTEX_LABELS ?? true;
-                    if (showLabels) {
+                    if (showLabels && !isPinned) {
                         let label = this.labels[labelIdx];
                         if (!label) {
                             const style = new PIXI.TextStyle({
