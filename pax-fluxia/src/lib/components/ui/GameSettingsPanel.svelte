@@ -844,7 +844,7 @@
             icon: "🔬",
             label: "Debug",
             color: "#ff4444",
-            tier: "developer",
+            tier: "basic",
         },
     ];
 
