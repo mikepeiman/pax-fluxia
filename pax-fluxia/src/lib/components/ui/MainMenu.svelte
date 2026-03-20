@@ -1381,7 +1381,7 @@
     .menu-container {
         position: relative;
         z-index: 1;
-        width: 100%;
+        width: 70%;
         max-width: none;
         padding: 0 48px 40px;
     }
@@ -1844,6 +1844,8 @@
     .start-btn {
         position: relative;
         width: 100%;
+        height: 100%;
+        align-self: end;
         padding: 18px;
         margin-top: 16px;
         font-family: inherit;
@@ -2425,6 +2427,7 @@
     /* ═══ Condensed Right Column ═══ */
     .compact-right {
         padding: 24px;
+        border: 2px solid rgba(120, 0, 255, 0.5);
     }
 
     .section-heading-inline {
@@ -2532,9 +2535,9 @@
     }
     .mp-create-btn-main {
         background: linear-gradient(
-            135deg,
-            rgba(80, 180, 255, 0.15),
-            rgba(80, 180, 255, 0.05)
+            -45deg,
+            rgba(200, 80, 255, 0.5),
+            rgba(120, 0, 255, 0.5)
         ) !important;
         border-color: rgba(80, 180, 255, 0.3) !important;
     }
@@ -2542,8 +2545,8 @@
         border-color: rgba(80, 180, 255, 0.5) !important;
         background: linear-gradient(
             135deg,
-            rgba(80, 180, 255, 0.2),
-            rgba(80, 180, 255, 0.08)
+            rgba(200, 80, 255, 0.5),
+            rgba(120, 0, 255, 0.5)
         ) !important;
     }
 

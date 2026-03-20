@@ -1,0 +1,55 @@
+﻿===6b71cb0 | feat: MP lobby upgrade - slot grid, vote-to-start, collapsible chat, dual SP/MP action buttons===
+
+pax-fluxia/src/lib/components/ui/MainMenu.svelte
+pax-fluxia/src/lib/stores/multiplayerStore.svelte.ts
+pax-server/src/rooms/GameRoom.ts
+===4dbcb46 | docs: split main menu V2 and MP lobby into separate design docs===
+
+pax-fluxia/.atlas/FEATURE_STATUS.md
+pax-fluxia/.atlas/MAIN_MENU_V2_DESIGN.md
+pax-fluxia/.atlas/MP_LOBBY_DESIGN.md
+===1e02f17 | docs: session notes, chat log, main menu V2 design proposal, decisions log, updated feature status===
+
+pax-fluxia/.agent/WIP Work-In-Progress/CHAT_2026-03-15.md
+pax-fluxia/.agent/WIP Work-In-Progress/SESSION_2026-03-15.md
+pax-fluxia/.atlas/DECISIONS.md
+pax-fluxia/.atlas/FEATURE_STATUS.md
+pax-fluxia/.atlas/MAIN_MENU_V2_DESIGN.md
+===486e3c7 | feat: star label refinements - color mode (Player/Universal w/ HSLA), border width, bigger toggle buttons, remove inline toggle; document MP lobby + map selection features===
+
+pax-fluxia/.atlas/FEATURE_STATUS.md
+pax-fluxia/src/lib/components/ui/settings/ControlsSection-Ships.svelte
+pax-fluxia/src/lib/components/ui/settingsDefs.ts
+pax-fluxia/src/lib/config/game.config.ts
+pax-fluxia/src/lib/renderers/StarRenderer.ts
+===16080d7 | feat: star data pill with ownership colors, layout toggle, full settings UI - leash off by default, configurable pad/gap/alpha/font, horizontal pill and vertical stacked modes, owner-colored border & fill===
+
+pax-fluxia/src/lib/components/ui/settings/ControlsSection-Ships.svelte
+pax-fluxia/src/lib/components/ui/settingsDefs.ts
+pax-fluxia/src/lib/config/game.config.ts
+pax-fluxia/src/lib/renderers/StarRenderer.ts
+===7f4292b | feat(F-158): full-screen layout, title/subtitle contrast, AI font scaling, MP heading===
+
+pax-fluxia/src/lib/components/ui/MainMenu.svelte
+===71da9d5 | fix: add proper section and button padding in main menu===
+
+pax-fluxia/src/lib/components/ui/MainMenu.svelte
+===ef0bf92 | fix: remove audio settings button from main menu===
+
+pax-fluxia/src/lib/components/ui/MainMenu.svelte
+===a2e89d8 | fix: remove checkbox options above Start button, clean up spacing===
+
+pax-fluxia/src/lib/components/ui/MainMenu.svelte
+===d52093e | feat(F-158): balance main menu panel heights and enlarge right column typography===
+
+pax-fluxia/src/lib/components/ui/MainMenu.svelte
+===0017b41 | feat(F-158): enlarge main menu ui for accessibility, set bg-25 default===
+
+pax-fluxia/src/lib/components/ui/MainMenu.svelte
+pax-fluxia/src/lib/components/ui/panelSync.ts
+===c770a93 | feat(F-157): classic map cards with SVG thumbnail renderings===
+
+pax-fluxia/src/lib/components/ui/MainMenu.svelte
+===819a88c | feat(F-157,B-46): Random|Classic map tabs, bg-picker overlap fix===
+
+pax-fluxia/src/lib/components/ui/MainMenu.svelte
