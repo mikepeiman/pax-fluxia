@@ -740,19 +740,26 @@ export function renderPowerVoronoi(
                 if (transitioningOwnerIndices.has(i)) continue; // skip — handled by splice below
                 drawTerritoryFillOnly(s.fillGraphics, s.lastMergedTerritories[i], s.lastEnclaveMap?.get(i), alpha);
             }
-            // Draw transitioning territories from the splice plan (fills only, no borders)
+            // Draw transitioning territories from the splice plan — fills AND borders from same geometry
             const spliceEasing = (t: number) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
             const frameGeom = sampleTransitionFrame(s.activeTransitionPlan, rawT, spliceEasing);
             drawTerritoryFrame(frameGeom, s.fillGraphics, {
                 fillAlpha: alpha,
-                borderWidth: 0,       // no borders here — existing polyline path handles them
-                borderColor: 0x000000,
-                borderAlpha: 0,
+                borderWidth: borderWidth,
+                borderColor: 0x888888,
+                borderAlpha: borderAlpha,
                 colorByTerritory: colorMap,
             });
-            // Draw contested borders from target polylines (same path as steady-state)
+            // Also draw non-transitioning contested borders from polylines (steady-state borders)
             if (s.targetSharedPolylines && s.targetSharedPolylines.length > 0 && borderWidth > 0 && borderAlpha > 0) {
-                drawBorderPolylines(s.fillGraphics, s.targetSharedPolylines, 0, borderWidth, borderAlpha);
+                // Filter out polylines that belong to transitioning owners — those are handled by splice geometry above
+                const staticPolylines = s.targetSharedPolylines.filter(pl => {
+                    const [ownerA, ownerB] = pl.ownerPairKey.split('|');
+                    return !transitioningOwnerIds.has(ownerA) && !transitioningOwnerIds.has(ownerB);
+                });
+                if (staticPolylines.length > 0) {
+                    drawBorderPolylines(s.fillGraphics, staticPolylines, 0, borderWidth, borderAlpha);
+                }
             }
         } else if (s.activeShapeTransitionHandler) {
             // Legacy fallback — kept for non-splice transition modes

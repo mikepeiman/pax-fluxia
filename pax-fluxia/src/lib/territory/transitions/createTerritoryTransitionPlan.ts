@@ -10,6 +10,7 @@ import type {
     TerritoryBoundarySnapshot,
     TerritoryDeltaContext,
     AnimatedRingPlan,
+    BoundaryRingSnapshot,
     TerritoryBoundaryTransitionPlan,
     TerritoryTransitionPlanSet,
 } from './types';
@@ -97,7 +98,7 @@ function matchSnapshotsByOwner(
  *
  * For each affected territory:
  *   1. Match prev → next rings
- *   2. Find splice windows via span identity
+ *   2. Find splice windows via circular span matching
  *   3. Build local patch morph plans for changed arcs
  *   4. Extract static segments from prev geometry
  */
@@ -129,21 +130,31 @@ export function createTerritoryTransitionPlan(
             const prevRing = prevT.rings[ri];
             const nextRing = nextT.rings[ri];
 
-            const window = findRingSpliceWindow(prevRing, nextRing);
+            const spliceResult = findRingSpliceWindow(prevRing, nextRing);
 
-            if (!window) {
+            if (!spliceResult) {
                 // No matching spans — snap to target (safe fallback)
+                // Store prev ring points so sampleTransitionFrame can interpolate
                 animatedRings.push({
                     ringId: prevRing.ringId,
                     staticSegmentsPrev: [],
                     patchMorph: null,
                     targetRing: nextRing,
+                    prevRingPoints: prevRing.points,  // for whole-ring interpolation fallback
                 });
                 continue;
             }
 
+            const { window, rotatedNextPoints } = spliceResult;
+
+            // Build a temporary nextRing with rotated points for patch morph
+            const alignedNextRing: BoundaryRingSnapshot = {
+                ...nextRing,
+                points: rotatedNextPoints,
+            };
+
             const patchMorph = buildPatchMorphPlan(
-                prevRing, nextRing, window, sampleCount, conquestOrigin,
+                prevRing, alignedNextRing, window, sampleCount, conquestOrigin,
             );
 
             const staticSegments = extractStaticSegments(
@@ -165,7 +176,8 @@ export function createTerritoryTransitionPlan(
                 ringId: prevRing.ringId,
                 staticSegmentsPrev: staticSegments,
                 patchMorph,
-                targetRing: nextRing,
+                targetRing: { ...nextRing, points: rotatedNextPoints },
+                prevRingPoints: prevRing.points,
             });
         }
 

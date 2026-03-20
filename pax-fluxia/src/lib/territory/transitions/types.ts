@@ -73,6 +73,7 @@ export interface AnimatedRingPlan {
     staticSegmentsPrev: Vec2[][];   // segments from prev that stay exactly as-is
     patchMorph: PatchMorphPlan | null;
     targetRing: BoundaryRingSnapshot;
+    prevRingPoints?: Vec2[];        // for whole-ring interpolation when splice fails
 }
 
 /** Full transition plan for one territory. */

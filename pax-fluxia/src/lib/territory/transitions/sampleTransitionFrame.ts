@@ -4,6 +4,7 @@
 // Reconstructs per-frame ring geometry:
 //   - Static segments: copied verbatim from prev (no interpolation)
 //   - Changed patch: interpolated between from/to samples with easing
+//   - Fallback: whole-ring interpolation when splice detection fails
 // ---------------------------------------------------------------------------
 
 import type {
@@ -13,6 +14,8 @@ import type {
     TerritoryFrameGeometry,
     AnimatedRingPlan,
 } from './types';
+
+import { resamplePolylineByArcLength } from './buildPatchMorphPlan';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -25,7 +28,6 @@ function clamp01(v: number): number {
 /**
  * Stitch a full ring from static segments and an animated patch.
  * Order: static prefix + animated patch + static suffix.
- * Closes the ring by ensuring last point matches first.
  */
 function stitchRing(staticSegments: Vec2[][], patch: Vec2[]): Vec2[] {
     const full: Vec2[] = [];
@@ -53,28 +55,59 @@ function stitchRing(staticSegments: Vec2[][], patch: Vec2[]): Vec2[] {
 }
 
 /**
+ * Whole-ring interpolation fallback: resample both prev and target to equal
+ * point counts and lerp. Used when splice detection fails completely.
+ * Not as precise as local splice, but provides smooth animation instead of snap.
+ */
+function interpolateWholeRing(prevPoints: Vec2[], targetPoints: Vec2[], t: number): Vec2[] {
+    const N = Math.max(prevPoints.length, targetPoints.length, 32);
+
+    const fromSampled = resamplePolylineByArcLength(prevPoints, N);
+    const toSampled = resamplePolylineByArcLength(targetPoints, N);
+
+    const result: Vec2[] = [];
+    for (let i = 0; i < N; i++) {
+        result.push({
+            x: fromSampled[i].x + (toSampled[i].x - fromSampled[i].x) * t,
+            y: fromSampled[i].y + (toSampled[i].y - fromSampled[i].y) * t,
+        });
+    }
+    return result;
+}
+
+/**
  * Interpolate a single ring for a given frame.
  */
 function sampleRingFrame(ringPlan: AnimatedRingPlan, t: number): Vec2[] {
-    // No patch morph or transition complete → use target ring directly
-    if (!ringPlan.patchMorph || t >= 1) {
+    // Transition complete → use target ring directly
+    if (t >= 1) {
         return [...ringPlan.targetRing.points];
     }
 
-    // At t=0, use prev geometry (static segments + from patch)
-    const { fromSamples, toSamples } = ringPlan.patchMorph;
+    // Has a local patch morph → stitch static segments + interpolated patch
+    if (ringPlan.patchMorph) {
+        const { fromSamples, toSamples } = ringPlan.patchMorph;
 
-    // Interpolate patch
-    const patch: Vec2[] = [];
-    for (let i = 0; i < fromSamples.length; i++) {
-        patch.push({
-            x: fromSamples[i].x + (toSamples[i].x - fromSamples[i].x) * t,
-            y: fromSamples[i].y + (toSamples[i].y - fromSamples[i].y) * t,
-        });
+        // Interpolate patch
+        const patch: Vec2[] = [];
+        for (let i = 0; i < fromSamples.length; i++) {
+            patch.push({
+                x: fromSamples[i].x + (toSamples[i].x - fromSamples[i].x) * t,
+                y: fromSamples[i].y + (toSamples[i].y - fromSamples[i].y) * t,
+            });
+        }
+
+        // Stitch: static segments (from prev, verbatim) + animated patch
+        return stitchRing(ringPlan.staticSegmentsPrev, patch);
     }
 
-    // Stitch: static segments (from prev, verbatim) + animated patch
-    return stitchRing(ringPlan.staticSegmentsPrev, patch);
+    // No patch morph — fallback to whole-ring interpolation instead of snap
+    if (ringPlan.prevRingPoints && ringPlan.prevRingPoints.length >= 3) {
+        return interpolateWholeRing(ringPlan.prevRingPoints, ringPlan.targetRing.points, t);
+    }
+
+    // Last resort: snap to target
+    return [...ringPlan.targetRing.points];
 }
 
 // ---------------------------------------------------------------------------
