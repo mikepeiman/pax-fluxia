@@ -16,6 +16,7 @@
     let traceLog = $state(GAME_CONFIG.DEBUG_MORPH_TRACE_LOG);
     let vertexSize = $state(GAME_CONFIG.DEBUG_MORPH_VERTEX_SIZE);
     let pinThreshold = $state(GAME_CONFIG.DEBUG_MORPH_PIN_THRESHOLD);
+    let vertexNth = $state(GAME_CONFIG.DEBUG_MORPH_VERTEX_NTH);
 
     function toggleSlowMo() {
         slowMoActive = !slowMoActive;
@@ -100,6 +101,25 @@
         }}
     />
     <span class="slider-value">{pinThreshold}px</span>
+</div>
+
+<!-- Label every Nth vertex -->
+<div class="slider-row">
+    <span class="slider-label">Label every</span>
+    <input
+        type="range"
+        min="1"
+        max="30"
+        step="1"
+        value={vertexNth}
+        oninput={(e) => {
+            vertexNth = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.DEBUG_MORPH_VERTEX_NTH = vertexNth;
+        }}
+    />
+    <span class="slider-value"
+        >{vertexNth === 1 ? "all" : `${vertexNth}th`}</span
+    >
 </div>
 
 <!-- Current Transition MS readout -->

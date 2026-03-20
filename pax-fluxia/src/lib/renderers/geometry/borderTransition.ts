@@ -560,6 +560,9 @@ function matchFillPolygons(
 export class PolygonMorphTransitionHandler {
     private pairs: MatchedFillPair[];
     private easingFn: (t: number) => number;
+    /** Container for vertex number labels — added as sibling of graphics. */
+    private labelContainer: PIXI.Container | null = null;
+    private labels: PIXI.Text[] = [];
 
     constructor(
         prev: MergedTerritory[],
@@ -617,6 +620,17 @@ export class PolygonMorphTransitionHandler {
         const showVertices = GAME_CONFIG.DEBUG_MORPH_VERTICES;
         const vertexSize = GAME_CONFIG.DEBUG_MORPH_VERTEX_SIZE ?? 3;
         const pinThreshold = GAME_CONFIG.DEBUG_MORPH_PIN_THRESHOLD ?? 5;
+        const vertexNth = GAME_CONFIG.DEBUG_MORPH_VERTEX_NTH ?? 10;
+
+        // ── Ensure label container exists (lazily created, sibling of graphics)
+        if (showVertices && !this.labelContainer && graphics.parent) {
+            this.labelContainer = new PIXI.Container();
+            this.labelContainer.label = 'morph-vertex-labels';
+            graphics.parent.addChild(this.labelContainer);
+        }
+
+        // Track which label index we're at for pooling
+        let labelIdx = 0;
 
         for (const pair of this.pairs) {
             const { fromPoints, toPoints, color } = pair;
@@ -640,30 +654,88 @@ export class PolygonMorphTransitionHandler {
                 graphics.stroke({ width: borderWidth, color, alpha: borderAlpha, cap: 'round', join: 'round' });
             }
 
-            // ── Vertex Debug Overlay ────────────────────────────────────
+            // ── Vertex Debug Overlay (dots + numbered labels) ──────────
             if (showVertices) {
+                // Lighten the territory owner color for dot fill
+                const r = ((color >> 16) & 0xff);
+                const g = ((color >> 8) & 0xff);
+                const b = (color & 0xff);
+                const lightR = Math.min(255, r + Math.round((255 - r) * 0.5));
+                const lightG = Math.min(255, g + Math.round((255 - g) * 0.5));
+                const lightB = Math.min(255, b + Math.round((255 - b) * 0.5));
+                const dotColor = (lightR << 16) | (lightG << 8) | lightB;
+
                 for (let i = 0; i < n; i++) {
+                    const showLabel = (i % vertexNth === 0);
                     const dx = toPoints[i][0] - fromPoints[i][0];
                     const dy = toPoints[i][1] - fromPoints[i][1];
                     const dist = Math.sqrt(dx * dx + dy * dy);
                     const isPinned = dist < pinThreshold;
-                    const dotColor = isPinned ? 0x00ff00 : 0xff0000;
                     const cx = flat[i * 2];
                     const cy = flat[i * 2 + 1];
 
-                    // Draw vertex dot
+                    // Draw vertex dot in lightened owner color
                     graphics.circle(cx, cy, vertexSize);
                     graphics.fill({ color: dotColor, alpha: 0.9 });
-
-                    // Draw vertex number
+                    // Pinned: thin dark outline; Morph: bright white outline
                     graphics.circle(cx, cy, vertexSize + 1);
-                    graphics.stroke({ width: 0.5, color: 0x000000, alpha: 0.6 });
+                    graphics.stroke({
+                        width: isPinned ? 0.5 : 1.5,
+                        color: isPinned ? 0x333333 : 0xffffff,
+                        alpha: isPinned ? 0.5 : 0.9,
+                    });
+
+                    // Draw numbered label (only every Nth vertex)
+                    if (showLabel && this.labelContainer) {
+                        let label = this.labels[labelIdx];
+                        if (!label) {
+                            label = new PIXI.Text({
+                                text: '',
+                                style: {
+                                    fontSize: 9,
+                                    fill: 0xffffff,
+                                    fontFamily: 'monospace',
+                                    stroke: { color: 0x000000, width: 2 },
+                                },
+                            });
+                            label.anchor.set(0.5, 1.2); // Position above the dot
+                            this.labels.push(label);
+                            this.labelContainer.addChild(label);
+                        }
+                        label.text = `${i}`;
+                        label.style.fill = dotColor;
+                        label.position.set(cx, cy);
+                        label.visible = true;
+                        labelIdx++;
+                    }
                 }
             }
 
             drawn++;
         }
 
+        // Hide unused labels from previous frames
+        for (let i = labelIdx; i < this.labels.length; i++) {
+            this.labels[i].visible = false;
+        }
+
+        // If overlay was turned off, hide all labels
+        if (!showVertices && this.labelContainer) {
+            for (const lbl of this.labels) lbl.visible = false;
+        }
+
         log.renderer('PolygonMorphTransitionHandler', `drawFrame t=${rawT.toFixed(3)} eased=${t.toFixed(3)} | drew ${drawn}/${this.pairs.length} regions`);
+    }
+
+    /** Clean up label container and text objects. Call when transition ends. */
+    cleanup(): void {
+        if (this.labelContainer) {
+            if (this.labelContainer.parent) {
+                this.labelContainer.parent.removeChild(this.labelContainer);
+            }
+            this.labelContainer.destroy({ children: true });
+            this.labelContainer = null;
+            this.labels = [];
+        }
     }
 }

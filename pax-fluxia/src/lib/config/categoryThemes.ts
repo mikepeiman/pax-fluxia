@@ -325,6 +325,7 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
         'DEBUG_MORPH_PIN_THRESHOLD',
         'DEBUG_MORPH_TRACE_LOG',
         'DEBUG_MORPH_SLOWMO',
+        'DEBUG_MORPH_VERTEX_NTH',
     ],
 
     audio: [

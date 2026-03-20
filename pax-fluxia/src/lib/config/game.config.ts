@@ -301,6 +301,7 @@ interface GameConfigType {
     DEBUG_MORPH_PIN_THRESHOLD: number;    // Displacement below which a vertex is "pinned" (green) vs "morph" (red)
     DEBUG_MORPH_TRACE_LOG: boolean;       // Log per-vertex start/end/distance trace on transition start
     DEBUG_MORPH_SLOWMO: boolean;          // 10X slow-motion: multiply TERRITORY_TRANSITION_MS by 10
+    DEBUG_MORPH_VERTEX_NTH: number;       // Show label on every Nth vertex (1=all, 10=every 10th, default 10)
     TERRITORY_METABALL: boolean;   // Enable Metaball territory renderer (default false)
     TERRITORY_PIXEL: boolean;      // Enable Pixel (nearest-neighbor) territory renderer (default false)
     TERRITORY_CLUSTER_SPLIT: boolean; // Split disconnected same-owner stars into separate territory blobs (default false)
@@ -1068,6 +1069,8 @@ const _rawConfig: GameConfigType = {
     DEBUG_MORPH_TRACE_LOG: false,
     /** 10X slow-motion mode — multiplies transition time by 10 (3s → 30s) */
     DEBUG_MORPH_SLOWMO: false,
+    /** Show numbered label on every Nth vertex (1=all, default 10) */
+    DEBUG_MORPH_VERTEX_NTH: 10,
     /** Enable Metaball territory renderer */
     TERRITORY_METABALL: false,
     /** Enable Pixel (nearest-neighbor) territory renderer */
