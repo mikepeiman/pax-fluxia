@@ -487,6 +487,76 @@ function alignClosedPolygon(from: [number, number][], to: [number, number][]): [
  * Handles multi-region owners (player has discontiguous territory pieces).
  * New regions morph from centroid, removed regions collapse to centroid.
  */
+
+/**
+ * For each source vertex, project it onto the nearest point on the target polygon's perimeter.
+ * Returns an array of the same length as `from`, where each entry is the nearest point
+ * on the `target` boundary (with sub-edge interpolation for precision).
+ *
+ * This preserves spatial identity: vertices far from the conquest front barely move,
+ * while vertices near the shape change find their new positions on the changed boundary.
+ */
+function projectOntoPerimeter(
+    from: [number, number][],
+    target: [number, number][],
+): [number, number][] {
+    const tLen = target.length;
+    if (tLen < 2) return from.map((p) => [p[0], p[1]] as [number, number]);
+
+    // Close the target polygon if not already closed
+    const closed = [...target];
+    const first = target[0], last = target[tLen - 1];
+    if (Math.abs(first[0] - last[0]) > 0.01 || Math.abs(first[1] - last[1]) > 0.01) {
+        closed.push(first);
+    }
+    const nEdges = closed.length - 1;
+
+    const result: [number, number][] = new Array(from.length);
+
+    for (let fi = 0; fi < from.length; fi++) {
+        const px = from[fi][0];
+        const py = from[fi][1];
+        let bestDistSq = Infinity;
+        let bestX = px, bestY = py;
+
+        // Check each edge of the target polygon
+        for (let ei = 0; ei < nEdges; ei++) {
+            const ax = closed[ei][0], ay = closed[ei][1];
+            const bx = closed[ei + 1][0], by = closed[ei + 1][1];
+
+            // Project point onto line segment AB
+            const abx = bx - ax, aby = by - ay;
+            const lenSq = abx * abx + aby * aby;
+            if (lenSq < 1e-10) continue; // degenerate edge
+
+            // t = clamp(dot(AP, AB) / |AB|², 0, 1)
+            const apx = px - ax, apy = py - ay;
+            const t = Math.max(0, Math.min(1, (apx * abx + apy * aby) / lenSq));
+
+            const cx = ax + t * abx;
+            const cy = ay + t * aby;
+            const dx = px - cx, dy = py - cy;
+            const distSq = dx * dx + dy * dy;
+
+            if (distSq < bestDistSq) {
+                bestDistSq = distSq;
+                bestX = cx;
+                bestY = cy;
+            }
+        }
+
+        result[fi] = [bestX, bestY];
+    }
+
+    return result;
+}
+
+/**
+ * Match prev→target MergedTerritory fill polygons.
+ * Groups by ownerId, then matches regions within each owner by nearest centroid.
+ * Handles multi-region owners (player has discontiguous territory pieces).
+ * New regions morph from centroid, removed regions collapse to centroid.
+ */
 function matchFillPolygons(
     prev: MergedTerritory[],
     target: MergedTerritory[],
@@ -534,7 +604,8 @@ function matchFillPolygons(
                 // Use the larger point count to preserve resolution
                 const n = Math.max(resampleN, pT.points.length, tT.points.length);
                 const fromPts = resampleClosedPolygon(pT.points, n);
-                const toPts = alignClosedPolygon(fromPts, resampleClosedPolygon(tT.points, n));
+                // Project each from vertex onto the target perimeter
+                const toPts = projectOntoPerimeter(fromPts, tT.points);
                 result.push({ fromPoints: fromPts, toPoints: toPts, color: tT.color, ownerId: owner });
             }
         }
