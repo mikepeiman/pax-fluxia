@@ -29,6 +29,7 @@ import { computeCorridorVirtuals, computeDisconnectVirtuals, DISCONNECT_OWNER_ID
 import { findConnectedClustersOptimized } from '$lib/renderers/territoryUtils';
 import { log } from '$lib/utils/logger';
 import type { CompileError } from './types';
+import { executeChainWalk, flattenLoopPoints } from './chainWalkCore';
 
 // ---------------------------------------------------------------------------
 // Geometry types (canonical contracts for PVV2 path)
@@ -92,6 +93,8 @@ export interface TerritoryGeometryData {
     worldBorderPolylines: SharedPolyline[]; // World-boundary edges per territory (for outer border drawing)
     enclaveMap: Map<number, [number, number][][]>;  // mergedTerritory idx → hole polygons
     fingerprint: string;
+    /** Canonical frontier map — Phase 1 identity annotation. Emitted alongside existing outputs. */
+    frontierMap?: import('./canonicalTypes').TerritoryFrontierMap;
 }
 
 /** A continuous closed frontier loop for one player's territory boundary. */
@@ -551,15 +554,8 @@ export function mergeSameOwnerCells(
  * Each WorldBorderPolyline carries ownership (ownerPairKey = 'owner|world').
  * Polyline endpoints sit at junction vertices shared with other polylines.
  *
- * Algorithm:
- *   1. Index all polylines (shared + world border) into a junction vertex map:
- *      ptKey(endpoint) → [{ polylineIdx, whichEnd }]
- *   2. For each owner X, find all polylines where X is one of the pair owners.
- *   3. Pick any unvisited polyline, take its points.
- *   4. At the chain tail, look up the junction vertex and find the next unvisited
- *      polyline that also has X as an owner.
- *   5. Append its points (forward or reversed based on which end matched).
- *   6. Repeat until ring closes.
+ * Delegates to the shared chainWalkCore for the actual walk, then flattens
+ * the rich result into legacy MergedTerritory[] format.
  *
  * Result: fill polygons using the EXACT same smoothed vertices as border polylines.
  */
@@ -568,128 +564,19 @@ export function constructFillsFromFrontierChain(
     worldBorderPolylines: SharedPolyline[],
     cells: TerritoryCell[] = [],
 ): MergedTerritory[] {
-    // Combine all polylines into one array for uniform indexing
-    const allPolylines = [...sharedPolylines, ...worldBorderPolylines];
-    const N = allPolylines.length;
-    if (N === 0) return [];
+    const walkResult = executeChainWalk(sharedPolylines, worldBorderPolylines);
 
-    // Parse ownership from each polyline
-    interface PolylineInfo {
-        points: [number, number][];
-        ownerA: string;
-        ownerB: string;
-        startKey: string;
-        endKey: string;
-    }
-    const info: PolylineInfo[] = allPolylines.map(pl => {
-        const [a, b] = pl.ownerPairKey.split('|');
-        const pts = pl.points;
-        return {
-            points: pts,
-            ownerA: a,
-            ownerB: b,
-            startKey: ptKey(pts[0][0], pts[0][1]),
-            endKey: ptKey(pts[pts.length - 1][0], pts[pts.length - 1][1]),
-        };
-    });
-
-    // Build junction vertex map: ptKey → list of { polylineIdx, whichEnd }
-    interface JunctionEntry {
-        plIdx: number;
-        end: 'start' | 'end';
-    }
-    const junctions = new Map<string, JunctionEntry[]>();
-
-    function addJunction(key: string, plIdx: number, end: 'start' | 'end') {
-        if (!junctions.has(key)) junctions.set(key, []);
-        junctions.get(key)!.push({ plIdx, end });
-    }
-
-    for (let i = 0; i < N; i++) {
-        if (info[i].points.length < 2) continue;
-        addJunction(info[i].startKey, i, 'start');
-        addJunction(info[i].endKey, i, 'end');
-    }
-
-    // Collect which polylines touch each owner
-    const ownerPolylines = new Map<string, Set<number>>();
-    for (let i = 0; i < N; i++) {
-        if (info[i].points.length < 2) continue;
-        const { ownerA, ownerB } = info[i];
-        for (const owner of [ownerA, ownerB]) {
-            if (!owner || owner === 'world') continue;
-            if (!ownerPolylines.has(owner)) ownerPolylines.set(owner, new Set());
-            ownerPolylines.get(owner)!.add(i);
-        }
-    }
-
-    // For each owner, chain their polylines into closed fill rings
+    // Flatten each walk loop into a MergedTerritory
     const result: MergedTerritory[] = [];
-    const globalUsed = new Set<string>(); // "ownerX|plIdx" — track per-owner usage
-
-    for (const [ownerId, plIdxSet] of ownerPolylines) {
-        const ownerUsed = new Set<number>();
-
-        for (const startPlIdx of plIdxSet) {
-            if (ownerUsed.has(startPlIdx)) continue;
-            ownerUsed.add(startPlIdx);
-
-            // Start chain with this polyline's points
-            const chain: [number, number][] = [...info[startPlIdx].points];
-            let tailKey = info[startPlIdx].endKey;
-            const headKey = info[startPlIdx].startKey;
-
-            let safety = N * 2;
-            let closed = false;
-
-            while (safety-- > 0 && !closed) {
-                // Check if chain is closed
-                if (chain.length >= 4 && tailKey === headKey) {
-                    closed = true;
-                    break;
-                }
-
-                // Find next unvisited polyline at this junction that has our owner
-                const candidates = junctions.get(tailKey);
-                if (!candidates) break;
-
-                let found = false;
-                for (const cand of candidates) {
-                    if (ownerUsed.has(cand.plIdx)) continue;
-                    const ci = info[cand.plIdx];
-                    // Must have our owner
-                    if (ci.ownerA !== ownerId && ci.ownerB !== ownerId) continue;
-
-                    ownerUsed.add(cand.plIdx);
-
-                    if (cand.end === 'start') {
-                        // Polyline start matches our tail — use points forward, skip first (duplicate)
-                        for (let j = 1; j < ci.points.length; j++) {
-                            chain.push(ci.points[j]);
-                        }
-                        tailKey = ci.endKey;
-                    } else {
-                        // Polyline end matches our tail — use points reversed, skip first (duplicate)
-                        for (let j = ci.points.length - 2; j >= 0; j--) {
-                            chain.push(ci.points[j]);
-                        }
-                        tailKey = ci.startKey;
-                    }
-                    found = true;
-                    break;
-                }
-
-                if (!found) break;
-            }
-
-            if (chain.length >= 3) {
-                result.push({
-                    points: chain,
-                    ownerId,
-                    color: 0,
-                    starIds: [], // Frontier chain — no cell-level star IDs available
-                });
-            }
+    for (const loop of walkResult.loops) {
+        const chain = flattenLoopPoints(loop);
+        if (chain.length >= 3) {
+            result.push({
+                points: chain,
+                ownerId: loop.ownerId,
+                color: 0,
+                starIds: [],
+            });
         }
     }
 

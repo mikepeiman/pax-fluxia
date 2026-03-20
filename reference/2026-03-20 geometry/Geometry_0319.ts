@@ -41,7 +41,6 @@ import {
     extractJunctionVertices,
     buildTerritoryGeometryFingerprint,
 } from './powerVoronoiTerritoryGeometryGenerator';
-import { buildFrontierMap } from './buildFrontierMap';
 
 import { weightedVoronoi } from 'd3-weighted-voronoi';
 import { computeCorridorVirtuals, computeDisconnectVirtuals, DISCONNECT_OWNER_ID } from '$lib/renderers/territoryFeatures';
@@ -307,13 +306,6 @@ export function computeGeometry0319(
         // (including corner-crossing world boundary edges)
         const mergedTerritories = constructFillsFromFrontierChain(sharedPolylines, worldBorderPolylines, cells);
 
-        const fingerprint = buildTerritoryGeometryFingerprint(stars, config) + ':g0319';
-
-        // Stage 10b: Build canonical frontier map (identity annotation — Phase 1)
-        // Junction vertices are needed to classify decisive vertices in the TMAP.
-        const junctionPts = extractJunctionVertices(cells);
-        const frontierMap = buildFrontierMap(sharedPolylines, worldBorderPolylines, junctionPts, fingerprint);
-
         // Now detect enclaves on the actual fill output
         const enclaveMap = detectEnclaves(mergedTerritories);
 
@@ -335,6 +327,9 @@ export function computeGeometry0319(
             `${mergedTerritories.length} fills ` +
             `[closure: ${closedCount}/${mergedTerritories.length}${closureOk ? ' ✓' : ' ✗ GAPS'}]`
         );
+
+        const fingerprint = buildTerritoryGeometryFingerprint(stars, config) + ':g0319';
+
         return {
             cells,
             mergedTerritories,
@@ -344,7 +339,6 @@ export function computeGeometry0319(
             worldBorderPolylines,
             enclaveMap,
             fingerprint,
-            frontierMap,
         } satisfies TerritoryGeometryData;
 
     } catch (err) {
