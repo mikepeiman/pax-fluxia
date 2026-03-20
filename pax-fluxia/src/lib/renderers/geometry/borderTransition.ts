@@ -915,8 +915,9 @@ export class PolygonMorphTransitionHandler {
                         alpha: isPinned ? 0.5 : 0.9,
                     });
 
-                    // Draw numbered label
-                    if (this.labelContainer) {
+                    // Draw numbered label (gated by separate toggle)
+                    const showLabels = GAME_CONFIG.DEBUG_MORPH_VERTEX_LABELS ?? true;
+                    if (showLabels && this.labelContainer) {
                         let label = this.labels[labelIdx];
                         if (!label) {
                             label = new PIXI.Text({

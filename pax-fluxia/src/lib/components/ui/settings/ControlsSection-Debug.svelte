@@ -20,6 +20,12 @@
     let colorMode = $state(
         GAME_CONFIG.DEBUG_MORPH_VERTEX_COLOR_MODE ?? "pinmorph",
     );
+    let showLabels = $state(GAME_CONFIG.DEBUG_MORPH_VERTEX_LABELS ?? true);
+
+    function toggleLabels() {
+        showLabels = !showLabels;
+        GAME_CONFIG.DEBUG_MORPH_VERTEX_LABELS = showLabels;
+    }
 
     function toggleSlowMo() {
         slowMoActive = !slowMoActive;
@@ -83,6 +89,13 @@
         </select>
     </div>
 {/if}
+
+<!-- Vertex Labels Toggle -->
+<label class="toggle-row">
+    <input type="checkbox" checked={showLabels} onchange={toggleLabels} />
+    <span>Show vertex labels</span>
+    <span class="debug-hint">Numeric index on each dot</span>
+</label>
 
 <!-- Trace Log -->
 <label class="toggle-row">
