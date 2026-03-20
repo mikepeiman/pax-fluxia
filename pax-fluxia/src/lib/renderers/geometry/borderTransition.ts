@@ -622,13 +622,6 @@ export class PolygonMorphTransitionHandler {
         const pinThreshold = GAME_CONFIG.DEBUG_MORPH_PIN_THRESHOLD ?? 5;
         const vertexNth = GAME_CONFIG.DEBUG_MORPH_VERTEX_NTH ?? 10;
 
-        // ── Ensure label container exists (lazily created, sibling of graphics)
-        if (showVertices && !this.labelContainer && graphics.parent) {
-            this.labelContainer = new PIXI.Container();
-            this.labelContainer.label = 'morph-vertex-labels';
-            graphics.parent.addChild(this.labelContainer);
-        }
-
         // Track which label index we're at for pooling
         let labelIdx = 0;
 
@@ -670,8 +663,19 @@ export class PolygonMorphTransitionHandler {
                     ownerDotColor = (lightR << 16) | (lightG << 8) | lightB;
                 }
 
+                // Lazily ensure label container exists
+                if (!this.labelContainer) {
+                    this.labelContainer = new PIXI.Container();
+                    this.labelContainer.label = 'morph-vertex-labels';
+                    // Try to add to graphics parent, or to graphics itself as last resort
+                    const target = graphics.parent ?? graphics;
+                    target.addChild(this.labelContainer);
+                }
+
                 for (let i = 0; i < n; i++) {
-                    const showLabel = (i % vertexNth === 0);
+                    // Nth filter: only show every Nth vertex dot + label
+                    if (i % vertexNth !== 0) continue;
+
                     const dx = toPoints[i][0] - fromPoints[i][0];
                     const dy = toPoints[i][1] - fromPoints[i][1];
                     const dist = Math.sqrt(dx * dx + dy * dy);
@@ -697,20 +701,21 @@ export class PolygonMorphTransitionHandler {
                         alpha: isPinned ? 0.5 : 0.9,
                     });
 
-                    // Draw numbered label (only every Nth vertex)
-                    if (showLabel && this.labelContainer) {
+                    // Draw numbered label
+                    if (this.labelContainer) {
                         let label = this.labels[labelIdx];
                         if (!label) {
                             label = new PIXI.Text({
                                 text: '',
                                 style: {
-                                    fontSize: 9,
+                                    fontSize: 10,
                                     fill: 0xffffff,
                                     fontFamily: 'monospace',
-                                    stroke: { color: 0x000000, width: 2 },
+                                    fontWeight: 'bold',
+                                    stroke: { color: 0x000000, width: 3 },
                                 },
                             });
-                            label.anchor.set(0.5, 1.2); // Position above the dot
+                            label.anchor.set(0.5, 1.4); // Position above the dot
                             this.labels.push(label);
                             this.labelContainer.addChild(label);
                         }
