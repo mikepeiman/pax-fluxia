@@ -86,7 +86,8 @@ export interface PVV2RendererState {
     changedSiteIds: Set<string> | null;
     // Enclave Cache
     lastEnclaveMap: Map<number, [number, number][][]> | null;
-    // (removed: lastWorldBorderPolylines — failed world rect border attempt)
+    // World border polylines — stored for fill reconstruction during Frontier Morph transitions
+    lastWorldBorderPolylines: SharedPolyline[] | null;
 }
 
 /** Create a fresh PVV2 renderer state. */
@@ -116,7 +117,7 @@ export function createPVV2State(): PVV2RendererState {
         lastCells: null,
         changedSiteIds: null,
         lastEnclaveMap: null,
-        // (removed: lastWorldBorderPolylines)
+        lastWorldBorderPolylines: null,
     };
 }
 
@@ -687,7 +688,7 @@ export function renderPowerVoronoi(
         if (s.activeShapeTransitionHandler) {
             s.activeShapeTransitionHandler.drawFrame(s.fillGraphics, rawT, alpha, borderWidth, borderAlpha);
         } else if (s.activeBorderTransitionHandler) {
-            // Legacy segment morpher fallback (borders only)
+            // Legacy segment morpher fallback (borders only — shape handler takes priority above)
             for (let i = 0; i < s.lastMergedTerritories.length; i++) {
                 drawTerritoryFillOnly(s.fillGraphics, s.lastMergedTerritories[i], s.lastEnclaveMap?.get(i), alpha);
             }
@@ -812,7 +813,7 @@ export function renderPowerVoronoi(
         return;
     }
 
-    const { cells, mergedTerritories: merged, sharedEdges, rawSharedPolylines: builtRawPolylinesRaw, sharedPolylines: builtPolylinesRaw, enclaveMap } = stageResult;
+    const { cells, mergedTerritories: merged, sharedEdges, rawSharedPolylines: builtRawPolylinesRaw, sharedPolylines: builtPolylinesRaw, enclaveMap, worldBorderPolylines } = stageResult;
 
     log.renderer('PVV2', `STAGE OUTPUT | cells=${cells.length} merged=${merged.length} polylines=${builtPolylinesRaw.length} chaikinPasses=${Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)}`);
 
@@ -872,6 +873,7 @@ export function renderPowerVoronoi(
     s.targetBorderEdges = sharedEdges;
     s.lastMergedTerritories = merged;
     s.lastEnclaveMap = enclaveMap;
+    s.lastWorldBorderPolylines = worldBorderPolylines;
 
     // Build polylines for morph transition (reuse from render block if available)
     {
@@ -938,11 +940,11 @@ export function renderPowerVoronoi(
                 const borderWidth = GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 1.5;
                 s.activeRopeRenderer = new RopeBorderRenderer(s.prevSharedPolylines, s.targetSharedPolylines, easing, resampleN, borderWidth, overshoot);
                 s.activeRopeRenderer.addTo(voronoiContainer);
-            } else if ((GAME_CONFIG.TERRITORY_GEOMETRY_MODE ?? 'power_voronoi') === 'unified_polygon') {
-                // Unified polygon geometry mode — fills + borders from same closed polygon data
-                if (s.prevMergedTerritories && s.lastMergedTerritories) {
-                    s.activeShapeTransitionHandler = new PolygonMorphTransitionHandler(s.prevMergedTerritories, s.lastMergedTerritories, easing, resampleN, overshoot);
-                }
+            }
+
+            // Frontier Morph: fill+stroke from same interpolated closed polygon each frame
+            if (s.prevMergedTerritories && s.lastMergedTerritories) {
+                s.activeShapeTransitionHandler = new PolygonMorphTransitionHandler(s.prevMergedTerritories, s.lastMergedTerritories, easing, resampleN, overshoot);
             } else if (borderTransMode === 'pixi_graphics_morph' || borderTransMode === 'optimal_transport' || borderTransMode === 'smooth_morph') {
                 s.activeBorderTransitionHandler = new SegmentMorphTransitionHandler(s.prevSharedPolylines, s.targetSharedPolylines, easing, resampleN, overshoot);
             }

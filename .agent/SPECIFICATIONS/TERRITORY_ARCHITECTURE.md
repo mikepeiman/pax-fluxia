@@ -20,19 +20,27 @@ Ownership → Geometry → Transition → Presentation
 |-------|-------------|----------|---------------------|
 | **Ownership** | Who owns what. Graph-native, from conquest events. | `GraphOwnershipState` | *(automatic)* |
 | **Geometry** | Shapes from ownership. Power Voronoi cells, merged territories, shared borders. | `TerritoryGeometryData` | **Geometry** dropdown |
-| **Transition** | Animating between geometry states when conquests happen. | `FXHandler<ConquestEvent>` | **Fill Transition** + **Border Transition** dropdowns |
+| **Transition: Fill** | Animating fill polygons between geometry states on conquest. | `FXHandler<ConquestEvent>` | **Fill Transition** dropdown |
+| **Transition: Border** | Animating border polylines between geometry states on conquest. | `FXHandler<ConquestEvent>` | **Border Transition** dropdown |
 | **Presentation** | Drawing to screen. PIXI.Graphics fills, strokes, visual style. | `PVV2RendererState` | **Style** dropdown |
+
+> [!IMPORTANT]
+> Fill Transition and Border Transition are **independently selectable** sub-concerns within the Transition layer.
+> They operate on different data (fill polygons vs border polylines) but must remain **temporally synchronized** —
+> fills must follow borders at every frame during transition, never snapping ahead or lagging behind.
 
 ### The 4-Axis UI Model
 
 The Territory Presentation section has 4 independent dropdowns:
 
-| Dropdown | Selects | Examples |
+| Dropdown | Selects | Options |
 |----------|---------|---------|
-| **Geometry** | Which geometry source produces territory shapes | FG1 Adaptive Field, FG2 Seed Graph, *(future: Hex Grid)* |
-| **Style** | Visual style of fills + borders | Territory (DY4_styles), Distance Field, *(future: Neon Glow)* |
-| **Fill Transition** | Algorithm for animating fill changes on conquest | Frontier Morph (DY4_OT_fill), Alpha Crossfade, *(future: Ripple Dissolve)* |
-| **Border Transition** | Algorithm for animating border changes on conquest | Pixi Graphics (DY4_OT_borders), Segment Morph, *(future: Elastic Snap)* |
+| **Geometry** | Which geometry source produces territory shapes | Power Voronoi, Unified Polygon, **New-Frontiers-0319** ★ |
+| **Style** | Visual style of fills + borders | Off, Canonical, **Engine (DY4)** ★, PVV3, PVV2, Distance Field, Metaball, Pixel Art, Voronoi, Lane, Contour |
+| **Fill Transition** | Algorithm for animating fill changes on conquest | Off, **Frontier Morph** ★, Crossfade, Tile Flip |
+| **Border Transition** | Algorithm for animating border changes on conquest | Off, Graphics Morph, **Rope Morph** ★, DY4 Transport, Smooth (Legacy), Pressure Wave |
+
+★ = current default
 
 All 4 are independently selectable. This is the intended design — 4 distinct mode selections.
 
