@@ -91,8 +91,11 @@ export function findRingSpliceWindowTopological(
 
     const { rotation, prefixLen, suffixLen } = findBestRotation(prevSpans, nextSpans);
 
-    const allSpansMatch = (prefixLen + suffixLen) >= Math.min(prevSpans.length, nextSpans.length)
-        && prefixLen >= prevSpans.length && (suffixLen === 0 || (prefixLen + suffixLen) >= nextSpans.length);
+    // allSpansMatch = true ONLY when both prev and next are FULLY covered.
+    // If next has extra spans beyond what matched, it's an insertion, not "all match".
+    const allSpansMatch =
+        prefixLen + suffixLen >= prevSpans.length &&
+        prefixLen + suffixLen >= nextSpans.length;
 
     // Candidate changed window in span indices
     const prevChangedStart = prefixLen;

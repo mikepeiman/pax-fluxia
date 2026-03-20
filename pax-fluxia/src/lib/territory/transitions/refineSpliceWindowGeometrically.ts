@@ -181,36 +181,37 @@ export function refineSpliceWindowGeometrically(
     const { prefixLen, suffixLen } = topo;
 
     // Convert span-level boundaries to point-level boundaries
-    let anchorStartPrev = prefixLen > 0 ? prevSpans[prefixLen - 1].endSample : 0;
-    let anchorEndPrev = suffixLen > 0 ? prevSpans[prevSpans.length - suffixLen].startSample : prevRing.points.length;
+    const anchorStartPrev = prefixLen > 0 ? prevSpans[prefixLen - 1].endSample : 0;
+    const anchorEndPrev = suffixLen > 0 ? prevSpans[prevSpans.length - suffixLen].startSample : prevRing.points.length;
 
     // For next ring: use rotated span indices
     const rotatedNextSpanIdx = (i: number) => (topo.rotation + i) % nextSpans.length;
-    let anchorStartNext = prefixLen > 0 ? nextSpans[rotatedNextSpanIdx(prefixLen - 1)].endSample : 0;
-    let anchorEndNext = suffixLen > 0 ? nextSpans[rotatedNextSpanIdx(nextSpans.length - suffixLen)].startSample : nextPtsAligned.length;
 
-    // Remap next anchors relative to rotation offset
+    // Compute next anchors in ORIGINAL (unrotated) next ring coordinates
+    const rawAnchorStartNext = prefixLen > 0 ? nextSpans[rotatedNextSpanIdx(prefixLen - 1)].endSample : 0;
+    const rawAnchorEndNext = suffixLen > 0 ? nextSpans[rotatedNextSpanIdx(nextSpans.length - suffixLen)].startSample : nextRing.points.length;
+
+    // Remap to rotated coordinate space
+    let anchorStartNext: number;
+    let anchorEndNext: number;
     if (pointOffset > 0) {
         const nTotal = nextRing.points.length;
-        anchorStartNext = ((anchorStartNext - pointOffset) % nTotal + nTotal) % nTotal;
-        anchorEndNext = ((anchorEndNext - pointOffset) % nTotal + nTotal) % nTotal;
-    }
+        anchorStartNext = ((rawAnchorStartNext - pointOffset) % nTotal + nTotal) % nTotal;
+        anchorEndNext = ((rawAnchorEndNext - pointOffset) % nTotal + nTotal) % nTotal;
 
-    // Geometric refinement: expand anchors if geometry diverges beyond the topological boundary
-    // Shrink anchors if the topological boundary has geometrically-identical points
-    if (anchorStartPrev > 0 && anchorStartPrev < prevRing.points.length &&
-        anchorStartNext < nextPtsAligned.length) {
-        // Try to shrink: walk the anchor inward while points still match
-        while (anchorStartPrev > 0 && anchorStartNext > 0 &&
-            dist2(prevRing.points[anchorStartPrev - 1], nextPtsAligned[anchorStartNext - 1]) <= eps2) {
-            // Actually, we should EXPAND static, not shrink changed. But the span boundary
-            // is the outer limit of "topologically same" — geometric check can only narrow
-            // the changed region, not expand beyond what topology says is different.
-            break;  // Keep topological boundary as-is for now; future refinement can narrow
+        // If remapping caused wrapping (start > end), normalize to valid forward range
+        if (anchorStartNext > anchorEndNext) {
+            // The changed region wraps around 0 in rotated coordinates.
+            // Expand to include the wrap: changed = [0, anchorEndNext] union [anchorStartNext, nTotal]
+            // Simplify: treat as [anchorStartNext, nTotal] (largest contiguous range)
+            anchorEndNext = nTotal;
         }
+    } else {
+        anchorStartNext = rawAnchorStartNext;
+        anchorEndNext = rawAnchorEndNext;
     }
 
-    // Validate: anchorStart < anchorEnd for both prev and next
+    // Validate: anchorStart <= anchorEnd for both prev and next
     const prevChangedRange: [number, number] | null =
         anchorStartPrev < anchorEndPrev ? [anchorStartPrev, anchorEndPrev] : null;
     const nextChangedRange: [number, number] | null =
@@ -218,9 +219,9 @@ export function refineSpliceWindowGeometrically(
 
     // Check if geometry outside the changed region matches
     let geomEqualOutside = true;
-    // Sample a few points in the static prefix
-    if (anchorStartPrev > 5 && anchorStartNext > 5) {
-        for (let i = 0; i < Math.min(anchorStartPrev, anchorStartNext, 10); i++) {
+    const checkCount = Math.min(anchorStartPrev, anchorStartNext, 10);
+    if (checkCount > 0) {
+        for (let i = 0; i < checkCount; i++) {
             if (dist2(prevRing.points[i], nextPtsAligned[i]) > eps2) {
                 geomEqualOutside = false;
                 break;
