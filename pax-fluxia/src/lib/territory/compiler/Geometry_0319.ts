@@ -164,12 +164,23 @@ export function computeGeometry0319(
         }
 
         // ── Stage 1: Power diagram ──────────────────────────────────────────
+        // Compute clip rectangle from actual site positions (symmetric extent)
+        // instead of (0,0)→(worldWidth,worldHeight) which creates asymmetric fills.
         const pad = config.boundaryPad;
+        let sMinX = Infinity, sMinY = Infinity, sMaxX = -Infinity, sMaxY = -Infinity;
+        for (const s of sites) {
+            if (s.x < sMinX) sMinX = s.x;
+            if (s.y < sMinY) sMinY = s.y;
+            if (s.x > sMaxX) sMaxX = s.x;
+            if (s.y > sMaxY) sMaxY = s.y;
+        }
+        // Use starMargin + boundaryPad for generous symmetric clip
+        const clipPad = starMargin + pad;
         const clip: [number, number][] = [
-            [-pad, -pad],
-            [worldWidth + pad, -pad],
-            [worldWidth + pad, worldHeight + pad],
-            [-pad, worldHeight + pad],
+            [sMinX - clipPad, sMinY - clipPad],
+            [sMaxX + clipPad, sMinY - clipPad],
+            [sMaxX + clipPad, sMaxY + clipPad],
+            [sMinX - clipPad, sMaxY + clipPad],
         ];
 
         let polygons: any[];
