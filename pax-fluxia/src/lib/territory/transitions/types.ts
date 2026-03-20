@@ -1,9 +1,10 @@
 // ---------------------------------------------------------------------------
 // Localized Boundary Transition — Core Types
 // ---------------------------------------------------------------------------
-// These types define the data contract for the splice-based territory
-// transition pipeline. Unchanged arcs are copied verbatim from prev
-// geometry; only the changed patch near the conquest site animates.
+// These types define the data contract for the proximity-based territory
+// transition pipeline. Both rings are resampled and aligned at the conquest
+// origin; per-point static/dynamic classification controls which points
+// interpolate vs stay bitwise-stationary.
 // ---------------------------------------------------------------------------
 
 /** 2D point. */
@@ -67,13 +68,17 @@ export interface PatchMorphPlan {
     localOrigin?: Vec2;     // conquest star position for optional falloff
 }
 
-/** Plan for one animated ring: static segments + optional patch morph. */
+/**
+ * Plan for one animated ring: per-point proximity-based static/interpolate mask.
+ * Both prevSampled and targetSampled have the same length and are aligned
+ * at the conquest origin (nearest point at index 0).
+ */
 export interface AnimatedRingPlan {
     ringId: string;
-    staticSegmentsPrev: Vec2[][];   // segments from prev that stay exactly as-is
-    patchMorph: PatchMorphPlan | null;
+    prevSampled: Vec2[];       // prev ring, resampled & aligned at conquest
+    targetSampled: Vec2[];     // next ring, resampled & aligned at conquest
+    isStaticMask: boolean[];   // per-point: true = copy from prev, false = interpolate
     targetRing: BoundaryRingSnapshot;
-    prevRingPoints?: Vec2[];        // for whole-ring interpolation when splice fails
 }
 
 /** Full transition plan for one territory. */
