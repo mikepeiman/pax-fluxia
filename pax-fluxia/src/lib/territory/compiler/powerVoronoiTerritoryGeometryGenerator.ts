@@ -566,6 +566,7 @@ export function mergeSameOwnerCells(
 export function constructFillsFromFrontierChain(
     sharedPolylines: SharedPolyline[],
     worldBorderPolylines: SharedPolyline[],
+    cells: TerritoryCell[] = [],
 ): MergedTerritory[] {
     // Combine all polylines into one array for uniform indexing
     const allPolylines = [...sharedPolylines, ...worldBorderPolylines];
@@ -692,8 +693,95 @@ export function constructFillsFromFrontierChain(
         }
     }
 
-    // Diagnostic table removed — consolidated into single summary log
-    // in Geometry_0319.ts (see computeGeometry0319 Stage 10)
+    // Populate starIds from cells using graph ownership (not geometric approximation).
+    // Group cells by ownerId. For single-territory owners, assign directly.
+    // For multi-territory owners (disconnected regions), use BFS on cell adjacency graph.
+    if (cells.length > 0 && result.length > 0) {
+        // Build map: ownerId → list of fill indices
+        const ownerFillIndices = new Map<string, number[]>();
+        for (let fi = 0; fi < result.length; fi++) {
+            const arr = ownerFillIndices.get(result[fi].ownerId) ?? [];
+            arr.push(fi);
+            ownerFillIndices.set(result[fi].ownerId, arr);
+        }
+
+        // Build map: ownerId → list of cells
+        const ownerCells = new Map<string, TerritoryCell[]>();
+        for (const cell of cells) {
+            const arr = ownerCells.get(cell.ownerId) ?? [];
+            arr.push(cell);
+            ownerCells.set(cell.ownerId, arr);
+        }
+
+        // Build cell adjacency graph from shared polygon edges (graph-native).
+        // Two cells are neighbors if they share ≥2 consecutive polygon vertices (a Voronoi edge).
+        const cellNeighbors = new Map<string, Set<string>>();
+        const edgeToCell = new Map<string, string[]>(); // "x1,y1|x2,y2" → [siteId, ...]
+        for (const cell of cells) {
+            cellNeighbors.set(cell.siteId, new Set());
+            const pts = cell.points;
+            for (let i = 0; i < pts.length - 1; i++) {
+                // Normalize edge key: smaller coord first
+                const a = `${pts[i][0].toFixed(4)},${pts[i][1].toFixed(4)}`;
+                const b = `${pts[i + 1][0].toFixed(4)},${pts[i + 1][1].toFixed(4)}`;
+                const ek = a < b ? `${a}|${b}` : `${b}|${a}`;
+                const arr = edgeToCell.get(ek) ?? [];
+                arr.push(cell.siteId);
+                edgeToCell.set(ek, arr);
+            }
+        }
+        // Cells sharing an edge are neighbors
+        for (const [, siteIds] of edgeToCell) {
+            for (let i = 0; i < siteIds.length; i++) {
+                for (let j = i + 1; j < siteIds.length; j++) {
+                    cellNeighbors.get(siteIds[i])?.add(siteIds[j]);
+                    cellNeighbors.get(siteIds[j])?.add(siteIds[i]);
+                }
+            }
+        }
+
+        for (const [ownerId, fillIndices] of ownerFillIndices) {
+            const oCells = ownerCells.get(ownerId) ?? [];
+            if (fillIndices.length === 1) {
+                // Single territory for this owner — all cells belong here
+                result[fillIndices[0]].starIds = oCells.map(c => c.siteId);
+            } else {
+                // Multiple territories: BFS flood fill on same-owner cell adjacency
+                const visited = new Set<string>();
+                const components: string[][] = [];
+                for (const cell of oCells) {
+                    if (visited.has(cell.siteId)) continue;
+                    // BFS from this cell, only following same-owner neighbors
+                    const component: string[] = [];
+                    const queue = [cell.siteId];
+                    visited.add(cell.siteId);
+                    while (queue.length > 0) {
+                        const cur = queue.shift()!;
+                        component.push(cur);
+                        for (const nbr of cellNeighbors.get(cur) ?? []) {
+                            if (visited.has(nbr)) continue;
+                            // Only follow neighbors with the same owner
+                            const nbrCell = oCells.find(c => c.siteId === nbr);
+                            if (!nbrCell) continue;
+                            visited.add(nbr);
+                            queue.push(nbr);
+                        }
+                    }
+                    components.push(component);
+                }
+
+                // Match components to fill regions by size (largest component → largest fill)
+                // Sort both by size descending
+                components.sort((a, b) => b.length - a.length);
+                const sortedFills = [...fillIndices].sort((a, b) =>
+                    result[b].points.length - result[a].points.length
+                );
+                for (let k = 0; k < Math.min(components.length, sortedFills.length); k++) {
+                    result[sortedFills[k]].starIds = components[k];
+                }
+            }
+        }
+    }
 
     return result;
 }
@@ -1002,7 +1090,7 @@ export function generateVoronoiTerritoryGeometry(
         // Stage 8: Construct fill polygons by chaining frontier polylines at junction vertices.
         // Each polyline carries ownership. Fills use the EXACT same smoothed vertices as borders.
         // Eliminates fill/border geometry divergence (B-42).
-        const mergedTerritories = constructFillsFromFrontierChain(sharedPolylines, worldBorderPolylines);
+        const mergedTerritories = constructFillsFromFrontierChain(sharedPolylines, worldBorderPolylines, cells);
         log.sys('PVV2Stage', `FRONTIER CHAIN FILLS: ${mergedTerritories.length} fill regions`);
 
         log.sys('PVV2Stage', `MERGED: ${mergedTerritories.length} territories | chaikinPasses=${config.chaikinPasses} | pts: ${mergedTerritories.map((t: MergedTerritory) => `${t.ownerId}:${t.points.length}`).join(' ')}`);

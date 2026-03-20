@@ -304,7 +304,7 @@ export function computeGeometry0319(
         // ── Stage 10: Build fill regions ────────────────────────────────────
         // constructFillsFromFrontierChain now receives COMPLETE data
         // (including corner-crossing world boundary edges)
-        const mergedTerritories = constructFillsFromFrontierChain(sharedPolylines, worldBorderPolylines);
+        const mergedTerritories = constructFillsFromFrontierChain(sharedPolylines, worldBorderPolylines, cells);
 
         // Now detect enclaves on the actual fill output
         const enclaveMap = detectEnclaves(mergedTerritories);

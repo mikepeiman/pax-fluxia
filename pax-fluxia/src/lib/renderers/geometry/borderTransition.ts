@@ -678,8 +678,7 @@ function buildEvenDistributionTargets(
  *  1. Score every (prev, target) pair by starIds set intersection size
  *  2. Greedily match highest-overlap pairs first
  *  3. Apply even-distribution vertex morph within each matched pair
- *  4. Unmatched prev regions collapse to centroid (removed)
- *  5. Unmatched target regions expand from centroid (new)
+ *  4. Unmatched regions are SKIPPED (appear/disappear instantly)
  */
 function buildMorphPairs(
     prev: MergedTerritory[],
@@ -695,7 +694,7 @@ function buildMorphPairs(
 
     for (let pi = 0; pi < prev.length; pi++) {
         const pStarSet = new Set(prev[pi].starIds);
-        if (pStarSet.size === 0) continue; // no identity — handled in fallback
+        if (pStarSet.size === 0) continue; // no identity — skip
         for (let ti = 0; ti < target.length; ti++) {
             let overlap = 0;
             for (const sid of target[ti].starIds) {
@@ -726,51 +725,11 @@ function buildMorphPairs(
         result.push({ fromPoints: fromPts, toPoints: toPts, color: tT.color, ownerId: tT.ownerId });
     }
 
-    // Fallback for regions with no starIds (frontier-chain path): match by centroid
-    for (let pi = 0; pi < prev.length; pi++) {
-        if (usedPrev.has(pi)) continue;
-        if (prev[pi].starIds.length > 0) continue; // has identity, just unmatched
-        const pc = polygonCentroid(prev[pi].points);
-        let bestDist = Infinity;
-        let bestTi = -1;
-        for (let ti = 0; ti < target.length; ti++) {
-            if (usedTarget.has(ti)) continue;
-            if (target[ti].starIds.length > 0) continue; // don't steal identity-bearing targets
-            const tc = polygonCentroid(target[ti].points);
-            const d = (pc[0] - tc[0]) ** 2 + (pc[1] - tc[1]) ** 2;
-            if (d < bestDist) { bestDist = d; bestTi = ti; }
-        }
-        if (bestTi >= 0) {
-            usedPrev.add(pi);
-            usedTarget.add(bestTi);
-            const pT = prev[pi], tT = target[bestTi];
-            const n = Math.max(resampleN, pT.points.length, tT.points.length);
-            const fromPts = resampleClosedPolygon(pT.points, n);
-            const toPts = buildEvenDistributionTargets(fromPts, tT.points, pinThresh);
-            result.push({ fromPoints: fromPts, toPoints: toPts, color: tT.color, ownerId: tT.ownerId });
-        }
-    }
-
-    // Unmatched prev: collapse to centroid (region removed)
-    for (let pi = 0; pi < prev.length; pi++) {
-        if (usedPrev.has(pi)) continue;
-        const pT = prev[pi];
-        const c = polygonCentroid(pT.points);
-        const n = Math.max(resampleN, pT.points.length);
-        const fromPts = resampleClosedPolygon(pT.points, n);
-        const toPts = Array.from({ length: n }, () => [c[0], c[1]] as [number, number]);
-        result.push({ fromPoints: fromPts, toPoints: toPts, color: pT.color, ownerId: pT.ownerId });
-    }
-
-    // Unmatched target: expand from centroid (new region)
-    for (let ti = 0; ti < target.length; ti++) {
-        if (usedTarget.has(ti)) continue;
-        const tT = target[ti];
-        const c = polygonCentroid(tT.points);
-        const n = Math.max(resampleN, tT.points.length);
-        const fromPts = Array.from({ length: n }, () => [c[0], c[1]] as [number, number]);
-        const toPts = resampleClosedPolygon(tT.points, n);
-        result.push({ fromPoints: fromPts, toPoints: toPts, color: tT.color, ownerId: tT.ownerId });
+    // Log unmatched regions (they appear/disappear instantly — no morph)
+    const unmatchedPrev = prev.filter((_, i) => !usedPrev.has(i));
+    const unmatchedTarget = target.filter((_, i) => !usedTarget.has(i));
+    if (unmatchedPrev.length > 0 || unmatchedTarget.length > 0) {
+        console.log(`[MORPH] Unmatched: ${unmatchedPrev.length} prev (${unmatchedPrev.map(t => `${t.ownerId}[${t.starIds.length}★]`).join(',')}) | ${unmatchedTarget.length} target (${unmatchedTarget.map(t => `${t.ownerId}[${t.starIds.length}★]`).join(',')})`);
     }
 
     return result;

@@ -479,9 +479,8 @@ function renderInterpolatedBorders(
 // mergeSameOwnerCells and detectEnclaves moved to powerVoronoiTerritoryGeometryGenerator.ts (geometry stage)
 
 
-/** Draw a territory fill ONLY (no stroke).
- *  Borders are drawn separately via drawBorderPolylines on defaultState.borderGraphics.
- *  Fills use RAW polygon points — NO independent smoothing.
+
+/** Draw a single territory fill (outer boundary + optional holes).
  *  Smoothing is applied only to border polylines in the compiler stage.
  *  Independent fill smoothing creates divergence (B-42). */
 function drawTerritoryFillOnly(
@@ -817,12 +816,13 @@ export function renderPowerVoronoi(
 
     log.renderer('PVV2', `STAGE OUTPUT | cells=${cells.length} merged=${merged.length} polylines=${builtPolylinesRaw.length} chaikinPasses=${Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)}`);
 
-    // Fingerprint from stage — used for changed-owner detection
     // Assign colors to merged territories (render concern, not geometry)
     for (const territory of merged) {
         const rawColor = colorUtils.getPlayerColor(territory.ownerId);
         territory.color = adjustColorHSL(rawColor, satMult, lightMult);
     }
+
+
 
     // Detect changed-owner stars for transition tracking
     s.changedSiteIds = null;
