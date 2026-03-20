@@ -223,12 +223,10 @@ export function computeGeometry0319(
             cells.push({ points: pts, ownerId: effectiveOwner, siteId: site.starId });
         }
 
-        log.sys('Geometry_0319', `INPUT: ${stars.length} stars, ${ownedStars.length} owned, ${sites.length} total sites | chaikinPasses=${config.chaikinPasses}`);
-        log.sys('Geometry_0319', `VORONOI: ${polygons.length} raw polygons → ${cells.length} valid cells`);
+        // Individual stage logs consolidated into single summary below (see Stage 10)
 
         // ── Stage 3: Extract inter-owner shared edges ───────────────────────
         const sharedEdges = extractSharedEdges(cells);
-        log.sys('Geometry_0319', `SHARED EDGES: ${sharedEdges.length} contested edges`);
 
         // ── Stage 4: Build cluster map + merge cells ────────────────────────
         const clusterMap = new Map<string, number>();
@@ -248,7 +246,6 @@ export function computeGeometry0319(
         }
 
         const mergedRaw = mergeSameOwnerCells(cells, config.clusterSplit, clusterMap);
-        log.sys('Geometry_0319', `MERGED: ${mergedRaw.length} raw territories`);
 
         // ── Stage 5: Build inter-owner edge key set ─────────────────────────
         const interOwnerEdgeKeys = new Set<string>();
@@ -260,14 +257,12 @@ export function computeGeometry0319(
         // This is the KEY FIX: captures corner-crossing edges that the old
         // extractWorldBorderPolylines misses.
         const worldBoundaryEdges = extractAllWorldBoundaryEdges(mergedRaw, interOwnerEdgeKeys);
-        log.sys('Geometry_0319', `WORLD BOUNDARY EDGES: ${worldBoundaryEdges.length} (vs old extractWorldBorderPolylines)`);
 
         // ── Stage 7: Chain ALL edges into polylines ─────────────────────────
         // Concatenate inter-owner + owner-world edges and chain together.
         const allFrontierEdges: SharedBorderEdge[] = [...sharedEdges, ...worldBoundaryEdges];
         const rawAllPolylines = chainSharedEdgesIntoPolylines(allFrontierEdges, 0);
         const allPolylines = chainSharedEdgesIntoPolylines(allFrontierEdges, config.chaikinPasses);
-        log.sys('Geometry_0319', `ALL POLYLINES: ${allPolylines.length} (raw=${rawAllPolylines.length}) from ${allFrontierEdges.length} total edges`);
 
         // ── Stage 8: Separate into inter-owner and world-border ─────────────
         const sharedPolylines: SharedPolyline[] = [];
@@ -287,7 +282,6 @@ export function computeGeometry0319(
             }
         }
 
-        log.sys('Geometry_0319', `SEPARATED: ${sharedPolylines.length} inter-owner + ${worldBorderPolylines.length} world-border polylines`);
 
         // ── Stage 9: Enclaves ───────────────────────────────────────────────
         // Frontier-chain fills handle topology correctly — each owner gets one
@@ -300,9 +294,8 @@ export function computeGeometry0319(
         // constructFillsFromFrontierChain now receives COMPLETE data
         // (including corner-crossing world boundary edges)
         const mergedTerritories = constructFillsFromFrontierChain(sharedPolylines, worldBorderPolylines);
-        log.sys('Geometry_0319', `FILLS: ${mergedTerritories.length} fill regions (from ${sharedPolylines.length} shared + ${worldBorderPolylines.length} world polylines)`);
 
-        // Diagnostic: summarize fill closure
+        // Diagnostic: check fill closure (only warn on failures)
         let closedCount = 0;
         for (const fill of mergedTerritories) {
             const first = fill.points[0];
@@ -311,7 +304,15 @@ export function computeGeometry0319(
             const dy = Math.abs(first[1] - last[1]);
             if (dx < 6 && dy < 6) closedCount++;
         }
-        log.sys('Geometry_0319', `CLOSURE: ${closedCount}/${mergedTerritories.length} fills properly closed`);
+
+        // Single consolidated summary log (replaces ~8 individual stage logs)
+        const closureOk = closedCount === mergedTerritories.length;
+        log.sys('Geometry_0319',
+            `${ownedStars.length} stars → ${cells.length} cells → ${mergedRaw.length} merged → ` +
+            `${allPolylines.length} polylines (${sharedPolylines.length} shared + ${worldBorderPolylines.length} world) → ` +
+            `${mergedTerritories.length} fills ` +
+            `[closure: ${closedCount}/${mergedTerritories.length}${closureOk ? ' ✓' : ' ✗ GAPS'}]`
+        );
 
         const fingerprint = buildTerritoryGeometryFingerprint(stars, config) + ':g0319';
 

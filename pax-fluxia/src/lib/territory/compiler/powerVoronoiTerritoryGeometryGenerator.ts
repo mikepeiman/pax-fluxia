@@ -687,25 +687,8 @@ export function constructFillsFromFrontierChain(
         }
     }
 
-    // Diagnostic
-    const diagRows: Record<string, unknown>[] = [];
-    for (const fill of result) {
-        const first = fill.points[0];
-        const last = fill.points[fill.points.length - 1];
-        const dx = Math.abs(first[0] - last[0]);
-        const dy = Math.abs(first[1] - last[1]);
-        diagRows.push({
-            owner: fill.ownerId.replace('human-player', 'YOU'),
-            pts: fill.points.length,
-            closed: dx < 6 && dy < 6 ? '✓' : `✗ gap=${Math.round(dx)}x${Math.round(dy)}`,
-            startX: Math.round(first[0]),
-            startY: Math.round(first[1]),
-            endX: Math.round(last[0]),
-            endY: Math.round(last[1]),
-        });
-    }
-    console.table(diagRows);
-    log.sys('PVV2Stage', `constructFillsFromFrontierChain: ${allPolylines.length} polylines → ${result.length} fill regions`);
+    // Diagnostic table removed — consolidated into single summary log
+    // in Geometry_0319.ts (see computeGeometry0319 Stage 10)
 
     return result;
 }
@@ -782,7 +765,6 @@ export function chainSharedEdgesIntoPolylines(
                 });
             }
         }
-        log.sys('PVV2Stage', `chainSharedEdgesIntoPolylines [${pairKey}]: ${pairEdges.length} edges -> ${result.filter(r => r.ownerPairKey === pairKey).length} polylines`);
     }
     return result;
 }

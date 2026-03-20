@@ -814,7 +814,7 @@ export function renderPowerVoronoi(
 
     const { cells, mergedTerritories: merged, sharedEdges, rawSharedPolylines: builtRawPolylinesRaw, sharedPolylines: builtPolylinesRaw, enclaveMap } = stageResult;
 
-    log.renderer('PVV2', `STAGE OUTPUT | cells=${cells.length} merged=${merged.length} edges=${sharedEdges.length} polylines=${builtPolylinesRaw.length} enclaves=${enclaveMap.size} chaikinPasses=${Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)}`);
+    log.renderer('PVV2', `STAGE OUTPUT | cells=${cells.length} merged=${merged.length} polylines=${builtPolylinesRaw.length} chaikinPasses=${Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)}`);
 
     // Fingerprint from stage — used for changed-owner detection
     // Assign colors to merged territories (render concern, not geometry)
@@ -841,7 +841,7 @@ export function renderPowerVoronoi(
     }
     s.lastCells = cells;
 
-    log.sys('PowerVoronoi', `${cells.length} cells, ${merged.length} merged territories`);
+
 
     // ── Stage 4: Render Fills ──────────────────────────────────────────────
     if (!s.fillGraphics) {
@@ -854,15 +854,11 @@ export function renderPowerVoronoi(
     // Fills and borders are drawn on the SAME path via fill+stroke in drawTerritoryFillWithHoles.
     // No separate border render pass needed.
 
-    log.renderer('PVV2', `FILLS | enclaves=${enclaveMap.size} territories to draw=${merged.length}`);
+    log.renderer('PVV2', `FILLS | ${merged.length} territories, enclaves=${enclaveMap.size}`);
 
-    if (enclaveMap.size > 0) {
-        log.renderer('PVV2', `B-38 enclave detection: ${enclaveMap.size} territories contain enclaves`);
-    }
 
     // Steady-state fills: use raw polygon points (no independent smoothing — B-42 fix)
     // Borders are drawn SEPARATELY from sharedPolylines (contested edges only, blended colors)
-    log.renderer('PVV2', `FILLS | drawing ${merged.length} territories`);
     for (let i = 0; i < merged.length; i++) {
         drawTerritoryFillOnly(s.fillGraphics, merged[i], enclaveMap.get(i), alpha);
     }
