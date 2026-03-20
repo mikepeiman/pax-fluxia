@@ -184,7 +184,13 @@ let state: GameRoomState | null = null;
 /** AI player instances */
 let aiPlayers: Map<string, AI> = new Map();
 
-/** Tick loop interval */
+/** Tick loop interval — stored on globalThis to survive HMR re-evaluation */
+const _G = globalThis as any;
+// Clear any leaked interval from previous HMR module instance
+if (_G.__paxTickIntervalId) {
+    clearInterval(_G.__paxTickIntervalId);
+    _G.__paxTickIntervalId = null;
+}
 let tickIntervalId: ReturnType<typeof setInterval> | null = null;
 
 
@@ -358,12 +364,14 @@ function scheduleTick(resumeOffsetMs = 0): void {
             tickIntervalId = setInterval(() => {
                 executeTick();
             }, tickIntervalMs);
+            _G.__paxTickIntervalId = tickIntervalId;
         }, firstDelay) as unknown as ReturnType<typeof setInterval>;
     } else {
         tickIntervalId = setInterval(() => {
             executeTick();
         }, tickIntervalMs);
     }
+    _G.__paxTickIntervalId = tickIntervalId;
 
     if (!resumeOffsetMs) {
         lastTickTime = performance.now();
@@ -374,6 +382,7 @@ function stopTick(): void {
     if (tickIntervalId) {
         clearInterval(tickIntervalId);
         tickIntervalId = null;
+        _G.__paxTickIntervalId = null;
     }
 }
 

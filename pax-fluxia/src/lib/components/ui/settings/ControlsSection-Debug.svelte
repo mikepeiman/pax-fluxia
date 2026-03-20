@@ -21,6 +21,7 @@
         GAME_CONFIG.DEBUG_MORPH_VERTEX_COLOR_MODE ?? "pinmorph",
     );
     let showLabels = $state(GAME_CONFIG.DEBUG_MORPH_VERTEX_LABELS ?? true);
+    let conquestRadius = $state(GAME_CONFIG.MORPH_CONQUEST_RADIUS ?? 300);
 
     function toggleLabels() {
         showLabels = !showLabels;
@@ -154,6 +155,25 @@
     />
     <span class="slider-value"
         >{vertexNth === 1 ? "all" : `${vertexNth}th`}</span
+    >
+</div>
+
+<!-- Conquest Morph Radius -->
+<div class="slider-row">
+    <span class="slider-label">Morph radius</span>
+    <input
+        type="range"
+        min="0"
+        max="1000"
+        step="25"
+        value={conquestRadius}
+        oninput={(e) => {
+            conquestRadius = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.MORPH_CONQUEST_RADIUS = conquestRadius;
+        }}
+    />
+    <span class="slider-value"
+        >{conquestRadius === 0 ? "off" : `${conquestRadius}px`}</span
     >
 </div>
 
