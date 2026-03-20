@@ -153,6 +153,14 @@ export function createTerritoryTransitionPlan(
                 prevRing.points.length,
             );
 
+            const staticPts = staticSegments.reduce((acc, s) => acc + s.length, 0);
+            const patchPts = patchMorph?.fromSamples.length ?? 0;
+            console.log(
+                `[SPLICE PLAN] ring=${prevRing.ringId} total=${prevRing.points.length} static=${staticPts} patch=${patchPts} ` +
+                `window=[${window.anchorStartPrev}..${window.anchorEndPrev}]/${prevRing.points.length} ` +
+                `(${((staticPts / prevRing.points.length) * 100).toFixed(0)}% stationary)`
+            );
+
             animatedRings.push({
                 ringId: prevRing.ringId,
                 staticSegmentsPrev: staticSegments,
