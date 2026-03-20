@@ -1061,7 +1061,7 @@ const _rawConfig: GameConfigType = {
     TERRITORY_FILL_MODE: 'frontier' as const,
     // ── Morph Diagnostics ─────────────────────────────────────────────────────
     /** Show numbered vertex dots on territory polygons during morph transitions */
-    DEBUG_MORPH_VERTICES: false,
+    DEBUG_MORPH_VERTICES: true,
     /** Radius of vertex dots (px) */
     DEBUG_MORPH_VERTEX_SIZE: 3,
     /** Displacement below which a vertex is considered pinned (px) */
