@@ -787,9 +787,10 @@ function buildMorphPairs(
 export class PolygonMorphTransitionHandler {
     private pairs: MatchedFillPair[];
     private easingFn: (t: number) => number;
-    /** Container for vertex number labels — added as sibling of graphics. */
-    private labelContainer: PIXI.Container | null = null;
+    /** Labels added directly as children of the graphics object. */
     private labels: PIXI.Text[] = [];
+    private labelsAttachedTo: PIXI.Graphics | null = null;
+    private static tickCounter = 0;
 
     constructor(
         prev: MergedTerritory[],
@@ -807,12 +808,15 @@ export class PolygonMorphTransitionHandler {
                             : easing === 'linear' ? easeLinear
                                 : easeInOutCubic;
 
-        log.renderer('PolygonMorphTransitionHandler', `created | pairs=${this.pairs.length} easing=${easing} resampleN=${resampleN}`);
+        PolygonMorphTransitionHandler.tickCounter++;
+        const tick = PolygonMorphTransitionHandler.tickCounter;
+        log.renderer('PolygonMorphTransitionHandler', `created | tick=${tick} pairs=${this.pairs.length} easing=${easing} resampleN=${resampleN}`);
 
         // ── Morph Trace Log ────────────────────────────────────────────
         if (GAME_CONFIG.DEBUG_MORPH_TRACE_LOG) {
             const pinThreshold = GAME_CONFIG.DEBUG_MORPH_PIN_THRESHOLD ?? 5;
             const verbose = (GAME_CONFIG as unknown as Record<string, unknown>).DEBUG_MORPH_TRACE_VERBOSE === true;
+            console.log(`%c[MORPH TICK ${tick}] ${this.pairs.length} pairs`, 'background:#224;color:#8cf;font-weight:bold;padding:2px 6px;');
             for (let pi = 0; pi < this.pairs.length; pi++) {
                 const pair = this.pairs[pi];
                 const n = Math.min(pair.fromPoints.length, pair.toPoints.length);
@@ -832,12 +836,12 @@ export class PolygonMorphTransitionHandler {
                         morphEnd = i;
                     }
                     if (verbose) {
-                        verboseLines.push(`    v${i}: (${pair.fromPoints[i][0].toFixed(1)},${pair.fromPoints[i][1].toFixed(1)}) → (${pair.toPoints[i][0].toFixed(1)},${pair.toPoints[i][1].toFixed(1)}) dist=${dist.toFixed(1)}px ${isPinned ? '🟢PIN' : '🔴MORPH'}`);
+                        verboseLines.push(`    v${i}: (${pair.fromPoints[i][0].toFixed(1)},${pair.fromPoints[i][1].toFixed(1)}) \u2192 (${pair.toPoints[i][0].toFixed(1)},${pair.toPoints[i][1].toFixed(1)}) dist=${dist.toFixed(1)}px ${isPinned ? '\u{1F7E2}PIN' : '\u{1F534}MORPH'}`);
                     }
                 }
                 const avgDist = morph > 0 ? (sumDist / morph) : 0;
                 const rangeStr = morph > 0 ? ` range=[v${morphStart}..v${morphEnd}]` : '';
-                const warnStr = morph === n ? ' ⚠️ALL-MORPH' : '';
+                const warnStr = morph === n ? ' \u26A0\uFE0FALL-MORPH' : '';
                 console.log(`[MORPH] pair[${pi}] ${pair.ownerId} ${n}v: ${pinned}pin ${morph}morph (max=${maxDist.toFixed(0)}px avg=${avgDist.toFixed(0)}px)${rangeStr}${warnStr}`);
                 if (verbose && verboseLines.length > 0) {
                     console.log(verboseLines.join('\n'));
@@ -916,16 +920,14 @@ export class PolygonMorphTransitionHandler {
                     ownerDotColor = (lightR << 16) | (lightG << 8) | lightB;
                 }
 
-                // Lazily ensure label container exists
-                if (!this.labelContainer) {
-                    this.labelContainer = new PIXI.Container();
-                    this.labelContainer.label = 'morph-vertex-labels';
-                    this.labelContainer.zIndex = 9999;
-                    // Try to add to graphics parent, or to graphics itself as last resort
-                    const target = graphics.parent ?? graphics;
-                    target.addChild(this.labelContainer);
-                    if (target.sortableChildren !== undefined) target.sortableChildren = true;
-                    console.log(`[LABELS] Created labelContainer, parent=${target.label ?? 'unnamed'}, sortable=${target.sortableChildren}`);
+                // Attach labels directly as children of the graphics object
+                // (PIXI.Graphics extends Container; children survive clear())
+                if (this.labelsAttachedTo !== graphics) {
+                    // Detach from old graphics if any
+                    for (const lbl of this.labels) {
+                        if (lbl.parent) lbl.parent.removeChild(lbl);
+                    }
+                    this.labelsAttachedTo = graphics;
                 }
 
                 for (let i = 0; i < n; i++) {
@@ -959,24 +961,21 @@ export class PolygonMorphTransitionHandler {
 
                     // Draw numbered label (gated by separate toggle)
                     const showLabels = GAME_CONFIG.DEBUG_MORPH_VERTEX_LABELS ?? true;
-                    if (showLabels && this.labelContainer) {
+                    if (showLabels) {
                         let label = this.labels[labelIdx];
                         if (!label) {
                             const style = new PIXI.TextStyle({
                                 fontSize: 11,
-                                fill: 0xffffff,
+                                fill: '#ffffff',
                                 fontFamily: 'monospace',
                                 fontWeight: 'bold',
-                                stroke: { color: 0x000000, width: 3 },
+                                stroke: { color: '#000000', width: 3 },
                             });
                             label = new PIXI.Text({ text: `${i}`, style });
-                            label.anchor.set(0.5, 1.4); // Position above the dot
-                            label.scale.set(1);
+                            label.anchor.set(0.5, 1.4);
+                            label.zIndex = 10000;
                             this.labels.push(label);
-                            this.labelContainer.addChild(label);
-                            if (labelIdx === 0) {
-                                console.log(`[LABELS] First label created: text="${i}" pos=(${cx.toFixed(0)},${cy.toFixed(0)}) visible=${label.visible} parent=${this.labelContainer.label}`);
-                            }
+                            graphics.addChild(label);
                         }
                         label.text = `${i}`;
                         label.style.fill = dotColor;
@@ -996,22 +995,20 @@ export class PolygonMorphTransitionHandler {
         }
 
         // If overlay was turned off, hide all labels
-        if (!showVertices && this.labelContainer) {
+        if (!showVertices) {
             for (const lbl of this.labels) lbl.visible = false;
         }
 
         log.renderer('PolygonMorphTransitionHandler', `drawFrame t=${rawT.toFixed(3)} eased=${t.toFixed(3)} | drew ${drawn}/${this.pairs.length} regions`);
     }
 
-    /** Clean up label container and text objects. Call when transition ends. */
+    /** Clean up label text objects. Call when transition ends. */
     cleanup(): void {
-        if (this.labelContainer) {
-            if (this.labelContainer.parent) {
-                this.labelContainer.parent.removeChild(this.labelContainer);
-            }
-            this.labelContainer.destroy({ children: true });
-            this.labelContainer = null;
-            this.labels = [];
+        for (const lbl of this.labels) {
+            if (lbl.parent) lbl.parent.removeChild(lbl);
+            lbl.destroy();
         }
+        this.labels = [];
+        this.labelsAttachedTo = null;
     }
 }
