@@ -1122,8 +1122,17 @@
             }
         }
 
-        // Render territory overlays — only call the active renderer
-        if (voronoiContainer) {
+        // Skip territory re-rendering when paused — nothing changes, saves
+        // 200-300 log lines/sec from the fingerprint checks and stage logs.
+        // We allow ONE render pass after pause starts so the territory is visible.
+        const isPausedNow = activeGameStore.isPaused;
+        if (isPausedNow && (globalThis as any).__territoryRenderedWhilePaused) {
+            // Territory already rendered once since pause — skip until resume
+        } else if (voronoiContainer) {
+            if (isPausedNow)
+                (globalThis as any).__territoryRenderedWhilePaused = true;
+            if (!isPausedNow)
+                (globalThis as any).__territoryRenderedWhilePaused = false;
             voronoiContainer.visible = true;
 
             // Hide all children first — only the active renderer will re-show its own
@@ -1334,9 +1343,9 @@
                                     fxOrchestrator.gameTime,
                                 );
 
-                            // One-shot diagnostic
-                            if (!(globalThis as any).__canonicalDiagLogged) {
-                                (globalThis as any).__canonicalDiagLogged =
+                            // One-shot Canonical debug log (not per-frame)
+                            if (!(globalThis as any).__canonicalLoggedOnce) {
+                                (globalThis as any).__canonicalLoggedOnce =
                                     true;
                                 if (!state) {
                                     console.warn(
@@ -1350,11 +1359,6 @@
                                             ` fittedFrontiers=${state.fittedFrontiers?.length ?? "?"}` +
                                             ` transitionActive=${state.transitionActive}`,
                                     );
-                                    if (state.regions?.length === 0) {
-                                        console.warn(
-                                            "[Canonical🔍] regions=0 — regionStage produced no closed loops",
-                                        );
-                                    }
                                 }
                             }
 
@@ -1371,7 +1375,7 @@
                     // 'none' or unrecognized — no territory rendering
                 }
             }
-        }
+        } // end territory pause guard
 
         // Render stars (static elements)
         renderStarsModule(
