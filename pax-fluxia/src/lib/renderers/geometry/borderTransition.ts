@@ -667,115 +667,110 @@ function buildEvenDistributionTargets(
 }
 
 /**
- * Match prev→target MergedTerritory fill polygons.
- * Uses star-ID set overlap (graph-native identity) instead of centroid heuristics.
- * Groups by ownerId, then matches regions within each owner by shared starIds.
- * Handles multi-region owners (player has discontiguous territory pieces).
- * New regions morph from centroid, removed regions collapse to centroid.
+ * Build morph pairs from prev→target territories using star-ID graph identity.
+ *
+ * KEY DESIGN: Matches across ALL owners, not within owner groups.
+ * When a star changes owner (e.g. neutral→ai-2), the region appears under
+ * different ownerIds in prev vs target. Star-ID overlap identifies them as
+ * the same geographic region regardless of ownership change.
+ *
+ * Algorithm:
+ *  1. Score every (prev, target) pair by starIds set intersection size
+ *  2. Greedily match highest-overlap pairs first
+ *  3. Apply even-distribution vertex morph within each matched pair
+ *  4. Unmatched prev regions collapse to centroid (removed)
+ *  5. Unmatched target regions expand from centroid (new)
  */
-function matchFillPolygons(
+function buildMorphPairs(
     prev: MergedTerritory[],
     target: MergedTerritory[],
     resampleN: number,
 ): MatchedFillPair[] {
     const result: MatchedFillPair[] = [];
+    const pinThresh = GAME_CONFIG.DEBUG_MORPH_PIN_THRESHOLD ?? 5;
 
-    // Group by ownerId — use arrays to support multi-region owners
-    const prevByOwner = new Map<string, MergedTerritory[]>();
-    for (const t of prev) {
-        if (!prevByOwner.has(t.ownerId)) prevByOwner.set(t.ownerId, []);
-        prevByOwner.get(t.ownerId)!.push(t);
+    // Build overlap scores for all (prev, target) combinations
+    type OverlapEntry = { pi: number; ti: number; overlap: number };
+    const scores: OverlapEntry[] = [];
+
+    for (let pi = 0; pi < prev.length; pi++) {
+        const pStarSet = new Set(prev[pi].starIds);
+        if (pStarSet.size === 0) continue; // no identity — handled in fallback
+        for (let ti = 0; ti < target.length; ti++) {
+            let overlap = 0;
+            for (const sid of target[ti].starIds) {
+                if (pStarSet.has(sid)) overlap++;
+            }
+            if (overlap > 0) {
+                scores.push({ pi, ti, overlap });
+            }
+        }
     }
-    const targetByOwner = new Map<string, MergedTerritory[]>();
-    for (const t of target) {
-        if (!targetByOwner.has(t.ownerId)) targetByOwner.set(t.ownerId, []);
-        targetByOwner.get(t.ownerId)!.push(t);
+
+    // Sort by overlap descending — greedy best-match-first
+    scores.sort((a, b) => b.overlap - a.overlap);
+
+    const usedPrev = new Set<number>();
+    const usedTarget = new Set<number>();
+
+    // Match by best overlap
+    for (const { pi, ti } of scores) {
+        if (usedPrev.has(pi) || usedTarget.has(ti)) continue;
+        usedPrev.add(pi);
+        usedTarget.add(ti);
+
+        const pT = prev[pi], tT = target[ti];
+        const n = Math.max(resampleN, pT.points.length, tT.points.length);
+        const fromPts = resampleClosedPolygon(pT.points, n);
+        const toPts = buildEvenDistributionTargets(fromPts, tT.points, pinThresh);
+        result.push({ fromPoints: fromPts, toPoints: toPts, color: tT.color, ownerId: tT.ownerId });
     }
 
-    const allOwners = new Set([...prevByOwner.keys(), ...targetByOwner.keys()]);
-
-    for (const owner of allOwners) {
-        const pRegions = prevByOwner.get(owner) ?? [];
-        const tRegions = targetByOwner.get(owner) ?? [];
-
-        // Match regions by star-ID set overlap (graph-native identity)
-        const usedTarget = new Set<number>();
-        const usedPrev = new Set<number>();
-
-        for (let pi = 0; pi < pRegions.length; pi++) {
-            const pStars = new Set(pRegions[pi].starIds);
-            let bestOverlap = 0;
-            let bestTi = -1;
-            for (let ti = 0; ti < tRegions.length; ti++) {
-                if (usedTarget.has(ti)) continue;
-                // Count shared starIds
-                let overlap = 0;
-                for (const sid of tRegions[ti].starIds) {
-                    if (pStars.has(sid)) overlap++;
-                }
-                if (overlap > bestOverlap) { bestOverlap = overlap; bestTi = ti; }
-            }
-            if (bestTi >= 0 && bestOverlap > 0) {
-                usedTarget.add(bestTi);
-                usedPrev.add(pi);
-                const pT = pRegions[pi], tT = tRegions[bestTi];
-                const n = Math.max(resampleN, pT.points.length, tT.points.length);
-                const fromPts = resampleClosedPolygon(pT.points, n);
-                const pinThresh = GAME_CONFIG.DEBUG_MORPH_PIN_THRESHOLD ?? 5;
-                const toPts = buildEvenDistributionTargets(fromPts, tT.points, pinThresh);
-                result.push({ fromPoints: fromPts, toPoints: toPts, color: tT.color, ownerId: owner });
-            }
-        }
-
-        // Fallback: unmatched prev regions with no starId overlap — try centroid fallback
-        // (handles frontier-chain MergedTerritories that have starIds=[])
-        for (let pi = 0; pi < pRegions.length; pi++) {
-            if (usedPrev.has(pi)) continue;
-            if (pRegions[pi].starIds.length === 0) {
-                // No star identity — use centroid nearest as last resort
-                const pc = polygonCentroid(pRegions[pi].points);
-                let bestDist = Infinity;
-                let bestTi = -1;
-                for (let ti = 0; ti < tRegions.length; ti++) {
-                    if (usedTarget.has(ti)) continue;
-                    const tc = polygonCentroid(tRegions[ti].points);
-                    const d = (pc[0] - tc[0]) ** 2 + (pc[1] - tc[1]) ** 2;
-                    if (d < bestDist) { bestDist = d; bestTi = ti; }
-                }
-                if (bestTi >= 0) {
-                    usedTarget.add(bestTi);
-                    usedPrev.add(pi);
-                    const pT = pRegions[pi], tT = tRegions[bestTi];
-                    const n = Math.max(resampleN, pT.points.length, tT.points.length);
-                    const fromPts = resampleClosedPolygon(pT.points, n);
-                    const pinThresh = GAME_CONFIG.DEBUG_MORPH_PIN_THRESHOLD ?? 5;
-                    const toPts = buildEvenDistributionTargets(fromPts, tT.points, pinThresh);
-                    result.push({ fromPoints: fromPts, toPoints: toPts, color: tT.color, ownerId: owner });
-                }
-            }
-        }
-
-        // Unmatched prev regions: collapse to centroid (removed)
-        for (let pi = 0; pi < pRegions.length; pi++) {
-            if (usedPrev.has(pi)) continue;
-            const pT = pRegions[pi];
-            const c = polygonCentroid(pT.points);
-            const n = Math.max(resampleN, pT.points.length);
-            const fromPts = resampleClosedPolygon(pT.points, n);
-            const toPts = Array.from({ length: n }, () => [c[0], c[1]] as [number, number]);
-            result.push({ fromPoints: fromPts, toPoints: toPts, color: pT.color, ownerId: owner });
-        }
-
-        // Unmatched target regions: expand from centroid (new)
-        for (let ti = 0; ti < tRegions.length; ti++) {
+    // Fallback for regions with no starIds (frontier-chain path): match by centroid
+    for (let pi = 0; pi < prev.length; pi++) {
+        if (usedPrev.has(pi)) continue;
+        if (prev[pi].starIds.length > 0) continue; // has identity, just unmatched
+        const pc = polygonCentroid(prev[pi].points);
+        let bestDist = Infinity;
+        let bestTi = -1;
+        for (let ti = 0; ti < target.length; ti++) {
             if (usedTarget.has(ti)) continue;
-            const tT = tRegions[ti];
-            const c = polygonCentroid(tT.points);
-            const n = Math.max(resampleN, tT.points.length);
-            const fromPts = Array.from({ length: n }, () => [c[0], c[1]] as [number, number]);
-            const toPts = resampleClosedPolygon(tT.points, n);
-            result.push({ fromPoints: fromPts, toPoints: toPts, color: tT.color, ownerId: owner });
+            if (target[ti].starIds.length > 0) continue; // don't steal identity-bearing targets
+            const tc = polygonCentroid(target[ti].points);
+            const d = (pc[0] - tc[0]) ** 2 + (pc[1] - tc[1]) ** 2;
+            if (d < bestDist) { bestDist = d; bestTi = ti; }
         }
+        if (bestTi >= 0) {
+            usedPrev.add(pi);
+            usedTarget.add(bestTi);
+            const pT = prev[pi], tT = target[bestTi];
+            const n = Math.max(resampleN, pT.points.length, tT.points.length);
+            const fromPts = resampleClosedPolygon(pT.points, n);
+            const toPts = buildEvenDistributionTargets(fromPts, tT.points, pinThresh);
+            result.push({ fromPoints: fromPts, toPoints: toPts, color: tT.color, ownerId: tT.ownerId });
+        }
+    }
+
+    // Unmatched prev: collapse to centroid (region removed)
+    for (let pi = 0; pi < prev.length; pi++) {
+        if (usedPrev.has(pi)) continue;
+        const pT = prev[pi];
+        const c = polygonCentroid(pT.points);
+        const n = Math.max(resampleN, pT.points.length);
+        const fromPts = resampleClosedPolygon(pT.points, n);
+        const toPts = Array.from({ length: n }, () => [c[0], c[1]] as [number, number]);
+        result.push({ fromPoints: fromPts, toPoints: toPts, color: pT.color, ownerId: pT.ownerId });
+    }
+
+    // Unmatched target: expand from centroid (new region)
+    for (let ti = 0; ti < target.length; ti++) {
+        if (usedTarget.has(ti)) continue;
+        const tT = target[ti];
+        const c = polygonCentroid(tT.points);
+        const n = Math.max(resampleN, tT.points.length);
+        const fromPts = Array.from({ length: n }, () => [c[0], c[1]] as [number, number]);
+        const toPts = resampleClosedPolygon(tT.points, n);
+        result.push({ fromPoints: fromPts, toPoints: toPts, color: tT.color, ownerId: tT.ownerId });
     }
 
     return result;
@@ -803,7 +798,7 @@ export class PolygonMorphTransitionHandler {
         resampleN: number = 48,
         overshoot: number = 1.70158,
     ) {
-        this.pairs = matchFillPolygons(prev, target, resampleN);
+        this.pairs = buildMorphPairs(prev, target, resampleN);
         this.easingFn = easing === 'elastic' ? easeInOutElastic
             : easing === 'back' ? (t: number) => easeInOutBack(t, overshoot)
                 : easing === 'ease-out' ? easeOutCubic
@@ -925,9 +920,12 @@ export class PolygonMorphTransitionHandler {
                 if (!this.labelContainer) {
                     this.labelContainer = new PIXI.Container();
                     this.labelContainer.label = 'morph-vertex-labels';
+                    this.labelContainer.zIndex = 9999;
                     // Try to add to graphics parent, or to graphics itself as last resort
                     const target = graphics.parent ?? graphics;
                     target.addChild(this.labelContainer);
+                    if (target.sortableChildren !== undefined) target.sortableChildren = true;
+                    console.log(`[LABELS] Created labelContainer, parent=${target.label ?? 'unnamed'}, sortable=${target.sortableChildren}`);
                 }
 
                 for (let i = 0; i < n; i++) {
