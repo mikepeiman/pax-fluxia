@@ -93,6 +93,11 @@
 | B-52 | **All three transition modes produce similar/identical VFX** — modes should provide distinct visual options, not duplicated results. Modes 3 and 4 now both route to GraphicsPathMorpher. | 🔴 Active | 2026-03-18 |
 | B-53 | **Slider persistence: Conquest Animation Timing** — numeric value does not update when slider moves, and setting may not persist across reloads. ALL sliders must follow same idiomatic persistence+display pattern. | 🔴 Active | 2026-03-18 |
 | B-54 | **Fill/border divergence: smoothing order inverted** — edges should be smoothed BEFORE assembly into regions, not after. Current pipeline assembles polygons first, then applies different smoothing to fills (Chaikin polygon) and borders (Chaikin polyline), causing mid-frontier sharp corners. | 🔴 Active | 2026-03-18 |
+| B-55 | **Fills take 2 ticks to settle (dual geometry)** — fill partially morphs, settles, then 1-2 ticks later snaps to final position. Proves morph transition and static renderer use different geometry sources. | 🔴 Active | 2026-03-20 |
+| B-56 | **Morph transition vertices teleport across map** — during morph, some segments/vertices jump from one player's territory to another, crossing the entire map. Likely region-to-region mismatching in `matchFillPolygons`. | 🔴 Active | 2026-03-20 |
+| B-57 | **Vertex dots don't render while paused** — `DEBUG_MORPH_VERTICES` overlay not drawn when game is paused because `drawFrame` is not called. | 🔴 Active | 2026-03-20 |
+| B-58 | **Double-filled enclaves persist (Geometry_0319)** — two-tone enclave fills still occurring with New-Frontiers-0319 mode despite enclave hole-cutting fix. | 🔴 Active | 2026-03-20 |
+| B-59 | **10X slow-mo overrides custom timing** — slow-mo multiplies a hardcoded base instead of the user's current tick/animate duration settings. | 🔴 Active | 2026-03-20 |
 
 ## Feature Ideas
 
