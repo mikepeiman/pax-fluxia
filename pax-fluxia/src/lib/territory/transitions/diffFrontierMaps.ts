@@ -228,6 +228,15 @@ export function diffFrontierMaps(
                 anchorVertexIds.add(nextEdges[ni].endVertexId);
             }
         }
+
+        // Per-owner-pair diagnostic
+        const pairUnchanged = prevEdges.filter(e => unchangedEdgeIds.has(e.id)).length;
+        const pairModified = prevEdges.filter(e => modifiedEdgeIds.has(e.id)).length;
+        const pairDeleted = prevEdges.filter(e => deletedEdgeIds.has(e.id)).length;
+        const pairInserted = nextEdges.filter((_e, i) => !usedNext.has(i)).length;
+        if (pairModified > 0 || pairDeleted > 0 || pairInserted > 0) {
+            log.sys('TMAP-Diff', `  pair=${opk}: prev=${prevEdges.length} next=${nextEdges.length} unchanged=${pairUnchanged} modified=${pairModified} deleted=${pairDeleted} inserted=${pairInserted}`);
+        }
     }
 
     // Owner pair keys only in next → all inserted

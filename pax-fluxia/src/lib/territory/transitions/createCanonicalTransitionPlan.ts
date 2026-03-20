@@ -62,16 +62,15 @@ function undirectedEdgeKey(edgeId: string): string {
 
 /**
  * Check if this edge is unchanged in the diff.
- * Must check by undirected key since diff stores one direction.
+ * Both "unchanged" (exact curve match) AND "modified" (same structure,
+ * slight curve shift from Voronoi recalculation) edges are treated as
+ * static for partitioning purposes. Only deleted/inserted edges represent
+ * actual topology changes near the conquest.
  */
 function isEdgeUnchanged(edgeId: string, diff: FrontierMapDiff): boolean {
-    // Direct check first
+    // Direct check — exact match or modified (same edge, slight shift)
     if (diff.unchangedEdgeIds.has(edgeId)) return true;
-    // Check undirected: edge may be stored with opposite direction in diff
-    const ukey = undirectedEdgeKey(edgeId);
-    for (const uid of diff.unchangedEdgeIds) {
-        if (undirectedEdgeKey(uid) === ukey) return true;
-    }
+    if (diff.modifiedEdgeIds.has(edgeId)) return true;
     return false;
 }
 
