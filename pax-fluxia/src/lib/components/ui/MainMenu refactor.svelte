@@ -186,7 +186,40 @@
     });
 
     // ─── Map Definitions ────────────────────────────────────────────────────────
-    const MAP_DEFS = [
+    interface MapPreviewStar {
+        x: number;
+        y: number;
+        color: string;
+    }
+
+    type MapPreviewConnection = readonly [number, number];
+
+    interface MapPreviewDef {
+        id: string;
+        label: string;
+        mapType: string;
+        stars: readonly MapPreviewStar[];
+        connections: readonly MapPreviewConnection[];
+    }
+
+    interface MapPreviewLine {
+        x1: number;
+        y1: number;
+        x2: number;
+        y2: number;
+    }
+
+    function getMapConnectionLine(
+        map: MapPreviewDef,
+        [a, b]: MapPreviewConnection,
+    ): MapPreviewLine | null {
+        const from = map.stars[a];
+        const to = map.stars[b];
+        if (!from || !to) return null;
+        return { x1: from.x, y1: from.y, x2: to.x, y2: to.y };
+    }
+
+    const MAP_DEFS: readonly MapPreviewDef[] = [
         {
             id: "standard",
             label: "RANDOMIZED",
@@ -556,17 +589,20 @@
                                             class="w-14 h-10"
                                             viewBox="0 0 64 48"
                                         >
-                                            {#each m.connections as [a, b]}
-                                                <line
-                                                    x1={m.stars[a].x}
-                                                    y1={m.stars[a].y}
-                                                    x2={m.stars[b].x}
-                                                    y2={m.stars[b].y}
-                                                    stroke={mapType === m.id
-                                                        ? "#4488ff44"
-                                                        : "#334466"}
-                                                    stroke-width="1"
-                                                />
+                                            {#each m.connections as connection}
+                                                {@const line = getMapConnectionLine(m, connection)}
+                                                {#if line}
+                                                    <line
+                                                        x1={line.x1}
+                                                        y1={line.y1}
+                                                        x2={line.x2}
+                                                        y2={line.y2}
+                                                        stroke={mapType === m.id
+                                                            ? "#4488ff44"
+                                                            : "#334466"}
+                                                        stroke-width="1"
+                                                    />
+                                                {/if}
                                             {/each}
                                             {#each m.stars as star}
                                                 <circle

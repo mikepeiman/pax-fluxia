@@ -15,6 +15,31 @@ export interface SliderVarDef {
     step: number;
 }
 
+export type TuningVarKey =
+    | 'TRANSFER_RATE'
+    | 'AGGRESSOR_ADVANTAGE'
+    | 'GLOBAL_DAMAGE_MODIFIER'
+    | 'LETHALITY'
+    | 'FORCE_RATIO_EFFECT'
+    | 'CONQUEST_THRESHOLD'
+    | 'CONQUEST_TRANSFER_PERCENTAGE'
+    | 'RETREAT_CAPTURE_RATE'
+    | 'SCATTER_CAPTURE_RATE'
+    | 'SCATTER_DESTROY_RATE'
+    | 'RETREAT_DAMAGED_ACTIVATION_RATE'
+    | 'DAMAGED_SHIP_EFFECTIVENESS'
+    | 'REPAIR_RATE'
+    | 'AI_MUST_ATTACK_RATIO'
+    | 'AI_ATTACK_UPPER_BOUNDS'
+    | 'AI_ATTACK_STICKINESS'
+    | 'AI_EVALUATION_FREQUENCY'
+    | 'AI_TACTICAL_AGGRESSION'
+    | 'AI_RANDOM_AGGRESSION'
+    | 'DENSITY_HUE_STEP'
+    | 'DENSITY_SAT_STEP'
+    | 'DENSITY_LIGHT_STEP'
+    | 'DENSITY_TIERS';
+
 // ── Combat Variables ────────────────────────────────────────────────────────
 
 export const COMBAT_VARIABLES: SliderVarDef[] = [

@@ -1,35 +1,39 @@
 <script lang="ts">
   import { fade, fly } from 'svelte/transition';
 
-  let activeTab = $state("visible");
+  type FeatureTabId = 'visible' | 'attrition' | 'pinning' | 'overwhelm';
+  type FeatureTab = { id: FeatureTabId; label: string; color: string };
+  type FeatureContent = { title: string; desc: string; color: string };
 
-  const tabs = [
-    { id: "visible", label: "VISIBLE STRATEGY", color: "var(--color-accent-cyan)" },
-    { id: "attrition", label: "ATTRITION", color: "var(--color-accent-red)" },
-    { id: "pinning", label: "PINNING", color: "var(--color-accent-yellow)" },
-    { id: "overwhelm", label: "OVERWHELM", color: "var(--color-player-purple)" }
+  let activeTab = $state<FeatureTabId>('visible');
+
+  const tabs: FeatureTab[] = [
+    { id: 'visible', label: 'VISIBLE STRATEGY', color: 'var(--color-accent-cyan)' },
+    { id: 'attrition', label: 'ATTRITION', color: 'var(--color-accent-red)' },
+    { id: 'pinning', label: 'PINNING', color: 'var(--color-accent-yellow)' },
+    { id: 'overwhelm', label: 'OVERWHELM', color: 'var(--color-player-purple)' }
   ];
 
-  const content = {
+  const content: Record<FeatureTabId, FeatureContent> = {
     visible: {
-      title: "Visible Strategy, Critical Decisions",
-      desc: "Every ship is a visible dot. Every flow is a river of force. You don't need a spreadsheet to understand the battle—just look at the screen. The thickness of the flow tells you everything.",
-      color: "var(--color-accent-cyan)"
+      title: 'Visible Strategy, Critical Decisions',
+      desc: "Every ship is a visible dot. Every flow is a river of force. You don't need a spreadsheet to understand the battle-just look at the screen. The thickness of the flow tells you everything.",
+      color: 'var(--color-accent-cyan)'
     },
     attrition: {
-      title: "Symmetric Attrition",
-      desc: "Both attacker and defender take simultaneous damage each tick. Every assault has a cost. There are no free wins; you spend your fleet to destroy theirs.",
-      color: "var(--color-accent-red)"
+      title: 'Symmetric Attrition',
+      desc: 'Both attacker and defender take simultaneous damage each tick. Every assault has a cost. There are no free wins; you spend your fleet to destroy theirs.',
+      color: 'var(--color-accent-red)'
     },
     pinning: {
-      title: "Pinning Mechanic",
+      title: 'Pinning Mechanic',
       desc: "Suppress a defender's repair rate by 90% with even a single attacking ship. This enables complex multi-front sieges where a small force can pin a star while the main fleet strikes elsewhere.",
-      color: "var(--color-accent-yellow)"
+      color: 'var(--color-accent-yellow)'
     },
     overwhelm: {
-      title: "Overwhelm Surrender",
-      desc: "Achieve massive force advantage to trigger immediate conquest without combat rolls. If you outnumber them 10 to 1, they surrender instantly. Speed matters.",
-      color: "var(--color-player-purple)"
+      title: 'Overwhelm Surrender',
+      desc: 'Achieve massive force advantage to trigger immediate conquest without combat rolls. If you outnumber them 10 to 1, they surrender instantly. Speed matters.',
+      color: 'var(--color-player-purple)'
     }
   };
 </script>
@@ -50,7 +54,6 @@
     </div>
 
     <div class="content-panel glass-panel">
-      <!-- Visual Side (Left) -->
       <div class="visual">
         <div class="visual-placeholder" style="border-color: {content[activeTab].color}">
           <div class="scanline"></div>
@@ -60,7 +63,6 @@
         </div>
       </div>
 
-      <!-- Text Side (Right) -->
       <div class="text-content">
         {#key activeTab}
           <div in:fly={{ y: 20, duration: 300 }} out:fade>

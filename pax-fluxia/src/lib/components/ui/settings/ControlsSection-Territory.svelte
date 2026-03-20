@@ -110,6 +110,43 @@
             };
         });
     }
+
+    function getOwnerShellTransitionPreviewEntries(
+        artifacts: TerritoryPipelineArtifacts | undefined,
+    ): Array<{ id: string; summary: string }> {
+        const ownerShellTransitions =
+            ((artifacts?.animation as { ownerShellTransitions?: Array<Record<string, unknown>> } | undefined)
+                ?.ownerShellTransitions ?? []) as Array<Record<string, unknown>>;
+        return ownerShellTransitions.slice(0, 6).map((transition, index) => {
+            const ownerId = typeof transition.ownerId === "string" ? transition.ownerId : "?";
+            const kind = typeof transition.kind === "string" ? transition.kind : "unknown";
+            const anchorRelation =
+                typeof transition.anchorRelation === "string" ? transition.anchorRelation : "none";
+            const anchorShellId =
+                typeof transition.anchorShellId === "string" ? transition.anchorShellId : "-";
+            const currentShellId =
+                typeof transition.currentShellId === "string" ? transition.currentShellId : "-";
+            const previousShellId =
+                typeof transition.previousShellId === "string" ? transition.previousShellId : "-";
+            return {
+                id:
+                    typeof transition.transitionId === "string"
+                        ? transition.transitionId
+                        : `owner-shell-transition-${index}`,
+                summary:
+                    `${ownerId} ${kind} (${anchorRelation}) | ` +
+                    `${previousShellId} -> ${currentShellId} | ` +
+                    `anchor=${anchorShellId} | ` +
+                    `dist=${formatTraceValue(transition.centroidDistance)} | ` +
+                    `ratio=${formatTraceValue(transition.areaRatio)} | ` +
+                    `mean=${formatTraceValue(transition.meanContourDistance)} | ` +
+                    `max=${formatTraceValue(transition.maxContourDistance)} | ` +
+                    `samples=${formatTraceValue(transition.contourSampleCount)} | ` +
+                    `conf=${formatTraceValue(transition.confidence)}`,
+            };
+        });
+    }
+
     const TERRITORY_KEYS = [
         "territoryVoronoi",
         "territoryModifiedVoronoi",
@@ -122,6 +159,7 @@
         "territoryContour",
         "territoryDistanceField",
     ] as const;
+
     function selectTerritory(
         chosen: (typeof TERRITORY_KEYS)[number],
         enabled: boolean,
@@ -744,6 +782,13 @@
             <div class="trace-section">
                 <div class="trace-section-title">Owner Shells</div>
                 {#each getOwnerShellPreviewEntries($territoryTraceRun.artifacts) as entry}
+                    <div class="trace-detail-line">{entry.summary}</div>
+                {/each}
+            </div>
+
+            <div class="trace-section">
+                <div class="trace-section-title">Shell Transitions</div>
+                {#each getOwnerShellTransitionPreviewEntries($territoryTraceRun.artifacts) as entry}
                     <div class="trace-detail-line">{entry.summary}</div>
                 {/each}
             </div>
