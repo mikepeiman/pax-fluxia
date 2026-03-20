@@ -703,24 +703,34 @@ export function renderPowerVoronoi(
 
         // D-79 / B-101: Unified fill+border from same morphed closed polygons.
         // PolygonMorphTransitionHandler draws both fill AND stroke from the same interpolated points.
-        if (s.activeTransitionPlan) {
+        if (s.activeTransitionPlan && s.activeTransitionPlan.plansByTerritoryId.size > 0) {
             // ── Localized boundary transition: splice-based patch replacement ──
-            // Easing: use same easeInOutCubic as the legacy path (line 695)
-            const spliceEasing = (t: number) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-            const frameGeom = sampleTransitionFrame(s.activeTransitionPlan, rawT, spliceEasing);
-            // Build color map for drawing
+            // Build set of territory indices that are in the transition plan — skip in static draw
+            const transitioningOwnerIndices = new Set<number>();
             const colorMap = new Map<string, number>();
             if (s.lastMergedTerritories) {
                 for (let mi = 0; mi < s.lastMergedTerritories.length; mi++) {
                     const mt = s.lastMergedTerritories[mi];
-                    colorMap.set(`${mt.ownerId}:${mi}`, mt.color);
+                    const tid = `${mt.ownerId}:${mi}`;
+                    colorMap.set(tid, mt.color);
+                    if (s.activeTransitionPlan.plansByTerritoryId.has(tid)) {
+                        transitioningOwnerIndices.add(mi);
+                    }
                 }
             }
+            // Draw ONLY non-transitioning territories statically
+            for (let i = 0; i < s.lastMergedTerritories.length; i++) {
+                if (transitioningOwnerIndices.has(i)) continue; // skip — handled by splice below
+                drawTerritoryFillOnly(s.fillGraphics, s.lastMergedTerritories[i], s.lastEnclaveMap?.get(i), alpha);
+            }
+            // Draw transitioning territories from the splice plan (fills only, no borders)
+            const spliceEasing = (t: number) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+            const frameGeom = sampleTransitionFrame(s.activeTransitionPlan, rawT, spliceEasing);
             drawTerritoryFrame(frameGeom, s.fillGraphics, {
                 fillAlpha: alpha,
-                borderWidth,
+                borderWidth: 0,       // no borders here — existing polyline path handles them
                 borderColor: 0x000000,
-                borderAlpha,
+                borderAlpha: 0,
                 colorByTerritory: colorMap,
             });
         } else if (s.activeShapeTransitionHandler) {
@@ -1045,6 +1055,14 @@ export function renderPowerVoronoi(
                         s.transitionStartTime = performance.now();
                         s.transitionDurationMs = GAME_CONFIG.TERRITORY_TRANSITION_MS ?? 400;
                         log.renderer('PVV2', `SPLICE TRANSITION | plans=${s.activeTransitionPlan.plansByTerritoryId.size} affected=${delta.affectedTerritoryIds.size}`);
+                        // If plan is empty (no territories matched), fall through to legacy
+                        if (s.activeTransitionPlan.plansByTerritoryId.size === 0) {
+                            log.renderer('PVV2', `SPLICE: empty plan, falling back to legacy morph`);
+                            s.activeTransitionPlan = null;
+                            const conquestOrigin: [number, number] | undefined = conquestOriginVec
+                                ? [conquestOriginVec.x, conquestOriginVec.y] : undefined;
+                            s.activeShapeTransitionHandler = new PolygonMorphTransitionHandler(s.prevMergedTerritories!, s.lastMergedTerritories!, easing, resampleN, overshoot, conquestOrigin);
+                        }
                     } catch (err) {
                         // Fallback: if splice fails, use legacy morph handler
                         log.error('PVV2', `Splice transition failed, falling back to legacy morph: ${err}`);
