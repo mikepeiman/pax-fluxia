@@ -30,6 +30,32 @@ function toVec2(pt: [number, number]): Vec2 {
     return { x: pt[0], y: pt[1] };
 }
 
+/**
+ * Normalize ring start: rotate points so the lowest-x (then lowest-y) vertex
+ * is first. This ensures consistent starting position across geometry rebuilds
+ * even when constructFillsFromFrontierChain picks different starting polylines.
+ */
+function normalizeRingStart(points: Vec2[]): Vec2[] {
+    if (points.length < 3) return points;
+    let minIdx = 0;
+    for (let i = 1; i < points.length; i++) {
+        if (points[i].x < points[minIdx].x ||
+            (points[i].x === points[minIdx].x && points[i].y < points[minIdx].y)) {
+            minIdx = i;
+        }
+    }
+    if (minIdx === 0) return points;
+    return [...points.slice(minIdx), ...points.slice(0, minIdx)];
+}
+
+/**
+ * Generate a stable territory ID from sorted starIds.
+ * Unlike array index, this is consistent across geometry rebuilds.
+ */
+function stableTerritoryId(ownerId: string, starIds: string[]): string {
+    return `${ownerId}:${[...starIds].sort().join(',')}`;
+}
+
 function computeCumulativeLengths(points: Vec2[]): number[] {
     const cumLen: number[] = [0];
     for (let i = 1; i < points.length; i++) {
@@ -191,9 +217,10 @@ export function buildTerritoryBoundarySnapshots(
         const mt = mergedTerritories[tIdx];
         const rings: BoundaryRingSnapshot[] = [];
 
-        // Outer ring
-        const outerRingId = `${mt.ownerId}:${tIdx}:outer`;
-        const outerPoints = mt.points.map(toVec2);
+        // Outer ring — normalize start vertex for cross-frame consistency
+        const stableId = stableTerritoryId(mt.ownerId, mt.starIds);
+        const outerRingId = `${stableId}:outer`;
+        const outerPoints = normalizeRingStart(mt.points.map(toVec2));
         const outerSpans = buildSpansForRing(outerPoints, polylineIndex, outerRingId);
 
         rings.push({
@@ -208,7 +235,7 @@ export function buildTerritoryBoundarySnapshots(
         const holes = enclaveMap.get(tIdx);
         if (holes) {
             for (let hIdx = 0; hIdx < holes.length; hIdx++) {
-                const holeRingId = `${mt.ownerId}:${tIdx}:hole${hIdx}`;
+                const holeRingId = `${stableId}:hole${hIdx}`;
                 const holePoints = holes[hIdx].map(toVec2);
                 const holeSpans = buildSpansForRing(holePoints, polylineIndex, holeRingId);
 
@@ -223,7 +250,7 @@ export function buildTerritoryBoundarySnapshots(
         }
 
         snapshots.push({
-            territoryId: `${mt.ownerId}:${tIdx}`,
+            territoryId: stableId,
             ownerId: mt.ownerId,
             starIds: mt.starIds,
             rings,

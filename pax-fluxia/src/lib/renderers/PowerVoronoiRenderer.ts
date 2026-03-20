@@ -711,7 +711,8 @@ export function renderPowerVoronoi(
             if (s.lastMergedTerritories) {
                 for (let mi = 0; mi < s.lastMergedTerritories.length; mi++) {
                     const mt = s.lastMergedTerritories[mi];
-                    const tid = `${mt.ownerId}:${mi}`;
+                    // Stable territory ID: must match format from buildTerritoryBoundarySnapshots
+                    const tid = `${mt.ownerId}:${[...mt.starIds].sort().join(',')}`;
                     colorMap.set(tid, mt.color);
                     if (s.activeTransitionPlan.plansByTerritoryId.has(tid)) {
                         transitioningOwnerIndices.add(mi);
@@ -1051,32 +1052,31 @@ export function renderPowerVoronoi(
                         const prevSnapshots = buildTerritoryBoundarySnapshots(s.prevGeometryData);
                         const nextSnapshots = buildTerritoryBoundarySnapshots(s.lastGeometryData);
                         const delta = computeTerritoryDeltaContext(prevSnapshots, nextSnapshots, s.changedSiteIds);
-                        s.activeTransitionPlan = createTerritoryTransitionPlan(
+                        const plan = createTerritoryTransitionPlan(
                             prevSnapshots, nextSnapshots, delta,
                             GAME_CONFIG.TERRITORY_TRANSITION_MS ?? 400,
                             conquestOriginVec, resampleN,
                         );
-                        s.transitionStartTime = performance.now();
-                        s.transitionDurationMs = GAME_CONFIG.TERRITORY_TRANSITION_MS ?? 400;
-                        log.renderer('PVV2', `SPLICE TRANSITION | plans=${s.activeTransitionPlan.plansByTerritoryId.size} affected=${delta.affectedTerritoryIds.size}`);
-                        // If plan is empty (no territories matched), fall through to legacy
-                        if (s.activeTransitionPlan.plansByTerritoryId.size === 0) {
-                            log.renderer('PVV2', `SPLICE: empty plan, falling back to legacy morph`);
-                            s.activeTransitionPlan = null;
+                        if (plan.plansByTerritoryId.size > 0) {
+                            s.activeTransitionPlan = plan;
+                            s.transitionStartTime = performance.now();
+                            s.transitionDurationMs = GAME_CONFIG.TERRITORY_TRANSITION_MS ?? 400;
+                            log.renderer('PVV2', `SPLICE TRANSITION | plans=${plan.plansByTerritoryId.size} affected=${delta.affectedTerritoryIds.size}`);
+                        } else {
+                            // Empty plan — fall through to legacy
+                            log.renderer('PVV2', `SPLICE: empty plan, using legacy morph`);
                             const conquestOrigin: [number, number] | undefined = conquestOriginVec
                                 ? [conquestOriginVec.x, conquestOriginVec.y] : undefined;
-                            s.activeShapeTransitionHandler = new PolygonMorphTransitionHandler(s.prevMergedTerritories!, s.lastMergedTerritories!, easing, resampleN, overshoot, conquestOrigin);
+                            s.activeShapeTransitionHandler = new PolygonMorphTransitionHandler(s.prevMergedTerritories, s.lastMergedTerritories, easing, resampleN, overshoot, conquestOrigin);
                         }
                     } catch (err) {
-                        // Fallback: if splice fails, use legacy morph handler
-                        log.error('PVV2', `Splice transition failed, falling back to legacy morph: ${err}`);
+                        log.error('PVV2', `Splice transition failed: ${err}`);
                         s.activeTransitionPlan = null;
                         const conquestOrigin: [number, number] | undefined = conquestOriginVec
                             ? [conquestOriginVec.x, conquestOriginVec.y] : undefined;
                         s.activeShapeTransitionHandler = new PolygonMorphTransitionHandler(s.prevMergedTerritories, s.lastMergedTerritories, easing, resampleN, overshoot, conquestOrigin);
                     }
                 } else {
-                    // No geometry data or no changedSiteIds — use legacy morph handler
                     const conquestOrigin: [number, number] | undefined = conquestOriginVec
                         ? [conquestOriginVec.x, conquestOriginVec.y] : undefined;
                     s.activeShapeTransitionHandler = new PolygonMorphTransitionHandler(s.prevMergedTerritories, s.lastMergedTerritories, easing, resampleN, overshoot, conquestOrigin);
