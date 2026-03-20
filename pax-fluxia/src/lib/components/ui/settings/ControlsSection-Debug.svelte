@@ -138,9 +138,9 @@
     <span class="slider-value">{pinThreshold}px</span>
 </div>
 
-<!-- Label every Nth vertex -->
+<!-- Show every Nth vertex -->
 <div class="slider-row">
-    <span class="slider-label">Label every</span>
+    <span class="slider-label">Show every</span>
     <input
         type="range"
         min="1"

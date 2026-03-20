@@ -962,19 +962,21 @@ export class PolygonMorphTransitionHandler {
                     if (showLabels && this.labelContainer) {
                         let label = this.labels[labelIdx];
                         if (!label) {
-                            label = new PIXI.Text({
-                                text: '',
-                                style: {
-                                    fontSize: 10,
-                                    fill: 0xffffff,
-                                    fontFamily: 'monospace',
-                                    fontWeight: 'bold',
-                                    stroke: { color: 0x000000, width: 3 },
-                                },
+                            const style = new PIXI.TextStyle({
+                                fontSize: 11,
+                                fill: 0xffffff,
+                                fontFamily: 'monospace',
+                                fontWeight: 'bold',
+                                stroke: { color: 0x000000, width: 3 },
                             });
+                            label = new PIXI.Text({ text: `${i}`, style });
                             label.anchor.set(0.5, 1.4); // Position above the dot
+                            label.scale.set(1);
                             this.labels.push(label);
                             this.labelContainer.addChild(label);
+                            if (labelIdx === 0) {
+                                console.log(`[LABELS] First label created: text="${i}" pos=(${cx.toFixed(0)},${cy.toFixed(0)}) visible=${label.visible} parent=${this.labelContainer.label}`);
+                            }
                         }
                         label.text = `${i}`;
                         label.style.fill = dotColor;
