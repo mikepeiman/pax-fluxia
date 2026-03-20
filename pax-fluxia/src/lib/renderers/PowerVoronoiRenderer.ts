@@ -864,6 +864,22 @@ export function renderPowerVoronoi(
         drawTerritoryFillOnly(s.fillGraphics, merged[i], enclaveMap.get(i), alpha);
     }
 
+    // Static vertex overlay — show dots immediately when toggle is ON (no transition required)
+    if (GAME_CONFIG.DEBUG_MORPH_VERTICES && s.fillGraphics) {
+        const vertexSize = GAME_CONFIG.DEBUG_MORPH_VERTEX_SIZE ?? 3;
+        const vertexNth = GAME_CONFIG.DEBUG_MORPH_VERTEX_NTH ?? 10;
+        for (const terr of merged) {
+            for (let vi = 0; vi < terr.points.length; vi++) {
+                if (vi % vertexNth !== 0) continue;
+                const [px, py] = terr.points[vi];
+                s.fillGraphics.circle(px, py, vertexSize);
+                s.fillGraphics.fill({ color: 0xbbbbbb, alpha: 0.7 });
+                s.fillGraphics.circle(px, py, vertexSize + 1);
+                s.fillGraphics.stroke({ width: 0.5, color: 0x333333, alpha: 0.5 });
+            }
+        }
+    }
+
     // ── Store targets + start transition ────────────────────────────────
     // Always assign edge colors so polyline color map is populated correctly
     for (const edge of sharedEdges) {
