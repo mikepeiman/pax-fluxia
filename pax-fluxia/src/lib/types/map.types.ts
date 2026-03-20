@@ -40,6 +40,7 @@ export interface MapDefinition {
     starType: StarType;
     activeShips?: number;
     damagedShips?: number;
+    targetId?: string;         // current attack order target
     productionRate?: number;
     specialTraits?: string[];
   }>;

@@ -782,6 +782,8 @@ function exportMapDefinition(): MapDefinition | null {
             ownerId: s.ownerId,
             starType: s.starType as StarType,
             activeShips: s.activeShips,
+            damagedShips: s.damagedShips,
+            targetId: s.targetId || undefined,
         });
     });
     const connSet = new Set<string>();
@@ -795,8 +797,9 @@ function exportMapDefinition(): MapDefinition | null {
         }
     }
     return {
-        metadata: { name: 'Untitled', createdAt: new Date().toISOString() },
+        metadata: { name: 'Untitled', createdAt: new Date().toISOString(), version: 2 },
         stars, connections,
+        customRules: { tick: state.tick },
     };
 }
 
@@ -885,7 +888,8 @@ function initSavedMap(playerIds: string[], map: MapDefinition): void {
         star.ownerId = ownerId;
         star.starType = starType;
         star.activeShips = s.activeShips ?? GAME_CONFIG.STARTING_SHIPS;
-        star.damagedShips = 0;
+        star.damagedShips = s.damagedShips ?? 0;
+        star.targetId = s.targetId ?? '';
         star.productionRate = 1;
         star.repairRate = stats.repairRate;
         star.transferRate = stats.transferRate;
