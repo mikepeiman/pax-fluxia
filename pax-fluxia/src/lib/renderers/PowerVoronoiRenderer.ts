@@ -43,6 +43,14 @@ import { resamplePolygon, resamplePolyline, lerpPolygon, polygonCentroid } from 
 import { SegmentMorphTransitionHandler, RopeBorderRenderer, PolygonMorphTransitionHandler } from '$lib/renderers/geometry/borderTransition';
 import { territoryTransitions } from '$lib/fx/handlers/territoryTransitionHandler';
 
+// ── Localized Boundary Transition Pipeline ─────────────────────────────────
+import type { TerritoryTransitionPlanSet, TerritoryFrameGeometry, Vec2 } from '$lib/territory/transitions/types';
+import { buildTerritoryBoundarySnapshots } from '$lib/territory/transitions/buildTerritoryBoundarySnapshots';
+import { computeTerritoryDeltaContext } from '$lib/territory/transitions/computeTerritoryDeltaContext';
+import { createTerritoryTransitionPlan } from '$lib/territory/transitions/createTerritoryTransitionPlan';
+import { sampleTransitionFrame } from '$lib/territory/transitions/sampleTransitionFrame';
+import { drawTerritoryFrame } from '$lib/territory/transitions/drawTerritoryFrame';
+
 // ── Types ──────────────────────────────────────────────────────────────────
 
 // Types are now imported from powerVoronoiTerritoryGeometryGenerator — TerritoryCell, MergedTerritory,
@@ -88,6 +96,12 @@ export interface PVV2RendererState {
     lastEnclaveMap: Map<number, [number, number][][]> | null;
     // World border polylines — stored for fill reconstruction during Frontier Morph transitions
     lastWorldBorderPolylines: SharedPolyline[] | null;
+    // Localized Boundary Transition
+    prevGeometryData: TerritoryGeometryData | null;
+    lastGeometryData: TerritoryGeometryData | null;
+    activeTransitionPlan: TerritoryTransitionPlanSet | null;
+    transitionStartTime: number | null;
+    transitionDurationMs: number;
 }
 
 /** Create a fresh PVV2 renderer state. */
@@ -118,6 +132,11 @@ export function createPVV2State(): PVV2RendererState {
         changedSiteIds: null,
         lastEnclaveMap: null,
         lastWorldBorderPolylines: null,
+        prevGeometryData: null,
+        lastGeometryData: null,
+        activeTransitionPlan: null,
+        transitionStartTime: null,
+        transitionDurationMs: 0,
     };
 }
 
@@ -684,7 +703,28 @@ export function renderPowerVoronoi(
 
         // D-79 / B-101: Unified fill+border from same morphed closed polygons.
         // PolygonMorphTransitionHandler draws both fill AND stroke from the same interpolated points.
-        if (s.activeShapeTransitionHandler) {
+        if (s.activeTransitionPlan) {
+            // ── Localized boundary transition: splice-based patch replacement ──
+            // Easing: use same easeInOutCubic as the legacy path (line 695)
+            const spliceEasing = (t: number) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+            const frameGeom = sampleTransitionFrame(s.activeTransitionPlan, rawT, spliceEasing);
+            // Build color map for drawing
+            const colorMap = new Map<string, number>();
+            if (s.lastMergedTerritories) {
+                for (let mi = 0; mi < s.lastMergedTerritories.length; mi++) {
+                    const mt = s.lastMergedTerritories[mi];
+                    colorMap.set(`${mt.ownerId}:${mi}`, mt.color);
+                }
+            }
+            drawTerritoryFrame(frameGeom, s.fillGraphics, {
+                fillAlpha: alpha,
+                borderWidth,
+                borderColor: 0x000000,
+                borderAlpha,
+                colorByTerritory: colorMap,
+            });
+        } else if (s.activeShapeTransitionHandler) {
+            // Legacy fallback — kept for non-splice transition modes
             s.activeShapeTransitionHandler.drawFrame(s.fillGraphics, rawT, alpha, borderWidth, borderAlpha);
         } else if (s.activeBorderTransitionHandler) {
             // Legacy segment morpher fallback (borders only — shape handler takes priority above)
@@ -709,6 +749,9 @@ export function renderPowerVoronoi(
             s.prevEnclaveMap = null;
             s.activeBorderTransitionHandler = null;
             s.activeShapeTransitionHandler = null;
+            s.activeTransitionPlan = null;
+            s.transitionStartTime = null;
+            s.prevGeometryData = null;
             if (s.activeRopeRenderer) {
                 s.activeRopeRenderer.removeAll();
                 s.activeRopeRenderer = null;
@@ -764,6 +807,10 @@ export function renderPowerVoronoi(
         if (s.lastMergedTerritories && s.lastMergedTerritories.length > 0) {
             s.prevMergedTerritories = s.lastMergedTerritories;
             s.prevEnclaveMap = s.lastEnclaveMap;
+        }
+        // Geometry data snapshot for localized boundary transition
+        if (s.lastGeometryData) {
+            s.prevGeometryData = s.lastGeometryData;
         }
     }
 
@@ -890,6 +937,8 @@ export function renderPowerVoronoi(
     s.lastMergedTerritories = merged;
     s.lastEnclaveMap = enclaveMap;
     s.lastWorldBorderPolylines = worldBorderPolylines;
+    // Store full geometry data for localized boundary transition snapshots
+    s.lastGeometryData = stageResult;
 
     // Build polylines for morph transition (reuse from render block if available)
     {
@@ -965,8 +1014,8 @@ export function renderPowerVoronoi(
                     s.activeShapeTransitionHandler.cleanup();
                 }
 
-                // Compute conquest origin: centroid of changed stars for distance-based morph gating
-                let conquestOrigin: [number, number] | undefined;
+                // Compute conquest origin: centroid of changed stars
+                let conquestOriginVec: Vec2 | undefined;
                 if (s.changedSiteIds && s.changedSiteIds.size > 0) {
                     let cx = 0, cy = 0, count = 0;
                     for (const star of stars) {
@@ -977,12 +1026,39 @@ export function renderPowerVoronoi(
                         }
                     }
                     if (count > 0) {
-                        conquestOrigin = [cx / count, cy / count];
-                        log.renderer('PVV2', `CONQUEST ORIGIN | ${[...s.changedSiteIds].join(',')} → (${conquestOrigin[0].toFixed(0)}, ${conquestOrigin[1].toFixed(0)})`);
+                        conquestOriginVec = { x: cx / count, y: cy / count };
+                        log.renderer('PVV2', `CONQUEST ORIGIN | ${[...s.changedSiteIds].join(',')} → (${conquestOriginVec.x.toFixed(0)}, ${conquestOriginVec.y.toFixed(0)})`);
                     }
                 }
 
-                s.activeShapeTransitionHandler = new PolygonMorphTransitionHandler(s.prevMergedTerritories, s.lastMergedTerritories, easing, resampleN, overshoot, conquestOrigin);
+                // ── Localized Boundary Transition: splice-based patch replacement ──
+                if (s.prevGeometryData && s.lastGeometryData && s.changedSiteIds && s.changedSiteIds.size > 0) {
+                    try {
+                        const prevSnapshots = buildTerritoryBoundarySnapshots(s.prevGeometryData);
+                        const nextSnapshots = buildTerritoryBoundarySnapshots(s.lastGeometryData);
+                        const delta = computeTerritoryDeltaContext(prevSnapshots, nextSnapshots, s.changedSiteIds);
+                        s.activeTransitionPlan = createTerritoryTransitionPlan(
+                            prevSnapshots, nextSnapshots, delta,
+                            GAME_CONFIG.TERRITORY_TRANSITION_MS ?? 400,
+                            conquestOriginVec, resampleN,
+                        );
+                        s.transitionStartTime = performance.now();
+                        s.transitionDurationMs = GAME_CONFIG.TERRITORY_TRANSITION_MS ?? 400;
+                        log.renderer('PVV2', `SPLICE TRANSITION | plans=${s.activeTransitionPlan.plansByTerritoryId.size} affected=${delta.affectedTerritoryIds.size}`);
+                    } catch (err) {
+                        // Fallback: if splice fails, use legacy morph handler
+                        log.error('PVV2', `Splice transition failed, falling back to legacy morph: ${err}`);
+                        s.activeTransitionPlan = null;
+                        const conquestOrigin: [number, number] | undefined = conquestOriginVec
+                            ? [conquestOriginVec.x, conquestOriginVec.y] : undefined;
+                        s.activeShapeTransitionHandler = new PolygonMorphTransitionHandler(s.prevMergedTerritories, s.lastMergedTerritories, easing, resampleN, overshoot, conquestOrigin);
+                    }
+                } else {
+                    // No geometry data or no changedSiteIds — use legacy morph handler
+                    const conquestOrigin: [number, number] | undefined = conquestOriginVec
+                        ? [conquestOriginVec.x, conquestOriginVec.y] : undefined;
+                    s.activeShapeTransitionHandler = new PolygonMorphTransitionHandler(s.prevMergedTerritories, s.lastMergedTerritories, easing, resampleN, overshoot, conquestOrigin);
+                }
             } else if (borderTransMode === 'pixi_graphics_morph' || borderTransMode === 'optimal_transport' || borderTransMode === 'smooth_morph') {
                 s.activeBorderTransitionHandler = new SegmentMorphTransitionHandler(s.prevSharedPolylines, s.targetSharedPolylines, easing, resampleN, overshoot);
             }
