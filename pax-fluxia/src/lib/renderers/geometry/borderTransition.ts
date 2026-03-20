@@ -430,37 +430,53 @@ function resampleClosedPolygon(pts: [number, number][], n: number): [number, num
 
 /**
  * Align target polygon to minimize total displacement from source.
- * Finds rotation offset k where sum of |from[i] - to[(i+k)%N]|² is minimized.
- * This pins down vertices far from the conquest — they barely move.
+ * Tries ALL cyclic rotations of BOTH forward and reversed winding,
+ * picking whichever combination gives the lowest sum-of-squared-distances.
+ * This prevents the "horizontal flip" artifact when winding direction differs.
  * O(N²) but runs once at transition start, not per frame.
  */
 function alignClosedPolygon(from: [number, number][], to: [number, number][]): [number, number][] {
     const n = Math.min(from.length, to.length);
     if (n < 3) return to;
 
-    let bestOffset = 0;
-    let bestCost = Infinity;
-
-    for (let k = 0; k < n; k++) {
-        let cost = 0;
-        for (let i = 0; i < n; i++) {
-            const j = (i + k) % n;
-            const dx = from[i][0] - to[j][0];
-            const dy = from[i][1] - to[j][1];
-            cost += dx * dx + dy * dy;
-            if (cost >= bestCost) break; // early exit
+    // Compute best rotation cost for a given candidate array
+    function bestRotation(candidate: [number, number][]): { cost: number; offset: number } {
+        let bestOffset = 0;
+        let bestCost = Infinity;
+        for (let k = 0; k < n; k++) {
+            let cost = 0;
+            for (let i = 0; i < n; i++) {
+                const j = (i + k) % n;
+                const dx = from[i][0] - candidate[j][0];
+                const dy = from[i][1] - candidate[j][1];
+                cost += dx * dx + dy * dy;
+                if (cost >= bestCost) break; // early exit
+            }
+            if (cost < bestCost) {
+                bestCost = cost;
+                bestOffset = k;
+            }
         }
-        if (cost < bestCost) {
-            bestCost = cost;
-            bestOffset = k;
-        }
+        return { cost: bestCost, offset: bestOffset };
     }
 
-    if (bestOffset === 0) return to;
+    // Try forward winding
+    const fwd = bestRotation(to);
+
+    // Try reversed winding
+    const reversed: [number, number][] = [...to].reverse();
+    const rev = bestRotation(reversed);
+
+    // Pick the better one
+    const useFwd = fwd.cost <= rev.cost;
+    const bestSource = useFwd ? to : reversed;
+    const bestOffset = useFwd ? fwd.offset : rev.offset;
+
+    if (bestOffset === 0 && useFwd) return to;
 
     const aligned: [number, number][] = new Array(n);
     for (let i = 0; i < n; i++) {
-        aligned[i] = to[(i + bestOffset) % n];
+        aligned[i] = bestSource[(i + bestOffset) % n];
     }
     return aligned;
 }
@@ -631,10 +647,21 @@ export class PolygonMorphTransitionHandler {
             if (n < 3) continue;
 
             // Build morphed polygon as flat array — SINGLE SOURCE for both fill and border
+            // Vertices below pin threshold snap directly to target (no lerp jitter)
             const flat: number[] = new Array(n * 2);
             for (let i = 0; i < n; i++) {
-                flat[i * 2] = fromPoints[i][0] + (toPoints[i][0] - fromPoints[i][0]) * t;
-                flat[i * 2 + 1] = fromPoints[i][1] + (toPoints[i][1] - fromPoints[i][1]) * t;
+                const dx = toPoints[i][0] - fromPoints[i][0];
+                const dy = toPoints[i][1] - fromPoints[i][1];
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < pinThreshold) {
+                    // Pin: snap to target immediately, no interpolation
+                    flat[i * 2] = toPoints[i][0];
+                    flat[i * 2 + 1] = toPoints[i][1];
+                } else {
+                    // Morph: lerp from→to
+                    flat[i * 2] = fromPoints[i][0] + dx * t;
+                    flat[i * 2 + 1] = fromPoints[i][1] + dy * t;
+                }
             }
 
             // Fill the territory region
