@@ -110,7 +110,7 @@
   async function handleLoadMap(map: any) {
     gameStore.loadSavedMap(map);
     showLoadMapList = false;
-    menuExpanded = false;
+    // Keep menu/settings open for debugging workflow
     // Restart game with loaded map — must await since startGame is async
     await gameStore.startGame();
   }

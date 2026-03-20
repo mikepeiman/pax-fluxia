@@ -964,7 +964,25 @@ export function renderPowerVoronoi(
                 if (s.activeShapeTransitionHandler) {
                     s.activeShapeTransitionHandler.cleanup();
                 }
-                s.activeShapeTransitionHandler = new PolygonMorphTransitionHandler(s.prevMergedTerritories, s.lastMergedTerritories, easing, resampleN, overshoot);
+
+                // Compute conquest origin: centroid of changed stars for distance-based morph gating
+                let conquestOrigin: [number, number] | undefined;
+                if (s.changedSiteIds && s.changedSiteIds.size > 0) {
+                    let cx = 0, cy = 0, count = 0;
+                    for (const star of stars) {
+                        if (s.changedSiteIds.has(star.id)) {
+                            cx += star.x;
+                            cy += star.y;
+                            count++;
+                        }
+                    }
+                    if (count > 0) {
+                        conquestOrigin = [cx / count, cy / count];
+                        log.renderer('PVV2', `CONQUEST ORIGIN | ${[...s.changedSiteIds].join(',')} → (${conquestOrigin[0].toFixed(0)}, ${conquestOrigin[1].toFixed(0)})`);
+                    }
+                }
+
+                s.activeShapeTransitionHandler = new PolygonMorphTransitionHandler(s.prevMergedTerritories, s.lastMergedTerritories, easing, resampleN, overshoot, conquestOrigin);
             } else if (borderTransMode === 'pixi_graphics_morph' || borderTransMode === 'optimal_transport' || borderTransMode === 'smooth_morph') {
                 s.activeBorderTransitionHandler = new SegmentMorphTransitionHandler(s.prevSharedPolylines, s.targetSharedPolylines, easing, resampleN, overshoot);
             }

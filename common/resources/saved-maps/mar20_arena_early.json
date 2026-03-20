@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "name": "Arena_early_Mar20",
-    "createdAt": "2026-03-20T17:45:17.380Z",
+    "name": "mar20_arena_early",
+    "createdAt": "2026-03-20T17:52:09.203Z",
     "version": 2
   },
   "stars": [
@@ -180,7 +180,7 @@
       "id": "star-19",
       "x": 655.5913978494624,
       "y": 466.4938398357289,
-      "ownerId": "ai-5",
+      "ownerId": "human-player",
       "starType": "grey",
       "activeShips": 0,
       "damagedShips": 0,
@@ -289,7 +289,7 @@
       "id": "star-31",
       "x": 575.1612903225806,
       "y": 424.0811088295688,
-      "ownerId": "ai-5",
+      "ownerId": "human-player",
       "starType": "red",
       "activeShips": 2,
       "damagedShips": 0,
@@ -308,9 +308,9 @@
       "id": "star-33",
       "x": 672.0430107526881,
       "y": 662.8490759753593,
-      "ownerId": "neutral",
+      "ownerId": "ai-1",
       "starType": "red",
-      "activeShips": 0,
+      "activeShips": 1,
       "damagedShips": 0
     },
     {
@@ -344,7 +344,7 @@
       "id": "star-37",
       "x": 1244.1935483870968,
       "y": 534.0400410677618,
-      "ownerId": "ai-2",
+      "ownerId": "ai-3",
       "starType": "red",
       "activeShips": 2,
       "damagedShips": 0
@@ -362,9 +362,9 @@
       "id": "star-39",
       "x": 1150.967741935484,
       "y": 281.13449691991786,
-      "ownerId": "neutral",
+      "ownerId": "ai-4",
       "starType": "red",
-      "activeShips": 0,
+      "activeShips": 2,
       "damagedShips": 0
     },
     {
@@ -398,7 +398,7 @@
       "id": "star-43",
       "x": 719.5698924731182,
       "y": 172.74640657084188,
-      "ownerId": "ai-4",
+      "ownerId": "ai-5",
       "starType": "grey",
       "activeShips": 3,
       "damagedShips": 0
@@ -407,7 +407,7 @@
       "id": "star-44",
       "x": 608.0645161290322,
       "y": 208.87577002053388,
-      "ownerId": "ai-4",
+      "ownerId": "ai-5",
       "starType": "red",
       "activeShips": 5,
       "damagedShips": 0
@@ -416,27 +416,26 @@
       "id": "star-45",
       "x": 520.3225806451612,
       "y": 160.17967145790556,
-      "ownerId": "ai-4",
+      "ownerId": "ai-5",
       "starType": "yellow",
-      "activeShips": 5,
+      "activeShips": 3,
       "damagedShips": 0,
-      "targetId": "star-43"
+      "targetId": "star-44"
     },
     {
       "id": "star-46",
       "x": 489.247311827957,
       "y": 256.00102669404515,
-      "ownerId": "ai-4",
+      "ownerId": "ai-5",
       "starType": "grey",
-      "activeShips": 2,
-      "damagedShips": 0,
-      "targetId": "star-44"
+      "activeShips": 4,
+      "damagedShips": 0
     },
     {
       "id": "star-47",
       "x": 416.1290322580645,
       "y": 312.5513347022587,
-      "ownerId": "ai-4",
+      "ownerId": "ai-5",
       "starType": "yellow",
       "activeShips": 8,
       "damagedShips": 0
@@ -445,7 +444,7 @@
       "id": "star-48",
       "x": 405.1612903225806,
       "y": 204.16324435318273,
-      "ownerId": "ai-4",
+      "ownerId": "ai-5",
       "starType": "grey",
       "activeShips": 6,
       "damagedShips": 0
@@ -454,7 +453,7 @@
       "id": "star-49",
       "x": 562.3655913978495,
       "y": 312.5513347022587,
-      "ownerId": "ai-4",
+      "ownerId": "ai-5",
       "starType": "grey",
       "activeShips": 6,
       "damagedShips": 0
@@ -463,71 +462,75 @@
       "id": "star-50",
       "x": 522.1505376344086,
       "y": 574.8819301848049,
-      "ownerId": "ai-5",
+      "ownerId": "human-player",
       "starType": "grey",
-      "activeShips": 3,
-      "damagedShips": 0
+      "activeShips": 5,
+      "damagedShips": 0,
+      "targetId": "star-54"
     },
     {
       "id": "star-51",
       "x": 514.8387096774193,
       "y": 659.7073921971253,
-      "ownerId": "ai-5",
+      "ownerId": "human-player",
       "starType": "grey",
-      "activeShips": 6,
-      "damagedShips": 0
+      "activeShips": 3,
+      "damagedShips": 0,
+      "targetId": "star-50"
     },
     {
       "id": "star-52",
       "x": 483.76344086021504,
       "y": 403.6601642710472,
-      "ownerId": "ai-5",
+      "ownerId": "human-player",
       "starType": "grey",
       "activeShips": 3,
-      "damagedShips": 0
+      "damagedShips": 0,
+      "targetId": "star-31"
     },
     {
       "id": "star-53",
       "x": 401.505376344086,
       "y": 447.6437371663244,
-      "ownerId": "ai-5",
+      "ownerId": "human-player",
       "starType": "grey",
-      "activeShips": 4,
-      "damagedShips": 0
+      "activeShips": 5,
+      "damagedShips": 0,
+      "targetId": "star-52"
     },
     {
       "id": "star-54",
       "x": 481.93548387096774,
       "y": 485.34394250513344,
-      "ownerId": "ai-5",
+      "ownerId": "human-player",
       "starType": "red",
-      "activeShips": 2,
-      "damagedShips": 0,
-      "targetId": "star-31"
+      "activeShips": 5,
+      "damagedShips": 0
     },
     {
       "id": "star-55",
       "x": 589.7849462365591,
       "y": 716.2577002053388,
-      "ownerId": "neutral",
+      "ownerId": "ai-1",
       "starType": "grey",
-      "activeShips": 0,
-      "damagedShips": 0
+      "activeShips": 3,
+      "damagedShips": 0,
+      "targetId": "star-33"
     },
     {
       "id": "star-56",
       "x": 503.8709677419355,
       "y": 747.6745379876796,
-      "ownerId": "human-player",
+      "ownerId": "ai-1",
       "starType": "red",
-      "activeShips": 6,
+      "activeShips": 3,
       "damagedShips": 0
     },
     {
       "id": "star-57",
       "x": 406.98924731182797,
       "y": 788.5164271047228,
-      "ownerId": "human-player",
+      "ownerId": "ai-1",
       "starType": "yellow",
       "activeShips": 8,
       "damagedShips": 0
@@ -536,7 +539,7 @@
       "id": "star-58",
       "x": 498.38709677419354,
       "y": 827.7874743326488,
-      "ownerId": "human-player",
+      "ownerId": "ai-1",
       "starType": "yellow",
       "activeShips": 8,
       "damagedShips": 0
@@ -545,7 +548,7 @@
       "id": "star-59",
       "x": 604.4086021505376,
       "y": 826.2166324435318,
-      "ownerId": "human-player",
+      "ownerId": "ai-1",
       "starType": "grey",
       "activeShips": 6,
       "damagedShips": 0
@@ -554,19 +557,20 @@
       "id": "star-60",
       "x": 664.7311827956989,
       "y": 764.9537987679671,
-      "ownerId": "neutral",
+      "ownerId": "ai-1",
       "starType": "grey",
-      "activeShips": 0,
+      "activeShips": 2,
       "damagedShips": 0
     },
     {
       "id": "star-61",
       "x": 725.0537634408602,
       "y": 832.5,
-      "ownerId": "human-player",
+      "ownerId": "ai-1",
       "starType": "grey",
-      "activeShips": 6,
-      "damagedShips": 0
+      "activeShips": 4,
+      "damagedShips": 0,
+      "targetId": "star-60"
     },
     {
       "id": "star-62",
@@ -590,26 +594,25 @@
       "id": "star-64",
       "x": 1185.6989247311828,
       "y": 785.3747433264887,
-      "ownerId": "ai-1",
+      "ownerId": "ai-2",
       "starType": "red",
-      "activeShips": 5,
+      "activeShips": 3,
       "damagedShips": 0
     },
     {
       "id": "star-65",
       "x": 1289.8924731182794,
       "y": 749.2453798767967,
-      "ownerId": "ai-1",
+      "ownerId": "ai-2",
       "starType": "grey",
-      "activeShips": 2,
-      "damagedShips": 0,
-      "targetId": "star-64"
+      "activeShips": 6,
+      "damagedShips": 0
     },
     {
       "id": "star-66",
       "x": 1390.4301075268818,
       "y": 713.1160164271047,
-      "ownerId": "ai-1",
+      "ownerId": "ai-2",
       "starType": "yellow",
       "activeShips": 8,
       "damagedShips": 0
@@ -618,7 +621,7 @@
       "id": "star-67",
       "x": 1459.8924731182794,
       "y": 771.2371663244353,
-      "ownerId": "ai-1",
+      "ownerId": "ai-2",
       "starType": "yellow",
       "activeShips": 8,
       "damagedShips": 0
@@ -627,7 +630,7 @@
       "id": "star-68",
       "x": 1370.3225806451612,
       "y": 793.2289527720739,
-      "ownerId": "ai-1",
+      "ownerId": "ai-2",
       "starType": "grey",
       "activeShips": 6,
       "damagedShips": 0
@@ -636,18 +639,18 @@
       "id": "star-69",
       "x": 1260.6451612903224,
       "y": 832.5,
-      "ownerId": "ai-1",
+      "ownerId": "ai-2",
       "starType": "grey",
-      "activeShips": 6,
+      "activeShips": 4,
       "damagedShips": 0
     },
     {
       "id": "star-70",
       "x": 1339.247311827957,
       "y": 554.4609856262833,
-      "ownerId": "ai-2",
+      "ownerId": "ai-3",
       "starType": "grey",
-      "activeShips": 4,
+      "activeShips": 3,
       "damagedShips": 0,
       "targetId": "star-37"
     },
@@ -655,34 +658,34 @@
       "id": "star-71",
       "x": 1271.6129032258063,
       "y": 612.5821355236139,
-      "ownerId": "neutral",
+      "ownerId": "ai-3",
       "starType": "grey",
-      "activeShips": 0,
+      "activeShips": 2,
       "damagedShips": 0
     },
     {
       "id": "star-72",
       "x": 1372.1505376344085,
       "y": 633.0030800821355,
-      "ownerId": "ai-2",
+      "ownerId": "ai-3",
       "starType": "grey",
-      "activeShips": 6,
+      "activeShips": 4,
       "damagedShips": 0
     },
     {
       "id": "star-73",
       "x": 1467.2043010752689,
       "y": 546.6067761806981,
-      "ownerId": "ai-2",
+      "ownerId": "ai-3",
       "starType": "yellow",
-      "activeShips": 5,
+      "activeShips": 8,
       "damagedShips": 0
     },
     {
       "id": "star-74",
       "x": 1463.5483870967741,
       "y": 433.506160164271,
-      "ownerId": "ai-2",
+      "ownerId": "ai-3",
       "starType": "yellow",
       "activeShips": 8,
       "damagedShips": 0
@@ -691,16 +694,17 @@
       "id": "star-75",
       "x": 1355.6989247311828,
       "y": 453.9271047227926,
-      "ownerId": "ai-2",
+      "ownerId": "ai-3",
       "starType": "red",
-      "activeShips": 4,
-      "damagedShips": 0
+      "activeShips": 2,
+      "damagedShips": 0,
+      "targetId": "star-70"
     },
     {
       "id": "star-76",
       "x": 1388.6021505376343,
       "y": 359.67659137577,
-      "ownerId": "ai-2",
+      "ownerId": "ai-3",
       "starType": "grey",
       "activeShips": 6,
       "damagedShips": 0
@@ -709,54 +713,54 @@
       "id": "star-77",
       "x": 1143.6559139784945,
       "y": 183.74229979466116,
-      "ownerId": "ai-3",
+      "ownerId": "neutral",
       "starType": "grey",
-      "activeShips": 2,
+      "activeShips": 0,
       "damagedShips": 0
     },
     {
       "id": "star-78",
       "x": 1235.0537634408602,
       "y": 183.74229979466116,
-      "ownerId": "ai-3",
+      "ownerId": "ai-4",
       "starType": "grey",
       "activeShips": 3,
-      "damagedShips": 0,
-      "targetId": "star-77"
+      "damagedShips": 0
     },
     {
       "id": "star-79",
       "x": 1242.3655913978494,
       "y": 268.5677618069815,
-      "ownerId": "ai-3",
+      "ownerId": "ai-4",
       "starType": "grey",
       "activeShips": 3,
-      "damagedShips": 0
+      "damagedShips": 0,
+      "targetId": "star-39"
     },
     {
       "id": "star-80",
       "x": 1341.0752688172042,
       "y": 246.57597535934292,
-      "ownerId": "ai-3",
+      "ownerId": "ai-4",
       "starType": "red",
-      "activeShips": 4,
-      "damagedShips": 0
+      "activeShips": 2,
+      "damagedShips": 0,
+      "targetId": "star-79"
     },
     {
       "id": "star-81",
       "x": 1357.52688172043,
       "y": 163.32135523613962,
-      "ownerId": "ai-3",
+      "ownerId": "ai-4",
       "starType": "grey",
-      "activeShips": 2,
-      "damagedShips": 0,
-      "targetId": "star-78"
+      "activeShips": 4,
+      "damagedShips": 0
     },
     {
       "id": "star-82",
       "x": 1437.9569892473119,
       "y": 223.01334702258725,
-      "ownerId": "ai-3",
+      "ownerId": "ai-4",
       "starType": "grey",
       "activeShips": 6,
       "damagedShips": 0
@@ -765,7 +769,7 @@
       "id": "star-83",
       "x": 1297.2043010752689,
       "y": 345.5390143737166,
-      "ownerId": "ai-3",
+      "ownerId": "ai-4",
       "starType": "grey",
       "activeShips": 6,
       "damagedShips": 0
@@ -774,7 +778,7 @@
       "id": "star-84",
       "x": 1480,
       "y": 299.98459958932233,
-      "ownerId": "ai-3",
+      "ownerId": "ai-4",
       "starType": "yellow",
       "activeShips": 8,
       "damagedShips": 0
@@ -783,19 +787,21 @@
       "id": "star-85",
       "x": 396.02150537634407,
       "y": 529.3275154004107,
-      "ownerId": "ai-5",
+      "ownerId": "human-player",
       "starType": "grey",
       "activeShips": 6,
-      "damagedShips": 0
+      "damagedShips": 0,
+      "targetId": "star-53"
     },
     {
       "id": "star-86",
       "x": 417.9569892473118,
       "y": 606.2987679671457,
-      "ownerId": "ai-5",
+      "ownerId": "human-player",
       "starType": "grey",
-      "activeShips": 6,
-      "damagedShips": 0
+      "activeShips": 3,
+      "damagedShips": 0,
+      "targetId": "star-85"
     }
   ],
   "connections": [

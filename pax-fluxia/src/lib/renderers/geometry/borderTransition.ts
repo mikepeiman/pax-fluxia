@@ -409,6 +409,7 @@ interface MatchedFillPair {
     toPoints: [number, number][];
     color: number;
     ownerId: string;
+    conquestOrigin?: [number, number]; // position of conquered star — morph gate center
 }
 
 /**
@@ -684,6 +685,7 @@ function buildMorphPairs(
     prev: MergedTerritory[],
     target: MergedTerritory[],
     resampleN: number,
+    conquestOrigin?: [number, number],
 ): MatchedFillPair[] {
     const result: MatchedFillPair[] = [];
     const pinThresh = GAME_CONFIG.DEBUG_MORPH_PIN_THRESHOLD ?? 5;
@@ -722,7 +724,7 @@ function buildMorphPairs(
         const n = Math.max(resampleN, pT.points.length, tT.points.length);
         const fromPts = resampleClosedPolygon(pT.points, n);
         const toPts = buildEvenDistributionTargets(fromPts, tT.points, pinThresh);
-        result.push({ fromPoints: fromPts, toPoints: toPts, color: tT.color, ownerId: tT.ownerId });
+        result.push({ fromPoints: fromPts, toPoints: toPts, color: tT.color, ownerId: tT.ownerId, conquestOrigin });
     }
 
     // Log unmatched regions (they appear/disappear instantly — no morph)
@@ -746,6 +748,7 @@ function buildMorphPairs(
 export class PolygonMorphTransitionHandler {
     private pairs: MatchedFillPair[];
     private easingFn: (t: number) => number;
+    private conquestOrigin?: [number, number];
     /** Labels added directly as children of the graphics object. */
     private labels: PIXI.Text[] = [];
     private labelsAttachedTo: PIXI.Graphics | null = null;
@@ -757,8 +760,10 @@ export class PolygonMorphTransitionHandler {
         easing: 'cubic' | 'back' | 'elastic' | 'ease-out' | 'ease-out-quad' | 'sine' | 'linear' = 'ease-out',
         resampleN: number = 48,
         overshoot: number = 1.70158,
+        conquestOrigin?: [number, number],
     ) {
-        this.pairs = buildMorphPairs(prev, target, resampleN);
+        this.conquestOrigin = conquestOrigin;
+        this.pairs = buildMorphPairs(prev, target, resampleN, conquestOrigin);
         this.easingFn = easing === 'elastic' ? easeInOutElastic
             : easing === 'back' ? (t: number) => easeInOutBack(t, overshoot)
                 : easing === 'ease-out' ? easeOutCubic
@@ -830,10 +835,15 @@ export class PolygonMorphTransitionHandler {
         // Track which label index we're at for pooling
         let labelIdx = 0;
 
+        let pairIdx = 0;
         for (const pair of this.pairs) {
-            const { fromPoints, toPoints, color } = pair;
+            const { fromPoints, toPoints, color, conquestOrigin } = pair;
             const n = Math.min(fromPoints.length, toPoints.length);
             if (n < 3) continue;
+
+            // Distance-based morph gating: vertices beyond this radius from
+            // the conquest origin are pinned (snap to target, no animation).
+            const morphRadius = GAME_CONFIG.MORPH_CONQUEST_RADIUS ?? 0; // 0 = disabled
 
             // Build morphed polygon as flat array — SINGLE SOURCE for both fill and border
             // Vertices below pin threshold snap directly to target (no lerp jitter)
@@ -842,7 +852,20 @@ export class PolygonMorphTransitionHandler {
                 const dx = toPoints[i][0] - fromPoints[i][0];
                 const dy = toPoints[i][1] - fromPoints[i][1];
                 const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist < pinThreshold) {
+
+                // Distance gate: if conquest origin is set and radius > 0,
+                // pin any vertex whose midpoint is beyond the conquest radius
+                let distanceGated = false;
+                if (conquestOrigin && morphRadius > 0) {
+                    const mx = (fromPoints[i][0] + toPoints[i][0]) * 0.5;
+                    const my = (fromPoints[i][1] + toPoints[i][1]) * 0.5;
+                    const cdx = mx - conquestOrigin[0];
+                    const cdy = my - conquestOrigin[1];
+                    const cdist = Math.sqrt(cdx * cdx + cdy * cdy);
+                    if (cdist > morphRadius) distanceGated = true;
+                }
+
+                if (dist < pinThreshold || distanceGated) {
                     // Pin: snap to target immediately, no interpolation
                     flat[i * 2] = toPoints[i][0];
                     flat[i * 2 + 1] = toPoints[i][1];
@@ -936,7 +959,7 @@ export class PolygonMorphTransitionHandler {
                             this.labels.push(label);
                             graphics.addChild(label);
                         }
-                        label.text = `${i}`;
+                        label.text = `${pairIdx}.${i}`;
                         label.style.fill = dotColor;
                         label.position.set(cx, cy);
                         label.visible = true;
@@ -946,6 +969,7 @@ export class PolygonMorphTransitionHandler {
             }
 
             drawn++;
+            pairIdx++;
         }
 
         // Hide unused labels from previous frames

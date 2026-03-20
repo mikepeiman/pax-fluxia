@@ -299,6 +299,7 @@ interface GameConfigType {
     DEBUG_MORPH_VERTICES: boolean;        // Show numbered vertex dots on territory polygons during morph
     DEBUG_MORPH_VERTEX_SIZE: number;      // Radius of vertex dots (px, default 3)
     DEBUG_MORPH_PIN_THRESHOLD: number;    // Displacement below which a vertex is "pinned" (green) vs "morph" (red)
+    MORPH_CONQUEST_RADIUS: number;        // Max distance from conquered star for morph (0=disabled, px)
     DEBUG_MORPH_TRACE_LOG: boolean;       // Log per-vertex start/end/distance trace on transition start
     DEBUG_MORPH_SLOWMO: boolean;          // 10X slow-motion: multiply TERRITORY_TRANSITION_MS by 10
     DEBUG_MORPH_VERTEX_NTH: number;       // Show label on every Nth vertex (1=all, 10=every 10th, default 10)
@@ -1067,6 +1068,8 @@ const _rawConfig: GameConfigType = {
     DEBUG_MORPH_VERTEX_SIZE: 3,
     /** Displacement below which a vertex is considered pinned (px) */
     DEBUG_MORPH_PIN_THRESHOLD: 5,
+    /** Max distance (px) from conquered star for morph animation. 0 = disabled (morph everything). */
+    MORPH_CONQUEST_RADIUS: 300,
     /** Log per-vertex start/end/distance trace when transition starts */
     DEBUG_MORPH_TRACE_LOG: false,
     /** 10X slow-motion mode — multiplies transition time by 10 (3s → 30s) */
