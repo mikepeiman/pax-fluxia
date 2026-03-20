@@ -835,9 +835,9 @@ function loadSavedMap(map: MapDefinition): void {
 function initSavedMap(playerIds: string[], map: MapDefinition): void {
     const starTypes: StarType[] = ['grey', 'yellow', 'blue', 'purple', 'red', 'green'];
 
-    // Build faction → playerID remap table for classic maps
-    // Classic maps use 'player-A', 'player-B', etc. as ownerIds
-    // We need to remap these to actual playerIds ('human-player', 'ai-1', etc.)
+    // Build faction → playerID remap table
+    // Mid-game saves use runtime IDs ('human-player', 'ai-1') — use identity map.
+    // Classic maps use custom faction IDs ('player-A', 'player-B') — remap alphabetically.
     const factionRemap = new Map<string, string>();
     const mapFactions = new Set<string>();
     for (const s of map.stars) {
@@ -845,17 +845,29 @@ function initSavedMap(playerIds: string[], map: MapDefinition): void {
             mapFactions.add(s.ownerId);
         }
     }
-    const sortedFactions = Array.from(mapFactions).sort();
-    sortedFactions.forEach((faction, i) => {
-        if (i < playerIds.length) {
-            factionRemap.set(faction, playerIds[i]);
-        } else {
-            // More factions than players → assign to neutral
-            factionRemap.set(faction, 'neutral');
+
+    // Detect mid-game saves: if ANY saved ownerId matches a runtime playerID, use identity
+    const playerIdSet = new Set(playerIds);
+    const isMidGameSave = Array.from(mapFactions).some(f => playerIdSet.has(f));
+
+    if (isMidGameSave) {
+        // Identity map — ownerIds already correct, don't remap
+        for (const faction of mapFactions) {
+            factionRemap.set(faction, faction);
         }
-    });
+    } else {
+        // Classic map format — remap alphabetically to runtime playerIds
+        const sortedFactions = Array.from(mapFactions).sort();
+        sortedFactions.forEach((faction, i) => {
+            if (i < playerIds.length) {
+                factionRemap.set(faction, playerIds[i]);
+            } else {
+                factionRemap.set(faction, 'neutral');
+            }
+        });
+    }
     // B-43 diagnostic: trace faction remap
-    console.log(`[B43/MAP] Factions found: [${sortedFactions.join(', ')}]`);
+    console.log(`[MAP] Factions found: [${Array.from(mapFactions).join(', ')}] | isMidGameSave=${isMidGameSave}`);
     console.log(`[B43/MAP] Player IDs: [${playerIds.join(', ')}]`);
     factionRemap.forEach((playerId, faction) => {
         console.log(`[B43/MAP]   ${faction} → ${playerId}`);
@@ -1007,6 +1019,9 @@ function updateSettings(partial: Partial<GameSettings>): void {
 async function startGame(): Promise<void> {
     // Destroy existing game if any
     destroyGame();
+
+    // Reset territory render flag so territory draws immediately on load (B-50)
+    (globalThis as any).__territoryRenderedWhilePaused = false;
 
     // Clear combat log
     combatLog.clear();
