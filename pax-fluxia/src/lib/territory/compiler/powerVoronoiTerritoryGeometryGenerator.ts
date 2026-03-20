@@ -56,6 +56,7 @@ export interface MergedTerritory {
     points: [number, number][];  // [[x,y], ...] closed polygon
     ownerId: string;
     color: number;               // renderer fills this in; 0 from stage
+    starIds: string[];           // constituent star IDs — graph identity survives merging
 }
 
 /** A border edge segment shared between two different owners. */
@@ -453,11 +454,14 @@ export function mergeSameOwnerCells(
     type DEdge = { x1: number; y1: number; x2: number; y2: number };
     const clusterEdges = new Map<string, DEdge[]>();
     const clusterOwnerMap = new Map<string, string>();
+    const clusterStarIds = new Map<string, Set<string>>();
 
     for (const cell of cells) {
         const ck = clusterKeyOf(cell);
         if (!clusterEdges.has(ck)) clusterEdges.set(ck, []);
         if (!clusterOwnerMap.has(ck)) clusterOwnerMap.set(ck, cell.ownerId);
+        if (!clusterStarIds.has(ck)) clusterStarIds.set(ck, new Set());
+        clusterStarIds.get(ck)!.add(cell.siteId);
 
         const pts = cell.points;
         for (let j = 0; j < pts.length - 1; j++) {
@@ -530,7 +534,7 @@ export function mergeSameOwnerCells(
                     chain[0][1] !== chain[chain.length - 1][1]) {
                     chain.push([chain[0][0], chain[0][1]]);
                 }
-                result.push({ points: chain as [number, number][], ownerId, color: 0 });
+                result.push({ points: chain as [number, number][], ownerId, color: 0, starIds: [...(clusterStarIds.get(ck) ?? [])] });
             }
         }
     }
@@ -682,6 +686,7 @@ export function constructFillsFromFrontierChain(
                     points: chain,
                     ownerId,
                     color: 0,
+                    starIds: [], // Frontier chain — no cell-level star IDs available
                 });
             }
         }

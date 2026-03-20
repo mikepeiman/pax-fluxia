@@ -668,7 +668,8 @@ function buildEvenDistributionTargets(
 
 /**
  * Match prev→target MergedTerritory fill polygons.
- * Groups by ownerId, then matches regions within each owner by nearest centroid.
+ * Uses star-ID set overlap (graph-native identity) instead of centroid heuristics.
+ * Groups by ownerId, then matches regions within each owner by shared starIds.
  * Handles multi-region owners (player has discontiguous territory pieces).
  * New regions morph from centroid, removed regions collapse to centroid.
  */
@@ -697,32 +698,60 @@ function matchFillPolygons(
         const pRegions = prevByOwner.get(owner) ?? [];
         const tRegions = targetByOwner.get(owner) ?? [];
 
-        // Match regions by nearest centroid
+        // Match regions by star-ID set overlap (graph-native identity)
         const usedTarget = new Set<number>();
         const usedPrev = new Set<number>();
 
-        // For each prev region, find the nearest target region
         for (let pi = 0; pi < pRegions.length; pi++) {
-            const pc = polygonCentroid(pRegions[pi].points);
-            let bestDist = Infinity;
+            const pStars = new Set(pRegions[pi].starIds);
+            let bestOverlap = 0;
             let bestTi = -1;
             for (let ti = 0; ti < tRegions.length; ti++) {
                 if (usedTarget.has(ti)) continue;
-                const tc = polygonCentroid(tRegions[ti].points);
-                const d = (pc[0] - tc[0]) ** 2 + (pc[1] - tc[1]) ** 2;
-                if (d < bestDist) { bestDist = d; bestTi = ti; }
+                // Count shared starIds
+                let overlap = 0;
+                for (const sid of tRegions[ti].starIds) {
+                    if (pStars.has(sid)) overlap++;
+                }
+                if (overlap > bestOverlap) { bestOverlap = overlap; bestTi = ti; }
             }
-            if (bestTi >= 0) {
+            if (bestTi >= 0 && bestOverlap > 0) {
                 usedTarget.add(bestTi);
                 usedPrev.add(pi);
                 const pT = pRegions[pi], tT = tRegions[bestTi];
-                // Use the larger point count to preserve resolution
                 const n = Math.max(resampleN, pT.points.length, tT.points.length);
                 const fromPts = resampleClosedPolygon(pT.points, n);
-                // Even-distribution morph: pinned anchors stay, morphing vertices spread evenly
                 const pinThresh = GAME_CONFIG.DEBUG_MORPH_PIN_THRESHOLD ?? 5;
                 const toPts = buildEvenDistributionTargets(fromPts, tT.points, pinThresh);
                 result.push({ fromPoints: fromPts, toPoints: toPts, color: tT.color, ownerId: owner });
+            }
+        }
+
+        // Fallback: unmatched prev regions with no starId overlap — try centroid fallback
+        // (handles frontier-chain MergedTerritories that have starIds=[])
+        for (let pi = 0; pi < pRegions.length; pi++) {
+            if (usedPrev.has(pi)) continue;
+            if (pRegions[pi].starIds.length === 0) {
+                // No star identity — use centroid nearest as last resort
+                const pc = polygonCentroid(pRegions[pi].points);
+                let bestDist = Infinity;
+                let bestTi = -1;
+                for (let ti = 0; ti < tRegions.length; ti++) {
+                    if (usedTarget.has(ti)) continue;
+                    const tc = polygonCentroid(tRegions[ti].points);
+                    const d = (pc[0] - tc[0]) ** 2 + (pc[1] - tc[1]) ** 2;
+                    if (d < bestDist) { bestDist = d; bestTi = ti; }
+                }
+                if (bestTi >= 0) {
+                    usedTarget.add(bestTi);
+                    usedPrev.add(pi);
+                    const pT = pRegions[pi], tT = tRegions[bestTi];
+                    const n = Math.max(resampleN, pT.points.length, tT.points.length);
+                    const fromPts = resampleClosedPolygon(pT.points, n);
+                    const pinThresh = GAME_CONFIG.DEBUG_MORPH_PIN_THRESHOLD ?? 5;
+                    const toPts = buildEvenDistributionTargets(fromPts, tT.points, pinThresh);
+                    result.push({ fromPoints: fromPts, toPoints: toPts, color: tT.color, ownerId: owner });
+                }
             }
         }
 
@@ -785,24 +814,39 @@ export class PolygonMorphTransitionHandler {
 
         log.renderer('PolygonMorphTransitionHandler', `created | pairs=${this.pairs.length} easing=${easing} resampleN=${resampleN}`);
 
-        // ── Vertex Trace Log ────────────────────────────────────────────
+        // ── Morph Trace Log ────────────────────────────────────────────
         if (GAME_CONFIG.DEBUG_MORPH_TRACE_LOG) {
             const pinThreshold = GAME_CONFIG.DEBUG_MORPH_PIN_THRESHOLD ?? 5;
+            const verbose = (GAME_CONFIG as unknown as Record<string, unknown>).DEBUG_MORPH_TRACE_VERBOSE === true;
             for (let pi = 0; pi < this.pairs.length; pi++) {
                 const pair = this.pairs[pi];
                 const n = Math.min(pair.fromPoints.length, pair.toPoints.length);
-                let pinned = 0, morph = 0;
-                const lines: string[] = [`  pair[${pi}] owner=${pair.ownerId} vertices=${n}:`];
+                let pinned = 0, morph = 0, maxDist = 0, sumDist = 0;
+                let morphStart = -1, morphEnd = -1;
+                const verboseLines: string[] = [];
                 for (let i = 0; i < n; i++) {
                     const dx = pair.toPoints[i][0] - pair.fromPoints[i][0];
                     const dy = pair.toPoints[i][1] - pair.fromPoints[i][1];
                     const dist = Math.sqrt(dx * dx + dy * dy);
                     const isPinned = dist < pinThreshold;
-                    if (isPinned) pinned++; else morph++;
-                    lines.push(`    v${i}: (${pair.fromPoints[i][0].toFixed(1)},${pair.fromPoints[i][1].toFixed(1)}) → (${pair.toPoints[i][0].toFixed(1)},${pair.toPoints[i][1].toFixed(1)}) dist=${dist.toFixed(1)}px ${isPinned ? '🟢PIN' : '🔴MORPH'}`);
+                    if (isPinned) { pinned++; } else {
+                        morph++;
+                        sumDist += dist;
+                        if (dist > maxDist) maxDist = dist;
+                        if (morphStart < 0) morphStart = i;
+                        morphEnd = i;
+                    }
+                    if (verbose) {
+                        verboseLines.push(`    v${i}: (${pair.fromPoints[i][0].toFixed(1)},${pair.fromPoints[i][1].toFixed(1)}) → (${pair.toPoints[i][0].toFixed(1)},${pair.toPoints[i][1].toFixed(1)}) dist=${dist.toFixed(1)}px ${isPinned ? '🟢PIN' : '🔴MORPH'}`);
+                    }
                 }
-                lines.push(`    summary: ${pinned} pinned, ${morph} morph (threshold=${pinThreshold}px)`);
-                console.log(`[MORPH TRACE]\n${lines.join('\n')}`);
+                const avgDist = morph > 0 ? (sumDist / morph) : 0;
+                const rangeStr = morph > 0 ? ` range=[v${morphStart}..v${morphEnd}]` : '';
+                const warnStr = morph === n ? ' ⚠️ALL-MORPH' : '';
+                console.log(`[MORPH] pair[${pi}] ${pair.ownerId} ${n}v: ${pinned}pin ${morph}morph (max=${maxDist.toFixed(0)}px avg=${avgDist.toFixed(0)}px)${rangeStr}${warnStr}`);
+                if (verbose && verboseLines.length > 0) {
+                    console.log(verboseLines.join('\n'));
+                }
             }
         }
     }
