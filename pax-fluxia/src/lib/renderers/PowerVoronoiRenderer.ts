@@ -710,6 +710,9 @@ export function renderPowerVoronoi(
             // causing prev stable ID ≠ next stable ID for the same logical territory.
             const transitioningOwnerIds = new Set<string>();
             for (const plan of s.activeTransitionPlan.plansByTerritoryId.values()) {
+                // R-131: don't splice-animate neutral territory when transparency is on
+                const isNeutral = !plan.ownerId || plan.ownerId === 'neutral' || plan.ownerId === '';
+                if (isNeutral && GAME_CONFIG.NEUTRAL_TERRITORY_TRANSPARENT) continue;
                 transitioningOwnerIds.add(plan.ownerId);
             }
             const transitioningOwnerIndices = new Set<number>();
@@ -725,8 +728,10 @@ export function renderPowerVoronoi(
                     }
                 }
             }
-            // Populate color map using plan's territory IDs (these are the keys drawTerritoryFrame uses)
+            // Populate color map using plan's territory IDs (skip neutral when transparent)
             for (const [planTid, plan] of s.activeTransitionPlan.plansByTerritoryId) {
+                const isNeutral = !plan.ownerId || plan.ownerId === 'neutral' || plan.ownerId === '';
+                if (isNeutral && GAME_CONFIG.NEUTRAL_TERRITORY_TRANSPARENT) continue;
                 const color = ownerColorMap.get(plan.ownerId) ?? 0x444444;
                 colorMap.set(planTid, color);
             }
