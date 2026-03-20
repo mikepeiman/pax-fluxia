@@ -733,6 +733,10 @@ export function renderPowerVoronoi(
                 borderAlpha: 0,
                 colorByTerritory: colorMap,
             });
+            // Draw contested borders from target polylines (same path as steady-state)
+            if (s.targetSharedPolylines && s.targetSharedPolylines.length > 0 && borderWidth > 0 && borderAlpha > 0) {
+                drawBorderPolylines(s.fillGraphics, s.targetSharedPolylines, 0, borderWidth, borderAlpha);
+            }
         } else if (s.activeShapeTransitionHandler) {
             // Legacy fallback — kept for non-splice transition modes
             s.activeShapeTransitionHandler.drawFrame(s.fillGraphics, rawT, alpha, borderWidth, borderAlpha);
