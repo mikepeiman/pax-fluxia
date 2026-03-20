@@ -604,64 +604,20 @@ function buildEvenDistributionTargets(
         isPinned[i] = dist < pinThreshold;
     }
 
-    // Step 2: Build result — pinned vertices stay, morphing runs distribute evenly
+    // Step 2: Build result — pinned vertices snap to from position,
+    // morphing vertices target their nearest-point projection on the target perimeter.
+    // This preserves geographic locality: each vertex moves to the closest point
+    // on the new polygon, not to an arbitrary evenly-distributed position.
     const result: [number, number][] = new Array(n);
 
-    // Set pinned vertices immediately
     for (let i = 0; i < n; i++) {
         if (isPinned[i]) {
-            result[i] = [from[i][0], from[i][1]]; // Pinned: don't move
-        }
-    }
-
-    // Find morphing runs (contiguous sequences of non-pinned vertices)
-    // Walk circularly to find run boundaries
-    let i = 0;
-    while (i < n) {
-        if (isPinned[i]) { i++; continue; }
-
-        // Found start of a morphing run — find its extent
-        const runStart = i;
-        let runEnd = i;
-        while (runEnd < n && !isPinned[runEnd]) runEnd++;
-        const runLen = runEnd - runStart;
-
-        // Find the pinned anchors bounding this run
-        // Left anchor: last pinned vertex before runStart (wrapping)
-        const leftAnchorIdx = (runStart - 1 + n) % n;
-        // Right anchor: first pinned vertex after runEnd-1 (wrapping)
-        const rightAnchorIdx = runEnd % n;
-
-        // Get arc-length positions of the anchors on `to`'s perimeter
-        let arcStart: number, arcEnd: number;
-
-        if (isPinned[leftAnchorIdx]) {
-            arcStart = projections[leftAnchorIdx].arcLen;
+            // Pinned: don't move (displacement below threshold)
+            result[i] = [from[i][0], from[i][1]];
         } else {
-            // If no pinned anchor exists (all morphing), use from[0]'s projection
-            arcStart = projections[runStart].arcLen;
+            // Morph: target = nearest point on target perimeter
+            result[i] = [projections[i].x, projections[i].y];
         }
-
-        if (isPinned[rightAnchorIdx]) {
-            arcEnd = projections[rightAnchorIdx].arcLen;
-        } else {
-            // All morphing: distribute along entire perimeter
-            arcEnd = arcStart + totalLen;
-        }
-
-        // Ensure arcEnd > arcStart (wrapping around if needed)
-        if (arcEnd <= arcStart) arcEnd += totalLen;
-
-        // Distribute morphing vertices evenly between anchors
-        const divisions = runLen + 1; // +1 because anchors are boundaries
-        const arcStep = (arcEnd - arcStart) / divisions;
-
-        for (let j = 0; j < runLen; j++) {
-            const s = arcStart + arcStep * (j + 1);
-            result[runStart + j] = sampleAtArcLength(s, closed, edgeLengths, edgeCumLen, totalLen);
-        }
-
-        i = runEnd;
     }
 
     return result;
@@ -854,13 +810,11 @@ export class PolygonMorphTransitionHandler {
                 const dist = Math.sqrt(dx * dx + dy * dy);
 
                 // Distance gate: if conquest origin is set and radius > 0,
-                // pin any vertex whose midpoint is beyond the conquest radius
+                // pin any vertex whose FROM position is beyond the conquest radius
                 let distanceGated = false;
                 if (conquestOrigin && morphRadius > 0) {
-                    const mx = (fromPoints[i][0] + toPoints[i][0]) * 0.5;
-                    const my = (fromPoints[i][1] + toPoints[i][1]) * 0.5;
-                    const cdx = mx - conquestOrigin[0];
-                    const cdy = my - conquestOrigin[1];
+                    const cdx = fromPoints[i][0] - conquestOrigin[0];
+                    const cdy = fromPoints[i][1] - conquestOrigin[1];
                     const cdist = Math.sqrt(cdx * cdx + cdy * cdy);
                     if (cdist > morphRadius) distanceGated = true;
                 }
