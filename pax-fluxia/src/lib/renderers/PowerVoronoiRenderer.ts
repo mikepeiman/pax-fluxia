@@ -705,19 +705,30 @@ export function renderPowerVoronoi(
         // PolygonMorphTransitionHandler draws both fill AND stroke from the same interpolated points.
         if (s.activeTransitionPlan && s.activeTransitionPlan.plansByTerritoryId.size > 0) {
             // ── Localized boundary transition: splice-based patch replacement ──
-            // Build set of territory indices that are in the transition plan — skip in static draw
+            // Build set of ownerIds that are in the transition plan — skip in static draw.
+            // We match by ownerId (not territory stable ID) because starIds change during conquest,
+            // causing prev stable ID ≠ next stable ID for the same logical territory.
+            const transitioningOwnerIds = new Set<string>();
+            for (const plan of s.activeTransitionPlan.plansByTerritoryId.values()) {
+                transitioningOwnerIds.add(plan.ownerId);
+            }
             const transitioningOwnerIndices = new Set<number>();
             const colorMap = new Map<string, number>();
+            // Build ownerId → color lookup from latest merged territories
+            const ownerColorMap = new Map<string, number>();
             if (s.lastMergedTerritories) {
                 for (let mi = 0; mi < s.lastMergedTerritories.length; mi++) {
                     const mt = s.lastMergedTerritories[mi];
-                    // Stable territory ID: must match format from buildTerritoryBoundarySnapshots
-                    const tid = `${mt.ownerId}:${[...mt.starIds].sort().join(',')}`;
-                    colorMap.set(tid, mt.color);
-                    if (s.activeTransitionPlan.plansByTerritoryId.has(tid)) {
+                    ownerColorMap.set(mt.ownerId, mt.color);
+                    if (transitioningOwnerIds.has(mt.ownerId)) {
                         transitioningOwnerIndices.add(mi);
                     }
                 }
+            }
+            // Populate color map using plan's territory IDs (these are the keys drawTerritoryFrame uses)
+            for (const [planTid, plan] of s.activeTransitionPlan.plansByTerritoryId) {
+                const color = ownerColorMap.get(plan.ownerId) ?? 0x444444;
+                colorMap.set(planTid, color);
             }
             // Draw ONLY non-transitioning territories statically
             for (let i = 0; i < s.lastMergedTerritories.length; i++) {

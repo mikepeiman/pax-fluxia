@@ -78,6 +78,21 @@ export function findRingSpliceWindow(
         suffixLen++;
     }
 
+    // Diagnostic: log span details when match fails
+    const prevUnmatched = prevSpans.filter(s => !s.sharedKey).length;
+    const nextUnmatched = nextSpans.filter(s => !s.sharedKey).length;
+    console.log(
+        `[SPLICE DIAG] ring=${prevRing.ringId} prevSpans=${prevSpans.length}(unmatched=${prevUnmatched}) nextSpans=${nextSpans.length}(unmatched=${nextUnmatched}) prefix=${prefixLen} suffix=${suffixLen}`,
+        prefixLen === 0 && suffixLen === 0 ? '→ NO MATCH' : `→ changed window`,
+    );
+    if (prefixLen === 0 && suffixLen === 0 && prevSpans.length > 0 && nextSpans.length > 0) {
+        // Log first few span keys to see why they don't match
+        const prevKeys = prevSpans.slice(0, 3).map(s => s.sharedKey ?? '__unmatched__');
+        const nextKeys = nextSpans.slice(0, 3).map(s => s.sharedKey ?? '__unmatched__');
+        console.log(`  prev first 3 keys: ${prevKeys.join(', ')}`);
+        console.log(`  next first 3 keys: ${nextKeys.join(', ')}`);
+    }
+
     // No matching spans at all — can't splice
     if (prefixLen === 0 && suffixLen === 0) return null;
 
