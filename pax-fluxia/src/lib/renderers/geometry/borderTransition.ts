@@ -941,9 +941,9 @@ export class PolygonMorphTransitionHandler {
                         alpha: isPinned ? 0.5 : 0.9,
                     });
 
-                    // Draw numbered label only on MORPH vertices (not pinned)
+                    // Draw numbered label on vertex dots
                     const showLabels = GAME_CONFIG.DEBUG_MORPH_VERTEX_LABELS ?? true;
-                    if (showLabels && !isPinned) {
+                    if (showLabels) {
                         let label = this.labels[labelIdx];
                         if (!label) {
                             const style = new PIXI.TextStyle({
@@ -953,14 +953,17 @@ export class PolygonMorphTransitionHandler {
                                 fontWeight: 'bold',
                                 stroke: { color: '#000000', width: 3 },
                             });
-                            label = new PIXI.Text({ text: `${i}`, style });
+                            label = new PIXI.Text({ text: '', style });
                             label.anchor.set(0.5, 1.4);
                             label.zIndex = 10000;
                             this.labels.push(label);
                             graphics.addChild(label);
                         }
-                        label.text = `${pairIdx}.${i}`;
-                        label.style.fill = dotColor;
+                        // Ownership letter: map unique ownerIds to A, B, C, ...
+                        const ownerLetter = String.fromCharCode(65 + (pairIdx % 26));
+                        label.text = `${ownerLetter}${i}`;
+                        // Match vertex color: green for pinned, red for morph
+                        label.style.fill = isPinned ? '#00ff00' : '#ff0000';
                         label.position.set(cx, cy);
                         label.visible = true;
                         labelIdx++;
