@@ -1136,9 +1136,12 @@ export function renderPowerVoronoi(
 
 
     // Steady-state fills: use raw polygon points (no independent smoothing — B-42 fix)
-    // Borders are drawn SEPARATELY from sharedPolylines (contested edges only, blended colors)
-    for (let i = 0; i < merged.length; i++) {
-        drawTerritoryFillOnly(s.fillGraphics, merged[i], enclaveMap.get(i), alpha);
+    // SKIP when conquests pending — weight-lerp will draw with suppressed weights instead
+    const conquestPending = s.changedSiteIds && s.changedSiteIds.size > 0;
+    if (!conquestPending) {
+        for (let i = 0; i < merged.length; i++) {
+            drawTerritoryFillOnly(s.fillGraphics, merged[i], enclaveMap.get(i), alpha);
+        }
     }
 
     // Static vertex overlay — show dots immediately when toggle is ON (no transition required)
@@ -1191,7 +1194,8 @@ export function renderPowerVoronoi(
     }
 
     // Draw contested borders from sharedPolylines (only edges between different owners)
-    if (s.targetSharedPolylines && s.targetSharedPolylines.length > 0 && borderWidth > 0 && borderAlpha > 0) {
+    // SKIP when conquests pending — same reason as fills above
+    if (!conquestPending && s.targetSharedPolylines && s.targetSharedPolylines.length > 0 && borderWidth > 0 && borderAlpha > 0) {
         drawBorderPolylines(s.fillGraphics, s.targetSharedPolylines, 0, borderWidth, borderAlpha);
         log.renderer('PVV2', `🟢 CONTESTED BORDERS DRAWN | polylines=${s.targetSharedPolylines.length} bw=${borderWidth} ba=${borderAlpha}`);
     }
