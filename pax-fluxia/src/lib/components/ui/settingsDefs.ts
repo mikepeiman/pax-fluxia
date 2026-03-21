@@ -106,11 +106,11 @@ export const ANIM_SLIDERS: AnimSliderDef[] = [
     { key: 'ARROW_SPIRAL_DURATION_MS', label: 'Spiral Duration', min: 0, max: 5000, step: 10, unit: 'ms', group: 'Arrow Formation' },
     { key: 'ARROW_STAGGER_MS', label: 'Arrow Stagger', min: 0, max: 5000, step: 1, unit: 'ms', group: 'Arrow Formation' },
     // VS Transition (F-165) — rendered in Conquest panel, not Timing
-    { key: 'VS_VICTOR_TRAVEL_MS', label: 'Victor Travel', min: 0, max: 5000, step: 10, unit: 'ms', group: 'VS Transition' },
-    { key: 'VS_LOSER_TRAVEL_MS', label: 'Loser Travel', min: 0, max: 5000, step: 10, unit: 'ms', group: 'VS Transition' },
-    { key: 'VS_POWER_LERP_START', label: 'Power Start', min: 0, max: 500, step: 5, unit: '', group: 'VS Transition' },
-    { key: 'VS_POWER_LERP_END', label: 'Power End', min: 0, max: 500, step: 5, unit: '', group: 'VS Transition' },
-    { key: 'VS_POWER_LERP_DURATION_MS', label: 'Power Lerp', min: 0, max: 5000, step: 10, unit: 'ms', group: 'VS Transition' },
+    { key: 'VS_VICTOR_TRAVEL_MS', label: 'Victor Travel', min: 0, max: 5000, step: 10, unit: 'ms', group: 'VS Transition', desc: 'How long the attacker\'s virtual star takes to travel from the attacking star to the conquered star. Longer = slower territory expansion animation.' },
+    { key: 'VS_LOSER_TRAVEL_MS', label: 'Loser Travel', min: 0, max: 5000, step: 10, unit: 'ms', group: 'VS Transition', desc: 'How long the loser\'s virtual star takes to retreat from the conquered star to a connected ally star. Longer = slower territory shrinkage.' },
+    { key: 'VS_POWER_LERP_START', label: 'Power Start', min: 0, max: 500, step: 5, unit: '', group: 'VS Transition', desc: 'Starting Voronoi weight of the loser\'s retreating virtual star. Higher = loser territory stays larger at the start of the transition. 0 = use default (starMargin²).' },
+    { key: 'VS_POWER_LERP_END', label: 'Power End', min: 0, max: 500, step: 5, unit: '', group: 'VS Transition', desc: 'Ending Voronoi weight of the loser\'s retreating virtual star. 0 = territory dissolves completely. Higher = loser retains some territory area at transition end.' },
+    { key: 'VS_POWER_LERP_DURATION_MS', label: 'Power Lerp', min: 0, max: 5000, step: 10, unit: 'ms', group: 'VS Transition', desc: 'Duration of the loser\'s power fade from Power Start to Power End. 0 = uses Loser Travel duration. Controls how fast the losing territory dissolves.' },
 ];
 
 // ── Panel ↔ Config Mapping ──────────────────────────────────────────────────

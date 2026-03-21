@@ -435,7 +435,9 @@
 {#each VS_SLIDERS as slider}
     <div class="var-row" class:locked={animLockModes[slider.key] != null}>
         <div class="row-top">
-            <span class="var-name">{slider.label}</span>
+            <span class="var-name" title={slider.desc ?? ""}
+                >{slider.label}</span
+            >
             <span class="val-group">
                 <span class="val"
                     >{formatAnimValue(
