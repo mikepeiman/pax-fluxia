@@ -42,7 +42,7 @@ export interface PowerSite {
     weight: number;
     ownerId: string;
     starId: string;
-    virtual?: 'corridor' | 'disconnect' | 'conquest';
+    virtual?: 'corridor' | 'disconnect';
 }
 
 /** Polygon output from the power diagram, augmented with ownership info. */
