@@ -13,7 +13,7 @@ import {
 
 export class PowerVoronoiGeometryMode implements GeometryMode {
     readonly id = 'power_voronoi' as const;
-    readonly label = 'Power Voronoi Geometry';
+    readonly label = 'Weighted Power Voronoi Geometry';
 
     compute(input: Parameters<GeometryMode['compute']>[0]): GeometrySnapshot {
         const settings = buildGeneratorSettings(input.world, input.tunables);

@@ -13,7 +13,7 @@ interface CanonicalStyleInput extends PresentationLayerInput {
 
 export class CanonicalTerritoryStyle implements TerritoryStyleMode {
     readonly id = 'canonical' as const;
-    readonly label = 'Canonical Territory Style';
+    readonly label = 'Canonical Vector Polygon Style';
 
     buildFrame(input: PresentationLayerInput): TerritoryPresentationFrame {
         const styleInput = input as CanonicalStyleInput;

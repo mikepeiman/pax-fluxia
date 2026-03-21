@@ -13,7 +13,7 @@ import {
 
 export class BoundaryAwareFrontierGeometryMode implements GeometryMode {
     readonly id = 'boundary_aware_frontier' as const;
-    readonly label = 'Boundary-Aware Frontier Geometry';
+    readonly label = 'Boundary-Constrained Frontier Geometry';
 
     compute(input: Parameters<GeometryMode['compute']>[0]): GeometrySnapshot {
         const settings = buildGeneratorSettings(input.world, input.tunables);

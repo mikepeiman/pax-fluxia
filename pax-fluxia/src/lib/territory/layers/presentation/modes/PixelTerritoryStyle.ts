@@ -33,7 +33,7 @@ function quantizeBorders(commands: BorderDrawCommand[]): BorderDrawCommand[] {
 
 export class PixelTerritoryStyle implements TerritoryStyleMode {
     readonly id = 'pixel' as const;
-    readonly label = 'Pixel Territory Style';
+    readonly label = 'Pixel-Quantized Style';
 
     buildFrame(input: PresentationLayerInput): TerritoryPresentationFrame {
         const styleInput = input as PixelStyleInput;

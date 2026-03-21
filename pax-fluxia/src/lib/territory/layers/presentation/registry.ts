@@ -1,12 +1,12 @@
 import type { TerritoryStyleMode } from './TerritoryStyleMode';
-import { CanonicalTerritoryStyle } from './modes/CanonicalTerritoryStyle';
-import { DistanceFieldStyle } from './modes/DistanceFieldStyle';
-import { PixelTerritoryStyle } from './modes/PixelTerritoryStyle';
+import { PixelQuantizedMeshStyle } from './modes/PixelQuantizedMeshStyle';
+import { SignedDistanceFieldMeshStyle } from './modes/SignedDistanceFieldMeshStyle';
+import { VectorPolygonMeshStyle } from './modes/VectorPolygonMeshStyle';
 
 export const TERRITORY_STYLE_MODES: readonly TerritoryStyleMode[] = [
-    new CanonicalTerritoryStyle(),
-    new DistanceFieldStyle(),
-    new PixelTerritoryStyle(),
+    new VectorPolygonMeshStyle(),
+    new SignedDistanceFieldMeshStyle(),
+    new PixelQuantizedMeshStyle(),
 ];
 
 export const TERRITORY_STYLE_MODE_BY_ID: ReadonlyMap<string, TerritoryStyleMode> =

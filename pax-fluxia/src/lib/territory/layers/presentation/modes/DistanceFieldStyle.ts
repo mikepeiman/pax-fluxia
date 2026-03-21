@@ -13,7 +13,7 @@ interface DistanceFieldStyleInput extends PresentationLayerInput {
 
 export class DistanceFieldStyle implements TerritoryStyleMode {
     readonly id = 'distance_field' as const;
-    readonly label = 'Distance Field Style';
+    readonly label = 'Signed-Distance Field Style';
 
     buildFrame(input: PresentationLayerInput): TerritoryPresentationFrame {
         const styleInput = input as DistanceFieldStyleInput;

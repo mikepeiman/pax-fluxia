@@ -12,7 +12,7 @@ interface FrontierMorphFillPlan extends FillTransitionPlan {
 
 export class FrontierMorphFillMode implements FillTransitionMode {
     readonly id = 'frontier_morph' as const;
-    readonly label = 'Frontier Morph Fill';
+    readonly label = 'Frontier Topology Morph Fill';
 
     plan(input: FillTransitionPlanInput): FillTransitionPlan {
         const plan: FrontierMorphFillPlan = {

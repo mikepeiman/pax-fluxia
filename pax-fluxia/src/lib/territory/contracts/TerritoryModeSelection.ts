@@ -1,24 +1,24 @@
 export type OwnershipModeId = 'star_ownership_snapshot';
 
 export type GeometryModeId =
-    | 'power_voronoi'
-    | 'boundary_aware_frontier'
-    | 'seed_graph';
+    | 'power_voronoi' // Weighted Power Voronoi Geometry
+    | 'boundary_aware_frontier' // Boundary-Constrained Frontier Geometry
+    | 'seed_graph'; // Seed-Graph Cluster-Split Geometry
 
 export type FillTransitionModeId =
-    | 'frontier_morph'
-    | 'crossfade'
+    | 'frontier_morph' // Frontier Topology Morph Fill
+    | 'crossfade' // Alpha Crossfade Fill
     | 'off';
 
 export type BorderTransitionModeId =
-    | 'optimal_transport'
-    | 'rope_morph'
+    | 'optimal_transport' // Optimal-Transport Correspondence Border
+    | 'rope_morph' // Rope-Interpolated Border
     | 'off';
 
 export type TerritoryStyleModeId =
-    | 'canonical'
-    | 'distance_field'
-    | 'pixel';
+    | 'canonical' // Canonical Vector Polygon Style
+    | 'distance_field' // Signed-Distance Field Style
+    | 'pixel'; // Pixel-Quantized Style
 
 export interface TerritoryModeSelection {
     ownershipMode: OwnershipModeId;

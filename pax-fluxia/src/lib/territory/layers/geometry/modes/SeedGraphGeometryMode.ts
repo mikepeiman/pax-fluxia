@@ -13,7 +13,7 @@ import {
 
 export class SeedGraphGeometryMode implements GeometryMode {
     readonly id = 'seed_graph' as const;
-    readonly label = 'Seed Graph Geometry';
+    readonly label = 'Seed-Graph Cluster-Split Geometry';
 
     compute(input: Parameters<GeometryMode['compute']>[0]): GeometrySnapshot {
         const settings = {

@@ -12,7 +12,7 @@ interface CrossfadeFillPlan extends FillTransitionPlan {
 
 export class CrossfadeFillMode implements FillTransitionMode {
     readonly id = 'crossfade' as const;
-    readonly label = 'Crossfade Fill';
+    readonly label = 'Alpha Crossfade Fill';
 
     plan(input: FillTransitionPlanInput): FillTransitionPlan {
         const plan: CrossfadeFillPlan = {

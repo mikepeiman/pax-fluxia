@@ -14,7 +14,7 @@ interface OptimalTransportBorderPlan extends BorderTransitionPlan {
 
 export class OptimalTransportBorderMode implements BorderTransitionMode {
     readonly id = 'optimal_transport' as const;
-    readonly label = 'Optimal Transport Border';
+    readonly label = 'Optimal-Transport Correspondence Border';
 
     plan(input: BorderTransitionPlanInput): BorderTransitionPlan {
         const correspondences = input.previousGeometry

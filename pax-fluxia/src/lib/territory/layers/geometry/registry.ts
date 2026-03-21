@@ -1,12 +1,12 @@
 import type { GeometryMode } from './GeometryMode';
-import { BoundaryAwareFrontierGeometryMode } from './modes/BoundaryAwareFrontierGeometryMode';
-import { PowerVoronoiGeometryMode } from './modes/PowerVoronoiGeometryMode';
-import { SeedGraphGeometryMode } from './modes/SeedGraphGeometryMode';
+import { BoundaryConstrainedFrontierGeometryMode } from './modes/BoundaryConstrainedFrontierGeometryMode';
+import { SeedGraphClusterSplitGeometryMode } from './modes/SeedGraphClusterSplitGeometryMode';
+import { WeightedPowerVoronoiGeometryMode } from './modes/WeightedPowerVoronoiGeometryMode';
 
 export const GEOMETRY_MODES: readonly GeometryMode[] = [
-    new PowerVoronoiGeometryMode(),
-    new BoundaryAwareFrontierGeometryMode(),
-    new SeedGraphGeometryMode(),
+    new WeightedPowerVoronoiGeometryMode(),
+    new BoundaryConstrainedFrontierGeometryMode(),
+    new SeedGraphClusterSplitGeometryMode(),
 ];
 
 export const GEOMETRY_MODE_BY_ID: ReadonlyMap<GeometryMode['id'], GeometryMode> =

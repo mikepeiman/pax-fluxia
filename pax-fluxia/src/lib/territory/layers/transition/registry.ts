@@ -1,18 +1,18 @@
 import type { BorderTransitionMode } from './BorderTransitionMode';
 import type { FillTransitionMode } from './FillTransitionMode';
-import { CrossfadeFillMode } from './modes/CrossfadeFillMode';
-import { FrontierMorphFillMode } from './modes/FrontierMorphFillMode';
-import { OptimalTransportBorderMode } from './modes/OptimalTransportBorderMode';
-import { RopeMorphBorderMode } from './modes/RopeMorphBorderMode';
+import { AlphaCrossfadeFillMode } from './modes/AlphaCrossfadeFillMode';
+import { FrontierTopologyMorphFillMode } from './modes/FrontierTopologyMorphFillMode';
+import { OptimalTransportCorrespondenceBorderMode } from './modes/OptimalTransportCorrespondenceBorderMode';
+import { RopeInterpolatedBorderMode } from './modes/RopeInterpolatedBorderMode';
 
 export const FILL_TRANSITION_MODES: readonly FillTransitionMode[] = [
-    new FrontierMorphFillMode(),
-    new CrossfadeFillMode(),
+    new FrontierTopologyMorphFillMode(),
+    new AlphaCrossfadeFillMode(),
 ];
 
 export const BORDER_TRANSITION_MODES: readonly BorderTransitionMode[] = [
-    new OptimalTransportBorderMode(),
-    new RopeMorphBorderMode(),
+    new OptimalTransportCorrespondenceBorderMode(),
+    new RopeInterpolatedBorderMode(),
 ];
 
 export const FILL_TRANSITION_MODE_BY_ID: ReadonlyMap<string, FillTransitionMode> =

@@ -12,7 +12,7 @@ interface RopeMorphBorderPlan extends BorderTransitionPlan {
 
 export class RopeMorphBorderMode implements BorderTransitionMode {
     readonly id = 'rope_morph' as const;
-    readonly label = 'Rope Morph Border';
+    readonly label = 'Rope-Interpolated Border';
 
     plan(input: BorderTransitionPlanInput): BorderTransitionPlan {
         const plan: RopeMorphBorderPlan = {
