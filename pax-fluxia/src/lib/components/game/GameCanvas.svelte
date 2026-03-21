@@ -92,6 +92,7 @@
     } from "$lib/territory/orchestrator";
     // ── Canonical territory layer (Phase 2: new architecture) ──────────────────
     import { GameCanvasBridge } from "$lib/territory/integration/GameCanvasBridge";
+    import { readTerritoryRuntimeSettings } from "$lib/territory/integration/TerritorySettingsBridge";
     import type { TerritoryFrameInput } from "$lib/territory/contracts/TerritoryFrameInput";
     import { TerritoryEngineController } from "$lib/territory/engine/TerritoryEngineController";
     import { TerritoryRenderer } from "$lib/territory/render/TerritoryRenderer";
@@ -151,40 +152,9 @@
     let canonicalController: TerritoryEngineController | null = null;
     let canonicalRenderer: TerritoryRenderer | null = null;
 
-    function resolveCanonicalGeometryMode(
-        rawMode: unknown,
-    ): TerritoryFrameInput["selection"]["geometryMode"] {
-        if (rawMode === "new_frontiers_0319") return "boundary_aware_frontier";
-        if (rawMode === "unified_polygon") return "seed_graph";
-        return "power_voronoi";
-    }
-
-    function resolveCanonicalFillTransitionMode(
-        rawMode: unknown,
-    ): TerritoryFrameInput["selection"]["fillTransitionMode"] {
-        if (rawMode === "none" || rawMode === "off") return "off";
-        if (rawMode === "crossfade") return "crossfade";
-        return "frontier_morph";
-    }
-
-    function resolveCanonicalBorderTransitionMode(
-        rawMode: unknown,
-    ): TerritoryFrameInput["selection"]["borderTransitionMode"] {
-        if (rawMode === "none" || rawMode === "off") return "off";
-        if (rawMode === "rope_morph" || rawMode === "pixi_mesh_rope")
-            return "rope_morph";
-        return "optimal_transport";
-    }
-
     function buildCanonicalBridgeInput(stars: StarState[]): TerritoryFrameInput {
-        const geometryMode = resolveCanonicalGeometryMode(
-            GAME_CONFIG.TERRITORY_GEOMETRY_MODE,
-        );
-        const fillTransitionMode = resolveCanonicalFillTransitionMode(
-            GAME_CONFIG.TERRITORY_FILL_MODE,
-        );
-        const borderTransitionMode = resolveCanonicalBorderTransitionMode(
-            GAME_CONFIG.TERRITORY_BORDER_TRANSITION,
+        const runtimeSettings = readTerritoryRuntimeSettings(
+            GAME_CONFIG as unknown as Record<string, unknown>,
         );
 
         return {
@@ -200,27 +170,8 @@
                 width: GAME_WIDTH,
                 height: GAME_HEIGHT,
             },
-            selection: {
-                ownershipMode: "star_ownership_snapshot",
-                geometryMode,
-                fillTransitionMode,
-                borderTransitionMode,
-                styleMode: "canonical",
-            },
-            tunables: {
-                transitionDurationMs:
-                    (GAME_CONFIG as any).TERRITORY_TRANSITION_MS ?? 600,
-                borderWidth: (GAME_CONFIG as any).TERRITORY_BORDER_WIDTH ?? 2,
-                fillAlpha: (GAME_CONFIG as any).TERRITORY_FILL_ALPHA ?? 0.35,
-                borderAlpha:
-                    (GAME_CONFIG as any).TERRITORY_BORDER_ALPHA ?? 0.95,
-                geometrySmoothingPasses:
-                    (GAME_CONFIG as any).TERRITORY_CHAIKIN_PASSES ?? 2,
-                frontierResolution:
-                    (GAME_CONFIG as any).TERRITORY_FRONTIER_RESOLUTION ?? 0.5,
-                boundaryPad: (GAME_CONFIG as any).BOUNDARY_PAD ?? 2,
-                boundaryEps: (GAME_CONFIG as any).BOUNDARY_EPS ?? 0.5,
-            },
+            selection: runtimeSettings.selection,
+            tunables: runtimeSettings.tunables,
         };
     }
 

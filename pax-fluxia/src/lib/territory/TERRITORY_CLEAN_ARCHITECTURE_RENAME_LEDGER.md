@@ -37,5 +37,10 @@ use stable, semantically clear terminology while legacy names remain intact.
   make active mode names behavior-explicit.
 - Clean-architecture registries now import descriptive alias class names, while
   mode IDs stay stable for compatibility.
-- Full cutover should be done in a later integration pass once teams align on
-  mode IDs and runtime selection wiring.
+- Runtime selection wiring is now normalized through
+  `integration/TerritorySettingsBridge.ts`, which maps legacy config values
+  into canonical clean-architecture mode IDs.
+- Canonical bridge input in `components/game/GameCanvas.svelte` now reads
+  normalized mode selection + tunables from one source (`readTerritoryRuntimeSettings`).
+- Master architecture routing is controlled by
+  `TERRITORY_ARCHITECTURE_PATH` (`clean` | `legacy`) in the Territory UI card.

@@ -418,22 +418,18 @@
     ] as const;
 
     const FILL_TRANSITION_OPTIONS = [
-        { id: "none", label: "Off" },
+        { id: "off", label: "Off" },
         { id: "frontier_morph", label: "Frontier Topology Morph Fill" },
         { id: "crossfade", label: "Alpha Crossfade Fill" },
-        { id: "tile_flip", label: "Tile Flip" },
     ] as const;
 
     const BORDER_TRANSITION_OPTIONS = [
-        { id: "none", label: "Off" },
-        { id: "pixi_graphics_morph", label: "Graphics Morph" },
-        { id: "pixi_mesh_rope", label: "Rope-Interpolated Border (PIXI)" },
+        { id: "off", label: "Off" },
         {
             id: "optimal_transport",
             label: "Optimal-Transport Correspondence Border",
         },
-        { id: "smooth_morph", label: "Smooth (Legacy)" },
-        { id: "pressure_wave", label: "Pressure Wave" },
+        { id: "rope_morph", label: "Rope-Interpolated Border" },
     ] as const;
 
     const GEOMETRY_OPTIONS = [
@@ -470,6 +466,35 @@
 
     function selectBorderTransition(transitionId: string) {
         updatePanel("territoryBorderTransition", transitionId);
+    }
+
+    function resolveActiveFillTransitionId(): string {
+        const raw =
+            panel.territoryFillTransition ??
+            GAME_CONFIG.TERRITORY_FILL_TRANSITION_MODE ??
+            GAME_CONFIG.TERRITORY_FILL_MODE ??
+            "frontier_morph";
+        if (raw === "frontier") return "frontier_morph";
+        if (raw === "none") return "off";
+        return raw;
+    }
+
+    function resolveActiveBorderTransitionId(): string {
+        const raw =
+            panel.territoryBorderTransition ??
+            GAME_CONFIG.TERRITORY_BORDER_TRANSITION_MODE ??
+            GAME_CONFIG.TERRITORY_BORDER_TRANSITION ??
+            "optimal_transport";
+        if (raw === "pixi_mesh_rope") return "rope_morph";
+        if (raw === "none") return "off";
+        if (
+            raw === "smooth_morph" ||
+            raw === "pixi_graphics_morph" ||
+            raw === "pressure_wave"
+        ) {
+            return "optimal_transport";
+        }
+        return raw;
     }
 
     /**
@@ -594,8 +619,7 @@
             {#each FILL_TRANSITION_OPTIONS as opt}
                 <button
                     class="axis-btn"
-                    class:active={(panel.territoryFillTransition ??
-                        "frontier_morph") === opt.id}
+                    class:active={resolveActiveFillTransitionId() === opt.id}
                     onclick={() => selectFillTransition(opt.id)}
                     >{opt.label}</button
                 >
@@ -613,8 +637,7 @@
             {#each BORDER_TRANSITION_OPTIONS as opt}
                 <button
                     class="axis-btn"
-                    class:active={(panel.territoryBorderTransition ??
-                        "smooth_morph") === opt.id}
+                    class:active={resolveActiveBorderTransitionId() === opt.id}
                     onclick={() => selectBorderTransition(opt.id)}
                     >{opt.label}</button
                 >

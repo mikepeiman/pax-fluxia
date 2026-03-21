@@ -302,6 +302,9 @@ interface GameConfigType {
     TERRITORY_MORPH_CONTROL_POINTS: number; // Number of control points for frontier loop morphing (5-300, default 32)
     TERRITORY_BOUNDARY_MODE: 'segment' | 'smooth';  // 'segment' = edge-level lerp, 'smooth' = flubber polygon morph
     TERRITORY_FILL_MODE: 'crossfade' | 'frontier';  // 'crossfade' = alpha-fade fills, 'frontier' = infill from frontier loops
+    TERRITORY_FILL_TRANSITION_MODE: 'frontier_morph' | 'crossfade' | 'off'; // Clean-arch fill transition selector
+    TERRITORY_BORDER_TRANSITION_MODE: 'optimal_transport' | 'rope_morph' | 'off'; // Clean-arch border transition selector
+    TERRITORY_STYLE_MODE: 'canonical' | 'distance_field' | 'pixel'; // Clean-arch presentation style selector
     // ── Morph Diagnostics ─────────────────────────────────────────────────────
     DEBUG_MORPH_VERTICES: boolean;        // Show numbered vertex dots on territory polygons during morph
     DEBUG_MORPH_VERTEX_SIZE: number;      // Radius of vertex dots (px, default 3)
@@ -1076,6 +1079,12 @@ const _rawConfig: GameConfigType = {
     TERRITORY_BOUNDARY_MODE: 'smooth' as const,
     /** Fill transition mode: 'crossfade' = alpha-fade, 'frontier' = infill from frontier loops */
     TERRITORY_FILL_MODE: 'frontier' as const,
+    /** Clean-architecture fill transition selector */
+    TERRITORY_FILL_TRANSITION_MODE: 'frontier_morph' as const,
+    /** Clean-architecture border transition selector */
+    TERRITORY_BORDER_TRANSITION_MODE: 'optimal_transport' as const,
+    /** Clean-architecture style selector */
+    TERRITORY_STYLE_MODE: 'canonical' as const,
     // ── Morph Diagnostics ─────────────────────────────────────────────────────
     /** Show numbered vertex dots on territory polygons during morph transitions */
     DEBUG_MORPH_VERTICES: true,
