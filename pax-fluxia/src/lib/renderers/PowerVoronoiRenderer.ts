@@ -693,6 +693,7 @@ export function renderPowerVoronoi(
         }
 
         log.renderer('PVV2', `CANONICAL path: ${sorted.length} shells (anim=${canonicalAnimActive})`);
+        log.sys('FILL-DIAG', `PATH=canonical | shells=${sorted.length}`);
         return; // Skip legacy pipeline entirely
     }
 
@@ -717,6 +718,11 @@ export function renderPowerVoronoi(
     // ── Per-frame geometric MORPH ──
     const isAnimatingSmooth = boundaryMode === 'smooth' && s.isSmoothTransitioning && s.prevSharedPolylines && s.targetSharedPolylines && transitionMs > 0;
 
+    // Throttled fill diagnostics — log every 60 frames
+    const _fillDiagFrame = ((drawBorderPolylines as any).__fillDiagFrame ?? 0) + 1;
+    (drawBorderPolylines as any).__fillDiagFrame = _fillDiagFrame;
+    const _shouldLogFill = _fillDiagFrame % 60 === 1;
+
     if (isAnimatingSmooth && s.lastMergedTerritories && s.fillGraphics) {
         const elapsed = now - s.smoothTransitionStart;
         const rawT = Math.min(1, elapsed / transitionMs);
@@ -729,6 +735,8 @@ export function renderPowerVoronoi(
         const smoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
 
         s.fillGraphics.clear();
+
+        if (_shouldLogFill) log.sys('FILL-DIAG', `PATH=smooth-anim | wlActive=${s.weightLerpActive} spliceActive=${!!(s.activeTransitionPlan?.plansByTerritoryId?.size)} shapeHandler=${!!s.activeShapeTransitionHandler} borderHandler=${!!s.activeBorderTransitionHandler} ropeHandler=${!!s.activeRopeRenderer}`);
 
         // ── Ghost-Site Weight-Lerp Transition: recompute Voronoi each frame ──
         if (s.weightLerpActive && s.weightLerpStars && s.weightLerpConfig && s.weightLerpPrevWeights && s.weightLerpTargetWeights) {
@@ -829,6 +837,7 @@ export function renderPowerVoronoi(
 
                 // Skip normal drawing — we just drew the interpolated frame
                 if (s.weightLerpActive) {
+                    if (_shouldLogFill) log.sys('FILL-DIAG', `PATH=weight-lerp-draw | t=${t.toFixed(3)} ghosts=${frameGhosts.length}`);
                     return;
                 }
             }
@@ -837,6 +846,7 @@ export function renderPowerVoronoi(
         // D-79 / B-101: Unified fill+border from same morphed closed polygons.
         // PolygonMorphTransitionHandler draws both fill AND stroke from the same interpolated points.
         if (s.activeTransitionPlan && s.activeTransitionPlan.plansByTerritoryId.size > 0) {
+            if (_shouldLogFill) log.sys('FILL-DIAG', `PATH=splice | plans=${s.activeTransitionPlan.plansByTerritoryId.size}`);
             // ── Localized boundary transition: splice-based patch replacement ──
             // Build set of ownerIds that are in the transition plan — skip in static draw.
             // We match by ownerId (not territory stable ID) because starIds change during conquest,
@@ -895,21 +905,27 @@ export function renderPowerVoronoi(
                 }
             }
         } else if (s.activeShapeTransitionHandler) {
+            if (_shouldLogFill) log.sys('FILL-DIAG', `PATH=shape-morph`);
             // Legacy fallback — kept for non-splice transition modes
             s.activeShapeTransitionHandler.drawFrame(s.fillGraphics, rawT, alpha, borderWidth, borderAlpha);
         } else if (s.activeBorderTransitionHandler) {
+            if (_shouldLogFill) log.sys('FILL-DIAG', `PATH=border-morph | mergedCount=${s.lastMergedTerritories.length}`);
             // Legacy segment morpher fallback (borders only — shape handler takes priority above)
             for (let i = 0; i < s.lastMergedTerritories.length; i++) {
                 drawTerritoryFillOnly(s.fillGraphics, s.lastMergedTerritories[i], s.lastEnclaveMap?.get(i), alpha);
             }
             s.activeBorderTransitionHandler.drawFrame(s.fillGraphics, rawT, borderWidth, borderAlpha);
         } else if (s.activeRopeRenderer) {
+            if (_shouldLogFill) log.sys('FILL-DIAG', `PATH=rope | mergedCount=${s.lastMergedTerritories.length}`);
             // Rope mode: draw target fills, rope handles borders
             for (let i = 0; i < s.lastMergedTerritories.length; i++) {
                 drawTerritoryFillOnly(s.fillGraphics, s.lastMergedTerritories[i], s.lastEnclaveMap?.get(i), alpha);
             }
             s.activeRopeRenderer.setVisible(true);
             s.activeRopeRenderer.update(rawT, borderAlpha);
+        } else {
+            // NO DRAW PATH MATCHED — fills cleared but nothing drawn!
+            if (_shouldLogFill) log.sys('FILL-DIAG', `PATH=NONE! | fills cleared but no draw branch matched. wlActive=${s.weightLerpActive} rawT=${rawT.toFixed(3)}`);
         }
 
         if (rawT >= 1) {
@@ -953,6 +969,9 @@ export function renderPowerVoronoi(
         const shapeFpCheck = buildShapeFingerprint(stars);
         const visualFpCheck = buildVisualFingerprint();
         if (shapeFpCheck === s.cachedShapeFingerprint && visualFpCheck === s.cachedVisualFingerprint) return;
+    } else {
+        // NOT in smooth or segment animation — fills are drawn by the rebuild path (line 1074+) or weight-lerp
+        if (_shouldLogFill) log.sys('FILL-DIAG', `PATH=static | isAnimatingSmooth=false smoothTrans=${s.isSmoothTransitioning} prevPolylines=${!!s.prevSharedPolylines} targetPolylines=${!!s.targetSharedPolylines} wlActive=${s.weightLerpActive}`);
     }
 
     const shapeFp = buildShapeFingerprint(stars);
@@ -1078,6 +1097,7 @@ export function renderPowerVoronoi(
     // No separate border render pass needed.
 
     log.renderer('PVV2', `FILLS | ${merged.length} territories, enclaves=${enclaveMap.size}`);
+    log.sys('FILL-DIAG', `PATH=rebuild | merged=${merged.length} enclaves=${enclaveMap.size}`);
 
 
     // Steady-state fills: use raw polygon points (no independent smoothing — B-42 fix)
