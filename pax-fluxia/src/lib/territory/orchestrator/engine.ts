@@ -186,7 +186,7 @@ function runLegacyAdapter(adapter: TerritoryLegacyAdapterId, input: TerritoryEng
 
         let precomputedGeometry: any = undefined;
         if (isNewFrontiers) {
-            log.sys('TerritoryEngine', `Dispatching to Geometry_0319 (GEOMETRY_MODE=${GAME_CONFIG.TERRITORY_GEOMETRY_MODE}, ENGINE_METHOD=${GAME_CONFIG.TERRITORY_ENGINE_METHOD})`);
+            log.renderer('TerritoryEngine', `Dispatching to Geometry_0319 (GEOMETRY_MODE=${GAME_CONFIG.TERRITORY_GEOMETRY_MODE}, ENGINE_METHOD=${GAME_CONFIG.TERRITORY_ENGINE_METHOD})`);
             const stageConfig = {
                 starMargin: GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45,
                 corridorEnabled: Boolean(GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED) && Boolean(input.connections),

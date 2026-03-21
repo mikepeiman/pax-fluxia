@@ -607,6 +607,7 @@ export function renderPowerVoronoi(
             s.fillGraphics = new PIXI.Graphics();
             voronoiContainer.addChild(s.fillGraphics);
         }
+        console.log('%c[FILL-CLEAR] canonical path', 'color:red;font-weight:bold');
         s.fillGraphics.clear();
         s.fillGraphics.visible = true;
 
@@ -735,6 +736,7 @@ export function renderPowerVoronoi(
         const borderAlpha = GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.4;
         const smoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
 
+        console.log('%c[FILL-CLEAR] smooth-anim entry', 'color:red;font-weight:bold');
         s.fillGraphics.clear();
 
         _fillPath = `smooth-anim|wl=${s.weightLerpActive}|splice=${!!(s.activeTransitionPlan?.plansByTerritoryId?.size)}|shape=${!!s.activeShapeTransitionHandler}|rope=${!!s.activeRopeRenderer}`;
@@ -926,8 +928,20 @@ export function renderPowerVoronoi(
             s.activeRopeRenderer.setVisible(true);
             s.activeRopeRenderer.update(rawT, borderAlpha);
         } else {
-            // NO DRAW PATH MATCHED — fills cleared but nothing drawn!
-            _fillPath = `NONE!|wl=${s.weightLerpActive}|rawT=${rawT.toFixed(2)}`;
+            // No transition handler configured — draw static fills as fallback
+            // This prevents fills from disappearing when smooth-anim clears graphics
+            // but no sub-branch (weight-lerp/splice/morph/rope) is active
+            _fillPath = `static-fallback|merged=${s.lastMergedTerritories.length}`;
+            for (let i = 0; i < s.lastMergedTerritories.length; i++) {
+                const mt = s.lastMergedTerritories[i];
+                const isNeutral = !mt.ownerId || mt.ownerId === 'neutral';
+                if (isNeutral && GAME_CONFIG.NEUTRAL_TERRITORY_TRANSPARENT) continue;
+                drawTerritoryFillOnly(s.fillGraphics, mt, s.lastEnclaveMap?.get(i), alpha);
+            }
+            // Also draw steady-state borders
+            if (s.targetSharedPolylines && s.targetSharedPolylines.length > 0 && borderWidth > 0 && borderAlpha > 0) {
+                drawBorderPolylines(s.fillGraphics, s.targetSharedPolylines, 0, borderWidth, borderAlpha);
+            }
         }
 
         if (rawT >= 1) {
@@ -1050,7 +1064,7 @@ export function renderPowerVoronoi(
         log.error('PVV2', `geometry stage error at ${stageResult.stage}: ${stageResult.message}`);
         log.sys('FILL-DIAG', `PATH=GEOMETRY-ERROR|stage=${stageResult.stage}|recoverable=${stageResult.recoverable}|msg=${stageResult.message}`);
         if (!stageResult.recoverable) {
-            if (s.fillGraphics) { s.fillGraphics.clear(); }
+            if (s.fillGraphics) { console.log('%c[FILL-CLEAR] geometry error (non-recoverable)', 'color:red;font-weight:bold'); s.fillGraphics.clear(); }
             if (s.borderGraphics) { s.borderGraphics.clear(); }
         }
         // On recoverable error: DO NOT clear fills — keep previous frame visible
@@ -1098,6 +1112,7 @@ export function renderPowerVoronoi(
         s.fillGraphics = new PIXI.Graphics();
         voronoiContainer.addChild(s.fillGraphics);
     }
+    console.log('%c[FILL-CLEAR] rebuild', 'color:orange;font-weight:bold');
     s.fillGraphics.clear();
     s.fillGraphics.visible = true;
 

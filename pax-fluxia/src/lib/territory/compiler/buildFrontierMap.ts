@@ -187,7 +187,7 @@ export function buildFrontierMap(
         });
     }
 
-    log.sys('TMAP', `vertices=${vertices.size} edges=${edges.size} loops=${loops.length} (${loops.filter(l => l.validity === 'valid-closed').length} valid-closed, ${loops.filter(l => l.validity === 'partial-open').length} partial-open)`);
+    log.renderer('TMAP', `vertices=${vertices.size} edges=${edges.size} loops=${loops.length} (${loops.filter(l => l.validity === 'valid-closed').length} valid-closed, ${loops.filter(l => l.validity === 'partial-open').length} partial-open)`);
 
     return { vertices, edges, loops, fingerprint };
 }

@@ -337,7 +337,7 @@ export function computeGeometry0319(
 
         // Single consolidated summary log (replaces ~8 individual stage logs)
         const closureOk = closedCount === mergedTerritories.length;
-        log.sys('Geometry_0319',
+        log.renderer('Geometry_0319',
             `${ownedStars.length} stars → ${cells.length} cells → ${mergedRaw.length} merged → ` +
             `${allPolylines.length} polylines (${sharedPolylines.length} shared + ${worldBorderPolylines.length} world) → ` +
             `${mergedTerritories.length} fills ` +

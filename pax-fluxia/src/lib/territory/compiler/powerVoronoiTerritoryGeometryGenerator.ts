@@ -542,7 +542,7 @@ export function mergeSameOwnerCells(
         }
     }
 
-    log.sys('PVV2Stage', `mergeSameOwnerCells: ${cells.length} cells -> ${result.length} merged polygons for ${clusterEdges.size} clusters`);
+    log.renderer('PVV2Stage', `mergeSameOwnerCells: ${cells.length} cells -> ${result.length} merged polygons for ${clusterEdges.size} clusters`);
     return result;
 }
 
@@ -928,16 +928,16 @@ export function generateVoronoiTerritoryGeometry(
             cells.push({ points: pts, ownerId: effectiveOwner, siteId: site.starId });
         }
 
-        log.sys('PVV2Stage', `INPUT: ${stars.length} stars, ${ownedStars.length} owned, ${sites.length} total sites built | corridorEnabled=${config.corridorEnabled} disconnectEnabled=${config.disconnectEnabled} chaikinPasses=${config.chaikinPasses}`);
-        log.sys('PVV2Stage', `VORONOI OUTPUT: ${polygons.length} raw polygons -> ${cells.length} valid cells`);
+        log.renderer('PVV2Stage', `INPUT: ${stars.length} stars, ${ownedStars.length} owned, ${sites.length} total sites built | corridorEnabled=${config.corridorEnabled} disconnectEnabled=${config.disconnectEnabled} chaikinPasses=${config.chaikinPasses}`);
+        log.renderer('PVV2Stage', `VORONOI OUTPUT: ${polygons.length} raw polygons -> ${cells.length} valid cells`);
 
         // Stage 2a: Extract junction vertices (points shared by 3+ cells)
         // These are pinned during Chaikin to prevent gaps at 3-way territory junctions.
         const junctionPts = config.chaikinPasses > 0 ? extractJunctionVertices(cells) : new Set<string>();
-        log.sys('PVV2Stage', `JUNCTIONS: ${junctionPts.size} pinned vertices`);
+        log.renderer('PVV2Stage', `JUNCTIONS: ${junctionPts.size} pinned vertices`);
         // Stage 2: Extract shared edges (before merge removes internal edges)
         const sharedEdges = extractSharedEdges(cells);
-        log.sys('PVV2Stage', `EDGES: ${sharedEdges.length} contested edges across ${new Set(sharedEdges.map(e => [e.ownerA, e.ownerB].sort().join('|'))).size} owner pairs`);
+        log.renderer('PVV2Stage', `EDGES: ${sharedEdges.length} contested edges across ${new Set(sharedEdges.map(e => [e.ownerA, e.ownerB].sort().join('|'))).size} owner pairs`);
 
 
         // Stage 3: Build cluster map
@@ -963,24 +963,24 @@ export function generateVoronoiTerritoryGeometry(
         // Stage 5: Chain shared edges → smoothed polylines (Chaikin = geometry)
         const rawSharedPolylines = chainSharedEdgesIntoPolylines(sharedEdges, 0);
         const sharedPolylines = chainSharedEdgesIntoPolylines(sharedEdges, config.chaikinPasses);
-        log.sys('PVV2Stage', `POLYLINES: ${sharedPolylines.length} border polylines | pts: ${sharedPolylines.map(p => `${p.ownerPairKey}:${p.points.length}`).join(' ')}`);
+        log.renderer('PVV2Stage', `POLYLINES: ${sharedPolylines.length} border polylines | pts: ${sharedPolylines.map(p => `${p.ownerPairKey}:${p.points.length}`).join(' ')}`);
 
         // Stage 6: Detect enclaves (before smoothing, for centroid accuracy)
         const enclaveMapRaw = detectEnclaves(mergedRaw);
-        log.sys('PVV2Stage', `ENCLAVES: ${enclaveMapRaw.size} | COMPLETE`);
+        log.renderer('PVV2Stage', `ENCLAVES: ${enclaveMapRaw.size} | COMPLETE`);
 
         // Stage 7: Extract world-boundary border polylines from RAW merged territories
         // (these identify which edges lie on the world boundary — needed for fill reconstruction)
         const worldBorderPolylines = extractWorldBorderPolylines(mergedRaw, config.worldWidth, config.worldHeight);
-        log.sys('PVV2Stage', `WORLD BORDERS: ${worldBorderPolylines.length} boundary polylines`);
+        log.renderer('PVV2Stage', `WORLD BORDERS: ${worldBorderPolylines.length} boundary polylines`);
 
         // Stage 8: Construct fill polygons by chaining frontier polylines at junction vertices.
         // Each polyline carries ownership. Fills use the EXACT same smoothed vertices as borders.
         // Eliminates fill/border geometry divergence (B-42).
         const mergedTerritories = constructFillsFromFrontierChain(sharedPolylines, worldBorderPolylines, cells);
-        log.sys('PVV2Stage', `FRONTIER CHAIN FILLS: ${mergedTerritories.length} fill regions`);
+        log.renderer('PVV2Stage', `FRONTIER CHAIN FILLS: ${mergedTerritories.length} fill regions`);
 
-        log.sys('PVV2Stage', `MERGED: ${mergedTerritories.length} territories | chaikinPasses=${config.chaikinPasses} | pts: ${mergedTerritories.map((t: MergedTerritory) => `${t.ownerId}:${t.points.length}`).join(' ')}`);
+        log.renderer('PVV2Stage', `MERGED: ${mergedTerritories.length} territories | chaikinPasses=${config.chaikinPasses} | pts: ${mergedTerritories.map((t: MergedTerritory) => `${t.ownerId}:${t.points.length}`).join(' ')}`);
 
 
         const fingerprint = buildTerritoryGeometryFingerprint(stars, config);
