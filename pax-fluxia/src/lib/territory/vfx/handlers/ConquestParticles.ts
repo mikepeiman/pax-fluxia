@@ -27,10 +27,11 @@ export class ConquestParticles implements VFXHandler {
             return [];
         }
 
-        const payload = event.payload as ConquestEventPayload;
-        if (!payload.conquest) {
+        if (!isConquestEventPayload(event.payload)) {
             return [];
         }
+
+        const payload = event.payload;
 
         return [
             {
@@ -46,4 +47,12 @@ export class ConquestParticles implements VFXHandler {
             },
         ];
     }
+}
+
+function isConquestEventPayload(value: unknown): value is ConquestEventPayload {
+    if (typeof value !== 'object' || value === null) {
+        return false;
+    }
+
+    return 'conquest' in value;
 }
