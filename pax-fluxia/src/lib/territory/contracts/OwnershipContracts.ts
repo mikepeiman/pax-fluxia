@@ -10,11 +10,25 @@ export interface TerritoryConquestEvent {
     atMs: number;
 }
 
+export interface VirtualStar {
+    id: string;
+    starId: string;
+    ownerId: string;
+    pos: {
+        x: number;
+        y: number;
+    };
+    weight: number;
+    startTime: number;
+    durationMs: number;
+}
+
 export interface OwnershipSnapshot {
     version: string;
     starOwners: ReadonlyMap<string, string>;
     contestedLaneIds: readonly string[];
     conquestEvents: readonly TerritoryConquestEvent[];
+    virtualStars: readonly VirtualStar[];
 }
 
 export interface OwnershipLayerInput {

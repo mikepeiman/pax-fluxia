@@ -3,4 +3,5 @@ export type {
     OwnershipMode,
     OwnershipSnapshot,
     TerritoryConquestEvent,
+    VirtualStar,
 } from '../../contracts/OwnershipContracts';

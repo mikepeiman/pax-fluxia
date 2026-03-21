@@ -3,7 +3,10 @@ import type {
     OwnershipMode,
     OwnershipSnapshot,
     TerritoryConquestEvent,
+    VirtualStar,
 } from '../OwnershipMode';
+
+const DEFAULT_VIRTUAL_STAR_DURATION_MS = 900;
 
 export class StarOwnershipSnapshotMode implements OwnershipMode {
     readonly id = 'star_ownership_snapshot' as const;
@@ -30,12 +33,14 @@ export class StarOwnershipSnapshotMode implements OwnershipMode {
             input,
             starOwners,
         );
+        const virtualStars = this.computeVirtualStars(input, conquestEvents);
 
         return {
-            version: `ownership:${input.nowMs}:${input.stars.length}`,
+            version: `ownership:${input.nowMs}:${input.stars.length}:${virtualStars.length}`,
             starOwners,
             contestedLaneIds,
             conquestEvents,
+            virtualStars,
         };
     }
 
@@ -61,5 +66,53 @@ export class StarOwnershipSnapshotMode implements OwnershipMode {
         }
 
         return events;
+    }
+
+    private computeVirtualStars(
+        input: OwnershipLayerInput,
+        conquestEvents: readonly TerritoryConquestEvent[],
+    ): VirtualStar[] {
+        const starById = new Map(input.stars.map((star) => [star.id, star]));
+        const ongoing = (input.previousSnapshot?.virtualStars ?? [])
+            .filter((virtualStar) =>
+                input.nowMs < virtualStar.startTime + virtualStar.durationMs,
+            )
+            .map((virtualStar) => {
+                const elapsedMs = Math.max(input.nowMs - virtualStar.startTime, 0);
+                const progress = Math.min(
+                    elapsedMs / Math.max(virtualStar.durationMs, 1),
+                    1,
+                );
+                const anchorStar = starById.get(virtualStar.starId);
+
+                return {
+                    ...virtualStar,
+                    pos: anchorStar
+                        ? { x: anchorStar.x, y: anchorStar.y }
+                        : virtualStar.pos,
+                    weight: Math.max(0, 1 - progress),
+                };
+            });
+
+        const spawned = conquestEvents.flatMap((event): VirtualStar[] => {
+            const star = starById.get(event.starId);
+            if (!star) {
+                return [];
+            }
+
+            return [
+                {
+                    id: `vs:${event.starId}:${event.atMs}`,
+                    starId: event.starId,
+                    ownerId: event.newOwner,
+                    pos: { x: star.x, y: star.y },
+                    weight: 1,
+                    startTime: event.atMs,
+                    durationMs: DEFAULT_VIRTUAL_STAR_DURATION_MS,
+                },
+            ];
+        });
+
+        return [...ongoing, ...spawned];
     }
 }
