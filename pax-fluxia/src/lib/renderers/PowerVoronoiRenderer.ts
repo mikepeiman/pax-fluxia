@@ -785,9 +785,10 @@ export function renderPowerVoronoi(
                                 weight: ghost.weight,  // full weight throughout
                             });
                         } else {
-                            // Fallback: no target, fade weight as before
+                            // Fallback: no target, lerp weight from start → VS_POWER_LERP_END
                             const startW = s.weightLerpGhostWeightStart?.get(ghost.starId) ?? 0;
-                            const ghostWeight = startW * (1 - t);
+                            const endW = GAME_CONFIG.VS_POWER_LERP_END ?? 0;
+                            const ghostWeight = startW + (endW - startW) * t;
                             if (ghostWeight > 0.01) {
                                 frameGhosts.push({ ...ghost, weight: ghostWeight });
                             }
@@ -1247,9 +1248,18 @@ export function renderPowerVoronoi(
         // with the OLD owner. Ghost fades out (W→0) while new owner fades in (0→W).
         // This correctly animates the boundary handoff.
         if (s.changedSiteIds && s.changedSiteIds.size > 0 && s.changedSitePrevOwners) {
-            const wlTransitionMs = GAME_CONFIG.TERRITORY_TRANSITION_MS ?? 400;
+            const baseDuration = GAME_CONFIG.TERRITORY_TRANSITION_MS ?? 400;
+            const tickMs = GAME_CONFIG.BASE_TICK_MS ?? 1050;
+            // VS config: 0 = use baseDuration, bind-to-tick overrides with tick interval
+            const vsBindToTick = GAME_CONFIG.VS_BIND_TO_TICK;
+            const victorTravelMs = vsBindToTick ? tickMs : (GAME_CONFIG.VS_VICTOR_TRAVEL_MS || baseDuration);
+            const loserTravelMs = vsBindToTick ? tickMs : (GAME_CONFIG.VS_LOSER_TRAVEL_MS || baseDuration);
+            const wlTransitionMs = Math.max(victorTravelMs, loserTravelMs);
             const wlStarMargin = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45;
             const wlDefaultWeight = wlStarMargin * wlStarMargin;
+            // Power lerp config for loser VS
+            const powerLerpStart = GAME_CONFIG.VS_POWER_LERP_START || wlDefaultWeight;  // 0 = full weight
+            const powerLerpEnd = GAME_CONFIG.VS_POWER_LERP_END ?? 0;
 
             const stageConfig: TerritoryGeneratorSettings = {
                 starMargin: wlStarMargin,
@@ -1305,7 +1315,7 @@ export function renderPowerVoronoi(
                             ghostSites.push({
                                 x: attackerStar.x,
                                 y: attackerStar.y,
-                                weight: wlDefaultWeight,
+                                weight: wlDefaultWeight,  // Victor VS: full weight
                                 ownerId: conqueredStar.ownerId!,  // NEW owner
                                 starId: vsId,
                             });
@@ -1331,11 +1341,12 @@ export function renderPowerVoronoi(
                         ghostSites.push({
                             x: conqueredStar.x,       // starts at CONQUERED
                             y: conqueredStar.y,
-                            weight: wlDefaultWeight,
+                            weight: powerLerpStart,    // Loser VS: config-driven start weight
                             ownerId: prevOwnerId,     // OLD owner
                             starId: vsId,
                         });
                         ghostTargetPos.set(vsId, { x: connStar.x, y: connStar.y });
+                        ghostWeightStart.set(vsId, powerLerpStart);  // track for per-frame lerp
                     }
                 } else {
                     // Fallback: loser has no connected stars — dissolve
@@ -1343,11 +1354,11 @@ export function renderPowerVoronoi(
                     ghostSites.push({
                         x: conqueredStar.x,
                         y: conqueredStar.y,
-                        weight: wlDefaultWeight,
+                        weight: powerLerpStart,    // Loser VS: config-driven start weight
                         ownerId: prevOwnerId,     // OLD owner
                         starId: vsId,
                     });
-                    ghostWeightStart.set(vsId, wlDefaultWeight);  // fades to 0
+                    ghostWeightStart.set(vsId, powerLerpStart);  // fades to powerLerpEnd
                 }
             }
 
