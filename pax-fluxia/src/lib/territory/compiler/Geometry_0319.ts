@@ -175,9 +175,14 @@ export function computeGeometry0319(
         // ── Stage 1: Power diagram ──────────────────────────────────────────
         // Compute clip rectangle from actual site positions (symmetric extent)
         // instead of (0,0)→(worldWidth,worldHeight) which creates asymmetric fills.
+        // Compute clip rectangle from REAL site positions only (exclude ghost/extra sites).
+        // Ghost sites have negative weight during fade-out and would shift the clip rect
+        // differently during transition vs static frames, causing a snap.
         const pad = config.boundaryPad;
         let sMinX = Infinity, sMinY = Infinity, sMaxX = -Infinity, sMaxY = -Infinity;
-        for (const s of sites) {
+        const realSiteCount = sites.length - (extraSites?.length ?? 0);
+        for (let i = 0; i < realSiteCount; i++) {
+            const s = sites[i];
             if (s.x < sMinX) sMinX = s.x;
             if (s.y < sMinY) sMinY = s.y;
             if (s.x > sMaxX) sMaxX = s.x;

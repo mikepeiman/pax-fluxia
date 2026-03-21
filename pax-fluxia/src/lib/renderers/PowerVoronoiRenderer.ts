@@ -739,7 +739,6 @@ export function renderPowerVoronoi(
         const borderAlpha = GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.4;
         const smoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
 
-        console.log('%c[FILL-CLEAR] smooth-anim entry', 'color:red;font-weight:bold');
         s.fillGraphics.clear();
 
         _fillPath = `smooth-anim|wl=${s.weightLerpActive}|splice=${!!(s.activeTransitionPlan?.plansByTerritoryId?.size)}|shape=${!!s.activeShapeTransitionHandler}|rope=${!!s.activeRopeRenderer}`;
@@ -777,23 +776,22 @@ export function renderPowerVoronoi(
                     for (const ghost of s.weightLerpGhostSites) {
                         const target = s.weightLerpGhostTargetPos.get(ghost.starId);
                         if (target) {
-                            // Lerp position from origin toward target, fade weight → 0
-                            // At t=1: ghost is co-located with real star AND has weight=0
-                            // → its Voronoi cell has shrunk to nothing → removing it is a no-op → no snap
+                            // Lerp position toward target AND fade weight positive → negative.
+                            // At t=0.5: weight crosses zero, cell begins vanishing.
+                            // At t=1: weight = -startWeight, cell fully gone.
+                            // This ensures ghost removal at t=1 is invisible (cell already vanished).
+                            const ghostW = ghost.weight * (1 - 2 * t);  // +W → 0 at t=0.5 → -W at t=1
                             frameGhosts.push({
                                 ...ghost,
                                 x: ghost.x + (target.x - ghost.x) * t,
                                 y: ghost.y + (target.y - ghost.y) * t,
-                                weight: ghost.weight * (1 - t),  // fade to 0 as it arrives
+                                weight: ghostW,
                             });
                         } else {
-                            // Fallback: no target, lerp weight from start → VS_POWER_LERP_END
+                            // Fallback: no target, lerp weight from start → negative (vanish)
                             const startW = s.weightLerpGhostWeightStart?.get(ghost.starId) ?? 0;
-                            const endW = GAME_CONFIG.VS_POWER_LERP_END ?? 0;
-                            const ghostWeight = startW + (endW - startW) * t;
-                            if (ghostWeight > 0.01) {
-                                frameGhosts.push({ ...ghost, weight: ghostWeight });
-                            }
+                            const ghostWeight = startW * (1 - 2 * t);  // crosses zero at t=0.5
+                            frameGhosts.push({ ...ghost, weight: ghostWeight });
                         }
                     }
                 }
