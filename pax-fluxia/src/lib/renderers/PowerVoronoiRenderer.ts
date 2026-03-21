@@ -1048,10 +1048,12 @@ export function renderPowerVoronoi(
     if ('kind' in stageResult) {
         // CompileError — recoverable means use last cached frame, non-recoverable clears
         log.error('PVV2', `geometry stage error at ${stageResult.stage}: ${stageResult.message}`);
+        log.sys('FILL-DIAG', `PATH=GEOMETRY-ERROR|stage=${stageResult.stage}|recoverable=${stageResult.recoverable}|msg=${stageResult.message}`);
         if (!stageResult.recoverable) {
             if (s.fillGraphics) { s.fillGraphics.clear(); }
             if (s.borderGraphics) { s.borderGraphics.clear(); }
         }
+        // On recoverable error: DO NOT clear fills — keep previous frame visible
         return;
     }
 
