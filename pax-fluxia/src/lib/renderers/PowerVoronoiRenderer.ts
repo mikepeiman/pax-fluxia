@@ -49,7 +49,7 @@ import { buildSnapshotsFromTMAP } from '../territory/transitions/buildSnapshotsF
 import { diffFrontierMaps } from '../territory/transitions/diffFrontierMaps';
 import { createCanonicalTransitionPlan } from '../territory/transitions/createCanonicalTransitionPlan';
 import { computeGeometry0319 } from '../territory/compiler/Geometry_0319';
-import type { TerritoryGeneratorSettings } from '../territory/compiler/powerVoronoiTerritoryGeometryGenerator';
+import type { TerritoryGeneratorSettings, PowerSite } from '../territory/compiler/powerVoronoiTerritoryGeometryGenerator';
 import { computeTerritoryDeltaContext } from '$lib/territory/transitions/computeTerritoryDeltaContext';
 import { createTerritoryTransitionPlan } from '$lib/territory/transitions/createTerritoryTransitionPlan';
 import { sampleTransitionFrame } from '$lib/territory/transitions/sampleTransitionFrame';
@@ -96,6 +96,7 @@ export interface PVV2RendererState {
     // Cell Change Tracking
     lastCells: TerritoryCell[] | null;
     changedSiteIds: Set<string> | null;
+    changedSitePrevOwners: Map<string, string> | null;
     // Enclave Cache
     lastEnclaveMap: Map<number, [number, number][][]> | null;
     // World border polylines — stored for fill reconstruction during Frontier Morph transitions
@@ -116,6 +117,8 @@ export interface PVV2RendererState {
     weightLerpConqueredStarIds: Set<string> | null;
     weightLerpPrevWeights: Map<string, number> | null;
     weightLerpTargetWeights: Map<string, number> | null;
+    weightLerpGhostSites: PowerSite[] | null;
+    weightLerpGhostWeightStart: Map<string, number> | null;
 }
 
 /** Create a fresh PVV2 renderer state. */
@@ -144,6 +147,7 @@ export function createPVV2State(): PVV2RendererState {
         activeShapeTransitionHandler: null,
         lastCells: null,
         changedSiteIds: null,
+        changedSitePrevOwners: null,
         lastEnclaveMap: null,
         lastWorldBorderPolylines: null,
         prevGeometryData: null,
@@ -160,6 +164,8 @@ export function createPVV2State(): PVV2RendererState {
         weightLerpConqueredStarIds: null,
         weightLerpPrevWeights: null,
         weightLerpTargetWeights: null,
+        weightLerpGhostSites: null,
+        weightLerpGhostWeightStart: null,
     };
 }
 
@@ -724,7 +730,7 @@ export function renderPowerVoronoi(
 
         s.fillGraphics.clear();
 
-        // ── Weight-Lerp Transition: recompute Voronoi each frame with interpolated weights ──
+        // ── Ghost-Site Weight-Lerp Transition: recompute Voronoi each frame ──
         if (s.weightLerpActive && s.weightLerpStars && s.weightLerpConfig && s.weightLerpPrevWeights && s.weightLerpTargetWeights) {
             const elapsed = now - s.weightLerpStartTime;
             const rawT = Math.min(1, elapsed / s.weightLerpDurationMs);
@@ -732,24 +738,42 @@ export function renderPowerVoronoi(
             const t = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
 
             if (rawT >= 1) {
-                // Transition complete — stop weight-lerp, let normal draw take over
+                // Transition complete — stop, let normal draw take over
                 s.weightLerpActive = false;
-                log.renderer('PVV2', `WEIGHT-LERP COMPLETE | duration=${elapsed.toFixed(0)}ms`);
+                s.weightLerpGhostSites = null;
+                s.weightLerpGhostWeightStart = null;
+                log.sys('TMAP-WeightLerp', `GHOST TRANSITION COMPLETE | duration=${elapsed.toFixed(0)}ms`);
             } else {
-                // Compute interpolated weights
+                // Compute interpolated weights for real sites
                 const interpWeights = new Map<string, number>();
                 for (const [starId, prevW] of s.weightLerpPrevWeights) {
                     const targetW = s.weightLerpTargetWeights.get(starId) ?? prevW;
                     interpWeights.set(starId, prevW + t * (targetW - prevW));
                 }
 
-                // Recompute geometry with interpolated weights
+                // Build ghost sites with fading weights (W*(1-t))
+                const frameGhosts: PowerSite[] = [];
+                if (s.weightLerpGhostSites && s.weightLerpGhostWeightStart) {
+                    for (const ghost of s.weightLerpGhostSites) {
+                        const startW = s.weightLerpGhostWeightStart.get(ghost.starId) ?? 0;
+                        const ghostWeight = startW * (1 - t);  // fades from W to 0
+                        if (ghostWeight > 0.01) {  // skip degenerate ghost cells
+                            frameGhosts.push({
+                                ...ghost,
+                                weight: ghostWeight,
+                            });
+                        }
+                    }
+                }
+
+                // Recompute geometry with interpolated weights + ghost sites
                 try {
                     const interpResult = computeGeometry0319(
                         s.weightLerpStars,
                         s.weightLerpConnections ?? [],
                         s.weightLerpConfig,
                         interpWeights,
+                        frameGhosts.length > 0 ? frameGhosts : undefined,
                     );
 
                     if (!('kind' in interpResult)) {
@@ -788,7 +812,7 @@ export function renderPowerVoronoi(
                         }
                     }
                 } catch (err) {
-                    log.error('PVV2', `Weight-lerp geometry failed: ${err}`);
+                    log.error('PVV2', `Ghost weight-lerp geometry failed: ${err}`);
                     s.weightLerpActive = false;
                 }
 
@@ -1009,18 +1033,22 @@ export function renderPowerVoronoi(
 
     // Detect changed-owner stars for transition tracking
     s.changedSiteIds = null;
+    s.changedSitePrevOwners = null;
     if (s.lastCells && shapeChanged) {
         const prevOwnerMap = new Map(s.lastCells.map(c => [c.siteId, c.ownerId]));
         const changed = new Set<string>();
+        const prevOwners = new Map<string, string>();
         for (const cell of cells) {
             const prevOwner = prevOwnerMap.get(cell.siteId);
             if (prevOwner && prevOwner !== cell.ownerId) {
                 changed.add(cell.siteId);
+                prevOwners.set(cell.siteId, prevOwner);
             }
         }
         if (changed.size > 0) {
             s.changedSiteIds = changed;
-            log.sys('PowerVoronoi', `Conquest detected: ${changed.size} stars changed owner: ${[...changed].join(', ')}`);
+            s.changedSitePrevOwners = prevOwners;
+            log.sys('PowerVoronoi', `Conquest detected: ${changed.size} stars changed owner: ${[...changed].map(id => `${id}(${prevOwners.get(id)}→${cells.find(c => c.siteId === id)?.ownerId})`).join(', ')}`);
         }
     }
     s.lastCells = cells;
@@ -1111,10 +1139,11 @@ export function renderPowerVoronoi(
             territoryTransitions.markConsumed(entry.starId);
         }
 
-        // ── Weight Interpolation Transition ──
-        // Activated FIRST — before any old morpher setup.
-        // Recomputes Voronoi each frame with interpolated weights.
-        if (s.changedSiteIds && s.changedSiteIds.size > 0) {
+        // ── Ghost-Site Weight Interpolation ──
+        // For each conquered star, we create a ghost site at the same position
+        // with the OLD owner. Ghost fades out (W→0) while new owner fades in (0→W).
+        // This correctly animates the boundary handoff.
+        if (s.changedSiteIds && s.changedSiteIds.size > 0 && s.changedSitePrevOwners) {
             const wlTransitionMs = GAME_CONFIG.TERRITORY_TRANSITION_MS ?? 400;
             const wlStarMargin = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45;
             const wlDefaultWeight = wlStarMargin * wlStarMargin;
@@ -1134,18 +1163,36 @@ export function renderPowerVoronoi(
                 worldHeight,
             };
 
+            // New owner sites start at weight=0 (ghost holds territory), then grow to W
             const prevWeights = new Map<string, number>();
             const targetWeights = new Map<string, number>();
             for (const star of stars) {
                 if (star.ownerId) {
                     if (s.changedSiteIds.has(star.id)) {
-                        // Conquered star: 0 → full weight (cell grows from nothing)
-                        prevWeights.set(star.id, 0);
-                        targetWeights.set(star.id, wlDefaultWeight);
+                        prevWeights.set(star.id, 0);           // new owner starts invisible
+                        targetWeights.set(star.id, wlDefaultWeight);  // grows to full
                     } else {
                         prevWeights.set(star.id, wlDefaultWeight);
                         targetWeights.set(star.id, wlDefaultWeight);
                     }
+                }
+            }
+
+            // Create ghost sites: OLD owner at conquered star position, weight W→0
+            const ghostSites: PowerSite[] = [];
+            const ghostWeightStart = new Map<string, number>();
+            for (const [starId, prevOwnerId] of s.changedSitePrevOwners) {
+                const star = stars.find(st => st.id === starId);
+                if (star) {
+                    const ghostId = `ghost_${starId}`;
+                    ghostSites.push({
+                        x: star.x,
+                        y: star.y,
+                        weight: wlDefaultWeight,  // starts at full weight
+                        ownerId: prevOwnerId,     // OLD owner
+                        starId: ghostId,
+                    });
+                    ghostWeightStart.set(ghostId, wlDefaultWeight);  // fades to 0
                 }
             }
 
@@ -1158,10 +1205,11 @@ export function renderPowerVoronoi(
             s.weightLerpConqueredStarIds = new Set(s.changedSiteIds);
             s.weightLerpPrevWeights = prevWeights;
             s.weightLerpTargetWeights = targetWeights;
-            // Cancel any old TMAP-based transition
+            s.weightLerpGhostSites = ghostSites;
+            s.weightLerpGhostWeightStart = ghostWeightStart;
             s.activeTransitionPlan = null;
             s.transitionStartTime = null;
-            log.renderer('PVV2', `WEIGHT-LERP TRANSITION | conquered=${[...s.changedSiteIds].join(',')} duration=${wlTransitionMs}ms`);
+            log.sys('TMAP-WeightLerp', `GHOST TRANSITION | conquered=${[...s.changedSiteIds].join(',')} ghosts=${ghostSites.length} duration=${wlTransitionMs}ms`);
         }
         // Segment mode
         if (s.prevBorderEdges && s.prevBorderEdges.length > 0) {

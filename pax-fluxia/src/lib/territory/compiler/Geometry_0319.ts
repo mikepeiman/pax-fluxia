@@ -116,6 +116,7 @@ export function computeGeometry0319(
     connections: StarConnection[],
     config: TerritoryGeneratorSettings,
     weightOverrides?: Map<string, number>,
+    extraSites?: PowerSite[],
 ): TerritoryGeometryData | CompileError {
     try {
         const { starMargin, worldWidth, worldHeight } = config;
@@ -139,6 +140,11 @@ export function computeGeometry0319(
             ownerId: s.ownerId!,
             starId: s.id,
         }));
+
+        // Inject ghost/extra sites (used for transition ghost old-owner duplicates)
+        if (extraSites) {
+            for (const es of extraSites) sites.push(es);
+        }
 
         if (config.corridorEnabled) {
             const corridorVirtuals = computeCorridorVirtuals(ownedStars, connections, config.corridorSpacing, 0.5);
