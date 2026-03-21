@@ -1375,9 +1375,13 @@
                         );
                         break;
                     case "territory_canonical": {
-                        // ── NEW CANONICAL PIPELINE ──────────────────────────────────
+                        // ── CANONICAL ARCHITECTURE DISPATCH ─────────────────────────
+                        const architecturePath =
+                            GAME_CONFIG.TERRITORY_ARCHITECTURE_PATH ?? "clean";
+                        const useCleanArchitecture = architecturePath === "clean";
                         let renderedByCanonicalBridge = false;
-                        if (voronoiContainer) {
+
+                        if (useCleanArchitecture && voronoiContainer) {
                             if (!canonicalBridge) {
                                 canonicalBridge = new GameCanvasBridge(
                                     voronoiContainer,
@@ -1407,7 +1411,7 @@
                             break;
                         }
 
-                        // Fallback path: legacy canonical controller/renderer pair.
+                        // Legacy path (selected explicitly or clean path fallback on error).
                         // Lazily initialize controller and renderer per-container
                         if (!canonicalController) {
                             canonicalController = new TerritoryEngineController(

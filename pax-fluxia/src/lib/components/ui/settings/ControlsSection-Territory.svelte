@@ -412,6 +412,11 @@
         { id: "contour", label: "Contour" },
     ] as const;
 
+    const TERRITORY_ARCHITECTURE_PATH_OPTIONS = [
+        { id: "clean", label: "Clean Architecture" },
+        { id: "legacy", label: "Legacy Architecture" },
+    ] as const;
+
     const FILL_TRANSITION_OPTIONS = [
         { id: "none", label: "Off" },
         { id: "frontier_morph", label: "Frontier Topology Morph Fill" },
@@ -558,7 +563,28 @@
         </div>
     </div>
 
-    <!-- Row 3: Fill Transition (gold) -->
+    <!-- Row 3: Architecture Path (blue) -->
+    <div
+        class="axis-row"
+        style="--accent: #60a5fa; --accent-bg: rgba(96,165,250,0.15)"
+    >
+        <span class="axis-label">Architecture</span>
+        <div class="axis-buttons">
+            {#each TERRITORY_ARCHITECTURE_PATH_OPTIONS as opt}
+                <button
+                    class="axis-btn"
+                    class:active={(panel.territoryArchitecturePath ??
+                        GAME_CONFIG.TERRITORY_ARCHITECTURE_PATH ??
+                        "clean") === opt.id}
+                    onclick={() =>
+                        updatePanel("territoryArchitecturePath", opt.id)}
+                    >{opt.label}</button
+                >
+            {/each}
+        </div>
+    </div>
+
+    <!-- Row 4: Fill Transition (gold) -->
     <div
         class="axis-row"
         style="--accent: #fbbf24; --accent-bg: rgba(251,191,36,0.15)"
@@ -577,7 +603,7 @@
         </div>
     </div>
 
-    <!-- Row 4: Border Transition (rose) -->
+    <!-- Row 5: Border Transition (rose) -->
     <div
         class="axis-row"
         style="--accent: #fb7185; --accent-bg: rgba(251,113,133,0.15)"

@@ -318,6 +318,7 @@ interface GameConfigType {
     TERRITORY_MODE: 'voronoi' | 'metaball' | 'off';  // LEGACY — kept for compat
     TERRITORY_DISTANCE_FIELD: boolean; // Enable distance-field territory renderer (default false)
     TERRITORY_RENDER_MODE: string;    // Active render mode: 'none' | 'vs_pvv3' | 'power_voronoi' | 'distance_field' | 'voronoi' | 'metaball' | 'pixel' | 'graph' | 'contour'
+    TERRITORY_ARCHITECTURE_PATH: 'clean' | 'legacy'; // Master architecture selector for canonical territory mode
 
     // ── Distance Field Territory ──────────────────────────────────────────────
     DF_RESOLUTION: number;          // Grid resolution divisor (4 = quarter res, default 4)
@@ -1104,6 +1105,8 @@ const _rawConfig: GameConfigType = {
     TERRITORY_MODE: 'metaball' as 'voronoi' | 'metaball' | 'off',
     /** Active render mode selector */
     TERRITORY_RENDER_MODE: 'territory_engine',
+    /** Master architecture selector for canonical territory mode */
+    TERRITORY_ARCHITECTURE_PATH: 'clean' as const,
 
     /** Show contiguous Voronoi territory fill */
     SHOW_VORONOI: false,
