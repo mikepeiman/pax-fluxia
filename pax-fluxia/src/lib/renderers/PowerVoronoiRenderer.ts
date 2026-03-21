@@ -1046,6 +1046,39 @@ export function renderPowerVoronoi(
     const lightMult = GAME_CONFIG.VORONOI_LIGHTNESS ?? 0.7;
     const starMargin = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45;
 
+    // ── F-165: Early conquest detection — zero conquered star weight BEFORE geometry ──
+    // ONLY when VS weight-lerp transition method is running or about to start.
+    // Other transition methods (splice morph, etc.) keep full weights.
+    let conquestStarIds: Set<string> | null = null;
+    const vsTransitionActive = s.weightLerpActive; // true when VS transition is already animating
+    if (s.lastCells && shapeChanged) {
+        const prevOwnerMap = new Map(s.lastCells.map(c => [c.siteId, c.ownerId]));
+        for (const star of stars) {
+            const prevOwner = prevOwnerMap.get(star.id);
+            if (prevOwner && prevOwner !== star.ownerId) {
+                if (!conquestStarIds) conquestStarIds = new Set();
+                conquestStarIds.add(star.id);
+            }
+        }
+    }
+
+    // Suppress conquered star weight only when VS transition will handle rendering.
+    // VS transition starts on any conquest (weightLerpActive will be set later this frame),
+    // so we suppress whenever conquests are detected AND no other transition method overrides.
+    let geomStars = stars;
+    const vsWillRun = conquestStarIds && conquestStarIds.size > 0;
+    if (vsWillRun || vsTransitionActive) {
+        if (conquestStarIds && conquestStarIds.size > 0) {
+            geomStars = stars.map(star => {
+                if (conquestStarIds!.has(star.id)) {
+                    return { ...star, weight: 0 };
+                }
+                return star;
+            });
+            log.sys('PowerVoronoi', `F-165: Zeroed weight for ${conquestStarIds.size} conquered stars (VS transition): ${[...conquestStarIds].join(', ')}`);
+        }
+    }
+
     // ── Geometry Stage: use precomputed geometry if provided, else run generator ──
     let stageResult: TerritoryGeometryData | { kind: 'error'; stage: string; message: string; recoverable: boolean };
     if (precomputedGeometry) {
@@ -1069,7 +1102,7 @@ export function renderPowerVoronoi(
             worldWidth,
             worldHeight,
         };
-        stageResult = generateVoronoiTerritoryGeometry(stars, connections ?? [], stageConfig);
+        stageResult = generateVoronoiTerritoryGeometry(geomStars, connections ?? [], stageConfig);
     }
     if ('kind' in stageResult) {
         // CompileError — recoverable means use last cached frame, non-recoverable clears
@@ -1136,12 +1169,9 @@ export function renderPowerVoronoi(
 
 
     // Steady-state fills: use raw polygon points (no independent smoothing — B-42 fix)
-    // SKIP when conquests pending — weight-lerp will draw with suppressed weights instead
-    const conquestPending = s.changedSiteIds && s.changedSiteIds.size > 0;
-    if (!conquestPending) {
-        for (let i = 0; i < merged.length; i++) {
-            drawTerritoryFillOnly(s.fillGraphics, merged[i], enclaveMap.get(i), alpha);
-        }
+    // Borders are drawn SEPARATELY from sharedPolylines (contested edges only, blended colors)
+    for (let i = 0; i < merged.length; i++) {
+        drawTerritoryFillOnly(s.fillGraphics, merged[i], enclaveMap.get(i), alpha);
     }
 
     // Static vertex overlay — show dots immediately when toggle is ON (no transition required)
@@ -1194,8 +1224,7 @@ export function renderPowerVoronoi(
     }
 
     // Draw contested borders from sharedPolylines (only edges between different owners)
-    // SKIP when conquests pending — same reason as fills above
-    if (!conquestPending && s.targetSharedPolylines && s.targetSharedPolylines.length > 0 && borderWidth > 0 && borderAlpha > 0) {
+    if (s.targetSharedPolylines && s.targetSharedPolylines.length > 0 && borderWidth > 0 && borderAlpha > 0) {
         drawBorderPolylines(s.fillGraphics, s.targetSharedPolylines, 0, borderWidth, borderAlpha);
         log.renderer('PVV2', `🟢 CONTESTED BORDERS DRAWN | polylines=${s.targetSharedPolylines.length} bw=${borderWidth} ba=${borderAlpha}`);
     }

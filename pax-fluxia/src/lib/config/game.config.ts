@@ -292,6 +292,13 @@ interface GameConfigType {
     TERRITORY_ENGINE_STEP_MODE: boolean; // Interactive stage stepping for territory engine diagnostics
     TERRITORY_ENGINE_STEP_ADVANCE_TOKEN: number; // Increment to advance one stage when step mode is enabled
     TERRITORY_TRANSITION_MS: number;      // Duration of territory morph animation in ms (0 = instant, default 400)
+    // ── Virtual Star Transition (F-165) ──────────────────────────────────────
+    VS_VICTOR_TRAVEL_MS: number;          // Duration of victor VS travel (ms, 0 = use TERRITORY_TRANSITION_MS)
+    VS_LOSER_TRAVEL_MS: number;           // Duration of loser VS travel (ms, 0 = use TERRITORY_TRANSITION_MS)
+    VS_POWER_LERP_START: number;          // Loser VS starting power (0-max, default = full weight)
+    VS_POWER_LERP_END: number;            // Loser VS ending power (0-max, default 0 = dissolve)
+    VS_POWER_LERP_DURATION_MS: number;    // Duration of power lerp (ms, 0 = use VS_LOSER_TRAVEL_MS)
+    VS_BIND_TO_TICK: boolean;             // Bind VS durations to tick duration (default true)
     TERRITORY_MORPH_CONTROL_POINTS: number; // Number of control points for frontier loop morphing (5-300, default 32)
     TERRITORY_BOUNDARY_MODE: 'segment' | 'smooth';  // 'segment' = edge-level lerp, 'smooth' = flubber polygon morph
     TERRITORY_FILL_MODE: 'crossfade' | 'frontier';  // 'crossfade' = alpha-fade fills, 'frontier' = infill from frontier loops
@@ -1056,6 +1063,13 @@ const _rawConfig: GameConfigType = {
     TERRITORY_ENGINE_STEP_ADVANCE_TOKEN: 0,
     /** Duration of territory morph/crossfade animation in ms (0=instant) */
     TERRITORY_TRANSITION_MS: 400,
+    // ── Virtual Star Transition (F-165) ──
+    VS_VICTOR_TRAVEL_MS: 0,        // 0 = use TERRITORY_TRANSITION_MS
+    VS_LOSER_TRAVEL_MS: 0,         // 0 = use TERRITORY_TRANSITION_MS
+    VS_POWER_LERP_START: 0,        // 0 = use wlDefaultWeight (full)
+    VS_POWER_LERP_END: 0,          // 0 = dissolve
+    VS_POWER_LERP_DURATION_MS: 0,  // 0 = use VS_LOSER_TRAVEL_MS
+    VS_BIND_TO_TICK: true,
     /** Number of control points for frontier loop morphing (5-300) */
     TERRITORY_MORPH_CONTROL_POINTS: 68,
     TERRITORY_BOUNDARY_MODE: 'smooth' as const,

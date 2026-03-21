@@ -404,6 +404,140 @@
     />
 </div>
 
+<!-- ── VS Transition (F-165) ── -->
+<h4 class="sub-heading">VS Transition</h4>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Bind to Tick</span>
+        <label class="toggle-switch">
+            <input
+                type="checkbox"
+                checked={GAME_CONFIG.VS_BIND_TO_TICK}
+                onchange={(e) => {
+                    const v = (e.target as HTMLInputElement).checked;
+                    GAME_CONFIG.VS_BIND_TO_TICK = v;
+                    if (v) {
+                        const tick = GAME_CONFIG.BASE_TICK_MS;
+                        GAME_CONFIG.VS_VICTOR_TRAVEL_MS = tick;
+                        GAME_CONFIG.VS_LOSER_TRAVEL_MS = tick;
+                        GAME_CONFIG.VS_POWER_LERP_DURATION_MS = tick;
+                        updatePanel("vsVictorTravelMs", tick);
+                        updatePanel("vsLoserTravelMs", tick);
+                        updatePanel("vsPowerLerpDurationMs", tick);
+                    }
+                }}
+            />
+            <span class="slider"></span>
+        </label>
+    </div>
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Victor Travel</span><span class="val"
+            >{GAME_CONFIG.VS_VICTOR_TRAVEL_MS === 0
+                ? "auto"
+                : `${GAME_CONFIG.VS_VICTOR_TRAVEL_MS}ms`}</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="5000"
+        step="10"
+        value={GAME_CONFIG.VS_VICTOR_TRAVEL_MS}
+        disabled={GAME_CONFIG.VS_BIND_TO_TICK}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.VS_VICTOR_TRAVEL_MS = v;
+            updatePanel("vsVictorTravelMs", v);
+        }}
+    />
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Loser Travel</span><span class="val"
+            >{GAME_CONFIG.VS_LOSER_TRAVEL_MS === 0
+                ? "auto"
+                : `${GAME_CONFIG.VS_LOSER_TRAVEL_MS}ms`}</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="5000"
+        step="10"
+        value={GAME_CONFIG.VS_LOSER_TRAVEL_MS}
+        disabled={GAME_CONFIG.VS_BIND_TO_TICK}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.VS_LOSER_TRAVEL_MS = v;
+            updatePanel("vsLoserTravelMs", v);
+        }}
+    />
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Power Start</span><span class="val"
+            >{GAME_CONFIG.VS_POWER_LERP_START === 0
+                ? "full"
+                : GAME_CONFIG.VS_POWER_LERP_START}</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="500"
+        step="5"
+        value={GAME_CONFIG.VS_POWER_LERP_START}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.VS_POWER_LERP_START = v;
+            updatePanel("vsPowerLerpStart", v);
+        }}
+    />
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Power End</span><span class="val"
+            >{GAME_CONFIG.VS_POWER_LERP_END}</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="500"
+        step="5"
+        value={GAME_CONFIG.VS_POWER_LERP_END}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.VS_POWER_LERP_END = v;
+            updatePanel("vsPowerLerpEnd", v);
+        }}
+    />
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Power Lerp</span><span class="val"
+            >{GAME_CONFIG.VS_POWER_LERP_DURATION_MS === 0
+                ? "auto"
+                : `${GAME_CONFIG.VS_POWER_LERP_DURATION_MS}ms`}</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="5000"
+        step="10"
+        value={GAME_CONFIG.VS_POWER_LERP_DURATION_MS}
+        disabled={GAME_CONFIG.VS_BIND_TO_TICK}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.VS_POWER_LERP_DURATION_MS = v;
+            updatePanel("vsPowerLerpDurationMs", v);
+        }}
+    />
+</div>
+
 <style>
     @import "./panel-shared.css";
 </style>
