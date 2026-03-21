@@ -1248,7 +1248,8 @@ export function renderPowerVoronoi(
                 }
             }
 
-            // Create ghost sites at ATTACKER position, lerp toward conquered star
+            // Ghost sites: OLD owner at conquered position, weight fades W→0 (prevents instant snap)
+            // Virtual stars: NEW owner at attacker position, lerps toward conquered (directional expansion)
             const ghostSites: PowerSite[] = [];
             const ghostWeightStart = new Map<string, number>();
             const ghostTargetPos = new Map<string, { x: number; y: number }>();
@@ -1256,29 +1257,37 @@ export function renderPowerVoronoi(
             for (const [starId, prevOwnerId] of s.changedSitePrevOwners) {
                 const conqueredStar = starMap.get(starId);
                 if (!conqueredStar) continue;
+
+                // Ghost: OLD owner at conquered position, weight fades (existing mechanism)
                 const ghostId = `ghost_${starId}`;
-
-                // Find attacker position from FX entries
-                const attackerIds = attackerOriginMap.get(starId);
-                let spawnX = conqueredStar.x;
-                let spawnY = conqueredStar.y;
-                if (attackerIds && attackerIds.length > 0) {
-                    const attackerStar = starMap.get(attackerIds[0]);
-                    if (attackerStar) {
-                        spawnX = attackerStar.x;
-                        spawnY = attackerStar.y;
-                    }
-                }
-
                 ghostSites.push({
-                    x: spawnX,              // starts at ATTACKER position
-                    y: spawnY,
-                    weight: wlDefaultWeight, // full weight throughout
-                    ownerId: conqueredStar.ownerId!,  // NEW owner (victor)
+                    x: conqueredStar.x,
+                    y: conqueredStar.y,
+                    weight: wlDefaultWeight,
+                    ownerId: prevOwnerId,     // OLD owner — preserves old territory
                     starId: ghostId,
                 });
-                ghostWeightStart.set(ghostId, wlDefaultWeight);
-                ghostTargetPos.set(ghostId, { x: conqueredStar.x, y: conqueredStar.y });
+                ghostWeightStart.set(ghostId, wlDefaultWeight);  // fades to 0
+
+                // Virtual star: NEW owner at attacker position, lerps to conquered
+                const attackerIds = attackerOriginMap.get(starId);
+                if (attackerIds && attackerIds.length > 0) {
+                    for (const attackerId of attackerIds) {
+                        const attackerStar = starMap.get(attackerId);
+                        if (attackerStar) {
+                            const vsId = `vs_${starId}_${attackerId}`;
+                            ghostSites.push({
+                                x: attackerStar.x,       // starts at ATTACKER
+                                y: attackerStar.y,
+                                weight: wlDefaultWeight,
+                                ownerId: conqueredStar.ownerId!,  // NEW owner (victor)
+                                starId: vsId,
+                            });
+                            ghostWeightStart.set(vsId, wlDefaultWeight);
+                            ghostTargetPos.set(vsId, { x: conqueredStar.x, y: conqueredStar.y });
+                        }
+                    }
+                }
             }
 
             s.weightLerpActive = true;
