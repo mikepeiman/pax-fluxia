@@ -776,11 +776,13 @@ export function renderPowerVoronoi(
                     for (const ghost of s.weightLerpGhostSites) {
                         const target = s.weightLerpGhostTargetPos.get(ghost.starId);
                         if (target) {
-                            // Lerp position toward target AND fade weight positive → negative.
-                            // At t=0.5: weight crosses zero, cell begins vanishing.
-                            // At t=1: weight = -startWeight, cell fully gone.
-                            // This ensures ghost removal at t=1 is invisible (cell already vanished).
-                            const ghostW = ghost.weight * (1 - 2 * t);  // +W → 0 at t=0.5 → -W at t=1
+                            // Victor vs loser need different weight curves:
+                            // - Victor: constant weight — it's claiming territory while traveling
+                            // - Loser: linear fade to 0 — its territory shrinks during retreat
+                            const isVictor = ghost.starId.startsWith('vs_victor_');
+                            const ghostW = isVictor
+                                ? ghost.weight             // victor: constant full weight
+                                : ghost.weight * (1 - t);  // loser: fade to 0
                             frameGhosts.push({
                                 ...ghost,
                                 x: ghost.x + (target.x - ghost.x) * t,
@@ -788,10 +790,12 @@ export function renderPowerVoronoi(
                                 weight: ghostW,
                             });
                         } else {
-                            // Fallback: no target, lerp weight from start → negative (vanish)
+                            // Fallback: no target (isolated loser), fade weight to 0
                             const startW = s.weightLerpGhostWeightStart?.get(ghost.starId) ?? 0;
-                            const ghostWeight = startW * (1 - 2 * t);  // crosses zero at t=0.5
-                            frameGhosts.push({ ...ghost, weight: ghostWeight });
+                            const ghostWeight = startW * (1 - t);  // linear fade
+                            if (ghostWeight > 0.01) {
+                                frameGhosts.push({ ...ghost, weight: ghostWeight });
+                            }
                         }
                     }
                 }
@@ -1283,8 +1287,8 @@ export function renderPowerVoronoi(
             for (const star of stars) {
                 if (star.ownerId) {
                     if (s.changedSiteIds.has(star.id)) {
-                        prevWeights.set(star.id, 0);           // suppressed during transition
-                        targetWeights.set(star.id, 0);         // stays at 0 — VS handles it
+                        prevWeights.set(star.id, 0);                // suppressed at start
+                        targetWeights.set(star.id, wlDefaultWeight); // ramps UP to full during transition
                     } else {
                         prevWeights.set(star.id, wlDefaultWeight);
                         targetWeights.set(star.id, wlDefaultWeight);
