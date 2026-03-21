@@ -1233,14 +1233,15 @@ export function renderPowerVoronoi(
                 worldHeight,
             };
 
-            // New owner sites start at weight=0 (ghost holds territory), then grow to W
+            // Conquered star stays at weight=0 during entire transition (VS handles visual)
+            // Snaps to full weight at transition completion (t=1)
             const prevWeights = new Map<string, number>();
             const targetWeights = new Map<string, number>();
             for (const star of stars) {
                 if (star.ownerId) {
                     if (s.changedSiteIds.has(star.id)) {
-                        prevWeights.set(star.id, 0);           // new owner starts invisible
-                        targetWeights.set(star.id, wlDefaultWeight);  // grows to full
+                        prevWeights.set(star.id, 0);           // suppressed during transition
+                        targetWeights.set(star.id, 0);         // stays at 0 — VS handles it
                     } else {
                         prevWeights.set(star.id, wlDefaultWeight);
                         targetWeights.set(star.id, wlDefaultWeight);
@@ -1248,45 +1249,72 @@ export function renderPowerVoronoi(
                 }
             }
 
-            // Ghost sites: OLD owner at conquered position, weight fades W→0 (prevents instant snap)
-            // Virtual stars: NEW owner at attacker position, lerps toward conquered (directional expansion)
+            // ── Dual Virtual Star Algorithm (F-165 v3) ──
+            // Both types spawn simultaneously at conquest, travel within one transition duration,
+            // cease at t=1 before next steady-state render.
             const ghostSites: PowerSite[] = [];
             const ghostWeightStart = new Map<string, number>();
             const ghostTargetPos = new Map<string, { x: number; y: number }>();
             const starMap = new Map(stars.map(st => [st.id, st]));
+            const connList = connections ?? [];
+
             for (const [starId, prevOwnerId] of s.changedSitePrevOwners) {
                 const conqueredStar = starMap.get(starId);
                 if (!conqueredStar) continue;
 
-                // Ghost: OLD owner at conquered position, weight fades (existing mechanism)
-                const ghostId = `ghost_${starId}`;
-                ghostSites.push({
-                    x: conqueredStar.x,
-                    y: conqueredStar.y,
-                    weight: wlDefaultWeight,
-                    ownerId: prevOwnerId,     // OLD owner — preserves old territory
-                    starId: ghostId,
-                });
-                ghostWeightStart.set(ghostId, wlDefaultWeight);  // fades to 0
-
-                // Virtual star: NEW owner at attacker position, lerps to conquered
+                // ── Victor VS: attacker → conquered ──
                 const attackerIds = attackerOriginMap.get(starId);
                 if (attackerIds && attackerIds.length > 0) {
                     for (const attackerId of attackerIds) {
                         const attackerStar = starMap.get(attackerId);
                         if (attackerStar) {
-                            const vsId = `vs_${starId}_${attackerId}`;
+                            const vsId = `vs_victor_${starId}_${attackerId}`;
                             ghostSites.push({
-                                x: attackerStar.x,       // starts at ATTACKER
+                                x: attackerStar.x,
                                 y: attackerStar.y,
                                 weight: wlDefaultWeight,
-                                ownerId: conqueredStar.ownerId!,  // NEW owner (victor)
+                                ownerId: conqueredStar.ownerId!,  // NEW owner
                                 starId: vsId,
                             });
-                            ghostWeightStart.set(vsId, wlDefaultWeight);
                             ghostTargetPos.set(vsId, { x: conqueredStar.x, y: conqueredStar.y });
                         }
                     }
+                }
+
+                // ── Loser VS: conquered → connected loser-owned stars ──
+                const loserConnectedStars = connList
+                    .filter(c => (c.sourceId === starId || c.targetId === starId))
+                    .map(c => c.sourceId === starId ? c.targetId : c.sourceId)
+                    .filter(connId => {
+                        const connStar = starMap.get(connId);
+                        return connStar && connStar.ownerId === prevOwnerId;
+                    });
+
+                if (loserConnectedStars.length > 0) {
+                    // Retreat: one VS per connected loser-owned star
+                    for (const connId of loserConnectedStars) {
+                        const connStar = starMap.get(connId)!;
+                        const vsId = `vs_loser_${starId}_${connId}`;
+                        ghostSites.push({
+                            x: conqueredStar.x,       // starts at CONQUERED
+                            y: conqueredStar.y,
+                            weight: wlDefaultWeight,
+                            ownerId: prevOwnerId,     // OLD owner
+                            starId: vsId,
+                        });
+                        ghostTargetPos.set(vsId, { x: connStar.x, y: connStar.y });
+                    }
+                } else {
+                    // Fallback: loser has no connected stars — dissolve
+                    const vsId = `vs_loser_${starId}_fade`;
+                    ghostSites.push({
+                        x: conqueredStar.x,
+                        y: conqueredStar.y,
+                        weight: wlDefaultWeight,
+                        ownerId: prevOwnerId,     // OLD owner
+                        starId: vsId,
+                    });
+                    ghostWeightStart.set(vsId, wlDefaultWeight);  // fades to 0
                 }
             }
 
