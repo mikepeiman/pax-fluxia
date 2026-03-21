@@ -400,16 +400,16 @@
 
     const TERRITORY_STYLE_OPTIONS = [
         { id: "none", label: "Off" },
-        { id: "territory_canonical", label: "Canonical" },
-        { id: "territory_engine", label: "Engine (DY4)" },
-        { id: "vs_pvv3", label: "PVV3" },
-        { id: "power_voronoi", label: "Weighted Power Voronoi (PVV2)" },
-        { id: "distance_field", label: "Signed-Distance Field Mesh" },
-        { id: "metaball", label: "Metaball" },
-        { id: "pixel", label: "Pixel-Quantized Mesh" },
-        { id: "voronoi", label: "Voronoi" },
-        { id: "graph", label: "Lane" },
-        { id: "contour", label: "Contour" },
+        { id: "territory_canonical", label: "Canonical Layered Runtime" },
+        { id: "territory_engine", label: "Legacy Engine Router (DY4)" },
+        { id: "vs_pvv3", label: "Legacy PVV3 Frontier Style" },
+        { id: "power_voronoi", label: "Legacy PVV2 Weighted Voronoi" },
+        { id: "distance_field", label: "Legacy Signed-Distance Field" },
+        { id: "metaball", label: "Legacy Metaball Style" },
+        { id: "pixel", label: "Legacy Pixel-Quantized Style" },
+        { id: "voronoi", label: "Legacy Voronoi Style" },
+        { id: "graph", label: "Legacy Lane-Influence Style" },
+        { id: "contour", label: "Legacy Contour Style" },
     ] as const;
 
     const TERRITORY_ARCHITECTURE_PATH_OPTIONS = [
@@ -607,6 +607,9 @@
                 >
             {/each}
         </div>
+    </div>
+    <div class="axis-note">
+        Architecture toggle applies when Style is "Canonical Layered Runtime".
     </div>
 
     <!-- Row 4: Fill Transition (gold) -->
