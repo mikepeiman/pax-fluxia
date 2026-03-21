@@ -753,8 +753,14 @@ export function renderPowerVoronoi(
                     );
 
                     if (!('kind' in interpResult)) {
-                        // Draw the interpolated geometry using normal territory drawing
+                        // Assign colors to interpolated territories (geometry returns color=0)
+                        const satMult2 = GAME_CONFIG.VORONOI_SATURATION ?? 1.0;
+                        const lightMult2 = GAME_CONFIG.VORONOI_LIGHTNESS ?? 0.7;
                         const interpMerged = interpResult.mergedTerritories ?? [];
+                        for (const mt of interpMerged) {
+                            const rawColor = colorUtils.getPlayerColor(mt.ownerId);
+                            mt.color = adjustColorHSL(rawColor, satMult2, lightMult2);
+                        }
                         const interpEnclaveMap = interpResult.enclaveMap ?? null;
                         for (let i = 0; i < interpMerged.length; i++) {
                             const mt = interpMerged[i];
@@ -1104,6 +1110,59 @@ export function renderPowerVoronoi(
         for (const entry of territoryTransitions.getUnconsumed()) {
             territoryTransitions.markConsumed(entry.starId);
         }
+
+        // ── Weight Interpolation Transition ──
+        // Activated FIRST — before any old morpher setup.
+        // Recomputes Voronoi each frame with interpolated weights.
+        if (s.changedSiteIds && s.changedSiteIds.size > 0) {
+            const wlTransitionMs = GAME_CONFIG.TERRITORY_TRANSITION_MS ?? 400;
+            const wlStarMargin = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45;
+            const wlDefaultWeight = wlStarMargin * wlStarMargin;
+
+            const stageConfig: TerritoryGeneratorSettings = {
+                starMargin: wlStarMargin,
+                corridorEnabled: Boolean(GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED) && Boolean(connections),
+                corridorSpacing: GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING ?? 60,
+                disconnectEnabled: Boolean(GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED) && Boolean(connections),
+                disconnectDistance: GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE ?? 400,
+                clusterSplit: Boolean(GAME_CONFIG.TERRITORY_CLUSTER_SPLIT),
+                chaikinPasses: Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3))),
+                frontierResolution: 0,
+                boundaryPad: GAME_CONFIG.CHAIKIN_BOUNDARY_PAD ?? 50,
+                boundaryEps: GAME_CONFIG.CHAIKIN_BOUNDARY_EPS ?? 6,
+                worldWidth,
+                worldHeight,
+            };
+
+            const prevWeights = new Map<string, number>();
+            const targetWeights = new Map<string, number>();
+            for (const star of stars) {
+                if (star.ownerId) {
+                    if (s.changedSiteIds.has(star.id)) {
+                        // Conquered star: 0 → full weight (cell grows from nothing)
+                        prevWeights.set(star.id, 0);
+                        targetWeights.set(star.id, wlDefaultWeight);
+                    } else {
+                        prevWeights.set(star.id, wlDefaultWeight);
+                        targetWeights.set(star.id, wlDefaultWeight);
+                    }
+                }
+            }
+
+            s.weightLerpActive = true;
+            s.weightLerpStartTime = now;
+            s.weightLerpDurationMs = wlTransitionMs;
+            s.weightLerpStars = stars;
+            s.weightLerpConnections = connections ?? [];
+            s.weightLerpConfig = stageConfig;
+            s.weightLerpConqueredStarIds = new Set(s.changedSiteIds);
+            s.weightLerpPrevWeights = prevWeights;
+            s.weightLerpTargetWeights = targetWeights;
+            // Cancel any old TMAP-based transition
+            s.activeTransitionPlan = null;
+            s.transitionStartTime = null;
+            log.renderer('PVV2', `WEIGHT-LERP TRANSITION | conquered=${[...s.changedSiteIds].join(',')} duration=${wlTransitionMs}ms`);
+        }
         // Segment mode
         if (s.prevBorderEdges && s.prevBorderEdges.length > 0) {
             s.borderTransitionStart = now;
@@ -1136,89 +1195,7 @@ export function renderPowerVoronoi(
                 s.activeRopeRenderer = new RopeBorderRenderer(s.prevSharedPolylines, s.targetSharedPolylines, easing, resampleN, borderWidth, overshoot);
                 s.activeRopeRenderer.addTo(voronoiContainer);
             }
-
-            // Frontier Morph: fill+stroke from same interpolated closed polygon each frame
-            if (s.prevMergedTerritories && s.lastMergedTerritories) {
-                // Clean up old handler's labels before creating new one
-                if (s.activeShapeTransitionHandler) {
-                    s.activeShapeTransitionHandler.cleanup();
-                }
-
-                // Compute conquest origin: centroid of changed stars
-                let conquestOriginVec: Vec2 | undefined;
-                if (s.changedSiteIds && s.changedSiteIds.size > 0) {
-                    let cx = 0, cy = 0, count = 0;
-                    for (const star of stars) {
-                        if (s.changedSiteIds.has(star.id)) {
-                            cx += star.x;
-                            cy += star.y;
-                            count++;
-                        }
-                    }
-                    if (count > 0) {
-                        conquestOriginVec = { x: cx / count, y: cy / count };
-                        log.renderer('PVV2', `CONQUEST ORIGIN | ${[...s.changedSiteIds].join(',')} → (${conquestOriginVec.x.toFixed(0)}, ${conquestOriginVec.y.toFixed(0)})`);
-                    }
-                }
-
-                // ── Weight Interpolation Transition ──
-                // Instead of diffing TMAPs, recompute Voronoi each frame
-                // with interpolated weights for conquered stars.
-                if (s.changedSiteIds && s.changedSiteIds.size > 0) {
-                    const transitionMs = GAME_CONFIG.TERRITORY_TRANSITION_MS ?? 400;
-                    const starMargin = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45;
-                    const defaultWeight = starMargin * starMargin;
-
-                    // Build config for recomputing geometry during transition
-                    const stageConfig: TerritoryGeneratorSettings = {
-                        starMargin,
-                        corridorEnabled: Boolean(GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED) && Boolean(connections),
-                        corridorSpacing: GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING ?? 60,
-                        disconnectEnabled: Boolean(GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED) && Boolean(connections),
-                        disconnectDistance: GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE ?? 400,
-                        clusterSplit: Boolean(GAME_CONFIG.TERRITORY_CLUSTER_SPLIT),
-                        chaikinPasses: Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3))),
-                        frontierResolution: 0,
-                        boundaryPad: GAME_CONFIG.CHAIKIN_BOUNDARY_PAD ?? 50,
-                        boundaryEps: GAME_CONFIG.CHAIKIN_BOUNDARY_EPS ?? 6,
-                        worldWidth,
-                        worldHeight,
-                    };
-
-                    // For conquered stars: prev weight = near-zero (small cell), target = full weight
-                    // This makes the new owner's territory smoothly grow into the conquered cell
-                    const prevWeights = new Map<string, number>();
-                    const targetWeights = new Map<string, number>();
-                    for (const star of stars) {
-                        if (star.ownerId) {
-                            if (s.changedSiteIds.has(star.id)) {
-                                // Conquered star: start from tiny weight, expand to full
-                                prevWeights.set(star.id, defaultWeight * 0.01);
-                                targetWeights.set(star.id, defaultWeight);
-                            } else {
-                                prevWeights.set(star.id, defaultWeight);
-                                targetWeights.set(star.id, defaultWeight);
-                            }
-                        }
-                    }
-
-                    s.weightLerpActive = true;
-                    s.weightLerpStartTime = now;
-                    s.weightLerpDurationMs = transitionMs;
-                    s.weightLerpStars = stars;
-                    s.weightLerpConnections = connections ?? [];
-                    s.weightLerpConfig = stageConfig;
-                    s.weightLerpConqueredStarIds = new Set(s.changedSiteIds);
-                    s.weightLerpPrevWeights = prevWeights;
-                    s.weightLerpTargetWeights = targetWeights;
-                    // Cancel any old TMAP-based transition
-                    s.activeTransitionPlan = null;
-                    s.transitionStartTime = null;
-                    log.renderer('PVV2', `WEIGHT-LERP TRANSITION | conquered=${[...s.changedSiteIds].join(',')} duration=${transitionMs}ms`);
-                }
-            }
         }
-        // else: no morpher — borders only appear at rebuild time (steady-state)
     }
     log.renderer('PVV2', `◀ rebuild complete | total=${(performance.now() - now).toFixed(1)}ms`);
 }
