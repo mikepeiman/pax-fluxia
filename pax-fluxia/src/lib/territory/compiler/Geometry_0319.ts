@@ -115,6 +115,7 @@ export function computeGeometry0319(
     stars: StarState[],
     connections: StarConnection[],
     config: TerritoryGeneratorSettings,
+    weightOverrides?: Map<string, number>,
 ): TerritoryGeometryData | CompileError {
     try {
         const { starMargin, worldWidth, worldHeight } = config;
@@ -130,10 +131,11 @@ export function computeGeometry0319(
         }
 
         // ── Stage 0: Build site array ───────────────────────────────────────
+        const defaultWeight = starMargin * starMargin;
         const sites: PowerSite[] = ownedStars.map(s => ({
             x: s.x,
             y: s.y,
-            weight: starMargin * starMargin,
+            weight: weightOverrides?.get(s.id) ?? defaultWeight,
             ownerId: s.ownerId!,
             starId: s.id,
         }));

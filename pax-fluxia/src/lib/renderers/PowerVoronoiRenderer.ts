@@ -45,9 +45,11 @@ import { territoryTransitions } from '$lib/fx/handlers/territoryTransitionHandle
 
 // ── Localized Boundary Transition Pipeline ─────────────────────────────────
 import type { TerritoryTransitionPlanSet, TerritoryFrameGeometry, Vec2 } from '$lib/territory/transitions/types';
-import { buildSnapshotsFromTMAP } from '$lib/territory/transitions/buildSnapshotsFromTMAP';
-import { diffFrontierMaps } from '$lib/territory/transitions/diffFrontierMaps';
-import { createCanonicalTransitionPlan } from '$lib/territory/transitions/createCanonicalTransitionPlan';
+import { buildSnapshotsFromTMAP } from '../territory/transitions/buildSnapshotsFromTMAP';
+import { diffFrontierMaps } from '../territory/transitions/diffFrontierMaps';
+import { createCanonicalTransitionPlan } from '../territory/transitions/createCanonicalTransitionPlan';
+import { computeGeometry0319 } from '../territory/compiler/Geometry_0319';
+import type { TerritoryGeneratorSettings } from '../territory/compiler/powerVoronoiTerritoryGeometryGenerator';
 import { computeTerritoryDeltaContext } from '$lib/territory/transitions/computeTerritoryDeltaContext';
 import { createTerritoryTransitionPlan } from '$lib/territory/transitions/createTerritoryTransitionPlan';
 import { sampleTransitionFrame } from '$lib/territory/transitions/sampleTransitionFrame';
@@ -104,6 +106,16 @@ export interface PVV2RendererState {
     activeTransitionPlan: TerritoryTransitionPlanSet | null;
     transitionStartTime: number | null;
     transitionDurationMs: number;
+    // Weight Interpolation Transition
+    weightLerpActive: boolean;
+    weightLerpStartTime: number;
+    weightLerpDurationMs: number;
+    weightLerpStars: StarState[] | null;
+    weightLerpConnections: StarConnection[] | null;
+    weightLerpConfig: TerritoryGeneratorSettings | null;
+    weightLerpConqueredStarIds: Set<string> | null;
+    weightLerpPrevWeights: Map<string, number> | null;
+    weightLerpTargetWeights: Map<string, number> | null;
 }
 
 /** Create a fresh PVV2 renderer state. */
@@ -139,6 +151,15 @@ export function createPVV2State(): PVV2RendererState {
         activeTransitionPlan: null,
         transitionStartTime: null,
         transitionDurationMs: 0,
+        weightLerpActive: false,
+        weightLerpStartTime: 0,
+        weightLerpDurationMs: 0,
+        weightLerpStars: null,
+        weightLerpConnections: null,
+        weightLerpConfig: null,
+        weightLerpConqueredStarIds: null,
+        weightLerpPrevWeights: null,
+        weightLerpTargetWeights: null,
     };
 }
 
@@ -703,6 +724,75 @@ export function renderPowerVoronoi(
 
         s.fillGraphics.clear();
 
+        // ── Weight-Lerp Transition: recompute Voronoi each frame with interpolated weights ──
+        if (s.weightLerpActive && s.weightLerpStars && s.weightLerpConfig && s.weightLerpPrevWeights && s.weightLerpTargetWeights) {
+            const elapsed = now - s.weightLerpStartTime;
+            const rawT = Math.min(1, elapsed / s.weightLerpDurationMs);
+            // Smooth easing
+            const t = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
+
+            if (rawT >= 1) {
+                // Transition complete — stop weight-lerp, let normal draw take over
+                s.weightLerpActive = false;
+                log.renderer('PVV2', `WEIGHT-LERP COMPLETE | duration=${elapsed.toFixed(0)}ms`);
+            } else {
+                // Compute interpolated weights
+                const interpWeights = new Map<string, number>();
+                for (const [starId, prevW] of s.weightLerpPrevWeights) {
+                    const targetW = s.weightLerpTargetWeights.get(starId) ?? prevW;
+                    interpWeights.set(starId, prevW + t * (targetW - prevW));
+                }
+
+                // Recompute geometry with interpolated weights
+                try {
+                    const interpResult = computeGeometry0319(
+                        s.weightLerpStars,
+                        s.weightLerpConnections ?? [],
+                        s.weightLerpConfig,
+                        interpWeights,
+                    );
+
+                    if (!('kind' in interpResult)) {
+                        // Draw the interpolated geometry using normal territory drawing
+                        const interpMerged = interpResult.mergedTerritories ?? [];
+                        const interpEnclaveMap = interpResult.enclaveMap ?? null;
+                        for (let i = 0; i < interpMerged.length; i++) {
+                            const mt = interpMerged[i];
+                            const isNeutral = !mt.ownerId || mt.ownerId === 'neutral';
+                            if (isNeutral && GAME_CONFIG.NEUTRAL_TERRITORY_TRANSPARENT) continue;
+                            drawTerritoryFillOnly(s.fillGraphics!, mt, interpEnclaveMap?.get(i), alpha);
+                        }
+
+                        // Draw borders from interpolated shared polylines
+                        if (interpResult.sharedPolylines && s.fillGraphics) {
+                            for (const polyline of interpResult.sharedPolylines) {
+                                const pts = polyline.points;
+                                if (pts.length < 2) continue;
+                                s.fillGraphics.setStrokeStyle({
+                                    width: borderWidth,
+                                    color: polyline.color || 0xffffff,
+                                    alpha: borderAlpha,
+                                });
+                                s.fillGraphics.moveTo(pts[0][0], pts[0][1]);
+                                for (let p = 1; p < pts.length; p++) {
+                                    s.fillGraphics.lineTo(pts[p][0], pts[p][1]);
+                                }
+                                s.fillGraphics.stroke();
+                            }
+                        }
+                    }
+                } catch (err) {
+                    log.error('PVV2', `Weight-lerp geometry failed: ${err}`);
+                    s.weightLerpActive = false;
+                }
+
+                // Skip normal drawing — we just drew the interpolated frame
+                if (s.weightLerpActive) {
+                    return;
+                }
+            }
+        }
+
         // D-79 / B-101: Unified fill+border from same morphed closed polygons.
         // PolygonMorphTransitionHandler draws both fill AND stroke from the same interpolated points.
         if (s.activeTransitionPlan && s.activeTransitionPlan.plansByTerritoryId.size > 0) {
@@ -1071,67 +1161,64 @@ export function renderPowerVoronoi(
                     }
                 }
 
-                // ── Localized Boundary Transition: TMAP-diff-driven ──
-                if (s.prevGeometryData && s.lastGeometryData && s.changedSiteIds && s.changedSiteIds.size > 0) {
-                    try {
-                        const transitionMs = GAME_CONFIG.TERRITORY_TRANSITION_MS ?? 400;
-                        let plan: TerritoryTransitionPlanSet | null = null;
+                // ── Weight Interpolation Transition ──
+                // Instead of diffing TMAPs, recompute Voronoi each frame
+                // with interpolated weights for conquered stars.
+                if (s.changedSiteIds && s.changedSiteIds.size > 0) {
+                    const transitionMs = GAME_CONFIG.TERRITORY_TRANSITION_MS ?? 400;
+                    const starMargin = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45;
+                    const defaultWeight = starMargin * starMargin;
 
-                        // Try canonical TMAP-diff-driven plan first
-                        if (s.prevGeometryData.frontierMap && s.lastGeometryData.frontierMap) {
-                            const tmapDiff = diffFrontierMaps(s.prevGeometryData.frontierMap, s.lastGeometryData.frontierMap);
-                            if (!tmapDiff.identical) {
-                                plan = createCanonicalTransitionPlan(
-                                    s.prevGeometryData.frontierMap,
-                                    s.lastGeometryData.frontierMap,
-                                    tmapDiff,
-                                    transitionMs,
-                                    conquestOriginVec,
-                                    resampleN,
-                                );
+                    // Build config for recomputing geometry during transition
+                    const stageConfig: TerritoryGeneratorSettings = {
+                        starMargin,
+                        corridorEnabled: Boolean(GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED) && Boolean(connections),
+                        corridorSpacing: GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING ?? 60,
+                        disconnectEnabled: Boolean(GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED) && Boolean(connections),
+                        disconnectDistance: GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE ?? 400,
+                        clusterSplit: Boolean(GAME_CONFIG.TERRITORY_CLUSTER_SPLIT),
+                        chaikinPasses: Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3))),
+                        frontierResolution: 0,
+                        boundaryPad: GAME_CONFIG.CHAIKIN_BOUNDARY_PAD ?? 50,
+                        boundaryEps: GAME_CONFIG.CHAIKIN_BOUNDARY_EPS ?? 6,
+                        worldWidth,
+                        worldHeight,
+                    };
+
+                    // For conquered stars: prev weight = near-zero (small cell), target = full weight
+                    // This makes the new owner's territory smoothly grow into the conquered cell
+                    const prevWeights = new Map<string, number>();
+                    const targetWeights = new Map<string, number>();
+                    for (const star of stars) {
+                        if (star.ownerId) {
+                            if (s.changedSiteIds.has(star.id)) {
+                                // Conquered star: start from tiny weight, expand to full
+                                prevWeights.set(star.id, defaultWeight * 0.01);
+                                targetWeights.set(star.id, defaultWeight);
+                            } else {
+                                prevWeights.set(star.id, defaultWeight);
+                                targetWeights.set(star.id, defaultWeight);
                             }
                         }
-
-                        // Fall back to legacy 2-pass span planner if canonical failed or empty
-                        if (!plan || plan.plansByTerritoryId.size === 0) {
-                            const prevSnapshots = buildSnapshotsFromTMAP(s.prevGeometryData);
-                            const nextSnapshots = buildSnapshotsFromTMAP(s.lastGeometryData);
-                            const delta = computeTerritoryDeltaContext(prevSnapshots, nextSnapshots, s.changedSiteIds);
-                            plan = createTerritoryTransitionPlan(
-                                prevSnapshots, nextSnapshots, delta,
-                                transitionMs, conquestOriginVec, resampleN,
-                            );
-                        }
-
-                        if (plan.plansByTerritoryId.size > 0) {
-                            s.activeTransitionPlan = plan;
-                            s.transitionStartTime = performance.now();
-                            s.transitionDurationMs = transitionMs;
-                            log.renderer('PVV2', `TRANSITION | plans=${plan.plansByTerritoryId.size}`);
-                        } else {
-                            // Empty plan — fall through to legacy polygon morph
-                            log.renderer('PVV2', `TRANSITION: empty plan, using legacy morph`);
-                            const conquestOrigin: [number, number] | undefined = conquestOriginVec
-                                ? [conquestOriginVec.x, conquestOriginVec.y] : undefined;
-                            s.activeShapeTransitionHandler = new PolygonMorphTransitionHandler(s.prevMergedTerritories, s.lastMergedTerritories, easing, resampleN, overshoot, conquestOrigin);
-                        }
-                    } catch (err) {
-                        log.error('PVV2', `Splice transition failed: ${err}`);
-                        s.activeTransitionPlan = null;
-                        const conquestOrigin: [number, number] | undefined = conquestOriginVec
-                            ? [conquestOriginVec.x, conquestOriginVec.y] : undefined;
-                        s.activeShapeTransitionHandler = new PolygonMorphTransitionHandler(s.prevMergedTerritories, s.lastMergedTerritories, easing, resampleN, overshoot, conquestOrigin);
                     }
-                } else {
-                    const conquestOrigin: [number, number] | undefined = conquestOriginVec
-                        ? [conquestOriginVec.x, conquestOriginVec.y] : undefined;
-                    s.activeShapeTransitionHandler = new PolygonMorphTransitionHandler(s.prevMergedTerritories, s.lastMergedTerritories, easing, resampleN, overshoot, conquestOrigin);
+
+                    s.weightLerpActive = true;
+                    s.weightLerpStartTime = now;
+                    s.weightLerpDurationMs = transitionMs;
+                    s.weightLerpStars = stars;
+                    s.weightLerpConnections = connections ?? [];
+                    s.weightLerpConfig = stageConfig;
+                    s.weightLerpConqueredStarIds = new Set(s.changedSiteIds);
+                    s.weightLerpPrevWeights = prevWeights;
+                    s.weightLerpTargetWeights = targetWeights;
+                    // Cancel any old TMAP-based transition
+                    s.activeTransitionPlan = null;
+                    s.transitionStartTime = null;
+                    log.renderer('PVV2', `WEIGHT-LERP TRANSITION | conquered=${[...s.changedSiteIds].join(',')} duration=${transitionMs}ms`);
                 }
-            } else if (borderTransMode === 'pixi_graphics_morph' || borderTransMode === 'optimal_transport' || borderTransMode === 'smooth_morph') {
-                s.activeBorderTransitionHandler = new SegmentMorphTransitionHandler(s.prevSharedPolylines, s.targetSharedPolylines, easing, resampleN, overshoot);
             }
-            // else: no morpher — borders only appear at rebuild time (steady-state)
         }
+        // else: no morpher — borders only appear at rebuild time (steady-state)
     }
     log.renderer('PVV2', `◀ rebuild complete | total=${(performance.now() - now).toFixed(1)}ms`);
 }
