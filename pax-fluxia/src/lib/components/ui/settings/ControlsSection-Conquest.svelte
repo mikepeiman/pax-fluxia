@@ -1,15 +1,41 @@
 <script lang="ts">
     import { GAME_CONFIG } from "$lib/config/game.config";
+    import { ANIM_SLIDERS } from "../settingsDefs";
 
-    // ControlsSection-CONQUEST â€” In-Game Settings Controls: Conquest
+    // ControlsSection-CONQUEST — In-Game Settings Controls: Conquest
     // Extracted from GameSettingsPanel.svelte
+
+    // VS Transition sliders filtered from ANIM_SLIDERS
+    const VS_SLIDERS = ANIM_SLIDERS.filter((s) => s.group === "VS Transition");
 
     interface Props {
         panel: Record<string, any>;
         updatePanel: (key: string, value: any) => void;
         syncFromConfig?: () => void;
+        animLockModes: Record<string, any>;
+        animLockRatios: Record<string, any>;
+        animValues: Record<string, number>;
+        getAnimValue: (key: string) => number;
+        setAnimValue: (key: string, val: number) => void;
+        formatAnimValue: (val: number, unit: string) => string;
+        pinValueToTickDuration: (key: string) => void;
+        lockRatioToTick: (key: string) => void;
+        lockRatioToAnimSpeed: (key: string) => void;
     }
-    let { panel, updatePanel, syncFromConfig }: Props = $props();
+    let {
+        panel,
+        updatePanel,
+        syncFromConfig,
+        animLockModes,
+        animLockRatios,
+        animValues,
+        getAnimValue,
+        setAnimValue,
+        formatAnimValue,
+        pinValueToTickDuration,
+        lockRatioToTick,
+        lockRatioToAnimSpeed,
+    }: Props = $props();
     import CategoryThemeBar from "./CategoryThemeBar.svelte";
 </script>
 
@@ -404,140 +430,60 @@
     />
 </div>
 
-<!-- ── VS Transition (F-165) ── -->
+<!-- ── VS Transition (F-165) — per-slider lock icons ── -->
 <h4 class="sub-heading">VS Transition</h4>
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Bind to Tick</span>
-        <label class="toggle-switch">
-            <input
-                type="checkbox"
-                checked={panel.vsBindToTick}
-                onchange={(e) => {
-                    const v = (e.target as HTMLInputElement).checked;
-                    GAME_CONFIG.VS_BIND_TO_TICK = v;
-                    updatePanel("vsBindToTick", v);
-                    if (v) {
-                        const tick = GAME_CONFIG.BASE_TICK_MS;
-                        GAME_CONFIG.VS_VICTOR_TRAVEL_MS = tick;
-                        GAME_CONFIG.VS_LOSER_TRAVEL_MS = tick;
-                        GAME_CONFIG.VS_POWER_LERP_DURATION_MS = tick;
-                        updatePanel("vsVictorTravelMs", tick);
-                        updatePanel("vsLoserTravelMs", tick);
-                        updatePanel("vsPowerLerpDurationMs", tick);
-                    }
-                }}
-            />
-            <span class="slider"></span>
-        </label>
+{#each VS_SLIDERS as slider}
+    <div class="var-row" class:locked={animLockModes[slider.key] != null}>
+        <div class="row-top">
+            <span class="var-name">{slider.label}</span>
+            <span class="val-group">
+                <span class="val"
+                    >{formatAnimValue(
+                        getAnimValue(slider.key),
+                        slider.unit ?? "",
+                    )}</span
+                >
+                <button
+                    class="lock-btn"
+                    class:active={animLockModes[slider.key] === "pinned"}
+                    title={animLockModes[slider.key] === "pinned"
+                        ? "Pinned to tick duration — click to unpin"
+                        : "Pin value = tick duration"}
+                    onclick={() => pinValueToTickDuration(slider.key)}
+                    >🕐</button
+                >
+                <button
+                    class="lock-btn"
+                    class:active={animLockModes[slider.key] === "ratio"}
+                    title={animLockModes[slider.key] === "ratio"
+                        ? `Locked at ${(animLockRatios[slider.key] ?? 0).toFixed(3)}×tick — click to unlock`
+                        : "Lock current ratio to tick"}
+                    onclick={() => lockRatioToTick(slider.key)}>◆</button
+                >
+                <button
+                    class="lock-btn"
+                    class:active={animLockModes[slider.key] === "animSpeed"}
+                    title={animLockModes[slider.key] === "animSpeed"
+                        ? `Locked at ${(animLockRatios[slider.key] ?? 0).toFixed(3)}×anim — click to unlock`
+                        : "Lock current ratio to animation speed"}
+                    onclick={() => lockRatioToAnimSpeed(slider.key)}>⚡</button
+                >
+            </span>
+        </div>
+        <input
+            type="range"
+            min={slider.min}
+            max={slider.max}
+            step={slider.step}
+            value={getAnimValue(slider.key)}
+            disabled={animLockModes[slider.key] != null}
+            oninput={(e) => {
+                const v = parseFloat((e.target as HTMLInputElement).value);
+                setAnimValue(slider.key, v);
+            }}
+        />
     </div>
-</div>
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Victor Travel</span><span class="val"
-            >{panel.vsVictorTravelMs === 0
-                ? "auto"
-                : `${panel.vsVictorTravelMs}ms`}</span
-        >
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="5000"
-        step="10"
-        value={panel.vsVictorTravelMs}
-        disabled={panel.vsBindToTick as boolean}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.VS_VICTOR_TRAVEL_MS = v;
-            updatePanel("vsVictorTravelMs", v);
-        }}
-    />
-</div>
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Loser Travel</span><span class="val"
-            >{panel.vsLoserTravelMs === 0
-                ? "auto"
-                : `${panel.vsLoserTravelMs}ms`}</span
-        >
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="5000"
-        step="10"
-        value={panel.vsLoserTravelMs}
-        disabled={panel.vsBindToTick as boolean}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.VS_LOSER_TRAVEL_MS = v;
-            updatePanel("vsLoserTravelMs", v);
-        }}
-    />
-</div>
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Power Start</span><span class="val"
-            >{panel.vsPowerLerpStart === 0
-                ? "full"
-                : panel.vsPowerLerpStart}</span
-        >
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="500"
-        step="5"
-        value={panel.vsPowerLerpStart}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.VS_POWER_LERP_START = v;
-            updatePanel("vsPowerLerpStart", v);
-        }}
-    />
-</div>
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Power End</span><span class="val"
-            >{panel.vsPowerLerpEnd}</span
-        >
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="500"
-        step="5"
-        value={panel.vsPowerLerpEnd}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.VS_POWER_LERP_END = v;
-            updatePanel("vsPowerLerpEnd", v);
-        }}
-    />
-</div>
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Power Lerp</span><span class="val"
-            >{panel.vsPowerLerpDurationMs === 0
-                ? "auto"
-                : `${panel.vsPowerLerpDurationMs}ms`}</span
-        >
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="5000"
-        step="10"
-        value={panel.vsPowerLerpDurationMs}
-        disabled={panel.vsBindToTick as boolean}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.VS_POWER_LERP_DURATION_MS = v;
-            updatePanel("vsPowerLerpDurationMs", v);
-        }}
-    />
-</div>
+{/each}
 
 <style>
     @import "./panel-shared.css";

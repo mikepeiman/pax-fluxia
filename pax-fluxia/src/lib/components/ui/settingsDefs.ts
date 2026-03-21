@@ -105,6 +105,12 @@ export const ANIM_SLIDERS: AnimSliderDef[] = [
     { key: 'ARROW_SPEED', label: 'Arrow Speed', min: 0.1, max: 10, step: 0.05, unit: '×', group: 'Arrow Formation' },
     { key: 'ARROW_SPIRAL_DURATION_MS', label: 'Spiral Duration', min: 0, max: 5000, step: 10, unit: 'ms', group: 'Arrow Formation' },
     { key: 'ARROW_STAGGER_MS', label: 'Arrow Stagger', min: 0, max: 5000, step: 1, unit: 'ms', group: 'Arrow Formation' },
+    // VS Transition (F-165) — rendered in Conquest panel, not Timing
+    { key: 'VS_VICTOR_TRAVEL_MS', label: 'Victor Travel', min: 0, max: 5000, step: 10, unit: 'ms', group: 'VS Transition' },
+    { key: 'VS_LOSER_TRAVEL_MS', label: 'Loser Travel', min: 0, max: 5000, step: 10, unit: 'ms', group: 'VS Transition' },
+    { key: 'VS_POWER_LERP_START', label: 'Power Start', min: 0, max: 500, step: 5, unit: '', group: 'VS Transition' },
+    { key: 'VS_POWER_LERP_END', label: 'Power End', min: 0, max: 500, step: 5, unit: '', group: 'VS Transition' },
+    { key: 'VS_POWER_LERP_DURATION_MS', label: 'Power Lerp', min: 0, max: 5000, step: 10, unit: 'ms', group: 'VS Transition' },
 ];
 
 // ── Panel ↔ Config Mapping ──────────────────────────────────────────────────

@@ -1086,6 +1086,15 @@
                     <ControlsSectionConquest
                         {panel}
                         {updatePanel}
+                        {animLockModes}
+                        {animLockRatios}
+                        {animValues}
+                        {getAnimValue}
+                        {setAnimValue}
+                        {formatAnimValue}
+                        {pinValueToTickDuration}
+                        {lockRatioToTick}
+                        {lockRatioToAnimSpeed}
                         syncFromConfig={syncAllFromConfig}
                     />
                 {:else if sec.id === "territory"}
