@@ -777,12 +777,14 @@ export function renderPowerVoronoi(
                     for (const ghost of s.weightLerpGhostSites) {
                         const target = s.weightLerpGhostTargetPos.get(ghost.starId);
                         if (target) {
-                            // Lerp position from attacker (ghost.x/y) toward conquered (target)
+                            // Lerp position from origin toward target, fade weight → 0
+                            // At t=1: ghost is co-located with real star AND has weight=0
+                            // → its Voronoi cell has shrunk to nothing → removing it is a no-op → no snap
                             frameGhosts.push({
                                 ...ghost,
                                 x: ghost.x + (target.x - ghost.x) * t,
                                 y: ghost.y + (target.y - ghost.y) * t,
-                                weight: ghost.weight,  // full weight throughout
+                                weight: ghost.weight * (1 - t),  // fade to 0 as it arrives
                             });
                         } else {
                             // Fallback: no target, lerp weight from start → VS_POWER_LERP_END
