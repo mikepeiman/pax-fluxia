@@ -48,30 +48,29 @@ function computeCumulativeLengths(points: Vec2[]): number[] {
     return lengths;
 }
 
-/** Undirected edge key for matching against diff sets. */
-function undirectedEdgeKey(edgeId: string): string {
+/**
+ * Extract ownerPairKey from an edge ID.
+ */
+function extractOwnerPairKey(edgeId: string): string {
     const arrowIdx = edgeId.indexOf('->');
     const colonIdx = edgeId.indexOf(':', arrowIdx);
     if (arrowIdx < 0 || colonIdx < 0) return edgeId;
-    const vtxA = edgeId.substring(0, arrowIdx);
-    const vtxB = edgeId.substring(arrowIdx + 2, colonIdx);
-    const ownerKey = edgeId.substring(colonIdx + 1);
-    const sorted = vtxA < vtxB ? `${vtxA}|${vtxB}` : `${vtxB}|${vtxA}`;
-    return `${sorted}:${ownerKey}`;
+    return edgeId.substring(colonIdx + 1);
 }
 
 /**
  * Check if this edge is unchanged in the diff.
- * Both "unchanged" (exact curve match) AND "modified" (same structure,
- * slight curve shift from Voronoi recalculation) edges are treated as
- * static for partitioning purposes. Only deleted/inserted edges represent
- * actual topology changes near the conquest.
+ * Uses pair-level classification: an edge is unchanged if its owner pair
+ * polyline is classified as 'unchanged' (RMS < threshold).
+ * Modified pairs (near conquest) are also treated as unchanged for
+ * partitioning — only deleted/inserted represent topology changes.
  */
 function isEdgeUnchanged(edgeId: string, diff: FrontierMapDiff): boolean {
-    // Direct check — exact match or modified (same edge, slight shift)
-    if (diff.unchangedEdgeIds.has(edgeId)) return true;
-    if (diff.modifiedEdgeIds.has(edgeId)) return true;
-    return false;
+    // Check pair-level status
+    const opk = extractOwnerPairKey(edgeId);
+    const status = diff.pairStatus.get(opk);
+    // unchanged or modified pairs → static for partitioning
+    return status === 'unchanged' || status === 'modified';
 }
 
 /**
@@ -165,18 +164,19 @@ function findMatchingNextLoop(
 }
 
 /**
- * Find the corresponding edge in next TMAP for a changed edge from prev.
- * Uses undirected key matching.
+ * Find corresponding edges in next TMAP for a changed edge from prev.
+ * Uses ownerPairKey matching (stable across frames).
  */
-function findNextEdgeByUndirected(
+function findNextEdgesByPairKey(
     prevEdgeId: string,
     nextEdges: Map<string, CanonicalEdge>,
-): CanonicalEdge | null {
-    const ukey = undirectedEdgeKey(prevEdgeId);
+): CanonicalEdge[] {
+    const opk = extractOwnerPairKey(prevEdgeId);
+    const results: CanonicalEdge[] = [];
     for (const [eid, edge] of nextEdges) {
-        if (undirectedEdgeKey(eid) === ukey) return edge;
+        if (extractOwnerPairKey(eid) === opk) results.push(edge);
     }
-    return null;
+    return results;
 }
 
 // ---------------------------------------------------------------------------

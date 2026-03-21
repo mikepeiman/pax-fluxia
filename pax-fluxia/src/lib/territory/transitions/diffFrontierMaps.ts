@@ -1,20 +1,19 @@
 // ---------------------------------------------------------------------------
-// diffFrontierMaps.ts — Canonical Frontier Map Differ
+// diffFrontierMaps.ts — Owner-Pair Polyline Diff
 // ---------------------------------------------------------------------------
-// Compares two TerritoryFrontierMaps by edge identity to identify what
-// changed between two geometry states. Returns a structured diff that
-// the transition system can use to determine:
-// - Which edges are unchanged (copy verbatim)
-// - Which edges were modified (animate curve change)
-// - Which edges were deleted (animate removal)
-// - Which edges were inserted (animate appearance)
-// - Which vertices anchor the change (splice points)
+// Compares two TerritoryFrontierMaps by aggregating edges per owner-pair
+// into concatenated polylines, then comparing by resampled RMS distance.
 //
-// IMPORTANT: Edge IDs contain coordinate-derived vertex keys (ptKey).
-// After Voronoi recalculation, even structurally identical junctions
-// have slightly shifted coordinates, so edge IDs are NOT stable across
-// frames. This differ matches edges by ownerPairKey (stable sorted
-// owner IDs) and endpoint proximity instead of exact string equality.
+// This approach is IMMUNE to:
+// - Edge count churn (4→1 edges per pair = same physical boundary)
+// - ptKey jitter (junction vertices shift between frames)
+// - Chain walk start-point variation
+//
+// The diff classifies each OWNER PAIR as:
+// - unchanged: aggregate polyline RMS < threshold (copy verbatim)
+// - modified:  aggregate polyline RMS > threshold (near conquest)
+// - deleted:   pair only in prev
+// - inserted:  pair only in next
 //
 // Layer: Transition (diff computation)
 // Does NOT: render, import PIXI, modify geometry
@@ -27,26 +26,32 @@ import { log } from '$lib/utils/logger';
 // Types
 // ---------------------------------------------------------------------------
 
-/** Result of diffing two TerritoryFrontierMaps. */
+export type PairDiffStatus = 'unchanged' | 'modified' | 'deleted' | 'inserted';
+
+/** Result of diffing two TerritoryFrontierMaps at the owner-pair level. */
 export interface FrontierMapDiff {
-    /** Edges present in both maps with identical curve geometry */
+    /** Per-owner-pair classification */
+    pairStatus: Map<string, PairDiffStatus>;
+
+    /** Edges whose owner pair is classified as unchanged */
     unchangedEdgeIds: Set<string>;
-    /** Edges present in both maps but with different curve geometry */
+    /** Edges whose owner pair is classified as modified */
     modifiedEdgeIds: Set<string>;
-    /** Edges in prev only — removed in next */
+    /** Edges whose owner pair is classified as deleted (prev-only pair) */
     deletedEdgeIds: Set<string>;
-    /** Edges in next only — new in next */
+    /** Edges whose owner pair is classified as inserted (next-only pair) */
     insertedEdgeIds: Set<string>;
-    /** Vertices that border at least one changed (modified/deleted/inserted) edge */
+
+    /** Vertices bordering modified/deleted/inserted edges */
     anchorVertexIds: Set<string>;
-    /** Loop IDs that contain at least one changed edge */
+    /** Loop IDs containing at least one non-unchanged edge */
     affectedLoopIds: Set<string>;
     /** Whether the two maps are completely identical */
     identical: boolean;
 }
 
 // ---------------------------------------------------------------------------
-// Edge matching by ownerPairKey + endpoint proximity
+// Helpers
 // ---------------------------------------------------------------------------
 
 /**
@@ -61,28 +66,6 @@ function extractOwnerPairKey(edgeId: string): string {
 }
 
 /**
- * Get the midpoint of an edge's curve for proximity matching.
- * Using midpoint is more robust than endpoints because Voronoi
- * junction vertices shift more than interior curve points.
- */
-function edgeMidpoint(edge: CanonicalEdge): [number, number] {
-    const pts = edge.curvePoints;
-    const midIdx = Math.floor(pts.length / 2);
-    return pts[midIdx];
-}
-
-/**
- * Get both endpoint vertices of an edge for proximity matching.
- */
-function edgeEndpoints(edge: CanonicalEdge): { start: [number, number]; end: [number, number] } {
-    const pts = edge.curvePoints;
-    return {
-        start: pts[0],
-        end: pts[pts.length - 1],
-    };
-}
-
-/**
  * Distance squared between two points.
  */
 function dist2(a: [number, number], b: [number, number]): number {
@@ -92,57 +75,139 @@ function dist2(a: [number, number], b: [number, number]): number {
 }
 
 /**
- * Compare two edges' curve geometry.
- * Returns true if they have the same point count and all points are
- * within epsilon distance.
+ * Resample a polyline to N equally-spaced points along arc length.
  */
-function curvesEqual(a: CanonicalEdge, b: CanonicalEdge, epsilon: number = 1.0): boolean {
-    if (a.curvePoints.length !== b.curvePoints.length) return false;
-    const eps2 = epsilon * epsilon;
-    for (let i = 0; i < a.curvePoints.length; i++) {
-        if (dist2(a.curvePoints[i], b.curvePoints[i]) > eps2) return false;
+function resampleToFixed(pts: [number, number][], n: number): [number, number][] {
+    if (pts.length === 0) return [];
+    if (pts.length === 1) return Array(n).fill(pts[0]);
+    if (n <= 1) return [pts[0]];
+
+    // Compute cumulative arc lengths
+    const cumLen = [0];
+    for (let i = 1; i < pts.length; i++) {
+        const dx = pts[i][0] - pts[i - 1][0];
+        const dy = pts[i][1] - pts[i - 1][1];
+        cumLen.push(cumLen[i - 1] + Math.sqrt(dx * dx + dy * dy));
     }
-    return true;
+    const totalLen = cumLen[cumLen.length - 1];
+    if (totalLen < 1e-6) return Array(n).fill(pts[0]);
+
+    const result: [number, number][] = [];
+    let segIdx = 0;
+
+    for (let si = 0; si < n; si++) {
+        const targetLen = (si / (n - 1)) * totalLen;
+        // Advance segIdx to the segment containing targetLen
+        while (segIdx < cumLen.length - 2 && cumLen[segIdx + 1] < targetLen) {
+            segIdx++;
+        }
+        const segStart = cumLen[segIdx];
+        const segEnd = cumLen[segIdx + 1];
+        const segLen = segEnd - segStart;
+        const t = segLen > 1e-8 ? (targetLen - segStart) / segLen : 0;
+        result.push([
+            pts[segIdx][0] + t * (pts[segIdx + 1][0] - pts[segIdx][0]),
+            pts[segIdx][1] + t * (pts[segIdx + 1][1] - pts[segIdx][1]),
+        ]);
+    }
+    return result;
 }
 
 /**
- * Check if two edges' curves are similar enough to consider "same edge"
- * even if point counts differ. Uses arc midpoint proximity.
+ * Compute RMS distance between two resampled polylines.
+ * Checks both forward and reverse orientations.
  */
-function edgesProximateMatch(a: CanonicalEdge, b: CanonicalEdge, threshold: number = 15): boolean {
-    const midA = edgeMidpoint(a);
-    const midB = edgeMidpoint(b);
-    if (dist2(midA, midB) > threshold * threshold) return false;
-    // Also check endpoints are reasonably close
-    const epA = edgeEndpoints(a);
-    const epB = edgeEndpoints(b);
-    const thr2 = threshold * threshold;
-    // Check both orientations (edge may be traversed in opposite direction)
-    const fwdMatch = dist2(epA.start, epB.start) < thr2 && dist2(epA.end, epB.end) < thr2;
-    const revMatch = dist2(epA.start, epB.end) < thr2 && dist2(epA.end, epB.start) < thr2;
-    return fwdMatch || revMatch;
+function computeResampledRMS(
+    ptsA: [number, number][],
+    ptsB: [number, number][],
+    numSamples: number = 32,
+): number {
+    const a = resampleToFixed(ptsA, numSamples);
+    const b = resampleToFixed(ptsB, numSamples);
+
+    if (a.length === 0 || b.length === 0) return Infinity;
+
+    // Forward RMS
+    let fwdSum = 0;
+    for (let i = 0; i < numSamples; i++) {
+        fwdSum += dist2(a[i], b[i]);
+    }
+    const fwdRms = Math.sqrt(fwdSum / numSamples);
+
+    // Reverse RMS (polyline traversed in opposite direction)
+    let revSum = 0;
+    for (let i = 0; i < numSamples; i++) {
+        revSum += dist2(a[i], b[numSamples - 1 - i]);
+    }
+    const revRms = Math.sqrt(revSum / numSamples);
+
+    return Math.min(fwdRms, revRms);
+}
+
+// ---------------------------------------------------------------------------
+// Aggregation
+// ---------------------------------------------------------------------------
+
+interface AggregatedPairPolyline {
+    pairKey: string;
+    points: [number, number][];
+    edgeIds: string[];
+}
+
+/**
+ * Aggregate all edges per owner-pair into concatenated polylines.
+ * Edges are collected from loop traversal order to maintain chain ordering.
+ */
+function aggregatePairPolylines(tmap: TerritoryFrontierMap): Map<string, AggregatedPairPolyline> {
+    const result = new Map<string, AggregatedPairPolyline>();
+
+    for (const loop of tmap.loops) {
+        for (const edgeId of loop.edgeIds) {
+            const edge = tmap.edges.get(edgeId);
+            if (!edge) continue;
+            const opk = extractOwnerPairKey(edgeId);
+
+            if (!result.has(opk)) {
+                result.set(opk, { pairKey: opk, points: [], edgeIds: [] });
+            }
+            const agg = result.get(opk)!;
+            // Append points, skip first point if continuing chain (avoid duplicates)
+            if (agg.points.length > 0 && edge.curvePoints.length > 0) {
+                for (let i = 1; i < edge.curvePoints.length; i++) {
+                    agg.points.push(edge.curvePoints[i]);
+                }
+            } else {
+                for (const pt of edge.curvePoints) {
+                    agg.points.push(pt);
+                }
+            }
+            agg.edgeIds.push(edgeId);
+        }
+    }
+
+    return result;
 }
 
 // ---------------------------------------------------------------------------
 // Main differ
 // ---------------------------------------------------------------------------
 
+const RMS_UNCHANGED_THRESHOLD = 3.0; // px — below this, pair is static
+
 /**
- * Diff two TerritoryFrontierMaps by edge identity.
+ * Diff two TerritoryFrontierMaps at the owner-pair polyline level.
  *
- * Matching strategy:
- * 1. Group edges by ownerPairKey (stable across frames)
- * 2. Within each owner pair group, match by endpoint proximity
- * 3. Matched pairs: compare geometry → unchanged vs modified
- * 4. Unmatched prev edges → deleted
- * 5. Unmatched next edges → inserted
- * 6. Anchor vertices = vertices bordering any changed edge
- * 7. Affected loops = loops containing any changed edge
+ * Strategy:
+ * 1. Aggregate edges per ownerPairKey into concatenated polylines
+ * 2. For matching pairs: resample + RMS → unchanged vs modified
+ * 3. Pairs only in prev → deleted, only in next → inserted
+ * 4. Back-propagate pair status to individual edge IDs
  */
 export function diffFrontierMaps(
     prev: TerritoryFrontierMap,
     next: TerritoryFrontierMap,
 ): FrontierMapDiff {
+    const pairStatus = new Map<string, PairDiffStatus>();
     const unchangedEdgeIds = new Set<string>();
     const modifiedEdgeIds = new Set<string>();
     const deletedEdgeIds = new Set<string>();
@@ -150,154 +215,92 @@ export function diffFrontierMaps(
     const anchorVertexIds = new Set<string>();
     const affectedLoopIds = new Set<string>();
 
-    // Group edges by ownerPairKey
-    const prevByOwnerPair = new Map<string, CanonicalEdge[]>();
-    const nextByOwnerPair = new Map<string, CanonicalEdge[]>();
+    // Step 1: Aggregate
+    const prevPairs = aggregatePairPolylines(prev);
+    const nextPairs = aggregatePairPolylines(next);
 
-    for (const [_eid, edge] of prev.edges) {
-        const opk = extractOwnerPairKey(edge.id);
-        if (!prevByOwnerPair.has(opk)) prevByOwnerPair.set(opk, []);
-        prevByOwnerPair.get(opk)!.push(edge);
-    }
-    for (const [_eid, edge] of next.edges) {
-        const opk = extractOwnerPairKey(edge.id);
-        if (!nextByOwnerPair.has(opk)) nextByOwnerPair.set(opk, []);
-        nextByOwnerPair.get(opk)!.push(edge);
-    }
+    // Step 2: Compare matching pairs
+    const matchedNextKeys = new Set<string>();
 
-    // Track matched prev/next edge IDs to find unmatched later
-    const matchedPrevIds = new Set<string>();
-    const matchedNextIds = new Set<string>();
+    for (const [pairKey, prevPoly] of prevPairs) {
+        const nextPoly = nextPairs.get(pairKey);
 
-    // For each owner pair key present in both maps, match edges by proximity
-    for (const [opk, prevEdges] of prevByOwnerPair) {
-        const nextEdges = nextByOwnerPair.get(opk);
-        if (!nextEdges) {
-            // Entire owner pair deleted
-            for (const pe of prevEdges) {
-                deletedEdgeIds.add(pe.id);
-                anchorVertexIds.add(pe.startVertexId);
-                anchorVertexIds.add(pe.endVertexId);
+        if (!nextPoly) {
+            // Pair deleted
+            pairStatus.set(pairKey, 'deleted');
+            for (const eid of prevPoly.edgeIds) {
+                deletedEdgeIds.add(eid);
+                const edge = prev.edges.get(eid);
+                if (edge) {
+                    anchorVertexIds.add(edge.startVertexId);
+                    anchorVertexIds.add(edge.endVertexId);
+                }
             }
+            log.sys('TMAP-Diff', `  pair=${pairKey}: DELETED prev=${prevPoly.edgeIds.length}edges/${prevPoly.points.length}pts`);
             continue;
         }
 
-        // Match prev edges to next edges by proximity
-        const usedNext = new Set<number>();
-        for (const prevEdge of prevEdges) {
-            let bestIdx = -1;
-            let bestDist = Infinity;
-            let closestDist = Infinity;
-            let closestIdx = -1;
+        matchedNextKeys.add(pairKey);
 
-            for (let ni = 0; ni < nextEdges.length; ni++) {
-                if (usedNext.has(ni)) continue;
-                const nextEdge = nextEdges[ni];
-                const midDist = Math.sqrt(dist2(edgeMidpoint(prevEdge), edgeMidpoint(nextEdge)));
-                if (midDist < closestDist) {
-                    closestDist = midDist;
-                    closestIdx = ni;
-                }
-                if (edgesProximateMatch(prevEdge, nextEdge)) {
-                    const d = dist2(edgeMidpoint(prevEdge), edgeMidpoint(nextEdge));
-                    if (d < bestDist) {
-                        bestDist = d;
-                        bestIdx = ni;
-                    }
+        // Compare by resampled RMS
+        const rms = computeResampledRMS(prevPoly.points, nextPoly.points, 32);
+
+        if (rms < RMS_UNCHANGED_THRESHOLD) {
+            pairStatus.set(pairKey, 'unchanged');
+            // ALL edges in this pair → unchanged
+            for (const eid of prevPoly.edgeIds) {
+                unchangedEdgeIds.add(eid);
+            }
+        } else {
+            pairStatus.set(pairKey, 'modified');
+            // ALL edges in this pair → modified
+            for (const eid of prevPoly.edgeIds) {
+                modifiedEdgeIds.add(eid);
+                const edge = prev.edges.get(eid);
+                if (edge) {
+                    anchorVertexIds.add(edge.startVertexId);
+                    anchorVertexIds.add(edge.endVertexId);
                 }
             }
-
-            if (bestIdx >= 0) {
-                usedNext.add(bestIdx);
-                const nextEdge = nextEdges[bestIdx];
-                matchedPrevIds.add(prevEdge.id);
-                matchedNextIds.add(nextEdge.id);
-
-                if (curvesEqual(prevEdge, nextEdge)) {
-                    unchangedEdgeIds.add(prevEdge.id);
-                } else {
-                    modifiedEdgeIds.add(prevEdge.id);
-                    anchorVertexIds.add(prevEdge.startVertexId);
-                    anchorVertexIds.add(prevEdge.endVertexId);
-                }
-            } else {
-                deletedEdgeIds.add(prevEdge.id);
-                anchorVertexIds.add(prevEdge.startVertexId);
-                anchorVertexIds.add(prevEdge.endVertexId);
-                // Mismatch diagnostic: why couldn't we match?
-                const prevMid = edgeMidpoint(prevEdge);
-                const prevEp = edgeEndpoints(prevEdge);
-                if (closestIdx >= 0) {
-                    const closestEdge = nextEdges[closestIdx];
-                    const cEp = edgeEndpoints(closestEdge);
-                    const epFwdStart = Math.sqrt(dist2(prevEp.start, cEp.start));
-                    const epFwdEnd = Math.sqrt(dist2(prevEp.end, cEp.end));
-                    const epRevStart = Math.sqrt(dist2(prevEp.start, cEp.end));
-                    const epRevEnd = Math.sqrt(dist2(prevEp.end, cEp.start));
-                    log.sys('TMAP-MISS',
-                        `pair=${opk} prev=(${prevMid[0].toFixed(0)},${prevMid[1].toFixed(0)}) ` +
-                        `closest=(${edgeMidpoint(closestEdge)[0].toFixed(0)},${edgeMidpoint(closestEdge)[1].toFixed(0)}) ` +
-                        `midDist=${closestDist.toFixed(1)} ` +
-                        `epFwd=${epFwdStart.toFixed(1)}/${epFwdEnd.toFixed(1)} ` +
-                        `epRev=${epRevStart.toFixed(1)}/${epRevEnd.toFixed(1)} ` +
-                        `prevPts=${prevEdge.curvePoints.length} nextPts=${closestEdge.curvePoints.length} ` +
-                        `usedAlready=${usedNext.has(closestIdx)}`
-                    );
-                } else {
-                    log.sys('TMAP-MISS',
-                        `pair=${opk} prev=(${prevMid[0].toFixed(0)},${prevMid[1].toFixed(0)}) NO CANDIDATES in next`
-                    );
-                }
-            }
-        }
-
-        // Unmatched next edges → inserted
-        for (let ni = 0; ni < nextEdges.length; ni++) {
-            if (!usedNext.has(ni)) {
-                insertedEdgeIds.add(nextEdges[ni].id);
-                anchorVertexIds.add(nextEdges[ni].startVertexId);
-                anchorVertexIds.add(nextEdges[ni].endVertexId);
-            }
-        }
-
-        // Per-owner-pair diagnostic
-        const pairUnchanged = prevEdges.filter(e => unchangedEdgeIds.has(e.id)).length;
-        const pairModified = prevEdges.filter(e => modifiedEdgeIds.has(e.id)).length;
-        const pairDeleted = prevEdges.filter(e => deletedEdgeIds.has(e.id)).length;
-        const pairInserted = nextEdges.filter((_e, i) => !usedNext.has(i)).length;
-        if (pairModified > 0 || pairDeleted > 0 || pairInserted > 0) {
-            log.sys('TMAP-Diff', `  pair=${opk}: prev=${prevEdges.length} next=${nextEdges.length} unchanged=${pairUnchanged} modified=${pairModified} deleted=${pairDeleted} inserted=${pairInserted}`);
+            log.sys('TMAP-Diff', `  pair=${pairKey}: MODIFIED rms=${rms.toFixed(1)} prev=${prevPoly.edgeIds.length}edges/${prevPoly.points.length}pts next=${nextPoly.edgeIds.length}edges/${nextPoly.points.length}pts`);
         }
     }
 
-    // Owner pair keys only in next → all inserted
-    for (const [opk, nextEdges] of nextByOwnerPair) {
-        if (!prevByOwnerPair.has(opk)) {
-            for (const ne of nextEdges) {
-                insertedEdgeIds.add(ne.id);
-                anchorVertexIds.add(ne.startVertexId);
-                anchorVertexIds.add(ne.endVertexId);
+    // Step 3: Pairs only in next → inserted
+    for (const [pairKey, nextPoly] of nextPairs) {
+        if (!matchedNextKeys.has(pairKey)) {
+            pairStatus.set(pairKey, 'inserted');
+            for (const eid of nextPoly.edgeIds) {
+                insertedEdgeIds.add(eid);
+                const edge = next.edges.get(eid);
+                if (edge) {
+                    anchorVertexIds.add(edge.startVertexId);
+                    anchorVertexIds.add(edge.endVertexId);
+                }
             }
+            log.sys('TMAP-Diff', `  pair=${pairKey}: INSERTED next=${nextPoly.edgeIds.length}edges/${nextPoly.points.length}pts`);
         }
     }
 
-    // Find affected loops: any loop containing a changed edge
-    const changedPrevEdgeIds = new Set<string>([...modifiedEdgeIds, ...deletedEdgeIds]);
-    const changedNextEdgeIds = new Set<string>(insertedEdgeIds);
+    // Step 4: Find affected loops
+    const changedPairKeys = new Set<string>();
+    for (const [pk, status] of pairStatus) {
+        if (status !== 'unchanged') changedPairKeys.add(pk);
+    }
 
-    // Check prev loops
     for (const loop of prev.loops) {
         for (const eid of loop.edgeIds) {
-            if (changedPrevEdgeIds.has(eid)) {
+            const opk = extractOwnerPairKey(eid);
+            if (changedPairKeys.has(opk)) {
                 affectedLoopIds.add(loop.loopId);
                 break;
             }
         }
     }
-    // Check next loops
     for (const loop of next.loops) {
         for (const eid of loop.edgeIds) {
-            if (changedNextEdgeIds.has(eid)) {
+            const opk = extractOwnerPairKey(eid);
+            if (changedPairKeys.has(opk)) {
                 affectedLoopIds.add(loop.loopId);
                 break;
             }
@@ -308,14 +311,20 @@ export function diffFrontierMaps(
         deletedEdgeIds.size === 0 &&
         insertedEdgeIds.size === 0;
 
+    // Summary counts
+    const unchangedPairs = [...pairStatus.values()].filter(s => s === 'unchanged').length;
+    const modifiedPairs = [...pairStatus.values()].filter(s => s === 'modified').length;
+    const deletedPairs = [...pairStatus.values()].filter(s => s === 'deleted').length;
+    const insertedPairs = [...pairStatus.values()].filter(s => s === 'inserted').length;
+
     log.sys('TMAP-Diff',
-        `unchanged=${unchangedEdgeIds.size} modified=${modifiedEdgeIds.size} ` +
-        `deleted=${deletedEdgeIds.size} inserted=${insertedEdgeIds.size} ` +
-        `anchors=${anchorVertexIds.size} affectedLoops=${affectedLoopIds.size} ` +
-        `identical=${identical}`
+        `PAIRS: unchanged=${unchangedPairs} modified=${modifiedPairs} ` +
+        `deleted=${deletedPairs} inserted=${insertedPairs} ` +
+        `affectedLoops=${affectedLoopIds.size} identical=${identical}`
     );
 
     return {
+        pairStatus,
         unchangedEdgeIds,
         modifiedEdgeIds,
         deletedEdgeIds,
