@@ -30,6 +30,8 @@ import { GAME_CONFIG } from '$lib/config/game.config';
 export interface TerritoryTransitionEntry {
     /** Star that was conquered */
     starId: string;
+    /** Attacker star IDs (origin positions for virtual star lerp) */
+    attackerStarIds: string[];
     /** Previous territory owner */
     previousOwner: string;
     /** New territory owner */
@@ -121,6 +123,7 @@ export const territoryTransitionHandler: FXHandler<ConquestEvent> = {
 
         territoryTransitions.add({
             starId: event.starId,
+            attackerStarIds: event.attackerStarIds ?? [event.attackerStarId],
             previousOwner: event.previousOwner,
             newOwner: event.newOwner,
             startTimeMs: ctx.gameTime,

@@ -54,6 +54,7 @@ import { computeTerritoryDeltaContext } from '$lib/territory/transitions/compute
 import { createTerritoryTransitionPlan } from '$lib/territory/transitions/createTerritoryTransitionPlan';
 import { sampleTransitionFrame } from '$lib/territory/transitions/sampleTransitionFrame';
 import { drawTerritoryFrame } from '$lib/territory/transitions/drawTerritoryFrame';
+import { VirtualStarManager } from '$lib/territory/transitions/VirtualStarManager';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -107,18 +108,11 @@ export interface PVV2RendererState {
     activeTransitionPlan: TerritoryTransitionPlanSet | null;
     transitionStartTime: number | null;
     transitionDurationMs: number;
-    // Weight Interpolation Transition
-    weightLerpActive: boolean;
-    weightLerpStartTime: number;
-    weightLerpDurationMs: number;
+    // Virtual Star Position-Lerp Transition (F-165)
+    virtualStarManager: VirtualStarManager;
     weightLerpStars: StarState[] | null;
     weightLerpConnections: StarConnection[] | null;
     weightLerpConfig: TerritoryGeneratorSettings | null;
-    weightLerpConqueredStarIds: Set<string> | null;
-    weightLerpPrevWeights: Map<string, number> | null;
-    weightLerpTargetWeights: Map<string, number> | null;
-    weightLerpGhostSites: PowerSite[] | null;
-    weightLerpGhostWeightStart: Map<string, number> | null;
 }
 
 /** Create a fresh PVV2 renderer state. */
@@ -155,17 +149,10 @@ export function createPVV2State(): PVV2RendererState {
         activeTransitionPlan: null,
         transitionStartTime: null,
         transitionDurationMs: 0,
-        weightLerpActive: false,
-        weightLerpStartTime: 0,
-        weightLerpDurationMs: 0,
+        virtualStarManager: new VirtualStarManager(),
         weightLerpStars: null,
         weightLerpConnections: null,
         weightLerpConfig: null,
-        weightLerpConqueredStarIds: null,
-        weightLerpPrevWeights: null,
-        weightLerpTargetWeights: null,
-        weightLerpGhostSites: null,
-        weightLerpGhostWeightStart: null,
     };
 }
 
@@ -739,62 +726,47 @@ export function renderPowerVoronoi(
         console.log('%c[FILL-CLEAR] smooth-anim entry', 'color:red;font-weight:bold');
         s.fillGraphics.clear();
 
-        _fillPath = `smooth-anim|wl=${s.weightLerpActive}|splice=${!!(s.activeTransitionPlan?.plansByTerritoryId?.size)}|shape=${!!s.activeShapeTransitionHandler}|rope=${!!s.activeRopeRenderer}`;
+        _fillPath = `smooth-anim|vsm=${s.virtualStarManager.isActive}|splice=${!!(s.activeTransitionPlan?.plansByTerritoryId?.size)}|shape=${!!s.activeShapeTransitionHandler}|rope=${!!s.activeRopeRenderer}`;
 
-        // ── Ghost-Site Weight-Lerp Transition: recompute Voronoi each frame ──
-        if (s.weightLerpActive && s.weightLerpStars && s.weightLerpConfig && s.weightLerpPrevWeights && s.weightLerpTargetWeights) {
-            const elapsed = now - s.weightLerpStartTime;
-            const rawT = Math.min(1, elapsed / s.weightLerpDurationMs);
-            // Smooth easing
-            const t = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
+        // ── Virtual Star Position-Lerp Transition (F-165) ──
+        // VSM handles position interpolation and cleanup internally.
+        if (s.virtualStarManager.isActive && s.weightLerpStars && s.weightLerpConfig) {
+            const { sites: frameSites, completed } = s.virtualStarManager.getFrameSites(
+                // Build real sites from current stars (with post-conquest ownership)
+                s.weightLerpStars
+                    .filter(star => star.ownerId)
+                    .map(star => ({
+                        x: star.x,
+                        y: star.y,
+                        weight: s.weightLerpConfig!.starMargin * s.weightLerpConfig!.starMargin,
+                        ownerId: star.ownerId!,
+                        starId: star.id,
+                    })),
+                now,
+            );
 
-            if (rawT >= 1) {
-                // Transition complete — stop, let normal draw take over
-                s.weightLerpActive = false;
-                s.weightLerpGhostSites = null;
-                s.weightLerpGhostWeightStart = null;
-                // Cancel any stale smooth/fill transition state so normal draw works
+            if (completed.length > 0 && !s.virtualStarManager.isActive) {
+                // All virtual stars completed — cancel transition state, let normal draw take over
                 s.isSmoothTransitioning = false;
                 s.isFillTransitioning = false;
                 s.isBorderTransitioning = false;
                 s.activeShapeTransitionHandler = null;
                 s.activeBorderTransitionHandler = null;
-                log.sys('TMAP-WeightLerp', `GHOST TRANSITION COMPLETE | duration=${elapsed.toFixed(0)}ms`);
-            } else {
-                // Compute interpolated weights for real sites
-                const interpWeights = new Map<string, number>();
-                for (const [starId, prevW] of s.weightLerpPrevWeights) {
-                    const targetW = s.weightLerpTargetWeights.get(starId) ?? prevW;
-                    interpWeights.set(starId, prevW + t * (targetW - prevW));
-                }
+            }
 
-                // Build ghost sites with fading weights (W*(1-t))
-                const frameGhosts: PowerSite[] = [];
-                if (s.weightLerpGhostSites && s.weightLerpGhostWeightStart) {
-                    for (const ghost of s.weightLerpGhostSites) {
-                        const startW = s.weightLerpGhostWeightStart.get(ghost.starId) ?? 0;
-                        const ghostWeight = startW * (1 - t);  // fades from W to 0
-                        if (ghostWeight > 0.01) {  // skip degenerate ghost cells
-                            frameGhosts.push({
-                                ...ghost,
-                                weight: ghostWeight,
-                            });
-                        }
-                    }
-                }
-
-                // Recompute geometry with interpolated weights + ghost sites
+            // Recompute frontier pipeline with virtual stars at interpolated positions
+            if (s.virtualStarManager.isActive) {
                 try {
                     const interpResult = computeGeometry0319(
                         s.weightLerpStars,
                         s.weightLerpConnections ?? [],
                         s.weightLerpConfig,
-                        interpWeights,
-                        frameGhosts.length > 0 ? frameGhosts : undefined,
+                        undefined,  // no custom weights — virtual stars carry full weight
+                        frameSites.filter(site => site.virtual === 'conquest'),  // extraSites
                     );
 
                     if (!('kind' in interpResult)) {
-                        // Assign colors to interpolated territories (geometry returns color=0)
+                        // Assign colors (render concern, not geometry)
                         const satMult2 = GAME_CONFIG.VORONOI_SATURATION ?? 1.0;
                         const lightMult2 = GAME_CONFIG.VORONOI_LIGHTNESS ?? 0.7;
                         const interpMerged = interpResult.mergedTerritories ?? [];
@@ -815,7 +787,6 @@ export function renderPowerVoronoi(
                             for (const polyline of interpResult.sharedPolylines) {
                                 const pts = polyline.points;
                                 if (pts.length < 2) continue;
-                                // Compute border color from owner pair
                                 const [ownerA, ownerB] = polyline.ownerPairKey.split('|');
                                 const colA = adjustColorHSL(colorUtils.getPlayerColor(ownerA), satMult2, lightMult2);
                                 const colB = adjustColorHSL(colorUtils.getPlayerColor(ownerB), satMult2, lightMult2);
@@ -834,16 +805,14 @@ export function renderPowerVoronoi(
                         }
                     }
                 } catch (err) {
-                    log.error('PVV2', `Ghost weight-lerp geometry failed: ${err}`);
-                    s.weightLerpActive = false;
+                    log.error('PVV2', `Virtual star geometry failed: ${err}`);
+                    s.virtualStarManager.cancelAll();
                 }
 
                 // Skip normal drawing — we just drew the interpolated frame
-                if (s.weightLerpActive) {
-                    _fillPath = `weight-lerp|t=${t.toFixed(2)}|ghosts=${frameGhosts.length}`;
-                    if (_fillPath !== (renderPowerVoronoi as any).__lastFillPath) { log.sys('FILL-DIAG', `PATH=${_fillPath}`); (renderPowerVoronoi as any).__lastFillPath = _fillPath; }
-                    return;
-                }
+                _fillPath = `vsm-lerp|active=${s.virtualStarManager.count}`;
+                if (_fillPath !== (renderPowerVoronoi as any).__lastFillPath) { log.sys('FILL-DIAG', `PATH=${_fillPath}`); (renderPowerVoronoi as any).__lastFillPath = _fillPath; }
+                return;
             }
         }
 
@@ -1193,10 +1162,9 @@ export function renderPowerVoronoi(
             territoryTransitions.markConsumed(entry.starId);
         }
 
-        // ── Ghost-Site Weight Interpolation ──
-        // For each conquered star, we create a ghost site at the same position
-        // with the OLD owner. Ghost fades out (W→0) while new owner fades in (0→W).
-        // This correctly animates the boundary handoff.
+        // ── Virtual Star Position-Lerp (F-165) ──
+        // For each conquered star, spawn one virtual star per attacker at the attacker's position.
+        // Virtual stars slide toward the conquered star, creating directional territory expansion.
         if (s.changedSiteIds && s.changedSiteIds.size > 0 && s.changedSitePrevOwners) {
             const wlTransitionMs = GAME_CONFIG.TERRITORY_TRANSITION_MS ?? 400;
             const wlStarMargin = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45;
@@ -1217,59 +1185,68 @@ export function renderPowerVoronoi(
                 worldHeight,
             };
 
-            // New owner sites start at weight=0 (ghost holds territory), then grow to W
-            const prevWeights = new Map<string, number>();
-            const targetWeights = new Map<string, number>();
-            for (const star of stars) {
-                if (star.ownerId) {
-                    if (s.changedSiteIds.has(star.id)) {
-                        prevWeights.set(star.id, 0);           // new owner starts invisible
-                        targetWeights.set(star.id, wlDefaultWeight);  // grows to full
-                    } else {
-                        prevWeights.set(star.id, wlDefaultWeight);
-                        targetWeights.set(star.id, wlDefaultWeight);
+            // Build attacker-origin map from FX entries
+            const attackerOriginMap = new Map<string, string[]>();
+            for (const entry of territoryTransitions.getUnconsumed()) {
+                if (entry.attackerStarIds && entry.attackerStarIds.length > 0) {
+                    attackerOriginMap.set(entry.starId, entry.attackerStarIds);
+                }
+            }
+            // Also check already-consumed entries (may have been consumed above)
+            // Fall back: use the first connection neighbor as attacker
+            const starMap = new Map(stars.map(st => [st.id, st]));
+
+            // Spawn virtual stars: one per attacker per conquered star
+            for (const [conqueredStarId, _prevOwnerId] of s.changedSitePrevOwners) {
+                const conqueredStar = starMap.get(conqueredStarId);
+                if (!conqueredStar) continue;
+
+                const attackerStarIds = attackerOriginMap.get(conqueredStarId);
+                if (attackerStarIds && attackerStarIds.length > 0) {
+                    // One virtual star per attacker (game constraint: attackers own the lane)
+                    for (const attackerId of attackerStarIds) {
+                        const attackerStar = starMap.get(attackerId);
+                        if (attackerStar) {
+                            s.virtualStarManager.spawnConquest(
+                                attackerId,
+                                conqueredStarId,
+                                conqueredStar.ownerId!,  // new owner (victor)
+                                { x: attackerStar.x, y: attackerStar.y },
+                                { x: conqueredStar.x, y: conqueredStar.y },
+                                wlDefaultWeight,
+                                wlTransitionMs,
+                                now,
+                            );
+                        }
                     }
+                } else {
+                    // Fallback: no FX entry with attacker info — spawn at conquered position
+                    // (behaves like a weight-fade instead of position-lerp)
+                    s.virtualStarManager.spawnConquest(
+                        conqueredStarId,
+                        conqueredStarId,
+                        conqueredStar.ownerId!,
+                        { x: conqueredStar.x, y: conqueredStar.y },
+                        { x: conqueredStar.x, y: conqueredStar.y },
+                        wlDefaultWeight,
+                        wlTransitionMs,
+                        now,
+                    );
                 }
             }
 
-            // Create ghost sites: OLD owner at conquered star position, weight W→0
-            const ghostSites: PowerSite[] = [];
-            const ghostWeightStart = new Map<string, number>();
-            for (const [starId, prevOwnerId] of s.changedSitePrevOwners) {
-                const star = stars.find(st => st.id === starId);
-                if (star) {
-                    const ghostId = `ghost_${starId}`;
-                    ghostSites.push({
-                        x: star.x,
-                        y: star.y,
-                        weight: wlDefaultWeight,  // starts at full weight
-                        ownerId: prevOwnerId,     // OLD owner
-                        starId: ghostId,
-                    });
-                    ghostWeightStart.set(ghostId, wlDefaultWeight);  // fades to 0
-                }
-            }
-
-            s.weightLerpActive = true;
-            s.weightLerpStartTime = now;
-            s.weightLerpDurationMs = wlTransitionMs;
             s.weightLerpStars = stars;
             s.weightLerpConnections = connections ?? [];
             s.weightLerpConfig = stageConfig;
-            s.weightLerpConqueredStarIds = new Set(s.changedSiteIds);
-            s.weightLerpPrevWeights = prevWeights;
-            s.weightLerpTargetWeights = targetWeights;
-            s.weightLerpGhostSites = ghostSites;
-            s.weightLerpGhostWeightStart = ghostWeightStart;
             s.activeTransitionPlan = null;
             s.transitionStartTime = null;
-            // Cancel all old transition state — weight-lerp replaces everything
+            // Cancel all old transition state — virtual star lerp replaces everything
             s.isSmoothTransitioning = false;
             s.isFillTransitioning = false;
             s.isBorderTransitioning = false;
             s.activeShapeTransitionHandler = null;
             s.activeBorderTransitionHandler = null;
-            log.sys('TMAP-WeightLerp', `GHOST TRANSITION | conquered=${[...s.changedSiteIds].join(',')} ghosts=${ghostSites.length} duration=${wlTransitionMs}ms`);
+            log.sys('VirtualStar', `CONQUEST SETUP | conquered=${[...s.changedSiteIds].join(',')} transitionMs=${wlTransitionMs}ms`);
         }
         // Segment mode
         if (s.prevBorderEdges && s.prevBorderEdges.length > 0) {
