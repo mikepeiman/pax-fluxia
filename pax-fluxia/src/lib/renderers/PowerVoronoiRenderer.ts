@@ -742,6 +742,12 @@ export function renderPowerVoronoi(
                 s.weightLerpActive = false;
                 s.weightLerpGhostSites = null;
                 s.weightLerpGhostWeightStart = null;
+                // Cancel any stale smooth/fill transition state so normal draw works
+                s.isSmoothTransitioning = false;
+                s.isFillTransitioning = false;
+                s.isBorderTransitioning = false;
+                s.activeShapeTransitionHandler = null;
+                s.activeBorderTransitionHandler = null;
                 log.sys('TMAP-WeightLerp', `GHOST TRANSITION COMPLETE | duration=${elapsed.toFixed(0)}ms`);
             } else {
                 // Compute interpolated weights for real sites
@@ -798,9 +804,14 @@ export function renderPowerVoronoi(
                             for (const polyline of interpResult.sharedPolylines) {
                                 const pts = polyline.points;
                                 if (pts.length < 2) continue;
+                                // Compute border color from owner pair
+                                const [ownerA, ownerB] = polyline.ownerPairKey.split('|');
+                                const colA = adjustColorHSL(colorUtils.getPlayerColor(ownerA), satMult2, lightMult2);
+                                const colB = adjustColorHSL(colorUtils.getPlayerColor(ownerB), satMult2, lightMult2);
+                                const borderColor = blendColors(colA, colB, 0.5);
                                 s.fillGraphics.setStrokeStyle({
                                     width: borderWidth,
-                                    color: polyline.color || 0xffffff,
+                                    color: borderColor,
                                     alpha: borderAlpha,
                                 });
                                 s.fillGraphics.moveTo(pts[0][0], pts[0][1]);
@@ -1209,6 +1220,12 @@ export function renderPowerVoronoi(
             s.weightLerpGhostWeightStart = ghostWeightStart;
             s.activeTransitionPlan = null;
             s.transitionStartTime = null;
+            // Cancel all old transition state — weight-lerp replaces everything
+            s.isSmoothTransitioning = false;
+            s.isFillTransitioning = false;
+            s.isBorderTransitioning = false;
+            s.activeShapeTransitionHandler = null;
+            s.activeBorderTransitionHandler = null;
             log.sys('TMAP-WeightLerp', `GHOST TRANSITION | conquered=${[...s.changedSiteIds].join(',')} ghosts=${ghostSites.length} duration=${wlTransitionMs}ms`);
         }
         // Segment mode
