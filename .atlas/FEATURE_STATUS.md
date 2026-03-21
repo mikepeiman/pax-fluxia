@@ -111,6 +111,7 @@
 | F-151 | Junction overlap blending — where border lines overlap at junctions, they should be blended (not additive stacking). Requires compositing or pre-pass deduplication. | Medium | 2026-03-10 |
 | F-157 | MSR expansion — four enhancements to Minimum Star Radius: (1) Per-star dynamic MSR scaled by fleet strength via `log₂(ships/avgNeighborShips)`, (2) MSR gravity: minimum area threshold to eliminate micro-territory slivers, (3) MSR breathing room: visual clearance between frontier lines and star icons, (4) Contested MSR: shrink MSR for stars under siege proportional to ship loss. See `CONSTRAINT_ARCHITECTURE_ANALYSIS.md`. | Medium | 2026-03-16 |
 | F-158 | Constraint architecture cleanup — delete CX (corridor virtual sites, replaced by analytical lane split), demote DX (disconnect separation) from metric-stage virtual sites to region-stage gap post-process. Keep MSR + lane-exclusivity. See `CONSTRAINT_ARCHITECTURE_ANALYSIS.md`. | High | 2026-03-16 |
+| F-164 | **Player color badge in logs** — AIs and human players in console logs should display a clearly-visible circle badge in their color with initials (HP, A1, A2, …). Improves log readability during territory debugging. | Low | 2026-03-20 |
 
 ## 2026-03-12 Territory Engine Program Additions
 
