@@ -32,9 +32,9 @@ export class TerritoryWorker {
         this.cache = cache;
     }
 
-    async computeGeometry(
+    computeGeometrySync(
         request: TerritoryWorkerGeometryRequest,
-    ): Promise<TerritoryWorkerGeometryResponse> {
+    ): TerritoryWorkerGeometryResponse {
         const cacheKey = buildWorkerCacheKey(request);
         const cached = this.cache.get(cacheKey);
         if (cached) {
@@ -45,18 +45,16 @@ export class TerritoryWorker {
             };
         }
 
-        const geometry = await Promise.resolve().then(() =>
-            this.geometryLayer.compute({
-                nowMs: request.nowMs,
-                stars: request.stars,
-                lanes: request.lanes,
-                world: request.world,
-                tunables: request.tunables,
-                ownership: request.ownership,
-                selection: request.selection,
-                previousSnapshot: request.previousGeometry,
-            }),
-        );
+        const geometry = this.geometryLayer.compute({
+            nowMs: request.nowMs,
+            stars: request.stars,
+            lanes: request.lanes,
+            world: request.world,
+            tunables: request.tunables,
+            ownership: request.ownership,
+            selection: request.selection,
+            previousSnapshot: request.previousGeometry,
+        });
 
         this.cache.set(cacheKey, geometry);
 
@@ -65,6 +63,12 @@ export class TerritoryWorker {
             geometry,
             fromCache: false,
         };
+    }
+
+    async computeGeometry(
+        request: TerritoryWorkerGeometryRequest,
+    ): Promise<TerritoryWorkerGeometryResponse> {
+        return Promise.resolve(this.computeGeometrySync(request));
     }
 
     clearCache(): void {

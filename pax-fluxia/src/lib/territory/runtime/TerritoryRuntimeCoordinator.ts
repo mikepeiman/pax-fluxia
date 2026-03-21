@@ -14,6 +14,7 @@ import { OwnershipLayerCoordinator } from '../layers/ownership/OwnershipLayerCoo
 import { GeometryLayerCoordinator } from '../layers/geometry/GeometryLayerCoordinator';
 import { TransitionLayerCoordinator } from '../layers/transition/TransitionLayerCoordinator';
 import { PresentationLayerCoordinator } from '../layers/presentation/PresentationLayerCoordinator';
+import { TerritoryWorker } from './TerritoryWorker';
 
 export interface TerritoryRuntimeOutput {
     ownership: OwnershipSnapshot;
@@ -28,9 +29,10 @@ export class TerritoryRuntimeCoordinator {
 
     constructor(
         private readonly ownershipLayer = new OwnershipLayerCoordinator(),
-        private readonly geometryLayer = new GeometryLayerCoordinator(),
+        geometryLayer = new GeometryLayerCoordinator(),
         private readonly transitionLayer = new TransitionLayerCoordinator(),
         private readonly presentationLayer = new PresentationLayerCoordinator(),
+        private readonly worker = new TerritoryWorker(geometryLayer),
     ) {}
 
     reset(): void {
@@ -63,7 +65,8 @@ export class TerritoryRuntimeCoordinator {
             previousSnapshot: this.state.previousOwnership,
         });
 
-        const geometry = this.geometryLayer.compute({
+        const geometryResult = this.worker.computeGeometrySync({
+            requestId: `territory:${input.tickId}:${input.nowMs}`,
             nowMs: input.nowMs,
             stars: input.stars,
             lanes: input.lanes,
@@ -71,8 +74,9 @@ export class TerritoryRuntimeCoordinator {
             tunables: input.tunables,
             ownership,
             selection: input.selection,
-            previousSnapshot: this.state.previousGeometry,
+            previousGeometry: this.state.previousGeometry,
         });
+        const geometry = geometryResult.geometry;
 
         const transition = this.transitionLayer.compute({
             nowMs: input.nowMs,
