@@ -40,6 +40,7 @@ export interface MapDefinition {
     starType: StarType;
     activeShips?: number;
     damagedShips?: number;
+    targetId?: StarId;
     productionRate?: number;
     specialTraits?: string[];
   }>;
