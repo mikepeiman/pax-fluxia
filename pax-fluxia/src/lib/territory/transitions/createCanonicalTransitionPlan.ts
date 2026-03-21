@@ -266,9 +266,28 @@ export function createCanonicalTransitionPlan(
                 }
             }
         } else {
-            // Multiple changed windows — more complex, snap for now
-            kind = 'fallback-snap';
-            log.sys('TMAP-Plan', `Loop ${prevLoop.loopId}: ${changedRunCount} changed runs, falling back to snap`);
+            // Multiple changed windows — morph the entire loop
+            const prevArc = collectEdgePoints(prevLoop.edgeIds, prevTMAP.edges);
+            const nextArc = collectEdgePoints(nextLoop.edgeIds, nextTMAP.edges);
+
+            if (prevArc.length >= 2 && nextArc.length >= 2) {
+                const fromSamples = resamplePolylineByArcLength(prevArc, resampleN);
+                const toSamples = resamplePolylineByArcLength(nextArc, resampleN);
+
+                patchMorph = {
+                    ringId: prevLoop.loopId,
+                    anchorA: fromSamples[0],
+                    anchorB: fromSamples[fromSamples.length - 1],
+                    fromSamples,
+                    toSamples,
+                    localOrigin: conquestOrigin,
+                };
+                kind = 'splice-replace';
+                log.sys('TMAP-Plan', `Loop ${prevLoop.loopId}: ${changedRunCount} changed runs → full-loop morph`);
+            } else {
+                kind = 'fallback-snap';
+                log.sys('TMAP-Plan', `Loop ${prevLoop.loopId}: degenerate arcs, falling back to snap`);
+            }
         }
 
         // Build ring snapshot for target
