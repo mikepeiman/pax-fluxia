@@ -121,6 +121,14 @@ export interface PVV2RendererState {
     weightLerpGhostWeightStart: Map<string, number> | null;
     /** F-165: Ghost target positions (conquered star) for position-lerp */
     weightLerpGhostTargetPos: Map<string, { x: number; y: number }> | null;
+    // Island dissolution animation
+    dyingIslands: Array<{
+        polygon: [number, number][];
+        center: { x: number; y: number };
+        color: number;
+        startTime: number;
+        durationMs: number;
+    }>;
 }
 
 /** Create a fresh PVV2 renderer state. */
@@ -169,6 +177,7 @@ export function createPVV2State(): PVV2RendererState {
         weightLerpGhostSites: null,
         weightLerpGhostWeightStart: null,
         weightLerpGhostTargetPos: null,
+        dyingIslands: [],
     };
 }
 
@@ -747,8 +756,6 @@ export function renderPowerVoronoi(
         if (s.weightLerpActive && s.weightLerpStars && s.weightLerpConfig && s.weightLerpPrevWeights && s.weightLerpTargetWeights) {
             const elapsed = now - s.weightLerpStartTime;
             const rawT = Math.min(1, elapsed / s.weightLerpDurationMs);
-            // easeOutCubic: fast departure, slow arrival
-            const t = 1 - Math.pow(1 - rawT, 3);
 
             if (rawT >= 1) {
                 // Transition complete — stop, let normal draw take over
@@ -763,11 +770,17 @@ export function renderPowerVoronoi(
                 s.activeBorderTransitionHandler = null;
                 log.sys('TMAP-WeightLerp', `GHOST TRANSITION COMPLETE | duration=${elapsed.toFixed(0)}ms`);
             } else {
-                // Compute interpolated weights for real sites
+                // Two separate easing curves:
+                // - tGhost: easeOutCubic (fast departure, slow arrival) for ghost position + weight
+                // - tConquest: easeInCubic (slow start, fast finish) for conquered star weight ramp
+                const tGhost = 1 - Math.pow(1 - rawT, 3);     // ghost moves fast at start
+                const tConquest = rawT * rawT * rawT;           // conquered star expands gently at start
+
+                // Compute interpolated weights for real sites using tConquest
                 const interpWeights = new Map<string, number>();
                 for (const [starId, prevW] of s.weightLerpPrevWeights) {
                     const targetW = s.weightLerpTargetWeights.get(starId) ?? prevW;
-                    interpWeights.set(starId, prevW + t * (targetW - prevW));
+                    interpWeights.set(starId, prevW + tConquest * (targetW - prevW));
                 }
 
                 // Build ghost sites with lerped positions (attacker → conquered)
@@ -782,17 +795,17 @@ export function renderPowerVoronoi(
                             const isVictor = ghost.starId.startsWith('vs_victor_');
                             const ghostW = isVictor
                                 ? ghost.weight             // victor: constant full weight
-                                : ghost.weight * (1 - t);  // loser: fade to 0
+                                : ghost.weight * (1 - tGhost);  // loser: fade to 0
                             frameGhosts.push({
                                 ...ghost,
-                                x: ghost.x + (target.x - ghost.x) * t,
-                                y: ghost.y + (target.y - ghost.y) * t,
+                                x: ghost.x + (target.x - ghost.x) * tGhost,
+                                y: ghost.y + (target.y - ghost.y) * tGhost,
                                 weight: ghostW,
                             });
                         } else {
                             // Fallback: no target (isolated loser), fade weight to 0
                             const startW = s.weightLerpGhostWeightStart?.get(ghost.starId) ?? 0;
-                            const ghostWeight = startW * (1 - t);  // linear fade
+                            const ghostWeight = startW * (1 - tGhost);  // linear fade
                             if (ghostWeight > 0.01) {
                                 frameGhosts.push({ ...ghost, weight: ghostWeight });
                             }
@@ -857,7 +870,37 @@ export function renderPowerVoronoi(
 
                 // Skip normal drawing — we just drew the interpolated frame
                 if (s.weightLerpActive) {
-                    _fillPath = `weight-lerp|t=${t.toFixed(2)}|ghosts=${frameGhosts.length}`;
+                    // ── Dying Island Dissolution ──
+                    // Draw any island territories that are shrinking to their center point
+                    if (s.dyingIslands.length > 0) {
+                        const alpha = GAME_CONFIG.VORONOI_ALPHA ?? 0.25;
+                        s.dyingIslands = s.dyingIslands.filter(island => {
+                            const islandElapsed = now - island.startTime;
+                            const islandRawT = Math.min(1, islandElapsed / island.durationMs);
+                            if (islandRawT >= 1) return false; // expired — remove
+
+                            // easeInQuad: slow start, accelerating shrink
+                            const shrinkT = islandRawT * islandRawT;
+                            // Alpha: full until 80%, then steep fade in last 20%
+                            const alphaT = islandRawT < 0.8 ? 1 : 1 - ((islandRawT - 0.8) / 0.2);
+                            const islandAlpha = alpha * alphaT;
+
+                            // Lerp all polygon vertices toward center → build shrunk polygon
+                            const { polygon, center } = island;
+                            const shrunkPts: number[] = [];
+                            for (const [px, py] of polygon) {
+                                shrunkPts.push(
+                                    px + (center.x - px) * shrinkT,
+                                    py + (center.y - py) * shrinkT,
+                                );
+                            }
+                            s.fillGraphics!.poly(shrunkPts);
+                            s.fillGraphics!.fill({ color: island.color, alpha: islandAlpha });
+                            return true; // keep in array
+                        });
+                    }
+
+                    _fillPath = `weight-lerp|t=${rawT.toFixed(2)}|ghosts=${frameGhosts.length}|islands=${s.dyingIslands.length}`;
                     if (_fillPath !== (renderPowerVoronoi as any).__lastFillPath) { log.sys('FILL-DIAG', `PATH=${_fillPath}`); (renderPowerVoronoi as any).__lastFillPath = _fillPath; }
                     return;
                 }
@@ -961,6 +1004,26 @@ export function renderPowerVoronoi(
             }
         }
 
+        // ── Dying Island Dissolution (non-weight-lerp path) ──
+        // Islands may outlive the weight-lerp. Draw them in the static/morph path too.
+        if (s.dyingIslands.length > 0 && s.fillGraphics) {
+            const islandAlpha0 = GAME_CONFIG.VORONOI_ALPHA ?? 0.25;
+            s.dyingIslands = s.dyingIslands.filter(island => {
+                const islandElapsed = now - island.startTime;
+                const islandRawT = Math.min(1, islandElapsed / island.durationMs);
+                if (islandRawT >= 1) return false;
+                const shrinkT = islandRawT * islandRawT;
+                const alphaT = islandRawT < 0.8 ? 1 : 1 - ((islandRawT - 0.8) / 0.2);
+                const { polygon, center } = island;
+                const shrunkPts: number[] = [];
+                for (const [px, py] of polygon) {
+                    shrunkPts.push(px + (center.x - px) * shrinkT, py + (center.y - py) * shrinkT);
+                }
+                s.fillGraphics!.poly(shrunkPts);
+                s.fillGraphics!.fill({ color: island.color, alpha: islandAlpha0 * alphaT });
+                return true;
+            });
+        }
         if (rawT >= 1) {
             s.isSmoothTransitioning = false;
             s.isFillTransitioning = false;
@@ -1353,7 +1416,9 @@ export function renderPowerVoronoi(
                         ghostWeightStart.set(vsId, powerLerpStart);  // track for per-frame lerp
                     }
                 } else {
-                    // Fallback: loser has no connected stars — dissolve
+                    // ISLAND: loser has no connected stars — this is an isolated single-star territory.
+                    // Instead of just creating a fade ghost (which doesn't look right),
+                    // capture the old territory polygon and register a dying island animation.
                     const vsId = `vs_loser_${starId}_fade`;
                     ghostSites.push({
                         x: conqueredStar.x,
@@ -1362,7 +1427,30 @@ export function renderPowerVoronoi(
                         ownerId: prevOwnerId,     // OLD owner
                         starId: vsId,
                     });
-                    ghostWeightStart.set(vsId, powerLerpStart);  // fades to powerLerpEnd
+                    ghostWeightStart.set(vsId, powerLerpStart);
+
+                    // Capture the old island territory polygon for dissolution animation
+                    if (s.lastMergedTerritories) {
+                        const islandTerritory = s.lastMergedTerritories.find(mt =>
+                            mt.ownerId === prevOwnerId &&
+                            mt.points.length > 2
+                        );
+                        if (islandTerritory) {
+                            // Compute centroid of the island polygon
+                            let cx = 0, cy = 0;
+                            const pts = islandTerritory.points;
+                            for (const [px, py] of pts) { cx += px; cy += py; }
+                            cx /= pts.length; cy /= pts.length;
+                            s.dyingIslands.push({
+                                polygon: pts.map(p => [p[0], p[1]] as [number, number]),
+                                center: { x: cx, y: cy },
+                                color: islandTerritory.color,
+                                startTime: now,
+                                durationMs: wlTransitionMs,
+                            });
+                            log.sys('TMAP-WeightLerp', `DYING ISLAND | owner=${prevOwnerId} star=${starId} pts=${pts.length}`);
+                        }
+                    }
                 }
             }
 
