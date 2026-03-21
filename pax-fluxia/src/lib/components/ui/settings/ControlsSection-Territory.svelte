@@ -403,10 +403,10 @@
         { id: "territory_canonical", label: "Canonical" },
         { id: "territory_engine", label: "Engine (DY4)" },
         { id: "vs_pvv3", label: "PVV3" },
-        { id: "power_voronoi", label: "PVV2" },
-        { id: "distance_field", label: "Distance Field" },
+        { id: "power_voronoi", label: "Weighted Power Voronoi (PVV2)" },
+        { id: "distance_field", label: "Signed-Distance Field Mesh" },
         { id: "metaball", label: "Metaball" },
-        { id: "pixel", label: "Pixel Art" },
+        { id: "pixel", label: "Pixel-Quantized Mesh" },
         { id: "voronoi", label: "Voronoi" },
         { id: "graph", label: "Lane" },
         { id: "contour", label: "Contour" },
@@ -414,27 +414,27 @@
 
     const FILL_TRANSITION_OPTIONS = [
         { id: "none", label: "Off" },
-        { id: "frontier_morph", label: "Frontier Morph" },
-        { id: "crossfade", label: "Crossfade" },
+        { id: "frontier_morph", label: "Frontier Topology Morph Fill" },
+        { id: "crossfade", label: "Alpha Crossfade Fill" },
         { id: "tile_flip", label: "Tile Flip" },
     ] as const;
 
     const BORDER_TRANSITION_OPTIONS = [
         { id: "none", label: "Off" },
         { id: "pixi_graphics_morph", label: "Graphics Morph" },
-        { id: "pixi_mesh_rope", label: "Rope Morph" },
+        { id: "pixi_mesh_rope", label: "Rope-Interpolated Border (PIXI)" },
         {
             id: "optimal_transport",
-            label: "DY4 Transport",
+            label: "Optimal-Transport Correspondence Border",
         },
         { id: "smooth_morph", label: "Smooth (Legacy)" },
         { id: "pressure_wave", label: "Pressure Wave" },
     ] as const;
 
     const GEOMETRY_OPTIONS = [
-        { id: "power_voronoi", label: "Power Voronoi" },
-        { id: "unified_polygon", label: "Unified Polygon" },
-        { id: "new_frontiers_0319", label: "New-Frontiers-0319" },
+        { id: "power_voronoi", label: "Weighted Power Voronoi" },
+        { id: "unified_polygon", label: "Unified Polygon (Dense Resampled)" },
+        { id: "new_frontiers_0319", label: "Boundary-Constrained Frontier (0319)" },
     ] as const;
 
     /** Map style IDs to old boolean flag panel keys (backward compat) */
