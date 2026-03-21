@@ -60,17 +60,17 @@ function extractOwnerPairKey(edgeId: string): string {
 
 /**
  * Check if this edge is unchanged in the diff.
- * Uses pair-level classification: an edge is unchanged if its owner pair
- * polyline is classified as 'unchanged' (RMS < threshold).
- * Modified pairs (near conquest) are also treated as unchanged for
- * partitioning — only deleted/inserted represent topology changes.
+ * Uses pair-level classification: an edge is unchanged ONLY if its owner
+ * pair polyline is classified as 'unchanged' (RMS < threshold).
+ *
+ * Modified pairs are the conquest boundary — they MUST animate.
+ * The pair-level RMS threshold correctly separates Voronoi jitter
+ * (unchanged) from real conquest changes (modified).
  */
 function isEdgeUnchanged(edgeId: string, diff: FrontierMapDiff): boolean {
-    // Check pair-level status
     const opk = extractOwnerPairKey(edgeId);
     const status = diff.pairStatus.get(opk);
-    // unchanged or modified pairs → static for partitioning
-    return status === 'unchanged' || status === 'modified';
+    return status === 'unchanged';
 }
 
 /**
