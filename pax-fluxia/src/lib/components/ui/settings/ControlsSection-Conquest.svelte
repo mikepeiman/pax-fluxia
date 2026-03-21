@@ -412,10 +412,11 @@
         <label class="toggle-switch">
             <input
                 type="checkbox"
-                checked={GAME_CONFIG.VS_BIND_TO_TICK}
+                checked={panel.vsBindToTick}
                 onchange={(e) => {
                     const v = (e.target as HTMLInputElement).checked;
                     GAME_CONFIG.VS_BIND_TO_TICK = v;
+                    updatePanel("vsBindToTick", v);
                     if (v) {
                         const tick = GAME_CONFIG.BASE_TICK_MS;
                         GAME_CONFIG.VS_VICTOR_TRAVEL_MS = tick;
@@ -434,9 +435,9 @@
 <div class="var-row">
     <div class="row-top">
         <span class="var-name">Victor Travel</span><span class="val"
-            >{GAME_CONFIG.VS_VICTOR_TRAVEL_MS === 0
+            >{panel.vsVictorTravelMs === 0
                 ? "auto"
-                : `${GAME_CONFIG.VS_VICTOR_TRAVEL_MS}ms`}</span
+                : `${panel.vsVictorTravelMs}ms`}</span
         >
     </div>
     <input
@@ -444,8 +445,8 @@
         min="0"
         max="5000"
         step="10"
-        value={GAME_CONFIG.VS_VICTOR_TRAVEL_MS}
-        disabled={GAME_CONFIG.VS_BIND_TO_TICK}
+        value={panel.vsVictorTravelMs}
+        disabled={panel.vsBindToTick as boolean}
         oninput={(e) => {
             const v = +(e.target as HTMLInputElement).value;
             GAME_CONFIG.VS_VICTOR_TRAVEL_MS = v;
@@ -456,9 +457,9 @@
 <div class="var-row">
     <div class="row-top">
         <span class="var-name">Loser Travel</span><span class="val"
-            >{GAME_CONFIG.VS_LOSER_TRAVEL_MS === 0
+            >{panel.vsLoserTravelMs === 0
                 ? "auto"
-                : `${GAME_CONFIG.VS_LOSER_TRAVEL_MS}ms`}</span
+                : `${panel.vsLoserTravelMs}ms`}</span
         >
     </div>
     <input
@@ -466,8 +467,8 @@
         min="0"
         max="5000"
         step="10"
-        value={GAME_CONFIG.VS_LOSER_TRAVEL_MS}
-        disabled={GAME_CONFIG.VS_BIND_TO_TICK}
+        value={panel.vsLoserTravelMs}
+        disabled={panel.vsBindToTick as boolean}
         oninput={(e) => {
             const v = +(e.target as HTMLInputElement).value;
             GAME_CONFIG.VS_LOSER_TRAVEL_MS = v;
@@ -478,9 +479,9 @@
 <div class="var-row">
     <div class="row-top">
         <span class="var-name">Power Start</span><span class="val"
-            >{GAME_CONFIG.VS_POWER_LERP_START === 0
+            >{panel.vsPowerLerpStart === 0
                 ? "full"
-                : GAME_CONFIG.VS_POWER_LERP_START}</span
+                : panel.vsPowerLerpStart}</span
         >
     </div>
     <input
@@ -488,7 +489,7 @@
         min="0"
         max="500"
         step="5"
-        value={GAME_CONFIG.VS_POWER_LERP_START}
+        value={panel.vsPowerLerpStart}
         oninput={(e) => {
             const v = +(e.target as HTMLInputElement).value;
             GAME_CONFIG.VS_POWER_LERP_START = v;
@@ -499,7 +500,7 @@
 <div class="var-row">
     <div class="row-top">
         <span class="var-name">Power End</span><span class="val"
-            >{GAME_CONFIG.VS_POWER_LERP_END}</span
+            >{panel.vsPowerLerpEnd}</span
         >
     </div>
     <input
@@ -507,7 +508,7 @@
         min="0"
         max="500"
         step="5"
-        value={GAME_CONFIG.VS_POWER_LERP_END}
+        value={panel.vsPowerLerpEnd}
         oninput={(e) => {
             const v = +(e.target as HTMLInputElement).value;
             GAME_CONFIG.VS_POWER_LERP_END = v;
@@ -518,9 +519,9 @@
 <div class="var-row">
     <div class="row-top">
         <span class="var-name">Power Lerp</span><span class="val"
-            >{GAME_CONFIG.VS_POWER_LERP_DURATION_MS === 0
+            >{panel.vsPowerLerpDurationMs === 0
                 ? "auto"
-                : `${GAME_CONFIG.VS_POWER_LERP_DURATION_MS}ms`}</span
+                : `${panel.vsPowerLerpDurationMs}ms`}</span
         >
     </div>
     <input
@@ -528,8 +529,8 @@
         min="0"
         max="5000"
         step="10"
-        value={GAME_CONFIG.VS_POWER_LERP_DURATION_MS}
-        disabled={GAME_CONFIG.VS_BIND_TO_TICK}
+        value={panel.vsPowerLerpDurationMs}
+        disabled={panel.vsBindToTick as boolean}
         oninput={(e) => {
             const v = +(e.target as HTMLInputElement).value;
             GAME_CONFIG.VS_POWER_LERP_DURATION_MS = v;

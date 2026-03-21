@@ -407,3 +407,16 @@
 - **Recovery goal**: After the canonical compiler/render pipeline stabilizes, wire DY4's mass-preserving transport logic (currently in `PowerVoronoiRenderer` via `legacy_pvv2` adapter) into the `TerritoryTransitionPlanner` or as a named `BorderTransition` mode so it runs on canonical state. Git archaeology will identify the original regression commit (B-44).
 - **Replaces**: `dy4-sacrosanct.md` rule — that constraint is superseded by this decision.
 - **References**: B-44, `registry.ts` SACROSANCT block (still in code but no longer behaviorally binding)
+
+## 2026-03-21
+
+### D-83: Territory Runtime Rebuild Blueprint — One Authoritative Runtime, One Orchestrator Per Layer
+- **Decision**: The territory system should be rebuilt around one authoritative runtime coordinator plus one orchestrator per layer: `Ownership`, `Geometry`, `Transition`, and `Presentation`. Each layer must have a strict typed input/output contract, and user-facing mode selection must be split into semantic axes (`geometry`, `style`, `fillTransition`, `borderTransition`) rather than `engine method`, `static`, `dynamic`, or renderer names.
+- **Rationale**: The current runtime mixes multiple authority paths (`GameCanvas` dispatch, `engine.ts` adapter routing, renderer-side geometry/transition ownership, and a side `territory_canonical` path). This makes data flow hard to follow and makes renaming or swapping modules risky. A single runtime with typed boundaries allows modules to be replaced cleanly without re-coupling geometry, FX, and PIXI rendering.
+- **Implementation posture**: Reuse the good pieces already present:
+  - `powerVoronoiTerritoryGeometryGenerator.ts` and `Geometry_0319.ts` as geometry-mode implementations
+  - `TerritoryEngineController` as the basis for the top-level runtime coordinator
+  - `TerritoryRenderer` class-encapsulation ideas, but pushed behind a PIXI presenter boundary
+  - FX orchestration patterns from `fx/` as an event bridge rather than a renderer-owned transition singleton
+- **Naming rule**: Public runtime names must describe the concern they own. Archaeology names like `FG1`, `FG2`, `DY4`, `PVV2`, `PVV3`, `static`, and `dynamic` should only survive as migration aliases or legacy adapter labels, not as the primary semantic API.
+- **Blueprint**: See `.agent/SPECIFICATIONS/TERRITORY_CLEAN_ARCHITECTURE_BLUEPRINT.md`

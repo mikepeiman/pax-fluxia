@@ -466,6 +466,13 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'ordersPersistAfterConquest', configKey: 'ORDERS_PERSIST_AFTER_CONQUEST' },
     { panelKey: 'retainOrderOnConquest', configKey: 'RETAIN_ORDER_ON_CONQUEST' },
     { panelKey: 'allowOpposingOrders', configKey: 'ALLOW_OPPOSING_ORDERS' },
+    // VS Transition (F-165)
+    { panelKey: 'vsVictorTravelMs', configKey: 'VS_VICTOR_TRAVEL_MS' },
+    { panelKey: 'vsLoserTravelMs', configKey: 'VS_LOSER_TRAVEL_MS' },
+    { panelKey: 'vsPowerLerpStart', configKey: 'VS_POWER_LERP_START' },
+    { panelKey: 'vsPowerLerpEnd', configKey: 'VS_POWER_LERP_END' },
+    { panelKey: 'vsPowerLerpDurationMs', configKey: 'VS_POWER_LERP_DURATION_MS' },
+    { panelKey: 'vsBindToTick', configKey: 'VS_BIND_TO_TICK' },
     // Arrow appearance
     { panelKey: 'arrowHeadSize', configKey: 'ARROW_HEAD_SIZE' },
     { panelKey: 'arrowShaftWidth', configKey: 'ARROW_SHAFT_WIDTH' },
