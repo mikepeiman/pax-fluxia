@@ -21,7 +21,7 @@ export class OptimalTransportBorderMode implements BorderTransitionMode {
             ? planFrontierCorrespondence(input.previousGeometry, input.nextGeometry)
             : [];
 
-        return {
+        const plan: OptimalTransportBorderPlan = {
             planId: `border:optimal_transport:${input.nowMs}`,
             sourceMode: this.id,
             startGeometryVersion: input.previousGeometry?.version ?? input.nextGeometry.version,
@@ -29,7 +29,9 @@ export class OptimalTransportBorderMode implements BorderTransitionMode {
             conquestEvents: input.ownership.conquestEvents,
             targetFrontiers: input.nextGeometry.frontierPolylines,
             correspondenceCount: correspondences.length,
-        } satisfies OptimalTransportBorderPlan;
+        };
+
+        return plan;
     }
 
     sample(

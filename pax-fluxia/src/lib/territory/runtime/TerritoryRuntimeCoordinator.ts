@@ -90,7 +90,7 @@ export class TerritoryRuntimeCoordinator {
             nowMs: input.nowMs,
             ownership,
             geometry,
-            transition,
+            transition: transition.snapshot,
             selection: input.selection,
             tunables: input.tunables,
         });

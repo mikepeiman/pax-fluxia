@@ -15,14 +15,16 @@ export class CrossfadeFillMode implements FillTransitionMode {
     readonly label = 'Crossfade Fill';
 
     plan(input: FillTransitionPlanInput): FillTransitionPlan {
-        return {
+        const plan: CrossfadeFillPlan = {
             planId: `fill:crossfade:${input.nowMs}`,
             sourceMode: this.id,
             startGeometryVersion: input.previousGeometry?.version ?? input.nextGeometry.version,
             endGeometryVersion: input.nextGeometry.version,
             conquestEvents: input.ownership.conquestEvents,
             targetRegions: input.nextGeometry.territoryRegions,
-        } satisfies CrossfadeFillPlan;
+        };
+
+        return plan;
     }
 
     sample(

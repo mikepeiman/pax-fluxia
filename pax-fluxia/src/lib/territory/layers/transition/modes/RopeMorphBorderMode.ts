@@ -15,14 +15,16 @@ export class RopeMorphBorderMode implements BorderTransitionMode {
     readonly label = 'Rope Morph Border';
 
     plan(input: BorderTransitionPlanInput): BorderTransitionPlan {
-        return {
+        const plan: RopeMorphBorderPlan = {
             planId: `border:rope_morph:${input.nowMs}`,
             sourceMode: this.id,
             startGeometryVersion: input.previousGeometry?.version ?? input.nextGeometry.version,
             endGeometryVersion: input.nextGeometry.version,
             conquestEvents: input.ownership.conquestEvents,
             targetFrontiers: input.nextGeometry.frontierPolylines,
-        } satisfies RopeMorphBorderPlan;
+        };
+
+        return plan;
     }
 
     sample(

@@ -15,14 +15,16 @@ export class FrontierMorphFillMode implements FillTransitionMode {
     readonly label = 'Frontier Morph Fill';
 
     plan(input: FillTransitionPlanInput): FillTransitionPlan {
-        return {
+        const plan: FrontierMorphFillPlan = {
             planId: `fill:frontier_morph:${input.nowMs}`,
             sourceMode: this.id,
             startGeometryVersion: input.previousGeometry?.version ?? input.nextGeometry.version,
             endGeometryVersion: input.nextGeometry.version,
             conquestEvents: input.ownership.conquestEvents,
             targetRegions: input.nextGeometry.territoryRegions,
-        } satisfies FrontierMorphFillPlan;
+        };
+
+        return plan;
     }
 
     sample(
