@@ -1431,6 +1431,7 @@ export function renderPowerVoronoi(
             if (GAME_CONFIG.VS_BIND_TO_TICK && wlTransitionMs > tickMs) {
                 wlTransitionMs = tickMs;  // cap to tick interval, never exceed
             }
+            console.log('[DIAG-DURATION]', { baseDuration, victorTravelMs, loserTravelMs, wlTransitionMs, VS_VICTOR: GAME_CONFIG.VS_VICTOR_TRAVEL_MS, VS_LOSER: GAME_CONFIG.VS_LOSER_TRAVEL_MS, BIND: GAME_CONFIG.VS_BIND_TO_TICK, tickMs });
             const wlStarMargin = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45;
             const wlDefaultWeight = wlStarMargin * wlStarMargin;
             // Power lerp config for loser VS
