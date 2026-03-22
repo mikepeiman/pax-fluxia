@@ -738,8 +738,12 @@ export function renderPowerVoronoi(
     // Fill diagnostics — log only when the active path CHANGES
 
     if (isAnimatingSmooth && s.lastMergedTerritories && s.fillGraphics) {
-        const elapsed = now - s.smoothTransitionStart;
-        const rawT = Math.min(1, elapsed / transitionMs);
+        // When weight-lerp is active without smooth transition, use weight-lerp timing
+        // (prevents outer rawT from instantly hitting 1 due to stale smoothTransitionStart)
+        const outerStart = s.weightLerpActive ? s.weightLerpStartTime : s.smoothTransitionStart;
+        const outerDur = s.weightLerpActive ? s.weightLerpDurationMs : transitionMs;
+        const elapsed = now - outerStart;
+        const rawT = Math.min(1, elapsed / (outerDur || 1));
         // Easing is now handled inside the morpher classes — pass raw t
         const easedT = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
 
