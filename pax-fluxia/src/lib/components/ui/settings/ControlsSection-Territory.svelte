@@ -5,14 +5,6 @@
         type TerritoryPipelineArtifacts,
         type TerritoryPipelineStageId,
     } from "$lib/territory/orchestrator";
-    import {
-        DEFAULT_TERRITORY_METHOD,
-        DEFAULT_TERRITORY_DYNAMIC_METHOD,
-        DEFAULT_TERRITORY_STATIC_METHOD,
-        TERRITORY_METHOD_BY_ID,
-        TERRITORY_DYNAMIC_METHOD_BY_ID,
-        TERRITORY_STATIC_METHOD_BY_ID,
-    } from "$lib/territory/orchestrator/registry";
     import { territoryTraceRun } from "$lib/territory/orchestrator/traceStore";
     import CategoryThemeBar from "./CategoryThemeBar.svelte";
 
@@ -226,155 +218,12 @@
         { id: "diagnostic", label: "Diagnostic" },
         { id: "production", label: "Production" },
     ] as const;
-    const TERRITORY_ENGINE_METHOD_OPTIONS = [
-        { id: "fg1_adaptive_field", label: "FG1 Adaptive Field" },
-        { id: "fg1_mar19_refactor", label: "FG1 Mar19 Refactor" },
-        { id: "fg2_seed_graph", label: "FG2 Seed Graph" },
-        { id: "new_frontiers_0319", label: "New-Frontiers-0319" },
-    ] as const;
-    const TERRITORY_ENGINE_MODE_OPTIONS = [
-        { id: "static", label: "Static" },
-        { id: "dynamic", label: "Dynamic" },
-    ] as const;
-    const TERRITORY_ENGINE_DYNAMIC_OPTIONS = [
-        { id: "dy4_optimal_transport", label: "DY4 Optimal Transport" },
-        { id: "dy4_mar19_refactor", label: "DY4 Mar19 Refactor" },
-    ] as const;
-
     const MORPH_EASING_OPTIONS = [
         { id: "linear", label: "Linear" },
         { id: "smoothstep", label: "Smooth" },
         { id: "easeInOutQuad", label: "Quad" },
         { id: "easeInOutCubic", label: "Cubic" },
     ] as const;
-
-    function lookupOptionLabel(
-        options: ReadonlyArray<{ id: string; label: string }>,
-        id: string,
-    ): string {
-        return options.find((option) => option.id === id)?.label ?? id;
-    }
-
-    function formatAdapterLabel(adapter: string): string {
-        if (adapter === "legacy_pvv2") return "Legacy PVV2";
-        if (adapter === "legacy_pvv3") return "Legacy PVV3";
-        if (adapter === "legacy_df") return "Legacy Distance Field";
-        return adapter;
-    }
-
-    function resolveMethodId(rawValue: unknown): string {
-        if (typeof rawValue !== "string") return DEFAULT_TERRITORY_METHOD;
-        return Object.prototype.hasOwnProperty.call(
-            TERRITORY_METHOD_BY_ID,
-            rawValue,
-        )
-            ? rawValue
-            : DEFAULT_TERRITORY_METHOD;
-    }
-
-    // Legacy resolve helpers (used by route display, kept for backward-compat)
-    function resolveStaticMethodId(rawValue: unknown): string {
-        return resolveMethodId(rawValue);
-    }
-    function resolveDynamicMethodId(rawValue: unknown): string {
-        return resolveMethodId(rawValue);
-    }
-
-    function getTerritoryEngineRoute() {
-        // Use unified method key, fall back to legacy keys
-        let methodId: string;
-        if (
-            panel.territoryEngineMethod ??
-            GAME_CONFIG.TERRITORY_ENGINE_METHOD
-        ) {
-            methodId = resolveMethodId(
-                panel.territoryEngineMethod ??
-                    GAME_CONFIG.TERRITORY_ENGINE_METHOD,
-            );
-        } else if (
-            (panel.territoryEngineMode ?? GAME_CONFIG.TERRITORY_ENGINE_MODE) ===
-            "dynamic"
-        ) {
-            methodId = resolveMethodId(
-                panel.territoryEngineDynamicMethod ??
-                    GAME_CONFIG.TERRITORY_ENGINE_DYNAMIC_METHOD,
-            );
-        } else {
-            methodId = resolveMethodId(
-                panel.territoryEngineStaticMethod ??
-                    GAME_CONFIG.TERRITORY_ENGINE_STATIC_METHOD,
-            );
-        }
-
-        const method =
-            TERRITORY_METHOD_BY_ID[
-                methodId as keyof typeof TERRITORY_METHOD_BY_ID
-            ];
-        const methodLabel = method?.label ?? methodId;
-        return {
-            methodId,
-            mode:
-                method && method.implementedStages.length > 1
-                    ? "static"
-                    : "dynamic",
-            adapter: method?.adapter ?? "legacy_pvv2",
-            adapterLabel: formatAdapterLabel(method?.adapter ?? "legacy_pvv2"),
-            methodLabel,
-            // backward-compat aliases
-            staticMethodId: methodId,
-            dynamicMethodId: methodId,
-            staticLabel: methodLabel,
-            dynamicLabel: methodLabel,
-        };
-    }
-
-    let territoryEngineRoute = $derived.by(() => getTerritoryEngineRoute());
-    let territoryEngineRouteNote = $derived.by(() => {
-        return `Active method: ${territoryEngineRoute.methodLabel} (${territoryEngineRoute.adapterLabel})`;
-    });
-    let territoryEngineInteropNote = $derived.by(() => {
-        if (territoryEngineRoute.mode === "dynamic") {
-            return "Dynamic mode is exclusive. The Dynamic Method picker wins and the standalone Static Method choice becomes reference only.";
-        }
-        return "Static mode is exclusive. Dynamic selections are stored, but inactive until you switch modes.";
-    });
-
-    let staticMethodControlState = $derived.by(() => {
-        if (territoryEngineRoute.mode === "static") {
-            return {
-                badge: "active",
-                note: "Static mode is live. Picking a static method changes the current route.",
-                disabled: false,
-            };
-        }
-        if (territoryEngineRoute.mode === "dynamic") {
-            return {
-                badge: "anchor only",
-                note: `${territoryEngineRoute.dynamicLabel} pins the static anchor to ${territoryEngineRoute.staticLabel}.`,
-                disabled: true,
-            };
-        }
-        return {
-            badge: "stored",
-            note: "Static selections are stored only.",
-            disabled: true,
-        };
-    });
-
-    let dynamicMethodControlState = $derived.by(() => {
-        if (territoryEngineRoute.mode === "dynamic") {
-            return {
-                badge: "active",
-                note: "Dynamic mode is live. Picking a dynamic method changes the current route.",
-                disabled: false,
-            };
-        }
-        return {
-            badge: "stored",
-            note: "Dynamic selections are stored, but inactive until you switch to Dynamic mode.",
-            disabled: true,
-        };
-    });
 
     let activeBorderEngine = $derived(
         (panel.dfBorderEngine ?? GAME_CONFIG.DF_BORDER_ENGINE ?? "mesh") as
@@ -907,8 +756,10 @@
     </div>
 {/if}
 
-{#if panel.territoryEngine ?? GAME_CONFIG.TERRITORY_ENGINE_ENABLED}
-    <h4 class="sub-heading">⚙️ Geometry</h4>
+{#if (panel.territoryRenderMode ??
+    GAME_CONFIG.TERRITORY_RENDER_MODE ??
+    "territory_canonical") === "territory_engine"}
+    <h4 class="sub-heading">⚙️ Legacy Engine Diagnostics</h4>
     <div
         class="row-bottom"
         style="font-size: 10px; opacity: 0.6; padding: 2px 4px;"
