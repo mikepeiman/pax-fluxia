@@ -1415,11 +1415,15 @@ export function renderPowerVoronoi(
         if (s.changedSiteIds && s.changedSiteIds.size > 0 && s.changedSitePrevOwners) {
             const baseDuration = GAME_CONFIG.TERRITORY_TRANSITION_MS ?? 400;
             const tickMs = GAME_CONFIG.BASE_TICK_MS ?? 1050;
-            // VS config: 0 = use baseDuration, bind-to-tick overrides with tick interval
-            const vsBindToTick = GAME_CONFIG.VS_BIND_TO_TICK;
-            const victorTravelMs = vsBindToTick ? tickMs : (GAME_CONFIG.VS_VICTOR_TRAVEL_MS || baseDuration);
-            const loserTravelMs = vsBindToTick ? tickMs : (GAME_CONFIG.VS_LOSER_TRAVEL_MS || baseDuration);
-            const wlTransitionMs = Math.max(victorTravelMs, loserTravelMs);
+            // VS transition duration: TERRITORY_TRANSITION_MS is the primary control (slider).
+            // VS-specific overrides apply only when explicitly set (non-zero).
+            // VS_BIND_TO_TICK caps duration to tickMs (prevents overshoot into next tick).
+            const victorTravelMs = GAME_CONFIG.VS_VICTOR_TRAVEL_MS || baseDuration;
+            const loserTravelMs = GAME_CONFIG.VS_LOSER_TRAVEL_MS || baseDuration;
+            let wlTransitionMs = Math.max(victorTravelMs, loserTravelMs);
+            if (GAME_CONFIG.VS_BIND_TO_TICK && wlTransitionMs > tickMs) {
+                wlTransitionMs = tickMs;  // cap to tick interval, never exceed
+            }
             const wlStarMargin = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45;
             const wlDefaultWeight = wlStarMargin * wlStarMargin;
             // Power lerp config for loser VS

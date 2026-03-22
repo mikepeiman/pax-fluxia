@@ -866,31 +866,7 @@
     </div>
 
     <h4 class="sub-heading">Shape / Motion</h4>
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Conquest Animation Timing</span><span
-                class="val"
-                >{panel.territoryTransitionMs ??
-                    GAME_CONFIG.TERRITORY_TRANSITION_MS}ms</span
-            >
-        </div>
-        <input
-            type="range"
-            min="0"
-            max="2000"
-            step="50"
-            value={panel.territoryTransitionMs ??
-                GAME_CONFIG.TERRITORY_TRANSITION_MS}
-            oninput={(e) => {
-                const v = +(e.target as HTMLInputElement).value;
-                debouncedConfigUpdate(
-                    "TERRITORY_TRANSITION_MS",
-                    "territoryTransitionMs",
-                    v,
-                );
-            }}
-        />
-    </div>
+
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Morph Control Points</span><span class="val"
