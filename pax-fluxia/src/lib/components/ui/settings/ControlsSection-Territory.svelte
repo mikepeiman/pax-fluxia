@@ -247,9 +247,12 @@
     let isLegacyGridEngine = $derived(activeBorderEngine === "legacy_grid");
     /* ── V3.1 Three-Concern Architecture ── */
 
-    const TERRITORY_STYLE_OPTIONS = [
+    const TERRITORY_CLEAN_STYLE_OPTIONS = [
         { id: "none", label: "Off" },
         { id: "territory_canonical", label: "Canonical Layered Runtime" },
+    ] as const;
+
+    const TERRITORY_LEGACY_STYLE_OPTIONS = [
         { id: "territory_engine", label: "Legacy Engine Router (DY4)" },
         { id: "vs_pvv3", label: "Legacy PVV3 Frontier Style" },
         { id: "power_voronoi", label: "Legacy PVV2 Weighted Voronoi" },
@@ -315,6 +318,14 @@
 
     function selectBorderTransition(transitionId: string) {
         updatePanel("territoryBorderTransition", transitionId);
+    }
+
+    function resolveActiveStyleId(): string {
+        return (
+            panel.territoryRenderMode ??
+            GAME_CONFIG.TERRITORY_RENDER_MODE ??
+            "territory_canonical"
+        );
     }
 
     function resolveActiveFillTransitionId(): string {
@@ -417,19 +428,17 @@
         </div>
     </div>
 
-    <!-- Row 2: Style (purple) -->
+    <!-- Row 2: Clean Runtime Style (purple) -->
     <div
         class="axis-row"
         style="--accent: #a78bfa; --accent-bg: rgba(167,139,250,0.15)"
     >
-        <span class="axis-label">Style</span>
+        <span class="axis-label">Clean Style</span>
         <div class="axis-buttons">
-            {#each TERRITORY_STYLE_OPTIONS as opt}
+            {#each TERRITORY_CLEAN_STYLE_OPTIONS as opt}
                 <button
                     class="axis-btn"
-                    class:active={(panel.territoryRenderMode ??
-                        GAME_CONFIG.TERRITORY_RENDER_MODE ??
-                        "territory_canonical") === opt.id}
+                    class:active={resolveActiveStyleId() === opt.id}
                     onclick={() => selectTerritoryStyle(opt.id)}
                     >{opt.label}</button
                 >
@@ -437,7 +446,25 @@
         </div>
     </div>
 
-    <!-- Row 3: Architecture Path (blue) -->
+    <!-- Row 3: Legacy Renderers (amber) -->
+    <div
+        class="axis-row"
+        style="--accent: #f59e0b; --accent-bg: rgba(245,158,11,0.16)"
+    >
+        <span class="axis-label">Legacy Style</span>
+        <div class="axis-buttons">
+            {#each TERRITORY_LEGACY_STYLE_OPTIONS as opt}
+                <button
+                    class="axis-btn"
+                    class:active={resolveActiveStyleId() === opt.id}
+                    onclick={() => selectTerritoryStyle(opt.id)}
+                    >{opt.label}</button
+                >
+            {/each}
+        </div>
+    </div>
+
+    <!-- Row 4: Architecture Path (blue) -->
     <div
         class="axis-row"
         style="--accent: #60a5fa; --accent-bg: rgba(96,165,250,0.15)"
@@ -460,8 +487,14 @@
     <div class="axis-note">
         Architecture toggle applies when Style is "Canonical Layered Runtime".
     </div>
+    {#if resolveActiveStyleId() !== "territory_canonical" &&
+        resolveActiveStyleId() !== "none"}
+        <div class="axis-note">
+            Legacy style selection bypasses canonical clean-layer routing.
+        </div>
+    {/if}
 
-    <!-- Row 4: Fill Transition (gold) -->
+    <!-- Row 5: Fill Transition (gold) -->
     <div
         class="axis-row"
         style="--accent: #fbbf24; --accent-bg: rgba(251,191,36,0.15)"
@@ -479,7 +512,7 @@
         </div>
     </div>
 
-    <!-- Row 5: Border Transition (rose) -->
+    <!-- Row 6: Border Transition (rose) -->
     <div
         class="axis-row"
         style="--accent: #fb7185; --accent-bg: rgba(251,113,133,0.15)"
@@ -756,9 +789,7 @@
     </div>
 {/if}
 
-{#if (panel.territoryRenderMode ??
-    GAME_CONFIG.TERRITORY_RENDER_MODE ??
-    "territory_canonical") === "territory_engine"}
+{#if resolveActiveStyleId() === "territory_engine"}
     <h4 class="sub-heading">⚙️ Legacy Engine Diagnostics</h4>
     <div
         class="row-bottom"
