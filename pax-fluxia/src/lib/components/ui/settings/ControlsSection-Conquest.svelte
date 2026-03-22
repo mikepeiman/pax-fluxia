@@ -432,6 +432,29 @@
 
 <!-- ── VS Transition (F-165) — per-slider lock icons ── -->
 <h4 class="sub-heading">VS Transition</h4>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Ghost Mode</span><span class="val"
+            >{panel.vsTransitionMode ?? "no_loser"}</span
+        >
+    </div>
+    <select
+        class="mode-select"
+        value={panel.vsTransitionMode ?? "no_loser"}
+        onchange={(e) => {
+            const v = (e.target as HTMLSelectElement).value;
+            GAME_CONFIG.VS_TRANSITION_MODE = v as any;
+            updatePanel("vsTransitionMode", v);
+        }}
+    >
+        <option value="dual_ghost">Dual Ghost (vic+loser)</option>
+        <option value="no_loser">No Loser Ghost</option>
+        <option value="no_ghosts">No Ghosts (ramp only)</option>
+        <option value="matched_ease">Matched Ease (easeInOut)</option>
+        <option value="sequential">Sequential (loser→victor)</option>
+        <option value="linear">Linear (all linear)</option>
+    </select>
+</div>
 {#each VS_SLIDERS as slider}
     <div class="var-row" class:locked={animLockModes[slider.key] != null}>
         <div class="row-top">

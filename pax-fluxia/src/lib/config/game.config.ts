@@ -299,6 +299,7 @@ interface GameConfigType {
     VS_POWER_LERP_END: number;            // Loser VS ending power (0-max, default 0 = dissolve)
     VS_POWER_LERP_DURATION_MS: number;    // Duration of power lerp (ms, 0 = use VS_LOSER_TRAVEL_MS)
     VS_BIND_TO_TICK: boolean;             // Bind VS durations to tick duration (default true)
+    VS_TRANSITION_MODE: 'dual_ghost' | 'no_loser' | 'no_ghosts' | 'matched_ease' | 'sequential' | 'linear'; // Ghost strategy for VS transitions
     TERRITORY_MORPH_CONTROL_POINTS: number; // Number of control points for frontier loop morphing (5-300, default 32)
     TERRITORY_BOUNDARY_MODE: 'segment' | 'smooth';  // 'segment' = edge-level lerp, 'smooth' = flubber polygon morph
     TERRITORY_FILL_MODE: 'crossfade' | 'frontier';  // 'crossfade' = alpha-fade fills, 'frontier' = infill from frontier loops
@@ -1070,6 +1071,7 @@ const _rawConfig: GameConfigType = {
     VS_POWER_LERP_END: 0,          // 0 = dissolve
     VS_POWER_LERP_DURATION_MS: 0,  // 0 = use VS_LOSER_TRAVEL_MS
     VS_BIND_TO_TICK: true,
+    VS_TRANSITION_MODE: 'no_loser' as const,  // Default: no loser ghost, just victor + C ramp
     /** Number of control points for frontier loop morphing (5-300) */
     TERRITORY_MORPH_CONTROL_POINTS: 68,
     TERRITORY_BOUNDARY_MODE: 'smooth' as const,

@@ -479,6 +479,7 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'vsPowerLerpEnd', configKey: 'VS_POWER_LERP_END' },
     { panelKey: 'vsPowerLerpDurationMs', configKey: 'VS_POWER_LERP_DURATION_MS' },
     { panelKey: 'vsBindToTick', configKey: 'VS_BIND_TO_TICK' },
+    { panelKey: 'vsTransitionMode', configKey: 'VS_TRANSITION_MODE' },
     // Arrow appearance
     { panelKey: 'arrowHeadSize', configKey: 'ARROW_HEAD_SIZE' },
     { panelKey: 'arrowShaftWidth', configKey: 'ARROW_SHAFT_WIDTH' },

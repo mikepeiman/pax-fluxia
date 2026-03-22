@@ -770,47 +770,145 @@ export function renderPowerVoronoi(
                 s.activeBorderTransitionHandler = null;
                 log.sys('TMAP-WeightLerp', `GHOST TRANSITION COMPLETE | duration=${elapsed.toFixed(0)}ms`);
             } else {
-                // Two separate easing curves:
-                // - tGhost: easeOutCubic (fast departure, slow arrival) for ghost position + weight
-                // - tConquest: easeInCubic (slow start, fast finish) for conquered star weight ramp
-                const tGhost = 1 - Math.pow(1 - rawT, 3);     // ghost moves fast at start
-                const tConquest = rawT * rawT * rawT;           // conquered star expands gently at start
+                // ── Mode-dependent easing + ghost strategy ──
+                const mode = GAME_CONFIG.VS_TRANSITION_MODE ?? 'no_loser';
+                let tConquest: number;
+                const frameGhosts: PowerSite[] = [];
+
+                switch (mode) {
+                    case 'no_ghosts': {
+                        // Pure weight ramp, no ghosts at all
+                        tConquest = rawT * rawT;  // easeInQuad: gentle start
+                        break;
+                    }
+                    case 'no_loser': {
+                        // Victor ghost travels A→C, no loser ghost. Gentle conquest ramp.
+                        tConquest = rawT * rawT * rawT;  // easeInCubic
+                        const tV = 1 - Math.pow(1 - rawT, 3);  // easeOutCubic
+                        if (s.weightLerpGhostSites && s.weightLerpGhostTargetPos) {
+                            for (const ghost of s.weightLerpGhostSites) {
+                                if (!ghost.starId.startsWith('vs_victor_')) continue;  // skip losers
+                                const target = s.weightLerpGhostTargetPos.get(ghost.starId);
+                                if (target) {
+                                    frameGhosts.push({
+                                        ...ghost,
+                                        x: ghost.x + (target.x - ghost.x) * tV,
+                                        y: ghost.y + (target.y - ghost.y) * tV,
+                                        weight: ghost.weight,  // constant
+                                    });
+                                }
+                            }
+                        }
+                        break;
+                    }
+                    case 'matched_ease': {
+                        // Same easeInOut for everything — synchronized curves
+                        const ease = rawT < 0.5
+                            ? 2 * rawT * rawT
+                            : 1 - Math.pow(-2 * rawT + 2, 2) / 2;  // easeInOutQuad
+                        tConquest = ease;
+                        if (s.weightLerpGhostSites && s.weightLerpGhostTargetPos) {
+                            for (const ghost of s.weightLerpGhostSites) {
+                                const target = s.weightLerpGhostTargetPos.get(ghost.starId);
+                                if (target) {
+                                    const isVictor = ghost.starId.startsWith('vs_victor_');
+                                    frameGhosts.push({
+                                        ...ghost,
+                                        x: ghost.x + (target.x - ghost.x) * ease,
+                                        y: ghost.y + (target.y - ghost.y) * ease,
+                                        weight: isVictor ? ghost.weight : ghost.weight * (1 - ease),
+                                    });
+                                } else {
+                                    frameGhosts.push({ ...ghost, weight: ghost.weight * (1 - ease) });
+                                }
+                            }
+                        }
+                        break;
+                    }
+                    case 'sequential': {
+                        // Phase 1 (rawT 0-0.5): loser fades in place
+                        // Phase 2 (rawT 0.5-1): victor travels A→C
+                        tConquest = rawT * rawT;  // easeInQuad
+                        if (s.weightLerpGhostSites && s.weightLerpGhostTargetPos) {
+                            for (const ghost of s.weightLerpGhostSites) {
+                                const isVictor = ghost.starId.startsWith('vs_victor_');
+                                const target = s.weightLerpGhostTargetPos.get(ghost.starId);
+                                if (isVictor) {
+                                    // Phase 2: victor appears at rawT=0.5 and travels to target by rawT=1
+                                    if (rawT > 0.5 && target) {
+                                        const vt = (rawT - 0.5) * 2;  // 0→1 in second half
+                                        frameGhosts.push({
+                                            ...ghost,
+                                            x: ghost.x + (target.x - ghost.x) * vt,
+                                            y: ghost.y + (target.y - ghost.y) * vt,
+                                            weight: ghost.weight,
+                                        });
+                                    }
+                                } else {
+                                    // Phase 1: loser fades in place during first half
+                                    const lt = Math.min(1, rawT * 2);  // 0→1 in first half
+                                    const w = ghost.weight * (1 - lt);
+                                    if (w > 0.01) {
+                                        frameGhosts.push({ ...ghost, weight: w });
+                                    }
+                                }
+                            }
+                        }
+                        break;
+                    }
+                    case 'linear': {
+                        // Everything linear — most predictable
+                        tConquest = rawT;
+                        if (s.weightLerpGhostSites && s.weightLerpGhostTargetPos) {
+                            for (const ghost of s.weightLerpGhostSites) {
+                                const target = s.weightLerpGhostTargetPos.get(ghost.starId);
+                                if (target) {
+                                    const isVictor = ghost.starId.startsWith('vs_victor_');
+                                    frameGhosts.push({
+                                        ...ghost,
+                                        x: ghost.x + (target.x - ghost.x) * rawT,
+                                        y: ghost.y + (target.y - ghost.y) * rawT,
+                                        weight: isVictor ? ghost.weight : ghost.weight * (1 - rawT),
+                                    });
+                                } else {
+                                    const w = ghost.weight * (1 - rawT);
+                                    if (w > 0.01) frameGhosts.push({ ...ghost, weight: w });
+                                }
+                            }
+                        }
+                        break;
+                    }
+                    case 'dual_ghost':
+                    default: {
+                        // Original: both ghosts, easeOut for ghosts, easeIn for conquest
+                        const tGhost = 1 - Math.pow(1 - rawT, 3);
+                        tConquest = rawT * rawT * rawT;
+                        if (s.weightLerpGhostSites && s.weightLerpGhostTargetPos) {
+                            for (const ghost of s.weightLerpGhostSites) {
+                                const target = s.weightLerpGhostTargetPos.get(ghost.starId);
+                                if (target) {
+                                    const isVictor = ghost.starId.startsWith('vs_victor_');
+                                    frameGhosts.push({
+                                        ...ghost,
+                                        x: ghost.x + (target.x - ghost.x) * tGhost,
+                                        y: ghost.y + (target.y - ghost.y) * tGhost,
+                                        weight: isVictor ? ghost.weight : ghost.weight * (1 - tGhost),
+                                    });
+                                } else {
+                                    const w = ghost.weight * (1 - tGhost);
+                                    if (w > 0.01) frameGhosts.push({ ...ghost, weight: w });
+                                }
+                            }
+                        }
+                        break;
+                    }
+                }
 
                 // Compute interpolated weights for real sites using tConquest
                 const interpWeights = new Map<string, number>();
                 for (const [starId, prevW] of s.weightLerpPrevWeights) {
                     const targetW = s.weightLerpTargetWeights.get(starId) ?? prevW;
                     interpWeights.set(starId, prevW + tConquest * (targetW - prevW));
-                }
-
-                // Build ghost sites with lerped positions (attacker → conquered)
-                const frameGhosts: PowerSite[] = [];
-                if (s.weightLerpGhostSites && s.weightLerpGhostTargetPos) {
-                    for (const ghost of s.weightLerpGhostSites) {
-                        const target = s.weightLerpGhostTargetPos.get(ghost.starId);
-                        if (target) {
-                            // Victor vs loser need different weight curves:
-                            // - Victor: constant weight — it's claiming territory while traveling
-                            // - Loser: linear fade to 0 — its territory shrinks during retreat
-                            const isVictor = ghost.starId.startsWith('vs_victor_');
-                            const ghostW = isVictor
-                                ? ghost.weight             // victor: constant full weight
-                                : ghost.weight * (1 - tGhost);  // loser: fade to 0
-                            frameGhosts.push({
-                                ...ghost,
-                                x: ghost.x + (target.x - ghost.x) * tGhost,
-                                y: ghost.y + (target.y - ghost.y) * tGhost,
-                                weight: ghostW,
-                            });
-                        } else {
-                            // Fallback: no target (isolated loser), fade weight to 0
-                            const startW = s.weightLerpGhostWeightStart?.get(ghost.starId) ?? 0;
-                            const ghostWeight = startW * (1 - tGhost);  // linear fade
-                            if (ghostWeight > 0.01) {
-                                frameGhosts.push({ ...ghost, weight: ghostWeight });
-                            }
-                        }
-                    }
                 }
 
                 // Recompute geometry with interpolated weights + ghost sites
