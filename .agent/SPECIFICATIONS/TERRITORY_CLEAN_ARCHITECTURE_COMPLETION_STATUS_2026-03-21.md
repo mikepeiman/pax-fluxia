@@ -15,6 +15,12 @@ Worktree: `C:\Users\mikep\Desktop\WebDev\PRISM-territory-clean-arch`
    - `TERRITORY_STYLE_MODE`
 4. Updated territory controls for clearer, behavior-explicit naming and constrained canonical transition options.
 5. Updated rename ledger with current canonical mapping and integration notes.
+6. Added focused compatibility tests:
+   - `TerritorySettingsBridge` legacy-key normalization -> canonical mode IDs.
+   - canonical architecture route resolution (`clean` vs `legacy`) for dispatch behavior.
+7. Routed canonical dispatch through `TerritoryArchitectureRouter` and made legacy canonical fallback consume bridge-driven transition tunables.
+8. Split Territory style taxonomy into explicit `Clean Style` and `Legacy Style` sections in UI.
+9. Removed deprecated static/dynamic selector keys from active panel-to-config sync mappings.
 
 ## Current architecture state
 
@@ -29,24 +35,26 @@ The code now supports safe side-by-side execution:
   uses `GameCanvasBridge` -> `TerritoryRuntimeCoordinator` (4-layer path).
 - `Style = Canonical Layered Runtime` + `Architecture = Legacy Architecture`:
   uses legacy canonical controller/renderer path.
+- Canonical route selection is now centralized in
+  `integration/TerritoryArchitectureRouter.ts`.
+- Legacy canonical fallback transition timing is now sourced from
+  `TerritorySettingsBridge` tunables instead of hardcoded duration values.
 - non-canonical legacy styles continue to route through legacy renderers.
+- Territory controls now separate `Clean Style` from `Legacy Style` to reduce
+  mode ambiguity.
 
-## Remaining to reach full cutover
+## Remaining to reach hard deprecation cleanup
 
-1. Remove residual static/dynamic engine selector UX from Territory controls once no workflows depend on it.
-2. Complete canonical-only style taxonomy in UI (separate legacy style section from clean style section).
-3. Promote `TerritorySettingsBridge` as the single settings source for all territory render paths (legacy + clean), not only canonical clean bridge input.
-4. Decommission obsolete engine-method compatibility fields after migration period:
+1. Remove deprecated config keys from `game.config.ts` and builtin theme JSONs
+   once external workflows no longer rely on them:
    - `TERRITORY_ENGINE_MODE`
    - `TERRITORY_ENGINE_STATIC_METHOD`
    - `TERRITORY_ENGINE_DYNAMIC_METHOD`
-5. Add focused tests for compatibility normalization:
-   - legacy key combinations -> canonical mode IDs
-   - architecture toggle dispatch behavior.
+2. Add one integration-level runtime test around canonical render dispatch in
+   `GameCanvas.svelte` (optional hardening; not required for functional cutover).
 
 ## Recommended next execution order
 
-1. Split Territory controls into `Clean Runtime` and `Legacy Renderers` sections.
-2. Remove static/dynamic controls from default path (keep behind advanced/debug section if needed).
-3. Add compatibility tests for `TerritorySettingsBridge`.
-4. Final migration commit: retire obsolete engine selectors from default UI surface.
+1. Decide cutoff date for removing deprecated engine selector keys from config/themes.
+2. Run one manual QA sweep across Territory controls for clean-vs-legacy route expectations.
+3. Merge branch and keep legacy-key read compatibility for one migration window.

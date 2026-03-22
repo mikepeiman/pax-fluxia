@@ -30,6 +30,8 @@ use stable, semantically clear terminology while legacy names remain intact.
 | `layers/presentation/modes/CanonicalTerritoryStyle.ts` | `layers/presentation/modes/VectorPolygonMeshStyle.ts` | Alias file added + registry now imports descriptive alias |
 | `layers/presentation/modes/DistanceFieldStyle.ts` | `layers/presentation/modes/SignedDistanceFieldMeshStyle.ts` | Alias file added + registry now imports descriptive alias |
 | `layers/presentation/modes/PixelTerritoryStyle.ts` | `layers/presentation/modes/PixelQuantizedMeshStyle.ts` | Alias file added + registry now imports descriptive alias |
+| _(no prior file)_ | `integration/TerritoryArchitectureRouter.ts` | New canonical routing helper for clean vs legacy canonical dispatch |
+| `TERRITORY_STYLE_OPTIONS` (single mixed list) | `TERRITORY_CLEAN_STYLE_OPTIONS` + `TERRITORY_LEGACY_STYLE_OPTIONS` | UI taxonomy split for mode clarity |
 
 ## Notes for Follow-On Agents
 
@@ -42,5 +44,8 @@ use stable, semantically clear terminology while legacy names remain intact.
   into canonical clean-architecture mode IDs.
 - Canonical bridge input in `components/game/GameCanvas.svelte` now reads
   normalized mode selection + tunables from one source (`readTerritoryRuntimeSettings`).
+- Canonical dispatch route selection now resolves through
+  `integration/TerritoryArchitectureRouter.ts` for deterministic
+  `clean` vs `legacy` routing behavior.
 - Master architecture routing is controlled by
   `TERRITORY_ARCHITECTURE_PATH` (`clean` | `legacy`) in the Territory UI card.
