@@ -1347,6 +1347,8 @@
                             if (!canonicalBridge) {
                                 canonicalBridge = new GameCanvasBridge(
                                     voronoiContainer,
+                                    (ownerId) =>
+                                        colorUtils.getPlayerColor(ownerId),
                                 );
                             }
 

@@ -7,6 +7,8 @@ import { PixiTerritoryPresenter } from '../adapters/pixi/PixiTerritoryPresenter'
 import { TerritoryVFXBridge } from './TerritoryVFXBridge';
 import { ConquestParticles } from '../vfx/handlers/ConquestParticles';
 
+type OwnerColorResolver = (ownerId: string) => number;
+
 export class GameCanvasTerritoryBridge {
     private readonly runtime: TerritoryRuntimeCoordinator;
     private readonly presenter: PixiTerritoryPresenter;
@@ -14,9 +16,12 @@ export class GameCanvasTerritoryBridge {
     private previousTransition: TransitionSnapshot | null = null;
     private pendingVFXCommands: TerritoryVFXCommand[] = [];
 
-    constructor(container: PIXI.Container) {
+    constructor(
+        container: PIXI.Container,
+        resolveOwnerColor?: OwnerColorResolver,
+    ) {
         this.runtime = new TerritoryRuntimeCoordinator();
-        this.presenter = new PixiTerritoryPresenter(container);
+        this.presenter = new PixiTerritoryPresenter(container, resolveOwnerColor);
         this.vfxBridge = new TerritoryVFXBridge();
         this.vfxBridge.registerHandler(new ConquestParticles());
     }

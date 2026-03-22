@@ -3,13 +3,21 @@ import type { TerritoryPresentationFrame } from '../../layers/presentation/Terri
 import { PixiFillPresenter } from './PixiFillPresenter';
 import { PixiBorderPresenter } from './PixiBorderPresenter';
 
+type OwnerColorResolver = (ownerId: string) => number;
+
 export class PixiTerritoryPresenter {
     private readonly fillPresenter: PixiFillPresenter;
     private readonly borderPresenter: PixiBorderPresenter;
 
-    constructor(container: PIXI.Container) {
-        this.fillPresenter = new PixiFillPresenter(container);
-        this.borderPresenter = new PixiBorderPresenter(container);
+    constructor(
+        container: PIXI.Container,
+        resolveOwnerColor?: OwnerColorResolver,
+    ) {
+        this.fillPresenter = new PixiFillPresenter(container, resolveOwnerColor);
+        this.borderPresenter = new PixiBorderPresenter(
+            container,
+            resolveOwnerColor,
+        );
     }
 
     present(frame: TerritoryPresentationFrame): void {
