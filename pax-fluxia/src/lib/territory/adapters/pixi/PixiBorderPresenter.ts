@@ -40,6 +40,7 @@ export class PixiBorderPresenter {
     }
 
     present(commands: readonly BorderDrawCommand[]): void {
+        this.graphics.visible = true;
         this.graphics.clear();
 
         for (const command of commands) {
@@ -62,5 +63,6 @@ export class PixiBorderPresenter {
 
     reset(): void {
         this.graphics.clear();
+        this.graphics.visible = false;
     }
 }

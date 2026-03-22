@@ -31,6 +31,7 @@ export class PixiFillPresenter {
     }
 
     present(commands: readonly FillDrawCommand[]): void {
+        this.graphics.visible = true;
         this.graphics.clear();
 
         for (const command of commands) {
@@ -51,5 +52,6 @@ export class PixiFillPresenter {
 
     reset(): void {
         this.graphics.clear();
+        this.graphics.visible = false;
     }
 }
