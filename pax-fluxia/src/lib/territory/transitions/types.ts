@@ -78,6 +78,17 @@ export interface GeometricRefinementResult {
     geomEqualOutsidePatch: boolean;
 }
 
+/** Ring-local splice window used by legacy transition helpers. */
+export interface RingSpliceWindow {
+    ringId: string;
+    anchorStartPrev: number;
+    anchorEndPrev: number;
+    anchorStartNext: number;
+    anchorEndNext: number;
+    changedPrevRange: [number, number] | null;
+    changedNextRange: [number, number] | null;
+}
+
 // ---------------------------------------------------------------------------
 // Ring transition classification
 // ---------------------------------------------------------------------------

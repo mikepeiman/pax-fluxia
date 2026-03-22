@@ -5,14 +5,6 @@
         type TerritoryPipelineArtifacts,
         type TerritoryPipelineStageId,
     } from "$lib/territory/orchestrator";
-    import {
-        DEFAULT_TERRITORY_METHOD,
-        DEFAULT_TERRITORY_DYNAMIC_METHOD,
-        DEFAULT_TERRITORY_STATIC_METHOD,
-        TERRITORY_METHOD_BY_ID,
-        TERRITORY_DYNAMIC_METHOD_BY_ID,
-        TERRITORY_STATIC_METHOD_BY_ID,
-    } from "$lib/territory/orchestrator/registry";
     import { territoryTraceRun } from "$lib/territory/orchestrator/traceStore";
     import CategoryThemeBar from "./CategoryThemeBar.svelte";
 
@@ -226,155 +218,12 @@
         { id: "diagnostic", label: "Diagnostic" },
         { id: "production", label: "Production" },
     ] as const;
-    const TERRITORY_ENGINE_METHOD_OPTIONS = [
-        { id: "fg1_adaptive_field", label: "FG1 Adaptive Field" },
-        { id: "fg1_mar19_refactor", label: "FG1 Mar19 Refactor" },
-        { id: "fg2_seed_graph", label: "FG2 Seed Graph" },
-        { id: "new_frontiers_0319", label: "New-Frontiers-0319" },
-    ] as const;
-    const TERRITORY_ENGINE_MODE_OPTIONS = [
-        { id: "static", label: "Static" },
-        { id: "dynamic", label: "Dynamic" },
-    ] as const;
-    const TERRITORY_ENGINE_DYNAMIC_OPTIONS = [
-        { id: "dy4_optimal_transport", label: "DY4 Optimal Transport" },
-        { id: "dy4_mar19_refactor", label: "DY4 Mar19 Refactor" },
-    ] as const;
-
     const MORPH_EASING_OPTIONS = [
         { id: "linear", label: "Linear" },
         { id: "smoothstep", label: "Smooth" },
         { id: "easeInOutQuad", label: "Quad" },
         { id: "easeInOutCubic", label: "Cubic" },
     ] as const;
-
-    function lookupOptionLabel(
-        options: ReadonlyArray<{ id: string; label: string }>,
-        id: string,
-    ): string {
-        return options.find((option) => option.id === id)?.label ?? id;
-    }
-
-    function formatAdapterLabel(adapter: string): string {
-        if (adapter === "legacy_pvv2") return "Legacy PVV2";
-        if (adapter === "legacy_pvv3") return "Legacy PVV3";
-        if (adapter === "legacy_df") return "Legacy Distance Field";
-        return adapter;
-    }
-
-    function resolveMethodId(rawValue: unknown): string {
-        if (typeof rawValue !== "string") return DEFAULT_TERRITORY_METHOD;
-        return Object.prototype.hasOwnProperty.call(
-            TERRITORY_METHOD_BY_ID,
-            rawValue,
-        )
-            ? rawValue
-            : DEFAULT_TERRITORY_METHOD;
-    }
-
-    // Legacy resolve helpers (used by route display, kept for backward-compat)
-    function resolveStaticMethodId(rawValue: unknown): string {
-        return resolveMethodId(rawValue);
-    }
-    function resolveDynamicMethodId(rawValue: unknown): string {
-        return resolveMethodId(rawValue);
-    }
-
-    function getTerritoryEngineRoute() {
-        // Use unified method key, fall back to legacy keys
-        let methodId: string;
-        if (
-            panel.territoryEngineMethod ??
-            GAME_CONFIG.TERRITORY_ENGINE_METHOD
-        ) {
-            methodId = resolveMethodId(
-                panel.territoryEngineMethod ??
-                    GAME_CONFIG.TERRITORY_ENGINE_METHOD,
-            );
-        } else if (
-            (panel.territoryEngineMode ?? GAME_CONFIG.TERRITORY_ENGINE_MODE) ===
-            "dynamic"
-        ) {
-            methodId = resolveMethodId(
-                panel.territoryEngineDynamicMethod ??
-                    GAME_CONFIG.TERRITORY_ENGINE_DYNAMIC_METHOD,
-            );
-        } else {
-            methodId = resolveMethodId(
-                panel.territoryEngineStaticMethod ??
-                    GAME_CONFIG.TERRITORY_ENGINE_STATIC_METHOD,
-            );
-        }
-
-        const method =
-            TERRITORY_METHOD_BY_ID[
-                methodId as keyof typeof TERRITORY_METHOD_BY_ID
-            ];
-        const methodLabel = method?.label ?? methodId;
-        return {
-            methodId,
-            mode:
-                method && method.implementedStages.length > 1
-                    ? "static"
-                    : "dynamic",
-            adapter: method?.adapter ?? "legacy_pvv2",
-            adapterLabel: formatAdapterLabel(method?.adapter ?? "legacy_pvv2"),
-            methodLabel,
-            // backward-compat aliases
-            staticMethodId: methodId,
-            dynamicMethodId: methodId,
-            staticLabel: methodLabel,
-            dynamicLabel: methodLabel,
-        };
-    }
-
-    let territoryEngineRoute = $derived.by(() => getTerritoryEngineRoute());
-    let territoryEngineRouteNote = $derived.by(() => {
-        return `Active method: ${territoryEngineRoute.methodLabel} (${territoryEngineRoute.adapterLabel})`;
-    });
-    let territoryEngineInteropNote = $derived.by(() => {
-        if (territoryEngineRoute.mode === "dynamic") {
-            return "Dynamic mode is exclusive. The Dynamic Method picker wins and the standalone Static Method choice becomes reference only.";
-        }
-        return "Static mode is exclusive. Dynamic selections are stored, but inactive until you switch modes.";
-    });
-
-    let staticMethodControlState = $derived.by(() => {
-        if (territoryEngineRoute.mode === "static") {
-            return {
-                badge: "active",
-                note: "Static mode is live. Picking a static method changes the current route.",
-                disabled: false,
-            };
-        }
-        if (territoryEngineRoute.mode === "dynamic") {
-            return {
-                badge: "anchor only",
-                note: `${territoryEngineRoute.dynamicLabel} pins the static anchor to ${territoryEngineRoute.staticLabel}.`,
-                disabled: true,
-            };
-        }
-        return {
-            badge: "stored",
-            note: "Static selections are stored only.",
-            disabled: true,
-        };
-    });
-
-    let dynamicMethodControlState = $derived.by(() => {
-        if (territoryEngineRoute.mode === "dynamic") {
-            return {
-                badge: "active",
-                note: "Dynamic mode is live. Picking a dynamic method changes the current route.",
-                disabled: false,
-            };
-        }
-        return {
-            badge: "stored",
-            note: "Dynamic selections are stored, but inactive until you switch to Dynamic mode.",
-            disabled: true,
-        };
-    });
 
     let activeBorderEngine = $derived(
         (panel.dfBorderEngine ?? GAME_CONFIG.DF_BORDER_ENGINE ?? "mesh") as
@@ -398,43 +247,47 @@
     let isLegacyGridEngine = $derived(activeBorderEngine === "legacy_grid");
     /* ── V3.1 Three-Concern Architecture ── */
 
-    const TERRITORY_STYLE_OPTIONS = [
+    const TERRITORY_CLEAN_STYLE_OPTIONS = [
         { id: "none", label: "Off" },
-        { id: "territory_canonical", label: "Canonical" },
-        { id: "territory_engine", label: "Engine (DY4)" },
-        { id: "vs_pvv3", label: "PVV3" },
-        { id: "power_voronoi", label: "PVV2" },
-        { id: "distance_field", label: "Distance Field" },
-        { id: "metaball", label: "Metaball" },
-        { id: "pixel", label: "Pixel Art" },
-        { id: "voronoi", label: "Voronoi" },
-        { id: "graph", label: "Lane" },
-        { id: "contour", label: "Contour" },
+        { id: "territory_canonical", label: "Canonical Layered Runtime" },
+    ] as const;
+
+    const TERRITORY_LEGACY_STYLE_OPTIONS = [
+        { id: "territory_engine", label: "Legacy Engine Router (DY4)" },
+        { id: "vs_pvv3", label: "Legacy PVV3 Frontier Style" },
+        { id: "power_voronoi", label: "Legacy PVV2 Weighted Voronoi" },
+        { id: "distance_field", label: "Legacy Signed-Distance Field" },
+        { id: "metaball", label: "Legacy Metaball Style" },
+        { id: "pixel", label: "Legacy Pixel-Quantized Style" },
+        { id: "voronoi", label: "Legacy Voronoi Style" },
+        { id: "graph", label: "Legacy Lane-Influence Style" },
+        { id: "contour", label: "Legacy Contour Style" },
+    ] as const;
+
+    const TERRITORY_ARCHITECTURE_PATH_OPTIONS = [
+        { id: "clean", label: "Clean Architecture" },
+        { id: "legacy", label: "Legacy Architecture" },
     ] as const;
 
     const FILL_TRANSITION_OPTIONS = [
-        { id: "none", label: "Off" },
-        { id: "frontier_morph", label: "Frontier Morph" },
-        { id: "crossfade", label: "Crossfade" },
-        { id: "tile_flip", label: "Tile Flip" },
+        { id: "off", label: "Off" },
+        { id: "frontier_morph", label: "Frontier Topology Morph Fill" },
+        { id: "crossfade", label: "Alpha Crossfade Fill" },
     ] as const;
 
     const BORDER_TRANSITION_OPTIONS = [
-        { id: "none", label: "Off" },
-        { id: "pixi_graphics_morph", label: "Graphics Morph" },
-        { id: "pixi_mesh_rope", label: "Rope Morph" },
+        { id: "off", label: "Off" },
         {
             id: "optimal_transport",
-            label: "DY4 Transport",
+            label: "Optimal-Transport Correspondence Border",
         },
-        { id: "smooth_morph", label: "Smooth (Legacy)" },
-        { id: "pressure_wave", label: "Pressure Wave" },
+        { id: "rope_morph", label: "Rope-Interpolated Border" },
     ] as const;
 
     const GEOMETRY_OPTIONS = [
-        { id: "power_voronoi", label: "Power Voronoi" },
-        { id: "unified_polygon", label: "Unified Polygon" },
-        { id: "new_frontiers_0319", label: "New-Frontiers-0319" },
+        { id: "power_voronoi", label: "Weighted Power Voronoi" },
+        { id: "unified_polygon", label: "Unified Polygon (Dense Resampled)" },
+        { id: "new_frontiers_0319", label: "Boundary-Constrained Frontier (0319)" },
     ] as const;
 
     /** Map style IDs to old boolean flag panel keys (backward compat) */
@@ -465,6 +318,43 @@
 
     function selectBorderTransition(transitionId: string) {
         updatePanel("territoryBorderTransition", transitionId);
+    }
+
+    function resolveActiveStyleId(): string {
+        return (
+            panel.territoryRenderMode ??
+            GAME_CONFIG.TERRITORY_RENDER_MODE ??
+            "territory_canonical"
+        );
+    }
+
+    function resolveActiveFillTransitionId(): string {
+        const raw =
+            panel.territoryFillTransition ??
+            GAME_CONFIG.TERRITORY_FILL_TRANSITION_MODE ??
+            GAME_CONFIG.TERRITORY_FILL_MODE ??
+            "frontier_morph";
+        if (raw === "frontier") return "frontier_morph";
+        if (raw === "none") return "off";
+        return raw;
+    }
+
+    function resolveActiveBorderTransitionId(): string {
+        const raw =
+            panel.territoryBorderTransition ??
+            GAME_CONFIG.TERRITORY_BORDER_TRANSITION_MODE ??
+            GAME_CONFIG.TERRITORY_BORDER_TRANSITION ??
+            "optimal_transport";
+        if (raw === "pixi_mesh_rope") return "rope_morph";
+        if (raw === "none") return "off";
+        if (
+            raw === "smooth_morph" ||
+            raw === "pixi_graphics_morph" ||
+            raw === "pressure_wave"
+        ) {
+            return "optimal_transport";
+        }
+        return raw;
     }
 
     /**
@@ -530,7 +420,7 @@
                     class="axis-btn"
                     class:active={(panel.territoryGeometryMode ??
                         GAME_CONFIG.TERRITORY_GEOMETRY_MODE ??
-                        "power_voronoi") === opt.id}
+                        "new_frontiers_0319") === opt.id}
                     onclick={() => selectGeometryMode(opt.id)}
                     >{opt.label}</button
                 >
@@ -538,19 +428,17 @@
         </div>
     </div>
 
-    <!-- Row 2: Style (purple) -->
+    <!-- Row 2: Clean Runtime Style (purple) -->
     <div
         class="axis-row"
         style="--accent: #a78bfa; --accent-bg: rgba(167,139,250,0.15)"
     >
-        <span class="axis-label">Style</span>
+        <span class="axis-label">Clean Style</span>
         <div class="axis-buttons">
-            {#each TERRITORY_STYLE_OPTIONS as opt}
+            {#each TERRITORY_CLEAN_STYLE_OPTIONS as opt}
                 <button
                     class="axis-btn"
-                    class:active={(panel.territoryRenderMode ??
-                        GAME_CONFIG.TERRITORY_RENDER_MODE ??
-                        "territory_engine") === opt.id}
+                    class:active={resolveActiveStyleId() === opt.id}
                     onclick={() => selectTerritoryStyle(opt.id)}
                     >{opt.label}</button
                 >
@@ -558,7 +446,55 @@
         </div>
     </div>
 
-    <!-- Row 3: Fill Transition (gold) -->
+    <!-- Row 3: Legacy Renderers (amber) -->
+    <div
+        class="axis-row"
+        style="--accent: #f59e0b; --accent-bg: rgba(245,158,11,0.16)"
+    >
+        <span class="axis-label">Legacy Style</span>
+        <div class="axis-buttons">
+            {#each TERRITORY_LEGACY_STYLE_OPTIONS as opt}
+                <button
+                    class="axis-btn"
+                    class:active={resolveActiveStyleId() === opt.id}
+                    onclick={() => selectTerritoryStyle(opt.id)}
+                    >{opt.label}</button
+                >
+            {/each}
+        </div>
+    </div>
+
+    <!-- Row 4: Architecture Path (blue) -->
+    <div
+        class="axis-row"
+        style="--accent: #60a5fa; --accent-bg: rgba(96,165,250,0.15)"
+    >
+        <span class="axis-label">Architecture</span>
+        <div class="axis-buttons">
+            {#each TERRITORY_ARCHITECTURE_PATH_OPTIONS as opt}
+                <button
+                    class="axis-btn"
+                    class:active={(panel.territoryArchitecturePath ??
+                        GAME_CONFIG.TERRITORY_ARCHITECTURE_PATH ??
+                        "clean") === opt.id}
+                    onclick={() =>
+                        updatePanel("territoryArchitecturePath", opt.id)}
+                    >{opt.label}</button
+                >
+            {/each}
+        </div>
+    </div>
+    <div class="axis-note">
+        Architecture toggle applies when Style is "Canonical Layered Runtime".
+    </div>
+    {#if resolveActiveStyleId() !== "territory_canonical" &&
+        resolveActiveStyleId() !== "none"}
+        <div class="axis-note">
+            Legacy style selection bypasses canonical clean-layer routing.
+        </div>
+    {/if}
+
+    <!-- Row 5: Fill Transition (gold) -->
     <div
         class="axis-row"
         style="--accent: #fbbf24; --accent-bg: rgba(251,191,36,0.15)"
@@ -568,8 +504,7 @@
             {#each FILL_TRANSITION_OPTIONS as opt}
                 <button
                     class="axis-btn"
-                    class:active={(panel.territoryFillTransition ??
-                        "frontier_morph") === opt.id}
+                    class:active={resolveActiveFillTransitionId() === opt.id}
                     onclick={() => selectFillTransition(opt.id)}
                     >{opt.label}</button
                 >
@@ -577,7 +512,7 @@
         </div>
     </div>
 
-    <!-- Row 4: Border Transition (rose) -->
+    <!-- Row 6: Border Transition (rose) -->
     <div
         class="axis-row"
         style="--accent: #fb7185; --accent-bg: rgba(251,113,133,0.15)"
@@ -587,8 +522,7 @@
             {#each BORDER_TRANSITION_OPTIONS as opt}
                 <button
                     class="axis-btn"
-                    class:active={(panel.territoryBorderTransition ??
-                        "smooth_morph") === opt.id}
+                    class:active={resolveActiveBorderTransitionId() === opt.id}
                     onclick={() => selectBorderTransition(opt.id)}
                     >{opt.label}</button
                 >
@@ -855,8 +789,8 @@
     </div>
 {/if}
 
-{#if panel.territoryEngine ?? GAME_CONFIG.TERRITORY_ENGINE_ENABLED}
-    <h4 class="sub-heading">⚙️ Geometry</h4>
+{#if resolveActiveStyleId() === "territory_engine"}
+    <h4 class="sub-heading">⚙️ Legacy Engine Diagnostics</h4>
     <div
         class="row-bottom"
         style="font-size: 10px; opacity: 0.6; padding: 2px 4px;"

@@ -303,6 +303,9 @@ interface GameConfigType {
     TERRITORY_MORPH_CONTROL_POINTS: number; // Number of control points for frontier loop morphing (5-300, default 32)
     TERRITORY_BOUNDARY_MODE: 'segment' | 'smooth';  // 'segment' = edge-level lerp, 'smooth' = flubber polygon morph
     TERRITORY_FILL_MODE: 'crossfade' | 'frontier';  // 'crossfade' = alpha-fade fills, 'frontier' = infill from frontier loops
+    TERRITORY_FILL_TRANSITION_MODE: 'frontier_morph' | 'crossfade' | 'off'; // Clean-arch fill transition selector
+    TERRITORY_BORDER_TRANSITION_MODE: 'optimal_transport' | 'rope_morph' | 'off'; // Clean-arch border transition selector
+    TERRITORY_STYLE_MODE: 'canonical' | 'distance_field' | 'pixel'; // Clean-arch presentation style selector
     // ── Morph Diagnostics ─────────────────────────────────────────────────────
     DEBUG_MORPH_VERTICES: boolean;        // Show numbered vertex dots on territory polygons during morph
     DEBUG_MORPH_VERTEX_SIZE: number;      // Radius of vertex dots (px, default 3)
@@ -319,6 +322,7 @@ interface GameConfigType {
     TERRITORY_MODE: 'voronoi' | 'metaball' | 'off';  // LEGACY — kept for compat
     TERRITORY_DISTANCE_FIELD: boolean; // Enable distance-field territory renderer (default false)
     TERRITORY_RENDER_MODE: string;    // Active render mode: 'none' | 'vs_pvv3' | 'power_voronoi' | 'distance_field' | 'voronoi' | 'metaball' | 'pixel' | 'graph' | 'contour'
+    TERRITORY_ARCHITECTURE_PATH: 'clean' | 'legacy'; // Master architecture selector for canonical territory mode
 
     // ── Distance Field Territory ──────────────────────────────────────────────
     DF_RESOLUTION: number;          // Grid resolution divisor (4 = quarter res, default 4)
@@ -1047,9 +1051,9 @@ const _rawConfig: GameConfigType = {
     // See registry.ts and .atlas/DECISIONS.md. Do not change without user approval.
     TERRITORY_ENGINE_ENABLED: true,
     /** Unified method ID — replaces MODE + STATIC_METHOD + DYNAMIC_METHOD */
-    TERRITORY_ENGINE_METHOD: 'dy4_optimal_transport' as const,
+    TERRITORY_ENGINE_METHOD: 'new_frontiers_0319' as const,
     /** @deprecated Use TERRITORY_ENGINE_METHOD */
-    TERRITORY_ENGINE_STATIC_METHOD: 'fg1_adaptive_field' as const,
+    TERRITORY_ENGINE_STATIC_METHOD: 'new_frontiers_0319' as const,
     /** Emit staged trace snapshots in modular engine */
     TERRITORY_ENGINE_TRACE_MODE: false,
     /** @deprecated Use TERRITORY_ENGINE_METHOD */
@@ -1077,6 +1081,12 @@ const _rawConfig: GameConfigType = {
     TERRITORY_BOUNDARY_MODE: 'smooth' as const,
     /** Fill transition mode: 'crossfade' = alpha-fade, 'frontier' = infill from frontier loops */
     TERRITORY_FILL_MODE: 'frontier' as const,
+    /** Clean-architecture fill transition selector */
+    TERRITORY_FILL_TRANSITION_MODE: 'frontier_morph' as const,
+    /** Clean-architecture border transition selector */
+    TERRITORY_BORDER_TRANSITION_MODE: 'optimal_transport' as const,
+    /** Clean-architecture style selector */
+    TERRITORY_STYLE_MODE: 'canonical' as const,
     // ── Morph Diagnostics ─────────────────────────────────────────────────────
     /** Show numbered vertex dots on territory polygons during morph transitions */
     DEBUG_MORPH_VERTICES: true,
@@ -1105,7 +1115,9 @@ const _rawConfig: GameConfigType = {
     /** LEGACY territory mode — kept for compat */
     TERRITORY_MODE: 'metaball' as 'voronoi' | 'metaball' | 'off',
     /** Active render mode selector */
-    TERRITORY_RENDER_MODE: 'territory_engine',
+    TERRITORY_RENDER_MODE: 'territory_canonical',
+    /** Master architecture selector for canonical territory mode */
+    TERRITORY_ARCHITECTURE_PATH: 'clean' as const,
 
     /** Show contiguous Voronoi territory fill */
     SHOW_VORONOI: false,
@@ -1140,7 +1152,7 @@ const _rawConfig: GameConfigType = {
     /** Frontier vertex spacing in pixels (1=every pixel, 20=sparse). Lower = smoother morphing */
     FRONTIER_RESOLUTION: 5,
     /** Geometry data mode: 'power_voronoi' (dual-path fills+polylines) | 'unified_polygon' (single-path dense polygon) */
-    TERRITORY_GEOMETRY_MODE: 'power_voronoi' as const,
+    TERRITORY_GEOMETRY_MODE: 'new_frontiers_0319' as const,
     /** Voronoi color saturation multiplier (0=grey, 1=original, 2=vivid) */
     VORONOI_SATURATION: 1,
     /** Voronoi color lightness multiplier (0=dark, 1=original, 2=bright) */

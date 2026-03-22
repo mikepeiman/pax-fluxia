@@ -91,6 +91,10 @@
         extractCanonicalData,
     } from "$lib/territory/orchestrator";
     // ── Canonical territory layer (Phase 2: new architecture) ──────────────────
+    import { GameCanvasBridge } from "$lib/territory/integration/GameCanvasBridge";
+    import { readTerritoryRuntimeSettings } from "$lib/territory/integration/TerritorySettingsBridge";
+    import { resolveTerritoryArchitectureRoute } from "$lib/territory/integration/TerritoryArchitectureRouter";
+    import type { TerritoryFrameInput } from "$lib/territory/contracts/TerritoryFrameInput";
     import { TerritoryEngineController } from "$lib/territory/engine/TerritoryEngineController";
     import { TerritoryRenderer } from "$lib/territory/render/TerritoryRenderer";
 
@@ -144,8 +148,33 @@
     const fxOrchestrator = new FXOrchestrator();
 
     // ── Canonical territory instances (class-encapsulated, no module-level state) ─
+    let canonicalBridge: GameCanvasBridge | null = null;
+    let canonicalBridgeFallbackLogged = false;
     let canonicalController: TerritoryEngineController | null = null;
+    let canonicalControllerTransitionDurationMs: number | null = null;
     let canonicalRenderer: TerritoryRenderer | null = null;
+
+    function buildCanonicalBridgeInput(
+        stars: StarState[],
+        runtimeSettings: ReturnType<typeof readTerritoryRuntimeSettings>,
+    ): TerritoryFrameInput {
+        return {
+            tickId: activeGameStore.currentTick ?? 0,
+            nowMs: fxOrchestrator.gameTime,
+            stars,
+            lanes: activeGameStore.connections as StarConnection[],
+            players:
+                activeGameStore.players?.map((player: { id: string }) => ({
+                    id: player.id,
+                })) ?? [],
+            world: {
+                width: GAME_WIDTH,
+                height: GAME_HEIGHT,
+            },
+            selection: runtimeSettings.selection,
+            tunables: runtimeSettings.tunables,
+        };
+    }
 
     // React to animation speed changes from the UI slider
     $effect(() => {
@@ -619,6 +648,11 @@
             app.destroy(true, { children: true });
             app = null;
         }
+        canonicalBridge?.reset();
+        canonicalBridge = null;
+        canonicalController = null;
+        canonicalControllerTransitionDurationMs = null;
+        canonicalRenderer = null;
 
         starGraphics.clear();
         starLabels.clear();
@@ -1294,12 +1328,76 @@
                         );
                         break;
                     case "territory_canonical": {
-                        // ── NEW CANONICAL PIPELINE ──────────────────────────────────
+                        // ── CANONICAL ARCHITECTURE DISPATCH ─────────────────────────
+                        const runtimeSettings = readTerritoryRuntimeSettings(
+                            GAME_CONFIG as unknown as Record<string, unknown>,
+                        );
+                        const architectureRoute =
+                            resolveTerritoryArchitectureRoute({
+                                renderMode: activeMode,
+                                architecturePath:
+                                    GAME_CONFIG.TERRITORY_ARCHITECTURE_PATH,
+                            });
+                        const useCleanArchitecture =
+                            architectureRoute.route ===
+                            "canonical_clean_bridge";
+                        let renderedByCanonicalBridge = false;
+
+                        if (useCleanArchitecture && voronoiContainer) {
+                            if (!canonicalBridge) {
+                                canonicalBridge = new GameCanvasBridge(
+                                    voronoiContainer,
+                                    (ownerId) =>
+                                        colorUtils.getPlayerColor(ownerId),
+                                );
+                            }
+
+                            if (canonicalBridge) {
+                                try {
+                                    canonicalBridge.update(
+                                        buildCanonicalBridgeInput(
+                                            stars,
+                                            runtimeSettings,
+                                        ),
+                                    );
+                                    canonicalBridge.consumeVFXCommands();
+                                    renderedByCanonicalBridge = true;
+                                } catch (error) {
+                                    if (!canonicalBridgeFallbackLogged) {
+                                        canonicalBridgeFallbackLogged = true;
+                                        console.warn(
+                                            "[CanonicalBridge] Falling back to legacy canonical controller path:",
+                                            error,
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                        if (!useCleanArchitecture) {
+                            canonicalBridge?.reset();
+                            canonicalBridge = null;
+                        }
+
+                        if (renderedByCanonicalBridge) {
+                            break;
+                        }
+
+                        // Legacy path (selected explicitly or clean path fallback on error).
                         // Lazily initialize controller and renderer per-container
-                        if (!canonicalController) {
+                        if (
+                            !canonicalController ||
+                            canonicalControllerTransitionDurationMs !==
+                                runtimeSettings.tunables.transitionDurationMs
+                        ) {
                             canonicalController = new TerritoryEngineController(
-                                { transitionDurationMs: 600 },
+                                {
+                                    transitionDurationMs:
+                                        runtimeSettings.tunables
+                                            .transitionDurationMs,
+                                },
                             );
+                            canonicalControllerTransitionDurationMs =
+                                runtimeSettings.tunables.transitionDurationMs;
                         }
                         if (!canonicalRenderer || !voronoiContainer) {
                             if (voronoiContainer) {
