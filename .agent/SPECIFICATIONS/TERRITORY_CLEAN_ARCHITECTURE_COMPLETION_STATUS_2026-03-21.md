@@ -20,6 +20,11 @@ Worktree: `C:\Users\mikep\Desktop\WebDev\PRISM-territory-clean-arch`
 
 The code now supports safe side-by-side execution:
 
+- Default boot path is now clean canonical with Geometry0319:
+  - `TERRITORY_RENDER_MODE = territory_canonical`
+  - `TERRITORY_ARCHITECTURE_PATH = clean`
+  - `TERRITORY_GEOMETRY_MODE = new_frontiers_0319`
+  - `TERRITORY_ENGINE_METHOD = new_frontiers_0319`
 - `Style = Canonical Layered Runtime` + `Architecture = Clean Architecture`:
   uses `GameCanvasBridge` -> `TerritoryRuntimeCoordinator` (4-layer path).
 - `Style = Canonical Layered Runtime` + `Architecture = Legacy Architecture`:

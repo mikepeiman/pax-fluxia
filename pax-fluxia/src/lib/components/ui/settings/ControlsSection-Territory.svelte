@@ -560,7 +560,7 @@
                     class="axis-btn"
                     class:active={(panel.territoryGeometryMode ??
                         GAME_CONFIG.TERRITORY_GEOMETRY_MODE ??
-                        "power_voronoi") === opt.id}
+                        "new_frontiers_0319") === opt.id}
                     onclick={() => selectGeometryMode(opt.id)}
                     >{opt.label}</button
                 >
@@ -580,7 +580,7 @@
                     class="axis-btn"
                     class:active={(panel.territoryRenderMode ??
                         GAME_CONFIG.TERRITORY_RENDER_MODE ??
-                        "territory_engine") === opt.id}
+                        "territory_canonical") === opt.id}
                     onclick={() => selectTerritoryStyle(opt.id)}
                     >{opt.label}</button
                 >

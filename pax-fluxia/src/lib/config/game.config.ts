@@ -1050,9 +1050,9 @@ const _rawConfig: GameConfigType = {
     // See registry.ts and .atlas/DECISIONS.md. Do not change without user approval.
     TERRITORY_ENGINE_ENABLED: true,
     /** Unified method ID — replaces MODE + STATIC_METHOD + DYNAMIC_METHOD */
-    TERRITORY_ENGINE_METHOD: 'dy4_optimal_transport' as const,
+    TERRITORY_ENGINE_METHOD: 'new_frontiers_0319' as const,
     /** @deprecated Use TERRITORY_ENGINE_METHOD */
-    TERRITORY_ENGINE_STATIC_METHOD: 'fg1_adaptive_field' as const,
+    TERRITORY_ENGINE_STATIC_METHOD: 'new_frontiers_0319' as const,
     /** Emit staged trace snapshots in modular engine */
     TERRITORY_ENGINE_TRACE_MODE: false,
     /** @deprecated Use TERRITORY_ENGINE_METHOD */
@@ -1113,7 +1113,7 @@ const _rawConfig: GameConfigType = {
     /** LEGACY territory mode — kept for compat */
     TERRITORY_MODE: 'metaball' as 'voronoi' | 'metaball' | 'off',
     /** Active render mode selector */
-    TERRITORY_RENDER_MODE: 'territory_engine',
+    TERRITORY_RENDER_MODE: 'territory_canonical',
     /** Master architecture selector for canonical territory mode */
     TERRITORY_ARCHITECTURE_PATH: 'clean' as const,
 
@@ -1150,7 +1150,7 @@ const _rawConfig: GameConfigType = {
     /** Frontier vertex spacing in pixels (1=every pixel, 20=sparse). Lower = smoother morphing */
     FRONTIER_RESOLUTION: 5,
     /** Geometry data mode: 'power_voronoi' (dual-path fills+polylines) | 'unified_polygon' (single-path dense polygon) */
-    TERRITORY_GEOMETRY_MODE: 'power_voronoi' as const,
+    TERRITORY_GEOMETRY_MODE: 'new_frontiers_0319' as const,
     /** Voronoi color saturation multiplier (0=grey, 1=original, 2=vivid) */
     VORONOI_SATURATION: 1,
     /** Voronoi color lightness multiplier (0=dark, 1=original, 2=bright) */
