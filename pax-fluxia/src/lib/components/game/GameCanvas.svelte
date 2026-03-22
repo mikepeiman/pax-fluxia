@@ -93,6 +93,7 @@
     // ── Canonical territory layer (Phase 2: new architecture) ──────────────────
     import { GameCanvasBridge } from "$lib/territory/integration/GameCanvasBridge";
     import { readTerritoryRuntimeSettings } from "$lib/territory/integration/TerritorySettingsBridge";
+    import { resolveTerritoryArchitectureRoute } from "$lib/territory/integration/TerritoryArchitectureRouter";
     import type { TerritoryFrameInput } from "$lib/territory/contracts/TerritoryFrameInput";
     import { TerritoryEngineController } from "$lib/territory/engine/TerritoryEngineController";
     import { TerritoryRenderer } from "$lib/territory/render/TerritoryRenderer";
@@ -150,13 +151,13 @@
     let canonicalBridge: GameCanvasBridge | null = null;
     let canonicalBridgeFallbackLogged = false;
     let canonicalController: TerritoryEngineController | null = null;
+    let canonicalControllerTransitionDurationMs: number | null = null;
     let canonicalRenderer: TerritoryRenderer | null = null;
 
-    function buildCanonicalBridgeInput(stars: StarState[]): TerritoryFrameInput {
-        const runtimeSettings = readTerritoryRuntimeSettings(
-            GAME_CONFIG as unknown as Record<string, unknown>,
-        );
-
+    function buildCanonicalBridgeInput(
+        stars: StarState[],
+        runtimeSettings: ReturnType<typeof readTerritoryRuntimeSettings>,
+    ): TerritoryFrameInput {
         return {
             tickId: activeGameStore.currentTick ?? 0,
             nowMs: fxOrchestrator.gameTime,
@@ -650,6 +651,7 @@
         canonicalBridge?.reset();
         canonicalBridge = null;
         canonicalController = null;
+        canonicalControllerTransitionDurationMs = null;
         canonicalRenderer = null;
 
         starGraphics.clear();
@@ -1327,9 +1329,18 @@
                         break;
                     case "territory_canonical": {
                         // ── CANONICAL ARCHITECTURE DISPATCH ─────────────────────────
-                        const architecturePath =
-                            GAME_CONFIG.TERRITORY_ARCHITECTURE_PATH ?? "clean";
-                        const useCleanArchitecture = architecturePath === "clean";
+                        const runtimeSettings = readTerritoryRuntimeSettings(
+                            GAME_CONFIG as unknown as Record<string, unknown>,
+                        );
+                        const architectureRoute =
+                            resolveTerritoryArchitectureRoute({
+                                renderMode: activeMode,
+                                architecturePath:
+                                    GAME_CONFIG.TERRITORY_ARCHITECTURE_PATH,
+                            });
+                        const useCleanArchitecture =
+                            architectureRoute.route ===
+                            "canonical_clean_bridge";
                         let renderedByCanonicalBridge = false;
 
                         if (useCleanArchitecture && voronoiContainer) {
@@ -1342,7 +1353,10 @@
                             if (canonicalBridge) {
                                 try {
                                     canonicalBridge.update(
-                                        buildCanonicalBridgeInput(stars),
+                                        buildCanonicalBridgeInput(
+                                            stars,
+                                            runtimeSettings,
+                                        ),
                                     );
                                     canonicalBridge.consumeVFXCommands();
                                     renderedByCanonicalBridge = true;
@@ -1357,6 +1371,10 @@
                                 }
                             }
                         }
+                        if (!useCleanArchitecture) {
+                            canonicalBridge?.reset();
+                            canonicalBridge = null;
+                        }
 
                         if (renderedByCanonicalBridge) {
                             break;
@@ -1364,10 +1382,20 @@
 
                         // Legacy path (selected explicitly or clean path fallback on error).
                         // Lazily initialize controller and renderer per-container
-                        if (!canonicalController) {
+                        if (
+                            !canonicalController ||
+                            canonicalControllerTransitionDurationMs !==
+                                runtimeSettings.tunables.transitionDurationMs
+                        ) {
                             canonicalController = new TerritoryEngineController(
-                                { transitionDurationMs: 600 },
+                                {
+                                    transitionDurationMs:
+                                        runtimeSettings.tunables
+                                            .transitionDurationMs,
+                                },
                             );
+                            canonicalControllerTransitionDurationMs =
+                                runtimeSettings.tunables.transitionDurationMs;
                         }
                         if (!canonicalRenderer || !voronoiContainer) {
                             if (voronoiContainer) {
