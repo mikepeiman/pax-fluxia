@@ -147,7 +147,7 @@ export function computeGeometry0319(
         }
 
         if (config.corridorEnabled) {
-            const corridorVirtuals = computeCorridorVirtuals(ownedStars, connections, config.corridorSpacing, 0.5);
+            const corridorVirtuals = computeCorridorVirtuals(ownedStars, connections, config.corridorSpacing, config.cxWeight, config.cxCount || undefined);
             for (const cv of corridorVirtuals) {
                 sites.push({
                     x: cv.x, y: cv.y,
@@ -160,7 +160,7 @@ export function computeGeometry0319(
         }
 
         if (config.disconnectEnabled) {
-            const disconnectVirtuals = computeDisconnectVirtuals(ownedStars, stars, connections, config.disconnectDistance, 0.3);
+            const disconnectVirtuals = computeDisconnectVirtuals(ownedStars, stars, connections, config.disconnectDistance, config.dxWeight);
             for (const dv of disconnectVirtuals) {
                 sites.push({
                     x: dv.x, y: dv.y,

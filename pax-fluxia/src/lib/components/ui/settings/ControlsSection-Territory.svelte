@@ -287,7 +287,10 @@
     const GEOMETRY_OPTIONS = [
         { id: "power_voronoi", label: "Weighted Power Voronoi" },
         { id: "unified_polygon", label: "Unified Polygon (Dense Resampled)" },
-        { id: "new_frontiers_0319", label: "Boundary-Constrained Frontier (0319)" },
+        {
+            id: "new_frontiers_0319",
+            label: "Boundary-Constrained Frontier (0319)",
+        },
     ] as const;
 
     /** Map style IDs to old boolean flag panel keys (backward compat) */
@@ -487,8 +490,7 @@
     <div class="axis-note">
         Architecture toggle applies when Style is "Canonical Layered Runtime".
     </div>
-    {#if resolveActiveStyleId() !== "territory_canonical" &&
-        resolveActiveStyleId() !== "none"}
+    {#if resolveActiveStyleId() !== "territory_canonical" && resolveActiveStyleId() !== "none"}
         <div class="axis-note">
             Legacy style selection bypasses canonical clean-layer routing.
         </div>
@@ -529,6 +531,205 @@
             {/each}
         </div>
     </div>
+</div>
+
+<!-- ── Territory Invariants (MSR / CX / DX) ── -->
+<div class="engine-control-group">
+    <h4 class="axis-card-title">Territory Invariants</h4>
+
+    <!-- MSR — Minimum Star Region -->
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">MSR (Star Margin)</span><span class="val"
+                >{panel.starMargin ??
+                    GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ??
+                    45}px</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="200"
+            step="5"
+            value={panel.starMargin ??
+                GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ??
+                45}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN = v;
+                updatePanel("starMargin", v);
+            }}
+        />
+    </div>
+
+    <!-- CX — Corridor Connection -->
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">CX Corridors</span>
+            <label class="lock-toggle">
+                <input
+                    type="checkbox"
+                    checked={panel.corridorEnabled ??
+                        GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED ??
+                        true}
+                    onchange={(e) => {
+                        const v = (e.target as HTMLInputElement).checked;
+                        GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED = v;
+                        updatePanel("corridorEnabled", v);
+                    }}
+                />
+                {(panel.corridorEnabled ??
+                GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED ??
+                true)
+                    ? "On"
+                    : "Off"}
+            </label>
+        </div>
+    </div>
+    {#if panel.corridorEnabled ?? GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED ?? true}
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">CX Count</span><span class="val"
+                    >{(panel.cxCount ?? GAME_CONFIG.TERRITORY_CX_COUNT ?? 0) ===
+                    0
+                        ? "Auto"
+                        : (panel.cxCount ??
+                          GAME_CONFIG.TERRITORY_CX_COUNT)}</span
+                >
+            </div>
+            <input
+                type="range"
+                min="0"
+                max="20"
+                step="1"
+                value={panel.cxCount ?? GAME_CONFIG.TERRITORY_CX_COUNT ?? 0}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    GAME_CONFIG.TERRITORY_CX_COUNT = v;
+                    updatePanel("cxCount", v);
+                }}
+            />
+        </div>
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">CX Weight</span><span class="val"
+                    >{(
+                        panel.cxWeight ??
+                        GAME_CONFIG.TERRITORY_CX_WEIGHT ??
+                        0.5
+                    ).toFixed(2)}</span
+                >
+            </div>
+            <input
+                type="range"
+                min="0"
+                max="2"
+                step="0.05"
+                value={panel.cxWeight ?? GAME_CONFIG.TERRITORY_CX_WEIGHT ?? 0.5}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    GAME_CONFIG.TERRITORY_CX_WEIGHT = v;
+                    updatePanel("cxWeight", v);
+                }}
+            />
+        </div>
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">CX Spacing</span><span class="val"
+                    >{panel.corridorSpacing ??
+                        GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING ??
+                        60}px</span
+                >
+            </div>
+            <input
+                type="range"
+                min="10"
+                max="200"
+                step="5"
+                value={panel.corridorSpacing ??
+                    GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING ??
+                    60}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING = v;
+                    updatePanel("corridorSpacing", v);
+                }}
+            />
+        </div>
+    {/if}
+
+    <!-- DX — Disconnection Zones -->
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">DX Disconnect</span>
+            <label class="lock-toggle">
+                <input
+                    type="checkbox"
+                    checked={panel.disconnectEnabled ??
+                        GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED ??
+                        false}
+                    onchange={(e) => {
+                        const v = (e.target as HTMLInputElement).checked;
+                        GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED = v;
+                        updatePanel("disconnectEnabled", v);
+                    }}
+                />
+                {(panel.disconnectEnabled ??
+                GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED ??
+                false)
+                    ? "On"
+                    : "Off"}
+            </label>
+        </div>
+    </div>
+    {#if panel.disconnectEnabled ?? GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED ?? false}
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">DX Weight</span><span class="val"
+                    >{(
+                        panel.dxWeight ??
+                        GAME_CONFIG.TERRITORY_DX_WEIGHT ??
+                        0.3
+                    ).toFixed(2)}</span
+                >
+            </div>
+            <input
+                type="range"
+                min="0"
+                max="2"
+                step="0.05"
+                value={panel.dxWeight ?? GAME_CONFIG.TERRITORY_DX_WEIGHT ?? 0.3}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    GAME_CONFIG.TERRITORY_DX_WEIGHT = v;
+                    updatePanel("dxWeight", v);
+                }}
+            />
+        </div>
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">DX Distance</span><span class="val"
+                    >{panel.disconnectDistance ??
+                        GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE ??
+                        400}px</span
+                >
+            </div>
+            <input
+                type="range"
+                min="50"
+                max="1000"
+                step="25"
+                value={panel.disconnectDistance ??
+                    GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE ??
+                    400}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE = v;
+                    updatePanel("disconnectDistance", v);
+                }}
+            />
+        </div>
+    {/if}
 </div>
 
 <!-- Border Transition Tuning -->

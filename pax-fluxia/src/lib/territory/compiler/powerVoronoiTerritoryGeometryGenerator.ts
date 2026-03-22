@@ -111,8 +111,11 @@ export interface TerritoryGeneratorSettings {
     starMargin: number;           // MODIFIED_VORONOI_STAR_MARGIN
     corridorEnabled: boolean;     // MODIFIED_VORONOI_CORRIDOR_ENABLED
     corridorSpacing: number;      // MODIFIED_VORONOI_CORRIDOR_SPACING
+    cxCount: number;              // TERRITORY_CX_COUNT — vstars per lane (0 = auto)
+    cxWeight: number;             // TERRITORY_CX_WEIGHT — weight multiplier (0.0-2.0)
     disconnectEnabled: boolean;   // MODIFIED_VORONOI_DISCONNECT_ENABLED
     disconnectDistance: number;   // MODIFIED_VORONOI_DISCONNECT_DISTANCE
+    dxWeight: number;             // TERRITORY_DX_WEIGHT — weight multiplier (0.0-2.0)
     clusterSplit: boolean;        // TERRITORY_CLUSTER_SPLIT
     chaikinPasses: number;        // VORONOI_BORDER_SMOOTH (0-5) — geometry smoothing
     frontierResolution: number;   // FRONTIER_RESOLUTION — vertex spacing in px (1-20)
@@ -842,7 +845,7 @@ export function generateVoronoiTerritoryGeometry(
         }));
 
         if (config.corridorEnabled) {
-            const corridorVirtuals = computeCorridorVirtuals(ownedStars, connections, config.corridorSpacing, 0.5);
+            const corridorVirtuals = computeCorridorVirtuals(ownedStars, connections, config.corridorSpacing, config.cxWeight, config.cxCount || undefined);
             for (const cv of corridorVirtuals) {
                 sites.push({
                     x: cv.x, y: cv.y,
@@ -855,7 +858,7 @@ export function generateVoronoiTerritoryGeometry(
         }
 
         if (config.disconnectEnabled) {
-            const disconnectVirtuals = computeDisconnectVirtuals(ownedStars, stars, connections, config.disconnectDistance, 0.3);
+            const disconnectVirtuals = computeDisconnectVirtuals(ownedStars, stars, connections, config.disconnectDistance, config.dxWeight);
             for (const dv of disconnectVirtuals) {
                 sites.push({
                     x: dv.x, y: dv.y,

@@ -372,8 +372,11 @@ interface GameConfigType {
     MODIFIED_VORONOI_ARC_MIN_SEGMENT: number;  // Min line-segment length for Bézier tessellation (px)
     MODIFIED_VORONOI_CORRIDOR_ENABLED: boolean; // Inject virtual sites along same-owner lanes for corridor effect
     MODIFIED_VORONOI_CORRIDOR_SPACING: number;  // Distance between virtual corridor sites in px (20-200)
+    TERRITORY_CX_COUNT: number;     // Number of corridor vstars per lane (0 = auto from spacing)
+    TERRITORY_CX_WEIGHT: number;    // Corridor vstar weight multiplier vs starMargin² (0.0-2.0, default 0.5)
     MODIFIED_VORONOI_DISCONNECT_ENABLED: boolean; // Inject enemy virtual sites to separate non-connected same-owner territories
     MODIFIED_VORONOI_DISCONNECT_DISTANCE: number; // Max distance between same-owner stars for disconnect injection (px)
+    TERRITORY_DX_WEIGHT: number;    // Disconnect vstar weight multiplier vs starMargin² (0.0-2.0, default 0.3)
 
     // ── Voronoi Territory ───────────────────────────────────────────────────
     SHOW_VORONOI: boolean;         // Show contiguous Voronoi territory fill (default true)
@@ -1185,10 +1188,16 @@ const _rawConfig: GameConfigType = {
     MODIFIED_VORONOI_CORRIDOR_ENABLED: true,
     /** Distance between virtual corridor sites in px (lower=more sites=denser corridor) */
     MODIFIED_VORONOI_CORRIDOR_SPACING: 20,
+    /** Number of corridor vstars per lane (0 = auto from spacing) */
+    TERRITORY_CX_COUNT: 0,
+    /** Corridor vstar weight multiplier vs starMargin² (0.0-2.0) */
+    TERRITORY_CX_WEIGHT: 0.5,
     /** Whether to inject enemy virtual sites to separate non-connected same-owner territories */
     MODIFIED_VORONOI_DISCONNECT_ENABLED: false,
     /** Max distance between same-owner stars for disconnect injection (px) */
     MODIFIED_VORONOI_DISCONNECT_DISTANCE: 50,
+    /** Disconnect vstar weight multiplier vs starMargin² (0.0-2.0) */
+    TERRITORY_DX_WEIGHT: 0.3,
 
     // ── Metaball Territory ──
     /** How far each star's influence field extends (px) */
