@@ -734,6 +734,7 @@ export function renderPowerVoronoi(
 
     // ── Per-frame geometric MORPH ──
     const isAnimatingSmooth = (boundaryMode === 'smooth' && s.isSmoothTransitioning && s.prevSharedPolylines && s.targetSharedPolylines && transitionMs > 0) || s.weightLerpActive;
+    console.log('[DIAG-ANIM]', { isAnimatingSmooth, weightLerpActive: s.weightLerpActive, isSmoothTransitioning: s.isSmoothTransitioning, transitionMs });
 
     // Fill diagnostics — log only when the active path CHANGES
 
@@ -760,6 +761,7 @@ export function renderPowerVoronoi(
         if (s.weightLerpActive && s.weightLerpStars && s.weightLerpConfig && s.weightLerpPrevWeights && s.weightLerpTargetWeights) {
             const elapsed = now - s.weightLerpStartTime;
             const rawT = Math.min(1, elapsed / s.weightLerpDurationMs);
+            console.log('[DIAG-WL]', { rawT, elapsed, durationMs: s.weightLerpDurationMs, mode: GAME_CONFIG.VS_TRANSITION_MODE });
 
             if (rawT >= 1) {
                 // Transition complete — stop, let normal draw take over
@@ -1403,6 +1405,7 @@ export function renderPowerVoronoi(
     // Start transition based on geometry change or FX-driven conquest event
     const fxTriggered = territoryTransitions.hasActiveTransitions;
     if ((shapeChanged || fxTriggered) && transitionMs > 0) {
+        console.log('[DIAG-VS-SETUP]', { shapeChanged, fxTriggered, transitionMs, changedSites: s.changedSiteIds?.size ?? 0 });
         // Capture attacker star IDs from FX entries BEFORE consuming
         const attackerOriginMap = new Map<string, string[]>();
         for (const entry of territoryTransitions.getUnconsumed()) {
