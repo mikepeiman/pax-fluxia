@@ -801,8 +801,11 @@ export function buildTerritoryGeometryFingerprint(stars: StarState[], config: Te
     fp += `:cs${config.clusterSplit ? 1 : 0}`;
     fp += `:ce${config.corridorEnabled ? 1 : 0}`;
     fp += `:csp${config.corridorSpacing}`;
+    fp += `:cxN${config.cxCount}`;
+    fp += `:cxW${config.cxWeight}`;
     fp += `:de${config.disconnectEnabled ? 1 : 0}`;
     fp += `:dd${config.disconnectDistance}`;
+    fp += `:dxW${config.dxWeight}`;
     fp += `:ch${config.chaikinPasses}`;
     return fp;
 }

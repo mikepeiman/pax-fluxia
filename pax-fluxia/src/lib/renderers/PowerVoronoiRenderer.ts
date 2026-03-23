@@ -205,8 +205,11 @@ function buildShapeFingerprint(stars: StarState[]): string {
     fp += `:${GAME_CONFIG.TERRITORY_CLUSTER_SPLIT}`;
     fp += `:${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED}`;
     fp += `:${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}`;
+    fp += `:cxN=${GAME_CONFIG.TERRITORY_CX_COUNT}`;
+    fp += `:cxW=${GAME_CONFIG.TERRITORY_CX_WEIGHT}`;
     fp += `:${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED}`;
     fp += `:${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE}`;
+    fp += `:dxW=${GAME_CONFIG.TERRITORY_DX_WEIGHT}`;
     // Chaikin passes drives chainSharedEdgesIntoPolylines in the geometry stage
     // — must be a shape-fingerprint dependency, not visual-only
     fp += `:chaikin=${GAME_CONFIG.VORONOI_BORDER_SMOOTH}`;

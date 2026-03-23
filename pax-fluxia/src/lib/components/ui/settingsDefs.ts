@@ -269,6 +269,20 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'territoryVoronoi', configKey: 'TERRITORY_VORONOI' },
     { panelKey: 'territoryMetaball', configKey: 'TERRITORY_METABALL' },
     { panelKey: 'territoryPixel', configKey: 'TERRITORY_PIXEL' },
+    // Territory invariants (MSR / CX / DX)
+    { panelKey: 'starMargin', configKey: 'MODIFIED_VORONOI_STAR_MARGIN' },
+    { panelKey: 'corridorEnabled', configKey: 'MODIFIED_VORONOI_CORRIDOR_ENABLED' },
+    { panelKey: 'corridorSpacing', configKey: 'MODIFIED_VORONOI_CORRIDOR_SPACING' },
+    { panelKey: 'cxCount', configKey: 'TERRITORY_CX_COUNT' },
+    { panelKey: 'cxWeight', configKey: 'TERRITORY_CX_WEIGHT' },
+    { panelKey: 'disconnectEnabled', configKey: 'MODIFIED_VORONOI_DISCONNECT_ENABLED' },
+    { panelKey: 'disconnectDistance', configKey: 'MODIFIED_VORONOI_DISCONNECT_DISTANCE' },
+    { panelKey: 'dxWeight', configKey: 'TERRITORY_DX_WEIGHT' },
+    // Clean-architecture selectors
+    { panelKey: 'territoryArchitecturePath', configKey: 'TERRITORY_ARCHITECTURE_PATH' },
+    { panelKey: 'territoryFillTransitionMode', configKey: 'TERRITORY_FILL_TRANSITION_MODE' },
+    { panelKey: 'territoryBorderTransitionMode', configKey: 'TERRITORY_BORDER_TRANSITION_MODE' },
+    { panelKey: 'territoryStyleMode', configKey: 'TERRITORY_STYLE_MODE' },
     // Pixel params
     { panelKey: 'pixelAlpha', configKey: 'PIXEL_ALPHA' },
     { panelKey: 'pixelResolution', configKey: 'PIXEL_RESOLUTION' },
