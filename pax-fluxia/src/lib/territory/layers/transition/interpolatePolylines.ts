@@ -1,10 +1,23 @@
 // ---------------------------------------------------------------------------
-// interpolatePolylines.ts — Border polyline interpolation for transitions
+// interpolatePolylines.ts — CDF-based Optimal Transport border interpolation
 // ---------------------------------------------------------------------------
 //
 // Core principle: Borders Lead, Fills Follow.
-// This module provides the interpolation primitives used by both
-// OptimalTransportBorderMode and FrontierMorphFillMode.
+//
+// For drifted polylines (same ownerPairKey, different points), we use
+// 1D optimal transport via CDF parameterization:
+//
+//   1. Parameterize both polylines by normalized arc length [0,1] (the CDF)
+//   2. For each output sample at fraction u:
+//      - Find position on prev polyline at arc-fraction u
+//      - Find position on next polyline at arc-fraction u
+//      - Lerp between the two at progress t
+//
+//   This guarantees monotonicity: points don't cross during the morph,
+//   producing smooth, non-self-intersecting intermediate borders.
+//
+// Static polylines (identical in prev and next) pass through unchanged.
+// Spawned/vanished polylines fade from/to their midpoint.
 //
 // All functions are pure — no PIXI, no state, no side effects.
 // ---------------------------------------------------------------------------
@@ -23,12 +36,128 @@ export interface MatchedPolylinePair {
 }
 
 // ---------------------------------------------------------------------------
+// Arc-length CDF
+// ---------------------------------------------------------------------------
+
+/**
+ * Build cumulative arc-length array for a polyline.
+ * Returns Float64Array where cdf[i] = cumulative length at vertex i,
+ * normalized to [0, 1] (cdf[0] = 0, cdf[last] = 1).
+ */
+function buildArcLengthCDF(points: [number, number][]): Float64Array {
+    const n = points.length;
+    const cdf = new Float64Array(n);
+    if (n < 2) return cdf;
+
+    cdf[0] = 0;
+    for (let i = 1; i < n; i++) {
+        const dx = points[i][0] - points[i - 1][0];
+        const dy = points[i][1] - points[i - 1][1];
+        cdf[i] = cdf[i - 1] + Math.sqrt(dx * dx + dy * dy);
+    }
+
+    const totalLength = cdf[n - 1];
+    if (totalLength > 1e-9) {
+        for (let i = 1; i < n; i++) {
+            cdf[i] /= totalLength;
+        }
+    }
+    cdf[n - 1] = 1.0; // Ensure exact 1.0 at end
+
+    return cdf;
+}
+
+/**
+ * Evaluate a polyline at a given arc-fraction u ∈ [0, 1].
+ * Uses the CDF to find the correct segment and interpolates within it.
+ * This is the inverse CDF lookup: given a fraction of total length,
+ * return the 2D position on the polyline.
+ */
+function evaluateAtArcFraction(
+    points: [number, number][],
+    cdf: Float64Array,
+    u: number,
+): [number, number] {
+    const n = points.length;
+    if (n === 0) return [0, 0];
+    if (n === 1 || u <= 0) return [points[0][0], points[0][1]];
+    if (u >= 1) return [points[n - 1][0], points[n - 1][1]];
+
+    // Binary search for the segment containing u
+    let lo = 0;
+    let hi = n - 1;
+    while (lo < hi - 1) {
+        const mid = (lo + hi) >> 1;
+        if (cdf[mid] <= u) lo = mid;
+        else hi = mid;
+    }
+
+    // Interpolate within segment [lo, hi]
+    const segFrac = cdf[hi] - cdf[lo];
+    const t = segFrac > 1e-12 ? (u - cdf[lo]) / segFrac : 0;
+
+    return [
+        points[lo][0] + t * (points[hi][0] - points[lo][0]),
+        points[lo][1] + t * (points[hi][1] - points[lo][1]),
+    ];
+}
+
+// ---------------------------------------------------------------------------
+// OT-based polyline interpolation
+// ---------------------------------------------------------------------------
+
+/**
+ * Interpolate between two polylines using 1D optimal transport.
+ *
+ * For N output samples at uniform arc-fractions u = i/(N-1):
+ *   prevPos = evaluateAtArcFraction(prev, u)
+ *   nextPos = evaluateAtArcFraction(next, u)
+ *   output[i] = (1-t) * prevPos + t * nextPos
+ *
+ * Properties:
+ * - Monotone mapping: order is preserved (no self-crossing)
+ * - Mass-preserving: each "fraction of border length" maps to the same
+ *   fraction on the other border
+ * - Smooth drift: nearby points map to nearby points
+ *
+ * @param prev Source polyline (at t=0)
+ * @param next Target polyline (at t=1)
+ * @param t Progress [0, 1]
+ * @param sampleCount Number of output vertices
+ */
+function otInterpolatePolyline(
+    prev: [number, number][],
+    next: [number, number][],
+    t: number,
+    sampleCount: number,
+): [number, number][] {
+    const prevCDF = buildArcLengthCDF(prev);
+    const nextCDF = buildArcLengthCDF(next);
+
+    const result: [number, number][] = new Array(sampleCount);
+    const s = 1 - t;
+
+    for (let i = 0; i < sampleCount; i++) {
+        const u = sampleCount > 1 ? i / (sampleCount - 1) : 0;
+        const [px, py] = evaluateAtArcFraction(prev, prevCDF, u);
+        const [nx, ny] = evaluateAtArcFraction(next, nextCDF, u);
+        result[i] = [s * px + t * nx, s * py + t * ny];
+    }
+
+    return result;
+}
+
+// ---------------------------------------------------------------------------
 // Match polylines by ownerPairKey
 // ---------------------------------------------------------------------------
 
 /**
  * Match previous and next frontier polylines by their ownerPairKey.
- * Returns matched pairs classified as persisting, spawned, or vanished.
+ * Returns matched pairs classified as:
+ * - static:   same key, same points → pass through unchanged (zero jitter)
+ * - drifted:  same key, different points → CDF-interpolate
+ * - spawned:  only in next → fade in from midpoint
+ * - vanished: only in prev → fade out to midpoint
  */
 export function matchPolylinesByKey(
     prev: readonly FrontierPolylineShape[],
@@ -86,97 +215,6 @@ export function matchPolylinesByKey(
 }
 
 // ---------------------------------------------------------------------------
-// Arc-length resampling
-// ---------------------------------------------------------------------------
-
-/**
- * Resample a polyline to exactly `targetCount` points using arc-length
- * parameterization. This ensures uniform spacing and allows direct
- * vertex-to-vertex lerp between two resampled polylines.
- */
-export function resamplePolyline(
-    points: [number, number][],
-    targetCount: number,
-): [number, number][] {
-    if (points.length < 2 || targetCount < 2) {
-        // Degenerate: return copies of the first point
-        const p: [number, number] = points.length > 0 ? points[0] : [0, 0];
-        return Array.from({ length: Math.max(targetCount, 2) }, () => [p[0], p[1]] as [number, number]);
-    }
-
-    // Compute cumulative arc lengths
-    const arcLengths = new Float64Array(points.length);
-    arcLengths[0] = 0;
-    for (let i = 1; i < points.length; i++) {
-        const dx = points[i][0] - points[i - 1][0];
-        const dy = points[i][1] - points[i - 1][1];
-        arcLengths[i] = arcLengths[i - 1] + Math.sqrt(dx * dx + dy * dy);
-    }
-    const totalLength = arcLengths[points.length - 1];
-
-    if (totalLength < 1e-9) {
-        // Zero-length polyline: all points are the same
-        const p = points[0];
-        return Array.from({ length: targetCount }, () => [p[0], p[1]] as [number, number]);
-    }
-
-    // Sample at uniform arc-length intervals
-    const result: [number, number][] = new Array(targetCount);
-    result[0] = [points[0][0], points[0][1]];
-    result[targetCount - 1] = [points[points.length - 1][0], points[points.length - 1][1]];
-
-    let segIdx = 0;
-    for (let i = 1; i < targetCount - 1; i++) {
-        const targetArc = (i / (targetCount - 1)) * totalLength;
-
-        // Advance segment index
-        while (segIdx < points.length - 2 && arcLengths[segIdx + 1] < targetArc) {
-            segIdx++;
-        }
-
-        // Interpolate within segment
-        const segStart = arcLengths[segIdx];
-        const segEnd = arcLengths[segIdx + 1];
-        const segLen = segEnd - segStart;
-        const t = segLen > 1e-12 ? (targetArc - segStart) / segLen : 0;
-
-        result[i] = [
-            points[segIdx][0] + t * (points[segIdx + 1][0] - points[segIdx][0]),
-            points[segIdx][1] + t * (points[segIdx + 1][1] - points[segIdx][1]),
-        ];
-    }
-
-    return result;
-}
-
-// ---------------------------------------------------------------------------
-// Vertex lerp
-// ---------------------------------------------------------------------------
-
-/**
- * Linear interpolation between two polylines of equal length.
- * @param a Source polyline (at t=0)
- * @param b Target polyline (at t=1)
- * @param t Progress [0, 1]
- */
-export function lerpPolyline(
-    a: [number, number][],
-    b: [number, number][],
-    t: number,
-): [number, number][] {
-    const n = Math.min(a.length, b.length);
-    const result: [number, number][] = new Array(n);
-    const s = 1 - t;
-    for (let i = 0; i < n; i++) {
-        result[i] = [
-            s * a[i][0] + t * b[i][0],
-            s * a[i][1] + t * b[i][1],
-        ];
-    }
-    return result;
-}
-
-// ---------------------------------------------------------------------------
 // Full interpolation pipeline
 // ---------------------------------------------------------------------------
 
@@ -184,11 +222,10 @@ export function lerpPolyline(
  * Interpolate between previous and next frontier polylines at progress `t`.
  * Returns interpolated polylines in FrontierPolylineShape format.
  *
- * For each matched pair:
- * 1. Resample both to the same vertex count
- * 2. Lerp between the resampled versions
- *
- * Spawned/vanished pairs fade from/to midpoint.
+ * - Static polylines: pass through unchanged (zero jitter)
+ * - Drifted: CDF-parameterized optimal transport interpolation
+ * - Spawned: fade in from midpoint via OT
+ * - Vanished: fade out to midpoint via OT
  */
 export function interpolateMatchedPolylines(
     prev: readonly FrontierPolylineShape[],
@@ -212,12 +249,9 @@ export function interpolateMatchedPolylines(
             continue;
         }
 
-        // Drifted, spawned, or vanished — resample and lerp
-        const targetCount = Math.max(pair.prev.length, pair.next.length, 4);
-
-        const prevResampled = resamplePolyline(pair.prev, targetCount);
-        const nextResampled = resamplePolyline(pair.next, targetCount);
-        const interpolated = lerpPolyline(prevResampled, nextResampled, t);
+        // Drifted, spawned, or vanished — OT interpolation
+        const sampleCount = Math.max(pair.prev.length, pair.next.length, 4);
+        const interpolated = otInterpolatePolyline(pair.prev, pair.next, t, sampleCount);
 
         result.push({
             ownerPairKey: pair.ownerPairKey,
