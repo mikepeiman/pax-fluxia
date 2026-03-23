@@ -4,6 +4,7 @@ import { buildGeometryVersion } from '../planners/GeometryFingerprint';
 import {
     buildFrontierPolylineShapes,
     buildTerritoryRegionShapes,
+    buildSharedFrontierMap,
 } from '../planners/FrontierTopologyBuilder';
 import {
     buildGeneratorSettings,
@@ -31,18 +32,20 @@ export class PowerVoronoiGeometryMode implements GeometryMode {
         );
 
         const geometry = isCompileError(result)
-            ? input.previousSnapshot?.territoryGeometry ??
-              createEmptyTerritoryGeometryData(`${version}:empty`)
+            ? (input.previousSnapshot?.legacyGeometryBridge as any) ??
+            createEmptyTerritoryGeometryData(`${version}:empty`)
             : result;
 
+        const frontierPolylines = buildFrontierPolylineShapes(geometry);
         return {
             version,
             sourceMode: this.id,
             sourceStyle: input.styleMode,
             ownershipVersion: input.ownership.version,
-            territoryGeometry: geometry,
+            legacyGeometryBridge: geometry,
             territoryRegions: buildTerritoryRegionShapes(geometry),
-            frontierPolylines: buildFrontierPolylineShapes(geometry),
+            frontierPolylines,
+            sharedFrontierMap: buildSharedFrontierMap(frontierPolylines),
         };
     }
 }

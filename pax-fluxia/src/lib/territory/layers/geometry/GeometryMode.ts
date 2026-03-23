@@ -4,4 +4,5 @@ export type {
     GeometrySnapshot,
     FrontierPolylineShape,
     TerritoryRegionShape,
+    SharedFrontierMap,
 } from '../../contracts/GeometryContracts';

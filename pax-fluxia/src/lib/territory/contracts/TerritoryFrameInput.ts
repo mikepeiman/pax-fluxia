@@ -7,14 +7,36 @@ export interface TerritoryWorldBounds {
 }
 
 export interface TerritoryTunables {
+    // --- Transition timing ---
     transitionDurationMs: number;
+
+    // --- Presentation ---
     borderWidth: number;
     fillAlpha: number;
     borderAlpha: number;
+
+    // --- Geometry: smoothing ---
     geometrySmoothingPasses: number;
     frontierResolution: number;
     boundaryPad: number;
     boundaryEps: number;
+
+    // --- Geometry: MSR (Minimum Star Radius) ---
+    starMargin: number;
+
+    // --- Geometry: CX (Corridor Connection) ---
+    corridorEnabled: boolean;
+    corridorSpacing: number;
+    corridorCount: number;
+    corridorWeight: number;
+
+    // --- Geometry: DX (Disconnect Zones) ---
+    disconnectEnabled: boolean;
+    disconnectDistance: number;
+    disconnectWeight: number;
+
+    // --- Geometry: Cluster splitting ---
+    clusterSplitThreshold: number;
 }
 
 export interface TerritoryFrameInput {

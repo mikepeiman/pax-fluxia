@@ -1,6 +1,7 @@
 import type {
     FrontierPolylineShape,
     TerritoryRegionShape,
+    SharedFrontierMap,
 } from '../GeometryMode';
 import type {
     TerritoryGeometryData,
@@ -22,4 +23,14 @@ export function buildFrontierPolylineShapes(
         ownerPairKey: polyline.ownerPairKey,
         points: polyline.points,
     }));
+}
+
+export function buildSharedFrontierMap(
+    polylines: readonly FrontierPolylineShape[],
+): SharedFrontierMap {
+    const map = new Map<string, FrontierPolylineShape>();
+    for (const p of polylines) {
+        map.set(p.ownerPairKey, p);
+    }
+    return map;
 }
