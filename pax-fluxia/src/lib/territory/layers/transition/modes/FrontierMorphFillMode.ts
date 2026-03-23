@@ -5,13 +5,22 @@ import type {
     FillTransitionPlanInput,
     TransitionSampleContext,
 } from '../FillTransitionMode';
+import {
+    computeGeometryTopologyDiff,
+    type RegionTopology,
+} from '../planners/GeometryTopologyDiff';
 
 // ─── Plan data ──────────────────────────────────────────────────────────────
 
 interface RegionCorrespondence {
     ownerId: string;
-    sourcePoints: [number, number][];
-    targetPoints: [number, number][];
+    topology: RegionTopology;
+    /** For static: the final points (no interpolation needed) */
+    staticPoints?: [number, number][];
+    /** For drifted/spawn/vanish: source points (matched vertex count) */
+    sourcePoints?: [number, number][];
+    /** For drifted/spawn/vanish: target points (matched vertex count) */
+    targetPoints?: [number, number][];
 }
 
 interface FrontierMorphFillPlan extends FillTransitionPlan {
@@ -32,7 +41,6 @@ function resamplePolygon(pts: [number, number][], n: number): [number, number][]
     if (pts.length === 0 || n === 0) return [];
     if (pts.length === n) return pts;
 
-    // Compute cumulative arc lengths
     const cumLen: number[] = [0];
     for (let i = 1; i < pts.length; i++) {
         const dx = pts[i][0] - pts[i - 1][0];
@@ -45,7 +53,6 @@ function resamplePolygon(pts: [number, number][], n: number): [number, number][]
     const result: [number, number][] = [];
     for (let i = 0; i < n; i++) {
         const targetLen = (i / n) * totalLen;
-        // Binary search for the segment
         let lo = 0, hi = cumLen.length - 1;
         while (lo < hi - 1) {
             const mid = (lo + hi) >> 1;
@@ -84,46 +91,59 @@ export class FrontierMorphFillMode implements FillTransitionMode {
     readonly label = 'Frontier Topology Morph Fill';
 
     plan(input: FillTransitionPlanInput): FillTransitionPlan {
-        const sourceRegions = input.previousGeometry?.territoryRegions
-            ?? input.nextGeometry.territoryRegions;
-        const targetRegions = input.nextGeometry.territoryRegions;
+        const diff = computeGeometryTopologyDiff(
+            input.previousGeometry,
+            input.nextGeometry,
+        );
 
-        // Build correspondences by ownerId
-        const sourceByOwner = new Map(sourceRegions.map(r => [r.ownerId, r.points]));
-        const targetByOwner = new Map(targetRegions.map(r => [r.ownerId, r.points]));
-        const allOwnerIds = new Set([...sourceByOwner.keys(), ...targetByOwner.keys()]);
+        const correspondences: RegionCorrespondence[] = diff.regions.map(entry => {
+            switch (entry.topology) {
+                case 'static':
+                    // No interpolation — pass through target points directly
+                    return {
+                        ownerId: entry.ownerId,
+                        topology: 'static' as const,
+                        staticPoints: entry.nextPoints!,
+                    };
 
-        const correspondences: RegionCorrespondence[] = [];
-        for (const ownerId of allOwnerIds) {
-            const src = sourceByOwner.get(ownerId);
-            const tgt = targetByOwner.get(ownerId);
+                case 'drifted': {
+                    // Interpolate between previous and next
+                    const src = entry.previousPoints!;
+                    const tgt = entry.nextPoints!;
+                    const n = Math.max(src.length, tgt.length);
+                    return {
+                        ownerId: entry.ownerId,
+                        topology: 'drifted' as const,
+                        sourcePoints: resamplePolygon(src, n),
+                        targetPoints: resamplePolygon(tgt, n),
+                    };
+                }
 
-            if (src && tgt) {
-                // Persist: both exist → resample to same vertex count
-                const n = Math.max(src.length, tgt.length);
-                correspondences.push({
-                    ownerId,
-                    sourcePoints: resamplePolygon(src, n),
-                    targetPoints: resamplePolygon(tgt, n),
-                });
-            } else if (tgt && !src) {
-                // Spawn: target exists, source doesn't → grow from centroid
-                const c = centroid(tgt);
-                correspondences.push({
-                    ownerId,
-                    sourcePoints: Array.from({ length: tgt.length }, () => [...c] as [number, number]),
-                    targetPoints: tgt,
-                });
-            } else if (src && !tgt) {
-                // Vanish: source exists, target doesn't → collapse to centroid
-                const c = centroid(src);
-                correspondences.push({
-                    ownerId,
-                    sourcePoints: src,
-                    targetPoints: Array.from({ length: src.length }, () => [...c] as [number, number]),
-                });
+                case 'spawned': {
+                    // Grow from centroid
+                    const tgt = entry.nextPoints!;
+                    const c = centroid(tgt);
+                    return {
+                        ownerId: entry.ownerId,
+                        topology: 'spawned' as const,
+                        sourcePoints: Array.from({ length: tgt.length }, () => [...c] as [number, number]),
+                        targetPoints: tgt,
+                    };
+                }
+
+                case 'vanished': {
+                    // Collapse to centroid
+                    const src = entry.previousPoints!;
+                    const c = centroid(src);
+                    return {
+                        ownerId: entry.ownerId,
+                        topology: 'vanished' as const,
+                        sourcePoints: src,
+                        targetPoints: Array.from({ length: src.length }, () => [...c] as [number, number]),
+                    };
+                }
             }
-        }
+        });
 
         const plan: FrontierMorphFillPlan = {
             planId: `fill:frontier_morph:${input.nowMs}`,
@@ -145,10 +165,22 @@ export class FrontierMorphFillMode implements FillTransitionMode {
         const p = Math.max(0, Math.min(1, ctx.progress));
 
         return {
-            regions: typedPlan.correspondences.map(c => ({
-                ownerId: c.ownerId,
-                points: lerpPoints(c.sourcePoints, c.targetPoints, p),
-            })),
+            regions: typedPlan.correspondences
+                .filter(c => {
+                    if (c.topology === 'vanished' && p >= 1) return false;
+                    return true;
+                })
+                .map(c => {
+                    if (c.topology === 'static') {
+                        // Static regions: no interpolation
+                        return { ownerId: c.ownerId, points: c.staticPoints! };
+                    }
+                    // Drifted/spawned/vanished: interpolate
+                    return {
+                        ownerId: c.ownerId,
+                        points: lerpPoints(c.sourcePoints!, c.targetPoints!, p),
+                    };
+                }),
         };
     }
 }
