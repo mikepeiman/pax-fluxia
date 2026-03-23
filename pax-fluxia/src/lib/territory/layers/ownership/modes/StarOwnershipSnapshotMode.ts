@@ -34,13 +34,46 @@ export class StarOwnershipSnapshotMode implements OwnershipMode {
         );
         const virtualStars = this.computeVirtualStars(input, conquestEvents);
 
+        // Deterministic version from actual state — NOT from nowMs.
+        // This allows downstream geometry caching to hit when ownership
+        // is unchanged, while still invalidating on any conquest or
+        // virtual-star change.
+        const ownershipHash = this.hashStarOwners(starOwners, virtualStars.length);
+
         return {
-            version: `ownership:${input.nowMs}:${input.stars.length}:${virtualStars.length}`,
+            version: `ownership:${ownershipHash}`,
             starOwners,
             contestedLaneIds,
             conquestEvents,
             virtualStars,
         };
+    }
+
+    private hashStarOwners(
+        starOwners: ReadonlyMap<string, string>,
+        virtualStarCount: number,
+    ): string {
+        // FNV-1a 32-bit hash of sorted star:owner pairs + virtual count
+        let hash = 2166136261;
+        const entries = [...starOwners.entries()].sort((a, b) => a[0] < b[0] ? -1 : 1);
+        for (const [starId, ownerId] of entries) {
+            for (let i = 0; i < starId.length; i++) {
+                hash ^= starId.charCodeAt(i);
+                hash = Math.imul(hash, 16777619);
+            }
+            hash ^= 0x7c; // separator
+            hash = Math.imul(hash, 16777619);
+            for (let i = 0; i < ownerId.length; i++) {
+                hash ^= ownerId.charCodeAt(i);
+                hash = Math.imul(hash, 16777619);
+            }
+            hash ^= 0x1f; // record separator
+            hash = Math.imul(hash, 16777619);
+        }
+        // Include virtual star count
+        hash ^= virtualStarCount;
+        hash = Math.imul(hash, 16777619);
+        return (hash >>> 0).toString(36);
     }
 
     private computeConquestEvents(
