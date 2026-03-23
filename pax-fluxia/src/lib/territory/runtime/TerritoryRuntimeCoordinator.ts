@@ -26,6 +26,8 @@ export interface TerritoryRuntimeOutput {
 
 export class TerritoryRuntimeCoordinator {
     private state: TerritoryRuntimeState = createInitialTerritoryRuntimeState();
+    private lastLogMs = 0;
+    private frameCount = 0;
 
     constructor(
         private readonly ownershipLayer = new OwnershipLayerCoordinator(),
@@ -33,10 +35,11 @@ export class TerritoryRuntimeCoordinator {
         private readonly transitionLayer = new TransitionLayerCoordinator(),
         private readonly presentationLayer = new PresentationLayerCoordinator(),
         private readonly worker = new TerritoryWorker(geometryLayer),
-    ) {}
+    ) { }
 
     reset(): void {
         this.state = createInitialTerritoryRuntimeState();
+        this.frameCount = 0;
     }
 
     update(rawInput: TerritoryFrameInput): TerritoryRuntimeOutput {
@@ -98,6 +101,44 @@ export class TerritoryRuntimeCoordinator {
             selection: input.selection,
             tunables: input.tunables,
         });
+
+        // ── Diagnostic logging ─────────────────────────────────────────────
+        this.frameCount++;
+        const logNow = Date.now();
+        const envelope = transition.snapshot.envelope;
+
+        // Always log conquest + transition lifecycle events
+        if (ownership.conquestEvents.length > 0) {
+            console.log(
+                `[Territory] CONQUEST: ${ownership.conquestEvents.length} event(s)` +
+                ` | geom: ${geometry.territoryRegions.length} regions, ${geometry.frontierPolylines.length} frontiers` +
+                ` | version: ${geometry.version.slice(0, 50)}`,
+            );
+        }
+        if (envelope && !this.state.previousTransition?.envelope) {
+            console.log(
+                `[Territory] TRANSITION START: duration=${envelope.durationMs}ms` +
+                ` | fill=${transition.activeFillPlan?.sourceMode ?? 'none'}` +
+                ` | border=${transition.activeBorderPlan?.sourceMode ?? 'none'}`,
+            );
+        }
+        if (!envelope && this.state.previousTransition?.envelope) {
+            console.log('[Territory] TRANSITION COMPLETE');
+        }
+
+        // Throttled general stats (once per second)
+        if (logNow - this.lastLogMs > 1000) {
+            this.lastLogMs = logNow;
+            console.log(
+                `[Territory] f=${this.frameCount}` +
+                ` | owners=${ownership.starOwners.size} conquests=${ownership.conquestEvents.length}` +
+                ` | regions=${geometry.territoryRegions.length} frontiers=${geometry.frontierPolylines.length}` +
+                ` | cached=${geometryResult.fromCache}` +
+                ` | fills=${presentation.fills.length} borders=${presentation.borders.length}` +
+                ` | transition=${envelope ? `p=${envelope.progress.toFixed(2)}` : 'none'}` +
+                ` | modes: g=${input.selection.geometryMode} ft=${input.selection.fillTransitionMode} bt=${input.selection.borderTransitionMode}`,
+            );
+        }
 
         this.state = {
             previousOwnership: ownership,
