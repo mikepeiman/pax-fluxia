@@ -5,9 +5,17 @@ import type {
     FillTransitionPlanInput,
     TransitionSampleContext,
 } from '../FillTransitionMode';
+import type { FrontierPolylineShape } from '../../geometry/GeometryMode';
+import { interpolateMatchedPolylines } from '../interpolatePolylines';
+import { executeChainWalk, flattenLoopPoints } from '../../../compiler/chainWalkCore';
+import type { SharedPolyline } from '../../../compiler/powerVoronoiTerritoryGeometryGenerator';
 
 interface FrontierMorphFillPlan extends FillTransitionPlan {
-    targetRegions: FillTransitionFrame['regions'];
+    previousFrontiers: readonly FrontierPolylineShape[];
+    targetFrontiers: readonly FrontierPolylineShape[];
+    /** World-boundary polylines — needed for re-chaining fill rings from
+     *  interpolated borders. These don't interpolate (world stays fixed). */
+    worldBorderPolylines: readonly FrontierPolylineShape[];
 }
 
 export class FrontierMorphFillMode implements FillTransitionMode {
@@ -21,7 +29,9 @@ export class FrontierMorphFillMode implements FillTransitionMode {
             startGeometryVersion: input.previousGeometry?.version ?? input.nextGeometry.version,
             endGeometryVersion: input.nextGeometry.version,
             conquestEvents: input.ownership.conquestEvents,
-            targetRegions: input.nextGeometry.territoryRegions,
+            previousFrontiers: input.previousGeometry?.frontierPolylines ?? input.nextGeometry.frontierPolylines,
+            targetFrontiers: input.nextGeometry.frontierPolylines,
+            worldBorderPolylines: input.nextGeometry.worldBorderPolylines,
         };
 
         return plan;
@@ -29,13 +39,46 @@ export class FrontierMorphFillMode implements FillTransitionMode {
 
     sample(
         plan: FillTransitionPlan,
-        _ctx: TransitionSampleContext,
+        ctx: TransitionSampleContext,
     ): FillTransitionFrame {
         const typedPlan = plan as FrontierMorphFillPlan;
-        // SNAP TO TARGET — real interpolation requires ring-based boundary
-        // snapshots with span provenance (see Perplexity guidance 2026-03-20)
-        return {
-            regions: typedPlan.targetRegions,
-        };
+
+        // Step 1: Interpolate border polylines (same as border mode)
+        const interpolatedBorders = interpolateMatchedPolylines(
+            typedPlan.previousFrontiers,
+            typedPlan.targetFrontiers,
+            ctx.progress,
+        );
+
+        // Step 2: Convert to SharedPolyline format for executeChainWalk
+        const sharedPolylines: SharedPolyline[] = interpolatedBorders.map(p => ({
+            ownerPairKey: p.ownerPairKey,
+            points: p.points,
+            color: 0,
+        }));
+
+        const worldPolylines: SharedPolyline[] = typedPlan.worldBorderPolylines.map(p => ({
+            ownerPairKey: p.ownerPairKey,
+            points: [...p.points],
+            color: 0,
+        }));
+
+        // Step 3: Re-chain into closed fill rings using the same algorithm
+        // the compiler uses — guaranteeing fills follow borders exactly.
+        const walkResult = executeChainWalk(sharedPolylines, worldPolylines);
+
+        const regions: { ownerId: string; points: [number, number][] }[] = [];
+        for (const loop of walkResult.loops) {
+            if (!loop.closed) continue;
+            const chain = flattenLoopPoints(loop);
+            if (chain.length >= 3) {
+                regions.push({
+                    ownerId: loop.ownerId,
+                    points: chain,
+                });
+            }
+        }
+
+        return { regions };
     }
 }

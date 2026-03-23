@@ -49,6 +49,7 @@ export class SeedGraphGeometryMode implements GeometryMode {
             legacyGeometryBridge: geometry,
             territoryRegions: buildTerritoryRegionShapes(geometry),
             frontierPolylines,
+            worldBorderPolylines: [],
             sharedFrontierMap: buildSharedFrontierMap(frontierPolylines),
         };
     }

@@ -1,5 +1,5 @@
 import { computeGeometry0319 } from '../../../compiler/Geometry_0319';
-import type { GeometryMode, GeometrySnapshot } from '../GeometryMode';
+import type { FrontierPolylineShape, GeometryMode, GeometrySnapshot } from '../GeometryMode';
 import { buildGeometryVersion } from '../planners/GeometryFingerprint';
 import {
     buildFrontierPolylineShapes,
@@ -37,6 +37,12 @@ export class BoundaryAwareFrontierGeometryMode implements GeometryMode {
             : result;
 
         const frontierPolylines = buildFrontierPolylineShapes(geometry);
+        const worldBorderPolylines: FrontierPolylineShape[] = geometry.worldBorderPolylines.map(
+            (p: { ownerPairKey: string; points: [number, number][] }) => ({
+                ownerPairKey: p.ownerPairKey,
+                points: p.points,
+            }),
+        );
         return {
             version,
             sourceMode: this.id,
@@ -45,6 +51,7 @@ export class BoundaryAwareFrontierGeometryMode implements GeometryMode {
             legacyGeometryBridge: geometry,
             territoryRegions: buildTerritoryRegionShapes(geometry),
             frontierPolylines,
+            worldBorderPolylines,
             sharedFrontierMap: buildSharedFrontierMap(frontierPolylines),
         };
     }

@@ -34,6 +34,9 @@ export interface GeometrySnapshot {
     ownershipVersion: string;
     territoryRegions: readonly TerritoryRegionShape[];
     frontierPolylines: readonly FrontierPolylineShape[];
+    /** World-boundary border polylines (owner↔world edges). Needed by transition
+     *  layer to re-chain fills from interpolated borders. */
+    worldBorderPolylines: readonly FrontierPolylineShape[];
     sharedFrontierMap: SharedFrontierMap;
 
     /**

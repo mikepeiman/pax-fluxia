@@ -16,6 +16,7 @@
 - **Port**: Dev server on `localhost:1420` (Tauri). 
 - **Shell**: PowerShell on Windows. **Never use `&&` to chain commands.**
 - **MCPServer**: `mcp_server.json` - use for all CLI commands
+- **MCP Atlas-harness**: read for capabilities at start of every session or context refresh: `.agent\AGENT-GUIDE_MCP_atlas-harness.md`
 - **Live Settings**: `common/resources/settings-live/current-settings.json` — auto-saved from in-game control panel. **Always read this file** for current GAME_CONFIG values instead of guessing from defaults.
 ---
 

@@ -45,6 +45,7 @@ export class PowerVoronoiGeometryMode implements GeometryMode {
             legacyGeometryBridge: geometry,
             territoryRegions: buildTerritoryRegionShapes(geometry),
             frontierPolylines,
+            worldBorderPolylines: [],
             sharedFrontierMap: buildSharedFrontierMap(frontierPolylines),
         };
     }

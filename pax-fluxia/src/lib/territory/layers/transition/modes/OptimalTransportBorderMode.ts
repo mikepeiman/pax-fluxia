@@ -5,9 +5,12 @@ import type {
     BorderTransitionPlanInput,
     TransitionSampleContext,
 } from '../BorderTransitionMode';
+import type { FrontierPolylineShape } from '../../geometry/GeometryMode';
+import { interpolateMatchedPolylines } from '../interpolatePolylines';
 
 interface OptimalTransportBorderPlan extends BorderTransitionPlan {
-    targetFrontiers: BorderTransitionFrame['frontiers'];
+    previousFrontiers: readonly FrontierPolylineShape[];
+    targetFrontiers: readonly FrontierPolylineShape[];
 }
 
 export class OptimalTransportBorderMode implements BorderTransitionMode {
@@ -21,6 +24,7 @@ export class OptimalTransportBorderMode implements BorderTransitionMode {
             startGeometryVersion: input.previousGeometry?.version ?? input.nextGeometry.version,
             endGeometryVersion: input.nextGeometry.version,
             conquestEvents: input.ownership.conquestEvents,
+            previousFrontiers: input.previousGeometry?.frontierPolylines ?? input.nextGeometry.frontierPolylines,
             targetFrontiers: input.nextGeometry.frontierPolylines,
         };
 
@@ -29,13 +33,21 @@ export class OptimalTransportBorderMode implements BorderTransitionMode {
 
     sample(
         plan: BorderTransitionPlan,
-        _ctx: TransitionSampleContext,
+        ctx: TransitionSampleContext,
     ): BorderTransitionFrame {
         const typedPlan = plan as OptimalTransportBorderPlan;
-        // SNAP TO TARGET — real interpolation requires ring-based boundary
-        // snapshots with span provenance (see Perplexity guidance 2026-03-20)
+
+        // Interpolate: static polylines pass through unchanged,
+        // drifted polylines get arc-length resampled and lerped,
+        // spawned/vanished fade from/to midpoint.
+        const interpolated = interpolateMatchedPolylines(
+            typedPlan.previousFrontiers,
+            typedPlan.targetFrontiers,
+            ctx.progress,
+        );
+
         return {
-            frontiers: typedPlan.targetFrontiers,
+            frontiers: interpolated,
         };
     }
 }
