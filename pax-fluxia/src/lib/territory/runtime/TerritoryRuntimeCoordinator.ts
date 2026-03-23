@@ -1,3 +1,4 @@
+import { log } from '$lib/utils/logger';
 import type { TerritoryFrameInput } from '../contracts/TerritoryFrameInput';
 import type { TerritoryPresentationFrame } from '../contracts/PresentationContracts';
 import type { TerritoryRuntimeDiagnostics } from '../contracts/DiagnosticsContracts';
@@ -109,28 +110,28 @@ export class TerritoryRuntimeCoordinator {
 
         // Always log conquest + transition lifecycle events
         if (ownership.conquestEvents.length > 0) {
-            console.log(
-                `[Territory] CONQUEST: ${ownership.conquestEvents.length} event(s)` +
+            log.renderer('Territory',
+                `CONQUEST: ${ownership.conquestEvents.length} event(s)` +
                 ` | geom: ${geometry.territoryRegions.length} regions, ${geometry.frontierPolylines.length} frontiers` +
                 ` | version: ${geometry.version.slice(0, 50)}`,
             );
         }
         if (envelope && !this.state.previousTransition?.envelope) {
-            console.log(
-                `[Territory] TRANSITION START: duration=${envelope.durationMs}ms` +
+            log.renderer('Territory',
+                `TRANSITION START: duration=${envelope.durationMs}ms` +
                 ` | fill=${transition.activeFillPlan?.sourceMode ?? 'none'}` +
                 ` | border=${transition.activeBorderPlan?.sourceMode ?? 'none'}`,
             );
         }
         if (!envelope && this.state.previousTransition?.envelope) {
-            console.log('[Territory] TRANSITION COMPLETE');
+            log.renderer('Territory', 'TRANSITION COMPLETE');
         }
 
         // Throttled general stats (once per second)
         if (logNow - this.lastLogMs > 1000) {
             this.lastLogMs = logNow;
-            console.log(
-                `[Territory] f=${this.frameCount}` +
+            log.renderer('Territory',
+                `f=${this.frameCount}` +
                 ` | owners=${ownership.starOwners.size} conquests=${ownership.conquestEvents.length}` +
                 ` | regions=${geometry.territoryRegions.length} frontiers=${geometry.frontierPolylines.length}` +
                 ` | cached=${geometryResult.fromCache}` +
