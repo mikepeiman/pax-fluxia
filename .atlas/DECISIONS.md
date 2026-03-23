@@ -436,3 +436,7 @@
 - **Decision**: The DY4 Optimal Transport border transition must be re-implemented from first principles to deliver the canonical conquest transition spec, not wrapped in an adapter from its current degraded state. It regressed from its best visual quality and was never perfect.
 - **Rationale**: The current DY4 implementation has accumulated regressions (see D-81). Wrapping a degraded implementation in a clean interface produces a degraded result in a clean interface. The canonical spec for conquest transition behavior is the target, not the current DY4 code.
 
+### D-87: Legacy Deletion Requires Explicit User Confirmation
+- **Decision**: Before any legacy file is deleted, the user must be asked and must explicitly confirm. No silent deletions, no batch deletions without per-file acknowledgment.
+- **Rationale**: Legacy code contains algorithmic knowledge. Even when a clean replacement is confirmed working, the user may want to review the old file one last time before it's gone.
+
