@@ -10,17 +10,25 @@ export interface TerritoryConquestEvent {
     atMs: number;
 }
 
+/**
+ * Spatial identity of a virtual star — WHO it belongs to, WHERE it is.
+ * Lifecycle timing (how long it lives, weight decay) belongs in the transition layer.
+ */
 export interface VirtualStar {
     id: string;
+    /** The real star this virtual star is anchored to */
     starId: string;
+    /** The owner this virtual star represents */
     ownerId: string;
+    /** Current position (may track the anchor star) */
     pos: {
         x: number;
         y: number;
     };
+    /** Geometry weight (how much it influences Voronoi) — set by transition layer */
     weight: number;
-    startTime: number;
-    durationMs: number;
+    /** The conquest event that spawned this virtual star */
+    conquestEventAtMs: number;
 }
 
 export interface OwnershipSnapshot {

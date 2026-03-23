@@ -6,7 +6,6 @@ import type {
     VirtualStar,
 } from '../OwnershipMode';
 
-const DEFAULT_VIRTUAL_STAR_DURATION_MS = 900;
 
 export class StarOwnershipSnapshotMode implements OwnershipMode {
     readonly id = 'star_ownership_snapshot' as const;
@@ -73,27 +72,20 @@ export class StarOwnershipSnapshotMode implements OwnershipMode {
         conquestEvents: readonly TerritoryConquestEvent[],
     ): VirtualStar[] {
         const starById = new Map(input.stars.map((star) => [star.id, star]));
-        const ongoing = (input.previousSnapshot?.virtualStars ?? [])
-            .filter((virtualStar) =>
-                input.nowMs < virtualStar.startTime + virtualStar.durationMs,
-            )
-            .map((virtualStar) => {
-                const elapsedMs = Math.max(input.nowMs - virtualStar.startTime, 0);
-                const progress = Math.min(
-                    elapsedMs / Math.max(virtualStar.durationMs, 1),
-                    1,
-                );
-                const anchorStar = starById.get(virtualStar.starId);
 
+        // Carry forward existing virtual stars (transition layer manages expiry)
+        const ongoing = (input.previousSnapshot?.virtualStars ?? [])
+            .map((virtualStar) => {
+                const anchorStar = starById.get(virtualStar.starId);
                 return {
                     ...virtualStar,
                     pos: anchorStar
                         ? { x: anchorStar.x, y: anchorStar.y }
                         : virtualStar.pos,
-                    weight: Math.max(0, 1 - progress),
                 };
             });
 
+        // Spawn new virtual stars from conquest events
         const spawned = conquestEvents.flatMap((event): VirtualStar[] => {
             const star = starById.get(event.starId);
             if (!star) {
@@ -106,9 +98,8 @@ export class StarOwnershipSnapshotMode implements OwnershipMode {
                     starId: event.starId,
                     ownerId: event.newOwner,
                     pos: { x: star.x, y: star.y },
-                    weight: 1,
-                    startTime: event.atMs,
-                    durationMs: DEFAULT_VIRTUAL_STAR_DURATION_MS,
+                    weight: 1, // Initial weight — transition layer applies decay
+                    conquestEventAtMs: event.atMs,
                 },
             ];
         });

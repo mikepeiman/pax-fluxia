@@ -13,6 +13,20 @@ export interface TransitionEnvelope {
     conquestEvents: readonly TerritoryConquestEvent[];
 }
 
+/**
+ * Lifecycle timing for a virtual star — managed by the transition layer.
+ * The ownership layer creates virtual stars with spatial identity;
+ * the transition layer controls how long they live and how their weight decays.
+ */
+export interface VirtualStarTransitionState {
+    virtualStarId: string;
+    startedAtMs: number;
+    durationMs: number;
+    progress: number;
+    computedWeight: number;
+}
+
+
 export interface FillTransitionFrame {
     regions: readonly { ownerId: string; points: [number, number][] }[];
 }

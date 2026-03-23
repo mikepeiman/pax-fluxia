@@ -105,11 +105,64 @@ Red conquers Blue's star S. Over 400ms:
 
 ### 3.3 Multi-Front Scenarios
 
-When Red conquers a star that borders Blue AND Green:
-- The Red-Blue front drifts away from Red (Red expands)
-- The Red-Green front also drifts (if the conquest changes that border's position)
-- Blue-Green fronts are unaffected (no ownership change along them)
-- Each front transitions independently but on the same clock
+The dynamics depend on **whose star was conquered** and **who is adjacent**.
+
+#### Case A: Two-Territory Conquest (Red conquers Blue's star)
+
+Only the Red-Blue frontier is affected. No other owners are adjacent.
+
+```mermaid
+graph LR
+    subgraph Before
+        R1[★ Red] --- |"Red-Blue frontier"| B1[★ Blue]
+        B1 --- B2[★ Blue ⬤]
+    end
+```
+
+```mermaid
+graph LR
+    subgraph After ["After (Blue's star ⬤ → Red)"]
+        R1[★ Red] --- R2[★ Red ⬤]
+        R2 --- |"Red-Blue frontier (shifted)"| B2[★ Blue]
+    end
+```
+
+**What moves:** The Red-Blue frontier drifts toward Blue's remaining territory.
+
+#### Case B: Three-Territory Conquest (Red conquers Blue's star, Green is adjacent)
+
+Star ⬤ was Blue's, but was also adjacent to Green territory. On conquest:
+
+```mermaid
+graph TD
+    subgraph Before
+        R[★ Red] --- |"Red-Blue"| B["★ Blue ⬤"]
+        B --- |"Blue-Green"| G[★ Green]
+        R -.- |"no shared border"| G
+    end
+```
+
+```mermaid
+graph TD
+    subgraph After ["After (⬤ → Red)"]
+        R[★ Red] --- R2["★ Red ⬤"]
+        R2 --- |"NEW: Red-Green"| G[★ Green]
+        R -.- |"still no border (if not adjacent)"| G
+    end
+```
+
+**What changes:**
+- **Red-Blue frontier:** Drifts (Red expanded into Blue). If Blue has no remaining stars adjacent to the conquered star, this frontier segment **vanishes**.
+- **Blue-Green frontier (near ⬤):** This frontier **ceases to exist** at the conquered star — it's now Red territory, not Blue. This segment either **vanishes** or **becomes Red-Green**.
+- **Red-Green frontier:** A **new frontier spawns** where Red (via the conquered star) now borders Green. This is a `spawn` topology change.
+- **Other Blue-Green frontiers (far from ⬤):** Completely unaffected — no ownership change along them.
+
+This is why topology handling matters. A single conquest can simultaneously cause:
+- A frontier to **drift** (persist, same owner pair, shifted position)
+- A frontier segment to **vanish** (Blue-Green near ⬤ disappears)
+- A frontier to **spawn** (Red-Green appears from nothing)
+
+All transitions run on the **same clock** (same `TransitionEnvelope.progress`), ensuring visual coherence.
 
 ---
 
