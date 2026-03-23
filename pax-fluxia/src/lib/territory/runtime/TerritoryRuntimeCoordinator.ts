@@ -29,6 +29,64 @@ export class TerritoryRuntimeCoordinator {
     private state: TerritoryRuntimeState = createInitialTerritoryRuntimeState();
     private lastLogMs = 0;
     private frameCount = 0;
+    private geometryDumped = false;
+
+    /** One-shot: dump prev + current geometry snapshots to downloadable JSON */
+    private dumpGeometrySnapshots(prev: GeometrySnapshot | null, current: GeometrySnapshot): void {
+        if (this.geometryDumped) return;
+        this.geometryDumped = true;
+
+        const serializeSnapshot = (snap: GeometrySnapshot | null) => {
+            if (!snap) return null;
+            return {
+                version: snap.version,
+                sourceMode: snap.sourceMode,
+                ownershipVersion: snap.ownershipVersion,
+                territoryRegions: snap.territoryRegions.map(r => ({
+                    ownerId: r.ownerId,
+                    pointCount: r.points.length,
+                    points: r.points.slice(0, 10), // first 10 for shape understanding
+                    samplePoint: r.points[0],
+                })),
+                frontierPolylines: snap.frontierPolylines.map(p => ({
+                    ownerPairKey: p.ownerPairKey,
+                    pointCount: p.points.length,
+                    points: p.points, // full polyline — these are small enough
+                })),
+                worldBorderPolylines: snap.worldBorderPolylines.map(p => ({
+                    ownerPairKey: p.ownerPairKey,
+                    pointCount: p.points.length,
+                    points: p.points,
+                })),
+                regionCount: snap.territoryRegions.length,
+                frontierCount: snap.frontierPolylines.length,
+                worldBorderCount: snap.worldBorderPolylines.length,
+            };
+        };
+
+        const dump = {
+            capturedAt: new Date().toISOString(),
+            previous: serializeSnapshot(prev),
+            current: serializeSnapshot(current),
+        };
+
+        const json = JSON.stringify(dump, null, 2);
+        log.renderer('Territory', `GEOMETRY DUMP: ${json.length} bytes captured. Check console for data.`);
+        console.log('[Territory] GEOMETRY SNAPSHOT DUMP:\n', json);
+
+        // Also attempt to download as file in browser
+        try {
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'geometry-snapshot-dump.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch {
+            // Non-browser environment — console dump is sufficient
+        }
+    }
 
     constructor(
         private readonly ownershipLayer = new OwnershipLayerCoordinator(),
@@ -115,6 +173,8 @@ export class TerritoryRuntimeCoordinator {
                 ` | geom: ${geometry.territoryRegions.length} regions, ${geometry.frontierPolylines.length} frontiers` +
                 ` | version: ${geometry.version.slice(0, 50)}`,
             );
+            // Dump geometry on first conquest for data analysis
+            this.dumpGeometrySnapshots(this.state.previousGeometry ?? null, geometry);
         }
         if (envelope && !this.state.previousTransition?.envelope) {
             log.renderer('Territory',
