@@ -549,7 +549,7 @@
         <input
             type="range"
             min="0"
-            max="200"
+            max="500"
             step="5"
             value={panel.starMargin ??
                 GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ??
