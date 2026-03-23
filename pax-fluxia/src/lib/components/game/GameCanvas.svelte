@@ -1158,10 +1158,27 @@
 
         // Skip territory re-rendering when paused — nothing changes, saves
         // 200-300 log lines/sec from the fingerprint checks and stage logs.
-        // We allow ONE render pass after pause starts so the territory is visible.
+        // We allow re-render when: (a) first frame after pause, or (b) config changed while paused.
         const isPausedNow = activeGameStore.isPaused;
-        if (isPausedNow && (globalThis as any).__territoryRenderedWhilePaused) {
-            // Territory already rendered once since pause — skip until resume
+        const territoryConfigFp =
+            `${GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN}:${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED}:` +
+            `${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}:${GAME_CONFIG.TERRITORY_CX_COUNT}:${GAME_CONFIG.TERRITORY_CX_WEIGHT}:` +
+            `${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED}:${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE}:${GAME_CONFIG.TERRITORY_DX_WEIGHT}:` +
+            `${GAME_CONFIG.TERRITORY_CLUSTER_SPLIT}:${GAME_CONFIG.VORONOI_BORDER_SMOOTH}:${GAME_CONFIG.VORONOI_ALPHA}:` +
+            `${GAME_CONFIG.VORONOI_BORDER_WIDTH}:${GAME_CONFIG.VORONOI_BORDER_ALPHA}:${GAME_CONFIG.TERRITORY_GEOMETRY_MODE}:` +
+            `${GAME_CONFIG.TERRITORY_ENGINE_METHOD}:${GAME_CONFIG.TERRITORY_RENDER_MODE}:` +
+            `${(GAME_CONFIG as any).__GEOMETRY_REFRESH_TOKEN ?? 0}`;
+        const configChanged =
+            territoryConfigFp !== (globalThis as any).__lastTerritoryConfigFp;
+        if (configChanged)
+            (globalThis as any).__lastTerritoryConfigFp = territoryConfigFp;
+
+        if (
+            isPausedNow &&
+            (globalThis as any).__territoryRenderedWhilePaused &&
+            !configChanged
+        ) {
+            // Territory already rendered once since pause and config unchanged — skip
         } else if (voronoiContainer) {
             if (isPausedNow)
                 (globalThis as any).__territoryRenderedWhilePaused = true;
