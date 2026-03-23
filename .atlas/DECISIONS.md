@@ -440,3 +440,14 @@
 - **Decision**: Before any legacy file is deleted, the user must be asked and must explicitly confirm. No silent deletions, no batch deletions without per-file acknowledgment.
 - **Rationale**: Legacy code contains algorithmic knowledge. Even when a clean replacement is confirmed working, the user may want to review the old file one last time before it's gone.
 
+## 2026-03-23
+
+### D-88: Deterministic Ownership Version Hash for Geometry Caching
+- **Decision**: `ownership.version` uses an FNV-1a hash of sorted star-owner pairs + virtual star count instead of including `nowMs`. Cache hits when ownership is unchanged between frames.
+- **Rationale**: Previous version included `nowMs`, causing geometry cache to miss every frame (~50x/second). Settings changes still invalidate the cache via separate cache key components (smoothingPasses, frontierResolution, geometryMode, etc.).
+- **Commit**: `9bc2507`
+
+### D-89: Transition Overlap Handling — Future Work
+- **Decision**: When `tickInterval < animationDuration`, a new conquest can interrupt an in-progress transition. The current behavior (replace-and-restart) is acceptable with snap-to-target but will need to be addressed when real interpolation is implemented. The preferred future approach is **plan merging** — allow the old transition to continue while adding the new one alongside.
+- **Rationale**: In the current snap-to-target mode, interruption is invisible. Real interpolation will require either merging overlapping plans or fast-forwarding the old transition before starting the new one.
+
