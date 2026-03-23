@@ -420,3 +420,19 @@
   - FX orchestration patterns from `fx/` as an event bridge rather than a renderer-owned transition singleton
 - **Naming rule**: Public runtime names must describe the concern they own. Archaeology names like `FG1`, `FG2`, `DY4`, `PVV2`, `PVV3`, `static`, and `dynamic` should only survive as migration aliases or legacy adapter labels, not as the primary semantic API.
 - **Blueprint**: See `.agent/SPECIFICATIONS/TERRITORY_CLEAN_ARCHITECTURE_BLUEPRINT.md`
+
+## 2026-03-23
+
+### D-84: Contracts Define Ideal Architecture — Code Adapts, Not The Other Way Around
+- **Decision**: When contract interfaces don't match legacy data shapes, the contracts are authoritative. Code must be rewritten to produce the contract-defined shape. Legacy data shapes are never the reason to weaken a contract.
+- **Rationale**: The point of the refactor is clean architecture. Bending contracts to fit legacy code defeats the purpose. Any contract-vs-code conflict must be brought to the user with architectural analysis for resolution.
+
+### D-85: Zero Legacy Adapters — Full Rewrite, Legacy as Reference Only
+- **Decision**: The refactor is a 100% transition to new architecture. All rendering modes must be rewritten from scratch within the new pipeline, with zero copy-paste from legacy code. Legacy code serves only as reference material for understanding algorithms and behavior. Once a new mode is confirmed functional, its legacy counterpart is deleted entirely.
+- **Rationale**: Legacy adapters preserve legacy architecture. The user's goal is architectural transformation, not compatibility wrapping. Wrapping old code in new interfaces creates a veneer of clean architecture without delivering its benefits.
+- **Supersedes**: D-44 (which permitted bootstrap legacy adapters during architecture phase)
+
+### D-86: DY4 Transition Must Be Rethought, Not Wrapped
+- **Decision**: The DY4 Optimal Transport border transition must be re-implemented from first principles to deliver the canonical conquest transition spec, not wrapped in an adapter from its current degraded state. It regressed from its best visual quality and was never perfect.
+- **Rationale**: The current DY4 implementation has accumulated regressions (see D-81). Wrapping a degraded implementation in a clean interface produces a degraded result in a clean interface. The canonical spec for conquest transition behavior is the target, not the current DY4 code.
+
