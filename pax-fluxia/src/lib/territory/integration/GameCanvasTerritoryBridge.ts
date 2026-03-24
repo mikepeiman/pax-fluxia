@@ -6,6 +6,7 @@ import { TerritoryRuntimeCoordinator } from '../runtime/TerritoryRuntimeCoordina
 import { PixiTerritoryPresenter } from '../adapters/pixi/PixiTerritoryPresenter';
 import { TerritoryVFXBridge } from './TerritoryVFXBridge';
 import { ConquestParticles } from '../vfx/handlers/ConquestParticles';
+import { transitionSnapshotRecorder } from '../devtools/TransitionSnapshotRecorder';
 
 type OwnerColorResolver = (ownerId: string) => number;
 
@@ -21,14 +22,23 @@ export class GameCanvasTerritoryBridge {
         resolveOwnerColor?: OwnerColorResolver,
     ) {
         this.runtime = new TerritoryRuntimeCoordinator();
+        this.runtime.setSnapshotRecorder(transitionSnapshotRecorder);
         this.presenter = new PixiTerritoryPresenter(container, resolveOwnerColor);
         this.vfxBridge = new TerritoryVFXBridge();
         this.vfxBridge.registerHandler(new ConquestParticles());
     }
 
+    /** Expose the snapshot recorder for UI controls */
+    get snapshotRecorder() {
+        return transitionSnapshotRecorder;
+    }
+
     update(input: TerritoryFrameInput): void {
         const output = this.runtime.update(input);
         this.presenter.present(output.presentation);
+
+        // Capture "next frame" screenshot after the new frame is drawn
+        transitionSnapshotRecorder.captureNextFrame();
 
         this.pendingVFXCommands.push(
             ...this.vfxBridge.emitConquestEvents(

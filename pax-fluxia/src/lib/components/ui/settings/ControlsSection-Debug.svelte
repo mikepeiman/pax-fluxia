@@ -1,6 +1,11 @@
 <script lang="ts">
     import { GAME_CONFIG } from "$lib/config/game.config";
     import CategoryThemeBar from "./CategoryThemeBar.svelte";
+    import { transitionSnapshotRecorder } from "$lib/territory/devtools/TransitionSnapshotRecorder";
+    import {
+        downloadBundle,
+        downloadAllBundles,
+    } from "$lib/territory/devtools/TransitionBundleSerializer";
 
     // ControlsSection-DEBUG -- Morph diagnostic controls
 
@@ -50,6 +55,49 @@
     function toggleTrace() {
         traceLog = !traceLog;
         GAME_CONFIG.DEBUG_MORPH_TRACE_LOG = traceLog;
+    }
+
+    // ── Snapshot Recorder ───────────────────────────────────────────────
+    let recorderEnabled = $state(transitionSnapshotRecorder.isEnabled());
+    let bundleCount = $state(transitionSnapshotRecorder.count);
+
+    function toggleRecorder() {
+        recorderEnabled = !recorderEnabled;
+        transitionSnapshotRecorder.setEnabled(recorderEnabled);
+    }
+
+    function refreshBundleCount() {
+        bundleCount = transitionSnapshotRecorder.count;
+    }
+
+    // Poll bundle count while recorder is enabled (lightweight)
+    $effect(() => {
+        if (!recorderEnabled) return;
+        const interval = setInterval(refreshBundleCount, 500);
+        return () => clearInterval(interval);
+    });
+
+    async function handleDownloadLatest() {
+        const bundles = transitionSnapshotRecorder.getBundles();
+        if (bundles.length === 0) return;
+        const latest = bundles[bundles.length - 1];
+        // Build star positions map from conquest events for overlay rendering
+        const starPositions = new Map<string, { x: number; y: number }>();
+        await downloadBundle(latest, starPositions);
+        refreshBundleCount();
+    }
+
+    async function handleDownloadAll() {
+        const bundles = transitionSnapshotRecorder.getBundles();
+        if (bundles.length === 0) return;
+        const starPositions = new Map<string, { x: number; y: number }>();
+        await downloadAllBundles(bundles, starPositions);
+        refreshBundleCount();
+    }
+
+    function handleClearBundles() {
+        transitionSnapshotRecorder.clear();
+        refreshBundleCount();
     }
 </script>
 
@@ -182,6 +230,44 @@
     Transition: {GAME_CONFIG.TERRITORY_TRANSITION_MS}ms · Control pts: {GAME_CONFIG.TERRITORY_MORPH_CONTROL_POINTS}
 </div>
 
+<h4 class="sub-heading">📸 Transition Snapshot Recorder</h4>
+
+<!-- Recorder Enable Toggle -->
+<button
+    class="debug-btn"
+    class:active={recorderEnabled}
+    onclick={toggleRecorder}
+>
+    {recorderEnabled ? "📸 Recorder ON" : "⏸️ Recorder OFF"}
+    <span class="debug-hint">
+        {bundleCount} capture{bundleCount !== 1 ? "s" : ""}
+    </span>
+</button>
+
+{#if recorderEnabled}
+    <div class="readout">
+        Captures conquest events with before/after screenshots + frontier diff
+        overlays.
+    </div>
+{/if}
+
+{#if bundleCount > 0}
+    <div class="snapshot-actions">
+        <button class="snapshot-btn" onclick={handleDownloadLatest}>
+            ⬇️ Download Latest
+        </button>
+        <button class="snapshot-btn" onclick={handleDownloadAll}>
+            📦 Download All ({bundleCount})
+        </button>
+        <button
+            class="snapshot-btn snapshot-btn-danger"
+            onclick={handleClearBundles}
+        >
+            🗑️ Clear
+        </button>
+    </div>
+{/if}
+
 <style>
     @import "./panel-shared.css";
 
@@ -260,5 +346,36 @@
         font-size: 9px;
         color: #666;
         font-family: monospace;
+    }
+    .snapshot-actions {
+        display: flex;
+        gap: 4px;
+        flex-wrap: wrap;
+        margin-top: 4px;
+    }
+    .snapshot-btn {
+        flex: 1;
+        min-width: 80px;
+        padding: 5px 8px;
+        background: rgba(100, 180, 255, 0.1);
+        border: 1px solid rgba(100, 180, 255, 0.25);
+        border-radius: 4px;
+        color: #8cf;
+        font-size: 10px;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+    .snapshot-btn:hover {
+        background: rgba(100, 180, 255, 0.2);
+        border-color: rgba(100, 180, 255, 0.4);
+    }
+    .snapshot-btn-danger {
+        background: rgba(255, 80, 80, 0.1);
+        border-color: rgba(255, 80, 80, 0.25);
+        color: #f88;
+    }
+    .snapshot-btn-danger:hover {
+        background: rgba(255, 80, 80, 0.2);
+        border-color: rgba(255, 80, 80, 0.4);
     }
 </style>

@@ -1367,6 +1367,12 @@
                                     (ownerId) =>
                                         colorUtils.getPlayerColor(ownerId),
                                 );
+                                // Wire PIXI canvas to snapshot recorder for screenshot capture
+                                if (app?.canvas) {
+                                    canonicalBridge.snapshotRecorder.setCanvas(
+                                        app.canvas as HTMLCanvasElement,
+                                    );
+                                }
                             }
 
                             if (canonicalBridge) {
