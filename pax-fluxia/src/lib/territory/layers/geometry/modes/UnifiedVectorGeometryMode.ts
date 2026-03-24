@@ -13,6 +13,7 @@
  */
 
 import { computeGeometry0319 } from '../../../compiler/Geometry_0319';
+import { buildFrontierTopology } from '../../../compiler/buildFrontierTopology';
 import type { FrontierPolylineShape, GeometryMode, GeometrySnapshot } from '../GeometryMode';
 import { buildGeometryVersion } from '../planners/GeometryFingerprint';
 import {
@@ -76,6 +77,23 @@ export class UnifiedVectorGeometryMode implements GeometryMode {
             }),
         );
 
+        // Build FrontierTopology from the canonical TMAP if available
+        const frontierTopology = geometry.frontierMap
+            ? buildFrontierTopology(
+                geometry.frontierMap,
+                input.ownership.version,
+                { width: input.world.width, height: input.world.height },
+            )
+            : undefined;
+
+        if (frontierTopology) {
+            log.renderer('UnifiedVector',
+                `FrontierTopology: ${frontierTopology.vertices.size} vertices, ` +
+                `${frontierTopology.sections.size} sections, ` +
+                `${frontierTopology.loops.length} loops`,
+            );
+        }
+
         return {
             version,
             sourceMode: this.id,
@@ -86,6 +104,7 @@ export class UnifiedVectorGeometryMode implements GeometryMode {
             frontierPolylines,
             worldBorderPolylines,
             sharedFrontierMap: buildSharedFrontierMap(frontierPolylines),
+            frontierTopology,
         };
     }
 }
