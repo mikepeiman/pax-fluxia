@@ -285,6 +285,7 @@
     ] as const;
 
     const GEOMETRY_OPTIONS = [
+        { id: "unified_vector", label: "Unified Vector (0324)" },
         { id: "power_voronoi", label: "Weighted Power Voronoi" },
         { id: "unified_polygon", label: "Unified Polygon (Dense Resampled)" },
         {
@@ -380,10 +381,10 @@
         // Bump refresh token on every click — even re-clicking same mode forces recompute
         (GAME_CONFIG as any).__GEOMETRY_REFRESH_TOKEN =
             ((GAME_CONFIG as any).__GEOMETRY_REFRESH_TOKEN ?? 0) + 1;
-        // When New-Frontiers-0319 is selected, also set TERRITORY_ENGINE_METHOD
+        // When unified_vector or New-Frontiers-0319 is selected, also set TERRITORY_ENGINE_METHOD
         // so the engine dispatch routes to computeGeometry0319.
         // When switching away, reset to the current default method.
-        if (modeId === "new_frontiers_0319") {
+        if (modeId === "unified_vector" || modeId === "new_frontiers_0319") {
             debouncedConfigUpdate(
                 "TERRITORY_ENGINE_METHOD",
                 "territoryEngineMethod",
@@ -423,7 +424,7 @@
                     class="axis-btn"
                     class:active={(panel.territoryGeometryMode ??
                         GAME_CONFIG.TERRITORY_GEOMETRY_MODE ??
-                        "new_frontiers_0319") === opt.id}
+                        "unified_vector") === opt.id}
                     onclick={() => selectGeometryMode(opt.id)}
                     >{opt.label}</button
                 >

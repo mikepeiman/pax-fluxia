@@ -25,6 +25,7 @@ import {
     createEmptyTerritoryGeometryData,
     isCompileError,
 } from './geometryModeUtils';
+import { log } from '$lib/utils/logger';
 
 /**
  * Unified vector-native geometry mode.
@@ -43,6 +44,7 @@ export class UnifiedVectorGeometryMode implements GeometryMode {
     readonly label = 'Unified Vector Geometry';
 
     compute(input: Parameters<GeometryMode['compute']>[0]): GeometrySnapshot {
+        log.renderer('UnifiedVector', `compute() called — ownership v${input.ownership.version}, ${input.stars.length} stars`);
         const settings = buildGeneratorSettings(input.world, input.tunables);
         const version = buildGeometryVersion(
             this.id,

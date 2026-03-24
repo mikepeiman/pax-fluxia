@@ -19,6 +19,7 @@ function asString(value: unknown, fallback: string): string {
 
 function resolveGeometryMode(rawValue: unknown): TerritoryModeSelection['geometryMode'] {
     const raw = asString(rawValue, DEFAULT_TERRITORY_MODE_SELECTION.geometryMode);
+    if (raw === 'unified_vector') return 'unified_vector';
     if (raw === 'new_frontiers_0319') return 'boundary_aware_frontier';
     if (raw === 'unified_polygon') return 'seed_graph';
     if (raw === 'power_voronoi') return 'power_voronoi';
