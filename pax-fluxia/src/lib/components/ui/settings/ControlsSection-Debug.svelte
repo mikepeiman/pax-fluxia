@@ -2,10 +2,7 @@
     import { GAME_CONFIG } from "$lib/config/game.config";
     import CategoryThemeBar from "./CategoryThemeBar.svelte";
     import { transitionSnapshotRecorder } from "$lib/territory/devtools/TransitionSnapshotRecorder";
-    import {
-        downloadBundle,
-        downloadAllBundles,
-    } from "$lib/territory/devtools/TransitionBundleSerializer";
+    import { downloadBundle } from "$lib/territory/devtools/TransitionBundleSerializer";
 
     // ControlsSection-DEBUG -- Morph diagnostic controls
 
@@ -81,17 +78,16 @@
         const bundles = transitionSnapshotRecorder.getBundles();
         if (bundles.length === 0) return;
         const latest = bundles[bundles.length - 1];
-        // Build star positions map from conquest events for overlay rendering
-        const starPositions = new Map<string, { x: number; y: number }>();
-        await downloadBundle(latest, starPositions);
+        await downloadBundle(latest, latest.starPositions);
         refreshBundleCount();
     }
 
     async function handleDownloadAll() {
         const bundles = transitionSnapshotRecorder.getBundles();
         if (bundles.length === 0) return;
-        const starPositions = new Map<string, { x: number; y: number }>();
-        await downloadAllBundles(bundles, starPositions);
+        for (const bundle of bundles) {
+            await downloadBundle(bundle, bundle.starPositions);
+        }
         refreshBundleCount();
     }
 

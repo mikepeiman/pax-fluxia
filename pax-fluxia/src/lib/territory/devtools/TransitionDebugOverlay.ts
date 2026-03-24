@@ -201,12 +201,18 @@ export function compositeOverlayOnScreenshot(
     // Draw screenshot base
     ctx.drawImage(bitmap, 0, 0);
 
-    // Semi-transparent darkening for overlay visibility
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
     // Draw overlays
     renderChangedFrontierOverlay(ctx, diff, conquestEvents, starPositions);
+
+    // Diff summary header (top-left)
+    const summary = `Δ changed=${diff.changed.length} inserted=${diff.inserted.length} deleted=${diff.deleted.length} unchanged=${diff.unchanged.length}`;
+    ctx.font = 'bold 13px monospace';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillRect(8, 8, ctx.measureText(summary).width + 12, 22);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(summary, 14, 13);
 
     // Legend
     if (showLegend) {

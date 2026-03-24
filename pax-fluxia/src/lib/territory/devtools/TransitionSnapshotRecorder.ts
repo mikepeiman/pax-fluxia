@@ -23,6 +23,8 @@ export interface SnapshotCaptureContext {
     borderPlan: BorderTransitionPlan | null;
     selection: TerritoryModeSelection;
     nowMs: number;
+    /** Star world positions for overlay markers */
+    starPositions: ReadonlyMap<string, { x: number; y: number }>;
 }
 
 export interface FrontierDiffResult {
@@ -42,6 +44,8 @@ export interface TransitionDebugBundle {
     nextCanvasBitmap: ImageBitmap | null;
     /** Computed frontier diff */
     frontierDiff: FrontierDiffResult;
+    /** Star world positions for overlay markers */
+    starPositions: ReadonlyMap<string, { x: number; y: number }>;
     /** Metadata for serialization */
     meta: TransitionDebugMeta;
 }
@@ -104,6 +108,23 @@ function diffFrontiers(
         if (!nextKeys.has(key)) {
             deleted.push(prevPoly);
         }
+    }
+
+    // Diagnostic logging
+    console.log(
+        `[SnapshotRecorder] DIFF: prev has ${prevKeys.size} frontiers, next has ${nextKeys.size}` +
+        ` | same-ref=${prevPolylines === nextPolylines}` +
+        ` | prev-keys=[${[...prevKeys.keys()].slice(0, 5).join(', ')}${prevKeys.size > 5 ? '...' : ''}]` +
+        ` | next-keys=[${[...nextKeys.keys()].slice(0, 5).join(', ')}${nextKeys.size > 5 ? '...' : ''}]`,
+    );
+    if (changed.length > 0) {
+        console.log(`[SnapshotRecorder] CHANGED frontiers: ${changed.map(p => p.ownerPairKey).join(', ')}`);
+    }
+    if (inserted.length > 0) {
+        console.log(`[SnapshotRecorder] INSERTED frontiers: ${inserted.map(p => p.ownerPairKey).join(', ')}`);
+    }
+    if (deleted.length > 0) {
+        console.log(`[SnapshotRecorder] DELETED frontiers: ${deleted.map(p => p.ownerPairKey).join(', ')}`);
     }
 
     return { changed, unchanged, inserted, deleted };
@@ -228,6 +249,7 @@ export class TransitionSnapshotRecorder {
             prevCanvasBitmap: prevBitmap,
             nextCanvasBitmap: null, // Will be captured after next frame draws
             frontierDiff,
+            starPositions: ctx.starPositions,
             meta,
         };
 

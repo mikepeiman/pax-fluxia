@@ -185,6 +185,9 @@ export class TerritoryRuntimeCoordinator {
             this.dumpGeometrySnapshots(this.state.previousGeometry ?? null, geometry);
 
             // Capture debug snapshot (canvas still shows previous frame)
+            const starPositions = new Map<string, { x: number; y: number }>();
+            for (const s of input.stars) starPositions.set(s.id, { x: s.x, y: s.y });
+
             this.snapshotRecorder?.capture({
                 conquestEvents: ownership.conquestEvents,
                 previousGeometry: this.state.previousGeometry,
@@ -196,6 +199,7 @@ export class TerritoryRuntimeCoordinator {
                 borderPlan: transition.activeBorderPlan,
                 selection: input.selection,
                 nowMs: input.nowMs,
+                starPositions,
             });
         }
         if (envelope && !this.state.previousTransition?.envelope) {
