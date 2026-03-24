@@ -5,6 +5,7 @@ import type {
 import type { OwnershipSnapshot } from './OwnershipContracts';
 import type { TerritoryTunables, TerritoryWorldBounds } from './TerritoryFrameInput';
 import type { StarConnection, StarState } from '$lib/types/game.types';
+import type { FrontierTopology } from './FrontierTopologyContracts';
 
 // ─── Core geometry output types ─────────────────────────────────────────────
 
@@ -19,11 +20,14 @@ export interface FrontierPolylineShape {
 }
 
 /**
- * SharedFrontierMap: keyed by ownerPairKey (e.g. "red|blue"), value is the
- * canonical frontier polyline shared between two territories. Both fills
- * reference this same polyline data — guaranteeing fill/border coincidence.
+ * SharedFrontierMap: keyed by ownerPairKey (e.g. "red|blue"), value is an ARRAY
+ * of canonical frontier polylines shared between two territories.
+ *
+ * MULTIMAP (D-90): ownerPairKey is NOT unique — two owners can share multiple
+ * disconnected border segments. Using a single-value Map silently drops segments.
+ * See POST_MORTEM_2026-03-24_FRONTIER_DEDUP.md.
  */
-export type SharedFrontierMap = ReadonlyMap<string, FrontierPolylineShape>;
+export type SharedFrontierMap = ReadonlyMap<string, FrontierPolylineShape[]>;
 
 // ─── Snapshot: the immutable geometry output of one computation ─────────────
 
@@ -38,6 +42,11 @@ export interface GeometrySnapshot {
      *  layer to re-chain fills from interpolated borders. */
     worldBorderPolylines: readonly FrontierPolylineShape[];
     sharedFrontierMap: SharedFrontierMap;
+
+    /** Semantic frontier topology — new canonical format.
+     *  Optional during migration; will become required once all consumers are updated.
+     *  See Phase 1 of the Frontier Topology Project. */
+    frontierTopology?: FrontierTopology;
 
     /**
      * @deprecated Temporary bridge to legacy PowerVoronoi data.

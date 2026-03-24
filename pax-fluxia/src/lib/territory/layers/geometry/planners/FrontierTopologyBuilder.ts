@@ -36,13 +36,16 @@ export function buildFrontierPolylineShapes(
 export function buildSharedFrontierMap(
     polylines: readonly FrontierPolylineShape[],
 ): SharedFrontierMap {
-    // WARNING: SharedFrontierMap is typed as Map<key, single> in contracts.
-    // Multiple segments per ownerPairKey will be deduplicated here.
-    // The production transition planners now handle multimaps correctly,
-    // but this map is still single-valued for legacy consumers.
-    const map = new Map<string, FrontierPolylineShape>();
+    // D-90: ownerPairKey is NOT unique — two owners can share multiple
+    // disconnected border segments. Accumulate arrays, never overwrite.
+    const map = new Map<string, FrontierPolylineShape[]>();
     for (const p of polylines) {
-        map.set(p.ownerPairKey, p);
+        const arr = map.get(p.ownerPairKey);
+        if (arr) {
+            arr.push(p);
+        } else {
+            map.set(p.ownerPairKey, [p]);
+        }
     }
     return map;
 }
