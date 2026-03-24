@@ -52,53 +52,61 @@ export class FrontierMorphFillMode implements FillTransitionMode {
             return { regions: [...typedPlan.targetRegions] };
         }
 
-        // Match regions by ownerId
-        const prevByOwner = new Map<string, TerritoryRegionShape>();
+        // D-92: ownerId is NOT unique — an owner can have multiple disconnected
+        // territory regions (cluster split). Accumulate arrays per owner.
+        const prevByOwner = new Map<string, TerritoryRegionShape[]>();
         for (const r of typedPlan.previousRegions) {
-            prevByOwner.set(r.ownerId, r);
+            const arr = prevByOwner.get(r.ownerId);
+            if (arr) arr.push(r);
+            else prevByOwner.set(r.ownerId, [r]);
         }
-        const nextByOwner = new Map<string, TerritoryRegionShape>();
+        const nextByOwner = new Map<string, TerritoryRegionShape[]>();
         for (const r of typedPlan.targetRegions) {
-            nextByOwner.set(r.ownerId, r);
+            const arr = nextByOwner.get(r.ownerId);
+            if (arr) arr.push(r);
+            else nextByOwner.set(r.ownerId, [r]);
         }
 
         const regions: TerritoryRegionShape[] = [];
-        const processed = new Set<string>();
+        const allOwnerIds = new Set([...prevByOwner.keys(), ...nextByOwner.keys()]);
 
-        // Persisting regions: OT-interpolate the closed polygon
-        for (const [ownerId, prevRegion] of prevByOwner) {
-            processed.add(ownerId);
-            const nextRegion = nextByOwner.get(ownerId);
-            if (nextRegion) {
-                // Both exist — CDF-based interpolation
-                regions.push({
-                    ownerId,
-                    points: otInterpolateClosedPolygon(prevRegion.points, nextRegion.points, t),
-                });
-            } else {
-                // Vanishing region — shrink toward centroid
-                const centroid = polygonCentroid(prevRegion.points);
-                regions.push({
-                    ownerId,
-                    points: prevRegion.points.map(([x, y]) => [
-                        x + t * (centroid[0] - x),
-                        y + t * (centroid[1] - y),
-                    ] as [number, number]),
-                });
+        for (const ownerId of allOwnerIds) {
+            const prevRegions = prevByOwner.get(ownerId) ?? [];
+            const nextRegions = nextByOwner.get(ownerId) ?? [];
+            const maxLen = Math.max(prevRegions.length, nextRegions.length);
+
+            for (let i = 0; i < maxLen; i++) {
+                const prevRegion = prevRegions[i];
+                const nextRegion = nextRegions[i];
+
+                if (prevRegion && nextRegion) {
+                    // Both exist — CDF-based interpolation
+                    regions.push({
+                        ownerId,
+                        points: otInterpolateClosedPolygon(prevRegion.points, nextRegion.points, t),
+                    });
+                } else if (nextRegion && !prevRegion) {
+                    // Spawning — grow from centroid
+                    const centroid = polygonCentroid(nextRegion.points);
+                    regions.push({
+                        ownerId,
+                        points: nextRegion.points.map(([x, y]) => [
+                            centroid[0] + t * (x - centroid[0]),
+                            centroid[1] + t * (y - centroid[1]),
+                        ] as [number, number]),
+                    });
+                } else if (prevRegion && !nextRegion) {
+                    // Vanishing — shrink toward centroid
+                    const centroid = polygonCentroid(prevRegion.points);
+                    regions.push({
+                        ownerId,
+                        points: prevRegion.points.map(([x, y]) => [
+                            x + t * (centroid[0] - x),
+                            y + t * (centroid[1] - y),
+                        ] as [number, number]),
+                    });
+                }
             }
-        }
-
-        // Spawning regions: grow from centroid
-        for (const [ownerId, nextRegion] of nextByOwner) {
-            if (processed.has(ownerId)) continue;
-            const centroid = polygonCentroid(nextRegion.points);
-            regions.push({
-                ownerId,
-                points: nextRegion.points.map(([x, y]) => [
-                    centroid[0] + t * (x - centroid[0]),
-                    centroid[1] + t * (y - centroid[1]),
-                ] as [number, number]),
-            });
         }
 
         return { regions };
@@ -113,6 +121,8 @@ export class FrontierMorphFillMode implements FillTransitionMode {
  * OT-interpolate two closed polygons at progress t.
  * Uses arc-length CDF parameterization — same approach as border
  * interpolation — applied to closed polygon perimeters.
+ *
+ * D-92: Adds closing vertex so the polygon is guaranteed closed every frame.
  */
 function otInterpolateClosedPolygon(
     prev: [number, number][],
@@ -130,6 +140,11 @@ function otInterpolateClosedPolygon(
         const [px, py] = evaluateClosedAtFraction(prev, prevCDF, u);
         const [nx, ny] = evaluateClosedAtFraction(next, nextCDF, u);
         result[i] = [s * px + t * nx, s * py + t * ny];
+    }
+
+    // D-92: Close the polygon — add a closing vertex matching the first point
+    if (result.length > 0) {
+        result.push([result[0][0], result[0][1]]);
     }
 
     return result;

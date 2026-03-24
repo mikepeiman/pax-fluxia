@@ -468,3 +468,11 @@
 - **Rule**: A debug tool's value is exactly proportional to how faithfully it mirrors the production data path. If it computes its own answers, it's hallucinating. Wire it to the production output, or don't build it.
 - **Remaining work**: The snapshot recorder's diff function should be replaced by a thin wrapper around the production `GeometryTopologyDiff.computeGeometryTopologyDiff()`.
 
+### D-92: Region Deduplication Bug + Loop Closure — Extension of D-90 (CRITICAL)
+- **Decision**: `ownerId` on `TerritoryRegionShape` is NOT unique. An owner with disconnected territories (cluster split) emits multiple regions. **All code that groups regions by `ownerId` MUST use multimaps** (`Map<string, T[]>`), matching by index within the same-owner bucket. Additionally, interpolated closed polygons MUST add an explicit closing vertex.
+- **Bug**: `diffRegions()` in `GeometryTopologyDiff.ts` and `FrontierMorphFillMode.sample()` both used `Map<ownerId, single>`, silently overwriting disconnected regions. The overwritten region was classified as `vanished` (shrinks to centroid) while the duplicate next region was classified as `spawned` (grows from centroid). This caused **large stable territories to shrink to nothing during transitions** — a bug reported for weeks.
+- **Second bug**: `otInterpolateClosedPolygon()` sampled N points at `u ∈ [0, 1)` without adding a closing vertex, leaving a gap of ~1/N perimeter between the last and first point on every interpolated frame.
+- **Systematic sweep**: Confirmed all `ownerPairKey` maps in the transition layer were already fixed (D-90). The 3 remaining instances were all `ownerId` maps in the region/fill path. No presentation layer instances.
+- **Affected files**: `GeometryTopologyDiff.ts`, `FrontierMorphFillMode.ts`
+- **Why it persisted**: The initial D-90 fix was not systematic — it targeted frontier polylines only. The same pattern in the region diff and fill morph was not caught because the investigation was scoped too narrowly.
+- **Rule**: When fixing a pattern bug, search the ENTIRE codebase for all instances of the pattern before committing — not just the first occurrence found.

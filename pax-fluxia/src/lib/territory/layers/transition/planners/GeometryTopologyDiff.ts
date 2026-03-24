@@ -167,50 +167,68 @@ function diffRegions(
     previous: readonly TerritoryRegionShape[],
     next: readonly TerritoryRegionShape[],
 ): RegionDiffEntry[] {
-    const prevByOwner = new Map<string, [number, number][]>();
+    // D-92: ownerId is NOT unique — an owner can have multiple disconnected
+    // territory regions (cluster split). Accumulate arrays per owner.
+    const prevByOwner = new Map<string, TerritoryRegionShape[]>();
     for (const r of previous) {
-        prevByOwner.set(r.ownerId, r.points);
+        const arr = prevByOwner.get(r.ownerId);
+        if (arr) arr.push(r);
+        else prevByOwner.set(r.ownerId, [r]);
+    }
+
+    const nextByOwner = new Map<string, TerritoryRegionShape[]>();
+    for (const r of next) {
+        const arr = nextByOwner.get(r.ownerId);
+        if (arr) arr.push(r);
+        else nextByOwner.set(r.ownerId, [r]);
     }
 
     const result: RegionDiffEntry[] = [];
-    const seenOwners = new Set<string>();
+    const allOwnerIds = new Set([...prevByOwner.keys(), ...nextByOwner.keys()]);
 
-    for (const region of next) {
-        seenOwners.add(region.ownerId);
-        const prev = prevByOwner.get(region.ownerId);
+    for (const ownerId of allOwnerIds) {
+        const prevRegions = prevByOwner.get(ownerId) ?? [];
+        const nextRegions = nextByOwner.get(ownerId) ?? [];
+        const maxLen = Math.max(prevRegions.length, nextRegions.length);
 
-        if (!prev) {
-            result.push({
-                ownerId: region.ownerId,
-                topology: 'spawned',
-                previousPoints: null,
-                nextPoints: region.points,
-            });
-        } else if (pointsAreStatic(prev, region.points)) {
-            result.push({
-                ownerId: region.ownerId,
-                topology: 'static',
-                previousPoints: prev,
-                nextPoints: region.points,
-            });
-        } else {
-            result.push({
-                ownerId: region.ownerId,
-                topology: 'drifted',
-                previousPoints: prev,
-                nextPoints: region.points,
-            });
-        }
-    }
+        for (let i = 0; i < maxLen; i++) {
+            const prev = prevRegions[i];
+            const next = nextRegions[i];
 
-    for (const [ownerId, pts] of prevByOwner) {
-        if (!seenOwners.has(ownerId)) {
-            result.push({
-                ownerId,
-                topology: 'vanished',
-                previousPoints: pts,
-                nextPoints: null,
-            });
+            if (prev && next) {
+                // Both exist at this index — check if static or drifted
+                if (pointsAreStatic(prev.points, next.points)) {
+                    result.push({
+                        ownerId,
+                        topology: 'static',
+                        previousPoints: prev.points,
+                        nextPoints: next.points,
+                    });
+                } else {
+                    result.push({
+                        ownerId,
+                        topology: 'drifted',
+                        previousPoints: prev.points,
+                        nextPoints: next.points,
+                    });
+                }
+            } else if (next && !prev) {
+                // Only in next — spawned
+                result.push({
+                    ownerId,
+                    topology: 'spawned',
+                    previousPoints: null,
+                    nextPoints: next.points,
+                });
+            } else if (prev && !next) {
+                // Only in prev — vanished
+                result.push({
+                    ownerId,
+                    topology: 'vanished',
+                    previousPoints: prev.points,
+                    nextPoints: null,
+                });
+            }
         }
     }
 
