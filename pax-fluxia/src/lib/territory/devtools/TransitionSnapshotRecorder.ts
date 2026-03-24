@@ -8,6 +8,7 @@
 
 import type { TerritoryConquestEvent, OwnershipSnapshot } from '../contracts/OwnershipContracts';
 import type { GeometrySnapshot, FrontierPolylineShape } from '../contracts/GeometryContracts';
+import { computeGeometryTopologyDiff } from '../layers/transition/planners/GeometryTopologyDiff';
 import type { TransitionSnapshot, FillTransitionPlan, BorderTransitionPlan } from '../contracts/TransitionContracts';
 import type { TerritoryModeSelection } from '../contracts/TerritoryModeSelection';
 import { renderGeometryToCanvas, renderGeometryWithConquestMarkers } from './TransitionGeometryRenderer';
@@ -80,116 +81,48 @@ export interface TransitionDebugMeta {
     files: string[];
 }
 
-// ── Frontier Diff ───────────────────────────────────────────────────────────
+// ── Frontier Diff — delegates to production GeometryTopologyDiff (D-91) ─────
+// The diagnostic MUST use the exact same diff as the production transition
+// pipeline. Never reimplement diff logic here.
 
-type FrontierMultimap = Map<string, FrontierPolylineShape[]>;
-
-function buildMultimap(polylines: readonly FrontierPolylineShape[]): FrontierMultimap {
-    const map = new Map<string, FrontierPolylineShape[]>();
-    for (const p of polylines) {
-        const existing = map.get(p.ownerPairKey);
-        if (existing) {
-            existing.push(p);
-        } else {
-            map.set(p.ownerPairKey, [p]);
-        }
-    }
-    return map;
-}
-
-function diffFrontiers(
-    prevPolylines: readonly FrontierPolylineShape[],
-    nextPolylines: readonly FrontierPolylineShape[],
-    prevWorldBorders: readonly FrontierPolylineShape[],
-    nextWorldBorders: readonly FrontierPolylineShape[],
+function diffFromProduction(
+    previousGeometry: GeometrySnapshot | null | undefined,
+    nextGeometry: GeometrySnapshot,
 ): FrontierDiffResult {
-    const prevMap = buildMultimap(prevPolylines);
-    const nextMap = buildMultimap(nextPolylines);
+    const topologyDiff = computeGeometryTopologyDiff(
+        previousGeometry ?? null,
+        nextGeometry,
+    );
 
+    // Map production topology categories → diagnostic display categories
     const changed: FrontierPolylineShape[] = [];
     const unchanged: FrontierPolylineShape[] = [];
     const inserted: FrontierPolylineShape[] = [];
     const deleted: FrontierPolylineShape[] = [];
 
-    // Compare next against prev, segment by segment within each key
-    for (const [key, nextSegments] of nextMap) {
-        const prevSegments = prevMap.get(key);
-        if (!prevSegments) {
-            // Entire frontier pair is new
-            inserted.push(...nextSegments);
-        } else {
-            // Compare segment-by-segment (matched by index)
-            const maxLen = Math.max(nextSegments.length, prevSegments.length);
-            for (let i = 0; i < maxLen; i++) {
-                if (i >= prevSegments.length) {
-                    // Extra segment in next → inserted
-                    inserted.push(nextSegments[i]);
-                } else if (i >= nextSegments.length) {
-                    // Extra segment in prev → deleted
-                    deleted.push(prevSegments[i]);
-                } else if (polylinesDiffer(prevSegments[i].points, nextSegments[i].points)) {
-                    changed.push(nextSegments[i]);
-                } else {
-                    unchanged.push(nextSegments[i]);
-                }
-            }
+    for (const entry of topologyDiff.frontiers) {
+        const shape: FrontierPolylineShape = {
+            ownerPairKey: entry.ownerPairKey,
+            points: entry.nextPoints ?? entry.previousPoints ?? [],
+        };
+        switch (entry.topology) {
+            case 'static': unchanged.push(shape); break;
+            case 'drifted': changed.push(shape); break;
+            case 'spawned': inserted.push(shape); break;
+            case 'vanished': deleted.push(shape); break;
         }
     }
 
-    // Check for fully deleted frontier pairs
-    for (const [key, prevSegments] of prevMap) {
-        if (!nextMap.has(key)) {
-            deleted.push(...prevSegments);
-        }
-    }
-
-    // World border polylines — classify as unchanged/changed/inserted/deleted
-    const prevWMap = buildMultimap(prevWorldBorders);
-    const nextWMap = buildMultimap(nextWorldBorders);
-    for (const [key, nextSegs] of nextWMap) {
-        const prevSegs = prevWMap.get(key);
-        if (!prevSegs) {
-            inserted.push(...nextSegs);
-        } else {
-            const maxLen = Math.max(nextSegs.length, prevSegs.length);
-            for (let i = 0; i < maxLen; i++) {
-                if (i >= prevSegs.length) inserted.push(nextSegs[i]);
-                else if (i >= nextSegs.length) deleted.push(prevSegs[i]);
-                else if (polylinesDiffer(prevSegs[i].points, nextSegs[i].points)) changed.push(nextSegs[i]);
-                else unchanged.push(nextSegs[i]);
-            }
-        }
-    }
-    for (const [key, prevSegs] of prevWMap) {
-        if (!nextWMap.has(key)) deleted.push(...prevSegs);
-    }
-
-    const total = changed.length + unchanged.length + inserted.length + deleted.length;
+    const { stats } = topologyDiff;
     console.log(
-        `[SnapshotRecorder] DIFF: prev=${prevPolylines.length}+${prevWorldBorders.length}w next=${nextPolylines.length}+${nextWorldBorders.length}w` +
-        ` → total=${total} (changed=${changed.length} inserted=${inserted.length} deleted=${deleted.length} unchanged=${unchanged.length})`,
+        `[SnapshotRecorder] DIFF (production):` +
+        ` unchanged=${stats.staticFrontiers} changed=${stats.driftedFrontiers}` +
+        ` inserted=${stats.spawnedFrontiers} deleted=${stats.vanishedFrontiers}` +
+        ` | regions: unchanged=${stats.staticRegions} changed=${stats.driftedRegions}` +
+        ` inserted=${stats.spawnedRegions} deleted=${stats.vanishedRegions}`,
     );
-    if (changed.length > 0) {
-        console.log(`[SnapshotRecorder] CHANGED: ${changed.map(p => p.ownerPairKey).join(', ')}`);
-    }
-    if (inserted.length > 0) {
-        console.log(`[SnapshotRecorder] INSERTED: ${inserted.map(p => p.ownerPairKey).join(', ')}`);
-    }
-    if (deleted.length > 0) {
-        console.log(`[SnapshotRecorder] DELETED: ${deleted.map(p => p.ownerPairKey).join(', ')}`);
-    }
 
     return { changed, unchanged, inserted, deleted };
-}
-
-function polylinesDiffer(a: readonly [number, number][], b: readonly [number, number][]): boolean {
-    if (a.length !== b.length) return true;
-    for (let i = 0; i < a.length; i++) {
-        if (Math.abs(a[i][0] - b[i][0]) > 0.5 || Math.abs(a[i][1] - b[i][1]) > 0.5) {
-            return true;
-        }
-    }
-    return false;
 }
 
 // ── Ownership helpers ───────────────────────────────────────────────────────
@@ -278,12 +211,8 @@ export class TransitionSnapshotRecorder {
             renderOpts,
         );
 
-        // Compute frontier diff (includes world borders)
-        const prevPolylines = ctx.previousGeometry?.frontierPolylines ?? [];
-        const nextPolylines = ctx.nextGeometry.frontierPolylines;
-        const prevWorldBorders = ctx.previousGeometry?.worldBorderPolylines ?? [];
-        const nextWorldBorders = ctx.nextGeometry.worldBorderPolylines;
-        const frontierDiff = diffFrontiers(prevPolylines, nextPolylines, prevWorldBorders, nextWorldBorders);
+        // Compute frontier diff — delegates to production GeometryTopologyDiff (D-91)
+        const frontierDiff = diffFromProduction(ctx.previousGeometry, ctx.nextGeometry);
 
         // Compute affected territory count
         const affectedOwners = new Set<string>();
