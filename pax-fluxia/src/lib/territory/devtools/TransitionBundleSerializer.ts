@@ -1,9 +1,11 @@
 // ── Territory Transition Bundle Serializer ──────────────────────────────────
 // Converts TransitionDebugBundle → downloadable files.
 // Uses canvas.toBlob() for PNG encoding and <a download> for file saving.
+//
+// Bundles now contain HTMLCanvasElement (rendered from geometry data),
+// not ImageBitmap (captured from PIXI canvas).
 
-import type { TransitionDebugBundle, FrontierDiffResult } from './TransitionSnapshotRecorder';
-import type { TerritoryConquestEvent } from '../contracts/OwnershipContracts';
+import type { TransitionDebugBundle } from './TransitionSnapshotRecorder';
 import { compositeOverlayOnScreenshot } from './TransitionDebugOverlay';
 
 // ── Canvas-to-Blob Helpers ──────────────────────────────────────────────────
@@ -20,15 +22,6 @@ function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
     });
 }
 
-function bitmapToCanvas(bitmap: ImageBitmap): HTMLCanvasElement {
-    const canvas = document.createElement('canvas');
-    canvas.width = bitmap.width;
-    canvas.height = bitmap.height;
-    const ctx = canvas.getContext('2d')!;
-    ctx.drawImage(bitmap, 0, 0);
-    return canvas;
-}
-
 function triggerDownload(blob: Blob, filename: string): void {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -37,11 +30,16 @@ function triggerDownload(blob: Blob, filename: string): void {
     a.style.display = 'none';
     document.body.appendChild(a);
     a.click();
-    // Cleanup after a short delay to ensure download starts
     setTimeout(() => {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
     }, 100);
+}
+
+// ── Canvas-to-ImageBitmap bridge (for overlay compositor) ───────────────────
+
+function canvasToImageBitmap(canvas: HTMLCanvasElement): Promise<ImageBitmap> {
+    return createImageBitmap(canvas);
 }
 
 // ── Composite Sheet Builder ─────────────────────────────────────────────────
@@ -56,7 +54,6 @@ function buildCompositeSheet(
         return empty;
     }
 
-    // Layout: 3 columns x 2 rows
     const cols = 3;
     const rows = Math.ceil(panels.length / cols);
     const panelW = panels[0].canvas.width;
@@ -68,7 +65,6 @@ function buildCompositeSheet(
     composite.height = (panelH + labelHeight) * rows;
     const ctx = composite.getContext('2d')!;
 
-    // Dark background
     ctx.fillStyle = '#111111';
     ctx.fillRect(0, 0, composite.width, composite.height);
 
@@ -78,7 +74,6 @@ function buildCompositeSheet(
         const x = col * panelW;
         const y = row * (panelH + labelHeight);
 
-        // Label bar
         ctx.fillStyle = '#222222';
         ctx.fillRect(x, y, panelW, labelHeight);
         ctx.font = 'bold 14px monospace';
@@ -87,7 +82,6 @@ function buildCompositeSheet(
         ctx.textBaseline = 'middle';
         ctx.fillText(panels[i].label, x + 8, y + labelHeight / 2);
 
-        // Panel image
         ctx.drawImage(panels[i].canvas, x, y + labelHeight);
     }
 
@@ -98,7 +92,7 @@ function buildCompositeSheet(
 
 /**
  * Download a single bundle as individual PNG files + meta.json.
- * Files are downloaded separately (no zip library needed).
+ * Bundles contain clean geometry renders (HTMLCanvasElement), not PIXI captures.
  */
 export async function downloadBundle(
     bundle: TransitionDebugBundle,
@@ -107,53 +101,40 @@ export async function downloadBundle(
     const prefix = bundle.id;
     const panels: { label: string; canvas: HTMLCanvasElement }[] = [];
 
-    // 00-prev.png
-    if (bundle.prevCanvasBitmap) {
-        const prevCanvas = bitmapToCanvas(bundle.prevCanvasBitmap);
-        panels.push({ label: '00 Previous State', canvas: prevCanvas });
-        const blob = await canvasToBlob(prevCanvas);
-        triggerDownload(blob, `${prefix}_00-prev.png`);
+    // 00-prev-geometry.png — clean previous ownership → geometry render
+    if (bundle.prevCanvas) {
+        panels.push({ label: '00 Previous Geometry', canvas: bundle.prevCanvas });
+        const blob = await canvasToBlob(bundle.prevCanvas);
+        triggerDownload(blob, `${prefix}_00-prev-geometry.png`);
     }
 
-    // 01-next.png
-    if (bundle.nextCanvasBitmap) {
-        const nextCanvas = bitmapToCanvas(bundle.nextCanvasBitmap);
-        panels.push({ label: '01 Next State', canvas: nextCanvas });
-        const blob = await canvasToBlob(nextCanvas);
-        triggerDownload(blob, `${prefix}_01-next.png`);
+    // 01-next-geometry.png — clean next ownership → geometry render
+    if (bundle.nextCanvas) {
+        panels.push({ label: '01 Next Geometry', canvas: bundle.nextCanvas });
+        const blob = await canvasToBlob(bundle.nextCanvas);
+        triggerDownload(blob, `${prefix}_01-next-geometry.png`);
     }
 
-    // 02-prev-changed-frontiers.png
-    if (bundle.prevCanvasBitmap) {
+    // 02-frontier-diff-overlay.png — next geometry + frontier diff overlay
+    if (bundle.nextCanvas) {
+        const nextBitmap = await canvasToImageBitmap(bundle.nextCanvas);
         const overlayCanvas = compositeOverlayOnScreenshot(
-            bundle.prevCanvasBitmap,
+            nextBitmap,
             bundle.frontierDiff,
             bundle.conquestEvents,
             starPositions,
         );
-        panels.push({ label: '02 Prev + Changed Frontiers', canvas: overlayCanvas });
+        nextBitmap.close();
+        panels.push({ label: '02 Frontier Diff Overlay', canvas: overlayCanvas });
         const blob = await canvasToBlob(overlayCanvas);
-        triggerDownload(blob, `${prefix}_02-prev-changed-frontiers.png`);
+        triggerDownload(blob, `${prefix}_02-frontier-diff-overlay.png`);
     }
 
-    // 03-next-changed-frontiers.png
-    if (bundle.nextCanvasBitmap) {
-        const overlayCanvas = compositeOverlayOnScreenshot(
-            bundle.nextCanvasBitmap,
-            bundle.frontierDiff,
-            bundle.conquestEvents,
-            starPositions,
-        );
-        panels.push({ label: '03 Next + Changed Frontiers', canvas: overlayCanvas });
-        const blob = await canvasToBlob(overlayCanvas);
-        triggerDownload(blob, `${prefix}_03-next-changed-frontiers.png`);
-    }
-
-    // 06-composite.png
+    // 03-composite.png — all panels in one image
     if (panels.length > 0) {
         const composite = buildCompositeSheet(panels);
         const blob = await canvasToBlob(composite);
-        triggerDownload(blob, `${prefix}_06-composite.png`);
+        triggerDownload(blob, `${prefix}_03-composite.png`);
     }
 
     // meta.json
@@ -175,7 +156,6 @@ export async function downloadAllBundles(
 ): Promise<void> {
     for (const bundle of bundles) {
         await downloadBundle(bundle, starPositions);
-        // Small delay between downloads to avoid browser throttling
         await new Promise(resolve => setTimeout(resolve, 200));
     }
     console.log(`[SnapshotRecorder] downloaded all ${bundles.length} bundles`);

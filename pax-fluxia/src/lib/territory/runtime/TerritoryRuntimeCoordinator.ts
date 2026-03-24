@@ -184,7 +184,7 @@ export class TerritoryRuntimeCoordinator {
             // Dump geometry on first conquest for data analysis
             this.dumpGeometrySnapshots(this.state.previousGeometry ?? null, geometry);
 
-            // Capture debug snapshot (canvas still shows previous frame)
+            // Capture debug snapshot — renders clean geometry to canvas, no transitions
             const starPositions = new Map<string, { x: number; y: number }>();
             for (const s of input.stars) starPositions.set(s.id, { x: s.x, y: s.y });
 
@@ -200,6 +200,8 @@ export class TerritoryRuntimeCoordinator {
                 selection: input.selection,
                 nowMs: input.nowMs,
                 starPositions,
+                worldWidth: input.world.width,
+                worldHeight: input.world.height,
             });
         }
         if (envelope && !this.state.previousTransition?.envelope) {

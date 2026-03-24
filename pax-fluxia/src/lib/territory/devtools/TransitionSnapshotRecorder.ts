@@ -1,14 +1,17 @@
 // ── Territory Transition Snapshot Recorder ──────────────────────────────────
-// Debug-only tool: captures before/after screenshots + diagnostic overlays
+// Debug-only tool: captures before/after geometry snapshots + diagnostic overlays
 // on conquest events. Stores bundles in-memory; download on demand.
 //
-// Architecture: browser-resident. Screenshots via PIXI canvas capture.
+// Architecture: browser-resident. Before/after frames are rendered directly
+// from GeometrySnapshot data via Canvas2D — zero transition interpolation.
 // File output via <a download> triggered downloads.
 
 import type { TerritoryConquestEvent, OwnershipSnapshot } from '../contracts/OwnershipContracts';
 import type { GeometrySnapshot, FrontierPolylineShape } from '../contracts/GeometryContracts';
 import type { TransitionSnapshot, FillTransitionPlan, BorderTransitionPlan } from '../contracts/TransitionContracts';
 import type { TerritoryModeSelection } from '../contracts/TerritoryModeSelection';
+import { renderGeometryToCanvas, renderGeometryWithConquestMarkers } from './TransitionGeometryRenderer';
+import type { OwnerColorResolver, GeometryRenderOptions } from './TransitionGeometryRenderer';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -25,6 +28,9 @@ export interface SnapshotCaptureContext {
     nowMs: number;
     /** Star world positions for overlay markers */
     starPositions: ReadonlyMap<string, { x: number; y: number }>;
+    /** World dimensions for rendering */
+    worldWidth: number;
+    worldHeight: number;
 }
 
 export interface FrontierDiffResult {
@@ -39,9 +45,9 @@ export interface TransitionDebugBundle {
     timestamp: string;
     conquestEvents: readonly TerritoryConquestEvent[];
     context: SnapshotCaptureContext;
-    /** Canvas snapshots captured as ImageBitmap for later rendering */
-    prevCanvasBitmap: ImageBitmap | null;
-    nextCanvasBitmap: ImageBitmap | null;
+    /** Clean geometry renders — NOT interpolated canvas captures */
+    prevCanvas: HTMLCanvasElement | null;
+    nextCanvas: HTMLCanvasElement | null;
     /** Computed frontier diff */
     frontierDiff: FrontierDiffResult;
     /** Star world positions for overlay markers */
@@ -91,7 +97,6 @@ function diffFrontiers(
     const inserted: FrontierPolylineShape[] = [];
     const deleted: FrontierPolylineShape[] = [];
 
-    // Check next against prev
     for (const [key, nextPoly] of nextKeys) {
         const prevPoly = prevKeys.get(key);
         if (!prevPoly) {
@@ -103,7 +108,6 @@ function diffFrontiers(
         }
     }
 
-    // Check for deleted (in prev but not in next)
     for (const [key, prevPoly] of prevKeys) {
         if (!nextKeys.has(key)) {
             deleted.push(prevPoly);
@@ -112,19 +116,18 @@ function diffFrontiers(
 
     // Diagnostic logging
     console.log(
-        `[SnapshotRecorder] DIFF: prev has ${prevKeys.size} frontiers, next has ${nextKeys.size}` +
+        `[SnapshotRecorder] DIFF: prev=${prevKeys.size} next=${nextKeys.size}` +
         ` | same-ref=${prevPolylines === nextPolylines}` +
-        ` | prev-keys=[${[...prevKeys.keys()].slice(0, 5).join(', ')}${prevKeys.size > 5 ? '...' : ''}]` +
-        ` | next-keys=[${[...nextKeys.keys()].slice(0, 5).join(', ')}${nextKeys.size > 5 ? '...' : ''}]`,
+        ` | changed=${changed.length} inserted=${inserted.length} deleted=${deleted.length} unchanged=${unchanged.length}`,
     );
     if (changed.length > 0) {
-        console.log(`[SnapshotRecorder] CHANGED frontiers: ${changed.map(p => p.ownerPairKey).join(', ')}`);
+        console.log(`[SnapshotRecorder] CHANGED: ${changed.map(p => p.ownerPairKey).join(', ')}`);
     }
     if (inserted.length > 0) {
-        console.log(`[SnapshotRecorder] INSERTED frontiers: ${inserted.map(p => p.ownerPairKey).join(', ')}`);
+        console.log(`[SnapshotRecorder] INSERTED: ${inserted.map(p => p.ownerPairKey).join(', ')}`);
     }
     if (deleted.length > 0) {
-        console.log(`[SnapshotRecorder] DELETED frontiers: ${deleted.map(p => p.ownerPairKey).join(', ')}`);
+        console.log(`[SnapshotRecorder] DELETED: ${deleted.map(p => p.ownerPairKey).join(', ')}`);
     }
 
     return { changed, unchanged, inserted, deleted };
@@ -140,14 +143,21 @@ function polylinesDiffer(a: readonly [number, number][], b: readonly [number, nu
     return false;
 }
 
+// ── Ownership helpers ───────────────────────────────────────────────────────
+
+function buildOwnerMap(ownership: OwnershipSnapshot): ReadonlyMap<string, string> {
+    // starOwners is Map<starId, ownerId>
+    return ownership.starOwners;
+}
+
 // ── Recorder ────────────────────────────────────────────────────────────────
 
 export class TransitionSnapshotRecorder {
     private bundles: TransitionDebugBundle[] = [];
     private maxBundles = 20;
     private enabled = false;
-    private captureCanvas: HTMLCanvasElement | null = null;
     private tickCounter = 0;
+    private colorResolver: OwnerColorResolver | null = null;
 
     /** Enable/disable the recorder */
     setEnabled(enabled: boolean): void {
@@ -163,9 +173,9 @@ export class TransitionSnapshotRecorder {
         return this.enabled;
     }
 
-    /** Set the PIXI canvas reference for screenshot capture */
-    setCanvas(canvas: HTMLCanvasElement): void {
-        this.captureCanvas = canvas;
+    /** Set the color resolver for rendering territory fills */
+    setColorResolver(resolver: OwnerColorResolver): void {
+        this.colorResolver = resolver;
     }
 
     /** Increment tick counter (call once per frame) */
@@ -175,21 +185,49 @@ export class TransitionSnapshotRecorder {
 
     /**
      * Capture a snapshot for a conquest event.
-     * Called from TerritoryRuntimeCoordinator BEFORE the new frame is drawn,
-     * so the canvas still shows the previous state.
+     * Renders CLEAN before/after geometry directly from GeometrySnapshot data.
+     * Zero transition interpolation.
      */
-    async capture(ctx: SnapshotCaptureContext): Promise<void> {
+    capture(ctx: SnapshotCaptureContext): void {
         if (!this.enabled) return;
-
-        // Capture the previous-state canvas (it hasn't been redrawn yet)
-        let prevBitmap: ImageBitmap | null = null;
-        if (this.captureCanvas) {
-            try {
-                prevBitmap = await createImageBitmap(this.captureCanvas);
-            } catch (e) {
-                console.warn('[SnapshotRecorder] failed to capture prev canvas:', e);
-            }
+        if (!this.colorResolver) {
+            console.warn('[SnapshotRecorder] no color resolver set — cannot render geometry');
+            return;
         }
+
+        const resolveColor = this.colorResolver;
+
+        // Build render options from world dimensions
+        const renderOpts: GeometryRenderOptions = {
+            width: ctx.worldWidth,
+            height: ctx.worldHeight,
+            resolveColor,
+        };
+
+        // Build ownership maps for star coloring
+        const prevOwnerMap = ctx.previousOwnership ? buildOwnerMap(ctx.previousOwnership) : new Map<string, string>();
+        const nextOwnerMap = buildOwnerMap(ctx.nextOwnership);
+
+        // Render PREVIOUS geometry — clean, static, from pure data
+        let prevCanvas: HTMLCanvasElement | null = null;
+        if (ctx.previousGeometry) {
+            prevCanvas = renderGeometryWithConquestMarkers(
+                ctx.previousGeometry,
+                ctx.starPositions,
+                prevOwnerMap,
+                ctx.conquestEvents,
+                renderOpts,
+            );
+        }
+
+        // Render NEXT geometry — clean, static, from pure data
+        const nextCanvas = renderGeometryWithConquestMarkers(
+            ctx.nextGeometry,
+            ctx.starPositions,
+            nextOwnerMap,
+            ctx.conquestEvents,
+            renderOpts,
+        );
 
         // Compute frontier diff
         const prevPolylines = ctx.previousGeometry?.frontierPolylines ?? [];
@@ -233,9 +271,8 @@ export class TransitionSnapshotRecorder {
                 affectedTerritoryCount,
             },
             files: [
-                '00-prev.png', '01-next.png',
-                '02-prev-changed-frontiers.png', '03-next-changed-frontiers.png',
-                '04-plan-anchors.png', '05-plan-rings.png', '06-composite.png',
+                '00-prev-geometry.png', '01-next-geometry.png',
+                '02-frontier-diff-overlay.png', '03-composite.png',
             ],
         };
 
@@ -246,8 +283,8 @@ export class TransitionSnapshotRecorder {
             timestamp,
             conquestEvents: ctx.conquestEvents,
             context: ctx,
-            prevCanvasBitmap: prevBitmap,
-            nextCanvasBitmap: null, // Will be captured after next frame draws
+            prevCanvas,
+            nextCanvas,
             frontierDiff,
             starPositions: ctx.starPositions,
             meta,
@@ -255,9 +292,7 @@ export class TransitionSnapshotRecorder {
 
         this.bundles.push(bundle);
         if (this.bundles.length > this.maxBundles) {
-            const removed = this.bundles.shift();
-            removed?.prevCanvasBitmap?.close();
-            removed?.nextCanvasBitmap?.close();
+            this.bundles.shift();
         }
 
         console.log(
@@ -266,26 +301,9 @@ export class TransitionSnapshotRecorder {
             ` | inserted=${frontierDiff.inserted.length}` +
             ` | deleted=${frontierDiff.deleted.length}` +
             ` | unchanged=${frontierDiff.unchanged.length}` +
-            ` | affected territories=${affectedTerritoryCount}`,
+            ` | affected=${affectedTerritoryCount}` +
+            ` | rendered ${ctx.worldWidth}x${ctx.worldHeight}`,
         );
-    }
-
-    /**
-     * Capture the "next state" canvas. Call this AFTER the new frame has been drawn.
-     * Attaches to the most recent bundle that's missing its next bitmap.
-     */
-    async captureNextFrame(): Promise<void> {
-        if (!this.enabled || !this.captureCanvas) return;
-
-        const lastBundle = this.bundles[this.bundles.length - 1];
-        if (!lastBundle || lastBundle.nextCanvasBitmap) return;
-
-        try {
-            lastBundle.nextCanvasBitmap = await createImageBitmap(this.captureCanvas);
-            console.log(`[SnapshotRecorder] captured next-frame for: ${lastBundle.id}`);
-        } catch (e) {
-            console.warn('[SnapshotRecorder] failed to capture next canvas:', e);
-        }
     }
 
     /** Get all stored bundles */
@@ -300,15 +318,10 @@ export class TransitionSnapshotRecorder {
 
     /** Clear all bundles */
     clear(): void {
-        for (const b of this.bundles) {
-            b.prevCanvasBitmap?.close();
-            b.nextCanvasBitmap?.close();
-        }
         this.bundles = [];
         console.log('[SnapshotRecorder] cleared all bundles');
     }
 }
 
 // ── Singleton for global access ─────────────────────────────────────────────
-// The recorder instance. Injected into TerritoryRuntimeCoordinator.
 export const transitionSnapshotRecorder = new TransitionSnapshotRecorder();

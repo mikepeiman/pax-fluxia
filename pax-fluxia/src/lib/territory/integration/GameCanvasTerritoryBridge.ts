@@ -26,6 +26,11 @@ export class GameCanvasTerritoryBridge {
         this.presenter = new PixiTerritoryPresenter(container, resolveOwnerColor);
         this.vfxBridge = new TerritoryVFXBridge();
         this.vfxBridge.registerHandler(new ConquestParticles());
+
+        // Wire color resolver for geometry-based snapshot rendering
+        if (resolveOwnerColor) {
+            transitionSnapshotRecorder.setColorResolver(resolveOwnerColor);
+        }
     }
 
     /** Expose the snapshot recorder for UI controls */
@@ -36,9 +41,6 @@ export class GameCanvasTerritoryBridge {
     update(input: TerritoryFrameInput): void {
         const output = this.runtime.update(input);
         this.presenter.present(output.presentation);
-
-        // Capture "next frame" screenshot after the new frame is drawn
-        transitionSnapshotRecorder.captureNextFrame();
 
         this.pendingVFXCommands.push(
             ...this.vfxBridge.emitConquestEvents(
