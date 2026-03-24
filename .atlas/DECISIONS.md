@@ -451,3 +451,20 @@
 - **Decision**: Pax Fluxia is tick-based. All conquests dispatch on tick boundaries, and transitions should complete within the tick interval. The only overlap scenario is when `transitionDurationMs > tickInterval` — a settings misconfiguration. If advanced VFX modes require longer animations, they must handle overlap explicitly (e.g. fast-forward or merge), but the default behavior assumes transitions complete by the next tick.
 - **Rationale**: The current replace-and-restart behavior in `TransitionLayerCoordinator` is correct for the default case. No architectural change needed.
 
+## 2026-03-24
+
+### D-90: ownerPairKey Is NOT Unique — Frontier Matching Must Use Multimaps (CRITICAL)
+- **Decision**: `ownerPairKey` on `FrontierPolylineShape` is NOT a unique identifier. Multiple disjoint polyline segments can (and frequently do) share the same key. **All code that groups or matches frontier polylines by `ownerPairKey` MUST use multimaps** (`Map<string, T[]>`), never single-value Maps.
+- **Bug**: Every frontier-matching function in the production transition pipeline used `Map<string, singleValue>`, silently overwriting duplicate segments. With 38 frontier polylines reduced to 17 unique keys, over half the segments were dropped with zero warning. The dropped segments received no transition morphing — they snapped instantly instead of smoothly interpolating via optimal transport.
+- **Affected files**: `GeometryTopologyDiff.ts`, `interpolatePolylines.ts`, `CorrespondencePlanner.ts`, `FrontierTopologyBuilder.ts`
+- **Why it persisted**: The name `ownerPairKey` implies uniqueness. Nobody verified that two territories can share a geometrically disconnected border (multiple segments). The Map pattern is the default JavaScript grouping idiom — it requires explicit awareness that `Map.set()` is a silent overwrite when keys collide.
+- **Rule**: Any new code that uses `ownerPairKey` as a Map key must be multimap or prove uniqueness.
+- **Post-mortem**: `.agent/WIP Work-In-Progress/POST_MORTEM_2026-03-24_FRONTIER_DEDUP.md`
+- **Commit**: `6843214`
+
+### D-91: Diagnostic Tools Must Use Production Data Paths — Never Reimplement
+- **Decision**: Any diagnostic, debug overlay, or snapshot tool MUST consume the exact same data structures and diff functions as the production code it's debugging. A diagnostic tool that reimplements its own diff logic independently from the production system is worse than no tool — it actively misleads.
+- **Bug**: The Transition Snapshot Recorder originally (1) captured the live PIXI canvas (showing interpolated mid-transition frames, not definitive geometry), and (2) implemented its own `diffFrontiers` function separate from the production `GeometryTopologyDiff`. The diagnostic showed border coverage that didn't match what the transition engine was actually computing.
+- **Rule**: A debug tool's value is exactly proportional to how faithfully it mirrors the production data path. If it computes its own answers, it's hallucinating. Wire it to the production output, or don't build it.
+- **Remaining work**: The snapshot recorder's diff function should be replaced by a thin wrapper around the production `GeometryTopologyDiff.computeGeometryTopologyDiff()`.
+
