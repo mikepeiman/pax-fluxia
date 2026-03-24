@@ -82,43 +82,92 @@ export interface TransitionDebugMeta {
 
 // ── Frontier Diff ───────────────────────────────────────────────────────────
 
+type FrontierMultimap = Map<string, FrontierPolylineShape[]>;
+
+function buildMultimap(polylines: readonly FrontierPolylineShape[]): FrontierMultimap {
+    const map = new Map<string, FrontierPolylineShape[]>();
+    for (const p of polylines) {
+        const existing = map.get(p.ownerPairKey);
+        if (existing) {
+            existing.push(p);
+        } else {
+            map.set(p.ownerPairKey, [p]);
+        }
+    }
+    return map;
+}
+
 function diffFrontiers(
     prevPolylines: readonly FrontierPolylineShape[],
     nextPolylines: readonly FrontierPolylineShape[],
+    prevWorldBorders: readonly FrontierPolylineShape[],
+    nextWorldBorders: readonly FrontierPolylineShape[],
 ): FrontierDiffResult {
-    const prevKeys = new Map<string, FrontierPolylineShape>();
-    for (const p of prevPolylines) prevKeys.set(p.ownerPairKey, p);
-
-    const nextKeys = new Map<string, FrontierPolylineShape>();
-    for (const p of nextPolylines) nextKeys.set(p.ownerPairKey, p);
+    const prevMap = buildMultimap(prevPolylines);
+    const nextMap = buildMultimap(nextPolylines);
 
     const changed: FrontierPolylineShape[] = [];
     const unchanged: FrontierPolylineShape[] = [];
     const inserted: FrontierPolylineShape[] = [];
     const deleted: FrontierPolylineShape[] = [];
 
-    for (const [key, nextPoly] of nextKeys) {
-        const prevPoly = prevKeys.get(key);
-        if (!prevPoly) {
-            inserted.push(nextPoly);
-        } else if (polylinesDiffer(prevPoly.points, nextPoly.points)) {
-            changed.push(nextPoly);
+    // Compare next against prev, segment by segment within each key
+    for (const [key, nextSegments] of nextMap) {
+        const prevSegments = prevMap.get(key);
+        if (!prevSegments) {
+            // Entire frontier pair is new
+            inserted.push(...nextSegments);
         } else {
-            unchanged.push(nextPoly);
+            // Compare segment-by-segment (matched by index)
+            const maxLen = Math.max(nextSegments.length, prevSegments.length);
+            for (let i = 0; i < maxLen; i++) {
+                if (i >= prevSegments.length) {
+                    // Extra segment in next → inserted
+                    inserted.push(nextSegments[i]);
+                } else if (i >= nextSegments.length) {
+                    // Extra segment in prev → deleted
+                    deleted.push(prevSegments[i]);
+                } else if (polylinesDiffer(prevSegments[i].points, nextSegments[i].points)) {
+                    changed.push(nextSegments[i]);
+                } else {
+                    unchanged.push(nextSegments[i]);
+                }
+            }
         }
     }
 
-    for (const [key, prevPoly] of prevKeys) {
-        if (!nextKeys.has(key)) {
-            deleted.push(prevPoly);
+    // Check for fully deleted frontier pairs
+    for (const [key, prevSegments] of prevMap) {
+        if (!nextMap.has(key)) {
+            deleted.push(...prevSegments);
         }
     }
 
-    // Diagnostic logging
+    // World border polylines — classify as unchanged/changed/inserted/deleted
+    const prevWMap = buildMultimap(prevWorldBorders);
+    const nextWMap = buildMultimap(nextWorldBorders);
+    for (const [key, nextSegs] of nextWMap) {
+        const prevSegs = prevWMap.get(key);
+        if (!prevSegs) {
+            inserted.push(...nextSegs);
+        } else {
+            const maxLen = Math.max(nextSegs.length, prevSegs.length);
+            for (let i = 0; i < maxLen; i++) {
+                if (i >= prevSegs.length) inserted.push(nextSegs[i]);
+                else if (i >= nextSegs.length) deleted.push(prevSegs[i]);
+                else if (polylinesDiffer(prevSegs[i].points, nextSegs[i].points)) changed.push(nextSegs[i]);
+                else unchanged.push(nextSegs[i]);
+            }
+        }
+    }
+    for (const [key, prevSegs] of prevWMap) {
+        if (!nextWMap.has(key)) deleted.push(...prevSegs);
+    }
+
+    const total = changed.length + unchanged.length + inserted.length + deleted.length;
     console.log(
-        `[SnapshotRecorder] DIFF: prev=${prevKeys.size} next=${nextKeys.size}` +
-        ` | same-ref=${prevPolylines === nextPolylines}` +
-        ` | changed=${changed.length} inserted=${inserted.length} deleted=${deleted.length} unchanged=${unchanged.length}`,
+        `[SnapshotRecorder] DIFF: prev=${prevPolylines.length}+${prevWorldBorders.length}w next=${nextPolylines.length}+${nextWorldBorders.length}w` +
+        ` → total=${total} (changed=${changed.length} inserted=${inserted.length} deleted=${deleted.length} unchanged=${unchanged.length})`,
     );
     if (changed.length > 0) {
         console.log(`[SnapshotRecorder] CHANGED: ${changed.map(p => p.ownerPairKey).join(', ')}`);
@@ -229,10 +278,12 @@ export class TransitionSnapshotRecorder {
             renderOpts,
         );
 
-        // Compute frontier diff
+        // Compute frontier diff (includes world borders)
         const prevPolylines = ctx.previousGeometry?.frontierPolylines ?? [];
         const nextPolylines = ctx.nextGeometry.frontierPolylines;
-        const frontierDiff = diffFrontiers(prevPolylines, nextPolylines);
+        const prevWorldBorders = ctx.previousGeometry?.worldBorderPolylines ?? [];
+        const nextWorldBorders = ctx.nextGeometry.worldBorderPolylines;
+        const frontierDiff = diffFrontiers(prevPolylines, nextPolylines, prevWorldBorders, nextWorldBorders);
 
         // Compute affected territory count
         const affectedOwners = new Set<string>();
