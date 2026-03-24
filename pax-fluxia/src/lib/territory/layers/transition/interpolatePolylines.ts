@@ -163,51 +163,84 @@ export function matchPolylinesByKey(
     prev: readonly FrontierPolylineShape[],
     next: readonly FrontierPolylineShape[],
 ): MatchedPolylinePair[] {
-    const prevMap = new Map<string, [number, number][]>();
+    // Build multimaps — multiple segments can share the same ownerPairKey
+    const prevMap = new Map<string, [number, number][][]>();
     for (const p of prev) {
-        prevMap.set(p.ownerPairKey, p.points);
+        const arr = prevMap.get(p.ownerPairKey);
+        if (arr) arr.push(p.points);
+        else prevMap.set(p.ownerPairKey, [p.points]);
     }
 
-    const nextMap = new Map<string, [number, number][]>();
+    const nextMap = new Map<string, [number, number][][]>();
     for (const n of next) {
-        nextMap.set(n.ownerPairKey, n.points);
+        const arr = nextMap.get(n.ownerPairKey);
+        if (arr) arr.push(n.points);
+        else nextMap.set(n.ownerPairKey, [n.points]);
     }
 
     const result: MatchedPolylinePair[] = [];
 
     // Persisting/static/drifted + vanished (iterate prev)
-    for (const [key, prevPts] of prevMap) {
-        const nextPts = nextMap.get(key);
-        if (nextPts) {
-            const isStatic = arePolylinesSame(prevPts, nextPts);
-            result.push({
-                ownerPairKey: key,
-                prev: prevPts,
-                next: nextPts,
-                status: isStatic ? 'static' : 'drifted',
-            });
+    for (const [key, prevSegments] of prevMap) {
+        const nextSegments = nextMap.get(key);
+        if (nextSegments) {
+            // Match segment-by-segment by index
+            const maxLen = Math.max(prevSegments.length, nextSegments.length);
+            for (let i = 0; i < maxLen; i++) {
+                if (i >= prevSegments.length) {
+                    // Extra in next → spawned
+                    const mid = polylineMidpoint(nextSegments[i]);
+                    result.push({
+                        ownerPairKey: key,
+                        prev: [mid, mid],
+                        next: nextSegments[i],
+                        status: 'spawned',
+                    });
+                } else if (i >= nextSegments.length) {
+                    // Extra in prev → vanished
+                    const mid = polylineMidpoint(prevSegments[i]);
+                    result.push({
+                        ownerPairKey: key,
+                        prev: prevSegments[i],
+                        next: [mid, mid],
+                        status: 'vanished',
+                    });
+                } else {
+                    const isStatic = arePolylinesSame(prevSegments[i], nextSegments[i]);
+                    result.push({
+                        ownerPairKey: key,
+                        prev: prevSegments[i],
+                        next: nextSegments[i],
+                        status: isStatic ? 'static' : 'drifted',
+                    });
+                }
+            }
         } else {
-            // Vanished: collapse to midpoint of prev
-            const mid = polylineMidpoint(prevPts);
-            result.push({
-                ownerPairKey: key,
-                prev: prevPts,
-                next: [mid, mid],
-                status: 'vanished',
-            });
+            // Vanished: all segments collapse to midpoint
+            for (const prevPts of prevSegments) {
+                const mid = polylineMidpoint(prevPts);
+                result.push({
+                    ownerPairKey: key,
+                    prev: prevPts,
+                    next: [mid, mid],
+                    status: 'vanished',
+                });
+            }
         }
     }
 
     // Spawned (in next but not in prev)
-    for (const [key, nextPts] of nextMap) {
+    for (const [key, nextSegments] of nextMap) {
         if (!prevMap.has(key)) {
-            const mid = polylineMidpoint(nextPts);
-            result.push({
-                ownerPairKey: key,
-                prev: [mid, mid],
-                next: nextPts,
-                status: 'spawned',
-            });
+            for (const nextPts of nextSegments) {
+                const mid = polylineMidpoint(nextPts);
+                result.push({
+                    ownerPairKey: key,
+                    prev: [mid, mid],
+                    next: nextPts,
+                    status: 'spawned',
+                });
+            }
         }
     }
 

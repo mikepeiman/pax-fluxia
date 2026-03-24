@@ -10,18 +10,28 @@ export function planFrontierCorrespondence(
     previousGeometry: GeometrySnapshot,
     nextGeometry: GeometrySnapshot,
 ): FrontierCorrespondence[] {
-    const previousByPair = new Map(
-        previousGeometry.frontierPolylines.map((polyline) => [
-            polyline.ownerPairKey,
-            polyline.points,
-        ]),
-    );
+    // Build multimap — multiple segments can share the same ownerPairKey
+    const previousByPair = new Map<string, [number, number][][]>();
+    for (const polyline of previousGeometry.frontierPolylines) {
+        const arr = previousByPair.get(polyline.ownerPairKey);
+        if (arr) arr.push(polyline.points);
+        else previousByPair.set(polyline.ownerPairKey, [polyline.points]);
+    }
+
+    // Track segment index per key for matching
+    const nextIndexByKey = new Map<string, number>();
 
     const correspondences: FrontierCorrespondence[] = [];
     for (const polyline of nextGeometry.frontierPolylines) {
+        const idx = nextIndexByKey.get(polyline.ownerPairKey) ?? 0;
+        nextIndexByKey.set(polyline.ownerPairKey, idx + 1);
+
+        const prevSegments = previousByPair.get(polyline.ownerPairKey);
+        const prevPoints = prevSegments?.[idx] ?? polyline.points;
+
         correspondences.push({
             ownerPairKey: polyline.ownerPairKey,
-            previousPoints: previousByPair.get(polyline.ownerPairKey) ?? polyline.points,
+            previousPoints: prevPoints,
             nextPoints: polyline.points,
         });
     }

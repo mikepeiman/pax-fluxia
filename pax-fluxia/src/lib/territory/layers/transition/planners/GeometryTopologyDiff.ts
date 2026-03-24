@@ -74,52 +74,89 @@ function diffPolylines(
     previous: readonly FrontierPolylineShape[],
     next: readonly FrontierPolylineShape[],
 ): FrontierDiffEntry[] {
-    const prevByKey = new Map<string, [number, number][]>();
+    // Build multimaps — multiple segments can share the same ownerPairKey
+    const prevByKey = new Map<string, FrontierPolylineShape[]>();
     for (const p of previous) {
-        prevByKey.set(p.ownerPairKey, p.points);
+        const arr = prevByKey.get(p.ownerPairKey);
+        if (arr) arr.push(p);
+        else prevByKey.set(p.ownerPairKey, [p]);
+    }
+
+    const nextByKey = new Map<string, FrontierPolylineShape[]>();
+    for (const p of next) {
+        const arr = nextByKey.get(p.ownerPairKey);
+        if (arr) arr.push(p);
+        else nextByKey.set(p.ownerPairKey, [p]);
     }
 
     const result: FrontierDiffEntry[] = [];
     const seenKeys = new Set<string>();
 
-    // Process next frontiers: classify as static, drifted, or spawned
-    for (const polyline of next) {
-        seenKeys.add(polyline.ownerPairKey);
-        const prev = prevByKey.get(polyline.ownerPairKey);
+    // Process next frontiers: match against prev by key + segment index
+    for (const [key, nextSegments] of nextByKey) {
+        seenKeys.add(key);
+        const prevSegments = prevByKey.get(key);
 
-        if (!prev) {
-            result.push({
-                ownerPairKey: polyline.ownerPairKey,
-                topology: 'spawned',
-                previousPoints: null,
-                nextPoints: polyline.points,
-            });
-        } else if (pointsAreStatic(prev, polyline.points)) {
-            result.push({
-                ownerPairKey: polyline.ownerPairKey,
-                topology: 'static',
-                previousPoints: prev,
-                nextPoints: polyline.points,
-            });
+        if (!prevSegments) {
+            // Entire pair is new — all segments are spawned
+            for (const seg of nextSegments) {
+                result.push({
+                    ownerPairKey: seg.ownerPairKey,
+                    topology: 'spawned',
+                    previousPoints: null,
+                    nextPoints: seg.points,
+                });
+            }
         } else {
-            result.push({
-                ownerPairKey: polyline.ownerPairKey,
-                topology: 'drifted',
-                previousPoints: prev,
-                nextPoints: polyline.points,
-            });
+            // Compare segment-by-segment by index within this key
+            const maxLen = Math.max(nextSegments.length, prevSegments.length);
+            for (let i = 0; i < maxLen; i++) {
+                if (i >= prevSegments.length) {
+                    // Extra segment in next → spawned
+                    result.push({
+                        ownerPairKey: key,
+                        topology: 'spawned',
+                        previousPoints: null,
+                        nextPoints: nextSegments[i].points,
+                    });
+                } else if (i >= nextSegments.length) {
+                    // Extra segment in prev → vanished
+                    result.push({
+                        ownerPairKey: key,
+                        topology: 'vanished',
+                        previousPoints: prevSegments[i].points,
+                        nextPoints: null,
+                    });
+                } else if (pointsAreStatic(prevSegments[i].points, nextSegments[i].points)) {
+                    result.push({
+                        ownerPairKey: key,
+                        topology: 'static',
+                        previousPoints: prevSegments[i].points,
+                        nextPoints: nextSegments[i].points,
+                    });
+                } else {
+                    result.push({
+                        ownerPairKey: key,
+                        topology: 'drifted',
+                        previousPoints: prevSegments[i].points,
+                        nextPoints: nextSegments[i].points,
+                    });
+                }
+            }
         }
     }
 
     // Detect vanished frontiers (in previous but not in next)
-    for (const [key, pts] of prevByKey) {
+    for (const [key, prevSegments] of prevByKey) {
         if (!seenKeys.has(key)) {
-            result.push({
-                ownerPairKey: key,
-                topology: 'vanished',
-                previousPoints: pts,
-                nextPoints: null,
-            });
+            for (const seg of prevSegments) {
+                result.push({
+                    ownerPairKey: key,
+                    topology: 'vanished',
+                    previousPoints: seg.points,
+                    nextPoints: null,
+                });
+            }
         }
     }
 
