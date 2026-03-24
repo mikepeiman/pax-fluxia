@@ -14,8 +14,7 @@ its geometric definition to the next vertex, such as line, arc, or smoothed curv
 
 Transition should diff canonical boundary entities, not raw sampled polygons. Given TMAP-A and TMAP-B, determine which vertices/edges are unchanged, which are deleted, which are inserted, and where the frontier diverges and rejoins. Those divergence/rejoin points are the transition anchors.
 
-Animation should operate only on the changed boundary patch. For the changed arc in A and the changed arc in B, sample both arcs to equal counts along arc length, preserving order between anchors, then interpolate sample 
-i
+Animation should operate only on the changed boundary patch. For the changed arc in A and the changed arc in B, sample both arcs to equal counts along arc length, preserving order between anchors, then interpolate sample i
 i in A to sample 
 i
 i in B. Unchanged edges are copied exactly on every frame.
