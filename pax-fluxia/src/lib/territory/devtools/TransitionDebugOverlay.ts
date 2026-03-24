@@ -1,0 +1,217 @@
+// ── Territory Transition Debug Overlay Renderer ─────────────────────────────
+// Renders diagnostic overlays onto a 2D canvas showing frontier diffs,
+// conquest markers, and transition plan data.
+//
+// Pure functions — no PIXI dependency. Draws onto CanvasRenderingContext2D
+// so overlays can be composited with canvas screenshots.
+
+import type { FrontierPolylineShape } from '../contracts/GeometryContracts';
+import type { TerritoryConquestEvent } from '../contracts/OwnershipContracts';
+import type { FrontierDiffResult } from './TransitionSnapshotRecorder';
+
+// ── Overlay Colors ──────────────────────────────────────────────────────────
+
+const COLORS = {
+    changedFrontier: '#FF2222',      // thick red
+    unchangedFrontier: '#22CC22',    // thick green
+    insertedFrontier: '#FF8800',     // orange
+    deletedFrontier: '#AA44FF',      // purple
+    conquestStar: '#FFFF00',         // yellow
+    anchorPoint: '#00FFFF',          // cyan
+    labelText: '#FFFFFF',            // white
+    labelShadow: '#000000',          // black shadow for readability
+} as const;
+
+const LINE_WIDTHS = {
+    changed: 6,
+    unchanged: 3,
+    inserted: 5,
+    deleted: 5,
+    anchor: 8,
+} as const;
+
+// ── Polyline Drawing ────────────────────────────────────────────────────────
+
+function drawPolyline(
+    ctx: CanvasRenderingContext2D,
+    points: readonly [number, number][],
+    color: string,
+    lineWidth: number,
+    dashed = false,
+): void {
+    if (points.length < 2) return;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lineWidth;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    if (dashed) {
+        ctx.setLineDash([8, 6]);
+    } else {
+        ctx.setLineDash([]);
+    }
+    ctx.beginPath();
+    ctx.moveTo(points[0][0], points[0][1]);
+    for (let i = 1; i < points.length; i++) {
+        ctx.lineTo(points[i][0], points[i][1]);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+}
+
+function drawCircle(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    radius: number,
+    fillColor: string,
+    strokeColor?: string,
+): void {
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = fillColor;
+    ctx.fill();
+    if (strokeColor) {
+        ctx.strokeStyle = strokeColor;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }
+}
+
+function drawLabel(
+    ctx: CanvasRenderingContext2D,
+    text: string,
+    x: number,
+    y: number,
+    color: string = COLORS.labelText,
+): void {
+    ctx.font = '12px monospace';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    // Shadow for readability
+    ctx.fillStyle = COLORS.labelShadow;
+    ctx.fillText(text, x + 1, y + 1);
+    ctx.fillStyle = color;
+    ctx.fillText(text, x, y);
+}
+
+// ── Public Overlay Functions ────────────────────────────────────────────────
+
+/**
+ * Render changed-frontier overlay onto a canvas.
+ * Shows changed (red), unchanged (green), inserted (orange), deleted (purple) frontiers.
+ */
+export function renderChangedFrontierOverlay(
+    ctx: CanvasRenderingContext2D,
+    diff: FrontierDiffResult,
+    conquestEvents: readonly TerritoryConquestEvent[],
+    starPositions: ReadonlyMap<string, { x: number; y: number }>,
+): void {
+    // Draw unchanged first (underneath)
+    for (const poly of diff.unchanged) {
+        drawPolyline(ctx, poly.points, COLORS.unchangedFrontier, LINE_WIDTHS.unchanged);
+    }
+
+    // Draw deleted (dashed purple)
+    for (const poly of diff.deleted) {
+        drawPolyline(ctx, poly.points, COLORS.deletedFrontier, LINE_WIDTHS.deleted, true);
+    }
+
+    // Draw inserted (orange)
+    for (const poly of diff.inserted) {
+        drawPolyline(ctx, poly.points, COLORS.insertedFrontier, LINE_WIDTHS.inserted);
+    }
+
+    // Draw changed (thick red, on top)
+    for (const poly of diff.changed) {
+        drawPolyline(ctx, poly.points, COLORS.changedFrontier, LINE_WIDTHS.changed);
+    }
+
+    // Draw conquest star markers
+    for (const evt of conquestEvents) {
+        const pos = starPositions.get(evt.starId);
+        if (pos) {
+            // Outer ring
+            drawCircle(ctx, pos.x, pos.y, 14, 'transparent', COLORS.conquestStar);
+            // Inner dot
+            drawCircle(ctx, pos.x, pos.y, 6, COLORS.conquestStar);
+            // Label
+            drawLabel(ctx, `★ ${evt.starId}`, pos.x + 18, pos.y - 6, COLORS.conquestStar);
+            drawLabel(ctx, `${evt.previousOwner} → ${evt.newOwner}`, pos.x + 18, pos.y + 8, COLORS.conquestStar);
+        }
+    }
+}
+
+/**
+ * Render a legend box in the corner of the canvas.
+ */
+export function renderOverlayLegend(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+): void {
+    const entries = [
+        { color: COLORS.changedFrontier, label: 'Changed frontier' },
+        { color: COLORS.unchangedFrontier, label: 'Unchanged frontier' },
+        { color: COLORS.insertedFrontier, label: 'Inserted frontier' },
+        { color: COLORS.deletedFrontier, label: 'Deleted frontier' },
+        { color: COLORS.conquestStar, label: 'Conquest star' },
+    ];
+
+    const lineHeight = 18;
+    const padding = 8;
+    const boxWidth = 180;
+    const boxHeight = entries.length * lineHeight + padding * 2;
+
+    // Background
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+    ctx.fillRect(x, y, boxWidth, boxHeight);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x, y, boxWidth, boxHeight);
+
+    // Entries
+    for (let i = 0; i < entries.length; i++) {
+        const ey = y + padding + i * lineHeight;
+        // Color swatch
+        ctx.fillStyle = entries[i].color;
+        ctx.fillRect(x + padding, ey + 2, 14, 10);
+        // Label
+        ctx.font = '11px monospace';
+        ctx.fillStyle = COLORS.labelText;
+        ctx.fillText(entries[i].label, x + padding + 20, ey + 11);
+    }
+}
+
+/**
+ * Compose a screenshot bitmap with a frontier diff overlay.
+ * Returns a new canvas with the composite.
+ */
+export function compositeOverlayOnScreenshot(
+    bitmap: ImageBitmap,
+    diff: FrontierDiffResult,
+    conquestEvents: readonly TerritoryConquestEvent[],
+    starPositions: ReadonlyMap<string, { x: number; y: number }>,
+    showLegend = true,
+): HTMLCanvasElement {
+    const canvas = document.createElement('canvas');
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const ctx = canvas.getContext('2d')!;
+
+    // Draw screenshot base
+    ctx.drawImage(bitmap, 0, 0);
+
+    // Semi-transparent darkening for overlay visibility
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Draw overlays
+    renderChangedFrontierOverlay(ctx, diff, conquestEvents, starPositions);
+
+    // Legend
+    if (showLegend) {
+        renderOverlayLegend(ctx, 10, canvas.height - 110);
+    }
+
+    return canvas;
+}

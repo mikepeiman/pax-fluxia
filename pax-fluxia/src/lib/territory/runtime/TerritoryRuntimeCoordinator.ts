@@ -1,4 +1,5 @@
 import { log } from '$lib/utils/logger';
+import type { TransitionSnapshotRecorder } from '../devtools/TransitionSnapshotRecorder';
 import type { TerritoryFrameInput } from '../contracts/TerritoryFrameInput';
 import type { TerritoryPresentationFrame } from '../contracts/PresentationContracts';
 import type { TerritoryRuntimeDiagnostics } from '../contracts/DiagnosticsContracts';
@@ -30,6 +31,12 @@ export class TerritoryRuntimeCoordinator {
     private lastLogMs = 0;
     private frameCount = 0;
     private geometryDumped = false;
+    private snapshotRecorder: TransitionSnapshotRecorder | null = null;
+
+    /** Attach a debug snapshot recorder (optional, dev-only) */
+    setSnapshotRecorder(recorder: TransitionSnapshotRecorder): void {
+        this.snapshotRecorder = recorder;
+    }
 
     /** One-shot: dump prev + current geometry snapshots to downloadable JSON */
     private dumpGeometrySnapshots(prev: GeometrySnapshot | null, current: GeometrySnapshot): void {
@@ -163,6 +170,7 @@ export class TerritoryRuntimeCoordinator {
 
         // ── Diagnostic logging ─────────────────────────────────────────────
         this.frameCount++;
+        this.snapshotRecorder?.tick();
         const logNow = Date.now();
         const envelope = transition.snapshot.envelope;
 
@@ -175,6 +183,20 @@ export class TerritoryRuntimeCoordinator {
             );
             // Dump geometry on first conquest for data analysis
             this.dumpGeometrySnapshots(this.state.previousGeometry ?? null, geometry);
+
+            // Capture debug snapshot (canvas still shows previous frame)
+            this.snapshotRecorder?.capture({
+                conquestEvents: ownership.conquestEvents,
+                previousGeometry: this.state.previousGeometry,
+                nextGeometry: geometry,
+                previousOwnership: this.state.previousOwnership,
+                nextOwnership: ownership,
+                transition: transition.snapshot,
+                fillPlan: transition.activeFillPlan,
+                borderPlan: transition.activeBorderPlan,
+                selection: input.selection,
+                nowMs: input.nowMs,
+            });
         }
         if (envelope && !this.state.previousTransition?.envelope) {
             log.renderer('Territory',
