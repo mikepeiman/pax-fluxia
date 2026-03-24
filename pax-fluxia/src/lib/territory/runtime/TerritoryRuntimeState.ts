@@ -5,6 +5,7 @@ import type {
     FillTransitionPlan,
     TransitionSnapshot,
 } from '../contracts/TransitionContracts';
+import type { FrontierTransitionPlan } from '../layers/transition/planners/FrontierTopologyPlanner';
 
 export interface TerritoryRuntimeState {
     previousOwnership: OwnershipSnapshot | null;
@@ -12,6 +13,7 @@ export interface TerritoryRuntimeState {
     previousTransition: TransitionSnapshot | null;
     activeFillPlan: FillTransitionPlan | null;
     activeBorderPlan: BorderTransitionPlan | null;
+    activeTopologyPlan: FrontierTransitionPlan | null;
 }
 
 export function createInitialTerritoryRuntimeState(): TerritoryRuntimeState {
@@ -21,5 +23,7 @@ export function createInitialTerritoryRuntimeState(): TerritoryRuntimeState {
         previousTransition: null,
         activeFillPlan: null,
         activeBorderPlan: null,
+        activeTopologyPlan: null,
     };
 }
+

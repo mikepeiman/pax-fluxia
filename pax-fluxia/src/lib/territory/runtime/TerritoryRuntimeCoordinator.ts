@@ -156,6 +156,7 @@ export class TerritoryRuntimeCoordinator {
             previousTransition: this.state.previousTransition,
             activeFillPlan: this.state.activeFillPlan,
             activeBorderPlan: this.state.activeBorderPlan,
+            activeTopologyPlan: this.state.activeTopologyPlan,
             selection: input.selection,
         });
 
@@ -235,6 +236,7 @@ export class TerritoryRuntimeCoordinator {
             previousTransition: transition.snapshot,
             activeFillPlan: transition.activeFillPlan,
             activeBorderPlan: transition.activeBorderPlan,
+            activeTopologyPlan: transition.activeTopologyPlan ?? null,
         };
 
         diagnostics.finishedAtMs = Date.now();

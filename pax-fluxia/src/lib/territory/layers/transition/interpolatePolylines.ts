@@ -125,7 +125,7 @@ function evaluateAtArcFraction(
  * @param t Progress [0, 1]
  * @param sampleCount Number of output vertices
  */
-function otInterpolatePolyline(
+export function otInterpolatePolyline(
     prev: [number, number][],
     next: [number, number][],
     t: number,
@@ -300,7 +300,7 @@ export function interpolateMatchedPolylines(
 // ---------------------------------------------------------------------------
 
 /** Compute the geometric midpoint of a polyline. */
-function polylineMidpoint(points: [number, number][]): [number, number] {
+export function polylineMidpoint(points: [number, number][]): [number, number] {
     if (points.length === 0) return [0, 0];
     let sx = 0, sy = 0;
     for (const [x, y] of points) {
