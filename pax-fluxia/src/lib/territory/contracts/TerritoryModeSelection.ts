@@ -1,9 +1,10 @@
 export type OwnershipModeId = 'star_ownership_snapshot';
 
 export type GeometryModeId =
-    | 'power_voronoi' // Weighted Power Voronoi Geometry
-    | 'boundary_aware_frontier' // Boundary-Constrained Frontier Geometry
-    | 'seed_graph'; // Seed-Graph Cluster-Split Geometry
+    | 'unified_vector' // Unified Vector Geometry (Phase 2 — subsumes all below)
+    | 'power_voronoi' // Weighted Power Voronoi Geometry (legacy)
+    | 'boundary_aware_frontier' // Boundary-Constrained Frontier Geometry (legacy)
+    | 'seed_graph'; // Seed-Graph Cluster-Split Geometry (legacy)
 
 export type FillTransitionModeId =
     | 'frontier_morph' // Frontier Topology Morph Fill
@@ -30,7 +31,7 @@ export interface TerritoryModeSelection {
 
 export const DEFAULT_TERRITORY_MODE_SELECTION: TerritoryModeSelection = {
     ownershipMode: 'star_ownership_snapshot',
-    geometryMode: 'boundary_aware_frontier',
+    geometryMode: 'unified_vector',
     fillTransitionMode: 'frontier_morph',
     borderTransitionMode: 'optimal_transport',
     styleMode: 'canonical',
