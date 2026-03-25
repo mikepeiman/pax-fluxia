@@ -476,3 +476,14 @@
 - **Affected files**: `GeometryTopologyDiff.ts`, `FrontierMorphFillMode.ts`
 - **Why it persisted**: The initial D-90 fix was not systematic — it targeted frontier polylines only. The same pattern in the region diff and fill morph was not caught because the investigation was scoped too narrowly.
 - **Rule**: When fixing a pattern bug, search the ENTIRE codebase for all instances of the pattern before committing — not just the first occurrence found.
+
+### D-93: Geometry Architecture Refactor — Single Canonical Pipeline
+- **Decision**: Replace fragmented geometry path (4 modes, 3 parallel pipelines, `legacyGeometryBridge`) with one authoritative compiler (`compileVectorGeometry()`) producing `CanonicalGeometrySnapshot`.
+- **Key changes**: Defined rich canonical contract (shells, provenance, diagnostics), created unified compiler with `buildOwnerShells()` (FG2 concepts absorbed), gutted `UnifiedVectorGeometryMode` to 21-line delegator, enforced single `'unified_vector'` mode ID.
+- **Smoothing placement**: Chaikin smoothing is a geometry concern (TERRITORY_ARCHITECTURE.md L69), applied in the compiler before emission. Renderers must NOT re-smooth.
+- **Affected files**: `GeometryContracts.ts`, `compiler_UnifiedVectorGeometry.ts` (NEW), `UnifiedVectorGeometryMode.ts`, `registry.ts`, `TerritoryModeSelection.ts`, `TerritorySettingsBridge.ts`, `TerritoryModeCatalog.ts`
+
+### D-94: DY4 Virtual-Star Transition Preservation
+- **Decision**: The current DY4 conquest transition mode (virtual-star-based) is the cleanest working transition mode and must be preserved via clean architectural conversion, not broken or deprecated.
+- **Clarification**: The "DY4" label now refers to the virtual-star mechanism (ownership layer emits decaying virtual stars, geometry recomputes for the changed star set). This is distinct from the previously-sacrosanct DY4 optimal transport border animation.
+- **Architecture compatibility**: The virtual-star mechanism flows naturally through Ownership → Geometry → Transition → Presentation layers and requires no special adaptation for the new canonical pipeline.
