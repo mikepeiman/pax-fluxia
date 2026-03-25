@@ -17,15 +17,9 @@ function asString(value: unknown, fallback: string): string {
     return typeof value === 'string' ? value : fallback;
 }
 
-function resolveGeometryMode(rawValue: unknown): TerritoryModeSelection['geometryMode'] {
-    const raw = asString(rawValue, DEFAULT_TERRITORY_MODE_SELECTION.geometryMode);
-    if (raw === 'unified_vector') return 'unified_vector';
-    if (raw === 'new_frontiers_0319') return 'boundary_aware_frontier';
-    if (raw === 'unified_polygon') return 'seed_graph';
-    if (raw === 'power_voronoi') return 'power_voronoi';
-    if (raw === 'boundary_aware_frontier') return 'boundary_aware_frontier';
-    if (raw === 'seed_graph') return 'seed_graph';
-    return DEFAULT_TERRITORY_MODE_SELECTION.geometryMode;
+function resolveGeometryMode(_rawValue: unknown): TerritoryModeSelection['geometryMode'] {
+    // All geometry modes are now unified. Any legacy string is silently normalized.
+    return 'unified_vector';
 }
 
 function resolveFillTransitionMode(config: Record<string, unknown>): TerritoryModeSelection['fillTransitionMode'] {

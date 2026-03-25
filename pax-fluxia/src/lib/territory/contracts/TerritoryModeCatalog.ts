@@ -28,25 +28,7 @@ export const GEOMETRY_MODE_CATALOG: Readonly<Record<GeometryModeId, ModeDescript
         id: 'unified_vector',
         name: 'Unified Vector Geometry',
         summary:
-            'Consolidated vector geometry mode using computeGeometry0319 with world borders and multimap frontier map. Supersedes all legacy modes.',
-    },
-    power_voronoi: {
-        id: 'power_voronoi',
-        name: 'Weighted Power Voronoi Geometry',
-        summary:
-            'Builds ownership regions from weighted Voronoi cells using direct power-diagram generation.',
-    },
-    boundary_aware_frontier: {
-        id: 'boundary_aware_frontier',
-        name: 'Boundary-Constrained Frontier Geometry',
-        summary:
-            'Builds frontier loops with explicit world-boundary handling and ownership-aware contour extraction.',
-    },
-    seed_graph: {
-        id: 'seed_graph',
-        name: 'Seed-Graph Cluster-Split Geometry',
-        summary:
-            'Uses graph-aware seed clustering with split smoothing to produce stable territory boundaries.',
+            'Consolidated vector geometry mode using the canonical compiler with world borders, shell classification, and frontier topology.',
     },
 };
 
