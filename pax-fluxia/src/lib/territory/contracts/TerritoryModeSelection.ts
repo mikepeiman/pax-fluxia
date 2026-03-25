@@ -1,10 +1,7 @@
 export type OwnershipModeId = 'star_ownership_snapshot';
 
 export type GeometryModeId =
-    | 'unified_vector' // Unified Vector Geometry (Phase 2 — subsumes all below)
-    | 'power_voronoi' // Weighted Power Voronoi Geometry (legacy)
-    | 'boundary_aware_frontier' // Boundary-Constrained Frontier Geometry (legacy)
-    | 'seed_graph'; // Seed-Graph Cluster-Split Geometry (legacy)
+    | 'unified_vector'; // Unified Vector Geometry — sole canonical mode
 
 export type FillTransitionModeId =
     | 'frontier_morph' // Frontier Topology Morph Fill

@@ -22,9 +22,9 @@
  * PIXI imports: NEVER
  */
 
-import { computeGeometry0319 } from '../../../compiler/Geometry_0319';
-import { buildFrontierTopology } from '../../../compiler/buildFrontierTopology';
-import type { TerritoryGeometryData, MergedTerritory } from '../../../compiler/powerVoronoiTerritoryGeometryGenerator';
+import { computeGeometry0319 } from '../../compiler/Geometry_0319';
+import { buildFrontierTopology } from '../../compiler/buildFrontierTopology';
+import type { TerritoryGeometryData, MergedTerritory } from '../../compiler/powerVoronoiTerritoryGeometryGenerator';
 import type {
     CanonicalGeometrySnapshot,
     CanonicalFrontierPolyline,
@@ -37,12 +37,12 @@ import type {
     GeometryLayerInput,
 } from '../../contracts/GeometryContracts';
 import type { FrontierTopology } from '../../contracts/FrontierTopologyContracts';
-import { buildGeometryVersion } from '../planners/GeometryFingerprint';
+import { buildGeometryVersion } from './planners/GeometryFingerprint';
 import {
     buildGeneratorSettings,
     createEmptyTerritoryGeometryData,
     isCompileError,
-} from '../modes/geometryModeUtils';
+} from './modes/geometryModeUtils';
 import { log } from '$lib/utils/logger';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
