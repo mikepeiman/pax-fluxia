@@ -1,0 +1,331 @@
+# Pax Fluxia — Game Mechanics
+
+**Version:** 4.0  
+**Last Updated:** 2026-02-08
+
+This document is the canonical, definitive specification of all game mechanics. It describes *what the game does*, not how to implement it.
+
+---
+
+## 0. Canonical Terminology (D-70, 2026-03-14)
+
+All code, documentation, and agent communications use these terms:
+
+| Term | Definition |
+|------|-----------|
+| **Territory** | A grouping of connected same-owner stars and all the space within its bounds |
+| **Front** | The line/curve where two opposing territories meet |
+| **Holding** | The sum total of a player's territories across the sector |
+| **Sector** | The game map |
+
+**Future roadmap terms** (not yet in game):
+
+| Term | Definition |
+|------|-----------|
+| **Frontier** | A front that faces unexplored space |
+| **District** | A higher-level map composed of sectors |
+| **Quadrant** | A higher-level map composed of districts |
+| **Galaxy** | The highest-level map composed of quadrants |
+
+> [!NOTE]
+> Variable rename migration is tracked as a separate task. Code currently uses legacy names like `frontierGraph`, `ownerShells`, `holdings` etc. that will be mapped to canonical terms.
+
+---
+
+## 1. Star Types
+
+Each star type has a **2× bonus** in one specialty. All other multipliers are 1.0.
+
+| Type | Color | Specialty | Effect | Strategic Role |
+|------|-------|-----------|--------|---------------|
+| **Grey** | `#8899aa` | None | Baseline stats | No advantage |
+| **Yellow** | `#fbbf24` | Production | 2× ship generation rate | Economy |
+| **Blue** | `#3b82f6` | Speed | 2× transfer rate (0.2 vs 0.1) | Logistics |
+| **Purple** | `#a855f7` | Repair | 2× repair rate (0.4 vs 0.2) | Attrition |
+| **Red** | `#ef4444` | Defense | 2× defense strength | Fortress |
+| **Green** | `#22c55e` | Attack | 2× attack power | Assault |
+
+### Star Properties
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `activationRate` | 0.50 | % of captured damaged ships becoming active |
+| `defensivePosture` | 1.0 | Defensive posture modifier |
+| `defenseStrength` | 1.0 | Defense multiplier (Red = 2.0) |
+| `repairRate` | 0.20 | % of damaged ships repaired per tick (Purple = 0.4) |
+| `transferRate` | 0.10 | Base transfer rate (Blue = 0.2) |
+
+---
+
+## 2. Ship States
+
+Ships exist in two states:
+
+| State | Description |
+|-------|-------------|
+| **Active** | Combat-ready. Participate in attacks, defense, and transfer. |
+| **Damaged** | In repair pool. Contribute to defense at reduced effectiveness (14%). Cannot attack or transfer. |
+
+---
+
+## 3. Tick Order
+
+Every tick (default 1200ms at 1× speed), the engine processes in this exact order:
+
+1. **Production** — Stars generate ships: `BASE_PRODUCTION × productionRate`
+2. **Orders** — Process reinforcements (friendly transfers), then resolve attacks
+3. **Repair** — Damaged ships heal: `max(MIN_REPAIR, repairRate × damagedShips)`
+4. **Stats** — Aggregate player totals
+5. **Win Check** — Last player standing wins
+
+---
+
+## 4. Production
+
+Each owned star produces ships per tick:
+
+```
+shipsProduced = BASE_PRODUCTION × starType.prod
+```
+
+- `BASE_PRODUCTION`: 0.5 ships/tick (default)
+- Yellow stars produce at 2× rate (1.0 ships/tick)
+- Fractional ships accumulate; a ship appears when the total reaches the next integer
+
+---
+
+## 5. Transfer (Reinforcement)
+
+When a star has an order targeting a **friendly** star, it sends ships along the lane each tick.
+
+```
+transferAmount = max(MIN_SHIPS_PER_TRANSFER, ceil(activeShips × TRANSFER_RATE))
+```
+
+- `TRANSFER_RATE`: 10% of active ships per tick (default)
+- `MIN_SHIPS_PER_TRANSFER`: 1
+- Blue stars: 2× transfer rate
+
+**Order Persistence**: Orders persist until explicitly cancelled by the player. 
+
+**Attack vs Transfer**: Attacks are remote engagement, with an animation "surge/recede" effect to represent combat force — ships stay at their source star and deal damage across the lane. Only reinforcements (friendly transfers) involve physical ship movement from star to star.
+
+---
+
+## 6. Combat (V4 — Symmetric Damage Model)
+
+Combat occurs when a star has an order targeting an **enemy** star. Both sides take damage simultaneously each tick. Ships do not effectively leave their star during combat, aside from the visual representation as mentioned.
+
+### 6.1. Damage Formula (Per Tick)
+
+```
+baseOutput   = myShips × DAMAGE_PER_SHIP
+aggressorMod = isAttacking ? AGGRESSOR_ADVANTAGE : 1.0
+ratioBonus   = 1 + log₂(ratio) × FORCE_RATIO_EFFECT
+finalDamage  = ceil(baseOutput × aggressorMod × ratioBonus)
+```
+
+### 6.2. Damage Split
+
+```
+killed   = floor(finalDamage × LETHALITY)
+disabled = floor(finalDamage × (1 - LETHALITY))
+```
+
+- Killed ships are permanently removed
+- Disabled ships move to the damaged pool (can be repaired)
+
+### 6.3. Combat Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DAMAGE_PER_SHIP` | 0.10 | Base damage per ship per tick |
+| `LETHALITY` | 0.25 | % of damage that destroys (rest disables) |
+| `AGGRESSOR_ADVANTAGE` | 0.70 | Multiplier for attacking side (<1 = defender advantage) |
+| `FORCE_RATIO_EFFECT` | 0.00 | Numerical superiority bonus (0 = disabled) |
+| `MINIMUM_DAMAGE` | 1 | Floor damage per tick |
+| `DAMAGED_SHIP_EFFECTIVENESS` | 0.14 | Fraction of damaged ships counting toward defense |
+
+### 6.4. Effective Defender Force
+
+Damaged ships contribute to defense at reduced effectiveness:
+
+```
+defenderForce = activeShips + floor(damagedShips × DAMAGED_SHIP_EFFECTIVENESS)
+```
+
+### 6.5. Multi-Star Combat (Per-Player Aggregation)
+
+When multiple stars attack the same target:
+
+1. Group all attackers by **ownerId** (player)
+2. **Total damage** to defender = all attackers combined (all players)
+3. Damage to attackers distributed proportionally by each star's ship contribution
+4. **Victor** = the **player** with the largest total attacking ships, not any individual star
+5. `executeConquest` receives the strongest individual star of the winning player
+
+---
+
+## 7. Conquest
+
+Conquest triggers when:
+
+- `defender.activeShips ≤ 0` (attrition victory), **OR**
+- `defender.activeShips ≤ totalAttackerShips / CONQUEST_THRESHOLD` (overwhelm)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CONQUEST_THRESHOLD` | 8 | Attacker:defender ratio for overwhelm |
+| `CONQUEST_TRANSFER_PERCENTAGE` | 50% | Winning ships transferred to conquered star |
+
+### 7.1. Conquest Resolution
+
+1. Defender ownership transfers to winning **player**
+2. 50% of winning player's attacking ships transfer to conquered star
+3. Defender's damaged ships are zeroed
+4. Surviving defender ships undergo scatter/retreat (see §8)
+5. All orders targeting this star from **other players** are cancelled (including chained orders)
+6. Winning player's orders to this star are cancelled (star is now friendly) IF the player has chosen that option `MAINTAIN_ORDERS_ON_CONQUEST = false`
+7. Queued (deferred) orders activate if set
+
+---
+
+## 8. Scatter & Retreat
+
+When a star is conquered, the defender's surviving ships attempt to escap if possible (if escape routes exist).
+
+### 8.1. Retreat (Ordered)
+
+If the defending star has an active order targeting a **friendly** star:
+
+- `RETREAT_CAPTURE_RATE` (25%) of damaged ships are captured by the attacker
+- Remaining 67% escape to the ordered target
+
+### 8.2. Scatter (Unordered)
+
+If the defending star has **no retreat order** but has friendly neighbors:
+
+- `SCATTER_CAPTURE_RATE` (40%) of ships are captured
+- Of the remaining 50%:
+  - `SCATTER_DESTROY_RATE` (40%) are destroyed
+  - Rest scatter equally to connected friendly stars
+
+### 8.3. No Escape
+
+If no friendly neighbors exist:
+
+- 100% of ships are captured by the attacker
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `RETREAT_CAPTURE_RATE` | 0.25 | % captured when defender retreats |
+| `SCATTER_CAPTURE_RATE` | 0.40 | % captured when defender scatters |
+| `SCATTER_DESTROY_RATE` | 0.40 | % of non-captured destroyed on scatter |
+
+---
+
+## 9. Repair
+
+Each tick, damaged ships are repaired:
+
+```
+repaired = max(MIN_REPAIR, repairRate × damagedShips)
+```
+
+- `REPAIR_RATE`: 0.10 (10% per tick, default)
+- `MIN_REPAIR`: 1 ship minimum per tick
+- Purple stars: 2× repair rate (0.2)
+- `REPAIR_COMBAT_PENALTY`: 10 (`REPAIR_RATE / 10`) repair is reduced by a magnitude during combat
+
+---
+
+## 10. Orders
+
+### 10.1. Active Order
+
+A star's `targetId` directs its behavior:
+
+- **Friendly target** → Reinforcement (ships transfer along lane)
+- **Enemy target** → Attack (remote engagement, ships stay)
+- **null** → Idle (produce and repair only)
+
+### 10.2. Queued (Deferred) Order
+
+`queuedOrderTargetId` stores a second order that activates when the star is conquered. This enables chain-through strategies where a player pre-plans the flow after capturing a key star.
+
+### 10.3. Order Persistence
+
+- Orders persist until **explicitly cancelled** by the player
+- When a star is conquered by a third party, orders from non-victors targeting that star are cancelled
+- The conquering player's orders to the now-friendly star will persist if the player has set option `MAINTAIN_ORDERS_ON_CONQUEST = true`, otherwise they are cancelled
+
+---
+
+## 11. AI Behavior
+
+The AI evaluates all its stars each tick and issues orders based on configurable thresholds.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `AI_ATTACK_THRESHOLD` | 1.33 | Min ship ratio to initiate attack |
+| `AI_DESIST_THRESHOLD` | 1.00 | Ratio at which AI stops attacking |
+| `AI_RANDOM_AGGRESSION` | 0.05 | Chance per tick to launch a random attack |
+| `AI_RANDOM_ATTACK_PERSISTENCE` | 3 | Number of ticks to maintain a random attack |
+| `AI_TACTICAL_AGGRESSION` | 0.10 | Chance to attack weak target as bait | 
+
+---
+
+## 12. Map Generation
+
+Stars are placed on a hex grid and connected via Delaunay triangulation.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `STARS_PER_PLAYER` | 5 | Stars each player starts with |
+| `MIN_LINKS_PER_STAR` | 1 | Minimum connections per star |
+
+---
+
+## 25. Territory Engine Diagnostic Geometry (2026-03-12)
+
+These notes describe current FG2 diagnostic semantics for frontier geometry development.
+
+- `regionLoops` are owner-pair loop artifacts extracted from half-edge face walking. They remain pairwise diagnostic surfaces, including the current exterior-face candidate.
+- `ownerRegionLoops` are promoted only from canonical pairwise loops that have a strict owner attribution from link provenance (`viaOwner` on `star_arc` and `boundary_extension` edges).
+- Tied owner attribution is intentionally kept out of owner-region promotion. Ambiguous loops remain diagnostic-only until a stronger ownership classifier exists.
+- In trace mode, owner-region loops should be interpreted as the first candidate territory pieces presently available from FG2, while pairwise region loops remain scaffolding for debugging frontier topology and exterior/canonical partitioning.
+- FG2 star-side junctions now come from the global angular order of all contested seeds incident to a star, not from owner-pair-local incidence only. Different owner-pairs can therefore terminate at the same synthesized junction.
+- FG2 only projects a frontier side to the world boundary when the corresponding star truly has `<= 1` global contested seed on that side.
+- `ownerRegionLoops` now prefers globally resolved owner-region candidates from a merged face walk when available; pair-local owner-region loops remain the fallback diagnostic set.
+- `ownerShells` are snapshotted into shell frames and fingerprinted so FG2 can detect shell-geometry or shell-topology changes between updates.
+- `ownerShellTransitions` pair shells per owner using centroid, area, perimeter, hole-count, and world-boundary heuristics, then attach explicit contour correspondences; spawn/vanish transitions collapse to the shell centroid.
+- While shell playback is active, displayed border presentation now uses animated shell contours (`animated_shell_contours`) instead of the target frame's static pair-frontier polylines.
+- FG2 now keeps owner-shell contours as the displayed border source whenever shell geometry exists. `pair_frontiers` are render-stage fallback only when shell geometry is unavailable.
+- Static owner-shell fills now draw the outer shell path, then subtract each classified `holeLoopId` using Pixi `Graphics.cut()`, so enclave holes survive in the visible fill artifact.
+- Owner-shell frame snapshots and transition artifacts now carry explicit hole-loop geometry, and shell-frame fingerprints include hole geometry rather than only hole counts.
+- Interpolated displayed shells now publish a usable hole-loop set chosen from previous/current shell state so playback can continue cutting holes; true hole-to-hole interpolation is still pending.
+- Owner-shell transitions now select shell matches globally per owner from all previous/current candidates rather than greedily by current-shell iteration. Each previous shell can match at most one current shell.
+- Hole transitions inside a shell transition now use the same non-conflicting candidate selection model, providing a more stable identity mapping for enclaves during topology changes.
+- Interpolated hole loops are sanitized against the currently displayed shell polygon before render use. Degenerate or out-of-shell hole loops are dropped instead of being passed through to cutout rendering.
+- Animation and render diagnostics now expose owner-shell-hole transition counts and contour sample counts for trace/debug review.
+
+---
+
+## 13. Territory Lane Constraints (D-75, 2026-03-15)
+
+**Lane-exclusivity rule**: Only one or two player holdings may underlay any lane. No third player's territory may touch or extend over any point along a lane.
+
+A lane is in one of two states:
+
+| State | Description |
+|-------|-------------|
+| **Single-owner** | The lane is entirely within one player's holding. Both connected stars belong to the same player. |
+| **Contested** | The lane has a front between exactly two players somewhere along it. Typically near the midpoint, but the front position varies with surrounding geometry (MSR, CX, and other constraints). |
+
+**Never allowed**: A third player's territory touching or overlapping a lane between two other players' stars.
+
+**This replaces the DX (disconnect separation) constraint.** DX used virtual enemy sites at arbitrary distances to separate non-connected same-owner territories. The lane-exclusivity rule is a cleaner constraint that directly expresses the intended gameplay behavior.
+
+> [!NOTE]
+> The MSR (minimum star radius) and CX (corridor extension) constraints remain in effect. MSR prevents fronts from getting too close to owned stars. CX ensures territory fills along connected lanes rather than cutting across them.
+
