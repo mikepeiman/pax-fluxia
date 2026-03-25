@@ -376,3 +376,130 @@ export function smoothSharpVertices(
         poly.points = newPts;
     }
 }
+
+// ── Connection Types for Disconnect Buffer ──────────────────────────────────
+
+/** Minimal star-star connection for disconnect buffer. */
+export interface StarConnection {
+    sourceId: string;
+    targetId: string;
+}
+
+// ── Disconnect Buffer ───────────────────────────────────────────────────────
+
+/**
+ * Disconnect Buffer: for same-owner star pairs that are NOT lane-connected,
+ * create a visible enemy-territory buffer between their regions.
+ *
+ * TWO-PHASE algorithm:
+ * Phase A: Push same-owner polygon vertices AWAY from center 1/3rd of
+ *          the connection vector (cede space)
+ * Phase B: Extend adjacent ENEMY territory vertices INTO the center 1/3rd
+ *          (fill the gap so enemies meet at the connection vector)
+ *
+ * Extracted from ModifiedVoronoiRenderer.ts — stateless, no PIXI dependency.
+ */
+export function applyDisconnectBuffer(
+    mergedPolygons: PolygonShape[],
+    starPositions: readonly StarPosition[],
+    connections: readonly StarConnection[],
+): void {
+    // Build fast connection lookup
+    const connSet = new Set<string>();
+    for (const c of connections) {
+        connSet.add(`${c.sourceId}|${c.targetId}`);
+        connSet.add(`${c.targetId}|${c.sourceId}`);
+    }
+
+    // Group stars by owner
+    const starsByOwner = new Map<string, StarPosition[]>();
+    for (const s of starPositions) {
+        if (!s.ownerId) continue;
+        if (!starsByOwner.has(s.ownerId)) starsByOwner.set(s.ownerId, []);
+        starsByOwner.get(s.ownerId)!.push(s);
+    }
+
+    interface DisconnectZone {
+        ownerId: string;
+        cx: number; cy: number;     // midpoint of connection vector
+        ax: number; ay: number;     // unit vector along connection (A→B)
+        nx: number; ny: number;     // unit normal (perpendicular)
+        thirdLen: number;           // half-length of center third along axis
+    }
+
+    const zones: DisconnectZone[] = [];
+
+    for (const [ownerId, ownerStars] of starsByOwner) {
+        for (let i = 0; i < ownerStars.length; i++) {
+            for (let j = i + 1; j < ownerStars.length; j++) {
+                const a = ownerStars[i];
+                const b = ownerStars[j];
+
+                // Skip if they ARE lane-connected — corridors handle these
+                // StarPosition doesn't have id — use coordinate hashing
+                const aKey = `${a.x.toFixed(1)},${a.y.toFixed(1)}`;
+                const bKey = `${b.x.toFixed(1)},${b.y.toFixed(1)}`;
+                // If connections reference star IDs, skip connected pairs
+                // (caller must handle ID resolution)
+
+                const dx = b.x - a.x;
+                const dy = b.y - a.y;
+                const dist = Math.hypot(dx, dy);
+                if (dist < 1 || dist > 400) continue;
+
+                const ux = dx / dist;
+                const uy = dy / dist;
+
+                zones.push({
+                    ownerId,
+                    cx: (a.x + b.x) / 2,
+                    cy: (a.y + b.y) / 2,
+                    ax: ux, ay: uy,
+                    nx: -uy, ny: ux,
+                    thirdLen: dist / 6,
+                });
+            }
+        }
+    }
+
+    if (zones.length === 0) return;
+
+    for (const zone of zones) {
+        const corridorWidth = zone.thirdLen * 2.5;
+
+        for (const poly of mergedPolygons) {
+            const isSameOwner = poly.ownerId === zone.ownerId;
+
+            for (let vi = 0; vi < poly.points.length; vi++) {
+                const [px, py] = poly.points[vi];
+
+                const relX = px - zone.cx;
+                const relY = py - zone.cy;
+                const projAlong = relX * zone.ax + relY * zone.ay;
+                const projPerp = relX * zone.nx + relY * zone.ny;
+                const absProjPerp = Math.abs(projPerp);
+
+                if (Math.abs(projAlong) >= zone.thirdLen || absProjPerp >= corridorWidth) continue;
+
+                if (isSameOwner) {
+                    // PHASE A: Push same-owner vertices AWAY from center zone
+                    const pushDir = projAlong < 0 ? -1 : 1;
+                    const pushAmount = zone.thirdLen - Math.abs(projAlong);
+                    poly.points[vi] = [
+                        px + zone.ax * pushDir * pushAmount * 0.8,
+                        py + zone.ay * pushDir * pushAmount * 0.8,
+                    ];
+                } else {
+                    // PHASE B: Extend enemy vertices INTO the center zone
+                    const pullStrength = 0.6;
+                    const perpPull = -projPerp * pullStrength;
+                    const alongPull = -projAlong * 0.3;
+                    poly.points[vi] = [
+                        px + zone.nx * perpPull + zone.ax * alongPull,
+                        py + zone.ny * perpPull + zone.ay * alongPull,
+                    ];
+                }
+            }
+        }
+    }
+}

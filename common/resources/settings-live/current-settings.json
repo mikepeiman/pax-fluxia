@@ -219,7 +219,7 @@
   "TERRITORY_PIXEL": false,
   "TERRITORY_CLUSTER_SPLIT": false,
   "TERRITORY_MODE": "metaball",
-  "TERRITORY_RENDER_MODE": "territory_engine",
+  "TERRITORY_RENDER_MODE": "territory_canonical",
   "TERRITORY_ARCHITECTURE_PATH": "clean",
   "SHOW_VORONOI": false,
   "NEUTRAL_TERRITORY_TRANSPARENT": true,

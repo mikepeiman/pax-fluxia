@@ -285,13 +285,7 @@
     ] as const;
 
     const GEOMETRY_OPTIONS = [
-        { id: "unified_vector", label: "Unified Vector (0324)" },
-        { id: "power_voronoi", label: "Weighted Power Voronoi" },
-        { id: "unified_polygon", label: "Unified Polygon (Dense Resampled)" },
-        {
-            id: "new_frontiers_0319",
-            label: "Boundary-Constrained Frontier (0319)",
-        },
+        { id: "unified_vector", label: "Unified Vector Geometry" },
     ] as const;
 
     /** Map style IDs to old boolean flag panel keys (backward compat) */
@@ -363,14 +357,8 @@
 
     /**
      * Handle geometry mode button clicks.
-     *
-     * Data flow: UI click → selectGeometryMode()
-     *   1. Sets TERRITORY_GEOMETRY_MODE via panel→config sync (settingsDefs.ts PANEL_CONFIG_MAP)
-     *   2. Bumps __GEOMETRY_REFRESH_TOKEN so even re-clicking same mode forces recompute
-     *      (buildShapeFingerprint in PowerVoronoiRenderer.ts includes this token)
-     *   3. For 'new_frontiers_0319': also sets TERRITORY_ENGINE_METHOD so runLegacyAdapter
-     *      in engine.ts routes to computeGeometry0319 (compiler/Geometry_0319.ts)
-     *   4. For other modes: resets TERRITORY_ENGINE_METHOD to default if it was set to new_frontiers
+     * Since the architecture now has a single canonical mode, this simply
+     * sets the config key and bumps the refresh token.
      */
     function selectGeometryMode(modeId: string) {
         debouncedConfigUpdate(
@@ -381,28 +369,12 @@
         // Bump refresh token on every click — even re-clicking same mode forces recompute
         (GAME_CONFIG as any).__GEOMETRY_REFRESH_TOKEN =
             ((GAME_CONFIG as any).__GEOMETRY_REFRESH_TOKEN ?? 0) + 1;
-        // When unified_vector or New-Frontiers-0319 is selected, also set TERRITORY_ENGINE_METHOD
-        // so the engine dispatch routes to computeGeometry0319.
-        // When switching away, reset to the current default method.
-        if (modeId === "unified_vector" || modeId === "new_frontiers_0319") {
-            debouncedConfigUpdate(
-                "TERRITORY_ENGINE_METHOD",
-                "territoryEngineMethod",
-                "new_frontiers_0319",
-            );
-        } else {
-            // Reset engine method to DY4 default when not using new frontiers
-            const currentMethod =
-                panel.territoryEngineMethod ??
-                GAME_CONFIG.TERRITORY_ENGINE_METHOD;
-            if (currentMethod === "new_frontiers_0319") {
-                debouncedConfigUpdate(
-                    "TERRITORY_ENGINE_METHOD",
-                    "territoryEngineMethod",
-                    "dy4_optimal_transport",
-                );
-            }
-        }
+        // Single mode: always set engine method to match
+        debouncedConfigUpdate(
+            "TERRITORY_ENGINE_METHOD",
+            "territoryEngineMethod",
+            "new_frontiers_0319",
+        );
     }
 </script>
 
