@@ -171,10 +171,24 @@ Self-enforce: "Did I update the docs that changed?" If not, update before pushin
 ## 7. Architecture Notes
 
 ### Shared Engine
-`@pax/common` â€” canonical game logic, shared between client & server.
+`@pax/common` — canonical game logic, shared between client & server.
 - `schema()` function pattern for Colyseus serialization
 - `sessionId` is the authoritative player key
 - Client = presentation layer, server = authority
+
+### Territory Rendering Pipeline (2026-03-25)
+**Canonical 4-layer pipeline**: Ownership → Geometry → Transition → Presentation.
+
+| Layer | Entry Point | Output |
+|-------|------------|--------|
+| **Ownership** | `StarOwnershipSnapshotMode` | `OwnershipSnapshot` (who owns what, virtual stars for DY4) |
+| **Geometry** | `compileVectorGeometry()` in `compiler_UnifiedVectorGeometry.ts` | `CanonicalGeometrySnapshot` (regions, frontiers, shells, topology) |
+| **Transition** | `TransitionLayerCoordinator` | `TransitionSnapshot` (fill/border frames, envelope) |
+| **Presentation** | `PowerVoronoiRenderer` (PVV2) | PIXI.Graphics draws |
+
+**Single geometry mode**: `unified_vector` — sole `GeometryModeId`. `UnifiedVectorGeometryMode` is a 21-line delegator to the compiler.
+**Conquest transitions**: DY4 virtual-star mechanism (ownership emits decaying virtual stars → compiler recomputes → smoother transitions).
+**Smoothing**: Chaikin smoothing is a geometry concern (applied in compiler). Renderers must NOT re-smooth.
 
 ### Known Gotchas
 - Colyseus `Symbol.metadata` crash: use `defineTypes()` not `@type` decorators
