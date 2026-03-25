@@ -1,28 +1,29 @@
 # Geometry Architecture Refactor — Master Plan
 
-**Created:** 2026-03-24  
+**Created:** 2026-03-24 | **Revision:** 2 (post-review)  
 **Authority:** Perplexity 2026-03-24 Mandate, Migration Map v3.1, Consolidation Analysis  
-**Status:** APPROVED — Ready for execution
+**Status:** APPROVED — Step 1 in progress
 
 ---
 
 ## Objective
 
-Replace the fragmented territory geometry path with **one authoritative vector geometry compiler** and **one authoritative vector geometry mode**. Downstream consumers (transitions, presentation styles) must be refactored to consume the new canonical contract. Legacy modes and bridges must be deleted.
+Replace the fragmented territory geometry path with **one authoritative vector geometry compiler** and **one authoritative vector geometry mode**. Establish the canonical **raster-derived geometry** path as a parallel family with its own ownership-field contract. Downstream consumers (transitions, presentation styles) must be refactored to consume the new canonical contracts. Legacy modes and bridges must be deleted.
 
 ---
 
 ## Governing Principles
 
-1. **One authoritative runtime path.** No parallel vector geometry pipelines.
-2. **One typed output contract per layer.** `CanonicalGeometrySnapshot` is the sole geometry output.
-3. **Architecture first, compatibility never.** Old internal APIs, bridges, and mode distinctions are deleted, not preserved.
+1. **One authoritative runtime path per family.** No parallel vector geometry pipelines. Raster-derived geometry uses a separate, explicit extraction path.
+2. **One typed output contract per layer.** `CanonicalGeometrySnapshot` is the sole geometry output (both vector-native and raster-derived emit this shape).
+3. **Architecture first.** Old internal APIs, bridges, and mode distinctions are deleted, not preserved.
 4. **Styles never choose geometry algorithms.** Presentation consumes canonical data blindly.
-5. **No geometric guessing.** Topology matching uses explicit graph IDs (`ptKey`, `ownerPairKey`, section IDs), never centroids or bounding boxes.
+5. **No geometric guessing.** Topology matching uses explicit graph IDs (`ptKey`, `ownerPairKey`, `sectionId`), star ownership influence attribution, and `SectionInfluence` scores — not ad-hoc heuristics.
 6. **FrontierSection uniqueness.** A section exists EXACTLY ONCE. Two owners do NOT get separate copies. Region loops reference sections by ID; they do not own copied points.
-7. **Smoothing is a presentation concern.** Frame samplers output raw interpolated segments. Chaikin smoothing, corner-cutting, and disconnect buffers are applied by the presentation layer after transition scaling.
+7. **Smoothing is a geometry concern.** Chaikin smoothing is applied inside the compiler, before emission into `CanonicalGeometrySnapshot`. Coordinates shipped to the transition and presentation layers are FINAL — renderers must NEVER re-smooth or re-sample. *(Authority: TERRITORY_ARCHITECTURE.md L69, ARCHITECTURE_GUIDING_PRINCIPLES.md L64)*
 8. **No sacrosanct modes.** All transition modes (including DY4) are subordinate to the new geometry contract.
-9. **Extraction before deletion.** Before purging any file, verify all unique algorithms have been extracted into `geometryUtils.ts` or the unified compiler. **CONSULT HUMAN before executing the purge.**
+9. **Extraction before deletion.** Before purging any file, verify all unique algorithms have been extracted. **CONSULT HUMAN before the purge.**
+10. **Do NOT move the goalposts or choose the easier way.** Refactor to the correct architecture, not to the expedient one.
 
 ---
 
@@ -49,18 +50,22 @@ Parallel paths:
 
 ```
 GeometryLayerCoordinator
-  → registry.ts (1 mode)
+  → registry.ts (1 vector mode)
     → UnifiedVectorGeometryMode (3-line delegator)
       → compileVectorGeometry() [compiler_UnifiedVectorGeometry.ts]
-        → computeGeometry0319() (internal)
+        → computeGeometry0324() (renamed, reevaluated)
         → buildOwnerShells() (FG2 concepts absorbed)
         → buildFrontierTopology() (existing Phase 1 work)
-  → CanonicalGeometrySnapshot (rich: regions, frontiers, shells, topology)
+        → Chaikin smoothing (geometry layer, pre-emission)
+  → CanonicalGeometrySnapshot (rich: regions, frontiers, shells, topology, provenance)
 
 No parallel paths.
 No legacyGeometryBridge.
 No internal geometry calls in renderers.
+No smoothing in renderers.
 ```
+
+> **NOTE:** `computeGeometry0319` → `computeGeometry0324`. The existing geometry generator must be reevaluated for validity and quality before adoption. The rename marks this refactor plan.
 
 ---
 
@@ -79,25 +84,29 @@ No internal geometry calls in renderers.
 ## Key Constraints
 
 ### From the Migration Map v3.1
-- `computeGeometry0319` is the sole approved compiler foundation.
-- FG2 concepts (half-edges, face walks, shells) must be absorbed, not preserved as a parallel runtime.
-- `smoothSharpVertices()` must be extracted from `ModifiedVoronoiRenderer.ts` before that file is deleted.
+- `computeGeometry0319` (to be renamed `0324`) is the sole approved compiler foundation — **after reevaluation**
+- FG2 concepts (half-edge structure via `FG2HalfEdge`, face walks via `FG2FaceWalk`, shell classification via `FG2OwnerShellArtifact`) must be absorbed
+- `smoothSharpVertices()` must be extracted from `ModifiedVoronoiRenderer.ts` before deletion
 
 ### From the Perplexity Mandate
-- Compilation orchestration must NOT live in mode classes.
-- Do NOT expose `computeGeometry0319` directly as a selectable mode.
-- Do NOT preserve `legacyGeometryBridge` as a design constraint.
-- Do NOT keep compatibility wrappers just to reduce churn.
+- Compilation orchestration must NOT live in mode classes
+- Do NOT expose `computeGeometry0319` directly as a selectable mode
+- Do NOT preserve `legacyGeometryBridge` as a design constraint
+- Do NOT keep compatibility wrappers just to reduce churn
+- **Do NOT move the goalposts or choose the easier way**
 
 ### From the Frontier Topology Project (Phase 1, already completed)
-- `FrontierTopologyContracts.ts` defines `FrontierVertex`, `FrontierSection`, `RegionLoop`, `FrontierTopology`.
-- `buildFrontierTopology.ts` converts TMAP → FrontierTopology.
-- These types are already on `GeometrySnapshot` as an optional field — they must become part of the mandatory `CanonicalGeometrySnapshot`.
+- `FrontierTopologyContracts.ts` defines `FrontierVertex`, `FrontierSection`, `RegionLoop`, `FrontierTopology`
+- `buildFrontierTopology.ts` converts TMAP → FrontierTopology
+- Phase 3 defines transition planner with **star influence as a high-weight matching criterion**
+- Phase 4 frame sampler guarantees fill/border alignment through shared section interpolation
+- Phase 5 defines shared-plan transition mode pattern
 
 ### From User Corrections
-- **No centroids or BBox matching.** Topology matching relies on exact graph IDs only.
-- **Smoothing after interpolation.** Raw segments are output by frame samplers; smoothing is a presentation-layer concern applied before PIXI draw calls.
-- **DY4 is not sacrosanct.** It must conform to the new architecture or be rewritten.
+- **Smoothing is geometry, not presentation.** Per TERRITORY_ARCHITECTURE.md L69.
+- **DY4 is not sacrosanct.** Must conform to new architecture or be rewritten.
+- **computeGeometry0319 must be reevaluated and renamed to 0324.**
+- **FG2 is mined and purged**, not preserved as a parallel system.
 
 ---
 
@@ -105,17 +114,13 @@ No internal geometry calls in renderers.
 
 | Document | Location | Key Content |
 |----------|----------|-------------|
-| Perplexity Mandate | `geometry-atlas/Perplexity 2026-03-24 geometry refactor code agent detailed prompt.md` | 12-step execution directive |
+| Perplexity Mandate | `geometry-atlas/Perplexity 2026-03-24...detailed prompt.md` | 12-step execution directive |
 | Migration Map v3.1 | `geometry-atlas/Geometry pipeline refactor 2026-03-24.md` | 4-phase refactor plan |
-| Consolidation Analysis | `geometry-atlas/GEOMETRY_CONSOLIDATION_ANALYSIS.md` | 2-method simplification rationale |
-| Geometry Atlas | `geometry-atlas/GEOMETRY_ATLAS.md` | Full inventory (~12K LOC, 5 tiers) |
-| Perplexity Plan Round 1 | `geometry-atlas/Perplexity 2026-03-24 geometry refactor plan round 1.md` | TypeScript interfaces for contracts |
-| Perplexity Plan Round 2 | `geometry-atlas/Perplexity 2026-03-24 geometry refactor plan round 2.md` | Raster contracts, transition tiers |
-| Perplexity Part 1 (Code) | `geometry-atlas/Geometry pipeline refactor 2025-03-24 Perplexity part 1.md` | `UnifiedVectorGeometryMode` template |
-| Frontier Topology Overview | `frontier-topology-project/00-PROJECT-OVERVIEW.md` | 5-phase topology project scope |
-| Frontier Topology Phase 3 | `frontier-topology-project/03-PHASE-3-TRANSITION-PLANNER.md` | 10-step transition planner algorithm |
-| Frontier Topology Phase 4 | `frontier-topology-project/04-PHASE-4-FRAME-SAMPLER.md` | 7-step frame sampler algorithm |
-| Frontier Topology Phase 5 | `frontier-topology-project/05-PHASE-5-PRESENTATION.md` | Shared-plan transition mode pattern |
-| Frontier Topology Phase 0 Audit | `frontier-topology-project/00A-PHASE-0-AUDIT.md` | Compiler already computes 95% of topology data |
-| Frontier Topology CODE-MAP | `frontier-topology-project/CODE-MAP.md` | Exact file/function/line references |
+| Consolidation Analysis | `geometry-atlas/GEOMETRY_CONSOLIDATION_ANALYSIS.md` | FG2 concepts list, deletion guide |
+| Geometry Atlas | `geometry-atlas/GEOMETRY_ATLAS.md` | Full inventory (~12K LOC) |
+| Perplexity Plan Rounds 1-2 | `geometry-atlas/Perplexity...plan round 1.md`, `...round 2.md` | TypeScript interfaces, raster contracts |
+| Territory Architecture | `TERRITORY_ARCHITECTURE.md` | Smoothing = geometry layer (L69) |
+| Architecture Guiding Principles | `ARCHITECTURE_GUIDING_PRINCIPLES.md` | Smoothing placement table (L64) |
+| Frontier Topology Phases 0-5 | `frontier-topology-project/0*.md` | Topology types, planner, sampler |
+| Frontier Topology CODE-MAP | `frontier-topology-project/CODE-MAP.md` | File/function/line references |
 | Transition Inventory | `TERRITORY_TRANSITION_INVENTORY.md` | All transition types and call flows |

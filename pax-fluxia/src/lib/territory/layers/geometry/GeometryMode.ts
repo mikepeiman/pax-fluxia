@@ -1,8 +1,16 @@
 export type {
     GeometryLayerInput,
     GeometryMode,
+    CanonicalGeometrySnapshot,
     GeometrySnapshot,
+    CanonicalFrontierPolyline,
     FrontierPolylineShape,
     TerritoryRegionShape,
     SharedFrontierMap,
+    CanonicalShell,
+    CanonicalShellLoop,
+    GeometryFamily,
+    GeometrySourceMethod,
+    GeometryProvenance,
+    GeometryDiagnostics,
 } from '../../contracts/GeometryContracts';
