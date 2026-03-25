@@ -1,6 +1,6 @@
 # Onboarding & Protocol Index
 
-**Project:** PRISM-Atlas DART v1 (Pax Fluxia)
+**Project:** Pax Fluxia
 **Status:** Active Development (Alpha)
 
 ---
