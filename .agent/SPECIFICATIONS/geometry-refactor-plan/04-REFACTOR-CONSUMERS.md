@@ -100,6 +100,21 @@ The splice-based `createCanonicalTransitionPlan()` pipeline (`transitions/*.ts`)
 
 ---
 
+## Transition Mode Architecture
+
+*Source: [Frontier Topology Phase 5](../frontier-topology-project/05-PHASE-5-PRESENTATION.md)*
+
+Phase 5 of the frontier topology project defines the clean transition mode pattern:
+
+- **`FrontierTopologyFillMode`** — implements `FillTransitionMode`, calls `sampleFrontierTopology()` and converts loops → regions
+- **`FrontierTopologyBorderMode`** — implements `BorderTransitionMode`, calls `sampleFrontierTopology()` and converts sections → frontiers
+
+**Critical: Shared Plan Instance.** Both modes must share the SAME `FrontierTransitionPlan` and sample from the SAME frame-t topology. This is the structural guarantee that fills and borders always derive from identical interpolated data.
+
+These modes replace the current `FrontierMorphFillMode` and `OptimalTransportBorderMode` as the canonical transition implementations once the `CanonicalGeometrySnapshot` contract is in place.
+
+---
+
 ## Adapter (If Required)
 
 If the refactor of `createCanonicalTransitionPlan()` is too large for one step, a temporary adapter is acceptable:
@@ -135,6 +150,8 @@ The transition consumer refactor must be informed by these detailed algorithm sp
 |--------|------------------|
 | [Frontier Topology Phase 3](../frontier-topology-project/03-PHASE-3-TRANSITION-PLANNER.md) | 10-step transition planner algorithm: vertex matching, section matching, anchor plans, CDF transport maps, birth/death directives |
 | [Frontier Topology Phase 4](../frontier-topology-project/04-PHASE-4-FRAME-SAMPLER.md) | 7-step frame sampler algorithm: vertex interpolation, section interpolation, loop rebuild from section refs (guarantees fill/border alignment) |
+| [Frontier Topology Phase 5](../frontier-topology-project/05-PHASE-5-PRESENTATION.md) | Shared-plan transition mode pattern: `FrontierTopologyFillMode` + `FrontierTopologyBorderMode` |
+| [Frontier Topology Phase 0 Audit](../frontier-topology-project/00A-PHASE-0-AUDIT.md) | Compiler already computes 95% of topology data — `buildFrontierTopology` is mostly wrapping |
 | [Perplexity Plan Round 2](../geometry-atlas/Perplexity%202026-03-24%20geometry%20refactor%20plan%20round%202.md) | Raster transition compatibility: field-level vs geometry-level transition tiers, provenance-gated fallback |
 | [TERRITORY_TRANSITION_INVENTORY.md](../TERRITORY_TRANSITION_INVENTORY.md) | Complete inventory of all transition types, call flows, and state fields |
 

@@ -19,9 +19,10 @@ Replace the fragmented territory geometry path with **one authoritative vector g
 3. **Architecture first, compatibility never.** Old internal APIs, bridges, and mode distinctions are deleted, not preserved.
 4. **Styles never choose geometry algorithms.** Presentation consumes canonical data blindly.
 5. **No geometric guessing.** Topology matching uses explicit graph IDs (`ptKey`, `ownerPairKey`, section IDs), never centroids or bounding boxes.
-6. **Smoothing is a presentation concern.** Frame samplers output raw interpolated segments. Chaikin smoothing, corner-cutting, and disconnect buffers are applied by the presentation layer after transition scaling.
-7. **No sacrosanct modes.** All transition modes (including DY4) are subordinate to the new geometry contract.
-8. **Extraction before deletion.** Before purging any file, verify all unique algorithms have been extracted into `geometryUtils.ts` or the unified compiler. **CONSULT HUMAN before executing the purge.**
+6. **FrontierSection uniqueness.** A section exists EXACTLY ONCE. Two owners do NOT get separate copies. Region loops reference sections by ID; they do not own copied points.
+7. **Smoothing is a presentation concern.** Frame samplers output raw interpolated segments. Chaikin smoothing, corner-cutting, and disconnect buffers are applied by the presentation layer after transition scaling.
+8. **No sacrosanct modes.** All transition modes (including DY4) are subordinate to the new geometry contract.
+9. **Extraction before deletion.** Before purging any file, verify all unique algorithms have been extracted into `geometryUtils.ts` or the unified compiler. **CONSULT HUMAN before executing the purge.**
 
 ---
 
@@ -114,5 +115,7 @@ No internal geometry calls in renderers.
 | Frontier Topology Overview | `frontier-topology-project/00-PROJECT-OVERVIEW.md` | 5-phase topology project scope |
 | Frontier Topology Phase 3 | `frontier-topology-project/03-PHASE-3-TRANSITION-PLANNER.md` | 10-step transition planner algorithm |
 | Frontier Topology Phase 4 | `frontier-topology-project/04-PHASE-4-FRAME-SAMPLER.md` | 7-step frame sampler algorithm |
+| Frontier Topology Phase 5 | `frontier-topology-project/05-PHASE-5-PRESENTATION.md` | Shared-plan transition mode pattern |
+| Frontier Topology Phase 0 Audit | `frontier-topology-project/00A-PHASE-0-AUDIT.md` | Compiler already computes 95% of topology data |
 | Frontier Topology CODE-MAP | `frontier-topology-project/CODE-MAP.md` | Exact file/function/line references |
 | Transition Inventory | `TERRITORY_TRANSITION_INVENTORY.md` | All transition types and call flows |
