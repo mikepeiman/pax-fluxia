@@ -177,18 +177,18 @@ Self-enforce: "Did I update the docs that changed?" If not, update before pushin
 - Client = presentation layer, server = authority
 
 ### Territory Rendering Pipeline (2026-03-25)
-**Canonical 4-layer pipeline**: Ownership → Geometry → Transition → Presentation.
+**4-layer pipeline** (active rewrite target): Ownership → Geometry → Transition → Presentation.
 
-| Layer | Entry Point | Output |
-|-------|------------|--------|
-| **Ownership** | `StarOwnershipSnapshotMode` | `OwnershipSnapshot` (who owns what, virtual stars for DY4) |
-| **Geometry** | `compileVectorGeometry()` in `compiler_UnifiedVectorGeometry.ts` | `CanonicalGeometrySnapshot` (regions, frontiers, shells, topology) |
-| **Transition** | `TransitionLayerCoordinator` | `TransitionSnapshot` (fill/border frames, envelope) |
-| **Presentation** | `PowerVoronoiRenderer` (PVV2) | PIXI.Graphics draws |
+| Layer | Responsibility | Output Contract |
+|-------|---------------|-----------------|
+| **Ownership** | Who owns what; emits virtual stars for smooth conquest transitions | `OwnershipSnapshot` |
+| **Geometry** | Shapes from ownership — regions, frontiers, shells, topology | `CanonicalGeometrySnapshot` |
+| **Transition** | Animating between geometry states — interpolated fill/border frames | `TransitionSnapshot` |
+| **Presentation** | Drawing to screen — PIXI.Graphics fills, strokes, containers | Rendered frame |
 
-**Single geometry mode**: `unified_vector` — sole `GeometryModeId`. `UnifiedVectorGeometryMode` is a 21-line delegator to the compiler.
-**Conquest transitions**: DY4 virtual-star mechanism (ownership emits decaying virtual stars → compiler recomputes → smoother transitions).
-**Smoothing**: Chaikin smoothing is a geometry concern (applied in compiler). Renderers must NOT re-smooth.
+**Active entry point**: `compileVectorGeometry()` in `compiler_UnifiedVectorGeometry.ts` — single compiler, single mode (`unified_vector`).
+**Smoothing**: Geometry concern (applied in compiler before emission). Renderers must NOT re-smooth.
+**Status**: Refactoring + rewriting in progress. Legacy renderer and engine files still exist but are being systematically replaced. All unique features and modes will be preserved in the new architecture before legacy code is purged.
 
 ### Known Gotchas
 - Colyseus `Symbol.metadata` crash: use `defineTypes()` not `@type` decorators
