@@ -10,6 +10,7 @@
 2. **Tag assumptions** with evidence / confidence / falsification
 3. **Phase-specific** deployment (see prompts below)
 4. **Adversarial is explicit** — Red Team is a persona, not a mood
+5. **Itemize everything** — all findings, recommendations, and questions returned to the human must be numbered/lettered with stable IDs (e.g., S1, A3, F2) so the human can respond precisely and both sides know exactly what's being discussed
 
 ---
 
