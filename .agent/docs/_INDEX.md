@@ -8,7 +8,7 @@
 | Path | Contents |
 |------|----------|
 | `game/design/` | GAME_SPECIFICATION, MECHANICS, PRD_ACTIVE |
-| `game/territory/` | TERRITORY_ARCHITECTURE, TERRITORY_TRANSITION_INVENTORY, CONQUEST_ANIMATION_SPEC, TRANSITION_SNAPSHOT_RECORDER, geometry-atlas/, conquest-animation-archive/ |
+| `game/territory/` | TERRITORY_ARCHITECTURE, TERRITORY_TRANSITION_INVENTORY, CONQUEST_ANIMATION_SPEC, TRANSITION_SNAPSHOT_RECORDER, **geometry-atlas/** (GEOMETRY_ATLAS, GEOMETRY_CONSOLIDATION_ANALYSIS, refactor plan, _archive/, code/), conquest-animation-archive/ |
 | `game/vfx/` | ANIMATION_GUIDE, SURGE_ANIMATION, SURGE_ANIMATION_V2, VFX_TIMING_MODEL, FX_ANIMATION_ARCHITECTURE_PROPOSAL |
 | `game/ui/` | CONTROLS, WIP-UI/ |
 | `game/visual/` | gdd/ |
@@ -73,6 +73,6 @@
 
 ## Known Gaps (pending manual close)
 
-- `geometry-atlas/` — still in `.agent/SPECIFICATIONS/` due to VS Code file locks. Move to `docs/game/territory/` when those files are closed.
+- ~~`geometry-atlas/`~~ — **Resolved 2026-03-25.** Moved to `docs/game/territory/geometry-atlas/`.
 - `game/combat/`, `game/map/`, `game/audio/`, `game/theming/` — populated when specs for those systems are authored.
 - Rules audit — `.agent/rules/` stays as-is; dedicated phase to review and consolidate.
