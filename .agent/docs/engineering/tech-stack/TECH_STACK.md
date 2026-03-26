@@ -36,6 +36,6 @@
 - `Container` — for z-ordering layers
 
 ## Architecture References
-- PRISM-Atlas-DART compliance: `.agent/.skills/`
-- Post-mortems and design decisions: `.atlas/POST_MORTEMS.md`
-- Feature status and roadmap: `.atlas/FEATURE_STATUS.md`
+- Design decisions: `.agent/docs/project/decisions/DECISIONS.md`
+- Feature status and roadmap: `.agent/docs/project/features/FEATURE_STATUS.md`
+- Territory architecture: `.agent/docs/game/territory/TERRITORY_ARCHITECTURE.md`
