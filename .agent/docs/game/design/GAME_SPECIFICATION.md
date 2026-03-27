@@ -1,8 +1,24 @@
 # Pax Fluxia — Comprehensive Game Specification
 
-**Version:** 4.0  
-**Last Updated:** 2026-02-07  
-**Status:** Alpha (Multiplayer via Colyseus)
+**Version:** 4.1  
+**Last Updated:** 2026-03-27  
+**Status:** Alpha (Engine unified, Territory refactor in progress)
+
+> [!IMPORTANT]
+> This is the **master specification**. For definitive tuning values and combat formulas, see [MECHANICS.md](file:///c:/Users/mikep/Desktop/WebDev/PRISM-Atlas-DART%20v1/.agent/docs/game/design/MECHANICS.md) (v4.1, ground-truth confirmed 2026-03-27).
+
+### Sub-Specifications (Component Breakouts)
+
+| # | Category | Source Document | Status |
+|---|----------|----------------|--------|
+| 1 | Combat & Conquest | [MECHANICS.md](file:///c:/Users/mikep/Desktop/WebDev/PRISM-Atlas-DART%20v1/.agent/docs/game/design/MECHANICS.md) §5-8 | ✅ Ground truth |
+| 2 | Economy & Production | MECHANICS.md §4, §9 | ✅ Ground truth |
+| 3 | Orders & Flow | MECHANICS.md §3, §10 | ✅ Ground truth |
+| 4 | Territory & Geometry | [TERRITORY_ARCHITECTURE.md](file:///c:/Users/mikep/Desktop/WebDev/PRISM-Atlas-DART%20v1/.agent/SPECIFICATIONS/TERRITORY_ARCHITECTURE.md) | 🔶 In refactor |
+| 5 | AI & Strategy | MECHANICS.md §11, [AI strategies](file:///c:/Users/mikep/Desktop/WebDev/PRISM-Atlas-DART%20v1/.agent/docs/game/design/AI_STRATEGIES.md) | ✅ Spec'd |
+| 6 | Visual & Animation | [VFX docs](file:///c:/Users/mikep/Desktop/WebDev/PRISM-Atlas-DART%20v1/.agent/docs/game/vfx/) | 📋 Needs synthesis |
+| 7 | UI & Controls | This doc §8, [CONTROLS.md](file:///c:/Users/mikep/Desktop/WebDev/PRISM-Atlas-DART%20v1/.agent/docs/game/ui/) | 📋 Needs synthesis |
+| 8 | Multiplayer | This doc §2.3, FEATURE_STATUS F-38/66/92 | 📋 Needs synthesis |
 
 ---
 
