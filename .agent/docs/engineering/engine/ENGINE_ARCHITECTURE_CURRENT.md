@@ -1,7 +1,9 @@
 # Engine Architecture — Current State
 
-**Last Updated:** 2026-02-12  
-**Purpose:** Document where game logic currently lives across all three packages
+> **Status: UNIFIED (F-36, 2026-02-15)** — Client `GameEngine.ts` deleted; only `common/src/engine/GameEngine.ts` (394L) remains. `ORDER_CONFIG` removed as dead code. `calculateCombatV4` is a thin wrapper calling `@pax/common`. Verified 2026-03-27.
+
+**Last Updated:** 2026-03-27 (originally 2026-02-12)  
+**Purpose:** Historical document — describes the PRE-unification state for reference
 
 ---
 
