@@ -7,6 +7,30 @@ This is the definitive specification of all game mechanics. It describes *what t
 
 ---
 
+## 0. Terminology
+
+All code, documentation, and agent communications use these terms:
+
+| Term | Definition |
+|------|-----------|
+| **Territory** | A grouping of connected same-owner stars and all the space within its bounds |
+| **Frontier** | The boundary where two opposing territories meet — the core term for all territory edges and region boundaries |
+| **Holding** | The sum total of a player's territories across the sector |
+| **Sector** | The game map |
+
+**Future roadmap terms** (not yet in game):
+
+| Term | Definition |
+|------|-----------|
+| **District** | A higher-level map composed of sectors |
+| **Quadrant** | A higher-level map composed of districts |
+| **Galaxy** | The highest-level map composed of quadrants |
+
+> [!NOTE]
+> Variable rename migration is tracked as a separate task. Code currently uses legacy names like `frontierGraph`, `ownerShells`, etc.
+
+---
+
 ## 1. Star Types
 
 Each star type has a **2× bonus** in one specialty. All other multipliers are 1.0.
@@ -246,6 +270,7 @@ The AI evaluates all its stars each tick and issues orders based on configurable
 | `AI_ATTACK_THRESHOLD` | 1.33 | Min ship ratio to initiate attack |
 | `AI_DESIST_THRESHOLD` | 1.00 | Ratio at which AI stops attacking |
 | `AI_RANDOM_AGGRESSION` | 0.05 | Chance per tick for random attack |
+| `AI_RANDOM_ATTACK_PERSISTENCE` | 3 | Ticks to maintain a random attack |
 | `AI_TACTICAL_AGGRESSION` | 0.10 | Chance to attack weak target as bait |
 
 ---
@@ -263,6 +288,24 @@ Stars are placed on a hex grid and connected via Delaunay triangulation.
 
 ---
 
-## 13. Victory
+## 13. Territory Lane Constraints
+
+**Lane-exclusivity rule**: Only one or two player holdings may underlay any lane. No third player's territory may touch or extend over any point along a lane.
+
+A lane is in one of two states:
+
+| State | Description |
+|-------|-------------|
+| **Single-owner** | The lane is entirely within one player's holding. Both connected stars belong to the same player. |
+| **Contested** | The lane has a frontier between exactly two players somewhere along it. Position varies with surrounding geometry. |
+
+**Never allowed**: A third player's territory touching or overlapping a lane between two other players' stars.
+
+> [!NOTE]
+> Implementation via virtual stars has yielded partial success and could conceivably yield complete success. The MSR (minimum star radius) and CX (corridor extension) constraints remain in effect.
+
+---
+
+## 14. Victory
 
 The last player with at least one star wins. A player is eliminated when they lose all stars.

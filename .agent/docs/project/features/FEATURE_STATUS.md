@@ -265,7 +265,7 @@
 | F-36 | Engine Unification Refactor: Client `GameEngine` (1340 lines) replaced with `@pax/common` shared engine. AI migrated to `@pax/common`. `gameStore` uses local `GameRoomState` + `GameEngine.tick()`. Map generation randomized (star types + owner placement). 5 dead engine files deleted (~1,900 lines). svelte-check errors 7→1. | 2026-02-15 |
 | F-37 | Lane Convergence Variables: `LANE_CONVERGENCE` (0-1, how tightly ships converge to lane) and `LANE_CONVERGENCE_POINT` (0-100, where convergence point sits along origin→dest). Sliders in GameSettingsPanel. Applied to transferHandler, conquestHandler, and strategies.ts. | 2026-02-17 |
 | F-38 | MP Lobby Discoverability Fix: `fetchRooms()` switched from `client.http.get` to `getAvailableRooms('game_room')`. 5s auto-refresh polling with `startRoomPolling`/`stopRoomPolling`. | 2026-02-17 |
-| F-39 | Opposing Orders Flag: `ALLOW_OPPOSING_ORDERS` config (default false). When off, A→B cancels B→A. When on, both coexist. Pre-game toggle in MainMenu, in-game toggle in GameSettingsPanel "Rules" section. GameCanvas `addPendingOrder` conditionally cancels. | 2026-02-18 |
+| F-39 | ~~Opposing Orders Flag~~ **OBSOLETE**: Deferred orders are core gameplay. A→B always cancels B→A (lane exclusivity). No toggle. | 2026-02-18 |
 
 ## Planned Features — Not Started (R)
 
@@ -313,17 +313,17 @@
 | R-32 | **Public Room Browser** — list available rooms in MP tab, click-to-join with confirmation | 🟢 |
 | R-33 | **Per-Player Settings** — color, AI strength/strategy, human handicaps/buffs in main menu | 🟢 |
 | R-94 | Visual Style Packs (selectable animation & visual presets, gameplay feel variety) | 🔴 |
-| R-31 | Tick Length Control Panel Slider | 🟢 |
-| R-32 | End-Game Screen Enlargement + Better Charts | 🟡 |
-| R-33 | Damaged Ships Never Destroyed (design rule) | 🟢 |
+| R-133 | Tick Length Control Panel Slider | 🟢 |
+| R-134 | End-Game Screen Enlargement + Better Charts | 🟡 |
+| R-135 | Damaged Ships Never Destroyed (design rule — see MECHANICS §6) | 🟢 |
 | R-34 | AST-Based Bidirectional Documentation | 🔵 |
 | R-35 | Conquest Pause + Stats Card Popup | 🟢 |
 | R-36 | Damaged Ship Visual Density Tiers (overlapping orbits) | 🟢 |
 | R-37 | Full Engine Unification: server uses shared GameEngine for map generation | 🔴 |
 | R-38 | **Main Menu Restructure** — always-visible room browser (no SP/MP tabs), unified layout | 🟢 |
 | R-39 | **Standard Menu Items** — Gameplay Options, Settings (audio/video icons), Shop, Quit to Desktop | 🟢 |
-| R-38 | Ship Orbit Density: limit to 5 layers, scale colors max 5000 ships, enlarge on overflow | 🔴 |
-| R-39 | Power Density VFX: animations/effects for increasing fleet power at stars | 🔴 |
+| R-136 | Ship Orbit Density: limit to 5 layers, scale colors max 5000 ships, enlarge on overflow | 🔴 |
+| R-137 | Power Density VFX: animations/effects for increasing fleet power at stars | 🔴 |
 | R-40 | Leaderboard: emphasize TOTAL SHIPS first, then active/damaged fraction | 🟢 |
 | R-41 | Surrender Modal: End Game (results) or Abandon (main menu) — replaces raw button | 🟢 |
 | R-42 | Player Stats Console: bottom-up drawer replacing combat log, shows live dynamics | 🔴 |
@@ -447,7 +447,7 @@
 
 | ID | Description | Since |
 |----|-------------|-------|
-| B-84 | ALLOW_OPPOSING_ORDERS: deferred orders still create opposing flows on conquest even when flag is off | 2026-02-18 |
+| ~~B-84~~ | ~~ALLOW_OPPOSING_ORDERS~~ **OBSOLETE**: Deferred orders are core gameplay. Lane exclusivity (A→B cancels B→A) is the only behavior. | 2026-02-18 |
 | B-85 | ~~Toggling USE_WALL_CLOCK_TRAVEL mid-game freezes traveling ships~~ | Resolved — wall-clock system removed (F-54) |
 
 ---
