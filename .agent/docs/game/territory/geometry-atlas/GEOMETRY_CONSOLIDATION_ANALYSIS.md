@@ -6,15 +6,15 @@
 
 ## How Many Distinct Methods Do We Actually Have?
 
-Stripping away the naming and historical layers, there are really only **two fundamentally different approaches** to territory geometry:
+Stripping away the naming and historical layers, there are really only **two master geometry modes**:
 
-### Method A: Power Voronoi Polygon Geometry
+### Mode A: All Vector-Based (Voronoi)
 Every file in `compiler_`, `mode_`, `orchestrator_fg2SeedGraph`, `renderer_PowerVoronoiRenderer`, `renderer_PVV3Renderer`, `renderer_ModifiedVoronoiRenderer`, and `renderer_VoronoiRenderer` uses the **same core algorithm**: feed star positions + weights into `d3-weighted-voronoi`, get back polygonal cells, then post-process those cells into territories. The differences are entirely in post-processing quality and metadata richness.
 
-### Method B: Raster/Field Ownership Sampling
+### Mode B: All Raster-Based (Multiple Methods)
 The worker-based renderers (`Contour`, `Graph`, `Lane`, `Pixel`, `DistanceField`) compute ownership per-pixel using distance fields, graph distances, or lane influence. They produce **bitmaps**, not polygons. Fundamentally different math, fundamentally different output.
 
-That's it. Two methods. Everything else is just variations in how much you post-process Method A's output, or which distance metric drives Method B's pixel ownership.
+That's it. Two master modes. Everything else is variations in how much you post-process Mode A's output, or which distance metric drives Mode B's pixel ownership.
 
 ---
 

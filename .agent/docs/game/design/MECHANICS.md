@@ -1,9 +1,9 @@
 # Pax Fluxia — Game Mechanics
 
-**Version:** 4.0  
-**Last Updated:** 2026-02-08
+**Version:** 4.1  
+**Last Updated:** 2026-03-27
 
-This document is the canonical, definitive specification of all game mechanics. It describes *what the game does*, not how to implement it.
+This is the definitive specification of all game mechanics. It describes *what the game does*, not how to implement it.
 
 ---
 
@@ -15,8 +15,8 @@ Each star type has a **2× bonus** in one specialty. All other multipliers are 1
 |------|-------|-----------|--------|---------------|
 | **Grey** | `#8899aa` | None | Baseline stats | No advantage |
 | **Yellow** | `#fbbf24` | Production | 2× ship generation rate | Economy |
-| **Blue** | `#3b82f6` | Speed | 2× transfer rate (0.2 vs 0.1) | Logistics |
-| **Purple** | `#a855f7` | Repair | 2× repair rate (0.4 vs 0.2) | Attrition |
+| **Blue** | `#3b82f6` | Speed | 2× transfer rate (0.20 vs 0.10) | Logistics |
+| **Purple** | `#a855f7` | Repair | 2× repair rate (0.20 vs 0.10) | Attrition |
 | **Red** | `#ef4444` | Defense | 2× defense strength | Fortress |
 | **Green** | `#22c55e` | Attack | 2× attack power | Assault |
 
@@ -27,8 +27,8 @@ Each star type has a **2× bonus** in one specialty. All other multipliers are 1
 | `activationRate` | 0.50 | % of captured damaged ships becoming active |
 | `defensivePosture` | 1.0 | Defensive posture modifier |
 | `defenseStrength` | 1.0 | Defense multiplier (Red = 2.0) |
-| `repairRate` | 0.20 | % of damaged ships repaired per tick (Purple = 0.4) |
-| `transferRate` | 0.10 | Base transfer rate (Blue = 0.2) |
+| `repairRate` | 0.10 | % of damaged ships repaired per tick (Purple = 0.20) |
+| `transferRate` | 0.10 | Base transfer rate (Blue = 0.20) |
 
 ---
 
@@ -45,7 +45,7 @@ Ships exist in two states:
 
 ## 3. Tick Order
 
-Every tick (default 1200ms at 1× speed), the engine processes in this exact order:
+Every tick (default 1250ms at 1× speed), the engine processes in this exact order:
 
 1. **Production** — Stars generate ships: `BASE_PRODUCTION × productionRate`
 2. **Orders** — Process reinforcements (friendly transfers), then resolve attacks
@@ -116,7 +116,7 @@ disabled = floor(finalDamage × (1 - LETHALITY))
 |----------|---------|-------------|
 | `DAMAGE_PER_SHIP` | 0.10 | Base damage per ship per tick |
 | `LETHALITY` | 0.25 | % of damage that destroys (rest disables) |
-| `AGGRESSOR_ADVANTAGE` | 0.70 | Multiplier for attacking side (<1 = defender advantage) |
+| `AGGRESSOR_ADVANTAGE` | 0.80 | Multiplier for attacking side (<1 = defender advantage) |
 | `FORCE_RATIO_EFFECT` | 0.00 | Numerical superiority bonus (0 = disabled) |
 | `MINIMUM_DAMAGE` | 1 | Floor damage per tick |
 | `DAMAGED_SHIP_EFFECTIVENESS` | 0.14 | Fraction of damaged ships counting toward defense |
@@ -150,7 +150,7 @@ Conquest triggers when:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `CONQUEST_THRESHOLD` | 8 | Attacker:defender ratio for overwhelm |
+| `CONQUEST_THRESHOLD` | 25 | Attacker:defender ratio for overwhelm |
 | `CONQUEST_TRANSFER_PERCENTAGE` | 50% | Winning ships transferred to conquered star |
 
 ### 7.1. Conquest Resolution
@@ -173,15 +173,15 @@ When a star is conquered, the defender's surviving ships attempt to escap if pos
 
 If the defending star has an active order targeting a **friendly** star:
 
-- `RETREAT_CAPTURE_RATE` (25%) of damaged ships are captured by the attacker
-- Remaining 67% escape to the ordered target
+- `RETREAT_CAPTURE_RATE` (10%) of damaged ships are captured by the attacker
+- Remaining ships escape to the ordered target
 
 ### 8.2. Scatter (Unordered)
 
 If the defending star has **no retreat order** but has friendly neighbors:
 
-- `SCATTER_CAPTURE_RATE` (40%) of ships are captured
-- Of the remaining 50%:
+- `SCATTER_CAPTURE_RATE` (25%) of ships are captured
+- Of the remaining ships:
   - `SCATTER_DESTROY_RATE` (40%) are destroyed
   - Rest scatter equally to connected friendly stars
 
@@ -193,8 +193,8 @@ If no friendly neighbors exist:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `RETREAT_CAPTURE_RATE` | 0.25 | % captured when defender retreats |
-| `SCATTER_CAPTURE_RATE` | 0.40 | % captured when defender scatters |
+| `RETREAT_CAPTURE_RATE` | 0.10 | % captured when defender retreats |
+| `SCATTER_CAPTURE_RATE` | 0.25 | % captured when defender scatters |
 | `SCATTER_DESTROY_RATE` | 0.40 | % of non-captured destroyed on scatter |
 
 ---
@@ -209,7 +209,7 @@ repaired = max(MIN_REPAIR, repairRate × damagedShips)
 
 - `REPAIR_RATE`: 0.10 (10% per tick, default)
 - `MIN_REPAIR`: 1 ship minimum per tick
-- Purple stars: 2× repair rate (0.2)
+- Purple stars: 2× repair rate (0.20)
 - `REPAIR_COMBAT_PENALTY`: 10 (`REPAIR_RATE / 10`) repair is reduced by a magnitude during combat
 
 ---
