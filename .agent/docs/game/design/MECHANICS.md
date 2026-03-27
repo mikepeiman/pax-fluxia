@@ -14,7 +14,8 @@ All code, documentation, and agent communications use these terms:
 | Term | Definition |
 |------|-----------|
 | **Territory** | A grouping of connected same-owner stars and all the space within its bounds |
-| **Frontier** | The boundary where two opposing territories meet — the core term for all territory edges and region boundaries |
+| **Frontier** | The boundary geometry where two territories meet — the core term for all territory edges and region boundaries |
+| **Front** | A contested section of frontier — an active attack/battle zone between two players |
 | **Holding** | The sum total of a player's territories across the sector |
 | **Sector** | The game map |
 

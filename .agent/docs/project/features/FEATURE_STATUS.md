@@ -449,6 +449,7 @@
 |----|-------------|-------|
 | ~~B-84~~ | ~~ALLOW_OPPOSING_ORDERS~~ **OBSOLETE**: Deferred orders are core gameplay. Lane exclusivity (A→B cancels B→A) is the only behavior. | 2026-02-18 |
 | B-85 | ~~Toggling USE_WALL_CLOCK_TRAVEL mid-game freezes traveling ships~~ | Resolved — wall-clock system removed (F-54) |
+| B-103 | **Deferred orders create opposing flows on conquest**: When deferred orders activate after conquest, they can yield opposing move orders (A→B and B→A both active). Lane exclusivity enforcement does not trigger during deferred order activation. | 2026-03-27 |
 
 ---
 
@@ -518,14 +519,16 @@
 
 ## Architecture (A)
 
+> **Status: ALL DONE (F-36, verified 2026-03-27).** Single `GameEngine.ts` in `common/src/engine/` (394L). No client duplicate. `ORDER_CONFIG` deleted. `calculateCombatV4` wraps `@pax/common`.
+
 | ID | Feature | Status | Notes |
 |----|---------|--------|-------|
-| A-1 | Engine Unification: Combat formula | ⬜ | Verify `calculateCombatV4` ≡ `calculateCombat`, unify |
-| A-2 | Engine Unification: Transfer rate | ⬜ | Delete `ORDER_CONFIG`, single `EngineConfig.TRANSFER_RATE` |
-| A-3 | Engine Unification: Client combat delegation | ⬜ | Client delegates to Common via state adapter |
-| A-4 | Engine Unification: Client tick delegation | ⬜ | Client calls `GameEngine.tick()` like server |
-| A-5 | Engine Unification: Map generation shared | ⬜ | Move hex grid to Common, server adopts it |
-| A-6 | Engine Unification: Config defaults sync | ⬜ | `DEFAULT_ENGINE_CONFIG` matches user's tuned values |
+| A-1 | Engine Unification: Combat formula | ✅ | `calculateCombatV4` wraps `sharedCalculateCombat` from @pax/common |
+| A-2 | Engine Unification: Transfer rate | ✅ | `ORDER_CONFIG` removed as dead code (2026-02-12) |
+| A-3 | Engine Unification: Client combat delegation | ✅ | Client GameEngine.ts deleted; common is sole engine |
+| A-4 | Engine Unification: Client tick delegation | ✅ | `gameStore` uses `GameEngine.tick()` from common |
+| A-5 | Engine Unification: Map generation shared | ✅ | `@pax/common/mapgen` extracted (2026-02-14) |
+| A-6 | Engine Unification: Config defaults sync | ✅ | `GAME_CONFIG` proxy auto-persists; overrides passed to engine |
 
 ---
 

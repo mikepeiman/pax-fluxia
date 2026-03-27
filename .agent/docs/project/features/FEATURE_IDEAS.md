@@ -40,6 +40,7 @@
 | R-47 | Per-Target Conquest Transfer Amount | 🟡 | 2026-02-10 |
 | R-50 | Split repair suppression (F-50) | High | 2026-02-08 |
 | R-95 | Lane Stationing: ships stationed in lanes between stars | 🔵 | 2026-02-14 |
+| R-138 | **Hold vs Move Star States**: Stars have two modes — Hold (enhanced production/repair) and Move (active transfer/attack). Adds strategic complexity to star management. | 🟢 | 2026-03-27 |
 | R-96 | Satellites/Planets/Battle Stations | 🔵 | 2026-02-14 |
 | R-97 | Planetary/Star Shields | 🔵 | 2026-02-14 |
 | R-98 | Mines: deployable hazards in lanes | 🔵 | 2026-02-14 |
