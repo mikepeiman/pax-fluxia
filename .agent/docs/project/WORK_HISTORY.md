@@ -8,9 +8,20 @@
 
 ## Project Milestones
 
-| Date | Milestone |
-|------|-----------|
-| 2026-02-01 | V3.1 combat system + individual ship animation. Project inception. |
+> [!NOTE]
+> This history is compiled from git log (`a6cfa7b` onward) and FEATURE_STATUS session logs.
+> The session log (F-*/B-* entries) only covers agent-assisted sessions starting ~2026-02-02.
+> For the full pre-agent period, see git history directly.
+
+### Pre-Agent Development (2026-01-29 — 2026-02-01)
+
+| Date | Commits | Milestone |
+|------|---------|-----------|
+| 2026-01-29 | `a6cfa7b`–`8482cbf` | **Project inception.** UI shell, ghost engine, PixiJS canvas, star visualization, ship animations (orbit + surge), drag-to-attack, AI opponent — all in one evening. |
+| 2026-01-30 | `54c392c`–`3782e34` | Hex grid positioning, click+click input, fleet count accuracy, connection-based gameplay, conquest behavior, chain orders, Tweakpane. |
+| 2026-01-31 | `4609db1`–`7c46492` | V3 spec (Remote Engagement), combat rules, ResultsModal, tick orb animation, vector arrows, ship spawn pop-in, hex grid overlay. |
+
+### Agent-Assisted Development (2026-02-01 onward)
 | 2026-02-02 | Feature tracker created. Command lag fix, scatter/escape mechanics. |
 | 2026-02-07 | Colyseus multiplayer foundation. Engine convergence Phase 2. Protocol audit. |
 | 2026-02-08 | Combat V4 symmetric formula. Ship animation unified lifecycle. MECHANICS spec created. |
