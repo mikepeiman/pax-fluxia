@@ -48,9 +48,9 @@ When removing, renaming, or commenting out any symbol:
 | Feature status / bugs | `docs/project/features/FEATURE_STATUS.md` |
 | Design decisions | `docs/project/decisions/DECISIONS.md` |
 | Mechanics changes | `docs/game/design/MECHANICS.md` |
-
 ### 2.6 Session Memory
-- **Session notes**: `.agent/WIP Work-In-Progress/SESSION_YYYY-MM-DD.md`
+- **Session notes**: `.agent/docs/project/sessions/notes/SESSION_YYYY-MM-DD.md`
+- **Chat log**: `.agent/docs/project/sessions/chats/CHAT_YYYY-MM-DD.md`
 - **Chat log**: `.agent/WIP Work-In-Progress/CHAT_YYYY-MM-DD.md`
 
 ---
@@ -65,14 +65,11 @@ log.sys('Module', 'message');   log.state('Module', 'msg', data);
 log.combat('Battle', 'msg');    log.error('Module', 'msg', err);
 ```
 
-### 3.2 Terminology (D-70)
-| Term | Definition |
-|------|-----------|
-| **Territory** | Connected same-owner stars and the space within their bounds |
-| **Frontier** | Boundary geometry where two territories meet |
-| **Front** | Contested section of frontier — an active battle zone |
-| **Region** | A contiguous area of space owned by one player |
-
+### 3.2 Terminology
+Core terms (full glossary: `docs/game/design/TERMINOLOGY.md`):
+- **Territory** = connected same-owner stars and their space
+- **Frontier** = boundary geometry where territories meet
+- **Region** = contiguous area owned by one player
 ### 3.3 File Discipline
 - 300 lines ideal, 500 hard max. Over 500 = refactor first.
 - Game time only: `gameNowMs` (FXClock), never `performance.now()` in game code.
@@ -154,10 +151,13 @@ Use `git ac "message"` alias. Run commands separately, never `&&`.
 |------|------|
 | Game mechanics (ground truth) | `docs/game/design/MECHANICS.md` |
 | Master game spec | `docs/game/design/GAME_SPECIFICATION.md` |
+| Terminology & jargon | `docs/game/design/TERMINOLOGY.md` |
 | Feature status / bugs | `docs/project/features/FEATURE_STATUS.md` |
 | Feature ideas | `docs/project/features/FEATURE_IDEAS.md` |
 | Design decisions | `docs/project/decisions/DECISIONS.md` |
 | Territory architecture | `docs/game/territory/TERRITORY_ARCHITECTURE.md` |
+| Naming conventions | `docs/engineering/NAMING_CONVENTIONS.md` |
+| UI/Design rules | `docs/atlas/DESIGN_RULES.md` |
 | Work history | `docs/project/WORK_HISTORY.md` |
 | Active rules | `.agent/rules/` |
 

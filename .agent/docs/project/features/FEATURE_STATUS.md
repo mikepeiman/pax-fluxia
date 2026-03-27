@@ -141,8 +141,8 @@
 
 | ID | Description |
 |----|-------------|
-| R-1 | **SliderRow component**: Refactor all sliders to use unified `SliderRow.svelte` component (already created at `settings/SliderRow.svelte`) instead of the `nudgeSliders.ts` DOM injection action. Cleaner architecture, but touches every panel file. |
-
+| R-1 | **SliderRow component**: Refactor all sliders to use unified `SliderRow.svelte` component instead of `nudgeSliders.ts` DOM injection action. |
+| R-139 | **Rename `calculateCombatV4`**: Replace with clean, functionally-semantic name (e.g. `calculateCombat`). No legacy version suffixes. Use `code_references` + `grep_search` for zero-orphan rename. |
 ## Open Bugs — MP (B)
 
 | ID | Issue |
