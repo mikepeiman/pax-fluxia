@@ -6,7 +6,7 @@
 - Commit after every code/doc change
 - Alias: `git ac "message"` (combines `git add .` + `git commit -m`)
 - Push after every commit: `git push origin master`
-- Remote: `https://github.com/mikepeiman/pax-galaxia-redux.git`
+- Remote: `https://github.com/mikepeiman/pax-fluxia.git`
 
 ### Branches
 - `master` — development

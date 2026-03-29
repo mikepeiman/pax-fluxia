@@ -5,11 +5,11 @@
   <img src="https://img.shields.io/badge/runtime-bun-f472b6?style=for-the-badge" alt="Runtime: Bun">
 </p>
 
-# 🌌 Pax Galaxia Redux
+# 🌌 Pax Fluxia
 
 > A real-time space conquest strategy game with symmetric combat, territory control, and AI opponents — rendered in a neon-void aesthetic.
 
-**Pax Galaxia Redux** is a fast-paced, browser-based strategy game where players compete to conquer a procedurally generated star map. Command fleets, issue orders, and outmaneuver AI opponents across a network of connected stars.
+**Pax Fluxia** is a fast-paced, browser-based strategy game where players compete to conquer a procedurally generated star map. Command fleets, issue orders, and outmaneuver AI opponents across a network of connected stars.
 
 ---
 
@@ -66,8 +66,8 @@ Ships transfer continuously along active orders. Combat resolves automatically w
 
 ```bash
 # Clone
-git clone https://github.com/mikepeiman/pax-galaxia-redux.git
-cd pax-galaxia-redux
+git clone https://github.com/mikepeiman/pax-fluxia.git
+cd pax-fluxia
 
 # Install dependencies
 bun install
@@ -96,7 +96,7 @@ bun run dev
 ## 📁 Project Structure
 
 ```
-pax-galaxia-redux/
+pax-fluxia/
 ├── common/              # Shared types, schemas, combat logic
 │   └── src/
 │       ├── combat.ts        # V4 Symmetric Damage Model
@@ -118,7 +118,7 @@ pax-galaxia-redux/
 
 ## ⚙️ Combat System
 
-Pax Galaxia uses a **V4 Symmetric Damage Model**:
+Pax Fluxia uses a **V4 Symmetric Damage Model**:
 
 - Both sides deal damage simultaneously each tick
 - **5 core variables**: Aggressor Advantage, Damage Per Ship, Lethality, Force Ratio Effect, Conquest Threshold

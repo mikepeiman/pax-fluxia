@@ -10,7 +10,7 @@ After committing, always push to origin:
 git push origin master
 ```
 
-Remote origin: `https://github.com/mikepeiman/pax-galaxia-redux.git`
+Remote origin: `https://github.com/mikepeiman/pax-fluxia.git`
 
 **Branches:**
 - `master` — development branch
