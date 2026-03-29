@@ -57,6 +57,19 @@ let lobbyStatus = $state<string | null>(null);
 // Restart vote tracking
 let restartVoteInfo = $state<{ votes: number; needed: number; voters: string[] } | null>(null);
 
+// Start vote tracking (non-host lobby vote)
+let startVoteInfo = $state<{ votes: number; needed: number; voters: string[] } | null>(null);
+
+// Lobby chat
+export interface ChatMessage {
+    senderId: string;
+    senderName: string;
+    senderColor: string;
+    text: string;
+    timestamp: number;
+}
+let chatMessages = $state<ChatMessage[]>([]);
+
 // Player identity settings (persisted to localStorage)
 let playerName = $state(typeof localStorage !== 'undefined' ? localStorage.getItem('pax_playerName') || '' : '');
 let playerColor = $state(typeof localStorage !== 'undefined' ? localStorage.getItem('pax_playerColor') || '' : '');
@@ -127,7 +140,6 @@ async function createRoom(options: {
     maxLinks?: number;
     retainOrderOnConquest?: boolean;
     gameplayConfig?: Partial<EngineConfig>;
-    mapData?: any; // MapDefinition JSON for classic maps
 } = {}): Promise<string | null> {
     if (!client) await connect();
     if (!client) return null;
@@ -213,6 +225,8 @@ function leaveRoom(): void {
     connections = [];
     gameHistory = [];
     restartVoteInfo = null;
+    startVoteInfo = null;
+    chatMessages = [];
 }
 
 function disconnect(): void {
@@ -550,6 +564,17 @@ function setupRoomListeners(): void {
         restartVoteInfo = data;
         log.net('Room', `Restart vote: ${data.votes}/${data.needed}`);
     });
+
+    // Start vote progress (non-host lobby vote)
+    room.onMessage('startVote', (data: { votes: number; needed: number; voters: string[] }) => {
+        startVoteInfo = data;
+        log.net('Room', `Start vote: ${data.votes}/${data.needed}`);
+    });
+
+    // Chat messages
+    room.onMessage('chat', (data: ChatMessage) => {
+        chatMessages = [...chatMessages, data];
+    });
 }
 
 // ============================================================================
@@ -618,6 +643,18 @@ function disposeRoom(): void {
     room?.send('disposeRoom');
     // Leave the room after a short delay to let the server process
     setTimeout(() => leaveRoom(), 500);
+}
+
+/** Vote to start (non-host, lobby only) */
+function voteToStart(): void {
+    log.net('Room', 'Sending voteToStart');
+    room?.send('voteToStart');
+}
+
+/** Send a chat message */
+function sendChat(text: string): void {
+    if (!text.trim()) return;
+    room?.send('chat', { text: text.trim() });
 }
 
 // ============================================================================
@@ -708,6 +745,16 @@ export const multiplayerStore = {
     // Restart vote info
     get restartVoteInfo() { return restartVoteInfo; },
     clearRestartVote() { restartVoteInfo = null; },
+
+    // Start vote info (lobby)
+    get startVoteInfo() { return startVoteInfo; },
+    clearStartVote() { startVoteInfo = null; },
+    voteToStart,
+
+    // Chat
+    get chatMessages() { return chatMessages; },
+    sendChat,
+    clearChat() { chatMessages = []; },
 
     // Helpers
     getLocalPlayerId,
