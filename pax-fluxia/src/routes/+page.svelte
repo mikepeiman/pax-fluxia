@@ -45,6 +45,11 @@
   {:else}
     <LandingPage onPlay={handlePlay} />
   {/if}
+  <script
+    type="text/javascript"
+    async
+    src="https://subscribe-forms.beehiiv.com/attribution.js"
+  ></script>
 </main>
 
 <style>

@@ -15,18 +15,28 @@
       COMMAND THE FLOW.<br />
       <span class="highlight">CONQUER THE GALAXY.</span>
     </h1>
-    
+
     <p class="subhead font-body">
-      Pax Fluxia is the real-time galactic conquest game where you command flowing rivers of ships between stars, fighting for total domination across a procedurally generated star map. All in your browser.
+      Pax Fluxia is the real-time galactic conquest game where you command
+      flowing rivers of ships between stars, fighting for total domination
+      across a procedurally generated star map. All in your browser.
     </p>
 
-    <div class="actions">
+    <div class="actions flex items-center">
       <button class="btn btn--primary btn--lg btn--pulse" onclick={onPlay}>
         PLAY NOW
       </button>
-      <button class="btn btn--ghost btn--lg">
-        WATCH TRAILER
-      </button>
+      <script
+        async
+        src="https://subscribe-forms.beehiiv.com/embed.js"
+      ></script><iframe
+        src="https://subscribe-forms.beehiiv.com/691a20f4-e58e-435d-8200-e6a7ca4b7ea8"
+        class="beehiiv-embed"
+        data-test-id="beehiiv-embed"
+        frameborder="0"
+        scrolling="no"
+        style="width: 560px; height: auto; margin: 0; border-radius: 0px 0px 0px 0px !important; background-color: transparent; box-shadow: 0 0 #0000; max-width: 100%;"
+      ></iframe>
     </div>
   </div>
 </header>
@@ -58,20 +68,27 @@
   }
 
   .nebula-1 {
-    background: radial-gradient(circle at 20% 30%, rgba(0, 255, 255, 0.15), transparent 40%);
+    background: radial-gradient(
+      circle at 20% 30%,
+      rgba(0, 255, 255, 0.15),
+      transparent 40%
+    );
     filter: blur(60px);
     animation: pulse-slow 8s ease-in-out infinite alternate;
   }
 
   .nebula-2 {
-    background: radial-gradient(circle at 80% 70%, rgba(168, 85, 247, 0.15), transparent 40%); /* Magenta-ish */
+    background: radial-gradient(
+      circle at 80% 70%,
+      rgba(168, 85, 247, 0.15),
+      transparent 40%
+    ); /* Magenta-ish */
     filter: blur(80px);
     animation: pulse-slow 12s ease-in-out infinite alternate-reverse;
   }
 
   .stars {
-    background-image: 
-      radial-gradient(1px 1px at 10% 10%, white, transparent),
+    background-image: radial-gradient(1px 1px at 10% 10%, white, transparent),
       radial-gradient(1px 1px at 20% 20%, white, transparent),
       radial-gradient(2px 2px at 30% 30%, white, transparent),
       radial-gradient(1px 1px at 40% 40%, white, transparent),
@@ -129,13 +146,23 @@
   }
 
   @keyframes pulse-slow {
-    0% { opacity: 0.5; transform: scale(1); }
-    100% { opacity: 0.8; transform: scale(1.1); }
+    0% {
+      opacity: 0.5;
+      transform: scale(1);
+    }
+    100% {
+      opacity: 0.8;
+      transform: scale(1.1);
+    }
   }
 
   @keyframes star-drift {
-    from { transform: translateY(0); }
-    to { transform: translateY(-550px); }
+    from {
+      transform: translateY(0);
+    }
+    to {
+      transform: translateY(-550px);
+    }
   }
 
   @media (max-width: 600px) {
