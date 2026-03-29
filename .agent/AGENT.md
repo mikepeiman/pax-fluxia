@@ -109,6 +109,12 @@ Every `GAME_CONFIG` property with a UI element is sacred. Never delete, simplify
 - Colyseus `Symbol.metadata` crash: use `defineTypes()` not `@type` decorators
 - Bun + esbuild: decorators need special handling
 
+### Architecture-First Rule
+When any conflict, refactor, or new work touches a domain: always prefer **master's current best architecture** over legacy patterns. Never regress to accommodate imported code — refactor incoming code to match the canonical pattern. If uncertain which is better, ask.
+
+### Single-Pattern Enforcement
+One domain = one implementation pattern. Never introduce a second implementation for the same concern (e.g., two different UI control state patterns, two renderer dispatch mechanisms). If a merge or feature would create a duplicate pattern, refactor to the best existing pattern first.
+
 ---
 
 ## 5. Process

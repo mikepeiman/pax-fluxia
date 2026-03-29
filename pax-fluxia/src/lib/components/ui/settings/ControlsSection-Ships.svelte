@@ -10,10 +10,6 @@
     interface Props {
         panel: Record<string, any>;
         updatePanel: (key: string, value: any) => void;
-        values: Record<string, number>;
-        enabled: Record<string, boolean>;
-        updateValue: (key: any, val: number) => void;
-        toggle: (key: any) => void;
         exportConfigMD: () => void;
         importConfigJSON: (e: Event) => void;
         configStatus: string;
@@ -23,10 +19,6 @@
     let {
         panel,
         updatePanel,
-        values,
-        enabled,
-        updateValue,
-        toggle,
         exportConfigMD,
         importConfigJSON,
         configStatus,
@@ -34,8 +26,14 @@
         syncFromConfig,
     }: Props = $props();
 
-    type VarKey = string;
-    const densityVariables = DENSITY_VARIABLES;
+    // Density variable slider metadata — panel key mapping follows PANEL_CONFIG_MAP convention
+    const DENSITY_PANEL_MAP: Record<string, string> = {
+        DENSITY_HUE_STEP: 'densityHueStep',
+        DENSITY_SAT_STEP: 'densitySatStep',
+        DENSITY_LIGHT_STEP: 'densityLightStep',
+        DENSITY_TIERS: 'densityTiers',
+    };
+
     let debugShipCount = $state(0);
     function updateDebugShipCount(count: number) {
         const starId = selectedStarStore.id;
@@ -1391,34 +1389,24 @@
 
 <!-- ── Density Coloring ── -->
 <h4 class="sub-heading">Density Coloring</h4>
-{#each densityVariables as v}
-    <div
-        class="var-row"
-        class:disabled={!enabled[v.key as keyof typeof enabled]}
-    >
+{#each DENSITY_VARIABLES as v}
+    {@const panelKey = DENSITY_PANEL_MAP[v.key] ?? v.key}
+    <div class="var-row">
         <div class="row-top">
-            <label class="toggle-label">
-                <input
-                    type="checkbox"
-                    checked={enabled[v.key as keyof typeof enabled]}
-                    onchange={() => toggle(v.key as keyof typeof enabled)}
-                />
-                <span class="var-name">{v.label}</span>
-            </label>
-            <span class="val">{values[v.key as VarKey].toFixed(2)}</span>
+            <span class="var-name">{v.label}</span>
+            <span class="val">{((panel[panelKey] ?? (GAME_CONFIG as any)[v.key] ?? v.min) as number).toFixed(2)}</span>
         </div>
         <input
             type="range"
             min={v.min}
             max={v.max}
             step={v.step}
-            value={values[v.key as VarKey]}
-            oninput={(e) =>
-                updateValue(
-                    v.key as VarKey,
-                    parseFloat((e.target as HTMLInputElement).value),
-                )}
-            disabled={!enabled[v.key as keyof typeof enabled]}
+            value={panel[panelKey] ?? (GAME_CONFIG as any)[v.key] ?? v.min}
+            oninput={(e) => {
+                const val = parseFloat((e.target as HTMLInputElement).value);
+                (GAME_CONFIG as any)[v.key] = val;
+                updatePanel(panelKey, val);
+            }}
         />
     </div>
 {/each}
