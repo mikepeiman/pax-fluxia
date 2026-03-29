@@ -66,8 +66,8 @@ Ships transfer continuously along active orders. Combat resolves automatically w
 
 ```bash
 # Clone
-git clone https://github.com/mikepeiman/pax-fluxia.git
-cd pax-fluxia
+git clone https://github.com/mikepeiman/pax-galaxia-redux.git
+cd pax-galaxia-redux
 
 # Install dependencies
 bun install
