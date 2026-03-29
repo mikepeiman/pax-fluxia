@@ -9,6 +9,9 @@ Extract the proven rendering logic from the monolithic `PowerVoronoiRenderer.ts`
 
 **Ownership → Geometry → Transition → Presentation**
 
+> [!IMPORTANT]
+> At this commit, **Hybrid mode (HY2 Seed+Delta)** produces the most correct fills — pinned at 3-way junctions and map edges. Pure DY4/PVV2 does NOT pin these. The excavation target should be **Hybrid-quality fills with DY4 transitions**.
+
 ## Source Material
 
 | File (at `8dce88c`) | Lines | Contains |

@@ -22,6 +22,31 @@ This commit represents the **best working PVV2 rendering** with:
 3. **Star label pill layout** — Horizontal/vertical modes with owner-colored borders, configurable pad/gap/alpha/font
 4. **Full Main Menu v2** — Map cards, accessibility-sized controls, MP lobby with slot grid + vote-to-start + chat
 
+## Territory Engine Rendering Modes (at this commit)
+
+> [!IMPORTANT]
+> There are TWO distinct rendering paths that both work at this commit, with a critical difference in fill correctness:
+
+| Mode Selection | Effective Route | Pinned at 3-ways/edges? | Notes |
+|---|---|---|---|
+| **PVV2 Rendering** | Legacy PVV2 monolithic renderer | ❌ No | Equivalent to DY4 Dynamic |
+| **Territory Engine → Hybrid** (HY2 Seed+Delta) | FG1 Adaptive Field + DY4 OT | ✅ **Yes** | **Correct fill pinning** |
+| **Territory Engine → Dynamic** (DY4) | DY4 OT (uses FG1 as static anchor) | ❌ No | Same result as PVV2 |
+
+**Key insight**: **Hybrid mode** produces the most correct territory fills — geometry is pinned at 3-way junctions and map edges. Pure DY4/PVV2 does not pin these.
+
+UI route display at this commit:
+```
+Effective Route: Legacy PVV2
+mode: dynamic
+static: FG1 Adaptive Field
+dynamic: DY4 Optimal Transport
+hybrid: HY2 Seed+Delta
+"DY4 Optimal Transport uses FG1 Adaptive Field as its static anchor."
+"Dynamic mode is exclusive — Dynamic Method picker wins,
+ standalone Static Method choice becomes reference only."
+```
+
 ## Key Files at This Commit
 
 ### Rendering (the crown jewels)
