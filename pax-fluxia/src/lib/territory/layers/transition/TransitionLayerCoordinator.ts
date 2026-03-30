@@ -73,10 +73,10 @@ export class TransitionLayerCoordinator {
 
         let envelope = input.previousTransition?.envelope ?? null;
 
-        // ── Check if we can use the unified topology path ────────────────
-        // DISABLED: topology path produces malformed fills + perf regression.
-        // Keep code path for future activation once planner/sampler are fixed.
-        const TOPOLOGY_PATH_ENABLED = false;
+        // ── Unified topology path — section-level transitions ────────────
+        // Fills are reconstructed from independently interpolated border
+        // sections. Unchanged sections pass through bit-identical.
+        const TOPOLOGY_PATH_ENABLED = true;
         const prevTopo = input.previousGeometry?.frontierTopology;
         const nextTopo = input.geometry.frontierTopology;
         const canUseTopologyPath = TOPOLOGY_PATH_ENABLED && !!(prevTopo && nextTopo);
