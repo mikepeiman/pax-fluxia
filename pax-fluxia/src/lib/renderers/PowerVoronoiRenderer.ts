@@ -737,7 +737,7 @@ export function renderPowerVoronoi(
 
     // ── Per-frame geometric MORPH ──
     const isAnimatingSmooth = (boundaryMode === 'smooth' && s.isSmoothTransitioning && s.prevSharedPolylines && s.targetSharedPolylines && transitionMs > 0) || s.weightLerpActive;
-    console.log('[DIAG-ANIM]', { isAnimatingSmooth, weightLerpActive: s.weightLerpActive, isSmoothTransitioning: s.isSmoothTransitioning, transitionMs });
+    // console.log('[DIAG-ANIM]', { isAnimatingSmooth, weightLerpActive: s.weightLerpActive, isSmoothTransitioning: s.isSmoothTransitioning, transitionMs });
 
     // Fill diagnostics — log only when the active path CHANGES
 

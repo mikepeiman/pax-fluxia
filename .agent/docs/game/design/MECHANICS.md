@@ -55,6 +55,19 @@ Each star type has a **2× bonus** in one specialty. All other multipliers are 1
 | `repairRate` | 0.10 | % of damaged ships repaired per tick (Purple = 0.20) |
 | `transferRate` | 0.10 | Base transfer rate (Blue = 0.20) |
 
+### Star Ownership States
+
+Every star has one of three ownership states. All territory rendering, geometry computation, and Voronoi diagram construction must account for all three:
+
+| State | `ownerId` | Territory Rendering | Description |
+|-------|-----------|-------------------|-------------|
+| **Player-Owned** | Player ID (human or AI) | Player color fill, full alpha | Star belongs to a player. Produces ships, accepts orders. |
+| **Neutral** | `"neutral"` | Neutral color fill, reduced or zero alpha | Star is contested or belongs to no player. Has ships, can be conquered. Participates in territory geometry (has a Voronoi cell). |
+| **Unowned** | `null` / empty | No fill, zero alpha | Star exists on map but has no owner at all. Must still participate in Voronoi computation (to give neighboring stars correct cell shapes) but produces no visible territory fill. |
+
+> [!IMPORTANT]
+> **Neutral ≠ Unowned.** Neutral stars have an active ownership identity (`"neutral"`) and participate in territory geometry with their own cells. Unowned stars have no ownership identity but must still be included in Voronoi diagrams — omitting them inflates neighboring cells incorrectly.
+
 ---
 
 ## 2. Ship States

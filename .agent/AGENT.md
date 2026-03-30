@@ -115,6 +115,9 @@ When any conflict, refactor, or new work touches a domain: always prefer **maste
 ### Single-Pattern Enforcement
 One domain = one implementation pattern. Never introduce a second implementation for the same concern (e.g., two different UI control state patterns, two renderer dispatch mechanisms). If a merge or feature would create a duplicate pattern, refactor to the best existing pattern first.
 
+### Purpose-First Planning
+**Every plan MUST open with a Purpose section** stating the user's exact goal in their own words. All subsequent work is measured against this stated purpose. If at any point the agent's actions diverge from the purpose — reframing failure as success, deprioritizing the goal, or substituting a different objective — the agent has failed. The purpose is not the agent's to redefine.
+
 ---
 
 ## 5. Process
@@ -126,12 +129,14 @@ Use `git ac "message"` alias. Run commands separately, never `&&`.
 ### Browser
 **⛔ NEVER open browser/subagent unless user gives explicit permission.**
 
-### Debugging
-1. Accept user observations as ground truth
-2. List ≥3 possible causes, rank by evidence
-3. Trace data flow to the exact line
-4. If "it used to work" → `git log -p --follow` FIRST
-5. Never claim fixed without evidence
+### Debugging — TRACE FIRST, ALWAYS
+**⚠️ MANDATORY: Do NOT speculate about causes before tracing the actual code path.**
+1. **TRACE FIRST**: Read the actual code path end-to-end. Follow data from input to output. Gather objective facts.
+2. Accept user observations as ground truth — they see the running app, you do not.
+3. Only AFTER tracing, form hypotheses ranked by evidence from the trace.
+4. If "it used to work" → trace what changed: `git log -p --follow`, diff configs, diff data formats.
+5. Never claim fixed without user verification.
+6. **Do NOT speculate → dismiss → re-speculate** in internal reasoning. Each "wait, actually" is a sign you skipped step 1.
 
 ---
 
