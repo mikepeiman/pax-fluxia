@@ -181,16 +181,26 @@ function otInterpolateClosedPolygon(
     next: [number, number][],
     t: number,
 ): [number, number][] {
-    const sampleCount = Math.max(prev.length, next.length, 4);
+    if (prev.length < 2 || next.length < 2) {
+        return t < 0.5 ? [...prev] : [...next];
+    }
+
+    // ── Align start vertices ────────────────────────────────────
+    // Rotate next polygon so its start point is closest to prev's
+    // start point. Without this, CDF parameterization maps
+    // misaligned angular positions → rotation artifact.
+    const alignedNext = alignStartVertex(prev, next);
+
+    const sampleCount = Math.max(prev.length, alignedNext.length, 4);
     const prevCDF = buildPerimeterCDF(prev);
-    const nextCDF = buildPerimeterCDF(next);
+    const nextCDF = buildPerimeterCDF(alignedNext);
     const s = 1 - t;
 
     const result: [number, number][] = new Array(sampleCount);
     for (let i = 0; i < sampleCount; i++) {
         const u = i / sampleCount; // [0, 1) for closed polygon
         const [px, py] = evaluateClosedAtFraction(prev, prevCDF, u);
-        const [nx, ny] = evaluateClosedAtFraction(next, nextCDF, u);
+        const [nx, ny] = evaluateClosedAtFraction(alignedNext, nextCDF, u);
         result[i] = [s * px + t * nx, s * py + t * ny];
     }
 
@@ -200,6 +210,29 @@ function otInterpolateClosedPolygon(
     }
 
     return result;
+}
+
+/**
+ * Rotate next polygon so its start vertex is closest to prev[0].
+ * This aligns the perimeter parameterization to prevent rotation artifacts.
+ */
+function alignStartVertex(
+    prev: [number, number][],
+    next: [number, number][],
+): [number, number][] {
+    if (next.length < 2) return next;
+    const [px, py] = prev[0];
+    let bestIdx = 0;
+    let bestDist = Infinity;
+    for (let i = 0; i < next.length; i++) {
+        const dx = next[i][0] - px;
+        const dy = next[i][1] - py;
+        const dist = dx * dx + dy * dy;
+        if (dist < bestDist) { bestDist = dist; bestIdx = i; }
+    }
+    if (bestIdx === 0) return next;
+    // Rotate: [bestIdx..n-1, 0..bestIdx-1]
+    return [...next.slice(bestIdx), ...next.slice(0, bestIdx)];
 }
 
 /** Build perimeter CDF for a closed polygon. */
