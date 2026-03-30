@@ -69,6 +69,8 @@
 |----|-------------|--------|------|
 | R-1 | Territory rendering (all modes) regressed during mobile layout work | 🔴 Active | 2026-03-02 |
 | R-2 | Audio settings (conquest sounds, toggles) not persisting across reload | 🔴 Active | 2026-03-02 |
+| R-3 | Segment-based transitions cause massive region movement and severe lag/stalls | 🔴 Active | 2026-03-30 |
+
 
 ## Known Bugs (F-138 Territory Pipeline)
 
