@@ -137,6 +137,17 @@ export class TransitionLayerCoordinator {
             }
         }
 
+        // ── Tunable-only geometry change (no conquest) ───────────────────
+        // Cancel active transition so renderer snaps to new geometry.
+        // Without this, MSR/CX/DX changes are invisible mid-transition
+        // because the fill plan still holds old-tunable target regions.
+        if (!hasNewConquests && hasGeometryDelta) {
+            envelope = null;
+            activeFillPlan = null;
+            activeBorderPlan = null;
+            activeTopologyPlan = null;
+        }
+
         if (envelope) {
             envelope.progress = this.clock.sampleProgress(envelope, input.nowMs);
         }
