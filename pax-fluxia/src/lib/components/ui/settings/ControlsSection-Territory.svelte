@@ -958,6 +958,7 @@
     </div>
 {/if}
 
+{#if resolveActiveStyleId() === "territory_engine" || resolveActiveStyleId() === "territory_canonical"}
 {#if resolveActiveStyleId() === "territory_engine"}
     <h4 class="sub-heading">⚙️ Legacy Engine Diagnostics</h4>
     <div
@@ -1040,6 +1041,7 @@
             >
         </div>
     </div>
+{/if}
 
     <div class="var-row">
         <div class="row-top">
@@ -1323,6 +1325,7 @@
             }}
         />
     </div>
+{#if resolveActiveStyleId() === "territory_engine"}
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Trace Mode</span>
@@ -1494,6 +1497,7 @@
             </div>
         {/if}
     </div>
+{/if}
 {/if}
 
 <!-- Per-renderer settings removed — V3.1 uses three-concern architecture (Style + Fill Transition + Border Transition) -->

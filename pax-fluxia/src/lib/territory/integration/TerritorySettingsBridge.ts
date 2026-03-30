@@ -77,6 +77,19 @@ export function readTerritoryRuntimeSettings(
             frontierResolution: asNumber(config.FRONTIER_RESOLUTION, 5),
             boundaryPad: asNumber(config.CHAIKIN_BOUNDARY_PAD, 50),
             boundaryEps: asNumber(config.CHAIKIN_BOUNDARY_EPS, 6),
+            // --- Geometry: MSR ---
+            starMargin: asNumber(config.MODIFIED_VORONOI_STAR_MARGIN, 45),
+            // --- Geometry: CX (Corridor Connection) ---
+            corridorEnabled: Boolean(config.MODIFIED_VORONOI_CORRIDOR_ENABLED ?? true),
+            corridorSpacing: asNumber(config.MODIFIED_VORONOI_CORRIDOR_SPACING, 60),
+            corridorCount: asNumber(config.TERRITORY_CX_COUNT, 0),
+            corridorWeight: asNumber(config.TERRITORY_CX_WEIGHT, 0.5),
+            // --- Geometry: DX (Disconnect Zones) ---
+            disconnectEnabled: Boolean(config.MODIFIED_VORONOI_DISCONNECT_ENABLED ?? false),
+            disconnectDistance: asNumber(config.MODIFIED_VORONOI_DISCONNECT_DISTANCE, 400),
+            disconnectWeight: asNumber(config.TERRITORY_DX_WEIGHT, 0.3),
+            // --- Geometry: Cluster splitting ---
+            clusterSplitThreshold: config.TERRITORY_CLUSTER_SPLIT ? 1 : 0,
         },
     };
 }
