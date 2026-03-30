@@ -73,39 +73,48 @@ export class FrontierMorphFillMode implements FillTransitionMode {
         for (const ownerId of allOwnerIds) {
             const prevRegions = prevByOwner.get(ownerId) ?? [];
             const nextRegions = nextByOwner.get(ownerId) ?? [];
-            const maxLen = Math.max(prevRegions.length, nextRegions.length);
 
-            for (let i = 0; i < maxLen; i++) {
-                const prevRegion = prevRegions[i];
-                const nextRegion = nextRegions[i];
+            // ── regionId-based matching ─────────────────────────────────
+            // TerritoryRegionShape.regionId is the stable identity key.
+            // Match prev→next by regionId. Unmatched regions spawn/vanish.
+            const prevByRegionId = new Map<string, TerritoryRegionShape>();
+            for (const r of prevRegions) prevByRegionId.set(r.regionId, r);
 
-                if (prevRegion && nextRegion) {
-                    // Both exist — CDF-based interpolation
+            const matchedPrevIds = new Set<string>();
+
+            for (const nextRegion of nextRegions) {
+                const prevRegion = prevByRegionId.get(nextRegion.regionId);
+                if (prevRegion) {
+                    // Matched — CDF-based OT interpolation
+                    matchedPrevIds.add(nextRegion.regionId);
                     regions.push({
-                        ownerId,
+                        ...nextRegion,
                         points: otInterpolateClosedPolygon(prevRegion.points, nextRegion.points, t),
                     });
-                } else if (nextRegion && !prevRegion) {
+                } else {
                     // Spawning — grow from centroid
                     const centroid = polygonCentroid(nextRegion.points);
                     regions.push({
-                        ownerId,
+                        ...nextRegion,
                         points: nextRegion.points.map(([x, y]) => [
                             centroid[0] + t * (x - centroid[0]),
                             centroid[1] + t * (y - centroid[1]),
                         ] as [number, number]),
                     });
-                } else if (prevRegion && !nextRegion) {
-                    // Vanishing — shrink toward centroid
-                    const centroid = polygonCentroid(prevRegion.points);
-                    regions.push({
-                        ownerId,
-                        points: prevRegion.points.map(([x, y]) => [
-                            x + t * (centroid[0] - x),
-                            y + t * (centroid[1] - y),
-                        ] as [number, number]),
-                    });
                 }
+            }
+
+            // Unmatched prev regions — vanishing (shrink toward centroid)
+            for (const prevRegion of prevRegions) {
+                if (matchedPrevIds.has(prevRegion.regionId)) continue;
+                const centroid = polygonCentroid(prevRegion.points);
+                regions.push({
+                    ...prevRegion,
+                    points: prevRegion.points.map(([x, y]) => [
+                        x + t * (centroid[0] - x),
+                        y + t * (centroid[1] - y),
+                    ] as [number, number]),
+                });
             }
         }
 
