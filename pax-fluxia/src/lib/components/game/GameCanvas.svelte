@@ -1294,6 +1294,16 @@
                             app?.renderer ?? undefined,
                         );
                         break;
+                    case "modified_voronoi":
+                        renderModifiedVoronoiModule(
+                            stars,
+                            voronoiContainer,
+                            colorUtils,
+                            GAME_WIDTH,
+                            GAME_HEIGHT,
+                            activeGameStore.connections as StarConnection[],
+                        );
+                        break;
                     case "voronoi":
                         renderVoronoiModule(
                             stars,
