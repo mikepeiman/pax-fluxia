@@ -18,13 +18,14 @@
 
     let { panel, updatePanel, syncFromConfig }: Props = $props();
 
-    // Bridge compatibility: keep legacy call sites, route to panel writes only.
+    // Bridge compatibility: writes to both GAME_CONFIG (for runtime reads) and panel state (for UI reactivity).
     function debouncedConfigUpdate(
-        _configKey: string,
+        configKey: string,
         panelKey: string,
         value: any,
         _delayMs = 100,
     ) {
+        (GAME_CONFIG as any)[configKey] = value;
         updatePanel(panelKey, value);
     }
 
