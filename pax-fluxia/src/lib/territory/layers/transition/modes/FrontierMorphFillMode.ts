@@ -4,19 +4,16 @@ import type {
     FillTransitionPlan,
     FillTransitionPlanInput,
     TransitionSampleContext,
-} from '../FillTransitionMode';
-import type { TerritoryRegionShape, FrontierPolylineShape } from '../../geometry/GeometryMode';
+} from '../../../contracts/TransitionContracts';
+import type { FrontierTopology, RegionLoop } from '../../../contracts/FrontierTopologyContracts';
 
 /**
- * Territory region matched by ownerId for interpolation.
- * When a territory region exists in both prev and next, we OT-interpolate
- * the closed polygon. When it only exists in one, we fade in/out.
+ * Transition plan holding explicitly the full FrontierTopology rather than
+ * rendered polygons, enabling true topological segment ID matching.
  */
 interface FrontierMorphFillPlan extends FillTransitionPlan {
-    /** Previous territory regions (closed fill polygons) */
-    previousRegions: readonly TerritoryRegionShape[];
-    /** Target territory regions (closed fill polygons) */
-    targetRegions: readonly TerritoryRegionShape[];
+    previousTopology?: FrontierTopology;
+    targetTopology?: FrontierTopology;
 }
 
 export class FrontierMorphFillMode implements FillTransitionMode {
@@ -24,17 +21,15 @@ export class FrontierMorphFillMode implements FillTransitionMode {
     readonly label = 'Frontier Topology Morph Fill';
 
     plan(input: FillTransitionPlanInput): FillTransitionPlan {
-        const plan: FrontierMorphFillPlan = {
+        return {
             planId: `fill:frontier_morph:${input.nowMs}`,
             sourceMode: this.id,
             startGeometryVersion: input.previousGeometry?.version ?? input.nextGeometry.version,
             endGeometryVersion: input.nextGeometry.version,
             conquestEvents: input.ownership.conquestEvents,
-            previousRegions: input.previousGeometry?.territoryRegions ?? input.nextGeometry.territoryRegions,
-            targetRegions: input.nextGeometry.territoryRegions,
-        };
-
-        return plan;
+            previousTopology: input.previousGeometry?.frontierTopology,
+            targetTopology: input.nextGeometry.frontierTopology,
+        } as FrontierMorphFillPlan;
     }
 
     sample(
@@ -43,122 +38,83 @@ export class FrontierMorphFillMode implements FillTransitionMode {
     ): FillTransitionFrame {
         const typedPlan = plan as FrontierMorphFillPlan;
         const t = ctx.progress;
+        
+        const regions: { ownerId: string; points: [number, number][] }[] = [];
 
-        // Edge cases: snap to source or target
-        if (t <= 0) {
-            return { regions: [...typedPlan.previousRegions] };
-        }
-        if (t >= 1) {
-            return { regions: [...typedPlan.targetRegions] };
-        }
-
-        // D-92: ownerId is NOT unique — an owner can have multiple disconnected
-        // territory regions (cluster split). Accumulate arrays per owner.
-        const prevByOwner = new Map<string, TerritoryRegionShape[]>();
-        for (const r of typedPlan.previousRegions) {
-            const arr = prevByOwner.get(r.ownerId);
-            if (arr) arr.push(r);
-            else prevByOwner.set(r.ownerId, [r]);
-        }
-        const nextByOwner = new Map<string, TerritoryRegionShape[]>();
-        for (const r of typedPlan.targetRegions) {
-            const arr = nextByOwner.get(r.ownerId);
-            if (arr) arr.push(r);
-            else nextByOwner.set(r.ownerId, [r]);
+        if (!typedPlan.previousTopology || !typedPlan.targetTopology) {
+            // Unlikely fallback if geometries are missing topology
+            return { regions: [] };
         }
 
-        const regions: TerritoryRegionShape[] = [];
-        const allOwnerIds = new Set([...prevByOwner.keys(), ...nextByOwner.keys()]);
+        const prevTopology = typedPlan.previousTopology;
+        const nextTopology = typedPlan.targetTopology;
 
-        for (const ownerId of allOwnerIds) {
-            const prevRegions = prevByOwner.get(ownerId) ?? [];
-            const nextRegions = nextByOwner.get(ownerId) ?? [];
+        // Group prev loops by owner for matching
+        const prevByOwner = new Map<string, RegionLoop[]>();
+        for (const loop of prevTopology.loops) {
+            const arr = prevByOwner.get(loop.ownerId);
+            if (arr) arr.push(loop); else prevByOwner.set(loop.ownerId, [loop]);
+        }
 
-            if (prevRegions.length === 0) {
-                // All new — spawning (grow from centroid)
-                for (const nextRegion of nextRegions) {
-                    const centroid = polygonCentroid(nextRegion.points);
-                    regions.push({
-                        ...nextRegion,
-                        points: nextRegion.points.map(([x, y]) => [
-                            centroid[0] + t * (x - centroid[0]),
-                            centroid[1] + t * (y - centroid[1]),
-                        ] as [number, number]),
-                    });
+        const matchedPrevLoopIds = new Set<string>();
+
+        // 1) Process all target loops
+        for (const nextLoop of nextTopology.loops) {
+            let sharedSectionId: string | undefined;
+            let bestPrevLoop: RegionLoop | undefined;
+
+            // Find a prevLoop that shares at least one structural segment
+            for (const nextRef of nextLoop.sectionRefs) {
+                const candidates = prevByOwner.get(nextLoop.ownerId) || [];
+                for (const prevLoop of candidates) {
+                    if (matchedPrevLoopIds.has(prevLoop.id)) continue;
+                    if (prevLoop.sectionRefs.some(r => r.sectionId === nextRef.sectionId)) {
+                        bestPrevLoop = prevLoop;
+                        sharedSectionId = nextRef.sectionId;
+                        break; // found match!
+                    }
                 }
-                continue;
-            }
-            if (nextRegions.length === 0) {
-                // All gone — vanishing (shrink toward centroid)
-                for (const prevRegion of prevRegions) {
-                    const centroid = polygonCentroid(prevRegion.points);
-                    regions.push({
-                        ...prevRegion,
-                        points: prevRegion.points.map(([x, y]) => [
-                            x + t * (centroid[0] - x),
-                            y + t * (centroid[1] - y),
-                        ] as [number, number]),
-                    });
-                }
-                continue;
+                if (bestPrevLoop) break;
             }
 
-            // ── Common case: 1 prev ↔ 1 next — direct pair by ownerId ──
-            if (prevRegions.length === 1 && nextRegions.length === 1) {
+            if (bestPrevLoop && sharedSectionId) {
+                matchedPrevLoopIds.add(bestPrevLoop.id);
+                // Align both Point arrays structurally to start at the shared section's start node
+                const prevPoints = buildLoopPoints(bestPrevLoop, prevTopology, sharedSectionId);
+                const nextPoints = buildLoopPoints(nextLoop, nextTopology, sharedSectionId);
+                
                 regions.push({
-                    ...nextRegions[0],
-                    points: otInterpolateClosedPolygon(prevRegions[0].points, nextRegions[0].points, t),
+                    ownerId: nextLoop.ownerId,
+                    points: otInterpolateAlignedPolygon(prevPoints, nextPoints, t),
                 });
-                continue;
-            }
-
-            // ── Multi-region (cluster splits): centroid-proximity matching ──
-            // When an owner has multiple disconnected regions, match by
-            // nearest centroid. Each next-region finds its closest prev-region.
-            const prevCentroids = prevRegions.map(r => polygonCentroid(r.points));
-            const nextCentroids = nextRegions.map(r => polygonCentroid(r.points));
-            const usedPrev = new Set<number>();
-
-            for (let ni = 0; ni < nextRegions.length; ni++) {
-                let bestPi = -1;
-                let bestDist = Infinity;
-                for (let pi = 0; pi < prevRegions.length; pi++) {
-                    if (usedPrev.has(pi)) continue;
-                    const dx = nextCentroids[ni][0] - prevCentroids[pi][0];
-                    const dy = nextCentroids[ni][1] - prevCentroids[pi][1];
-                    const dist = dx * dx + dy * dy;
-                    if (dist < bestDist) { bestDist = dist; bestPi = pi; }
-                }
-                if (bestPi >= 0) {
-                    usedPrev.add(bestPi);
-                    regions.push({
-                        ...nextRegions[ni],
-                        points: otInterpolateClosedPolygon(prevRegions[bestPi].points, nextRegions[ni].points, t),
-                    });
-                } else {
-                    // No match — spawning
-                    const centroid = nextCentroids[ni];
-                    regions.push({
-                        ...nextRegions[ni],
-                        points: nextRegions[ni].points.map(([x, y]) => [
-                            centroid[0] + t * (x - centroid[0]),
-                            centroid[1] + t * (y - centroid[1]),
-                        ] as [number, number]),
-                    });
-                }
-            }
-            // Unmatched prev regions — vanishing
-            for (let pi = 0; pi < prevRegions.length; pi++) {
-                if (usedPrev.has(pi)) continue;
-                const centroid = prevCentroids[pi];
+            } else {
+                // Pure spawn: no shared topological boundary
+                const nextPoints = buildLoopPoints(nextLoop, nextTopology);
+                const centroid = polygonCentroid(nextPoints);
+                const morphed = nextPoints.map(([x, y]) => [
+                    centroid[0] + t * (x - centroid[0]),
+                    centroid[1] + t * (y - centroid[1]),
+                ] as [number, number]);
                 regions.push({
-                    ...prevRegions[pi],
-                    points: prevRegions[pi].points.map(([x, y]) => [
-                        x + t * (centroid[0] - x),
-                        y + t * (centroid[1] - y),
-                    ] as [number, number]),
+                    ownerId: nextLoop.ownerId,
+                    points: closePolygon(morphed),
                 });
             }
+        }
+
+        // 2) Process unmatched prev loops (Vanishing)
+        for (const prevLoop of prevTopology.loops) {
+            if (matchedPrevLoopIds.has(prevLoop.id)) continue;
+            const prevPoints = buildLoopPoints(prevLoop, prevTopology);
+            const centroid = polygonCentroid(prevPoints);
+            const morphed = prevPoints.map(([x, y]) => [
+                x + t * (centroid[0] - x),
+                y + t * (centroid[1] - y),
+            ] as [number, number]);
+            regions.push({
+                ownerId: prevLoop.ownerId,
+                points: closePolygon(morphed),
+            });
         }
 
         return { regions };
@@ -166,76 +122,80 @@ export class FrontierMorphFillMode implements FillTransitionMode {
 }
 
 // ---------------------------------------------------------------------------
-// CDF-based polygon interpolation (same math as border interpolation)
+// Helpers
 // ---------------------------------------------------------------------------
+
+function closePolygon(points: [number, number][]): [number, number][] {
+    if (points.length === 0) return points;
+    return [...points, [points[0][0], points[0][1]]];
+}
+
+/**
+ * Reconstruct a full ordered coordinate sequence for a RegionLoop.
+ * Does NOT append a closing duplicated vertex (leaves array open for OT CDF).
+ * If alignSectionId is provided, rotates the array such that index 0 is 
+ * the exact starting coordinate of the specified section.
+ */
+function buildLoopPoints(loop: RegionLoop, topology: FrontierTopology, alignSectionId?: string): [number, number][] {
+    const points: [number, number][] = [];
+    let startIdx = 0;
+
+    for (let i = 0; i < loop.sectionRefs.length; i++) {
+        const ref = loop.sectionRefs[i];
+        if (ref.sectionId === alignSectionId) {
+            startIdx = points.length;
+        }
+        const section = topology.sections.get(ref.sectionId);
+        if (!section) continue;
+
+        const pts = section.points;
+        if (ref.direction === 'forward') {
+            for (let j = 0; j < pts.length - 1; j++) {
+                points.push(pts[j]);
+            }
+        } else {
+            for (let j = pts.length - 1; j > 0; j--) {
+                points.push(pts[j]);
+            }
+        }
+    }
+
+    if (startIdx > 0) {
+        return [...points.slice(startIdx), ...points.slice(0, startIdx)];
+    }
+    return points;
+}
 
 /**
  * OT-interpolate two closed polygons at progress t.
- * Uses arc-length CDF parameterization — same approach as border
- * interpolation — applied to closed polygon perimeters.
- *
- * D-92: Adds closing vertex so the polygon is guaranteed closed every frame.
+ * Input arrays MUST be topologically pre-aligned (index 0 corresponds 
+ * exactly between prev and next).
  */
-function otInterpolateClosedPolygon(
+function otInterpolateAlignedPolygon(
     prev: [number, number][],
     next: [number, number][],
     t: number,
 ): [number, number][] {
     if (prev.length < 2 || next.length < 2) {
-        return t < 0.5 ? [...prev] : [...next];
+        return closePolygon(t < 0.5 ? prev : next);
     }
 
-    // ── Align start vertices ────────────────────────────────────
-    // Rotate next polygon so its start point is closest to prev's
-    // start point. Without this, CDF parameterization maps
-    // misaligned angular positions → rotation artifact.
-    const alignedNext = alignStartVertex(prev, next);
-
-    const sampleCount = Math.max(prev.length, alignedNext.length, 4);
+    const sampleCount = Math.max(prev.length, next.length, 4);
     const prevCDF = buildPerimeterCDF(prev);
-    const nextCDF = buildPerimeterCDF(alignedNext);
+    const nextCDF = buildPerimeterCDF(next);
     const s = 1 - t;
 
     const result: [number, number][] = new Array(sampleCount);
     for (let i = 0; i < sampleCount; i++) {
-        const u = i / sampleCount; // [0, 1) for closed polygon
+        const u = i / sampleCount; // [0, 1) for open-sequence polygon
         const [px, py] = evaluateClosedAtFraction(prev, prevCDF, u);
-        const [nx, ny] = evaluateClosedAtFraction(alignedNext, nextCDF, u);
+        const [nx, ny] = evaluateClosedAtFraction(next, nextCDF, u);
         result[i] = [s * px + t * nx, s * py + t * ny];
     }
 
-    // D-92: Close the polygon — add a closing vertex matching the first point
-    if (result.length > 0) {
-        result.push([result[0][0], result[0][1]]);
-    }
-
-    return result;
+    return closePolygon(result);
 }
 
-/**
- * Rotate next polygon so its start vertex is closest to prev[0].
- * This aligns the perimeter parameterization to prevent rotation artifacts.
- */
-function alignStartVertex(
-    prev: [number, number][],
-    next: [number, number][],
-): [number, number][] {
-    if (next.length < 2) return next;
-    const [px, py] = prev[0];
-    let bestIdx = 0;
-    let bestDist = Infinity;
-    for (let i = 0; i < next.length; i++) {
-        const dx = next[i][0] - px;
-        const dy = next[i][1] - py;
-        const dist = dx * dx + dy * dy;
-        if (dist < bestDist) { bestDist = dist; bestIdx = i; }
-    }
-    if (bestIdx === 0) return next;
-    // Rotate: [bestIdx..n-1, 0..bestIdx-1]
-    return [...next.slice(bestIdx), ...next.slice(0, bestIdx)];
-}
-
-/** Build perimeter CDF for a closed polygon. */
 function buildPerimeterCDF(points: [number, number][]): Float64Array {
     const n = points.length;
     const cdf = new Float64Array(n + 1);
@@ -261,7 +221,6 @@ function buildPerimeterCDF(points: [number, number][]): Float64Array {
     return cdf;
 }
 
-/** Evaluate a closed polygon at perimeter fraction u ∈ [0, 1). */
 function evaluateClosedAtFraction(
     points: [number, number][],
     cdf: Float64Array,
@@ -271,16 +230,12 @@ function evaluateClosedAtFraction(
     if (n === 0) return [0, 0];
     if (n === 1) return [points[0][0], points[0][1]];
 
-    // Clamp u to [0, 1)
     const uu = ((u % 1) + 1) % 1;
 
-    // Find segment via binary search on CDF
-    let lo = 0;
-    let hi = n;
+    let lo = 0, hi = n;
     while (lo < hi - 1) {
         const mid = (lo + hi) >> 1;
-        if (cdf[mid] <= uu) lo = mid;
-        else hi = mid;
+        if (cdf[mid] <= uu) lo = mid; else hi = mid;
     }
 
     const segFrac = cdf[lo + 1] - cdf[lo];
@@ -294,13 +249,9 @@ function evaluateClosedAtFraction(
     ];
 }
 
-/** Compute the centroid of a polygon. */
 function polygonCentroid(points: [number, number][]): [number, number] {
     if (points.length === 0) return [0, 0];
     let sx = 0, sy = 0;
-    for (const [x, y] of points) {
-        sx += x;
-        sy += y;
-    }
+    for (const [x, y] of points) { sx += x; sy += y; }
     return [sx / points.length, sy / points.length];
 }
