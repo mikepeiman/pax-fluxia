@@ -74,25 +74,9 @@ export class FrontierMorphFillMode implements FillTransitionMode {
             const prevRegions = prevByOwner.get(ownerId) ?? [];
             const nextRegions = nextByOwner.get(ownerId) ?? [];
 
-            // ── regionId-based matching ─────────────────────────────────
-            // TerritoryRegionShape.regionId is the stable identity key.
-            // Match prev→next by regionId. Unmatched regions spawn/vanish.
-            const prevByRegionId = new Map<string, TerritoryRegionShape>();
-            for (const r of prevRegions) prevByRegionId.set(r.regionId, r);
-
-            const matchedPrevIds = new Set<string>();
-
-            for (const nextRegion of nextRegions) {
-                const prevRegion = prevByRegionId.get(nextRegion.regionId);
-                if (prevRegion) {
-                    // Matched — CDF-based OT interpolation
-                    matchedPrevIds.add(nextRegion.regionId);
-                    regions.push({
-                        ...nextRegion,
-                        points: otInterpolateClosedPolygon(prevRegion.points, nextRegion.points, t),
-                    });
-                } else {
-                    // Spawning — grow from centroid
+            if (prevRegions.length === 0) {
+                // All new — spawning (grow from centroid)
+                for (const nextRegion of nextRegions) {
                     const centroid = polygonCentroid(nextRegion.points);
                     regions.push({
                         ...nextRegion,
@@ -102,15 +86,74 @@ export class FrontierMorphFillMode implements FillTransitionMode {
                         ] as [number, number]),
                     });
                 }
+                continue;
+            }
+            if (nextRegions.length === 0) {
+                // All gone — vanishing (shrink toward centroid)
+                for (const prevRegion of prevRegions) {
+                    const centroid = polygonCentroid(prevRegion.points);
+                    regions.push({
+                        ...prevRegion,
+                        points: prevRegion.points.map(([x, y]) => [
+                            x + t * (centroid[0] - x),
+                            y + t * (centroid[1] - y),
+                        ] as [number, number]),
+                    });
+                }
+                continue;
             }
 
-            // Unmatched prev regions — vanishing (shrink toward centroid)
-            for (const prevRegion of prevRegions) {
-                if (matchedPrevIds.has(prevRegion.regionId)) continue;
-                const centroid = polygonCentroid(prevRegion.points);
+            // ── Common case: 1 prev ↔ 1 next — direct pair by ownerId ──
+            if (prevRegions.length === 1 && nextRegions.length === 1) {
                 regions.push({
-                    ...prevRegion,
-                    points: prevRegion.points.map(([x, y]) => [
+                    ...nextRegions[0],
+                    points: otInterpolateClosedPolygon(prevRegions[0].points, nextRegions[0].points, t),
+                });
+                continue;
+            }
+
+            // ── Multi-region (cluster splits): centroid-proximity matching ──
+            // When an owner has multiple disconnected regions, match by
+            // nearest centroid. Each next-region finds its closest prev-region.
+            const prevCentroids = prevRegions.map(r => polygonCentroid(r.points));
+            const nextCentroids = nextRegions.map(r => polygonCentroid(r.points));
+            const usedPrev = new Set<number>();
+
+            for (let ni = 0; ni < nextRegions.length; ni++) {
+                let bestPi = -1;
+                let bestDist = Infinity;
+                for (let pi = 0; pi < prevRegions.length; pi++) {
+                    if (usedPrev.has(pi)) continue;
+                    const dx = nextCentroids[ni][0] - prevCentroids[pi][0];
+                    const dy = nextCentroids[ni][1] - prevCentroids[pi][1];
+                    const dist = dx * dx + dy * dy;
+                    if (dist < bestDist) { bestDist = dist; bestPi = pi; }
+                }
+                if (bestPi >= 0) {
+                    usedPrev.add(bestPi);
+                    regions.push({
+                        ...nextRegions[ni],
+                        points: otInterpolateClosedPolygon(prevRegions[bestPi].points, nextRegions[ni].points, t),
+                    });
+                } else {
+                    // No match — spawning
+                    const centroid = nextCentroids[ni];
+                    regions.push({
+                        ...nextRegions[ni],
+                        points: nextRegions[ni].points.map(([x, y]) => [
+                            centroid[0] + t * (x - centroid[0]),
+                            centroid[1] + t * (y - centroid[1]),
+                        ] as [number, number]),
+                    });
+                }
+            }
+            // Unmatched prev regions — vanishing
+            for (let pi = 0; pi < prevRegions.length; pi++) {
+                if (usedPrev.has(pi)) continue;
+                const centroid = prevCentroids[pi];
+                regions.push({
+                    ...prevRegions[pi],
+                    points: prevRegions[pi].points.map(([x, y]) => [
                         x + t * (centroid[0] - x),
                         y + t * (centroid[1] - y),
                     ] as [number, number]),
