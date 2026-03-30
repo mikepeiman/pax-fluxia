@@ -76,7 +76,7 @@ export class TransitionLayerCoordinator {
         // ── Unified topology path — section-level transitions ────────────
         // Fills are reconstructed from independently interpolated border
         // sections. Unchanged sections pass through bit-identical.
-        const TOPOLOGY_PATH_ENABLED = true;
+        const TOPOLOGY_PATH_ENABLED = false;
         const prevTopo = input.previousGeometry?.frontierTopology;
         const nextTopo = input.geometry.frontierTopology;
         const canUseTopologyPath = TOPOLOGY_PATH_ENABLED && !!(prevTopo && nextTopo);
