@@ -652,11 +652,9 @@ export function renderModifiedVoronoi(
     worldHeight: number,
     connections?: StarConnection[],
 ): void {
-    if (!GAME_CONFIG.TERRITORY_MODIFIED_VORONOI) {
-        if (cellGraphics) cellGraphics.visible = false;
-        if (borderGraphics) borderGraphics.visible = false;
-        return;
-    }
+    // NOTE: No boolean gate here — if this function was called, the dispatch
+    // already selected this renderer. Legacy TERRITORY_MODIFIED_VORONOI flag
+    // is no longer checked; mode selection is handled by TerritoryLegacyBridge.
 
     // Ensure own children are visible (don't touch shared container)
     if (cellGraphics) cellGraphics.visible = true;
