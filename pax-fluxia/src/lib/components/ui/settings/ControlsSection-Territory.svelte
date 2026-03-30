@@ -253,17 +253,9 @@
     ] as const;
 
     const TERRITORY_LEGACY_STYLE_OPTIONS = [
+        { id: "territory_engine", label: "Engine (DY4 Pipeline)" },
         { id: "pvv2_dy4", label: "PVV2 DY4 Restored (Reference 8dce88c)" },
-        { id: "territory_engine", label: "Legacy Engine Router (DY4)" },
-        { id: "vs_pvv3", label: "Legacy PVV3 Frontier Style" },
-        { id: "power_voronoi", label: "Legacy PVV2 Weighted Voronoi" },
-        { id: "modified_voronoi", label: "F-138 Modified Voronoi (Arc+Margin+DX)" },
-        { id: "distance_field", label: "Legacy Signed-Distance Field" },
-        { id: "metaball", label: "Legacy Metaball Style" },
-        { id: "pixel", label: "Legacy Pixel-Quantized Style" },
-        { id: "voronoi", label: "Legacy Voronoi Style" },
-        { id: "graph", label: "Legacy Lane-Influence Style" },
-        { id: "contour", label: "Legacy Contour Style" },
+        { id: "power_voronoi", label: "PVV2 Current (Weighted Voronoi)" },
     ] as const;
 
     const TERRITORY_ARCHITECTURE_PATH_OPTIONS = [
