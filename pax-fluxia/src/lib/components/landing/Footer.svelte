@@ -1,5 +1,36 @@
 <script lang="ts">
+  import { fade } from 'svelte/transition';
+  
   let email = $state("");
+  let status = $state<'idle' | 'loading' | 'success' | 'error'>('idle');
+  let statusMessage = $state('');
+
+  async function handleSubscribe(event: Event) {
+    event.preventDefault();
+    if (!email) return;
+
+    status = 'loading';
+    try {
+      const response = await fetch('/api/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        status = 'success';
+        statusMessage = "You're on the list. Stand by for orders.";
+        email = '';
+      } else {
+        status = 'error';
+        statusMessage = data.message || "Comm link failed. Try again.";
+      }
+    } catch (e) {
+      status = 'error';
+      statusMessage = "Offline. Please try again.";
+    }
+  }
 </script>
 
 <footer class="footer">
@@ -9,17 +40,22 @@
       Sign up for the private alpha waitlist and newsletter to receive exclusive development updates and launch announcements.
     </p>
 
-    <div class="newsletter-form">
+    <form class="newsletter-form" onsubmit={handleSubscribe}>
       <input 
         type="email" 
         placeholder="Enter your email..." 
         bind:value={email}
         class="input font-body"
+        required
+        disabled={status === 'loading'}
       />
-      <button class="btn btn--primary btn--cyan font-display">
-        SIGN UP
+      <button type="submit" class="btn btn--primary btn--cyan font-display" disabled={status === 'loading'}>
+        {status === 'loading' ? 'LINKING...' : 'SIGN UP'}
       </button>
-    </div>
+    </form>
+    {#if status !== 'idle'}
+      <p class="status-msg {status}" transition:fade={{ duration: 200 }}>{statusMessage}</p>
+    {/if}
 
     <div class="socials">
       <!-- Social Icons Placeholder -->
@@ -95,10 +131,22 @@
     font-weight: 700;
   }
 
-  .btn--cyan:hover {
+  .btn--cyan:hover:not(:disabled) {
     background: #00cccc;
     box-shadow: 0 0 15px rgba(0, 255, 255, 0.4);
   }
+
+  .btn--cyan:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .status-msg {
+    font-size: 0.875rem;
+    margin-top: var(--space-2);
+  }
+  .status-msg.error { color: var(--color-status-danger, #ff4d4d); }
+  .status-msg.success { color: var(--color-status-success, #00ffaa); }
 
   .copyright {
     font-size: 0.8rem;

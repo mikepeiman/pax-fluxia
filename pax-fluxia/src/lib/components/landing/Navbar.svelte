@@ -11,7 +11,7 @@
       <a href="#community" class="link">COMMUNITY</a>
     </div>
     <button class="btn btn--secondary btn--glow" onclick={onPlay}>
-      JOIN ALPHA
+      PLAY NOW
     </button>
   </div>
 </nav>
