@@ -32,3 +32,7 @@ export {
 } from './morphUtils';
 
 export { mergeSameOwnerCells } from './mergeUtils';
+
+export {
+    applyMinStarMargin, smoothSharpVertices, applyDisconnectBuffer,
+} from './geometryModifiers';

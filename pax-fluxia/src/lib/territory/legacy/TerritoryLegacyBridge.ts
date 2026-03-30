@@ -24,9 +24,10 @@ import type { ColorUtils } from '$lib/renderers/RenderContext';
 import { runFG2DataPipeline, extractCanonicalData } from '$lib/territory/orchestrator';
 
 export type LegacyStyleId =
-    | 'territory_engine'   // Old DY4 pipeline — SACROSANCT, do not alter
+    | 'territory_engine'   // Old DY4 pipeline — canonical default, do not alter
     | 'vs_pvv3'            // PVV3 vector stroke
     | 'power_voronoi'      // PVV2 power voronoi
+    | 'modified_voronoi'   // F-138: merged cells + arc smooth + star margin + DX
     | 'distance_field'     // GPU distance field
     | 'voronoi'
     | 'metaball'
@@ -104,6 +105,12 @@ export async function renderLegacyStyle(input: LegacyBridgeInput): Promise<boole
             const { renderDistanceFieldTerritory } = await import('$lib/renderers/DistanceFieldTerritoryRenderer');
             renderDistanceFieldTerritory(stars, container, colorUtils,
                 worldWidth, worldHeight, connections, renderer);
+            return true;
+        }
+
+        case 'modified_voronoi': {
+            const { renderModifiedVoronoi } = await import('$lib/renderers/ModifiedVoronoiRenderer');
+            renderModifiedVoronoi(stars, container, colorUtils, worldWidth, worldHeight, connections);
             return true;
         }
 

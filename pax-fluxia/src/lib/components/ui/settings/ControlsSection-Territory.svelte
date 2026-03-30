@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
     import { GAME_CONFIG } from "$lib/config/game.config";
     import {
         TERRITORY_PIPELINE_STAGE_ORDER,
@@ -256,6 +256,7 @@
         { id: "territory_engine", label: "Legacy Engine Router (DY4)" },
         { id: "vs_pvv3", label: "Legacy PVV3 Frontier Style" },
         { id: "power_voronoi", label: "Legacy PVV2 Weighted Voronoi" },
+        { id: "modified_voronoi", label: "F-138 Modified Voronoi (Arc+Margin+DX)" },
         { id: "distance_field", label: "Legacy Signed-Distance Field" },
         { id: "metaball", label: "Legacy Metaball Style" },
         { id: "pixel", label: "Legacy Pixel-Quantized Style" },
@@ -292,6 +293,7 @@
     const STYLE_TO_BOOLEAN: Record<string, string> = {
         vs_pvv3: "territoryPVV3",
         power_voronoi: "territoryPowerVoronoi",
+        modified_voronoi: "territoryModifiedVoronoi",
         distance_field: "territoryDistanceField",
         voronoi: "territoryVoronoi",
         metaball: "territoryMetaball",
